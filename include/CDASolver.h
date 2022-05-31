@@ -781,7 +781,7 @@ class CDASolver : public Solver {
 
  [[nodiscard]] double get_dflt_dbl_par( idx_type par ) const override {
   if(( par == dblRAccDSol ) || ( par == dblAAccDSol ) )
-   return( std::numeric_limits< double >::infinity() );
+   return( Inf< double >() );
 
   if( par == dblFAccDSol )
    return( 0 );

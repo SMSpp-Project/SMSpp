@@ -163,6 +163,17 @@ public:
 /** @name Reading the data of the BendersBlock
     @{ */
 
+ /// returns the sense of the Objective of this BendersBlock
+ /** This function returns the sense of the Objective of this BendersBlock.
+  *
+  * @return the sense of the Objective of this BendersBlock. */
+
+ int get_objective_sense() const override {
+  return objective.get_sense();
+ }
+
+/*--------------------------------------------------------------------------*/
+
  /// Return the number of Variable of this BendersBlock
  /** This function returns the number of Variable of this BendersBlock.
   *

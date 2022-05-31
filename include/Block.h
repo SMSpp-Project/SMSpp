@@ -896,7 +896,7 @@ class Block : public Observer {
   *   "filename mangling" to specify that parameter as follows:
   *
   *     * if \p filename ends with "[X].txt", 'X' any single character, then
-  *       only the part of \p filename preceeding the '[' is passed as the
+  *       only the part of \p filename preceding the '[' is passed as the
   *       filename argument of load(), while 'X' is passed as the \p frmt
   *       argument (note that this excises ".txt" as well);
   *
@@ -931,7 +931,7 @@ class Block : public Observer {
   *
   * Note that the method is static, hence it is to be called as
   *
-  *       auto myBlock = Block::deserialize( somefile [ , father ] );
+  *      auto myBlock = Block::deserialize( some_file [ , father ] );
   *
   * i.e., without any reference to any specific Block (and, therefore, it can
   * be used to construct the very first Block if needed, in which case there
@@ -1085,7 +1085,7 @@ class Block : public Observer {
   * has been constructed, which has necessarily already happened when this
   * method is called, the value is irrelevant. The only thing that could be
   * done with the value inside this method would be to check if "type" agrees
-  * with classname() and throw exception otherwise. Kowever, derived classes
+  * with classname() and throw exception otherwise. However, derived classes
   * are free to do that if they so choose. Indeed, note that a potential
   * issue would seem to be the case where Block2 could derive from Block1;
   * then, Block2::deserialize() would typically call Block1::deserialize()
@@ -1208,7 +1208,7 @@ class Block : public Observer {
   *
   *   Finally, the thusly load()-ed newly constructed :Block is returned.
   *
-  *   Note that in the first case (filename preceeded by '*') only the
+  *   Note that in the first case (filename preceded by '*') only the
   *   filename is extracted from \p input, while in the second case the
   *   whole description of the :Block is. Furthermore, by calling
   *   load( std::string & ) the first case directly supports the case where
@@ -1249,7 +1249,7 @@ class Block : public Observer {
  * the entity releases the lock, no other entity can take it. This means that
  * not only no other entity is allowed to modify the Block, but that even
  * reading the Block data is unadvisable, in that it can be modified at any
- * time by the other entity, which easily leads to data inconsitencies.
+ * time by the other entity, which easily leads to data inconsistencies.
  *
  * Note that sub-Block are "a part of the Block"; this means that locking a
  * Block implies locking all its sub-Block, recursively. In turn, this implies
@@ -1304,7 +1304,7 @@ class Block : public Observer {
  *   Indeed, if it runs in a different thread it can just "go to sleep on
  *   the mutex" (that the Block provides) and be automatically woken up when
  *   the current owner relinquishes the lock; in other words, the lock
- *   operation always eventually suceeds. However, if it runs in the same
+ *   operation always eventually succeeds. However, if it runs in the same
  *   thread this cannot happen, which means that the lock operation may
  *   have to explicitly fail.
  *
@@ -1375,7 +1375,7 @@ class Block : public Observer {
   *
   *     bool owned = block->is_owned_by( me );
   *     if( ( ! owned ) && ( ! block->lock( me ) ) )
-  *      < something happens, typcally a disaster >
+  *      < something happens, typically a disaster >
   *
   *     < block is mine, do whatever I want with it >
   *
@@ -1390,7 +1390,7 @@ class Block : public Observer {
   *
   *     bool owned = block->is_owned_by( me );
   *     if( ( ! owned ) && ( ! block->read_lock() ) )
-  *      < something happens, typcally a disaster >
+  *      < something happens, typically a disaster >
   *
   *     < block is mine, surely at least to read >
   *
@@ -1431,7 +1431,7 @@ class Block : public Observer {
   * there is no way for an external entity to know the owner's identity
   * before the call and therefore "impersonate" it.
   *
-  * If "owner" is already the owner, the operation surely suceeds at almost
+  * If "owner" is already the owner, the operation surely succeeds at almost
   * zero cost. This in particular means that
   *
   *     TWO LOCK OF ONE Block BY THE SAME OWNER EFFECTIVELY ARE ONE SINGLE
@@ -1443,7 +1443,7 @@ class Block : public Observer {
   * it must coordinate locking of Block between its threads on its own; in
   * particular, it should never happen that a thread is unlocking the Block
   * for a given owner while another thread is locking it for the same
-  * owner, because in this case the lock may suceed but the Block may end
+  * owner, because in this case the lock may succeed but the Block may end
   * up being unlocked.
   *
   * It is also important to remark that
@@ -1466,7 +1466,7 @@ class Block : public Observer {
   * fails if the owner's thread of the first encountered sub-Block that is
   * already owned is the same as the thread making the call, unless the owner
   * is "owner" already. In this case, all the sub-Block that had been
-  * tentatively locked during the unsuccessfull attempt are immediately
+  * tentatively locked during the unsuccessful attempt are immediately
   * unlocked. If, instead, the owner's thread of the first already owned
   * sub-Block is different from the thread making the call (and the owner is
   * not "owner"), then lock() goes to sleep until that sub-Block is unlocked
@@ -1479,7 +1479,7 @@ class Block : public Observer {
   * thread locking of one of its sub-trees, but that the locking of the
   * sub-tree cannot be itself stalled (if not by a locking of a
   * sub-sub-tree). In other words, the "inner" locking sweep between all
-  * the active ones will surely suceed withouh being stalled by the others,
+  * the active ones will surely succeed without being stalled by the others,
   * which ensures that there will be no deadlock between concurrent locking
   * operations. This always work provided that
   *
@@ -1501,14 +1501,14 @@ class Block : public Observer {
   *     NO ADDITIONAL MECHANISM IS REQUIRED IF B1 AND B2 ARE BOTH DESCENDANTS
   *     OF THE SAME BLOCK B, AND BOTH ENTITIES TRY TO OWN B DIRECTLY
   *
-  * In fact, one of the two will surely suceed. Hence, it is always safe to
+  * In fact, one of the two will surely succeed. Hence, it is always safe to
   * lock a subset of Block by locking their (say) nearest common ancestor, if
   * any exists.
   *
   * In most cases, there should be no reason for derived classes to mess
   * up with this mechanism. However, some :Block may have nonstandard
   * behavior, e.g. about how they store their sub-Block, and therefore for
-  * maximal flexibility this methos is virtual. */
+  * maximal flexibility this method is virtual. */
 
  virtual bool lock( const void * owner ) {
   if( ( ! owner ) || ( owner == ReadOnlyLock() ) ||
@@ -1534,7 +1534,7 @@ class Block : public Observer {
      return( true );                                   // all done
      }
 
-    // it was not possiblt to lock all the sub-Block;
+    // it was not possible to lock all the sub-Block;
     f_owner = nullptr;  // release ownership of the Block
     f_mutex.unlock();   // release the mutex
     return( false );    // failed to lock the Block
@@ -1578,7 +1578,7 @@ class Block : public Observer {
        else
 	if( current_owner == v_ownersLock() )  // v_owner was active-locked
 	 continue;                             // repeat until access granted
-       // else, a read-write lock suceeded in sneaking in: however, this
+       // else, a read-write lock succeeded in sneaking in: however, this
        // read-write lock cannot possibly be running in the same thread, so
        // it's still OK to go to sleep on the mutex without further checks
        break;
@@ -1600,7 +1600,7 @@ class Block : public Observer {
      f_mutex.lock();  // first of all, lock the mutex
      // one expects the mutex to be locked, so that the thread will go to
      // sleep; in the weird case where the entity having taken ownership of
-     // the Block has not suceeded to lock the mutex already, the next step
+     // the Block has not succeeded to lock the mutex already, the next step
      // of trying to get ownership of the Block will fail immediately, the
      // mutex will be released and a new attempt will be made
 
@@ -1613,7 +1613,7 @@ class Block : public Observer {
        return( true );                                  // all done
        }
 
-      // it was not possiblt to lock all the sub-Block;
+      // it was not possible to lock all the sub-Block;
       f_owner = nullptr;  // release ownership of the Block
       f_mutex.unlock();   // release the mutex
       return( false );    // failed to lock the Block
@@ -1658,7 +1658,7 @@ class Block : public Observer {
   * In most cases, there should be no reason for derived classes to mess up
   * with this mechanism. However, some :Block may have nonstandard behavior,
   * e.g. about how they store their sub-Block, and therefore for maximal
-  * flexibility this methos is virtual. */
+  * flexibility this method is virtual. */
 
  virtual void unlock( const void * owner ) {
   if( ( ! owner ) || ( owner == ReadOnlyLock() ) ||
@@ -1701,7 +1701,7 @@ class Block : public Observer {
   * In most cases, there should be no reason for derived classes to mess
   * up with this mechanism. However, some :Block may have nonstandard
   * behavior, e.g. about how they store their sub-Block, and therefore for
-  * maximal flexibility this methos is virtual. */
+  * maximal flexibility this method is virtual. */
 
  virtual bool read_lock( void ) {
   for( ; ; ) {  // this may have to be repeated many times
@@ -1752,7 +1752,7 @@ class Block : public Observer {
        f_owner = ReadOnlyLock();
 
        // note that there is no need to lock the mutex, since it's been
-       // locked already by the first successfull read-lock
+       // locked already by the first successful read-lock
 
        // try to read-lock all sub-Block and return the success of the
        // operation; upon failure, also read-unlock the Block
@@ -1761,7 +1761,7 @@ class Block : public Observer {
       else
        if( current_owner == v_ownersLock() )  // v_owner was active-locked
 	continue;                             // repeat until access granted
-       else  // a different owner suceeded in sneaking in
+       else  // a different owner succeeded in sneaking in
 	break;
       }  // end( for( ever ) )
      }  // end( if( was read-locked already ) )
@@ -1804,7 +1804,7 @@ class Block : public Observer {
   * In most cases, there should be no reason for derived classes to mess
   * up with this mechanism. However, some :Block may have nonstandard
   * behavior, e.g. about how they store their sub-Block, and therefore for
-  * maximal flexibility this methos is virtual. */
+  * maximal flexibility this method is virtual. */
 
  virtual void read_unlock( void ) {
   if( ( f_owner != ReadOnlyLock() ) && ( f_owner != v_ownersLock() ) )
@@ -2397,9 +2397,8 @@ class Block : public Observer {
   * exception is thrown. */
 
  template< class Obj >
- Obj * get_objective( void ) const {
-  static_assert( std::is_base_of< Objective, Obj >::value,
-                 "get_objective: Obj must inherit from Objective" );
+ std::enable_if_t< std::is_base_of_v< Objective , Obj > , Obj * >
+ get_objective( void ) const {
   auto obj = dynamic_cast< Obj * >( f_Objective );
   if( ! obj )
    throw( std::invalid_argument(
@@ -2811,109 +2810,103 @@ class Block : public Observer {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// template method to get a "simple" static Constraint by index
- /** This method, template over the class Cnst (which must derive from
+ /** This method, template over the class Const (which must derive from
   * Constraint), extracts the i-th static constraint group, which is supposed
-  * to be a simple Cnst *, and returns it. If anything goes wrong, nullptr is
+  * to be a simple Const *, and returns it. If anything goes wrong, nullptr is
   * returned. */
 
- template< class Cnst >
- Cnst * get_static_constraint( Index i ) const {
-  static_assert( std::is_base_of< Constraint , Cnst >::value,
-                 "get_static_constraint: Cnst must inherit from Constraint" );
+ template< class Const >
+ std::enable_if_t< std::is_base_of_v< Constraint , Const > , Const * >
+ get_static_constraint( Index i ) const {
   if( i >= v_s_Constraint.size() )
    return( nullptr );
-  return( boost::any_cast< Cnst * >( v_s_Constraint[ i ] ) );
+  return( boost::any_cast< Const * >( v_s_Constraint[ i ] ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// template method to get a "simple" static Constraint by name
- /** This method, template over the class Cnst (which must derive from
+ /** This method, template over the class Const (which must derive from
   * Constraint), extracts the constraint group with given \p name, which is
-  * supposed to be a simple Cnst *, and returns it. If anything goes wrong,
+  * supposed to be a simple Const *, and returns it. If anything goes wrong,
   * nullptr is returned. */
 
- template< class Cnst >
- Cnst * get_static_constraint( const std::string & name ) const {
-  static_assert( std::is_base_of< Constraint , Cnst >::value,
-                 "get_static_constraint: Cnst must inherit from Constraint" );
+ template< class Const >
+ std::enable_if_t< std::is_base_of_v< Constraint , Const > , Const * >
+ get_static_constraint( const std::string & name ) const {
   auto it = std::find( v_s_Constraint_names.begin(),
                        v_s_Constraint_names.end(), name );
   if( it == v_s_Constraint_names.end() )
    return( nullptr );
-  return( boost::any_cast< Cnst * >(
+  return( boost::any_cast< Const * >(
    v_s_Constraint[ std::distance( v_s_Constraint_names.begin(), it ) ] ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// template method to get a (static) std::vector of Constraint by index
- /** This method, template over the class Cnst (which must derive from
+ /** This method, template over the class Const (which must derive from
   * Constraint), extracts the i-th static constraint group, which is supposed
-  * to be a std::vector< Cnst > *, and returns it. If anything goes wrong,
+  * to be a std::vector< Const > *, and returns it. If anything goes wrong,
   * nullptr is returned. */
 
- template< class Cnst >
- std::vector< Cnst > * get_static_constraint_v( Index i ) const {
-  static_assert( std::is_base_of< Constraint , Cnst >::value,
-                 "get_static_constraint_v: Cnst must inherit from Constraint" );
+ template< class Const >
+ std::enable_if_t< std::is_base_of_v< Constraint , Const > ,
+  std::vector< Const > * > get_static_constraint_v( Index i ) const {
   if( i >= v_s_Constraint.size() )
    return( nullptr );
-  return( boost::any_cast< std::vector< Cnst > * >( v_s_Constraint[ i ] ) );
+  return( boost::any_cast< std::vector< Const > * >( v_s_Constraint[ i ] ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// template method to get a (static) std::vector of Constraint by name
- /** This method, template over the class Cnst (which must derive from
+ /** This method, template over the class Const (which must derive from
   * Constraint), extracts the constraint group with given \p name, which is
-  * supposed to be a std::vector< Cnst > *, and returns it. If anything goes
+  * supposed to be a std::vector< Const > *, and returns it. If anything goes
   * wrong, nullptr is returned. */
 
- template< class Cnst >
- std::vector< Cnst > * get_static_constraint_v( const std::string & name )
- const {
-  static_assert( std::is_base_of< Constraint , Cnst >::value,
-                 "get_static_constraint_v: Cnst must inherit from Constraint" );
+ template< class Const >
+ std::enable_if_t< std::is_base_of_v< Constraint , Const > ,
+  std::vector< Const > * >
+ get_static_constraint_v( const std::string & name ) const {
   auto it = std::find( v_s_Constraint_names.begin(),
                        v_s_Constraint_names.end(), name );
   if( it == v_s_Constraint_names.end() )
    return( nullptr );
-  return( boost::any_cast< std::vector< Cnst > * >(
+  return( boost::any_cast< std::vector< Const > * >(
    v_s_Constraint[ std::distance( v_s_Constraint_names.begin(), it ) ] ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method to get a (static) boost::multi_array of Constraint by index
- /** This method, template over the class Cnst (which must derive from
+ /** This method, template over the class Const (which must derive from
   * Constraint) and the integer K, extracts the i-th static constraint group,
-  * which is supposed to be a boost::multi_array< Cnst , K > *, and returns
+  * which is supposed to be a boost::multi_array< Const , K > *, and returns
   * it. If anything goes wrong, nullptr is returned. */
 
- template< class Cnst, unsigned short K >
- boost::multi_array< Cnst, K > * get_static_constraint( Index i ) const {
-  static_assert( std::is_base_of< Constraint, Cnst >::value,
-                 "get_static_constraint: Cnst must inherit from Constraint" );
+ template< class Const , unsigned short K >
+ std::enable_if_t< std::is_base_of_v< Constraint , Const > ,
+  boost::multi_array< Const , K > * > get_static_constraint( Index i ) const {
   if( i >= v_s_Constraint.size() )
    return( nullptr );
-  return( boost::any_cast< boost::multi_array< Cnst , K > * >(
+  return( boost::any_cast< boost::multi_array< Const , K > * >(
                                                     v_s_Constraint[ i ] ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method to get a (static) boost::multi_array of Constraint by name
- /** This method, template over the class Cnst (which must derive from
+ /** This method, template over the class Const (which must derive from
   * Constraint) and the integer K, extracts the static constraint group with
-  * given \p name, which is supposed to be a boost::multi_array< Cnst , K > *,
+  * given \p name, which is supposed to be a boost::multi_array< Const , K > *,
   * and returns it. If anything goes wrong, nullptr is returned. */
 
- template< class Cnst, unsigned short K >
- boost::multi_array< Cnst, K > * get_static_constraint(
-  const std::string & name ) const {
-  static_assert( std::is_base_of< Constraint , Cnst >::value,
-                 "get_static_constraint: Cnst must inherit from Constraint" );
+ template< class Const , unsigned short K >
+ std::enable_if_t< std::is_base_of_v< Constraint , Const > ,
+  boost::multi_array< Const , K > * >
+ get_static_constraint( const std::string & name ) const {
   auto it = std::find( v_s_Constraint_names.begin(),
                        v_s_Constraint_names.end(), name );
   if( it == v_s_Constraint_names.end() )
    return( nullptr );
-  return( boost::any_cast< boost::multi_array< Cnst, K > * >(
+  return( boost::any_cast< boost::multi_array< Const , K > * >(
    v_s_Constraint[ std::distance( v_s_Constraint_names.begin(), it ) ] ) );
   }
 
@@ -2994,9 +2987,8 @@ class Block : public Observer {
   * returned. */
 
  template< class Var >
- Var * get_static_variable( Index i ) const {
-  static_assert( std::is_base_of< Variable , Var >::value,
-                 "get_static_variable: Var must inherit from Variable" );
+ std::enable_if_t< std::is_base_of_v< Variable, Var > , Var * >
+ get_static_variable( Index i ) const {
   if( i >= v_s_Variable.size() )
    return( nullptr );
   return( boost::any_cast< Var * >( v_s_Variable[ i ] ) );
@@ -3010,9 +3002,8 @@ class Block : public Observer {
   * nullptr is returned. */
 
  template< class Var >
- Var * get_static_variable( const std::string & name ) const {
-  static_assert( std::is_base_of< Variable , Var >::value,
-                 "get_static_variable: Var must inherit from Variable" );
+ std::enable_if_t< std::is_base_of_v< Variable, Var > , Var * >
+ get_static_variable( const std::string & name ) const {
   auto it = std::find( v_s_Variable_names.begin() ,
                        v_s_Variable_names.end() , name );
   if( it == v_s_Variable_names.end() )
@@ -3029,9 +3020,8 @@ class Block : public Observer {
   * nullptr is returned. */
 
  template< class Var >
- std::vector< Var > * get_static_variable_v( Index i ) const {
-  static_assert( std::is_base_of< Variable , Var >::value,
-                 "get_static_variable_v: Var must inherit from Variable" );
+ std::enable_if_t< std::is_base_of_v< Variable, Var > ,
+  std::vector< Var > * > get_static_variable_v( Index i ) const {
   if( i >= v_s_Variable.size() )
    return( nullptr );
   return( boost::any_cast< std::vector< Var > * >( v_s_Variable[ i ] ) );
@@ -3045,9 +3035,8 @@ class Block : public Observer {
   * goes wrong, nullptr is returned. */
 
  template< class Var >
- std::vector< Var > * get_static_variable_v( const std::string & name ) const {
-  static_assert( std::is_base_of< Variable , Var >::value,
-                 "get_static_variable_v: Var must inherit from Variable" );
+ std::enable_if_t< std::is_base_of_v< Variable , Var > , std::vector< Var > * >
+ get_static_variable_v( const std::string & name ) const {
   auto it = std::find( v_s_Variable_names.begin() ,
                        v_s_Variable_names.end() , name );
   if( it == v_s_Variable_names.end() )
@@ -3063,10 +3052,10 @@ class Block : public Observer {
   * which is supposed to be a boost::multi_array< Var , K > *, and returns
   * it. If anything goes wrong, nullptr is returned. */
 
- template< class Var, unsigned short K >
- boost::multi_array< Var, K > * get_static_variable( Index i ) const {
-  static_assert( std::is_base_of< Variable , Var >::value,
-                 "get_static_variable: Var must inherit from Variable" );
+ template< class Var , unsigned short K >
+ std::enable_if_t< std::is_base_of_v< Variable , Var > ,
+  boost::multi_array< Var , K > * >
+ get_static_variable( Index i ) const {
   if( i >= v_s_Variable.size() )
    return( nullptr );
   return( boost::any_cast< boost::multi_array< Var, K > * >(
@@ -3080,11 +3069,10 @@ class Block : public Observer {
   * given \p name, which is supposed to be a boost::multi_array< Var , K > *,
   * and returns it. If anything goes wrong, nullptr is returned. */
 
- template< class Var, unsigned short K >
- boost::multi_array< Var, K > * get_static_variable(
-  const std::string & name ) const {
-  static_assert( std::is_base_of< Variable , Var >::value,
-                 "get_static_variable: Var must inherit from Variable" );
+ template< class Var , unsigned short K >
+ std::enable_if_t< std::is_base_of_v< Variable, Var > ,
+  boost::multi_array< Var , K > * >
+ get_static_variable( const std::string & name ) const {
   auto it = std::find( v_s_Variable_names.begin() ,
                        v_s_Variable_names.end() , name );
   if( it == v_s_Variable_names.end() )
@@ -3142,7 +3130,7 @@ class Block : public Observer {
   * cannot be const (a size-cons, contents-mutable array should be used,
   * which is possible but just too complicated at this point).
   *
-  * The rationale of the structure is that the lists can be indiced over (in
+  * The rationale of the structure is that the lists can be indexed over (in
   * principle) as many indices ad one wants, but each element of the list is
   * a *single Constraint*. If the user needs to have multi-dimensional
   * dynamic Constraints (say, c[ i ] with a dynamic index "i" where each
@@ -3193,113 +3181,108 @@ class Block : public Observer {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// template method to get a "simple" dynamic Constraint by index
- /** This method, template over the class Cnst (which must derive from
+ /** This method, template over the class Const (which must derive from
   * Constraint), extracts the i-th dynamic constraint group, which is
-  * supposed to be a std::list< Cnst > *, and returns it. If anything goes
+  * supposed to be a std::list< Const > *, and returns it. If anything goes
   * wrong, nullptr is returned. */
 
- template< class Cnst >
- std::list< Cnst > * get_dynamic_constraint( Index i ) const {
-  static_assert( std::is_base_of< Constraint , Cnst >::value,
-                 "get_dynamic_constraint: Cnst must inherit from Constraint" );
+ template< class Const >
+ std::enable_if_t< std::is_base_of_v< Constraint , Const > ,
+  std::list< Const > * > get_dynamic_constraint( Index i ) const {
   if( i >= v_d_Constraint.size() )
    return( nullptr );
-  return( boost::any_cast< std::list< Cnst > * >( v_d_Constraint[ i ] ) );
+  return( boost::any_cast< std::list< Const > * >( v_d_Constraint[ i ] ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// template method to get a "simple" dynamic Constraint by name
- /** This method, template over the class Cnst (which must derive from
+ /** This method, template over the class Const (which must derive from
   * Constraint), extracts the i-th dynamic constraint group, which is
-  * supposed to be a std::list< Cnst > *, and returns it. If anything goes
+  * supposed to be a std::list< Const > *, and returns it. If anything goes
   * wrong, nullptr is returned. */
 
- template< class Cnst >
- std::list< Cnst > * get_dynamic_constraint( const std::string & name ) const {
-  static_assert( std::is_base_of< Constraint , Cnst >::value,
-                 "get_dynamic_constraint: Cnst must inherit from Constraint" );
+ template< class Const >
+ std::enable_if_t< std::is_base_of_v< Constraint , Const > ,
+  std::list< Const > * >
+ get_dynamic_constraint( const std::string & name ) const {
   auto it = std::find( v_d_Constraint_names.begin() ,
                        v_d_Constraint_names.end() , name );
   if( it == v_d_Constraint_names.end() )
    return( nullptr );
-  return( boost::any_cast< std::list< Cnst > * >(
+  return( boost::any_cast< std::list< Const > * >(
    v_d_Constraint[ std::distance( v_d_Constraint_names.begin(), it ) ] ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// template method to get a std::vector of dynamic Constraint by index
- /** This method, template over the class Cnst (which must derive from
+ /** This method, template over the class Const (which must derive from
  * Constraint), extracts the i-th dynamic constraint group, which is supposed
- * to be a std::vector< std::list< Cnst > > *, and returns it. If anything
+ * to be a std::vector< std::list< Const > > *, and returns it. If anything
  * goes wrong, nullptr is returned. */
 
- template< class Cnst >
- std::vector< std::list< Cnst > > * get_dynamic_constraint_v( Index i )
- const {
-  static_assert( std::is_base_of< Constraint , Cnst >::value,
-             "get_dynamic_constraint_v: Cnst must inherit from Constraint" );
+ template< class Const >
+ std::enable_if_t< std::is_base_of_v< Constraint , Const > ,
+  std::vector< std::list< Const > > * >
+ get_dynamic_constraint_v( Index i ) const {
   if( i >= v_d_Constraint.size() )
    return( nullptr );
-  return( boost::any_cast< std::vector< std::list< Cnst > > * >(
+  return( boost::any_cast< std::vector< std::list< Const > > * >(
                                                      v_d_Constraint[ i ] ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// template method to get a std::vector of dynamic Constraint by name
- /** This method, template over the class Cnst (which must derive from
+ /** This method, template over the class Const (which must derive from
  * Constraint), extracts the dynamic constraint group with given \p name,
- * which is supposed to be a std::vector< std::list< Cnst > > *, and returns
+ * which is supposed to be a std::vector< std::list< Const > > *, and returns
  * it. If anything goes wrong, nullptr is returned. */
 
- template< class Cnst >
- std::vector< std::list< Cnst > > * get_dynamic_constraint_v(
-  const std::string & name ) const {
-  static_assert( std::is_base_of< Constraint , Cnst >::value,
-              "get_dynamic_constraint_v: Cnst must inherit from Constraint" );
+ template< class Const >
+ std::enable_if_t< std::is_base_of_v< Constraint , Const > ,
+  std::vector< std::list< Const > > * >
+ get_dynamic_constraint_v( const std::string & name ) const {
   auto it = std::find( v_d_Constraint_names.begin() ,
                        v_d_Constraint_names.end() , name );
   if( it == v_d_Constraint_names.end() )
    return( nullptr );
-  return( boost::any_cast< std::vector< std::list< Cnst > > * >(
+  return( boost::any_cast< std::vector< std::list< Const > > * >(
    v_d_Constraint[ std::distance( v_d_Constraint_names.begin(), it ) ] ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method to get a boost::multi_array of dynamic Constraint by index
- /** This method, template over the class Cnst (which must derive from
+ /** This method, template over the class Const (which must derive from
   * Constraint) and the integer K, extracts the i-th dynamic constraint group,
-  * which is supposed to be a boost::multi_array< std::list< Cnst > , K > *,
+  * which is supposed to be a boost::multi_array< std::list< Const > , K > *,
   * and returns it. If anything goes wrong, nullptr is returned. */
 
- template< class Cnst, unsigned short K >
- boost::multi_array< std::list< Cnst > , K > * get_dynamic_constraint(
-							    Index i ) const {
-  static_assert( std::is_base_of< Constraint, Cnst >::value,
-                "get_dynamic_constraint: Cnst must inherit from Constraint" );
+ template< class Const , unsigned short K >
+ std::enable_if_t< std::is_base_of_v< Constraint , Const > ,
+  boost::multi_array< std::list< Const > , K > * >
+ get_dynamic_constraint( Index i ) const {
   if( i >= v_d_Constraint.size() )
    return( nullptr );
-  return( boost::any_cast< boost::multi_array< std::list< Cnst > , K > * >(
+  return( boost::any_cast< boost::multi_array< std::list< Const > , K > * >(
 						     v_d_Constraint[ i ] ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method to get a boost::multi_array of dynamic Constraint by name
- /** This method, template over the class Cnst (which must derive from
+ /** This method, template over the class Const (which must derive from
   * Constraint) and the integer K, extracts the dynamic constraint group
   * with given \p name, which is supposed to be a
-  * boost::multi_array< std::list< Cnst > , K > *, and returns it. If
+  * boost::multi_array< std::list< Const > , K > *, and returns it. If
   * anything goes wrong, nullptr is returned. */
 
- template< class Cnst, unsigned short K >
- boost::multi_array< std::list< Cnst > , K > * get_dynamic_constraint(
-					   const std::string & name ) const {
-  static_assert( std::is_base_of< Constraint, Cnst >::value,
-               "get_dynamic_constraint: Cnst must inherit from Constraint" );
+ template< class Const , unsigned short K >
+ std::enable_if_t< std::is_base_of_v< Constraint , Const > ,
+  boost::multi_array< std::list< Const > , K > * >
+ get_dynamic_constraint( const std::string & name ) const {
   auto it = std::find( v_d_Constraint_names.begin() ,
                        v_d_Constraint_names.end() , name );
   if( it == v_d_Constraint_names.end() )
    return( nullptr );
-  return( boost::any_cast< boost::multi_array< std::list< Cnst > , K > * >(
+  return( boost::any_cast< boost::multi_array< std::list< Const > , K > * >(
    v_d_Constraint[ std::distance( v_d_Constraint_names.begin() , it ) ] ) );
   }
 
@@ -3352,7 +3335,7 @@ class Block : public Observer {
   * cannot be const (a size-cons, contents-mutable array should be used,
   * which is possible but just too complicated at this point).
   *
-  * The rationale of the structure is that the lists can be indiced over (in
+  * The rationale of the structure is that the lists can be indexed over (in
   * principle) as many indices ad one wants, but each element of the list is
   * a *single Variable*. If the user needs to have multi-dimensional dynamic
   * Variable (say, x[ i ] with a dynamic index "i" where each x[ i ] is a
@@ -3408,9 +3391,8 @@ class Block : public Observer {
   * nullptr is returned. */
 
  template< class Var >
- std::list< Var > * get_dynamic_variable( Index i ) const {
-  static_assert( std::is_base_of< Variable , Var >::value,
-                 "get_dynamic_variable: Var must inherit from Variable" );
+ std::enable_if_t< std::is_base_of_v< Variable , Var > , std::list< Var > * >
+ get_dynamic_variable( Index i ) const {
   if( i >= v_d_Variable.size() )
    return( nullptr );
   return( boost::any_cast< std::list< Var > * >( v_d_Variable[ i ] ) );
@@ -3424,9 +3406,8 @@ class Block : public Observer {
   * anything goes wrong, nullptr is returned. */
 
  template< class Var >
- std::list< Var > * get_dynamic_variable( const std::string & name ) const {
-  static_assert( std::is_base_of< Variable , Var >::value,
-                 "get_dynamic_variable: Var must inherit from Variable" );
+ std::enable_if_t< std::is_base_of_v< Variable, Var > , std::list< Var > * >
+ get_dynamic_variable( const std::string & name ) const {
   auto it = std::find( v_d_Variable_names.begin() ,
                        v_d_Variable_names.end() , name );
   if( it == v_d_Variable_names.end() )
@@ -3443,10 +3424,9 @@ class Block : public Observer {
   * wrong, nullptr is returned. */
 
  template< class Var >
- std::vector< std::list< Var > > * get_dynamic_variable_v( Index i )
- const {
-  static_assert( std::is_base_of< Variable , Var >::value,
-                 "get_dynamic_variable_v: Var must inherit from Variable" );
+ std::enable_if_t< std::is_base_of_v< Variable , Var > ,
+  std::vector< std::list< Var > > * >
+ get_dynamic_variable_v( Index i ) const {
   if( i >= v_d_Variable.size() )
    return( nullptr );
   return( boost::any_cast< std::vector< std::list< Var > > * >(
@@ -3461,10 +3441,9 @@ class Block : public Observer {
   * anything goes wrong, nullptr is returned. */
 
  template< class Var >
- std::vector< std::list< Var > > * get_dynamic_variable_v(
-  const std::string & name ) const {
-  static_assert( std::is_base_of< Variable , Var >::value,
-                 "get_dynamic_variable_v: Var must inherit from Variable" );
+ std::enable_if_t< std::is_base_of_v< Variable , Var > ,
+  std::vector< std::list< Var > > * >
+ get_dynamic_variable_v( const std::string & name ) const {
   auto it = std::find( v_d_Variable_names.begin() ,
                        v_d_Variable_names.end() , name );
   if( it == v_d_Variable_names.end() )
@@ -3481,10 +3460,9 @@ class Block : public Observer {
   * and returns it. If anything goes wrong, nullptr is returned. */
 
  template< class Var , unsigned short K >
- boost::multi_array< std::list< Var > , K > * get_dynamic_variable(
-							   Index i ) const {
-  static_assert( std::is_base_of< Variable , Var >::value ,
-                 "get_dynamic_variable: Var must inherit from Variable" );
+ std::enable_if_t< std::is_base_of_v< Variable , Var > ,
+  boost::multi_array< std::list< Var > , K > * >
+ get_dynamic_variable( Index i ) const {
   if( i >= v_d_Variable.size() )
    return( nullptr );
   return( boost::any_cast< boost::multi_array< std::list< Var > , K > * >(
@@ -3500,10 +3478,9 @@ class Block : public Observer {
   * anything goes wrong, nullptr is returned. */
 
  template< class Var , unsigned short K >
- boost::multi_array< std::list< Var > , K > * get_dynamic_variable(
-					  const std::string & name ) const {
-  static_assert( std::is_base_of< Variable , Var >::value ,
-                 "get_dynamic_variable: Var must inherit from Variable" );
+ std::enable_if_t< std::is_base_of_v< Variable , Var > ,
+  boost::multi_array< std::list< Var > , K > * >
+ get_dynamic_variable( const std::string & name ) const {
   auto it = std::find( v_d_Variable_names.begin() ,
                        v_d_Variable_names.end() , name );
   if( it == v_d_Variable_names.end() )
@@ -3670,9 +3647,10 @@ class Block : public Observer {
   * described in Observer::make_par(). */
 
  template< class Const >
- void add_dynamic_constraints( std::list< Const > & list ,
-                               std::list< Const > & newlist ,
-                               ModParam issueMod = eModBlck );
+ std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
+ add_dynamic_constraints( std::list< Const > & list ,
+                          std::list< Const > & newlist ,
+                          ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// adds a bunch of new Variable at the end of the given list
@@ -3697,9 +3675,10 @@ class Block : public Observer {
   * described in Observer::make_par(). */
 
  template< class Var >
- void add_dynamic_variables( std::list< Var > & list ,
-                             std::list< Var > & newlist ,
-                             ModParam issueMod = eModBlck );
+ std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
+ add_dynamic_variables( std::list< Var > & list ,
+                        std::list< Var > & newlist ,
+                        ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// removes a bunch of Constraint from the given list
@@ -3772,17 +3751,21 @@ class Block : public Observer {
   * BlockModRmv. */
 
  template< class Const >
- void remove_dynamic_constraints( std::list< Const > & list ,
-	    std::vector< typename std::list< Const >::iterator > & rmvd ,
-				  ModParam issueMod = eModBlck );
+ std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
+ remove_dynamic_constraints( std::list< Const > & list ,
+                             std::vector< typename
+                                          std::list< Const >::iterator
+                                          > & rmvd ,
+                             ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// like remove_dynamic_constraint*s*( iterators ), just only one of them
 
  template< class Const >
- void remove_dynamic_constraint( std::list< Const > & list ,
-                                 typename std::list< Const >::iterator rmvd ,
-                                 ModParam issueMod = eModBlck );
+ std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
+ remove_dynamic_constraint( std::list< Const > & list ,
+                            typename std::list< Const >::iterator rmvd ,
+                            ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// remove a range of dynamic Constraint
@@ -3795,8 +3778,9 @@ class Block : public Observer {
   * "makes it clearer what happened". */
 
  template< class Const >
- void remove_dynamic_constraints( std::list< Const > & list , Range range ,
-                                  ModParam issueMod = eModBlck );
+ std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
+ remove_dynamic_constraints( std::list< Const > & list , Range range ,
+                             ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// remove a subset of dynamic Constraint
@@ -3811,9 +3795,10 @@ class Block : public Observer {
   * the issued BlockModRmvSbst if issueMod so instructs. */
 
  template< class Const >
- void remove_dynamic_constraints( std::list< Const > & list ,
-				  Subset && subset , bool ordered = false ,
-                                  ModParam issueMod = eModBlck );
+ std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
+ remove_dynamic_constraints( std::list< Const > & list ,
+                             Subset && subset , bool ordered = false ,
+                             ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// removes a bunch of Variable from the given list
@@ -3905,19 +3890,22 @@ class Block : public Observer {
   * appropriate). */
 
  template< class Var >
- void remove_dynamic_variables( std::list< Var > & list ,
-          std::vector< typename std::list< Var >::iterator > & rmvd ,
-				ModParam issueMod = eModBlck ,
-				ModParam issueindMod = eModBlck );
+ std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
+ remove_dynamic_variables( std::list< Var > & list ,
+                           std::vector< typename
+                                        std::list< Var >::iterator > & rmvd ,
+                           ModParam issueMod = eModBlck ,
+                           ModParam issueindMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// like remove_dynamic_variable*s*( iterators ), just only one of them
 
  template< class Var >
- void remove_dynamic_variable( std::list< Var > & list ,
-                               typename std::list< Var >::iterator rmvd ,
-                               ModParam issueMod = eModBlck ,
-                               ModParam issueindMod = eModBlck );
+ std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
+ remove_dynamic_variable( std::list< Var > & list ,
+                          typename std::list< Var >::iterator rmvd ,
+                          ModParam issueMod = eModBlck ,
+                          ModParam issueindMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// remove a range of dynamic Variable
@@ -3930,9 +3918,10 @@ class Block : public Observer {
   * "makes it clearer what happened". */
 
  template< class Var >
- void remove_dynamic_variables( std::list< Var > & list , Range range ,
-                                ModParam issueMod = eModBlck ,
-                                ModParam issueindMod = eModBlck );
+ std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
+ remove_dynamic_variables( std::list< Var > & list , Range range ,
+                           ModParam issueMod = eModBlck ,
+                           ModParam issueindMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// remove a subset of dynamic Variable
@@ -3947,10 +3936,11 @@ class Block : public Observer {
   * the issued BlockModRmvSbst if issueMod so instructs. */
 
  template< class Var >
- void remove_dynamic_variables( std::list< Var > & list , Subset && subset ,
-                                bool ordered = false ,
-				ModParam issueMod = eModBlck ,
-                                ModParam issueindMod = eModBlck );
+ std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
+ remove_dynamic_variables( std::list< Var > & list ,
+                           Subset && subset , bool ordered = false ,
+                           ModParam issueMod = eModBlck ,
+                           ModParam issueindMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// change the Objective of the Block
@@ -3983,7 +3973,7 @@ class Block : public Observer {
  *
  * In particular, the four methods check if the solution information provides:
  *
- * - a certificate of non-emptyness of the Block, which means it represents
+ * - a certificate of non-emptiness of the Block, which means it represents
  *   a(n almost) feasible solution;
  *
  * - a certificate of non-unboundedness of the Block, which typically means it
@@ -4029,7 +4019,7 @@ class Block : public Observer {
  *
  * Note that these checks may be either "easy" or "hard". For instance,
  * feasibility and ray-ness should be "easy" for an NP-hard problem, while
- * optimality and emptyness are "hard"; the converse happens for co-NP-hard
+ * optimality and emptiness are "hard"; the converse happens for co-NP-hard
  * problems. For everything to be "easy", the problem should be an "easy"
  * (polynomial) one to start with.
  *
@@ -4274,7 +4264,7 @@ class Block : public Observer {
   * existence of an unbounded ray is not, strictly speaking, enough to prove
   * that the problem is unbounded: this also requires the problem to be
   * non-empty. This method is only required to check that the Variable
-  * encode for a proper ray, with non-emptyness having to be established
+  * encode for a proper ray, with non-emptiness having to be established
   * in different ways (basically, this is a remit of the Solver).
   *
   * The useabstract parameter being true dictates that the check should be
@@ -4329,7 +4319,7 @@ class Block : public Observer {
   * task, say if the Block encodes for an NP-hard problem.
   *
   * A case in which this is possible is if the problem is convex, since then a
-  * convenient way to prove emptyness of the primal is to prove that the dual
+  * convenient way to prove emptiness of the primal is to prove that the dual
   * is unbounded (above if the primal is a minimization problem, below
   * otherwise). In turn, this can be proven by exhibiting a ray of the dual
   * feasible region along which the dual objective is unbounded (either above
@@ -4340,7 +4330,7 @@ class Block : public Observer {
   * speaking, be enough to prove that the dual is unbounded: this also
   * requires the dual problem to be non-empty. This method is only required
   * to check that the dual solution encodes for a proper dual ray, with
-  * non-emptyness of the dual having to be established in different ways
+  * non-emptiness of the dual having to be established in different ways
   * (basically, this is a remit of the Solver).
   *
   * The useabstract parameter being true dictates that the check should be
@@ -4870,7 +4860,7 @@ class Block : public Observer {
   * Modification it produces, or which Modification need be mapped
   * "immediately".
   *
-  * The method is given a default implemntation returning false if \p mod
+  * The method is given a default implementation returning false if \p mod
   * refers to this; otherwise it seeks \p mod in the list of inner Block
   * of this, and if it finds it calls map_forward_Modification() of the
   * inner Block and the corresponding inner Block of R3B (if any, otherwise
@@ -4912,7 +4902,7 @@ class Block : public Observer {
   * As discussed in map_forward_Modification(), mapping Modifications is in
   * general complex. This is so because a Block and its R3 Block can be "very
   * different", and therefore one Modification in one can result in many
-  * Modification in the other and vice-versa. Whie GroupModification may
+  * Modification in the other and vice-versa. While GroupModification may
   * help in this respect, it may not solve everything. Furthermore, even if
   * there is a nice one-to-one correspondence, mapping a Modification that
   * can have been issued "a long time ago", with many changes having possibly
@@ -4934,10 +4924,10 @@ class Block : public Observer {
   * map_forward_Modification(), save that the individual (const pointer to a)
   * Modification is now a list of (smart pointerd to) Modification. The
   * assumption is that the list contains "all the Modification issued that
-  * cause the Block to be not in synch with its R3 Block", althugh individual
+  * cause the Block to be not in synch with its R3 Block", although individual
   * :Block may relax this to a subset of "difficult" Modification.
   *
-  * The method is supposed to scan throgh the list of Modification,
+  * The method is supposed to scan through the list of Modification,
   * properly reacting to those it can deal with and ignoring the others; the
   * Modification acted upon are deleted from the list, leaving the rest.
   *
@@ -5014,7 +5004,7 @@ class Block : public Observer {
   * crucial that the Modification is actually processed, the return value
   * allows to check that this has happened.
   *
-  * The method is given a default implemntation returning false if \p mod
+  * The method is given a default implementation returning false if \p mod
   * refers to this; otherwise it seeks \p mod in the list of inner Block
   * of this, and if it finds it calls map_back_Modification() of the inner
   * Block and the corresponding inner Block of R3B (if any, otherwise false
@@ -5050,7 +5040,7 @@ class Block : public Observer {
 
 /*--------------------------------------------------------------------------*/
  /// maps back a list of Modification from an R3 Block to the original Block
- /** Maps back an entire list of Modificationfrom an R3 Block to the original
+ /** Maps back an entire list of Modification from an R3 Block to the original
   * Block in one blow.
   *
   * See the comments to map_forward_Modifications(). */
@@ -5320,7 +5310,7 @@ class Block : public Observer {
 
   v_Solver.clear();
 
-  if( !f_at )                 // nobody is listening from above
+  if( ! f_at )                 // nobody is listening from above
    for( auto el : v_Block )    // now no one is listening to all my sons
     el->anyone_there( false );
   }
@@ -5443,7 +5433,7 @@ class Block : public Observer {
  * However, the issue is that
  *
  *      POINTERS IN THE MAPPING SHOULD NOT BE TO ACTUAL POINTERS TO CLASS
- *      MEMBEr FUNCTIONS IF THE METHODS FACTORY HAS TO BE EMPLOYED WITHOUT
+ *      MEMBER FUNCTIONS IF THE METHODS FACTORY HAS TO BE EMPLOYED WITHOUT
  *      KNOWLEDGE OF THE SPECIFIC :Block INVOLVED (WHICH IS ITS DEFINING USE
  *      CASE). THIS IS BECAUSE THE FUNCTION CANNOT THEN HAVE A POINTER TO A
  *      SPECIFIC DERIVED CLASS FROM Block, AND THEREFORE IT MUST HAVE A
@@ -5734,13 +5724,10 @@ class Block : public Observer {
   *             function is to be added to the corresponding methods factory.
   */
 
- template< class dBlock, typename ... Args >
- static void register_method( std::string && name,
-                              MemberFunctionType< dBlock , Args... > fnct ) {
-  // ensure dBlock derives from Block
-  static_assert( std::is_base_of< Block, dBlock >::value,
-                 "register_method: dBlock must inherit from Block" );
-
+ template< class dBlock , typename ... Args >
+ static std::enable_if_t< std::is_base_of_v< Block , dBlock > , void >
+ register_method( std::string && name ,
+                  MemberFunctionType< dBlock , Args... > fnct ) {
   register_method( std::move( name ),
                    new FunctionType< Args... >(
                     [ fnct ]( Block * blck , Args && ... args ,
@@ -5970,7 +5957,7 @@ class Block : public Observer {
  * The interface for serializing and de-serializing a :Block onto netCDF
  * files is a bit more complex in that the base Block class provides some
  * means to automate part of the process: besides like opening the netCDF
- * filem, possibly with different formats, also finding the right
+ * file, possibly with different formats, also finding the right
  * netCDF::NcGroup inside it. This is done via the three versions of
  * serialize() taking, respectively, a file name (std::string), a
  * netCDF::NcFile and a netCDF::NcGroup. The first dispatches to the second,
@@ -5991,7 +5978,7 @@ class Block : public Observer {
   * filename and then calls the print( ostream & ) version, which is where
   * the true :Block-specific printing is supposed to mostly happen.
   *
-  * However, this method is virtual and there is a clear scenarion in which
+  * However, this method is virtual and there is a clear scenario in which
   * derived classes may want to override it: that of multi-file formats.
   * That is, a :Block may want to save itself on a number of different
   * files, typically with names of the form [global prefix] fname [suffix]
@@ -6019,7 +6006,7 @@ class Block : public Observer {
   * The parameter \p vlvl is assumed to control the "level of the verbosity"
   * of the printed information. The format of the parameter should depend
   * on the derived :Block, but the base Block class sets the standard that
-  * 0 means "minimal informaton" and 'C' means "complete information", i.e.,
+  * 0 means "minimal information" and 'C' means "complete information", i.e.,
   * enough information to allow a Block to completely re-read itself back
   * from the stream with load(). Of course the base Block class cannot
   * support the 'C' case, but it will interpret anything except 0 and 'C' as
@@ -6027,7 +6014,7 @@ class Block : public Observer {
   *
   * In general, a :Block may have more than one "complete" output formats,
   * hence other values apart from 'C' may still provide enough information
-  * for load() to be able to recostruct the Block; yet, one format can be
+  * for load() to be able to reconstruct the Block; yet, one format can be
   * designed as "standard" and get the 'C' value. It is expected that
   * values of \p vlvl here denoting "complete" formats will correspond to
   * values of the \p frmt parameter in load() denoting the same format.
@@ -6056,7 +6043,7 @@ class Block : public Observer {
   * load( istream & ) version, which is where the true :Block-specific
   * loading is supposed to mostly happen.
   *
-  * However, this method is virtual and there is a clear scenarion in which
+  * However, this method is virtual and there is a clear scenario in which
   * derived classes may want to override it: that of multi-file formats.
   * That is, a :Block may want to load itself out of a number of different
   * files, typically with names of the form [global prefix] fname [suffix]
@@ -6335,7 +6322,7 @@ class Block : public Observer {
      break;
      }
 
-  if( !success )   // some of the sub-Block could not be locked
+  if( ! success )   // some of the sub-Block could not be locked
    while( sb-- != v_Block.begin() )  // re-unlock those that were locked
     if( *( --oit ) )                   // except those were owned already
      ( *sb )->unlock( owner );
@@ -6462,7 +6449,7 @@ class Block : public Observer {
  * For sake of consistency, set_Block( this ) is called on every new added
  * element; users may set another Block later at their own risk.
  *
- * Similar methoda are provided to handle the set of sub-Block. Although
+ * Similar methods are provided to handle the set of sub-Block. Although
  * currently v_Block is protected and derived classes can manipulate it
  * freely, this may change in the future, and therefore the use of these
  * methods is strongly advised for better future-proof code.
@@ -6546,12 +6533,9 @@ class Block : public Observer {
  /// single object of class (derived from) Constraint
 
  template< class Const >
- void add_static_constraint( Const & newc , std::string && name = "" ,
-                             bool front = false ) {
-  // ensure derived classes insert a derivate of Constraint
-  static_assert( std::is_base_of< Constraint, Const >::value,
-                 "add_static_constraint: newc must inherit from Constraint" );
-
+ std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
+ add_static_constraint( Const & newc , std::string && name = "" ,
+                        bool front = false ) {
   newc.set_Block( this );
   Const * cnewc = &newc;
   if( front ) {
@@ -6569,11 +6553,9 @@ class Block : public Observer {
  /// single object of class (derived from) Constraint
 
  template< class Const >
- void set_static_constraint( Index i , Const & newc ,
-                             std::string && name = "" ) {
-  // ensure derived classes insert a derivate of Constraint
-  static_assert( std::is_base_of< Constraint, Const >::value ,
-                 "add_static_constraint: newc must inherit from Constraint" );
+ std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
+ set_static_constraint( Index i , Const & newc ,
+                        std::string && name = "" ) {
   if( i >= v_s_Constraint.size() )
    throw( std::invalid_argument( "wrong index into v_s_Constraint" ) );
 
@@ -6587,11 +6569,9 @@ class Block : public Observer {
  /// std::vector of (derived class from) Constraint
 
  template< class Const >
- void add_static_constraint( std::vector< Const > & newc ,
-                             std::string && name = "" , bool front = false ) {
-  static_assert( std::is_base_of< Constraint, Const >::value ,
-                 "add_static_constraint: newc must inherit from Constraint" );
-
+ std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
+ add_static_constraint( std::vector< Const > & newc ,
+                        std::string && name = "" , bool front = false ) {
   for( auto & c : newc )
    c.set_Block( this );
 
@@ -6611,10 +6591,9 @@ class Block : public Observer {
  /// std::vector of (derived class from) Constraint
 
  template< class Const >
- void set_static_constraint( Index i , std::vector< Const > & newc ,
-                             std::string && name = "" ) {
-  static_assert( std::is_base_of< Constraint, Const >::value ,
-                 "add_static_constraint: newc must inherit from Constraint" );
+ std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
+ set_static_constraint( Index i , std::vector< Const > & newc ,
+                        std::string && name = "" ) {
   if( i >= v_s_Constraint.size() )
    throw( std::invalid_argument( "wrong index into v_s_Constraint" ) );
 
@@ -6630,11 +6609,9 @@ class Block : public Observer {
  /// boost::multi_array<K> of (...) Constraint
 
  template< class Const , std::size_t K >
- void add_static_constraint( boost::multi_array< Const, K > & newc ,
-                             std::string && name = "" , bool front = false ) {
-  static_assert( std::is_base_of< Constraint, Const >::value ,
-                 "add_static_constraint: newc must inherit from Constraint" );
-
+ std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
+ add_static_constraint( boost::multi_array< Const , K > & newc ,
+                        std::string && name = "" , bool front = false ) {
   for( auto i = newc.data() ; i < ( newc.data() + newc.num_elements() ) ; )
    (i++)->set_Block( this );
 
@@ -6654,10 +6631,9 @@ class Block : public Observer {
  /// boost::multi_array<K> of (...) Constraint
 
  template< class Const , std::size_t K >
- void set_static_constraint( Index i , boost::multi_array< Const, K > & newc ,
-                             std::string && name = "" ) {
-  static_assert( std::is_base_of< Constraint, Const >::value ,
-                 "add_static_constraint: newc must inherit from Constraint" );
+ std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
+ set_static_constraint( Index i , boost::multi_array< Const , K > & newc ,
+                        std::string && name = "" ) {
   if( i >= v_s_Constraint.size() )
    throw( std::invalid_argument( "wrong index into v_s_Constraint" ) );
 
@@ -6688,12 +6664,9 @@ class Block : public Observer {
  /// single object of class (derived from) Variable
 
  template< class Var >
- void add_static_variable( Var & newv , std::string && name = "",
-                           bool front = false ) {
-  // ensure derived classes insert a derivate of Variable
-  static_assert( std::is_base_of< Variable, Var >::value ,
-                 "add_static_variable: newv must inherit from Variable" );
-
+ std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
+ add_static_variable( Var & newv , std::string && name = "" ,
+                      bool front = false ) {
   newv.set_Block( this );
   Var * cnewv = &newv;
   if( front ) {
@@ -6711,10 +6684,8 @@ class Block : public Observer {
  /// single object of class (derived from) Variable
 
  template< class Var >
- void set_static_variable( Index i , Var & newv , std::string && name = "" ) {
-  // ensure derived classes insert a derivate of Variable
-  static_assert( std::is_base_of< Variable, Var >::value ,
-                 "add_static_variable: newv must inherit from Variable" );
+ std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
+ set_static_variable( Index i , Var & newv , std::string && name = "" ) {
   if( i >= v_s_Variable.size() )
    throw( std::invalid_argument( "wrong index into v_s_Variable" ) );
 
@@ -6728,11 +6699,9 @@ class Block : public Observer {
  /// std::vector of (derived class from) Variable
 
  template< class Var >
- void add_static_variable( std::vector< Var > & newv ,
-                           std::string && name = "" , bool front = false ) {
-  static_assert( std::is_base_of< Variable, Var >::value ,
-                 "add_static_variable: newv must inherit from Variable" );
-
+ std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
+ add_static_variable( std::vector< Var > & newv ,
+                      std::string && name = "" , bool front = false ) {
   for( auto & v : newv )
    v.set_Block( this );
 
@@ -6752,10 +6721,9 @@ class Block : public Observer {
  /// std::vector of (derived class from) Variable
 
  template< class Var >
- void set_static_variable( Index i , std::vector< Var > & newv ,
-                           std::string && name = "" ) {
-  static_assert( std::is_base_of< Variable, Var >::value ,
-                 "add_static_variable: newv must inherit from Variable" );
+ std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
+ set_static_variable( Index i , std::vector< Var > & newv ,
+                      std::string && name = "" ) {
   if( i >= v_s_Variable.size() )
    throw( std::invalid_argument( "wrong index into v_s_Variable" ) );
 
@@ -6771,11 +6739,9 @@ class Block : public Observer {
  /// boost::multi_array<K> of (...) Variable
 
  template< class Var , std::size_t K >
- void add_static_variable( boost::multi_array< Var , K > & newv ,
-                           std::string && name = "" , bool front = false ) {
-  static_assert( std::is_base_of< Variable, Var >::value ,
-                 "add_static_variable: newv must inherit from Variable" );
-
+ std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
+ add_static_variable( boost::multi_array< Var , K > & newv ,
+                      std::string && name = "" , bool front = false ) {
   for( auto i = newv.data() ; i < ( newv.data() + newv.num_elements() ) ; )
    ( i++ )->set_Block( this );
 
@@ -6795,10 +6761,9 @@ class Block : public Observer {
  /// boost::multi_array<K> of (...) Variable
 
  template< class Var , std::size_t K >
- void set_static_variable( Index i , boost::multi_array< Var , K > & newv ,
-                           std::string && name = "" ) {
-  static_assert( std::is_base_of< Variable, Var >::value ,
-                 "add_static_variable: newv must inherit from Variable" );
+ std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
+ set_static_variable( Index i , boost::multi_array< Var , K > & newv ,
+                      std::string && name = "" ) {
   if( i >= v_s_Variable.size() )
    throw( std::invalid_argument( "wrong index into v_s_Variable" ) );
 
@@ -6829,13 +6794,10 @@ class Block : public Observer {
  /// std::list of (derived class from) Constraint
 
  template< class Const >
- void add_dynamic_constraint( std::list< Const > & newc,
-                              std::string && name = "" ,
-                              bool front = false ) {
-  // ensure derived classes insert a derivate of Constraint
-  static_assert( std::is_base_of< Constraint, Const >::value,
-               "add_dynamic_constraint: newc must inherit from Constraint" );
-
+ std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
+ add_dynamic_constraint( std::list< Const > & newc ,
+                         std::string && name = "" ,
+                         bool front = false ) {
   for( auto & c : newc )
    c.set_Block( this );
 
@@ -6855,11 +6817,9 @@ class Block : public Observer {
  /// std::list of (derived class from) Constraint
 
  template< class Const >
- void set_dynamic_constraint( Index i , std::list< Const > & newc ,
-                              std::string && name = "" ) {
-  // ensure derived classes insert a derivate of Constraint
-  static_assert( std::is_base_of< Constraint, Const >::value,
-               "add_dynamic_constraint: newc must inherit from Constraint" );
+ std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
+ set_dynamic_constraint( Index i , std::list< Const > & newc ,
+                         std::string && name = "" ) {
   if( i >= v_d_Constraint.size() )
    throw( std::invalid_argument( "wrong index into v_d_Constraint" ) );
 
@@ -6875,12 +6835,10 @@ class Block : public Observer {
  /// std::vector of std::list of (...) Constraint
 
  template< class Const >
- void add_dynamic_constraint( std::vector< std::list< Const > > & newc ,
-                              std::string && name = "" ,
-			      bool front = false ) {
-  static_assert( std::is_base_of< Constraint, Const >::value,
-               "add_dynamic_constraint: newc must inherit from Constraint" );
-
+ std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
+ add_dynamic_constraint( std::vector< std::list< Const > > & newc ,
+                         std::string && name = "" ,
+                         bool front = false ) {
   for( auto & c : newc )
    for( auto & j : c )
     j.set_Block( this );
@@ -6901,11 +6859,10 @@ class Block : public Observer {
  /// std::vector of std::list of (...) Constraint
 
  template< class Const >
- void set_dynamic_constraint( Index i ,
-                              std::vector< std::list< Const > > & newc ,
-                              std::string && name = "" ) {
-  static_assert( std::is_base_of< Constraint, Const >::value,
-               "add_dynamic_constraint: newc must inherit from Constraint" );
+ std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
+ set_dynamic_constraint( Index i ,
+                         std::vector< std::list< Const > > & newc ,
+                         std::string && name = "" ) {
   if( i >= v_d_Constraint.size() )
    throw( std::invalid_argument( "wrong index into v_d_Constraint" ) );
 
@@ -6922,11 +6879,10 @@ class Block : public Observer {
  /// boost::multi_array<K> of std::list of (...) Constraint
 
  template< class Const , std::size_t K >
- void add_dynamic_constraint(
-  boost::multi_array< std::list< Const > , K > & newc,
+ std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
+ add_dynamic_constraint(
+  boost::multi_array< std::list< Const > , K > & newc ,
   std::string && name = "" , bool front = false ) {
-  static_assert( std::is_base_of< Constraint, Const >::value,
-               "add_dynamic_constraint: newc must inherit from Constraint" );
 
   for( auto i = newc.data(); i < ( newc.data() + newc.num_elements() ) ;
        ++i )
@@ -6949,11 +6905,10 @@ class Block : public Observer {
  /// boost::multi_array<K> of std::list of (...) Constraint
 
  template< class Const , std::size_t K >
- void set_dynamic_constraint( Index i ,
-                       boost::multi_array< std::list< Const > , K > & newc ,
-                              std::string && name = "" ) {
-  static_assert( std::is_base_of< Constraint, Const >::value,
-               "add_dynamic_constraint: newc must inherit from Constraint" );
+ std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
+ set_dynamic_constraint( Index i ,
+                         boost::multi_array< std::list< Const > , K > & newc ,
+                         std::string && name = "" ) {
   if( i >= v_d_Constraint.size() )
    throw( std::invalid_argument( "wrong index into v_d_Constraint" ) );
 
@@ -6985,12 +6940,9 @@ class Block : public Observer {
  /// std::list of (derived class from) Variable
 
  template< class Var >
- void add_dynamic_variable( std::list< Var > & newv ,
-                            std::string && name = "" , bool front = false ) {
-  // ensure derived classes insert a derivate of Variable
-  static_assert( std::is_base_of< Variable, Var >::value,
-                 "add_dynamic_variable: newv must inherit from Variable" );
-
+ std::enable_if_t< std::is_base_of_v< Variable, Var > , void >
+ add_dynamic_variable( std::list< Var > & newv ,
+                       std::string && name = "" , bool front = false ) {
   for( auto & v : newv )
    v.set_Block( this );
 
@@ -7010,11 +6962,9 @@ class Block : public Observer {
  /// std::list of (derived class from) Variable
 
  template< class Var >
- void set_dynamic_variable( Index i , std::list< Var > & newv ,
-                            std::string && name = "" ) {
-  // ensure derived classes insert a derivate of Variable
-  static_assert( std::is_base_of< Variable, Var >::value,
-                 "add_dynamic_variable: newv must inherit from Variable" );
+ std::enable_if_t< std::is_base_of_v< Variable, Var > , void >
+ set_dynamic_variable( Index i , std::list< Var > & newv ,
+                       std::string && name = "" ) {
   if( i >= v_d_Variable.size() )
    throw( std::invalid_argument( "wrong index into v_d_Variable" ) );
 
@@ -7030,12 +6980,9 @@ class Block : public Observer {
  /// std::vector of std::list of (...) Variable
 
  template< class Var >
- void add_dynamic_variable( std::vector< std::list< Var > > & newv ,
-                            std::string && name = "" ,
-                            bool front = false ) {
-  static_assert( std::is_base_of< Variable, Var >::value,
-                 "add_dynamic_variable: newv must inherit from Variable" );
-
+ std::enable_if_t< std::is_base_of_v< Variable, Var > , void >
+ add_dynamic_variable( std::vector< std::list< Var > > & newv ,
+                       std::string && name = "" , bool front = false ) {
   for( auto & v : newv )
    for( auto & j : v )
     j.set_Block( this );
@@ -7056,11 +7003,10 @@ class Block : public Observer {
  /// std::vector of std::list of (...) Variable
 
  template< class Var >
- void set_dynamic_variable( Index i ,
-                            std::vector< std::list< Var > > & newv ,
-                            std::string && name = "" ) {
-  static_assert( std::is_base_of< Variable, Var >::value,
-                 "add_dynamic_variable: newv must inherit from Variable" );
+ std::enable_if_t< std::is_base_of_v< Variable, Var > , void >
+ set_dynamic_variable( Index i ,
+                       std::vector< std::list< Var > > & newv ,
+                       std::string && name = "" ) {
   if( i >= v_d_Variable.size() )
    throw( std::invalid_argument( "wrong index into v_d_Variable" ) );
 
@@ -7076,14 +7022,11 @@ class Block : public Observer {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// boost::multi_array<K> of std::list of (...) Variable
 
- template< class Var, std::size_t K > void add_dynamic_variable(
-                          boost::multi_array< std::list< Var >, K > & newv ,
-			  std::string && name = "" , bool front = false ) {
-  static_assert( std::is_base_of< Variable, Var >::value,
-                 "add_dynamic_variable: newv must inherit from Variable" );
-
-  for( auto i = newv.data(); i < ( newv.data() + newv.num_elements() ) ;
-       ++i )
+ template< class Var , std::size_t K >
+ std::enable_if_t< std::is_base_of_v< Variable, Var > , void >
+ add_dynamic_variable( boost::multi_array< std::list< Var > , K > & newv ,
+                       std::string && name = "" , bool front = false ) {
+  for( auto i = newv.data(); i < ( newv.data() + newv.num_elements() ) ; ++i )
    for( auto & j : *i )
     j.set_Block( this );
 
@@ -7102,11 +7045,11 @@ class Block : public Observer {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// boost::multi_array<K> of std::list of (...) Variable
 
- template< class Var, std::size_t K > void set_dynamic_variable( Index i ,
-                          boost::multi_array< std::list< Var > , K > & newv ,
-                          std::string && name = "" ) {
-  static_assert( std::is_base_of< Variable, Var >::value,
-                 "add_dynamic_variable: newv must inherit from Variable" );
+ template< class Var , std::size_t K >
+ std::enable_if_t< std::is_base_of_v< Variable, Var > , void >
+ set_dynamic_variable( Index i ,
+                       boost::multi_array< std::list< Var > , K > & newv ,
+                       std::string && name = "" ) {
   if( i >= v_d_Variable.size() )
    throw( std::invalid_argument( "wrong index into v_d_Variable" ) );
 
@@ -7139,7 +7082,7 @@ class Block : public Observer {
    delete *it;
   v_Solver.erase( it );  // erase the solver from its position in the list
 
-  if( v_Solver.empty() && ( !f_at ) ) {
+  if( v_Solver.empty() && ( ! f_at ) ) {
    // this was the last solver listening to me, and nobody is listening
    // from above
    for( auto el : v_Block )    // now no one is listening to all my sons
@@ -7226,13 +7169,13 @@ class Block : public Observer {
   * the value v_ownersLock() says that some thread is currently operating
   * on v_owners and that therefore one should not even look at that until
   * f_owner turns back to ReadOnlyLock(). */
- std::atomic< const void * > f_owner;  
+ std::atomic< const void * > f_owner;
 
  /// a map for counting how many times the Block has been read-locked
  /** v_owners associates with any thread::id of any thread that is
-  * currently read_locking the Block the number of putstanding locks. The
+  * currently read_locking the Block the number of outstanding locks. The
   * number is increased with any new read_lock() (from that thread) and
-  * dereased with any new read_unlock() (from that thread), so that one
+  * decreased with any new read_unlock() (from that thread), so that one
   * knows when a thread has released its last read-lock on the Block. The
   * map is empty if the Block is not read-locked. Note that operations on
   * v_owners (comprised simple reads) have to be performed under active
@@ -7292,7 +7235,7 @@ class Block : public Observer {
  unsigned int f_channel;   ///< the "default GroupModification channel"
 
  static std::string f_prefix;  ///< the executable-wide filename prefix
- 
+
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -7580,10 +7523,10 @@ class BlockModAdd : public BlockModAD
   * other information that the Modification contains, and therefore is not
   * needed. */
 
- BlockModAdd( std::list< ConstOrVar > & whc ,
-	      std::vector< ConstOrVar * > && add , Block::Index first ,
+ BlockModAdd( std::list< ConstOrVar > & whc , 
+              std::vector< ConstOrVar * > && add , Block::Index first ,
               bool cB = false )
-  : BlockModAD( cB ) , whc_list( whc ) , add_vec( std::move( add ) ) ,
+  : BlockModAD( cB ) , whc_list( whc ) , add_vec( std::move( add ) ) , 
     f_first( first ) {
   static_assert( std::is_base_of< Variable , ConstOrVar >::value ||
                  std::is_base_of< Constraint , ConstOrVar >::value ,
@@ -7758,7 +7701,7 @@ class BlockModRmv : public BlockModAD {
               std::list< ConstOrVar > && rmvd , bool cB = false )
   : BlockModAD( cB ) , f_whc( whc ) , f_rmvd( std::move( rmvd ) ) {
   static_assert( std::is_base_of< Variable , ConstOrVar >::value ||
-                 std::is_base_of< Constraint , ConstOrVar >::value,
+                 std::is_base_of< Constraint , ConstOrVar >::value ,
                  "BlockModRmv: must inherit from Variable or Constraint" );
   }
 
@@ -8483,7 +8426,7 @@ class BlockConfig : public Configuration {
 
 /*---------------------------- PRIVATE METHODS -----------------------------*/
 
- /// delete all sub-Confiuration of this BlockConfig
+ /// delete all sub-Configuration of this BlockConfig
 
  void delete_sub_Configuration( void )
  {
@@ -8563,7 +8506,7 @@ class BlockConfig : public Configuration {
 /** @defgroup Block_TYPES Type definitions in Block.h
  *  @{ */
 
- 
+
 /** @}  end( group( Block_TYPES ) ) */
 /*--------------------------------------------------------------------------*/
 /*---------------------- Block-RELATED FUNCTIONS ---------------------------*/
@@ -8649,20 +8592,17 @@ void serialize( netCDF::NcGroup & group , const C< Block * > & data ,
   el->serialize( group.addGroup( name + std::to_string( i++ ) ) );
  }
 
-
 /** @} end( group( Block_FUNCTIONS ) ) */
+
 /*--------------------------------------------------------------------------*/
 /*---------------------- INLINE METHODS IMPLEMENTATION ---------------------*/
 /*--------------------------------------------------------------------------*/
 
 template< class Const >
-void Block::add_dynamic_constraints( std::list< Const > & list ,
-                                     std::list< Const > & newlist ,
-                                     ModParam issueMod ) {
- // ensure Const derives from Constraint
- static_assert( std::is_base_of< Constraint , Const >::value ,
-              "add_dynamic_constraints: newc must inherit from Constraint" );
-
+std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
+Block::add_dynamic_constraints( std::list< Const > & list ,
+                                std::list< Const > & newlist ,
+                                ModParam issueMod ) {
  if( newlist.empty() )  // actually no Constraint to add
   return;               // cowardly (and silently) return
 
@@ -8696,13 +8636,10 @@ void Block::add_dynamic_constraints( std::list< Const > & list ,
 /*--------------------------------------------------------------------------*/
 
 template< class Var >
-void Block::add_dynamic_variables( std::list< Var > & list ,
-                                   std::list< Var > & newlist ,
-                                   ModParam issueMod ) {
- // ensure Var is derives from Variables
- static_assert( std::is_base_of< Variable , Var >::value ,
-                "add_dynamic_variables: must inherit from Variable" );
-
+std::enable_if_t< std::is_base_of_v< Variable, Var > , void >
+Block::add_dynamic_variables( std::list< Var > & list ,
+                              std::list< Var > & newlist ,
+                              ModParam issueMod ) {
  if( newlist.empty() )  // actually no Variable to add
   return;               // cowardly (and silently) return
 
@@ -8736,13 +8673,12 @@ void Block::add_dynamic_variables( std::list< Var > & list ,
 /*--------------------------------------------------------------------------*/
 
 template< class Const >
-void Block::remove_dynamic_constraints( std::list< Const > & list ,
-                std::vector< typename std::list< Const >::iterator > & rmvd ,
-					ModParam issueMod ) {
- // ensure Const is a derivate of Constraint
- static_assert( std::is_base_of< Constraint, Const >::value,
-                "remove_dynamic_constraints: must inherit from Constraint" );
-
+std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
+Block::remove_dynamic_constraints( std::list< Const > & list ,
+                                   std::vector< typename
+                                                std::list< Const >::iterator
+                                                > & rmvd ,
+                                   ModParam issueMod ) {
  if( rmvd.empty() )  // actually no Constraints to remove
   return;            // cowardly (and silently) return
 
@@ -8813,13 +8749,10 @@ void Block::remove_dynamic_constraints( std::list< Const > & list ,
 /*--------------------------------------------------------------------------*/
 
 template< class Const >
-void Block::remove_dynamic_constraint( std::list< Const > & list ,
-				  typename std::list< Const >::iterator rmvd ,
-				       ModParam issueMod ) {
- // ensure Const is a derivate of Constraint
- static_assert( std::is_base_of< Constraint, Const >::value ,
-                "remove_dynamic_constraint: must inherit from Constraint" );
-
+std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
+Block::remove_dynamic_constraint( std::list< Const > & list ,
+                                  typename std::list< Const >::iterator rmvd ,
+                                  ModParam issueMod ) {
  if( list.empty() )
   throw( std::invalid_argument( "removing from empty list" ) );
 
@@ -8865,12 +8798,9 @@ void Block::remove_dynamic_constraint( std::list< Const > & list ,
 /*--------------------------------------------------------------------------*/
 
 template< class Const >
-void Block::remove_dynamic_constraints( std::list< Const > & list ,
-                                        Range range , ModParam issueMod ) {
- // ensure Const is a derivate of Constraint
- static_assert( std::is_base_of< Constraint, Const >::value,
-                "remove_dynamic_constraints: must inherit from Constraint" );
-
+std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
+Block::remove_dynamic_constraints( std::list< Const > & list ,
+                                   Range range , ModParam issueMod ) {
  if( range.second <= range.first )  // actually no Constraints to remove
   return;                           // cowardly (and silently) return
 
@@ -8929,13 +8859,10 @@ void Block::remove_dynamic_constraints( std::list< Const > & list ,
 /*--------------------------------------------------------------------------*/
 
 template< class Const >
-void Block::remove_dynamic_constraints( std::list< Const > & list ,
-                                        Subset && subset , bool ordered ,
-                                        ModParam issueMod ) {
- // ensure Const is a derivate of Constraint
- static_assert( std::is_base_of< Constraint , Const >::value ,
-                "remove_dynamic_constraints: must inherit from Constraint" );
-
+std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
+Block::remove_dynamic_constraints( std::list< Const > & list ,
+                                   Subset && subset , bool ordered ,
+                                   ModParam issueMod ) {
  if( subset.empty() ) {  // completely cleanup the list
   if( list.empty() )     // which is empty already
    return;               // cowardly (and silently) return
@@ -9053,14 +8980,12 @@ void Block::remove_dynamic_constraints( std::list< Const > & list ,
 /*--------------------------------------------------------------------------*/
 
 template< class Var >
-void Block::remove_dynamic_variables( std::list< Var > & list ,
-                  std::vector< typename std::list< Var >::iterator > & rmvd ,
-				      ModParam issueMod ,
-				      ModParam issueindMod ) {
- // ensure Var is a derivate of Variable
- static_assert( std::is_base_of< Variable, Var >::value ,
-                "remove_dynamic_variables: must inherit from Variable" );
-
+std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
+Block::remove_dynamic_variables( std::list< Var > & list ,
+                                 std::vector< typename
+                                              std::list< Var >::iterator
+                                              > & rmvd ,
+                                 ModParam issueMod , ModParam issueindMod ) {
  if( rmvd.empty() )  // actually no Variables to remove
   return;            // cowardly (and silently) return
 
@@ -9129,14 +9054,10 @@ void Block::remove_dynamic_variables( std::list< Var > & list ,
 /*--------------------------------------------------------------------------*/
 
 template< class Var >
-void Block::remove_dynamic_variable( std::list< Var > & list ,
-                                   typename std::list< Var >::iterator rmvd ,
-				     ModParam issueMod ,
-                                     ModParam issueindMod ) {
- // ensure Var is a derivate of Variable
- static_assert( std::is_base_of< Variable, Var >::value ,
-                "remove_dynamic_variable: must inherit from Variable" );
-
+std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
+Block::remove_dynamic_variable( std::list< Var > & list ,
+                                typename std::list< Var >::iterator rmvd ,
+                                ModParam issueMod , ModParam issueindMod ) {
  if( list.empty() )
   throw( std::invalid_argument( "removing from empty list" ) );
 
@@ -9181,13 +9102,9 @@ void Block::remove_dynamic_variable( std::list< Var > & list ,
 /*--------------------------------------------------------------------------*/
 
 template< class Var >
-void Block::remove_dynamic_variables( std::list< Var > & list , Range range ,
-                                      ModParam issueMod ,
-                                      ModParam issueindMod ) {
- // ensure Var is a derivate of Variable
- static_assert( std::is_base_of< Variable , Var >::value ,
-                "remove_dynamic_variable: must inherit from Variable" );
-
+std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
+Block::remove_dynamic_variables( std::list< Var > & list , Range range ,
+                                 ModParam issueMod , ModParam issueindMod ) {
  if( range.second <= range.first )  // actually no Constraints to remove
   return;                           // cowardly (and silently) return
 
@@ -9244,14 +9161,10 @@ void Block::remove_dynamic_variables( std::list< Var > & list , Range range ,
 /*--------------------------------------------------------------------------*/
 
 template< class Var >
-void Block::remove_dynamic_variables( std::list< Var > & list ,
-                                      Subset && subset , bool ordered ,
-                                      ModParam issueMod ,
-                                      ModParam issueindMod ) {
- // ensure Var is a derivate of Variable
- static_assert( std::is_base_of< Variable , Var >::value ,
-                "remove_dynamic_variable: must inherit from Variable" );
-
+std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
+Block::remove_dynamic_variables( std::list< Var > & list ,
+                                 Subset && subset , bool ordered ,
+                                 ModParam issueMod , ModParam issueindMod ) {
  if( subset.empty() ) {  // completely cleanup the list
   if( list.empty() )     // which is empty already
    return;               // cowardly (and silently) return
