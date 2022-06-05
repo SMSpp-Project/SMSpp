@@ -24,7 +24,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef NDEBUG
- #define CHECK_SOLUTIONS 3
+ #define CHECK_SOLUTIONS 0
  /* CHECK_SOLUTIONS, coded bit-wise, activates some checks about the solutions
   * that are generated and used to compute linearizations. This should not be
   * necessary and it's costly, but it may be useful to catch some bugs in the
@@ -34,6 +34,10 @@
   *
   * - bit 1: the objective value returned by the Solver is compared with the
   *          value as computed by the FRealObjective
+  *
+  * - bit 2: during store_combination_of_linearizations(), all the Solution
+  *          are printed together with their coefficients, and the combined
+  *          final solution is printed as well
   */
 #else
  #define CHECK_SOLUTIONS 0
@@ -1472,9 +1476,20 @@ void LagBFunction::store_combination_of_linearizations(
  bool unfeasible = false;  // feasible unless oherwise proven
 
  // get an "empty" solution from the Block
- p_Solution convex_combination = v_Block.front()->get_Solution();
+ auto convex_combination = v_Block.front()->get_Solution();
+
+ #if CHECK_SOLUTIONS & 4
+  std::cout << "LagBFunction " << this << ": computing "
+	    << coefficients.size() << "-combination in "
+	    << name << std::endl;
+ #endif
 
  for( auto & pair : coefficients ) {
+  #if CHECK_SOLUTIONS & 4
+   std::cout << "pos = " << pair.first << ", mult = " << pair.second
+             << ", sol = " << * g_pool[ pair.first ].first;
+  #endif
+
   // add the new term to the convex combination
   convex_combination->sum( g_pool[ pair.first ].first , pair.second );
 

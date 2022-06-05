@@ -312,7 +312,7 @@ void Block::anyone_there( bool isthere )
   if( ! f_at )                // it was already so
    return;                    // nothing changes
   f_at = false;               // now I know it
-  if( !v_Solver.empty() )     // but my sons don't care because there
+  if( ! v_Solver.empty() )    // but my sons don't care because there
    return;                    // is still someone listening to me
   for( auto el : v_Block )    // now no one is listening to all my sons
    el->anyone_there( false );

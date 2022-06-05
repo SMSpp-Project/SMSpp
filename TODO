@@ -1,3 +1,24 @@
+2022-05-26 [high] avoid that the value of a fixed [Col]Variable be changed
+
+	Currently, calling set_value() of a fixed ColVariable plainly changes the
+	value. This is very dangerous and can lead to serious errors since the
+	change of a fixed variable does change the problem but no Modification is
+	issued and therefore the Solver are not able to react to it. Hence, it
+	should be changed in
+
+	virtual void set_value( VarValue new_value = 0 ) {
+	 if( is_fixed() ) {
+          if( f_value != new_value )
+	   throw( std::logic_error( "changing the value of a fixed ColVariable" ) );
+	  return;
+          }
+	 f_value = new_value;
+         }
+
+	Issue is this may broke some tests and it will require significant testing
+	before being accepted, so we are not doing it now. But we should.
+
+
 2022-02-10 [medium] add multi-dimensional vectors of stuff with non-uniform size
 
         For some applications (UC) it would be quite handy to have groups of
