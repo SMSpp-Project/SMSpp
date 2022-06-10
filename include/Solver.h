@@ -1761,8 +1761,7 @@ class Solver : public ThinComputeInterface
   // try to acquire lock, spin on failure
   while( f_mod_lock.test_and_set( std::memory_order_acquire ) );
 
-  const auto tmod = std::dynamic_pointer_cast< NBModification >( mod );
-  if( tmod )
+  if( std::dynamic_pointer_cast< const NBModification >( mod ) )
    v_mod.clear();
 
   v_mod.push_back( mod );
@@ -1793,10 +1792,10 @@ class Solver : public ThinComputeInterface
 /*--------------------------- PROTECTED TYPES ------------------------------*/
 /*--------------------------------------------------------------------------*/
 
- typedef boost::function< Solver *() > SolverFactory;
+ using SolverFactory = boost::function< Solver *() >;
  // type of the factory of Solver
 
- typedef std::map< std::string, SolverFactory > SolverFactoryMap;
+ using SolverFactoryMap = std::map< std::string , SolverFactory >;
  // type of the map between strings and the factory of Solver
 
 /*--------------------------------------------------------------------------*/
@@ -1812,6 +1811,18 @@ class Solver : public ThinComputeInterface
  * implement it themselves.
  * @{ */
 
+ /// add the Modification to the queue, without checking for NBModification
+
+ void push_back( sp_Mod & mod ) {
+  // try to acquire lock, spin on failure
+  while( f_mod_lock.test_and_set( std::memory_order_acquire ) );
+
+  v_mod.push_back( mod );
+
+  f_mod_lock.clear( std::memory_order_release );  // release lock
+  }
+
+/*--------------------------------------------------------------------------*/
  /// returns the front sp_Mod on the Modification queue, nullptr if empty
 
  sp_Mod front( void ) {
