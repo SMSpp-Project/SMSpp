@@ -1447,13 +1447,13 @@ class OneVarConstraintMod : public RowConstraintMod {
 
  enum OVC_cons_mod_type {
   eVariableChanged = eRowConstModLastParam,
-  ///< the Function underlying this OneVarConstraint changed whole
+  ///< the ColVariable underlying this OneVarConstraint changed whole
 
   eOVCConstModLastParam
   ///< first allowed parameter value for derived classes
   /**< Convenience value for easily allow derived classes to extend the set
    * of types of Modification. */
- };
+  };
 
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
  /// constructor: just calls that of RowConstraintMod

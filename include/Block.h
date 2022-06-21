@@ -7706,16 +7706,26 @@ class BlockModRmv : public BlockModAD {
   }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
- /// destructor, *apparently* doing nothing
- /** Although the destructor of BlockModRmv seems to be empty, it actually
-  * performs a very important and nontrivial task, i.e., destroying the list
-  * of removed Constraint / Variable (the actual objects), held in the
-  * rmvd_list field. This happens automagically when the last Solver having
+ /// destructor, finally deleting the list of Constraint / Variable
+ /** The destructor of BlockModRmv automatically performs a very important
+  * and nontrivial task: by deleting the list of removed Constraint /
+  * Variable held in the f_rmvd field, it finally deletes the actual objects.
+  * This happens automagically when the last Solver / Block / whatever having
   * received the BlockModRmv deletes the pointer, hence when it is actually
   * safe to delete the Constraint / Variable because no-one still need to
-  * access them to see what they held and what was their "name = pointer". */
+  * access them to see what they held and what was their "name = pointer".
+  * However, when the content is Constraint, before being deleted they must
+  * be clear()-ed, since this is not done by (the various versions of)
+  * remove_dynamic_constraints() in order not to delete the list of active
+  * Variable of the Constraint, which may help the :Solver to manage the
+  * BlockModRmv. */
 
- virtual ~BlockModRmv() = default;
+ virtual ~BlockModRmv() {
+  if constexpr( std::is_base_of< Constraint , ConstOrVar >::value ) {
+   for( auto & el : f_rmvd )
+    el.clear();
+   }
+  }
 
 /*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
@@ -8685,10 +8695,12 @@ Block::remove_dynamic_constraints( std::list< Const > & list ,
  if( list.empty() )
   throw( std::invalid_argument( "removing from empty list" ) );
 
- for( const auto & const_it : rmvd ) {
+ // note that each Constraint is removed from its active Variable, but it
+ // is not clear()-ed now: if a Modification is issued, the list of active
+ // Variable remaining available may help the :Solver to manage it, and
+ // clear()-ing will be done in the Modification destructor
+ for( const auto const_it : rmvd )
   remove_constraint_from_variables( &( *const_it ) );
-  const_it->clear();
-  }
 
  if( issue_mod( issueMod ) ) {  // somebody is listening
   std::list< Const > removed;
@@ -8741,9 +8753,10 @@ Block::remove_dynamic_constraints( std::list< Const > & list ,
 		     Observer::par2chnl( issueMod ) );
   }
  else                           // nobody is listening, just do it
-  for( auto & el : rmvd )
+  for( auto el : rmvd ) {
+   el->clear();  // ... which means the Constraint need be clear()-ed now
    list.erase( el );
-
+  }
  }  // end( Block::remove_dynamic_constraints( iterators ) )
 
 /*--------------------------------------------------------------------------*/
@@ -8756,8 +8769,11 @@ Block::remove_dynamic_constraint( std::list< Const > & list ,
  if( list.empty() )
   throw( std::invalid_argument( "removing from empty list" ) );
 
+ // note that the Constraint is removed from its active Variable, but it
+ // is not clear()-ed now: if a Modification is issued, the list of active
+ // Variable remaining available may help the :Solver to manage it, and
+ // clear()-ing will be done in the Modification destructor
  remove_constraint_from_variables( &( *rmvd ) );
- rmvd->clear();
 
  if( issue_mod( issueMod ) ) {  // somebody is listening
   std::list< Const > removed;
@@ -8790,9 +8806,10 @@ Block::remove_dynamic_constraint( std::list< Const > & list ,
 				  Observer::par2concern( issueMod ) ) ,
 		     Observer::par2chnl( issueMod ) );
   }
- else                           // nobody is listening, just do it
+ else {                         // nobody is listening, just do it
+  rmvd->clear();  // ... which means the Constraint need be clear()-ed now
   list.erase( rmvd );
-
+  }
  }  // end( Block::remove_dynamic_constraint )
 
 /*--------------------------------------------------------------------------*/
@@ -8828,11 +8845,12 @@ Block::remove_dynamic_constraints( std::list< Const > & list ,
    eit = std::prev( list.end(), list.size() - range.second );
   }
 
- // cleanup
- for( auto it = sit ; it != eit ; ++it ) {
+ // note that each Constraint is removed from its active Variable, but it
+ // is not clear()-ed now: if a Modification is issued, the list of active
+ // Variable remaining available may help the :Solver to manage it, and
+ // clear()-ing will be done in the Modification destructor
+ for( auto it = sit ; it != eit ; ++it )
   remove_constraint_from_variables( &( *it ) );
-  it->clear();
-  }
 
  if( issue_mod( issueMod ) ) {  // somebody is listening
   std::list< Const > removed;
@@ -8851,8 +8869,12 @@ Block::remove_dynamic_constraints( std::list< Const > & list ,
                                         Observer::par2concern( issueMod ) ) ,
 		     Observer::par2chnl( issueMod ) );
   }
- else                             // nobody is listening, just do it
+ else {                           // nobody is listening, just do it
+  // ... which means the Constraint need be clear()-ed now
+  for( auto it = sit ; it != eit ; ++it )
+   it->clear();
   list.erase( sit, eit );
+  }
 
  }  // end( Block::remove_dynamic_constraints( range ) )
 
@@ -8867,11 +8889,12 @@ Block::remove_dynamic_constraints( std::list< Const > & list ,
   if( list.empty() )     // which is empty already
    return;               // cowardly (and silently) return
 
-  // cleanup
-  for( auto & c : list ) {
+  // note that each Constraint is removed from its active Variable, but it
+  // is not clear()-ed now: if a Modification is issued, the list of active
+  // Variable remaining available may help the :Solver to manage it, and
+  // clear()-ing will be done in the Modification destructor
+  for( auto & c : list )
    remove_constraint_from_variables( &c );
-   c.clear();
-   }
 
   if( issue_mod( issueMod ) ) {  // somebody is listening
    std::list< Const > removed;
@@ -8884,8 +8907,11 @@ Block::remove_dynamic_constraints( std::list< Const > & list ,
                                         Observer::par2concern( issueMod ) ) ,
 		     Observer::par2chnl( issueMod ) );
    }
-  else                             // nobody is listening, just do it
+  else {                           // nobody is listening, just do it
+   for( auto & c : list )
+    remove_constraint_from_variables( &c );
    list.clear();
+   }
 
   return;
   }
@@ -8927,10 +8953,13 @@ Block::remove_dynamic_constraints( std::list< Const > & list ,
  if( issue_mod( issueMod ) ) {  // somebody is listening
   std::list< Const > removed;
 
-  // remove all the Constraint in the subset and add them to the removed
-  // list; meanwhile, do the cleanup. note that to keep the positional
-  // relation between subset and removed, insertion in removed has to be
-  // done at the beginning
+  // remove each Constraint in the subset and add them to the removed
+  // list; meanwhile, remove it from its active Variable, but do not
+  // clear() it, so that the list of active Variable remains available,
+  // which can help the :Solver to manage the Modification (clear()-ing
+  // will be done in the Modification destructor)
+  // note that to keep the positional relation between subset and removed,
+  // insertion in removed has to be done at the beginning
 
   while( i > 0 ) {
    // the next value of the iterator has to be found before moving *eit
@@ -8938,7 +8967,6 @@ Block::remove_dynamic_constraints( std::list< Const > & list ,
    auto npos = subset[ --i ];
    auto nit = std::prev( eit, pos - npos );
    remove_constraint_from_variables( &( *eit ) );
-   eit->clear();
    removed.splice( removed.begin(), list, eit );
    pos = npos;
    eit = nit;
@@ -8946,7 +8974,6 @@ Block::remove_dynamic_constraints( std::list< Const > & list ,
 
   // the last element has to be done offline
   remove_constraint_from_variables( &( *eit ) );
-  eit->clear();
   removed.splice( removed.begin() , list , eit );
 
   // note that the list cannot be empty, since this would mean that
@@ -8964,7 +8991,7 @@ Block::remove_dynamic_constraints( std::list< Const > & list ,
    auto npos = subset[ --i ];
    auto nit = std::prev( eit, pos - npos );
    remove_constraint_from_variables( &( *eit ) );
-   eit->clear();
+   eit->clear();  // ... which means the Constraint need be clear()-ed now
    list.erase( eit );
    pos = npos;
    eit = nit;
