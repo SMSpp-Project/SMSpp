@@ -541,6 +541,96 @@ class DQuadFunction : public C15Function {
  void map_active( c_Vec_p_Var & vars , Subset & map , bool ordered )
   const override final;
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ Subset map_index( const std::vector< Variable * > & vars , c_Subset & nms )
+  const override {
+  if( vars.size() != nms.size() )
+   throw( std::invalid_argument( "vars and nms sizes do not match" ) );
+
+  Subset map( nms.size() );
+  if( map.empty() )
+   return( map );
+
+  auto nmsit = nms.begin();
+  auto varsit = vars.begin();
+  auto mapit = map.begin();
+
+  // for all Variable in the set
+  while( varsit != vars.end() ) {
+   auto var = *(varsit++);  // next variable
+   auto oi = *(nmsit++);    // its original index
+   // if var has not been deleted (and, possibly, re-added), its index
+   // must be <= oi: search backward from oi to find it
+   auto avoi = std::get< 0 >( v_triples[ oi ] );
+   Index i = oi;
+   while( var != avoi ) {
+    if( ! i )
+     break;
+    avoi = std::get< 0 >( v_triples[ --i ] );
+    }
+   if( var == avoi )  // the Variable was found
+    *(mapit++) = i;   // this is its index
+   else {             // the Variable was not found
+    // restart the search from the last variable to oi (excluded), for the
+    // case where var has been deleted and re-added, and therefore its
+    // index can now be arbitrary (but it is more likely to be "close to
+    // the end" than "at the beginning")
+    for( i = v_triples.size() , avoi = std::get< 0 >( v_triples[ --i ] ) ;
+	 ( var != avoi ) && ( i > oi ) ; )
+     avoi = std::get< 0 >( v_triples[ --i ] );
+    *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+    }
+   }  // end( for alla Variable )
+
+  return( map );
+
+  }  // end( map_index( Subset )
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ Subset map_index( const std::vector< Variable * > & vars , Range rng )
+  const override {
+  if( vars.size() != rng.second - rng.first )
+   throw( std::invalid_argument( "vars and rng sizes do not match" ) );
+
+  Subset map( vars.size() );
+  if( map.empty() )
+   return( map );
+
+  auto varsit = vars.begin();
+  auto mapit = map.begin();
+
+  // for all Variable in the set
+  for( auto oi = rng.first ; oi < rng.second ; ++oi ) {
+   auto var = *(varsit++);  // next variable
+   // if var has not been deleted (and, possibly, re-added), its index
+   // must be <= oi: search backward from oi to find it
+   auto avoi = std::get< 0 >( v_triples[ oi ] );
+   Index i = oi;
+   while( var != avoi ) {
+    if( ! i )
+     break;
+    avoi = std::get< 0 >( v_triples[ --i ] );
+    }
+   if( var == avoi )  // the Variable was found
+    *(mapit++) = i;   // this is its index
+   else {             // the Variable was not found
+    // restart the search from the last variable to oi (excluded), for the
+    // case where var has been deleted and re-added, and therefore its
+    // index can now be arbitrary (but it is more likely to be "close to
+    // the end" than "at the beginning")
+    for( i = v_triples.size() , avoi = std::get< 0 >( v_triples[ --i ] ) ;
+	 ( var != avoi ) && ( i > oi ) ; )
+     avoi = std::get< 0 >( v_triples[ --i ] );
+    *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+    }
+   }  // end( for alla Variable )
+
+  return( map );
+
+  }  // end( map_index( Range )
+
 /*--------------------------------------------------------------------------*/
 
  Variable * get_active_var( const Index i ) const override final {

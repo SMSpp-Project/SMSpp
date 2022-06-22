@@ -623,6 +623,161 @@ class ThinVarDepInterface {
   }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the indices of a set of Variable given the original Subset 
+ /** The method inputs a vector of (pointers to) Variable that *used to be*
+  * "active" in the ThinVarDepInterface, as well as the Subset (of the same
+  * size(), and ordered in increasing sense) that contains their original
+  * indices. It returns a Subset (of again the same size()) that contains, in
+  * the position corresponding to each Variable, the *current* index of the
+  * Variable in the ThinVarDepInterface, or any number >=
+  * get_num_active_var() (say, Inf< Index >()) if the Variable is not
+  * currently "active" in the ThinVarDepInterface.
+  *
+  * The assumption for the method to work efficiently is that the input
+  * Subset used to be correct at some point, but it may no longer be because
+  * some "active" Variable may have been added / deleted in the meantime. This
+  * is tyipically the case of a Subset that has been stored in a Modification,
+  * which is processed after that, possibly, a bunch of changes have occurred
+  * in the ThinVarDepInterface. Handling these changes may require to access
+  * information in the ThinVarDepInterface corresponding to the Variable,
+  * which is done via their index. This method tries to obtain the set of
+  * current indices faster than map_active(), that just blindly seeks the
+  * index of each Variable, by betting that the current index will be
+  * "close to the original one to the left (because some Variable with
+  * smaller index has been deleted), and otherwise close to the end of the
+  * set of active Variable (because the Variable has been deleted and then
+  * re-added)". This should be O( #vars ) if the set of indices has not
+  * changed, but it can be O( #vars * get_num_active_var() ) (as map_active()
+  * is) in the worst case where everything changed. 
+  *
+  * This method is not pure virtual: the base ThinVarDepInterface provides 
+  * one implementation using the virtual methods of the class. However, the
+  * method is virtual, so that derived classes may provide more efficient
+  * implementations exploiting properties of their specific data structures
+  * (if only by avoiding virtual calls). */
+
+ virtual Subset map_index( const std::vector< Variable * > & vars ,
+			   c_Subset & nms ) const {
+  if( vars.size() != nms.size() )
+   throw( std::invalid_argument( "vars and nms sizes do not match" ) );
+
+  Subset map( vars.size() );
+  if( map.empty() )
+   return( map );
+
+  auto nmsit = nms.begin();
+  auto varsit = vars.begin();
+  auto mapit = map.begin();
+  c_Index nav = get_num_active_var();
+
+  // for all Variable in the set
+  while( varsit != vars.end() ) {
+   auto var = *(varsit++);  // next variable
+   auto oi = *(nmsit++);    // its original index
+   // if var has not been deleted (and, possibly, re-added), its index
+   // must be <= oi: search backward from oi to find it
+   auto avoi = get_active_var( oi );
+   Index i = oi;
+   while( var != avoi ) {
+    if( ! i )
+     break;
+    avoi = get_active_var( --i );
+    }
+   if( var == avoi )  // the Variable was found
+    *(mapit++) = i;   // this is its index
+   else {             // the Variable was not found
+    // restart the search from the last variable to oi (excluded), for the
+    // case where var has been deleted and re-added, and therefore its
+    // index can now be arbitrary (but it is more likely to be "close to
+    // the end" than "at the beginning")
+    for( i = nav , avoi = get_active_var( --i ) ;
+	 ( var != avoi ) && ( i > oi ) ; )
+     avoi = get_active_var( --i );
+    *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+    }
+   }  // end( for alla Variable )
+
+  return( map );
+
+  }  // end( map_index( Subset )
+
+/*--------------------------------------------------------------------------*/
+ /// returns the indices of a set of Variable given the original Range 
+ /** The method inputs a vector of (pointers to) Variable that *used to be*
+  * "active" in the ThinVarDepInterface, as well as the Range (of the same
+  * size) of their original indices. It returns a Subset (of again the same
+  * size()) that contains, in the position corresponding to each Variable,
+  * the *current* index of the Variable in the ThinVarDepInterface, or any
+  * number >= get_num_active_var() (say, Inf< Index >()) if the Variable is
+  * not currently "active" in the ThinVarDepInterface.
+  *
+  * The assumption for the method to work efficiently is that the input
+  * Range used to be correct at some point, but it may no longer be because
+  * some "active" Variable may have been added / deleted in the meantime. This
+  * is tyipically the case of a Range that has been stored in a Modification,
+  * which is processed after that, possibly, a bunch of changes have occurred
+  * in the ThinVarDepInterface. Handling these changes may require to access
+  * information in the ThinVarDepInterface corresponding to the Variable,
+  * which is done via their index. This method tries to obtain the set of
+  * current indices faster than map_active(), that just blindly seeks the
+  * index of each Variable, by betting that the current index will be
+   * "close to the original one to the left (because some Variable with
+  * smaller index has been deleted), and otherwise close to the end of the
+  * set of active Variable (because the Variable has been deleted and then
+  * re-added)". This should be O( #vars ) if the set of indices has not
+  * changed, but it can be O( #vars * get_num_active_var() ) (as map_active()
+  * is) in the worst case where everything changed. 
+  *
+  * This method is not pure virtual: the base ThinVarDepInterface provides 
+  * one implementation using the virtual methods of the class. However, the
+  * method is virtual, so that derived classes may provide more efficient
+  * implementations exploiting properties of their specific data structures
+  * (if only by avoiding virtual calls). */
+
+ virtual Subset map_index( const std::vector< Variable * > & vars ,
+			   Range rng ) const {
+  if( vars.size() != rng.second - rng.first )
+   throw( std::invalid_argument( "vars and rng sizes do not match" ) );
+
+  Subset map( vars.size() );
+  if( map.empty() )
+   return( map );
+
+  auto varsit = vars.begin();
+  auto mapit = map.begin();
+  c_Index nav = get_num_active_var();
+
+  // for all Variable in the set
+  for( auto oi = rng.first ; oi < rng.second ; ++oi ) {
+   auto var = *(varsit++);  // next variable
+   // if var has not been deleted (and, possibly, re-added), its index
+   // must be <= oi: search backward from oi to find it
+   auto avoi = get_active_var( oi );
+   Index i = oi;
+   while( var != avoi ) {
+    if( ! i )
+     break;
+    avoi = get_active_var( --i );
+    }
+   if( var == avoi )  // the Variable was found
+    *(mapit++) = i;   // this is its index
+   else {             // the Variable was not found
+    // restart the search from the last variable to oi (excluded), for the
+    // case where var has been deleted and re-added, and therefore its
+    // index can now be arbitrary (but it is more likely to be "close to
+    // the end" than "at the beginning")
+    for( i = nav , avoi = get_active_var( --i ) ;
+	 ( var != avoi ) && ( i > oi ) ; )
+     avoi = get_active_var( --i );
+    *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+    }
+   }  // end( for alla Variable )
+
+  return( map );
+
+  }  // end( map_index( Range )
+
+/*--------------------------------------------------------------------------*/
  /// get a pointer to the i-th "active" Variable
  /** Pure virtual method to get a pointer to the i-th Variable that is
   * "active" for this ThinVarDepInterface, where i is between 0 and n =
