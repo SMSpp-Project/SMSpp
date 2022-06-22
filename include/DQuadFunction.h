@@ -43,12 +43,6 @@
 namespace SMSpp_di_unipi_it {
 
 /*--------------------------------------------------------------------------*/
-/*------------------------------- CLASSES ----------------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @defgroup DQuadFunction_CLASSES Classes in DQuadFunction.h
- *  @{ */
-
-/*--------------------------------------------------------------------------*/
 /*------------------------- CLASS DQuadFunction ----------------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
@@ -438,8 +432,7 @@ class DQuadFunction : public C15Function {
 /*--------------------------------------------------------------------------*/
  /// returns the linearization coefficient of the i-th active Variable
 
- double get_linearization_coefficient( c_Index i )
- {
+ double get_linearization_coefficient( c_Index i ) {
   return( 2 * std::get<0>( v_triples[ i ] )->get_value() *
 	  std::get<2>( v_triples[ i ] ) + std::get<1>( v_triples[ i ] ) );
   }
@@ -447,27 +440,26 @@ class DQuadFunction : public C15Function {
 /*--------------------------------------------------------------------------*/
 
  void get_linearization_coefficients( FunctionValue * g ,
-			   Range range = std::make_pair( 0 , Inf<Index>() ) ,
+				      Range range = INFRange ,
 				      Index name = Inf<Index>() ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  void get_linearization_coefficients( SparseVector & g ,
-			   Range range = std::make_pair( 0 , Inf<Index>() ) ,
+				      Range range = INFRange ,
 				      Index name = Inf<Index>() ) override;
 
 /*--------------------------------------------------------------------------*/
 
- void get_linearization_coefficients( FunctionValue * g , c_Subset & subset  ,
+ void get_linearization_coefficients( FunctionValue * g , c_Subset & subset ,
 				      const bool ordered = false ,
-				      Index name = Inf<Index>() ) override;
+				      Index name = Inf< Index >() ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- void get_linearization_coefficients( SparseVector & g ,
-				      c_Subset & subset ,
+ void get_linearization_coefficients( SparseVector & g , c_Subset & subset ,
 				      const bool ordered = false ,
-				      Index name = Inf<Index>() ) override;
+				      Index name = Inf< Index >() ) override;
 
 /*--------------------------------------------------------------------------*/
  /// returns the linearization constant of the current point
@@ -475,7 +467,7 @@ class DQuadFunction : public C15Function {
   * method only works for returning the value of the linearization constant
   * at the current point x, which is given by c - x^T A x. */
 
- FunctionValue get_linearization_constant( Index name = Inf<Index>() )
+ FunctionValue get_linearization_constant( Index name = Inf< Index >() )
   override final {
   if( name < Inf<Index>() )
    throw( std::invalid_argument(
@@ -581,7 +573,7 @@ class DQuadFunction : public C15Function {
      avoi = std::get< 0 >( v_triples[ --i ] );
     *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
     }
-   }  // end( for alla Variable )
+   }  // end( for all Variable )
 
   return( map );
 
@@ -625,7 +617,7 @@ class DQuadFunction : public C15Function {
      avoi = std::get< 0 >( v_triples[ --i ] );
     *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
     }
-   }  // end( for alla Variable )
+   }  // end( for all Variable )
 
   return( map );
 
@@ -787,8 +779,7 @@ class DQuadFunction : public C15Function {
   * issued, as described in Observer::make_par(). */
 
  void modify_terms( c_v_coeff_it NQuadCoef , c_v_coeff_it NLinCoef ,
-                    Range range = std::make_pair( 0 , Inf<Index>() ) ,
-                    ModParam issueMod = eModBlck );
+                    Range range = INFRange , ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify a range of linear coefficients
@@ -805,7 +796,7 @@ class DQuadFunction : public C15Function {
   * issued in place of a C05FunctionModRngd one. */
 
  void modify_linear_coefficients( Vec_FunctionValue && NCoef ,
-			   Range range = std::make_pair( 0 , Inf<Index>() ) ,
+				  Range range = INFRange ,
 				  ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -892,7 +883,7 @@ class DQuadFunction : public C15Function {
          << &f_Observer << "] with " << get_num_active_var()
          << " active variables;";
   output << "current value = " << get_value();
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
@@ -901,9 +892,8 @@ class DQuadFunction : public C15Function {
  v_coeff_triple v_triples;
  /**< vector of triples < ColVariable * , Coefficient , Coefficient >
   * characterizing the linear and the quadratic terms of the DQuadFunction;
-  * the first coefficient is that in
-  * the linear term and the second one is that in the quadratic
-  * term. */
+  * the first coefficient is the linear one and the second one is the
+  * quadratic term. */
 
  FunctionValue f_value;  ///< the value of the function
 
@@ -918,9 +908,8 @@ class DQuadFunction : public C15Function {
 
 /*--------------------------------------------------------------------------*/
 
-};  // end( class( DQuadFunction ) )
+ };  // end( class( DQuadFunction ) )
 
-/** @} end( group( DQuadFunction_CLASSES ) ) */
 /*--------------------------------------------------------------------------*/
 
 }  // end( namespace SMSpp_di_unipi_it )

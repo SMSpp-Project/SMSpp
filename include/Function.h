@@ -145,7 +145,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface
 /*---------------------------- PUBLIC TYPES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Public Types
-    @{ */
+ *  @{ */
 
  using FunctionValue = double;  ///< type of the returned value
 
@@ -840,8 +840,8 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface
  * changes in the set of "active" Variable have their own separate 
  * Modification. */
 
-class FunctionMod : public AModification {
-
+class FunctionMod : public AModification
+{
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
  public:
@@ -1128,8 +1128,8 @@ class FunctionMod : public AModification {
  * method to understand what has happened, rather than going through the
  * problem of "catching" each of the derived classes individually. */
 
-class FunctionModVars : public AModification {
-
+class FunctionModVars : public AModification
+{
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
  public:
@@ -1438,8 +1438,8 @@ class FunctionModVarsAddd : public FunctionModVars {
  * maybe having to figure out a-posteriori that these were actually a range.
  */
 
-class FunctionModVarsRngd : public FunctionModVars {
-
+class FunctionModVarsRngd : public FunctionModVars
+{
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
  public:
@@ -1457,7 +1457,8 @@ class FunctionModVarsRngd : public FunctionModVars {
 
  FunctionModVarsRngd( Function * f , Vec_p_Var && vars , c_Range & range ,
                       FunctionValue shift = NaNshift , bool cB = true )
-  : FunctionModVars( f, std::move( vars ) , shift , cB ) , f_range( range ) {
+  : FunctionModVars( f , std::move( vars ) , shift , cB ) , f_range( range )
+ {
   if( v_vars.size() != f_range.second - f_range.first )
    throw( std::invalid_argument( "vars and range sizes do not match" ) );
   }

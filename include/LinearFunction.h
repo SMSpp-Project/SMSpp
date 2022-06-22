@@ -364,20 +364,20 @@ class LinearFunction : public C15Function
 
 /*--------------------------------------------------------------------------*/
 
- void get_linearization_coefficients( FunctionValue * g,
-                                   Range range = Range( 0 , Inf< Index >() ),
+ void get_linearization_coefficients( FunctionValue * g ,
+				      Range range = INFRange ,
                                       Index name = Inf< Index >() ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  void get_linearization_coefficients( SparseVector & g ,
-                                  Range range = Range( 0 , Inf< Index >() ) ,
+				      Range range = INFRange ,
                                       Index name = Inf< Index >() ) override;
 
 /*--------------------------------------------------------------------------*/
 
  void get_linearization_coefficients( FunctionValue * g , c_Subset & subset ,
-                                      bool ordered = false,
+                                      bool ordered = false ,
                                       Index name = Inf< Index >() ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -483,7 +483,7 @@ class LinearFunction : public C15Function
      avoi = v_pairs[ --i ].first;
     *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
     }
-   }  // end( for alla Variable )
+   }  // end( for all Variable )
 
   return( map );
 
@@ -527,7 +527,7 @@ class LinearFunction : public C15Function
      avoi = v_pairs[ --i ].first;
     *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
     }
-   }  // end( for alla Variable )
+   }  // end( for all Variable )
 
   return( map );
 
@@ -635,7 +635,7 @@ class LinearFunction : public C15Function
 
  void modify_coefficients( Vec_FunctionValue && NCoef , Subset && nms ,
                            bool ordered = false ,
-                           ModParam issueMod = eModBlck );
+			   ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify a range of coefficients
@@ -649,7 +649,7 @@ class LinearFunction : public C15Function
   * issued, as described in Observer::make_par(). */
 
  void modify_coefficients( Vec_FunctionValue && NCoef ,
-                           Range range = Range( 0 , Inf< Index >() ) ,
+			   Range range = INFRange ,
                            ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/

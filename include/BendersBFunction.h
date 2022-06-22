@@ -1332,10 +1332,9 @@ class BendersBFunction : public C05Function , public Block {
   *        shift is NANshift (unless all the values are equal, in which case
   *        the function value has not changed and the method does nothing). */
 
- void modify_constants( MF_dbl_it nb ,
-			Range range = Range( 0, Inf< Index >() ) ,
-                        c_ModParam issuePMod = eNoBlck ,
-                        c_ModParam issueAMod = eNoBlck );
+ void modify_constants( MF_dbl_it nb , Range range = Block::INFRange ,
+                        ModParam issuePMod = eNoBlck ,
+                        ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// modify only the constant term of a subset of rows of the linear mapping
@@ -1894,32 +1893,31 @@ class BendersBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 
  void get_linearization_coefficients( FunctionValue * g ,
-                           Range range = std::make_pair( 0 , Inf<Index>() ) ,
-                                      Index name = Inf<Index>() ) override;
+				      Range range = Block::INFRange ,
+                                      Index name = Inf< Index >() ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  void get_linearization_coefficients( SparseVector & g ,
-                           Range range = std::make_pair( 0 , Inf<Index>() ) ,
-                                      Index name = Inf<Index>() ) override;
+				      Range range = Block::INFRange ,
+                                      Index name = Inf< Index >() ) override;
 
 /*--------------------------------------------------------------------------*/
 
  void get_linearization_coefficients( FunctionValue * g , c_Subset & subset  ,
 				      bool ordered = false ,
-                                      Index name = Inf<Index>() ) override;
+                                      Index name = Inf< Index >() ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- void get_linearization_coefficients( SparseVector & g ,
-                                      c_Subset & subset ,
+ void get_linearization_coefficients( SparseVector & g , c_Subset & subset ,
 				      bool ordered = false ,
-                                      Index name = Inf<Index>() ) override;
+                                      Index name = Inf< Index >() ) override;
 
 /*--------------------------------------------------------------------------*/
  /// return the constant term of a linearization
 
- FunctionValue get_linearization_constant( Index name = Inf<Index>() )
+ FunctionValue get_linearization_constant( Index name = Inf< Index >() )
   override final;
 
 /*--------------------------------------------------------------------------*/
@@ -2813,7 +2811,7 @@ class BendersBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 
  /// removes all Constraint
- void remove_constraints();
+ void remove_constraints( void );
 
 /*--------------------------------------------------------------------------*/
 
@@ -3068,8 +3066,8 @@ class BendersBFunctionModAddd : public BendersBFunctionMod {
  * For all these, the Range of the affected rows is provided, as well as the
  * exact type of operation. */
 
-class BendersBFunctionModRngd : public BendersBFunctionMod {
-
+class BendersBFunctionModRngd : public BendersBFunctionMod
+{
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
  public:

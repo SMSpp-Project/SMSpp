@@ -1615,18 +1615,18 @@ class LagBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 
  void get_linearization_coefficients( FunctionValue * g ,
-			             Range range = Range( 0 , Inf<Index>() ) ,
-				      Index name = Inf<Index>() ) override;
+				      Range range = Block::INFRange ,
+				      Index name = Inf< Index >() ) override;
 
 /*--------------------------------------------------------------------------*/
 
  void get_linearization_coefficients( FunctionValue * g , c_Subset & subset ,
 				      bool ordered = false ,
-				      Index name = Inf<Index>() ) override;
+				      Index name = Inf< Index >() ) override;
 
 /*--------------------------------------------------------------------------*/
 
- FunctionValue get_linearization_constant( Index name = Inf<Index>() )
+ FunctionValue get_linearization_constant( Index name = Inf< Index >() )
   override;
 
 /*--------------------------------------------------------------------------*/
@@ -2155,6 +2155,97 @@ class LagBFunction : public C05Function , public Block {
 
  void map_active( c_Vec_p_Var & vars , Subset & map ,
 		  const bool ordered = false ) const override;
+
+/*--------------------------------------------------------------------------*/
+
+ Subset map_index( const std::vector< Variable * > & vars , c_Subset & nms )
+  const override {
+  if( vars.size() != nms.size() )
+   throw( std::invalid_argument( "vars and nms sizes do not match" ) );
+
+  Subset map( vars.size() );
+  if( map.empty() )
+   return( map );
+
+  auto nmsit = nms.begin();
+  auto varsit = vars.begin();
+  auto mapit = map.begin();
+
+  // for all Variable in the set
+  while( varsit != vars.end() ) {
+   auto var = *(varsit++);  // next variable
+   auto oi = *(nmsit++);    // its original index
+   // if var has not been deleted (and, possibly, re-added), its index
+   // must be <= oi: search backward from oi to find it
+   auto avoi = LagPairs[ oi ].first;
+   Index i = oi;
+   while( var != avoi ) {
+    if( ! i )
+     break;
+    avoi = LagPairs[ --i ].first;
+    }
+   if( var == avoi )  // the Variable was found
+    *(mapit++) = i;   // this is its index
+   else {             // the Variable was not found
+    // restart the search from the last variable to oi (excluded), for the
+    // case where var has been deleted and re-added, and therefore its
+    // index can now be arbitrary (but it is more likely to be "close to
+    // the end" than "at the beginning")
+    for( i = LagPairs.size() , avoi = LagPairs[ --i ].first ;
+	 ( var != avoi ) && ( i > oi ) ; )
+     avoi = LagPairs[ --i ].first;
+    *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+    }
+   }  // end( for all Variable )
+
+  return( map );
+
+  }  // end( map_index( Subset )
+
+/*--------------------------------------------------------------------------*/
+
+ Subset map_index( const std::vector< Variable * > & vars , Range rng )
+  const override {
+  if( vars.size() != rng.second - rng.first )
+   throw( std::invalid_argument( "vars and rng sizes do not match" ) );
+
+  Subset map( vars.size() );
+  if( map.empty() )
+   return( map );
+
+  auto varsit = vars.begin();
+  auto mapit = map.begin();
+
+  // for all Variable in the set
+  for( auto oi = rng.first ; oi < rng.second ; ++oi ) {
+   auto var = *(varsit++);  // next variable
+   // if var has not been deleted (and, possibly, re-added), its index
+   // must be <= oi: search backward from oi to find it
+   auto avoi = LagPairs[ oi ].first;
+   Index i = oi;
+   while( var != avoi ) {
+    if( ! i )
+     break;
+    avoi = LagPairs[ --i ].first;
+    }
+   if( var == avoi )  // the Variable was found
+    *(mapit++) = i;   // this is its index
+   else {             // the Variable was not found
+    // restart the search from the last variable to oi (excluded), for the
+    // case where var has been deleted and re-added, and therefore its
+    // index can now be arbitrary (but it is more likely to be "close to
+    // the end" than "at the beginning")
+    for( i = LagPairs.size() , avoi = LagPairs[ --i ].first ;
+	 ( var != avoi ) && ( i > oi ) ; )
+     avoi = LagPairs[ --i ].first;
+    *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+    }
+   }  // end( for all Variable )
+
+  return( map );
+
+  }  // end( map_index( Range )
+
 
 /*--------------------------------------------------------------------------*/
 

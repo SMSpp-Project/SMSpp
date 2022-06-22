@@ -94,9 +94,15 @@ class ThinVarDepInterface {
  /** Note: the Range type is supposed to be identical to the same-name type
   * defined in Block; it is not "imported from Block" because
   * ThinVarDepInterface.h does not include Block.h. */
- using Range = std::pair< Index, Index >;
+ using Range = std::pair< Index , Index >;
 
  using c_Range = const Range;    ///< a const Range
+
+ /// an "infinite Range", i.e., [ 0 , INF ), i.e., "everything"
+ /** Note: and identical constexpr with the same-name is defined in Block;
+  * it is not "imported from Block" because ThinVarDepInterface.h does not
+  * include Block.h. */
+ static constexpr auto INFRange = Range( 0 , Inf< Index >() );
 
  /// a std::vector< Index >
  /** Type a "generic set if Indices", i.e., a std::vector< Index >. This is
@@ -695,7 +701,7 @@ class ThinVarDepInterface {
      avoi = get_active_var( --i );
     *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
     }
-   }  // end( for alla Variable )
+   }  // end( for all Variable )
 
   return( map );
 
@@ -721,7 +727,7 @@ class ThinVarDepInterface {
   * which is done via their index. This method tries to obtain the set of
   * current indices faster than map_active(), that just blindly seeks the
   * index of each Variable, by betting that the current index will be
-   * "close to the original one to the left (because some Variable with
+  * "close to the original one to the left (because some Variable with
   * smaller index has been deleted), and otherwise close to the end of the
   * set of active Variable (because the Variable has been deleted and then
   * re-added)". This should be O( #vars ) if the set of indices has not
@@ -771,7 +777,7 @@ class ThinVarDepInterface {
      avoi = get_active_var( --i );
     *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
     }
-   }  // end( for alla Variable )
+   }  // end( for all Variable )
 
   return( map );
 
