@@ -662,7 +662,7 @@ class DQuadFunction : public C15Function {
  /// add a set of new Variable to the DQuadFunction
  /**< Method that receives a pointer to a vector of triples < ColVariable * ,
   * Coefficient , Coefficient > and adds these triples to the list of
-  * triples already in the DQuadFunction. The first  coefficient is that in
+  * triples already in the DQuadFunction. The first coefficient is that in
   * the linear term and the second one is that in the quadratic term. Note
   * that
   *

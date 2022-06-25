@@ -3,7 +3,7 @@
 /*--------------------------------------------------------------------------*/
 /** @file
  * Header file for the *abstract* class Modification, basically only the top
- * of the hierarchy of (small) objects describing the differenc changes that
+ * of the hierarchy of (small) objects describing the different changes that
  * can occur to the various pieces of a SMS++ model, in the classes [derived
  * from] Block, Variable, Constraint, Objective. Modification primarily
  * serve to ensure any "interested" Solver is made aware of the changes and
@@ -13,7 +13,7 @@
  * issued when the "abstract representation" of a :Block is modified are
  * used by the :Block to ensure that the "physical representation" of the 
  * :Block (if any) is kept in synch with the abstract one. This is why the
- * derived class AMoodification is also defined, which has ways to "tell" a
+ * derived class AModification is also defined, which has ways to "tell" a
  * :Block whether the changes have still to be applied to its "physical
  * representation", or this has already be done.
  *
@@ -85,7 +85,7 @@ namespace SMSpp_di_unipi_it {
 /*--------------------------------------------------------------------------*/
 /// base class for any possible modification that can happen to a Block
 /** The class Modification is the top of the hierarchy of (small) objects
- * describing the differenc changes that can occur to the various pieces of
+ * describing the different changes that can occur to the various pieces of
  * a SMS++ model, in the classes [derived from] Block, Variable, Constraint,
  * Objective.
  *
@@ -234,7 +234,7 @@ namespace SMSpp_di_unipi_it {
  *
  *        MODIFICATION ARE "ASYNCHRONOUS" OBJECTS
  *
- *    Indeed, the rationale of Modificaton is that they be processed in a
+ *    Indeed, the rationale of Modification is that they be processed in a
  *    "lazy" way, possibly "a long time after they have been issued". The
  *    result is that
  *
@@ -273,7 +273,7 @@ namespace SMSpp_di_unipi_it {
  *    is, before the Variable is destroyed it must be un-registered from
  *    all ThinVarDepInterface (Constraint, Objective, Function, ...) in
  *    which it had been active; thus, the Modification related to these
- *    un-registerig must happen *before* that related to the Variable
+ *    un-registering must happen *before* that related to the Variable
  *    deletion Modification. Similarly, if a dynamic ThinVarDepInterface
  *    (Constraint, Objective, Function, ...) is deleted, it has to be
  *    un-registered from all its "active" Variable before this happens. This
@@ -333,7 +333,7 @@ namespace SMSpp_di_unipi_it {
  *    Modification of the original GroupModification is processed until all
  *    those of the sub-GroupModification have been. Actually, there is
  *    nothing preventing a Solver to access the Modification in any order it
- *    choses, and it is reasonable than not doing FIFO could lead to
+ *    chooses, and it is reasonable than not doing FIFO could lead to
  *    performance improvements in some cases (say, bunch together all
  *    Modification pertaining the same object and only perform the last of
  *    them if it "overrides" all the previous ones, cf. the example in
@@ -343,7 +343,7 @@ namespace SMSpp_di_unipi_it {
  *
  *    Changing the "natural order" may make it difficult, if not impossible,
  *    to deal with the "complex" cases (cf. points 4. and 5.), so any logic
- *    doing that will have to be very cerefully considered.
+ *    doing that will have to be very carefully considered.
  *
  * The only common aspects to all Modifications are that:
  *
@@ -566,7 +566,7 @@ class NModification : public Modification {
   * Solver::add_Modification. 
   *
   * Note that NBModification is a "physical" Modification, since it is
-  * assumed that the whole of the Block (hence, both the "phyisical" and the
+  * assumed that the whole of the Block (hence, both the "physical" and the
   * "abstract" representation) change at once. */
 
 class NBModification : public NModification {
@@ -755,7 +755,7 @@ class GroupModification : public AModification {
  * GroupModification and aims at grouping together all Modification
  * corresponding to changes brought about by "significant changes in one or
  * more Variable", typically adding/removing them. :Block may then
- * approprately issue VariableGroupMod so that :Solver may react to them
+ * appropriately issue VariableGroupMod so that :Solver may react to them
  * more efficiently.
  *
  * In general, one should not expect all Solver to be able to recognise a
@@ -765,7 +765,7 @@ class GroupModification : public AModification {
  * way of unpacking the VariableGroupMod and process the individual changes
  * one by one, it can. However, just having to create the individual
  * Modification can incur a significant cost that one may rather avoid if
- * possible. It could therefore be possible for idividual :Block to have
+ * possible. It could therefore be possible for individual :Block to have
  * some way to allow the individual Modification to be dispensed with in the
  * knowledge that the enclosing  VariableGroupMod is enough to convey all the
  * necessary information to all the :Solver being currently employed. This
@@ -906,7 +906,7 @@ using c_ModParam = const ModParam;  ///< a const ModParam
  * interface. */
 
 enum amododification_type {
- eDryRun  = 0 ,  ///< dont't do the change, hence issue no Modification
+ eDryRun  = 0 ,  ///< don't do the change, hence issue no Modification
  eNoMod   = 1 ,  ///< do the change but issue no Modification at all
  eNoBlck  = 2 ,  ///< issue the Modification, but concerns_Block() == false
  eModBlck = 3    ///< issue the Modification, and concerns_Block() == true

@@ -401,7 +401,7 @@ class OneVarConstraint : public RowConstraint {
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 /// an OneVarConstraint with generic LHS and RHS
-/** The class BoxConstraint deriveds from OneVarConstraint and allows the user
+/** The class BoxConstraint derives from OneVarConstraint and allows the user
  * to arbitrarily define the LHS and the RHS. */
 
 class BoxConstraint : public OneVarConstraint {
@@ -521,7 +521,7 @@ class BoxConstraint : public OneVarConstraint {
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 /// an OneVarConstraint with LHS = 0 and generic RHS
-/** The class LB0Constraint deriveds from OneVarConstraint and allows the user
+/** The class LB0Constraint derives from OneVarConstraint and allows the user
  * to arbitrarily define the RHS, while the LHS is fixed to 0. */
 
 class LB0Constraint : public OneVarConstraint {
@@ -636,7 +636,7 @@ class LB0Constraint : public OneVarConstraint {
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 /// an OneVarConstraint with generic LHS and RHS = 0 
-/** The class UB0Constraint deriveds from OneVarConstraint and allows the user
+/** The class UB0Constraint derives from OneVarConstraint and allows the user
  * to arbitrarily define the LHS, while the RHS is fixed to 0. */
 
 class UB0Constraint : public OneVarConstraint {
@@ -751,7 +751,7 @@ class UB0Constraint : public OneVarConstraint {
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 /// an OneVarConstraint with generic LHS and +Infty RHS
-/** The class UBConstraint deriveds from OneVarConstraint and allows the user
+/** The class LBConstraint derives from OneVarConstraint and allows the user
  * to arbitrarily define the LHS, while the RHS is fixed to +Infty. */
 
 class LBConstraint : public OneVarConstraint {
@@ -902,7 +902,7 @@ class LBConstraint : public OneVarConstraint {
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 /// an OneVarConstraint with generic RHS and -Infty LHS
-/** The class UBConstraint deriveds from OneVarConstraint and allows the user
+/** The class UBConstraint derives from OneVarConstraint and allows the user
  * to arbitrarily define the RHS, while the LHS is fixed to -Infty. */
 
 class UBConstraint : public OneVarConstraint {
@@ -1055,7 +1055,7 @@ class UBConstraint : public OneVarConstraint {
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 /// an OneVarConstraint with LHS = 0 and RHS = +Infty
-/** The class UBConstraint deriveds from OneVarConstraint represent a box
+/** The class NNConstraint derives from OneVarConstraint represent a box
  * constraint with fixed LHS = 0 and RHS = +Infty (a Non-Negativity
  * constraint). */
 
@@ -1180,7 +1180,7 @@ class NNConstraint : public OneVarConstraint {
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 /// an OneVarConstraint with LHS = -Infty and RHS = 0
-/** The class UBConstraint deriveds from OneVarConstraint represent a box
+/** The class NPConstraint derives from OneVarConstraint represent a box
  * constraint with fixed LHS = -Infty and RHS = 0 (a Non-Positivity
  * constraint). */
 
@@ -1303,7 +1303,7 @@ class NPConstraint : public OneVarConstraint {
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 /// an OneVarConstraint with LHS = 0 and RHS = 1
-/** The class UBConstraint deriveds from OneVarConstraint represent a box
+/** The class ZOConstraint derives from OneVarConstraint represent a box
  * constraint with fixed LHS = 0 and RHS = 1 (a Zero-One constraint). */
 
 class ZOConstraint : public OneVarConstraint {

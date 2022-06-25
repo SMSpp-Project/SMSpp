@@ -320,7 +320,7 @@ namespace SMSpp_di_unipi_it {
  * case P(x) where U is an unbounded set, say a convex one: then, P(x) is
  * unbounded below if there is some v in the recession cone of U such that
  * ( c + x A ) v > 0. This immediately implies that f(y) = +\inf for all y
- * with the same property, i.e., that the constraint  c v + x ( A v ) <= 0
+ * with the same property, i.e., that the constraint c v + x ( A v ) <= 0
  * is valid for the (epi)graph of f. Since v is typically constructed by
  * whatever algorithm is used to solve P(x) in order to prove that it is
  * unbounded above, the corresponding vertical linearization of the form (**)
@@ -830,7 +830,7 @@ class C05Function : public Function {
   * Note that typically shift() of the modification will be == 0, in that
   * adding a linearization to the global pool does not really change the
   * "physical representation" of the C05Function, but only its (partial)
-  * "abstract represenation" that the global pool provides. */
+  * "abstract representation" that the global pool provides. */
 
  virtual void store_combination_of_linearizations(
   c_LinearCombination & coefficients , Index name ,
