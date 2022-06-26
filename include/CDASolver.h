@@ -803,7 +803,7 @@ class CDASolver : public Solver {
   const override {
   if( name == "dblRAccDSol" )
    return( dblRAccDSol );
-  if( name == "dbAAccDSol" )
+  if( name == "dblAAccDSol" )
    return( dblAAccDSol );
   if( name == "dblFAccDSol" )
    return( dblFAccDSol );
