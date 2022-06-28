@@ -8,28 +8,22 @@
  * the optimal value of the problem are obtained by means of Convex Duality
  * arguments.
  *
- * \version 0.11
- *
- * \date 23 - 02 - 2019
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Kostas Tavlaridis-Gyparakis \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Antonio Frangioni, Kostas Tavlaridis-Gyparakis
+ * Copyright &copy; by Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 #ifndef __CDASolver
-#define __CDASolver  /* self-identification: #endif at the end of the file */
+ #define __CDASolver  /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -41,14 +35,8 @@
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-///< namespace for the Structured Modeling System++ (SMS++)
+/// namespace for the Structured Modeling System++ (SMS++)
 namespace SMSpp_di_unipi_it {
-
-/*--------------------------------------------------------------------------*/
-/*------------------------------- CLASSES ----------------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @defgroup CDASolver_CLASSES Classes in CDASolver.h
- *  @{ */
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS CDASolver -------------------------------*/
@@ -233,7 +221,7 @@ class CDASolver : public Solver {
   intLastParCDAS    ///< first allowed parameter value for derived classes
                     /**< convenience value for easily allow derived classes
                      * to further extend the set of types of return codes */
- };             // end( int_par_type_CDAS )
+  };             // end( int_par_type_CDAS )
 
 /*--------------------------------------------------------------------------*/
  /// public enum "extending" dbl_par_type_S to a specific case of CDASolvers
@@ -298,7 +286,7 @@ class CDASolver : public Solver {
   dblLastParCDAS    ///< first allowed parameter value for derived classes
                     /**< convenience value for easily allow derived classes
                      * to further extend the set of types of return codes */
- };             // end( dbl_par_type_CDAS )
+  };             // end( dbl_par_type_CDAS )
 
 /*--------------------------------------------------------------------------*/
  /// public enum "extending" str_par_type_S to a specific case of CDASolvers
@@ -340,7 +328,7 @@ class CDASolver : public Solver {
    * of vector-of-string parameters. */
   };
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
 /*--------------------------------------------------------------------------*/
  /** @name Constructor and destructor
@@ -356,7 +344,7 @@ class CDASolver : public Solver {
 
  ~CDASolver() override = default;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------------------- METHODS FOR READING RESULTS -----------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Accessing dual solutions and dual unbounded directions
@@ -400,11 +388,11 @@ class CDASolver : public Solver {
   * is OK, for instance, for "easy" problems that are never unbounded and can
   * surely be solved "efficiently enough". */
 
- virtual bool has_dual_solution( void ) { return( true ); }
+ [[nodiscard]] virtual bool has_dual_solution( void ) { return( true ); }
 
 /*--------------------------------------------------------------------------*/
- ///< returns true if the "current" dual solution is feasible
- /**< After a call to has_dual_solution() and/or new_dual_solution() that
+ /// returns true if the "current" dual solution is feasible
+ /** After a call to has_dual_solution() and/or new_dual_solution() that
   * returned true, this method can be used to check whether or not the dual
   * solution is feasible. Note that this can be called before that the
   * solution is actually written into the Block (in whatever format the
@@ -422,7 +410,7 @@ class CDASolver : public Solver {
   * true, which is OK for a solver that always only returns dual feasible
   * solutions (if any). */
 
- virtual bool is_dual_feasible( void ) { return( true ); }
+ [[nodiscard]] virtual bool is_dual_feasible( void ) { return( true ); }
 
 /*--------------------------------------------------------------------------*/
  /// write the "current" dual solution in (the Constraint of ?) the Block
@@ -440,7 +428,11 @@ class CDASolver : public Solver {
   *
   * It is an error to call this method if has_dual_solution() and
   * new_dual_solution() have not been called and returned true (which means,
-  * in particular, if no Block is attached to this CDASolver). 
+  * in particular, if no Block is attached to this CDASolver).
+  *
+  * See the comments to Solver::get_var_solution() about the need of
+  * lock()-ing the Block prior to calling this method, which of course apply
+  * verbatim here.
   *
   * Note that, while the largest burden of producing a dual solution is
   * typically bore by compute() and/or new_dual_solution(), it is still
@@ -499,7 +491,7 @@ class CDASolver : public Solver {
  virtual void get_dual_solution( Configuration * solc = nullptr ) = 0;
 
 /*--------------------------------------------------------------------------*/
- ///< returns true if it is possible to generate a new dual solution
+ /// returns true if it is possible to generate a new dual solution
  /** This method must be called each time the user of the Solver wants that
   * it produces a *new dual* solution.
   *
@@ -557,7 +549,7 @@ class CDASolver : public Solver {
   * kInfeasible and set_unbounded_threshold() has been called; see the
   * general comments. */
 
- virtual bool new_dual_solution( void ) { return( false ); }
+ [[nodiscard]] virtual bool new_dual_solution( void ) { return( false ); }
 
 /*--------------------------------------------------------------------------*/
  /// tells whether a dual unbounded direction is available
@@ -591,7 +583,7 @@ class CDASolver : public Solver {
   * The default implementation in the base class always returns false, which
   * is OK for Solver that cannot produce any dual unbounded direction. */
 
- virtual bool has_dual_direction( void ) { return( false ); }
+ [[nodiscard]] virtual bool has_dual_direction( void ) { return( false ); }
 
 /*--------------------------------------------------------------------------*/
  /// write the "current" dual unbounded direction in the Block
@@ -619,7 +611,11 @@ class CDASolver : public Solver {
   *
   * It is an error to call this method if has_dual_direction() and
   * new_dual_direction() have not been called and returned true (which
-  * means, in particular, if no Block is attached to this CDASolver). 
+  * means, in particular, if no Block is attached to this CDASolver).
+  *
+  * See the comments to Solver::get_var_solution() about the need of
+  * lock()-ing the Block prior to calling this method, which of course apply
+  * verbatim here.
   *
   * Note that, while the largest burden of producing a dual directon is
   * typically bore by compute() and/or new_dual_directon(), it is still
@@ -689,7 +685,7 @@ class CDASolver : public Solver {
 
 /*--------------------------------------------------------------------------*/
  /// returns true if is possible to generate a new dual unbounded direction
- /**< This method must be called each time the user of the CDASolver wants
+ /** This method must be called each time the user of the CDASolver wants
   * that it produces a *new* dual unbounded direction.
   *
   * This method can only be called after the compute() method of this Solver
@@ -722,9 +718,9 @@ class CDASolver : public Solver {
   * always returning false, for solvers that cannot produce any dual
   * unbounded direction */
 
- virtual bool new_dual_direction( void ) { return( false ); }
+ [[nodiscard]] virtual bool new_dual_direction( void ) { return( false ); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE DATA OF THE CDASolver ---------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the state of the CDASolver
@@ -759,7 +755,7 @@ class CDASolver : public Solver {
 
  [[nodiscard]] virtual bool is_dual_exact( void ) const { return( true ); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the parameters of the CDASolver
@@ -767,13 +763,13 @@ class CDASolver : public Solver {
 
  [[nodiscard]] idx_type get_num_int_par( void ) const override {
   return( idx_type( intLastParCDAS ) );
- }
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  [[nodiscard]] idx_type get_num_dbl_par( void ) const override {
   return( idx_type( dblLastParCDAS ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 
@@ -785,10 +781,10 @@ class CDASolver : public Solver {
 
  [[nodiscard]] double get_dflt_dbl_par( idx_type par ) const override {
   if(( par == dblRAccDSol ) || ( par == dblAAccDSol ) )
-   return( std::numeric_limits< double >::infinity() );
+   return( Inf< double >() );
 
   if( par == dblFAccDSol )
-   return ( 0 );
+   return( 0 );
 
   return( Solver::get_dflt_dbl_par( par ) );
   }
@@ -807,7 +803,7 @@ class CDASolver : public Solver {
   const override {
   if( name == "dblRAccDSol" )
    return( dblRAccDSol );
-  if( name == "dbAAccDSol" )
+  if( name == "dblAAccDSol" )
    return( dblAAccDSol );
   if( name == "dblFAccDSol" )
    return( dblFAccDSol );
@@ -837,15 +833,14 @@ class CDASolver : public Solver {
   return( Solver::dbl_par_idx2str( idx ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
+
+ };   // end( class CDASolver )
+
+/*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-};   // end( class CDASolver )
-
-/** @} end( group( CDASolver_CLASSES ) ) -----------------------------------*/
-/*--------------------------------------------------------------------------*/
-
-};  // end( namespace SMSpp_di_unipi_it )
+}  // end( namespace SMSpp_di_unipi_it )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/

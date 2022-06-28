@@ -4,17 +4,11 @@
 /** @file
  * Implementation of the BendersBFunction class.
  *
- * \version 0.10
- *
- * \date 06 - 07 - 2021
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -22,8 +16,6 @@
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
-/*--------------------------------------------------------------------------*/
-
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -39,11 +31,10 @@
 #include "RowConstraint.h"
 #include "SMSTypedefs.h"
 #include "Solution.h"
-#include <cmath>
-#include <queue>
 
-const double dual_sign = -1.0; // TODO The Solver must provide the duals with
-                               // the right sign
+#include <cmath>
+#include <functional>
+#include <queue>
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -61,14 +52,6 @@ SMSpp_insert_in_factory_cpp_1( BendersBFunction );
 SMSpp_insert_in_factory_cpp_1( BendersBFunctionState );
 
 /*--------------------------------------------------------------------------*/
-/*---------------------------------TODO-------------------------------------*/
-/*--------------------------------------------------------------------------*/
-
-void BendersBFunction::load( std::istream &input ) {
- throw( std::logic_error( "BendersBFunction::load(): not implemented yet." ) );
- }
-
-/*--------------------------------------------------------------------------*/
 /*------------- CONSTRUCTING AND DESTRUCTING BendersBFunction --------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -78,7 +61,7 @@ BendersBFunction::BendersBFunction( Block * inner_block , VarVector && x ,
 				    ConstraintSideVector && sides ,
 				    Observer * const observer )
  : C05Function( observer ) , f_constraints_are_updated( false ) ,
-   f_solver_status( 0 ) , f_diagonal_linearization_required( false ) ,
+   f_solver_status( kUnEval ) , f_diagonal_linearization_required( false ) ,
    f_id( this )
 {
  set_inner_block( inner_block );
@@ -88,24 +71,26 @@ BendersBFunction::BendersBFunction( Block * inner_block , VarVector && x ,
 
  // default parameter values
  LinComp = get_dflt_int_par( intLinComp );
+ AAccMlt = get_dflt_dbl_par( dblAAccMlt );
+ set_par( intGPMaxSz , C05Function::get_dflt_int_par( intGPMaxSz ) );
  }
 
 /*--------------------------------------------------------------------------*/
 
-BendersBFunction::~BendersBFunction() {
+BendersBFunction::~BendersBFunction()
+{
  if( ! v_Block.empty() ) {
   assert( v_Block.size() == 1 );
   delete v_Block.front();
- }
+  }
 
  delete f_get_dual_solution_partial_config;
  delete f_get_dual_direction_partial_config;
  delete f_get_dual_solution_config;
  delete f_get_dual_direction_config;
-}
+ }
 
 /*--------------------------------------------------------------------------*/
-
 /*      IMPORTANT NOTE ON THE DESERIALIZATION OF THE BendersBFunction
  *
  * The BendersBFunction maintains a vector of pointers to the Constraint that
@@ -276,22 +261,22 @@ void BendersBFunction::deserialize( const netCDF::NcGroup & group ,
  }
 
  if( tA.size() != sides.size() )
-  throw ( std::invalid_argument( "BendersBFunction::deserialize: The size of "
-                                 "the 'ConstraintSide' vector  must be equal "
-                                 "to the number of rows of the A matrix." ) );
+  throw( std::invalid_argument( "BendersBFunction::deserialize: The size of "
+                                "the 'ConstraintSide' vector  must be equal "
+                                "to the number of rows of the A matrix." ) );
 
  auto path_group = group.getGroup( "AbstractPath" );
 
  if( ! path_group.isNull() )
   AbstractPath::vector_deserialize( path_group , v_paths_to_constraints );
  else if( sides.size() > 0 )
-  throw ( std::invalid_argument( "BendersBFunction::deserialize: The group "
-                                 "'AbstractPath' was not found." ) );
+  throw( std::invalid_argument( "BendersBFunction::deserialize: The group "
+                                "'AbstractPath' was not found." ) );
 
  if( v_paths_to_constraints.size() != sides.size() )
-  throw ( std::invalid_argument( "BendersBFunction::deserialize: The number of "
-                                 "AbstractPath to Constraint must be equal to "
-                                 "the size of the 'ConstraintSide' vector." ) );
+  throw( std::invalid_argument( "BendersBFunction::deserialize: The number of "
+                                "AbstractPath to Constraint must be equal to "
+                                "the size of the 'ConstraintSide' vector." ) );
 
  // The pointers to the affected RowConstraint are retrieved at the first time
  // they are needed, so as to give someone a chance to generate the abstract
@@ -736,7 +721,7 @@ void BendersBFunction::remove_variables( Range range , ModParam issueMod )
 /*--------------------------------------------------------------------------*/
 
 template< class T >
-static void compact( std::vector< T > x ,
+static void compact( std::vector< T > & x ,
                      const BendersBFunction::Subset & nms )
 {
  BendersBFunction::Index i = nms.front();
@@ -1455,15 +1440,10 @@ void BendersBFunction::set_ComputeConfig( ComputeConfig * scfg ) {
   < SimpleConfiguration< std::map< std::string , Configuration * > > * >
   ( scfg->f_extra_Configuration );
 
- if( ! config_map ) {
-  // The extra Configuration has not been provided. If not in differential
-  // mode, reset the BlockConfig and the BlockSolverConfig of the inner Block.
-  if( ! scfg->f_diff ) {
-   set_default_inner_Block_BlockConfig();
-   set_default_inner_Block_BlockSolverConfig();
-  }
-  return;
- }
+ if( ! config_map )
+  // An invalid extra Configuration has not been provided.
+  throw( std::invalid_argument( "BendersBFunction::set_ComputeConfig: "
+                                "invalid extra_Configuration." ) );
 
  for( const auto & [ key , config ] : config_map->f_value ) {
 
@@ -1899,6 +1879,29 @@ int BendersBFunction::compute( bool changedvars ) {
 
 /*--------------------------------------------------------------------------*/
 
+static RealObjective::OFValue get_recours_obj( const Block * blck )
+{
+ RealObjective::OFValue rv = 0;
+ if( auto obj = dynamic_cast< RealObjective * >( blck->get_objective() ) )
+  rv = obj->get_constant_term();
+ for( const auto bk : blck->get_nested_Blocks() )
+  rv += get_recours_obj( bk );
+
+ return( rv );
+ };
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+Function::FunctionValue BendersBFunction::get_constant_term( void ) const
+{
+ if( auto bk = get_inner_block() )
+  return( get_recours_obj( bk ) );
+ else
+  return( 0 );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 bool BendersBFunction::is_convex( void ) const {
  if( v_Block.empty() ) return false;
  return( v_Block.front()->get_objective_sense() == Objective::eMin );
@@ -2120,8 +2123,7 @@ void BendersBFunction::get_linearization_coefficients
  const auto obj_sign =
   ( v_Block.front()->get_objective_sense() == Objective::eMin ) ? - 1 : 1;
 
- for( Index i = range.first ; i < range.second ; ++i )
-  g[ i ] = 0;
+ std::fill_n( g , range.second - range.first , 0 );
 
  for( Index j = 0 ; j < v_constraints.size() ; ++j ) {
 
@@ -2129,7 +2131,7 @@ void BendersBFunction::get_linearization_coefficients
   if( ignore_constraint( constraint ) )
    continue;
 
-  const auto dual_value = constraint->get_dual() * dual_sign;
+  const auto dual_value = constraint->get_dual();
 
   if( dual_value == 0 )
    continue;
@@ -2181,7 +2183,7 @@ void BendersBFunction::get_linearization_coefficients
   if( ignore_constraint( constraint ) )
    continue;
 
-  const auto dual_value = constraint->get_dual() * dual_sign;
+  const auto dual_value = constraint->get_dual();
 
   if( dual_value == 0 )
    continue;
@@ -2207,12 +2209,13 @@ void BendersBFunction::get_linearization_coefficients
  const auto obj_sign =
   ( v_Block.front()->get_objective_sense() == Objective::eMin ) ? - 1 : 1;
 
+ std::fill_n( g , subset.size() , 0 );
+
  for( auto i : subset ) {
   if( i >= v_x.size() )
    throw( std::invalid_argument( "BendersBFunction::get_linearization_"
                                  "coefficients: invalid index: " +
                                  std::to_string( i ) + "." ) );
-  g[ i ] = 0;
  }
 
  for( Index j = 0; j < v_constraints.size(); ++j ) {
@@ -2221,7 +2224,7 @@ void BendersBFunction::get_linearization_coefficients
   if( ignore_constraint( constraint ) )
    continue;
 
-  const auto dual_value = constraint->get_dual() * dual_sign;
+  const auto dual_value = constraint->get_dual();
 
   if( dual_value == 0 )
    continue;
@@ -2232,8 +2235,9 @@ void BendersBFunction::get_linearization_coefficients
   if( obj_sign * dual_value <= 0 && v_sides[ j ] == eLHS )
    continue;
 
+  Index k = 0;
   for( auto i : subset )
-   g[ i ] += - dual_value * v_A[ j ][ i ];
+   g[ k++ ] += - dual_value * v_A[ j ][ i ];
  }
 }  // end( BendersBFunction::get_linearization_coefficients( * , subset ) )
 
@@ -2278,7 +2282,7 @@ void BendersBFunction::get_linearization_coefficients
   if( ignore_constraint( constraint ) )
    continue;
 
-  const auto dual_value = constraint->get_dual() * dual_sign;
+  const auto dual_value = constraint->get_dual();
 
   if( dual_value == 0 )
    continue;
@@ -2344,7 +2348,7 @@ Function::FunctionValue BendersBFunction::compute_linearization_constant() {
    if( ignore_constraint( & c ) )
     return;
 
-   const auto dual_value = c.get_dual() * dual_sign;
+   const auto dual_value = c.get_dual();
 
    if( dual_value == 0 )
     return;
@@ -2645,6 +2649,8 @@ ComputeConfig * BendersBFunction::get_ComputeConfig
 
 void BendersBFunction::update_constraints() {
 
+ const auto initial_f_ignore_modifications = f_ignore_modifications;
+
  f_ignore_modifications = true;
 
  for( Index i = 0 ; i < v_A.size() ; ++i ) {
@@ -2661,7 +2667,7 @@ void BendersBFunction::update_constraints() {
    get_constraint( i )->set_both( value );
  }
 
- f_ignore_modifications = false;
+ f_ignore_modifications = initial_f_ignore_modifications;
  f_constraints_are_updated = true;
 }  // end( BendersBFunction::update_constraints )
 
@@ -2826,9 +2832,9 @@ void BendersBFunction::retrieve_constraints() {
     get_element< RowConstraint >( inner_block );
 
   if( ! constraint )
-   throw ( std::logic_error( "BendersBFunction::retrieve_constraints: "
-                             "Constraint " + std::to_string( i ) +
-                             " was not found." ) );
+   throw( std::logic_error( "BendersBFunction::retrieve_constraints: "
+                            "Constraint " + std::to_string( i ) +
+                            " was not found." ) );
 
   v_constraints[ i ] = constraint;
  }

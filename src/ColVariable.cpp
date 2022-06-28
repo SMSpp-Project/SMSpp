@@ -4,12 +4,7 @@
 /** @file
  * Implementation of the ColVariable class.
  *
- * \version 0.20
- *
- * \date 19 - 02 - 2019
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -17,8 +12,6 @@
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
-/*--------------------------------------------------------------------------*/
-
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -140,6 +133,32 @@ void ColVariable::is_unitary( bool yn , c_ModParam issueMod )
   std::make_shared< VariableMod >( this , old_state , f_state ,
                                    Observer::par2concern( issueMod ) ),
   Observer::par2chnl( issueMod ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ColVariable::VarValue ColVariable::get_lb( void ) const {
+ return( is_positive() ? VarValue( 0 ) :
+         ( is_unitary() ? VarValue( -1 ) : -Inf< VarValue >() ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ColVariable::VarValue ColVariable::get_ub( void ) const {
+ return( is_negative() ? VarValue( 0 ) :
+         ( is_unitary() ? VarValue( 1 ) : Inf< VarValue >() ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ColVariable::Index ColVariable::is_active(
+                                 const ThinVarDepInterface * stuff ) const {
+ auto idx = std::lower_bound( v_active.begin(), v_active.end(), stuff );
+
+ if( idx != v_active.end() )
+  return( std::distance( v_active.begin() , idx ) );
+ else
+  return( Inf< Index >() );
  }
 
 /*--------------------------------------------------------------------------*/

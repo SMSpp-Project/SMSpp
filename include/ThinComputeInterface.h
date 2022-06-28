@@ -8,12 +8,7 @@
  * a ComputeConfig object that allows to set and get all the parameters of a
  * :ThinComputeInterface object in one blow.
  *
- * \version 0.20
- *
- * \date 22 - 03 - 2021
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -32,6 +27,8 @@
 /*--------------------------------------------------------------------------*/
 
 #include "Configuration.h"
+
+#include <thread>
 
 /*--------------------------------------------------------------------------*/
 /*----------------------------- NAMESPACE ----------------------------------*/
@@ -62,7 +59,7 @@ namespace SMSpp_di_unipi_it
  * - the computation has parameters (possibly, many and complex) determining
  *   how exactly it is performed;
  *
- * - the computation may not necessarily suceed, especially if only allowed
+ * - the computation may not necessarily succeed, especially if only allowed
  *   a limited the amount of computational resources (which may be done by
  *   setting some of the above parameters);
  *
@@ -80,16 +77,16 @@ namespace SMSpp_di_unipi_it
  *   checkpointing purposes;
  *
  * - the computation may be repeated many times as the underlying data
- *   carachterising it (typically, a Block or a fragment thereof) may change
+ *   characterising it (typically, a Block or a fragment thereof) may change
  *   significantly, but then the data may be brought back to a state similar
  *   to one occurred "a long time before", which makes it useful to extract
- *   and save the "internal state" of the computation for reoptimization
+ *   and save the "internal state" of the computation for re-optimization
  *   purposes;
  *
  * - the computation may take time (or other computational resources) that
  *   the caller may want to be able to measure;
  *
- * - the operations may be performed asyncronously on one or more different
+ * - the operations may be performed asynchronously on one or more different
  *   threads, which implies some kind of synchronization, e.g. via
  *   Block::lock().
  *
@@ -144,7 +141,7 @@ class ThinComputeInterface
  /// public enum for the possible return values of compute()
  /** The enum compute_type is used to define the meaning of the return value
   * of the compute() method. The values are subdivided in four different
-  * segments intended to represent four differen sets of conditions:
+  * segments intended to represent four different sets of conditions:
   *
   * - All return values <= kUnEval mean that the process of compute() has not
   *   finished yet. This may mean a few different things (which is why kUnEval
@@ -222,7 +219,7 @@ class ThinComputeInterface
   * different types of events (see event_type), and will call all the event
   * handlers registered under a certain event type when the corresponding
   * condition occurs. Note that the return type is int rather than action_type
-  * to allow derived classes to extend the typer of actions they sypport. */
+  * to allow derived classes to extend the type of actions they support. */
 
  using EventHandler = std::function< int( void ) >;
 
@@ -231,7 +228,7 @@ class ThinComputeInterface
  /** When an event handler is registered into a ThinComputeInterface, it gets
   * a unique ID that can be, and should, used later on to un-register it. One
   * does not expect more than 65536 event handlers being registered to any
-  * sentible ThinComputeInterface, but should it be so, the definition of
+  * sensible ThinComputeInterface, but should it be so, the definition of
   * EventID could be changed accordingly here. */
 
  using EventID = unsigned short int;
@@ -280,8 +277,8 @@ class ThinComputeInterface
    * some events not to be called at all, although of course a derived class
    * may place appropriate checks in multiple places to try to avoid this. */
 
-  e_last_event_type = 4     ///< conveniemce value to define new events
-                            /**< conveniemce value to allow derived classes
+  e_last_event_type = 4     ///< convenience value to define new events
+                            /**< convenience value to allow derived classes
 			     * to "extend" event_type and define new
    * class-specific events that their compute() can support. */
 
@@ -321,7 +318,7 @@ class ThinComputeInterface
    * eStopOK (included), compute() should immediately stop (some delay is
    * possible if required by the implementation) because the event has
    * detected that whatever needed to be compute()-d, has already been
-   * satsfactorily compute()-d. eStopOK is taken equal to kOK, so that
+   * satisfactorily compute()-d. eStopOK is taken equal to kOK, so that
    *
    *     compute() WILL RETURN AS ITS STATUS PRECISELY THE VALUE
    *     RETURNED BY THE EVENT HANDLER
@@ -402,8 +399,8 @@ class ThinComputeInterface
                    * number of threads that the next call to compute() is
   * allowed to spawn while trying to solve the Block. Actually "thread" here
   * is intended in a loose sense, since each ::ThinComputeInterface will
-  * decide if and how to implememnt any asynchronous part, and hence which
-  * tools will be used to manage it. If std::asynch is used, for instance,
+  * decide if and how to implement any asynchronous part, and hence which
+  * tools will be used to manage it. If std::async is used, for instance,
   * then what is easily kept under control is the number of tasks, which may
   * or may not coincide with the number of threads depending on the scheduler
   * implementation. Specific :ThinComputeInterface requiring more fine
@@ -465,7 +462,71 @@ class ThinComputeInterface
 		  * extend the set of double algorithmic parameters. */
   };  // end( dbl_par_type_TCI )
 
-/**@} ----------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
+ /// public enum for the string algorithmic parameters
+ /** Public enum describing the different algorithmic parameters of "string"
+  * type that any ThinComputeInterface should reasonably have (none so far).
+  * The value strLastAlgParTCI is provided so that the list can be easily
+  * extended by derived classes. */
+
+ enum str_par_type_TCI {
+  strLastAlgParTCI = 0   ///< first allowed new string parameter
+                         /**< Convenience value for easily allow derived
+			  * classes to extend the set of string algorithmic
+   * parameters. Actually, so far thare are no string algorithmic parameters
+   * in the base ThinComputeInterface class, but this may change in the
+   * future, so using this makes code resistant to that. */
+  };  // end( str_par_type_TCI )
+
+/*--------------------------------------------------------------------------*/
+ /// public enum for vector-of-int algorithmic parameters
+ /** Public enum describing the different algorithmic parameters that are
+  * vectors of int that any ThinComputeInterface should reasonably have (none
+  * so far). The value vintLastAlgParTCI is provided so that the list can be
+  * easily extended by derived classes. */
+
+ enum vint_par_type_TCI {
+  vintLastAlgParTCI = 0  ///< first allowed new  vector-of-int parameter
+                         /**< Convenience value for easily allow derived
+			  * classes to extend the set of vector-of-int
+   * parameters. Actually, so far thare are no such parameters in the base
+   * ThinComputeInterface class, but this may change in the future, so using
+   * this makes code resistant to that. */
+  };  // end( vint_par_type_TCI )
+
+/*--------------------------------------------------------------------------*/
+ /// public enum for vector-of-double algorithmic parameters
+ /** Public enum describing the different algorithmic parameters that are
+  * vectors of double that any ThinComputeInterface should reasonably have
+  * (none so far). The value vdblLastAlgParTCI is provided so that the list
+  * can be easily extended by derived classes. */
+
+ enum vdbl_par_type_TCI {
+  vdblLastAlgParTCI = 0  ///< first allowed new  vector-of-double parameter
+                         /**< Convenience value for easily allow derived
+			  * classes to extend the set of vector-of-double
+   * parameters. Actually, so far thare are no such parameters in the base
+   * ThinComputeInterface class, but this may change in the future, so using
+   * this makes code resistant to that. */
+  };  // end( vdbl_par_type_TCI )
+
+/*--------------------------------------------------------------------------*/
+ /// public enum for vector-of-string algorithmic parameters
+ /** Public enum describing the different algorithmic parameters that are
+  * vectors of string that any ThinComputeInterface should reasonably have
+  * (none so far). The value vdblLastAlgParTCI is provided so that the list
+  * can be easily extended by derived classes. */
+
+ enum vstr_par_type_TCI {
+  vstrLastAlgParTCI = 0  ///< first allowed new  vector-of-string parameter
+                         /**< Convenience value for easily allow derived
+			  * classes to extend the set of vector-of-string
+   * parameters. Actually, so far thare are no such parameters in the base
+   * ThinComputeInterface class, but this may change in the future, so using
+   * this makes code resistant to that. */
+  };  // end( vstr_par_type_TCI )
+
+/** @} ---------------------------------------------------------------------*/
 /*----------- CONSTRUCTING AND DESTRUCTING ThinComputeInterface ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructing and destructing ThinComputeInterface
@@ -480,11 +541,17 @@ class ThinComputeInterface
 
  virtual ~ThinComputeInterface() = default;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
- *  @{ */
+ *
+ * These methods allow to set the algorithmic paramters of the 
+ * ThinComputeInterface, that currently are of 6 different types: int,
+ * double, std::string and vectors of these. Each parameter can be changed
+ * individully using the corresponding set_par(), or any arbitrary subset of
+ * them can be canged in one blow using a ComputeConfig.
+ * @{ */
 
  /// set a given integer (int) numerical parameter
  /** Set the integer (int) numerical parameter with index \p par, which must
@@ -557,7 +624,7 @@ class ThinComputeInterface
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// move a given vector-of-float (std::vector< double >) numerical parameter
- /** Set the vector-of-float (std::vector< doule >) numerical parameter with
+ /** Set the vector-of-float (std::vector< double >) numerical parameter with
   * index \p par, which must be in the range [ 0 , get_num_vdbl_par() ). The
   * method takes an lvalue reference, which means that \p value can be moved
   * into the ThinComputeInterface. The method is given a "void" implementation
@@ -654,7 +721,7 @@ class ThinComputeInterface
 
  virtual void set_ComputeConfig( ComputeConfig * scfg = nullptr );
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------------- METHODS FOR MANAGING THE "IDENTITY" --------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Managing the "identity" of a ThinComputeInterface
@@ -663,7 +730,7 @@ class ThinComputeInterface
  * is the "lock and own" one: each time that an "entity" needs to operate on
  * a Block to change it, it has to lock() it. The Block stores the "identity"
  * of its owner, so that if the same owner comes back and try to "own" it,
- * the operation suceeds even if the Block is locked already. When a Block is
+ * the operation succeeds even if the Block is locked already. When a Block is
  * "owned", all its sub-Block (recursively) are "owned" by the same entity.
  * While compute()-ing something does not in general require to change the
  * underlying Block, it is possible that this may be needed. Hence, a
@@ -672,8 +739,8 @@ class ThinComputeInterface
  * In general, each entity willing to "lock and own" a Block will have to
  * provide a unique "identity", under the form of a void *. If the entity is
  * an object, the typical "identity" is "this", i.e., the pointer to the
- * object itself. There can be the the case where :ThinComputeInterface
- * having loacked a Block relies on some other :ThinComputeInterface that
+ * object itself. There can be the case where :ThinComputeInterface
+ * having locked a Block relies on some other :ThinComputeInterface that
  * needs to do the same, for instance because it operates on some of the
  * sub-Block of the given Block. However, when the "master"
  * :ThinComputeInterface" lock()s the Block, the other :ThinComputeInterface 
@@ -701,7 +768,7 @@ class ThinComputeInterface
   *
   *     bool owned = block->is_owned_by( me );
   *     if( ( ! owned ) && ( ! block->lock( me ) ) )
-  *      < something happens, typcally a disaster >
+  *      < something happens, typically a disaster >
   *
   *     < block is mine, do whatever I want with it >
   *
@@ -717,7 +784,7 @@ class ThinComputeInterface
   * is what the above scheme does, because the entity having lent its
   * identity is still assuming it is lock()-ed, and it will unlock() it
   * when it is done (unless the entity in turn had the identity lent to,
-  * in which case the process will repear above).
+  * in which case the process will repeat above).
   *
   * If the method is called with the (default) nullptr argument, the "lease
   * of the identity expires" (typically, because the Block is no longer
@@ -739,7 +806,7 @@ class ThinComputeInterface
 
  virtual void set_id( void * id = nullptr ) {}
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------------------- METHODS FOR EVENTS HANDLING -----------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Set event handlers
@@ -816,7 +883,7 @@ class ThinComputeInterface
  * itself multi-threaded. However, the design principle is that
  *
  *     EVERY METHOD IN THE PUBLIC INTERFACE OF THE ThinComputeInterface
- *     IS CALLABLE BY AN EVENT HANDLER UNLESS EXPLICTLY DECLARED OTHERWISE
+ *     IS CALLABLE BY AN EVENT HANDLER UNLESS EXPLICITLY DECLARED OTHERWISE
  *
  * That is, each :ThinComputeInterface will have to specify, possibly
  * separately for each type of event it supports, if some methods of its
@@ -844,7 +911,7 @@ class ThinComputeInterface
  *  @{ */
 
  /// register a new event handler, returning its id
- /** Adds a new event handler to these regostered for the given type. As the
+ /** Adds a new event handler to these registered for the given type. As the
   * && tells, the event handler becomes property of the ThinComputeInterface,
   * which is completely OK if, as one expects, it is defined via a lambda
   * function. The method returns a unique id for the handler, which can (and
@@ -874,7 +941,7 @@ class ThinComputeInterface
 			   ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- METHODS FOR DOING THE COMPUTATION -------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Compute whatever the object is supposed to
@@ -905,7 +972,7 @@ class ThinComputeInterface
   *   Variable. For Constraint, Objective and Function these are the "active"
   *   Variable, while for Solver, these are the Variable in the Constraint of
   *   the Block it is attached to which do not belong to the Block itself,
-  *   and therefore have to be treated as constrants when the Block is solved.
+  *   and therefore have to be treated as constraints when the Block is solved.
   *   These may change their value, but there is no mechanism that signals any
   *   abject if such a change has occurred.
   *
@@ -915,7 +982,7 @@ class ThinComputeInterface
   * a change. However, the changes may affect the result of the computation,
   * which could therefore be no longer correct for the state of the object
   * at the beginning of the call, but only for that at the end (and note that
-  * there may be no bound on the number of changes which may occurr in the
+  * there may be no bound on the number of changes which may occur in the
   * meantime). The point is whether this is allowed to happen, and the general
   * answer is "no". That is, the rule is that
   *
@@ -953,7 +1020,7 @@ class ThinComputeInterface
   * and continue as if nothing had happened" (this is provided the state of
   * the solution process is properly preserved, which is usually the case).
   * Otherwise, the computation may have to be significantly reshaped: in the
-  * best case reoptimization techniques can be used to warm-start the new one
+  * best case re-optimization techniques can be used to warm-start the new one
   * using results from the old one, but in some cases there could be no other
   * resort than restarting everything from scratch.
   *
@@ -1014,7 +1081,7 @@ class ThinComputeInterface
 	  );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------------------- METHODS FOR READING RESULTS -----------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading results
@@ -1069,7 +1136,7 @@ class ThinComputeInterface
 
  virtual long get_elapsed_calls( void ) const { return( 0 ); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the parameters of the ThinComputeInterface
@@ -1170,7 +1237,7 @@ class ThinComputeInterface
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get the default value of a string parameter
- /**  Returns a const reference to the the default value of the string
+ /**  Returns a const reference to the default value of the string
   * parameter with index \p par, which must be in the range
   * [ 0 , get_num_str_par() ). The method is given a "void" implementation
   * (returning the empty string), rather than being pure virtual, so that
@@ -1510,7 +1577,7 @@ class ThinComputeInterface
   * parameters are at their default value. In this case no ComputeConfig is
   * returned: nullptr is. This tells in a "compact form" (analogous to
   * set_ComputeConfig()) the same information, i.e., "all parameters to their
-  * defult value". This is done by the base class implementation, but note
+  * default value". This is done by the base class implementation, but note
   * that a ComputeConfig is only meant to actually store information about
   * (non-default) values of parameters *that its :ThinComputeInterface
   * actually cares about*. This means that if a specific :ThinComputeInterface
@@ -1530,7 +1597,7 @@ class ThinComputeInterface
 					    ComputeConfig * ocfg = nullptr )
   const;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------- METHODS FOR HANDLING THE State OF THE ThinComputeInterface -------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the State of the ThinComputeInterface
@@ -1539,7 +1606,7 @@ class ThinComputeInterface
  * many different computing processes, among which "very heavy" ones. Such
  * processes may require a (very large) "internal state" to work. Once the
  * computation is finished, the internal state (in part or in whole) is
- * usually retained for the purpose of "reoptimization": if the underlying
+ * usually retained for the purpose of "re-optimization": if the underlying
  * data characterising it (typically, a Block or a fragment thereof) changes
  * "just a little", re-starting the computation from the previous "internal
  * state" has the potential (but is not guaranteed) to significantly improve
@@ -1552,7 +1619,7 @@ class ThinComputeInterface
  * before". In this case, the capability of extracting and saving the
  * "internal state" of the computation at arbitrary times during the series of
  * computations and then passing back to the ThinComputeInterface a properly
- * chosen state among the saved ones may allow "reoptimization" to be
+ * chosen state among the saved ones may allow "re-optimization" to be
  * performed more efficiently.
  *
  * A different use case for the capability of extracting and saving the
@@ -1615,7 +1682,7 @@ class ThinComputeInterface
   * Note that there may exist different options while saving a State; say
   * "saving more state" or "saving less state" with some trade-off between
   * the required memory/cost and the chances of being effective at
-  * reoptimization/checkpointing. If this is the case, the options can be
+  * re-optimization/checkpointing. If this is the case, the options can be
   * set by means of standard int/double/string/... parameters of the
   * specific :ThinComputeInterface; the base class does not offer any
   * pre-defined parameter for this task. */
@@ -1718,7 +1785,7 @@ class ThinComputeInterface
  virtual void serialize_State( netCDF::NcGroup & group ,
                                const std::string & sub_group_name = "" ) const;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
 // empty, this is a thin interface
@@ -1750,7 +1817,7 @@ class ThinComputeInterface
  *
  * The idea is that each list contains the pairs < parameter name , value >
  * to be changed/set. The lists need *not* contain all the parameters (of the
- * given type), all those not directly specified are treated as speficied in
+ * given type), all those not directly specified are treated as specified in
  * the bool field f_diff. If f_diff == true, then the ComputeConfig has to be
  * "interpreted in a differential sense": all parameters not specified must
  * not be changed from their current value. If f_diff == false instead, then
@@ -1854,7 +1921,7 @@ class ComputeConfig : public Configuration {
   *   = the variable "TYP_par_vals", of the right type (int, double or string
   *     according on TYP) and indexed over the dimension "TYP_par_num"; the
   *     i-th entry of the variable is assumed to contain the value of the
-  *     parameter of that tyoe whose string name is to be found in the i-th
+  *     parameter of that type whose string name is to be found in the i-th
   *     entry of "TYP_par_names"; the variable is optional if TYP_par_num
   *     == 0 (e.g., it not provided), since in this case it is ignored;
   *
@@ -1867,7 +1934,7 @@ class ComputeConfig : public Configuration {
   *
   *   = the dimension "v_TYP_par_tot" containing the total number of basic
   *     values (int for "int", double for "dbl", and string for "str") that
-  *     are contaned in all the vector parameters of that type, i.e., the
+  *     are contained in all the vector parameters of that type, i.e., the
   *     sum of the number of elements in all the vectors; the dimension is
   *     optional if v_TYP_pa_numr == 0 (e.g., it not provided), since in this
   *     case it is ignored;
@@ -1956,16 +2023,22 @@ class ComputeConfig : public Configuration {
   * \p name is moved into the ComputeConfig), otherwise its current value
   * is changed to \p value. */
 
- void set_par( std::string && name , int value ) {
+ bool set_par( std::string && name , int value ) {
   auto it = std::find_if( int_pars.begin() , int_pars.end() ,
                           [ & name ]( auto & el ) {
                            return( name == el.first );
                            } );
 
-  if( it == int_pars.end() )
+  if( it == int_pars.end() ) {
    int_pars.emplace_back( std::move( name ) , value );
-  else
-   it->second = value;
+   return( true );
+   }
+
+  if( it->second == value )
+   return( false );
+
+  it->second = value;
+  return( true );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -1973,37 +2046,51 @@ class ComputeConfig : public Configuration {
  /** Set the float (double) numerical parameter specified by \p name. If the
   * parameter is not in the corresponding list it is added (in which case
   * \p name is moved into the ComputeConfig), otherwise its current value
-  * is changed to \p value. */
+  * is changed to \p value. Returns true if the parameter is either not
+  * there or has a different value, false otherwise. */
 
- void set_par( std::string && name , double value ) {
+ bool set_par( std::string && name , double value ) {
   auto it = std::find_if( dbl_pars.begin(), dbl_pars.end(),
                           [ & name ]( auto & el ) {
                            return( name == el.first );
                            } );
 
-  if( it == dbl_pars.end() )
+  if( it == dbl_pars.end() ) {
    dbl_pars.emplace_back( std::move( name ) , value );
-  else
-   it->second = value;
- }
+   return( true );
+   }
+
+  if( it->second == value )
+   return( false );
+
+  it->second = value;
+  return( true );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set the given string parameter
  /** Set the string parameter specified by \p name. If the parameter is not
   * in the corresponding list it is added (in which case \p name is moved
   * into the ComputeConfig), otherwise its current value is changed to
-  * \p value. */
+  * \p value. Returns true if the parameter is either not there or has a
+  * different value, false otherwise. */
 
- void set_par( std::string && name , std::string && value ) {
+ bool set_par( std::string && name , std::string && value ) {
   auto it = std::find_if( str_pars.begin() , str_pars.end() ,
                           [ & name ]( auto & el ) {
                            return( name == el.first );
                            } );
 
-  if( it == str_pars.end() )
+  if( it == str_pars.end() ) {
    str_pars.emplace_back( std::move( name ) , std::move( value ) );
-  else
-   it->second = std::move( value );
+   return( true );
+   }
+
+  if( it->second == value )
+   return( false );
+
+  it->second = std::move( value );
+  return( true );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -2012,40 +2099,48 @@ class ComputeConfig : public Configuration {
   * the parameter is not in the corresponding list it is added  (in which
   * case \p name is moved into the ComputeConfig), otherwise its current
   * value is changed to \p value; in either case, \p value is moved
-  * into the ComputeConfig. */
+  * into the ComputeConfig. Returns true if the parameter is either not
+  * there or has a different value, false otherwise. */
 
- void set_par( std::string && name , std::vector< int > && value ) {
+ bool set_par( std::string && name , std::vector< int > && value ) {
   auto it = std::find_if( vint_pars.begin() , vint_pars.end() ,
                           [ & name ]( auto & el ) {
                            return( name == el.first );
                            } );
 
-  if( it == vint_pars.end() )
+  if( it == vint_pars.end() ) {
    vint_pars.emplace_back( std::move( name ) , std::move( value ) );
-  else
-   it->second = std::move( value );
+   return( true );
+   }
+
+  if( it->second == value )
+   return( false );
+
+  it->second = std::move( value );
+  return( true );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set one entry of the given vector-of-integer numerical parameter
  /** Set the entry specified by \pos of the vector-of-integer numerical
   * parameter specified by \p name. If the parameter is not in the
-  * corresponding list or \p pos is not a valid position, exception is
-  * thrown. */
+  * corresponding list it is added, and if \p pos is not a valid position
+  * then it is extended (all the un-specified positions being empty). */
 
- void set_par( const std::string & name , unsigned int pos , int value ) {
+ void set_par( std::string && name , unsigned int pos , int value ) {
   auto it = std::find_if( vint_pars.begin() , vint_pars.end() ,
                           [ & name ]( auto & el ) {
                            return( name == el.first );
                            } );
 
-  if( it == vint_pars.end() )
-   throw( std::invalid_argument( "parameter " + name +
-				 " not in ComputeConfig" ) );
+  if( it == vint_pars.end() ) {
+   vint_pars.emplace_back( std::move( name ) , std::vector< int >() );
+   it = (vint_pars.end())--;
+   }
 
   if( pos >= decltype( pos )( it->second.size() ) )
-   throw( std::invalid_argument( "invalid position " + std::to_string( pos ) +
-				 " in vint parameter" ) );
+   it->second.resize( pos + 1 );
+
   it->second[ pos ] = value;
   }
 
@@ -2055,85 +2150,99 @@ class ComputeConfig : public Configuration {
   * the parameter is not in the corresponding list it is added  (in which
   * case \p name is moved into the ComputeConfig), otherwise its current
   * value is changed to \p value; in either case, \p value is moved
-  * into the ComputeConfig. */
+  * into the ComputeConfig. Returns true if the parameter is either not
+  * there or has a different value, false otherwise. */
 
- void set_par( std::string && name , std::vector< double > && value ) {
+ bool set_par( std::string && name , std::vector< double > && value ) {
   auto it = std::find_if( vdbl_pars.begin() , vdbl_pars.end() ,
                           [ & name ]( auto & el ) {
                            return( name == el.first );
                            } );
 
-  if( it == vdbl_pars.end() )
+  if( it == vdbl_pars.end() ) {
    vdbl_pars.emplace_back( std::move( name ) , std::move( value ) );
-  else
-   it->second = std::move( value );
+   return( true );
+   }
+
+  if( it->second == value )
+   return( false );
+
+  it->second = std::move( value );
+  return( true );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set one entry of the given vector-of-float numerical parameter
  /** Set the entry specified by \pos of the vector-of-float numerical
   * parameter specified by \p name. If the parameter is not in the
-  * corresponding list or \p pos is not a valid position, exception is
-  * thrown. */
+  * corresponding list it is added, and if \p pos is not a valid position
+  * then it is extended (all the un-specified positions being empty). */
 
- void set_par( const std::string & name , unsigned int pos , double value ) {
+ void set_par( std::string && name , unsigned int pos , double value ) {
   auto it = std::find_if( vdbl_pars.begin() , vdbl_pars.end() ,
                           [ & name ]( auto & el ) {
                            return( name == el.first );
                            } );
 
-  if( it == vdbl_pars.end() )
-   throw( std::invalid_argument( "parameter " + name +
-				 " not in ComputeConfig" ) );
+  if( it == vdbl_pars.end() ) {
+   vdbl_pars.emplace_back( std::move( name ) , std::vector< double >() );
+   it = (vdbl_pars.end())--;
+   }
 
   if( pos >= decltype( pos )( it->second.size() ) )
-   throw( std::invalid_argument( "invalid position " + std::to_string( pos ) +
-				  " in vdbl parameter" ) );
+   it->second.resize( pos + 1 );
+
   it->second[ pos ] = value;
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set the given vector-of-string parameter
  /** Set the vector-of-string parameter specified by \p name. If the
-  * parameter is not in the corresponding list it is added  (in which case
+  * parameter is not in the corresponding list it is added (in which case
   * \p name is moved into the ComputeConfig), otherwise its current value is
   * changed to \p value; in either case, \p value is moved into the
-  * ComputeConfig. */
+  * ComputeConfig. Returns true if the parameter is either not there or has
+  * a different value, false otherwise. */
 
- void set_par( std::string && name , std::vector< std::string > && value ) {
+ bool set_par( std::string && name , std::vector< std::string > && value ) {
   auto it = std::find_if( vstr_pars.begin() , vstr_pars.end() ,
                           [ & name ]( auto & el ) {
                            return( name == el.first );
                            } );
 
-  if( it == vstr_pars.end() )
+  if( it == vstr_pars.end() ) {
    vstr_pars.emplace_back( std::move( name ) , std::move( value ) );
-  else
-   it->second = std::move( value );
+   return( true );
+   }
+
+  if( it->second == value )
+   return( false );
+
+  it->second = std::move( value );
+  return( true );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set one entry of the given vector-of-string parameter
  /** Set the entry specified by \pos of the vector-of-string parameter
   * specified by \p name. If the parameter is not in the corresponding list
-  * or \p pos is not a valid position, exception is thrown; otherwise
-  * \p value is moved into the ComputeConfig. */
+  * it is added, and if \p pos is not a valid position then it is extended
+  * (all the un-specified positions being empty). */
 
- void set_par( const std::string & name , unsigned int pos ,
-	       std::string && value )
+ void set_par( std::string && name , unsigned int pos , std::string && value )
  {
   auto it = std::find_if( vstr_pars.begin() , vstr_pars.end() ,
                           [ & name ]( auto & el ) {
                            return( name == el.first );
                            } );
 
-  if( it == vstr_pars.end() )
-   throw( std::invalid_argument( "parameter " + name +
-				 " not in ComputeConfig" ) );
+  if( it == vstr_pars.end() ) {
+   vstr_pars.emplace_back( std::move( name ) , std::vector< std::string >() );
+   it = (vstr_pars.end())--;
+   }
 
   if( pos >= decltype( pos )( it->second.size() ) )
-   throw( std::invalid_argument( "invalid position " + std::to_string( pos ) +
-				 " in vstr parameter" ) );
+   it->second.resize( pos + 1 );
 
   it->second[ pos ] = std::move( value );
   }
@@ -2192,39 +2301,39 @@ class ComputeConfig : public Configuration {
   * number k of the names of int parameters
   *
   * for i = 1 ... k
-  * - a string containing the name of the int perameter
+  * - a string containing the name of the int parameter
   * - an int (the i-th int parameter)
   *
   * number k of the names of double parameters
   *
   * for i = 1 ... k
-  * - a string containing the name of the double perameter
+  * - a string containing the name of the double parameter
   * - a double (the i-th double parameter)
   *
   * number k of the names of string parameters
   *
   * for i = 1 ... k
-  * - a string containing the name of the string perameter
+  * - a string containing the name of the string parameter
   * - a string (the i-th string parameter)
   *
   * number k of the names of vector-of-int parameters
   *
   * for i = 1 ... k
-  * - a string containing the name of the vector-of-int perameter
+  * - a string containing the name of the vector-of-int parameter
   * - the i-th vector-of-int parameter (loaded with operator>>,
   *   see SMSTypedefs.h for details),
   *
   * number k of the names of vector-of-double parameters
   *
   * for i = 1 ... k
-  * - a string containing the name of the vector-of-double perameter
+  * - a string containing the name of the vector-of-double parameter
   * - the i-th vector-of-double parameter (loaded with operator>>,
   *   see SMSTypedefs.h for details),
   *
   * number k of the names of vector-of-string parameters
   *
   * for i = 1 ... k
-  * - a string containing the name of the vector-of-string perameter
+  * - a string containing the name of the vector-of-string parameter
   * - the i-th vector-of-string parameter (loaded with operator>>,
   *   see SMSTypedefs.h for details),
   *
@@ -2328,7 +2437,7 @@ class State {
 
  public:
 
-/*@} -----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------ CONSTRUCTING AND DESTRUCTING State --------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructing and destructing State
@@ -2343,7 +2452,7 @@ class State {
   * the method is static because the factory is static, hence it is to be 
   * called as
   *
-  *   State * myState = State::new_State( someclass );
+  *   State * myState = State::new_State( some_class );
   *
   * i.e., without any reference to any specific State (and, therefore, it can
   * be used to construct the very first State if needed).
@@ -2457,7 +2566,7 @@ class State {
 
  virtual ~State() { }  ///< destructor: it is virtual, and empty
 
-/*@} -----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------- METHODS DESCRIBING THE BEHAVIOR OF A State ---------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a State
@@ -2486,7 +2595,7 @@ class State {
   group.putAtt( "type" , classname() );
   }
 
-/*@} -----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------ METHODS FOR LOADING, PRINTING & SAVING THE State ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for printing the State
@@ -2522,7 +2631,7 @@ class State {
 
  const std::string & classname( void ) const { return( private_name() ); }
 
-/*@}------------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -2553,7 +2662,7 @@ class State {
   output << "State [" << this << "]";
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /** @name Protected methods for handling static fields
  *
  * These methods allow derived classes to partake into static initialization
@@ -2561,7 +2670,7 @@ class State {
  * are typically related with factories.
  * @{ */
 
- /// method incapsulating the State factory
+ /// method encapsulating the State factory
  /** This method returns the State factory, which is a static object. The
   * rationale for using a method is that this is the "Construct On First Use
   * Idiom" that solves the "static initialization order problem". */
@@ -2604,7 +2713,7 @@ class State {
 
  static void static_initialization( void ) {}
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 

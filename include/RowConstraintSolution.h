@@ -9,17 +9,11 @@
  * values of the static and dynamic RowConstraint of a Block as well as the
  * RowConstraintSolutions of the nested Blocks.
  *
- * \version 0.10
- *
- * \date 19 - 03 - 2021
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -122,7 +116,7 @@ public:
 
  virtual ~RowConstraintSolution();  ///< destructor
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------- METHODS DESCRIBING THE BEHAVIOR OF A RowConstraintSolution -------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a RowConstraintSolution
@@ -303,7 +297,7 @@ public:
   return( nested_solutions );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---- METHODS FOR LOADING, PRINTING & SAVING THE RowConstraintSolution ----*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for printing the RowConstraintSolution
@@ -321,7 +315,7 @@ public:
   return( out );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -398,7 +392,7 @@ protected:
   output << "RowConstraintSolution [" << this << "]";
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------------------------- PRIVATE FIELDS ------------------------------*/
 /*--------------------------------------------------------------------------*/
 

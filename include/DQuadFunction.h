@@ -5,17 +5,11 @@
  * Header file for the *concrete* class DQuadFunction, which implements
  * C15Function with a diagonal (separable) quadratic function.
  *
- * \version 0.40
- *
- * \date 07 - 10 - 2019
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -47,12 +41,6 @@
 
 /// namespace for the Structured Modeling System++ (SMS++)
 namespace SMSpp_di_unipi_it {
-
-/*--------------------------------------------------------------------------*/
-/*------------------------------- CLASSES ----------------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @defgroup DQuadFunction_CLASSES Classes in DQuadFunction.h
- *  @{ */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS DQuadFunction ----------------------------*/
@@ -256,7 +244,7 @@ class DQuadFunction : public C15Function {
   * @param v_var, a && to a vector of triples < ColVariable * , Coefficient ,
   *        Coefficient >, with the first coefficient being that of the linear
   *        term and the second being that of the quadratic term of the
-  *        function corresponding to the given ColVariable; as the the &&
+  *        function corresponding to the given ColVariable; as the &&
   *        tells, vars is "consumed" by the constructor and its resources
   *        become property of the LinearFunction object.
   *
@@ -296,7 +284,7 @@ class DQuadFunction : public C15Function {
 
  void clear( void ) override { v_triples.clear(); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -338,7 +326,7 @@ class DQuadFunction : public C15Function {
 			"global pool not supported yet by DQuadFunction" ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE DQuadFunction ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the DQuadFunction
@@ -370,7 +358,7 @@ class DQuadFunction : public C15Function {
   return( std::get< 2 >( *( v_triples.begin() + i ) ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF THE DQuadFunction -----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of the DQuadFunction
@@ -444,8 +432,7 @@ class DQuadFunction : public C15Function {
 /*--------------------------------------------------------------------------*/
  /// returns the linearization coefficient of the i-th active Variable
 
- double get_linearization_coefficient( c_Index i )
- {
+ double get_linearization_coefficient( c_Index i ) {
   return( 2 * std::get<0>( v_triples[ i ] )->get_value() *
 	  std::get<2>( v_triples[ i ] ) + std::get<1>( v_triples[ i ] ) );
   }
@@ -453,27 +440,26 @@ class DQuadFunction : public C15Function {
 /*--------------------------------------------------------------------------*/
 
  void get_linearization_coefficients( FunctionValue * g ,
-			   Range range = std::make_pair( 0 , Inf<Index>() ) ,
+				      Range range = INFRange ,
 				      Index name = Inf<Index>() ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  void get_linearization_coefficients( SparseVector & g ,
-			   Range range = std::make_pair( 0 , Inf<Index>() ) ,
+				      Range range = INFRange ,
 				      Index name = Inf<Index>() ) override;
 
 /*--------------------------------------------------------------------------*/
 
- void get_linearization_coefficients( FunctionValue * g , c_Subset & subset  ,
+ void get_linearization_coefficients( FunctionValue * g , c_Subset & subset ,
 				      const bool ordered = false ,
-				      Index name = Inf<Index>() ) override;
+				      Index name = Inf< Index >() ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- void get_linearization_coefficients( SparseVector & g ,
-				      c_Subset & subset ,
+ void get_linearization_coefficients( SparseVector & g , c_Subset & subset ,
 				      const bool ordered = false ,
-				      Index name = Inf<Index>() ) override;
+				      Index name = Inf< Index >() ) override;
 
 /*--------------------------------------------------------------------------*/
  /// returns the linearization constant of the current point
@@ -481,7 +467,7 @@ class DQuadFunction : public C15Function {
   * method only works for returning the value of the linearization constant
   * at the current point x, which is given by c - x^T A x. */
 
- FunctionValue get_linearization_constant( Index name = Inf<Index>() )
+ FunctionValue get_linearization_constant( Index name = Inf< Index >() )
   override final {
   if( name < Inf<Index>() )
    throw( std::invalid_argument(
@@ -502,9 +488,11 @@ class DQuadFunction : public C15Function {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  ///< Returns the value of the constant term of this DQuadFunction.
 
- FunctionValue get_constant_term( void ) const { return( f_constant_term ); }
+ [[nodiscard]] FunctionValue get_constant_term( void ) const override {
+  return( f_constant_term );
+  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the parameters of the DQuadFunction
@@ -518,7 +506,7 @@ class DQuadFunction : public C15Function {
  ComputeConfig * get_ComputeConfig( bool all , ComputeConfig * ocfg )
   const override final { return( nullptr ); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE DQuadFunction --------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling the set of "active" Variable in the
@@ -544,6 +532,96 @@ class DQuadFunction : public C15Function {
 
  void map_active( c_Vec_p_Var & vars , Subset & map , bool ordered )
   const override final;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ Subset map_index( const std::vector< Variable * > & vars , c_Subset & nms )
+  const override {
+  if( vars.size() != nms.size() )
+   throw( std::invalid_argument( "vars and nms sizes do not match" ) );
+
+  Subset map( nms.size() );
+  if( map.empty() )
+   return( map );
+
+  auto nmsit = nms.begin();
+  auto varsit = vars.begin();
+  auto mapit = map.begin();
+
+  // for all Variable in the set
+  while( varsit != vars.end() ) {
+   auto var = *(varsit++);  // next variable
+   auto oi = *(nmsit++);    // its original index
+   // if var has not been deleted (and, possibly, re-added), its index
+   // must be <= oi: search backward from oi to find it
+   auto avoi = std::get< 0 >( v_triples[ oi ] );
+   Index i = oi;
+   while( var != avoi ) {
+    if( ! i )
+     break;
+    avoi = std::get< 0 >( v_triples[ --i ] );
+    }
+   if( var == avoi )  // the Variable was found
+    *(mapit++) = i;   // this is its index
+   else {             // the Variable was not found
+    // restart the search from the last variable to oi (excluded), for the
+    // case where var has been deleted and re-added, and therefore its
+    // index can now be arbitrary (but it is more likely to be "close to
+    // the end" than "at the beginning")
+    for( i = v_triples.size() , avoi = std::get< 0 >( v_triples[ --i ] ) ;
+	 ( var != avoi ) && ( i > oi ) ; )
+     avoi = std::get< 0 >( v_triples[ --i ] );
+    *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+    }
+   }  // end( for all Variable )
+
+  return( map );
+
+  }  // end( map_index( Subset )
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ Subset map_index( const std::vector< Variable * > & vars , Range rng )
+  const override {
+  if( vars.size() != rng.second - rng.first )
+   throw( std::invalid_argument( "vars and rng sizes do not match" ) );
+
+  Subset map( vars.size() );
+  if( map.empty() )
+   return( map );
+
+  auto varsit = vars.begin();
+  auto mapit = map.begin();
+
+  // for all Variable in the set
+  for( auto oi = rng.first ; oi < rng.second ; ++oi ) {
+   auto var = *(varsit++);  // next variable
+   // if var has not been deleted (and, possibly, re-added), its index
+   // must be <= oi: search backward from oi to find it
+   auto avoi = std::get< 0 >( v_triples[ oi ] );
+   Index i = oi;
+   while( var != avoi ) {
+    if( ! i )
+     break;
+    avoi = std::get< 0 >( v_triples[ --i ] );
+    }
+   if( var == avoi )  // the Variable was found
+    *(mapit++) = i;   // this is its index
+   else {             // the Variable was not found
+    // restart the search from the last variable to oi (excluded), for the
+    // case where var has been deleted and re-added, and therefore its
+    // index can now be arbitrary (but it is more likely to be "close to
+    // the end" than "at the beginning")
+    for( i = v_triples.size() , avoi = std::get< 0 >( v_triples[ --i ] ) ;
+	 ( var != avoi ) && ( i > oi ) ; )
+     avoi = std::get< 0 >( v_triples[ --i ] );
+    *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+    }
+   }  // end( for all Variable )
+
+  return( map );
+
+  }  // end( map_index( Range )
 
 /*--------------------------------------------------------------------------*/
 
@@ -575,7 +653,7 @@ class DQuadFunction : public C15Function {
   return( new DQuadFunction::v_const_iterator( v_triples.end() ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------- METHODS FOR MODIFYING THE DQuadFunction -------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for modifying the DQuadFunction
@@ -600,7 +678,7 @@ class DQuadFunction : public C15Function {
   * should not have repeated Variable, but if this is an issue then the
   * check will have to be performed elsewhere, it is not done here.
   *
-  * As the the && tells, vars is "consumed" by the method and its resources
+  * As the && tells, vars is "consumed" by the method and its resources
   * become property of the DQuadFunction object.
   *
   * The parameter issueMod decides if and how the C05FunctionModVars is
@@ -701,8 +779,7 @@ class DQuadFunction : public C15Function {
   * issued, as described in Observer::make_par(). */
 
  void modify_terms( c_v_coeff_it NQuadCoef , c_v_coeff_it NLinCoef ,
-                    Range range = std::make_pair( 0 , Inf<Index>() ) ,
-                    ModParam issueMod = eModBlck );
+                    Range range = INFRange , ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify a range of linear coefficients
@@ -719,7 +796,7 @@ class DQuadFunction : public C15Function {
   * issued in place of a C05FunctionModRngd one. */
 
  void modify_linear_coefficients( Vec_FunctionValue && NCoef ,
-			   Range range = std::make_pair( 0 , Inf<Index>() ) ,
+				  Range range = INFRange ,
 				  ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -790,7 +867,7 @@ class DQuadFunction : public C15Function {
  void set_constant_term( FunctionValue constant_term ,
                          ModParam issueMod = eModBlck );
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -806,7 +883,7 @@ class DQuadFunction : public C15Function {
          << &f_Observer << "] with " << get_num_active_var()
          << " active variables;";
   output << "current value = " << get_value();
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
@@ -815,9 +892,8 @@ class DQuadFunction : public C15Function {
  v_coeff_triple v_triples;
  /**< vector of triples < ColVariable * , Coefficient , Coefficient >
   * characterizing the linear and the quadratic terms of the DQuadFunction;
-  * the first coefficient is that in
-  * the linear term and the second one is that in the quadratic
-  * term. */
+  * the first coefficient is the linear one and the second one is the
+  * quadratic term. */
 
  FunctionValue f_value;  ///< the value of the function
 
@@ -832,9 +908,8 @@ class DQuadFunction : public C15Function {
 
 /*--------------------------------------------------------------------------*/
 
-};  // end( class( DQuadFunction ) )
+ };  // end( class( DQuadFunction ) )
 
-/** @} end( group( DQuadFunction_CLASSES ) ) */
 /*--------------------------------------------------------------------------*/
 
 }  // end( namespace SMSpp_di_unipi_it )

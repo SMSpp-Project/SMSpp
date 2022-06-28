@@ -52,20 +52,14 @@
  * CRBlockConfig, OCBlockConfig, and OCRBlockConfig; shortly referred as
  * *C*BlockConfig).
  *
- * \version 0.40
- *
- * \date 24 - 09 - 2020
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
-
+ *
  * Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
@@ -227,7 +221,7 @@ class RHandler
 
  /// returns true if the RHandler is empty
 
- bool empty( void ) { return ( v_sub_BlockConfig.empty() ); }
+ bool empty( void ) { return( v_sub_BlockConfig.empty() ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the current number of sub-BlockConfig
@@ -918,7 +912,7 @@ class OCRBlockConfig : public BlockConfig ,
 
  ~OCRBlockConfig() override = default;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -944,7 +938,7 @@ class OCRBlockConfig : public BlockConfig ,
   RHandler::get( block );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF THE OCRBlockConfig ----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of the OCRBlockConfig
@@ -986,7 +980,7 @@ class OCRBlockConfig : public BlockConfig ,
   return( new OCRBlockConfig( *this ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------- METHODS FOR LOADING, PRINTING & SAVING THE OCRBlockConfig --------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing & saving the OCRBlockConfig
@@ -1005,7 +999,7 @@ class OCRBlockConfig : public BlockConfig ,
   RHandler::serialize( group );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------------------ FRIENDS -----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1207,7 +1201,7 @@ class CRBlockConfig : public BlockConfig ,
 
  ~CRBlockConfig() override = default;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -1252,7 +1246,7 @@ class CRBlockConfig : public BlockConfig ,
   RHandler::get( block );
  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------- METHODS DESCRIBING THE BEHAVIOR OF THE CRBlockConfig ----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of the CRBlockConfig
@@ -1292,7 +1286,7 @@ class CRBlockConfig : public BlockConfig ,
   return( new CRBlockConfig( *this ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------- METHODS FOR LOADING, PRINTING & SAVING THE CRBlockConfig -------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing & saving the CRBlockConfig
@@ -1309,7 +1303,7 @@ class CRBlockConfig : public BlockConfig ,
   RHandler::serialize( group );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------------------ FRIENDS -----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1486,7 +1480,7 @@ class ORBlockConfig : public BlockConfig ,
 
  ~ORBlockConfig() override = default;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -1511,7 +1505,7 @@ class ORBlockConfig : public BlockConfig ,
   RHandler::get( block );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------- METHODS DESCRIBING THE BEHAVIOR OF THE ORBlockConfig ----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of the ORBlockConfig
@@ -1551,7 +1545,7 @@ class ORBlockConfig : public BlockConfig ,
   return( new ORBlockConfig( *this ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------- METHODS FOR LOADING, PRINTING & SAVING THE ORBlockConfig --------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing & saving the ORBlockConfig
@@ -1568,7 +1562,7 @@ class ORBlockConfig : public BlockConfig ,
   RHandler::serialize( group );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------------------ FRIENDS -----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1746,7 +1740,7 @@ class OCBlockConfig : public BlockConfig ,
 
  ~OCBlockConfig() override = default;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -1770,7 +1764,7 @@ class OCBlockConfig : public BlockConfig ,
   CHandler::get( block );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------- METHODS DESCRIBING THE BEHAVIOR OF THE OCBlockConfig ----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of the OCBlockConfig
@@ -1810,7 +1804,7 @@ class OCBlockConfig : public BlockConfig ,
   return( new OCBlockConfig( *this ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------- METHODS FOR LOADING, PRINTING & SAVING THE OCBlockConfig ---------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing & saving the OCBlockConfig
@@ -1827,7 +1821,7 @@ class OCBlockConfig : public BlockConfig ,
   CHandler::serialize( group );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1992,7 +1986,7 @@ class OBlockConfig : public BlockConfig ,
 
  ~OBlockConfig() override = default;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -2015,7 +2009,7 @@ class OBlockConfig : public BlockConfig ,
   OHandler::get( block );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF THE OBlockConfig ----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of the OBlockConfig
@@ -2052,7 +2046,7 @@ class OBlockConfig : public BlockConfig ,
   return( new OBlockConfig( *this ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------- METHODS FOR LOADING, PRINTING & SAVING THE OBlockConfig ---------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing & saving the OBlockConfig
@@ -2068,7 +2062,7 @@ class OBlockConfig : public BlockConfig ,
   OHandler::serialize( group );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -2285,7 +2279,7 @@ class CBlockConfig : public BlockConfig ,
 
  ~CBlockConfig() override = default;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -2329,7 +2323,7 @@ class CBlockConfig : public BlockConfig ,
   CHandler::get( block );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF THE CBlockConfig ----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of the CBlockConfig
@@ -2372,7 +2366,7 @@ class CBlockConfig : public BlockConfig ,
   return( new CBlockConfig( *this ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------- METHODS FOR LOADING, PRINTING & SAVING THE CBlockConfig --------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing & saving the CBlockConfig
@@ -2388,7 +2382,7 @@ class CBlockConfig : public BlockConfig ,
   CHandler::serialize( group );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -2601,7 +2595,7 @@ class RBlockConfig : public BlockConfig ,
 
  ~RBlockConfig() override = default;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -2639,7 +2633,7 @@ class RBlockConfig : public BlockConfig ,
   RHandler::get( block );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------- METHODS DESCRIBING THE BEHAVIOR OF THE RBlockConfig -----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of the RBlockConfig
@@ -2686,7 +2680,7 @@ class RBlockConfig : public BlockConfig ,
   return( new RBlockConfig( *this ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------- METHODS FOR LOADING, PRINTING & SAVING THE RBlockConfig --------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing & saving the RBlockConfig
@@ -2702,7 +2696,7 @@ class RBlockConfig : public BlockConfig ,
   RHandler::serialize( group );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 

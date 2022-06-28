@@ -7,12 +7,7 @@
  * FRealObjective whose Function is a BendersBFunction whose active Variable
  * are the ones defined in this BendersBlock.
  *
- * \version 0.1
- *
- * \date 09 - 03 - 2021
- *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -42,13 +37,6 @@
 /// namespace for the Structured Modeling System++ (SMS++)
 namespace SMSpp_di_unipi_it
 {
-
-/*--------------------------------------------------------------------------*/
-/*------------------------------- CLASSES ----------------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @defgroup BendersBlock_CLASSES Classes in BendersBlock.h
- *  @{ */
-
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS BendersBlock -----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -78,22 +66,27 @@ public:
  /** Constructs a BendersBlock whose father Block is \p father and that has \p
   * num_variables ColVariable.
   *
-  * @param
-  */
+  * @param father A pointer to the father of this BendersBlock.
+  *
+  * @param num_variables The number of Variable of this BendersBlock. */
+
  BendersBlock( Block * father = nullptr , Index num_variables = 0 ) :
   Block( father ) {
   v_variables.resize( num_variables );
   set_objective( & objective , eNoMod );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// destructor
- virtual ~BendersBlock() {
-  objective.clear();
- }
+
+ virtual ~BendersBlock() { objective.clear(); }
 
 /*--------------------------------------------------------------------------*/
+ /// loads the BendersBlock out of an istream: it is not implemented yet
 
+ void load( std::istream & input , char frmt = 0  ) override {}
+
+/*--------------------------------------------------------------------------*/
  /// deserialize a BendersBBlock out of netCDF::NcGroup
  /** The method takes a netCDF::NcGroup supposedly containing all the
   * information required to deserialize the BendersBlock. Besides the 'type'
@@ -102,16 +95,20 @@ public:
   * - The number of ColVariable of this BendersBlock into a dimension named
   *   "NumVar".
   *
+  * - The sense of the Objective of this BendersBlock enconded into a
+  *   dimension called "ObjectiveSense". If the size of this dimension is
+  *   zero, then the sense of the Objective is maximization. Otherwise, if it
+  *   is nonzero or this dimension is not provided, the sense of the Objective
+  *   is minimization.
+  *
   * - A description of the BendersBFunction into a sub-group named
   *   "BendersBFunction".
   *
-  * @param group A netCDF::NcGroup holding the data in the format described
-  *        in the comments of deserialize().
-  */
+  * @param group A netCDF::NcGroup holding the required data. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -137,7 +134,7 @@ public:
   objective.set_function( function , issueMod , deleteold );
  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------- METHODS FOR Saving THE DATA OF THE BendersBlock -----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Saving the data of the BendersBlock
@@ -153,15 +150,29 @@ public:
   * - The group "BendersBFunction" containing the description of the
   *   BendersBFunction that is the Function of the FRealObjective is this
   *   BendersBlock.
+  *
+  * @param group The netCDF group into which this BendersBlock will be
+  *        serialized.
   */
 
- virtual void serialize( netCDF::NcGroup & group ) const override;
+ void serialize( netCDF::NcGroup & group ) const override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE DATA OF THE BendersBlock ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the BendersBlock
     @{ */
+
+ /// returns the sense of the Objective of this BendersBlock
+ /** This function returns the sense of the Objective of this BendersBlock.
+  *
+  * @return the sense of the Objective of this BendersBlock. */
+
+ int get_objective_sense() const override {
+  return objective.get_sense();
+ }
+
+/*--------------------------------------------------------------------------*/
 
  /// Return the number of Variable of this BendersBlock
  /** This function returns the number of Variable of this BendersBlock.
@@ -202,7 +213,7 @@ public:
   return variable_values;
  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------ METHODS DESCRIBING THE BEHAVIOR OF A BendersBlock -----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a BendersBlock
@@ -227,7 +238,6 @@ public:
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// sets the values of the Variable of this BendersBlock
  /** This function sets the values of the Variable defined in this
   * BendersBlock according to the given \p values. The size of the \p values
@@ -235,18 +245,17 @@ public:
   * BendersBlock, so that the value of the i-th Variable will be values( i ),
   * for each i in {0, ..., get_number_variables() - 1}.
   *
-  * @param values The Eigen::ArrayXd containing the values of the Variable.
-  */
+  * @param values The Eigen::ArrayXd containing the values of the Variable. */
+
  void set_variable_values( const Eigen::ArrayXd & values ) {
   assert( ( values.size() >= 0 ) &&
           ( static_cast<decltype( v_variables.size() )>( values.size() ) ==
             v_variables.size() ) );
   for( Index i = 0 ; i < v_variables.size() ; ++i )
    v_variables[ i ].set_value( values( i ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /// sets the values of the Variable of this BendersBlock
  /** This function sets the values of the Variable defined in this
   * BendersBlock according to the values given by the iterator \p it. The
@@ -255,15 +264,15 @@ public:
   * the i-th Variable will be given by std::next( it , i ), for each i in {0,
   * ..., get_number_variables() - 1}.
   *
-  * @param values The vector containing the values of the Variable.
-  */
+  * @param values The vector containing the values of the Variable. */
+
  template< class Iterator >
  void set_variable_values( Iterator it ) {
   for( Index i = 0 ; i < v_variables.size() ; ++i , std::advance( it , 1 ) )
    v_variables[ i ].set_value( * it );
- }
+  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -272,8 +281,6 @@ protected:
 /*--------------------------------------------------------------------------*/
 /*---------------------------- PROTECTED METHODS ---------------------------*/
 /*--------------------------------------------------------------------------*/
-
- virtual void load( std::istream &input ) override {}
 
 /*--------------------------------------------------------------------------*/
 /*---------------------------- PROTECTED FIELDS ----------------------------*/
@@ -301,11 +308,11 @@ private:
 
 };   // end( class BendersBlock )
 
-/** @} end( group( BendersBlock_CLASSES ) ) */
+/*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 
 }  // end( namespace SMSpp_di_unipi_it )
 
-/*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 #endif  /* BendersBlock.h included */

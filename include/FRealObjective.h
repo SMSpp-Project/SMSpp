@@ -4,19 +4,14 @@
 /** @file
  * Header file for the FRealObjective class, which is a RealObjective whose
  * value if computed by an externally-provided Function object.
-
- * \version 0.32
- *
- * \date 02 - 12 - 2020
  *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Department of Applied Mathematics \n
- *         State University of Campinas, Brazil \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
  *
  * Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */
@@ -25,15 +20,17 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __FRealObjective
-#define __FRealObjective
-/* self-identification: #endif at the end of the file */
+ #define __FRealObjective
+                      /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 #include "Function.h"
+
 #include "Objective.h"
+
 #include "Observer.h"
 
 /*--------------------------------------------------------------------------*/
@@ -111,9 +108,7 @@ class FRealObjective : public RealObjective , public Observer {
   * Variable of the Function (if clear() has not been called first) and then
   * deletes it. */
 
- ~FRealObjective() override {
-  set_function( nullptr , eNoMod );
- }
+ ~FRealObjective() override { set_function( nullptr , eNoMod ); }
 
 /*--------------------------------------------------------------------------*/
  /// "rough destructor": calls the version of the Function object
@@ -126,7 +121,7 @@ class FRealObjective : public RealObjective , public Observer {
    f_function->clear();
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -181,7 +176,7 @@ class FRealObjective : public RealObjective , public Observer {
  void set_function( Function * function = nullptr ,
                     ModParam issueMod = eModBlck , bool deleteold = true );
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE FRealObjective -----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the FRealObjective
@@ -194,8 +189,8 @@ class FRealObjective : public RealObjective , public Observer {
   * be explicitly implemented in terms of the latter. */
 
  [[nodiscard]] Block * get_Block( void ) const override {
-  return ( Objective::get_Block() );
- }
+  return( Objective::get_Block() );
+  }
 
 /*--------------------------------------------------------------------------*/
 
@@ -280,7 +275,7 @@ class FRealObjective : public RealObjective , public Observer {
    f_function->set_ComputeConfig( scfg );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------ METHODS DESCRIBING THE BEHAVIOR OF A FRealObjective ---------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a FRealObjective
@@ -292,7 +287,7 @@ class FRealObjective : public RealObjective , public Observer {
 
  int compute( bool changedvars = true ) override {
   return( f_function ? f_function->compute( changedvars ) : kUnEval );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the (real) value of the FRealObjective
@@ -303,7 +298,16 @@ class FRealObjective : public RealObjective , public Observer {
   return( f_function ? f_function->get_value() : Inf< OFValue >() );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
+ /// returns the costant of the FRealObjective
+ /** Method that returns the costant term of this FRealObjective, which is
+  * the constant term of the underlying Function. */
+
+ [[nodiscard]] OFValue get_constant_term( void ) const override {
+  return( f_function ? f_function->get_constant_term() : 0 );
+  }
+
+/** @} ---------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the parameters of the FRealObjective; they all dispatch
@@ -516,7 +520,7 @@ class FRealObjective : public RealObjective , public Observer {
   return( f_function->get_ComputeConfig( all, ocfg ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE FRealObjective -------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling the set of "active" Variable in the
@@ -578,7 +582,7 @@ class FRealObjective : public RealObjective , public Observer {
  void remove_variables( Subset && nms , bool ordered = false ,
                         ModParam issueMod = eModBlck ) final;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------- METHODS DESCRIBING THE BEHAVIOR OF AN Observer -------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of an Observer
@@ -599,7 +603,7 @@ class FRealObjective : public RealObjective , public Observer {
 
  [[nodiscard]] bool anyone_there( void ) const override {
   // return( f_Block ? f_Block->anyone_there() : false );
-  return ( true );
+  return( true );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -615,30 +619,20 @@ class FRealObjective : public RealObjective , public Observer {
 /*--------------------------------------------------------------------------*/
  /// just dispatch to open_channel() of the Block (if any)
 
- ChnlName open_channel( GroupModification * gmpmod = nullptr ) override;
-
-/*--------------------------------------------------------------------------*/
- /// just dispatch to nest_channel() of the Block (if any)
-
- void nest_channel( ChnlName chnl ,
-                    GroupModification * gmpmod = nullptr ) override;
-
-/*--------------------------------------------------------------------------*/
- /// just dispatch to un_nest_channel() of the Block (if any)
-
- void un_nest_channel( ChnlName chnl ) override;
+ ChnlName open_channel( ChnlName chnl = 0 ,
+			GroupModification * gmpmod = nullptr ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
  /// just dispatch to close_channel() of the Block (if any)
 
- void close_channel( ChnlName chnl ) override;
+ void close_channel( ChnlName chnl , bool force = false  ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
  /// just dispatch to set_default_channel() of the Block (if any)
 
  void set_default_channel( ChnlName chnl = 0 ) override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -647,9 +641,6 @@ class FRealObjective : public RealObjective , public Observer {
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Protected methods for printing and serializing
-    @{ */
-
  /// print information about the FRealObjective on an ostream
  /** Protected method intended to print information about the
   * FRealObjective; it is virtual so that derived classes can
@@ -679,7 +670,7 @@ class FRealObjective : public RealObjective , public Observer {
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-};  // end( class( FRealObjective ) )
+ };  // end( class( FRealObjective ) )
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- CLASS FRealObjectiveMod ---------------------------*/
@@ -714,14 +705,13 @@ class FRealObjectiveMod : public ObjectiveMod {
   ///< first allowed parameter value for derived classes
   /**< Convenience value for easily allow derived classes to extend the set
    * of types of Modification. */
- };
+  };
 
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
  /// constructor: just calls that of ObjectiveMod
 
  explicit FRealObjectiveMod( FRealObjective * obj ,
-                             int mod = eFunctionChanged ,
-                             const bool cB = true )
+                             int mod = eFunctionChanged , bool cB = true )
   : ObjectiveMod( obj , mod , cB ) {}
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
@@ -747,7 +737,7 @@ class FRealObjectiveMod : public ObjectiveMod {
 
 /*--------------------------------------------------------------------------*/
 
-};  // end( class( FRealObjectiveMod ) )
+ };  // end( class( FRealObjectiveMod ) )
 
 /** @} end( group( FRealObjective_CLASSES ) ) ------------------------------*/
 /*--------------------------------------------------------------------------*/

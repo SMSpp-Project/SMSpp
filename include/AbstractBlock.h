@@ -27,12 +27,7 @@
  *    (but, on the other hand, completely making the derived class' job to
  *    handle all its aspects).
  *
- * \version 0.20
- *
- * \date 01 - 09 - 2019
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -230,6 +225,19 @@ class AbstractBlock : public Block {
   f_1st_sub_block( 0 ) {}
 
 /*--------------------------------------------------------------------------*/
+ /// load the AbstractBlock out of an istream
+ /** Method to deserialize the AbstractBlock out of an istream. It currently
+  * supports two formats:
+  *
+  * - by default (frmt == 0 or frmt == 'M') the standard MPS (Mathematical
+  *   Programming System) file format;
+  *
+  * - frmt == 'L' is the CPLEX LP file format (although this is not fully
+  *   implemented yet). */
+
+ void load( std::istream & input , char frmt = 0 ) override;
+
+/*--------------------------------------------------------------------------*/
  /// de-serialize the current :AbstractBlock out of netCDF::NcGroup
  /** The AbstractBlock de-serializes itself out of a netCDF::NcGroup. The
   * method of the base AbstractBlock class only handles
@@ -281,7 +289,7 @@ class AbstractBlock : public Block {
 
  ~AbstractBlock() override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -324,7 +332,7 @@ class AbstractBlock : public Block {
   f_lb_cond = conditional;
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------- Methods for reading the data of the AbstractBlock ----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for reading the data of the AbstractBlock
@@ -408,7 +416,7 @@ class AbstractBlock : public Block {
   return( f_lb_cond == conditional ? f_lb : -Inf< double >() );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----- Methods for adding/removing (dynamic) Variables and Constraints ----*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for changing Variables, Constraints and Objective
@@ -487,7 +495,7 @@ class AbstractBlock : public Block {
 
  using Block::remove_dynamic_constraint;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------------- Methods for checking the AbstractBlock -----------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for checking solution information in the AbstractBlock
@@ -548,7 +556,7 @@ class AbstractBlock : public Block {
 
  void is_correct( void );
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling Solution
@@ -584,12 +592,27 @@ class AbstractBlock : public Block {
  Solution * get_Solution( Configuration * solc = nullptr ,
                           bool emptys = true ) override;
 
-/**@} ----------------------------------------------------------------------*/
-/*-------- METHODS FOR LOADING, PRINTING & SAVING THE AbstractBlock --------*/
+/** @} ---------------------------------------------------------------------*/
+/*------------ METHODS FOR PRINTING & SAVING THE AbstractBlock -------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Methods for loading, printing & saving the AbstractBlock
+/** @name Methods for printing & saving the AbstractBlock
  * @{ */
 
+ /// print information about the AbstractBlock on an ostream 
+ /** Protected method intended to print information about the AbstractBlock.
+  *
+  * With default verbosity (vlvl == 0) prints some basic statstics.
+  *
+  * vlvl == 'M' and vlvl == 'L' should correspond to output in MPS format
+  * and LP format as required by load(), but these are not implemented yet.
+  *
+  * With any other verbosity goes over all the abstract representation
+  * (static and dynamic Variable and Constraint, Objective, and inner Block)
+  * and asks everyone to print itself. */
+
+ void print( std::ostream & output , char vlvl = 0 ) const override;
+
+/*--------------------------------------------------------------------------*/
  /// serialize the AbstractBlock (recursively) to a netCDF NcGroup
  /** The AbstractBlock serializes itself out of a netCDF::NcGroup. Besides
   * what is managed by the serialize() method of the base Block class, the
@@ -606,51 +629,11 @@ class AbstractBlock : public Block {
 
  void serialize( netCDF::NcGroup & group ) const override;
 
-/*--------------------------------------------------------------------------*/
-
- /// Loads the AbstractBlock from an LP or MPS file
- /**
-  * It loads the AbstractBlock from a CPLEX LP file or a
-  * MPS (Mathematical Programming System) file.
-  * The ext parameter should be a case-insensitive string containing the
-  * type of the file (either "lp" or "mps"). It may be empty, in which case
-  * the file type is inferred from the extension in the file name.
-  *
-  * @param filename The path of the file to read
-  * @param ext      The file type
-  */
- void read( const std::string & filename, const std::string & ext = "" );
-
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
  protected:
-
-/*--------------------------------------------------------------------------*/
-/** @name Protected methods for inserting and extracting
- */
-
- /// print information about the AbstractBlock on an ostream 
- /** Protected method intended to print information about the AbstractBlock;
-  * it basically goes over all the abstract representation (static and dynamic
-  * Variable and Constraint, Objective, and inner Block) and asks everyone to
-  * print itself. */
-
- void print( std::ostream & output ) const override;
-
-/*--------------------------------------------------------------------------*/
- /// load the AbstractBlock out of an istream
- /** Method to deserialize the AbstractBlock out of an istream.
-  *
-  *     IT IS CURRENTLY NOT IMPLEMENTED
-  *
-  * but it still have to be defined (throwing exception) to make the class
-  * concrete. */
-
- void load( std::istream & input ) override {
-  throw( std::logic_error( "AbstractBlock::load not implemented yet" ) );
-  }
 
 /*--------------------------------------------------------------------------*/
  /// do all the dirty work for deserialize()
@@ -691,10 +674,10 @@ class AbstractBlock : public Block {
  private:
 
  /// Loads the block from a MPS file
- void read_mps( const std::string & filename );
+ void read_mps( std::istream & file );
 
  /// Loads the block from an LP file
- void read_lp( const std::string & filename );
+ void read_lp( std::istream & file );
 
 /*--------------------------------------------------------------------------*/
 /*---------------------------- PRIVATE FIELDS ------------------------------*/

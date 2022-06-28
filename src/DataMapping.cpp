@@ -4,12 +4,7 @@
 /** @file
  * Implementation of the SimpleDataMappingBase class.
  *
- * \version 0.10
- *
- * \date 17 - 09 - 2020
- *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -17,8 +12,6 @@
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
-/*--------------------------------------------------------------------------*/
-
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -36,11 +29,10 @@ using namespace SMSpp_di_unipi_it;
 /*---------- CONSTRUCTING AND DESTRUCTING SimpleDataMappingBase ------------*/
 /*--------------------------------------------------------------------------*/
 
-void SimpleDataMappingBase::deserialize
-( const netCDF::NcGroup & group ,
+void SimpleDataMappingBase::deserialize( const netCDF::NcGroup & group ,
   std::vector< std::unique_ptr< SimpleDataMappingBase > > & data_mappings ,
-  Block * block_reference ) {
-
+  Block * block_reference )
+{
  auto sdmb_netCDF = pre_deserialize( group );
 
  if( sdmb_netCDF.NumberDataMappings.isNull() )
@@ -73,14 +65,14 @@ void SimpleDataMappingBase::deserialize
                              block_reference );
 
   data_mappings.emplace_back( data_mapping );
+  }
  }
-}
 
 /*--------------------------------------------------------------------------*/
 
-SimpleDataMappingBase * SimpleDataMappingFactory::new_SimpleDataMapping
-( const std::string & types ) {
-
+SimpleDataMappingBase * SimpleDataMappingFactory::new_SimpleDataMapping(
+						  const std::string & types )
+{
  if( types.size() == 4 && types[ 3 ] == 'F' ) {
   const auto t = types.substr( 0, 3 );
   if( t == "RRD" )
@@ -116,29 +108,29 @@ SimpleDataMappingBase * SimpleDataMappingFactory::new_SimpleDataMapping
   else
    throw std::invalid_argument( "new_SimpleDataMapping: invalid template "
                                 "parameter types string: " + types );
- }
+  }
  else
   throw std::invalid_argument( "new_SimpleDataMapping: invalid template "
                                "parameter types string: " + types );
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 
-DataMapping * SimpleDataMappingFactory::deserialize
-( const netCDF::NcGroup & group , Block * block_reference ) {
-
+DataMapping * SimpleDataMappingFactory::deserialize(
+		    const netCDF::NcGroup & group , Block * block_reference )
+{
  // DataType
 
  char data_type;
- if( ! ::SMSpp_di_unipi_it::deserialize( group , "DataType" ,
-                                         & data_type , true ) )
+ if( ! ::SMSpp_di_unipi_it::deserialize( group , data_type , "DataType" ,
+                                         true ) )
   data_type = SimpleDataMappingBase::get_id< double >();
 
  // Caller type
 
  char caller_type;
- if( ! ::SMSpp_di_unipi_it::deserialize( group , "Caller" ,
-                                         & caller_type , true ) )
+ if( ! ::SMSpp_di_unipi_it::deserialize( group , caller_type , "Caller" ,
+                                         true ) )
   caller_type = 'B';
 
  char set_from_type, set_to_type;
@@ -149,9 +141,9 @@ DataMapping * SimpleDataMappingFactory::deserialize
 
  data_mapping->deserialize( group , block_reference );
 
- return data_mapping;
-}
+ return( data_mapping );
+ }
 
 /*--------------------------------------------------------------------------*/
-/*----------------------- End File DQuadFunction.cpp -----------------------*/
+/*------------------------ End File DataMapping.cpp ------------------------*/
 /*--------------------------------------------------------------------------*/

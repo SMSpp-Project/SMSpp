@@ -7,21 +7,15 @@
  * assumptions are made about what form the variable actually has, this
  * being demanded to derived classes.
  *
- * \version 0.21
- *
- * \date 31 - 10 - 2019
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Department of Applied Mathematics \n
- *         State University of Campinas, Brazil \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
  *
  * \author Kostas Tavlaridis-Gyparakis \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -32,7 +26,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __Variable
-#define __Variable /* self-identification: #endif at the end of the file */
+ #define __Variable   /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -206,7 +200,7 @@ class Variable
 
  virtual ~Variable() = default;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -242,7 +236,7 @@ class Variable
 
  virtual void is_fixed( bool fixed , c_ModParam issueMod = eModBlck );
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------- METHODS FOR READING THE DATA OF THE Variable ---------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the Variable
@@ -250,9 +244,9 @@ class Variable
 
  /// returns the pointer to the Block to which the Variable belongs
 
- [[nodiscard]] Block * get_Block() const { return ( f_Block ); }
+ [[nodiscard]] Block * get_Block() const { return( f_Block ); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------- METHODS DESCRIBING THE BEHAVIOR OF A Variable --------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a Variable
@@ -280,7 +274,7 @@ class Variable
   return( is_fixed( f_state ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------- METHODS FOR HANDLING "STUFF" THE Variable IS ACTIVE IN ---------*/
 /*--------------------------------------------------------------------------*/
 /** @Name Methods for handling the set of "stuff" the Variable is active in
@@ -335,7 +329,7 @@ class Variable
   * order to leave more freedom to derived classes to implement it in
   * specialized ways. */
 
- virtual Index is_active( ThinVarDepInterface * stuff ) const = 0;
+ virtual Index is_active( const ThinVarDepInterface * stuff ) const = 0;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get the i-th ThinVarDepInterface in which this Variable is "active"
@@ -346,7 +340,7 @@ class Variable
 
  [[nodiscard]] virtual ThinVarDepInterface * get_active( Index i ) const = 0;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------- METHODS FOR LOADING, PRINTING & SAVING THE Variable ----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for printing the Variable
@@ -368,7 +362,7 @@ class Variable
   return( out );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -390,7 +384,7 @@ class Variable
          << get_num_active() << " active stuff" << std::endl;
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
 

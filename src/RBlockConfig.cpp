@@ -4,17 +4,11 @@
 /** @file
  * Implementation of the RBlockConfig class.
  *
- * \version 0.40
- *
- * \date 24 - 09 - 2020
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -22,8 +16,6 @@
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
-/*--------------------------------------------------------------------------*/
-
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -212,7 +204,7 @@ void RHandler::get( Block * block )
   Block::Index index = ::get_nested_Block_index( id , block );
 
   if( index >= block->get_number_nested_Blocks() )
-   throw ( std::logic_error( "RHandler::get: invalid sub-Block id: " + id ) );
+   throw( std::logic_error( "RHandler::get: invalid sub-Block id: " + id ) );
 
   auto sB = block->get_nested_Block( index );
 

@@ -8,12 +8,7 @@
  * kind of Variable and Constraint (provided these are handled by the base
  * AbstractBlock class).
  *
- * \version 0.20
- *
- * \date 16 - 12 - 2019
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -215,6 +210,20 @@ class PolyhedralFunctionBlock : public AbstractBlock {
     f_v() , f_const() { }
 
 /*--------------------------------------------------------------------------*/
+ /// load the PolyhedralFunctionBlock out of an istream
+ /** Method to deserialize the PolyhedralFunctionBlock out of an istream.
+  *
+  *     IT IS CURRENTLY NOT IMPLEMENTED
+  *
+  * but it still have to be defined (throwing exception) to make the class
+  * concrete. */
+
+ void load( std::istream &input , char frmt = 0 ) override {
+  throw( std::logic_error(
+		     "PolyhedralFunctionBlock::load not implemented yet" ) );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// de-serialize the current PolyhedralFunctionBlock out of netCDF::NcGroup
  /** The PolyhedralFunctionBlock de-serializes itself out of a
   * netCDF::NcGroup. Besides what is managed by the serialize() method of
@@ -265,7 +274,7 @@ class PolyhedralFunctionBlock : public AbstractBlock {
 
  virtual ~PolyhedralFunctionBlock() { guts_of_destructor(); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -392,7 +401,7 @@ class PolyhedralFunctionBlock : public AbstractBlock {
 
  void generate_objective( Configuration *objc = nullptr ) override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------- Methods for reading the data of the PolyhedralFunctionBlock ------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for reading the data of the PolyhedralFunctionBlock
@@ -422,7 +431,7 @@ class PolyhedralFunctionBlock : public AbstractBlock {
 		     f_polyf.get_global_lower_bound() ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------------- Methods for R3 Blocks --------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for R3 Blocks
@@ -535,26 +544,39 @@ class PolyhedralFunctionBlock : public AbstractBlock {
 			     ModParam issuePMod = eNoBlck ,
 			     ModParam issueAMod = eModBlck ) override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- Methods for handling Modification -------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling Modification
  *  @{ */
 
-/// returns true if any Solver is "listening to this PolyhedralFunctionBlock"
- /** Returns true if there is any Solver "listening to this
+ /// returns true if anyone is "listening to this PolyhedralFunctionBlock"
+ /** Returns true if there is anyone "listening to this
   * PolyhedralFunctionBlock", or if the PolyhedralFunctionBlock has to
   * "listen" anyway because the "linearized" representation is constructed,
   * and therefore "abstract" Modification have to be generated anyway to
   * keep the two representations in sync. Note that the "natural"
   * representation has no such issues, the Modification can just be passed
-  * up to the father [Abstract]Block. */
+  * up to the father [Abstract]Block.
+  *
+  * No, this should not be needed. In fact, if the "abstract" representation
+  * is modified with the default eModBlck value of issueMod, it is issued
+  * irrespectively to the value of anyone_there(); see Observer::issue_mod().
+  * If the value of issueMod is anything else the  "abstract" representation
+  * has been modified already and there is no point in issuing the
+  * Modification.
+  * Note that that Observer::issue_mod() does not check if the "abstract"
+  * representation has been constructed, but this is clearly not
+  * necessary, as the Modification we are speaking of are issued while
+  * changing the "abstract" representation, if that has not been
+  * constructed then it cannot issue Modification
 
  bool anyone_there( void ) const override {
   return( f_rep & 1 ? true : AbstractBlock::anyone_there() );
   }
-
-/*--------------------------------------------------------------------------*/ /// adding a new Modification to the PolyhedralFunctionBlock
+ */
+/*--------------------------------------------------------------------------*/
+ /// adding a new Modification to the PolyhedralFunctionBlock
  /** Method for handling Modification.
   *
   * The version of PolyhedralFunctionBlock has to do two "opposite" things:
@@ -613,7 +635,7 @@ class PolyhedralFunctionBlock : public AbstractBlock {
 
   mod->concerns_Block( false );  // recall it's been checked already
 
-  const auto tmod = std::dynamic_pointer_cast< FunctionMod >( mod );
+  auto tmod = std::dynamic_pointer_cast< const FunctionMod >( mod );
   if( tmod && ( tmod->function() == & f_polyf ) ) {
    // if the Modification comes from the PolyhedralFunction; it will
    // generate a (bunch of) Modification(s) in the "linearized"
@@ -629,7 +651,7 @@ class PolyhedralFunctionBlock : public AbstractBlock {
    // surely) the "linearized" one: deal with it
    guts_of_add_Modification_LR( mod.get() , chnl );
 
-  // finally, pass is up, but only if there really is someone "listening",
+  // finally, pass iT up, but only if there really is someone "listening",
   // which may not be, because anyone_there() returns true anyway
   // (since f_rep & 1 == true when we get here)
   // someone is listening if the PolyhedralFunctionBlock has any Solver
@@ -640,12 +662,23 @@ class PolyhedralFunctionBlock : public AbstractBlock {
    AbstractBlock::add_Modification( mod , chnl );
   }
 
-/**@} ----------------------------------------------------------------------*/
-/*--- METHODS FOR LOADING, PRINTING & SAVING THE PolyhedralFunctionBlock ---*/
+/** @} ---------------------------------------------------------------------*/
+/*------- METHODS FOR PRINTING & SAVING THE PolyhedralFunctionBlock --------*/
 /*--------------------------------------------------------------------------*/
-/** @name Methods for loading, printing & saving the PolyhedralFunctionBlock
+/** @name Methods for printing & saving the PolyhedralFunctionBlock
  * @{ */
 
+ /// print information about the PolyhedralFunctionBlock on an ostream 
+ /** Print information about the PolyhedralFunctionBlock. With default
+  * verbosity (vlvl == 0) it just prints summary information, otherwise it
+  * basically prints the whole PolyhedralFunction.
+  *
+  * Note that none of these is a "complete" format allowing to read the
+  * PolyhedralFunctionBlock back (anyway load() is not implemented). */
+
+ void print( std::ostream & output , char vlvl = 0 ) const override;
+
+/*--------------------------------------------------------------------------*/
  /// serialize the PolyhedralFunctionBlock (recursively) to a netCDF NcGroup
  /** The PolyhedralFunctionBlock serializes itself out of a netCDF::NcGroup.
   * This is easy, since it is done by simply asking the PolyhedralFunction
@@ -661,7 +694,7 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   f_polyf.serialize( group );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -670,26 +703,6 @@ class PolyhedralFunctionBlock : public AbstractBlock {
 /*--------------------------------------------------------------------------*/
 /** @name Protected methods for inserting and extracting
  */
-
- /// print information about the PolyhedralFunctionBlock on an ostream 
- /** Protected method intended to print information about the
-  * PolyhedralFunctionBlock; it basically prints the PolyhedralFunction. */
-
- void print( std::ostream &output ) const override;
-
-/*--------------------------------------------------------------------------*/
- /// load the PolyhedralFunctionBlock out of an istream
- /** Method to deserialize the PolyhedralFunctionBlock out of an istream.
-  *
-  *     IT IS CURRENTLY NOT IMPLEMENTED
-  *
-  * but it still have to be defined (throwing exception) to make the class
-  * concrete. */
-
- virtual void load( std::istream &input ) override {
-  throw( std::logic_error(
-		     "PolyhedralFunctionBlock::load not implemented yet" ) );
-  }
 
 /*--------------------------------------------------------------------------*/
  /// process a FunctionMod produced by the PolyhedralFunction
@@ -721,7 +734,7 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   * case, and in this case only, forwarding the original Modification is
   * pointless because the whole of the Block has been changed, */
 
- bool guts_of_add_Modification_PF( FunctionMod * const mod , ChnlName chnl );
+ bool guts_of_add_Modification_PF( const FunctionMod * mod , ChnlName chnl );
 
 /*--------------------------------------------------------------------------*/
  /// process a Modification produced by the "linearized" representation
@@ -787,18 +800,6 @@ class PolyhedralFunctionBlock : public AbstractBlock {
 
  // constructs the i-th constraint of the linearized representation
  void ConstructLPConstraint( Index i , FRowConstraint & ci );
-
- // either open or nest a new channel, or do nothing
- ChnlName open_or_nest( bool cond , ChnlName chnl )
- {
-  if( cond ) {
-   if( chnl )
-    nest_channel( chnl , nullptr );
-   else
-    return( open_channel( nullptr ) );
-   }
-  return( chnl );
-  }
 
 /*--------------------------------------------------------------------------*/
 /*---------------------------- PRIVATE FIELDS ------------------------------*/

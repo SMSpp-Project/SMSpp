@@ -7,18 +7,13 @@
  * by the values of the static and dynamic Variable and dual variables of
  * the Constraint of a Block.
  *
- * \version 0.30
- *
- * \date 28 - 03 - 2021
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Department of Applied Mathematics \n
- *         State University of Campinas, Brazil \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
  *
  * Copyright &copy by Antonio Frangioni, Rafael Durbano Lobato
  */
@@ -61,12 +56,6 @@ namespace SMSpp_di_unipi_it
  ///< a vector of pointers to Solution
 
 /** @}  end( group( Solution_TYPES ) ) */
-/*--------------------------------------------------------------------------*/
-/*------------------------------- CLASSES ----------------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @defgroup Solution_CLASSES Classes in Solution.h
- *  @{ */
-
 /*--------------------------------------------------------------------------*/
 /*--------------------------- CLASS Solution -------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -129,7 +118,7 @@ class Solution {
 
  public:
 
-/*@} -----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------------- CONSTRUCTING AND DESTRUCTING Solution ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructing and destructing Solution
@@ -151,7 +140,7 @@ class Solution {
   * inside). Note that the method is static because the factory is static,
   * hence it is to be called as
   *
-  *   Solution *mySolution = Solution::new_Solution( someclass );
+  *   Solution *mySolution = Solution::new_Solution( some_class );
   *
   * i.e., without any reference to any specific Solution (and, therefore, it
   * can be used to construct the very first Solution if needed).
@@ -267,7 +256,7 @@ class Solution {
 
  virtual ~Solution() { }  ///< destructor: it is virtual, and empty
 
-/*@} -----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------- METHODS DESCRIBING THE BEHAVIOR OF A Solution -------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a Solution
@@ -415,11 +404,11 @@ class Solution {
 
  virtual Solution * clone( bool empty = false ) const = 0;
 
-/*@} -----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------- METHODS FOR LOADING, PRINTING & SAVING THE Solution ----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for printing the Solution
- */
+ *  @{ */
 
  /// friend operator<<(), dispatching to virtual protected print()
  /** Not really a method, but a friend operator<<() that just dispatches the
@@ -451,7 +440,7 @@ class Solution {
 
  const std::string & classname( void ) const { return( private_name() ); }
 
-/*@}------------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -482,7 +471,7 @@ class Solution {
   output << "Solution [" << this << "]";
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /** @name Protected methods for handling static fields
  *
  * These methods allow derived classes to partake into static initialization
@@ -533,7 +522,7 @@ class Solution {
 
  static void static_initialization( void ) {}
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- PROTECTED FIELDS ------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -554,7 +543,6 @@ class Solution {
 
  };  // end( class( Solution ) )
 
-/*@}  end( group( Solution_CLASSES ) ) -------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 }  // end( namespace SMSpp_di_unipi_it )

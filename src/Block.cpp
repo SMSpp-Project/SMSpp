@@ -4,21 +4,15 @@
 /** @file
  * Implementation of the Block class.
  *
- * \version 0.10
- *
- * \date 29 - 07 - 2020
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Department of Applied Mathematics \n
- *         State University of Campinas, Brazil \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
  *
  * \author Kostas Tavlaridis-Gyparakis \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -26,8 +20,6 @@
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
-/*--------------------------------------------------------------------------*/
-
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -79,7 +71,7 @@ Block * Block::deserialize( const std::string & filename , Block * father )
 {
  try {
   if( ( filename.size() > 4 ) &&
-      ( ! filename.compare( filename.size() - 4 , 4 , ".txt" ) ) ) {
+      ( filename.substr( filename.size() - 4 , 4 ) == ".txt" ) ) {
    std::ifstream f( f_prefix.empty() ? filename : f_prefix + filename ,
 		    std::fstream::in );
    if( ! f.is_open() ) {
@@ -240,7 +232,42 @@ Block * Block::deserialize( std::istream & input , Block * father )
     throw( std::invalid_argument( sre ) );
 
   auto block = Block::new_Block( tmp , father );
-  input >> *block;
+  // note: block surely is not nullptr, as new_Block() throws exception
+  // on failure
+
+  char frmt = 0;
+  input >> eatcomments;
+  if( input.fail() )
+    throw( std::invalid_argument( sre ) );
+
+  if( input.peek() == input.widen( '[' ) ) {
+   input >> tmp;
+   if( tmp.size() > 1 )
+    frmt = tmp[ 1 ];
+   input >> eatcomments;
+   if( input.fail() )
+    throw( std::invalid_argument( sre ) );
+   }
+
+  if( input.peek() == input.widen( '*' ) ) {
+   input.get();
+
+   if( input.eof() || input.fail() )
+    throw( std::invalid_argument( sre ) );
+
+   input >> eatcomments;
+   if( input.eof() || input.fail() )
+    throw( std::invalid_argument( sre ) );
+
+   input >> tmp;
+   if( input.eof() || input.fail() )
+    throw( std::invalid_argument( sre ) );
+
+   block->load( tmp , frmt );
+   }
+  else
+   block->load( input , frmt );
+
   return( block );
   }
  }  // end( Block::deserialize( std::istream ) )
@@ -251,7 +278,7 @@ Block * Block::deserialize( std::istream & input , Block * father )
 
 int Block::get_objective_sense( void ) const
 {
- return( f_Objective ? f_Objective->get_sense() : Objective::eMin );
+ return( f_Objective ? f_Objective->get_sense() : Objective::eUndef );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -276,16 +303,16 @@ void Block::anyone_there( bool isthere )
   if( f_at )                  // it was already so
    return;                    // nothing changes
   f_at = true;                // now I know it
-  if( !v_Solver.empty() )     // but my sons don't care because there
+  if( ! v_Solver.empty() )    // but my sons don't care because there
    return;                    // was already someone listening to me
   for( auto el : v_Block )    // now someone is listening to all my sons
    el->anyone_there( true );
   }
  else {                       // nobody is listening to father now
-  if( !f_at )                 // it was already so
+  if( ! f_at )                // it was already so
    return;                    // nothing changes
   f_at = false;               // now I know it
-  if( !v_Solver.empty() )     // but my sons don't care because there
+  if( ! v_Solver.empty() )    // but my sons don't care because there
    return;                    // is still someone listening to me
   for( auto el : v_Block )    // now no one is listening to all my sons
    el->anyone_there( false );
@@ -296,10 +323,19 @@ void Block::anyone_there( bool isthere )
 
 void Block::add_Modification( sp_Mod mod , ChnlName chnl )
 {
+ // Modification should generally not even be issued if ! anyone_there(), but
+ // there is an exception: "abstract" Modification under the default eModBlck
+ // mode are still issued in order to keep the "abstract" representation in
+ // synch with the "phisical" one. this is supposed to happen in the
+ // :Block::add_Modification(), that then should call this method. without
+ // the following check this would result in the Modification being uslessly
+ // passed up to all the chain of ancestors of the Block, the check avoids it
+ if( ! anyone_there() )
+  return;
+
  if( ! chnl )                           // the default channel
   chnl = f_channel;                     // possibly silently hijack it
 
- 
  if( chnl ) {                           // a channel is specified
   if( ! v_GroupMod.empty() ) {
    // check if it is one of the "local channels"
@@ -320,45 +356,36 @@ void Block::add_Modification( sp_Mod mod , ChnlName chnl )
    throw( std::invalid_argument( "wrong channel name" ) );
   }
 
- if( f_Block )                          // if there is a father
+ if( f_Block )                                // if there is a father
   f_Block->add_Modification( mod , chnl );    // pass it above (on chnl)
 
- for( Solver * slv : v_Solver )         // if there is any Solver
-  slv->add_Modification( mod );         // also pass it to them
+ for( Solver * slv : v_Solver )               // if there is any Solver
+  slv->add_Modification( mod );               // also pass it to them
 
  }  // end( Block::add_Modification )
 
 /*--------------------------------------------------------------------------*/
 
-Observer::ChnlName Block::open_channel( GroupModification * gmpmod )
+Observer::ChnlName Block::open_channel( ChnlName chnl ,
+					GroupModification * gmpmod )
 {
- // if a GroupModification is not provided, create one
- if( ! gmpmod )
-  gmpmod = new GroupModification;
+ if( ! gmpmod )                    // if a GroupModification is not provided
+  gmpmod = new GroupModification;  // create one
 
- ChnlName chnl = Observer::new_channel_name();
- v_GroupMod.push_back( std::pair( chnl , gmpmod ) );
+ if( ! chnl ) {  // opening a new channel
+  chnl = Observer::new_channel_name();
+  v_GroupMod.push_back( std::pair( chnl , gmpmod ) );
+  return( chnl );
+  }
 
- return( chnl );
-
- }  // end( Block::open_channel )
-
-/*--------------------------------------------------------------------------*/
-
-void Block::nest_channel( ChnlName chnl , GroupModification * gmpmod )
-{
- // if a GroupModification is not provided, create one
- if( ! gmpmod )
-  gmpmod = new GroupModification;
-
- if( ! v_GroupMod.empty() ) {
-  // check if it is one of the "local channels"
+ // nesting into an existing channel
+ if( ! v_GroupMod.empty() ) {      // if there are "local channels"
   auto GMit = std::find_if( v_GroupMod.begin() , v_GroupMod.end() ,
-			    [ chnl ] ( auto & a ) -> bool {
+			    [ chnl ]( auto & a ) -> bool {
 			     return( a.first == chnl );
 			     } );
 
-  if( GMit != v_GroupMod.end() ) {  // if so
+  if( GMit != v_GroupMod.end() ) {  // if it's one of them
    // set the father of the GroupModification to the current channel
    gmpmod->set_father( GMit->second );
 
@@ -368,109 +395,83 @@ void Block::nest_channel( ChnlName chnl , GroupModification * gmpmod )
    // the current channel becomes the new GroupModification
    GMit->second = gmpmod;
 
-   return;
+   return( chnl );
    }
   }
 
  // it is an error if it is not a "local" channel and there is no father,
  // since it cannot be a channel of the father (any ancestor) too
  if( ! f_Block )
-  throw( std::invalid_argument( "wrong channel name" ) );
+  throw( std::invalid_argument( "open_channel: " + std::to_string( chnl ) +
+				" not found" ) );
 
- // pass the message up to the father
- f_Block->nest_channel( chnl , gmpmod );
+ f_Block->open_channel( chnl , gmpmod );  // try to find it in the father
 
- }  // end( Block::nest_channel )
+ return( chnl );  // unless exception is thrown, it has been found
 
-/*--------------------------------------------------------------------------*/
-
-void Block::un_nest_channel( ChnlName chnl )
-{
- if( ! chnl )
-  throw( std::invalid_argument( "cannot un-nest default channel" ) );
-
- if( ! v_GroupMod.empty() ) {
-  // check if it is one of the "local channels"
-  auto GMit = std::find_if( v_GroupMod.begin() , v_GroupMod.end() ,
-			    [ chnl ] ( auto & a ) -> bool {
-			     return( a.first == chnl );
-			     } );
-
-  if( GMit != v_GroupMod.end() ) {  // if so
-   // the father of the current GroupModification
-   auto father = GMit->second->father();
-   if( ! father )
-    throw( std::invalid_argument( "channel is at root level" ) );
-
-   // if concerns_Block() of the current GroupModification is true, ensure
-   // that the concerns_Block() of father is also true
-   if( GMit->second->concerns_Block() )
-    father->concerns_Block( true );
-
-   // move back the channel to being the father
-   GMit->second = father;
-
-   return;
-   }
-  }
-
- // it is an error if it is not a "local" channel and there is no father,
- // since it cannot be a channel of the father (any ancestor) too
- if( ! f_Block )
-  throw( std::invalid_argument( "wrong channel name" ) );
-
- // pass the message up to the father
- f_Block->un_nest_channel( chnl );
-
- }  // end( Block::un_nest_channel )
+ }  // end( Block::open_channel )
 
 /*--------------------------------------------------------------------------*/
 
-void Block::close_channel( ChnlName chnl )
+void Block::close_channel( ChnlName chnl , bool force )
 {
  if( ! chnl )
   throw( std::invalid_argument( "cannot close default channel" ) );
 
- if( ! v_GroupMod.empty() ) {
-  // check if it is one of the "local channels"
+ if( ! v_GroupMod.empty() ) {  // if there are "local channels"
   auto GMit = std::find_if( v_GroupMod.begin() , v_GroupMod.end() ,
 			    [ chnl ] ( auto & a ) -> bool {
 			     return( a.first == chnl );
 			     } );
 
-  if( GMit != v_GroupMod.end() ) {  // if so
-   // finally pass the GroupModification to the Block
-   Block::add_Modification( std::shared_ptr< GroupModification >(
-							     GMit->second ) );
-   if( chnl == f_channel )  // if it was the default channel
-    f_channel = 0;          // reset it
+  if( GMit != v_GroupMod.end() ) {  // if chnl is one of them
 
-   // give back the channel name
-   Observer::release_channel_name( chnl );
+   auto father = GMit->second->father();
+   if( ( ! father ) || force ) {
+    // if either the channel is in "root mode", or closure is forced
+    if( chnl == f_channel )  // if it was the default channel
+     f_channel = 0;          // reset it
 
-   // delete the local channel
-   v_GroupMod.erase( GMit );
+    // if concerns_Block() of the current GroupModification is true, ensure
+    // that the concerns_Block() of is also true up until the top
+    if( GMit->second->concerns_Block() )
+     while( father ) {
+      father->concerns_Block( true );
+      father = father->father();
+      }
+
+    // finally pass the GroupModification to the Block, on the (possibly
+    // freshly reset) default channel
+    Block::add_Modification( std::shared_ptr< GroupModification
+			                      >( GMit->second ) );
+    Observer::release_channel_name( chnl );  // give back the channel name
+    v_GroupMod.erase( GMit );                // delete the local channel
+    }
+   else {
+    // the channel is not in "root mode" and closure is not forced, just
+    // un-nest the GroupModification by one level
+    // if concerns_Block() of the current GroupModification is true, ensure
+    // that the concerns_Block() of father is also true
+    if( GMit->second->concerns_Block() )
+     father->concerns_Block( true );
+
+    GMit->second = father; // move back the channel to being the father
+    }
 
    return;
    }
   }
 
  // it is an error if it is not a "local" channel and there is no father,
- // since it cannot be a channel of the father (any ancestor) too
+ // since it cannot be a channel of the father (any ancestor), too
  if( ! f_Block )
-  throw( std::invalid_argument( "wrong channel name" ) );
+  throw( std::invalid_argument( "close_channel: " + std::to_string( chnl ) +
+				" not found" ) );
 
  // pass the message up to the father
- f_Block->close_channel( chnl );
+ f_Block->close_channel( chnl , force );
 
  }  // end( Block::close_channel )
-
-/*--------------------------------------------------------------------------*/
-
-void Block::set_default_channel( ChnlName chnl )
-{
- f_channel = chnl;
- }
 
 /*--------------------------------------------------------------------------*/
 /*------------ METHODS FOR LOADING, PRINTING & SAVING THE Block ------------*/
@@ -505,18 +506,25 @@ void Block::set_BlockConfig( BlockConfig * newBC, bool deleteold )
 
 /*--------------------------------------------------------------------------*/
 
-void Block::print( std::ostream & output ) const
+void Block::print( std::ostream & output , char vlvl ) const
 {
- output << std::endl << "Block with: ";
- output << std::endl << v_s_Variable.size() << " types of static Variables, "
-        << v_d_Variable.size() << " types of dynamic Variables, "
-        << std::endl << v_s_Constraint.size() << " types of static Constraints, "
-        << v_d_Constraint.size() << " types of dynamic Constraints, "
+ // the base Block class cannot save itself completely, so 'C' is ignored
+ // (rather than raising an exception) for the case that a derived class
+ // decides to call the base class method
+ if( vlvl == 'C' )
+  return;
+
+ output << std::endl << classname() << " with: ";
+ output << std::endl << v_s_Variable.size() << " groups of static Variable, "
+        << v_d_Variable.size() << " groups of dynamic Variable, "
+        << std::endl << v_s_Constraint.size()
+	<< " groups of static Constraint, "
+        << v_d_Constraint.size() << " groups of dynamic Constraint, "
         << std::endl << v_Block.size() << " nested Blocks, and "
         << v_Solver.size() << " registered Solvers"
         << std::endl;
 
- if( verbosity_lvl == Block::medium || verbosity_lvl == Block::high ) {
+ if( ! vlvl ) {
   /*
   // the static Constraints of the Block- - - - - - - - - - - - - - - - - - -
   output << "Static Constraints:" << std::endl;
@@ -573,8 +581,8 @@ void Block::print( std::ostream & output ) const
 
   // the inner Blocks - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   output << std::endl << "Nested Blocks:" << std::endl;
-  for( p_Block blk : v_Block )
-   output << *blk;
+  for( auto blk : v_Block )
+   blk->print( output , vlvl );
   }
  }  // end( Block::print )
 
@@ -605,7 +613,7 @@ void Block::remove_variable_from_stuff( Variable * const variable ,
   auto si = variable->get_active( i++ );
   auto ivar = si->is_active( variable );
   if( ivar >= si->get_num_active_var() )
-   throw ( std::logic_error( "inconsistency between active lists" ) );
+   throw( std::logic_error( "inconsistency between active lists" ) );
 
   si->remove_variable( ivar , issueindMod );
   }

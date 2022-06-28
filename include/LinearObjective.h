@@ -7,12 +7,7 @@
  * the Function of the FRealObjective is a LinearFunction, "redirecting" the
  * relevant part of the LinearFunction interface.
  *
- * \version 0.10
- *
- * \date 18 - 08 - 2020
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -23,7 +18,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __LinearObjective
-#define __LinearObjective
+ #define __LinearObjective
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
@@ -107,7 +102,7 @@ class LinearObjective : public FRealObjective {
 
  virtual ~LinearObjective() { }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -122,7 +117,7 @@ class LinearObjective : public FRealObjective {
   throw( std::logic_error( "call to LinearObjective::set_function" ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE DATA OF THE LinearObjective ----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the LinearObjective
@@ -142,7 +137,7 @@ class LinearObjective : public FRealObjective {
   return( static_cast< LinearFunction * >( f_function ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------- METHODS FOR MODIFYING THE LinearObjective -----------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for modifying the LinearObjective
@@ -194,7 +189,7 @@ class LinearObjective : public FRealObjective {
 		                      std::move( NCoef ) , range , issueMod );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 

@@ -6,18 +6,13 @@
  * which is a class that defines a row constraint in terms of an
  * externally-provided Function object.
  *
- * \version 0.32
- *
- * \date 02 - 12 - 2020
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Department of Applied Mathematics \n
- *         State University of Campinas, Brazil \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
  *
  * Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */
@@ -136,7 +131,7 @@ class FRowConstraint : public RowConstraint, public Observer {
    f_function->clear();
  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -281,7 +276,7 @@ class FRowConstraint : public RowConstraint, public Observer {
    f_function->set_ComputeConfig( scfg );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE FRowConstraint -----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the FRowConstraint
@@ -294,8 +289,8 @@ class FRowConstraint : public RowConstraint, public Observer {
   * be explicitly implemented in terms of the latter. */
 
  [[nodiscard]] Block * get_Block() const override {
-  return ( Constraint::get_Block() );
- }
+  return( Constraint::get_Block() );
+  }
 
 /*--------------------------------------------------------------------------*/
  ///< method to get a pointer to the Function of the FRowConstraint
@@ -305,14 +300,14 @@ class FRowConstraint : public RowConstraint, public Observer {
 /*--------------------------------------------------------------------------*/
  /// method to get the RHS of the RowConstraint
 
- [[nodiscard]] RHSValue get_rhs( void ) const override { return ( f_rhs ); }
+ [[nodiscard]] RHSValue get_rhs( void ) const override { return( f_rhs ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method to get the LHS of the RowConstraint
 
- [[nodiscard]] RHSValue get_lhs( void ) const override { return ( f_lhs ); }
+ [[nodiscard]] RHSValue get_lhs( void ) const override { return( f_lhs ); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF A FRowConstraint ----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a FRowConstraint
@@ -346,7 +341,7 @@ class FRowConstraint : public RowConstraint, public Observer {
   return( f_function ? f_function->get_upper_estimate() : RHSINF );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the parameters of the FRowConstraint; they all dispatch
@@ -560,7 +555,7 @@ class FRowConstraint : public RowConstraint, public Observer {
   return( f_function->get_ComputeConfig( all, ocfg ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE FRowConstraint -------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling the set of "active" Variable in the
@@ -622,7 +617,7 @@ class FRowConstraint : public RowConstraint, public Observer {
  void remove_variables( Subset && nms , bool ordered = false,
                         ModParam issueMod = eModBlck ) final;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------- METHODS DESCRIBING THE BEHAVIOR OF AN Observer -------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of an Observer
@@ -641,7 +636,7 @@ class FRowConstraint : public RowConstraint, public Observer {
   * some mechanism allowing a finer control on which Modification are
   * "listened to". */
 
- [[nodiscard]] bool anyone_there( void ) const override { return ( true ); }
+ [[nodiscard]] bool anyone_there( void ) const override { return( true ); }
 
 /*--------------------------------------------------------------------------*/
  /// mostly just dispatch to add_Modification() of the Block (if any)
@@ -656,33 +651,17 @@ class FRowConstraint : public RowConstraint, public Observer {
 /*--------------------------------------------------------------------------*/
  /// just dispatch to open_channel() of the Block (if any)
 
- ChnlName open_channel( GroupModification * gmpmod = nullptr ) override {
-  return( f_Block ? f_Block->open_channel( gmpmod ) : 0 );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// just dispatch to nest_channel() of the Block (if any)
-
- void nest_channel( ChnlName chnl , GroupModification * gmpmod = nullptr )
- override {
-  if( f_Block )
-   f_Block->nest_channel( chnl , gmpmod );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// just dispatch to un_nest_channel() of the Block (if any)
-
- void un_nest_channel( ChnlName chnl ) override {
-  if( f_Block )
-   f_Block->un_nest_channel( chnl );
+ ChnlName open_channel( ChnlName chnl = 0 ,
+			GroupModification * gmpmod = nullptr ) override {
+  return( f_Block ? f_Block->open_channel( chnl , gmpmod ) : 0 );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
  /// just dispatch to close_channel() of the Block (if any)
 
- void close_channel( ChnlName chnl ) override {
+ void close_channel( ChnlName chnl , bool force = false ) override {
   if( f_Block )
-   f_Block->close_channel( chnl );
+   f_Block->close_channel( chnl , force );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -693,7 +672,7 @@ class FRowConstraint : public RowConstraint, public Observer {
    f_Block->set_default_channel( chnl );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -713,7 +692,7 @@ class FRowConstraint : public RowConstraint, public Observer {
          << " active variables" << std::endl;
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -725,7 +704,7 @@ class FRowConstraint : public RowConstraint, public Observer {
 
 /*--------------------------------------------------------------------------*/
 
-};  // end( class( FRowConstraint ) )
+ };  // end( class( FRowConstraint ) )
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- CLASS FRowConstraintMod ---------------------------*/
@@ -760,14 +739,14 @@ class FRowConstraintMod : public RowConstraintMod {
   ///< first allowed parameter value for derived classes
   /**< Convenience value for easily allow derived classes to extend the set
    * of types of Modification. */
- };
+  };
 
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
  /// constructor: just calls that of RowConstraintMod
 
  explicit FRowConstraintMod( FRowConstraint * cnst ,
 			     int mod = eFunctionChanged ,
-                             const bool cB = true )
+			     bool cB = true )
   : RowConstraintMod( cnst , mod , cB ) {}
 
  /*------------------------------ DESTRUCTOR --------------------------------*/
@@ -781,7 +760,7 @@ class FRowConstraintMod : public RowConstraintMod {
 /*-------------------------- PROTECTED METHODS -----------------------------*/
  /// print the FRowConstraintMod
 
- inline void print( std::ostream & output ) const override {
+ void print( std::ostream & output ) const override {
   output << "FRowConstraintMod[";
   if( concerns_Block() )
    output << "t";
@@ -793,7 +772,7 @@ class FRowConstraintMod : public RowConstraintMod {
 
 /*--------------------------------------------------------------------------*/
 
-};  // end( class( FRowConstraintMod ) )
+ };  // end( class( FRowConstraintMod ) )
 
 /*--------------------------------------------------------------------------*/
 

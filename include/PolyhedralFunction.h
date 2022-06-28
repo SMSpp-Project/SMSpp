@@ -6,12 +6,7 @@
  * concave) C05Function defined by the maximum (or minimum) of a "small"
  * number of explicitly provided affine forms.
  *
- * \version 0.25
- *
- * \date 18 - 04 - 2020
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -296,7 +291,7 @@ class PolyhedralFunction : public C05Function {
   VarVector::const_iterator itr_;
   };
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------ CONSTRUCTING AND DESTRUCTING PolyhedralFunction -------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructing and destructing PolyhedralFunction
@@ -417,7 +412,7 @@ class PolyhedralFunction : public C05Function {
 
  void clear( void ) override { v_x.clear(); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -551,7 +546,7 @@ class PolyhedralFunction : public C05Function {
    }
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------- METHODS DESCRIBING THE BEHAVIOR OF A PolyhedralFunction ---------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a PolyhedralFunction
@@ -720,27 +715,26 @@ class PolyhedralFunction : public C05Function {
 /*--------------------------------------------------------------------------*/
 
  void get_linearization_coefficients( FunctionValue * g ,
-			   Range range = std::make_pair( 0 , Inf<Index>() ) ,
-				      Index name = Inf<Index>() ) override;
+				      Range range = INFRange ,
+				      Index name = Inf< Index >() ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  void get_linearization_coefficients( SparseVector & g ,
-			   Range range = std::make_pair( 0 , Inf<Index>() ) ,
-				      Index name = Inf<Index>() ) override;
+				      Range range = INFRange ,
+				      Index name = Inf< Index >() ) override;
 
 /*--------------------------------------------------------------------------*/
 
  void get_linearization_coefficients( FunctionValue * g , c_Subset & subset  ,
-				      const bool ordered = false ,
-				      Index name = Inf<Index>() ) override;
+				      bool ordered = false ,
+				      Index name = Inf< Index >() ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- void get_linearization_coefficients( SparseVector & g ,
-				      c_Subset & subset ,
-				      const bool ordered = false ,
-				      Index name = Inf<Index>() ) override;
+ void get_linearization_coefficients( SparseVector & g , c_Subset & subset ,
+				      bool ordered = false ,
+				      Index name = Inf< Index >() ) override;
 
 /*--------------------------------------------------------------------------*/
 
@@ -798,7 +792,7 @@ class PolyhedralFunction : public C05Function {
 
  Index get_nrows( void ) const { return( v_A.size() ); }
  
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the parameters of the PolyhedralFunction
@@ -829,7 +823,7 @@ class PolyhedralFunction : public C05Function {
    return( C05Function::get_dbl_par( par ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------- METHODS FOR HANDLING THE State OF THE PolyhedralFunction --------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the State of the PolyhedralFunction
@@ -851,7 +845,7 @@ class PolyhedralFunction : public C05Function {
 		       const std::string & sub_group_name = "" )
   const override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---- METHODS FOR HANDLING "ACTIVE" Variable IN THE PolyhedralFunction ----*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling the set of "active" Variable in the
@@ -914,7 +908,7 @@ class PolyhedralFunction : public C05Function {
   return( new PolyhedralFunction::v_const_iterator( v_x.end() ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------ METHODS FOR MODIFYING THE PolyhedralFunction ----------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for modifying the PolyhedralFunction
@@ -1374,7 +1368,7 @@ class PolyhedralFunction : public C05Function {
   *
   * @param range contains the indices of the rows to be deleted, hence
   *        range.second < get_b().size(); note that if range.second ==
-  *        get_b().size() - 1 == get_A.size(), then also the the "virtual"
+  *        get_b().size() - 1 == get_A.size(), then also the "virtual"
   *        all-0 row corresponding to the global lower/upper bound is deleted,
   *        which means that the bound is reset to +/- INF as appropriate.
   *
@@ -1476,7 +1470,7 @@ class PolyhedralFunction : public C05Function {
 
  friend class PolyhedralFunctionState;  // make PolihedralFunctionState friend
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1652,8 +1646,8 @@ class PolyhedralFunction : public C05Function {
  * PolyhedralFunction is changed; therefore, no other information is needed.
  * Further derived classes contain data for other types of changes. */
 
-class PolyhedralFunctionMod : public C05FunctionMod {
-
+class PolyhedralFunctionMod : public C05FunctionMod
+{
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
  public:
@@ -1699,8 +1693,7 @@ class PolyhedralFunctionMod : public C05FunctionMod {
 /*-------------------------- PROTECTED METHODS -----------------------------*/
  /// print the PolyhedralFunctionMod
 
- void print( std::ostream &output ) const override
- {
+ void print( std::ostream &output ) const override {
   output << "PolyhedralFunctionMod[";
   if( concerns_Block() )
    output << "t";
@@ -1723,8 +1716,8 @@ class PolyhedralFunctionMod : public C05FunctionMod {
  * PolyhedralFunction-specific information is therefore the number of
  * added rows. */
 
-class PolyhedralFunctionModAddd : public PolyhedralFunctionMod {
-
+class PolyhedralFunctionModAddd : public PolyhedralFunctionMod
+{
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
  public:
@@ -1752,7 +1745,7 @@ class PolyhedralFunctionModAddd : public PolyhedralFunctionMod {
 
  /// accessor to the number of added rows
 
- Index addedrows( void ) const { return( f_addedrows ); }
+ [[nodiscard]] Index addedrows( void ) const { return( f_addedrows ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -1762,16 +1755,15 @@ class PolyhedralFunctionModAddd : public PolyhedralFunctionMod {
 
  /// print the PolyhedralFunctionModAddd
 
-  virtual inline void print( std::ostream &output ) const override
-  {
-   output << "PolyhedralFunctionModAddd[";
-   if( concerns_Block() )
-    output << "t";
-   else
-    output << "f";
-   output << "] on PolyhedralFunction [" << &f_function << " ]: added "
-	  << f_addedrows << " rows" << std::endl;
-   }
+ void print( std::ostream &output ) const override {
+  output << "PolyhedralFunctionModAddd[";
+  if( concerns_Block() )
+   output << "t";
+  else
+   output << "f";
+  output << "] on PolyhedralFunction [" << &f_function << " ]: added "
+	 << f_addedrows << " rows" << std::endl;
+  }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
@@ -1800,8 +1792,8 @@ class PolyhedralFunctionModAddd : public PolyhedralFunctionMod {
  * PolyhedralFunctionModRngd of type ModifyCnst indicates the change of
  * the global lower/upper bound. */
 
-class PolyhedralFunctionModRngd : public PolyhedralFunctionMod {
-
+class PolyhedralFunctionModRngd : public PolyhedralFunctionMod
+{
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
  public:
@@ -1829,12 +1821,12 @@ class PolyhedralFunctionModRngd : public PolyhedralFunctionMod {
 
  /// accessor to the specific sub-type of PolyhedralFunctionMod
 
- int PFtype( void ) { return( f_PFtype ); }
+ [[nodiscard]] int PFtype( void ) const { return( f_PFtype ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to the range of the affected rows
 
- c_Range & range( void ) { return( f_range ); }
+ [[nodiscard]] c_Range & range( void ) const { return( f_range ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -1844,8 +1836,7 @@ class PolyhedralFunctionModRngd : public PolyhedralFunctionMod {
 
  /// print the PolyhedralFunctionModRngd
 
- void print( std::ostream &output ) const override
- {
+ void print( std::ostream &output ) const override {
   output << "PolyhedralFunctionModRngd[";
   if( concerns_Block() )
    output << "t";
@@ -1888,8 +1879,8 @@ class PolyhedralFunctionModRngd : public PolyhedralFunctionMod {
  * For all these, the Subset of the affected rows is provided, as well as
  * the exact type of operation. */
 
-class PolyhedralFunctionModSbst : public PolyhedralFunctionMod {
-
+class PolyhedralFunctionModSbst : public PolyhedralFunctionMod
+{
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
  public:
@@ -1919,12 +1910,12 @@ class PolyhedralFunctionModSbst : public PolyhedralFunctionMod {
 
  /// accessor to the specific sub-type of PolyhedralFunctionMod
 
- int PFtype( void ) { return( f_PFtype ); }
+ [[nodiscard]] int PFtype( void ) const { return( f_PFtype ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to the subset of the modified rows
 
- c_Subset & rows( void ) { return( v_rows ); }
+ [[nodiscard]] c_Subset & rows( void ) const { return( v_rows ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -1934,8 +1925,7 @@ class PolyhedralFunctionModSbst : public PolyhedralFunctionMod {
 
  /// print the PolyhedralFunctionModSbst
 
- void print( std::ostream &output ) const override
- {
+ void print( std::ostream &output ) const override {
   output << "PolyhedralFunctionModRng[";
   if( concerns_Block() )
    output << "t";
@@ -1973,8 +1963,8 @@ class PolyhedralFunctionModSbst : public PolyhedralFunctionMod {
  * original cuts are in the global pool, and the aggregated ones that are
  * also there. */
 
-class PolyhedralFunctionState : public State {
-
+class PolyhedralFunctionState : public State
+{
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
  public:
@@ -2109,9 +2099,6 @@ class PolyhedralFunctionState : public State {
  };  // end( class( PolyhedralFunctionState ) )
 
 /** @} end( group( PoluhedralFunction_CLASSES ) ) --------------------------*/
-/*--------------------------------------------------------------------------*/
-
-/*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 }  // end( namespace SMSpp_di_unipi_it )

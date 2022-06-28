@@ -5,12 +5,10 @@
  * Implementation of the DQuadFunction class.
  *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -18,8 +16,6 @@
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
-/*--------------------------------------------------------------------------*/
-
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -163,7 +159,7 @@ void DQuadFunction::get_linearization_coefficients( SparseVector & g ,
   for( Index i = range.first ; i < range.second ; ++i )
    g.coeffRef( i ) = get_linearization_coefficient( i );
 
-  g.prune( 0 );
+  g.prune( 0 , 0 );
   }
  }
 
@@ -225,7 +221,7 @@ void DQuadFunction::get_linearization_coefficients( SparseVector & g ,
    g.coeffRef( i ) = get_linearization_coefficient( i );
    }
 
-  g.prune( 0 );
+  g.prune( 0 , 0 );
   }
  }
 
@@ -328,8 +324,8 @@ void DQuadFunction::modify_term( Index i , Coefficient lin_coeff ,
 				 ModParam issueMod )
 {
  if( i >= v_triples.size() )
-  throw ( std::invalid_argument( "DQuadFunction::modify_term: invalid "
-                                 "index: " + std::to_string( i ) ) );
+  throw( std::invalid_argument( "DQuadFunction::modify_term: invalid "
+                                "index: " + std::to_string( i ) ) );
 
  if( ( std::get< 1 >( v_triples[ i ] ) == lin_coeff ) &&
      ( std::get< 2 >( v_triples[ i ] ) == quad_coeff ) )

@@ -1,15 +1,10 @@
 /*--------------------------------------------------------------------------*/
-/*------------------------ File BendersBlock.cpp ------------------------*/
+/*-------------------------- File BendersBlock.cpp -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
  * Implementation of the BendersBlock class.
  *
- * \version 0.1
- *
- * \date 26 - 03 - 2020
- *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -51,6 +46,12 @@ void BendersBlock::deserialize( const netCDF::NcGroup & group ) {
   throw( std::logic_error( "BendersBlock::deserialize: "
                            "NumVar dimension is required." ) );
 
+ const auto ObjectiveSense = group.getDim( "ObjectiveSense" );
+ if( ObjectiveSense.isNull() || ( ObjectiveSense.getSize() != 0 ) )
+  objective.set_sense( Objective::eMin );
+ else
+  objective.set_sense( Objective::eMax );
+
  v_variables.resize( ncDim_NumVar.getSize() );
  for( auto & variable : v_variables )
   variable.set_Block( this );
@@ -88,6 +89,9 @@ void BendersBlock::serialize( netCDF::NcGroup & group ) const {
  group.putAtt( "type" , "BendersBlock" );
 
  group.addDim( "NumVar" , v_variables.size() );
+
+ if( objective.get_sense() == Objective::eMax )
+  group.addDim( "ObjectiveSense" , 0 );
 
  auto benders_function = objective.get_function();
 

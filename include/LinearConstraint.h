@@ -7,12 +7,7 @@
  * the Function of the FRowConstraint is a LinearFunction, "redirecting" the
  * relevant part of the LinearFunction interface.
  *
- * \version 0.10
- *
- * \date 18 - 08 - 2020
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -96,18 +91,19 @@ class LinearConstraint : public FRowConstraint {
 
  LinearConstraint( Block * block = nullptr ,
 		   RHSValue lhs = 0 , RHSValue rhs = 0 ,
-		   v_coeff_pair && vars = {} , LinearFunction::FunctionValue ct = 0 )
+		   v_coeff_pair && vars = {} ,
+		   LinearFunction::FunctionValue ct = 0 )
   : FRowConstraint( block , lhs , rhs ,
-		    new LinearFunction( std::move( vars ) , ct ) ) { }
+		    new LinearFunction( std::move( vars ) , ct ) ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor: deletes the Function and un-registers with the Variable
  /** Apparently does nothing, but does everything by automatically calling
   * the FRowConstraint destructor. */
 
- virtual ~LinearConstraint() { }
+ virtual ~LinearConstraint() {}
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -122,7 +118,7 @@ class LinearConstraint : public FRowConstraint {
   throw( std::logic_error( "call to LinearConstraint::set_function" ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE DATA OF THE LinearConstraint ----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the LinearConstraint
@@ -142,7 +138,7 @@ class LinearConstraint : public FRowConstraint {
   return( static_cast< LinearFunction * >( f_function ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------- METHODS FOR MODIFYING THE LinearConstraint -----------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for modifying the LinearConstraint
@@ -195,7 +191,7 @@ class LinearConstraint : public FRowConstraint {
 		                      std::move( NCoef ) , range , issueMod );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 

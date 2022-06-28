@@ -5,12 +5,7 @@
  * Implementation of the ThinComputeInterface and of the ComputeConfig
  * classes.
  *
- * \version 0.11
- *
- * \date 15 - 06 - 2020
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -18,8 +13,6 @@
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
-/*--------------------------------------------------------------------------*/
-
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -527,7 +520,7 @@ void ComputeConfig::reset_par( const std::string & name , char type )
   case( 'i' ): {
    auto it = std::find_if( int_pars.begin() , int_pars.end() ,
 			   [ & name ]( auto & el ) {
-			    return ( name == el.first );
+			    return( name == el.first );
 			    } );
    if( it != int_pars.end() ) {
     *it = std::move( int_pars.back() );
@@ -538,7 +531,7 @@ void ComputeConfig::reset_par( const std::string & name , char type )
   case( 'd' ): {
    auto it = std::find_if( dbl_pars.begin() , dbl_pars.end() ,
 			   [ & name ]( auto & el ) {
-			    return ( name == el.first );
+			    return( name == el.first );
 			    } );
    if( it != dbl_pars.end() ) {
     *it = std::move( dbl_pars.back() );
@@ -549,7 +542,7 @@ void ComputeConfig::reset_par( const std::string & name , char type )
   case( 's' ): {
    auto it = std::find_if( str_pars.begin() , str_pars.end() ,
 			   [ & name ]( auto & el ) {
-			    return ( name == el.first );
+			    return( name == el.first );
 			    } );
    if( it != str_pars.end() ) {
     *it = std::move( str_pars.back() );
@@ -560,7 +553,7 @@ void ComputeConfig::reset_par( const std::string & name , char type )
   case( 'I' ): {
    auto it = std::find_if( vint_pars.begin() , vint_pars.end() ,
 			   [ & name ]( auto & el ) {
-			    return ( name == el.first );
+			    return( name == el.first );
 			    } );
    if( it != vint_pars.end() ) {
     *it = std::move( vint_pars.back() );
@@ -571,7 +564,7 @@ void ComputeConfig::reset_par( const std::string & name , char type )
   case( 'D' ): {
    auto it = std::find_if( vdbl_pars.begin() , vdbl_pars.end() ,
 			   [ & name ]( auto & el ) {
-			    return ( name == el.first );
+			    return( name == el.first );
 			    } );
    if( it != vdbl_pars.end() ) {
     *it = std::move( vdbl_pars.back() );
@@ -582,7 +575,7 @@ void ComputeConfig::reset_par( const std::string & name , char type )
   case( 'S' ): {
    auto it = std::find_if( vstr_pars.begin() , vstr_pars.end() ,
 			   [ & name ]( auto & el ) {
-			    return ( name == el.first );
+			    return( name == el.first );
 			    } );
    if( it != vstr_pars.end() ) {
     *it = std::move( vstr_pars.back() );

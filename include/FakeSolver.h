@@ -7,12 +7,7 @@
  * that of syphoning off and storing away all the Modification that the Block
  * produces.
  *
- * \version 0.11
- *
- * \date 23 - 02 - 2019
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -23,8 +18,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __FakeSolver
-#define __FakeSolver
-/* self-identification: #endif at the end of the file */
+ #define __FakeSolver /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -74,14 +68,14 @@ class FakeSolver : public Solver {
  *  @{ */
 
  /// constructor: does nothing special
- FakeSolver() : Solver() {}
+ FakeSolver( void ) : Solver() {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor: it has to release all the Modifications
 
  ~FakeSolver() override = default;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SOLVING THE MODEL ----------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Solving the model encoded by the current Block
@@ -91,13 +85,13 @@ class FakeSolver : public Solver {
  /** FakeSolver does not even really try to solve the Block, so all this
   * method does is to return kError. */
 
- int compute( bool changedvars = true ) override { return ( kError ); }
+ int compute( bool changedvars = true ) override { return( kError ); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------------------- METHODS FOR READING RESULTS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
- bool has_var_solution() override { return ( false ); }
+ bool has_var_solution() override { return( false ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -113,7 +107,7 @@ class FakeSolver : public Solver {
   * Because this is done externally, methods are provided to expose the
   * internal atomic flag that is supposed to protect the list. */
 
- Lst_sp_Mod & get_Modification_list() { return ( v_mod ); }
+ Lst_sp_Mod & get_Modification_list() { return( v_mod ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// ensure that the list of Modification is locked, only return when it is

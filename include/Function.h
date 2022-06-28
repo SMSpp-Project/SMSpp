@@ -11,18 +11,13 @@
  * paradigm. Also, since a Function depends on a set of "active" Variable, it
  * implements the ThinVarDepInterface paradigm.
  *
- * \version 0.42
- *
- * \date 02 - 12 - 2020
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Department of Applied Mathematics \n
- *         State University of Campinas, Brazil \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
  *
  * Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */
@@ -31,7 +26,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __Function
- #define __Function  /* self-identification: #endif at the end of the file */
+ #define __Function   /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -138,8 +133,8 @@ class Variable;  // forward definition of Variable
  * copying a Function to a different memory location makes a distinct
  * Function. */
 
-class Function : public ThinComputeInterface , public ThinVarDepInterface {
-
+class Function : public ThinComputeInterface , public ThinVarDepInterface
+{
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -150,7 +145,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
 /*---------------------------- PUBLIC TYPES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Public Types
-    @{ */
+ *  @{ */
 
  using FunctionValue = double;  ///< type of the returned value
 
@@ -163,7 +158,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
  using c_Vec_FunctionValue = const Vec_FunctionValue;
 
 /*--------------------------------------------------------------------------*/
- /// public enum for the int algorithmic parameters of Solver
+ /// public enum for the int algorithmic parameters of Function
  /** Public enum "extending" int_par_type_TCI to describe the different
   * algorithmic parameters of "int" type that any Function should reasonably
   * have on top of those defined by ThinComputeInterface (although specific
@@ -201,7 +196,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
    *
    * The default is 1e-6. */
 
-  dblAbsAcc ,  ///< absolute accuracy for the value of the function
+  dblAbsAcc ,  ///< absolute accuracy for the value of the Function
                /**< The parameter for setting the *absolute* accuracy
 		* required to the function value. That is, if both an upper
    * bound "ub" [see get_upper_estimate()] and a lower bound "lb" [see
@@ -222,8 +217,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
    *   lb >= dblUpCutOff
    *
    * This is a *certificate* that the value is at *least* dblUpCutOff. The
-   * default is Inf<OFValue>(), i.e., no upper cut off.
-   */
+   * default is Inf<OFValue>(), i.e., no upper cut off. */
 
   dblLwCutOff ,  ///< lower cutoff on the value of the function
                  /**< The parameter for setting the "lower cut off" of the
@@ -245,17 +239,15 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
  /// public enum for the string algorithmic parameters
  /** Public enum describing the different algorithmic parameters of "string"
   * type that any Function should reasonably have (none so far). The value
-  * strLastAlgPar is provided so that the list can be easily extended by
+  * strLastParFun is provided so that the list can be easily extended by
   * derived classes. */
 
  enum str_par_type_F {
-  strLastAlgPar = 0   ///< first allowed new string parameter
-                      /**< Convenience value for easily allow derived classes
-		       * to extend the set of string algorithmic parameters.
-   * Actually, so far thare are no string algorithmic parameters in the base
-   * Function class, but this may change in the future, so using this makes
-   * code resistant to that. */
- };  // end( str_par_type_F )
+  strLastParFun = strLastAlgParTCI
+  ///< first allowed new string parameter
+  /**< Convenience value for easily allow derived classes to extend the set
+   * of string algorithmic parameters. */
+  };  // end( str_par_type_F )
 
 /*--------------------------------------------------------------------------*/
  /// public enum for vector-of-int algorithmic parameters
@@ -265,47 +257,41 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
   * extended by derived classes. */
 
  enum vint_par_type_F {
-  vintLastAlgPar = 0  ///< first allowed new  vector-of-int parameter
-                      /**< Convenience value for easily allow derived classes
-                       * to extend the set of vector-of-int parameters.
-   * Actually, so far thare are no such parameters in the base Function class,
-   * but this may change in the future, so using this makes code resistant to
-   * that. */
- };  // end( vint_par_type_F )
+  vintLastParFun = vintLastAlgParTCI
+  ///< first allowed new  vector-of-int parameter
+  /**< Convenience value for easily allow derived classes to extend the set
+   * of vector-of-int parameters. */
+  };  // end( vint_par_type_F )
 
 /*--------------------------------------------------------------------------*/
  /// public enum for vector-of-double algorithmic parameters
  /** Public enum describing the different algorithmic parameters that are
   * vectors of double that any Function should reasonably have (none so far).
-  * The value vdblLastAlgPar is provided so that the list can be easily
+  * The value vdblLastParFun is provided so that the list can be easily
   * extended by derived classes. */
 
  enum vdbl_par_type_F {
-  vdblLastAlgPar = 0  ///< first allowed new  vector-of-double parameter
-                      /**< Convenience value for easily allow derived classes
-                       * to extend the set of vector-of-double parameters.
-   * Actually, so far thare are no such parameters in the base Function class,
-   * but this may change in the future, so using this makes code resistant to
-   * that. */
- };  // end( vdbl_par_type_S )
+  vdblLastParFun = vdblLastAlgParTCI
+  ///< first allowed new  vector-of-double parameter
+  /**< Convenience value for easily allow derived classes to extend the set
+   * of vector-of-double parameters. */
+  };  // end( vdbl_par_type_S )
 
 /*--------------------------------------------------------------------------*/
  /// public enum for vector-of-string algorithmic parameters
  /** Public enum describing the different algorithmic parameters that are
   * vectors of string that any Function should reasonably have (none so far).
-  * The value vdblLastAlgPar is provided so that the list can be easily
+  * The value vstrLastParFun is provided so that the list can be easily
   * extended by derived classes. */
 
  enum vstr_par_type_F {
-  vstrLastAlgPar = 0  ///< first allowed new  vector-of-string parameter
-                      /**< Convenience value for easily allow derived classes
-                       * to extend the set of vector-of-string parameters.
-   * Actually, so far thare are no such parameters in the base Function class,
-   * but this may change in the future, so using this makes code resistant to
-   * that. */
- };  // end( vstr_par_type_S )
+  vstrLastParFun = vstrLastAlgParTCI
+  ///< first allowed new vector-of-string parameter
+  /**< Convenience value for easily allow derived classes to extend the set
+   * of vector-of-string parameters. */
+  };  // end( vstr_par_type_S )
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and destructor
@@ -349,7 +335,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
 
  ~Function() override = default;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -386,7 +372,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
   f_Observer = observer;
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------- METHODS DESCRIBING THE BEHAVIOR OF A Function --------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a Function
@@ -494,6 +480,27 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
   }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the "constant term" of the Function
+ /** Virtual method that returns "the constant term" of the Function. Each
+  * Function can be seen to have a "constant term", i.e., to have the form
+  *
+  *    f( x ) = f_0 + h( x )
+  *
+  * with f_0 constant and h( x ) depending on x. Of course for a general
+  * Function one can choose f_0 arbitrarily by changing h(), but for many
+  * Function the "constant term" is clearly defined. In fact, the only
+  * change that the basic FunctionMod [see] supports can be seen, for the
+  * special case where f_shift is finite, as saying that f_0 has changed,
+  * while the other cases represent all the other possible changes in h().
+  * This method provides access to "the constant term" f_0. Since this may
+  * not really make sense for all Function, a default implementation is
+  * provided that just returns 0, a non-invasive constant term. */
+
+ [[nodiscard]] virtual FunctionValue get_constant_term( void ) const {
+  return( 0 );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// returns a valid global lower bound on the Function value
  /** The Function may know that it is bounded below on its domain, and be
   * able to (cheapily) compute a finite number guaranteed to be <= than any
@@ -548,7 +555,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
   * to be able to write into the fields of the class. */
 
  virtual FunctionValue get_Lipschitz_constant( void ) {
-  return( std::numeric_limits< FunctionValue >::infinity() );
+  return( Inf< FunctionValue >() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -610,7 +617,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
 	  this->is_upper_semicontinuous() );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the parameters of the Function
@@ -630,7 +637,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
 
  [[nodiscard]] int get_dflt_int_par( idx_type par ) const override {
   switch( par ) {
-   case( intMaxIter ):   return( std::numeric_limits< int >::infinity() );
+   case( intMaxIter ):   return( Inf< int >() );
    case( intMaxThread ): return( 0 );
    case( intEverykIt ):  return( 0 );
    }
@@ -642,12 +649,12 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
 
  [[nodiscard]] double get_dflt_dbl_par( idx_type par ) const override {
   switch( par ) {
-   case( dblMaxTime ):  return( std::numeric_limits< double >::infinity() );
+   case( dblMaxTime ):  return( Inf< double >() );
    case( dblEveryTTm ): return( 0 );
    case( dblRelAcc ):   return( 1e-6 );
    case( dblAbsAcc ):
-   case( dblUpCutOff ): return( std::numeric_limits< double >::infinity() );
-   case( dblLwCutOff ): return( -std::numeric_limits< double >::infinity() );
+   case( dblUpCutOff ): return( Inf< double >() );
+   case( dblLwCutOff ): return( -Inf< double >() );
    }
 
   throw( std::invalid_argument( "invalid double parameter name" ) );
@@ -713,7 +720,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
   throw( std::invalid_argument( "invalid double parameter name" ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------- METHODS FOR READING THE DATA OF THE Function ---------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the Function
@@ -727,7 +734,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
 
  [[nodiscard]] Observer * get_Observer( void ) const { return( f_Observer ); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------- METHODS FOR LOADING, PRINTING & SAVING THE Function ----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for printing the Function
@@ -741,10 +748,10 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
 
  friend std::ostream & operator<<( std::ostream & out , const Function & o ) {
   o.print( out );
-  return ( out );
+  return( out );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -805,24 +812,26 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
  * - Any finite non-NaN number: conversely, the value of the Function has
  *   changed in a very predictable way: computing the value of the Function at
  *   any point now returns f_v + shift(), where f_v is the value that would
- *   have been returned prior to the Modification. It should be noted that
- *   shift() = 0 does not really have a sense in this case as it would not
- *   be a change in the Function; however, the value is still allowed for
- *   uniformity with FunctionModVars [see].
+ *   have been returned prior to the Modification. One clean way to see this
+ *   change is that "the constant term of the Function has changed", see
+ *   get_constant_term(). It should be noted that shift() = 0 does not really
+ *   have a sense in this case as it would not be a change in the Function;
+ *   however, the value is still allowed for uniformity with FunctionModVars
+ *   [see].
  *
- * - +Infty (= std::numeric_limits<FunctionValue>::infinity(), for which the
- *   convenience constexpr "INFshift" is defined): this means that the value
- *   of the Function has changed "unpredictably but monotonically upwards":
- *   computing the value of the Function at any point now returns a value
- *   that is surely greater than or equal to the value that would have been
- *   returned prior to the Modification.
+ * - +Infty (= Inf<FunctionValue>(), for which the convenience constexpr
+ *   "INFshift" is defined): this means that the value of the Function has
+ *   changed "unpredictably but monotonically upwards": computing the value of
+ *   the Function at any point now returns a value that is surely greater than
+ *   or equal to the value that would have been returned prior to the
+ *   Modification.
  *
- * - -Infty (= - std::numeric_limits<FunctionValue>::infinity(), i.e.,
- *   "-INFshift" exploiting the defined convenience constexpr): this means
- *   that the value of the Function has changed "unpredictably but
- *   monotonically downwards": computing the value of the Function at any
- *   point now returns a value that is surely smaller than or equal to the
- *   value that would have been returned prior to the Modification.
+ * - -Infty (= - Inf<FunctionValue>(), i.e., "-INFshift" exploiting the
+ *   defined convenience constexpr): this means that the value of the Function
+ *   has changed "unpredictably but monotonically downwards": computing the
+ *   value of the Function at any point now returns a value that is surely
+ *   smaller than or equal to the value that would have been returned prior to
+ *   the Modification.
  *
  * Note that a FunctionMod with std::isnan( shift() ) == true is the "nuclear
  * Modification for Function": it basically says that everything that was
@@ -831,8 +840,8 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
  * changes in the set of "active" Variable have their own separate 
  * Modification. */
 
-class FunctionMod : public AModification {
-
+class FunctionMod : public AModification
+{
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
  public:
@@ -874,8 +883,7 @@ class FunctionMod : public AModification {
                           = std::numeric_limits< FunctionValue >::quiet_NaN();
  ///< convenience constexpr for "NaN", *not* to be used with ==
 
- static constexpr FunctionValue INFshift
-                           = std::numeric_limits< FunctionValue >::infinity();
+ static constexpr FunctionValue INFshift = Inf< FunctionValue >();
  ///< convenience constexpr for "Infty"
 
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
@@ -938,7 +946,7 @@ class FunctionMod : public AModification {
  *   equal to the value that would have been returned prior to the
  *   Modification. */
 
- [[nodiscard]] FunctionValue shift( void ) const { return ( f_shift ); }
+ [[nodiscard]] FunctionValue shift( void ) const { return( f_shift ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -1091,21 +1099,19 @@ class FunctionMod : public AModification {
  *   Modification was a quasi-additive one, with shift() being the value of
  *   the shift.
  *
- * - +Infty (= std::numeric_limits<FunctionValue>::infinity(), for which
- *   the convenience constexpr "INFshift" is defined): the Modification was
- *   not a quasi-additive one, but while the value of the Function has
- *   changed "unpredictably" all over the space, the change is "upward
- *   monotone" in the sense that:
+ * - +Infty (= Inf<FunctionValue>(), for which the convenience constexpr
+ *   "INFshift" is defined): the Modification was not a quasi-additive one,
+ *   but while the value of the Function has changed "unpredictably" all over
+ *   the space, the change is "upward monotone" in the sense that:
  *   = for addition, the value of the Function at any point ( x , 0 ) is
  *     surely greater than or equal to the value that the Function had at x;
  *   = for deletion, the value of the Function at any point x is surely
  *     greater than or equal to the value that the Function had at ( x , 0 ).
  *
- * - -Infty (= -std::numeric_limits<FunctionValue>::infinity(), i.e.,
- *   "-INFshift" exploiting the defined convenience constexpr): the
- *   Modification was not a quasi-additive one, but while the value of the
- *   Function has changed "unpredictably" all over the space, the change is
- *   "downward monotone" in the sense that:
+ * - -Infty (= -Inf<FunctionValue>(), i.e., "-INFshift" exploiting the defined
+ *   convenience constexpr): the Modification was not a quasi-additive one,
+ *   but while the value of the Function has changed "unpredictably" all over
+ *   the space, the change is "downward monotone" in the sense that:
  *   = for addition, the value of the Function at any point ( x , 0 ) is
  *     surely less than or equal to the value that the Function had at x;
  *   = for deletion, the value of the Function at any point x is surely
@@ -1122,8 +1128,8 @@ class FunctionMod : public AModification {
  * method to understand what has happened, rather than going through the
  * problem of "catching" each of the derived classes individually. */
 
-class FunctionModVars : public AModification {
-
+class FunctionModVars : public AModification
+{
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
  public:
@@ -1165,8 +1171,7 @@ class FunctionModVars : public AModification {
                             std::numeric_limits< FunctionValue >::quiet_NaN();
  ///< convenience constexpr for "NaN", *not* to be used with ==
 
- static constexpr FunctionValue INFshift =
-                             std::numeric_limits< FunctionValue >::infinity();
+ static constexpr FunctionValue INFshift = Inf< FunctionValue >();
  ///< convenience constexpr for "Infty"
 
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
@@ -1174,7 +1179,7 @@ class FunctionModVars : public AModification {
  /** constructor: takes a pointer to the affected Function, the subset of
   * affected Variable under the form of a std::vector< Variable * >, the
   * value of the shift encoding the quasi-additivity status of the
-  * modification, and the "concerns" value. As the the && tells, the vector
+  * modification, and the "concerns" value. As the && tells, the vector
   * "becomes property" of the FunctionModVars object. Note that the order
   * of the vars[] vector is irrelevant for deletions (as the final set of
   * indices is the same in whatever order they are performed), while it is
@@ -1433,8 +1438,8 @@ class FunctionModVarsAddd : public FunctionModVars {
  * maybe having to figure out a-posteriori that these were actually a range.
  */
 
-class FunctionModVarsRngd : public FunctionModVars {
-
+class FunctionModVarsRngd : public FunctionModVars
+{
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
  public:
@@ -1452,7 +1457,8 @@ class FunctionModVarsRngd : public FunctionModVars {
 
  FunctionModVarsRngd( Function * f , Vec_p_Var && vars , c_Range & range ,
                       FunctionValue shift = NaNshift , bool cB = true )
-  : FunctionModVars( f, std::move( vars ) , shift , cB ) , f_range( range ) {
+  : FunctionModVars( f , std::move( vars ) , shift , cB ) , f_range( range )
+ {
   if( v_vars.size() != f_range.second - f_range.first )
    throw( std::invalid_argument( "vars and range sizes do not match" ) );
   }
@@ -1568,7 +1574,7 @@ class FunctionModVarsSbst : public FunctionModVars {
     tmp[ i ] = IdxVar( v_subset[ i ] , v_vars[ i ] );
    std::sort( tmp.begin() , tmp.end() ,
               []( auto & a , auto & b ) {
-               return ( ( a.first < b.first ) );
+               return( ( a.first < b.first ) );
               } );
    for( Index i = 0 ; i < v_vars.size() ; ++i ) {
     v_subset[ i ] = tmp[ i ].first;

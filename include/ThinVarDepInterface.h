@@ -6,12 +6,7 @@
  * base class for all objects in SMS++ (Constraint, Objective, Function, ...)
  * that depend on a set of "active" Variable.
  *
- * \version 0.20
- *
- * \date 20 - 07 - 2019
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -99,9 +94,15 @@ class ThinVarDepInterface {
  /** Note: the Range type is supposed to be identical to the same-name type
   * defined in Block; it is not "imported from Block" because
   * ThinVarDepInterface.h does not include Block.h. */
- using Range = std::pair< Index, Index >;
+ using Range = std::pair< Index , Index >;
 
  using c_Range = const Range;    ///< a const Range
+
+ /// an "infinite Range", i.e., [ 0 , INF ), i.e., "everything"
+ /** Note: and identical constexpr with the same-name is defined in Block;
+  * it is not "imported from Block" because ThinVarDepInterface.h does not
+  * include Block.h. */
+ static constexpr auto INFRange = Range( 0 , Inf< Index >() );
 
  /// a std::vector< Index >
  /** Type a "generic set if Indices", i.e., a std::vector< Index >. This is
@@ -126,7 +127,7 @@ class ThinVarDepInterface {
   *
   * Also, because the virtual iterator is accessed via pointers, its copy
   * cannot be done via standard copy constructors/assignments, and a clone()
-  * method is requird. */
+  * method is required. */
 
  class v_iterator {
   public:
@@ -171,7 +172,7 @@ class ThinVarDepInterface {
   typedef std::forward_iterator_tag iterator_category;
 
   v_const_iterator() = default;                                ///< constructor
-  virtual ~v_const_iterator() = default;;                      ///< destructor
+  virtual ~v_const_iterator() = default;                       ///< destructor
   virtual v_const_iterator * clone() = 0;                      ///< cloner
   virtual void operator++() = 0;                               ///< increment
   virtual reference operator*() const = 0;                     ///< operator*
@@ -220,41 +221,41 @@ class ThinVarDepInterface {
   // standard assignment, note the clone()
   iterator & operator=( iterator & itr ) {
    itr_ = itr.itr_->clone();
-   return ( *this );
-  }
+   return( *this );
+   }
 
   // standard move assignment
   iterator & operator=( iterator && itr ) {
    itr_ = itr.itr_;
    itr.itr_ = nullptr;
-   return ( *this );
-  }
+   return( *this );
+   }
 
   // pre-increment operator ++it, use this preferably
   iterator & operator++() {
    itr_->operator++();
-   return ( *this );
-  }
+   return( *this );
+   }
 
   // post-increment operator it++, avoid this if possible
   iterator operator++( int ) {
    // note that the copy need be disjoint, hence the clone()
    iterator i( itr_->clone() );
    itr_->operator++();
-   return ( i );
-  }
+   return( i );
+   }
 
-  reference operator*() const { return ( *( *itr_ ) ); }
+  reference operator*() const { return( *( *itr_ ) ); }
 
-  pointer operator->() const { return ( itr_->operator->() ); }
+  pointer operator->() const { return( itr_->operator->() ); }
 
   bool operator==( const iterator & rhs ) const {
-   return ( *( rhs.itr_ ) == *itr_ );
-  }
+   return( *( rhs.itr_ ) == *itr_ );
+   }
 
   bool operator!=( const iterator & rhs ) const {
-   return ( *itr_ != *( rhs.itr_ ) );
-  }
+   return( *itr_ != *( rhs.itr_ ) );
+   }
 
   private:
 
@@ -291,7 +292,7 @@ class ThinVarDepInterface {
   const_iterator( const_iterator && itr ) noexcept {
    itr_ = itr.itr_;
    itr.itr_ = nullptr;
-  }
+   }
 
   // destructor, deletes the virtual iterator
   ~const_iterator() { delete itr_; }
@@ -299,48 +300,48 @@ class ThinVarDepInterface {
   // standard assignment, note the clone()
   const_iterator & operator=( const_iterator & itr ) {
    itr_ = itr.itr_->clone();
-   return ( *this );
-  }
+   return( *this );
+   }
 
   // standard move assignment
   const_iterator & operator=( const_iterator && itr ) {
    itr_ = itr.itr_;
    itr.itr_ = nullptr;
-   return ( *this );
-  }
+   return( *this );
+   }
 
   // pre-increment operator ++it, use this preferably
   const_iterator & operator++() {
    itr_->operator++();
-   return ( *this );
-  }
+   return( *this );
+   }
 
   // post-increment operator it++, avoid this if possible
   const_iterator operator++( int ) {
    // note that the copy need be disjoint, hence the clone()
    const_iterator i( itr_->clone() );
    itr_->operator++();
-   return ( i );
-  }
+   return( i );
+   }
 
-  reference operator*() const { return ( *( *itr_ ) ); }
+  reference operator*() const { return( *( *itr_ ) ); }
 
-  pointer operator->() const { return ( itr_->operator->() ); }
+  pointer operator->() const { return( itr_->operator->() ); }
 
   bool operator==( const const_iterator & rhs ) const {
-   return ( *itr_ == *( rhs.itr_ ) );
-  }
+   return( *itr_ == *( rhs.itr_ ) );
+   }
 
   bool operator!=( const const_iterator & rhs ) const {
-   return ( *itr_ != *( rhs.itr_ ) );
-  }
+   return( *itr_ != *( rhs.itr_ ) );
+   }
 
   private:
 
   v_const_iterator * itr_;
  };
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and destructor
@@ -428,12 +429,12 @@ class ThinVarDepInterface {
   * Hence, this method is given an empty implementation for derived classes
   * that just do not have to care (for instance because they do not directly
   * register themselves as "active stuff" into Variable, see Function). Also,
-  * this mathod should only be called when the underlying assumption is
+  * this method should only be called when the underlying assumption is
   * guaranteed to be satisfied; in doubt, do not call it. */
 
  virtual void clear( void ) {}
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------- METHODS FOR READING THE DATA OF THE ThinVarDepInterface ---------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the ThinVarDepInterface
@@ -442,11 +443,11 @@ class ThinVarDepInterface {
  /// returns a pointer to the Block to which the ThinVarDepInterface belongs
  /** Every ThinVarDepInterface belongs to a Block; return a pointer to it.
   * The base class implementation is pure virtual so as to allow derived
-  * casses full flexibility. */
+  * classes full flexibility. */
 
  [[nodiscard]] virtual Block * get_Block( void ) const = 0;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE SET OF "ACTIVE" Variable ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for reading the set of "active" Variable
@@ -457,11 +458,11 @@ class ThinVarDepInterface {
  * Index in 0, 1, ... n - 1; hence, these methods (at least in part) rely on
  * the concept of "i-th active Variable". Since the implementation of the set 
  * of "active" Variable is entirely left to derived classes, to allow them
- * complete flexibililty, in principle little can be said about how the
+ * complete flexibility, in principle little can be said about how the
  * order is established. That is, in general how the Index is chosen for
  * each "active" Variable is left to the specific derived class. However,
  * a minimum set of general principles must be established that set the rules
- * that all implementation must satifsy. These are the following:
+ * that all implementation must satisfy. These are the following:
  *
  * 1) The ordering does not change unless the set of "active" Variable itself
  *    changes. That is, given an existing "active" Variable, the value
@@ -512,7 +513,7 @@ class ThinVarDepInterface {
  * - the Modification only has to be processed if the Variable has not been
  *   removed, even if it has been re-added afterwards (which makes sense,
  *   as removing ad adding typically entail their own Modification which
- *   will be procedded in due time).
+ *   will be proceeded in due time).
  *
  * Then, the current Index of the Variable need only be searched for among
  * these smaller than (or equal to) the original one, and if the Variable is
@@ -522,7 +523,7 @@ class ThinVarDepInterface {
  *
  * Any ThinVarDepInterface must allows access to the set of "active" Variable
  * via their Index [see get_active_var()]. However, another basically
- * independent means of acess is provided via a (virtualized) forward
+ * independent means of access is provided via a (virtualized) forward
  * iterator, with standard begin() and end() accessors, so that any standard
  * STL algorithm only relying on forward iterators can be applied.
  *
@@ -628,6 +629,161 @@ class ThinVarDepInterface {
   }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the indices of a set of Variable given the original Subset 
+ /** The method inputs a vector of (pointers to) Variable that *used to be*
+  * "active" in the ThinVarDepInterface, as well as the Subset (of the same
+  * size(), and ordered in increasing sense) that contains their original
+  * indices. It returns a Subset (of again the same size()) that contains, in
+  * the position corresponding to each Variable, the *current* index of the
+  * Variable in the ThinVarDepInterface, or any number >=
+  * get_num_active_var() (say, Inf< Index >()) if the Variable is not
+  * currently "active" in the ThinVarDepInterface.
+  *
+  * The assumption for the method to work efficiently is that the input
+  * Subset used to be correct at some point, but it may no longer be because
+  * some "active" Variable may have been added / deleted in the meantime. This
+  * is tyipically the case of a Subset that has been stored in a Modification,
+  * which is processed after that, possibly, a bunch of changes have occurred
+  * in the ThinVarDepInterface. Handling these changes may require to access
+  * information in the ThinVarDepInterface corresponding to the Variable,
+  * which is done via their index. This method tries to obtain the set of
+  * current indices faster than map_active(), that just blindly seeks the
+  * index of each Variable, by betting that the current index will be
+  * "close to the original one to the left (because some Variable with
+  * smaller index has been deleted), and otherwise close to the end of the
+  * set of active Variable (because the Variable has been deleted and then
+  * re-added)". This should be O( #vars ) if the set of indices has not
+  * changed, but it can be O( #vars * get_num_active_var() ) (as map_active()
+  * is) in the worst case where everything changed. 
+  *
+  * This method is not pure virtual: the base ThinVarDepInterface provides 
+  * one implementation using the virtual methods of the class. However, the
+  * method is virtual, so that derived classes may provide more efficient
+  * implementations exploiting properties of their specific data structures
+  * (if only by avoiding virtual calls). */
+
+ virtual Subset map_index( const std::vector< Variable * > & vars ,
+			   c_Subset & nms ) const {
+  if( vars.size() != nms.size() )
+   throw( std::invalid_argument( "vars and nms sizes do not match" ) );
+
+  Subset map( vars.size() );
+  if( map.empty() )
+   return( map );
+
+  auto nmsit = nms.begin();
+  auto varsit = vars.begin();
+  auto mapit = map.begin();
+  c_Index nav = get_num_active_var();
+
+  // for all Variable in the set
+  while( varsit != vars.end() ) {
+   auto var = *(varsit++);  // next variable
+   auto oi = *(nmsit++);    // its original index
+   // if var has not been deleted (and, possibly, re-added), its index
+   // must be <= oi: search backward from oi to find it
+   auto avoi = get_active_var( oi );
+   Index i = oi;
+   while( var != avoi ) {
+    if( ! i )
+     break;
+    avoi = get_active_var( --i );
+    }
+   if( var == avoi )  // the Variable was found
+    *(mapit++) = i;   // this is its index
+   else {             // the Variable was not found
+    // restart the search from the last variable to oi (excluded), for the
+    // case where var has been deleted and re-added, and therefore its
+    // index can now be arbitrary (but it is more likely to be "close to
+    // the end" than "at the beginning")
+    for( i = nav , avoi = get_active_var( --i ) ;
+	 ( var != avoi ) && ( i > oi ) ; )
+     avoi = get_active_var( --i );
+    *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+    }
+   }  // end( for all Variable )
+
+  return( map );
+
+  }  // end( map_index( Subset )
+
+/*--------------------------------------------------------------------------*/
+ /// returns the indices of a set of Variable given the original Range 
+ /** The method inputs a vector of (pointers to) Variable that *used to be*
+  * "active" in the ThinVarDepInterface, as well as the Range (of the same
+  * size) of their original indices. It returns a Subset (of again the same
+  * size()) that contains, in the position corresponding to each Variable,
+  * the *current* index of the Variable in the ThinVarDepInterface, or any
+  * number >= get_num_active_var() (say, Inf< Index >()) if the Variable is
+  * not currently "active" in the ThinVarDepInterface.
+  *
+  * The assumption for the method to work efficiently is that the input
+  * Range used to be correct at some point, but it may no longer be because
+  * some "active" Variable may have been added / deleted in the meantime. This
+  * is tyipically the case of a Range that has been stored in a Modification,
+  * which is processed after that, possibly, a bunch of changes have occurred
+  * in the ThinVarDepInterface. Handling these changes may require to access
+  * information in the ThinVarDepInterface corresponding to the Variable,
+  * which is done via their index. This method tries to obtain the set of
+  * current indices faster than map_active(), that just blindly seeks the
+  * index of each Variable, by betting that the current index will be
+  * "close to the original one to the left (because some Variable with
+  * smaller index has been deleted), and otherwise close to the end of the
+  * set of active Variable (because the Variable has been deleted and then
+  * re-added)". This should be O( #vars ) if the set of indices has not
+  * changed, but it can be O( #vars * get_num_active_var() ) (as map_active()
+  * is) in the worst case where everything changed. 
+  *
+  * This method is not pure virtual: the base ThinVarDepInterface provides 
+  * one implementation using the virtual methods of the class. However, the
+  * method is virtual, so that derived classes may provide more efficient
+  * implementations exploiting properties of their specific data structures
+  * (if only by avoiding virtual calls). */
+
+ virtual Subset map_index( const std::vector< Variable * > & vars ,
+			   Range rng ) const {
+  if( vars.size() != rng.second - rng.first )
+   throw( std::invalid_argument( "vars and rng sizes do not match" ) );
+
+  Subset map( vars.size() );
+  if( map.empty() )
+   return( map );
+
+  auto varsit = vars.begin();
+  auto mapit = map.begin();
+  c_Index nav = get_num_active_var();
+
+  // for all Variable in the set
+  for( auto oi = rng.first ; oi < rng.second ; ++oi ) {
+   auto var = *(varsit++);  // next variable
+   // if var has not been deleted (and, possibly, re-added), its index
+   // must be <= oi: search backward from oi to find it
+   auto avoi = get_active_var( oi );
+   Index i = oi;
+   while( var != avoi ) {
+    if( ! i )
+     break;
+    avoi = get_active_var( --i );
+    }
+   if( var == avoi )  // the Variable was found
+    *(mapit++) = i;   // this is its index
+   else {             // the Variable was not found
+    // restart the search from the last variable to oi (excluded), for the
+    // case where var has been deleted and re-added, and therefore its
+    // index can now be arbitrary (but it is more likely to be "close to
+    // the end" than "at the beginning")
+    for( i = nav , avoi = get_active_var( --i ) ;
+	 ( var != avoi ) && ( i > oi ) ; )
+     avoi = get_active_var( --i );
+    *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+    }
+   }  // end( for all Variable )
+
+  return( map );
+
+  }  // end( map_index( Range )
+
+/*--------------------------------------------------------------------------*/
  /// get a pointer to the i-th "active" Variable
  /** Pure virtual method to get a pointer to the i-th Variable that is
   * "active" for this ThinVarDepInterface, where i is between 0 and n =
@@ -688,7 +844,7 @@ class ThinVarDepInterface {
   * returns the latter. However it is virtual, so that derived classes may
   * redefine it if needed. */
 
- virtual iterator begin( void ) { return ( iterator( v_begin() ) ); }
+ virtual iterator begin( void ) { return( iterator( v_begin() ) ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get a const iterator for scanning the "active" Variable
@@ -714,7 +870,7 @@ class ThinVarDepInterface {
   return( const_iterator( v_end() ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------ METHODS FOR CHANGING THE SET OF "ACTIVE" Variable -----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for changing the set of "active" Variable
@@ -795,7 +951,7 @@ class ThinVarDepInterface {
   *        move it into the Modification that is possibly issued (see third
   *        parameter), which means that it is in general not safe to assume
   *        that the parameter is still available after the call. hence, the
-  *        paramater may as well be && (as it is). a special setting is if
+  *        parameter may as well be && (as it is). a special setting is if
   *
   *     nms.empty() == true, IN WHICH CASE ALL Variable ARE ELIMINATED
   *
@@ -832,7 +988,7 @@ class ThinVarDepInterface {
    }
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
  };  // end( class( ThinVarDepInterface ) )

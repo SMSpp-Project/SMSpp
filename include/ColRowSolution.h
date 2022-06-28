@@ -14,12 +14,7 @@
  * - the dual values of the static and dynamic RowConstraint of a Block as
  *   well as the RowConstraintSolution of the nested Block.
  *
- * \version 0.10
- *
- * \date 20 - 11 - 2020
- *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -110,7 +105,7 @@ public:
 
  virtual ~ColRowSolution() {}  ///< destructor
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------- METHODS DESCRIBING THE BEHAVIOR OF A ColRowSolution -----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a ColRowSolution
@@ -220,7 +215,7 @@ public:
   return( f_constraint_solution );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------- METHODS FOR LOADING, PRINTING & SAVING THE ColRowSolution --------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for printing the ColRowSolution
@@ -238,7 +233,7 @@ public:
   return( out );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -260,7 +255,7 @@ protected:
   output << "ColRowSolution [" << this << "]";
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------------------------- PRIVATE FIELDS ------------------------------*/
 /*--------------------------------------------------------------------------*/
 

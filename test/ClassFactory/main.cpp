@@ -43,7 +43,7 @@ class ClassName : public Block { \
 public: \
  ClassName( Block * ) {} \
 protected: \
- void load( std::istream &input ) override {}; \
+ void load( std::istream &input , char frmt ) override {}; \
 private: \
  SMSpp_insert_in_factory_h; \
 }
@@ -61,7 +61,7 @@ class DummyBlockT : public Block {
  public:
   DummyBlockT( Block * ) {}
  protected:
-  void load( std::istream &input ) override {};
+  void load( std::istream &input , char frmt ) override {};
  private:
   SMSpp_insert_in_factory_h;
  };

@@ -152,19 +152,16 @@ conduct, and the process for submitting merge requests to us.
 ### Current Lead Authors
 
 - **Antonio Frangioni**  
-  *Operations Research Group*  
   Dipartimento di Informatica  
   Università di Pisa
 
 - **Rafael Durbano Lobato**  
-  *Operations Research Group*  
   Dipartimento di Informatica  
   Università di Pisa
 
 ### Previous Lead Authors and Contributors
 
 - **Kostas Tavlaridis-Gyparakis**  
-  *Operations Research Group*  
   Dipartimento di Informatica  
   Università di Pisa
 
@@ -172,7 +169,6 @@ conduct, and the process for submitting merge requests to us.
   Cray EMEA Research Lab
 
 - **Niccolò Iardella**  
-  *Operations Research Group*  
   Dipartimento di Informatica  
   Università di Pisa
 

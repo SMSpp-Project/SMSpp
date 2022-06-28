@@ -7,12 +7,7 @@
  * data of some object. A concrete class called SimpleDataMapping is also
  * defined for some common kinds of data mapping.
  *
- * \version 0.1
- *
- * \date 31 - 01 - 2021
- *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -157,9 +152,9 @@ public:
  virtual void serialize( netCDF::NcGroup & group ,
                          Block * block_reference = nullptr ) const = 0;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 
-};  // end( class( DataMapping ) )
+ };  // end( class( DataMapping ) )
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- CLASS SimpleDataMappingBase -----------------------*/
@@ -168,16 +163,14 @@ public:
 /*--------------------------------------------------------------------------*/
 
 /// SimpleDataMappingBase derives from DataMapping
-/**
- * SimpleDataMappingBase is a class intended to be the base class for all
+/** SimpleDataMappingBase is a class intended to be the base class for all
  * SimpleDataMapping. It provides (pure virtual) function for setting the
- * SetFrom and SetTo sets, the caller object, and the function associated with
- * the SimpleDataMapping. See SimpleDataMapping for details.
- */
+ * SetFrom and SetTo sets, the caller object, and the function associated
+ * with the SimpleDataMapping. See SimpleDataMapping for details. */
 
 class SimpleDataMappingBase : public DataMapping {
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -204,7 +197,7 @@ protected:
   AbstractPath::APnetCDF ap_netCDF;
  };
 
-/**@}-----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Protected Static Fields
@@ -242,7 +235,7 @@ protected:
  /// Name of the netCDF group that stores the (vector of) AbstractPath
  inline static const std::string AbstractPath_name = "AbstractPath";
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -256,7 +249,7 @@ public:
 
  using Index = Block::Index;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------- CONSTRUCTING AND DESTRUCTING SimpleDataMappingBase ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructing and destructing SimpleDataMappingBase
@@ -328,12 +321,11 @@ public:
   *        obtaining the pointer to the caller together with its AbstractPath.
   */
 
- static void deserialize
- ( const netCDF::NcGroup & group ,
+ static void deserialize( const netCDF::NcGroup & group ,
    std::vector< std::unique_ptr< SimpleDataMappingBase > > & data_mappings ,
    Block * block_reference );
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ----------------------------------------------------------------------*/
 /*------ METHODS DESCRIBING THE BEHAVIOR OF THE SimpleDataMappingBase ------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of the SimpleDataMappingBase
@@ -484,7 +476,7 @@ public:
  template< class T >
  static constexpr char get_id();
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -603,9 +595,9 @@ private:
   set_to_type   = set_size[ 1 ] > 0 ? 'S' : 'R';
  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 
-};  // end( class( SimpleDataMappingBase ) )
+ };  // end( class( SimpleDataMappingBase ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -758,7 +750,7 @@ public:
     Block::FunctionType< typename std::vector< DataType >::const_iterator ,
                          SetTo > >;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------ CONSTRUCTING AND DESTRUCTING SimpleDataMapping --------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructing and destructing SimpleDataMapping
@@ -820,10 +812,12 @@ public:
                             FunctionName_name + "' is not present." ) );
   }
 
+  // TODO The following implementation should change when netCDF provides a
+  // better C++ interface.
   char * fname = nullptr;
   FunctionName_var.getVar( & fname );
   std::string function_name( fname );
-  delete fname;
+  free( fname );
 
   function = Block::get_method< F >( function_name );
 
@@ -921,10 +915,12 @@ public:
 
   // FunctionName
 
+  // TODO The following implementation should change when netCDF provides a
+  // better C++ interface.
   char * fname = nullptr;
   sdmb_netCDF.FunctionName.getVar( { index } , { 1 } , & fname );
   std::string function_name( fname );
-  delete fname;
+  free( fname );
 
   function = Block::get_method< F >( function_name );
 
@@ -997,7 +993,7 @@ public:
   set_elements_start_index = next_index;
  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------- METHODS DESCRIBING THE BEHAVIOR OF THE SimpleDataMapping --------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of the SimpleDataMapping
@@ -1278,7 +1274,7 @@ public:
                                   caller_type );
  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1380,7 +1376,7 @@ private:
   return( cardinality( t ) == 0 );
  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------------------------- PRIVATE FIELDS ------------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Private Fields
@@ -1401,7 +1397,7 @@ private:
  /// Indicates whether the SetTo set is ordered
  bool ordered;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 

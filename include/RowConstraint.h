@@ -11,21 +11,15 @@
  * where LHS and RHS are two extended reals (hopefully at least one of which
  * is finite and LHS <= RHS, but this is not enforced in the class).
  *
- * \version 0.20
- *
- * \date 18 - 10 - 2019
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Department of Applied Mathematics \n
- *         State University of Campinas, Brazil \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
  *
  * \author Kostas Tavlaridis-Gyparakis \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -142,12 +136,12 @@ namespace SMSpp_di_unipi_it {
  * \f$ g( x ) \le u \f$, while \f$ w \ge 0 \f$ is the Lagrangian multiplier
  * of the constraint \f$ l \le g( x ) \f$. We can rewrite \f$ L() \f$ as
  * \f[
- *   L( w , z ) = w l - z  u +
+ *   L( w , z ) = w l - z u +
  *                \min \{ f( x ) + ( z - w ) g( x ) : x \in X \}  ,
  * \f]
  * so that the Lagrangian dual of (P) is
  * \f[
- *   (D) \quad \max \{ w l - z  u + 
+ *   (D) \quad \max \{ w l - z u + 
  *                     \min \{ f( x ) + ( z - w ) g( x ) : x \in X \} :
  *                     w \ge 0  ,  z \ge 0 \}
  * \f]
@@ -224,6 +218,29 @@ namespace SMSpp_di_unipi_it {
  *
  * - if d_value < 0, \f$ z = 0 \f$ and \f$ w > 0 \f$
  *
+ * Note that the assumption \f$ l \le u \f$ may be violated: this makes the
+ * problem unfeasible, and indeed (D) then is unbounded above. In fact, in
+ * \f[
+ *   (D) \quad \max \{ w l - z u + 
+ *                     \min \{ f( x ) + ( z - w ) g( x ) : x \in X \} :
+ *                     w \ge 0  ,  z \ge 0 \}
+ * \f]
+ * it is possible to fix \f$ z - w \f$ to any value, thereby fixing the
+ * value of the inner minimization. Choosing  \f$ z - w = 0 \f$, i.e.,
+ * \f$ z = w \f$, then yields
+ * \f[
+ *   w l - z u = w l - w u = w ( l - u ) \ge 0
+ * \f]
+ * which means that increasing \f$ w \f$ (and \f$ z \f$ with it) the value
+ * can be brought to infinity. This means that the dual direction
+ * \f$ [ 1 , 1 ] \f$ (increase both) is an infinite ascent direction the
+ * Lagrangian dual. Under the sign rule postulated above this is
+ * represented as d_value = -1 (< 0 and unitary) to imply that is the
+ * multiplier of the lower bound constraint that has to go to infinity
+ * (although this implies that also the one of the upper bound constraint
+ * has to keep feasibility: this contradicts the rule that only one of the
+ * two is nonzero, but the rule holds for solutions, not for directions).
+ *
  * However, if (P) is rather a *maximization* problem
  * \f[
  *   (P) \quad \max \{ f( x ) : l \le g( x ) \le u , x \in X \}
@@ -240,7 +257,7 @@ namespace SMSpp_di_unipi_it {
  * \f]
  * This is of course if one insists that \f$ z \ge 0 \f$ and \f$ w \ge 0 \f$;
  * it would be perfectly possible to rather have  \f$ z \le 0 \f$ and
- * \f$ w \ge 0 \f$ (either in the maximizaton case, or always), but the
+ * \f$ w \ge 0 \f$ (either in the maximization case, or always), but the
  * non-negative version is usually preferred, so this is what we use. The
  * transformation from \f$ ( \bar{w} , \bar{z} ) \f$ to \f$ ( w' , z' ) \f$
  * remains the same, but now the coefficient of \f$ g( x ) \f$ in
@@ -251,6 +268,16 @@ namespace SMSpp_di_unipi_it {
  * - if d_value > 0, \f$ w > 0 \f$ and \f$ z = 0 \f$
  *
  * - if d_value < 0, \f$ w = 0 \f$ and \f$ z > 0 \f$
+ *
+ * Note that in the infeasible case \f$ l > u \f$, the Lagrangian function
+ * \f[
+ *   L( w , z ) = z u - w l + ...
+ * \f]
+ * now has to be minimised, which leads to sending \f$ z \f$ to infinity
+ * (although of course \f$ w \f$ has to). This means that the dual direction
+ * \f$ [ 1 , 1 ] \f$ (increase both), that is an infinite ascent direction
+ * for the Lagrangian dual, under the sign rule postulated above should
+ * again be represented as d_value = -1 (< 0 and unitary).
  *
  * It is the Solver's responsibility to obey these rules in order for the
  * value stored in \c d_value to have the correct meaning.
@@ -296,11 +323,10 @@ class RowConstraint : public Constraint
 
 /*----------------------------- CONSTANTS ----------------------------------*/
 
- static constexpr RHSValue RHSINF
-                                = std::numeric_limits< RHSValue >::infinity();
+ static constexpr RHSValue RHSINF = Inf< RHSValue >();
  ///< convenience constexpr for "Infty"
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and destructor
@@ -321,7 +347,7 @@ class RowConstraint : public Constraint
 
  ~RowConstraint() override = default;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -369,7 +395,7 @@ class RowConstraint : public Constraint
 
  virtual void set_dual( c_RHSValue new_value = 0 ) { d_value = new_value; }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE DATA OF THE RowConstraint -----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the RowConstraint
@@ -381,7 +407,7 @@ class RowConstraint : public Constraint
  /// pure virtual method to get the LHS of the RowConstraint
  [[nodiscard]] virtual RHSValue get_lhs( void ) const = 0;
 
-/**@} ---------------------------------------------------------------------*/
+/** @} --------------------------------------------------------------------*/
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF A RowConstraint -----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a RowConstraint
@@ -401,7 +427,7 @@ class RowConstraint : public Constraint
   * virtual: to allow derived classes to store the value as they best see fit.
   * However, in general it must be understood that lb() does not necessarily
   * need to be a valid lower bound corresponding to the current value of the
-  * Variable in the RowConstraint, but rather to what their vakue was at the
+  * Variable in the RowConstraint, but rather to what their value was at the
   * last time in which compute() has been called; in other words, compute()
   * must be called prior to lb() to ensure that the value is the up-to-date
   * one. Yet, because derived classes are free to implement this as they
@@ -536,9 +562,9 @@ class RowConstraint : public Constraint
 /*--------------------------------------------------------------------------*/
  /// get the dual value (the Lagrangian multiplier) of the RowConstraint
 
- [[nodiscard]] RHSValue get_dual( void ) const { return ( d_value ); }
+ [[nodiscard]] RHSValue get_dual( void ) const { return( d_value ); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -557,7 +583,7 @@ class RowConstraint : public Constraint
 	 << std::endl;
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
 

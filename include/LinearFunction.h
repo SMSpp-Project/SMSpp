@@ -5,17 +5,11 @@
  * Header file for the *concrete* class LinearFunction, which implements
  * C15Function with a simple linear function.
  *
- * \version 0.40
- *
- * \date 07 - 10 - 2019
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -27,7 +21,7 @@
 
 #ifndef __LinearFunction
  #define __LinearFunction
-                     /* self-identification: #endif at the end of the file */
+                      /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -112,7 +106,7 @@ class LinearFunction : public C15Function
  using c_v_coeff_it = v_coeff::const_iterator;  ///< const iterator in v_coeff
 
  /// one term of the sum: ( ColVariable * , Coefficient )
- using coeff_pair = std::pair< ColVariable *, Coefficient >;
+ using coeff_pair = std::pair< ColVariable * , Coefficient >;
 
  using v_coeff_pair = std::vector< coeff_pair >;  ///< a vector of coeff_pair
 
@@ -146,7 +140,7 @@ class LinearFunction : public C15Function
     return( itr_ == tmp->itr_ );
    #else
     auto tmp = dynamic_cast< const LinearFunction::v_iterator * >( &rhs );
-    return ( tmp ? itr_ == tmp->itr_ : false );
+    return( tmp ? itr_ == tmp->itr_ : false );
    #endif
    }
 
@@ -157,7 +151,7 @@ class LinearFunction : public C15Function
     return( itr_ != tmp->itr_ );
    #else
     auto tmp = dynamic_cast<const LinearFunction::v_iterator *>( &rhs );
-    return ( tmp ? itr_ != tmp->itr_ : true );
+    return( tmp ? itr_ != tmp->itr_ : true );
    #endif
    }
 
@@ -197,7 +191,7 @@ class LinearFunction : public C15Function
     return( itr_ == tmp->itr_ );
    #else
     auto tmp = dynamic_cast<const LinearFunction::v_const_iterator *>( &rhs );
-    return ( tmp ? itr_ == tmp->itr_ : false );
+    return( tmp ? itr_ == tmp->itr_ : false );
    #endif
    }
 
@@ -208,7 +202,7 @@ class LinearFunction : public C15Function
     return( itr_ != tmp->itr_ );
    #else
     auto tmp = dynamic_cast<const LinearFunction::v_const_iterator *>( &rhs );
-    return ( tmp ? itr_ != tmp->itr_ : true );
+    return( tmp ? itr_ != tmp->itr_ : true );
    #endif
    }
 
@@ -217,7 +211,7 @@ class LinearFunction : public C15Function
   v_coeff_pair::const_iterator itr_;
  };
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -229,7 +223,7 @@ class LinearFunction : public C15Function
  /** Constructor of LinearFunction. It accepts:
   *
   * @param vars, a && to a vector of pairs < ColVariable * , Coefficient >
-  *        representing the linear expression of the function; as the the &&
+  *        representing the linear expression of the function; as the &&
   *        tells, vars is "consumed" by the constructor and its resources
   *        become property of the LinearFunction object.
   *
@@ -266,9 +260,9 @@ class LinearFunction : public C15Function
   * them. Not that the LinearFunction would have, but the Observer may.
   * By not having any Variable, the Observer can no longer do that. */
 
- void clear() override { v_pairs.clear(); }
+ void clear( void ) override { v_pairs.clear(); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -281,7 +275,7 @@ class LinearFunction : public C15Function
 
  void set_ComputeConfig( ComputeConfig * scfg ) final {}
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE DATA OF THE LinearFunction ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the LinearFunction
@@ -303,7 +297,7 @@ class LinearFunction : public C15Function
   return( ( v_pairs.begin() + i )->second );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF THE LinearFunction ----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of the LinearFunction
@@ -370,20 +364,20 @@ class LinearFunction : public C15Function
 
 /*--------------------------------------------------------------------------*/
 
- void get_linearization_coefficients( FunctionValue * g,
-                                   Range range = Range( 0 , Inf< Index >() ),
+ void get_linearization_coefficients( FunctionValue * g ,
+				      Range range = INFRange ,
                                       Index name = Inf< Index >() ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  void get_linearization_coefficients( SparseVector & g ,
-                                  Range range = Range( 0 , Inf< Index >() ) ,
+				      Range range = INFRange ,
                                       Index name = Inf< Index >() ) override;
 
 /*--------------------------------------------------------------------------*/
 
  void get_linearization_coefficients( FunctionValue * g , c_Subset & subset ,
-                                      bool ordered = false,
+                                      bool ordered = false ,
                                       Index name = Inf< Index >() ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -403,11 +397,11 @@ class LinearFunction : public C15Function
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the value of the constant term of this LinearFunction.
 
- [[nodiscard]] FunctionValue get_constant_term( void ) const {
+ [[nodiscard]] FunctionValue get_constant_term( void ) const override {
   return( f_constant_term );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the parameters of the LinearFunction
@@ -421,7 +415,7 @@ class LinearFunction : public C15Function
  ComputeConfig * get_ComputeConfig( bool all , ComputeConfig * ocfg )
   const override { return( nullptr ); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE LinearFunction -------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling the set of "active" Variable in the
@@ -448,6 +442,96 @@ class LinearFunction : public C15Function
 
  void map_active( c_Vec_p_Var & vars , Subset & map , bool ordered )
   const override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ Subset map_index( const std::vector< Variable * > & vars , c_Subset & nms )
+  const override {
+  if( vars.size() != nms.size() )
+   throw( std::invalid_argument( "vars and nms sizes do not match" ) );
+
+  Subset map( nms.size() );
+  if( map.empty() )
+   return( map );
+
+  auto nmsit = nms.begin();
+  auto varsit = vars.begin();
+  auto mapit = map.begin();
+
+  // for all Variable in the set
+  while( varsit != vars.end() ) {
+   auto var = *(varsit++);  // next variable
+   auto oi = *(nmsit++);    // its original index
+   // if var has not been deleted (and, possibly, re-added), its index
+   // must be <= oi: search backward from oi to find it
+   auto avoi = v_pairs[ oi ].first;
+   Index i = oi;
+   while( var != avoi ) {
+    if( ! i )
+     break;
+    avoi = v_pairs[ --i ].first;
+    }
+   if( var == avoi )  // the Variable was found
+    *(mapit++) = i;   // this is its index
+   else {             // the Variable was not found
+    // restart the search from the last variable to oi (excluded), for the
+    // case where var has been deleted and re-added, and therefore its
+    // index can now be arbitrary (but it is more likely to be "close to
+    // the end" than "at the beginning")
+    for( i = v_pairs.size() , avoi = v_pairs[ --i ].first ;
+	 ( var != avoi ) && ( i > oi ) ; )
+     avoi = v_pairs[ --i ].first;
+    *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+    }
+   }  // end( for all Variable )
+
+  return( map );
+
+  }  // end( map_index( Subset )
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ Subset map_index( const std::vector< Variable * > & vars , Range rng )
+  const override {
+  if( vars.size() != rng.second - rng.first )
+   throw( std::invalid_argument( "vars and rng sizes do not match" ) );
+
+  Subset map( vars.size() );
+  if( map.empty() )
+   return( map );
+
+  auto varsit = vars.begin();
+  auto mapit = map.begin();
+
+  // for all Variable in the set
+  for( auto oi = rng.first ; oi < rng.second ; ++oi ) {
+   auto var = *(varsit++);  // next variable
+   // if var has not been deleted (and, possibly, re-added), its index
+   // must be <= oi: search backward from oi to find it
+   auto avoi = v_pairs[ oi ].first;
+   Index i = oi;
+   while( var != avoi ) {
+    if( ! i )
+     break;
+    avoi = v_pairs[ --i ].first;
+    }
+   if( var == avoi )  // the Variable was found
+    *(mapit++) = i;   // this is its index
+   else {             // the Variable was not found
+    // restart the search from the last variable to oi (excluded), for the
+    // case where var has been deleted and re-added, and therefore its
+    // index can now be arbitrary (but it is more likely to be "close to
+    // the end" than "at the beginning")
+    for( i = v_pairs.size() , avoi = v_pairs[ --i ].first ;
+	 ( var != avoi ) && ( i > oi ) ; )
+     avoi = v_pairs[ --i ].first;
+    *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+    }
+   }  // end( for all Variable )
+
+  return( map );
+
+  }  // end( map_index( Range )
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -479,7 +563,7 @@ class LinearFunction : public C15Function
   return( new LinearFunction::v_const_iterator( v_pairs.end() ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------- METHODS FOR MODIFYING THE LinearFunction ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for modifying the LinearFunction
@@ -502,7 +586,7 @@ class LinearFunction : public C15Function
   * should not have repeated Variable, but if this is an issue then the
   * check will have to be performed elsewhere, it is not done here.
   *
-  * As the the && tells, vars is "consumed" by the method and its resources
+  * As the && tells, vars is "consumed" by the method and its resources
   * become property of the LinearFunction object.
   *
   * The parameter issueMod decides if and how the C05FunctionModVarsAddd is
@@ -551,7 +635,7 @@ class LinearFunction : public C15Function
 
  void modify_coefficients( Vec_FunctionValue && NCoef , Subset && nms ,
                            bool ordered = false ,
-                           ModParam issueMod = eModBlck );
+			   ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify a range of coefficients
@@ -565,7 +649,7 @@ class LinearFunction : public C15Function
   * issued, as described in Observer::make_par(). */
 
  void modify_coefficients( Vec_FunctionValue && NCoef ,
-                           Range range = Range( 0 , Inf< Index >() ) ,
+			   Range range = INFRange ,
                            ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -634,7 +718,7 @@ class LinearFunction : public C15Function
  void set_constant_term( FunctionValue constant_term,
                          ModParam issueMod = eModBlck );
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 

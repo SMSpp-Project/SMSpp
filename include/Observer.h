@@ -5,18 +5,13 @@
  * Header file for the Observer class, an abstract base class implementing
  * the concept of an observer which can be notified about Modifications.
  *
- * \version 0.40
- *
- * \date 01 - 01 - 2021
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Department of Applied Mathematics \n
- *         State University of Campinas, Brazil \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
  *
  * Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */
@@ -106,9 +101,9 @@ class Observer {
 /*--------------------------------------------------------------------------*/
 
  /// the "name" of a Modification "channel"
- typedef unsigned short int ChnlName;
+ using ChnlName = unsigned short int;
 
- typedef const ChnlName c_ChnlName;  ///< a const ChnlName
+ using c_ChnlName = const ChnlName;  ///< a const ChnlName
 
 /*--------------------------------------------------------------------------*/
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
@@ -130,7 +125,7 @@ class Observer {
 
  virtual ~Observer() = default;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------- METHODS DESCRIBING THE BEHAVIOR OF AN Observer -------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of an Observer
@@ -160,7 +155,7 @@ class Observer {
  /** This method notifies this Observer about a Modification.
   *
   * mod is a smart pointer to an object of class (derived from)  Modification
-  * (std::shared_ptr<Modification>, sp_Mod in Modification.h), that has been
+  * (std::shared_ptr< Modification >, sp_Mod in Modification.h), that has been
   * created by some object (Block, Constraint, Variable, Function, ...) and it
   * is passed to this Observer. Ultimately the Modification will have to reach
   * a Block for being dispatched to all Solver attached to it, as well as to
@@ -184,18 +179,18 @@ class Observer {
   * Modification, immediately after that). Note that the preferred way of
   * calling this method is
   *
-  *     <Observer>.add_Modification(
-  *                       std::make_shared<DerivedModification>( <params> ) );
+  *     < Observer >.add_Modification(
+  *                   std::make_shared< DerivedModification >( < params > ) );
   *
-  * where <params> are the parameters of the constructor of
+  * where < params > are the parameters of the constructor of
   * DerivedModification that should be called. Using std::make_shared<> is
-  * slightly faster then doing "new DerivedModification( <params> )" and
+  * slightly faster then doing "new DerivedModification( < params > )" and
   * then converting the returned ordinary pointer to a smart one, and calling
   * it within the call to add_Modification() may avoid one copy of the
   * shared pointer to be made only to be immediately destroyed. Not that this
   * matter much, because copies of the smart pointer (say, in the Solver
-  * attached to the Block to which <Observer> belongs, with Block ==
-  * <Observer> a definite possibility, and its ancestors, if any) will have
+  * attached to the Block to which < Observer > belongs, with Block ==
+  * < Observer > a definite possibility, and its ancestors, if any) will have
   * been made by then. Hence, even if a local copy were done, destroying
   * it would only decrease the counter by 1, effectively deleting it if and
   * only if there are no interested Solver, which is the intended semantic.
@@ -217,7 +212,7 @@ class Observer {
   * the original Modification * from mod using get() and then use the "normal"
   * dynamic_cast, as in
   *
-  *     auto dmod = dynamic_cast< DerivedModification * const >( mod.get() );
+  *     auto dmod = dynamic_cast< const DerivedModification * >( mod.get() );
   *
   * (note that the "const" above is not strictly necessary, but in general an
   * Observer is not supposed to change a Modification, and in fact basically
@@ -242,34 +237,60 @@ class Observer {
   *   to any GroupModification, and just immediately sent along to the
   *   interested Solver / Block.
   *
+  * It is important to note that
+  *
+  *     CHANNEL NAMES ARE UNIQUE WITHIN ALL SMS++, AND THEREFORE EACH CHANNEL
+  *     IS DEFINED IN A SPECIFIC Block. YET, SUB-Block OF THAT Block CAN STILL
+  *     SEND Modification TO THAT VERY CHANNEL: THE Modification WILL TRAVEL
+  *     UP IN THE Block TREE (MEANWHILE BEING SENT TO ALL ATTACHED Solver)
+  *     UNENCUMBERED UP UNTIL IT REACHES THE Block WHERE THE CHANNEL IS
+  *     DEFINED, AND ONLY THEN IT IS BUNCHED INTO THE GroupModification.
+  *
+  * As a consequence
+  *
+  *     IT IS AN ERROR TO SEND A Modification TO A CHANNEL THAT IS NOT
+  *     DEFINED IN THE Block OR SOME ANCESTOR OF THE Block.
+  *
   * This mechanism is implemented into Block::add_Modification(), and it is
   * not assumed to be re-implemented in different ways by :Block or other
   * :Observer. This is important in that it allows to enforce a useful
   * property:
   *
   *     THE EXACT :Block IN WHICH A :Modification HAPPEN THAT IS BEING
-  *     SENT TO SOME NON-0 CHANNEL WILL NOT "SEE" THE GroupModification,
+  *     SENT TO SOME NON-0 CHANNEL WILL NEVER "SEE" THE GroupModification,
   *     BUT RATHER THE INDIVIDUAL :Modification THAT WILL EVENTUALLY BE
-  *     PACKED INTO IT
+  *     PACKED INTO IT. THIS IS TRUE EVEN IF THE CHANNEL HAS BEEN OPENED
+  *     IN THIS VERY :Block, BUT IT ONLY APPLIES TO THE :Block ITSELF AND
+  *     NOT TO THE Solver REGISTERED TO IT.
   *
   * This property is *only* true for the very specific :Block, and it does
-  * not hold true for either its ancestor Block (which also receive the
-  * Modification) and the Solver. However, this is important for the handling
-  * of "abstract" Modification, since it is very useful that that :Block 
-  * (and that :Block only) is able to "see the Modification immediately" to
-  * handle the corresponding changes to the "physical representation". See
-  * the comments to Block::add_Modification() for more details.
+  * not hold true for its ancestor Block (which also receive the
+  * Modification) unless the channel has been defined somewhere above the
+  * Block. In other words, regardless to where the channel is defined, the
+  * very Block in which the Modification originates will "see" it
+  * immediately when it is issued. This is important for the handling of
+  * "abstract" Modification, since it is very useful that that :Block (and
+  * that :Block only) is guaranteed to "see the Modification immediately".
+  * This ensures that the data structures in the :Block are exactly the same
+  * as the ones at the moment in which the Modification has been created,
+  * which would *not* necessarily be true if the Modification was packed
+  * into a GroupModification. Indeed, this could in principle happen "for a
+  * long time" before the GroupModification is closed and dispatched, and
+  * in the meantime "complex changes" may occur to the :Block that may make
+  * it more complex to handle the corresponding changes to the "physical
+  * representation". See the comments to Block::add_Modification() for more
+  * details.
   *
-  * Note that channel names are unique within all SMS++, and that
-  *
-  *     CHANNEL NAMES ARE UNIQUE WITHIN ALL SMS++, AND THEREFORE EACH CHANNEL
-  *     IS DEFINED IN A SPECIFIC Block. THIS IMPLIES THAT SUB-Block OF THE
-  *     Block CAN STILL SEND Modification TO THAT VERY CHANNEL: THE
-  *     Modification WILL TRAVEL UP IN THE Block TREE (MEANWHILE BEING SENT
-  *     TO ALL ATTACHED Solver) UNENCUMBERED UP UNTIL IT REACHES THE Block
-  *     WHERE THE CHANNEL IS DEFINED, AND ONLY THEN IT IS BUNCHED INTO THE
-  *     GroupModification. IT IS AN ERROR TO SEND A Modification TO A CHANNEL
-  *     THAT IS NOT DEFINED IN SOME ANCESTOR OF THE Block. */
+  * However, note that, conversely, if the channel has been defined "way
+  * above" the :Block in which the Modification is issued, then all the Block
+  * (and attached Solver) between the originating Block and the one having
+  * defined the channel will "see" it directly, rather than the
+  * GroupModification in which it is ultimately packed. This means that if
+  * it is important that the Modification is bunched together with other
+  * ones before the other Block / Solver get to see it, the channel must be
+  * defined "as close as possible", typically in the very Block in which it
+  * is issued (which, to re-iterate, will however see it "naked" even if the
+  * channel is defined there). */
 
  virtual void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) = 0;
 
@@ -281,16 +302,42 @@ class Observer {
 
 /*--------------------------------------------------------------------------*/
  /// "open" a channel
- /** This method allows to start "bunching together" a set of "logically
-  * related Modification". 
+ /** This method allows to "bunch together" a set of "logically related
+  * Modification". For maximal flexibility, the Modification can be grouped
+  * in an arbitrarily complex tree-nested way, as dictated by the \p chnl
+  * parameter.
   *
-  * When it is invoked, a "new channel is opened". This means that a
-  * GroupModification object is (created, unless it is provided, and it is)
-  * assigned a new unique name, which is returned. Then, being chnl the
-  * returned value, a call to add_Modification( mod , chnl ) adds mod at the
-  * end of the STL container of the GroupModification, rather than
-  * dispatching it to the Solver / Block. The latter operaton is done when
-  * close_channel( chnl ) is called.
+  * If open_channel() is invoked with chnl == 0 (the default), then a "new
+  * channel is opened". This means that a GroupModification object is
+  * (created, unless it is provided, and it is) assigned a new unique name,
+  * which is returned. Then, being chnl the returned value, a call to
+  * add_Modification( mod , chnl ) adds mod at the end of the STL container
+  * of the GroupModification, rather than dispatching it to the Solver and
+  * the ancestor Block. The latter operaton is only done when
+  * close_channel( chnl ) is called. Note that this means that
+  * add_Modification() does see mod "naked", but the Modification is not
+  * further forwarded to the Solver and the ancestor Block. This only holds
+  * true if the channel has been defined in the very Block; otherwise, the
+  * Modification will travel up (and be dispatched to the Solver) "naked"
+  * until it reaches the Block where the channel has been defined.
+  *
+  * If, instead, open_channel() is invoked with chnl != 0, a new
+  * GroupModification is (created, unless it is provided, and it is) nested
+  * into the existing GroupModification associated with the given channel.
+  * That is, the GroupModification object is appended at the end of the STL
+  * container in the "outer" GroupModification associated to the channel.
+  * Then, a call to add_Modification( mod , chnl ) adds mod to the "inner"
+  * GroupModification. This lasts until the method is called again, on which
+  * case an inner-inner-GroupModification is started (...), or
+  * close_channel( chnl ) is called, in which case the last nested
+  * GroupModification is closed and "control is returned" to the one
+  * immediately above. If this is a "root" GroupModification (created with
+  * chnl == 0), the whole GroupModification is closed and finally dispatched.
+  * In this case, the return value of the method is the same as the input
+  * value of \p chnl, as the channel name does not change.
+  *
+  * Calling the method with chnl not being either 0 or the name of an open
+  * channel is an error and should throw exception.
   *
   * If the parameter gmpmod is != nullptr, then the pointed object is taken
   * as the GroupModification that is "opened". This means that the object
@@ -304,58 +351,52 @@ class Observer {
   * an object of the base GroupModification class is automatically
   * constructed by the method. */
 
- virtual ChnlName open_channel( GroupModification * gmpmod = nullptr ) = 0;
-
-/*--------------------------------------------------------------------------*/
- /// create a new level in the given channel
- /** This method allows to nest a new GroupModification into the existing
-  * GroupModification associated with the given channel.
-  *
-  * When it is invoked, a GroupModification object is (created, unless it is
-  * provided, and it is) appended at the end of the STL container in the
-  * "outer" GroupModification associated to the channel. Then, a call to
-  * add_Modification( mod , chnl ) adds mod to the "inner" GroupModification.
-  * This lasts until the method is called again, on which case an
-  * inner-inner-GroupModification is started (...), or either 
-  * un_nest_channel( chnl ) or close_channel( chnl ) are called.
-  *
-  * The parameter gmpmod has the same meaning as in open_channel() and is
-  * provided for the same reason.
-  *
-  * Calling the method with chnl non being the name of an open channel is an
-  * error and should throw exception. */
-
- virtual void nest_channel( ChnlName chnl ,
-			    GroupModification * gmpmod = nullptr ) = 0;
+ virtual ChnlName open_channel( ChnlName chnl = 0 ,
+				GroupModification * gmpmod = nullptr ) = 0;
 
 /*--------------------------------------------------------------------------*/
  /// push back to the previous level of a channel
- /** This method allows to "finalize" the "inner" (...) GroupModification
-  * associated with the given channe, in the sense that and addition of
-  * Modification is resumed for the "father" GroupModification of that
-  * object (which is still associated to the same channel).
-  *
-  * Calling this method on a channel that is either not open, or which is in
-  * "root mode" (the current GroupModification object is not contained into
-  * any other GroupModification) is an error and should throw exception. */
-
- virtual void un_nest_channel( ChnlName chnl ) = 0;
-
-/*--------------------------------------------------------------------------*/
- /// "close" a channel
  /** This method allows to "finalize" the set of "logically related
-  * Modification" contained in the GroupModification associated with the
-  * channel chnl. Whatever the "state" of the channel, i.e., whether or not
-  * the channel is in "root mode" (currently adding to the outermost
-  * GroupModification of the channel, as opposed to some GroupModification
-  * inside another GroupModification), the "outermost" GroupModification is
-  * finally shipped to the interested Solver and Block. This also closes the
-  * channel, i.e., chnl is no longer the name of an open channel until it is
-  * produced again by a call to open_channel().
+  * Modification" contained in the GroupModification currentlt associated
+  * with the channel chnl. What this means, however, depends on whether that
+  * GroupModification is in "root mode" (currently adding to the outermost
+  * GroupModification of the channel), as opposed to being inside another
+  * GroupModification (...).
   *
-  * Closing a non-open channel is an error and should throw exception. */
+  * In the former case the GroupModification is finally shipped to the
+  * interested Solver and Block. This also closes the channel, i.e., chnl is
+  * no longer the name of an open channel until it is produced again by a
+  * call to open_channel().
+  *
+  * In the latter case, the effect depends on \p force. If \p force == false
+  * (the default), then what is "finalized" is only the "inner"
+  * GroupModification, in the sense that addition of Modification is resumed
+  * for the "father" GroupModification of that object, which is still
+  * associated to the same channel that is not closed, and the
+  * GroupModification still remains inside the Block waiting for further
+  * Modification to be added (possibly GroupModification if open_channel()
+  * is called again with that channel name). This means that a channel is
+  * closed only by calling close_channel( chnl , false ) as many times as
+  * open_channel( chnl ) has been called (counting only the still active
+  * levels, i.e., those that have not been closed already).
+  *
+  * If \p force == true, instead, then the effect is the same as if the
+  * GroupModification were in "root mode": the "outermost" GroupModification
+  * associated to the channel (irrespectively to how many levels of other
+  * GroupModification are in between them) is finally shipped to the
+  * interested Solver and Block, and this closes the channel. This allows to
+  * immediately finalise a GroupModification, but it creates an imbalance
+  * between the number of calls to open_channel() and close_channel() for
+  * that channel. Since closing an un-opened channel is an error, calling
+  * close_channel( chnl , true ) can only be done if one is 100% sure that
+  * no other calls to close_channel() are going to be issued. As calls to
+  * open_channel() and close_channel() are very likely to be always issued
+  * in pairs, \p force == true is a "dangerous" choice that must be used
+  * with care.
+  *
+  * It is always an error to try to close the default channel (0). */
 
- virtual void close_channel( ChnlName chnl ) = 0;
+ virtual void close_channel( ChnlName chnl , bool force = false ) = 0;
 
 /*--------------------------------------------------------------------------*/
  /// set the "default" channel
@@ -381,6 +422,43 @@ class Observer {
   * an open channel or zero is an error and should throw exception. */
 
  virtual void set_default_channel( ChnlName chnl = 0 ) = 0;
+
+/*--------------------------------------------------------------------------*/
+ /// convenience method for "open a channel if the need arises"
+ /** Small convenience method that takes a "composite" parameter, as
+  * produced e.g. by make_par(), encoding both a ModParam and a channel, and
+  * an expected number of "related" Modification to be issued with that
+  * parameter, and returns another "composite" parameter corresponding to
+  * having opened a channel to pack them together "only if it makes sense
+  * to". This means that if either the ModParam indicates that no
+  * Modification will be issued anyway, or the Modification are less than
+  * two, then the same "composite" parameter value as the input one is
+  * returned and no channel is opened. Otherwise, a channel is opened
+  * (which may mean nested, if the input "composite" parameter already
+  * specifies a non-0 channel name) and the "composite" parameter
+  * corresponding to the same ModParam value and the new cannel is
+  * returned. */
+
+ ModParam open_if_needed( ModParam issueMod , unsigned int num ) {
+  if( ( num <= 1 ) || ( ! issue_mod( issueMod ) ) )
+   return( issueMod );
+
+  return( make_par( par2mod( issueMod ) ,
+		    open_channel( par2chnl( issueMod ) ) ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /// convenience method for "close a channel if the need arises"
+ /** Small convenience method that takes a "composite" parameter as
+  * produced by open_if_needed() and closes the new channel if it had been
+  * opened in the first place (otherwise it does nothing). */
+
+ void close_if_needed( ModParam issueMod , unsigned int num ) {
+  if( ( num <= 1 ) || ( ! issue_mod( issueMod ) ) )
+   return;
+
+  close_channel( par2chnl( issueMod ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// method to "pack" all info about issuing Modification in one parameter
@@ -477,7 +555,38 @@ class Observer {
   }
 
 /*--------------------------------------------------------------------------*/
- /// method for checking if a the change has to be made
+ /// static method for ensuring a parameter is not eModBlck
+ /** Given a "composite" parameter as produced by make_par(), this static
+  * method "downgrades" the "mod" part of the parameter to eNoBlck if it is
+  * eModBlck keeping the same channel, and does nothing otherwise.
+  * This method should be called when the eModBlck value should never be
+  * allowed, such as when one is certain that the "abstract" representation
+  * has been modified already. This happens for instance in a method of a
+  * :Block that modifies the "physical" and the "abstract" representation at
+  * the same time, and therefore where there is no possible reason why the
+  * "abstract" Modification should be checked by the Block. */
+
+ static void not_ModBlock( ModParam & issueMod ) {
+  if( par2mod( issueMod ) == eModBlck )
+   issueMod = make_par( eNoBlck , par2chnl( issueMod ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /// static method for ensuring a parameter is not eModBlck
+ /** Given a "composite" parameter as produced by make_par(), this static
+  * method "downgrades" the "mod" part of the parameter to eNoBlck if it is
+  * eModBlck keeping the same channel, and does nothing otherwise.
+  * This is the same as not_ModBlock() and it has the same use, but it
+  * returns the modified (or nor) value rather than changing the input
+  * variable. */
+
+ static ModParam un_ModBlock( ModParam issueMod ) {
+  return( par2mod( issueMod ) == eModBlck ?
+	  make_par( eNoBlck , par2chnl( issueMod ) ) : issueMod );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// method for checking if the actual change has to be made
  /** Given a "composite" parameter as produced by make_par(), this method
   * returns true if the parameter implies that the actual change has to be
   * made (if not, clearly no Modification must be issued). Allowing to call
@@ -493,7 +602,7 @@ class Observer {
   return( par2mod( issueMod ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -575,7 +684,7 @@ class Observer {
   f_ch_lock.clear( std::memory_order_release );  // release lock
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------------------------- PROTECTED FIELDS  ---------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -585,7 +694,7 @@ class Observer {
 
  static std::set< ChnlName > v_free_chnl;  ///< set of freed chanels
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
  };  // end( class( Observer ) )

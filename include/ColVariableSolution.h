@@ -9,18 +9,13 @@
  * values of the static and dynamic Variables of a Block as well as the
  * ColVariableSolutions of the nested Blocks.
  *
- * \version 0.10
- *
- * \date 19 - 03 - 2021
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Department of Applied Mathematics \n
- *         State University of Campinas, Brazil \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
  *
  * Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */
@@ -120,7 +115,7 @@ public:
 
  virtual ~ColVariableSolution();  ///< destructor
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------- METHODS DESCRIBING THE BEHAVIOR OF A ColVariableSolution --------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a ColVariableSolution
@@ -302,7 +297,7 @@ public:
   return( nested_solutions );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----- METHODS FOR LOADING, PRINTING & SAVING THE ColVariableSolution -----*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for printing the ColVariableSolution
@@ -320,7 +315,7 @@ public:
   return( out );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -396,7 +391,7 @@ public:
   output << "ColVariableSolution [" << this << "]";
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------------------------- PRIVATE FIELDS ------------------------------*/
 /*--------------------------------------------------------------------------*/
 

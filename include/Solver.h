@@ -10,17 +10,11 @@
  * optimal ones, or proving that there is none. Since doing this has to be
  * expected to costly, the class implements the ThinComputeInterface paradigm.
  *
- * \version 0.41
- *
- * \date 15 - 07 - 2020
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Kostas Tavlaridis-Gyparakis \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -31,13 +25,14 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __Solver
-#define __Solver  /* self-identification: #endif at the end of the file */
+ #define __Solver  /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 #include "Modification.h"
+
 #include "ThinComputeInterface.h"
 
 /*--------------------------------------------------------------------------*/
@@ -46,13 +41,8 @@
 
 /// namespace for the Structured Modeling System++ (SMS++)
 namespace SMSpp_di_unipi_it {
-class Block;                // forward definition of Block
 
-/*--------------------------------------------------------------------------*/
-/*------------------------------- CLASSES ----------------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @defgroup Solver_CLASSES Classes in Solver.h
- *  @{ */
+class Block;                // forward definition of Block
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- CLASS Solver ---------------------------------*/
@@ -128,7 +118,7 @@ class Block;                // forward definition of Block
  *   below], be them feasible or unfeasible ones, in an appropriate order
  *   (from the "more interesting" to the "less interesting");
  *
- * - a Solver compute solutions, and this can only be expected to be costly
+ * - a Solver computes solutions, and this can only be expected to be costly
  *   (up to extremely costly), which is why the class implements the
  *   ThinComputeInterface paradigm (i.e., derives from
  *   ThinComputeInterface).
@@ -138,7 +128,7 @@ class Block;                // forward definition of Block
  * extensive support towards the concept of "objective function value" and
  * (upper and lower) bounds upon that. Hence, although not strictly necessary,
  * it is somewhat intended that the Objective of the Block actually is a
- * RealObjective. Hence, one would expect that the OFValue type [see below]
+ * RealObjective. Thus, one would expect that the OFValue type [see below]
  * is the same as that defined in RealObjective. Steps are taken so that
  * problems without an objective function should not find this choice "too
  * intrusive"; basically, every method having to do with the (real) objective
@@ -149,8 +139,8 @@ class Block;                // forward definition of Block
  * to be defined that extend the "simple" treatment of real-valued objectives
  * to the necessarily more complex concepts. */
 
-class Solver : public ThinComputeInterface {
-
+class Solver : public ThinComputeInterface
+{
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -480,13 +470,9 @@ class Solver : public ThinComputeInterface {
   * derived classes. */
 
  enum str_par_type_S {
-  strLastAlgPar = 0   ///< first allowed new string parameter
-                      /**< Convenience value for easily allow derived classes
-		       * to extend the set of string algorithmic parameters.
-  * Actually, so far thare are no string algorithmic parameters in the base
-  * Solver class, but this may change in the future, so using this makes code
-  * resistant to that. */
-
+  strLastAlgPar = strLastAlgParTCI  ///< first allowed new string parameter
+  /**< Convenience value for easily allow derived classes to extend the set
+   * of string algorithmic parameters. */
   };  // end( str_par_type_S )
 
 /*--------------------------------------------------------------------------*/
@@ -497,13 +483,10 @@ class Solver : public ThinComputeInterface {
   * by derived classes. */
 
  enum vint_par_type_S {
-  vintLastAlgPar = 0  ///< first allowed new  vector-of-int parameter
-                      /**< Convenience value for easily allow derived classes
-                       * to extend the set of vector-of-int parameters.
-  * Actually, so far thare are no such parameters in the base Solver class,
-  * but this may change in the future, so using this makes code resistant to
-  * that. */
-
+  vintLastAlgPar = vintLastAlgParTCI
+  ///< first allowed new vector-of-int parameter
+  /**< Convenience value for easily allow derived classes to extend the set
+   * of vector-of-int parameters. */
   };  // end( vint_par_type_S )
 
 /*--------------------------------------------------------------------------*/
@@ -514,13 +497,10 @@ class Solver : public ThinComputeInterface {
   * extended by derived classes. */
 
  enum vdbl_par_type_S {
-  vdblLastAlgPar = 0  ///< first allowed new  vector-of-double parameter
-                      /**< Convenience value for easily allow derived classes
-                       * to extend the set of vector-of-double parameters.
-  * Actually, so far thare are no such parameters in the base Solver class,
-  * but this may change in the future, so using this makes code resistant to
-  * that. */
-
+  vdblLastAlgPar = vdblLastAlgParTCI
+  ///< first allowed new vector-of-double parameter
+  /**< Convenience value for easily allow derived classes to extend the set
+   * of vector-of-double parameters. */
   };  // end( vdbl_par_type_S )
 
 /*--------------------------------------------------------------------------*/
@@ -531,23 +511,20 @@ class Solver : public ThinComputeInterface {
   * extended by derived classes. */
 
  enum vstr_par_type_S {
-  vstrLastAlgPar = 0  ///< first allowed new  vector-of-string parameter
-                      /**< Convenience value for easily allow derived classes
-                       * to extend the set of vector-of-string parameters.
-  * Actually, so far thare are no such parameters in the base Solver class,
-  * but this may change in the future, so using this makes code resistant to
-  * that. */
-
+  vstrLastAlgPar = vstrLastAlgParTCI
+  ///< first allowed new vector-of-string parameter
+  /**< Convenience value for easily allow derived classes to extend the set
+   * of vector-of-string parameters. */
   };  // end( vstr_par_type_S )
 
 /*--------------------------------------------------------------------------*/
 
- typedef double OFValue;  ///< type of the objective function value
+ using OFValue = double;  ///< type of the objective function value
                           /**< This is the type of the value of the objective
 			   * function, generically "a real". One may expect
  * this to be defined exactly like the same-named type in RealObjective. */
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------ CONSTRUCTING AND DESTRUCTING Solver -------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructing and destructing Solver
@@ -566,7 +543,7 @@ class Solver : public ThinComputeInterface {
   * the method is static because the factory is static, hence it is to be
   * called as
   *
-  *   Solver *mySolver = Solver::new_Solver( someclass );
+  *   Solver *mySolver = Solver::new_Solver( some_class );
   *
   * i.e., without any reference to any specific Solver (and, therefore, it can
   * be used to construct the very first Solver if needed).
@@ -620,7 +597,7 @@ class Solver : public ThinComputeInterface {
 
  ~Solver() override = default;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------------------- LOCKING AND UNLOCKING Solver ----------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Locking and Unlocking Solver
@@ -692,7 +669,7 @@ class Solver : public ThinComputeInterface {
 
  void unlock( void ) { f_mutex.unlock(); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -765,7 +742,7 @@ class Solver : public ThinComputeInterface {
   f_log = log_stream;
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------------- METHODS FOR MANAGING THE "IDENTITY" --------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Managing the "identity" of a Solver
@@ -787,7 +764,7 @@ class Solver : public ThinComputeInterface {
 
  void set_id( void * id = nullptr ) override { f_id = id ? id : this; }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------------------- METHODS FOR EVENTS HANDLING -----------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Set event handlers
@@ -882,7 +859,7 @@ class Solver : public ThinComputeInterface {
 
  void reset_event_handler( int type , EventID id ) override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SOLVING THE Block ----------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Solving the model encoded by the current Block
@@ -978,7 +955,7 @@ class Solver : public ThinComputeInterface {
 
  int compute( bool changedvars = true ) override = 0;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------------------- METHODS FOR READING RESULTS -----------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Accessing the found solutions (if any)
@@ -1073,8 +1050,8 @@ class Solver : public ThinComputeInterface {
   * should be safe for any derived classes which simply don't have the
   * concept of real objective function. */
 
- virtual OFValue get_lb( void ) {
-  return( -std::numeric_limits< OFValue >::infinity() );
+ [[nodiscard]] virtual OFValue get_lb( void ) {
+  return( -Inf< OFValue >() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1152,8 +1129,8 @@ class Solver : public ThinComputeInterface {
   * should be safe for any derived classes which simply don't have the
   * concept of real objective function. */
 
- virtual OFValue get_ub( void ) {
-  return( std::numeric_limits< OFValue >::infinity() );
+ [[nodiscard]] virtual OFValue get_ub( void ) {
+  return( Inf< OFValue >() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1171,7 +1148,7 @@ class Solver : public ThinComputeInterface {
   * is OK, for instance, for "easy" problems that are never empty and can
   * surely be solved "efficiently enough". */
 
- virtual bool has_var_solution( void ) { return( true ); }
+ [[nodiscard]] virtual bool has_var_solution( void ) { return( true ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns true if the "current" solution is feasible
@@ -1193,7 +1170,7 @@ class Solver : public ThinComputeInterface {
   * true, which is OK for a solver that always only returns feasible solutions
   * (if any). */
 
- virtual bool is_var_feasible( void ) { return( true ); }
+ [[nodiscard]] virtual bool is_var_feasible( void ) { return( true ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns the value of the (current) solution, if any
@@ -1211,7 +1188,7 @@ class Solver : public ThinComputeInterface {
   * feasible lower bound). However the method is virtual and can be redefined
   * by derived classes. */
 
- virtual OFValue get_var_value( void );
+ [[nodiscard]] virtual OFValue get_var_value( void );
 
 /*--------------------------------------------------------------------------*/
  /// write the "current" solution in the Variable of the Block
@@ -1229,7 +1206,33 @@ class Solver : public ThinComputeInterface {
   *
   * It is an error to call this method if has_var_solution() or
   * new_var_solution() have not been called and returned true (which means,
-  * in particular, if no Block is attached to this Solver). 
+  * in particular, if no Block is attached to this Solver).
+  *
+  * Important note: writing solution information inside a Block is not
+  * counted as a change of the Block and therefore no Modification is issued.
+  * However, this is indeed a change of the state of the Block, and therefore
+  * has the issue that concurrent calls to get_var_solution() to different
+  * Solver registered to the same Block must be avoided since they would
+  * result in garbled data. As a consequence
+  *
+  *     THE Block MUST ALWAYS BE lock()-ED WHEN get_var_solution() IS CALLED
+  *
+  * unless of course the user is 100% sure that no concurrent access to the
+  * Block is ever possible. However, it is also important to remark that
+  *
+  *      lock()-ING OF THE Block MUST NOT BE DONE BY get_var_solution()
+  *
+  * The rationale is that if it was get_var_solution() to lock() the Block,
+  * then it should also unlock() it at the end. But the reason for wanting a
+  * solution written into the Block is to make some computations out of it
+  * (say, write it to a file or separate a Variable / Constraint out of it).
+  * For this to happen one must be sure that the solution information has not
+  * been accidentally rewritten by some other Solver, and therefore the lock
+  * on the Block must be kept for all the time in which the soution
+  * information is useful to the user. Hence the lock must be acquired prior
+  * to calling get_var_solution(). It might in principle make sense to have
+  * a separate lock for solution information, but this is not currently
+  * considered crucial enough to warrant the extra effort.
   *
   * Note that, while the largest burden of producing a solution is typically
   * bore by compute() and/or new_var_solution(), it is still possible that
@@ -1336,7 +1339,7 @@ class Solver : public ThinComputeInterface {
   * kUnbounded and set_unbounded_threshold() has been called; see the
   * comments to that method. */
 
- virtual bool new_var_solution( void ) { return( false ); }
+ [[nodiscard]] virtual bool new_var_solution( void ) { return( false ); }
 
 /*--------------------------------------------------------------------------*/
  /// set the min/max objective value of the solution for the unbounded case
@@ -1406,7 +1409,7 @@ class Solver : public ThinComputeInterface {
   * The default implementation in the base class always returns false, which
   * is OK for Solver that cannot produce any unbounded direction. */
 
- virtual bool has_var_direction( void ) { return( false ); }
+ [[nodiscard]] virtual bool has_var_direction( void ) { return( false ); }
 
 /*--------------------------------------------------------------------------*/
  /// write the "current" unbounded direction in the Block
@@ -1435,7 +1438,10 @@ class Solver : public ThinComputeInterface {
   *
   * It is an error to call this method if has_var_direction() and
   * new_var_direction() have not been called and returned true (which
-  * means, in particular, if no Block is attached to this Solver). 
+  * means, in particular, if no Block is attached to this Solver).
+  *
+  * See the comments to get_var_solution() about the need of lock()-ing the
+  * Block prior to calling this method, which of course apply verbatim here.
   *
   * Note that, while the largest burden of producing a directon is typically
   * bore by compute() and/or new_var_directon(), it is still possible that
@@ -1492,9 +1498,9 @@ class Solver : public ThinComputeInterface {
   * reasonable definition of an appropriate notion of "better direction"
   * that might be employed. */
 
- virtual bool new_var_direction( void ) { return ( false ); }
+ [[nodiscard]] virtual bool new_var_direction( void ) { return( false ); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------- METHODS FOR READING THE DATA OF THE Solver ----------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the state of the Solver
@@ -1507,7 +1513,7 @@ class Solver : public ThinComputeInterface {
 /*--------------------------------------------------------------------------*/
  /// getting the "identity" of this Solver
 
- virtual void * id( void ) { return( f_id ); }
+ [[nodiscard]] virtual void * id( void ) { return( f_id ); }
 
 /*--------------------------------------------------------------------------*/
  /// getting the classname of this Solver
@@ -1526,9 +1532,11 @@ class Solver : public ThinComputeInterface {
   * programmer purposely defines private_name() without calling the macro,
   * which seems rather pointless). */
 
- const std::string & classname( void ) const { return( private_name() ); }
+ [[nodiscard]] const std::string & classname( void ) const {
+  return( private_name() );
+  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the parameters of the Solver
@@ -1604,7 +1612,7 @@ class Solver : public ThinComputeInterface {
   return( dbl_pars_str[ idx ] );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------- METHODS FOR ADDING / REMOVING / CHANGING DATA --------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Changing the data of the model
@@ -1753,8 +1761,7 @@ class Solver : public ThinComputeInterface {
   // try to acquire lock, spin on failure
   while( f_mod_lock.test_and_set( std::memory_order_acquire ) );
 
-  const auto tmod = std::dynamic_pointer_cast< NBModification >( mod );
-  if( tmod )
+  if( std::dynamic_pointer_cast< const NBModification >( mod ) )
    v_mod.clear();
 
   v_mod.push_back( mod );
@@ -1775,7 +1782,7 @@ class Solver : public ThinComputeInterface {
 
  virtual void inhibit_Modification( bool do_it = true ) { f_no_Mod = do_it; }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1785,10 +1792,10 @@ class Solver : public ThinComputeInterface {
 /*--------------------------- PROTECTED TYPES ------------------------------*/
 /*--------------------------------------------------------------------------*/
 
- typedef boost::function< Solver *() > SolverFactory;
+ using SolverFactory = boost::function< Solver *() >;
  // type of the factory of Solver
 
- typedef std::map< std::string, SolverFactory > SolverFactoryMap;
+ using SolverFactoryMap = std::map< std::string , SolverFactory >;
  // type of the map between strings and the factory of Solver
 
 /*--------------------------------------------------------------------------*/
@@ -1804,6 +1811,18 @@ class Solver : public ThinComputeInterface {
  * implement it themselves.
  * @{ */
 
+ /// add the Modification to the queue, without checking for NBModification
+
+ void push_back( sp_Mod & mod ) {
+  // try to acquire lock, spin on failure
+  while( f_mod_lock.test_and_set( std::memory_order_acquire ) );
+
+  v_mod.push_back( mod );
+
+  f_mod_lock.clear( std::memory_order_release );  // release lock
+  }
+
+/*--------------------------------------------------------------------------*/
  /// returns the front sp_Mod on the Modification queue, nullptr if empty
 
  sp_Mod front( void ) {
@@ -1831,7 +1850,39 @@ class Solver : public ThinComputeInterface {
   f_mod_lock.clear( std::memory_order_release );  // release lock
   }
 
-/**@} ----------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
+ /// removes and returns the front sp_Mod from the Modification queue
+
+ sp_Mod pop( void ) {
+  // try to acquire lock, spin on failure
+  while( f_mod_lock.test_and_set( std::memory_order_acquire ) )
+   ;
+
+  sp_Mod mod;
+  if( ! v_mod.empty() ) {  // there is anything in the queue
+   mod = v_mod.front();    // get the first Modification
+   v_mod.pop_front();      // remove it from the queue
+   }
+
+  f_mod_lock.clear( std::memory_order_release );  // release lock
+
+  return( mod );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// clear the Modification queue
+
+ void mod_clear( void ) {
+  // try to acquire lock, spin on failure
+  while( f_mod_lock.test_and_set( std::memory_order_acquire ) )
+   ;
+
+  v_mod.clear();  // clear all Modification
+
+  f_mod_lock.clear( std::memory_order_release );  // release lock
+  }
+
+/** @} ---------------------------------------------------------------------*/
 /** @name Protected methods for handling static fields
  *
  * These methods allow derived classes to partake into static initialization
@@ -1839,7 +1890,7 @@ class Solver : public ThinComputeInterface {
  * are typically related with factories.
  * @{ */
 
- /// method incapsulating the Solver factory
+ /// method encapsulating the Solver factory
  /** This method returns the Solver factory, which is a static object.
   * The rationale for using a method is that this is the "Construct On First
   * Use Idiom" that solves the "static initialization order problem". */
@@ -1879,7 +1930,7 @@ class Solver : public ThinComputeInterface {
 
  static void static_initialization( void ) {}
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------------------------- PROTECTED FIELDS  ---------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1937,7 +1988,6 @@ class Solver : public ThinComputeInterface {
 
  };   // end( class Solver )
 
-/** @} end( group( Solver_CLASSES ) ) */
 /*--------------------------------------------------------------------------*/
 /*------------------------- Solver-RELATED TYPES ---------------------------*/
 /*--------------------------------------------------------------------------*/

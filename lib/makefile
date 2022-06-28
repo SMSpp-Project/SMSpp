@@ -77,6 +77,7 @@ SMS++H = $(SMS++SDR)include/AbstractBlock.h \
 	$(SMS++SDR)include/C05Function.h \
 	$(SMS++SDR)include/C15Function.h \
 	$(SMS++SDR)include/CDASolver.h \
+	$(SMS++SDR)include/Change.h \
 	$(SMS++SDR)include/ColRowSolution.h \
 	$(SMS++SDR)include/ColVariable.h \
 	$(SMS++SDR)include/ColVariableSolution.h \

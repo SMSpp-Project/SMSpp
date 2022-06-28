@@ -4,12 +4,7 @@
 /** @file
  * Implementation of the Configuration class.
  *
- * \version 0.12
- *
- * \date 27 - 06 - 2021
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -17,8 +12,6 @@
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
-/*--------------------------------------------------------------------------*/
-
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -57,15 +50,14 @@ SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< std::vector< int > > );
 
 SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< std::vector< double > > );
 
-SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< std::list< int > > );
-
-SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< std::list< double > > );
-
 SMSpp_insert_in_factory_cpp_0_t(
  ( SimpleConfiguration< std::pair< Configuration *, Configuration * > > ) );
 
 SMSpp_insert_in_factory_cpp_0_t(
  SimpleConfiguration< std::vector< Configuration * > > );
+
+SMSpp_insert_in_factory_cpp_0_t(
+ ( SimpleConfiguration< std::vector< std::pair< int , int > > > ) );
 
 SMSpp_insert_in_factory_cpp_0_t(
  ( SimpleConfiguration< std::vector< std::pair< int , Configuration * > > > )

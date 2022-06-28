@@ -4,17 +4,11 @@
 /** @file
  * Implementation of the BlockSolverConfig and RBlockSolverConfig classes.
  *
- * \version 0.10
- *
- * \date 15 - 09 - 2020
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -22,8 +16,6 @@
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
-/*--------------------------------------------------------------------------*/
-
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -62,7 +54,7 @@ Block::Index get_nested_Block_index( const std::string & id ,
 {
  if( ( ! id.empty() ) && std::isdigit( id.front() ) ) {
   // The id is the index of the sub-Block
-  try { return ( std::stoi( id ) ); }
+  try { return( std::stoi( id ) ); }
   catch( ... ) { return( Inf< Block::Index >() ); }
   }
  else  // The id is the name of the sub-Block
@@ -634,7 +626,7 @@ void RBlockSolverConfig::apply( Block * block ) const
     ( *it )->apply( sub_Block );
    else
     if( ! f_diff )
-    sub_Block->unregister_Solvers( true );
+     sub_Block->unregister_Solvers( true );
    }
   ++it;
   }
