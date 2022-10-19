@@ -141,7 +141,7 @@ namespace SMSpp_di_unipi_it {
  * \f]
  * so that the Lagrangian dual of (P) is
  * \f[
- *   (D) \quad \max \{ w l - z u + 
+ *   (D) \quad \max \{ w l - z u +
  *                     \min \{ f( x ) + ( z - w ) g( x ) : x \in X \} :
  *                     w \ge 0  ,  z \ge 0 \}
  * \f]
@@ -221,7 +221,7 @@ namespace SMSpp_di_unipi_it {
  * Note that the assumption \f$ l \le u \f$ may be violated: this makes the
  * problem unfeasible, and indeed (D) then is unbounded above. In fact, in
  * \f[
- *   (D) \quad \max \{ w l - z u + 
+ *   (D) \quad \max \{ w l - z u +
  *                     \min \{ f( x ) + ( z - w ) g( x ) : x \in X \} :
  *                     w \ge 0  ,  z \ge 0 \}
  * \f]
@@ -250,7 +250,7 @@ namespace SMSpp_di_unipi_it {
  *   L( w , z ) = \max \{ f( x ) + w ( g( x ) - l ) + z ( u - g( x ) ) :
  *                        x \in X \}   ,
  * \f]
- * i.e., 
+ * i.e.,
  * \f[
  *   L( w , z ) = z u - w l +
  *                \max \{ f( x ) + ( w - z ) g( x ) : x \in X \}  ,
@@ -469,14 +469,14 @@ class RowConstraint : public Constraint
 
 /*--------------------------------------------------------------------------*/
  /// returns the absolute violation of the RowConstraint
- /** The method computes and returns the absolute violation of the 
+ /** The method computes and returns the absolute violation of the
   * RowConstraint corresponding to the currently available upper and lower
   * bounds on the value of the variable part [see lb() and ub()]. The value
   * is positive if at least one of the two bounds is violated; note that
   * both can be since lb() < lhs <= rhs < ub() can happen, and the violation
   * is the maximum among the two. An infinite bound (lhs == - RHSINF or
   * rhs == RHSINF) corresponds to a 0 violation whatever the lb()/ub()
-  * (even if it is the same infinity). 
+  * (even if it is the same infinity).
   *
   * This method is provided because checking feasibility of a RowConstraint
   * should reasonably require numerical tolerances, which are not there in
@@ -512,19 +512,20 @@ class RowConstraint : public Constraint
      return( RHSINF );
     viol = std::max( viol , ubv - rhs );
     }
- 
+
   return( viol );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns the relative violation of the RowConstraint
- /** The method computes and returns the relative violation of the 
+ /** The method computes and returns the relative violation of the
   * RowConstraint corresponding to the currently available upper and lower
-  * bounds on the value of the variable part [see lb() and ub()]. This is
-  * the same value as abs_viol() returns, except each violation is divided
-  * by the absolute value of the corresponding bound. If one bound is zero
-  * then its absolute violation is used (the scaling factor is 1). Only
-  * finite bound are considered.
+  * bounds on the value of the variable part [see lb() and ub()]. This is the
+  * same value as abs_viol() returns, except each violation is divided by the
+  * maximum between 1 and the absolute value of the corresponding bound. In
+  * particular, this means that if one bound is between -1 and 1, its absolute
+  * violation is used (the scaling factor is 1). Only finite bounds are
+  * considered.
   *
   * See abs_viol() for the rationale of providing such a method and for the
   * need to properly call compute() before calling it to ensure the
@@ -538,8 +539,7 @@ class RowConstraint : public Constraint
     if( lbv <= -RHSINF )
      return( RHSINF );
     if( auto tv = lhs - lbv ; tv > 0 ) {
-     if( lhs != 0 )
-      tv /= std::abs( lhs );
+     tv /= std::max( RHSValue( 1 ) , std::abs( lhs ) );
      viol = tv;
      }
     }
@@ -549,13 +549,12 @@ class RowConstraint : public Constraint
     if( ubv >= RHSINF )
      return( RHSINF );
     if( auto tv = ubv - rhs ; tv > 0 ) {
-     if( rhs != 0 )
-      tv /= std::abs( rhs );
+     tv /= std::max( RHSValue( 1 ) , std::abs( rhs ) );
      if( tv > viol )
       viol = tv;
      }
     }
- 
+
   return( viol );
   }
 
