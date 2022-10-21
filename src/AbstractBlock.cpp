@@ -432,7 +432,7 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
    }
   throw( std::logic_error(
    "some dynamic Constraint not FRowConstraint or :OneVarConstraint" ) );
- }
+  }
 
  // the dynamic Variables of the Block- - - - - - - - - - - - - - - - - - - -
  // auto & dv = get_dynamic_variables();
@@ -598,7 +598,7 @@ void AbstractBlock::is_correct( void )
 
   throw( std::logic_error(
    "some static Constraint not FRowConstraint or :OneVarConstraint" ) );
- }
+  }
 
  // the dynamic Constraints of the Block- - - - - - - - - - - - - - - - - - -
  auto & dc = get_dynamic_constraints();
