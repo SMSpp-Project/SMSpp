@@ -3293,7 +3293,7 @@ public:
   * and everything necessary to describe a GlobalPool (see
   * BendersBFunction::GlobalPool::serialize()).
   *
-  * @group The netCDF::NcGroup into which into which this
+  * @param group The netCDF::NcGroup into which into which this
   *        BendersBFunctionState will be serialized. */
 
  void serialize( netCDF::NcGroup & group ) const override;

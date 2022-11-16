@@ -365,7 +365,7 @@ State * BendersBFunction::get_State( void ) const {
 
 void BendersBFunction::put_State( const State & state ) {
 
- auto s = dynamic_cast< const BendersBFunctionState & >( state );
+ const auto & s = dynamic_cast< const BendersBFunctionState & >( state );
 
  const bool global_pool_was_empty = global_pool.empty();
 
@@ -402,7 +402,7 @@ void BendersBFunction::put_State( const State & state ) {
 
 void BendersBFunction::put_State( State && state ) {
 
- auto s = dynamic_cast< const BendersBFunctionState && >( state );
+ auto && s = dynamic_cast< BendersBFunctionState && >( state );
 
  const bool global_pool_was_empty = global_pool.empty();
 
