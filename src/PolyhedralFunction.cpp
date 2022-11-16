@@ -672,7 +672,7 @@ State * PolyhedralFunction::get_State( void ) const {
 void PolyhedralFunction::put_State( const State & state )
 {
  // if state is not a PolyhedralFunctionState &, exception will be thrown
- auto s = dynamic_cast< const PolyhedralFunctionState & >( state );
+ const auto & s = dynamic_cast< const PolyhedralFunctionState & >( state );
 
  // find out which elements are removed from / added to the global pool
  auto res = guts_of_put_State( s );
@@ -712,7 +712,7 @@ void PolyhedralFunction::put_State( const State & state )
 void PolyhedralFunction::put_State( State && state )
 {
  // if state is not a PolyhedralFunctionState &, exception will be thrown
- auto s = dynamic_cast< PolyhedralFunctionState && >( state );
+ auto && s = dynamic_cast< PolyhedralFunctionState && >( state );
 
  // find out which elements are removed from / added to the global pool
  auto res = guts_of_put_State( s );

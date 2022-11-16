@@ -1142,7 +1142,7 @@ State * LagBFunction::get_State( void ) const {
 void LagBFunction::put_State( const State & state )
 {
  // if state is not a LagBFunctionState &, exception will be thrown
- auto s = dynamic_cast< const LagBFunctionState & >( state );
+ const auto & s = dynamic_cast< const LagBFunctionState & >( state );
 
  // ensure g_pool is large enough
  if( s.f_max_glob > g_pool.size() )
@@ -1229,7 +1229,7 @@ void LagBFunction::put_State( const State & state )
 void LagBFunction::put_State( State && state )
 {
  // if state is not a LagBFunctionState &&, exception will be thrown
- auto s = dynamic_cast< LagBFunctionState && >( state );
+ auto && s = dynamic_cast< LagBFunctionState && >( state );
 
  // ensure g_pool is large enough
  if( s.f_max_glob > g_pool.size() )
