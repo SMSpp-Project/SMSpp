@@ -2186,7 +2186,7 @@ inline bool deserialize_dim( const netCDF::NcGroup & group ,
   if( optional )
    return( false );
   throw( std::invalid_argument( "deserialize_dim(): " + name +
-                                " not present in group '" + group.getName()
+                                " not present in group " + group.getName()
                                 ) );
   }
 
@@ -2858,7 +2858,7 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
    }
 
   throw( std::invalid_argument( "deserialize(): " + name +
-                                " not present in group '" + group.getName()
+                                " not present in group " + group.getName()
                                 ) );
   }
 
@@ -3594,7 +3594,7 @@ serialize( netCDF::NcGroup & group , const std::string & name ,
      if( singleton_dim.getSize() != 1 ) {
       std::string error;
       error += "serialize(): error when serializing variable ";
-      error += name + " of group " + group.getName();
+      error += name + " of group '" + group.getName();
       error += "'. The singleton dimension must have size 1,"
                "but the dimension ";
       error += singleton_dim_name + " has size ";

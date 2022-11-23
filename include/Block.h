@@ -934,7 +934,8 @@ class Block : public Observer {
   * will be no \p father). */
 
  static Block * deserialize( const std::string & filename ,
-			     Block * father = nullptr );
+                             Block * father = nullptr ,
+                             std::function< void( Block * ) > * f = nullptr );
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize a :Block out of an open netCDF SMS++ file at given position
@@ -975,9 +976,9 @@ class Block : public Observer {
   * i.e., without any reference to any specific Block (and, therefore, it can
   * be used to construct the very first Block if needed). */
 
- static Block * deserialize( const netCDF::NcFile & f ,
-			     unsigned int idx = 0 ,
-			     Block * father = nullptr );
+ static Block * deserialize( const netCDF::NcFile & file ,
+                             unsigned int idx = 0 , Block * father = nullptr ,
+                             std::function< void( Block * ) > * f = nullptr );
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize a :Block out of netCDF::NcGroup, returns it
@@ -1015,7 +1016,8 @@ class Block : public Observer {
   * If anything goes wrong with the process, nullptr is returned. */
 
  static Block * new_Block( const netCDF::NcGroup & group ,
-                           Block * father = nullptr );
+                           Block * father = nullptr ,
+                           std::function< void( Block * ) > * f = nullptr );
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize the current :Block out of netCDF::NcGroup
@@ -1212,7 +1214,8 @@ class Block : public Observer {
   *   version of load() for details. */
 
  static Block * deserialize( std::istream & input ,
-			     Block * father = nullptr );
+                             Block * father = nullptr ,
+                             std::function< void( Block * ) > * f = nullptr );
 
 /*--------------------------------------------------------------------------*/
  /// destructor of Block: it is virtual
