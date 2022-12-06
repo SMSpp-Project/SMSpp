@@ -299,8 +299,8 @@ class FRealObjective : public RealObjective , public Observer {
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the costant of the FRealObjective
- /** Method that returns the costant term of this FRealObjective, which is
+ /// returns the constant of the FRealObjective
+ /** Method that returns the constant term of this FRealObjective, which is
   * the constant term of the underlying Function. */
 
  [[nodiscard]] OFValue get_constant_term( void ) const override {

@@ -28,12 +28,11 @@
 #                                                                             #
 #    This find module is provided because the CMake support from netCDF       #
 #    was found to be lacking. In particular, it appears that netCDF's         #
-#    configuration file has the paths for its depencencies (HDF5, Zlib)       #
+#    configuration file has the paths for its dependencies (HDF5, Zlib)       #
 #    hardcoded, and that doesn't work under macOS 11.0.                       #
 #    We use it in netCDF-C++ find module.                                     #
 #                                                                             #
 #                              Niccolo' Iardella                              #
-#                          Operations Research Group                          #
 #                         Dipartimento di Informatica                         #
 #                             Universita' di Pisa                             #
 # --------------------------------------------------------------------------- #

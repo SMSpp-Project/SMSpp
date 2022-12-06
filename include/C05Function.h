@@ -742,7 +742,7 @@ class C05Function : public Function {
   * Note that typically shift() of the modification will be == 0, in that
   * adding a linearization to the global pool does not really change the
   * "physical representation" of the C05Function, but only its (partial)
-  * "abstract represenation" that the global pool provides. */
+  * "abstract representation" that the global pool provides. */
 
  virtual void store_linearization( Index name ,
                                    ModParam issueMod = eModBlck ) {}
@@ -971,7 +971,7 @@ class C05Function : public Function {
   * Observer::make_par(). Note that typically shift() of the modification
   * will be == 0, in that deleting a linearization from the global pool does
   * not really change the "physical representation" of the C05Function, but
-  * only its (partial) "abstract represenation" that the global pool
+  * only its (partial) "abstract representation" that the global pool
   * provides. */
 
  virtual void delete_linearization( Index name ,
@@ -989,7 +989,7 @@ class C05Function : public Function {
   * Observer::make_par(). Note that typically shift() of the Modification
   * will be == 0, in that deleting a linearization from the global pool does
   * not really change the "physical representation" of the C05Function, but
-  * only its (partial) "abstract represenation" that the global pool
+  * only its (partial) "abstract representation" that the global pool
   * provides.
   *
   * This method is given a rough default implementation that just calls

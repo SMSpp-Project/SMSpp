@@ -847,7 +847,7 @@ class FunctionMod : public AModification
  public:
 
 /*---------------------------- PUBLIC TYPES --------------------------------*/
-/* Note: several of this types are not directly used by FunctionModVars, but
+/* Note: several of these types are not directly used by FunctionModVars, but
  * they may be useful to derived classes, so we do the "importing" once and
  * for all here. */
 
@@ -997,7 +997,7 @@ class FunctionMod : public AModification
  * Note that even in case all the Variable are reset, vars() cannot be
  * empty(). The reason is that Function do not register/unregister itself in
  * its "active" Variable. This has to be done by something else; but on the
- * other hand, this something else typically relies on Funtion to keep the
+ * other hand, this something else typically relies on Function to keep the
  * list. If all Variable are reset the list is gone, and therefore the
  * something else cannot do the un-registering.
  *
@@ -1046,7 +1046,7 @@ class FunctionMod : public AModification
  * removing z leads to f( x , y ) = x y, and this clearly is quasi-additive,
  * while removing y may lead to f( x , z ) = x + z which is not. Yet,
  * removing (all algebraic terms containing) y could also lead to
- * f( x , z ) = z, which is a quasi-additive removal. Of course, an additivw
+ * f( x , z ) = z, which is a quasi-additive removal. Of course, an additive
  * function f( x , y ) = f_1( x ) + f_2( y ) is quasi additive for whatever
  * reasonable concept of addition (of other additive terms) and removal one
  * can think of, but the concept also covers non-additive functions:
@@ -1056,11 +1056,11 @@ class FunctionMod : public AModification
  *     f_old( x ) = e^x     and      f( x , y ) = e^( x + y )
  *
  * is quasi-additive, provided of course that the removal of y from f()
- * brings back to f_old() rather than deliting all the terms containing it.
+ * brings back to f_old() rather than deleting all the terms containing it.
  *
  * Also, note that for the shift() to be finite, *all* the involved Variable
  * must be quasi-additive. Yet, if some of them were, and some of them were
- * not, there would be little solace in having two different Modifiction,
+ * not, there would be little solace in having two different Modification,
  * one with finite shift() and one with infinite one, since at the end of
  * the day the result would still be that the new value of the Function is
  * utterly unknown.
@@ -1187,7 +1187,7 @@ class FunctionModVars : public AModification
   * supposed to be that of addition: vars[ 0 ] is the first new Variable
   * added, vars[ 1 ] the second, ... (this is logically speaking, and
   * regardless to the fact that a :Function may well implement a "add a
-  * bunch of Variable in one blow" operation; still, any such operaton must
+  * bunch of Variable in one blow" operation; still, any such operation must
   * define what the addition order conceptually is). */
 
  FunctionModVars( Function * f , Vec_p_Var && vars ,
@@ -1346,7 +1346,7 @@ class FunctionModVarsAddd : public FunctionModVars {
   * Variable having been added, and therefore it took index first + 1 ...
   * Of course, a :Function is likely to implement an "add a bunch of Variable
   * in a single blow" operation, which is why this Modification allow to
-  * deal with many new Variable at a time. Still, any such operaton must
+  * deal with many new Variable at a time. Still, any such operation must
   * define what the addition order conceptually is, and this must be
   * reflected in the order of vars[]. */
 
@@ -1451,7 +1451,7 @@ class FunctionModVarsRngd : public FunctionModVars
   * Variable at the moment in which the FunctionModVarsRngd was issued. The
   * range is a pair of indices ( start , stop ) representing the typical
   * left-closed, right-open range { i : start <= i < stop }, and the
-  * correspondence between that and vars is positonal: vars[ 0 ] had index
+  * correspondence between that and vars is positional: vars[ 0 ] had index
   * range, vars[ 1 ] had index range + 1 ..., which implies that
   * vars.size() == stop - start. */
 
