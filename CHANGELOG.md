@@ -7,6 +7,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2022-06-28
+
+### Added
+
+- added ThinVarDepInterface::map\_index()
+
+- added `is_feasible()` and `clear()` also for std::list,
+  std::vector< std::list > and boost::multi_array< std::list >
+
+- added generic `is_feasible` methods for Variable and Constraint types
+
+- added RelaxationSolve concept
+
+- added Change concept
+
+- added ::deserialize() for std::string
+
+- added Objective::eUndef as default value for get\_objective\_sense()
+
+- added not\_ModBlock and un\_ModBlock
+
+- added `clear_constraints` methods
+
+- added INFRange
+
+- added Solver::pop() and Solver::mod_clear()
+
+- added ::deserialize() for matrix with fixed-length and variable-length rows
+
+- added get\_constant\_term() in RealObjective
+
+- computation of Lipschitz constant in LagBFunction
+
+- passthrough" feature in LagBFunction where the set_par() and related
+  mechanisms can be used to directly set the parameters in the inner Solver
+
+### Changed
+
+- dynamic Constraint not clear()-ed on deletion if they are shipped to a
+  BlockModRmv; clearing is now done in the destructor of the BlockModRmv,
+  so that the information about the set of active variable can still be
+  "seen" by the Solver handling it. this turns out to be crucial for
+  CPXMILPSolver to handle deletion of OneVarConstraint, but may be useful
+  in general
+
+- reworked channel management: now open\_channel() and close\_channel()
+  suffice. added open\_if\_needed() and close\_if\_needed() versions
+
+- avoided un-necessary Modification in PolyhedralFunctionBlock
+
+- changed load/print stream interface
+
+- restored default true to optional in SMSTypedefs.h
+
+- significant rehaul of ::deserialize() functions
+
+- better management of ::deserialize() functions with checks about the
+  types that are being deserialized
+
+- complete redesign and significant enhancement in BoxSolver: now properly
+  handles multi-level f_Block and Variable not belonging to it
+
+### Fixed
+
+- too many bugs to count
+
 ## [0.5.0] - 2021-12-08
 
 ### Added
@@ -120,7 +186,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - First test release.
 
-[Unreleased]: https://gitlab.com/smspp/smspp/-/compare/0.5.0...develop
+[Unreleased]: https://gitlab.com/smspp/smspp/-/compare/0.5.1...develop
+[0.5.1]: https://gitlab.com/smspp/smspp/-/compare/0.5.0...0.5.1
 [0.5.0]: https://gitlab.com/smspp/smspp/-/compare/0.4.0...0.5.0
 [0.4.0]: https://gitlab.com/smspp/smspp/-/compare/0.3.2...0.4.0
 [0.3.2]: https://gitlab.com/smspp/smspp/-/compare/0.3.1...0.3.2

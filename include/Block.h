@@ -616,7 +616,7 @@ class Block : public Observer {
 
  /// an "infinite Range", i.e., [ 0 , INF ), i.e., "everything"
  static constexpr auto INFRange = Range( 0 , Inf< Index >() );
- 
+
  /// a vector of indices for the "subset" functions in the methods factory
  using Subset = std::vector< Index >;
  using c_Subset = const Subset;               ///< a const Subset
@@ -639,7 +639,7 @@ class Block : public Observer {
 
  template< typename ... Args >
  using FunctionType =
- std::function< void( Block * , Args ... , ModParam , ModParam ) >;
+  std::function< void( Block * , Args ... , ModParam , ModParam ) >;
 
  /// typedef for class member functions to be added to the methods factory
  /** The class member functions (whose adapters are to be) added to the
@@ -690,7 +690,7 @@ class Block : public Observer {
   *
   *   i + number_static_constraint_groups.
   *
-  * Let the pair (i, j) be a ConstraintID. If
+  * Let the pair ( i, j ) be a ConstraintID. If
   *
   *   i < number_static_constraint_groups,
   *
@@ -724,14 +724,13 @@ class Block : public Observer {
   * of Constraint, the index of the Constraint is its position in the
   * vectorized multidimensional array in row-major layout. For instance, if
   * the multidimensional array has two dimensions with sizes m and n,
-  * respectively, then the Constraint at position (p, q) would have an index
-  * equal to "n * p + q" (recall the indices start from 0). In general, for a
-  * multidimensional array with k dimensions with sizes (n_0, ..., n_{k-1}),
-  * the Constraint at position (i_0, ..., i_{k-1}) would have an index equal
-  * to
-  *
+  * respectively, then the Constraint at position ( p , q ) would have an
+  * index equal to "n * p + q" (recall the indices start from 0). In general,
+  * for a multidimensional array with k dimensions with sizes ( n_0 , ... ,
+  * n_{k-1} ), the Constraint at position ( i_0 , ... , i_{k-1} ) would have
+  * an index equal to
   * \f[
-  *    \sum_{r = 0}^{k-1} ( \prod_{s = r + 1}^{k-1} n_s ) i_r.
+  *   \sum_{r = 0}^{k-1} ( \prod_{s = r + 1}^{k-1} n_s ) i_r
   * \f]
   *
   * A dynamic group of Constraint can be one of three types:
@@ -746,14 +745,11 @@ class Block : public Observer {
   * of the Constraint is its position in that list. In the second case, in
   * which the group is a vector of lists of Constraint, for a Constraint at
   * position j of the k-th list of the vector, its index is given by
-  *
   * \f[
   *    j + \sum_{t = 0}^{k-1} s_t
   * \f]
-  *
   * where s_t is the number of Constraint in the t-th list of the vector. The
-  * last case is analogous.
-  */
+  * last case is analogous. */
 
  using ConstraintID = std::pair< Index , Index >;
 
@@ -804,7 +800,7 @@ class Block : public Observer {
   * i.e., without any reference to any specific Block (and, therefore, it can
   * be used to construct the very first Block if needed).
   *
-  * Note that the :Block returned my this method is "empty": it contains no
+  * Note that the :Block returned by this method is "empty": it contains no
   * (instance) data, and therefore it has to be explicitly initialized with
   * any of the corresponding methods (operator>>, serialize(), anything that
   * the specific :Block class provides) before it can be used.
