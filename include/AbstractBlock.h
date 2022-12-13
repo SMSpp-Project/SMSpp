@@ -502,26 +502,37 @@ class AbstractBlock : public Block {
  **/
 
  /// returns true if the current solution is (approximately) feasible
- /** Returns true if the solution encoded in the current value of the
-  * Variable of the Block is approximately feasible within the given
-  * tolerances. The method works by basically calling is_feasible() on all
-  * the [Col]Variable and [FRow/OneVar]Constraint of the abstract
-  * representation, for there clearly is no other possible way to do this.
+ /** Returns true if the solution encoded in the current value of the Variable
+  * of the Block is approximately feasible within the given tolerance. The
+  * method works by basically calling ColVariable::is_feasible() on all the
+  * [Col]Variable and checking the violation (relative or absolute) of each
+  * [Row]Constraint of the abstract representation, for there clearly is no
+  * other possible way to do this.
   *
-  * The parameter for deciding what "approximately feasible" exactly means is
-  * a single double value, representing the *relative* tolerance for
-  * satisfaction of all [FRow/OneVar]Constraint, and domain restrictions for
-  * [Col]Variable. This value is to be found as:
+  * The parameters for deciding what "approximately feasible" exactly means
+  * are a double and an int (representing a boolean) value. The double value
+  * represents the tolerance for satisfaction of all [FRow/OneVar]Constraint,
+  * and domain restrictions for [Col]Variable. The int value indicates whether
+  * the tolerance is with respect to the relative or the absolute violation of
+  * the RowConstraint (see RowConstraint::rel_viol() and
+  * RowConstraint::abs_viol()). These values are to be found as:
   *
-  * - if fsbc is not nullptr and it is a SimpleConfiguration<double>, then it
-  *   if fsbc->f_value;
+  * - If \p fsbc is not nullptr and it is a SimpleConfiguration<double>, then the
+  *   tolerance is fsbc->f_value and the relative violation is considered;
   *
-  * - otherwise, if f_BlockConfig is not nullptr,
-  *   f_BlockConfig->f_is_feasible_Configuration is not nullptr and it
-  *   is a SimpleConfiguration<double>, then it is
-  *   f_BlockConfig->f_is_feasible_Configuration->f_value;
+  * - If \p fsbc is not nullptr and it is a SimpleConfiguration<std::pair<double,
+  *   int>>, then the tolerance is fsbc->f_value.first and the type of
+  *   violation is fsbc->f_value.second (any nonzero number for relative and
+  *   zero for absolute violation);
   *
-  * - otherwise, it is 0. */
+  * - Otherwise, if #f_BlockConfig is not nullptr,
+  *   #f_BlockConfig->f_is_feasible_Configuration is not nullptr and it is a
+  *   pointer to either a SimpleConfiguration<double> or to a
+  *   SimpleConfiguration<std::pair<double, int>>, then the values of the
+  *   parameters are obtained analogously as above;
+  *
+  * - Otherwise, the tolerance is 0 and the relative violation is
+  *   considerd. */
 
  bool is_feasible( bool useabstract = false ,
                    Configuration * fsbc = nullptr ) override;
