@@ -198,7 +198,7 @@ class Configuration
   *   multiple Configuration inside, \p filename can be used to encode the
   *   position (Configuration) in the file:
   *
-  *     * if the \p filename ends with ']', then is is supposed to have the
+  *     * if the \p filename ends with ']', then is supposed to have the
   *       form "real filename[idx]": the "[idx] part is excised and used to
   *       compute the int parameter of deserialize() (the position), with the
   *       remaining part being used for the string parameter (the filename);
@@ -923,7 +923,7 @@ typedef std::vector< p_Conf > Vec_p_Conf;
 
 /// deserialize a Configuration (*) out of a given group
 /** Deserialize a Configuration (*) , out of the given \p group and into
- * \p data. This is is done by calling Configuration::new_Configuration() on
+ * \p data. This is done by calling Configuration::new_Configuration() on
  * the given \p group if \p name is empty, and otherwise on the sub.group of
  * \p group with the given \p name. */
 

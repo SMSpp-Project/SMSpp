@@ -140,7 +140,7 @@ void FRealObjective::remove_variables( Subset && nms, bool ordered,
 
 void FRealObjective::add_Modification( sp_Mod mod , c_ChnlName chnl ) {
  // first check if mod is some :FunctionModVars, and if it is- - - - - - - - -
- // register/unregister this FRowConstraintwith the added/removed Variable
+ // register/unregister this FRowConstraint with the added/removed Variable
  /* Use a Lambda to define a "guts" of the method that can be called
     recursively without having to pass "local globals". Note the trick of
     defining the std::function object and "passing" it to the lambda,

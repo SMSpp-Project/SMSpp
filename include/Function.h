@@ -503,7 +503,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface
 /*--------------------------------------------------------------------------*/
  /// returns a valid global lower bound on the Function value
  /** The Function may know that it is bounded below on its domain, and be
-  * able to (cheapily) compute a finite number guaranteed to be <= than any
+  * able to (cheaply) compute a finite number guaranteed to be <= than any
   * value that get_value() can possibly return. If so, such a value should
   * be returned by this method. The base class implementation returns the
   * always safe - Inf< FunctionValue >().
@@ -521,7 +521,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns a valid global upper bound on the Function value
  /** The Function may know that it is bounded above on its domain, and be
-  * able to (cheapily) compute a finite number guaranteed to be >= than any
+  * able to (cheaply) compute a finite number guaranteed to be >= than any
   * value that get_value() can possibly return. If so, such a value should
   * be returned by this method. The base class implementation returns the
   * always safe Inf< FunctionValue >().
@@ -1135,7 +1135,7 @@ class FunctionModVars : public AModification
  public:
 
 /*---------------------------- PUBLIC TYPES --------------------------------*/
-/* Note: several of this types are not directly used by FunctionModVars, but
+/* Note: several of these types are not directly used by FunctionModVars, but
  * they may be useful to derived classes, so we do the "importing" once and
  * for all here. */
 

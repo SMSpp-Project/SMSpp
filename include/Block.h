@@ -910,7 +910,7 @@ class Block : public Observer {
   *   multiple Block inside, \p filename can be used to encode the position
   *   (Block) in the file:
   *
-  *     * if \p filename ends with ']', then is is supposed to have the
+  *     * if \p filename ends with ']', then is supposed to have the
   *       form "real filename[idx]": the "[idx] part is excised and used to
   *       compute the int parameter of deserialize() (the position), with the
   *       remaining part being used for the string parameter (the filename);
@@ -8522,7 +8522,7 @@ class BlockConfig : public Configuration {
 
 /// deserialize a Block (*) out of a given group
 /** Deserialize a Block (*) , out of the given \p group and into \p data.
- * This is is done by calling Block::new_Block() on the given \p group if
+ * This is done by calling Block::new_Block() on the given \p group if
  * \p name is empty, and otherwise on the sub.group of \p group with the
  * given \p name. */
 

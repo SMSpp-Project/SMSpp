@@ -252,7 +252,7 @@ class AbstractBlock : public Block {
   * should contain the following:
   *
   * - the dimension "NumberInnerBlock", containing the number of the
-  *   inner Block. The dimension is optional, it is is not provided 0 is
+  *   inner Block. The dimension is optional, it is not provided 0 is
   *   assumed.
   *
   * - if NumberInnerBlock > 0, and in particular it is

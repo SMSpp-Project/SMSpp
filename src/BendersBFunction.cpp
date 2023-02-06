@@ -104,7 +104,7 @@ BendersBFunction::~BendersBFunction()
  * retrieve the pointers to the Constraint (because these Constraint still do
  * not exist). After the inner Block is constructed, the BendersBFunction
  * could ask the inner Block to generate its abstract representation, so that
- * the BendersBFuntion would then be able to retrieve the pointers to the
+ * the BendersBFunction would then be able to retrieve the pointers to the
  * Constraint. The issue is that the abstract representation can be generated
  * only once. If one were to generate the abstract representation of the inner
  * Block at a later stage, after the BendersBFunction is deserialized (and,

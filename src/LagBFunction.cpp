@@ -994,11 +994,11 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
   if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( eModBlck ) ) )
    return;  // all done
   
-  // issue a LagBFunctionMod: if some linearisations have been removed it has
+  // issue a LagBFunctionMod: if some linearizations have been removed it has
   // type() == GlobalPoolRemoved, otherwise it has type() == NothingChanged
   // note: the explicit definition of type here was originally avoided by
   //       having the ? expression directly in the constructor, but this
-  //       meant that the same expressio had a check if which was nonempty
+  //       meant that the same expression had a check if which was nonempty
   //       and a std-move of which that could make it empty, i.e., the
   //       perfect example of an expression with side-effects whose result
   //       depended on the order of the sub-expressions and therefore was
@@ -1023,7 +1023,7 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
  }  // end( LagBFunction::add_Modification() )
 
 /*--------------------------------------------------------------------------*/
-/*---------- METHODS FOR PRINING/SAVING THE DATA OF THE LagBFunction -------*/
+/*--------- METHODS FOR PRINTING/SAVING THE DATA OF THE LagBFunction -------*/
 /*--------------------------------------------------------------------------*/
 
 void LagBFunction::print( std::ostream & output , char vlvl ) const
@@ -1059,7 +1059,7 @@ void LagBFunction::serialize( netCDF::NcGroup & group ) const
   }
 
  // temporarily put back the original costs into the Objective of the
- // inner Block before deserialising, and then restore the current one,
+ // inner Block before deserializing, and then restore the current one,
  // which requires locking it
  // note: one could be tempted to run modify_coefficients() with eNoMod, so
  //       that no Modification at all is issued. this would be OK if the
@@ -1416,7 +1416,7 @@ void LagBFunction::store_linearization( Index name , ModParam issueMod )
 
  // throw exception if the solution does not exist or has been already stored
  if( LastSolution < Inf<Index>() )
-  throw( std::logic_error( "LagBFunction: unvailable linearization" ) );
+  throw( std::logic_error( "LagBFunction: unavailable linearization" ) );
 
  // get the current Solution from the Solver - - - - - - - - - - - - - - - - -
 
@@ -1472,8 +1472,8 @@ void LagBFunction::store_combination_of_linearizations(
   return;
   }
 
- bool type = true;         // a diagonal one unless oherwise proven
- bool unfeasible = false;  // feasible unless oherwise proven
+ bool type = true;         // a diagonal one unless otherwise proven
+ bool unfeasible = false;  // feasible unless otherwise proven
 
  // get an "empty" solution from the Block
  auto convex_combination = v_Block.front()->get_Solution();
@@ -1629,7 +1629,7 @@ int LagBFunction::compute( bool changedvars )
  if( changedvars && ( ! ( LagPairs.empty() && ( ! f_c_changed ) ) ) ) {
   // if the Lagrangian variables have changed, then Lagrangian costs
   // c^y = c + yA need be recomputed; however, this is unless there are
-  // actually no Lagrangian variables and the costs are stll the original
+  // actually no Lagrangian variables and the costs are still the original
   // ones, because then c^y = c
   f_dirty_Lc = true;
   if( ( ! std::isnan( f_yb ) ) && ( f_yb > -INF ) )
@@ -2078,7 +2078,7 @@ void LagBFunction::get_MatDesc( int * Abeg , int * Aind , double * Aval ,
 {
  // important note: the order of the variables in CostMatrix is *not* the
  // original order of the columns, which is how A here need be provided,
- // but rather the order of which they are in obj; not all of the varable
+ // but rather the order of which they are in obj; not all of the variable
  // may be in obj, which means they do not appear in A anywhere (for
  // otherwise they would have been forcibly added to obj), which means
  // that the corresponding column in A is empty
@@ -2346,7 +2346,7 @@ void LagBFunction::guts_of_destructor( bool deleteinner )
 
  clear();
 
- // cleanup and poossibly delete the inner Block - - - - - - - - - - - - - - -
+ // cleanup and possibly delete the inner Block - - - - - - - - - - - - - - -
 
  if( ! v_Block.empty() ) {  // ... if any
   // the inner Block is orphan
@@ -3208,7 +3208,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
   // in theory, adding Variable should not violate the Constraint ...
   // but this is only true if, say, the Constraint is linear and the
   // [Col]Variable are allowed to take the value 0. since we have no
-  // way of knowing wether or not this is true, we have to assume it is not
+  // way of knowing whether or not this is true, we have to assume it is not
   return( 4 );
 
   }  // end( FunctionModVars )
@@ -3315,13 +3315,13 @@ void LagBFunction::update_CostMatrix_ModLinRngd( const v_coeff_pair & rc ,
  // note that one may think to update the corresponding Range of original
  // costs by adding delta(), but this would be wrong because delta() is
  // computed w.r.t. the last value of the costs, which is in general a
- // Lagrangian one. one may alernatively think to just mark the cost as in
+ // Lagrangian one. one may alternatively think to just mark the cost as in
  // need for refreshing and do it later (say, in compute()), but this would
  // be wrong as well because the costs that have *not* been changed are the
  // Lagrangian ones, and one would end up "fixing" them as the true costs.
  // hence, the only option is to read the costs now (since the Modification
  // is the only place where the information about which costs have actually
- // changed is), although reading the costs from obj is nontrovial since the
+ // changed is), although reading the costs from obj is nontrivial since the
  // Range may not be current if Variable have been added/deleted
 
  f_dirty_Lc = true;  // Lagrangian costs will have to be recomputed
@@ -3338,7 +3338,7 @@ void LagBFunction::update_CostMatrix_ModLinRngd( const v_coeff_pair & rc ,
   return;
   }
 
- // if Range is no longer current, it's compicated
+ // if Range is no longer current, it's complicated
  // however, note that CostMatrix is still "aligned" with the indices
  // found in the Modification, since if Variable have been added/removed
  // in obj by changes occurring prior to this the corresponding
@@ -3382,7 +3382,7 @@ void LagBFunction::update_CostMatrix_ModLinSbst( const v_coeff_pair & rc ,
  // note that one may think to update the corresponding Subset of original
  // costs by adding delta(), but this would be wrong because delta() is
  // computed w.r.t. the last value of the costs, which is in general a
- // Lagrangian one. one may alernatively think to just mark the cost as in
+ // Lagrangian one. one may alternatively think to just mark the cost as in
  // need for refreshing and do it later (say, in compute()), but this would
  // be wrong as well because the costs that have *not* been changed are the
  // Lagrangian ones, and one would end up "fixing" them as the true costs.
@@ -3405,7 +3405,7 @@ void LagBFunction::update_CostMatrix_ModLinSbst( const v_coeff_pair & rc ,
   return;
   }
 
- // if Subset is no longer current, it's compicated
+ // if Subset is no longer current, it's complicated
  // however, note that CostMatrix is still "aligned" with the indices found
  // in the Modification, since if Variable have been added/removed in obj by
  // changes occurring prior to this the corresponding Modification have been
