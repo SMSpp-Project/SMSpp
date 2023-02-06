@@ -103,7 +103,7 @@ public:
 /*--------------------------------------------------------------------------*/
 
  RowConstraintSolution( const RowConstraintSolution & ) : Solution() {
-  throw std::invalid_argument( "Trying to copy RowConstraintSolution" );
+  throw( std::invalid_argument( "Trying to copy RowConstraintSolution" ) );
  }
  ///< copy constructor, so that it cannot be used
  /**< inhibit copy constructor */
@@ -374,8 +374,9 @@ protected:
   * @return true if and only if this RowConstraintSolution is empty. */
 
  bool empty() const {
-  return nested_solutions.empty() && static_constraint_dual_values.empty() &&
-   dynamic_constraint_dual_values.empty();
+  return( ( nested_solutions.empty() ) &&
+          ( static_constraint_dual_values.empty() ) &&
+          ( dynamic_constraint_dual_values.empty() ) );
   }
 
 /*--------------------------------------------------------------------------*/

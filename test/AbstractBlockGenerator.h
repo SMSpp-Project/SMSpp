@@ -105,27 +105,27 @@ public:
  ~ElementGenerator() {}
 
  Int gen_num_groups() override {
-   return num_groups_dist( generator );
+   return( num_groups_dist( generator ) );
  }
 
  Int gen_group_type() override {
-   return group_type_dist( generator );
+   return( group_type_dist( generator ) );
  }
 
  Int gen_vector_size() override {
-   return vector_size_dist( generator );
+   return( vector_size_dist( generator ) );
  }
 
  Int gen_list_size() override {
-   return list_size_dist( generator );
+   return( list_size_dist( generator ) );
  }
 
  Int gen_multi_array_num_dim() override {
-  return multi_array_num_dim_dist( generator );
+  return( multi_array_num_dim_dist( generator ) );
  }
 
  Int gen_multi_array_extent() override {
-  return multi_array_extent_dist( generator );
+  return( multi_array_extent_dist( generator ) );
  }
 
 private:
@@ -167,7 +167,7 @@ public:
  ~FunctionGenerator() {}
 
  virtual Int gen_function_type() override {
-  return function_type_dist( generator );
+  return( function_type_dist( generator ) );
  }
 
 private:
@@ -204,7 +204,7 @@ public:
  ~NumNestedBlockGenerator() {}
 
  virtual Int gen_num_nested_blocks() override {
-  return num_nested_blocks_dist( generator );
+  return( num_nested_blocks_dist( generator ) );
  }
 
 private:
@@ -287,7 +287,7 @@ public:
  AbstractBlock * generate( int depth ) {
   auto block = new AbstractBlock();
   generate( block , depth );
-  return block;
+  return( block );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -297,7 +297,7 @@ public:
   generate_groups( block , std::max( 0 , depth - 1 ) );
   if( depth > 0 )
    generate_nested_blocks( block , depth - 1 );
-  return block;
+  return( block );
  }
 
 /*--------------------------------------------------------------------------*/

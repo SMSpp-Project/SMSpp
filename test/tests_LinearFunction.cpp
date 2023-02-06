@@ -24,7 +24,7 @@ static LinearFunction::Coefficient get_random_coeff() {
  std::default_random_engine re( rd() );
  std::uniform_real_distribution< double > unif( -100, 100 );
 
- return unif( re );
+ return( unif( re ) );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -146,5 +146,5 @@ TEST( LinearFunctionTest, RemovesVariables ) {
 /*--------------------------------------------------------------------------*/
 int main( int argc, char ** argv ) {
  ::testing::InitGoogleTest( &argc, argv );
- return RUN_ALL_TESTS();
+ return( RUN_ALL_TESTS() );
 }

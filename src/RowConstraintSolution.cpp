@@ -79,10 +79,10 @@ void RowConstraintSolution::delete_vectors() {
   if( ! un_any_thing( double , static_constraint_dual_values[ i ] ,
                       [ & var ]() { delete &var; }() ) )
 
-   throw std::logic_error
+   throw( std::logic_error
     ( "RowConstraintSolution::~RowConstraintSolution() "
       "invalid static constraint group: " +
-      std::string( static_constraint_dual_values[ i ].type().name() ) );
+      std::string( static_constraint_dual_values[ i ].type().name() ) ) );
 
  for( Vec_any::size_type i = 0 ;
       i < dynamic_constraint_dual_values.size() ; ++i )
@@ -91,10 +91,10 @@ void RowConstraintSolution::delete_vectors() {
                       dynamic_constraint_dual_values[ i ] ,
                       [ & var ]() { delete &var; }() ) )
 
-   throw std::logic_error
+   throw( std::logic_error
     ( "RowConstraintSolution::~RowConstraintSolution() "
       "invalid dynamic constraint group: " +
-      std::string( dynamic_constraint_dual_values[ i ].type().name() ) );
+      std::string( dynamic_constraint_dual_values[ i ].type().name() ) ) );
 
  static_constraint_dual_values.resize( 0 );
  dynamic_constraint_dual_values.resize( 0 );
@@ -151,12 +151,12 @@ bool try_create_static( const boost::any & constraint_group ,
                                   static_constraint_dual_value ,
                                   read );
  if( created )
-  return true;
+  return( true );
  else if constexpr( sizeof...(Rest) != 0 )
-  return try_create_static<Rest...>( constraint_group ,
-                                     static_constraint_dual_value ,
-                                     read );
- return false;
+  return( try_create_static< Rest... >( constraint_group ,
+                                        static_constraint_dual_value ,
+                                        read ) );
+ return( false );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -174,10 +174,10 @@ void RowConstraintSolution::initialize_static_constraint_dual_values
 
   if( ! try_create_static< RowConstraint_Derived_Classes >
       ( constraint_groups[ i ] , static_constraint_dual_values[ i ] , read ) )
-   throw std::logic_error
+   throw( std::logic_error
     ( "RowConstraintSolution::initialize_static_constraint_dual_values: "
       "invalid constraint group: " +
-      std::string( constraint_groups[ i ].type().name() ) );
+      std::string( constraint_groups[ i ].type().name() ) ) );
  }
 }
 
@@ -243,12 +243,12 @@ bool try_create_dynamic( const boost::any & constraint_group ,
                                    dynamic_constraint_dual_value ,
                                    read );
  if( created )
-  return true;
+  return( true );
  else if constexpr( sizeof...(Rest) != 0 )
-  return try_create_dynamic<Rest...>( constraint_group ,
-                                      dynamic_constraint_dual_value ,
-                                      read );
- return false;
+  return( try_create_dynamic<Rest...>( constraint_group ,
+                                       dynamic_constraint_dual_value ,
+                                       read ) );
+ return( false );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -266,9 +266,10 @@ void RowConstraintSolution::initialize_dynamic_constraint_dual_values
 
   if( ! try_create_dynamic<RowConstraint_Derived_Classes>
       ( constraint_groups[ i ] , dynamic_constraint_dual_values[ i ] , read ) )
-   throw std::logic_error( "RowConstraintSolution::initialize_dynamic_constra"
-                           "int_dual_values: invalid constraint group: "  +
-                           std::string( constraint_groups[i].type().name() ) );
+   throw( std::logic_error(
+    "RowConstraintSolution::initialize_dynamic_constraint_dual_values: "
+    "invalid constraint group: " +
+    std::string( constraint_groups[ i ].type().name() ) ) );
  }
 }
 
@@ -296,16 +297,16 @@ bool un_static( const boost::any & constraint_group ,
              value = constraint.get_dual(); };
   auto f2 = []( T * constraint , double & value ) {
              value = constraint->get_dual(); };
-  return un_static<T , decltype( f1 ) , decltype( f2 )>
-   ( constraint_group , static_constraint_dual_value , f1 , f2 );
+  return( un_static< T , decltype( f1 ) , decltype( f2 ) >
+   ( constraint_group , static_constraint_dual_value , f1 , f2 ) );
  }
  else {
   auto f1 = []( T & constraint , double value ) {
              constraint.set_dual( value ); };
   auto f2 = []( T * constraint , double value ) {
              constraint->set_dual( value ); };
-  return un_static<T , decltype( f1 ) , decltype( f2 )>
-   ( constraint_group , static_constraint_dual_value , f1 , f2 );
+  return( un_static< T , decltype( f1 ) , decltype( f2 ) >
+   ( constraint_group , static_constraint_dual_value , f1 , f2 ) );
  }
 }
 
@@ -317,16 +318,16 @@ bool try_un_static( const boost::any & constraint_group ,
                     boost::any & static_constraint_dual_value ,
                     const bool read ) {
 
- bool created = un_static<T>( constraint_group ,
-                              static_constraint_dual_value ,
-                              read );
+ bool created = un_static< T >( constraint_group ,
+                                static_constraint_dual_value ,
+                                read );
  if( created )
-  return true;
+  return( true );
  else if constexpr( sizeof...(Rest) != 0 )
-  return try_un_static<Rest...>( constraint_group ,
-                                 static_constraint_dual_value ,
-                                 read );
- return false;
+  return( try_un_static< Rest... >( constraint_group ,
+                                    static_constraint_dual_value ,
+                                    read ) );
+ return( false );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -337,20 +338,20 @@ void RowConstraintSolution::apply_static( const Block * const block ,
  auto & constraint_groups = block->get_static_constraints();
 
  if( constraint_groups.size() != static_constraint_dual_values.size() )
-  throw std::logic_error
+  throw( std::logic_error
    ( "RowConstraintSolution::apply_static: number of static "
      "Constraint groups of this RowConstraintSolution ("
      + std::to_string( static_constraint_dual_values.size() )
      + ") is different from that of the Block ("
-     + std::to_string( constraint_groups.size() ) + ")" );
+     + std::to_string( constraint_groups.size() ) + ")" ) );
 
  for( Vec_any::size_type i = 0; i < static_constraint_dual_values.size();
       ++i ) {
 
   if( ! try_un_static<RowConstraint_Derived_Classes>
       ( constraint_groups[ i ] , static_constraint_dual_values[ i ] , read ) )
-   throw std::logic_error( "RowConstraintSolution::apply_static: "
-                           "invalid types" );
+   throw( std::logic_error( "RowConstraintSolution::apply_static: "
+                            "invalid types" ) );
  }
 }
 
@@ -410,8 +411,8 @@ bool un_dynamic( const boost::any & constraint_group ,
               *i2 = ( *i1 )->get_dual();
             };
 
-  return un_dynamic<T , decltype( f1 ) , decltype( f2 )>
-   ( constraint_group , dynamic_constraint_dual_value , f1 , f2 );
+  return( un_dynamic< T , decltype( f1 ) , decltype( f2 ) >
+   ( constraint_group , dynamic_constraint_dual_value , f1 , f2 ) );
  }
 
  else {
@@ -452,8 +453,8 @@ bool un_dynamic( const boost::any & constraint_group ,
 
             };
 
-  return un_dynamic<T , decltype( f1 ) , decltype( f2 )>
-   ( constraint_group , dynamic_constraint_dual_value , f1 , f2 );
+  return( un_dynamic< T , decltype( f1 ) , decltype( f2 ) >
+   ( constraint_group , dynamic_constraint_dual_value , f1 , f2 ) );
  }
 }
 
@@ -469,12 +470,12 @@ bool try_un_dynamic( const boost::any & constraint_group ,
                                dynamic_constraint_dual_value ,
                                read , default_dual_value );
  if( created )
-  return true;
+  return( true );
  else if constexpr( sizeof...(Rest) != 0 )
-  return try_un_dynamic<Rest...>( constraint_group ,
-                                  dynamic_constraint_dual_value ,
-                                  read , default_dual_value );
- return false;
+  return( try_un_dynamic< Rest... >( constraint_group ,
+                                     dynamic_constraint_dual_value ,
+                                     read , default_dual_value ) );
+ return( false );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -486,12 +487,12 @@ void RowConstraintSolution::apply_dynamic
  auto & constraint_groups = block->get_dynamic_constraints();
 
  if( constraint_groups.size() != dynamic_constraint_dual_values.size() )
-  throw std::logic_error
+  throw( std::logic_error
    ( "RowConstraintSolution::apply_dynamic(): number of dynamic Constraint "
      "groups of this RowConstraintSolution (" +
      std::to_string( dynamic_constraint_dual_values.size() ) +
      ") is different from that of the Block (" +
-     std::to_string( constraint_groups.size() ) + ")" );
+     std::to_string( constraint_groups.size() ) + ")" ) );
 
  for( Vec_any::size_type i = 0; i < dynamic_constraint_dual_values.size();
       ++i ) {
@@ -499,8 +500,8 @@ void RowConstraintSolution::apply_dynamic
   if( ! try_un_dynamic<RowConstraint_Derived_Classes>
       ( constraint_groups[ i ] , dynamic_constraint_dual_values[ i ] ,
         read , default_dual_value ) )
-   throw std::logic_error( "RowConstraintSolution::apply_dynamic: "
-                           "invalid types" );
+   throw( std::logic_error( "RowConstraintSolution::apply_dynamic: "
+                            "invalid types" ) );
  }
 }
 
@@ -537,12 +538,12 @@ void RowConstraintSolution::read( const Block * const block ) {
  auto & sub_blocks = block->get_nested_Blocks();
 
  if( sub_blocks.size() != nested_solutions.size() )
-  throw std::logic_error( "RowConstraintSolution::read(): "
-                          "number of nested Blocks (" +
-                          std::to_string( sub_blocks.size() ) +
-                          ") is different from the "
-                          "number of nested Solutions (" +
-                          std::to_string( nested_solutions.size() ) + ")" );
+  throw( std::logic_error( "RowConstraintSolution::read(): "
+                           "number of nested Blocks (" +
+                           std::to_string( sub_blocks.size() ) +
+                           ") is different from the "
+                           "number of nested Solutions (" +
+                           std::to_string( nested_solutions.size() ) + ")" ) );
 
  auto sub_solution_iterator = nested_solutions.begin();
  for( auto & sub_block : sub_blocks ) {
@@ -564,13 +565,13 @@ void RowConstraintSolution::write( Block * const block ) {
  auto & sub_blocks = block->get_nested_Blocks();
 
  if( sub_blocks.size() != nested_solutions.size() )
-  throw std::logic_error( "RowConstraintSolution::read(): "
-                          "number of nested Blocks ("  +
-                          std::to_string( sub_blocks.size() ) +
-                          ") is different from the "
-                          "number of nested Solutions (" +
-                          std::to_string( nested_solutions.size() ) +
-                          ")" );
+  throw( std::logic_error( "RowConstraintSolution::read(): "
+                           "number of nested Blocks (" +
+                           std::to_string( sub_blocks.size() ) +
+                           ") is different from the "
+                           "number of nested Solutions (" +
+                           std::to_string( nested_solutions.size() ) +
+                           ")" ) );
 
  auto sub_solution_iterator = nested_solutions.begin();
  for( auto & sub_block : sub_blocks ) {
@@ -598,8 +599,8 @@ void RowConstraintSolution::sum( const Solution * solution,
   dynamic_cast< const RowConstraintSolution * >( solution );
 
  if( ! other_solution )
-  throw std::invalid_argument( "RowConstraintSolution::sum: given Solution "
-                               "must be a RowConstraintSolution" );
+  throw( std::invalid_argument( "RowConstraintSolution::sum: given Solution "
+                                "must be a RowConstraintSolution" ) );
 
  if( empty() ) {
   scale( other_solution , multiplier );
@@ -609,13 +610,13 @@ void RowConstraintSolution::sum( const Solution * solution,
  if( this->static_constraint_dual_values.size() !=
      other_solution->static_constraint_dual_values.size() )
 
-  throw std::logic_error
+  throw( std::logic_error
    ( "RowConstraintSolution::sum() "
      "number of constraint groups of this Solution (" +
      std::to_string( this->static_constraint_dual_values.size() ) +
      ") is different from the number of constraint groups (" +
      std::to_string( other_solution->static_constraint_dual_values.size() ) +
-     ") of the given Solution" );
+     ") of the given Solution" ) );
 
  // Sum the values of the static Constraints
 
@@ -629,12 +630,12 @@ void RowConstraintSolution::sum( const Solution * solution,
       } ,
         un_any_type<double>() , un_any_type<double>() ) )
 
-   throw std::logic_error
+   throw( std::logic_error
     ( "RowConstraintSolution::sum: invalid or non-conforming "
       "static constraint group types: " +
       std::string( static_constraint_dual_values[ i ].type().name() )
       + " and " +
-      other_solution->static_constraint_dual_values[ i ].type().name() );
+      other_solution->static_constraint_dual_values[ i ].type().name() ) );
 
  // Sum the values of the dynamic Constraints
 
@@ -664,25 +665,25 @@ void RowConstraintSolution::sum( const Solution * solution,
         un_any_type<std::vector<double>>() ,
         un_any_type<std::vector<double>>() ) )
 
-   throw std::logic_error
+   throw( std::logic_error
     ( "RowConstraintSolution::sum(): invalid or non-conforming dynamic "
       "constraint group types: " +
       std::string( this->dynamic_constraint_dual_values[ i ].type().name() ) +
       " and " +
-      other_solution->dynamic_constraint_dual_values[ i ].type().name() );
+      other_solution->dynamic_constraint_dual_values[ i ].type().name() ) );
 
  // Sum the solutions of the nested Blocks
 
  if( this->nested_solutions.size() != other_solution->nested_solutions.size() )
 
-  throw std::logic_error( "RowConstraintSolution::sum(): "
-                          "number of nested Solutions (" +
-                          std::to_string( this->nested_solutions.size() ) +
-                          ") of this Solution is different from the "
-                          "number of nested Solutions (" +
-                          std::to_string( other_solution->
-                                          nested_solutions.size() ) +
-                          ") of the given Solution" );
+  throw( std::logic_error( "RowConstraintSolution::sum(): "
+                           "number of nested Solutions (" +
+                           std::to_string( this->nested_solutions.size() ) +
+                           ") of this Solution is different from the "
+                           "number of nested Solutions (" +
+                           std::to_string( other_solution->
+                            nested_solutions.size() ) +
+                           ") of the given Solution" ) );
 
  auto i1 = this->nested_solutions.begin();
  auto i2 = other_solution->nested_solutions.begin();
@@ -696,7 +697,7 @@ void RowConstraintSolution::sum( const Solution * solution,
 RowConstraintSolution * RowConstraintSolution::scale( double factor ) const {
  auto scaled_solution = new RowConstraintSolution();
  scaled_solution->scale( this , factor );
- return scaled_solution;
+ return( scaled_solution );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -707,7 +708,7 @@ RowConstraintSolution * RowConstraintSolution::clone( bool empty ) const {
  if( ! empty )
   cloned_solution->scale( this , 1.0 );
 
- return cloned_solution;
+ return( cloned_solution );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -733,12 +734,12 @@ void RowConstraintSolution::scale( const RowConstraintSolution * const solution 
         } ,
         true ) )
 
-   throw std::logic_error
+   throw( std::logic_error
     ( "RowConstraintSolution::sum(): invalid or "
       "non-conforming static constraint group types: " +
       std::string( solution->static_constraint_dual_values[ i ].type().name() )
       + " and " +
-      std::string( this->static_constraint_dual_values[ i ].type().name() ) );
+      std::string( this->static_constraint_dual_values[ i ].type().name() ) ) );
 
  // Scale dynamic constraint values
 
@@ -760,12 +761,13 @@ void RowConstraintSolution::scale( const RowConstraintSolution * const solution 
           scaled_values.push_back( factor * value );
         } ) )
 
-   throw std::logic_error
+   throw( std::logic_error
     ( "RowConstraintSolution::sum(): invalid or "
       "non-conforming dynamic constraint group types: " +
       std::string( solution->dynamic_constraint_dual_values[ i ].type().name() )
       + " and " +
-      std::string( this->dynamic_constraint_dual_values[ i ].type().name() ) );
+      std::string( this->dynamic_constraint_dual_values[ i ].type().name() )
+    ) );
 
  // Scale the solutions of the nested Blocks
 

@@ -1584,7 +1584,7 @@ class FunctionModVarsSbst : public FunctionModVars {
  #ifndef NDEBUG
   for( Index i = 1 ; i < v_subset.size() ; ++i )
    if( v_subset[ i - 1 ] >= v_subset[ i ] )
-    throw std::invalid_argument( "unordered or repeated index in subset" );
+    throw( std::invalid_argument( "unordered or repeated index in subset" ) );
  #endif
  }
 

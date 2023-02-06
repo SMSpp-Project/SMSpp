@@ -144,7 +144,7 @@ ComputeConfig * ThinComputeInterface::get_ComputeConfig(
 				       bool all, ComputeConfig * ocfg ) const
 {
  ComputeConfig * ccfg = ocfg ? ocfg : new ComputeConfig;
- ccfg->f_diff = !all;
+ ccfg->f_diff = ! all;
  if( all ) {
   ccfg->int_pars.resize( get_num_int_par() );
   for( int i = 0; i < get_num_int_par(); ++i ) {

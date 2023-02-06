@@ -957,7 +957,7 @@ class OCRBlockConfig : public BlockConfig ,
   *        be deleted. */
 
  void apply( Block * block, bool deleteold = true ) override {
-  if( !block ) return;
+  if( ! block ) return;
   BlockConfig::apply( block, deleteold );
   OHandler::apply( block, deleteold, f_diff );
   CHandler::apply( block, deleteold, f_diff );
@@ -1783,7 +1783,7 @@ class OCBlockConfig : public BlockConfig ,
   *        be deleted. */
 
  void apply( Block * block , bool deleteold = true ) override {
-  if( !block ) return;
+  if( ! block ) return;
   BlockConfig::apply( block, deleteold );
   OHandler::apply( block, deleteold, f_diff );
   CHandler::apply( block, deleteold, f_diff );

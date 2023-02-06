@@ -143,7 +143,7 @@ void FRowConstraint::remove_variable( Index i , ModParam issueMod )
   * happening. If there is no real reason to have the Modification issued,
   * it will instruct the Function not to and do the unregistering herein. */
 
- if( !f_function )
+ if( ! f_function )
   return;
 
  if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )

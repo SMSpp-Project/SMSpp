@@ -237,15 +237,15 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
   -> bool {
   if( auto tc = dynamic_cast< SimpleConfiguration< double > * >( c ) ) {
    eps = tc->f_value;
-   return true;
+   return( true );
    }
   if( auto tc = dynamic_cast< SimpleConfiguration<
       std::pair< double , int > > * >( c ) ) {
    eps = tc->f_value.first;
    rel_viol = tc->f_value.second;
-   return true;
+   return( true );
    }
-  return false;
+  return( false );
   };
 
  if( ( ! extract_parameters( fsbc ) ) && f_BlockConfig )
@@ -879,7 +879,7 @@ void AbstractBlock::print( std::ostream & output , char vlvl ) const
    }
 
   // the Objective of the Block - - - - - - - - - - - - - - - - - - - - - - -
-  if( !is_Objective_reserved() )
+  if( ! is_Objective_reserved() )
    output << "Objective:" << *get_objective() << std::endl;
 
   // the inner Blocks - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -972,7 +972,7 @@ void AbstractBlock::read_mps( std::istream & file )
  // Read NAME
  file >> word;
  if( word != "NAME" ) {
-  throw std::invalid_argument( "Invalid syntax in MPS file" );
+  throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
  }
  file >> word;
  if( word != "OBJSENSE" ) {
@@ -989,7 +989,7 @@ void AbstractBlock::read_mps( std::istream & file )
   } else if( word == "MIN" || word == "MINIMIZE" ) {
    of->set_sense( Objective::eMin, eNoMod );
   } else {
-   throw std::invalid_argument( "Invalid syntax in MPS file" );
+   throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
   }
   file >> word;
  } else {
@@ -1009,7 +1009,7 @@ void AbstractBlock::read_mps( std::istream & file )
 
  // Read ROWS
  if( word != "ROWS" ) {
-  throw std::invalid_argument( "Invalid syntax in MPS file" );
+  throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
  }
  file.ignore( max, '\n' );
  auto pos = file.tellg(); // Save it for later
@@ -1021,14 +1021,14 @@ void AbstractBlock::read_mps( std::istream & file )
   } else if( word == "N" ) {
    file.ignore( max, '\n' ); // Skip row name for now
   } else {
-   throw std::invalid_argument( "Invalid syntax in MPS file" );
+   throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
   }
  }
 
  // Read COLUMNS
  file >> word;
  if( word != "COLUMNS" ) {
-  throw std::invalid_argument( "Invalid syntax in MPS file" );
+  throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
  }
  file.ignore( max, '\n' );
  std::string tmp;
@@ -1099,7 +1099,7 @@ void AbstractBlock::read_mps( std::istream & file )
    // FIXME: Other N rows are ignored
    file.ignore( max, '\n' );
   } else {
-   throw std::invalid_argument( "Invalid syntax in MPS file" );
+   throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
   }
  }
 
@@ -1125,7 +1125,7 @@ void AbstractBlock::read_mps( std::istream & file )
    } else if( value == "\'INTEND\'" ) {
     marker = false;
    } else {
-    throw std::invalid_argument( "Invalid syntax in MPS file" );
+    throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
    }
    file.ignore( max, '\n' );
    continue;
@@ -1151,7 +1151,7 @@ void AbstractBlock::read_mps( std::istream & file )
     auto j = std::distance( row_names.begin(), it );
     f = static_cast<LinearFunction *>(( *rows )[ j ].get_function());
    } else {
-    throw std::invalid_argument( "Invalid syntax in MPS file" );
+    throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
    }
   }
   f->add_variable( v, dbl_val( value ) );
@@ -1170,7 +1170,7 @@ void AbstractBlock::read_mps( std::istream & file )
      auto j = std::distance( row_names.begin(), it );
      f = static_cast<LinearFunction *>(( *rows )[ j ].get_function());
     } else {
-     throw std::invalid_argument( "Invalid syntax in MPS file" );
+     throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
     }
    }
    f->add_variable( v, dbl_val( value ) );
@@ -1185,7 +1185,7 @@ void AbstractBlock::read_mps( std::istream & file )
  // Read RHS
  file >> word;
  if( word != "RHS" ) {
-  throw std::invalid_argument( "Invalid syntax in MPS file" );
+  throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
  }
  file.ignore( max, '\n' );
  while( file.peek() == file.widen( ' ' ) ) {
@@ -1195,7 +1195,7 @@ void AbstractBlock::read_mps( std::istream & file )
   if( rhs_name.empty() ) {
    rhs_name = word;
   } else if( word != rhs_name ) {
-   throw std::invalid_argument( "Only one RHS vector is supported" );
+   throw( std::invalid_argument( "Only one RHS vector is supported" ) );
   }
 
   std::string row;
@@ -1209,7 +1209,7 @@ void AbstractBlock::read_mps( std::istream & file )
    auto j = std::distance( row_names.begin(), it );
    rhs[ j ] = dbl_val( value );
   } else {
-   throw std::invalid_argument( "Invalid syntax in MPS file" );
+   throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
   }
 
   // Optional second name/value pair
@@ -1221,7 +1221,7 @@ void AbstractBlock::read_mps( std::istream & file )
     auto j = std::distance( row_names.begin(), it );
     rhs[ j ] = dbl_val( value );
    } else {
-    throw std::invalid_argument( "Invalid syntax in MPS file" );
+    throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
    }
   }
   file.ignore( max, '\n' );
@@ -1238,7 +1238,7 @@ void AbstractBlock::read_mps( std::istream & file )
    if( rng_name.empty() ) {
     rng_name = word;
    } else if( word != rng_name ) {
-    throw std::invalid_argument( "Only one RANGE vector is supported" );
+    throw( std::invalid_argument( "Only one RANGE vector is supported" ) );
    }
 
    std::string row;
@@ -1252,7 +1252,7 @@ void AbstractBlock::read_mps( std::istream & file )
     auto j = std::distance( row_names.begin(), it );
     rng[ j ] = dbl_val( value );
    } else {
-    throw std::invalid_argument( "Invalid syntax in MPS file" );
+    throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
    }
 
    // Optional second name/value pair
@@ -1264,7 +1264,7 @@ void AbstractBlock::read_mps( std::istream & file )
      auto j = std::distance( row_names.begin(), it );
      rng[ j ] = dbl_val( value );
     } else {
-     throw std::invalid_argument( "Invalid syntax in MPS file" );
+     throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
     }
    }
    file.ignore( max, '\n' );
@@ -1330,7 +1330,7 @@ void AbstractBlock::read_mps( std::istream & file )
    if( bnd_name.empty() ) {
     bnd_name = word;
    } else if( word != bnd_name ) {
-    throw std::invalid_argument( "Only one BOUNDS vector is supported" );
+    throw( std::invalid_argument( "Only one BOUNDS vector is supported" ) );
    }
 
    std::string col;
@@ -1373,10 +1373,10 @@ void AbstractBlock::read_mps( std::istream & file )
      c.set_type( ColVariable::kInteger, eNoMod );
      b.set_rhs( dbl_val( value ), eNoMod );
     } else {
-     throw std::invalid_argument( "Invalid syntax in MPS file" );
+     throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
     }
    } else {
-    throw std::invalid_argument( "Invalid syntax in MPS file" );
+    throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
    }
    file.ignore( max, '\n' );
   }

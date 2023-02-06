@@ -39,7 +39,7 @@ void Objective::set_sense( int new_sense, c_ModParam issueMod ) {
 
  f_sense = new_sense;        // set the new sense
 
- if( ( !f_Block ) || ( !f_Block->issue_mod( issueMod ) ) )
+ if( ( ! f_Block ) || ( ! f_Block->issue_mod( issueMod ) ) )
   return;
 
  f_Block->add_Modification(

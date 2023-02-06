@@ -932,7 +932,7 @@ class ThinVarDepInterface {
    return;                           // silently (and cowardly) return
 
   if( range.second >= get_num_active_var() )
-   throw std::invalid_argument( "remove_variables: invalid range" );
+   throw( std::invalid_argument( "remove_variables: invalid range" ) );
 
   // note: the removal loop goes backward, since eliminating a variable
   //       changes the "names" of all the variable with larger name

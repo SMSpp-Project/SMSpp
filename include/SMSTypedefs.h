@@ -1990,7 +1990,7 @@ deserialize( const netCDF::NcGroup & group , T & data ,
              const std::string & name = "value" , bool optional = true ) {
  auto ncVar = group.getVar( name );
  if( ncVar.isNull() ) {
-  if( !optional )
+  if( ! optional )
    throw( std::invalid_argument( "deserialize(): " + name +
                                  " not present in group " + group.getName()
                                  ) );
@@ -2288,7 +2288,7 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
   }
 
  auto dc = ncVar.getDimCount();
- if( ( ( dc == 0 ) && ( !allow_scalar_var ) ) || ( dc > 1 ) )
+ if( ( ( dc == 0 ) && ( ! allow_scalar_var ) ) || ( dc > 1 ) )
   throw( std::invalid_argument( "deserialize(): netCDF variable " +
                                  name + " of group " + group.getName() +
                                  " has " +
@@ -2530,7 +2530,7 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
   }
 
  std::vector< T2 > s;
- if( !deserialize( group , name + "_s" , size , s , optional ) ) {
+ if( ! deserialize( group , name + "_s" , size , s , optional ) ) {
   data.clear();
   return( false );
   }

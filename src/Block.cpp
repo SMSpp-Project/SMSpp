@@ -490,7 +490,7 @@ void Block::set_BlockConfig( BlockConfig * newBC, bool deleteold )
   }
 
  if( newBC->is_diff() ) {  // "differential mode"
-  if( !f_BlockConfig )
+  if( ! f_BlockConfig )
    f_BlockConfig = newBC;
   else {
    newBC->move_non_null_configuration_to( f_BlockConfig, deleteold );

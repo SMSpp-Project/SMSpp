@@ -169,7 +169,7 @@ public:
   * @return the sense of the Objective of this BendersBlock. */
 
  int get_objective_sense() const override {
-  return objective.get_sense();
+  return( objective.get_sense() );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -180,7 +180,7 @@ public:
   * @return The number of Variable of this BendersBlock. */
 
  Index get_number_variables() const {
-  return v_variables.size();
+  return( v_variables.size() );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -193,7 +193,7 @@ public:
   *         this BendersBlock. */
 
  const std::vector< ColVariable > & get_variables() const {
-  return v_variables;
+  return( v_variables );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -210,7 +210,7 @@ public:
   variable_values.reserve( v_variables.size() );
   for( const auto & variable : v_variables )
    variable_values.push_back( variable.get_value() );
-  return variable_values;
+  return( variable_values );
  }
 
 /** @} ---------------------------------------------------------------------*/

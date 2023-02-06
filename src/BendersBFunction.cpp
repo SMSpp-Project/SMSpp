@@ -243,14 +243,14 @@ void BendersBFunction::deserialize( const netCDF::NcGroup & group ,
 
  auto inner_block_group = group.getGroup( BLOCK_NAME );
  if( inner_block_group.isNull() )
-  throw std::logic_error( "BendersBFunction::deserialize: the '" +
-                          BLOCK_NAME + "' group must be present." );
+  throw( std::logic_error( "BendersBFunction::deserialize: the '" +
+                           BLOCK_NAME + "' group must be present." ) );
 
  auto inner_block = new_Block( inner_block_group , this );
  if( ! inner_block )
-  throw std::logic_error( "BendersBFunction::deserialize: the '" +
-                          BLOCK_NAME + "' group is present "
-                          "but its description is incomplete." );
+  throw( std::logic_error( "BendersBFunction::deserialize: the '" +
+                           BLOCK_NAME + "' group is present but its " +
+                           "description is incomplete." ) );
 
  set_inner_block( inner_block );
 
@@ -358,7 +358,7 @@ void BendersBFunction::set_par( const idx_type par , const int value ) {
 /*--------------------------------------------------------------------------*/
 
 State * BendersBFunction::get_State( void ) const {
- return new BendersBFunctionState( this );
+ return( new BendersBFunctionState( this ) );
 }  // end( BendersBFunction::get_State )
 
 /*--------------------------------------------------------------------------*/
@@ -1132,7 +1132,7 @@ void BendersBFunction::add_rows( MultiVector && nA , c_RealVector & nb ,
  auto mod_type = C05FunctionMod::AllLinearizationChanged;
  if( std::all_of( nb.cbegin(), nb.cend(),
                   []( FunctionValue i ) {
-                   return i == FunctionValue( 0 ); } ) ) {
+                   return( i == FunctionValue( 0 ) ); } ) ) {
   // The new part nb of b is zero. So, the linearization constants (alpha) do
   // not change.
   mod_type = C05FunctionMod::AllEntriesChanged;
@@ -1217,7 +1217,7 @@ void BendersBFunction::delete_rows( Range range , ModParam issueMod ) {
  auto mod_type = C05FunctionMod::AllLinearizationChanged;
  if( std::all_of( v_b.cbegin() + range.first , v_b.cbegin() + range.second ,
                   []( FunctionValue i ) {
-                   return i == FunctionValue( 0 ); } ) ) {
+                   return( i == FunctionValue( 0 ) ); } ) ) {
   // The entries of b to be deleted are all zero. So, the linearization
   // constants (alpha) do not change.
   mod_type = C05FunctionMod::AllEntriesChanged;
@@ -1903,7 +1903,7 @@ Function::FunctionValue BendersBFunction::get_constant_term( void ) const
 /*--------------------------------------------------------------------------*/
 
 bool BendersBFunction::is_convex( void ) const {
- if( v_Block.empty() ) return false;
+ if( v_Block.empty() ) return( false );
  return( v_Block.front()->get_objective_sense() == Objective::eMin );
 }
 
@@ -1911,7 +1911,7 @@ bool BendersBFunction::is_convex( void ) const {
 
 bool BendersBFunction::is_concave( void ) const {
  if( v_Block.empty() )
-  return false;
+  return( false );
  return( v_Block.front()->get_objective_sense() == Objective::eMax );
 }
 
@@ -1922,15 +1922,15 @@ bool BendersBFunction::has_linearization( const bool diagonal ) {
  auto solver = get_solver<CDASolver>();
 
  if( ! solver )
-  return false;
+  return( false );
 
  if( diagonal ) {
   f_diagonal_linearization_required = true;
-  return solver->has_dual_solution();
+  return( solver->has_dual_solution() );
  }
  else {
   f_diagonal_linearization_required = false;
-  return solver->has_dual_direction();
+  return( solver->has_dual_direction() );
  }
 
 }  // end( BendersBFunction::has_linearization )
@@ -1940,11 +1940,11 @@ bool BendersBFunction::has_linearization( const bool diagonal ) {
 bool BendersBFunction::compute_new_linearization( const bool diagonal ) {
  auto solver = get_solver<CDASolver>();
  if( ! solver )
-  return false;
+  return( false );
  if( diagonal )
-  return solver->new_dual_solution();
+  return( solver->new_dual_solution() );
  else
-  return solver->new_dual_direction();
+  return( solver->new_dual_direction() );
 }  // end ( BendersBFunction::compute_new_linearization )
 
 /*--------------------------------------------------------------------------*/
@@ -1963,8 +1963,8 @@ Function::FunctionValue BendersBFunction::get_value( void ) const {
                            "attached to it." ) );
 
  if( v_Block.front()->get_objective_sense() == Objective::eMin )
-  return solver->get_ub();
- return solver->get_lb();
+  return( solver->get_ub() );
+ return( solver->get_lb() );
 
 } // end ( BendersBFunction::get_value )
 
@@ -2102,11 +2102,11 @@ void BendersBFunction::write_dual_solution( Index name ) {
 
 bool ignore_constraint( RowConstraint * constraint ) {
  if( constraint->is_relaxed() )
-  return true;
+  return( true );
  if( constraint->get_lhs() == - Inf<RowConstraint::RHSValue>() &&
      constraint->get_rhs() ==   Inf<RowConstraint::RHSValue>() )
-  return true;
- return false;
+  return( true );
+ return( false );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -2327,7 +2327,7 @@ BendersBFunction::compute_linearization_constant_from_bound() {
  for( Index i = 0 ; i < v_x.size() ; ++i )
   linearization_constant -= g[ i ] * v_x[ i ]->get_value();
 
- return linearization_constant;
+ return( linearization_constant );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -2446,7 +2446,7 @@ Function::FunctionValue BendersBFunction::compute_linearization_constant() {
     || un_any_const_dynamic( i , update_alpha , un_any_type< NPConstraint >() );
  }
 
- return alpha;
+ return( alpha );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -2491,18 +2491,18 @@ Function::FunctionValue BendersBFunction::get_linearization_constant(
   if( f_diagonal_linearization_required ) {
    if( is_linearization_constant_computed_from_bound() ) {
     // Compute the linearization constant from the linearization coefficients
-    return compute_linearization_constant_from_bound();
+    return( compute_linearization_constant_from_bound() );
    }
    else {
     // Compute the linearization constant from the dual solution
     solver->get_dual_solution( f_get_dual_solution_config );
-    return compute_linearization_constant();
+    return( compute_linearization_constant() );
    }
   }
   else {
    // "vertical" linearization
    solver->get_dual_direction( f_get_dual_direction_config );
-   return compute_linearization_constant();
+   return( compute_linearization_constant() );
   }
  }
  else {
@@ -2513,7 +2513,7 @@ Function::FunctionValue BendersBFunction::get_linearization_constant(
    constant = compute_linearization_constant();
    global_pool.set_linearization_constant( constant , name );
   }
-  return constant;
+  return( constant );
  }
 }  // end( BendersBFunction::get_linearization_constant )
 
@@ -2529,7 +2529,7 @@ ComputeConfig * BendersBFunction::get_ComputeConfig
  if( ! ccfg ) {
   default_config = true;
   ccfg = new ComputeConfig();
-  ccfg->f_diff = !all;
+  ccfg->f_diff = ! all;
  }
 
  auto extra_config = dynamic_cast< SimpleConfiguration<
@@ -2640,7 +2640,7 @@ ComputeConfig * BendersBFunction::get_ComputeConfig
   ccfg = nullptr;
  }
 
- return ccfg;
+ return( ccfg );
 }  // end( BendersBFunction::get_ComputeConfig )
 
 /*--------------------------------------------------------------------------*/
@@ -2657,7 +2657,7 @@ void BendersBFunction::update_constraints() {
   auto value = std::inner_product( v_x.begin() , v_x.end() , v_A[ i ].begin() ,
                                    v_b[ i ] , std::plus<>() ,
                                    []( ColVariable * var , FunctionValue val ) {
-                                    return var->get_value() * val;
+                                    return( var->get_value() * val );
                                    } );
   if( v_sides[ i ] == eLHS )
    get_constraint( i )->set_lhs( value );
@@ -2679,15 +2679,15 @@ BendersBFunction::get_behaviour( Objective::of_type sense ,
 
  if( sense == Objective::eMin ) { // minimization problem
   if( added_or_enforced_constraint ) // function value increases
-   return function_value_behaviour::increase;
+   return( function_value_behaviour::increase );
   else // constraint was removed or relaxed: function value decreases
-   return function_value_behaviour::decrease;
+   return( function_value_behaviour::decrease );
  }
  else { // maximization problem
   if( added_or_enforced_constraint ) // function value increases
-   return function_value_behaviour::decrease;
+   return( function_value_behaviour::decrease );
   else // constraint was removed or relaxed: function value increases
-   return function_value_behaviour::increase;
+   return( function_value_behaviour::increase );
  }
 }  // end( BendersBFunction::get_behaviour )
 
@@ -2731,7 +2731,7 @@ BendersBFunction::get_behaviour( std::shared_ptr<BlockModAD> mod ) {
     behaviour = new_behaviour;
   }
  }
- return behaviour;
+ return( behaviour );
 }  // end( BendersBFunction::get_behaviour )
 
 /*--------------------------------------------------------------------------*/
@@ -2741,7 +2741,7 @@ BendersBFunction::get_behaviour( std::shared_ptr<ConstraintMod> mod ) {
 
  if( mod->type() != ConstraintMod::eRelaxConst &&
      mod->type() != ConstraintMod::eEnforceConst )
-  return function_value_behaviour::unknown;
+  return( function_value_behaviour::unknown );
 
  retrieve_constraints();
 
@@ -2751,13 +2751,13 @@ BendersBFunction::get_behaviour( std::shared_ptr<ConstraintMod> mod ) {
   /* If the affected Constraint is present in this BendersBFunction, the
    * behaviour is unpredictable. */
   if( modified_constraint == constraint )
-   return function_value_behaviour::unknown;
+   return( function_value_behaviour::unknown );
  }
 
- return get_behaviour
+ return( get_behaviour
   ( Objective::of_type
-    ( modified_constraint->get_Block()->get_objective_sense() ) ,
-    ( mod->type() == ConstraintMod::eEnforceConst ) );
+     ( modified_constraint->get_Block()->get_objective_sense() ) ,
+    ( mod->type() == ConstraintMod::eEnforceConst ) ) );
 }  // end( BendersBFunction::get_behaviour )
 
 /*--------------------------------------------------------------------------*/
@@ -2778,8 +2778,8 @@ bool BendersBFunction::has_constraint( Constraint * constraint ) {
  retrieve_constraints();
  if( std::find( std::begin( v_constraints ) , std::end( v_constraints ) ,
                 constraint ) != std::end( v_constraints ) )
-  return true;
- return false;
+  return( true );
+ return( false );
 }  // end( BendersBFunction::has_constraint )
 
 /*--------------------------------------------------------------------------*/
@@ -2788,7 +2788,7 @@ template< class T >
 bool BendersBFunction::is_A_sparse( SparseMatrix<T> & matrix ) const {
  matrix.clear();
  if( v_A.empty() ) {
-  return true;
+  return( true );
  }
  Index nnz = 0;
  auto max_nnz_for_sparsity = ( v_A.size() * v_A[ 0 ].size() ) / 4;
@@ -2800,12 +2800,12 @@ bool BendersBFunction::is_A_sparse( SparseMatrix<T> & matrix ) const {
     matrix.insert( i , j , v_A[ i ][ j ] );
     if( nnz > max_nnz_for_sparsity ) {
      matrix.clear();
-     return false;
+     return( false );
     }
    }
   }
  }
- return true;
+ return( true );
 }  // end( BendersBFunction::is_A_sparse )
 
 /*--------------------------------------------------------------------------*/
@@ -2967,8 +2967,8 @@ void BendersBFunction::GlobalPool::store( FunctionValue linearization_constant ,
 
 bool BendersBFunction::GlobalPool::is_linearization_there( Index name ) const {
  if( name >= size() || std::isnan( linearization_constants[ name ] ) )
-  return false;
- return true;
+  return( false );
+ return( true );
 }  // end( BendersBFunction::GlobalPool::is_linearization_there )
 
 /*--------------------------------------------------------------------------*/
@@ -2976,7 +2976,7 @@ bool BendersBFunction::GlobalPool::is_linearization_there( Index name ) const {
 bool BendersBFunction::GlobalPool::is_linearization_vertical( Index name )
  const {
  if( name >= size() || std::isnan( linearization_constants[ name ] ) )
-  return false;
+  return( false );
  return( ! is_diagonal[ name ] );
 }  // end( BendersBFunction::GlobalPool::is_linearization_vertical )
 

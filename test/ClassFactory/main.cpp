@@ -169,7 +169,7 @@ void test_Block( void ) {
 template<class T = void , class U = void>
 class DummyConfiguration : public Configuration {
  protected:
-  Configuration * clone( void ) const override { return nullptr; }
+  Configuration * clone( void ) const override { return( nullptr ); }
   void load( std::istream &input ) override {};
  private:
   SMSpp_insert_in_factory_h;
@@ -243,7 +243,7 @@ void test_Configuration( void ) {
 template<class T = void , class U = void>
 class DummySolver : public Solver {
  public:
-  int compute( bool ) override { return 0; };
+  int compute( bool ) override { return( 0 ); };
   void get_var_solution( Configuration * ) override {};
  private:
   SMSpp_insert_in_factory_h;
@@ -298,7 +298,7 @@ int main() {
  test_Block();
  test_Configuration();
  test_Solver();
- return 0;
+ return( 0 );
 }
 
 /*--------------------------------------------------------------------------*/

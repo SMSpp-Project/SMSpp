@@ -1822,13 +1822,13 @@ class BendersBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 
  bool is_linearization_there( Index name ) const override final {
-  return global_pool.is_linearization_there( name );
+  return( global_pool.is_linearization_there( name ) );
  }
 
 /*--------------------------------------------------------------------------*/
 
  bool is_linearization_vertical( Index name ) const override final {
-  return global_pool.is_linearization_vertical( name );
+  return( global_pool.is_linearization_vertical( name ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1963,13 +1963,13 @@ class BendersBFunction : public C05Function , public Block {
  template<class T = Solver>
  inline T * get_solver() const {
   if( v_Block.empty() )
-   return nullptr;
+   return( nullptr );
 
   if( v_Block.front()->get_registered_solvers().empty() )
-   return nullptr;
+   return( nullptr );
 
-  return dynamic_cast< T * >
-   ( v_Block.front()->get_registered_solvers().front() );
+  return( dynamic_cast< T * >
+  ( v_Block.front()->get_registered_solvers().front() ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2222,8 +2222,10 @@ class BendersBFunction : public C05Function , public Block {
   /// returns true if and only if this GlobalPool contains no Solution
 
   bool empty() const {
-   return std::all_of( solutions.cbegin() , solutions.cend() ,
-                       []( const auto & solution ) { return ! solution; } );
+   return( std::all_of( solutions.cbegin() , solutions.cend() ,
+                        []( const auto & solution ) {
+                         return( ! solution );
+                        } ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -2271,7 +2273,7 @@ class BendersBFunction : public C05Function , public Block {
 
   Solution * get_solution( Index name ) const {
    if( name < solutions.size() )
-    return solutions[ name ];
+    return( solutions[ name ] );
    throw( std::invalid_argument( "GlobalPool::get_solution: linearization "
                                  "with name " + std::to_string( name ) +
                                  " does not exist." ) );
@@ -2291,7 +2293,7 @@ class BendersBFunction : public C05Function , public Block {
 
   FunctionValue get_linearization_constant( Index name ) const {
    if( name < size() )
-    return linearization_constants[ name ];
+    return( linearization_constants[ name ] );
    throw( std::invalid_argument( "GlobalPool::get_linearization_constant: linea"
                                  "rization with name " + std::to_string( name )
                                  + " does not exist." ) );
@@ -2462,7 +2464,7 @@ class BendersBFunction : public C05Function , public Block {
   }
 
   inline Index get_nnz() const {
-   return column.size();
+   return( column.size() );
   }
 
  private:
@@ -2525,7 +2527,7 @@ class BendersBFunction : public C05Function , public Block {
    throw( std::invalid_argument( "BendersBFunction::get_solver_int_par: the "
                                  "inner Block must have a CDASolver attached "
                                  "to it." ) );
-  return solver->get_int_par( par );
+  return( solver->get_int_par( par ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2543,7 +2545,7 @@ class BendersBFunction : public C05Function , public Block {
    throw( std::invalid_argument( "BendersBFunction::get_solver_dbl_par: the "
                                  "inner Block must have a CDASolver attached "
                                  "to it." ) );
-  return solver->get_dbl_par( par );
+  return( solver->get_dbl_par( par ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -2634,7 +2636,7 @@ class BendersBFunction : public C05Function , public Block {
   */
 
  bool is_linearization_constant_computed_from_bound() const {
-  return LinComp & 1;
+  return( LinComp & 1 );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2648,7 +2650,7 @@ class BendersBFunction : public C05Function , public Block {
   */
 
  bool can_recompute_linearization_constant() const {
-  return LinComp & 2;
+  return( LinComp & 2 );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2662,7 +2664,7 @@ class BendersBFunction : public C05Function , public Block {
   */
 
  bool can_recompute_linearization_coefficients() const {
-  return LinComp & 4;
+  return( LinComp & 4 );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2758,7 +2760,7 @@ class BendersBFunction : public C05Function , public Block {
  RowConstraint * get_constraint( Block::Index index ) {
   retrieve_constraints();
   assert( index < v_constraints.size() );
-  return v_constraints[ index ];
+  return( v_constraints[ index ] );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2769,8 +2771,8 @@ class BendersBFunction : public C05Function , public Block {
   auto it = std::find( std::begin( v_constraints ) , std::end( v_constraints ) ,
                        constraint );
   if( it != std::end( v_constraints ) )
-   return std::distance( std::begin( v_constraints ) , it );
-  return Inf<Index>();
+   return( std::distance( std::begin( v_constraints ) , it ) );
+  return( Inf< Index >() );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2781,8 +2783,8 @@ class BendersBFunction : public C05Function , public Block {
   retrieve_constraints();
   for( Index i = 0 ; i < v_constraints.size() ; ++i )
    if( v_constraints[ i ] == constraint && v_sides[ i ] == side )
-    return i;
-  return Inf<Index>();
+    return( i );
+  return( Inf< Index >() );
  }
 
 /*--------------------------------------------------------------------------*/

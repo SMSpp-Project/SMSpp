@@ -88,7 +88,7 @@ void FRealObjective::remove_variable( Index i, ModParam issueMod ) {
   * happening. If there is no real reason to have the Modification issued,
   * it will instruct the Function not to and do the unregistering herein. */
 
- if( !f_function )
+ if( ! f_function )
   return;
 
  if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
@@ -104,7 +104,7 @@ void FRealObjective::remove_variable( Index i, ModParam issueMod ) {
 /*--------------------------------------------------------------------------*/
 
 void FRealObjective::remove_variables( Range range, ModParam issueMod ) {
- if( !f_function )
+ if( ! f_function )
   return;
 
  if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
@@ -122,7 +122,7 @@ void FRealObjective::remove_variables( Range range, ModParam issueMod ) {
 
 void FRealObjective::remove_variables( Subset && nms, bool ordered,
                                        ModParam issueMod ) {
- if( !f_function )
+ if( ! f_function )
   return;
 
  if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
@@ -167,7 +167,7 @@ void FRealObjective::add_Modification( sp_Mod mod , c_ChnlName chnl ) {
   // FunctionModVars - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   {
    const auto tmod = std::dynamic_pointer_cast< FunctionModVars >( mod );
-   if( !tmod )
+   if( ! tmod )
     return;
 
    if( tmod->added() )

@@ -228,7 +228,7 @@ void LinearFunction::add_variables( v_coeff_pair && vars ,
   added = &v_pairs;
  }
 
- if( ( !f_Observer ) || ( !f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
 
  Vec_p_Var vptr( added->size() );
@@ -252,7 +252,7 @@ void LinearFunction::add_variable( ColVariable * var , Coefficient coeff ,
 
  v_pairs.push_back( std::make_pair( var , coeff ) );
 
- if( ( !f_Observer ) || ( !f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
 
  // a linear function is additive ==> strongly quasi-additive
@@ -278,7 +278,7 @@ void LinearFunction::modify_coefficient( Index i , Coefficient coeff ,
  auto diff = coeff - v_pairs[ i ].second;
  v_pairs[ i ].second = coeff;
 
- if( ( !f_Observer ) || ( !f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return; // no one is there: all done
 
  f_Observer->add_Modification( std::make_shared< C05FunctionModLinRngd >(
@@ -390,7 +390,7 @@ void LinearFunction::remove_variable( Index i , ModParam issueMod ) {
  auto var = ( *itv ).first;
  v_pairs.erase( itv );       // erase it
 
- if( ( !f_Observer ) || ( !f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
 
  // a linear function is additive ==> strongly quasi-additive
@@ -486,7 +486,7 @@ void LinearFunction::remove_variables( Subset && nms , bool ordered ,
  }
 
  // this is not a complete reset
- if( !ordered )
+ if( ! ordered )
   std::sort( nms.begin() , nms.end() );
 
  if( nms.back() >= v_pairs.size() )  // the last name is wrong
