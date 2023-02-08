@@ -43,6 +43,13 @@
 using namespace SMSpp_di_unipi_it;
 
 /*--------------------------------------------------------------------------*/
+/*--------------------------------- TYPES ----------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+using vecsize = std::vector< ColVariable * >::size_type;
+// to avoid pesky warnings about Eigen size being different from std::vector
+
+/*--------------------------------------------------------------------------*/
 /*----------------------------- STATIC MEMBERS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -493,7 +500,7 @@ void PolyhedralFunction::get_linearization_coefficients( SparseVector & g ,
    ai += range.first;  // point to the right place
 
  if( g.nonZeros() == 0 ) {  // g contains no non-zero element
-  if( g.size() < v_x.size() )
+  if( vecsize( g.size() ) < v_x.size() )
    g.resize( v_x.size() );
 
   g.reserve( range.second - range.first );
@@ -508,7 +515,7 @@ void PolyhedralFunction::get_linearization_coefficients( SparseVector & g ,
     g.insert( i ) = *ai;
   }
  else {                     // g contains some non-zero elements
-  if( g.size() != v_x.size() )
+  if( vecsize( g.size() ) != v_x.size() )
    throw( std::invalid_argument(
 	     "get_linearization_coefficients: invalid SparseVector size" ) );
 
@@ -561,7 +568,7 @@ void PolyhedralFunction::get_linearization_coefficients( SparseVector & g ,
  FunctionValue * ai =  get_ai( name );
 
  if( g.nonZeros() == 0 ) {  // g contains no non-zero element
-  if( g.size() < v_x.size() )
+  if( vecsize( g.size() ) < v_x.size() )
    g.resize( v_x.size() );
 
   g.reserve( subset.size() );
@@ -581,7 +588,7 @@ void PolyhedralFunction::get_linearization_coefficients( SparseVector & g ,
    }
   }
  else {                     // g contains some non-zero elements
-  if( g.size() != v_x.size() )
+  if( vecsize( g.size() ) != v_x.size() )
    throw( std::invalid_argument(
 	     "get_linearization_coefficients: invalid SparseVector size" ) );
 
@@ -621,7 +628,7 @@ Function::FunctionValue PolyhedralFunction::get_linearization_constant(
  if( gn < 0 )            // aggregated linearization
   return( v_ab[ - gn - 1 ] );
 
- if( gn <= get_nrows() )  // normal linearization
+ if( Index( gn ) <= get_nrows() )  // normal linearization
   return( v_b[ --gn ] );
 
  // there is no item with such a name, which may mean that it was there
@@ -1246,11 +1253,12 @@ void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
 
   for( Index i = 0 ; i < f_max_glob ; ++i )
    if( v_glob[ i ] < 0 ) {
-    v_glob[ i ] = Inf<int>();
+    v_glob[ i ] = Inf< int >();
     whiche.push_back( i );
     }
    else
-    if( ( v_glob[ i ] > range.first ) && ( v_glob[ i ] <= range.second ) )
+    if( ( v_glob[ i ] > int( range.first ) ) &&
+	( v_glob[ i ] <= int( range.second ) ) )
      which.push_back( i );
 
   update_f_max_glob();
@@ -1265,7 +1273,8 @@ void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
   }
  else  // there are no aggregate linearizations
   for( Index i = 0 ; i < f_max_glob ; ++i )
-   if( ( v_glob[ i ] > range.first ) && ( v_glob[ i ] <= range.second ) )
+   if( ( v_glob[ i ] > int( range.first ) ) &&
+       ( v_glob[ i ] <= int( range.second  ) ) )
     which.push_back( i );
 
  // issue the PolyhedralFunctionModRngd: if which.empty() then no
@@ -1353,7 +1362,7 @@ void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
      {      
       auto it = std::lower_bound( rows.begin() , rows.end() ,
 				  v_glob[ i ] - 1 );
-      if( ( it != rows.end() ) && ( *it == v_glob[ i ] - 1 ) )
+      if( ( it != rows.end() ) && ( *it == Index( v_glob[ i ] - 1 ) ) )
        which.push_back( i );
       }
 
@@ -1375,7 +1384,7 @@ void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
     {
      auto it = std::lower_bound( rows.begin() , rows.end() ,
 				 v_glob[ i ] - 1 );
-     if( ( it != rows.end() ) && ( *it == v_glob[ i ] - 1 ) )
+     if( ( it != rows.end() ) && ( int( *it ) == v_glob[ i ] - 1 ) )
       which.push_back( i );
      }
   }
@@ -1445,7 +1454,7 @@ void PolyhedralFunction::modify_row( Index i , RealVector && Ai ,
     whiche.push_back( j );
     }
    else
-    if( v_glob[ j ] == i + 1 )
+    if( v_glob[ j ] == int( i + 1 ) )
      which.push_back( j );
  
   update_f_max_glob();
@@ -1460,7 +1469,7 @@ void PolyhedralFunction::modify_row( Index i , RealVector && Ai ,
   }
  else {  // there are no aggregate linearizations
   for( Index j = 0 ; j < f_max_glob ; ++j )
-   if( v_glob[ j ] == i + 1 )
+   if( v_glob[ j ] == int( i + 1 ) )
     which.push_back( j );
   }
 
@@ -1556,7 +1565,8 @@ void PolyhedralFunction::modify_constants( c_RealVector & nb , Range range ,
     whiche.push_back( i );
     }
    else
-    if( ( v_glob[ i ] > range.first ) && ( v_glob[ i ] <= range.second ) )
+    if( ( v_glob[ i ] > int( range.first ) ) &&
+	( v_glob[ i ] <= int( range.second ) ) )
      which.push_back( i );
 
   update_f_max_glob();
@@ -1571,7 +1581,8 @@ void PolyhedralFunction::modify_constants( c_RealVector & nb , Range range ,
   }
  else {  // there are no aggregate linearizations
   for( Index i = 0 ; i < f_max_glob ; ++i )
-   if( ( v_glob[ i ] > range.first ) && ( v_glob[ i ] <= range.second ) )
+   if( ( v_glob[ i ] > int( range.first ) ) &&
+       ( v_glob[ i ] <= int( range.second ) ) )
     which.push_back( i );
   }
 
@@ -1677,7 +1688,7 @@ void PolyhedralFunction::modify_constants( c_RealVector & nb ,
      {
       auto it = std::lower_bound( rows.begin() , rows.end() ,
 				  v_glob[ i ] - 1 );
-      if( ( it != rows.end() ) && ( *it == v_glob[ i ] - 1 ) )
+      if( ( it != rows.end() ) && ( int( *it ) == v_glob[ i ] - 1 ) )
        which.push_back( i );
       }
 
@@ -1697,8 +1708,9 @@ void PolyhedralFunction::modify_constants( c_RealVector & nb ,
     if( v_glob[ i ] )  // unless it's the bound
    #endif
     {
-     auto it = std::lower_bound( rows.begin() , rows.end() , v_glob[ i ] - 1 );
-     if( ( it != rows.end() ) && ( *it == v_glob[ i ] - 1 ) )
+     auto it = std::lower_bound( rows.begin() , rows.end() ,
+				 v_glob[ i ] - 1 );
+     if( ( it != rows.end() ) && ( int( *it ) == v_glob[ i ] - 1 ) )
       which.push_back( i );
      }
   }
@@ -1764,11 +1776,11 @@ void PolyhedralFunction::modify_constant( Index i , FunctionValue bi ,
   // now search the changed constant is in the global pool
   for( Index j = 0 ; j < f_max_glob ; ++j )
    if( v_glob[ j ] < 0 ) {
-    v_glob[ j ] = Inf<int>();
+    v_glob[ j ] = Inf< int >();
     whiche.push_back( j );
     }
    else
-    if( v_glob[ j ] == i + 1 )
+    if( v_glob[ j ] == int( i + 1 ) )
      which.push_back( j );
 
   update_f_max_glob();
@@ -1783,7 +1795,7 @@ void PolyhedralFunction::modify_constant( Index i , FunctionValue bi ,
   }
  else {  // there are no aggregate linearizations
   for( Index j = 0 ; j < f_max_glob ; ++j )
-   if( v_glob[ j ] == i + 1 )
+   if( v_glob[ j ] == int( i + 1 ) )
     which.push_back( j );
   }
 
@@ -2064,25 +2076,25 @@ void PolyhedralFunction::delete_rows( Range range , ModParam issueMod )
  // range.second - range.first
  auto delta = range.second - range.first;
  for( Index i = 0 ; i < f_max_glob ; ++i ) {
-  if( v_glob[ i ] == Inf<int>() )    // non-existent
+  if( v_glob[ i ] == Inf< int >() )  // non-existent
    continue;
   if( v_glob[ i ] < 0 ) {             // an aggregated one
-   v_glob[ i ] = Inf<int>();          // kill it for sure
+   v_glob[ i ] = Inf< int >();        // kill it for sure
    which.push_back( i );
    }
   else
-   if( v_glob[ i ] > range.second )  // > than any of the deleted
-    v_glob[ i ] -= delta;            // decreased by # of deleted
+   if( v_glob[ i ] > int( range.second ) )  // > than any of the deleted
+    v_glob[ i ] -= delta;                   // decreased by # of deleted
    else
-    if( v_glob[ i ] > range.first ) {  // one of the deleted
-     v_glob[ i ] = Inf<int>();         // kill it
+    if( v_glob[ i ] > int( range.first ) ) {  // one of the deleted
+     v_glob[ i ] = Inf< int >();              // kill it
      which.push_back( i );
      }
   }
 
  update_f_max_glob();
 
- f_Lipschitz_constant = - Inf<FunctionValue>();  // == unknown
+ f_Lipschitz_constant = - Inf< FunctionValue >();  // == unknown
  set_f_uncomputed();      // the function value has changed
  if( f_loc_pool_sz > 1 )  // resize v_ord
   reset_v_ord();
@@ -2166,21 +2178,21 @@ void PolyhedralFunction::delete_rows( Subset && rows , bool ordered ,
  // we delete it. Otherwise, say that glob[ i ] - 1 == 6 and we find the
  // position 2: it means that glob[ i ] must be decreased by 2
  for( Index i = 0 ; i < f_max_glob ; ++i ) {
-  if( v_glob[ i ] == Inf<int>() )       // non-existent
+  if( v_glob[ i ] == Inf< int >() )     // non-existent
    continue;
   if( v_glob[ i ] < 0 ) {                // an aggregated one
-   v_glob[ i ] = Inf<int>();             // kill it for sure
+   v_glob[ i ] = Inf< int >();           // kill it for sure
    which.push_back( i );
    }
   else
-   if( v_glob[ i ] > rows.back() + 1 )  // > than any of the deleted
-    v_glob[ i ] -= rows.size();         // decreased by # of deleted
+   if( v_glob[ i ] > int( rows.back() + 1 ) )  // > than any of the deleted
+    v_glob[ i ] -= rows.size();                // decreased by # of deleted
    else
-    if( v_glob[ i ] > rows.front() ) {
+    if( v_glob[ i ] > int( rows.front() ) ) {
      auto it = std::lower_bound( rows.begin() , rows.end() ,
 				 v_glob[ i ] - 1 );
-     if( *it == v_glob[ i ] - 1 ) {     // one of the deleted
-      v_glob[ i ] = Inf<int>();         // kill it
+     if( int( *it ) == v_glob[ i ] - 1 ) {     // one of the deleted
+      v_glob[ i ] = Inf< int >();              // kill it
       which.push_back( i );
       }
      else
@@ -2244,25 +2256,25 @@ void PolyhedralFunction::delete_row( Index i , ModParam issueMod )
  // all the names in v_glob[] > i + 1 must be decreased by 1
 
  for( Index j = 0 ; j < f_max_glob ; ++j ) {
-  if( v_glob[ j ] == Inf<int>() )    // non-existent
+  if( v_glob[ j ] == Inf< int >() )  // non-existent
    continue;
   if( v_glob[ j ] < 0 ) {            // an aggregated one
-   v_glob[ j ] = Inf<int>();         // kill it for sure
+   v_glob[ j ] = Inf< int >();       // kill it for sure
    which.push_back( j );
    }
   else
-   if( v_glob[ j ] > i + 1 )
+   if( v_glob[ j ] > int( i + 1 ) )
     --v_glob[ j ];
    else
-    if( v_glob[ j ] == i + 1 ) {
-     v_glob[ j ] = Inf<int>();
+    if( v_glob[ j ] == int( i + 1 ) ) {
+     v_glob[ j ] = Inf< int >();
      which.push_back( j );
      }
   }
 
  update_f_max_glob();
 
- f_Lipschitz_constant = - Inf<FunctionValue>();  // == unknown
+ f_Lipschitz_constant = - Inf< FunctionValue >();  // == unknown
  set_f_uncomputed();      // the function value has changed
  if( f_loc_pool_sz > 1 )  // resize v_ord
   reset_v_ord();
@@ -2336,7 +2348,7 @@ PolyhedralFunction::guts_of_put_State( const PolyhedralFunctionState & state )
 	        "PolyhedralFunctionState has wrong number of variables" ) );
 
  for( auto i : state.v_glob )
-  if( ( i < Inf<int>() ) && ( i > get_nrows() ) )
+  if( ( i < Inf< int >() ) && ( i > int( get_nrows() ) ) )
    throw( std::invalid_argument(
 	             "PolyhedralFunctionState global pool inconsistent" ) );
 
@@ -2404,7 +2416,7 @@ Function::FunctionValue * PolyhedralFunction::get_ai( Index name )
  if( gn < 0 )            // aggregated linearization
   return( v_aA[ - gn - 1 ].data() );
 
- if( gn <= get_nrows() )  // original linearization
+ if( gn <= int( get_nrows() ) )  // original linearization
   return( v_A[ --gn ].data() );
 
  throw( std::invalid_argument(

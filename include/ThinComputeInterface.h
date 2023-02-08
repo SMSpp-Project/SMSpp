@@ -2338,9 +2338,10 @@ class ComputeConfig : public Configuration {
   *   see SMSTypedefs.h for details),
   *
   * the description of a :Configuration object for the "extra" Configuration
-  * of the ComputeConfig, loaded with Configuration::deserialize( std::istream )
-  * and therefore with all the corresponding input options, like '*' for
-  * nullptr and "*<filename>" for loading it out of a different file.
+  * of the ComputeConfig, loaded with Configuration::deserialize(
+  * std::istream ) and therefore with all the corresponding input options,
+  * like '*' for nullptr and "*<filename>" for loading it out of a different
+  * file.
   *
   * If the stream cleanly eof()-s after before reading each one of the
   * sections, load() cleanly returns having loaded the corresponding part of
