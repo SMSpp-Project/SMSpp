@@ -231,7 +231,7 @@ public:
  template< class T >
  void set_variable_values( const std::vector< T > & values ) {
   assert( ( values.size() >= 0 ) &&
-          ( static_cast<decltype( v_variables.size() )>( values.size() ) ==
+          ( static_cast< decltype( v_variables.size() ) >( values.size() ) ==
             v_variables.size() ) );
   for( Index i = 0 ; i < v_variables.size() ; ++i )
    v_variables[ i ].set_value( values[ i ] );
@@ -249,7 +249,7 @@ public:
 
  void set_variable_values( const Eigen::ArrayXd & values ) {
   assert( ( values.size() >= 0 ) &&
-          ( static_cast<decltype( v_variables.size() )>( values.size() ) ==
+          ( static_cast< decltype( v_variables.size() ) >( values.size() ) ==
             v_variables.size() ) );
   for( Index i = 0 ; i < v_variables.size() ; ++i )
    v_variables[ i ].set_value( values( i ) );

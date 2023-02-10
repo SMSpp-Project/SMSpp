@@ -291,8 +291,8 @@ private:
 
 /*--------------------------------------------------------------------------*/
 
-  Node() : type( 'N' ) , group_index( Inf<Index>() ) ,
-   element_index( Inf<Index>() ) {}
+  Node() : type( 'N' ) , group_index( Inf< Index >() ) ,
+           element_index( Inf< Index >() ) {}
 
 /*--------------------------------------------------------------------------*/
 
@@ -358,11 +358,11 @@ private:
 /*----------------------------- PRIVATE METHODS ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
- template<class T>
+ template< class T >
  void add_node( const T * t , Node::NodeType type ) {
   const auto triple = inspection::get_element_index( t );
   const auto group_index = std::get< 1 >( triple );
-  if( group_index < Inf<Index>() ) {
+  if( group_index < Inf< Index >() ) {
    group_indices.push_back( group_index );
 
    const auto element_index = std::get< 2 >( triple );
@@ -382,8 +382,8 @@ private:
 /*--------------------------------------------------------------------------*/
 
  /// adds a node to this AbstractPath
- void add_node( Node::NodeType type , Index group_index = Inf<Index>() ,
-                Index element_index = Inf<Index>() ) {
+ void add_node( Node::NodeType type , Index group_index = Inf< Index >() ,
+                Index element_index = Inf< Index >() ) {
   node_types.push_back( type );
   group_indices.push_back( group_index );
   element_indices.push_back( element_index );
@@ -408,7 +408,7 @@ private:
 /*--------------------------------------------------------------------------*/
 
  /// returns the length of the given AbstractPath
- static Index length( const std::unique_ptr<AbstractPath> & path ) {
+ static Index length( const std::unique_ptr< AbstractPath > & path ) {
   if( path )
    return( path->length() );
   return( 0 );
@@ -483,7 +483,7 @@ public:
 
 /*--------------------------------------------------------------------------*/
 
- template<class T>
+ template< class T >
  AbstractPath( const T * t , const Block * reference_block ) {
   build( t , reference_block );
  }
@@ -583,7 +583,7 @@ public:
   * @return Returns the AbstractPath for the given target element \p t with
   *         respect to the given \p reference_block.
   */
- template<class T>
+ template< class T >
  void build( const T * t , const Block * reference_block ) {
 
   static_assert( std::is_base_of_v< Block , T > ||
@@ -626,7 +626,7 @@ public:
   }
   else if constexpr( std::is_base_of_v< Block , T > ) {
    if( t == reference_block ) {
-    this->add_node( Node::eBlock , Inf<Index>() );
+    this->add_node( Node::eBlock , Inf< Index >() );
     return;
    }
    auto group_index = inspection::get_block_index( t );
@@ -650,7 +650,7 @@ public:
 
    auto index = inspection::get_block_index( block );
 
-   if( index < Inf<Index>() ) {
+   if( index < Inf< Index >() ) {
     // block has a father Block
     this->add_node( Node::eBlock , index );
     block = block->get_f_Block();
@@ -699,7 +699,7 @@ public:
   *
   * @param The pointer to the target element.
   */
- template<class T>
+ template< class T >
  T * get_element( Block * reference ) const {
 
   if( this->length() == 0 )
@@ -865,7 +865,7 @@ public:
   *        be stored.
   */
  static void serialize
- ( const std::vector<AbstractPath> & paths , netCDF::NcGroup & group ) {
+ ( const std::vector< AbstractPath > & paths , netCDF::NcGroup & group ) {
   APnetCDF netCDFvars;
   pre_serialize( paths , netCDFvars , group );
   for( Index i = 0 ; i < paths.size() ; ++i ) {
@@ -888,7 +888,7 @@ public:
   *        be stored.
   */
  static void serialize
- ( const std::vector< std::unique_ptr<AbstractPath> > & paths ,
+ ( const std::vector< std::unique_ptr< AbstractPath > > & paths ,
    netCDF::NcGroup & group ) {
   APnetCDF netCDFvars;
   pre_serialize( paths , netCDFvars , group );
@@ -1092,7 +1092,7 @@ public:
   const auto netCDFvars = pre_deserialize( group );
   paths.reserve( netCDFvars.NumPaths );
   for( Index i = 0 ; i < netCDFvars.NumPaths ; ++i )
-   paths.emplace_back( std::make_unique<AbstractPath>( i , netCDFvars ) );
+   paths.emplace_back( std::make_unique< AbstractPath >( i , netCDFvars ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1235,13 +1235,13 @@ public:
   }
   else {
    this->element_indices.resize( num_nodes );
-   this->element_indices.assign( this->element_indices.size() , Inf<Index>() );
+   this->element_indices.assign( this->element_indices.size() , Inf< Index >() );
   }
  }
 
 /*--------------------------------------------------------------------------*/
 
- template<class T>
+ template< class T >
  static void pre_serialize( const std::vector< T > & paths ,
                             APnetCDF & netCDFvars , netCDF::NcGroup & group ) {
 

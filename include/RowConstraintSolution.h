@@ -50,10 +50,10 @@ namespace SMSpp_di_unipi_it
 /** @defgroup RowConstraintSolution_TYPES RowConstraintSolution-related types
  *  @{ */
 
- using Vec_RowConstraintSolution = std::vector<RowConstraintSolution>;
+ using Vec_RowConstraintSolution = std::vector< RowConstraintSolution >;
  ///< a vector of RowConstraintSolution
 
- using c_Vec_RowConstraintSolution = const std::vector<RowConstraintSolution>;
+ using c_Vec_RowConstraintSolution = const std::vector< RowConstraintSolution >;
  ///< a const vector of RowConstraintSolution
 
 /** @}  end( group( RowConstraintSolution_TYPES ) ) */
@@ -256,7 +256,7 @@ public:
   * Block associated with this Solution. It returns a vector of boost::any,
   * each element of which is supposed to contain only one among:
   *
-  * - a pointer to a std::vector<double>;
+  * - a pointer to a std::vector< double >;
   *
   * - a pointer to a std::vector< std::vector<double> >;
   *

@@ -552,7 +552,7 @@ class ThinVarDepInterface {
   *   in 0, ..., get_num_active_var() - 1 such that the given Variable is the
   *   i-th "active" variable;
   *
-  * - otherwise, any number >= get_num_active_var() (say, Inf<Index>()).
+  * - otherwise, any number >= get_num_active_var() (say, Inf< Index >()).
   *
   * The base ThinVarDepInterface class makes no provisions about how this set
   * is stored in order to leave complete freedom to derived classes to

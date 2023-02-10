@@ -333,7 +333,7 @@ private:
     if( depth > 0 ) {
      function = new BendersBFunction();
      auto block = new AbstractBlock();
-     static_cast<BendersBFunction *>( function )->set_inner_block( block );
+     static_cast< BendersBFunction * >( function )->set_inner_block( block );
      generate( block , depth );
     }
     else {
@@ -347,8 +347,8 @@ private:
      function = new LagBFunction( nullptr , t );
      auto block = new AbstractBlock();
      block->set_objective( new FRealObjective( block , new LinearFunction() ) );
-     static_cast<LagBFunction *>( function )->set_inner_block( block );
-     block->set_f_Block( static_cast<LagBFunction *>( function ) );
+     static_cast< LagBFunction * >( function )->set_inner_block( block );
+     block->set_f_Block( static_cast< LagBFunction * >( function ) );
      generate( block , depth );
     }
     else {
@@ -362,13 +362,13 @@ private:
 
 /*--------------------------------------------------------------------------*/
 
- template< template < class , class > class C ,
-           class T , class A = std::allocator< T > >
- typename std::enable_if_t< ! has_function_v< T > >
+ template< template< class , class > class C ,
+  class T , class A = std::allocator< T > >
+ typename std::enable_if_t< !has_function_v< T > >
  generate_functions( const C< T , A > & , int ) {}
 
- template<template < class , class > class C ,
-          class T , class A = std::allocator< T > >
+ template< template< class , class > class C ,
+  class T , class A = std::allocator< T > >
  typename std::enable_if_t< has_function_v< T > >
  generate_functions( const C< T , A > & c , int depth ) {
   for( auto & e : c )

@@ -481,20 +481,20 @@ class LagBFunction : public C05Function , public Block {
   bool operator==( const ThinVarDepInterface::v_iterator & rhs )
    const override final {
    #ifdef NDEBUG
-    auto tmp = static_cast<const LagBFunction::v_iterator *>( & rhs );
+    auto tmp = static_cast< const LagBFunction::v_iterator * >( & rhs );
     return( itr_ == tmp->itr_ );
    #else
-    auto tmp = dynamic_cast<const LagBFunction::v_iterator *>( & rhs );
+    auto tmp = dynamic_cast< const LagBFunction::v_iterator * >( & rhs );
     return( tmp ? itr_ == tmp->itr_ : false );
    #endif
    }
   bool operator!=( const ThinVarDepInterface::v_iterator & rhs )
    const override final {
    #ifdef NDEBUG
-    auto tmp = static_cast<const LagBFunction::v_iterator *>( & rhs );
+    auto tmp = static_cast< const LagBFunction::v_iterator * >( & rhs );
     return( itr_ != tmp->itr_ );
    #else
-    auto tmp = dynamic_cast<const LagBFunction::v_iterator *>( & rhs );
+    auto tmp = dynamic_cast< const LagBFunction::v_iterator * >( & rhs );
     return( tmp ? itr_ != tmp->itr_ : false );
    #endif
    }
@@ -544,10 +544,10 @@ class LagBFunction : public C05Function , public Block {
   bool operator!=( const ThinVarDepInterface::v_const_iterator & rhs )
    const override final {
    #ifdef NDEBUG
-    auto tmp = static_cast<const LagBFunction::v_const_iterator *>( & rhs );
+    auto tmp = static_cast< const LagBFunction::v_const_iterator * >( & rhs );
     return( itr_ != tmp->itr_ );
    #else
-    auto tmp = dynamic_cast<const LagBFunction::v_const_iterator *>( & rhs );
+    auto tmp = dynamic_cast< const LagBFunction::v_const_iterator * >( & rhs );
     return( tmp ? itr_ != tmp->itr_ : false );
    #endif
    }
@@ -1560,16 +1560,16 @@ class LagBFunction : public C05Function , public Block {
  FunctionValue get_lower_estimate( void ) const override {
   if( auto is = inner_Solver() ) {
    auto lb = is->get_lb();
-   if( lb == -Inf<FunctionValue>() )
+   if( lb == - Inf< FunctionValue >() )
     return( lb );
    else {
     if( std::isnan( f_yb ) )
      throw( std::logic_error( "get_lower_estimate called before compute" ) );
-    return( f_yb > -Inf<FunctionValue>() ? lb + f_yb : lb );
+    return( f_yb > - Inf< FunctionValue >() ? lb + f_yb : lb );
     }
    }
   else
-   return( -Inf<FunctionValue>() );
+   return( - Inf< FunctionValue >() );
   }
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -1582,11 +1582,11 @@ class LagBFunction : public C05Function , public Block {
    else {
     if( std::isnan( f_yb ) )
      throw( std::logic_error( "get_upper_estimate called before compute" ) );
-    return( f_yb > -Inf< FunctionValue >() ? ub + f_yb : ub );
+    return( f_yb > - Inf< FunctionValue >() ? ub + f_yb : ub );
     }
    }
   else
-   return( -Inf<FunctionValue>() );
+   return( - Inf< FunctionValue >() );
   }
 
 /*--------------------------------------------------------------------------*/

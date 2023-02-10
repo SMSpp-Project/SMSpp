@@ -375,13 +375,13 @@
 
 2019-03-17 [medium] Variable[Index]Set
 
-	ThinVarDepInterface and FunctionMod* use std::vector<Variable *> as
+	ThinVarDepInterface and FunctionMod* use std::vector< Variable * > as
 	their standard way to describe sets of (indices) of Variable. We
 	could define a class VariableSet that acts as a repository of indices
 	of Variable. The class would be abstract, with a few obvious
-	implementations like std::vector<Variable *>  (or
-	template< class T> T<Variable *>) and something taking a
-	std::vector<Variable > & (or template< class T> T<Variable> & ) and
+	implementations like std::vector< Variable * >  (or
+	template< class T> T< Variable * >) and something taking a
+	std::vector< Variable > & (or template< class T > T< Variable > & ) and
 	two iterators in it to represent a range in the vector. Also, some
 	"hybrid" data structure containing any number of the two objects
 	arranged in a container could be possible.
@@ -394,7 +394,7 @@
 	make ThinVarDepInterface itself derive from Variable[Index]Set.
 
 	One then have to use a Variable[Index]Set * everywhere
-	std::vector<Variable *> is currently used, which will be quite some
+	std::vector< Variable * > is currently used, which will be quite some
 	work.
 
 	The obvious disadvantage is that of having to jump through a virtual
@@ -430,14 +430,14 @@
 	Make LinearFunction a base class. Transform the current one in
 	SparseLinearFunction or Gen[eric]LinearFunction. Provide more
 	specialized implementations like D[ense]C[onstraint]LinearFunction,
-	where the coefficients are a std::vector<double> and the Variables
-	are a std::vector<Variable *> (with the idea that you don't care if
+	where the coefficients are a std::vector< double > and the Variables
+	are a std::vector< Variable * > (with the idea that you don't care if
 	there are or not zeroes in the coefficient vector), a
 	D[oubly]D[ense]LinearFunction
-	where the coefficients are a std::vector<double> and the Variables
-	are a *pointer* to a std::vector<Variable>, and an
+	where the coefficients are a std::vector< double > and the Variables
+	are a *pointer* to a std::vector< Variable >, and an
 	E[xternalD[oubly]D[ense]LinearFunction which is as the above except
-	that coefficients are a *pointer* to a std::vector<double>
+	that coefficients are a *pointer* to a std::vector< double >
 
 
 2018-08-17 [low] MultiVarConstraint
@@ -459,26 +459,26 @@
 
 2019-02-21 [low] MultiVariable, MultiConstraint, MultiObjective, MultiFunction
 
-	We could implement a template class MultiColVariable<T> : ColVariable
+	We could implement a template class MultiColVariable< T > : ColVariable
 	that corresponds to "a T of ColVariable". Its value would be a
-	T<double>. This may fit in very well with DenseLinear and
+	T< double >. This may fit in very well with DenseLinear and
 	MultiVarConstraint. The advantage is to avoid replication of the
 	Block pointer and of the f_state field, as well as decreasing a lot
 	the total number of Variable in a Block. The serious disadvantage is
 	that the thing can only be fixed or unfixed whole (which may
-	sometimes be an advantage), and that the MultiColVariable<T>
+	sometimes be an advantage), and that the MultiColVariable< T >
 	could be active in many Constraint ... unless we have things like
 	MultiVarConstraint that may represent a bunch of constraints in a
 	compact way, doubling down on the advantages.
 
 	Note that it could be left to the Configuration in
 	generate_abstract_variables() and generate_abstract_constraints()
-	[...] if one uses a MultiColVariable<T> or a T<ColVariable>, which
+	[...] if one uses a MultiColVariable< T > or a T< ColVariable >, which
 	may allow to reap the advantages if there is, say, no need to fixing
 	variables individually, while having the standard fallback if this is
 	necessary.
 
-	Similar MultiConstraint<T>, MultiObjective<T> and MultiFunction<T>
+	Similar MultiConstraint< T >, MultiObjective< T > and MultiFunction< T >
 	may make sense, but details should be examined.
 
 	IMPORTANT: THIS DOES NOT CHANGE THE TOP STRUCTURE. These are just new

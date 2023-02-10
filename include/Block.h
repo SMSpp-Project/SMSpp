@@ -824,8 +824,8 @@ class Block : public Observer {
   *       SMSpp_insert_in_factory_cpp_1( ( name_of_the_class ) );
   *
   * Any whitespaces that the given \p classname may contain is ignored. So,
-  * for example, to create an instance of the class MyBlock<int> one could
-  * pass "MyBlock<int>" or "MyBlock< int >" (even " M y B l o c k < int > "
+  * for example, to create an instance of the class MyBlock< int > one could
+  * pass "MyBlock< int >" or "MyBlock< int >" (even " M y B l o c k < int > "
   * would work).
   *
   * @param classname The name of the :Block class that must be constructed.
@@ -957,14 +957,14 @@ class Block : public Observer {
   *
   * The :Block extracted from the file is specified by the parameter idx: for
   * an eProbFile it is extracted out of the netCDF::NcGroup "Block" inside
-  * the netCDF::NcGroup "Prob_<idx>", while for an eBlockFile it is extracted
-  * out of the netCDF::NcGroup "Block_<idx>".
+  * the netCDF::NcGroup "Prob_< idx >", while for an eBlockFile it is extracted
+  * out of the netCDF::NcGroup "Block_< idx >".
   *
   * Once the appropriate group is selected, the :Block is loaded from it with
   * a call to new_Block( netCDF::NcGroup & ); see the corresponding comments
   * for the format options. Anything going wrong with the entire operation
   * (the file is not there, the "SMS++_file_type" attribute is not there,
-  * there is no required "Prob_<idx>" or "Block_<idx>" child group, there is
+  * there is no required "Prob_< idx >" or "Block_< idx >" child group, there is
   * any fatal error during the process, ...) results in nullptr being
   * returned.
   *
@@ -2593,7 +2593,7 @@ class Block : public Observer {
   * it has been decided against it. */
 
  virtual double get_valid_upper_bound( bool conditional = false ) {
-  return( +Inf< double >() );
+  return( Inf< double >() );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -2666,7 +2666,7 @@ class Block : public Observer {
   * for algorithms solving the problem, possibly via duality. */
 
  virtual double get_valid_lower_bound( bool conditional = false ) {
-  return( -Inf< double >() );
+  return( - Inf< double >() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -2751,7 +2751,7 @@ class Block : public Observer {
   *   (obviously you can't make a std::vector of the base Constraint class,
   *   which is why pointers to Constraint are also allowed, see below);
   *
-  * - a pointer to a boost::multi_array<C , K>, where C is any class derived
+  * - a pointer to a boost::multi_array< C , K >, where C is any class derived
   *   from Constraint (obviously you can't make a multi_array of the base
   *   Constraint class), in principle with any K (but the limit for K may be
   *   dictated by un_any_static() and un_any_thing() in SMSTypedefs.h);
@@ -2923,7 +2923,7 @@ class Block : public Observer {
   *   (obviously you can't make a std::vector of the base Variable class,
   *   which is why pointers to Variable are also allowed, see below);
   *
-  * - a pointer to a boost::multi_array<V , K>, where V is any class derived
+  * - a pointer to a boost::multi_array< V , K >, where V is any class derived
   *   from Variable (obviously you can't make a multi_array of the base
   *   Variable class), in principle with any K (but the limit for K may be
   *   dictated by un_any_static() and un_any_thing() in SMSTypedefs.h);
@@ -3087,14 +3087,14 @@ class Block : public Observer {
   *   "group" of dynamic Constraint has not been constructed [see
   *   generate_dynamic_constraints()];
   *
-  * - a pointer to a single std::list<C>, where class C is derived from
+  * - a pointer to a single std::list< C >, where class C is derived from
   *   Constraint (obviously you can't make a std::list of the base Constraint
   *   class, which is why pointers to Constraint are also allowed, see below);
   *
-  * - a pointer to a std::vector<std::list<C> >, where class C is derived from
-  *   Constraint;
+  * - a pointer to a std::vector< std::list< C > >, where class C is derived
+  *   from Constraint;
   *
-  * - a pointer to a boost::multi_array<std::list<C> , K>,  where class C is
+  * - a pointer to a boost::multi_array< std::list< C > , K >,  where class C is
   *   derived from Constraint, in principle with any K (but the limit for K
   *   may be dictated by un_any_static() and un_any_thing() in SMSTypedefs.h);
   *
@@ -3292,14 +3292,14 @@ class Block : public Observer {
   *   "group" of dynamic Variable has not been constructed [see
   *   generate_dynamic_variables()];
   *
-  * - a pointer to a single std::list<V>, where class V is derived from
+  * - a pointer to a single std::list< V >, where class V is derived from
   *   Variable (obviously you can't make a std::list of the base Variable
   *   class, which is why pointers to Variable are also allowed, see below);
   *
-  * - a pointer to a std::vector<std::list<V> >, where class V is derived from
-  *   Variable;
+  * - a pointer to a std::vector< std::list< V > >, where class V is derived
+  *   from Variable;
   *
-  * - a pointer to a boost::multi_array<std::list<V> , K>,  where class V is
+  * - a pointer to a boost::multi_array< std::list< V > , K >,  where class V is
   *   derived from Variable, in principle with any K (but the limit for K
   *   may be dictated by un_any_static() and un_any_thing() in SMSTypedefs.h);
   *
@@ -4044,7 +4044,7 @@ class Block : public Observer {
  *   matrix-vector scalar product is "zero". This may require numerical
  *   accuracy parameters, which the Configuration can hold. For instance,
  *   the Configuration (pointer) may simply be (a pointer to) a
- *   SimpleConfiguration<double> specifying, say, the maximum relative
+ *   SimpleConfiguration< double > specifying, say, the maximum relative
  *   accuracy in a "x == 0" computation).
  *
  * - One may be interested in checking "only partly" the property. This
@@ -4121,11 +4121,11 @@ class Block : public Observer {
   * The parameter fsbc, which is a pointer to an arbitrarily complex
   * Configuration object, is meant to specify "how much approximately feasible
   * the solution can be". It can be a very simple quantity, such as a
-  * SimpleConfiguration<double> specifying, say, the maximum relative
+  * SimpleConfiguration< double > specifying, say, the maximum relative
   * violation that a simple single numerical Constraint can have, or any
   * arbitrarily complex Configuration specifying different thresholds for
   * different groups of Constraint of the Block (say, via
-  * SimpleConfiguration<std::vector<double> >), and arbitrarily complex
+  * SimpleConfiguration< std::vector< double > >), and arbitrarily complex
   * sub-Configurations (recursively) for the sub-Block of the Block. Also,
   * the parameter can be used to specify that only "a part" of the
   * feasibility check need be performed.
@@ -4211,7 +4211,7 @@ class Block : public Observer {
   * The parameter optc, which is a pointer to an arbitrarily complex
   * Configuration object, is meant to specify "how much approximately optimal
   * the solution can be". It can be a very simple quantity, such as a
-  * SimpleConfiguration<double> specifying, say, the maximum relative
+  * SimpleConfiguration< double > specifying, say, the maximum relative
   * violation that any simple single numerical constraint in the *dual* of a
   * convex problem may have, or, say, two such constants, one for dual
   * constraint violation and another for Complementary Slackness violations.
@@ -4279,7 +4279,7 @@ class Block : public Observer {
   * require numerical accuracy parameters, which is what the parameter fsbc
   * is designed to provide. If non-null, it is meant to point to an
   * arbitrarily complex Configuration object (although it can in fact be
-  * as simple as a SimpleConfiguration<double> specifying, say, the maximum
+  * as simple as a SimpleConfiguration< double > specifying, say, the maximum
   * relative accuracy in a "x == 0" computation). Also, the parameter can be
   * used to specify that only "a part" of the check, say considering only a
   * subset of the Variable, need be performed.
@@ -4345,7 +4345,7 @@ class Block : public Observer {
   * require numerical accuracy parameters, which is what the parameter optc
   * is designed to provide. If non-null, it is meant to point to an
   * arbitrarily complex Configuration object (although it can in fact be
-  * as simple as a SimpleConfiguration<double> specifying, say, the maximum
+  * as simple as a SimpleConfiguration< double > specifying, say, the maximum
   * relative accuracy in a "x == 0" computation). Also, the parameter can be
   * used to specify that only "a part" of the check, say considering only a
   * subset of the Constraint, need be performed.
@@ -6602,7 +6602,7 @@ class Block : public Observer {
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// boost::multi_array<K> of (...) Constraint
+ /// boost::multi_array< K > of (...) Constraint
 
  template< class Const , std::size_t K >
  std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
@@ -6624,7 +6624,7 @@ class Block : public Observer {
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// boost::multi_array<K> of (...) Constraint
+ /// boost::multi_array< K > of (...) Constraint
 
  template< class Const , std::size_t K >
  std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
@@ -6732,7 +6732,7 @@ class Block : public Observer {
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// boost::multi_array<K> of (...) Variable
+ /// boost::multi_array< K > of (...) Variable
 
  template< class Var , std::size_t K >
  std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
@@ -6754,7 +6754,7 @@ class Block : public Observer {
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// boost::multi_array<K> of (...) Variable
+ /// boost::multi_array< K > of (...) Variable
 
  template< class Var , std::size_t K >
  std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
@@ -6872,7 +6872,7 @@ class Block : public Observer {
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// boost::multi_array<K> of std::list of (...) Constraint
+ /// boost::multi_array< K > of std::list of (...) Constraint
 
  template< class Const , std::size_t K >
  std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
@@ -6898,7 +6898,7 @@ class Block : public Observer {
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// boost::multi_array<K> of std::list of (...) Constraint
+ /// boost::multi_array< K > of std::list of (...) Constraint
 
  template< class Const , std::size_t K >
  std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
@@ -7016,7 +7016,7 @@ class Block : public Observer {
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// boost::multi_array<K> of std::list of (...) Variable
+ /// boost::multi_array< K > of std::list of (...) Variable
 
  template< class Var , std::size_t K >
  std::enable_if_t< std::is_base_of_v< Variable, Var > , void >
@@ -7039,7 +7039,7 @@ class Block : public Observer {
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// boost::multi_array<K> of std::list of (...) Variable
+ /// boost::multi_array< K > of std::list of (...) Variable
 
  template< class Var , std::size_t K >
  std::enable_if_t< std::is_base_of_v< Variable, Var > , void >
@@ -7278,7 +7278,7 @@ class Block : public Observer {
 
  template< class F >
  static inline bimap< F > & methods( void ) {
-  static bimap <F> methods;
+  static bimap< F > methods;
   return( methods );
  }
 

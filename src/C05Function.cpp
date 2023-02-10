@@ -57,12 +57,11 @@ void C05Function::delete_linearizations( Subset && which , bool ordered ,
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
 
- f_Observer->add_Modification(
-  std::make_shared< C05FunctionMod >( this ,
-                                      C05FunctionMod::GlobalPoolRemoved ,
-                                      std::move( which ) , 0 ,
-                                      Observer::par2concern( issueMod ) ) ,
-  Observer::par2chnl( issueMod ) );
+ f_Observer->add_Modification( std::make_shared< C05FunctionMod >(
+                                this , C05FunctionMod::GlobalPoolRemoved ,
+                                std::move( which ) , 0 ,
+                                Observer::par2concern( issueMod ) ) ,
+                               Observer::par2chnl( issueMod ) );
  }
 
 /*--------------------------------------------------------------------------*/

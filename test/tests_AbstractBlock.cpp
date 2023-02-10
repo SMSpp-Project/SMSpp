@@ -71,7 +71,7 @@ TEST_F( AbstractBlockTest, Sets_UpperBound ) {
 /*--------------------------------------------------------------------------*/
 
 TEST_F( AbstractBlockTest, Sets_LowerBound ) {
- ASSERT_EQ( block->get_valid_lower_bound(), -Inf< double >() );
+ ASSERT_EQ( block->get_valid_lower_bound(), - Inf< double >() );
 
  double lb = -1.0;
  block->set_valid_lower_bound( lb, true );
@@ -181,7 +181,7 @@ TEST_F( AbstractBlockTest, Adds_DynamicConstraints_List ) {
 /*--------------------------------------------------------------------------*/
 
 TEST_F( AbstractBlockTest, Adds_DynamicConstraints_Vector ) {
- auto c = new std::vector< std::list< FRowConstraint>>( 5 );
+ auto c = new std::vector< std::list< FRowConstraint > >( 5 );
  for( auto & i : *c ) {
   i.resize( 3 );
  }
@@ -237,7 +237,7 @@ TEST_F( AbstractBlockTest, Adds_DynamicVariables_List ) {
 /*--------------------------------------------------------------------------*/
 
 TEST_F( AbstractBlockTest, Adds_DynamicVariables_Vector ) {
- auto v = new std::vector< std::list< ColVariable>>( 5 );
+ auto v = new std::vector< std::list< ColVariable > >( 5 );
  for( auto & i : *v ) {
   i.resize( 3 );
  }

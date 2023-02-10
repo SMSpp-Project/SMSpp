@@ -681,10 +681,10 @@ void AbstractBlock::is_correct( void )
 Solution * AbstractBlock::get_Solution( Configuration * csolc, bool emptys )
 {
 
- auto config = dynamic_cast<SimpleConfiguration< int > *>( csolc );
+ auto config = dynamic_cast< SimpleConfiguration< int > * >( csolc );
 
  if( ( ! config ) && f_BlockConfig )
-  config = dynamic_cast<SimpleConfiguration< int > *>(
+  config = dynamic_cast< SimpleConfiguration< int > * >(
    f_BlockConfig->f_solution_Configuration );
 
  auto solution_type = config ? config->f_value : 0;
@@ -1144,12 +1144,12 @@ void AbstractBlock::read_mps( std::istream & file )
 
   // First name/value pair
   if( row == of_name ) {
-   f = static_cast<LinearFunction *>(of->get_function());
+   f = static_cast< LinearFunction * >(of->get_function());
   } else {
    auto it = std::find( row_names.begin(), row_names.end(), row );
    if( it != row_names.end() ) {
     auto j = std::distance( row_names.begin(), it );
-    f = static_cast<LinearFunction *>(( *rows )[ j ].get_function());
+    f = static_cast< LinearFunction * >(( *rows )[ j ].get_function());
    } else {
     throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
    }
@@ -1162,13 +1162,13 @@ void AbstractBlock::read_mps( std::istream & file )
    file >> value;
    if( row == of_name ) {
     // Will add to OF
-    f = static_cast<LinearFunction *>(of->get_function());
+    f = static_cast< LinearFunction * >(of->get_function());
    } else {
     // Will add to a constraint
     auto it = std::find( row_names.begin(), row_names.end(), row );
     if( it != row_names.end() ) {
      auto j = std::distance( row_names.begin(), it );
-     f = static_cast<LinearFunction *>(( *rows )[ j ].get_function());
+     f = static_cast< LinearFunction * >(( *rows )[ j ].get_function());
     } else {
      throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
     }
@@ -1291,7 +1291,7 @@ void AbstractBlock::read_mps( std::istream & file )
     // L: rhs - |rng| =< f() =< rhs
     row.set_rhs( rhs[ r ], eNoMod );
     if( rng[ r ] == Inf< double >() ) {
-     row.set_lhs( -Inf< double >(), eNoMod );
+     row.set_lhs( - Inf< double >(), eNoMod );
     } else {
      row.set_lhs( rhs[ r ] - std::abs( rng[ r ] ), eNoMod );
     }
@@ -1354,10 +1354,10 @@ void AbstractBlock::read_mps( std::istream & file )
      c.set_value( dbl_val( value ) );
      c.is_fixed( true, eNoMod );
     } else if( type == "FR" ) { // Free variable
-     b.set_lhs( -Inf< double >(), eNoMod );
+     b.set_lhs( - Inf< double >(), eNoMod );
      b.set_rhs( Inf< double >(), eNoMod );
     } else if( type == "MI" ) { // Lower bound -inf
-     b.set_lhs( -Inf< double >(), eNoMod );
+     b.set_lhs( - Inf< double >(), eNoMod );
      b.set_rhs( 0, eNoMod );
     } else if( type == "PL" ) { // Upper bound +inf
      b.set_lhs( 0, eNoMod );

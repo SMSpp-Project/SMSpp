@@ -337,9 +337,8 @@ void BendersBFunction::set_par( const idx_type par , const int value ) {
     // indices of the deleted linearizations.
     Subset which( global_pool.size() - value );
     std::iota( which.begin() , which.end() , value );
-    f_Observer->add_Modification
-     ( std::make_shared<BendersBFunctionMod>
-       ( this , C05FunctionMod::GlobalPoolRemoved , std::move( which ) , 0 ) );
+    f_Observer->add_Modification( std::make_shared< BendersBFunctionMod >(
+     this , C05FunctionMod::GlobalPoolRemoved , std::move( which ) , 0 ) );
    }
 
    break;
@@ -378,9 +377,8 @@ void BendersBFunction::put_State( const State & state ) {
  // that all previous linearizations have been removed.
 
  if( ! global_pool_was_empty )
-  f_Observer->add_Modification( std::make_shared<BendersBFunctionMod>
-                                ( this , C05FunctionMod::GlobalPoolRemoved ,
-                                  Subset() , 0 , 0 ) );
+  f_Observer->add_Modification( std::make_shared< BendersBFunctionMod >(
+   this , C05FunctionMod::GlobalPoolRemoved , Subset() , 0 , 0 ) );
 
  // Collect the indices of all linearizations that were added and issue the
  // Modification.
@@ -392,9 +390,8 @@ void BendersBFunction::put_State( const State & state ) {
    added.push_back( i );
 
  if( ! added.empty() )
-  f_Observer->add_Modification( std::make_shared<BendersBFunctionMod>
-                                ( this , C05FunctionMod::GlobalPoolAdded ,
-                                  std::move( added ) , 0 , 0 ) );
+  f_Observer->add_Modification( std::make_shared< BendersBFunctionMod >(
+   this , C05FunctionMod::GlobalPoolAdded , std::move( added ) , 0 , 0 ) );
 
 }  // end( BendersBFunction::put_State )
 
@@ -415,9 +412,8 @@ void BendersBFunction::put_State( State && state ) {
  // that all previous linearizations have been removed.
 
  if( ! global_pool_was_empty )
-  f_Observer->add_Modification( std::make_shared<BendersBFunctionMod>
-                                ( this , C05FunctionMod::GlobalPoolRemoved ,
-                                  Subset() , 0 , 0 ) );
+  f_Observer->add_Modification( std::make_shared< BendersBFunctionMod >(
+   this , C05FunctionMod::GlobalPoolRemoved , Subset() , 0 , 0 ) );
 
  // Collect the indices of all linearizations that were added and issue the
  // Modification.
@@ -429,9 +425,8 @@ void BendersBFunction::put_State( State && state ) {
    added.push_back( i );
 
  if( ! added.empty() )
-  f_Observer->add_Modification( std::make_shared<BendersBFunctionMod>
-                                ( this , C05FunctionMod::GlobalPoolAdded ,
-                                  std::move( added ) , 0 , 0 ) );
+  f_Observer->add_Modification( std::make_shared< BendersBFunctionMod >(
+   this , C05FunctionMod::GlobalPoolAdded , std::move( added ) , 0 , 0 ) );
 }  // end( BendersBFunction::put_State )
 
 /*--------------------------------------------------------------------------*/
@@ -534,9 +529,9 @@ void BendersBFunction::set_mapping( MultiVector && A , RealVector && b ,
   return;
 
  // "nuclear modification" for Function: everything changed
- f_Observer->add_Modification( std::make_shared<FunctionMod>( this ,
-                                         FunctionMod::NaNshift ,
-                                         Observer::par2concern( issueMod ) ) ,
+ f_Observer->add_Modification( std::make_shared< FunctionMod >(
+                                this , FunctionMod::NaNshift ,
+                                Observer::par2concern( issueMod ) ) ,
                                Observer::par2chnl( issueMod ) );
 
 }  // end( BendersBFunction::set_mapping )
@@ -588,7 +583,7 @@ void BendersBFunction::add_variables( VarVector && nx , MultiVector && nA ,
  std::copy( v_x.begin() + n , v_x.end() , vars.begin() );
 
  // now issue the C05FunctionModVarsAddd
- f_Observer->add_Modification( std::make_shared<C05FunctionModVarsAddd>(
+ f_Observer->add_Modification( std::make_shared< C05FunctionModVarsAddd >(
                                          this , std::move( vars ) , n , 0 ,
                                          Observer::par2concern( issueMod ) ) ,
                                  Observer::par2chnl( issueMod ) );
@@ -622,7 +617,7 @@ void BendersBFunction::add_variable( ColVariable * const var ,
 
  // now issue the Modification
  // a Benders function is strongly quasi-additive
- f_Observer->add_Modification( std::make_shared<C05FunctionModVarsAddd>(
+ f_Observer->add_Modification( std::make_shared< C05FunctionModVarsAddd >(
                                          this , Vec_p_Var( { var } ) ,
                                          v_x.size() - 1 , 0 ,
                                          Observer::par2concern( issueMod ) ) ,
@@ -650,7 +645,7 @@ void BendersBFunction::remove_variable( Index i , ModParam issueMod )
 
  // now issue the Modification
  // a Benders function is strongly quasi-additive
- f_Observer->add_Modification( std::make_shared<C05FunctionModVarsRngd>(
+ f_Observer->add_Modification( std::make_shared< C05FunctionModVarsRngd >(
                                     this , Vec_p_Var( { var } ) ,
                                     Range( i , i + 1 ) , 0 ,
                                     Observer::par2concern( issueMod ) ) ,
@@ -682,7 +677,7 @@ void BendersBFunction::remove_variables( Range range , ModParam issueMod )
   // now issue the Modification
   // a Benders function is strongly quasi-additive
   if( f_Observer && f_Observer->issue_mod( issueMod ) )
-   f_Observer->add_Modification( std::make_shared<C05FunctionModVarsRngd>(
+   f_Observer->add_Modification( std::make_shared< C05FunctionModVarsRngd >(
 				      this , std::move( vars ) , range , 0 ,
 				      Observer::par2concern( issueMod ) ) ,
 				 Observer::par2chnl( issueMod ) );
@@ -708,7 +703,7 @@ void BendersBFunction::remove_variables( Range range , ModParam issueMod )
 
   // now issue the Modification
   // a Benders function is strongly quasi-additive
-  f_Observer->add_Modification( std::make_shared<C05FunctionModVarsRngd>(
+  f_Observer->add_Modification( std::make_shared< C05FunctionModVarsRngd >(
                                     this , std::move( vars ) , range , 0 ,
                                     Observer::par2concern( issueMod ) ) ,
                                 Observer::par2chnl( issueMod ) );
@@ -762,7 +757,7 @@ void BendersBFunction::remove_variables( Subset && nms , bool ordered ,
   // now issue the Modification: note that the subset is empty
   // a BendersBFunction is strongly quasi-additive, and nms is ordered
   if( f_Observer && f_Observer->issue_mod( issueMod ) )
-   f_Observer->add_Modification( std::make_shared<C05FunctionModVarsSbst>(
+   f_Observer->add_Modification( std::make_shared< C05FunctionModVarsSbst >(
 				 this , std::move( vars ) , Subset() , true ,
 				 0 , Observer::par2concern( issueMod ) ) ,
 				 Observer::par2chnl( issueMod ) );
@@ -793,7 +788,7 @@ void BendersBFunction::remove_variables( Subset && nms , bool ordered ,
 
   // now issue the Modification
   // a Benders function is strongly quasi-additive, and nms is ordered
-  f_Observer->add_Modification( std::make_shared<C05FunctionModVarsSbst>(
+  f_Observer->add_Modification( std::make_shared< C05FunctionModVarsSbst >(
                              this , std::move( vars ) , std::move( nms ) ,
                              true , 0 , Observer::par2concern( issueMod ) ) ,
                                 Observer::par2chnl( issueMod ) );
@@ -842,12 +837,12 @@ void BendersBFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
   return;                  // noone is there: all done
 
  // issue the BendersBFunctionModRngd
- f_Observer->add_Modification( std::make_shared<BendersBFunctionModRngd>(
-                             this , C05FunctionMod::AllLinearizationChanged ,
-                             BendersBFunctionMod::ModifyRows , range ,
-                             Subset( {} ) , C05FunctionMod::NaNshift ,
-                             Observer::par2concern( issueMod ) ) ,
-                                Observer::par2chnl( issueMod ) );
+ f_Observer->add_Modification( std::make_shared< BendersBFunctionModRngd >(
+                                this , C05FunctionMod::AllLinearizationChanged ,
+                                BendersBFunctionMod::ModifyRows , range ,
+                                Subset( {} ) , C05FunctionMod::NaNshift ,
+                                Observer::par2concern( issueMod ) ) ,
+                               Observer::par2chnl( issueMod ) );
 
 }  // end( BendersBFunction::modify_rows( range ) )
 
@@ -893,13 +888,13 @@ void BendersBFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
   return;                  // noone is there: all done
 
  // issue the BendersBFunctionModSbst; note that rows is ordered
- f_Observer->add_Modification( std::make_shared<BendersBFunctionModSbst>(
-                             this , C05FunctionMod::AllLinearizationChanged ,
-                             BendersBFunctionMod::ModifyRows ,
-                             std::move( rows ) , ordered ,
-                             Subset( {} ) , C05FunctionMod::NaNshift ,
-                             Observer::par2concern( issueMod ) ) ,
-                                Observer::par2chnl( issueMod ) );
+ f_Observer->add_Modification( std::make_shared< BendersBFunctionModSbst >(
+                                this , C05FunctionMod::AllLinearizationChanged ,
+                                BendersBFunctionMod::ModifyRows ,
+                                std::move( rows ) , ordered ,
+                                Subset( {} ) , C05FunctionMod::NaNshift ,
+                                Observer::par2concern( issueMod ) ) ,
+                               Observer::par2chnl( issueMod ) );
 
 }  // end( BendersBFunction::modify_rows( subset ) )
 
@@ -931,13 +926,13 @@ void BendersBFunction::modify_row( c_Index i , RealVector && Ai ,
   return;                  // noone is there: all done
 
  // issue the BendersBFunctionModRngd
- f_Observer->add_Modification( std::make_shared<BendersBFunctionModRngd>(
-                             this , C05FunctionMod::AllLinearizationChanged ,
-                             BendersBFunctionMod::ModifyRows ,
-                             Range( i , i + 1 ) , Subset( {} ) ,
-                             C05FunctionMod::NaNshift ,
-                             Observer::par2concern( issueMod ) ) ,
-                                Observer::par2chnl( issueMod ) );
+ f_Observer->add_Modification( std::make_shared< BendersBFunctionModRngd >(
+                                this , C05FunctionMod::AllLinearizationChanged ,
+                                BendersBFunctionMod::ModifyRows ,
+                                Range( i , i + 1 ) , Subset( {} ) ,
+                                C05FunctionMod::NaNshift ,
+                                Observer::par2concern( issueMod ) ) ,
+                               Observer::par2chnl( issueMod ) );
 
 }  // end( BendersBFunction::modify_row )
 
@@ -974,13 +969,13 @@ void BendersBFunction::modify_constants( MF_dbl_it nb , Range range ,
   return;                  // noone is there: all done
 
  // issue the BendersBFunctionModRngd
- f_Observer->add_Modification( std::make_shared<BendersBFunctionModRngd>(
-                                      this , C05FunctionMod::AlphaChanged ,
-                                      BendersBFunctionMod::ModifyCnst ,
-                                      range , Subset( {} ) ,
-                                      C05FunctionMod::NaNshift ,
-                                      Observer::par2concern( issueAMod ) ) ,
-                                Observer::par2chnl( issueAMod ) );
+ f_Observer->add_Modification( std::make_shared< BendersBFunctionModRngd >(
+                                this , C05FunctionMod::AlphaChanged ,
+                                BendersBFunctionMod::ModifyCnst ,
+                                range , Subset( {} ) ,
+                                C05FunctionMod::NaNshift ,
+                                Observer::par2concern( issueAMod ) ) ,
+                               Observer::par2chnl( issueAMod ) );
 
 }  // end( BendersBFunction::modify_constants( range ) )
 
@@ -1029,14 +1024,14 @@ void BendersBFunction::modify_constants( MF_dbl_it nb , Subset && rows ,
   return;                  // noone is there: all done
 
  // issue the BendersBFunctionModSbst: note that ordered is unmodified
- f_Observer->add_Modification( std::make_shared<BendersBFunctionModSbst>(
-                                      this , C05FunctionMod::AlphaChanged ,
-                                      BendersBFunctionMod::ModifyCnst ,
-                                      std::move( rows ) , ordered ,
-                                      Subset( {} ) ,
-                                      C05FunctionMod::NaNshift ,
-                                      Observer::par2concern( issueAMod ) ) ,
-                                Observer::par2chnl( issueAMod ) );
+ f_Observer->add_Modification( std::make_shared< BendersBFunctionModSbst >(
+                                this , C05FunctionMod::AlphaChanged ,
+                                BendersBFunctionMod::ModifyCnst ,
+                                std::move( rows ) , ordered ,
+                                Subset( {} ) ,
+                                C05FunctionMod::NaNshift ,
+                                Observer::par2concern( issueAMod ) ) ,
+                               Observer::par2chnl( issueAMod ) );
 
 }  // end( BendersBFunction::modify_constants )
 
@@ -1074,14 +1069,14 @@ void BendersBFunction::modify_constant( c_Index i , c_FunctionValue bi ,
   return;                  // noone is there: all done
 
  // issue the BendersBFunctionModRngd
- f_Observer->add_Modification( std::make_shared<BendersBFunctionModRngd>(
-                                      this , C05FunctionMod::AlphaChanged ,
-                                      BendersBFunctionMod::ModifyCnst ,
-                                      Range( i , i + 1 ) ,
-                                      Subset( {} ) ,
-                                      C05FunctionMod::NaNshift ,
-                                      Observer::par2concern( issueMod ) ) ,
-                                Observer::par2chnl( issueMod ) );
+ f_Observer->add_Modification( std::make_shared< BendersBFunctionModRngd >(
+                                this , C05FunctionMod::AlphaChanged ,
+                                BendersBFunctionMod::ModifyCnst ,
+                                Range( i , i + 1 ) ,
+                                Subset( {} ) ,
+                                C05FunctionMod::NaNshift ,
+                                Observer::par2concern( issueMod ) ) ,
+                               Observer::par2chnl( issueMod ) );
 
 }  // end( BendersBFunction::modify_constant )
 
@@ -1146,10 +1141,10 @@ void BendersBFunction::add_rows( MultiVector && nA , c_RealVector & nb ,
 
  // issue the BendersBFunctionModAddd
 
- f_Observer->add_Modification( std::make_shared<BendersBFunctionModAddd>(
-                                  this , mod_type , k ,
-                                  C05FunctionMod::NaNshift ,
-                                  Observer::par2concern( issueMod ) ) ,
+ f_Observer->add_Modification( std::make_shared< BendersBFunctionModAddd >(
+                                this , mod_type , k ,
+                                C05FunctionMod::NaNshift ,
+                                Observer::par2concern( issueMod ) ) ,
                                Observer::par2chnl( issueMod ) );
 
 }  // end( BendersBFunction::add_rows )
@@ -1191,11 +1186,11 @@ void BendersBFunction::add_row( RealVector && Ai , FunctionValue bi ,
   return;                  // noone is there: all done
 
  // issue the BendersBFunctionModAddd
- f_Observer->add_Modification( std::make_shared<BendersBFunctionModAddd>(
-                                  this , mod_type , 1 ,
-                                  C05FunctionMod::NaNshift ,
-                                  Observer::par2concern( issueMod ) ) ,
-                                Observer::par2chnl( issueMod ) );
+ f_Observer->add_Modification( std::make_shared< BendersBFunctionModAddd >(
+                                this , mod_type , 1 ,
+                                C05FunctionMod::NaNshift ,
+                                Observer::par2concern( issueMod ) ) ,
+                               Observer::par2chnl( issueMod ) );
 
 }  // end( BendersBFunction::add_row )
 
@@ -1243,7 +1238,7 @@ void BendersBFunction::delete_rows( Range range , ModParam issueMod ) {
   return;                  // noone is there: all done
 
  // issue the BendersBFunctionModRngd
- f_Observer->add_Modification( std::make_shared<BendersBFunctionModRngd>(
+ f_Observer->add_Modification( std::make_shared< BendersBFunctionModRngd >(
                                 this , mod_type ,
                                 BendersBFunctionMod::DeleteRows , range ,
                                 Subset( {} ) , C05FunctionMod::NaNshift ,
@@ -1319,7 +1314,7 @@ void BendersBFunction::delete_rows( Subset && rows , bool ordered ,
   return;                  // noone is there: all done
 
  // issue the BendersBFunctionModSbst; rows is ordered
- f_Observer->add_Modification( std::make_shared<BendersBFunctionModSbst>(
+ f_Observer->add_Modification( std::make_shared< BendersBFunctionModSbst >(
                                 this , mod_type ,
                                 BendersBFunctionMod::DeleteRows ,
                                 std::move( rows ) , true , Subset( {} ) ,
@@ -1360,7 +1355,7 @@ void BendersBFunction::delete_row( c_Index i , ModParam issueMod ) {
   return;                  // noone is there: all done
 
  // issue the BendersBFunctionModRngd
- f_Observer->add_Modification( std::make_shared<BendersBFunctionModRngd>(
+ f_Observer->add_Modification( std::make_shared< BendersBFunctionModRngd >(
                                 this , mod_type ,
                                 BendersBFunctionMod::DeleteRows ,
                                 Range( i , i + 1 ) , Subset( {} ) ,
@@ -1385,9 +1380,9 @@ void BendersBFunction::delete_rows( ModParam issueMod ) {
   return;                  // noone is there: all done
 
  // "nuclear modification" for Function: everything changed
- f_Observer->add_Modification( std::make_shared<FunctionMod>( this ,
-                                         FunctionMod::NaNshift ,
-                                         Observer::par2concern( issueMod ) ) ,
+ f_Observer->add_Modification( std::make_shared< FunctionMod >(
+                                this , FunctionMod::NaNshift ,
+                                Observer::par2concern( issueMod ) ) ,
                                Observer::par2chnl( issueMod ) );
 
 }  // end( BendersBFunction::delete_rows( all ) )
@@ -1530,7 +1525,7 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
 
  // GroupModification - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( const auto tmod = std::dynamic_pointer_cast<GroupModification>( mod ) ) {
+ if( const auto tmod = std::dynamic_pointer_cast< GroupModification >( mod ) ) {
   for( const auto & submod : tmod->sub_Modifications() )
    this->add_Modification( submod , chnl );
   return;
@@ -1538,11 +1533,11 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
 
  // FunctionMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( const auto tmod = std::dynamic_pointer_cast<FunctionMod>( mod ) ) {
+ if( const auto tmod = std::dynamic_pointer_cast< FunctionMod >( mod ) ) {
 
   auto observer = tmod->function()->get_Observer();
 
-  if( const auto constraint = dynamic_cast<Constraint *>( observer ) ) {
+  if( const auto constraint = dynamic_cast< Constraint * >( observer ) ) {
    if( this->has_constraint( constraint ) )
     send_nuclear_modification( chnl );
    else {
@@ -1550,8 +1545,8 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
      * valid. However, the value of this BendersBFunction changes
      * unpredictably. */
     if( f_Observer )
-     f_Observer->add_Modification
-      ( std::make_shared<FunctionMod>( this , FunctionMod::NaNshift ) , chnl );
+     f_Observer->add_Modification( std::make_shared< FunctionMod >(
+      this , FunctionMod::NaNshift ) , chnl );
     }
    }
   else {
@@ -1569,11 +1564,11 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
 
  // FunctionModVars - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( const auto tmod = std::dynamic_pointer_cast<FunctionModVars>( mod ) ) {
+ if( const auto tmod = std::dynamic_pointer_cast< FunctionModVars >( mod ) ) {
 
   auto observer = tmod->function()->get_Observer();
 
-  if( const auto constraint = dynamic_cast<Constraint *>( observer ) ) {
+  if( const auto constraint = dynamic_cast< Constraint * >( observer ) ) {
    if( this->has_constraint( constraint ) ) {
     // The Constraint is being handled by this BendersBFunction.
     if( tmod->added() ) {
@@ -1587,8 +1582,8 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
       * feasible but the value of this BendersBFunction may change
       * unpredictably. */
      if( f_Observer )
-      f_Observer->add_Modification
-       ( std::make_shared<FunctionMod>( this , FunctionMod::NaNshift ) , chnl );
+      f_Observer->add_Modification( std::make_shared< FunctionMod >(
+       this , FunctionMod::NaNshift ) , chnl );
      }
     }
    else {
@@ -1597,8 +1592,8 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
      * valid. However, the value of this BendersBFunction may change
      * unpredictably. */
     if( f_Observer )
-     f_Observer->add_Modification
-      ( std::make_shared<FunctionMod>( this , FunctionMod::NaNshift ) , chnl );
+     f_Observer->add_Modification( std::make_shared< FunctionMod >(
+      this , FunctionMod::NaNshift ) , chnl );
     }
    }
   else {
@@ -1617,7 +1612,7 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
 
  // ConstraintMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( const auto tmod = std::dynamic_pointer_cast<ConstraintMod>( mod ) ) {
+ if( const auto tmod = std::dynamic_pointer_cast< ConstraintMod >( mod ) ) {
 
   if( tmod->type() == ConstraintMod::eRelaxConst ||
       tmod->type() == ConstraintMod::eEnforceConst ) {
@@ -1627,20 +1622,20 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
     send_nuclear_modification( chnl );
    else
     if( behaviour == function_value_behaviour::increase && f_Observer )
-     f_Observer->add_Modification(
-	       std::make_shared<FunctionMod>( this , Inf<FunctionValue>() ) ,
-	       chnl );
+     f_Observer->add_Modification( std::make_shared< FunctionMod >(
+                                    this , Inf< FunctionValue >() ) ,
+                                   chnl );
     else
      if( behaviour == function_value_behaviour::decrease && f_Observer )
-      f_Observer->add_Modification(
-	     std::make_shared<FunctionMod>( this , - Inf<FunctionValue>() ) ,
-	     chnl );
+      f_Observer->add_Modification( std::make_shared< FunctionMod >(
+                                     this , -Inf< FunctionValue >() ) ,
+                                    chnl );
    return;
    }
 
   // actually a RowConstraintMod
 
-  if( const auto tmod = std::dynamic_pointer_cast<RowConstraintMod>( mod ) ) {
+  if( const auto tmod = std::dynamic_pointer_cast< RowConstraintMod >( mod ) ) {
    switch( tmod->type() ) {
     case( RowConstraintMod::eChgRHS ):
     case( RowConstraintMod::eChgLHS ):
@@ -1664,7 +1659,7 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
 
   // actually a FRowConstraintMod
 
-  if( const auto tmod = std::dynamic_pointer_cast<FRowConstraintMod>( mod ) ) {
+  if( const auto tmod = std::dynamic_pointer_cast< FRowConstraintMod >( mod ) ) {
    if( tmod->type() == FRowConstraintMod::eFunctionChanged ) {
     // Pointer to the Function has changed
     if( this->has_constraint( tmod->constraint() ) )
@@ -1676,9 +1671,9 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
       * valid. However, the value of this BendersBFunction changes
       * unpredictably. */
      if( f_Observer )
-      f_Observer->add_Modification(
-		std::make_shared<FunctionMod>( this , FunctionMod::NaNshift ) ,
-		chnl );
+      f_Observer->add_Modification( std::make_shared< FunctionMod >(
+                                     this , FunctionMod::NaNshift ) ,
+                                    chnl );
     }
    else  // unknown modification
     send_nuclear_modification( chnl );
@@ -1689,7 +1684,7 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
   // actually a OneVarConstraintMod
 
   if( const auto tmod =
-                    std::dynamic_pointer_cast<OneVarConstraintMod>( mod ) ) {
+                    std::dynamic_pointer_cast< OneVarConstraintMod >( mod ) ) {
 
    if( tmod->type() == OneVarConstraintMod::eVariableChanged ) {
     // Pointer to the Variable of a OneVarConstraint has changed.
@@ -1698,9 +1693,9 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
       * valid. However, the value of this BendersBFunction changes
       * unpredictably. */
      if( f_Observer )
-      f_Observer->add_Modification(
-	       std::make_shared<FunctionMod>( this , FunctionMod::NaNshift ) ,
-	       chnl );
+      f_Observer->add_Modification( std::make_shared< FunctionMod >(
+                                     this , FunctionMod::NaNshift ) ,
+                                    chnl );
      return;
      }
     }
@@ -1714,7 +1709,7 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
 
  // BlockModAD- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( const auto tmod = std::dynamic_pointer_cast<BlockModAD>( mod ) ) {
+ if( const auto tmod = std::dynamic_pointer_cast< BlockModAD >( mod ) ) {
   if( tmod->is_variable() ) {
    if( tmod->is_added() )
     // Variables were added. This BendersBFunction may change unpredictably.
@@ -1723,9 +1718,9 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
     /* Variables were removed. Dual solutions are still feasible. But the
      * value of this BendersBFunction may change unpredictably. */
     if( f_Observer )
-     f_Observer->add_Modification(
-	       std::make_shared<FunctionMod>( this , FunctionMod::NaNshift ) ,
-	       chnl );
+     f_Observer->add_Modification( std::make_shared< FunctionMod >(
+                                    this , FunctionMod::NaNshift ) ,
+                                   chnl );
    }
   else {
    /* Constraints were added or removed. Since these Constraints must not be
@@ -1738,15 +1733,15 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
     send_nuclear_modification( chnl );
    else
     if( behaviour == function_value_behaviour::increase && f_Observer )
-    f_Observer->add_Modification(
-		std::make_shared<FunctionMod>( this , Inf<FunctionValue>() ) ,
-		chnl );
+    f_Observer->add_Modification( std::make_shared< FunctionMod >(
+                                   this , Inf< FunctionValue >() ) ,
+                                  chnl );
     else
      if( behaviour == function_value_behaviour::decrease && f_Observer )
-      f_Observer->add_Modification(
-	      std::make_shared<FunctionMod>( this , - Inf<FunctionValue>() ) ,
-	      chnl );
-   }
+      f_Observer->add_Modification( std::make_shared< FunctionMod >(
+                                     this , - Inf< FunctionValue >() ) ,
+                                    chnl );
+  }
 
   return;
   }
@@ -1919,7 +1914,7 @@ bool BendersBFunction::is_concave( void ) const {
 
 bool BendersBFunction::has_linearization( const bool diagonal ) {
 
- auto solver = get_solver<CDASolver>();
+ auto solver = get_solver< CDASolver >();
 
  if( ! solver )
   return( false );
@@ -1938,7 +1933,7 @@ bool BendersBFunction::has_linearization( const bool diagonal ) {
 /*--------------------------------------------------------------------------*/
 
 bool BendersBFunction::compute_new_linearization( const bool diagonal ) {
- auto solver = get_solver<CDASolver>();
+ auto solver = get_solver< CDASolver >();
  if( ! solver )
   return( false );
  if( diagonal )
@@ -1980,7 +1975,7 @@ void BendersBFunction::store_linearization( Index name , ModParam issueMod ) {
                                 "invalid global pool name: " +
                                 std::to_string( name ) ) );
 
- auto solver = get_solver<CDASolver>();
+ auto solver = get_solver< CDASolver >();
 
  if( ! solver )
   throw( std::logic_error( "BendersBFunction::store_linearization: It is not "
@@ -2005,17 +2000,17 @@ void BendersBFunction::store_linearization( Index name , ModParam issueMod ) {
  // TODO If the linearization constant has just been computed, use this
  // computed value instead of Inf.
 
- global_pool.store( Inf<FunctionValue>() , solution , name ,
+ global_pool.store( Inf< FunctionValue >() , solution , name ,
                     f_diagonal_linearization_required );
 
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
 
- f_Observer->add_Modification( std::make_shared<BendersBFunctionMod>( this ,
-				      C05FunctionMod::GlobalPoolAdded ,
-				      Subset( { name } ) , 0 ,
-				      Observer::par2concern( issueMod ) ) ,
-			       Observer::par2chnl( issueMod ) );
+ f_Observer->add_Modification( std::make_shared< BendersBFunctionMod >(
+                                this , C05FunctionMod::GlobalPoolAdded ,
+                                Subset( { name } ) , 0 ,
+                                Observer::par2concern( issueMod ) ) ,
+                               Observer::par2chnl( issueMod ) );
 
 } // end BendersBFunction::store_linearization( Index )
 
@@ -2031,11 +2026,11 @@ void BendersBFunction::store_combination_of_linearizations(
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
 
- f_Observer->add_Modification( std::make_shared<BendersBFunctionMod>( this ,
-					C05FunctionMod::GlobalPoolAdded ,
-					Subset( { name } ) , 0 ,
-					Observer::par2concern( issueMod ) ) ,
-			       Observer::par2chnl( issueMod ) );
+ f_Observer->add_Modification( std::make_shared< BendersBFunctionMod >(
+                                this , C05FunctionMod::GlobalPoolAdded ,
+                                Subset( { name } ) , 0 ,
+                                Observer::par2concern( issueMod ) ) ,
+                               Observer::par2chnl( issueMod ) );
 
 }  // end( BendersBFunction::store_combination_of_linearizations )
 
@@ -2048,11 +2043,11 @@ void BendersBFunction::delete_linearization( const Index name ,
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
 
- f_Observer->add_Modification( std::make_shared<BendersBFunctionMod>( this ,
-				      C05FunctionMod::GlobalPoolRemoved ,
-				      Subset( { name } ) , 0 ,
-				      Observer::par2concern( issueMod ) ) ,
-			       Observer::par2chnl( issueMod ) );
+ f_Observer->add_Modification( std::make_shared< BendersBFunctionMod >(
+                                this , C05FunctionMod::GlobalPoolRemoved ,
+                                Subset( { name } ) , 0 ,
+                                Observer::par2concern( issueMod ) ) ,
+                               Observer::par2chnl( issueMod ) );
 }  // end( BendersBFunction::delete_linearization )
 
 /*--------------------------------------------------------------------------*/
@@ -2064,24 +2059,24 @@ void BendersBFunction::delete_linearizations( Subset && which , bool ordered ,
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
 
- f_Observer->add_Modification( std::make_shared<BendersBFunctionMod>( this ,
-				      C05FunctionMod::GlobalPoolRemoved ,
-				      std::move( which ) , 0 ,
-				      Observer::par2concern( issueMod ) ) ,
-			       Observer::par2chnl( issueMod ) );
+ f_Observer->add_Modification( std::make_shared< BendersBFunctionMod >(
+                                this , C05FunctionMod::GlobalPoolRemoved ,
+                                std::move( which ) , 0 ,
+                                Observer::par2concern( issueMod ) ) ,
+                               Observer::par2chnl( issueMod ) );
 }
 
 /*--------------------------------------------------------------------------*/
 
 void BendersBFunction::write_dual_solution( Index name ) {
 
- auto solver = get_solver<CDASolver>();
+ auto solver = get_solver< CDASolver >();
 
  if( ! solver )
   throw( std::logic_error( "BendersBFunction::write_dual_solution: The sub-Blo"
                            "ck (if present) has no Solver attached to it." ) );
 
- if( name == Inf<Index>() ) {
+ if( name == Inf< Index >() ) {
   // Last computed linearization. Notice that only the dual solution
   // associated with the Constraint handled by this BendersBFunction are being
   // required.
@@ -2103,8 +2098,8 @@ void BendersBFunction::write_dual_solution( Index name ) {
 bool ignore_constraint( RowConstraint * constraint ) {
  if( constraint->is_relaxed() )
   return( true );
- if( constraint->get_lhs() == - Inf<RowConstraint::RHSValue>() &&
-     constraint->get_rhs() ==   Inf<RowConstraint::RHSValue>() )
+ if( constraint->get_lhs() == - Inf< RowConstraint::RHSValue >() &&
+     constraint->get_rhs() ==   Inf< RowConstraint::RHSValue >() )
   return( true );
  return( false );
 }
@@ -2169,7 +2164,7 @@ void BendersBFunction::get_linearization_coefficients
    g.insert( i ) = 0;
  }
  else {                     // g contains some non-zero elements
-  if( static_cast<decltype( v_x.size() )>( g.size() ) != v_x.size() )
+  if( static_cast< decltype( v_x.size() ) >( g.size() ) != v_x.size() )
    throw( std::invalid_argument( "BendersBFunction::get_linearization_"
                                  "coefficients: invalid SparseVector size" ) );
 
@@ -2263,7 +2258,7 @@ void BendersBFunction::get_linearization_coefficients
   }
  }
  else {                     // g contains some non-zero elements
-  if( static_cast<decltype( v_x.size() )>( g.size() ) != v_x.size() )
+  if( static_cast< decltype( v_x.size() ) >( g.size() ) != v_x.size() )
    throw( std::invalid_argument( "BendersBFunction::get_linearization_"
                                  "coefficients: invalid SparseVector size" ) );
 
@@ -2311,7 +2306,7 @@ BendersBFunction::compute_linearization_constant_from_bound() {
  std::vector< FunctionValue > g( v_x.size() );
  get_linearization_coefficients( g.data() );
 
- auto solver = get_solver<CDASolver>();
+ auto solver = get_solver< CDASolver >();
 
  if( ! solver )
   throw( std::logic_error( "BendersBFunction::compute_linearization_constant_"
@@ -2357,15 +2352,15 @@ Function::FunctionValue BendersBFunction::compute_linearization_constant() {
 
     auto b = c.get_lhs();
 
-    Index index = Inf<Index>();
+    Index index = Inf< Index >();
     if( obj_sign * dual_value > 0 )
      index = get_constraint_index( &c , eLHS );
     if( obj_sign * dual_value < 0 )
      index = get_constraint_index( &c , eRHS );
-    if( index == Inf<Index>() )
+    if( index == Inf< Index >() )
      index = get_constraint_index( &c );
 
-    if( index < Inf<Index>() ) {
+    if( index < Inf< Index >() ) {
      // This is a RowConstraint that is handled by this BendersBFunction
      b = v_b[ index ];
     }
@@ -2373,14 +2368,14 @@ Function::FunctionValue BendersBFunction::compute_linearization_constant() {
     alpha += - dual_value * b;
     return;
    }
-   else if( c.get_lhs() > - Inf<RowConstraint::RHSValue>() &&
-            c.get_rhs() <   Inf<RowConstraint::RHSValue>() ) {
+   else if( c.get_lhs() > - Inf< RowConstraint::RHSValue >() &&
+            c.get_rhs() <   Inf< RowConstraint::RHSValue >() ) {
     // Two constraints (lower and upper bound).
 
     RowConstraint::RHSValue b = 0;
     if( obj_sign * dual_value >= 0 ) { // lower bound constraint
      auto index = get_constraint_index( &c , eLHS );
-     if( index < Inf<Index>() )
+     if( index < Inf< Index >() )
       // Constraint handled by the BendersBFunction
       b = v_b[ index ];
      else
@@ -2388,7 +2383,7 @@ Function::FunctionValue BendersBFunction::compute_linearization_constant() {
     }
     else { // upper bound constraint
      auto index = get_constraint_index( &c , eRHS );
-     if( index < Inf<Index>() )
+     if( index < Inf< Index >() )
       // Constraint handled by the BendersBFunction
       b = v_b[ index ];
      else
@@ -2399,12 +2394,12 @@ Function::FunctionValue BendersBFunction::compute_linearization_constant() {
     return;
    }
    else { // Single inequality constraint
-    const auto side = ( c.get_rhs() < Inf<RowConstraint::RHSValue>() ) ?
+    const auto side = ( c.get_rhs() < Inf< RowConstraint::RHSValue >() ) ?
      eRHS : eLHS;
 
     RowConstraint::RHSValue b;
     const auto index = get_constraint_index( &c , side );
-    if( index < Inf<Index>() )
+    if( index < Inf< Index >() )
      // Constraint handled by the BendersBFunction
      b = v_b[ index ];
     else
@@ -2472,10 +2467,10 @@ void BendersBFunction::write_dual_solution_from_global_pool( Index name ) {
 Function::FunctionValue BendersBFunction::get_linearization_constant(
                                                                   Index name ) {
 
- if( name == Inf<Index>() ) {
+ if( name == Inf< Index >() ) {
   // Linearization just computed and not in the global pool yet.
 
-  auto solver = get_solver<CDASolver>();
+  auto solver = get_solver< CDASolver >();
 
   if( ! solver )
    throw( std::logic_error( "BendersBFunction::get_linearization_constant: "
@@ -2507,7 +2502,7 @@ Function::FunctionValue BendersBFunction::get_linearization_constant(
  }
  else {
   auto constant = global_pool.get_linearization_constant( name );
-  if( constant == Inf<FunctionValue>() ) {
+  if( constant == Inf< FunctionValue >() ) {
    // the linearization constant must be recomputed
    write_dual_solution_from_global_pool( name );
    constant = compute_linearization_constant();
@@ -2694,7 +2689,7 @@ BendersBFunction::get_behaviour( Objective::of_type sense ,
 /*--------------------------------------------------------------------------*/
 
 BendersBFunction::function_value_behaviour
-BendersBFunction::get_behaviour( std::shared_ptr<BlockModAD> mod ) {
+BendersBFunction::get_behaviour( std::shared_ptr< BlockModAD > mod ) {
 
  auto behaviour = function_value_behaviour::unchanged;
 
@@ -2737,7 +2732,7 @@ BendersBFunction::get_behaviour( std::shared_ptr<BlockModAD> mod ) {
 /*--------------------------------------------------------------------------*/
 
 BendersBFunction::function_value_behaviour
-BendersBFunction::get_behaviour( std::shared_ptr<ConstraintMod> mod ) {
+BendersBFunction::get_behaviour( std::shared_ptr< ConstraintMod > mod ) {
 
  if( mod->type() != ConstraintMod::eRelaxConst &&
      mod->type() != ConstraintMod::eEnforceConst )
@@ -2768,8 +2763,9 @@ void BendersBFunction::send_nuclear_modification
  global_pool.invalidate();
  f_constraints_are_updated = false;
  if( f_Observer )
-  f_Observer->add_Modification
-   ( std::make_shared<FunctionMod>( this , FunctionMod::NaNshift ) , chnl );
+  f_Observer->add_Modification( std::make_shared< FunctionMod >(
+                                 this , FunctionMod::NaNshift ) ,
+                                chnl );
 }  // end( BendersBFunction::send_nuclear_modification )
 
 /*--------------------------------------------------------------------------*/
@@ -2785,7 +2781,7 @@ bool BendersBFunction::has_constraint( Constraint * constraint ) {
 /*--------------------------------------------------------------------------*/
 
 template< class T >
-bool BendersBFunction::is_A_sparse( SparseMatrix<T> & matrix ) const {
+bool BendersBFunction::is_A_sparse( SparseMatrix< T > & matrix ) const {
  matrix.clear();
  if( v_A.empty() ) {
   return( true );
@@ -2856,7 +2852,7 @@ void BendersBFunction::add_constraints( const ConstraintVector & nc ) {
   v_paths_to_constraints.reserve( v_paths_to_constraints.size() + nc.size() );
   for( auto & constraint : nc )
    v_paths_to_constraints.push_back
-    ( std::make_unique<AbstractPath>( constraint , get_inner_block() ) );
+    ( std::make_unique< AbstractPath >( constraint , get_inner_block() ) );
   v_constraints.resize( v_paths_to_constraints.size() , nullptr );
  }
 }
@@ -2864,7 +2860,7 @@ void BendersBFunction::add_constraints( const ConstraintVector & nc ) {
 /*--------------------------------------------------------------------------*/
 
 void BendersBFunction::add_constraint( RowConstraint * constraint ) {
- add_constraints( std::vector<RowConstraint *>{ constraint } );
+ add_constraints( std::vector< RowConstraint * >{ constraint } );
 }
 
 /*--------------------------------------------------------------------------*/

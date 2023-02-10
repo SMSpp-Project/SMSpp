@@ -323,7 +323,7 @@ class Variable
   *   in 0, ..., get_num_active() such that the given ThinVarDepInterface is
   *   the i-th in which the Variable is "active";
   *
-  * - otherwise, any number >= get_num_active() (say, Inf<Index>()).
+  * - otherwise, any number >= get_num_active() (say, Inf< Index >()).
   *
   * The base Variable class makes no provisions about how this is done in
   * order to leave more freedom to derived classes to implement it in

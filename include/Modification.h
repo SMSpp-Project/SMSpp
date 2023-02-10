@@ -26,7 +26,7 @@
  * "physical representation" of the is kept in synch with the abstract one)
  * to know beforehand that some Modification are "logically related". This
  * is why the GroupModification class is also defined, which is simply a
- * container that holds a list of std::shared_ptr<Modification>. This cannot
+ * container that holds a list of std::shared_ptr< Modification >. This cannot
  * complicate (too much) the handling of Modification by a Solver (or Block),
  * because if the Solver (Block) is not "interested" in the "logical relation"
  * between the individual Modification in the GroupModification it can simply

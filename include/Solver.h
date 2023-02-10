@@ -365,7 +365,7 @@ class Solver : public ThinComputeInterface
   *
   * The roles of ub and lb are suitably reversed for a maximization problem
   * [see the comments to get_ub(), get_lb() and Objective::set_sense()]. The
-  * default is Inf<OFValue>(), which is intended to mean that the only working
+  * default is Inf< OFValue >(), which is intended to mean that the only working
   * accuracy is the relative one. */
 
   dblUpCutOff ,  ///< upper cutoff for stopping the algorithm
@@ -387,7 +387,7 @@ class Solver : public ThinComputeInterface
   * actually needed a solution with objective function value at least as
   * good as (i.e., smaller than) \eps, now that I have know for sure that
   * this is never going to happen the problem is as good as unfeasible to me.
-  * The default is Inf<OFValue>(). */
+  * The default is Inf< OFValue >(). */
 
   dblLwCutOff ,  ///< lower cutoff for stopping the algorithm
                  /**< The algorithmic parameter for setting the "lower cut 
@@ -408,7 +408,7 @@ class Solver : public ThinComputeInterface
   * actually needed a solution with objective function value at least as
   * good as (i.e., larger than) \eps, now that I have know for sure that
   * this is never going to happen the problem is as good as unfeasible to me.
-  * The default is - Inf<OFValue>(). */
+  * The default is - Inf< OFValue >(). */
 
   dblRAccSol ,   ///< maximum relative error in any reported solution
                  /**< The algorithmic parameter for setting the relative
@@ -428,7 +428,7 @@ class Solver : public ThinComputeInterface
   *
   * where fbest is the value of the best (with smallest objective value)
   * solution found so far. The roles of ub and lb are suitably reversed for
-  * a maximization problem. The default is Inf<OFValue>(). */
+  * a maximization problem. The default is Inf< OFValue >(). */
 
   dblAAccSol ,   ///< maximum absolute error in any reported solution
                  /**< Similar to dblRAccSol but for an *absolute* accuracy;
@@ -442,7 +442,7 @@ class Solver : public ThinComputeInterface
   *    ub - fbest <= \eps
   *
   * with the same notation as in dblRAccSol and the same provisions about the
-  * case of a maximization problem. The default is Inf<OFValue>(). */
+  * case of a maximization problem. The default is Inf< OFValue >(). */
 
   dblFAccSol ,   ///< maximum constraint violation in any reported solution
                  /**< The algorithmic parameter for setting the maximum
@@ -567,8 +567,8 @@ class Solver : public ThinComputeInterface
   *     SMSpp_insert_in_factory_cpp_0( ( name_of_the_class ) );
   *
   * Any whitespaces that the given \p classname may contain is ignored. So,
-  * for example, to create an instance of the class MySolver<int> one could
-  * pass "MySolver<int>" or "MySolver< int >" (even " M y S o l v e r < int >
+  * for example, to create an instance of the class MySolver< int > one could
+  * pass "MySolver< int >" or "MySolver< int >" (even " M y S o l v e r < int >
   * " would work).
   *
   * @param classname The name of the :Solver class that must be
@@ -991,9 +991,9 @@ class Solver : public ThinComputeInterface
   *
   * For a minimization problem, get_lb() returns:
   *
-  * - - Inf<OFValue> if compute() returned kUnbounded.
+  * - - Inf< OFValue > if compute() returned kUnbounded.
   *
-  * - Inf<OFValue> if compute() returned kInfeasible.
+  * - Inf< OFValue > if compute() returned kInfeasible.
   *
   * - A finite value if compute() returned kOK. Since the lower bound for a
   *   minimization problem is not attached to a solution in terms of the
@@ -1002,14 +1002,14 @@ class Solver : public ThinComputeInterface
   *   lower bound is attached to a *dual* solution, but this concept is not
   *   general enough to be supported in the base class [see CDASolver.h].
   *
-  * - any value, comprised - Inf<OFValue> (meaning that no lower bound is
+  * - any value, comprised - Inf< OFValue > (meaning that no lower bound is
   *   currently available), if compute() returned any other value.
   *
   * For a maximization problem, get_lb() returns:
   *
-  * - Inf<OFValue> if compute() returned kUnbounded.
+  * - Inf< OFValue > if compute() returned kUnbounded.
   *
-  * - - Inf<OFValue> if compute() returned kInfeasible.
+  * - - Inf< OFValue > if compute() returned kInfeasible.
   *
   * - A finite value if compute() returned kOK. Since the lower bound for a
   *   maximization problem is typically attached to a feasible solution,
@@ -1041,17 +1041,17 @@ class Solver : public ThinComputeInterface
   *   returned by get_lb() may (necessarily have to) be different from their
   *   objective function value.
   *
-  * - Any value, comprised - Inf<OFValue> (meaning that no lower bound is
+  * - Any value, comprised - Inf< OFValue > (meaning that no lower bound is
   *   currently available), if compute() returned any other value. However,
   *   whatever the return status of compute(), the returned value should
   *   always be a valid lower bound.
   *
-  * The method is given an implementation returning -Inf<OFValue>(), which
+  * The method is given an implementation returning -Inf< OFValue >(), which
   * should be safe for any derived classes which simply don't have the
   * concept of real objective function. */
 
  [[nodiscard]] virtual OFValue get_lb( void ) {
-  return( -Inf< OFValue >() );
+  return( - Inf< OFValue >() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1063,9 +1063,9 @@ class Solver : public ThinComputeInterface
   *
   * For a maximization problem, get_ub() returns:
   *
-  * - Inf<OFValue> if compute() returned kUnbounded.
+  * - Inf< OFValue > if compute() returned kUnbounded.
   *
-  * - - Inf<OFValue> if compute() returned kInfeasible.
+  * - - Inf< OFValue > if compute() returned kInfeasible.
   *
   * - A finite value if compute() returned kOK. Since the upper bound for a
   *   maximization problem is not attached to a solution in terms of the
@@ -1074,14 +1074,14 @@ class Solver : public ThinComputeInterface
   *   upper bound is attached to a *dual* solution, but this concept is not
   *   general enough to be supported in the base class [see CDASolver.h].
   *
-  * - any value, comprised Inf<OFValue> (meaning that no upper bound is
+  * - any value, comprised Inf< OFValue > (meaning that no upper bound is
   *   currently available), if compute() returned any other value.
   *
   * For a minimization problem, get_ub() returns:
   *
-  * - - Inf<OFValue> if compute() returned kUnbounded.
+  * - - Inf< OFValue > if compute() returned kUnbounded.
   *
-  * - Inf<OFValue> if compute() returned kInfeasible.
+  * - Inf< OFValue > if compute() returned kInfeasible.
   *
   * - A finite value if compute() returned kOK. Since the upper bound for a
   *   minimization problem is typically attached to a feasible solution,
@@ -1120,12 +1120,12 @@ class Solver : public ThinComputeInterface
   *   value returned by get_ub() may (necessarily have to) be different from
   *   their objective function value.
   *
-  * - Any value, comprised Inf<OFValue> (meaning that no upper bound is
+  * - Any value, comprised Inf< OFValue > (meaning that no upper bound is
   *   currently available), if compute() returned any other value. However,
   *   whatever the return status of compute(), the returned value should
   *   always be a valid upper bound.
   *
-  * The method is given an implementation returning Inf<OFValue>(), which
+  * The method is given an implementation returning Inf< OFValue >(), which
   * should be safe for any derived classes which simply don't have the
   * concept of real objective function. */
 

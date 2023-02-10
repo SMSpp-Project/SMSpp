@@ -205,7 +205,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface
    *
    *    ub - lb <= dblRelAcc
    *
-   * The default is Inf<OFValue>(), which is intended to mean that the only
+   * The default is Inf< OFValue >(), which is intended to mean that the only
    * working accuracy is the relative one. */
 
   dblUpCutOff ,  ///< upper cutoff on the value of the function
@@ -217,7 +217,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface
    *   lb >= dblUpCutOff
    *
    * This is a *certificate* that the value is at *least* dblUpCutOff. The
-   * default is Inf<OFValue>(), i.e., no upper cut off. */
+   * default is Inf< OFValue >(), i.e., no upper cut off. */
 
   dblLwCutOff ,  ///< lower cutoff on the value of the function
                  /**< The parameter for setting the "lower cut off" of the
@@ -228,7 +228,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface
    *   ub <= dblLwCutOff
    *
    * This is a *certificate* that the value is at *most* dblLwCutOff. The
-   * default is -Inf<OFValue>(), i.e., no lower cut off. */
+   * default is - Inf< OFValue >(), i.e., no lower cut off. */
 
   dblLastParFun   ///< first allowed new double parameter for derived classes
                   /**< Convenience value for easily allow derived classes
@@ -515,7 +515,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface
   * to be able to write into the fields of the class. */
 
  virtual FunctionValue get_global_lower_bound( void ) {
-  return( -Inf< FunctionValue >() );
+  return( - Inf< FunctionValue >() );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -544,7 +544,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface
   *   | f( x ) - f( y ) | <= L * | x - y |
   *
   * for all x and y in the domain of the Function. By default, the method
-  * returns Inf<FunctionValue>(), which means that the Function is *not*
+  * returns Inf< FunctionValue >(), which means that the Function is *not*
   * Lipschitz continuous. Note that a finite Lipschitz constant implies that
   * is_continuous() must return true.
   *
@@ -654,7 +654,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface
    case( dblRelAcc ):   return( 1e-6 );
    case( dblAbsAcc ):
    case( dblUpCutOff ): return( Inf< double >() );
-   case( dblLwCutOff ): return( -Inf< double >() );
+   case( dblLwCutOff ): return( - Inf< double >() );
    }
 
   throw( std::invalid_argument( "invalid double parameter name" ) );
@@ -801,8 +801,8 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface
  * value of shift() in the following way:
  *
  * - NaN, e.g. as what is reported by
- *   std::numeric_limits::quiet_NaN<FunctionValue>() or by
- *   std::numeric_limits::signaling_NaN<FunctionValue>()): the value of the
+ *   std::numeric_limits::quiet_NaN< FunctionValue >() or by
+ *   std::numeric_limits::signaling_NaN< FunctionValue >()): the value of the
  *   Function has changed "unpredictably" all over the space, any previously
  *   computed value is no longer reliable. Although the convenient constexpr
  *   "NaNshift" is defined in the class, note that testing if shift() is NaN
@@ -819,14 +819,14 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface
  *   however, the value is still allowed for uniformity with FunctionModVars
  *   [see].
  *
- * - +Infty (= Inf<FunctionValue>(), for which the convenience constexpr
+ * - +Infty (= Inf< FunctionValue >(), for which the convenience constexpr
  *   "INFshift" is defined): this means that the value of the Function has
  *   changed "unpredictably but monotonically upwards": computing the value of
  *   the Function at any point now returns a value that is surely greater than
  *   or equal to the value that would have been returned prior to the
  *   Modification.
  *
- * - -Infty (= - Inf<FunctionValue>(), i.e., "-INFshift" exploiting the
+ * - - Infty (= - Inf< FunctionValue >(), i.e., "- INFshift" exploiting the
  *   defined convenience constexpr): this means that the value of the Function
  *   has changed "unpredictably but monotonically downwards": computing the
  *   value of the Function at any point now returns a value that is surely
@@ -897,7 +897,7 @@ class FunctionMod : public AModification
   * the shift. If shift is finite, then it indicates that the Function value
   * has been shifted by a constant. This means that if the Function value at
   * a given point was f_v before this Modification, then the correct value is
-  * now f_v + shift. If shift is Inf<FunctionValue>(), then it means that the
+  * now f_v + shift. If shift is Inf< FunctionValue >(), then it means that the
   * Function has been modified in an unpredictable way, so that any prior
   * information regarding the Function can be disregarded. */
 
@@ -940,7 +940,7 @@ class FunctionMod : public AModification
  *   equal to the value that would have been returned prior to the
  *   Modification.
  *
- * - -INFshif: this means that the value of the Function has changed
+ * - - INFshif: this means that the value of the Function has changed
  *   "unpredictably but monotonically downwards": computing the value of the
  *   Function at any point now returns a value that is surely smaller than or
  *   equal to the value that would have been returned prior to the
@@ -966,7 +966,7 @@ class FunctionMod : public AModification
    output << "(+-)";
   else if( f_shift >= INFshift )
    output << "(+)";
-  else if( f_shift <= -INFshift )
+  else if( f_shift <= - INFshift )
    output << "(-)";
   else
    output << " by " << f_shift;
@@ -988,7 +988,7 @@ class FunctionMod : public AModification
 /// class to describe adding/removing Variable of a Function
 /** Derived class from AModification to describe changes of a Function that
  * involve adding/removing the Variable "active" in it. The class holds the
- * subset of affected Variable under the form of a std::vector<Variable *>,
+ * subset of affected Variable under the form of a std::vector< Variable * >,
  * returned by vars(), containing their "name == pointer". This is already
  * enough information to completely identify the affected Variable. However,
  * derived classes may add some operation-specific information that make the
@@ -1099,7 +1099,7 @@ class FunctionMod : public AModification
  *   Modification was a quasi-additive one, with shift() being the value of
  *   the shift.
  *
- * - +Infty (= Inf<FunctionValue>(), for which the convenience constexpr
+ * - +Infty (= Inf< FunctionValue >(), for which the convenience constexpr
  *   "INFshift" is defined): the Modification was not a quasi-additive one,
  *   but while the value of the Function has changed "unpredictably" all over
  *   the space, the change is "upward monotone" in the sense that:
@@ -1108,7 +1108,8 @@ class FunctionMod : public AModification
  *   = for deletion, the value of the Function at any point x is surely
  *     greater than or equal to the value that the Function had at ( x , 0 ).
  *
- * - -Infty (= -Inf<FunctionValue>(), i.e., "-INFshift" exploiting the defined
+ * - - Infty (= - Inf< FunctionValue >(), i.e., "- INFshift" exploiting the
+ * defined
  *   convenience constexpr): the Modification was not a quasi-additive one,
  *   but while the value of the Function has changed "unpredictably" all over
  *   the space, the change is "downward monotone" in the sense that:
@@ -1229,7 +1230,7 @@ class FunctionModVars : public AModification
   *   value of the Function has changed "unpredictably" all over the space,
   *   the change is "upward monotone".
   *
-  * - -INFshift: the Modification was not a quasi-additive one, but while the
+  * - - INFshift: the Modification was not a quasi-additive one, but while the
   *   value of the Function has changed "unpredictably" all over the space,
   *   the change is "downward monotone". */
 
@@ -1271,7 +1272,7 @@ class FunctionModVars : public AModification
    output << "non quasi-additively (+-)";
   else if( f_shift >= INFshift )
    output << "non quasi-additively (+)";
-  else if( f_shift <= -INFshift )
+  else if( f_shift <= - INFshift )
    output << "non quasi-additively (-)";
   else
    output << "quasi-additively (" << f_shift << ") ";
@@ -1389,7 +1390,7 @@ class FunctionModVarsAddd : public FunctionModVars {
    output << "non quasi-additively (+-)";
   else if( f_shift >= INFshift )
    output << "non quasi-additively (+)";
-  else if( f_shift <= -INFshift )
+  else if( f_shift <= - INFshift )
    output << "non quasi-additively (-)";
   else
    output << "quasi-additively (" << f_shift << ") ";
@@ -1497,7 +1498,7 @@ class FunctionModVarsRngd : public FunctionModVars
    output << "non quasi-additively (+-)";
   else if( f_shift >= INFshift )
    output << "non quasi-additively (+)";
-  else if( f_shift <= -INFshift )
+  else if( f_shift <= - INFshift )
    output << "non quasi-additively (-)";
   else
    output << "quasi-additively (" << f_shift << ") ";
@@ -1622,7 +1623,7 @@ class FunctionModVarsSbst : public FunctionModVars {
    output << "non quasi-additively (+-)";
   else if( f_shift >= INFshift )
    output << "non quasi-additively (+)";
-  else if( f_shift <= -INFshift )
+  else if( f_shift <= - INFshift )
    output << "non quasi-additively (-)";
   else
    output << "quasi-additively (" << f_shift << ") ";

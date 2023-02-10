@@ -92,14 +92,14 @@ void ThinComputeInterface::set_ComputeConfig( ComputeConfig * scfg )
 
  for( const auto & pair : scfg->int_pars ) {
   auto idx = int_par_str2idx( pair.first );
-  if( idx == Inf<idx_type>() )
+  if( idx == Inf< idx_type >() )
    throw( std::invalid_argument( "int parameter " + pair.first + " unknown" ) );
   set_par( idx , pair.second );
   }
 
  for( const auto & pair : scfg->dbl_pars ) {
   auto idx = dbl_par_str2idx( pair.first );
-  if( idx == Inf<idx_type>() )
+  if( idx == Inf< idx_type >() )
    throw( std::invalid_argument( "double parameter " + pair.first +
 				 " unknown" ) );
   set_par( idx , pair.second );
@@ -107,7 +107,7 @@ void ThinComputeInterface::set_ComputeConfig( ComputeConfig * scfg )
 
  for( const auto & pair : scfg->str_pars ) {
   auto idx = str_par_str2idx( pair.first );
-  if( idx == Inf<idx_type>() )
+  if( idx == Inf< idx_type >() )
    throw( std::invalid_argument( "string parameter " + pair.first +
 				 " unknown" ) );
   set_par( idx , pair.second );
@@ -115,7 +115,7 @@ void ThinComputeInterface::set_ComputeConfig( ComputeConfig * scfg )
 
  for( const auto & pair : scfg->vint_pars ) {
   auto idx = vint_par_str2idx( pair.first );
-  if( idx == Inf<idx_type>() )
+  if( idx == Inf< idx_type >() )
    throw( std::invalid_argument( "vector-of-int parameter " + pair.first +
 				 " unknown" ) );
   set_par( idx , pair.second );
@@ -123,7 +123,7 @@ void ThinComputeInterface::set_ComputeConfig( ComputeConfig * scfg )
 
  for( const auto & pair : scfg->vdbl_pars ) {
   auto idx = vdbl_par_str2idx( pair.first );
-  if( idx == Inf<idx_type>() )
+  if( idx == Inf< idx_type >() )
    throw( std::invalid_argument( "vector-of-double parameter " + pair.first +
 				 " unknown" ) );
   set_par( idx , pair.second );
@@ -131,7 +131,7 @@ void ThinComputeInterface::set_ComputeConfig( ComputeConfig * scfg )
 
  for( const auto & pair : scfg->vstr_pars ) {
   auto idx = vstr_par_str2idx( pair.first );
-  if( idx == Inf<idx_type>() )
+  if( idx == Inf< idx_type >() )
    throw( std::invalid_argument( "vector-of-string parameter " + pair.first +
 				 " unknown" ) );
   set_par( idx , pair.second );

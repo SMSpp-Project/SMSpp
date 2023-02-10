@@ -50,10 +50,10 @@ namespace SMSpp_di_unipi_it
 /** @defgroup ColVariableSolution_TYPES ColVariableSolution-related types
  *  @{ */
 
- typedef std::vector<ColVariableSolution> Vec_ColVariableSolution;
+ typedef std::vector< ColVariableSolution > Vec_ColVariableSolution;
  ///< a vector of ColVariableSolution
 
- typedef const std::vector<ColVariableSolution> c_Vec_ColVariableSolution;
+ typedef const std::vector< ColVariableSolution > c_Vec_ColVariableSolution;
  ///< a const vector of ColVariableSolution
 
 /** @}  end( group( ColVariableSolution_TYPES ) ) */
@@ -255,11 +255,11 @@ public:
   * associated with this Solution. It returns a vector of boost::any, each
   * element of which is supposed to contain only one among:
   *
-  * - a pointer to a std::vector<double>;
+  * - a pointer to a std::vector< double >;
   *
-  * - a pointer to a std::vector< std::vector<double> >;
+  * - a pointer to a std::vector< std::vector< double > >;
   *
-  * - a pointer to a boost::multi_array<std::vector<double> , K>;
+  * - a pointer to a boost::multi_array< std::vector< double > , K >;
   *
   * This vector of boost::any is structured in the same way the vector
   * v_d_Variable of dynamic Variables is structured in the associated
@@ -272,16 +272,16 @@ public:
   *   element of this vector is a pointer to a std::vector of double which
   *   are the values of those ColVariables;
   *
-  * - a pointer to a std::vector of std::list<V> or a pointer to a
+  * - a pointer to a std::vector of std::list< V > or a pointer to a
   *   std::vector of std::list<V *>, where V is any class derived from
   *   ColVariable, then the i-th element of this vector is a pointer to a
-  *   std::vector of std::vector<double> which are the values of those
+  *   std::vector of std::vector< double > which are the values of those
   *   ColVariables;
   *
-  * - a pointer to a boost::multi_array<std::list<V> , K> or a pointer to a
+  * - a pointer to a boost::multi_array< std::list< V > , K > or a pointer to a
   *   boost::multi_array<std::list<V *>, K>, where V is any class derived
   *   from ColVariable, then the i-th element of this vector is a pointer to
-  *   a boost::multi_array<std::vector<double> , K>, which stores the values
+  *   a boost::multi_array< std::vector< double > , K >, which stores the values
   *   of those ColVariables. */
 
  c_Vec_any & get_dynamic_variable_values( void ) const {

@@ -930,7 +930,7 @@ class BendersBFunction : public C05Function , public Block {
  {
   auto idx = std::find( v_x.begin() , v_x.end() , var );
   if( idx == v_x.end() )
-   return( Inf<Index>() );
+   return( Inf< Index >() );
   else
    return( std::distance( v_x.begin() , idx ) );
   }
@@ -2978,7 +2978,7 @@ class BendersBFunctionMod : public C05FunctionMod {
     output << "(+-)";
    else if( f_shift >= INFshift )
     output << "(+)";
-   else if( f_shift <= -INFshift )
+   else if( f_shift <= - INFshift )
     output << "(-)";
    else
     output << " by " << f_shift;

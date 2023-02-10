@@ -289,9 +289,9 @@ void Block::set_objective( Objective * newOF , c_ModParam issueMod )
  newOF->set_Block( this );
 
  if( issue_mod( issueMod ) )
-  add_Modification( std::make_shared< BlockMod >( this ,
-				       Observer::par2concern( issueMod ) ) );
- }
+  add_Modification( std::make_shared< BlockMod >(
+   this , Observer::par2concern( issueMod ) ) );
+}
 
 /*--------------------------------------------------------------------------*/
 /*------------- METHODS DESCRIBING THE BEHAVIOR OF AN Observer -------------*/

@@ -687,7 +687,7 @@ constexpr char SimpleDataMappingBase::get_id< int >() { return( 'I' ); }
  * In the network example above, this function could be, for instance,
  *
  * void set_capacities( Network * network ,
- *                      std::vector<double>::const_iterator capacities ,
+ *                      std::vector< double >::const_iterator capacities ,
  *                      const Range & indices ,
  *                      c_ModParam , c_ModParam );
  *
@@ -1371,7 +1371,7 @@ private:
 
 /*--------------------------------------------------------------------------*/
 
- template<class T>
+ template< class T >
  static bool empty( const T & t ) {
   return( cardinality( t ) == 0 );
  }

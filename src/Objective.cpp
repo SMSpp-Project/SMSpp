@@ -42,14 +42,11 @@ void Objective::set_sense( int new_sense, c_ModParam issueMod ) {
  if( ( ! f_Block ) || ( ! f_Block->issue_mod( issueMod ) ) )
   return;
 
- f_Block->add_Modification(
-  std::make_shared< ObjectiveMod >( this,
-                                    f_sense == eMin
-                                    ? ObjectiveMod::eSetMin
-                                    :
-                                    ObjectiveMod::eSetMax,
-                                    Observer::par2concern( issueMod ) ),
-  Observer::par2chnl( issueMod ) );
+ f_Block->add_Modification( std::make_shared< ObjectiveMod >(
+                             this , f_sense == eMin ? ObjectiveMod::eSetMin :
+                                                      ObjectiveMod::eSetMax ,
+                             Observer::par2concern( issueMod ) ) ,
+                            Observer::par2chnl( issueMod ) );
 }
 
 /*--------------------------------------------------------------------------*/

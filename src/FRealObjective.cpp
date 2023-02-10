@@ -70,10 +70,10 @@ void FRealObjective::set_function( Function * const function ,
 
  // if so instructed, issue the FRealObjectiveMod
  if( f_Block && f_Block->issue_mod( issueMod ) )
-  f_Block->add_Modification( std::make_shared< FRealObjectiveMod >( this ,
-                                        FRealObjectiveMod::eFunctionChanged ,
-                                        Observer::par2concern( issueMod ) ) ,
-			     Observer::par2chnl( issueMod ) );
+  f_Block->add_Modification( std::make_shared< FRealObjectiveMod >(
+                              this , FRealObjectiveMod::eFunctionChanged ,
+                              Observer::par2concern( issueMod ) ) ,
+                             Observer::par2chnl( issueMod ) );
 
  }  // end( FRealObjective::set_function )
 

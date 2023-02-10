@@ -542,7 +542,7 @@ class LB0Constraint : public OneVarConstraint {
  /** Constructor of LB0Constraint. It receives a pointer to the Block to
   * which the LB0Constraint belongs, a pointer to the ColVariable that
   * defines the constraint, and the RHS. Everything has a default (nullptr,
-  * nullptr, and Inf<RHSValue>, respectively) so that this can be used as
+  * nullptr, and Inf< RHSValue >, respectively) so that this can be used as
   * the void constructor. */
 
  explicit LB0Constraint( Block * my_block = nullptr ,
@@ -657,7 +657,7 @@ class UB0Constraint : public OneVarConstraint {
  /** Constructor of UB0Constraint. It receives a pointer to the Block to
   * which the UB0Constraint belongs, a pointer to the ColVariable that
   * defines the constraint, and the LHS. Everything has a default (nullptr,
-  * nullptr, and -Inf<RHSValue>, respectively) so that this can be used as
+  * nullptr, and -Inf< RHSValue >, respectively) so that this can be used as
   * the void constructor. */
 
  explicit UB0Constraint( Block * my_block = nullptr ,

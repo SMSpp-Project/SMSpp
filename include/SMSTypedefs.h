@@ -113,7 +113,7 @@ typedef const c_Vec_string::const_iterator c_Vec_string_it;
 ///< iterator for a c_Vec_string
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-/// Inf<T>() = infinity value for T
+/// Inf< T >() = infinity value for T
 
 template< typename T >
 static constexpr T Inf( void ) noexcept {
@@ -192,11 +192,11 @@ typedef const Vec_p_Var c_Vec_p_Var;
 
 template< std::size_t K >
 using KD_Vec_p_Var = boost::multi_array< p_Var , K >;
-///< Vec_p_Var<K> is a K-D vector of pointer to Variable
+///< Vec_p_Var< K > is a K-D vector of pointer to Variable
 
 template< std::size_t K >
 using KD_c_Vec_p_Var = const boost::multi_array< p_Var , K >;
-///< c_Vec_p_Var<K> is a const K-D vector of pointer to Variable
+///< c_Vec_p_Var< K > is a const K-D vector of pointer to Variable
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
@@ -220,11 +220,11 @@ typedef const Vec_List_p_Var c_Vec_List_p_Var;
 
 template< std::size_t K >
 using KD_Vec_List_p_Var = boost::multi_array< List_p_Var , K >;
-///< Vec_List_p_Var<K> is a K-D vector of lists of Variable *
+///< Vec_List_p_Var< K > is a K-D vector of lists of Variable *
 
 template< std::size_t K >
 using KD_c_Vec_List_p_Var = const boost::multi_array< List_p_Var , K >;
-///< c_Vec_List_p_Var<K> is a const K-D vector of lists of Variable *
+///< c_Vec_List_p_Var< K > is a const K-D vector of lists of Variable *
 
 
 /** @} end( group( Variable_TYPES ) ) */
@@ -251,11 +251,11 @@ typedef const Vec_p_Const c_Vec_p_Const;
 
 template< std::size_t K >
 using KD_Vec_p_Const = boost::multi_array< p_Const , K >;
-///< Vec_p_Const<K> is a K-D vector of pointer to Constraint
+///< Vec_p_Const< K > is a K-D vector of pointer to Constraint
 
 template< std::size_t K >
 using KD_c_Vec_p_Const = const boost::multi_array< p_Const , K >;
-///< c_Vec_p_Const<K> is a const K-D vector of pointer to Constraint
+///< c_Vec_p_Const< K > is a const K-D vector of pointer to Constraint
 
 typedef std::list< p_Const > List_p_Const;
 ///< a list of pointers to Constraint (Constraint *)
@@ -277,11 +277,11 @@ typedef const Vec_List_p_Const c_Vec_List_p_Const;
 
 template< std::size_t K >
 using KD_Vec_List_p_Const = boost::multi_array< List_p_Const , K >;
-///< Vec_List_p_Const<K> is a K-D vector of lists of Constraint *
+///< Vec_List_p_Const< K > is a K-D vector of lists of Constraint *
 
 template< std::size_t K >
 using KD_c_Vec_List_p_Const = const boost::multi_array< List_p_Const , K >;
-///< c_Vec_List_p_Const<K> is a const K-D vector of lists of Constraint *
+///< c_Vec_List_p_Const< K > is a const K-D vector of lists of Constraint *
 
 /** @} end( group( Constraint_TYPES ) ) */
 /*--------------------------------------------------------------------------*/
@@ -497,13 +497,13 @@ inline std::string && SMSpp_classname_normalise( std::string && str ) {
  *     THE ONE THAT IS USED TO INDEX THE FACTORY, IS STRIPPED OF ANY
  *     WHITESPACE AND ENCLOSING PARENTHESES. For instance, a template class
  *     like MyBlock< std::pair< int , int > > gets name
- *     "MyBlock<std::pair<int,int>>" (which is syntactically wrong due to
+ *     "MyBlock< std::pair< int , int > >" (which is syntactically wrong due to
  *     the closing ">>" instead of "> >", but after all it is ony a string).
  *     This makes it possible to read it from a std::stream, where
  *     whitespaces are separators. If MyBlock derives from Block, it is then
  *     possible to create an object of class MyBlock with
  *
- *     new_Block( "MyBlock<std::pair<int,int>>" )
+ *     new_Block( "MyBlock< std::pair< int , int > >" )
  *
  *     Note that the implementation of Block::my_Block() automatically strips
  *     all the whitespaces from the input string, which means that
@@ -529,7 +529,7 @@ inline std::string && SMSpp_classname_normalise( std::string && str ) {
  * i.e., with at least one (possibly more, but there is no use in that) pair
  * of extra parentheses around the name of the class. For classes that do not
  * have commas in their names, the use of parentheses is optional. For
- * instance, the classes MyBlock and MyTBlock<int> could be registered in the
+ * instance, the classes MyBlock and MyTBlock< int > could be registered in the
  * factory by
  *
  *    SMSpp_insert_in_factory_cpp_1_t( MyBlock );
@@ -720,39 +720,39 @@ bool SMSpp_ensure_load_var;
  *  - a pointer to a std::vector of objects of some type (Constraint,
  *    Variable or some of their derived classes);
  *
- *  - a pointer to a boost::multi_array<K> of objects of some type (...);
+ *  - a pointer to a boost::multi_array< K > of objects of some type (...);
  *
  *  - a pointer to a single std::list of objects of some type (...);
  *
  *  - a pointer to a std::vector of std::list of objects of some type (...);
  *
- *  - a pointer to a boost::multi_array<K> of std::list of objects of some
+ *  - a pointer to a boost::multi_array< K > of std::list of objects of some
  *    type (...).
  *
  * This is provided through the eight template functions
  *
- *   bool un_any_static( boost::any & any , F f , un_any_type<T> )
+ *   bool un_any_static( boost::any & any , F f , un_any_type< T > )
  *
  *   bool un_any_static_2( boost::any & any1 , boost::any & any2 ,
- *                         F f , un_any_type<T> , un_any_type<U> )
+ *                         F f , un_any_type< T > , un_any_type< U > )
  *
  *   bool un_any_static_2_create( const boost::any & any1 ,
- *                                boost::any & any2 , un_any_type<T> ,
- *                                un_any_type<U> , F f , bool apply_f )
+ *                                boost::any & any2 , un_any_type< T > ,
+ *                                un_any_type< U > , F f , bool apply_f )
  *
- *   bool un_any_const_static( const boost::any & any , F f , un_any_type<T> )
+ *   bool un_any_const_static( const boost::any & any , F f , un_any_type< T > )
  *
- *   bool un_any_dynamic( boost::any & any , F f , un_any_type<T> )
+ *   bool un_any_dynamic( boost::any & any , F f , un_any_type< T > )
  *
  *   bool un_any_dynamic_2( boost::any & any1 , boost::any & any2 ,
- *                          F f , un_any_type<T> , un_any_type<U> )
+ *                          F f , un_any_type< T > , un_any_type< U > )
  *
  *   bool un_any_dynamic_2_create( const boost::any & any1 ,
- *                                 boost::any & any2 , un_any_type<T> ,
- *                                 un_any_type<U> , F f , bool apply_f )
+ *                                 boost::any & any2 , un_any_type< T > ,
+ *                                 un_any_type< U > , F f , bool apply_f )
  *
  *   bool un_any_const_dynamic( const boost::any & any , F f ,
- *                              un_any_type<T> )
+ *                              un_any_type< T > )
  *
  * and the four macros (which, however, behave as a bool-returning function)
  *
@@ -793,13 +793,13 @@ struct un_any_type {};
 /*--------------------------------------------------------------------------*/
 /** The template function
  *
- *   bool un_any_static( boost::any & any , F f , un_any_type<T> )
+ *   bool un_any_static( boost::any & any , F f , un_any_type< T > )
  *
  * is intended to take a boost::any that contains either:
  *
  * - a pointer (reference) to a T;
  *
- * - a pointer (reference) to a std::vector<T>;
+ * - a pointer (reference) to a std::vector< T >;
  *
  * - a pointer (reference) to a  boost::multi_array<T , K> for "all" K;
  *
@@ -860,15 +860,15 @@ bool un_any_static( boost::any & any , F f , un_any_type< T > ,
 /** The template function
  *
  *   bool un_any_static_2( boost::any & any1 , boost::any & any2 ,
- *                         F f , un_any_type<T> , un_any_type<U> )
+ *                         F f , un_any_type< T > , un_any_type< U > )
  *
  * is intended to take two boost::any "any1" and "any2" so that they
  * contain respectively:
  *
  * - a pointer (reference) to a T and a pointer (reference) to a U;
  *
- * - a pointer (reference) to a std::vector<T> and a pointer (reference) to a
- *   std::vector<U>;
+ * - a pointer (reference) to a std::vector< T > and a pointer (reference) to a
+ *   std::vector< U >;
  *
  * - a pointer (reference) to a boost::multi_array<T , K> and a
  *   pointer (reference) to a boost::multi_array<U , K>, for "all" K;
@@ -918,7 +918,7 @@ bool un_any_static_2( const boost::any & any1 , const boost::any & any2 ,
    #ifndef NDEBUG
     if( any2.type() != typeid( std::vector< U > * ) )
      throw( std::invalid_argument(
-             "un_any_static_2: second argument not not std::vector<U> *" ) );
+             "un_any_static_2: second argument not not std::vector< U > *" ) );
    #endif
    auto & var2 = *boost::any_cast< std::vector< U > * >( any2 );
    #ifndef NDEBUG
@@ -955,7 +955,7 @@ bool un_any_static_2( const boost::any & any1 , const boost::any & any2 ,
   #ifndef NDEBUG
    if( any2.type() != typeid( boost::multi_array< U , K > * ) )
     throw( std::invalid_argument(
-      "un_any_static_2: second argument not boost::multi_array<U,K> *" ) );
+      "un_any_static_2: second argument not boost::multi_array< U , K > *" ) );
   #endif
   auto & var2 = *boost::any_cast< boost::multi_array< U , K > * >( any2 );
   #ifndef NDEBUG
@@ -981,8 +981,8 @@ bool un_any_static_2( const boost::any & any1 , const boost::any & any2 ,
 /** The template function
  *
  *   bool un_any_static_2_create( const boost::any & any1 ,
- *                                boost::any & any2 , un_any_type<T> ,
- *                                un_any_type<U> , F f , bool apply_f )
+ *                                boost::any & any2 , un_any_type< T > ,
+ *                                un_any_type< U > , F f , bool apply_f )
  *
  * is intended to take two boost::any "any1" and "any2" so that if "any1"
  * contains
@@ -990,7 +990,7 @@ bool un_any_static_2( const boost::any & any1 , const boost::any & any2 ,
  * - a pointer (reference) to a T, then a U is created and a pointer to this
  *   newly created object is stored in "any2";
  *
- * - a pointer (reference) to a std::vector<T>, then a std::vector<U> is
+ * - a pointer (reference) to a std::vector< T >, then a std::vector< U > is
  *   created having the same size as the vector pointed by "any1" and the
  *   pointer to this just created object is stored in "any2";
  *
@@ -1092,13 +1092,13 @@ bool un_any_static_2_create( const boost::any & any1 , boost::any & any2 ,
 /*--------------------------------------------------------------------------*/
 /** The template function
  *
- *   bool un_any_const_static( const boost::any & any , F f , un_any_type<T> )
+ *   bool un_any_const_static( const boost::any & any , F f , un_any_type< T > )
  *
  * is intended to take a const boost::any that contains either:
  *
  * - a pointer (reference) to a T;
  *
- * - a pointer (reference) to a std::vector<T>;
+ * - a pointer (reference) to a std::vector< T >;
  *
  * - a pointer (reference) to a  boost::multi_array<T , K> for "all" K;
  *
@@ -1160,15 +1160,15 @@ bool un_any_const_static( const boost::any & any , F f ,
 /*--------------------------------------------------------------------------*/
 /** The template function
  *
- *   bool un_any_dynamic( boost::any & any , F f , un_any_type<T> )
+ *   bool un_any_dynamic( boost::any & any , F f , un_any_type< T > )
  *
  * is intended to take a boost::any that contains either:
  *
- * - a pointer (reference) to a std::list<T>;
+ * - a pointer (reference) to a std::list< T >;
  *
- * - a pointer (reference) to a std::vector<std::list<T> >;
+ * - a pointer (reference) to a std::vector<std::list< T > >;
  *
- * - a pointer (reference) to a  boost::multi_array<std::list<T> , K> for
+ * - a pointer (reference) to a  boost::multi_array<std::list< T > , K> for
  *   "all" K;
  *
  * and apply the function "f" to all the objects of type T it contains. Note
@@ -1234,22 +1234,22 @@ bool un_any_dynamic( boost::any & any , F f ,
 /** The template function
  *
  *   bool un_any_dynamic_2( boost::any & any1 , boost::any & any2 ,
- *                          F f , un_any_type<T> , un_any_type<U> )
+ *                          F f , un_any_type< T > , un_any_type< U > )
  *
  * is intended to take two boost::any "any1" and "any2" so that they
  * contain respectively:
  *
- * - a pointer (reference) to a std::list<T> and a pointer (reference) to a U;
+ * - a pointer (reference) to a std::list< T > and a pointer (reference) to a U;
  *
- * - a pointer (reference) to a std::vector<std::list<T>> and a pointer
- *   (reference) to a std::vector<U>;
+ * - a pointer (reference) to a std::vector<std::list< T >> and a pointer
+ *   (reference) to a std::vector< U >;
  *
- * - a pointer (reference) to a boost::multi_array<std::list<T> , K> and a
+ * - a pointer (reference) to a boost::multi_array<std::list< T > , K> and a
  *   pointer (reference) to a boost::multi_array<U , K>, for "all" K;
  *
  * and apply the function "f" to the objects they point to. "f" must be a
- * ( std::list<T> & , U & ) --> void function (it could also be a
- * ( std::list<T> , U ) --> void function but this would mean copying the
+ * ( std::list< T > & , U & ) --> void function (it could also be a
+ * ( std::list< T > , U ) --> void function but this would mean copying the
  * object and no one wants that, right?); a lambda would work perfectly there.
  *
  * The function can work with any K, but a maximum K has to be fixed at
@@ -1346,20 +1346,20 @@ bool un_any_dynamic_2( const boost::any & any1 , const boost::any & any2 ,
 /** The template function
  *
  *   bool un_any_dynamic_2_create( const boost::any & any1 ,
- *                                 boost::any & any2 , un_any_type<T> ,
- *                                 un_any_type<U> , F f , bool apply_f )
+ *                                 boost::any & any2 , un_any_type< T > ,
+ *                                 un_any_type< U > , F f , bool apply_f )
  *
  * is intended to take two boost::any "any1" and "any2" so that if "any1"
  * contains
  *
- * - a pointer (reference) to a std::list<T>, then a U is created and a
+ * - a pointer (reference) to a std::list< T >, then a U is created and a
  *   pointer to this newly created object is stored in "any2";
  *
- * - a pointer (reference) to a std::vector<std::list<T>>, then a
- *   std::vector<U> is created having the same size as the vector pointed by
+ * - a pointer (reference) to a std::vector<std::list< T >>, then a
+ *   std::vector< U > is created having the same size as the vector pointed by
  *   "any1" and the pointer to this just created object is stored in "any2";
  *
- * - a pointer (reference) to a boost::multi_array<std::list<T> , K>, then a
+ * - a pointer (reference) to a boost::multi_array<std::list< T > , K>, then a
  *   boost::multi_array<U , K> is created having the same shape as the
  *   boost::multi_array pointed by "any1" and the pointer to this newly
  *   created object is stored in "any2", for "all" K.
@@ -1370,9 +1370,9 @@ bool un_any_dynamic_2( const boost::any & any1 , const boost::any & any2 ,
  *
  * If the function "f" is present and "apply_f" is true, then the
  * function "f" is applied to all corresponding pairs of objects of
- * types std::list<T> and U that any1 and any2 contain. "f" must be a
- * ( std::list<T> & , U & ) --> void function (it could also be a
- * ( std::list<T> , U ) --> void function but this would mean copying
+ * types std::list< T > and U that any1 and any2 contain. "f" must be a
+ * ( std::list< T > & , U & ) --> void function (it could also be a
+ * ( std::list< T > , U ) --> void function but this would mean copying
  * the object and no one wants that, right?); a lambda would work
  * perfectly there.
  *
@@ -1455,15 +1455,15 @@ bool un_any_dynamic_2_create( const boost::any & any1 , boost::any & any2 ,
 /** The template function
  *
  *   bool un_any_const_dynamic( const boost::any & any , F f ,
- *                              un_any_type<T> )
+ *                              un_any_type< T > )
  *
  * is intended to take a const boost::any that contains either:
  *
- * - a pointer (reference) to a std::list<T>;
+ * - a pointer (reference) to a std::list< T >;
  *
- * - a pointer (reference) to a std::vector<std::list<T> >;
+ * - a pointer (reference) to a std::vector<std::list< T > >;
  *
- * - a pointer (reference) to a  boost::multi_array<std::list<T> , K> for
+ * - a pointer (reference) to a  boost::multi_array<std::list< T > , K> for
  *   "all" K;
  *
  * and apply the function "f" to all the objects of type T it contains. Note
@@ -1556,13 +1556,13 @@ bool un_any_const_dynamic( const boost::any & any , F f ,
  *
  * - a pointer to a std::vector of "thing_type";
  *
- * - a pointer to a boost::multi_array<K> of "thing_type";
+ * - a pointer to a boost::multi_array< K > of "thing_type";
  *
  * - a pointer to a std::list of "thing_type";
  *
  * - a pointer to a std::vector of std::list of "thing_type";
  *
- * - a pointer to a boost::multi_array<K> of std::list of "thing_type";
+ * - a pointer to a boost::multi_array< K > of std::list of "thing_type";
  *
  * for "all" K, and apply the type-independent block of code "f" to the
  * corresponding variable "var" of the type (among the above) that the
