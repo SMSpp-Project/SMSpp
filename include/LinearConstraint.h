@@ -185,7 +185,7 @@ class LinearConstraint : public FRowConstraint {
  /// modify a range of coefficients
 
  void modify_coefficients( LinearFunction::Vec_FunctionValue && NCoef ,
-			   Range range = std::make_pair( 0 , Inf<Index>() ) ,
+			   Range range = std::make_pair( 0 , Inf< Index >() ) ,
                            ModParam issueMod = eModBlck )  {
   static_cast< LinearFunction * >( f_function )->modify_coefficients(
 		                      std::move( NCoef ) , range , issueMod );

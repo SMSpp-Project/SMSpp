@@ -495,7 +495,7 @@ private:
   sdmb_netCDF.NumberDataMappings = group.getDim( NumberDataMappings_name );
 
   if( sdmb_netCDF.NumberDataMappings.isNull() ) {
-   return sdmb_netCDF;
+   return( sdmb_netCDF );
   }
 
   sdmb_netCDF.DataType = group.getVar( DataType_name );
@@ -546,7 +546,7 @@ private:
                              "number of AbstractPath." ) );
   }
 
-  return sdmb_netCDF;
+  return( sdmb_netCDF );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -604,16 +604,16 @@ private:
  // Apparently, GCC wants template specializations
  // outside the class declaration.
 template<>
-constexpr char SimpleDataMappingBase::get_id< Block::Range >() { return 'R'; }
+constexpr char SimpleDataMappingBase::get_id< Block::Range >() { return( 'R' ); }
 
 template<>
-constexpr char SimpleDataMappingBase::get_id< Block::Subset >() { return 'S'; }
+constexpr char SimpleDataMappingBase::get_id< Block::Subset >() { return( 'S'); }
 
 template<>
-constexpr char SimpleDataMappingBase::get_id< double >() { return 'D'; }
+constexpr char SimpleDataMappingBase::get_id< double >() { return( 'D' ); }
 
 template<>
-constexpr char SimpleDataMappingBase::get_id< int >() { return 'I'; }
+constexpr char SimpleDataMappingBase::get_id< int >() { return( 'I' ); }
 
 
 /*--------------------------------------------------------------------------*/
@@ -687,7 +687,7 @@ constexpr char SimpleDataMappingBase::get_id< int >() { return 'I'; }
  * In the network example above, this function could be, for instance,
  *
  * void set_capacities( Network * network ,
- *                      std::vector<double>::const_iterator capacities ,
+ *                      std::vector< double >::const_iterator capacities ,
  *                      const Range & indices ,
  *                      c_ModParam , c_ModParam );
  *
@@ -1319,7 +1319,7 @@ private:
    const Block::Range & range ) {
   if( range.first >= range.second )
    return {};
-  return std::vector< S >( data + range.first , data + range.second );
+  return( std::vector< S >( data + range.first , data + range.second ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1337,7 +1337,7 @@ private:
    output[ i ] = *it;
    previous = subset[ i ];
   }
-  return output;
+  return( output );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1347,11 +1347,11 @@ private:
  ( const typename std::vector< T >::const_iterator & data ,
    const Block::Subset & subset, bool subset_is_ordered = false ) {
   if( subset_is_ordered )
-   return extract_from_ordered_subset< S , T >( data , subset );
+   return( extract_from_ordered_subset< S , T >( data , subset ) );
   else {
    auto ordered_subset = Block::Subset( subset );
    std::sort( ordered_subset.begin() , ordered_subset.end() );
-   return extract_from_ordered_subset< S , T >( data , ordered_subset );
+   return( extract_from_ordered_subset< S , T >( data , ordered_subset ) );
   }
  }
 
@@ -1359,19 +1359,19 @@ private:
 
  static Index cardinality( const Range & range ) {
   if( range.second > range.first )
-   return range.second - range.first;
-  return 0;
+   return( range.second - range.first );
+  return( 0 );
  }
 
 /*--------------------------------------------------------------------------*/
 
  static Index cardinality( const Subset & subset ) {
-  return subset.size();
+  return( subset.size() );
  }
 
 /*--------------------------------------------------------------------------*/
 
- template<class T>
+ template< class T >
  static bool empty( const T & t ) {
   return( cardinality( t ) == 0 );
  }

@@ -251,7 +251,7 @@ class CDASolver : public Solver {
    * where fbest is the value of the best (with largest objective value)
    * solution found so far. The roles of ub and lb are suitably reversed if
    * the primal is a maximization problem, so that the dual is a minimization
-   * one. The default is Inf<OFValue>. */
+   * one. The default is Inf< OFValue >. */
 
   dblAAccDSol ,     ///< maximum absolute error in any dual solution
                     /**< Similar to dblRAccDSol but for an *absolute*
@@ -265,7 +265,7 @@ class CDASolver : public Solver {
    *    fbest - lb <= \eps
    *
    * with the same notation as in dblRAccDSol and the same provisions about
-   * the case of a maximization problem. The default is Inf<OFValue>. */
+   * the case of a maximization problem. The default is Inf< OFValue >. */
 
   dblFAccDSol ,    ///< maximum absolute error in any dual solution
                    /**< The algorithmic parameter for setting the maximum

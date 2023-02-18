@@ -39,7 +39,7 @@ void Constraint::relax( bool relax_it, c_ModParam issueMod ) {
 
  f_is_relaxed = relax_it;        // relaxed/enforce it
 
- if( ( !f_Block ) || ( !f_Block->issue_mod( issueMod ) ) )
+ if( ( ! f_Block ) || ( ! f_Block->issue_mod( issueMod ) ) )
   return;
 
  f_Block->add_Modification(

@@ -130,8 +130,8 @@ class Change {
   *     SMSpp_insert_in_factory_cpp_0( ( name_of_the_class ) );
   *
   * Any whitespaces that the given \p classname may contain is ignored. So,
-  * for example, to create an instance of the class MyChange<int> one could
-  * pass "MyChange<int>" or "MyChange< int >" (even " M y C h a n g e < int >
+  * for example, to create an instance of the class MyChange< int > one could
+  * pass "MyChange< int >" or "MyChange< int >" (even " M y C h a n g e < int >
   * would work).
   *
   * @param classname The name of the :Change class that must be constructed */

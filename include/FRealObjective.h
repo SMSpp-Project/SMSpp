@@ -66,7 +66,7 @@ namespace SMSpp_di_unipi_it {
  * issue FunctionMod*.
  *
  * The FRealObjective registers itself as "active" in the Variable of the
- * Function. This has to be mantained if the Variable of the Function change
+ * Function. This has to be maintained if the Variable of the Function change
  * dynamically. In order to achieve this, the FRealObjective checks the
  * Modification issued by the Function for FunctionModVars ones. As a
  * consequence, the FRealObjective "is always listening" to the Function
@@ -299,8 +299,8 @@ class FRealObjective : public RealObjective , public Observer {
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the costant of the FRealObjective
- /** Method that returns the costant term of this FRealObjective, which is
+ /// returns the constant of the FRealObjective
+ /** Method that returns the constant term of this FRealObjective, which is
   * the constant term of the underlying Function. */
 
  [[nodiscard]] OFValue get_constant_term( void ) const override {

@@ -70,10 +70,10 @@ void FRealObjective::set_function( Function * const function ,
 
  // if so instructed, issue the FRealObjectiveMod
  if( f_Block && f_Block->issue_mod( issueMod ) )
-  f_Block->add_Modification( std::make_shared< FRealObjectiveMod >( this ,
-                                        FRealObjectiveMod::eFunctionChanged ,
-                                        Observer::par2concern( issueMod ) ) ,
-			     Observer::par2chnl( issueMod ) );
+  f_Block->add_Modification( std::make_shared< FRealObjectiveMod >(
+                              this , FRealObjectiveMod::eFunctionChanged ,
+                              Observer::par2concern( issueMod ) ) ,
+                             Observer::par2chnl( issueMod ) );
 
  }  // end( FRealObjective::set_function )
 
@@ -88,7 +88,7 @@ void FRealObjective::remove_variable( Index i, ModParam issueMod ) {
   * happening. If there is no real reason to have the Modification issued,
   * it will instruct the Function not to and do the unregistering herein. */
 
- if( !f_function )
+ if( ! f_function )
   return;
 
  if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
@@ -104,7 +104,7 @@ void FRealObjective::remove_variable( Index i, ModParam issueMod ) {
 /*--------------------------------------------------------------------------*/
 
 void FRealObjective::remove_variables( Range range, ModParam issueMod ) {
- if( !f_function )
+ if( ! f_function )
   return;
 
  if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
@@ -122,7 +122,7 @@ void FRealObjective::remove_variables( Range range, ModParam issueMod ) {
 
 void FRealObjective::remove_variables( Subset && nms, bool ordered,
                                        ModParam issueMod ) {
- if( !f_function )
+ if( ! f_function )
   return;
 
  if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
@@ -140,7 +140,7 @@ void FRealObjective::remove_variables( Subset && nms, bool ordered,
 
 void FRealObjective::add_Modification( sp_Mod mod , c_ChnlName chnl ) {
  // first check if mod is some :FunctionModVars, and if it is- - - - - - - - -
- // register/unregister this FRowConstraintwith the added/removed Variable
+ // register/unregister this FRowConstraint with the added/removed Variable
  /* Use a Lambda to define a "guts" of the method that can be called
     recursively without having to pass "local globals". Note the trick of
     defining the std::function object and "passing" it to the lambda,
@@ -167,7 +167,7 @@ void FRealObjective::add_Modification( sp_Mod mod , c_ChnlName chnl ) {
   // FunctionModVars - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   {
    const auto tmod = std::dynamic_pointer_cast< FunctionModVars >( mod );
-   if( !tmod )
+   if( ! tmod )
     return;
 
    if( tmod->added() )

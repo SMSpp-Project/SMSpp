@@ -332,12 +332,12 @@ class PolyhedralFunction : public C05Function {
   * As the && implies, x, A and b become property of the PolyhedralFunction
   * object.
   *
-  * All inputs have a default ({}, {}, {}, - Inf<FunctionValue>(), true, and
+  * All inputs have a default ({}, {}, {}, - Inf< FunctionValue >(), true, and
   * nullptr, respectively) so that this can be used as the void constructor. */
 
  PolyhedralFunction( VarVector && x = {} , MultiVector && A = {} ,
 		     RealVector && b = {} ,
-		     FunctionValue bound = - Inf<FunctionValue>() ,
+		     FunctionValue bound = - Inf< FunctionValue >() ,
 		     bool is_convex = true ,
 		     Observer * const observer = nullptr )
   : C05Function( observer ) , f_is_convex( is_convex ) , f_bound( bound ) ,
@@ -495,12 +495,12 @@ class PolyhedralFunction : public C05Function {
     for( Index i = value ; i < f_max_glob ; ++i )
      if( v_glob[ i ] < 0 )          // it is an aggregated item
       // mark its position in v_ab[] with INF to signal it's not needed
-      v_ab[ - v_glob[ i ] - 1 ] = Inf<FunctionValue>();
+      v_ab[ - v_glob[ i ] - 1 ] = Inf< FunctionValue >();
 
     // until the last position is not needed, shorten v_aA[] and v_ab[]
     while( ! v_ab.empty() ) {
      auto last = --v_ab.end();
-     if( *last == Inf<FunctionValue>() ) {
+     if( *last == Inf< FunctionValue >() ) {
       v_aA.pop_back();
       v_ab.pop_back();
       }
@@ -508,9 +508,9 @@ class PolyhedralFunction : public C05Function {
       break;
      }
 
-    v_glob.resize( value , Inf<int>() );  // resize v_glob
+    v_glob.resize( value , Inf< int >() );  // resize v_glob
 
-    if( f_max_glob >= Index( value ) ) {  // some linearizatons are lost
+    if( f_max_glob >= Index( value ) ) {  // some linearizations are lost
      f_max_glob = value ? value - 1 : 0;  // value could be 0 ...
 
      update_f_max_glob();
@@ -519,8 +519,8 @@ class PolyhedralFunction : public C05Function {
       break;             // all done
 
      // issue the C05FunctionMod
-     f_Observer->add_Modification( std::make_shared< C05FunctionMod >( this ,
-		       C05FunctionMod::AlphaChanged , Subset( {} ) , 0 ) );
+     f_Observer->add_Modification( std::make_shared< C05FunctionMod >(
+      this , C05FunctionMod::AlphaChanged , Subset( {} ) , 0 ) );
      }
     break;
     }
@@ -596,8 +596,8 @@ class PolyhedralFunction : public C05Function {
  /// returns true if a finite lower/upper (if convex/concave) bound is set
 
  bool is_bound_set( void ) const {
-  return( f_is_convex ? f_bound > -Inf<FunctionValue>()
-		      : f_bound <  Inf<FunctionValue>() );
+  return( f_is_convex ? f_bound > - Inf< FunctionValue >()
+                      : f_bound < Inf< FunctionValue >() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -657,7 +657,7 @@ class PolyhedralFunction : public C05Function {
 /*--------------------------------------------------------------------------*/
 
  bool is_linearization_there( Index name ) const override {
-  return( v_glob[ name ] < Inf<int>() );
+  return( v_glob[ name ] < Inf< int >() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -738,7 +738,7 @@ class PolyhedralFunction : public C05Function {
 
 /*--------------------------------------------------------------------------*/
 
- FunctionValue get_linearization_constant( Index name = Inf<Index>() )
+ FunctionValue get_linearization_constant( Index name = Inf< Index >() )
   override;
 
 /*--------------------------------------------------------------------------*/
@@ -773,7 +773,7 @@ class PolyhedralFunction : public C05Function {
   *   PolyFunction_sign == true, upper otherwise) bound on the value of the
   *   function over all the space. The variable is optional, if it is not
   *   provided it means that no finite lower (upper) bound exist, i.e., the
-  *   lower (upper) bound is -(+) Inf<FunctionValue>(). */
+  *   lower (upper) bound is -(+) Inf< FunctionValue >(). */
  
  void serialize( netCDF::NcGroup & group ) const;
 
@@ -863,7 +863,7 @@ class PolyhedralFunction : public C05Function {
  {
   auto idx = std::find( v_x.begin() , v_x.end() , var );
   if( idx == v_x.end() )
-   return( Inf<Index>() );
+   return( Inf< Index >() );
   else
    return( std::distance( v_x.begin() , idx ) );
   }
@@ -929,7 +929,7 @@ class PolyhedralFunction : public C05Function {
   *
   * @param bound is the global valid lower (if the function is convex) or
   *        upper (if the function is convace) bound on the function value,
-  *        with default - Inf<FunctionValue>();
+  *        with default - Inf< FunctionValue >();
   *
   * @param is_convex a boolean indicating whether the function has to be
   *        defined as the maximization of the provided linear (affine)
@@ -955,7 +955,7 @@ class PolyhedralFunction : public C05Function {
   * object. */
  
  void set_PolyhedralFunction( MultiVector && A , RealVector && b ,
-			      FunctionValue bound = - Inf<FunctionValue>() ,
+			      FunctionValue bound = - Inf< FunctionValue >() ,
 			      bool is_convex = true ,
 			      ModParam issueMod = eModBlck );
 
@@ -1391,7 +1391,7 @@ class PolyhedralFunction : public C05Function {
   * will have type() = C05FunctionMod::NothingChanged. The linearizations
   * that are not deleted (both those in the list and the aggregated ones)
   * remain identical (the constant term does not change, even less the vector
-  * of coefficients), the others get constant == Inf<FunctionValue>(), and
+  * of coefficients), the others get constant == Inf< FunctionValue >(), and
   * therefore the vector of coefficients is no longer significant.
   *
   * TODO: if the deleted rows are "too many", rather issue a FunctionMod
@@ -1436,7 +1436,7 @@ class PolyhedralFunction : public C05Function {
   * will have type() = C05FunctionMod::NothingChanged. The linearizations
   * that are not deleted (both those in the list and the aggregated ones)
   * remain identical (the constant term does not change, even less the vector
-  * of coefficients), the others get constant == Inf<FunctionValue>(), and
+  * of coefficients), the others get constant == Inf< FunctionValue >(), and
   * therefore the vector of coefficients is no longer significant.
   *
   * TODO: if the deleted rows are "too many", rather issue a FunctionMod
@@ -1503,20 +1503,20 @@ class PolyhedralFunction : public C05Function {
 /*--------------------------------------------------------------------------*/
 
  void set_f_uncomputed( void ) {
-  f_value = f_is_convex ? Inf<FunctionValue>() : -Inf<FunctionValue>();
+  f_value = f_is_convex ? Inf< FunctionValue >() : - Inf< FunctionValue >();
   }
 
 /*--------------------------------------------------------------------------*/
 
  bool is_f_computed( void ) const {
-  return( f_is_convex ? f_value <  Inf<FunctionValue>()
-		      : f_value > -Inf<FunctionValue>() );
+  return( f_is_convex ? f_value < Inf< FunctionValue >()
+                      : f_value > - Inf< FunctionValue >() );
   }
 
 /*--------------------------------------------------------------------------*/
 
  FunctionValue get_default_bound( void ) const {
-  return( f_is_convex ? -Inf<FunctionValue>() : Inf<FunctionValue>() );
+  return( f_is_convex ? - Inf< FunctionValue >() : Inf< FunctionValue >() );
   }
 
 /*--------------------------------------------------------------------------*/

@@ -151,10 +151,10 @@ class DQuadFunction : public C15Function {
   bool operator==( const ThinVarDepInterface::v_iterator & rhs )
    const override final {
    #ifdef NDEBUG
-    auto tmp = static_cast<const DQuadFunction::v_iterator *>( & rhs );
+    auto tmp = static_cast< const DQuadFunction::v_iterator * >( & rhs );
     return( itr_ == tmp->itr_ );
    #else
-    auto tmp = dynamic_cast<const DQuadFunction::v_iterator *>( &rhs );
+    auto tmp = dynamic_cast< const DQuadFunction::v_iterator * >( &rhs );
     return( tmp ? itr_ == tmp->itr_ : false );
    #endif
    }
@@ -162,10 +162,10 @@ class DQuadFunction : public C15Function {
   bool operator!=( const ThinVarDepInterface::v_iterator & rhs )
    const override final {
    #ifdef NDEBUG
-    auto tmp = static_cast<const DQuadFunction::v_iterator *>( & rhs );
+    auto tmp = static_cast< const DQuadFunction::v_iterator * >( & rhs );
     return( itr_ != tmp->itr_ );
    #else
-    auto tmp = dynamic_cast<const DQuadFunction::v_iterator *>( &rhs );
+    auto tmp = dynamic_cast< const DQuadFunction::v_iterator * >( &rhs );
     return( tmp ? itr_ != tmp->itr_ : true );
    #endif
    }
@@ -206,7 +206,7 @@ class DQuadFunction : public C15Function {
   bool operator==( const ThinVarDepInterface::v_const_iterator & rhs )
    const override final {
    #ifdef NDEBUG
-    auto tmp = static_cast<const DQuadFunction::v_const_iterator *>( & rhs );
+    auto tmp = static_cast< const DQuadFunction::v_const_iterator * >( & rhs );
     return( itr_ == tmp->itr_ );
    #else
     auto tmp = dynamic_cast<const DQuadFunction::v_const_iterator *>( &rhs );
@@ -217,7 +217,7 @@ class DQuadFunction : public C15Function {
   bool operator!=( const ThinVarDepInterface::v_const_iterator & rhs )
    const override final {
    #ifdef NDEBUG
-    auto tmp = static_cast<const DQuadFunction::v_const_iterator *>( & rhs );
+    auto tmp = static_cast< const DQuadFunction::v_const_iterator * >( & rhs );
     return( itr_ != tmp->itr_ );
    #else
     auto tmp = dynamic_cast<const DQuadFunction::v_const_iterator *>( &rhs );
@@ -441,13 +441,13 @@ class DQuadFunction : public C15Function {
 
  void get_linearization_coefficients( FunctionValue * g ,
 				      Range range = INFRange ,
-				      Index name = Inf<Index>() ) override;
+				      Index name = Inf< Index >() ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  void get_linearization_coefficients( SparseVector & g ,
 				      Range range = INFRange ,
-				      Index name = Inf<Index>() ) override;
+				      Index name = Inf< Index >() ) override;
 
 /*--------------------------------------------------------------------------*/
 
@@ -469,7 +469,7 @@ class DQuadFunction : public C15Function {
 
  FunctionValue get_linearization_constant( Index name = Inf< Index >() )
   override final {
-  if( name < Inf<Index>() )
+  if( name < Inf< Index >() )
    throw( std::invalid_argument(
 			"global pool not supported yet by DQuadFunction" ) );
 
@@ -662,7 +662,7 @@ class DQuadFunction : public C15Function {
  /// add a set of new Variable to the DQuadFunction
  /**< Method that receives a pointer to a vector of triples < ColVariable * ,
   * Coefficient , Coefficient > and adds these triples to the list of
-  * triples already in the DQuadFunction. The first  coefficient is that in
+  * triples already in the DQuadFunction. The first coefficient is that in
   * the linear term and the second one is that in the quadratic term. Note
   * that
   *

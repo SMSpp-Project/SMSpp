@@ -219,7 +219,7 @@ class AbstractBlock : public Block {
   * fields to default values. */
 
  explicit AbstractBlock( Block * father = nullptr ) : Block( father ) ,
-  f_ub( Inf< double >() ) , f_lb( -Inf< double >() ) , f_ub_cond( false ) ,
+  f_ub( Inf< double >() ) , f_lb( - Inf< double >() ) , f_ub_cond( false ) ,
   f_lb_cond( false ) , f_1st_stat_var( 0 ) , f_1st_dyn_var( 0 ) ,
   f_1st_stat_cnst( 0 ) , f_1st_dyn_cnst( 0 ) , f_res_obj( false ) ,
   f_1st_sub_block( 0 ) {}
@@ -252,11 +252,11 @@ class AbstractBlock : public Block {
   * should contain the following:
   *
   * - the dimension "NumberInnerBlock", containing the number of the
-  *   inner Block. The dimension is optional, it is is not provided 0 is
+  *   inner Block. The dimension is optional, it is not provided 0 is
   *   assumed.
   *
   * - if NumberInnerBlock > 0, and in particular it is
-  *   > get_first_inner_Block(), then the groups "Block_<i>", for i = 0,. ...
+  *   > get_first_inner_Block(), then the groups "Block_< i >", for i = 0,. ...
   *   get_first_inner_Block() - 1; each one must contain the deserialization
   *   of the i-th inner Block.
   *
@@ -307,7 +307,7 @@ class AbstractBlock : public Block {
   * the conditionally valid one otherwise, with the other being automatically
   * set to + infinity. */
 
- void set_valid_upper_bound( double newub = +Inf< double >() ,
+ void set_valid_upper_bound( double newub = Inf< double >() ,
                              bool conditional = false ) {
   f_ub = newub;
   f_ub_cond = conditional;
@@ -326,7 +326,7 @@ class AbstractBlock : public Block {
   * the conditionally valid one otherwise, with the other being automatically
   * set to - infinity. */
 
- void set_valid_lower_bound( double newlb = -Inf< double >() ,
+ void set_valid_lower_bound( double newlb = - Inf< double >() ,
                              bool conditional = false ) {
   f_lb = newlb;
   f_lb_cond = conditional;
@@ -407,13 +407,13 @@ class AbstractBlock : public Block {
 /*--------------------------------------------------------------------------*/
 
  double get_valid_upper_bound( bool conditional = false ) override {
-  return( f_ub_cond == conditional ? f_ub : +Inf< double >() );
+  return( f_ub_cond == conditional ? f_ub : Inf< double >() );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  double get_valid_lower_bound( bool conditional = false ) override {
-  return( f_lb_cond == conditional ? f_lb : -Inf< double >() );
+  return( f_lb_cond == conditional ? f_lb : - Inf< double >() );
   }
 
 /** @} ---------------------------------------------------------------------*/
@@ -517,18 +517,19 @@ class AbstractBlock : public Block {
   * the RowConstraint (see RowConstraint::rel_viol() and
   * RowConstraint::abs_viol()). These values are to be found as:
   *
-  * - If \p fsbc is not nullptr and it is a SimpleConfiguration<double>, then the
-  *   tolerance is fsbc->f_value and the relative violation is considered;
+  * - If \p fsbc is not nullptr and it is a SimpleConfiguration< double >,
+  *   then the tolerance is fsbc->f_value and the relative violation is
+  *   considered;
   *
-  * - If \p fsbc is not nullptr and it is a SimpleConfiguration<std::pair<double,
-  *   int>>, then the tolerance is fsbc->f_value.first and the type of
-  *   violation is fsbc->f_value.second (any nonzero number for relative and
-  *   zero for absolute violation);
+  * - If \p fsbc is not nullptr and it is a SimpleConfiguration<
+  *   std::pair< double, int > >, then the tolerance is fsbc->f_value.first and
+  *   the type of violation is fsbc->f_value.second (any nonzero number for
+  *   relative and zero for absolute violation);
   *
   * - Otherwise, if #f_BlockConfig is not nullptr,
   *   #f_BlockConfig->f_is_feasible_Configuration is not nullptr and it is a
-  *   pointer to either a SimpleConfiguration<double> or to a
-  *   SimpleConfiguration<std::pair<double, int>>, then the values of the
+  *   pointer to either a SimpleConfiguration< double > or to a
+  *   SimpleConfiguration< std::pair< double , int > >, then the values of the
   *   parameters are obtained analogously as above;
   *
   * - Otherwise, the tolerance is 0 and the relative violation is
@@ -590,12 +591,12 @@ class AbstractBlock : public Block {
   *
   * This value is to be found as:
   *
-  * - if solc is not nullptr and it is a SimpleConfiguration<int>, then it is
+  * - if solc is not nullptr and it is a SimpleConfiguration< int >, then it is
   *   solc->f_value;
   *
   * - otherwise, if f_BlockConfig is not nullptr,
   *   f_BlockConfig->f_solution_Configuration is not nullptr and it is a
-  *   SimpleConfiguration<int>, then it is
+  *   SimpleConfiguration< int >, then it is
   *   f_BlockConfig->f_solution_Configuration->f_value;
   *
   * - otherwise, it is 0. */

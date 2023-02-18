@@ -289,9 +289,9 @@ void Block::set_objective( Objective * newOF , c_ModParam issueMod )
  newOF->set_Block( this );
 
  if( issue_mod( issueMod ) )
-  add_Modification( std::make_shared< BlockMod >( this ,
-				       Observer::par2concern( issueMod ) ) );
- }
+  add_Modification( std::make_shared< BlockMod >(
+   this , Observer::par2concern( issueMod ) ) );
+}
 
 /*--------------------------------------------------------------------------*/
 /*------------- METHODS DESCRIBING THE BEHAVIOR OF AN Observer -------------*/
@@ -490,7 +490,7 @@ void Block::set_BlockConfig( BlockConfig * newBC, bool deleteold )
   }
 
  if( newBC->is_diff() ) {  // "differential mode"
-  if( !f_BlockConfig )
+  if( ! f_BlockConfig )
    f_BlockConfig = newBC;
   else {
    newBC->move_non_null_configuration_to( f_BlockConfig, deleteold );

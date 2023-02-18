@@ -104,7 +104,7 @@ const std::vector< double > Solver::dflt_dbl_par =
    1e-6 ,                       // dblRelAcc
    Inf< Solver::OFValue >() ,   // dblAbsAcc
    Inf< Solver::OFValue >() ,   // dblUpCutOff
-   -Inf< Solver::OFValue >() ,  // dblLwCutOff
+   - Inf< Solver::OFValue >() , // dblLwCutOff
    Inf< Solver::OFValue >() ,   // dblRAccSol
    Inf< Solver::OFValue >() ,   // dblAAccSol
    0                            // dblFAccSol
@@ -145,7 +145,7 @@ void Solver::reset_event_handler( int type , EventID id )
   // any pf the previous events is a do_nothing, keep shortening
   do
    v_events[ type ].pop_back();
-  while( ( !v_events[ type ].empty() ) &&
+  while( ( ! v_events[ type ].empty() ) &&
          ( *( v_events[ type ].back().target < int( * )() > ( ) ) ==
          do_nothing ) );
   }

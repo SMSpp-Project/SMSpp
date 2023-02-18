@@ -69,7 +69,7 @@ Block * get_nested_Block( const std::string & id , const Block * block )
  if( auto bi = block->get_nested_Block( id ) )
   return( bi );
 
- if( id.empty() || ( !std::isdigit( id.front() ) ) )
+ if( id.empty() || ( ! std::isdigit( id.front() ) ) )
   return( nullptr );
 
  Block::Index i;
@@ -300,10 +300,10 @@ void BlockSolverConfig::apply( Block * block ) const
    // if the name is empty use the existing solver, otherwise create one
    auto slvr = nit->empty() ? *sit : Solver::new_Solver( *nit );
 
-   if( *cit )                              // if the ComputeConfig is there
+   if( *cit )                             // if the ComputeConfig is there
     slvr->set_ComputeConfig( *cit );      // ComputeConfig-ure it
 
-   if( !nit->empty() )                    // if it is a new one, only now it
+   if( ! nit->empty() )                   // if it is a new one, only now it
     block->replace_Solver( slvr, sit, true );  // replaces the existing one
    }
 
@@ -588,7 +588,7 @@ void RBlockSolverConfig::get( const Block * block , bool clear )
   else              // the BlockSolverConfig is nullptr
    if( ! clear ) {  // and a "full" BlockSolverConfig is required
     auto newBSC = new BlockSolverConfig( bi );   // get it
-    if( !newBSC->empty() )                       // if it is significant
+    if( ! newBSC->empty() )                      // if it is significant
      *it = newBSC;                               // record it
     else                                         // otherwise
      delete newBSC;                              // discard it

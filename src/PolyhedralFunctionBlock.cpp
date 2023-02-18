@@ -43,7 +43,7 @@ void PolyhedralFunctionBlock::generate_abstract_variables(
   return;         // nothing else to do
 
  int wsol = 0;
- auto tstvv = dynamic_cast<SimpleConfiguration<int> *>( stvv );
+ auto tstvv = dynamic_cast< SimpleConfiguration< int > * >( stvv );
 
  if( ( ! tstvv ) && f_BlockConfig &&
      f_BlockConfig->f_static_variables_Configuration )

@@ -97,7 +97,7 @@ Block::Index get_Constraint_group_index( const std::string & id ,
 {
  if( ( ! id.empty() ) && std::isdigit( id.front() ) ) {
   // the group id is the index of the group of Constraint
-  try { return std::stoi( id ); }
+  try { return( std::stoi( id ) ); }
   catch( ... ) { return( Inf< Block::Index >() ); }
   }
  else {  // the group id is the name of the group of Constraint

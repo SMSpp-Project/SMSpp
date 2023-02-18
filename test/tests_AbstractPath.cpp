@@ -157,9 +157,9 @@ std::set< std::pair< Block * , Block * > > visited_blocks;
 bool visited( Block * block , Block * reference_block ) {
  if( visited_blocks.find( std::make_pair( block , reference_block ) ) !=
      visited_blocks.end() )
-  return true;
+  return( true );
  visited_blocks.insert( std::make_pair( block , reference_block ) );
- return false;
+ return( false );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -308,7 +308,7 @@ void simple_full_test() {
 
 int main() {
  simple_full_test();
- return 0;
+ return( 0 );
 }
 
 /*--------------------------------------------------------------------------*/

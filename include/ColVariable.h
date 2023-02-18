@@ -318,10 +318,10 @@ class ColVariable : public Variable
  is_feasible( const std::vector< T > & variables ,
               double tolerance = 1e-10 ) {
   // if empty, std::all_of returns true, i.e., the solution is feasible
-  return std::all_of( variables.begin() , variables.end() ,
-                      [ tolerance ]( const auto & variable ) {
-                       return variable.is_feasible( tolerance );
-                      } );
+  return( std::all_of( variables.begin() , variables.end() ,
+                       [ tolerance ]( const auto & variable ) {
+                        return( variable.is_feasible( tolerance ) );
+                       } ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -360,10 +360,10 @@ class ColVariable : public Variable
  is_feasible( const std::list< T > & variables ,
               double tolerance = 1e-10 ) {
   // if empty, std::all_of returns true, i.e., the solution is feasible
-  return std::all_of( variables.begin() , variables.end() ,
-                      [ tolerance ]( const auto & variable ) {
-                       return variable.is_feasible( tolerance );
-                      } );
+  return( std::all_of( variables.begin() , variables.end() ,
+                       [ tolerance ]( const auto & variable ) {
+                        return( variable.is_feasible( tolerance ) );
+                       } ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -381,11 +381,11 @@ class ColVariable : public Variable
  is_feasible( const std::vector< std::list< T > > & variables ,
               double tolerance = 1e-10 ) {
   // if empty, std::all_of returns true, i.e., the solution is feasible
-  return std::all_of( variables.begin() , variables.end() ,
-                      [ tolerance ]( const auto & l_variables ) {
-                       return ColVariable::is_feasible( l_variables ,
-                                                        tolerance );
-                      } );
+  return( std::all_of( variables.begin() , variables.end() ,
+                       [ tolerance ]( const auto & l_variables ) {
+                        return( ColVariable::is_feasible( l_variables ,
+                                                          tolerance ) );
+                       } ) );
  }
 
 /*--------------------------------------------------------------------------*/
