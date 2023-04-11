@@ -168,7 +168,7 @@ class Solver : public ThinComputeInterface
   *   solution ...) is highly dependent on the nature of the problem solved,
   *   and therefore it is not possible to provide a specific method for that
   *   in the general interface (not to mention that certificates of optimality
-  *   may be explonentially large). Yet, this is not the only "success"
+  *   may be exponentially large). Yet, this is not the only "success"
   *   value, cf. kUnbounded and kInfeasible.
   *
   * - kError is a general value for "something has gone very wrong", which
@@ -242,7 +242,7 @@ class Solver : public ThinComputeInterface
   * process. An *exact* solver will always eventually return kOK / kUnbounded
   * / kInfeasible (although "eventually" may be after the thermal death of the
   * universe) given enough resources, unless an error occurs, but not all
-  * problems are decidable and therefore allow an extact Solver. */
+  * problems are decidable and therefore allow an exact Solver. */
 
   kBlockLocked = kError + 1 ,  ///< could not acquire the lock on the Block
                   /**< compute() needed to lock the Block to work, but
@@ -447,7 +447,7 @@ class Solver : public ThinComputeInterface
   dblFAccSol ,   ///< maximum constraint violation in any reported solution
                  /**< The algorithmic parameter for setting the maximum
                   * relative allowed violation of constraints. Whenever the
-  * Solver is uncapable of finding feasible solutions (maybe because there is
+  * Solver is incapable of finding feasible solutions (maybe because there is
   * none), it may still be useful that it returns the "least unfeasible" ones.
   * This parameter instructs the Solver not to even consider a solution among
   * the ones to be reported (see intMaxSol) if its violation is "too" bad.
@@ -622,7 +622,7 @@ class Solver : public ThinComputeInterface
  *   to bunch a block of them under the same lock/unlock stretch to
  *   improve performances;
  *
- * - there can be cases when one can be 100% sure that no other thread/entiy
+ * - there can be cases when one can be 100% sure that no other thread/entity
  *   can possibly operate on the Solver, either because the overall
  *   application is rigidly single-threaded, or because the Solver can only
  *   be accessed via a rigidly controlled access point (for instance, the
@@ -679,7 +679,7 @@ class Solver : public ThinComputeInterface
  /** Method to set the (pointer to the) Block that the Solver has to solve.
   * If there were any other block attached to Block this Solver, any
   * information about solutions to the previous Block the Solver had
-  * computed is lost for good. This is one reasin why the method is virtual:
+  * computed is lost for good. This is one reason why the method is virtual:
   * derived classes may need to do more to reach to such an abrupt change.
   * In general, a :Solver may have to (lock and) read (data from) the Block
   * to be stored in its internal data structures, hence this method is
@@ -877,7 +877,7 @@ class Solver : public ThinComputeInterface
   * kUnbounded, corresponding respectively to the case that the Solver
   * *proves* the problem to be infeasible and unbounded, are also "kOK-type"
   * return codes. Different Solver may be able to provide some further
-  * information about certificates of optimality, unboundendness or
+  * information about certificates of optimality, unboundedness or
   * infeasibility, and more functionalities can be expected to exist in the
   * derived classes about this.
   *
@@ -1228,7 +1228,7 @@ class Solver : public ThinComputeInterface
   * (say, write it to a file or separate a Variable / Constraint out of it).
   * For this to happen one must be sure that the solution information has not
   * been accidentally rewritten by some other Solver, and therefore the lock
-  * on the Block must be kept for all the time in which the soution
+  * on the Block must be kept for all the time in which the solution
   * information is useful to the user. Hence the lock must be acquired prior
   * to calling get_var_solution(). It might in principle make sense to have
   * a separate lock for solution information, but this is not currently
@@ -1240,7 +1240,7 @@ class Solver : public ThinComputeInterface
   * in the format that the Variable of the Block require may be somewhat
   * costly. This is in particular true because a solution may involve a rather
   * large amount of data. In some cases, not all that data is actually
-  * necessary, as only "a part" of the solution migt be enough (say, that
+  * necessary, as only "a part" of the solution might be enough (say, that
   * which is required to separate one given family of valid inequalities).
   * This is why support is offered in the method to only retrieve "a part" of
   * the current solution by means of a (pointer to a) Configuration object.
@@ -1375,7 +1375,7 @@ class Solver : public ThinComputeInterface
   * provide a specific method for that in the general interface. This method
   * is a completely general way to exploit this information and therefore it
   * can be added to the general interface, but it can be expected that
-  * specialied Solver will offer their own specific ways to access to the
+  * specialized Solver will offer their own specific ways to access to the
   * unboundedness certificates. A (largish) step in this direction is
   * provided by the [has/get/new]_var_direction() methods. */
 
@@ -1384,7 +1384,7 @@ class Solver : public ThinComputeInterface
 /*--------------------------------------------------------------------------*/
  /// tells whether an unbounded direction is available
  /** A call to compute() that returned kUnbounded supposedly mean that the 
-  * Solver can guarante that it is always possible to find feasible
+  * Solver can guarantee that it is always possible to find feasible
   * solutions whose value is "better" than any given threshold. For many
   * models, this means that there exist an unbounded [a/de]scent direction,
   * i.e., a direction along which one may go forever without leaving the
@@ -1443,8 +1443,8 @@ class Solver : public ThinComputeInterface
   * See the comments to get_var_solution() about the need of lock()-ing the
   * Block prior to calling this method, which of course apply verbatim here.
   *
-  * Note that, while the largest burden of producing a directon is typically
-  * bore by compute() and/or new_var_directon(), it is still possible that
+  * Note that, while the largest burden of producing a direction is typically
+  * bore by compute() and/or new_var_direction(), it is still possible that
   * "decoding" the internal information of the CDASolver in order to produce
   * one in the proper format that the Variables of the Block require may be
   * somewhat costly. This is why, as in get_var_solution(), a (pointer to a)
