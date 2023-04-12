@@ -4,12 +4,7 @@
 /** @file
  * Implementation of the tests for AbstractPath.
  *
- * \version 0.10
- *
- * \date 03 - 02 - 2021
- *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *

@@ -23,11 +23,7 @@
 #           $(SMS++H)   = the .h files to include for the core SMS++         #
 #           $(SMS++INC) = all the -I$( include dirs ) of the core SMS++      #
 #                                                                            #
-#                                VERSION 2.00                                #
-#                               25 - 06 - 2018                               #
-#                                                                            #
 #                              Antonio Frangioni                             #
-#                          Operations Research Group                         #
 #                         Dipartimento di Informatica                        #
 #                             Universita' di Pisa                            #
 #                                                                            #

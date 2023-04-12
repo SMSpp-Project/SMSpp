@@ -5,12 +5,7 @@
  * Implementation of AbstractBlockGenerator, a class for generating random
  * AbstractBlock.
  *
- * \version 0.10
- *
- * \date 17 - 02 - 2020
- *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *

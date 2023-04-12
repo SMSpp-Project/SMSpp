@@ -33,7 +33,6 @@
 #    We use it in netCDF-C++ find module.                                     #
 #                                                                             #
 #                              Niccolo' Iardella                              #
-#                          Operations Research Group                          #
 #                         Dipartimento di Informatica                         #
 #                             Universita' di Pisa                             #
 # --------------------------------------------------------------------------- #

@@ -1,12 +1,11 @@
 /** @file
  * Unit tests for Variable and ColVariable.
  *
- * \author Niccolò Iardella \n
- *         Operations Research Group \n
+ * \author Niccolo' Iardella \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Niccolò Iardella
+ * Copyright &copy; by Niccolo' Iardella
  */
 
 #include <gtest/gtest.h>

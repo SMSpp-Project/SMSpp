@@ -2,12 +2,11 @@
  * Unit tests for Function. Since it's an interface,
  * is it tested through its closest implementations.
  *
- * \author Niccolò Iardella \n
- *         Operations Research Group \n
+ * \author Niccolo' Iardella \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Antonio Frangioni, Niccolò Iardella
+ * Copyright &copy; by Antonio Frangioni, Niccolo' Iardella
  */
 
 #include <gtest/gtest.h>

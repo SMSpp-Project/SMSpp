@@ -31,7 +31,6 @@
 #    not come with a CMake configuration (netCDFCxxConfig.cmake).             #
 #                                                                             #
 #                              Niccolo' Iardella                              #
-#                          Operations Research Group                          #
 #                         Dipartimento di Informatica                         #
 #                             Universita' di Pisa                             #
 # --------------------------------------------------------------------------- #

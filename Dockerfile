@@ -23,7 +23,6 @@
 #          changes, not when SMS++ changes.                                   #
 #                                                                             #
 #                              Niccolo' Iardella                              #
-#                          Operations Research Group                          #
 #                         Dipartimento di Informatica                         #
 #                             Universita' di Pisa                             #
 # --------------------------------------------------------------------------- #
