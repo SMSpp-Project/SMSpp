@@ -4,12 +4,7 @@
 /** @file
  * Implementation of the tests for the class factories.
  *
- * \version 0.10
- *
- * \date 25 - 08 - 2020
- *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
