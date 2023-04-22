@@ -257,7 +257,7 @@ void BlockSolverConfig::get( const Block * block , bool clear )
 
  if( f_diff )
   for( auto & el : v_SolverConfigs )
-   el = ( *( it++ ) )->get_ComputeConfig();
+   el = (*(it++))->get_ComputeConfig();
  else
   for( decltype( registered_Solvers )::size_type i = 0 ;
        i < registered_Solvers.size() ; ++i , ++it ) {

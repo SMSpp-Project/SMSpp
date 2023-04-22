@@ -848,7 +848,7 @@ bool un_any_static( boost::any & any , F f , un_any_type< T > ,
   auto & var = *boost::any_cast< boost::multi_array< T , K > * >( any );
   T * p = var.data();
   for( auto i = var.num_elements() ; i-- ; )
-   f( *( p++ ) );
+   f( *(p++) );
   return( true );
   }
  else
@@ -969,7 +969,7 @@ bool un_any_static_2( const boost::any & any1 , const boost::any & any2 ,
   U * p2 = var2.data();
   for( auto i = std::min( var1.num_elements() , var2.num_elements() ) ;
        i-- ; )
-   f( *( p1++ ) , *( p2++ ) );
+   f( *(p1++) , *(p2++) );
   return( true );
   }
  else
@@ -1070,7 +1070,7 @@ bool un_any_static_2_create( const boost::any & any1 , boost::any & any2 ,
    U * p2 = var2.data();
    for( auto i = std::min( var1.num_elements() , var2.num_elements() ) ;
         i-- ; )
-    f( *( p1++ ) , *( p2++ ) );
+    f( *(p1++) , *(p2++) );
    }
 
   return( true );
@@ -1149,7 +1149,7 @@ bool un_any_const_static( const boost::any & any , F f ,
   auto & var = *boost::any_cast< boost::multi_array< T , K > * >( any );
   T * p = var.data();
   for( auto i = var.num_elements() ; i-- ; )
-   f( *( p++ ) );
+   f( *(p++) );
   return( true );
   }
  else
@@ -1334,7 +1334,7 @@ bool un_any_dynamic_2( const boost::any & any1 , const boost::any & any2 ,
   U * p2 = var2.data();
   for( auto i = std::min( var1.num_elements() , var2.num_elements() ) ;
        --i ; )
-   f( *( p1++ ) , *( p2++ ) );
+   f( *(p1++) , *(p2++) );
   return( true );
   }
  else
@@ -1433,7 +1433,7 @@ bool un_any_dynamic_2_create( const boost::any & any1 , boost::any & any2 ,
    U * p2 = var2.data();
    for( auto i = std::min( var1.num_elements() , var2.num_elements() ) ;
         --i ; )
-    f( *( p1++ ) , *( p2++ ) );
+    f( *(p1++) , *(p2++) );
    }
   return( true );
   }
@@ -1906,11 +1906,11 @@ std::istream & operator>>( std::istream & is , C< T > & l ) {
    unsigned int j;
    is >> eatcomments >> j;
    for( ; p < j ; ++p )
-    *( lit++ ) = T();
-   is >> eatcomments >> *( lit++ );
+    *(lit++) = T();
+   is >> eatcomments >> *(lit++);
    }
   while( lit != l.end() )
-   *( lit++ ) = T();
+   *(lit++) = T();
   }
 
  return( is );
@@ -2540,7 +2540,7 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
  auto fit = f.begin();
  auto sit = s.begin();
  for( auto & el : data )
-  el = std::pair( *( fit++ ) , *( sit++ ) );
+  el = std::pair( *(fit++) , *(sit++) );
 
  return( true );
  }
@@ -2645,8 +2645,8 @@ serialize( netCDF::NcGroup & group , const std::string & name ,
  auto fit = f.begin();
  auto sit = s.begin();
  for( auto & el : data ) {
-  *( fit++ ) = el.first;
-  *( sit++ ) = el.second;
+  *(fit++) = el.first;
+  *(sit++) = el.second;
   }
 
  serialize( group , name + "_f" , typ2nCDF< T1 >() , ncDim , f );
@@ -2985,7 +2985,7 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
   array[ i ].resize( strt[ i ] );
   auto aiit = array[ i ].begin();
   for( const auto aiend = array[ i ].end() ; aiit != aiend ; )
-   *( aiit++ ) = *( tit++ );
+   *(aiit++) = *(tit++);
   }
 
  return( true );

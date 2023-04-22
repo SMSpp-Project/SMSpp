@@ -1127,7 +1127,7 @@ class C05Function : public Function {
     throw( std::invalid_argument( "wrong size of nonempty SparseVector g" ) );
 
    for( Index i = range.first; i < range.second; ++i )
-    g.coeffRef( i ) = *( ggp++ );
+    g.coeffRef( i ) = *(ggp++);
 
    g.prune( 0 , 0 );
    }
@@ -1245,7 +1245,7 @@ class C05Function : public Function {
    for( auto i : subset ) {
     if( i >= get_num_active_var() )
      throw( std::invalid_argument( "wrong index in subset" ) );
-    auto gi = *( ggp++ );
+    auto gi = *(ggp++);
     if( gi )
      g.insert( i ) = gi;
     }
@@ -1257,7 +1257,7 @@ class C05Function : public Function {
    for( auto i : subset ) {
     if( i >= get_num_active_var() )
      throw( std::invalid_argument( "wrong index in subset" ) );
-    g.coeffRef( i ) = *( ggp++ );
+    g.coeffRef( i ) = *(ggp++);
     }
 
    g.prune( 0 , 0 );

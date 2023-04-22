@@ -716,7 +716,7 @@ void DQuadFunction::remove_variables( Subset && nms , bool ordered ,
 
   auto itv = v_triples.begin() + vi;
   for( ; itv < v_triples.end(); )  // copy the last part
-   *( curr++ ) = *( itv++ );       // after the last of v_var
+   *(curr++) = *(itv++);       // after the last of v_var
 
   v_triples.erase( curr, itv );    // erase the last part
   }

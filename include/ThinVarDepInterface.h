@@ -623,7 +623,7 @@ class ThinVarDepInterface {
     if( i >= get_num_active_var() )
      throw( std::invalid_argument( "map_active: some Variable is not active"
 				   ) );
-    *( it++ ) = i;
+    *(it++) = i;
     }
    }
   }

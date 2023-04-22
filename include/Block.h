@@ -8619,7 +8619,7 @@ Block::add_dynamic_constraints( std::list< Const > & list ,
   auto it = names.begin();
   for( auto & el : newlist ) {  // all the new Constraint
    el.set_Block( this );        // now belong to this Block
-   *( it++ ) = &el;             // keep their names
+   *(it++) = &el;             // keep their names
    }
 
   // add them at the end, *before* issuing the BlockModAdd
@@ -8656,7 +8656,7 @@ Block::add_dynamic_variables( std::list< Var > & list ,
   auto it = names.begin();
   for( auto & el : newlist ) {  // all the new Variable
    el.set_Block( this );        // now belong to this Block
-   *( it++ ) = &el;               // keep their names
+   *(it++) = &el;               // keep their names
    }
 
   // add them at the end, *before* issuing the BlockModAdd
@@ -8713,8 +8713,8 @@ Block::remove_dynamic_constraints( std::list< Const > & list ,
        ( lit != list.end() ) && ( rit != rmvd.end() ) ; ++i )
    if( &( *lit ) == &( *( *rit ) ) ) {
     ++lit;  // increment the iterator before removing
-    removed.splice( removed.end(), list, *( rit++ ) );  // move element
-    *( sit++ ) = i;                                       // record position
+    removed.splice( removed.end(), list, *(rit++) );  // move element
+    *(sit++) = i;                                       // record position
     }
    else
     ++lit;
@@ -9033,8 +9033,8 @@ Block::remove_dynamic_variables( std::list< Var > & list ,
        ( lit != list.end() ) && ( rit != rmvd.end() ) ; ++i )
    if( &( *lit ) == &( *( *rit ) ) ) {
     ++lit;  // increment the iterator before removing
-    removed.splice( removed.end(), list, *( rit++ ) );  // move element
-    *( sit++ ) = i;                                       // record position
+    removed.splice( removed.end(), list, *(rit++) );  // move element
+    *(sit++) = i;                                       // record position
     }
    else
     ++lit;
