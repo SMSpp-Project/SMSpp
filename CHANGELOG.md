@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- C05Function uses Function::set_par
+- RowConstraint::is_feasible()
+
+### Changed
+
+- definition of RowConstraint::rel_viol()
+- feasibility check in AbstractBlock
+
+### Removed
+
+- Constraint::is_feasible()
+
+### Fixed
+
+- dynamic cast in put_State() (BendersBFunction, LagBFunction, and
+  PolyhedralFunction)
+
 ## [0.5.1] - 2022-06-28
 
 ### Added
