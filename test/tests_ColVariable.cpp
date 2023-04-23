@@ -44,7 +44,7 @@ TEST( ColVariableTest, IsContinuous ) {
  ASSERT_FALSE( var.is_positive() );
  ASSERT_FALSE( var.is_negative() );
  ASSERT_FALSE( var.is_unitary() );
- ASSERT_EQ( var.get_lb(), - Inf< ColVariable::VarValue >() );
+ ASSERT_EQ( var.get_lb(), -Inf< ColVariable::VarValue >() );
  ASSERT_EQ( var.get_ub(), Inf< ColVariable::VarValue >() );
 
 }
@@ -58,7 +58,7 @@ TEST( ColVariableTest, IsInteger ) {
  ASSERT_FALSE( var.is_positive() );
  ASSERT_FALSE( var.is_negative() );
  ASSERT_FALSE( var.is_unitary() );
- ASSERT_EQ( var.get_lb(), - Inf< ColVariable::VarValue >() );
+ ASSERT_EQ( var.get_lb(), -Inf< ColVariable::VarValue >() );
  ASSERT_EQ( var.get_ub(), Inf< ColVariable::VarValue >() );
 }
 
@@ -84,7 +84,7 @@ TEST( ColVariableTest, IsNegative ) {
  ASSERT_FALSE( var.is_positive() );
  ASSERT_TRUE( var.is_negative() );
  ASSERT_FALSE( var.is_unitary() );
- ASSERT_EQ( var.get_lb(), - Inf< ColVariable::VarValue >() );
+ ASSERT_EQ( var.get_lb(), -Inf< ColVariable::VarValue >() );
  ASSERT_EQ( var.get_ub(), 0 );
 }
 

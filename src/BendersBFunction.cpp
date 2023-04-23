@@ -1739,7 +1739,7 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
     else
      if( behaviour == function_value_behaviour::decrease && f_Observer )
       f_Observer->add_Modification( std::make_shared< FunctionMod >(
-                                     this , - Inf< FunctionValue >() ) ,
+                                     this , -Inf< FunctionValue >() ) ,
                                     chnl );
   }
 
@@ -2098,8 +2098,8 @@ void BendersBFunction::write_dual_solution( Index name ) {
 bool ignore_constraint( RowConstraint * constraint ) {
  if( constraint->is_relaxed() )
   return( true );
- if( constraint->get_lhs() == - Inf< RowConstraint::RHSValue >() &&
-     constraint->get_rhs() ==   Inf< RowConstraint::RHSValue >() )
+ if( constraint->get_lhs() == -Inf< RowConstraint::RHSValue >() &&
+     constraint->get_rhs() ==  Inf< RowConstraint::RHSValue >() )
   return( true );
  return( false );
 }
@@ -2368,8 +2368,8 @@ Function::FunctionValue BendersBFunction::compute_linearization_constant() {
     alpha += - dual_value * b;
     return;
    }
-   else if( c.get_lhs() > - Inf< RowConstraint::RHSValue >() &&
-            c.get_rhs() <   Inf< RowConstraint::RHSValue >() ) {
+   else if( c.get_lhs() > -Inf< RowConstraint::RHSValue >() &&
+            c.get_rhs() <  Inf< RowConstraint::RHSValue >() ) {
     // Two constraints (lower and upper bound).
 
     RowConstraint::RHSValue b = 0;

@@ -105,7 +105,7 @@ void PolyhedralFunction::deserialize( const netCDF::NcGroup & group ,
  FunctionValue bound;
  auto nclb = group.getVar( "PolyFunction_lb" );
  if( nclb.isNull() )
-  bound = cnvx ? - Inf< FunctionValue >() : Inf< FunctionValue >();
+  bound = cnvx ? -Inf< FunctionValue >() : Inf< FunctionValue >();
  else
   nclb.getVar( & bound );
 
@@ -858,7 +858,7 @@ void PolyhedralFunction::set_PolyhedralFunction( MultiVector && A ,
    throw( std::invalid_argument( "A and x must have the same columns" ) );
 
  if( ( ( is_convex ) && ( bound == Inf< FunctionValue >() ) ) ||
-     ( ( ! is_convex ) && ( bound == - Inf< FunctionValue >() ) ) )
+     ( ( ! is_convex ) && ( bound == -Inf< FunctionValue >() ) ) )
   throw( std::invalid_argument( "wrong INF value to global bound" ) );
 
  if( A.size() != b.size() )
@@ -887,7 +887,7 @@ void PolyhedralFunction::set_PolyhedralFunction( MultiVector && A ,
  v_ab.clear();
 
  set_f_uncomputed();  // the function value has changed
- f_Lipschitz_constant = - Inf< FunctionValue >();
+ f_Lipschitz_constant = -Inf< FunctionValue >();
  reset_v_ord();
 
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
@@ -911,12 +911,12 @@ void PolyhedralFunction::set_is_convex( bool is_convex , ModParam issueMod )
  // if the function was convex and the bound was -INF == not set, it is now
  // concave and the bound not set means it must be +INF (and vice-versa)
  if( f_is_convex ) {
-  if( f_bound == - Inf< FunctionValue >() )
+  if( f_bound == -Inf< FunctionValue >() )
    f_bound = Inf< FunctionValue >();
    }
  else
   if( f_bound == Inf< FunctionValue >() )
-   f_bound = - Inf< FunctionValue >();
+   f_bound = -Inf< FunctionValue >();
   
  f_is_convex = is_convex;           // change the verse
  set_f_uncomputed();                // the function value has changed
@@ -970,7 +970,7 @@ void PolyhedralFunction::add_variables( VarVector && nx , MultiVector && nA ,
   }
 
  set_f_uncomputed();                // the function value has changed
- f_Lipschitz_constant = - Inf< FunctionValue >();  // == unknown
+ f_Lipschitz_constant = -Inf< FunctionValue >();  // == unknown
 
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) ) {
   reset_aggregate_linearizations();
@@ -1008,7 +1008,7 @@ void PolyhedralFunction::add_variable( ColVariable * const var ,
  v_x.push_back( var );
 
  set_f_uncomputed();                // the function value has changed
- f_Lipschitz_constant = - Inf< FunctionValue >();  // == unknown
+ f_Lipschitz_constant = -Inf< FunctionValue >();  // == unknown
 
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) ) {
   reset_aggregate_linearizations();
@@ -1040,7 +1040,7 @@ void PolyhedralFunction::remove_variable( Index i , ModParam issueMod )
   ai.erase( ai.begin() + i );
 
  set_f_uncomputed();                // the function value has changed
- f_Lipschitz_constant = - Inf< FunctionValue >();  // == unknown
+ f_Lipschitz_constant = -Inf< FunctionValue >();  // == unknown
 
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
@@ -1064,7 +1064,7 @@ void PolyhedralFunction::remove_variables( Range range , ModParam issueMod )
   return;
 
  set_f_uncomputed();                // the function value has changed
- f_Lipschitz_constant = - Inf< FunctionValue >();  // == unknown
+ f_Lipschitz_constant = -Inf< FunctionValue >();  // == unknown
 
  if( ( range.first == 0 ) && ( range.second == v_x.size() ) ) {
   // removing *all* variable
@@ -1093,7 +1093,7 @@ void PolyhedralFunction::remove_variables( Range range , ModParam issueMod )
   ai.erase( ai.begin() + range.first , ai.begin() + range.second );
 
  set_f_uncomputed();                // the function value has changed
- f_Lipschitz_constant = - Inf< FunctionValue >();  // == unknown
+ f_Lipschitz_constant = -Inf< FunctionValue >();  // == unknown
 
  // erase the elements in v_x
  const auto strtit = v_x.begin() + range.first;
@@ -1144,7 +1144,7 @@ void PolyhedralFunction::remove_variables( Subset && nms , bool ordered ,
 					   ModParam issueMod )
 {
  set_f_uncomputed();                // the function value has changed
- f_Lipschitz_constant = - Inf< FunctionValue >();  // == unknown
+ f_Lipschitz_constant = -Inf< FunctionValue >();  // == unknown
 
  if( ! ordered )
   std::sort( nms.begin() , nms.end() );
@@ -1228,7 +1228,7 @@ void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
   }
 
  set_f_uncomputed();                // the function value has changed
- f_Lipschitz_constant = - Inf< FunctionValue >();  // == unknown
+ f_Lipschitz_constant = -Inf< FunctionValue >();  // == unknown
 
  // reset all aggregated linearizations, since there is no way to know if
  // they are still valid
@@ -1324,7 +1324,7 @@ void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
   }
 
  set_f_uncomputed();                // the function value has changed
- f_Lipschitz_constant = - Inf< FunctionValue >();  // == unknown
+ f_Lipschitz_constant = -Inf< FunctionValue >();  // == unknown
 
  // reset all aggregated linearizations, since there is no way to know if
  // they are still valid
@@ -1421,7 +1421,7 @@ void PolyhedralFunction::modify_row( Index i , RealVector && Ai ,
  v_b[ i ] = bi;
 
  set_f_uncomputed();                // the function value has changed
- f_Lipschitz_constant = - Inf< FunctionValue >();  // == unknown
+ f_Lipschitz_constant = -Inf< FunctionValue >();  // == unknown
 
  // reset all aggregated linearizations, since there is no way to know if
  // they are still valid
@@ -1818,7 +1818,7 @@ void PolyhedralFunction::modify_bound( FunctionValue newbound ,
   return;                   // cowardly (and silently) return
 
  if( ( newbound == Inf< FunctionValue>() && f_is_convex ) ||
-     ( newbound == - Inf< FunctionValue>() && ( ! f_is_convex ) ) )
+     ( newbound == -Inf< FunctionValue>() && ( ! f_is_convex ) ) )
   throw( std::invalid_argument( "wrong INF value to global bound" ) );
 
  FunctionValue shift = newbound > f_bound ?   C05FunctionMod::INFshift
@@ -2077,7 +2077,7 @@ void PolyhedralFunction::delete_rows( Range range , ModParam issueMod )
 
  update_f_max_glob();
 
- f_Lipschitz_constant = - Inf< FunctionValue >();  // == unknown
+ f_Lipschitz_constant = -Inf< FunctionValue >();  // == unknown
  set_f_uncomputed();      // the function value has changed
  if( f_loc_pool_sz > 1 )  // resize v_ord
   reset_v_ord();
@@ -2184,7 +2184,7 @@ void PolyhedralFunction::delete_rows( Subset && rows , bool ordered ,
 
  update_f_max_glob();
  
- f_Lipschitz_constant = - Inf< FunctionValue >();  // == unknown
+ f_Lipschitz_constant = -Inf< FunctionValue >();  // == unknown
  set_f_uncomputed();      // the function value has changed
  if( f_loc_pool_sz > 1 )  // resize v_ord
   reset_v_ord();
@@ -2255,7 +2255,7 @@ void PolyhedralFunction::delete_row( Index i , ModParam issueMod )
 
  update_f_max_glob();
 
- f_Lipschitz_constant = - Inf< FunctionValue >();  // == unknown
+ f_Lipschitz_constant = -Inf< FunctionValue >();  // == unknown
  set_f_uncomputed();      // the function value has changed
  if( f_loc_pool_sz > 1 )  // resize v_ord
   reset_v_ord();
@@ -2269,7 +2269,7 @@ void PolyhedralFunction::delete_row( Index i , ModParam issueMod )
  // C05FunctionMod::GlobalPoolRemoved
  // note: the explicit definition of type here was originally avoided by
  //       having the ? expression directly in the constructor, but this
- //       meant that the same expressio had a check if which was nonempty
+ //       meant that the same expression had a check if which was nonempty
  //       and a std-move of which that would make it empty, i.e., the
  //       perfect example of an expression with side-effects whose result
  //       depended on the order of the sub-expressions and therefore was
@@ -2301,7 +2301,7 @@ void PolyhedralFunction::delete_rows( ModParam issueMod )
  f_max_glob = 0;
 
  set_f_uncomputed();      // the function value has changed
- f_Lipschitz_constant = - Inf< FunctionValue >();  // == unknown
+ f_Lipschitz_constant = -Inf< FunctionValue >();  // == unknown
  if( f_loc_pool_sz > 1 )  // resize v_ord
   reset_v_ord();
 

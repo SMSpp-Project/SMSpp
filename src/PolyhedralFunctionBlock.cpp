@@ -733,12 +733,12 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF(
    get_objective()->set_sense( Objective::eMax , par );
 
    // properly set upper/lower bound on v
-   f_bcv.set_lhs( - Inf< Function::FunctionValue >() , par );
+   f_bcv.set_lhs( -Inf< Function::FunctionValue >() , par );
    f_bcv.set_rhs( f_polyf.get_global_upper_bound() , par );
 
    // properly set the lhs/rhs of the constraints
    for( auto & ci : f_const ) {
-    ci.set_lhs( - Inf< Function::FunctionValue >() , par );
+    ci.set_lhs( -Inf< Function::FunctionValue >() , par );
     ci.set_rhs( f_polyf.get_b()[ i++ ] , par );
     }
    }
@@ -1001,9 +1001,9 @@ void PolyhedralFunctionBlock::ConstructLPConstraint( Index i ,
 						     FRowConstraint & ci )
 {
  // if the PolyhedralFunction is convex, then the constraint is
- // b_i <= v - A_i x <= INF, otherwise it is - INF <= v - A_i x <= b_i
+ // b_i <= v - A_i x <= INF, otherwise it is -INF <= v - A_i x <= b_i
  ci.set_lhs( f_polyf.is_convex() ? f_polyf.get_b()[ i ]
-	                         : - Inf< Function::FunctionValue >() ,
+	                         : -Inf< Function::FunctionValue >() ,
 	     eNoMod );
  ci.set_rhs( f_polyf.is_convex() ? Inf< Function::FunctionValue >()
 	                         : f_polyf.get_b()[ i ] ,

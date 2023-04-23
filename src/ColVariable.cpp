@@ -139,7 +139,7 @@ void ColVariable::is_unitary( bool yn , c_ModParam issueMod )
 
 ColVariable::VarValue ColVariable::get_lb( void ) const {
  return( is_positive() ? VarValue( 0 ) :
-         ( is_unitary() ? VarValue( -1 ) : - Inf< VarValue >() ) );
+         ( is_unitary() ? VarValue( -1 ) : -Inf< VarValue >() ) );
  }
 
 /*--------------------------------------------------------------------------*/

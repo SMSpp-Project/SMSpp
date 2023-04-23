@@ -70,7 +70,7 @@ TEST_F( AbstractBlockTest, Sets_UpperBound ) {
 /*--------------------------------------------------------------------------*/
 
 TEST_F( AbstractBlockTest, Sets_LowerBound ) {
- ASSERT_EQ( block->get_valid_lower_bound(), - Inf< double >() );
+ ASSERT_EQ( block->get_valid_lower_bound(), -Inf< double >() );
 
  double lb = -1.0;
  block->set_valid_lower_bound( lb, true );

@@ -260,7 +260,7 @@ int BoxSolver::compute( bool changedvars )
    else
     f_state = kOK;
   else           // minimization
-   if( f_min_val == - INF )
+   if( f_min_val == -INF )
     f_state = kUnbounded;
    else
     f_state = kOK;
@@ -1002,15 +1002,15 @@ void BoxSolver::sol_variable( ColVariable & var , VarValue l ,
      var.set_value( u );            // primal solution
     }
    // the opposite problem
-   if( l == - INF )                 // if the lower bound is -INF
-    f_min_val = - INF;              // min is unbounded below
+   if( l == -INF )                  // if the lower bound is -INF
+    f_min_val = -INF;               // min is unbounded below
    else                             // if the lower bound is finite
-    if( f_min_val > - INF )         // problem not unbounded already
+    if( f_min_val > -INF )          // problem not unbounded already
      f_min_val += b * l;            // add the contribution
    }
   else {                            // [maximization] with b < 0
    // the original problem
-   if( l == - INF ) {               // if the lower bound is -INF
+   if( l == -INF ) {                // if the lower bound is -INF
     f_max_val = INF;                // max is unbounded above
     if( f_sol & 1 )
      var.set_value( std::min( u , double( 0 ) ) );
@@ -1023,22 +1023,22 @@ void BoxSolver::sol_variable( ColVariable & var , VarValue l ,
     }
    // the opposite problem
    if( u == INF )                   // if the upper bound is INF
-    f_min_val = - INF;              // min is unbounded below
+    f_min_val = -INF;               // min is unbounded below
    else                             // if the upper bound is finite
-    if( f_min_val > - INF )         // problem is unbounded already
+    if( f_min_val > -INF )          // problem is unbounded already
      f_min_val += b * u;            // add the contribution
    }
   }
  else {                             // minimization
   if( b > 0 ) {                     // with b > 0
    // the original problem
-   if( l == - INF ) {               // if the lower bound is -INF
-    f_min_val = - INF;              // min is unbounded below
+   if( l == -INF ) {                // if the lower bound is -INF
+    f_min_val = -INF;               // min is unbounded below
     if( f_sol & 1 )
      var.set_value( std::min( u , double( 0 ) ) );
     }
    else {                           // if the lower bound is finite
-    if( f_min_val > - INF )         // problem not unbounded already
+    if( f_min_val > -INF )          // problem not unbounded already
      f_min_val += b * l;            // add the contribution
     if( f_sol & 1 )
      var.set_value( l );            // primal solution
@@ -1053,18 +1053,18 @@ void BoxSolver::sol_variable( ColVariable & var , VarValue l ,
   else {                            // [minimization] with b < 0
    // the original problem
    if( u == INF ) {                 // if the upper bound is INF
-    f_min_val = - INF;              // min is unbounded below
+    f_min_val = -INF;               // min is unbounded below
     if( f_sol & 1 )
      var.set_value( std::max( l , double( 0 ) ) );
     }
    else {                           // if the upper bound is finite
-    if( f_min_val > - INF )         // problem not unbounded already
+    if( f_min_val > -INF )          // problem not unbounded already
      f_min_val += b * u;            // add the contribution
     if( f_sol & 1 )
      var.set_value( u );            // primal solution
     }
    // the opposite problem
-   if( l == - INF )                 // if the lower bound is - INF
+   if( l == -INF )                  // if the lower bound is -INF
     f_max_val = INF;                // max is unbounded above
    else                             // if the lower bound is finite
     if( f_max_val < INF )           // problem is unbounded already
@@ -1119,14 +1119,14 @@ void BoxSolver::sol_variable( ColVariable & var , VarValue l ,
    f_max_val += vxmax;
 
    // the opposite problem
-   if( ( l == - INF ) || ( u == INF ) )
-    f_min_val = - INF;
+   if( ( l == -INF ) || ( u == INF ) )
+    f_min_val = -INF;
    else
     f_min_val += std::min( q( l ) , q( u ) );
    }
   else {                            // [maximization] with a > 0
    // the original problem
-   if( ( l == - INF ) || ( u == INF ) ) {
+   if( ( l == -INF ) || ( u == INF ) ) {
     f_max_val = INF;
     if( f_sol & 1 )
      var.set_value( std::max( l , std::min( u , double( 0 ) ) ) );
@@ -1180,15 +1180,15 @@ void BoxSolver::sol_variable( ColVariable & var , VarValue l ,
   f_min_val += vxmin;
 
   // the opposite problem
-  if( ( l == - INF ) || ( u == INF ) )
+  if( ( l == -INF ) || ( u == INF ) )
    f_max_val = INF;
   else
    f_max_val += std::max( q( l ) , q( u ) );
   }
  else {                            // [minimization] with a < 0
   // the original problem
-  if( ( l == - INF ) || ( u == INF ) ) {
-   f_min_val = - INF;
+  if( ( l == -INF ) || ( u == INF ) ) {
+   f_min_val = -INF;
    if( f_sol & 1 )
     var.set_value( std::max( l , std::min( u , double( 0 ) ) ) );
    }
@@ -1238,15 +1238,15 @@ void BoxSolver::sol_variable( ColVariable & var , VarValue l ,
      cu->set_dual( b );             // dual solution
     }
    // the opposite problem
-   if( l == - INF )                 // if the lower bound is -INF
-    f_min_val = - INF;              // min is unbounded below
+   if( l == -INF )                  // if the lower bound is -INF
+    f_min_val = -INF;               // min is unbounded below
    else                             // if the lower bound is finite
-    if( f_min_val > - INF )         // problem not unbounded already
+    if( f_min_val > -INF )          // problem not unbounded already
      f_min_val += b * l;            // add the contribution
    }
   else {                            // [maximization] with b < 0
    // the original problem
-   if( l == - INF ) {               // if the lower bound is -INF
+   if( l == -INF ) {                // if the lower bound is -INF
     f_max_val = INF;                // max is unbounded above
     if( f_sol & 1 )
      var.set_value( std::min( u , double( 0 ) ) );
@@ -1261,22 +1261,22 @@ void BoxSolver::sol_variable( ColVariable & var , VarValue l ,
     }
    // the opposite problem
    if( u == INF )                   // if the upper bound is INF
-    f_min_val = - INF;              // min is unbounded below
+    f_min_val = -INF;               // min is unbounded below
    else                             // if the upper bound is finite
-    if( f_min_val > - INF )         // problem is unbounded already
+    if( f_min_val > -INF )          // problem is unbounded already
      f_min_val += b * u;            // add the contribution
    }
   }
  else {                             // minimization
   if( b > 0 ) {                     // with b > 0
    // the original problem
-   if( l == - INF ) {               // if the lower bound is -INF
-    f_min_val = - INF;              // min is unbounded below
+   if( l == -INF ) {                // if the lower bound is -INF
+    f_min_val = -INF;               // min is unbounded below
     if( f_sol & 1 )
      var.set_value( std::min( u , double( 0 ) ) );
     }
    else {                           // if the lower bound is finite
-    if( f_min_val > - INF )         // problem not unbounded already
+    if( f_min_val > -INF )          // problem not unbounded already
      f_min_val += b * l;            // add the contribution
     if( f_sol & 1 )
      var.set_value( l );            // primal solution
@@ -1293,12 +1293,12 @@ void BoxSolver::sol_variable( ColVariable & var , VarValue l ,
   else {                            // [minimization] with b < 0
    // the original problem
    if( u == INF ) {                 // if the upper bound is INF
-    f_min_val = - INF;              // min is unbounded below
+    f_min_val = -INF;               // min is unbounded below
     if( f_sol & 1 )
      var.set_value( std::max( l , double( 0 ) ) );
     }
    else {                           // if the upper bound is finite
-    if( f_min_val > - INF )         // problem not unbounded already
+    if( f_min_val > -INF )          // problem not unbounded already
      f_min_val += b * u;            // add the contribution
     if( f_sol & 1 )
      var.set_value( u );            // primal solution
@@ -1306,7 +1306,7 @@ void BoxSolver::sol_variable( ColVariable & var , VarValue l ,
      cl->set_dual( b );             // dual solution
     }
    // the opposite problem
-   if( l == - INF )                 // if the lower bound is - INF
+   if( l == -INF )                  // if the lower bound is -INF
     f_max_val = INF;                // max is unbounded above
    else                             // if the lower bound is finite
     if( f_max_val < INF )           // problem is unbounded already
@@ -1376,15 +1376,15 @@ void BoxSolver::sol_variable( ColVariable & var , VarValue l ,
    f_max_val += vxmax;
 
    // the opposite problem
-   if( ( l == - INF ) || ( u == INF ) )
-    f_min_val = - INF;
+   if( ( l == -INF ) || ( u == INF ) )
+    f_min_val = -INF;
    else
     f_min_val += std::min( q( l ) , q( u ) );
    }
   else {                            // [maximization] with a > 0
    // the original problem
    // note: no dual solution since it's convex maximization
-   if( ( l == - INF ) || ( u == INF ) ) {
+   if( ( l == -INF ) || ( u == INF ) ) {
     f_max_val = INF;
     if( f_sol & 1 )
      var.set_value( std::max( l , std::min( u , double( 0 ) ) ) );
@@ -1445,7 +1445,7 @@ void BoxSolver::sol_variable( ColVariable & var , VarValue l ,
   f_min_val += vxmin;
 
   // the opposite problem
-  if( ( l == - INF ) || ( u == INF ) )
+  if( ( l == -INF ) || ( u == INF ) )
    f_max_val = INF;
   else
    f_max_val += std::max( q( l ) , q( u ) );
@@ -1453,8 +1453,8 @@ void BoxSolver::sol_variable( ColVariable & var , VarValue l ,
  else {                            // [minimization] with a < 0
   // the original problem
   // note: no dual solution since it's concave minimization
-  if( ( l == - INF ) || ( u == INF ) ) {
-   f_min_val = - INF;
+  if( ( l == -INF ) || ( u == INF ) ) {
+   f_min_val = -INF;
    if( f_sol & 1 )
     var.set_value( std::max( l , std::min( u , double( 0 ) ) ) );
    }
@@ -1622,7 +1622,7 @@ void BoxSolver::process_var_sol( ColVariable & var , VarValue l ,
    var.set_value( u );              // primal solution
    }
   else {                            // [maximization] with b < 0
-   if( l == - INF )                 // if the lower bound is -INF
+   if( l == -INF )                  // if the lower bound is -INF
     throw( std::invalid_argument(
 		"BoxSolver::get_var_solution: unexpected unboundedness" ) );
    var.set_value( l );              // primal solution
@@ -1632,7 +1632,7 @@ void BoxSolver::process_var_sol( ColVariable & var , VarValue l ,
 
  // minimization
  if( b > 0 ) {                     // with b > 0
-  if( l == - INF )                 // if the lower bound is -INF
+  if( l == -INF )                  // if the lower bound is -INF
    throw( std::invalid_argument(
 		"BoxSolver::get_var_solution: unexpected unboundedness" ) );
   var.set_value( l );              // primal solution
@@ -1670,7 +1670,7 @@ void BoxSolver::process_var_sol( ColVariable & var , VarValue l , VarValue u ,
    var.set_value( x );
    }
   else {                            // [maximization] with a > 0
-   if( ( l == - INF ) || ( u == INF ) )
+   if( ( l == -INF ) || ( u == INF ) )
     throw( std::invalid_argument(
 		"BoxSolver::get_var_solution: unexpected unboundedness" ) );
 
@@ -1696,7 +1696,7 @@ void BoxSolver::process_var_sol( ColVariable & var , VarValue l , VarValue u ,
   var.set_value( x );
   }
  else {                            // [minimization] with a < 0
-  if( ( l == - INF ) || ( u == INF ) )
+  if( ( l == -INF ) || ( u == INF ) )
    throw( std::invalid_argument(
 		"BoxSolver::get_var_solution: unexpected unboundedness" ) );
   var.set_value( q( l ) < q( u ) ? l : u );
@@ -1736,10 +1736,10 @@ void BoxSolver::process_var_dir_l( ColVariable & var , VarValue l ,
   if( b > 0 )                       // with b > 0 
    var.set_value( u == INF ? 1 : 0 ); 
   else                              // with b < 0
-   var.set_value( l == - INF ? -1 : 0 ); 
+   var.set_value( l == -INF ? -1 : 0 );
  else                              // minimization
   if( b > 0 )                      // with b > 0
-   var.set_value( l == - INF ? -1 : 0 );
+   var.set_value( l == -INF ? -1 : 0 );
   else                              // with b < 0
    var.set_value( u == INF ? 1 : 0 ); 
 
@@ -1754,7 +1754,7 @@ void BoxSolver::process_var_dir_q( ColVariable & var , VarValue l ,
      ( ( f_sense == 0 ) && ( a > 0 ) ) )
   var.set_value( 0 );
  else
-  var.set_value( u == INF ? 1 : ( l == - INF ? -1 : 0 ) );
+  var.set_value( u == INF ? 1 : ( l == -INF ? -1 : 0 ) );
 
  }  // end( BoxSolver::process_var_dir_q )
 
@@ -1803,7 +1803,7 @@ void BoxSolver::process_var_dual( ColVariable & var ,
     cu->set_dual( b );              // dual solution
    }
   else {                            // [maximization] with b < 0
-   if( l == - INF )                 // if the lower bound is -INF
+   if( l == -INF )                  // if the lower bound is -INF
     throw( std::invalid_argument(
 	       "BoxSolver::get_dual_solution: unexpected unboundedness" ) );
    if( cl )
@@ -1813,7 +1813,7 @@ void BoxSolver::process_var_dual( ColVariable & var ,
 
  // minimization
  if( b > 0 ) {                     // with b > 0
-  if( l == - INF )                 // if the lower bound is -INF
+  if( l == -INF )                  // if the lower bound is -INF
    throw( std::invalid_argument(
 	       "BoxSolver::get_dual_solution: unexpected unboundedness" ) );
   if( cu )

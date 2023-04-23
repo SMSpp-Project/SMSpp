@@ -104,7 +104,7 @@ const std::vector< double > Solver::dflt_dbl_par =
    1e-6 ,                       // dblRelAcc
    Inf< Solver::OFValue >() ,   // dblAbsAcc
    Inf< Solver::OFValue >() ,   // dblUpCutOff
-   - Inf< Solver::OFValue >() , // dblLwCutOff
+   -Inf< Solver::OFValue >() ,  // dblLwCutOff
    Inf< Solver::OFValue >() ,   // dblRAccSol
    Inf< Solver::OFValue >() ,   // dblAAccSol
    0                            // dblFAccSol

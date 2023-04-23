@@ -1291,7 +1291,7 @@ void AbstractBlock::read_mps( std::istream & file )
     // L: rhs - |rng| =< f() =< rhs
     row.set_rhs( rhs[ r ], eNoMod );
     if( rng[ r ] == Inf< double >() ) {
-     row.set_lhs( - Inf< double >(), eNoMod );
+     row.set_lhs( -Inf< double >(), eNoMod );
     } else {
      row.set_lhs( rhs[ r ] - std::abs( rng[ r ] ), eNoMod );
     }
@@ -1354,10 +1354,10 @@ void AbstractBlock::read_mps( std::istream & file )
      c.set_value( dbl_val( value ) );
      c.is_fixed( true, eNoMod );
     } else if( type == "FR" ) { // Free variable
-     b.set_lhs( - Inf< double >(), eNoMod );
+     b.set_lhs( -Inf< double >(), eNoMod );
      b.set_rhs( Inf< double >(), eNoMod );
     } else if( type == "MI" ) { // Lower bound -inf
-     b.set_lhs( - Inf< double >(), eNoMod );
+     b.set_lhs( -Inf< double >(), eNoMod );
      b.set_rhs( 0, eNoMod );
     } else if( type == "PL" ) { // Upper bound +inf
      b.set_lhs( 0, eNoMod );
