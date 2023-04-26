@@ -306,7 +306,7 @@ private:
  template< class T >
  typename std::enable_if_t< has_function_v< T > >
  generate_function( T * t , int depth ) {
-  if( ! generator || ! generator->function_generator ) return;
+  if( ( ! generator ) || ( ! generator->function_generator ) ) return;
   Function * function = nullptr;
   auto function_type = generator->function_generator->gen_function_type();
   if constexpr( ! std::is_base_of_v< FRealObjective , T > ) {
@@ -545,7 +545,7 @@ private:
 /*--------------------------------------------------------------------------*/
 
  void generate_nested_blocks( AbstractBlock * block , int depth ) {
-  if( ! generator || ! generator->num_nested_block_generator ) return;
+  if( ( ! generator ) || ( ! generator->num_nested_block_generator ) ) return;
   auto & v_Block = block->access_nested_Blocks();
   auto num_nested_blocks = generator->num_nested_block_generator->
    gen_num_nested_blocks();

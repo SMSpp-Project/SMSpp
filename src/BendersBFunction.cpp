@@ -544,7 +544,7 @@ void BendersBFunction::add_variables( VarVector && nx , MultiVector && nA ,
  if( ! nn )  // actually nothing to add
   return;    // cowardly (and silently) return
 
- if( ! nA.empty() && ! v_A.empty() && nA.size() != v_A.size() )
+ if( ( ! nA.empty() ) && ( ! v_A.empty() ) && ( nA.size() != v_A.size() ) )
   throw( std::invalid_argument( "BendersBFunction::add_variables: current A "
                                 "matrix has " + std::to_string( v_A.size() ) +
                                 "row(s), but provided new columns have " +
@@ -1851,7 +1851,7 @@ int BendersBFunction::compute( bool changedvars ) {
   throw( std::logic_error(
              "BendersBFunction::compute: no Solver attached to sub-Block" ) );
 
- if( changedvars || ! f_constraints_are_updated ) {
+ if( changedvars || ( ! f_constraints_are_updated ) ) {
   // update the constraints
 
   // try to lock the inner Block: if this does not work

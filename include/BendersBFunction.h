@@ -589,7 +589,7 @@ class BendersBFunction : public C05Function , public Block {
       ( ! destroy_previous_block ) )
    return; // the given Block is already here; silently return
 
-  if( destroy_previous_block && ! v_Block.empty() )
+  if( destroy_previous_block && ( ! v_Block.empty() ) )
    delete v_Block.front();
 
   v_Block.clear();
