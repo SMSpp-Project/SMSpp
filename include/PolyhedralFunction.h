@@ -217,20 +217,20 @@ class PolyhedralFunction : public C05Function {
   bool operator==( const ThinVarDepInterface::v_iterator & rhs )
    const override final {
    #ifdef NDEBUG
-    auto tmp = static_cast<const PolyhedralFunction::v_iterator *>( & rhs );
+    auto tmp = static_cast< const PolyhedralFunction::v_iterator * >( & rhs );
     return( itr_ == tmp->itr_ );
    #else
-    auto tmp = dynamic_cast<const PolyhedralFunction::v_iterator *>( & rhs );
+    auto tmp = dynamic_cast< const PolyhedralFunction::v_iterator * >( & rhs );
     return( tmp ? itr_ == tmp->itr_ : false );
    #endif
    }
   bool operator!=( const ThinVarDepInterface::v_iterator & rhs )
    const override final {
    #ifdef NDEBUG
-    auto tmp = static_cast<const PolyhedralFunction::v_iterator *>( & rhs );
+    auto tmp = static_cast< const PolyhedralFunction::v_iterator * >( & rhs );
     return( itr_ != tmp->itr_ );
    #else
-    auto tmp = dynamic_cast<const PolyhedralFunction::v_iterator *>( & rhs );
+    auto tmp = dynamic_cast< const PolyhedralFunction::v_iterator * >( & rhs );
     return( tmp ? itr_ != tmp->itr_ : true );
    #endif
    }
@@ -276,11 +276,11 @@ class PolyhedralFunction : public C05Function {
   bool operator!=( const ThinVarDepInterface::v_const_iterator & rhs )
    const override final {
    #ifdef NDEBUG
-    auto tmp = static_cast<const PolyhedralFunction::v_const_iterator *>(
+    auto tmp = static_cast< const PolyhedralFunction::v_const_iterator * >(
 								      & rhs );
     return( itr_ != tmp->itr_ );
    #else
-    auto tmp = dynamic_cast<const PolyhedralFunction::v_const_iterator *>(
+    auto tmp = dynamic_cast< const PolyhedralFunction::v_const_iterator * >(
 								      & rhs );
     return( tmp ? itr_ != tmp->itr_ : true );
    #endif
@@ -1590,7 +1590,7 @@ class PolyhedralFunction : public C05Function {
  
  Subset v_ord;         ///< the ordering of linearizations
 
- std::vector<int> v_glob;  ///< the global pool, a vector of *signed* ints
+ std::vector< int > v_glob;  ///< the global pool, a vector of *signed* ints
  /**< h = v_glob[ i ] contains the place where the i-th item of the global
   * pool is stored:
   * - if h == Inf< int >() there is no item with this name

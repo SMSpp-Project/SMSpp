@@ -588,7 +588,7 @@ class FRowConstraint : public RowConstraint, public Observer {
 
  [[nodiscard]] v_const_iterator * v_begin( void ) const override {
   return( f_function ?
-	  static_cast<const Function *>( f_function )->v_begin() : nullptr );
+	  static_cast< const Function * >( f_function )->v_begin() : nullptr );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -601,7 +601,7 @@ class FRowConstraint : public RowConstraint, public Observer {
 
  [[nodiscard]] v_const_iterator * v_end( void ) const override {
   return( f_function ?
-	  static_cast<const Function *>( f_function )->v_end() : nullptr );
+	  static_cast< const Function * >( f_function )->v_end() : nullptr );
   }
 
 /*--------------------------------------------------------------------------*/

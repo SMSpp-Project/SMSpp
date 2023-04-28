@@ -300,12 +300,12 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   * true if the "linearized representation" is used, false otherwise, in
   * the following way:
   *
-  * - if stvv is not nullptr and it is a SimpleConfiguration<int>, then it
+  * - if stvv is not nullptr and it is a SimpleConfiguration< int >, then it
   *   if bool( stvv->f_value );
   *
   * - otherwise, if f_BlockConfig is not nullptr,
   *   f_BlockConfig->f_static_variables_Configuration is not nullptr and it
-  *   is a SimpleConfiguration<int>, then it is
+  *   is a SimpleConfiguration< int >, then it is
   *   bool( f_BlockConfig->f_static_variables_Configuration->f_value );
   *
   * - otherwise, false ("natural representation") is assumed.

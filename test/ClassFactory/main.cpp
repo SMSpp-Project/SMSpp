@@ -161,7 +161,7 @@ void test_Block( void ) {
 /*---------------------------- Configuration -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-template<class T = void , class U = void>
+template< class T = void , class U = void >
 class DummyConfiguration : public Configuration {
  protected:
   Configuration * clone( void ) const override { return( nullptr ); }
@@ -235,7 +235,7 @@ void test_Configuration( void ) {
 /*-------------------------------- Solver ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-template<class T = void , class U = void>
+template< class T = void , class U = void >
 class DummySolver : public Solver {
  public:
   int compute( bool ) override { return( 0 ); };
@@ -251,8 +251,8 @@ SMSpp_insert_in_factory_cpp_0_t
 SMSpp_insert_in_factory_cpp_0_t
 ( ( DummySolver< int , std::list< std::pair< int , double > > > ) );
 SMSpp_insert_in_factory_cpp_0_t
-( ( DummySolver< int , DummySolver<int ,
-    std::list<std::pair< int , double > > > > ) );
+( ( DummySolver< int , DummySolver< int ,
+    std::list< std::pair< int , double > > > > ) );
 
 /*--------------------------------------------------------------------------*/
 

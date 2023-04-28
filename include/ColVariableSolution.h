@@ -222,7 +222,7 @@ public:
   *
   * - a pointer to a std::vector of double;
   *
-  * - a pointer to a boost::multi_array<double , K>;
+  * - a pointer to a boost::multi_array< double , K >;
   *
   * This vector of boost::any is structured in the same way the vector
   * v_s_Variable of static Variables is structured in the associated
@@ -239,10 +239,10 @@ public:
   *   element of this vector is a pointer to a std::vector of double which
   *   are the values of those ColVariables;
   *
-  * - a pointer to a boost::multi_array<V , K> or a pointer to a
-  *   boost::multi_array<V *, K>, where V is any class derived from
+  * - a pointer to a boost::multi_array< V , K > or a pointer to a
+  *   boost::multi_array< V * , K >, where V is any class derived from
   *   ColVariable, then the i-th element of this vector is a pointer to a
-  *   boost::multi_array<double , K>, which stores the values of those
+  *   boost::multi_array< double , K >, which stores the values of those
   *   ColVariables. */
 
  c_Vec_any & get_static_variable_values( void ) const {
@@ -273,13 +273,13 @@ public:
   *   are the values of those ColVariables;
   *
   * - a pointer to a std::vector of std::list< V > or a pointer to a
-  *   std::vector of std::list<V *>, where V is any class derived from
+  *   std::vector of std::list< V * >, where V is any class derived from
   *   ColVariable, then the i-th element of this vector is a pointer to a
   *   std::vector of std::vector< double > which are the values of those
   *   ColVariables;
   *
   * - a pointer to a boost::multi_array< std::list< V > , K > or a pointer to a
-  *   boost::multi_array<std::list<V *>, K>, where V is any class derived
+  *   boost::multi_array< std::list< V * > , K >, where V is any class derived
   *   from ColVariable, then the i-th element of this vector is a pointer to
   *   a boost::multi_array< std::vector< double > , K >, which stores the values
   *   of those ColVariables. */
@@ -325,12 +325,12 @@ public:
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
- template<class F1 , class F2>
+ template< class F1 , class F2 >
  void apply_static( const Block * const block , F1 f1 , F2 f2 );
 
 /*--------------------------------------------------------------------------*/
 
- template<class F1 , class F2>
+ template< class F1 , class F2 >
  void apply_dynamic( const Block * const block , F1 f1 , F2 f2 );
 
 /*--------------------------------------------------------------------------*/

@@ -5596,9 +5596,9 @@ class Block : public Observer {
  *                            Range range , ModParam issuePMod = eNoBlc ,
  *                                          ModParam issueAMod = eModBlck ) {
  *      for( Index i = range.first ; i < range.second ; ++i , ++begin )
- *       static_cast<NetworkBlock *>( block )->set_arc_weight( i , *begin ,
- *                                                             issuePMod ,
- *                                                             issueAMod );
+ *       static_cast< NetworkBlock * >( block )->set_arc_weight( i , *begin ,
+ *                                                               issuePMod ,
+ *                                                               issueAMod );
  *      }
  *
  *     void set_weight_subset( Block * block , MF_dbl_it begin ,
@@ -5606,10 +5606,10 @@ class Block : public Observer {
  *                             ModParam issuePMod = eNoBlc ,
  *                             ModParam issueAMod = eModBlck ) {
  *      for( auto i : sbst )
- *       static_cast<NetworkBlock *>( block )->set_arc_weight( i ,
- *                                                             *(begin++) ,
- *                                                             issuePMod ,
- *                                                             issueAMod );
+ *       static_cast< NetworkBlock * >( block )->set_arc_weight( i ,
+ *                                                               *(begin++) ,
+ *                                                               issuePMod ,
+ *                                                               issueAMod );
  *      }
  *
  * These could then be freely registered in the methods factory as in
@@ -5748,7 +5748,7 @@ class Block : public Observer {
   * does is to create an adapter function which just static_cast<> the Block *
   * argument to a dBlock *, and then invokes \p function. However, the type of
   * the adapter function is now specified by means of the third parameter,
-  * which is dummy arg_packer_helper<Args...>. This is intended to be used
+  * which is dummy arg_packer_helper< Args... >. This is intended to be used
   * with existing parameter type list-specifying types, such as in
   * MS_rngd::args() or MS_int_sbst::args(), although there is nothing
   * preventing from defining new ones.
@@ -5760,7 +5760,7 @@ class Block : public Observer {
   * @param fnct The pointer to the class member function whose adapter
   *             function is to be added to the corresponding methods factory.
   *
-  * @param void Dummy arg_packer_helper<Args...> parameter to specify the
+  * @param void Dummy arg_packer_helper< Args... > parameter to specify the
   *             parameter type list of the function to be registered. */
 
  template< class dBlock , typename ... Args >
@@ -5860,7 +5860,7 @@ class Block : public Observer {
   *
   * @param name The name associated with the function.
   *
-  * @param void Dummy arg_packer_helper<Args...> parameter to specify
+  * @param void Dummy arg_packer_helper< Args... > parameter to specify
   *             parameter type list of the function to be retrieved. */
 
  template< typename... Args >
@@ -5910,7 +5910,7 @@ class Block : public Observer {
   *
   * @param fnct A pointer to the function whose associated name is desired.
   *
-  * @param void Dummy arg_packer_helper<Args...> parameter to specify the
+  * @param void Dummy arg_packer_helper< Args... > parameter to specify the
   *             parameter type list of the function whose associated name is
   *             desired. */
 

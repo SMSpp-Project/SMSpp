@@ -209,7 +209,7 @@ class DQuadFunction : public C15Function {
     auto tmp = static_cast< const DQuadFunction::v_const_iterator * >( & rhs );
     return( itr_ == tmp->itr_ );
    #else
-    auto tmp = dynamic_cast<const DQuadFunction::v_const_iterator *>( &rhs );
+    auto tmp = dynamic_cast< const DQuadFunction::v_const_iterator * >( &rhs );
     return( tmp ? itr_ == tmp->itr_ : false );
    #endif
    }
@@ -220,7 +220,7 @@ class DQuadFunction : public C15Function {
     auto tmp = static_cast< const DQuadFunction::v_const_iterator * >( & rhs );
     return( itr_ != tmp->itr_ );
    #else
-    auto tmp = dynamic_cast<const DQuadFunction::v_const_iterator *>( &rhs );
+    auto tmp = dynamic_cast< const DQuadFunction::v_const_iterator * >( &rhs );
     return( tmp ? itr_ != tmp->itr_ : true );
    #endif
    }

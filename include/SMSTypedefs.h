@@ -524,7 +524,7 @@ inline std::string && SMSpp_classname_normalise( std::string && str ) {
  *
  * must be registered in the factory by
  *
- *     SMSpp_insert_in_factory_cpp_1_t( ( MyBlock< std::pair<int , int> > ) );
+ *     SMSpp_insert_in_factory_cpp_1_t( ( MyBlock< std::pair< int , int > > ) );
  *
  * i.e., with at least one (possibly more, but there is no use in that) pair
  * of extra parentheses around the name of the class. For classes that do not
@@ -769,8 +769,8 @@ bool SMSpp_ensure_load_var;
  * boost any (it could also be a ( T ) --> void function but this would
  * mean copying the object and no one wants that, right?), whereas the macros
  * take a "f" that is a *piece of code* that is applied to the *container*
- * of the elements, i.e., either a thing_type, or a std::vector<thing_type>,
- * or a boost::multi_array<thing_type>. This requires the piece of code to
+ * of the elements, i.e., either a thing_type, or a std::vector< thing_type >,
+ * or a boost::multi_array< thing_type >. This requires the piece of code to
  * be "type polymorphic" (it has to work in all three cases), which is
  * nontrivial and (to the best of our knowledge) cannot be obtained with
  * templates at all, whence the not-very-C++ approach of using macros.
@@ -801,7 +801,7 @@ struct un_any_type {};
  *
  * - a pointer (reference) to a std::vector< T >;
  *
- * - a pointer (reference) to a  boost::multi_array<T , K> for "all" K;
+ * - a pointer (reference) to a  boost::multi_array< T , K > for "all" K;
  *
  * and apply the function "f" to all the objects of type T it contains. "f"
  * must be a ( T & ) --> void function (it could also be a ( T ) --> void
@@ -870,8 +870,8 @@ bool un_any_static( boost::any & any , F f , un_any_type< T > ,
  * - a pointer (reference) to a std::vector< T > and a pointer (reference) to a
  *   std::vector< U >;
  *
- * - a pointer (reference) to a boost::multi_array<T , K> and a
- *   pointer (reference) to a boost::multi_array<U , K>, for "all" K;
+ * - a pointer (reference) to a boost::multi_array< T , K > and a
+ *   pointer (reference) to a boost::multi_array< U , K >, for "all" K;
  *
  * and apply the function "f" to all corresponding pairs of objects of type T
  * and U they contain. "f" must be a ( T & , U & ) --> void function (it could
@@ -994,8 +994,8 @@ bool un_any_static_2( const boost::any & any1 , const boost::any & any2 ,
  *   created having the same size as the vector pointed by "any1" and the
  *   pointer to this just created object is stored in "any2";
  *
- * - a pointer (reference) to a boost::multi_array<T , K>, then a
- *   boost::multi_array<U , K> is created having the same shape as the
+ * - a pointer (reference) to a boost::multi_array< T , K >, then a
+ *   boost::multi_array< U , K > is created having the same shape as the
  *   boost::multi_array pointed by "any1" and the pointer to this newly
  *   created object is stored in "any2", for "all" K.
  *
@@ -1100,7 +1100,7 @@ bool un_any_static_2_create( const boost::any & any1 , boost::any & any2 ,
  *
  * - a pointer (reference) to a std::vector< T >;
  *
- * - a pointer (reference) to a  boost::multi_array<T , K> for "all" K;
+ * - a pointer (reference) to a  boost::multi_array< T , K > for "all" K;
  *
  * and apply the function "f" to all the objects of type T it contains. "f"
  * must be a ( T & ) --> void function (it could also be a ( T ) --> void
@@ -1166,9 +1166,9 @@ bool un_any_const_static( const boost::any & any , F f ,
  *
  * - a pointer (reference) to a std::list< T >;
  *
- * - a pointer (reference) to a std::vector<std::list< T > >;
+ * - a pointer (reference) to a std::vector< std::list< T > >;
  *
- * - a pointer (reference) to a  boost::multi_array<std::list< T > , K> for
+ * - a pointer (reference) to a  boost::multi_array< std::list< T > , K > for
  *   "all" K;
  *
  * and apply the function "f" to all the objects of type T it contains. Note
@@ -1241,11 +1241,11 @@ bool un_any_dynamic( boost::any & any , F f ,
  *
  * - a pointer (reference) to a std::list< T > and a pointer (reference) to a U;
  *
- * - a pointer (reference) to a std::vector<std::list< T >> and a pointer
+ * - a pointer (reference) to a std::vector< std::list< T > > and a pointer
  *   (reference) to a std::vector< U >;
  *
- * - a pointer (reference) to a boost::multi_array<std::list< T > , K> and a
- *   pointer (reference) to a boost::multi_array<U , K>, for "all" K;
+ * - a pointer (reference) to a boost::multi_array< std::list< T > , K > and a
+ *   pointer (reference) to a boost::multi_array< U , K >, for "all" K;
  *
  * and apply the function "f" to the objects they point to. "f" must be a
  * ( std::list< T > & , U & ) --> void function (it could also be a
@@ -1355,12 +1355,12 @@ bool un_any_dynamic_2( const boost::any & any1 , const boost::any & any2 ,
  * - a pointer (reference) to a std::list< T >, then a U is created and a
  *   pointer to this newly created object is stored in "any2";
  *
- * - a pointer (reference) to a std::vector<std::list< T >>, then a
+ * - a pointer (reference) to a std::vector< std::list< T > >, then a
  *   std::vector< U > is created having the same size as the vector pointed by
  *   "any1" and the pointer to this just created object is stored in "any2";
  *
- * - a pointer (reference) to a boost::multi_array<std::list< T > , K>, then a
- *   boost::multi_array<U , K> is created having the same shape as the
+ * - a pointer (reference) to a boost::multi_array< std::list< T > , K >, then a
+ *   boost::multi_array< U , K > is created having the same shape as the
  *   boost::multi_array pointed by "any1" and the pointer to this newly
  *   created object is stored in "any2", for "all" K.
  *
@@ -1461,9 +1461,9 @@ bool un_any_dynamic_2_create( const boost::any & any1 , boost::any & any2 ,
  *
  * - a pointer (reference) to a std::list< T >;
  *
- * - a pointer (reference) to a std::vector<std::list< T > >;
+ * - a pointer (reference) to a std::vector< std::list< T > >;
  *
- * - a pointer (reference) to a  boost::multi_array<std::list< T > , K> for
+ * - a pointer (reference) to a  boost::multi_array< std::list< T > , K > for
  *   "all" K;
  *
  * and apply the function "f" to all the objects of type T it contains. Note
@@ -1608,7 +1608,7 @@ bool un_any_const_dynamic( const boost::any & any , F f ,
  *
  * and
  *
- *   un_any_thing( std:list<basic_type> , ... );
+ *   un_any_thing( std:list< basic_type > , ... );
  *
  * The pesky part in these macros (in particular, in un_any_thing_K() and
  * therefore in un_any_thing()) is that they have to work with "all" K, but

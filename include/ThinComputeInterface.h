@@ -1201,7 +1201,7 @@ class ThinComputeInterface
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// get the number of vector-of-string (std::vector<std::string>) parameters
+ /// get the number of vector-of-string (std::vector< std::string >) parameters
  /** Get the number of vector-of-string (std::vector< std::string >)
   *  parameters. The method is given an implementation (returning 0), rather
   * than being pure virtual, so that derived classes not having any
@@ -1349,7 +1349,7 @@ class ThinComputeInterface
   get_vint_par( idx_type par ) const { return( get_dflt_vint_par( par ) ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// get a specific vector-of-float (std::vector<double>) numerical parameter
+ /// get a specific vector-of-float (std::vector< double >) numerical parameter
  /** Returns a const reference to the current value of the vector-of-float
   * (std::vector< double >) numerical parameter with index \p par, which must
  * be in the range [ 0 , get_num_vdbl_par() ). The method is given a "void"
@@ -2479,7 +2479,7 @@ class State {
   *
   * Any whitespaces that the given \p classname may contain is ignored. So,
   * for example, to create an instance of the class MyState< int > one could
-  * indifferently pass "MyState<int>", "MyState< int >", or even
+  * indifferently pass "MyState< int >", "MyState< int >", or even
   * " M y S t a t e < int > ".
   *
   * Note that :State objects are generally constructed by their

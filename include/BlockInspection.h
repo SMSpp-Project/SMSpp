@@ -141,7 +141,7 @@ namespace SMSpp_di_unipi_it::inspection
 /*--------------------------------------------------------------------------*/
 
  template< typename T , std::size_t K >
- static T * get_static_element_( const boost::multi_array<T , K> & array ,
+ static T * get_static_element_( const boost::multi_array< T , K > & array ,
                                  Index index ) {
   if( index >= array.num_elements() )
    return( nullptr );
@@ -205,7 +205,7 @@ namespace SMSpp_di_unipi_it::inspection
 
 /*--------------------------------------------------------------------------*/
 
- template<class S , class T , class... Rest>
+ template< class S , class T , class... Rest>
  static Index get_static_index( const S * s , const boost::any & group ) {
   if constexpr( std::is_base_of_v< S , T > ) {
    Index index = Inf< Index >();
@@ -221,7 +221,7 @@ namespace SMSpp_di_unipi_it::inspection
 
 /*--------------------------------------------------------------------------*/
 
- template<class S , class T , class... Rest>
+ template< class S , class T , class... Rest >
  static Index get_dynamic_index( const S * s , const boost::any & group ) {
   if constexpr( std::is_base_of_v< S , T > ) {
    Index index = Inf< Index >();
@@ -260,7 +260,7 @@ namespace SMSpp_di_unipi_it::inspection
 
 /*--------------------------------------------------------------------------*/
 
- template<class S , class T , class... Rest>
+ template< class S , class T , class... Rest >
  static S * get_static_element( const boost::any & group , Index index ) {
   if constexpr( std::is_base_of_v< S , T > ) {
    S * element = nullptr;
@@ -276,7 +276,7 @@ namespace SMSpp_di_unipi_it::inspection
 
 /*--------------------------------------------------------------------------*/
 
- template<class S , class T , class... Rest>
+ template< class S , class T , class... Rest >
  static S * get_dynamic_element( const boost::any & group , Index index ) {
   if constexpr( std::is_base_of_v< S , T > ) {
    S * element = nullptr;
@@ -293,7 +293,7 @@ namespace SMSpp_di_unipi_it::inspection
 
 /*--------------------------------------------------------------------------*/
 
- template<class T>
+ template< class T >
  static const boost::any & get_group( const Block * block , Index group_index ,
                                       bool is_static ) {
   if( std::is_base_of_v< Constraint , T > ) {
@@ -351,7 +351,7 @@ namespace SMSpp_di_unipi_it::inspection
   *         specified location, a pointer to this element is
   *         returned. Otherwise, nullptr is returned. */
 
- template<class T>
+ template< class T >
  static T * get_element( const Block * block , bool is_static ,
                          Index group_index , Index element_index ) {
   auto group = get_group< T >( block , group_index , is_static );
@@ -376,7 +376,7 @@ namespace SMSpp_di_unipi_it::inspection
 
 /*--------------------------------------------------------------------------*/
 
- template<class T>
+ template< class T >
  static std::pair< Index , Index > get_element_index
  ( T * t , const Vec_any & groups , bool is_static ) {
 
@@ -412,7 +412,7 @@ namespace SMSpp_di_unipi_it::inspection
 
 /*--------------------------------------------------------------------------*/
 
- template<class T>
+ template< class T >
  static std::pair< Index , Index > get_static_element_index( T * t ) {
 
   const auto block = t->get_Block();
@@ -430,7 +430,7 @@ namespace SMSpp_di_unipi_it::inspection
 
 /*--------------------------------------------------------------------------*/
 
- template<class T>
+ template< class T >
  static std::pair< Index , Index > get_dynamic_element_index( T * t ) {
 
   const auto block = t->get_Block();
@@ -468,7 +468,7 @@ namespace SMSpp_di_unipi_it::inspection
   * @return A tuple containing the location of the given element in its father
   *         Block. */
 
- template<class T>
+ template< class T >
  static std::tuple< bool , Index , Index > get_element_index( T * element ) {
   auto index_pair = get_static_element_index( element );
   if( index_pair.first < Inf< Index >() )
@@ -577,11 +577,11 @@ namespace SMSpp_di_unipi_it::inspection
 
 /*--------------------------------------------------------------------------*/
 
- template<class P1 , class P2 , class T , class... Rest>
+ template< class P1 , class P2 , class T , class... Rest >
  static void fill_static_ComputeConfig
  ( boost::any & group , const P1 group_index ,
-   std::vector<ComputeConfig *> & configs ,
-   std::vector< std::pair<P1 , P2> > & ids ) {
+   std::vector< ComputeConfig * > & configs ,
+   std::vector< std::pair< P1 , P2 > > & ids ) {
 
   Index constraint_index = 0;
   bool group_found = un_any_static
@@ -597,17 +597,17 @@ namespace SMSpp_di_unipi_it::inspection
   if( group_found )
    return;
   else if constexpr( sizeof...(Rest) != 0 )
-   fill_static_ComputeConfig<P1 , P2 , Rest...>( group , group_index ,
-                                                 configs , ids );
+   fill_static_ComputeConfig< P1 , P2 , Rest... >( group , group_index ,
+                                                   configs , ids );
  }
 
 /*--------------------------------------------------------------------------*/
 
- template<class P1 , class P2 , class T , class... Rest>
+ template< class P1 , class P2 , class T , class... Rest >
  static void fill_dynamic_ComputeConfig
  ( boost::any & group , const P1 group_index ,
-   std::vector<ComputeConfig *> & configs ,
-   std::vector< std::pair<P1 , P2> > & ids ) {
+   std::vector< ComputeConfig * > & configs ,
+   std::vector< std::pair< P1 , P2 > > & ids ) {
 
   Index constraint_index = 0;
   bool group_found = un_any_dynamic
@@ -623,8 +623,8 @@ namespace SMSpp_di_unipi_it::inspection
   if( group_found )
    return;
   else if constexpr( sizeof...(Rest) != 0 )
-   fill_dynamic_ComputeConfig<P1 , P2 , Rest...>( group , group_index ,
-                                                  configs , ids );
+   fill_dynamic_ComputeConfig< P1 , P2 , Rest... >( group , group_index ,
+                                                    configs , ids );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -649,9 +649,9 @@ namespace SMSpp_di_unipi_it::inspection
   * @param ids The ConstraintID of the Constraint whose ComputeConfig were
   *        retrieved will be added to this vector. */
 
- template<class P1 , class P2>
+ template< class P1 , class P2 >
  static void fill_ComputeConfig_Constraint
- ( Block * block , std::vector<ComputeConfig *> & configs ,
+ ( Block * block , std::vector< ComputeConfig * > & configs ,
    std::vector< std::pair< P1 , P2 > > & ids ) {
 
   if( ! block )
@@ -702,7 +702,7 @@ namespace SMSpp_di_unipi_it::inspection
   *        a group of static Constraint. Otherwise, it indicates that \p group
   *        contains a group of dynamic Constraint. */
 
- template<class T , class... Rest>
+ template< class T , class... Rest >
  static std::vector< Index > get_infeasibility
  ( boost::any & group , const bool static_constraints ) {
 

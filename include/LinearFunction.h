@@ -147,10 +147,10 @@ class LinearFunction : public C15Function
   bool operator!=( const ThinVarDepInterface::v_iterator & rhs )
    const final {
    #ifdef NDEBUG
-    auto tmp = static_cast<const LinearFunction::v_iterator *>( & rhs );
+    auto tmp = static_cast< const LinearFunction::v_iterator * >( & rhs );
     return( itr_ != tmp->itr_ );
    #else
-    auto tmp = dynamic_cast<const LinearFunction::v_iterator *>( &rhs );
+    auto tmp = dynamic_cast< const LinearFunction::v_iterator * >( &rhs );
     return( tmp ? itr_ != tmp->itr_ : true );
    #endif
    }
@@ -187,10 +187,10 @@ class LinearFunction : public C15Function
   bool operator==( const ThinVarDepInterface::v_const_iterator & rhs )
    const final {
    #ifdef NDEBUG
-    auto tmp = static_cast<const LinearFunction::v_const_iterator *>( & rhs );
+    auto tmp = static_cast< const LinearFunction::v_const_iterator * >( & rhs );
     return( itr_ == tmp->itr_ );
    #else
-    auto tmp = dynamic_cast<const LinearFunction::v_const_iterator *>( &rhs );
+    auto tmp = dynamic_cast< const LinearFunction::v_const_iterator * >( &rhs );
     return( tmp ? itr_ == tmp->itr_ : false );
    #endif
    }
@@ -198,10 +198,10 @@ class LinearFunction : public C15Function
   bool operator!=( const ThinVarDepInterface::v_const_iterator & rhs )
    const final {
    #ifdef NDEBUG
-    auto tmp = static_cast<const LinearFunction::v_const_iterator *>( & rhs );
+    auto tmp = static_cast< const LinearFunction::v_const_iterator * >( & rhs );
     return( itr_ != tmp->itr_ );
    #else
-    auto tmp = dynamic_cast<const LinearFunction::v_const_iterator *>( &rhs );
+    auto tmp = dynamic_cast< const LinearFunction::v_const_iterator * >( &rhs );
     return( tmp ? itr_ != tmp->itr_ : true );
    #endif
    }
