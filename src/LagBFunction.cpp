@@ -158,7 +158,7 @@ LagBFunction::LagBFunction( Block * innerblock , Observer * observer )
 
  init_CC();
 
- }  // end( LagBFunction::LagBFunction() )
+ }  // end( LagBFunction::LagBFunction )
 
 /*--------------------------------------------------------------------------*/
 
@@ -1127,7 +1127,7 @@ void LagBFunction::serialize( netCDF::NcGroup & group ) const
  if( ! owned )
   v_Block.front()->unlock( f_id );  // unlock it
 
- }  // end( LagBFunction::serialize() )
+ }  // end( LagBFunction::serialize )
 
 /*--------------------------------------------------------------------------*/
 /*----------- METHODS FOR HANDLING THE State OF THE LagBFunction -----------*/
@@ -1716,7 +1716,7 @@ int LagBFunction::compute( bool changedvars )
  // return the status of the Solver as the status of the LagBFunction
  return( is->compute( false ) );
 
- }  // end( LagBFunction::compute() )
+ }  // end( LagBFunction::compute )
 
 /*--------------------------------------------------------------------------*/
 

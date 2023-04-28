@@ -86,7 +86,7 @@ public:
 
   /// constructor of ColRowSolution, does nothing
 
- ColRowSolution( ) : Solution() { }
+ ColRowSolution() : Solution() { }
 
 /*--------------------------------------------------------------------------*/
 

@@ -98,7 +98,7 @@ public:
 
  /// constructor of ColVariableSolution, does nothing
 
- ColVariableSolution( ) : Solution() { }
+ ColVariableSolution() : Solution() { }
 
 /*--------------------------------------------------------------------------*/
  /// inhibit copy constructor, so that it cannot be used

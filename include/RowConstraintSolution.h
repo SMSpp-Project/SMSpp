@@ -98,7 +98,7 @@ public:
 
   /// constructor of RowConstraintSolution, does nothing
 
- RowConstraintSolution( ) : Solution() { }
+ RowConstraintSolution() : Solution() { }
 
 /*--------------------------------------------------------------------------*/
 

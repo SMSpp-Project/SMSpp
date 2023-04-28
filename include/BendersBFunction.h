@@ -2346,7 +2346,7 @@ class BendersBFunction : public C05Function , public Block {
 
   void reset_linearization_constants( void ) {
    linearization_constants.assign( linearization_constants.size() ,
-                                   Inf<FunctionValue>() );
+                                   Inf< FunctionValue >() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -2559,12 +2559,12 @@ class BendersBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 
  /// write the Solution with the given name in the sub-Block
- /** If <tt>name == Inf<Index>()</tt>, this function writes the dual solution
+ /** If <tt>name == Inf< Index >()</tt>, this function writes the dual solution
   * associated with the last computed linearization in the sub-Block. In this
   * case, only the dual solution associated with the Constraint handled by
   * this BendersBFunction may be considered (see
   * #f_get_dual_solution_partial_config and
-  * #f_get_dual_direction_partial_config). If <tt>name != Inf<Index>()</tt>,
+  * #f_get_dual_direction_partial_config). If <tt>name != Inf< Index >()</tt>,
   * then it writes the Solution that is stored in the global pool under the
   * given \p name in the sub-Block. In the last case, if the given \p name is
   * invalid or the Solution is not present in the global pool, an exception is

@@ -392,7 +392,7 @@ class ThinComputeInterface
   * sensibly set this parameter. Yet, because most complex computation
   * processes are inherently iterative, hence it makes sense to offer
   * support for this notion in the base class. More refined ones can easily
-  * be added by derived classes. The default is Inf<int>(). */
+  * be added by derived classes. The default is Inf< int >(). */
 
   intMaxThread ,  ///< maximum number of threads that compute() can spawn
                   /**< The algorithmic parameter for setting the maximum
@@ -449,7 +449,7 @@ class ThinComputeInterface
   * not explicitly distinguish between "wall-clock time" and "CPU time",
   * which may be rather different especially in a parallel environment, but
   * this concept can be easily added by derived classes. The default is
-  * Inf<double>(). */
+  * Inf< double >(). */
 
   dblEveryTTm ,  ///< how often call events of type eEveryTTime
                  /**< This parameter sets the period (amount of time) T with

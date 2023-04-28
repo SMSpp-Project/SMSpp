@@ -1624,7 +1624,7 @@ class Block : public Observer {
       }
      }
    }  // end infinite loop
-  }  // end( lock() )
+  }  // end( lock )
 
 /*--------------------------------------------------------------------------*/
  /// unlock the Block

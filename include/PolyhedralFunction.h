@@ -1554,7 +1554,7 @@ class PolyhedralFunction : public C05Function {
   // until the last position is not needed, shorten v_aA[] and v_ab[]
   while( ! v_ab.empty() ) {
    auto last = --v_ab.end();
-   if( *last == Inf<FunctionValue>() ) {
+   if( *last == Inf< FunctionValue >() ) {
     v_aA.pop_back();
     v_ab.pop_back();
     }
@@ -1593,7 +1593,7 @@ class PolyhedralFunction : public C05Function {
  std::vector<int> v_glob;  ///< the global pool, a vector of *signed* ints
  /**< h = v_glob[ i ] contains the place where the i-th item of the global
   * pool is stored:
-  * - if h == Inf<int>() there is no item with this name
+  * - if h == Inf< int >() there is no item with this name
   * - if h == 0 then it's the all-0 linearization, which is not stored
   *   anywhere, and its constant term f_bound
   * - if 0 < h <= get_nrows() then it's an original linearization and it's
@@ -1603,8 +1603,8 @@ class PolyhedralFunction : public C05Function {
 
  Index f_max_glob;           ///< 1 + maximum active name in the global pool
  /**< f_max_glob is strictly larger than the maximum index h such that
-  * v_glob[ h ] != Inf<int>(), i.e., v_glob[ f_max_glob ] == Inf<int>()
-  * while v_glob[ f_max_glob - 1 ] != Inf<int>(). Note that one should
+  * v_glob[ h ] != Inf< int >(), i.e., v_glob[ f_max_glob ] == Inf< int >()
+  * while v_glob[ f_max_glob - 1 ] != Inf< int >(). Note that one should
   * never check v_glob[ f_max_glob ], as f_max_glob == v_glob.size() may
   * happen (in particular when v_glob.empty() and f_max_glob == 0). */
 
@@ -1621,7 +1621,7 @@ class PolyhedralFunction : public C05Function {
  void reset_aggregate_linearizations( ModParam issueMod );
 
  void update_f_max_glob( void ) {
-  while( f_max_glob && ( v_glob[ f_max_glob - 1 ] == Inf<int>() ) )
+  while( f_max_glob && ( v_glob[ f_max_glob - 1 ] == Inf< int >() ) )
    --f_max_glob;
   }
  

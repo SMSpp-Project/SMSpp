@@ -148,7 +148,7 @@ TEST_F( AbstractBlockTest, Adds_StaticVariables_Vector ) {
 /*--------------------------------------------------------------------------*/
 
 TEST_F( AbstractBlockTest, Adds_StaticVariables_Multiarray ) {
- auto v = new boost::multi_array< ColVariable, 2 >;
+ auto v = new boost::multi_array< ColVariable , 2 >;
  v->resize( boost::extents[ 2 ][ 2 ] );
 
  block->add_static_variable( *v );
