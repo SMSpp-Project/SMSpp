@@ -8561,7 +8561,7 @@ inline void serialize( netCDF::NcGroup & group , const Block * data ,
  * many sub-groups of \p group with name <name>0, <name>1, ..., each one
  * containing one of the Block. */
 
-template< template < class ... > class C >
+template< template< class ... > class C >
 void deserialize( const netCDF::NcGroup & group , C< Block * > & data ,
 		  const std::string & size = "size" ,
 		  const std::string & name = "Block_" )
@@ -8587,7 +8587,7 @@ void deserialize( const netCDF::NcGroup & group , C< Block * > & data ,
  * many sub-groups of \p group with name <name>0, <name>1, ..., each one
  * containing one of the Block. */
 
-template< template < class ... > class C >
+template< template< class ... > class C >
 void serialize( netCDF::NcGroup & group , const C< Block * > & data ,
 		const std::string & size = "size" ,
 		const std::string & name = "Block_" )

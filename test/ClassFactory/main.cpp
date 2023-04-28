@@ -16,12 +16,16 @@
 /*--------------------------------------------------------------------------*/
 
 #include "AbstractBlock.h"
+
 #include "BendersBFunction.h"
+
 #include "BendersBlock.h"
+
 #include "FakeSolver.h"
+
 #include "LagBFunction.h"
+
 #include "PolyhedralFunctionBlock.h"
-#include "UpdateSolver.h"
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------------- USING -----------------------------------*/
@@ -128,33 +132,33 @@ void test_Block( void ) {
 
  // SMS++ Block
 
- test_Block( "AbstractBlock" );
- test_Block< BendersBFunction >( "BendersBFunction " );
- test_Block( " BendersBlock" );
+ test_Block( " AbstractBlock " );
+ test_Block< BendersBFunction >( " BendersBFunction " );
+ test_Block< BendersBlock >( " BendersBlock " );
  test_Block( " LagBFunction " );
- test_Block< PolyhedralFunctionBlock > ( "PolyhedralFunctionBlock" );
+ test_Block< PolyhedralFunctionBlock > ( " PolyhedralFunctionBlock " );
 
  // DummyBlock
 
- test_Block( "DummyBlock" );
- test_Block< DummyBlock2 >( "DummyBlock2" );
+ test_Block( " DummyBlock " );
+ test_Block< DummyBlock2 >( " DummyBlock2 " );
 
- test_Block( "DummyBlockT<>" );
- test_Block( "DummyBlockT<double>" );
- test_Block( "DummyBlockT<char>" );
- test_Block( "DummyBlockT<int>" );
- test_Block( "DummyBlockT<std::pair<double , int>>" );
- test_Block( "DummyBlockT<std::pair<double,int>>" );
+ test_Block( " DummyBlockT<> " );
+ test_Block( " DummyBlockT< double > " );
+ test_Block( " DummyBlockT< char > " );
+ test_Block( " DummyBlockT< int > " );
+ test_Block( " DummyBlockT< std::pair< double , int > > " );
+ test_Block( " DummyBlockT< std::pair< double , int > >" );
  test_Block< DummyBlockT< std::list< std::pair< int , double > > > > (
-		          "DummyBlockT<std::list<std::pair<int,double>>>" );
+		          " DummyBlockT< std::list< std::pair< int , double > > > " );
 
- test_Block( "DummyBlockT<void,1>" );
- test_Block( "DummyBlockT<double,1>" );
- test_Block( "DummyBlockT<char,1>" );
- test_Block( "DummyBlockT<int,1>" );
- test_Block( "DummyBlockT<std::pair<double,int>,1>" );
+ test_Block( " DummyBlockT< void , 1 > " );
+ test_Block( " DummyBlockT< double , 1 > " );
+ test_Block( " DummyBlockT< char , 1 > " );
+ test_Block( " DummyBlockT< int , 1 > " );
+ test_Block( " DummyBlockT< std::pair< double , int > , 1 >" );
  test_Block< DummyBlockT< std::list< std::pair< int , double > > ,1 > >(
-			 "DummyBlockT<std::list<std::pair<int,double>>,1>" );
+			 "DummyBlockT< std::list< std::pair< int , double > > , 1 >" );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -208,9 +212,8 @@ void test_Configuration( void ) {
 
  // SimpleConfiguration
 
- test_Configuration( " SimpleConfiguration < int > " );
- test_Configuration( "SimpleConfiguration<int>" );
- test_Configuration( " SimpleConfiguration < double > " );
+ test_Configuration( " SimpleConfiguration< int > " );
+ test_Configuration( " SimpleConfiguration< double > " );
  test_Configuration( " SimpleConfiguration< std::pair< int , int > > " );
  test_Configuration( " SimpleConfiguration< std::pair< double , double > > " );
  test_Configuration( " SimpleConfiguration< std::pair< int , double > > " );

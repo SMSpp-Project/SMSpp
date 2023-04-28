@@ -400,7 +400,7 @@ void LagBFunction::set_par( idx_type par , int value )
     }
    break;
   case( intGPMaxSz ):  // intGPMaxSz- - - - - - - - - - - - - - - - - - - - -
-   if( ( LastSolution < Inf< Index >() ) && ( LastSolution >= g_pool.size() ) )
+   if( ( LastSolution< Inf< Index >() ) && ( LastSolution >= g_pool.size() ) )
     // LastSolution is undefined: ensure it remains so even if
     LastSolution = value;         // the global pool grows
    // note: if the global pool shrinks and LastSolution is one of the deleted
@@ -1411,7 +1411,7 @@ void LagBFunction::store_linearization( Index name , ModParam issueMod )
 	 "LagBFunction::store_linearization: invalid linearization name" ) );
 
  // throw exception if the solution does not exist or has been already stored
- if( LastSolution < Inf< Index >() )
+ if( LastSolution< Inf< Index >() )
   throw( std::logic_error( "LagBFunction: unavailable linearization" ) );
 
  // get the current Solution from the Solver - - - - - - - - - - - - - - - - -
@@ -1558,7 +1558,7 @@ void LagBFunction::delete_linearizations( Subset && which , bool ordered ,
      }
 
   f_max_glob = 0;
-  if( LastSolution < Inf< Index >() )  // LastSolution was in the global pool
+  if( LastSolution< Inf< Index >() )  // LastSolution was in the global pool
    LastSolution = g_pool.size();     // it is no longer valid
 
   if( f_Observer && f_Observer->issue_mod( issueMod ) )
