@@ -963,7 +963,7 @@ inline void serialize( netCDF::NcGroup & group , const std::string & name ,
  * by as many sub-groups of \p group with name <name>0, <name>1, ..., each
  * one containing one of the Configuration. */
 
-template< template < class ... > class C >
+template< template< class ... > class C >
 void deserialize( const netCDF::NcGroup & group ,
 		  C< Configuration * > & data ,
 		  const std::string & size = "size" ,
@@ -991,7 +991,7 @@ void deserialize( const netCDF::NcGroup & group ,
  * by as many sub-groups of \p group with name <name>0, <name>1, ..., each
  * one containing one of the Configuration. */
 
-template< template < class ... > class C >
+template< template< class ... > class C >
 void serialize( netCDF::NcGroup & group , const C< Configuration * > & data ,
 		const std::string & size = "size" ,
 		const std::string & name = "Config_" )

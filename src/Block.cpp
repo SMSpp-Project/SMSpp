@@ -623,7 +623,7 @@ void Block::remove_variable_from_stuff( Variable * const variable ,
 /*------------------------- METHODS of BlockConfig -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-BlockConfig::BlockConfig( const BlockConfig & old )
+BlockConfig::BlockConfig( const BlockConfig & old ) : BlockConfig()
 {
  f_diff = old.f_diff;
  clone_sub_Configuration( old );

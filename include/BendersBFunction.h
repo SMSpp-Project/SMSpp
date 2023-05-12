@@ -286,20 +286,20 @@ class BendersBFunction : public C05Function , public Block {
   bool operator==( const ThinVarDepInterface::v_iterator & rhs )
    const override final {
    #ifdef NDEBUG
-    auto tmp = static_cast<const BendersBFunction::v_iterator *>( & rhs );
+    auto tmp = static_cast< const BendersBFunction::v_iterator * >( & rhs );
     return( itr_ == tmp->itr_ );
    #else
-    auto tmp = dynamic_cast<const BendersBFunction::v_iterator *>( & rhs );
+    auto tmp = dynamic_cast< const BendersBFunction::v_iterator * >( & rhs );
     return( tmp ? itr_ == tmp->itr_ : false );
    #endif
    }
   bool operator!=( const ThinVarDepInterface::v_iterator & rhs )
    const override final {
    #ifdef NDEBUG
-    auto tmp = static_cast<const BendersBFunction::v_iterator *>( & rhs );
+    auto tmp = static_cast< const BendersBFunction::v_iterator * >( & rhs );
     return( itr_ != tmp->itr_ );
    #else
-    auto tmp = dynamic_cast<const BendersBFunction::v_iterator *>( & rhs );
+    auto tmp = dynamic_cast< const BendersBFunction::v_iterator * >( & rhs );
     return( tmp ? itr_ != tmp->itr_ : true );
    #endif
    }
@@ -335,11 +335,11 @@ class BendersBFunction : public C05Function , public Block {
   bool operator==( const ThinVarDepInterface::v_const_iterator & rhs )
    const override final {
    #ifdef NDEBUG
-    auto tmp = static_cast<const BendersBFunction::v_const_iterator *>(
+    auto tmp = static_cast< const BendersBFunction::v_const_iterator * >(
 								      & rhs );
     return( itr_ == tmp->itr_ );
    #else
-    auto tmp = dynamic_cast<const BendersBFunction::v_const_iterator *>(
+    auto tmp = dynamic_cast< const BendersBFunction::v_const_iterator * >(
 								      & rhs );
     return( tmp ? itr_ == tmp->itr_ : false );
    #endif
@@ -347,11 +347,11 @@ class BendersBFunction : public C05Function , public Block {
   bool operator!=( const ThinVarDepInterface::v_const_iterator & rhs )
    const override final {
    #ifdef NDEBUG
-    auto tmp = static_cast<const BendersBFunction::v_const_iterator *>(
+    auto tmp = static_cast< const BendersBFunction::v_const_iterator * >(
 								      & rhs );
     return( itr_ != tmp->itr_ );
    #else
-    auto tmp = dynamic_cast<const BendersBFunction::v_const_iterator *>(
+    auto tmp = dynamic_cast< const BendersBFunction::v_const_iterator * >(
 								      & rhs );
     return( tmp ? itr_ != tmp->itr_ : true );
    #endif
@@ -1960,7 +1960,7 @@ class BendersBFunction : public C05Function , public Block {
   * then a nullptr is returned. Otherwise, a pointer of type \p T is returned.
   */
 
- template<class T = Solver>
+ template< class T = Solver >
  inline T * get_solver() const {
   if( v_Block.empty() )
    return( nullptr );
@@ -1977,7 +1977,7 @@ class BendersBFunction : public C05Function , public Block {
  /// get the whole set of parameters of this BendersBFunction
  /** The extra Configuration (see ComputeConfig::f_extra_Configuration) of the
   * ComputeConfig of the BendersBFunction is a
-  * SimpleConfiguration<std::pair<Configuration* , Configuration*>>. The first
+  * SimpleConfiguration< std::pair< Configuration * , Configuration * > >. The first
   * Configuration of this pair is a :BlockConfig and the second one is a
   * :BlockSolverConfig, both of them being associated with the inner Block of
   * this BendersBFunction.
@@ -1985,7 +1985,7 @@ class BendersBFunction : public C05Function , public Block {
   * If an appropriate extra Configuration is not provided in \p ocfg (either
   * \p ocfg is nullptr or ocfg->f_extra_Configuration does not have the type
   * above), the extra Configuration in \p ocfg is deleted (if any) and a new
-  * SimpleConfiguration<std::pair<Configuration* , Configuration*>> is
+  * SimpleConfiguration< std::pair< Configuration * , Configuration * > > is
   * constructed.
   *
   * If an appropriate extra Configuration is provided, then it is used to
@@ -2113,7 +2113,7 @@ class BendersBFunction : public C05Function , public Block {
 
  public:
 
-  static constexpr auto NaN = std::numeric_limits<FunctionValue>::quiet_NaN();
+  static constexpr auto NaN = std::numeric_limits< FunctionValue >::quiet_NaN();
 
 /*--------------------------------------------------------------------------*/
 
@@ -2408,16 +2408,16 @@ class BendersBFunction : public C05Function , public Block {
 
  private:
 
-  std::vector<FunctionValue> linearization_constants;
+  std::vector< FunctionValue > linearization_constants;
   ///< linearization constants
 
-  std::vector<Solution *> solutions;
+  std::vector< Solution * > solutions;
   ///< pointers to the Solutions
 
   LinearCombination important_linearization_lin_comb;
   ///< the linear combination of the important linearization
 
-  std::vector<bool> is_diagonal;
+  std::vector< bool > is_diagonal;
   ///< indicates whether a linearization is diagonal
 
  }; // end( class( GlobalPool ) )
@@ -2486,7 +2486,7 @@ class BendersBFunction : public C05Function , public Block {
   * @param value The value of the parameter. */
 
  void set_solver_par( const idx_type par , const int value ) {
-  auto solver = get_solver<CDASolver>();
+  auto solver = get_solver< CDASolver >();
   if( ! solver )
    throw( std::invalid_argument( "BendersBFunction::set_solver_par: the inner "
                                  "Block must have a CDASolver attached "
@@ -2504,7 +2504,7 @@ class BendersBFunction : public C05Function , public Block {
   * @param value The value of the parameter. */
 
  void set_solver_par( const idx_type par , const double value ) {
-  auto solver = get_solver<CDASolver>();
+  auto solver = get_solver< CDASolver >();
   if( ! solver )
    throw( std::invalid_argument( "BendersBFunction::set_solver_par: the inner "
                                  "Block must have a CDASolver attached "
@@ -2522,7 +2522,7 @@ class BendersBFunction : public C05Function , public Block {
   * @return The value of the parameter. */
 
  int get_solver_int_par( const idx_type par ) const {
-  auto solver = get_solver<CDASolver>();
+  auto solver = get_solver< CDASolver >();
   if( ! solver )
    throw( std::invalid_argument( "BendersBFunction::get_solver_int_par: the "
                                  "inner Block must have a CDASolver attached "
@@ -2540,7 +2540,7 @@ class BendersBFunction : public C05Function , public Block {
   * @return The value of the parameter. */
 
  double get_solver_dbl_par( const idx_type par ) const {
-  auto solver = get_solver<CDASolver>();
+  auto solver = get_solver< CDASolver >();
   if( ! solver )
    throw( std::invalid_argument( "BendersBFunction::get_solver_dbl_par: the "
                                  "inner Block must have a CDASolver attached "
@@ -2684,13 +2684,13 @@ class BendersBFunction : public C05Function , public Block {
 
  /// returns the behaviour of this Function considering the given Modification
 
- function_value_behaviour get_behaviour( std::shared_ptr<BlockModAD> mod );
+ function_value_behaviour get_behaviour( std::shared_ptr< BlockModAD > mod );
 
 /*--------------------------------------------------------------------------*/
 
  /// returns the behaviour of this Function considering the given Modification
 
- function_value_behaviour get_behaviour( std::shared_ptr<ConstraintMod> mod );
+ function_value_behaviour get_behaviour( std::shared_ptr< ConstraintMod > mod );
 
 /*--------------------------------------------------------------------------*/
 
@@ -2741,7 +2741,7 @@ class BendersBFunction : public C05Function , public Block {
   * @return true if and ony if A is sparse.
   */
  template< class T >
- bool is_A_sparse( SparseMatrix<T> & matrix ) const;
+ bool is_A_sparse( SparseMatrix< T > & matrix ) const;
 
 /*--------------------------------------------------------------------------*/
 

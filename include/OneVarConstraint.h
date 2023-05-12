@@ -128,20 +128,20 @@ class OneVarConstraint : public RowConstraint {
   bool operator==( const ThinVarDepInterface::v_iterator & rhs ) const final {
    const auto * tmp =
    #ifdef NDEBUG
-    static_cast<const OneVarConstraint::v_iterator *>( & rhs );
+    static_cast< const OneVarConstraint::v_iterator * >( & rhs );
     return( ptr_ == tmp->ptr_ );
    #else
-    dynamic_cast<const OneVarConstraint::v_iterator *>( &rhs );
+    dynamic_cast< const OneVarConstraint::v_iterator * >( &rhs );
     return( tmp ? ptr_ == tmp->ptr_ : false );
    #endif
    }
   bool operator!=( const ThinVarDepInterface::v_iterator & rhs ) const final {
    const auto * tmp =
    #ifdef NDEBUG
-    static_cast<const OneVarConstraint::v_iterator *>( & rhs );
+    static_cast< const OneVarConstraint::v_iterator * >( & rhs );
     return( ptr_ != tmp->ptr_ );
    #else
-    dynamic_cast<const OneVarConstraint::v_iterator *>( &rhs );
+    dynamic_cast< const OneVarConstraint::v_iterator * >( &rhs );
     return( tmp ? ptr_ != tmp->ptr_ : false );
    #endif
    }
@@ -171,10 +171,10 @@ class OneVarConstraint : public RowConstraint {
    const final {
    const auto * tmp =
    #ifdef NDEBUG
-    static_cast<const OneVarConstraint::v_const_iterator *>( & rhs );
+    static_cast< const OneVarConstraint::v_const_iterator * >( & rhs );
     return( ptr_ == tmp->ptr_ );
    #else
-    dynamic_cast<const OneVarConstraint::v_const_iterator *>( &rhs );
+    dynamic_cast< const OneVarConstraint::v_const_iterator * >( &rhs );
     return( tmp ? ptr_ == tmp->ptr_ : false );
    #endif
    }
@@ -182,10 +182,10 @@ class OneVarConstraint : public RowConstraint {
    const final {
    const auto * tmp =
    #ifdef NDEBUG
-    static_cast<const OneVarConstraint::v_const_iterator *>( & rhs );
+    static_cast< const OneVarConstraint::v_const_iterator * >( & rhs );
     return( ptr_ != tmp->ptr_ );
    #else
-    dynamic_cast<const OneVarConstraint::v_const_iterator *>( &rhs );
+    dynamic_cast< const OneVarConstraint::v_const_iterator * >( &rhs );
     return( tmp ? ptr_ != tmp->ptr_ : false );
    #endif
    }
