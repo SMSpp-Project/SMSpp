@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.2] - 2023-05-17
+
 ### Added
 
 - C05Function uses Function::set_par
@@ -25,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - dynamic cast in put_State() (BendersBFunction, LagBFunction, and
   PolyhedralFunction)
+- copy constructor of BlockConfig
 
 ## [0.5.1] - 2022-06-28
 
@@ -205,7 +208,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - First test release.
 
-[Unreleased]: https://gitlab.com/smspp/smspp/-/compare/0.5.1...develop
+[Unreleased]: https://gitlab.com/smspp/smspp/-/compare/0.5.2...develop
+[0.5.2]: https://gitlab.com/smspp/smspp/-/compare/0.5.1...0.5.2
 [0.5.1]: https://gitlab.com/smspp/smspp/-/compare/0.5.0...0.5.1
 [0.5.0]: https://gitlab.com/smspp/smspp/-/compare/0.4.0...0.5.0
 [0.4.0]: https://gitlab.com/smspp/smspp/-/compare/0.3.2...0.4.0
