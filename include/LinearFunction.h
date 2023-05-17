@@ -13,7 +13,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Rafael Durbano Lobato
+ * \copyright Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -365,13 +365,13 @@ class LinearFunction : public C15Function
 /*--------------------------------------------------------------------------*/
 
  void get_linearization_coefficients( FunctionValue * g ,
-				      Range range = INFRange ,
+                                      Range range = INFRange ,
                                       Index name = Inf< Index >() ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  void get_linearization_coefficients( SparseVector & g ,
-				      Range range = INFRange ,
+                                      Range range = INFRange ,
                                       Index name = Inf< Index >() ) override;
 
 /*--------------------------------------------------------------------------*/
@@ -635,7 +635,7 @@ class LinearFunction : public C15Function
 
  void modify_coefficients( Vec_FunctionValue && NCoef , Subset && nms ,
                            bool ordered = false ,
-			   ModParam issueMod = eModBlck );
+                           ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify a range of coefficients
@@ -649,7 +649,7 @@ class LinearFunction : public C15Function
   * issued, as described in Observer::make_par(). */
 
  void modify_coefficients( Vec_FunctionValue && NCoef ,
-			   Range range = INFRange ,
+                           Range range = INFRange ,
                            ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/

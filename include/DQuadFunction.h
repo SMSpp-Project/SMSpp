@@ -13,7 +13,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
+ * \copyright Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -83,7 +83,7 @@ namespace SMSpp_di_unipi_it {
  *   the difference between the new and old constant term values.
  *
  * TODO: when "a lot" of the linear and/or quadratic coefficients change,
- *       rahter issue a C05FunctionMod of type AllEntriesChanged, because it
+ *       rather issue a C05FunctionMod of type AllEntriesChanged, because it
  *       might be faster to just re-read all the coefficients than to skip
  *       the few non-changed ones. */
 
@@ -672,7 +672,7 @@ class DQuadFunction : public C15Function {
   * Indeed, the check is costly, and the DQuadFunction does not really have
   * a functional issue with repeated ColVariable. The real issue rather comes
   * whenever the DQuadFunction is used within a Constraint or Objective that
-  * need to register istelf among the "active" Variable of the DQuadFunction;
+  * need to register itself among the "active" Variable of the DQuadFunction;
   * this process is not structured to work with multiple copies of the same
   * "active" Variable. Thus, a DQuadFunction used within such an object
   * should not have repeated Variable, but if this is an issue then the
@@ -686,7 +686,7 @@ class DQuadFunction : public C15Function {
   * quadratic function is additive, and therefore strongly quasi-additive. */
 
  void add_variables( v_coeff_triple && vars ,
-		     ModParam issueMod = eModBlck );
+                     ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// add one single new Variable to the DQuadFunction
@@ -740,8 +740,8 @@ class DQuadFunction : public C15Function {
   * issued, as described in Observer::make_par(). */
 
  void modify_terms( c_v_coeff_it NQuadCoef , c_v_coeff_it NLinCoef ,
-		    Subset && nms , bool ordered = false ,
-		    ModParam issueMod = eModBlck );
+                    Subset && nms , bool ordered = false ,
+                    ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify a set of existing linear coefficients
@@ -762,8 +762,8 @@ class DQuadFunction : public C15Function {
   * issued in place of a C05FunctionModSbst one. */
 
  void modify_linear_coefficients( Vec_FunctionValue && NCoef ,
-				  Subset && nms , bool ordered = false ,
-				  ModParam issueMod = eModBlck );
+                                  Subset && nms , bool ordered = false ,
+                                  ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// modify a range of existing quadratic terms
@@ -796,8 +796,8 @@ class DQuadFunction : public C15Function {
   * issued in place of a C05FunctionModRngd one. */
 
  void modify_linear_coefficients( Vec_FunctionValue && NCoef ,
-				  Range range = INFRange ,
-				  ModParam issueMod = eModBlck );
+                                  Range range = INFRange ,
+                                  ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// remove the i-th "active" Variable from the DQuadFunction
@@ -841,7 +841,7 @@ class DQuadFunction : public C15Function {
   *     nms.empty() == true, IN WHICH CASE ALL Variable ARE ELIMINATED
   *
   * The parameter ordered tells if nms is ordered by increasing index. This
-  * is useful for efficently deleting them; indeed, if ordered == false the
+  * is useful for efficiently deleting them; indeed, if ordered == false the
   * vector is sorted inside. The parameter is provided to signal the lucky
   * case in which this operation can be avoided since nms "naturally" comes
   * out ordered.
@@ -852,7 +852,7 @@ class DQuadFunction : public C15Function {
   * C05FunctionModVarSbst is issued as opposed to a FunctionModVarSbst one. */
 
  void remove_variables( Subset && nms , bool ordered = false ,
-			ModParam issueMod = eModBlck ) override final;
+                        ModParam issueMod = eModBlck ) override final;
 
 /*--------------------------------------------------------------------------*/
  ///< sets the value of the constant term of this function.
