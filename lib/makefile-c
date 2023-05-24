@@ -46,7 +46,7 @@ SMS++INC = $(libBoostINC) $(libEigenINC) $(libNtCDFINC)
 # include the SMS++ makefile requiring all external modules in input
 include $(SMS++SDR)lib/makefile
 
-# macroes to be exported- - - - - - - - - - - - - - - - - - - - - - - - - - -
+# macros to be exported - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 # external libraries for the core SMS++
 SMS++LIB = $(libBoostLIB) $(libEigenLIB) $(libNtCDFLIB)

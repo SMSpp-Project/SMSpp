@@ -23,7 +23,7 @@
 
 include $(SMS++SDR)../extlib/makefile-libNetCDF
 
-# otherwise, define the macroes to be exported- - - - - - - - - - - - - - - -
+# otherwise, define the macros to be exported - - - - - - - - - - - - - - - -
 
 #libNtCDFINC = -I
 #libNtCDFLIB = -L
