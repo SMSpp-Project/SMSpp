@@ -180,7 +180,7 @@ namespace SMSpp_di_unipi_it
  *     COMPUTE ITSELF, THERE MUST BE SUCH A Solver BY THE TIME compute() IS
  *     FIRST CALLED. IF MORE THAN ONE Solver IS ATTACHED TO THE INNER Block,
  *     LagBFunction USES THE ONE SPECIFIED BY THE InnrSlvr PARAMETER (by
- *     default the forst of them). REGISTERING OR UN-REGISTERING Solver FROM
+ *     default the first of them). REGISTERING OR UN-REGISTERING Solver FROM
  *     THE INNER Block OF THE LagBFunction MUST NEVER CAUSE InnrSlvr TO
  *     BECOME INVALID, OR TO CHANGE IF INFORMATION PRODUCED IN THE LAST
  *     compute() (FUNCTION VALUES, LINEARIZATIONS, ...) IS STILL TO BE
@@ -2425,14 +2425,22 @@ class LagBFunction : public C05Function , public Block {
 
  Solver * inner_Solver( void ) const {
   if( ( ! p_InnrSlvr ) && ( ! v_Block.empty() ) ) {
+   Solver * iS;
    auto & rs = v_Block.front()->get_registered_solvers();
+   if( rs.empty() )
+    throw( std::logic_error( "LagBFunction: no Solver attached to inner Block"
+			     ) );
    if( rs.size() > InnrSlvr ) {
     auto rsit = rs.begin();
-    std::next( rsit , InnrSlvr );
-    // note the horribly dirty trick of casting away const-ness from this
-    // to allow inner_Solver() to be const and therefore used in const methods
-    const_cast< LagBFunction * >( this )->p_InnrSlvr = *rsit;
+    std::advance( rsit , InnrSlvr );
+    iS = *rsit;
     }
+   else
+    iS = rs.back();
+
+   // note the horribly dirty trick of casting away const-ness from this
+   // to allow inner_Solver() to be const and therefore used in const methods
+   const_cast< LagBFunction * >( this )->p_InnrSlvr = iS;
    }
   return( p_InnrSlvr );
   }
