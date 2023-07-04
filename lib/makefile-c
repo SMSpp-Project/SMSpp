@@ -31,6 +31,9 @@
 # *INC are the -I<include directories>
 # *LIB are the external libreries + -L<libdirs>
 
+# OS-specific settings
+include $(SMS++SDR)extlib/makefile-OS
+
 # the Boost library
 include $(SMS++SDR)extlib/makefile-libBoost
 
