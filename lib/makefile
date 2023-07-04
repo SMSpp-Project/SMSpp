@@ -48,7 +48,7 @@ SMS++OBJ = $(SMS++SDR)obj/AbstractBlock.o \
 	$(SMS++SDR)obj/FRealObjective.o \
 	$(SMS++SDR)obj/FRowConstraint.o \
 	$(SMS++SDR)obj/Function.o \
-        $(SMS++SDR)obj/LagBFunction.o \
+    $(SMS++SDR)obj/LagBFunction.o \
 	$(SMS++SDR)obj/LinearFunction.o \
 	$(SMS++SDR)obj/Objective.o \
 	$(SMS++SDR)obj/OneVarConstraint.o \
