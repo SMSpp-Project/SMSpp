@@ -58,7 +58,8 @@ else ()
 
     # ----- Find the headers and library ------------------------------------ #
     # Note that find_path() creates a cache entry
-    find_path(netCDFCxx_INCLUDE_DIR netcdf
+    find_path(netCDFCxx_INCLUDE_DIR
+              NAMES netcdf
               HINTS ${netCDF_ROOT}/include
               DOC "netCDF-C++ include directory.")
 
