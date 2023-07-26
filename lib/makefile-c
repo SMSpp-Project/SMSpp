@@ -32,7 +32,7 @@
 # *LIB are the external libreries + -L<libdirs>
 
 # OS-specific settings
-include $(SMS++SDR)extlib/makefile-OS
+include $(SMS++SDR)lib/makefile-OS
 
 # the Boost library
 include $(SMS++SDR)extlib/makefile-libBoost
