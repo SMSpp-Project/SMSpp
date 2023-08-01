@@ -60,7 +60,7 @@ else ()
     # Note that find_path() creates a cache entry
     find_path(netCDFCxx_INCLUDE_DIR
               NAMES netcdf
-              HINTS ${netCDF_ROOT}/include
+              HINTS ${netCDF_ROOT}
               DOC "netCDF-C++ include directory.")
 
     # Note that find_library() creates a cache entry
