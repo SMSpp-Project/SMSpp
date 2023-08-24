@@ -50,9 +50,9 @@ clean::
 # corresponding include line
 # each module outputs some macros to be used here:
 # *OBJ is the final object(s) / library
-# *LIB is the external libreries + -L<libdirs>
+# *LIB is the external libraries + -L< libdirs >
 # *H   is the list of all include files
-# *INC is the -I<include directories>
+# *INC is the -I< include directories >
 
 # core SMS++
 SMS++SDR = ../../
@@ -63,7 +63,7 @@ include $(SMS++SDR)lib/makefile-inc
 # object files
 MOBJ =  $(SMS++OBJ)
 
-# libreries
+# libraries
 MLIB =  $(SMS++LIB)
 
 $(NAME): $(MOBJ) $(DIR)main.o 
