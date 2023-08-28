@@ -228,9 +228,10 @@ class BendersBFunction : public C05Function , public Block {
  /** Public enum representing the sides of a RowConstraint. */
 
  enum ConstraintSide : char {
-  eLHS =  'L' ,  ///< the left-hand side of a RowConstraint
-  eRHS =  'R' ,  ///< the right-hand side of a RowConstraint
-  eBoth = 'B'    ///< both sides of a RowConstraint
+  eLHS  = 'L' ,  ///< the left-hand side of a RowConstraint
+  eRHS  = 'R' ,  ///< the right-hand side of a RowConstraint
+  eBoth = 'B' ,  ///< both sides of a RowConstraint
+  eNone = 'N'
   };
 
  using ConstraintVector = std::vector< RowConstraint * >;
