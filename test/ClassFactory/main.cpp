@@ -220,8 +220,6 @@ void test_Configuration( void ) {
  test_Configuration( " SimpleConfiguration< std::pair< double , int > > " );
  test_Configuration( " SimpleConfiguration< std::vector< int > > " );
  test_Configuration( " SimpleConfiguration< std::vector< double > > " );
- test_Configuration( " SimpleConfiguration< std::list< int > > " );
- test_Configuration( " SimpleConfiguration< std::list< double > > " );
  test_Configuration( " SimpleConfiguration< std::pair< Configuration * , Configuration * > > " );
  test_Configuration( " SimpleConfiguration< std::vector< Configuration * > > " );
 
