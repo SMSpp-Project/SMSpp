@@ -148,7 +148,7 @@ void test_Block( void ) {
  test_Block( " DummyBlockT< char > " );
  test_Block( " DummyBlockT< int > " );
  test_Block( " DummyBlockT< std::pair< double , int > > " );
- test_Block( " DummyBlockT< std::pair< double , int > >" );
+ test_Block( " DummyBlockT< std::pair< double , int > > " );
  test_Block< DummyBlockT< std::list< std::pair< int , double > > > > (
 		          " DummyBlockT< std::list< std::pair< int , double > > > " );
 
@@ -156,9 +156,9 @@ void test_Block( void ) {
  test_Block( " DummyBlockT< double , 1 > " );
  test_Block( " DummyBlockT< char , 1 > " );
  test_Block( " DummyBlockT< int , 1 > " );
- test_Block( " DummyBlockT< std::pair< double , int > , 1 >" );
+ test_Block( " DummyBlockT< std::pair< double , int > , 1 > " );
  test_Block< DummyBlockT< std::list< std::pair< int , double > > ,1 > >(
-			 "DummyBlockT< std::list< std::pair< int , double > > , 1 >" );
+			 "DummyBlockT< std::list< std::pair< int , double > > , 1 > " );
  }
 
 /*--------------------------------------------------------------------------*/
