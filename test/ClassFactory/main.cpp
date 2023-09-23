@@ -158,7 +158,7 @@ void test_Block( void ) {
  test_Block( " DummyBlockT< int , 1 > " );
  test_Block( " DummyBlockT< std::pair< double , int > , 1 > " );
  test_Block< DummyBlockT< std::list< std::pair< int , double > > ,1 > >(
-			 "DummyBlockT< std::list< std::pair< int , double > > , 1 > " );
+			 " DummyBlockT< std::list< std::pair< int , double > > , 1 > " );
  }
 
 /*--------------------------------------------------------------------------*/
