@@ -157,7 +157,7 @@ void test_Block( void ) {
  test_Block( " DummyBlockT< char , 1 > " );
  test_Block( " DummyBlockT< int , 1 > " );
  test_Block( " DummyBlockT< std::pair< double , int > , 1 > " );
- test_Block< DummyBlockT< std::list< std::pair< int , double > > ,1 > >(
+ test_Block< DummyBlockT< std::list< std::pair< int , double > > , 1 > >(
 			 "DummyBlockT< std::list< std::pair< int , double > > , 1 > " );
  }
 
@@ -253,7 +253,7 @@ SMSpp_insert_in_factory_cpp_0_t
 ( ( DummySolver< int , std::list< std::pair< int , double > > > ) );
 SMSpp_insert_in_factory_cpp_0_t
 ( ( DummySolver< int , DummySolver< int ,
-    std::list< std::pair< int , double > > > > ) );
+        std::list< std::pair< int , double > > > > ) );
 
 /*--------------------------------------------------------------------------*/
 

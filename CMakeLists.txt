@@ -131,17 +131,10 @@ target_include_directories(
 # PUBLIC means they will be linked also to the targets that depend on this
 # library, INTERFACE means they will be linked only to the targets that depend
 # on this library.
-if (UNIX)
-    target_link_libraries(${modName} PUBLIC
-                          Boost::boost
-                          Eigen3::Eigen
-                          netCDF::netCDFCxx)
-else () # Windows with vcpkg
-    target_link_libraries(${modName} PUBLIC
-                          Boost::boost
-                          Eigen3::Eigen
-                          netCDFCxx)
-endif ()
+target_link_libraries(${modName} PUBLIC
+                      Boost::boost
+                      Eigen3::Eigen
+                      netCDF::netCDFCxx)
 
 # This alias is defined so that executables in this same project can use
 # the library with this notation.

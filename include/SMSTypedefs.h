@@ -587,52 +587,56 @@ inline std::string && SMSpp_classname_normalise( std::string && str ) {
 
 #define SMSpp_insert_in_factory_cpp_0( ClassName )                           \
  const std::string &                                                         \
- SMSpp_type_traits::t<void(ClassName)>::type::_private_name( void ) {        \
+ SMSpp_type_traits::t< void( ClassName ) >::type::_private_name( void ) {    \
   static const std::string _name( SMSpp_classname_normalise(                 \
                                               std::string( #ClassName ) ) ); \
   return( _name );                                                           \
   }                                                                          \
                                                                              \
  const std::string &                                                         \
- SMSpp_type_traits::t<void(ClassName)>::type::private_name( void ) const {   \
-  return( SMSpp_type_traits::t<void(ClassName)>::type::_private_name() );    \
+ SMSpp_type_traits::t< void( ClassName ) >::type::private_name( void ) const \
+ {                                                                           \
+  return( SMSpp_type_traits::t< void( ClassName ) >::type::_private_name() );\
   }                                                                          \
                                                                              \
- SMSpp_type_traits::t<void(ClassName)>::type::_init::_init( void ) {         \
-  f_factory()[SMSpp_type_traits::t<void(ClassName)>::type::_private_name()] =\
-    boost::factory< SMSpp_type_traits::t<void(ClassName)>::type * >();       \
-  SMSpp_type_traits::t<void(ClassName)>::type::static_initialization();      \
+ SMSpp_type_traits::t< void( ClassName ) >::type::_init::_init( void ) {     \
+  f_factory()[                                                               \
+    SMSpp_type_traits::t< void( ClassName ) >::type::_private_name() ] =     \
+      boost::factory< SMSpp_type_traits::t< void( ClassName ) >::type * >(); \
+  SMSpp_type_traits::t< void( ClassName ) >::type::static_initialization();  \
   }                                                                          \
                                                                              \
- SMSpp_type_traits::t<void(ClassName)>::type::_init                          \
- SMSpp_type_traits::t<void(ClassName)>::type::_initializer
+ SMSpp_type_traits::t< void( ClassName ) >::type::_init                      \
+ SMSpp_type_traits::t< void( ClassName ) >::type::_initializer
 
 #define SMSpp_insert_in_factory_cpp_1( ClassName )                           \
  const std::string &                                                         \
- SMSpp_type_traits::t<void(ClassName)>::type::_private_name( void ) {        \
+ SMSpp_type_traits::t< void( ClassName ) >::type::_private_name( void ) {    \
   static const std::string _name( SMSpp_classname_normalise(                 \
                                               std::string( #ClassName ) ) ); \
   return( _name );                                                           \
   }                                                                          \
                                                                              \
  const std::string &                                                         \
- SMSpp_type_traits::t<void(ClassName)>::type::private_name( void ) const {   \
-  return( SMSpp_type_traits::t<void(ClassName)>::type::_private_name() );    \
+ SMSpp_type_traits::t< void( ClassName ) >::type::private_name( void ) const \
+ {                                                                           \
+  return( SMSpp_type_traits::t< void( ClassName ) >::type::_private_name() );\
   }                                                                          \
                                                                              \
- SMSpp_type_traits::t<void(ClassName)>::type::_init::_init( void ) {         \
-  f_factory()[SMSpp_type_traits::t<void(ClassName)>::type::_private_name()] =\
-    boost::factory< SMSpp_type_traits::t<void(ClassName)>::type * >();       \
-  SMSpp_type_traits::t<void(ClassName)>::type::static_initialization();      \
+ SMSpp_type_traits::t< void( ClassName ) >::type::_init::_init( void ) {     \
+  f_factory()[                                                               \
+    SMSpp_type_traits::t< void( ClassName ) >::type::_private_name() ] =     \
+      boost::factory< SMSpp_type_traits::t< void( ClassName ) >::type * >(); \
+  SMSpp_type_traits::t< void( ClassName ) >::type::static_initialization();  \
   }                                                                          \
                                                                              \
- SMSpp_type_traits::t<void(ClassName)>::type::_init                          \
- SMSpp_type_traits::t<void(ClassName)>::type::_initializer
+ SMSpp_type_traits::t< void( ClassName ) >::type::_init                      \
+ SMSpp_type_traits::t< void( ClassName ) >::type::_initializer
 
 #define SMSpp_insert_in_factory_cpp_0_t( ClassName )                         \
  template<>                                                                  \
  const std::string &                                                         \
- SMSpp_type_traits::t<void(ClassName)>::type::_private_name( void ) {        \
+ SMSpp_type_traits::t< void( ClassName ) >::type::_private_name( void ) {    \
   static const std::string _name( SMSpp_classname_normalise(                 \
                                               std::string( #ClassName ) ) ); \
   return( _name );                                                           \
@@ -640,25 +644,27 @@ inline std::string && SMSpp_classname_normalise( std::string && str ) {
                                                                              \
  template<>                                                                  \
  const std::string &                                                         \
- SMSpp_type_traits::t<void(ClassName)>::type::private_name( void ) const {   \
-  return( SMSpp_type_traits::t<void(ClassName)>::type::_private_name() );    \
+ SMSpp_type_traits::t< void( ClassName ) >::type::private_name( void ) const \
+ {                                                                           \
+  return( SMSpp_type_traits::t< void( ClassName ) >::type::_private_name() );\
   }                                                                          \
                                                                              \
  template<>                                                                  \
- SMSpp_type_traits::t<void(ClassName)>::type::_init::_init( void ) {         \
-  f_factory()[SMSpp_type_traits::t<void(ClassName)>::type::_private_name()] =\
-    boost::factory< SMSpp_type_traits::t<void(ClassName)>::type * >();       \
-  SMSpp_type_traits::t<void(ClassName)>::type::static_initialization();      \
+ SMSpp_type_traits::t< void( ClassName ) >::type::_init::_init( void ) {     \
+  f_factory()[                                                               \
+    SMSpp_type_traits::t< void( ClassName ) >::type::_private_name() ] =     \
+      boost::factory< SMSpp_type_traits::t< void( ClassName ) >::type * >(); \
+  SMSpp_type_traits::t< void( ClassName ) >::type::static_initialization();  \
   }                                                                          \
                                                                              \
  template<>                                                                  \
- SMSpp_type_traits::t<void(ClassName)>::type::_init                          \
- SMSpp_type_traits::t<void(ClassName)>::type::_initializer{}
+ SMSpp_type_traits::t< void( ClassName ) >::type::_init                      \
+ SMSpp_type_traits::t< void( ClassName ) >::type::_initializer{}
 
 #define SMSpp_insert_in_factory_cpp_1_t( ClassName )                         \
  template<>                                                                  \
  const std::string &                                                         \
- SMSpp_type_traits::t<void(ClassName)>::type::_private_name( void ) {        \
+ SMSpp_type_traits::t< void( ClassName ) >::type::_private_name( void ) {    \
   static const std::string _name( SMSpp_classname_normalise(                 \
                                               std::string( #ClassName ) ) ); \
   return( _name );                                                           \
@@ -666,20 +672,22 @@ inline std::string && SMSpp_classname_normalise( std::string && str ) {
                                                                              \
  template<>                                                                  \
  const std::string &                                                         \
- SMSpp_type_traits::t<void(ClassName)>::type::private_name( void ) const {   \
-  return( SMSpp_type_traits::t<void(ClassName)>::type::_private_name() );    \
+ SMSpp_type_traits::t< void( ClassName ) >::type::private_name( void ) const \
+ {                                                                           \
+  return( SMSpp_type_traits::t< void( ClassName ) >::type::_private_name() );\
   }                                                                          \
                                                                              \
  template<>                                                                  \
- SMSpp_type_traits::t<void(ClassName)>::type::_init::_init( void ) {         \
-  f_factory()[SMSpp_type_traits::t<void(ClassName)>::type::_private_name()] =\
-    boost::factory< SMSpp_type_traits::t<void(ClassName)>::type * >();       \
-  SMSpp_type_traits::t<void(ClassName)>::type::static_initialization();      \
+ SMSpp_type_traits::t< void( ClassName ) >::type::_init::_init( void ) {     \
+  f_factory()[                                                               \
+    SMSpp_type_traits::t< void( ClassName ) >::type::_private_name() ] =     \
+      boost::factory< SMSpp_type_traits::t< void( ClassName ) >::type * >(); \
+  SMSpp_type_traits::t< void( ClassName ) >::type::static_initialization();  \
   }                                                                          \
                                                                              \
  template<>                                                                  \
- SMSpp_type_traits::t<void(ClassName)>::type::_init                          \
- SMSpp_type_traits::t<void(ClassName)>::type::_initializer{}
+ SMSpp_type_traits::t< void( ClassName ) >::type::_init                      \
+ SMSpp_type_traits::t< void( ClassName ) >::type::_initializer{}
 
 /*--------------------------------------------------------------------------*/
 // definition of auxiliary template variable (don't you just love C++?), which
@@ -698,12 +706,13 @@ bool SMSpp_ensure_load_var;
 
 #define SMSpp_ensure_load( ClassName )                                      \
  template<>                                                                 \
- bool SMSpp_ensure_load_var< SMSpp_type_traits::t<void(ClassName)>::type > =\
+ bool SMSpp_ensure_load_var<                                                \
+   SMSpp_type_traits::t< void( ClassName ) >::type > =                      \
   []( void ) -> bool {                                                      \
-   if( auto p = new SMSpp_type_traits::t<void(ClassName)>::type() ) {       \
+   if( auto p = new SMSpp_type_traits::t< void( ClassName ) >::type() ) {   \
     delete p; return( true ); }                                             \
-   else        return( false ); \
-   }()
+   else        return( false );                                             \
+   }( )
 
 /** @} ---------------------------------------------------------------------*/
 /*------------------- HANDLE boost::any SPECIALIZATIONS --------------------*/

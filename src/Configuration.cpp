@@ -60,8 +60,7 @@ SMSpp_insert_in_factory_cpp_0_t(
  ( SimpleConfiguration< std::vector< std::pair< int , int > > > ) );
 
 SMSpp_insert_in_factory_cpp_0_t(
- ( SimpleConfiguration< std::vector< std::pair< int , Configuration * > > > )
-				);
+ ( SimpleConfiguration< std::vector< std::pair< int , Configuration * > > > ) );
 
 SMSpp_insert_in_factory_cpp_0_t(
  ( SimpleConfiguration< std::map< std::string , Configuration * > > ) );
