@@ -60,13 +60,13 @@ else ()
     # Note that find_path() creates a cache entry
     find_path(netCDFCxx_INCLUDE_DIR
               NAMES netcdf
-              HINTS ${netCDF_ROOT}
+              HINTS ${netCDFCxx_ROOT}
               DOC "netCDF-C++ include directory.")
 
     # Note that find_library() creates a cache entry
     find_library(netCDFCxx_LIBRARY
                  NAMES netcdf-cxx4 netcdf_c++4
-                 HINTS ${netCDF_ROOT}/lib
+                 HINTS ${netCDFCxx_ROOT}/lib
                  DOC "netCDF-C++ library.")
 
     # Get version from netCDF (there is no way to parse it from the headers)
