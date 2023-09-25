@@ -589,7 +589,8 @@ inline std::string && SMSpp_classname_normalise( std::string && str ) {
 #define SMSpp_insert_in_factory_cpp_0( ... )                                 \
  const std::string &                                                         \
  SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::_private_name( void ) {  \
-  static const std::string _name( #__VA_ARGS__ );                            \
+  static const std::string _name( SMSpp_classname_normalise(                 \
+                                            std::string( #__VA_ARGS__ ) ) ); \
   return( _name );                                                           \
   }                                                                          \
                                                                              \
@@ -614,7 +615,8 @@ inline std::string && SMSpp_classname_normalise( std::string && str ) {
 #define SMSpp_insert_in_factory_cpp_1( ... )                                 \
  const std::string &                                                         \
  SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::_private_name( void ) {  \
-  static const std::string _name( #__VA_ARGS__ );                            \
+  static const std::string _name( SMSpp_classname_normalise(                 \
+                                            std::string( #__VA_ARGS__ ) ) ); \
   return( _name );                                                           \
   }                                                                          \
                                                                              \
@@ -640,7 +642,8 @@ inline std::string && SMSpp_classname_normalise( std::string && str ) {
  template<>                                                                  \
  const std::string &                                                         \
  SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::_private_name( void ) {  \
-  static const std::string _name( #__VA_ARGS__ );                            \
+  static const std::string _name( SMSpp_classname_normalise(                 \
+                                            std::string( #__VA_ARGS__ ) ) ); \
   return( _name );                                                           \
   }                                                                          \
                                                                              \
@@ -669,7 +672,8 @@ inline std::string && SMSpp_classname_normalise( std::string && str ) {
  template<>                                                                  \
  const std::string &                                                         \
  SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::_private_name( void ) {  \
-  static const std::string _name( #__VA_ARGS__ );                            \
+  static const std::string _name( SMSpp_classname_normalise(                 \
+                                            std::string( #__VA_ARGS__ ) ) ); \
   return( _name );                                                           \
   }                                                                          \
                                                                              \
