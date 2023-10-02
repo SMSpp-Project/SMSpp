@@ -15,6 +15,7 @@
 #          keep it in mind when editing it.                                   #
 #                                                                             #
 #                              Niccolo' Iardella                              #
+#                                Donato Meoli                                 #
 #                         Dipartimento di Informatica                         #
 #                             Universita' di Pisa                             #
 # --------------------------------------------------------------------------- #
@@ -59,7 +60,9 @@ if (NOT Eigen3_FOUND)
 endif ()
 
 # Try first with library's own configuration file, then with our find module.
-find_package(netCDFCxx QUIET NO_MODULE)
+if (UNIX)
+    find_package(netCDFCxx QUIET NO_MODULE)
+endif ()
 if (NOT netCDFCxx_FOUND)
     find_package(netCDFCxx REQUIRED)
 endif ()

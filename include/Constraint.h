@@ -39,6 +39,7 @@
 
 #include <list>
 #include <vector>
+#include <array>
 
 #include <boost/multi_array.hpp>
 
