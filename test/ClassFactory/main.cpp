@@ -80,7 +80,6 @@ SMSpp_insert_in_factory_cpp_1_t( DummyBlockT< std::pair< double , int > , 1 > );
 SMSpp_insert_in_factory_cpp_1_t
 ( DummyBlockT< std::list< std::pair < int , double > > , 1 > );
 
-
 /*--------------------------------------------------------------------------*/
 
 void test_Block( const std::string & classname ) {

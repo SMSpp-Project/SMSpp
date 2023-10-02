@@ -31,6 +31,7 @@
 #    not come with a CMake configuration (netCDFCxxConfig.cmake).             #
 #                                                                             #
 #                              Niccolo' Iardella                              #
+#                                Donato Meoli                                 #
 #                         Dipartimento di Informatica                         #
 #                             Universita' di Pisa                             #
 # --------------------------------------------------------------------------- #
@@ -38,7 +39,7 @@ include(FindPackageHandleStandardArgs)
 
 # ----- Requirements -------------------------------------------------------- #
 # Try first with library's own configuration file, then with our find module.
-find_package(netCDF NO_MODULE)
+find_package(netCDF QUIET NO_MODULE)
 if (NOT netCDF_FOUND)
     find_package(netCDF REQUIRED)
     set(ncTarget "netCDF::netcdf")
