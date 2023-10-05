@@ -23,7 +23,7 @@ SW = -g -std=c++17 -ferror-limit=1
 #SW = -O3 -DNDEBUG -std=c++1
 
 # compiler
-#CC = g++-8
+#CC = g++
 CC = clang++
 
 # linker option for forcing all the library to be loaded
