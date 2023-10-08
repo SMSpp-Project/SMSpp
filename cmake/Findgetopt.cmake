@@ -1,27 +1,27 @@
 # --------------------------------------------------------------------------- #
-#    Custom CMake find module for GETOPT                                      #
+#    Custom CMake find module for getopt                                      #
 #                                                                             #
-#    This module finds GETOPT include directories.                            #
+#    This module finds getopt include directories.                            #
 #    Use it by invoking find_package() with the form:                         #
 #                                                                             #
-#        find_package(GETOPT [version] [EXACT] [REQUIRED])                    #
+#        find_package(getopt [version] [EXACT] [REQUIRED])                    #
 #                                                                             #
 #    The results are stored in the following variables:                       #
 #                                                                             #
-#        GETOPT_FOUND         - True if headers are found                     #
-#        GETOPT_INCLUDE_DIRS  - Include directories                           #
-#        GETOPT_LIBRARIES     - Libraries to be linked                        #
+#        getopt_FOUND         - True if headers are found                     #
+#        getopt_INCLUDE_DIRS  - Include directories                           #
+#        getopt_LIBRARIES     - Libraries to be linked                        #
 #                                                                             #
 #    The search results are saved in these persistent cache entries:          #
 #                                                                             #
-#        GETOPT_INCLUDE_DIR   - Directory containing headers                  #
-#        GETOPT_LIBRARY       - The found library                             #
+#        getopt_INCLUDE_DIR   - Directory containing headers                  #
+#        getopt_LIBRARY       - The found library                             #
 #                                                                             #
 #    The following IMPORTED target is also defined:                           #
 #                                                                             #
-#        GETOPT                                                               #
+#        getopt                                                               #
 #                                                                             #
-#    This find module is provided because the user may not have GETOPT        #
+#    This find module is provided because the user may not have getopt        #
 #    configuration file installed in the system default directories, which    #
 #    happens to be the case for some of our main developers and testers.      #
 #                                                                             #
@@ -33,25 +33,25 @@
 include(FindPackageHandleStandardArgs)
 
 # Check if already in cache
-if (GETOPT_INCLUDE_DIR)
-    set(GETOPT_FOUND TRUE)
+if (getopt_INCLUDE_DIR)
+    set(getopt_FOUND TRUE)
 else ()
 
     # ----- Find the headers and library ------------------------------------ #
     # Note that find_path() creates a cache entry
-    find_path(GETOPT_INCLUDE_DIR
+    find_path(getopt_INCLUDE_DIR
               NAMES getopt.h
-              DOC "GETOPT include directory.")
+              DOC "getopt include directory.")
 
     # Note that find_library() creates a cache entry
-    find_library(GETOPT_LIBRARY
+    find_library(getopt_LIBRARY
                  NAMES getopt
-                 DOC "GETOPT library.")
+                 DOC "getopt library.")
 
     if (WIN32)
-        find_program(GETOPT_RUNTIME_LIBRARY
+        find_program(getopt_RUNTIME_LIBRARY
                      NAMES getopt.dll
-                     DOC "GETOPT runtime library.")
+                     DOC "getopt runtime library.")
     endif ()
 
     # ----- Handle the standard arguments ----------------------------------- #
@@ -62,34 +62,34 @@ else ()
     # https://cmake.org/cmake/help/latest/module/FindPackageHandleStandardArgs.html
     if (WIN32)
         find_package_handle_standard_args(
-                GETOPT REQUIRED_VARS
-                GETOPT_LIBRARY
-                GETOPT_RUNTIME_LIBRARY
-                GETOPT_INCLUDE_DIR)
+                getopt REQUIRED_VARS
+                getopt_LIBRARY
+                getopt_RUNTIME_LIBRARY
+                getopt_INCLUDE_DIR)
     else ()
         find_package_handle_standard_args(
-                GETOPT REQUIRED_VARS
-                GETOPT_LIBRARY
-                GETOPT_INCLUDE_DIR)
+                getopt REQUIRED_VARS
+                getopt_LIBRARY
+                getopt_INCLUDE_DIR)
     endif ()
 endif ()
 
 # ----- Export the target --------------------------------------------------- #
-if (GETOPT_FOUND)
-    set(GETOPT_INCLUDE_DIRS "${GETOPT_INCLUDE_DIR}")
+if (getopt_FOUND)
+    set(getopt_INCLUDE_DIRS "${getopt_INCLUDE_DIR}")
 
-    if (NOT TARGET GETOPT)
-        add_library(GETOPT INTERFACE IMPORTED)
+    if (NOT TARGET getopt)
+        add_library(getopt INTERFACE IMPORTED)
         set_target_properties(
-                GETOPT PROPERTIES
-                IMPORTED_LOCATION "${GETOPT_LIBRARY}"
-                INTERFACE_INCLUDE_DIRECTORIES "${GETOPT_INCLUDE_DIRS}")
+                getopt PROPERTIES
+                IMPORTED_LOCATION "${getopt_LIBRARY}"
+                INTERFACE_INCLUDE_DIRECTORIES "${getopt_INCLUDE_DIRS}")
     endif ()
 endif ()
 
 # Variables marked as advanced are not displayed in CMake GUIs, see:
 # https://cmake.org/cmake/help/latest/command/mark_as_advanced.html
-mark_as_advanced(GETOPT_INCLUDE_DIR
-                 GETOPT_LIBRARY)
+mark_as_advanced(getopt_INCLUDE_DIR
+                 getopt_LIBRARY)
 
 # --------------------------------------------------------------------------- #

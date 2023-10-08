@@ -67,8 +67,8 @@ if (NOT netCDFCxx_FOUND)
     find_package(netCDFCxx REQUIRED)
 endif ()
 
-if (NOT GETOPT_FOUND)
-    find_package(GETOPT REQUIRED)
+if (NOT getopt_FOUND)
+    find_package(getopt REQUIRED)
 endif ()
 
 # ----- Configuration header ------------------------------------------------ #
