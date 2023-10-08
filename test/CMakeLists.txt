@@ -66,3 +66,5 @@ foreach (CLASS ${CLASSES})
 
     add_test(NAME ${CLASS}_test COMMAND ${CLASS}_test)
 endforeach ()
+
+# --------------------------------------------------------------------------- #
