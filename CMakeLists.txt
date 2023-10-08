@@ -67,6 +67,10 @@ if (NOT netCDFCxx_FOUND)
     find_package(netCDFCxx REQUIRED)
 endif ()
 
+if (NOT GETOPT_FOUND)
+    find_package(GETOPT REQUIRED)
+endif ()
+
 # ----- Configuration header ------------------------------------------------ #
 # This will generate a *Config.h header in the build directory.
 configure_file(cmake/${modName}Config.h.in ${modName}Config.h)
@@ -137,6 +141,7 @@ target_include_directories(
 target_link_libraries(${modName} PUBLIC
                       Boost::boost
                       Eigen3::Eigen
+                      GETOPT
                       netCDF::netCDFCxx)
 
 # This alias is defined so that executables in this same project can use
