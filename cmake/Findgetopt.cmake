@@ -48,30 +48,16 @@ else ()
                  NAMES getopt
                  DOC "getopt library.")
 
-    if (WIN32)
-        find_program(getopt_RUNTIME_LIBRARY
-                     NAMES getopt.dll
-                     DOC "getopt runtime library.")
-    endif ()
-
     # ----- Handle the standard arguments ----------------------------------- #
     # The following macro manages the QUIET, REQUIRED and version-related
     # options passed to find_package(). It also sets <PackageName>_FOUND if
     # REQUIRED_VARS are set.
     # REQUIRED_VARS should be cache entries and not output variables. See:
     # https://cmake.org/cmake/help/latest/module/FindPackageHandleStandardArgs.html
-    if (WIN32)
-        find_package_handle_standard_args(
-                getopt REQUIRED_VARS
-                getopt_LIBRARY
-                getopt_RUNTIME_LIBRARY
-                getopt_INCLUDE_DIR)
-    else ()
-        find_package_handle_standard_args(
-                getopt REQUIRED_VARS
-                getopt_LIBRARY
-                getopt_INCLUDE_DIR)
-    endif ()
+    find_package_handle_standard_args(
+            getopt REQUIRED_VARS
+            getopt_LIBRARY
+            getopt_INCLUDE_DIR)
 endif ()
 
 # ----- Export the target --------------------------------------------------- #
