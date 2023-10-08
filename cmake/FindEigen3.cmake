@@ -70,9 +70,10 @@ else ()
     # REQUIRED_VARS are set.
     # REQUIRED_VARS should be cache entries and not output variables. See:
     # https://cmake.org/cmake/help/latest/module/FindPackageHandleStandardArgs.html
-    find_package_handle_standard_args(Eigen3
-                                      REQUIRED_VARS Eigen3_INCLUDE_DIR
-                                      VERSION_VAR Eigen3_VERSION)
+    find_package_handle_standard_args(
+            Eigen3 REQUIRED_VARS
+            Eigen3_INCLUDE_DIR
+            Eigen3_VERSION)
 endif ()
 
 # ----- Export the target --------------------------------------------------- #
@@ -83,12 +84,13 @@ if (Eigen3_FOUND)
         add_library(Eigen3::Eigen INTERFACE IMPORTED)
         set_target_properties(
                 Eigen3::Eigen PROPERTIES
-                INTERFACE_INCLUDE_DIRECTORIES "${Eigen3_INCLUDE_DIR}")
+                INTERFACE_INCLUDE_DIRECTORIES "${Eigen3_INCLUDE_DIRS}")
     endif ()
 endif ()
 
 # Variables marked as advanced are not displayed in CMake GUIs, see:
 # https://cmake.org/cmake/help/latest/command/mark_as_advanced.html
-mark_as_advanced(Eigen3_INCLUDE_DIR Eigen3_VERSION)
+mark_as_advanced(Eigen3_INCLUDE_DIR
+                 Eigen3_VERSION)
 
 # --------------------------------------------------------------------------- #
