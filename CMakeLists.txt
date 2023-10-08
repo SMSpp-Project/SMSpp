@@ -49,8 +49,7 @@ include(CTest)
 include(BuildType)
 
 # ----- Requirements -------------------------------------------------------- #
-# The Boost find module is provided by CMake,
-# so this command will always work.
+# The Boost find module is provided by CMake.
 find_package(Boost 1.72.0 REQUIRED)
 
 # Try first with library's own configuration file, then with our find module.
