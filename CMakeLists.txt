@@ -139,9 +139,9 @@ target_include_directories(
 # library, INTERFACE means they will be linked only to the targets that depend
 # on this library.
 target_link_libraries(${modName} PUBLIC
+                      getopt
                       Boost::boost
                       Eigen3::Eigen
-                      GETOPT
                       netCDF::netCDFCxx)
 
 # This alias is defined so that executables in this same project can use
