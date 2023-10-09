@@ -33,7 +33,7 @@
 include(FindPackageHandleStandardArgs)
 
 # Check if already in cache
-if (getopt_INCLUDE_DIR)
+if (getopt_INCLUDE_DIR AND getopt_LIBRARY)
     set(getopt_FOUND TRUE)
 else ()
 
