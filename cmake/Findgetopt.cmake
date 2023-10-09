@@ -10,10 +10,12 @@
 #                                                                             #
 #        getopt_FOUND         - True if headers are found                     #
 #        getopt_INCLUDE_DIRS  - Include directories                           #
+#        getopt_LIBRARIES     - Libraries to be linked                        #
 #                                                                             #
 #    The search results are saved in these persistent cache entries:          #
 #                                                                             #
 #        getopt_INCLUDE_DIR   - Directory containing headers                  #
+#        getopt_LIBRARY       - The found library                             #
 #                                                                             #
 #    The following IMPORTED target is also defined:                           #
 #                                                                             #
@@ -38,8 +40,13 @@ else ()
     # ----- Find the headers and library ------------------------------------ #
     # Note that find_path() creates a cache entry
     find_path(getopt_INCLUDE_DIR
-            NAMES getopt.h
-            DOC "getopt include directory.")
+              NAMES getopt.h
+              DOC "getopt include directory.")
+
+    # Note that find_library() creates a cache entry
+    find_library(getopt_LIBRARY
+                 NAMES getopt
+                 DOC "getopt library.")
 
     # ----- Handle the standard arguments ----------------------------------- #
     # The following macro manages the QUIET, REQUIRED and version-related
@@ -49,6 +56,7 @@ else ()
     # https://cmake.org/cmake/help/latest/module/FindPackageHandleStandardArgs.html
     find_package_handle_standard_args(
             getopt REQUIRED_VARS
+            getopt_LIBRARY
             getopt_INCLUDE_DIR)
 endif ()
 
@@ -60,12 +68,14 @@ if (getopt_FOUND)
         add_library(getopt INTERFACE IMPORTED)
         set_target_properties(
                 getopt PROPERTIES
+                IMPORTED_LOCATION "${getopt_LIBRARY}"
                 INTERFACE_INCLUDE_DIRECTORIES "${getopt_INCLUDE_DIRS}")
     endif ()
 endif ()
 
 # Variables marked as advanced are not displayed in CMake GUIs, see:
 # https://cmake.org/cmake/help/latest/command/mark_as_advanced.html
-mark_as_advanced(getopt_INCLUDE_DIR)
+mark_as_advanced(getopt_INCLUDE_DIR
+                 getopt_LIBRARY)
 
 # --------------------------------------------------------------------------- #
