@@ -60,14 +60,14 @@ endif ()
 
 # Try first with library's own configuration file, then with our find module.
 if (UNIX)
-    find_package(netCDFCxx QUIET NO_MODULE)
+    find_package(netCDFCxx QUIET NO_MODULE) # TODO 4.3.1
 endif ()
 if (NOT netCDFCxx_FOUND)
-    find_package(netCDFCxx REQUIRED)
+    find_package(netCDFCxx REQUIRED) # TODO 4.3.1
 endif ()
 
-if (NOT getopt_FOUND)
-    find_package(getopt REQUIRED)
+if (MSVC)
+    find_library(GETOPT_LIBRARY getopt)
 endif ()
 
 # ----- Configuration header ------------------------------------------------ #
@@ -138,10 +138,13 @@ target_include_directories(
 # library, INTERFACE means they will be linked only to the targets that depend
 # on this library.
 target_link_libraries(${modName} PUBLIC
-                      getopt
                       Boost::boost
                       Eigen3::Eigen
                       netCDF::netCDFCxx)
+
+if (MSVC)
+    target_link_libraries(${modName} PUBLIC ${GETOPT_LIBRARY})
+endif ()
 
 # This alias is defined so that executables in this same project can use
 # the library with this notation.

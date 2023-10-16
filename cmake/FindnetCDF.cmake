@@ -43,7 +43,7 @@ include(FindPackageHandleStandardArgs)
 find_package(HDF5 QUIET REQUIRED)
 
 # Check if already in cache
-if (netCDF_INCLUDE_DIR AND netCDF_LIBRARY)
+if (netCDF_INCLUDE_DIR AND netCDF_LIBRARY AND netCDF_LIBRARY_DEBUG)
     set(netCDF_FOUND TRUE)
 else ()
 
@@ -58,7 +58,32 @@ else ()
                  NAMES netcdf
                  DOC "netCDF library.")
 
-    # TODO: Find a way to get the version
+    if (UNIX)
+        set(netCDF_LIBRARY_DEBUG ${netCDF_LIBRARY})
+    else ()
+        find_library(netCDF_LIBRARY_DEBUG
+                     NAMES netcdf
+                     PATH_SUFFIXES ${netCDF_ROOT}/debug/lib
+                     DOC "netCDF debug library.")
+    endif ()
+
+    # ----- Parse the version ----------------------------------------------- #
+    if (netCDF_INCLUDE_DIR)
+        file(STRINGS
+                "${netCDF_INCLUDE_DIR}/netcdf_meta.h"
+                _netCDF_version_lines REGEX "#define NC_VERSION_(MAJOR|MINOR|PATCH)")
+
+        string(REGEX REPLACE ".*NC_VERSION_MAJOR *\([0-9]*\).*" "\\1" _netCDF_version_major "${_netCDF_version_lines}")
+        string(REGEX REPLACE ".*NC_VERSION_MINOR *\([0-9]*\).*" "\\1" _netCDF_version_minor "${_netCDF_version_lines}")
+        string(REGEX REPLACE ".*NC_VERSION_PATCH *\([0-9]*\).*" "\\1" _netCDF_version_patch "${_netCDF_version_lines}")
+
+        set(netCDF_VERSION "${_netCDF_version_major}.${_netCDF_version_minor}.${_netCDF_version_patch}")
+        unset(_netCDF_version_lines)
+        unset(_netCDF_version_major)
+        unset(_netCDF_version_minor)
+        unset(_netCDF_version_patch)
+    endif ()
+
     # ----- Handle the standard arguments ----------------------------------- #
     # The following macro manages the QUIET, REQUIRED and version-related
     # options passed to find_package(). It also sets <PackageName>_FOUND if
@@ -67,7 +92,8 @@ else ()
     # https://cmake.org/cmake/help/latest/module/FindPackageHandleStandardArgs.html
     find_package_handle_standard_args(
             netCDF
-            REQUIRED_VARS netCDF_LIBRARY netCDF_INCLUDE_DIR)
+            REQUIRED_VARS netCDF_LIBRARY netCDF_LIBRARY_DEBUG netCDF_INCLUDE_DIR
+            VERSION_VAR netCDF_VERSION)
 endif ()
 
 # ----- Export the target --------------------------------------------------- #
@@ -80,7 +106,8 @@ if (netCDF_FOUND)
         set_target_properties(
                 netCDF::netcdf PROPERTIES
                 IMPORTED_LOCATION "${netCDF_LIBRARY}"
-                INTERFACE_INCLUDE_DIRECTORIES "${netCDF_INCLUDE_DIR}"
+                IMPORTED_LOCATION_DEBUG "${netCDF_LIBRARY_DEBUG}"
+                INTERFACE_INCLUDE_DIRECTORIES "${netCDF_INCLUDE_DIRS}"
                 INTERFACE_LINK_LIBRARIES "${HDF5_LIBRARIES}")
     endif ()
 endif ()
@@ -89,6 +116,7 @@ endif ()
 # https://cmake.org/cmake/help/latest/command/mark_as_advanced.html
 mark_as_advanced(netCDF_INCLUDE_DIR
                  netCDF_LIBRARY
+                 netCDF_LIBRARY_DEBUG
                  netCDF_VERSION)
 
 # --------------------------------------------------------------------------- #
