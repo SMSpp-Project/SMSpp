@@ -13,7 +13,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
+ * \copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -68,7 +68,7 @@ namespace SMSpp_di_unipi_it
  * this case, the object that "hosts" a Modification-spewing one has to be
  * an Observer in order for the Modification to be received, and ultimately
  * routed to the appropriate Block. A possible example of this behaviour is
- * that of "Function of Function" objects (SumFuction, CompositeFunction,
+ * that of "Function of Function" objects (SumFunction, CompositeFunction,
  * ...), which may be easily implemented provided that that they themselves
  * are made Observer.
  *
@@ -313,7 +313,7 @@ class Observer {
   * which is returned. Then, being chnl the returned value, a call to
   * add_Modification( mod , chnl ) adds mod at the end of the STL container
   * of the GroupModification, rather than dispatching it to the Solver and
-  * the ancestor Block. The latter operaton is only done when
+  * the ancestor Block. The latter operation is only done when
   * close_channel( chnl ) is called. Note that this means that
   * add_Modification() does see mod "naked", but the Modification is not
   * further forwarded to the Solver and the ancestor Block. This only holds
@@ -357,7 +357,7 @@ class Observer {
 /*--------------------------------------------------------------------------*/
  /// push back to the previous level of a channel
  /** This method allows to "finalize" the set of "logically related
-  * Modification" contained in the GroupModification currentlt associated
+  * Modification" contained in the GroupModification currently associated
   * with the channel chnl. What this means, however, depends on whether that
   * GroupModification is in "root mode" (currently adding to the outermost
   * GroupModification of the channel), as opposed to being inside another
@@ -475,7 +475,7 @@ class Observer {
   *             method should do is useful in particular for methods that
   *             change both the "abstract" and the "physical" representation
   *             (say, of a Block), but for which it may be useful to switch
-  *             off the changes in one of the two, say becaise one is sure
+  *             off the changes in one of the two, say because one is sure
   *             that the changes have already been done (for instance, because
   *             one is reacting to one AModification implying that the
   *             "abstract" one has changed already).
@@ -494,7 +494,7 @@ class Observer {
   *             listening", and the concerns_Block() value is set to true;
   *             this is the default, "most conservative" setting.
   *
-  * Furthemore, it is necessary to specify to which channel the Modification
+  * Furthermore, it is necessary to specify to which channel the Modification
   * is sent. This information can be "packed" into one single parameter, which
   * is what this method does: iM is the parameter containing one of the above
   * three values, and chnl the "name" of the channel. It is guaranteed that
@@ -593,7 +593,7 @@ class Observer {
   * a method and actually not doing the change that the method should do is
   * useful in particular for methods that change both the "abstract" and the
   * "physical" representation (say, of a Block), but for which it may be
-  * useful to switch off the changes in one of the two, say becaise one is
+  * useful to switch off the changes in one of the two, say because one is
   * sure that the changes have already been done (for instance, because one
   * is reacting to one AModification implying that the "abstract" one has
   * changed already). */
@@ -692,7 +692,7 @@ class Observer {
 
  static ChnlName f_next_chnl;        ///< next free chanel
 
- static std::set< ChnlName > v_free_chnl;  ///< set of freed chanels
+ static std::set< ChnlName > v_free_chnl;  ///< set of freed channels
 
 /** @} ---------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/

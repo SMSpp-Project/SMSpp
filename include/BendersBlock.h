@@ -169,7 +169,7 @@ public:
   * @return the sense of the Objective of this BendersBlock. */
 
  int get_objective_sense() const override {
-  return objective.get_sense();
+  return( objective.get_sense() );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -180,7 +180,7 @@ public:
   * @return The number of Variable of this BendersBlock. */
 
  Index get_number_variables() const {
-  return v_variables.size();
+  return( v_variables.size() );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -193,7 +193,7 @@ public:
   *         this BendersBlock. */
 
  const std::vector< ColVariable > & get_variables() const {
-  return v_variables;
+  return( v_variables );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -210,7 +210,7 @@ public:
   variable_values.reserve( v_variables.size() );
   for( const auto & variable : v_variables )
    variable_values.push_back( variable.get_value() );
-  return variable_values;
+  return( variable_values );
  }
 
 /** @} ---------------------------------------------------------------------*/
@@ -231,7 +231,7 @@ public:
  template< class T >
  void set_variable_values( const std::vector< T > & values ) {
   assert( ( values.size() >= 0 ) &&
-          ( static_cast<decltype( v_variables.size() )>( values.size() ) ==
+          ( static_cast< decltype( v_variables.size() ) >( values.size() ) ==
             v_variables.size() ) );
   for( Index i = 0 ; i < v_variables.size() ; ++i )
    v_variables[ i ].set_value( values[ i ] );
@@ -249,7 +249,7 @@ public:
 
  void set_variable_values( const Eigen::ArrayXd & values ) {
   assert( ( values.size() >= 0 ) &&
-          ( static_cast<decltype( v_variables.size() )>( values.size() ) ==
+          ( static_cast< decltype( v_variables.size() ) >( values.size() ) ==
             v_variables.size() ) );
   for( Index i = 0 ; i < v_variables.size() ; ++i )
    v_variables[ i ].set_value( values( i ) );

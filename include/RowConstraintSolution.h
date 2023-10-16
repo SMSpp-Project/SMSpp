@@ -17,7 +17,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
+ * \copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -50,10 +50,10 @@ namespace SMSpp_di_unipi_it
 /** @defgroup RowConstraintSolution_TYPES RowConstraintSolution-related types
  *  @{ */
 
- using Vec_RowConstraintSolution = std::vector<RowConstraintSolution>;
+ using Vec_RowConstraintSolution = std::vector< RowConstraintSolution >;
  ///< a vector of RowConstraintSolution
 
- using c_Vec_RowConstraintSolution = const std::vector<RowConstraintSolution>;
+ using c_Vec_RowConstraintSolution = const std::vector< RowConstraintSolution >;
  ///< a const vector of RowConstraintSolution
 
 /** @}  end( group( RowConstraintSolution_TYPES ) ) */
@@ -98,12 +98,12 @@ public:
 
   /// constructor of RowConstraintSolution, does nothing
 
- RowConstraintSolution( ) : Solution() { }
+ RowConstraintSolution() : Solution() { }
 
 /*--------------------------------------------------------------------------*/
 
  RowConstraintSolution( const RowConstraintSolution & ) : Solution() {
-  throw std::invalid_argument( "Trying to copy RowConstraintSolution" );
+  throw( std::invalid_argument( "Trying to copy RowConstraintSolution" ) );
  }
  ///< copy constructor, so that it cannot be used
  /**< inhibit copy constructor */
@@ -223,7 +223,7 @@ public:
   *
   * - a pointer to a std::vector of double;
   *
-  * - a pointer to a boost::multi_array<double , K>;
+  * - a pointer to a boost::multi_array< double , K >;
   *
   * This vector of boost::any is structured in the same way the vector
   * v_s_Constraint of static Constraint is structured in the associated
@@ -240,10 +240,10 @@ public:
   *   element of this vector is a pointer to a std::vector of double which are
   *   the dual values of those RowConstraint;
   *
-  * - a pointer to a boost::multi_array<V , K> or a pointer to a
-  *   boost::multi_array<V *, K>, where V is any class derived from
+  * - a pointer to a boost::multi_array< V , K > or a pointer to a
+  *   boost::multi_array< V * , K >, where V is any class derived from
   *   RowConstraint, then the i-th element of this vector is a pointer to a
-  *   boost::multi_array<double , K>, which stores the dual values of those
+  *   boost::multi_array< double , K >, which stores the dual values of those
   *   RowConstraint. */
 
  c_Vec_any & get_static_constraint_dual_values( void ) const {
@@ -256,11 +256,11 @@ public:
   * Block associated with this Solution. It returns a vector of boost::any,
   * each element of which is supposed to contain only one among:
   *
-  * - a pointer to a std::vector<double>;
+  * - a pointer to a std::vector< double >;
   *
-  * - a pointer to a std::vector< std::vector<double> >;
+  * - a pointer to a std::vector< std::vector< double > >;
   *
-  * - a pointer to a boost::multi_array<std::vector<double> , K>;
+  * - a pointer to a boost::multi_array< std::vector< double > , K >;
   *
   * This vector of boost::any is structured in the same way the vector
   * v_d_Constraint of dynamic Constraint is structured in the associated
@@ -273,15 +273,15 @@ public:
   *   element of this vector is a pointer to a std::vector of double which
   *   are the dual values of those RowConstraint;
   *
-  * - a pointer to a std::vector of std::list<V> or a pointer to a std::vector
-  *   of std::list<V *>, where V is any class derived from RowConstraint, then
+  * - a pointer to a std::vector of std::list< V > or a pointer to a std::vector
+  *   of std::list< V * >, where V is any class derived from RowConstraint, then
   *   the i-th element of this vector is a pointer to a std::vector of
-  *   std::vector<double> which are the dual values of those RowConstraint;
+  *   std::vector< double > which are the dual values of those RowConstraint;
   *
-  * - a pointer to a boost::multi_array<std::list<V> , K> or a pointer to a
-  *   boost::multi_array<std::list<V *>, K>, where V is any class derived from
-  *   RowConstraint, then the i-th element of this vector is a pointer to a
-  *   boost::multi_array<std::vector<double> , K>, which stores the dual
+  * - a pointer to a boost::multi_array< std::list< V > , K > or a pointer to a
+  *   boost::multi_array< std::list< V * > , K >, where V is any class derived
+  *   from RowConstraint, then the i-th element of this vector is a pointer to a
+  *   boost::multi_array< std::vector< double > , K >, which stores the dual
   *   values of those RowConstraint. */
 
  c_Vec_any & get_dynamic_constraint_dual_values( void ) const {
@@ -374,8 +374,9 @@ protected:
   * @return true if and only if this RowConstraintSolution is empty. */
 
  bool empty() const {
-  return nested_solutions.empty() && static_constraint_dual_values.empty() &&
-   dynamic_constraint_dual_values.empty();
+  return( ( nested_solutions.empty() ) &&
+          ( static_constraint_dual_values.empty() ) &&
+          ( dynamic_constraint_dual_values.empty() ) );
   }
 
 /*--------------------------------------------------------------------------*/

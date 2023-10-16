@@ -13,7 +13,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato.
+ * \copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -228,9 +228,10 @@ class BendersBFunction : public C05Function , public Block {
  /** Public enum representing the sides of a RowConstraint. */
 
  enum ConstraintSide : char {
-  eLHS =  'L' ,  ///< the left-hand side of a RowConstraint
-  eRHS =  'R' ,  ///< the right-hand side of a RowConstraint
-  eBoth = 'B'    ///< both sides of a RowConstraint
+  eLHS  = 'L' ,  ///< the left-hand side of a RowConstraint
+  eRHS  = 'R' ,  ///< the right-hand side of a RowConstraint
+  eBoth = 'B' ,  ///< both sides of a RowConstraint
+  eNone = 'N'
   };
 
  using ConstraintVector = std::vector< RowConstraint * >;
@@ -286,20 +287,20 @@ class BendersBFunction : public C05Function , public Block {
   bool operator==( const ThinVarDepInterface::v_iterator & rhs )
    const override final {
    #ifdef NDEBUG
-    auto tmp = static_cast<const BendersBFunction::v_iterator *>( & rhs );
+    auto tmp = static_cast< const BendersBFunction::v_iterator * >( & rhs );
     return( itr_ == tmp->itr_ );
    #else
-    auto tmp = dynamic_cast<const BendersBFunction::v_iterator *>( & rhs );
+    auto tmp = dynamic_cast< const BendersBFunction::v_iterator * >( & rhs );
     return( tmp ? itr_ == tmp->itr_ : false );
    #endif
    }
   bool operator!=( const ThinVarDepInterface::v_iterator & rhs )
    const override final {
    #ifdef NDEBUG
-    auto tmp = static_cast<const BendersBFunction::v_iterator *>( & rhs );
+    auto tmp = static_cast< const BendersBFunction::v_iterator * >( & rhs );
     return( itr_ != tmp->itr_ );
    #else
-    auto tmp = dynamic_cast<const BendersBFunction::v_iterator *>( & rhs );
+    auto tmp = dynamic_cast< const BendersBFunction::v_iterator * >( & rhs );
     return( tmp ? itr_ != tmp->itr_ : true );
    #endif
    }
@@ -335,11 +336,11 @@ class BendersBFunction : public C05Function , public Block {
   bool operator==( const ThinVarDepInterface::v_const_iterator & rhs )
    const override final {
    #ifdef NDEBUG
-    auto tmp = static_cast<const BendersBFunction::v_const_iterator *>(
+    auto tmp = static_cast< const BendersBFunction::v_const_iterator * >(
 								      & rhs );
     return( itr_ == tmp->itr_ );
    #else
-    auto tmp = dynamic_cast<const BendersBFunction::v_const_iterator *>(
+    auto tmp = dynamic_cast< const BendersBFunction::v_const_iterator * >(
 								      & rhs );
     return( tmp ? itr_ == tmp->itr_ : false );
    #endif
@@ -347,11 +348,11 @@ class BendersBFunction : public C05Function , public Block {
   bool operator!=( const ThinVarDepInterface::v_const_iterator & rhs )
    const override final {
    #ifdef NDEBUG
-    auto tmp = static_cast<const BendersBFunction::v_const_iterator *>(
+    auto tmp = static_cast< const BendersBFunction::v_const_iterator * >(
 								      & rhs );
     return( itr_ != tmp->itr_ );
    #else
-    auto tmp = dynamic_cast<const BendersBFunction::v_const_iterator *>(
+    auto tmp = dynamic_cast< const BendersBFunction::v_const_iterator * >(
 								      & rhs );
     return( tmp ? itr_ != tmp->itr_ : true );
    #endif
@@ -589,7 +590,7 @@ class BendersBFunction : public C05Function , public Block {
       ( ! destroy_previous_block ) )
    return; // the given Block is already here; silently return
 
-  if( destroy_previous_block && ! v_Block.empty() )
+  if( destroy_previous_block && ( ! v_Block.empty() ) )
    delete v_Block.front();
 
   v_Block.clear();
@@ -930,7 +931,7 @@ class BendersBFunction : public C05Function , public Block {
  {
   auto idx = std::find( v_x.begin() , v_x.end() , var );
   if( idx == v_x.end() )
-   return( Inf<Index>() );
+   return( Inf< Index >() );
   else
    return( std::distance( v_x.begin() , idx ) );
   }
@@ -1822,13 +1823,13 @@ class BendersBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 
  bool is_linearization_there( Index name ) const override final {
-  return global_pool.is_linearization_there( name );
+  return( global_pool.is_linearization_there( name ) );
  }
 
 /*--------------------------------------------------------------------------*/
 
  bool is_linearization_vertical( Index name ) const override final {
-  return global_pool.is_linearization_vertical( name );
+  return( global_pool.is_linearization_vertical( name ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1960,16 +1961,16 @@ class BendersBFunction : public C05Function , public Block {
   * then a nullptr is returned. Otherwise, a pointer of type \p T is returned.
   */
 
- template<class T = Solver>
+ template< class T = Solver >
  inline T * get_solver() const {
   if( v_Block.empty() )
-   return nullptr;
+   return( nullptr );
 
   if( v_Block.front()->get_registered_solvers().empty() )
-   return nullptr;
+   return( nullptr );
 
-  return dynamic_cast< T * >
-   ( v_Block.front()->get_registered_solvers().front() );
+  return( dynamic_cast< T * >
+  ( v_Block.front()->get_registered_solvers().front() ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1977,7 +1978,7 @@ class BendersBFunction : public C05Function , public Block {
  /// get the whole set of parameters of this BendersBFunction
  /** The extra Configuration (see ComputeConfig::f_extra_Configuration) of the
   * ComputeConfig of the BendersBFunction is a
-  * SimpleConfiguration<std::pair<Configuration* , Configuration*>>. The first
+  * SimpleConfiguration< std::pair< Configuration * , Configuration * > >. The first
   * Configuration of this pair is a :BlockConfig and the second one is a
   * :BlockSolverConfig, both of them being associated with the inner Block of
   * this BendersBFunction.
@@ -1985,7 +1986,7 @@ class BendersBFunction : public C05Function , public Block {
   * If an appropriate extra Configuration is not provided in \p ocfg (either
   * \p ocfg is nullptr or ocfg->f_extra_Configuration does not have the type
   * above), the extra Configuration in \p ocfg is deleted (if any) and a new
-  * SimpleConfiguration<std::pair<Configuration* , Configuration*>> is
+  * SimpleConfiguration< std::pair< Configuration * , Configuration * > > is
   * constructed.
   *
   * If an appropriate extra Configuration is provided, then it is used to
@@ -2113,7 +2114,7 @@ class BendersBFunction : public C05Function , public Block {
 
  public:
 
-  static constexpr auto NaN = std::numeric_limits<FunctionValue>::quiet_NaN();
+  static constexpr auto NaN = std::numeric_limits< FunctionValue >::quiet_NaN();
 
 /*--------------------------------------------------------------------------*/
 
@@ -2222,8 +2223,10 @@ class BendersBFunction : public C05Function , public Block {
   /// returns true if and only if this GlobalPool contains no Solution
 
   bool empty() const {
-   return std::all_of( solutions.cbegin() , solutions.cend() ,
-                       []( const auto & solution ) { return ! solution; } );
+   return( std::all_of( solutions.cbegin() , solutions.cend() ,
+                        []( const auto & solution ) {
+                         return( ! solution );
+                        } ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -2271,7 +2274,7 @@ class BendersBFunction : public C05Function , public Block {
 
   Solution * get_solution( Index name ) const {
    if( name < solutions.size() )
-    return solutions[ name ];
+    return( solutions[ name ] );
    throw( std::invalid_argument( "GlobalPool::get_solution: linearization "
                                  "with name " + std::to_string( name ) +
                                  " does not exist." ) );
@@ -2291,7 +2294,7 @@ class BendersBFunction : public C05Function , public Block {
 
   FunctionValue get_linearization_constant( Index name ) const {
    if( name < size() )
-    return linearization_constants[ name ];
+    return( linearization_constants[ name ] );
    throw( std::invalid_argument( "GlobalPool::get_linearization_constant: linea"
                                  "rization with name " + std::to_string( name )
                                  + " does not exist." ) );
@@ -2344,7 +2347,7 @@ class BendersBFunction : public C05Function , public Block {
 
   void reset_linearization_constants( void ) {
    linearization_constants.assign( linearization_constants.size() ,
-                                   Inf<FunctionValue>() );
+                                   Inf< FunctionValue >() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -2406,16 +2409,16 @@ class BendersBFunction : public C05Function , public Block {
 
  private:
 
-  std::vector<FunctionValue> linearization_constants;
+  std::vector< FunctionValue > linearization_constants;
   ///< linearization constants
 
-  std::vector<Solution *> solutions;
+  std::vector< Solution * > solutions;
   ///< pointers to the Solutions
 
   LinearCombination important_linearization_lin_comb;
   ///< the linear combination of the important linearization
 
-  std::vector<bool> is_diagonal;
+  std::vector< bool > is_diagonal;
   ///< indicates whether a linearization is diagonal
 
  }; // end( class( GlobalPool ) )
@@ -2462,7 +2465,7 @@ class BendersBFunction : public C05Function , public Block {
   }
 
   inline Index get_nnz() const {
-   return column.size();
+   return( column.size() );
   }
 
  private:
@@ -2484,7 +2487,7 @@ class BendersBFunction : public C05Function , public Block {
   * @param value The value of the parameter. */
 
  void set_solver_par( const idx_type par , const int value ) {
-  auto solver = get_solver<CDASolver>();
+  auto solver = get_solver< CDASolver >();
   if( ! solver )
    throw( std::invalid_argument( "BendersBFunction::set_solver_par: the inner "
                                  "Block must have a CDASolver attached "
@@ -2502,7 +2505,7 @@ class BendersBFunction : public C05Function , public Block {
   * @param value The value of the parameter. */
 
  void set_solver_par( const idx_type par , const double value ) {
-  auto solver = get_solver<CDASolver>();
+  auto solver = get_solver< CDASolver >();
   if( ! solver )
    throw( std::invalid_argument( "BendersBFunction::set_solver_par: the inner "
                                  "Block must have a CDASolver attached "
@@ -2520,12 +2523,12 @@ class BendersBFunction : public C05Function , public Block {
   * @return The value of the parameter. */
 
  int get_solver_int_par( const idx_type par ) const {
-  auto solver = get_solver<CDASolver>();
+  auto solver = get_solver< CDASolver >();
   if( ! solver )
    throw( std::invalid_argument( "BendersBFunction::get_solver_int_par: the "
                                  "inner Block must have a CDASolver attached "
                                  "to it." ) );
-  return solver->get_int_par( par );
+  return( solver->get_int_par( par ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2538,12 +2541,12 @@ class BendersBFunction : public C05Function , public Block {
   * @return The value of the parameter. */
 
  double get_solver_dbl_par( const idx_type par ) const {
-  auto solver = get_solver<CDASolver>();
+  auto solver = get_solver< CDASolver >();
   if( ! solver )
    throw( std::invalid_argument( "BendersBFunction::get_solver_dbl_par: the "
                                  "inner Block must have a CDASolver attached "
                                  "to it." ) );
-  return solver->get_dbl_par( par );
+  return( solver->get_dbl_par( par ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -2557,12 +2560,12 @@ class BendersBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 
  /// write the Solution with the given name in the sub-Block
- /** If <tt>name == Inf<Index>()</tt>, this function writes the dual solution
+ /** If <tt>name == Inf< Index >()</tt>, this function writes the dual solution
   * associated with the last computed linearization in the sub-Block. In this
   * case, only the dual solution associated with the Constraint handled by
   * this BendersBFunction may be considered (see
   * #f_get_dual_solution_partial_config and
-  * #f_get_dual_direction_partial_config). If <tt>name != Inf<Index>()</tt>,
+  * #f_get_dual_direction_partial_config). If <tt>name != Inf< Index >()</tt>,
   * then it writes the Solution that is stored in the global pool under the
   * given \p name in the sub-Block. In the last case, if the given \p name is
   * invalid or the Solution is not present in the global pool, an exception is
@@ -2634,7 +2637,7 @@ class BendersBFunction : public C05Function , public Block {
   */
 
  bool is_linearization_constant_computed_from_bound() const {
-  return LinComp & 1;
+  return( LinComp & 1 );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2648,7 +2651,7 @@ class BendersBFunction : public C05Function , public Block {
   */
 
  bool can_recompute_linearization_constant() const {
-  return LinComp & 2;
+  return( LinComp & 2 );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2662,7 +2665,7 @@ class BendersBFunction : public C05Function , public Block {
   */
 
  bool can_recompute_linearization_coefficients() const {
-  return LinComp & 4;
+  return( LinComp & 4 );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2682,13 +2685,13 @@ class BendersBFunction : public C05Function , public Block {
 
  /// returns the behaviour of this Function considering the given Modification
 
- function_value_behaviour get_behaviour( std::shared_ptr<BlockModAD> mod );
+ function_value_behaviour get_behaviour( std::shared_ptr< BlockModAD > mod );
 
 /*--------------------------------------------------------------------------*/
 
  /// returns the behaviour of this Function considering the given Modification
 
- function_value_behaviour get_behaviour( std::shared_ptr<ConstraintMod> mod );
+ function_value_behaviour get_behaviour( std::shared_ptr< ConstraintMod > mod );
 
 /*--------------------------------------------------------------------------*/
 
@@ -2739,7 +2742,7 @@ class BendersBFunction : public C05Function , public Block {
   * @return true if and ony if A is sparse.
   */
  template< class T >
- bool is_A_sparse( SparseMatrix<T> & matrix ) const;
+ bool is_A_sparse( SparseMatrix< T > & matrix ) const;
 
 /*--------------------------------------------------------------------------*/
 
@@ -2758,7 +2761,7 @@ class BendersBFunction : public C05Function , public Block {
  RowConstraint * get_constraint( Block::Index index ) {
   retrieve_constraints();
   assert( index < v_constraints.size() );
-  return v_constraints[ index ];
+  return( v_constraints[ index ] );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2769,8 +2772,8 @@ class BendersBFunction : public C05Function , public Block {
   auto it = std::find( std::begin( v_constraints ) , std::end( v_constraints ) ,
                        constraint );
   if( it != std::end( v_constraints ) )
-   return std::distance( std::begin( v_constraints ) , it );
-  return Inf<Index>();
+   return( std::distance( std::begin( v_constraints ) , it ) );
+  return( Inf< Index >() );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2781,8 +2784,8 @@ class BendersBFunction : public C05Function , public Block {
   retrieve_constraints();
   for( Index i = 0 ; i < v_constraints.size() ; ++i )
    if( v_constraints[ i ] == constraint && v_sides[ i ] == side )
-    return i;
-  return Inf<Index>();
+    return( i );
+  return( Inf< Index >() );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2976,7 +2979,7 @@ class BendersBFunctionMod : public C05FunctionMod {
     output << "(+-)";
    else if( f_shift >= INFshift )
     output << "(+)";
-   else if( f_shift <= -INFshift )
+   else if( f_shift <= - INFshift )
     output << "(-)";
    else
     output << " by " << f_shift;

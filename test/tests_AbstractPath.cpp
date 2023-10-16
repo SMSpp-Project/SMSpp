@@ -4,16 +4,11 @@
 /** @file
  * Implementation of the tests for AbstractPath.
  *
- * \version 0.10
- *
- * \date 03 - 02 - 2021
- *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Rafael Durbano Lobato
+ * \copyright &copy; by Rafael Durbano Lobato
  */
 
 /*--------------------------------------------------------------------------*/
@@ -157,9 +152,9 @@ std::set< std::pair< Block * , Block * > > visited_blocks;
 bool visited( Block * block , Block * reference_block ) {
  if( visited_blocks.find( std::make_pair( block , reference_block ) ) !=
      visited_blocks.end() )
-  return true;
+  return( true );
  visited_blocks.insert( std::make_pair( block , reference_block ) );
- return false;
+ return( false );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -308,7 +303,7 @@ void simple_full_test() {
 
 int main() {
  simple_full_test();
- return 0;
+ return( 0 );
 }
 
 /*--------------------------------------------------------------------------*/

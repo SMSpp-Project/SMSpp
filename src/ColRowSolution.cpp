@@ -8,7 +8,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Rafael Durbano Lobato
+ * \copyright &copy; by Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
@@ -72,8 +72,8 @@ void ColRowSolution::sum( const Solution * solution, double multiplier ) {
  auto other_solution = dynamic_cast< const ColRowSolution * >( solution );
 
  if( ! other_solution )
-  throw std::invalid_argument( "ColRowSolution::sum: given Solution "
-                               "must be a ColRowSolution" );
+  throw( std::invalid_argument( "ColRowSolution::sum: given Solution "
+                                "must be a ColRowSolution" ) );
 
  f_variable_solution.sum( & other_solution->get_variable_solution() ,
                           multiplier );
@@ -86,7 +86,7 @@ void ColRowSolution::sum( const Solution * solution, double multiplier ) {
 ColRowSolution * ColRowSolution::scale( double factor ) const {
  auto scaled_solution = new ColRowSolution();
  scaled_solution->scale( this , factor );
- return scaled_solution;
+ return( scaled_solution );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -97,7 +97,7 @@ ColRowSolution * ColRowSolution::clone( bool empty ) const {
  if( ! empty )
   cloned_solution->scale( this , 1.0 );
 
- return cloned_solution;
+ return( cloned_solution );
 }
 
 /*--------------------------------------------------------------------------*/

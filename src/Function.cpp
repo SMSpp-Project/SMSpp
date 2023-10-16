@@ -8,7 +8,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Antonio Frangioni
+ * \copyright &copy; by Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
@@ -43,8 +43,8 @@ Block * FunctionMod::get_Block( void ) const {
 /*--------------------------------------------------------------------------*/
 
 Block * FunctionModVars::get_Block() const {
- return f_function->get_Observer() ?
-        f_function->get_Observer()->get_Block() : nullptr;
+ return( f_function->get_Observer() ?
+         f_function->get_Observer()->get_Block() : nullptr );
 }
 
 /*--------------------------------------------------------------------------*/

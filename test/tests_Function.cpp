@@ -2,12 +2,11 @@
  * Unit tests for Function. Since it's an interface,
  * is it tested through its closest implementations.
  *
- * \author Niccolò Iardella \n
- *         Operations Research Group \n
+ * \author Niccolo' Iardella \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Antonio Frangioni, Niccolò Iardella
+ * \copyright &copy; by Antonio Frangioni, Niccolo' Iardella
  */
 
 #include <gtest/gtest.h>
@@ -142,11 +141,13 @@ TEST( FunctionTest, ChecksParameterNames ) {
             "dblAAccMlt" );
 }
 
+/*--------------------------------------------------------------------------*/
 
-/*--------------------------------------------------------------------------*/
-/*---------------------------------- MAIN ----------------------------------*/
-/*--------------------------------------------------------------------------*/
 int main( int argc, char ** argv ) {
  ::testing::InitGoogleTest( &argc, argv );
- return RUN_ALL_TESTS();
+ return( RUN_ALL_TESTS() );
 }
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- End File tests_Function.cpp ----------------------*/
+/*--------------------------------------------------------------------------*/

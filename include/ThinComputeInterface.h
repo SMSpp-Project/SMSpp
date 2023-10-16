@@ -12,7 +12,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Antonio Frangioni
+ * \copyright &copy; by Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -392,7 +392,7 @@ class ThinComputeInterface
   * sensibly set this parameter. Yet, because most complex computation
   * processes are inherently iterative, hence it makes sense to offer
   * support for this notion in the base class. More refined ones can easily
-  * be added by derived classes. The default is Inf<int>(). */
+  * be added by derived classes. The default is Inf< int >(). */
 
   intMaxThread ,  ///< maximum number of threads that compute() can spawn
                   /**< The algorithmic parameter for setting the maximum
@@ -449,7 +449,7 @@ class ThinComputeInterface
   * not explicitly distinguish between "wall-clock time" and "CPU time",
   * which may be rather different especially in a parallel environment, but
   * this concept can be easily added by derived classes. The default is
-  * Inf<double>(). */
+  * Inf< double >(). */
 
   dblEveryTTm ,  ///< how often call events of type eEveryTTime
                  /**< This parameter sets the period (amount of time) T with
@@ -1201,7 +1201,7 @@ class ThinComputeInterface
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// get the number of vector-of-string (std::vector<std::string>) parameters
+ /// get the number of vector-of-string (std::vector< std::string >) parameters
  /** Get the number of vector-of-string (std::vector< std::string >)
   *  parameters. The method is given an implementation (returning 0), rather
   * than being pure virtual, so that derived classes not having any
@@ -1349,7 +1349,7 @@ class ThinComputeInterface
   get_vint_par( idx_type par ) const { return( get_dflt_vint_par( par ) ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// get a specific vector-of-float (std::vector<double>) numerical parameter
+ /// get a specific vector-of-float (std::vector< double >) numerical parameter
  /** Returns a const reference to the current value of the vector-of-float
   * (std::vector< double >) numerical parameter with index \p par, which must
  * be in the range [ 0 , get_num_vdbl_par() ). The method is given a "void"
@@ -2338,9 +2338,10 @@ class ComputeConfig : public Configuration {
   *   see SMSTypedefs.h for details),
   *
   * the description of a :Configuration object for the "extra" Configuration
-  * of the ComputeConfig, loaded with Configuration::deserialize( std::istream )
-  * and therefore with all the corresponding input options, like '*' for
-  * nullptr and "*<filename>" for loading it out of a different file.
+  * of the ComputeConfig, loaded with Configuration::deserialize(
+  * std::istream ) and therefore with all the corresponding input options,
+  * like '*' for nullptr and "*<filename>" for loading it out of a different
+  * file.
   *
   * If the stream cleanly eof()-s after before reading each one of the
   * sections, load() cleanly returns having loaded the corresponding part of
@@ -2478,7 +2479,7 @@ class State {
   *
   * Any whitespaces that the given \p classname may contain is ignored. So,
   * for example, to create an instance of the class MyState< int > one could
-  * indifferently pass "MyState<int>", "MyState< int >", or even
+  * indifferently pass "MyState< int >", "MyState< int >", or even
   * " M y S t a t e < int > ".
   *
   * Note that :State objects are generally constructed by their

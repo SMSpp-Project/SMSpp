@@ -15,7 +15,7 @@
  *    public.
  *
  * 2) THE Block HAS "PARTLY" A SPECIFIC STRUCTURE, BUT THEN A (MORE OR LESS)
- *    ARBITRARY SET OF Variable AND Contraint CAN BE ADDED WITH BASICALLY
+ *    ARBITRARY SET OF Variable AND Constraint CAN BE ADDED WITH BASICALLY
  *    ANY STRUCTURE.
  *
  *    The idea is that any such Block can then be implemented into a derived
@@ -31,7 +31,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni
+ * \copyright &copy; by Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -73,7 +73,7 @@ namespace SMSpp_di_unipi_it
  *    public.
  *
  * 2) THE Block HAS "PARTLY" A SPECIFIC STRUCTURE, BUT THEN A (MORE OR LESS)
- *    ARBITRARY SET OF Variable AND Contraint CAN BE ADDED WITH BASICALLY
+ *    ARBITRARY SET OF Variable AND Constraint CAN BE ADDED WITH BASICALLY
  *    ANY STRUCTURE.
  *
  *    The idea is that any such Block can then be implemented into a derived
@@ -116,7 +116,7 @@ namespace SMSpp_di_unipi_it
  * existing list, rather than for creating a new group of constraint, which
  * in the dynamic case entails one or more lists), are already public in the
  * base class. While "concrete" Block may want to redefine them, the
- * implamentations in the base class do all that is needed here.
+ * implementations in the base class do all that is needed here.
  *
  * In AbstractBlock, *the abstract representation is the physical
  * representation*: there is no other reference to the Variable/Constraint
@@ -178,7 +178,7 @@ namespace SMSpp_di_unipi_it
  *     AVAILABLE DEPEND ON HOW THE "ABSTRACT" REPRESENTATION OF THE
  *     :AbstractBlock IS CONSTRUCTED, AND THEREFORE ON THE Configuration
  *     PARAMETERS PASSED TO generate_[abstract_*,objective](). THUS, THE
- *     VALUES OF f_1st_*_* AND f_res_obj ARE ONLY EXPECTED TO BE SGNIFICANT
+ *     VALUES OF f_1st_*_* AND f_res_obj ARE ONLY EXPECTED TO BE SIGNIFICANT
  *     INSIDE THE CALL TO generate_[abstract_*,objective]()
  *
  * This means that if AbstractBlock::generate_[abstract_*,objective]()
@@ -219,7 +219,7 @@ class AbstractBlock : public Block {
   * fields to default values. */
 
  explicit AbstractBlock( Block * father = nullptr ) : Block( father ) ,
-  f_ub( Inf< double >() ) , f_lb( -Inf< double >() ) , f_ub_cond( false ) ,
+  f_ub( Inf< double >() ) , f_lb( - Inf< double >() ) , f_ub_cond( false ) ,
   f_lb_cond( false ) , f_1st_stat_var( 0 ) , f_1st_dyn_var( 0 ) ,
   f_1st_stat_cnst( 0 ) , f_1st_dyn_cnst( 0 ) , f_res_obj( false ) ,
   f_1st_sub_block( 0 ) {}
@@ -252,11 +252,11 @@ class AbstractBlock : public Block {
   * should contain the following:
   *
   * - the dimension "NumberInnerBlock", containing the number of the
-  *   inner Block. The dimension is optional, it is is not provided 0 is
+  *   inner Block. The dimension is optional, it is not provided 0 is
   *   assumed.
   *
   * - if NumberInnerBlock > 0, and in particular it is
-  *   > get_first_inner_Block(), then the groups "Block_<i>", for i = 0,. ...
+  *   > get_first_inner_Block(), then the groups "Block_< i >", for i = 0,. ...
   *   get_first_inner_Block() - 1; each one must contain the deserialization
   *   of the i-th inner Block.
   *
@@ -281,7 +281,7 @@ class AbstractBlock : public Block {
   * these Block, and therefore they are destroyed in the AbstractBlock
   * destructor.
   *
-  * Derived classes which speficic structures will have to (but, anyway, they
+  * Derived classes which specific structures will have to (but, anyway, they
   * necessarily have to) define their destructor to take care of them, which
   * is executed before that of AbstractBlock; this therefore assumes that all
   * specific structures have been dealt with and happily proceeds with
@@ -300,14 +300,14 @@ class AbstractBlock : public Block {
   * reasonably be computed by the AbstractBlock itself; so, if any is known
   * "from the outside", it has to be explicitly passed to the AbstractBlock
   * so that the latter can rely it to any attached Solver. Only one of the
-  * two kinds of bounds makese sense at any given time (if a globally valid
+  * two kinds of bounds makes sense at any given time (if a globally valid
   * upper bound is known then the problem is not unbounded above and there
   * is no point in checking for a conditionally valid one), so the method
   * sets the globally valid bound if the conditional parameter is false, and
   * the conditionally valid one otherwise, with the other being automatically
   * set to + infinity. */
 
- void set_valid_upper_bound( double newub = +Inf< double >() ,
+ void set_valid_upper_bound( double newub = Inf< double >() ,
                              bool conditional = false ) {
   f_ub = newub;
   f_ub_cond = conditional;
@@ -319,14 +319,14 @@ class AbstractBlock : public Block {
   * reasonably be computed by the AbstractBlock itself; so, if any is known
   * "from the outside", it has to be explicitly passed to the AbstractBlock
   * so that the latter can rely it to any attached Solver. Only one of the
-  * two kinds of bounds makese sense at any given time (if a globally valid
+  * two kinds of bounds makes sense at any given time (if a globally valid
   * lower bound is known then the problem is not unbounded below and there
   * is no point in checking for a conditionally valid one), so the method
   * sets the globally valid bound if the conditional parameter is false, and
   * the conditionally valid one otherwise, with the other being automatically
   * set to - infinity. */
 
- void set_valid_lower_bound( double newlb = -Inf< double >() ,
+ void set_valid_lower_bound( double newlb = - Inf< double >() ,
                              bool conditional = false ) {
   f_lb = newlb;
   f_lb_cond = conditional;
@@ -407,13 +407,13 @@ class AbstractBlock : public Block {
 /*--------------------------------------------------------------------------*/
 
  double get_valid_upper_bound( bool conditional = false ) override {
-  return( f_ub_cond == conditional ? f_ub : +Inf< double >() );
+  return( f_ub_cond == conditional ? f_ub : Inf< double >() );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  double get_valid_lower_bound( bool conditional = false ) override {
-  return( f_lb_cond == conditional ? f_lb : -Inf< double >() );
+  return( f_lb_cond == conditional ? f_lb : - Inf< double >() );
   }
 
 /** @} ---------------------------------------------------------------------*/
@@ -517,22 +517,23 @@ class AbstractBlock : public Block {
   * the RowConstraint (see RowConstraint::rel_viol() and
   * RowConstraint::abs_viol()). These values are to be found as:
   *
-  * - If \p fsbc is not nullptr and it is a SimpleConfiguration<double>, then the
-  *   tolerance is fsbc->f_value and the relative violation is considered;
+  * - If \p fsbc is not nullptr and it is a SimpleConfiguration< double >,
+  *   then the tolerance is fsbc->f_value and the relative violation is
+  *   considered;
   *
-  * - If \p fsbc is not nullptr and it is a SimpleConfiguration<std::pair<double,
-  *   int>>, then the tolerance is fsbc->f_value.first and the type of
-  *   violation is fsbc->f_value.second (any nonzero number for relative and
-  *   zero for absolute violation);
+  * - If \p fsbc is not nullptr and it is a SimpleConfiguration<
+  *   std::pair< double, int > >, then the tolerance is fsbc->f_value.first and
+  *   the type of violation is fsbc->f_value.second (any nonzero number for
+  *   relative and zero for absolute violation);
   *
   * - Otherwise, if #f_BlockConfig is not nullptr,
   *   #f_BlockConfig->f_is_feasible_Configuration is not nullptr and it is a
-  *   pointer to either a SimpleConfiguration<double> or to a
-  *   SimpleConfiguration<std::pair<double, int>>, then the values of the
+  *   pointer to either a SimpleConfiguration< double > or to a
+  *   SimpleConfiguration< std::pair< double , int > >, then the values of the
   *   parameters are obtained analogously as above;
   *
   * - Otherwise, the tolerance is 0 and the relative violation is
-  *   considerd. */
+  *   considered. */
 
  bool is_feasible( bool useabstract = false ,
                    Configuration * fsbc = nullptr ) override;
@@ -559,10 +560,10 @@ class AbstractBlock : public Block {
   *
   * These are very generic checks that should be done at the level of Block,
   * but they can not because it is not possible to just "extract Variable"
-  * or "extract Constraint" from the "abstract representaion": one can only
+  * or "extract Constraint" from the "abstract representation": one can only
   * extract :Variable (say, ColVariable) or :Constraint (say, FRowConstraint).
   * This is a very bad consequence of the initial design choice about using
-  * boost::any, and one of the reasins why these will be put to the wall when
+  * boost::any, and one of the reasons why these will be put to the wall when
   * the revolution will come. */
 
  void is_correct( void );
@@ -590,12 +591,12 @@ class AbstractBlock : public Block {
   *
   * This value is to be found as:
   *
-  * - if solc is not nullptr and it is a SimpleConfiguration<int>, then it is
+  * - if solc is not nullptr and it is a SimpleConfiguration< int >, then it is
   *   solc->f_value;
   *
   * - otherwise, if f_BlockConfig is not nullptr,
   *   f_BlockConfig->f_solution_Configuration is not nullptr and it is a
-  *   SimpleConfiguration<int>, then it is
+  *   SimpleConfiguration< int >, then it is
   *   f_BlockConfig->f_solution_Configuration->f_value;
   *
   * - otherwise, it is 0. */
@@ -612,7 +613,7 @@ class AbstractBlock : public Block {
  /// print information about the AbstractBlock on an ostream 
  /** Protected method intended to print information about the AbstractBlock.
   *
-  * With default verbosity (vlvl == 0) prints some basic statstics.
+  * With default verbosity (vlvl == 0) prints some basic statistics.
   *
   * vlvl == 'M' and vlvl == 'L' should correspond to output in MPS format
   * and LP format as required by load(), but these are not implemented yet.
@@ -666,8 +667,8 @@ class AbstractBlock : public Block {
  double f_ub;             ///< the global upper bound
  double f_lb;             ///< the global lower bound
 
- bool f_ub_cond;          ///< wether f_ub is only conditionally valid
- bool f_lb_cond;          ///< wether f_lb is only conditionally valid
+ bool f_ub_cond;          ///< whether f_ub is only conditionally valid
+ bool f_lb_cond;          ///< whether f_lb is only conditionally valid
 
  Index f_1st_stat_var;    ///< the first available group of static Variable
  Index f_1st_dyn_var;     ///< the first available group of dynamic Variable

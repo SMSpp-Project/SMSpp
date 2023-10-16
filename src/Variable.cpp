@@ -12,7 +12,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Antonio Frangioni
+ * \copyright &copy; by Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
@@ -47,10 +47,10 @@ void Variable::is_fixed( bool fixed , c_ModParam issueMod )
  if( ( ! f_Block ) || ( ! f_Block->issue_mod( issueMod ) ) )
   return;
 
- f_Block->add_Modification(
-   std::make_shared< VariableMod >( this , old_state , f_state ,
-				    Observer::par2concern( issueMod ) ),
-   Observer::par2chnl( issueMod ) );
+ f_Block->add_Modification( std::make_shared< VariableMod >(
+                             this , old_state , f_state ,
+                             Observer::par2concern( issueMod ) ) ,
+                            Observer::par2chnl( issueMod ) );
  }
 
 /*--------------------------------------------------------------------------*/

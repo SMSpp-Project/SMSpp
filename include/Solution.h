@@ -15,7 +15,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Rafael Durbano Lobato
+ * \copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -166,7 +166,7 @@ class Solution {
   *
   * Any whitespaces that the given \p classname may contain is ignored. So,
   * for example, to create an instance of the class MySolution< int > one
-  * could pass "MySolution<int>" or "MySolution< int >", or even
+  * could pass "MySolution< int >" or "MySolution< int >", or even
   * " M y S o l u t i o n < int > ".
   *
   * Note that :Solution objects are generally constructed by their :Block,

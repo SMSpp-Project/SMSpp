@@ -10,7 +10,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Antonio Frangioni
+ * \copyright &copy; by Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -552,7 +552,7 @@ class ThinVarDepInterface {
   *   in 0, ..., get_num_active_var() - 1 such that the given Variable is the
   *   i-th "active" variable;
   *
-  * - otherwise, any number >= get_num_active_var() (say, Inf<Index>()).
+  * - otherwise, any number >= get_num_active_var() (say, Inf< Index >()).
   *
   * The base ThinVarDepInterface class makes no provisions about how this set
   * is stored in order to leave complete freedom to derived classes to
@@ -623,7 +623,7 @@ class ThinVarDepInterface {
     if( i >= get_num_active_var() )
      throw( std::invalid_argument( "map_active: some Variable is not active"
 				   ) );
-    *( it++ ) = i;
+    *(it++) = i;
     }
    }
   }
@@ -932,7 +932,7 @@ class ThinVarDepInterface {
    return;                           // silently (and cowardly) return
 
   if( range.second >= get_num_active_var() )
-   throw std::invalid_argument( "remove_variables: invalid range" );
+   throw( std::invalid_argument( "remove_variables: invalid range" ) );
 
   // note: the removal loop goes backward, since eliminating a variable
   //       changes the "names" of all the variable with larger name

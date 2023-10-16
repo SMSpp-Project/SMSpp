@@ -5,16 +5,11 @@
  * Implementation of AbstractBlockGenerator, a class for generating random
  * AbstractBlock.
  *
- * \version 0.10
- *
- * \date 17 - 02 - 2020
- *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Rafael Durbano Lobato
+ * \copyright &copy; by Rafael Durbano Lobato
  */
 
 /*--------------------------------------------------------------------------*/
@@ -105,27 +100,27 @@ public:
  ~ElementGenerator() {}
 
  Int gen_num_groups() override {
-   return num_groups_dist( generator );
+   return( num_groups_dist( generator ) );
  }
 
  Int gen_group_type() override {
-   return group_type_dist( generator );
+   return( group_type_dist( generator ) );
  }
 
  Int gen_vector_size() override {
-   return vector_size_dist( generator );
+   return( vector_size_dist( generator ) );
  }
 
  Int gen_list_size() override {
-   return list_size_dist( generator );
+   return( list_size_dist( generator ) );
  }
 
  Int gen_multi_array_num_dim() override {
-  return multi_array_num_dim_dist( generator );
+  return( multi_array_num_dim_dist( generator ) );
  }
 
  Int gen_multi_array_extent() override {
-  return multi_array_extent_dist( generator );
+  return( multi_array_extent_dist( generator ) );
  }
 
 private:
@@ -167,7 +162,7 @@ public:
  ~FunctionGenerator() {}
 
  virtual Int gen_function_type() override {
-  return function_type_dist( generator );
+  return( function_type_dist( generator ) );
  }
 
 private:
@@ -204,7 +199,7 @@ public:
  ~NumNestedBlockGenerator() {}
 
  virtual Int gen_num_nested_blocks() override {
-  return num_nested_blocks_dist( generator );
+  return( num_nested_blocks_dist( generator ) );
  }
 
 private:
@@ -287,7 +282,7 @@ public:
  AbstractBlock * generate( int depth ) {
   auto block = new AbstractBlock();
   generate( block , depth );
-  return block;
+  return( block );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -297,7 +292,7 @@ public:
   generate_groups( block , std::max( 0 , depth - 1 ) );
   if( depth > 0 )
    generate_nested_blocks( block , depth - 1 );
-  return block;
+  return( block );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -311,7 +306,7 @@ private:
  template< class T >
  typename std::enable_if_t< has_function_v< T > >
  generate_function( T * t , int depth ) {
-  if( ! generator || ! generator->function_generator ) return;
+  if( ( ! generator ) || ( ! generator->function_generator ) ) return;
   Function * function = nullptr;
   auto function_type = generator->function_generator->gen_function_type();
   if constexpr( ! std::is_base_of_v< FRealObjective , T > ) {
@@ -333,7 +328,7 @@ private:
     if( depth > 0 ) {
      function = new BendersBFunction();
      auto block = new AbstractBlock();
-     static_cast<BendersBFunction *>( function )->set_inner_block( block );
+     static_cast< BendersBFunction * >( function )->set_inner_block( block );
      generate( block , depth );
     }
     else {
@@ -347,8 +342,8 @@ private:
      function = new LagBFunction( nullptr , t );
      auto block = new AbstractBlock();
      block->set_objective( new FRealObjective( block , new LinearFunction() ) );
-     static_cast<LagBFunction *>( function )->set_inner_block( block );
-     block->set_f_Block( static_cast<LagBFunction *>( function ) );
+     static_cast< LagBFunction * >( function )->set_inner_block( block );
+     block->set_f_Block( static_cast< LagBFunction * >( function ) );
      generate( block , depth );
     }
     else {
@@ -362,13 +357,13 @@ private:
 
 /*--------------------------------------------------------------------------*/
 
- template< template < class , class > class C ,
-           class T , class A = std::allocator< T > >
- typename std::enable_if_t< ! has_function_v< T > >
+ template< template< class , class > class C ,
+  class T , class A = std::allocator< T > >
+ typename std::enable_if_t< !has_function_v< T > >
  generate_functions( const C< T , A > & , int ) {}
 
- template<template < class , class > class C ,
-          class T , class A = std::allocator< T > >
+ template< template< class , class > class C ,
+  class T , class A = std::allocator< T > >
  typename std::enable_if_t< has_function_v< T > >
  generate_functions( const C< T , A > & c , int depth ) {
   for( auto & e : c )
@@ -550,7 +545,7 @@ private:
 /*--------------------------------------------------------------------------*/
 
  void generate_nested_blocks( AbstractBlock * block , int depth ) {
-  if( ! generator || ! generator->num_nested_block_generator ) return;
+  if( ( ! generator ) || ( ! generator->num_nested_block_generator ) ) return;
   auto & v_Block = block->access_nested_Blocks();
   auto num_nested_blocks = generator->num_nested_block_generator->
    gen_num_nested_blocks();

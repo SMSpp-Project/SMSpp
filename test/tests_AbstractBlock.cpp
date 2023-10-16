@@ -1,12 +1,11 @@
 /** @file
  * Unit tests for Block and AbstractBlock.
  *
- * \author Niccolò Iardella \n
- *         Operations Research Group \n
+ * \author Niccolo' Iardella \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Niccolò Iardella
+ * \copyright &copy; by Niccolo' Iardella
  */
 
 #include <gtest/gtest.h>
@@ -149,7 +148,7 @@ TEST_F( AbstractBlockTest, Adds_StaticVariables_Vector ) {
 /*--------------------------------------------------------------------------*/
 
 TEST_F( AbstractBlockTest, Adds_StaticVariables_Multiarray ) {
- auto v = new boost::multi_array< ColVariable, 2 >;
+ auto v = new boost::multi_array< ColVariable , 2 >;
  v->resize( boost::extents[ 2 ][ 2 ] );
 
  block->add_static_variable( *v );
@@ -181,7 +180,7 @@ TEST_F( AbstractBlockTest, Adds_DynamicConstraints_List ) {
 /*--------------------------------------------------------------------------*/
 
 TEST_F( AbstractBlockTest, Adds_DynamicConstraints_Vector ) {
- auto c = new std::vector< std::list< FRowConstraint>>( 5 );
+ auto c = new std::vector< std::list< FRowConstraint > >( 5 );
  for( auto & i : *c ) {
   i.resize( 3 );
  }
@@ -237,7 +236,7 @@ TEST_F( AbstractBlockTest, Adds_DynamicVariables_List ) {
 /*--------------------------------------------------------------------------*/
 
 TEST_F( AbstractBlockTest, Adds_DynamicVariables_Vector ) {
- auto v = new std::vector< std::list< ColVariable>>( 5 );
+ auto v = new std::vector< std::list< ColVariable > >( 5 );
  for( auto & i : *v ) {
   i.resize( 3 );
  }
@@ -276,9 +275,12 @@ TEST_F( AbstractBlockTest, Adds_DynamicVariables_Multiarray ) {
 }
 
 /*--------------------------------------------------------------------------*/
-/*---------------------------------- MAIN ----------------------------------*/
-/*--------------------------------------------------------------------------*/
+
 int main( int argc, char ** argv ) {
  ::testing::InitGoogleTest( &argc, argv );
- return RUN_ALL_TESTS();
+ return( RUN_ALL_TESTS() );
 }
+
+/*--------------------------------------------------------------------------*/
+/*--------------------- End File tests_AbstractBlock.cpp --------------------*/
+/*--------------------------------------------------------------------------*/

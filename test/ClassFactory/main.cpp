@@ -4,16 +4,11 @@
 /** @file
  * Implementation of the tests for the class factories.
  *
- * \version 0.10
- *
- * \date 25 - 08 - 2020
- *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Rafael Durbano Lobato
+ * \copyright &copy; by Rafael Durbano Lobato
  */
 
 /*--------------------------------------------------------------------------*/
@@ -21,12 +16,16 @@
 /*--------------------------------------------------------------------------*/
 
 #include "AbstractBlock.h"
+
 #include "BendersBFunction.h"
+
 #include "BendersBlock.h"
+
 #include "FakeSolver.h"
+
 #include "LagBFunction.h"
+
 #include "PolyhedralFunctionBlock.h"
-#include "UpdateSolver.h"
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------------- USING -----------------------------------*/
@@ -51,8 +50,8 @@ private: \
 create_Block_class( DummyBlock );
 create_Block_class( DummyBlock2 );
 
-SMSpp_insert_in_factory_cpp_1( ( ( ( ( DummyBlock ) ) ) ) );
-SMSpp_insert_in_factory_cpp_1( ( ( ( ( ( DummyBlock2 ) ) ) ) ) );
+SMSpp_insert_in_factory_cpp_1( DummyBlock );
+SMSpp_insert_in_factory_cpp_1( DummyBlock2 );
 
 /*--------------------------------------------------------------------------*/
 
@@ -66,26 +65,20 @@ class DummyBlockT : public Block {
   SMSpp_insert_in_factory_h;
  };
 
-SMSpp_insert_in_factory_cpp_1_t( ( DummyBlockT<> ) );
-SMSpp_insert_in_factory_cpp_1_t( ( ( DummyBlockT< double > ) ) );
-SMSpp_insert_in_factory_cpp_1_t( ( ( ( DummyBlockT< char > ) ) ) );
-SMSpp_insert_in_factory_cpp_1_t( ( ( ( ( DummyBlockT< int > ) ) ) ) );
+SMSpp_insert_in_factory_cpp_1_t( DummyBlockT<> );
+SMSpp_insert_in_factory_cpp_1_t( DummyBlockT< double > );
+SMSpp_insert_in_factory_cpp_1_t( DummyBlockT< char > );
+SMSpp_insert_in_factory_cpp_1_t( DummyBlockT< int > );
+SMSpp_insert_in_factory_cpp_1_t( DummyBlockT< std::pair< double , int > > );
 SMSpp_insert_in_factory_cpp_1_t
-( ( ( ( ( DummyBlockT< std::pair< double , int > > ) ) ) ) );
-//!! this does not compile
-//!! SMSpp_insert_in_factory_cpp_1_t(
-//!! DummyBlockT< std::list< std::pair < int , double > > > );
+( DummyBlockT< std::list< std::pair < int , double > > > );
+SMSpp_insert_in_factory_cpp_1_t( DummyBlockT< void , 1 > );
+SMSpp_insert_in_factory_cpp_1_t( DummyBlockT< double , 1 > );
+SMSpp_insert_in_factory_cpp_1_t( DummyBlockT< char , 1 > );
+SMSpp_insert_in_factory_cpp_1_t( DummyBlockT< int , 1 > );
+SMSpp_insert_in_factory_cpp_1_t( DummyBlockT< std::pair< double , int > , 1 > );
 SMSpp_insert_in_factory_cpp_1_t
-( ( ( ( DummyBlockT< std::list< std::pair < int , double > > > ) ) ) );
-SMSpp_insert_in_factory_cpp_1_t( ( DummyBlockT< void , 1 > ) );
-SMSpp_insert_in_factory_cpp_1_t( ( ( DummyBlockT< double , 1 > ) ) );
-SMSpp_insert_in_factory_cpp_1_t( ( ( ( DummyBlockT< char , 1 > ) ) ) );
-SMSpp_insert_in_factory_cpp_1_t( ( ( ( ( DummyBlockT< int , 1 > ) ) ) ) );
-SMSpp_insert_in_factory_cpp_1_t
-( ( ( ( ( DummyBlockT< std::pair< double , int > , 1 > ) ) ) ) );
-SMSpp_insert_in_factory_cpp_1_t
-( ( ( ( DummyBlockT< std::list< std::pair < int , double > > , 1 > ) ) ) );
-
+( DummyBlockT< std::list< std::pair < int , double > > , 1 > );
 
 /*--------------------------------------------------------------------------*/
 
@@ -133,57 +126,57 @@ void test_Block( void ) {
 
  // SMS++ Block
 
- test_Block( "AbstractBlock" );
- test_Block< BendersBFunction >( "BendersBFunction " );
- test_Block( " BendersBlock" );
+ test_Block( " AbstractBlock " );
+ test_Block< BendersBFunction >( " BendersBFunction " );
+ test_Block< BendersBlock >( " BendersBlock " );
  test_Block( " LagBFunction " );
- test_Block< PolyhedralFunctionBlock > ( "PolyhedralFunctionBlock" );
+ test_Block< PolyhedralFunctionBlock > ( " PolyhedralFunctionBlock " );
 
  // DummyBlock
 
- test_Block( "DummyBlock" );
- test_Block< DummyBlock2 >( "DummyBlock2" );
+ test_Block( " DummyBlock " );
+ test_Block< DummyBlock2 >( " DummyBlock2 " );
 
- test_Block( "DummyBlockT<>" );
- test_Block( "DummyBlockT<double>" );
- test_Block( "DummyBlockT<char>" );
- test_Block( "DummyBlockT<int>" );
- test_Block( "DummyBlockT<std::pair<double , int>>" );
- test_Block( "DummyBlockT<std::pair<double,int>>" );
+ test_Block( " DummyBlockT<> " );
+ test_Block( " DummyBlockT< double > " );
+ test_Block( " DummyBlockT< char > " );
+ test_Block( " DummyBlockT< int > " );
+ test_Block( " DummyBlockT< std::pair< double , int > > " );
+ test_Block( " DummyBlockT< std::pair< double , int > > " );
  test_Block< DummyBlockT< std::list< std::pair< int , double > > > > (
-		          "DummyBlockT<std::list<std::pair<int,double>>>" );
+		          " DummyBlockT< std::list< std::pair< int , double > > > " );
 
- test_Block( "DummyBlockT<void,1>" );
- test_Block( "DummyBlockT<double,1>" );
- test_Block( "DummyBlockT<char,1>" );
- test_Block( "DummyBlockT<int,1>" );
- test_Block( "DummyBlockT<std::pair<double,int>,1>" );
- test_Block< DummyBlockT< std::list< std::pair< int , double > > ,1 > >(
-			 "DummyBlockT<std::list<std::pair<int,double>>,1>" );
+ test_Block( " DummyBlockT< void , 1 > " );
+ test_Block( " DummyBlockT< double , 1 > " );
+ test_Block( " DummyBlockT< char , 1 > " );
+ test_Block( " DummyBlockT< int , 1 > " );
+ test_Block( " DummyBlockT< std::pair< double , int > , 1 > " );
+ test_Block< DummyBlockT< std::list< std::pair< int , double > > , 1 > >(
+			 " DummyBlockT< std::list< std::pair< int , double > > , 1 > " );
  }
 
 /*--------------------------------------------------------------------------*/
 /*---------------------------- Configuration -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-template<class T = void , class U = void>
+template< class T = void , class U = void >
 class DummyConfiguration : public Configuration {
  protected:
-  Configuration * clone( void ) const override { return nullptr; }
+  Configuration * clone( void ) const override { return( nullptr ); }
   void load( std::istream &input ) override {};
  private:
   SMSpp_insert_in_factory_h;
  };
 
 SMSpp_insert_in_factory_cpp_0_t( DummyConfiguration<> );
-SMSpp_insert_in_factory_cpp_0_t( ( DummyConfiguration< int , double > ) );
+SMSpp_insert_in_factory_cpp_0_t( DummyConfiguration< int , double > );
 SMSpp_insert_in_factory_cpp_0_t
-( ( DummyConfiguration< double , std::pair< int , double > > ) );
+( DummyConfiguration< double , std::pair< int , double > > );
 SMSpp_insert_in_factory_cpp_0_t
-( ( DummyConfiguration< int , std::list< std::pair< int , double > > > ) );
+( DummyConfiguration< int , std::list< std::pair< int , double > > > );
 SMSpp_insert_in_factory_cpp_0_t
-( ( DummyConfiguration< int , DummyConfiguration< int , std::list<
-    std::pair< int , double > > > > ) );
+( DummyConfiguration< int , DummyConfiguration< int , std::list<
+    std::pair< int , double > > > > );
 
 /*--------------------------------------------------------------------------*/
 
@@ -213,17 +206,14 @@ void test_Configuration( void ) {
 
  // SimpleConfiguration
 
- test_Configuration( " SimpleConfiguration < int > " );
- test_Configuration( "SimpleConfiguration<int>" );
- test_Configuration( " SimpleConfiguration < double > " );
+ test_Configuration( " SimpleConfiguration< int > " );
+ test_Configuration( " SimpleConfiguration< double > " );
  test_Configuration( " SimpleConfiguration< std::pair< int , int > > " );
  test_Configuration( " SimpleConfiguration< std::pair< double , double > > " );
  test_Configuration( " SimpleConfiguration< std::pair< int , double > > " );
  test_Configuration( " SimpleConfiguration< std::pair< double , int > > " );
  test_Configuration( " SimpleConfiguration< std::vector< int > > " );
  test_Configuration( " SimpleConfiguration< std::vector< double > > " );
- test_Configuration( " SimpleConfiguration< std::list< int > > " );
- test_Configuration( " SimpleConfiguration< std::list< double > > " );
  test_Configuration( " SimpleConfiguration< std::pair< Configuration * , Configuration * > > " );
  test_Configuration( " SimpleConfiguration< std::vector< Configuration * > > " );
 
@@ -240,24 +230,24 @@ void test_Configuration( void ) {
 /*-------------------------------- Solver ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-template<class T = void , class U = void>
+template< class T = void , class U = void >
 class DummySolver : public Solver {
  public:
-  int compute( bool ) override { return 0; };
+  int compute( bool ) override { return( 0 ); };
   void get_var_solution( Configuration * ) override {};
  private:
   SMSpp_insert_in_factory_h;
  };
 
 SMSpp_insert_in_factory_cpp_0_t( DummySolver<> );
-SMSpp_insert_in_factory_cpp_0_t( ( DummySolver< int , double > ) );
+SMSpp_insert_in_factory_cpp_0_t( DummySolver< int , double > );
 SMSpp_insert_in_factory_cpp_0_t
-( ( DummySolver< double , std::pair< int , double > > ) );
+( DummySolver< double , std::pair< int , double > > );
 SMSpp_insert_in_factory_cpp_0_t
-( ( DummySolver< int , std::list< std::pair< int , double > > > ) );
+( DummySolver< int , std::list< std::pair< int , double > > > );
 SMSpp_insert_in_factory_cpp_0_t
-( ( DummySolver< int , DummySolver<int ,
-    std::list<std::pair< int , double > > > > ) );
+( DummySolver< int , DummySolver< int ,
+    std::list< std::pair< int , double > > > > );
 
 /*--------------------------------------------------------------------------*/
 
@@ -298,7 +288,7 @@ int main() {
  test_Block();
  test_Configuration();
  test_Solver();
- return 0;
+ return( 0 );
 }
 
 /*--------------------------------------------------------------------------*/

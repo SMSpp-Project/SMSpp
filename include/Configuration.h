@@ -12,7 +12,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Antonio Frangioni
+ * \copyright &copy; by Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -131,8 +131,8 @@ class Configuration
   *     SMSpp_insert_in_factory_cpp_0( ( name_of_the_class ) );
   *
   * Any whitespaces that the given \p classname may contain is ignored. So,
-  * for example, to create an instance of the class MyConfiguration<int> one
-  * could pass "MyConfiguration<int>" or "MyConfiguration< int >" (even " M y
+  * for example, to create an instance of the class MyConfiguration< int > one
+  * could pass "MyConfiguration< int >" or "MyConfiguration< int >" (even " M y
   * C o n f i g u r a t i o n < int > " would work).
   *
   * @param classname The name of the :Configuration class that must be
@@ -198,7 +198,7 @@ class Configuration
   *   multiple Configuration inside, \p filename can be used to encode the
   *   position (Configuration) in the file:
   *
-  *     * if the \p filename ends with ']', then is is supposed to have the
+  *     * if the \p filename ends with ']', then is supposed to have the
   *       form "real filename[idx]": the "[idx] part is excised and used to
   *       compute the int parameter of deserialize() (the position), with the
   *       remaining part being used for the string parameter (the filename);
@@ -923,7 +923,7 @@ typedef std::vector< p_Conf > Vec_p_Conf;
 
 /// deserialize a Configuration (*) out of a given group
 /** Deserialize a Configuration (*) , out of the given \p group and into
- * \p data. This is is done by calling Configuration::new_Configuration() on
+ * \p data. This is done by calling Configuration::new_Configuration() on
  * the given \p group if \p name is empty, and otherwise on the sub.group of
  * \p group with the given \p name. */
 
@@ -963,7 +963,7 @@ inline void serialize( netCDF::NcGroup & group , const std::string & name ,
  * by as many sub-groups of \p group with name <name>0, <name>1, ..., each
  * one containing one of the Configuration. */
 
-template< template < class ... > class C >
+template< template< class ... > class C >
 void deserialize( const netCDF::NcGroup & group ,
 		  C< Configuration * > & data ,
 		  const std::string & size = "size" ,
@@ -991,7 +991,7 @@ void deserialize( const netCDF::NcGroup & group ,
  * by as many sub-groups of \p group with name <name>0, <name>1, ..., each
  * one containing one of the Configuration. */
 
-template< template < class ... > class C >
+template< template< class ... > class C >
 void serialize( netCDF::NcGroup & group , const C< Configuration * > & data ,
 		const std::string & size = "size" ,
 		const std::string & name = "Config_" )

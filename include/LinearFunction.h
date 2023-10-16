@@ -147,10 +147,10 @@ class LinearFunction : public C15Function
   bool operator!=( const ThinVarDepInterface::v_iterator & rhs )
    const final {
    #ifdef NDEBUG
-    auto tmp = static_cast<const LinearFunction::v_iterator *>( & rhs );
+    auto tmp = static_cast< const LinearFunction::v_iterator * >( & rhs );
     return( itr_ != tmp->itr_ );
    #else
-    auto tmp = dynamic_cast<const LinearFunction::v_iterator *>( &rhs );
+    auto tmp = dynamic_cast< const LinearFunction::v_iterator * >( &rhs );
     return( tmp ? itr_ != tmp->itr_ : true );
    #endif
    }
@@ -187,10 +187,10 @@ class LinearFunction : public C15Function
   bool operator==( const ThinVarDepInterface::v_const_iterator & rhs )
    const final {
    #ifdef NDEBUG
-    auto tmp = static_cast<const LinearFunction::v_const_iterator *>( & rhs );
+    auto tmp = static_cast< const LinearFunction::v_const_iterator * >( & rhs );
     return( itr_ == tmp->itr_ );
    #else
-    auto tmp = dynamic_cast<const LinearFunction::v_const_iterator *>( &rhs );
+    auto tmp = dynamic_cast< const LinearFunction::v_const_iterator * >( &rhs );
     return( tmp ? itr_ == tmp->itr_ : false );
    #endif
    }
@@ -198,10 +198,10 @@ class LinearFunction : public C15Function
   bool operator!=( const ThinVarDepInterface::v_const_iterator & rhs )
    const final {
    #ifdef NDEBUG
-    auto tmp = static_cast<const LinearFunction::v_const_iterator *>( & rhs );
+    auto tmp = static_cast< const LinearFunction::v_const_iterator * >( & rhs );
     return( itr_ != tmp->itr_ );
    #else
-    auto tmp = dynamic_cast<const LinearFunction::v_const_iterator *>( &rhs );
+    auto tmp = dynamic_cast< const LinearFunction::v_const_iterator * >( &rhs );
     return( tmp ? itr_ != tmp->itr_ : true );
    #endif
    }
@@ -365,13 +365,13 @@ class LinearFunction : public C15Function
 /*--------------------------------------------------------------------------*/
 
  void get_linearization_coefficients( FunctionValue * g ,
-				      Range range = INFRange ,
+                                      Range range = INFRange ,
                                       Index name = Inf< Index >() ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  void get_linearization_coefficients( SparseVector & g ,
-				      Range range = INFRange ,
+                                      Range range = INFRange ,
                                       Index name = Inf< Index >() ) override;
 
 /*--------------------------------------------------------------------------*/
@@ -635,7 +635,7 @@ class LinearFunction : public C15Function
 
  void modify_coefficients( Vec_FunctionValue && NCoef , Subset && nms ,
                            bool ordered = false ,
-			   ModParam issueMod = eModBlck );
+                           ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify a range of coefficients
@@ -649,7 +649,7 @@ class LinearFunction : public C15Function
   * issued, as described in Observer::make_par(). */
 
  void modify_coefficients( Vec_FunctionValue && NCoef ,
-			   Range range = INFRange ,
+                           Range range = INFRange ,
                            ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/

@@ -13,7 +13,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Antonio Frangioni
+ * \copyright &copy; by Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
@@ -145,7 +145,7 @@ void Solver::reset_event_handler( int type , EventID id )
   // any pf the previous events is a do_nothing, keep shortening
   do
    v_events[ type ].pop_back();
-  while( ( !v_events[ type ].empty() ) &&
+  while( ( ! v_events[ type ].empty() ) &&
          ( *( v_events[ type ].back().target < int( * )() > ( ) ) ==
          do_nothing ) );
   }

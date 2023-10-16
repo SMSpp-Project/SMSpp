@@ -5,16 +5,11 @@
  * Small main() for testing the "core" SMS++. It defines a fake empty :Block,
  * creates and destroys one. Nothing more than a compilation test.
  *
- * \version 0.12
- *
- * \date 31 - 01 - 2019
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni
+ * \copyright &copy; by Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/

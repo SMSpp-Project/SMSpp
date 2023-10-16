@@ -4,13 +4,7 @@
 #                                                                            #
 #   makefile of test (for core SMS++)                                        #
 #                                                                            #
-#                                VERSION 2.00                                #
-#                               20 - 04 - 2005                               #
-#                                                                            #
-#                              Implementation by:                            #
-#                                                                            #
 #                              Antonio Frangioni                             #
-#                           Operations Research Group                        #
 #                          Dipartimento di Informatica                       #
 #                              Universita' di Pisa                           #
 #                                                                            #
@@ -29,7 +23,7 @@ SW = -g -std=c++17 -ferror-limit=1
 #SW = -O3 -DNDEBUG -std=c++1
 
 # compiler
-#CC = g++-8
+#CC = g++
 CC = clang++
 
 # linker option for forcing all the library to be loaded
@@ -56,9 +50,9 @@ clean::
 # corresponding include line
 # each module outputs some macros to be used here:
 # *OBJ is the final object(s) / library
-# *LIB is the external libreries + -L<libdirs>
+# *LIB is the external libraries + -L< libdirs >
 # *H   is the list of all include files
-# *INC is the -I<include directories>
+# *INC is the -I< include directories >
 
 # core SMS++
 SMS++SDR = ../../
@@ -69,7 +63,7 @@ include $(SMS++SDR)lib/makefile-inc
 # object files
 MOBJ =  $(SMS++OBJ)
 
-# libreries
+# libraries
 MLIB =  $(SMS++LIB)
 
 $(NAME): $(MOBJ) $(DIR)main.o 

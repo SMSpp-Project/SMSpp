@@ -16,7 +16,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Antonio Frangioni
+ * \copyright &copy; by Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -153,7 +153,7 @@ namespace SMSpp_di_unipi_it {
  * It should also be noted that, since the dual of a minimization model is a
  * maximization one and vice-versa, the interpretation of upper cutoffs and
  * lower cutoffs [see dblUpCutOff and dblLwCutOff in Solver.h] can be done
- * both in terms of the primal and of the dual problem. For instance, assue
+ * both in terms of the primal and of the dual problem. For instance, assume
  * an upper cutoff \eps is set for a minimization problem: the condition
  *
  *   lb >= \eps
@@ -214,7 +214,7 @@ class CDASolver : public Solver {
    * storing them may be costly. It may be therefore helpful for a CDASolver
    * to know beforehand how many different dual solutions the user would like
    * to get. Among the reasonable values for this parameter, 1 says "I don't
-   * care of multuple dual solutions, give me only the best one", and 0 says
+   * care of multiple dual solutions, give me only the best one", and 0 says
    * "I don't care of dual solutions at all, just tell me if there is any, and
    * what its value is". The default is 1. */
 
@@ -251,7 +251,7 @@ class CDASolver : public Solver {
    * where fbest is the value of the best (with largest objective value)
    * solution found so far. The roles of ub and lb are suitably reversed if
    * the primal is a maximization problem, so that the dual is a minimization
-   * one. The default is Inf<OFValue>. */
+   * one. The default is Inf< OFValue >. */
 
   dblAAccDSol ,     ///< maximum absolute error in any dual solution
                     /**< Similar to dblRAccDSol but for an *absolute*
@@ -265,7 +265,7 @@ class CDASolver : public Solver {
    *    fbest - lb <= \eps
    *
    * with the same notation as in dblRAccDSol and the same provisions about
-   * the case of a maximization problem. The default is Inf<OFValue>. */
+   * the case of a maximization problem. The default is Inf< OFValue >. */
 
   dblFAccDSol ,    ///< maximum absolute error in any dual solution
                    /**< The algorithmic parameter for setting the maximum
@@ -554,7 +554,7 @@ class CDASolver : public Solver {
 /*--------------------------------------------------------------------------*/
  /// tells whether a dual unbounded direction is available
  /** A call to compute() that returned kInfeasible supposedly mean that the 
-  * CDASolver can guarante that it is impossible to find any feasible
+  * CDASolver can guarantee that it is impossible to find any feasible
   * solution to the primal problem. This typically (but not always, see
   * kBothInfeasible) means that it is possible to find feasible *dual*
   * solutions whose value is "better" than any given threshold. For models
@@ -617,8 +617,8 @@ class CDASolver : public Solver {
   * lock()-ing the Block prior to calling this method, which of course apply
   * verbatim here.
   *
-  * Note that, while the largest burden of producing a dual directon is
-  * typically bore by compute() and/or new_dual_directon(), it is still
+  * Note that, while the largest burden of producing a dual direction is
+  * typically bore by compute() and/or new_dual_direction(), it is still
   * possible that "decoding" the internal information of the CDASolver in
   * order to produce one in the proper format that the Block requires may be
   * somewhat costly. This is why, as in get_dual_solution(), a (pointer to a)
@@ -663,14 +663,14 @@ class CDASolver : public Solver {
   *    A =  |  1   1 |
   *         | -1  -1 |
   *
-  * has a the lineality direction d = [ -1 , 1 ]. This means that A * d = 0;
+  * has a the linearity direction d = [ -1 , 1 ]. This means that A * d = 0;
   * hence, if there were any feasible solution x for (P) (which there is
   * not), then x + \alpha * d would be feasible for all \alpha >= 0. Also,
   * c * d > 0 (for c = [ -1 , 0 ] the objective function vector of (P) =
   * right-hand side of (D)), hence (P) would be unbounded above, were it not
   * empty. Symmetrically, the direction v = [ 1 , 1 ] has the property that
   * v * A = 0 and v >= 0, which means that if there were any feasible
-  * solution y for (D) (which there is not), then y + \alpha * v wolud be
+  * solution y for (D) (which there is not), then y + \alpha * v would be
   * feasible for all \alpha >= 0. Also, b * v < 0 (for b = [ -1 , 0 ] the
   * objective function vector of (D) = right-hand side of (P)), which means
   * that (D) would be unbounded below were it not empty. Thus, getting both

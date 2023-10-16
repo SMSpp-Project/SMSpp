@@ -15,7 +15,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Antonio Frangioni, Enrico Gorgone.
+ * \copyright &copy; by Antonio Frangioni, Enrico Gorgone.
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -180,7 +180,7 @@ namespace SMSpp_di_unipi_it
  *     COMPUTE ITSELF, THERE MUST BE SUCH A Solver BY THE TIME compute() IS
  *     FIRST CALLED. IF MORE THAN ONE Solver IS ATTACHED TO THE INNER Block,
  *     LagBFunction USES THE ONE SPECIFIED BY THE InnrSlvr PARAMETER (by
- *     default the forst of them). REGISTERING OR UN-REGISTERING Solver FROM
+ *     default the first of them). REGISTERING OR UN-REGISTERING Solver FROM
  *     THE INNER Block OF THE LagBFunction MUST NEVER CAUSE InnrSlvr TO
  *     BECOME INVALID, OR TO CHANGE IF INFORMATION PRODUCED IN THE LAST
  *     compute() (FUNCTION VALUES, LINEARIZATIONS, ...) IS STILL TO BE
@@ -481,20 +481,20 @@ class LagBFunction : public C05Function , public Block {
   bool operator==( const ThinVarDepInterface::v_iterator & rhs )
    const override final {
    #ifdef NDEBUG
-    auto tmp = static_cast<const LagBFunction::v_iterator *>( & rhs );
+    auto tmp = static_cast< const LagBFunction::v_iterator * >( & rhs );
     return( itr_ == tmp->itr_ );
    #else
-    auto tmp = dynamic_cast<const LagBFunction::v_iterator *>( & rhs );
+    auto tmp = dynamic_cast< const LagBFunction::v_iterator * >( & rhs );
     return( tmp ? itr_ == tmp->itr_ : false );
    #endif
    }
   bool operator!=( const ThinVarDepInterface::v_iterator & rhs )
    const override final {
    #ifdef NDEBUG
-    auto tmp = static_cast<const LagBFunction::v_iterator *>( & rhs );
+    auto tmp = static_cast< const LagBFunction::v_iterator * >( & rhs );
     return( itr_ != tmp->itr_ );
    #else
-    auto tmp = dynamic_cast<const LagBFunction::v_iterator *>( & rhs );
+    auto tmp = dynamic_cast< const LagBFunction::v_iterator * >( & rhs );
     return( tmp ? itr_ != tmp->itr_ : false );
    #endif
    }
@@ -534,20 +534,20 @@ class LagBFunction : public C05Function , public Block {
   bool operator==( const ThinVarDepInterface::v_const_iterator & rhs )
    const override final {
    #ifdef NDEBUG
-    auto tmp = static_cast<const LagBFunction::v_const_iterator *>( & rhs );
+    auto tmp = static_cast< const LagBFunction::v_const_iterator * >( & rhs );
     return( itr_ == tmp->itr_ );
    #else
-    auto tmp = dynamic_cast<const LagBFunction::v_const_iterator *>( & rhs );
+    auto tmp = dynamic_cast< const LagBFunction::v_const_iterator * >( & rhs );
     return( tmp ? itr_ == tmp->itr_ : false );
    #endif
    }
   bool operator!=( const ThinVarDepInterface::v_const_iterator & rhs )
    const override final {
    #ifdef NDEBUG
-    auto tmp = static_cast<const LagBFunction::v_const_iterator *>( & rhs );
+    auto tmp = static_cast< const LagBFunction::v_const_iterator * >( & rhs );
     return( itr_ != tmp->itr_ );
    #else
-    auto tmp = dynamic_cast<const LagBFunction::v_const_iterator *>( & rhs );
+    auto tmp = dynamic_cast< const LagBFunction::v_const_iterator * >( & rhs );
     return( tmp ? itr_ != tmp->itr_ : false );
    #endif
    }
@@ -1560,16 +1560,16 @@ class LagBFunction : public C05Function , public Block {
  FunctionValue get_lower_estimate( void ) const override {
   if( auto is = inner_Solver() ) {
    auto lb = is->get_lb();
-   if( lb == -Inf<FunctionValue>() )
+   if( lb == - Inf< FunctionValue >() )
     return( lb );
    else {
     if( std::isnan( f_yb ) )
      throw( std::logic_error( "get_lower_estimate called before compute" ) );
-    return( f_yb > -Inf<FunctionValue>() ? lb + f_yb : lb );
+    return( f_yb > - Inf< FunctionValue >() ? lb + f_yb : lb );
     }
    }
   else
-   return( -Inf<FunctionValue>() );
+   return( - Inf< FunctionValue >() );
   }
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -1582,11 +1582,11 @@ class LagBFunction : public C05Function , public Block {
    else {
     if( std::isnan( f_yb ) )
      throw( std::logic_error( "get_upper_estimate called before compute" ) );
-    return( f_yb > -Inf< FunctionValue >() ? ub + f_yb : ub );
+    return( f_yb > - Inf< FunctionValue >() ? ub + f_yb : ub );
     }
    }
   else
-   return( -Inf<FunctionValue>() );
+   return( - Inf< FunctionValue >() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -2425,14 +2425,22 @@ class LagBFunction : public C05Function , public Block {
 
  Solver * inner_Solver( void ) const {
   if( ( ! p_InnrSlvr ) && ( ! v_Block.empty() ) ) {
+   Solver * iS;
    auto & rs = v_Block.front()->get_registered_solvers();
+   if( rs.empty() )
+    throw( std::logic_error( "LagBFunction: no Solver attached to inner Block"
+			     ) );
    if( rs.size() > InnrSlvr ) {
     auto rsit = rs.begin();
-    std::next( rsit , InnrSlvr );
-    // note the horribly dirty trick of casting away const-ness from this
-    // to allow inner_Solver() to be const and therefore used in const methods
-    const_cast< LagBFunction * >( this )->p_InnrSlvr = *rsit;
+    std::advance( rsit , InnrSlvr );
+    iS = *rsit;
     }
+   else
+    iS = rs.back();
+
+   // note the horribly dirty trick of casting away const-ness from this
+   // to allow inner_Solver() to be const and therefore used in const methods
+   const_cast< LagBFunction * >( this )->p_InnrSlvr = iS;
    }
   return( p_InnrSlvr );
   }

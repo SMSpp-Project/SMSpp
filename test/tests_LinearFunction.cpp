@@ -2,12 +2,11 @@
  * Unit tests for LinearFunction.
  * They test stuff not already tested with Function.
  *
- * \author Niccolò Iardella \n
- *         Operations Research Group \n
+ * \author Niccolo' Iardella \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Antonio Frangioni, Niccolò Iardella
+ * \copyright &copy; by Antonio Frangioni, Niccolo' Iardella
  */
 
 #include <random>
@@ -24,7 +23,7 @@ static LinearFunction::Coefficient get_random_coeff() {
  std::default_random_engine re( rd() );
  std::uniform_real_distribution< double > unif( -100, 100 );
 
- return unif( re );
+ return( unif( re ) );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -142,9 +141,12 @@ TEST( LinearFunctionTest, RemovesVariables ) {
 }
 
 /*--------------------------------------------------------------------------*/
-/*---------------------------------- MAIN ----------------------------------*/
-/*--------------------------------------------------------------------------*/
+
 int main( int argc, char ** argv ) {
  ::testing::InitGoogleTest( &argc, argv );
- return RUN_ALL_TESTS();
+ return( RUN_ALL_TESTS() );
 }
+
+/*--------------------------------------------------------------------------*/
+/*-------------------- End File tests_LinearFunction.cpp -------------------*/
+/*--------------------------------------------------------------------------*/

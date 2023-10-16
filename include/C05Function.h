@@ -15,7 +15,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
+ * \copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -320,7 +320,7 @@ namespace SMSpp_di_unipi_it {
  * case P(x) where U is an unbounded set, say a convex one: then, P(x) is
  * unbounded below if there is some v in the recession cone of U such that
  * ( c + x A ) v > 0. This immediately implies that f(y) = +\inf for all y
- * with the same property, i.e., that the constraint  c v + x ( A v ) <= 0
+ * with the same property, i.e., that the constraint c v + x ( A v ) <= 0
  * is valid for the (epi)graph of f. Since v is typically constructed by
  * whatever algorithm is used to solve P(x) in order to prove that it is
  * unbounded above, the corresponding vertical linearization of the form (**)
@@ -746,7 +746,7 @@ class C05Function : public Function {
   * Note that typically shift() of the modification will be == 0, in that
   * adding a linearization to the global pool does not really change the
   * "physical representation" of the C05Function, but only its (partial)
-  * "abstract represenation" that the global pool provides. */
+  * "abstract representation" that the global pool provides. */
 
  virtual void store_linearization( Index name ,
                                    ModParam issueMod = eModBlck ) {}
@@ -834,7 +834,7 @@ class C05Function : public Function {
   * Note that typically shift() of the modification will be == 0, in that
   * adding a linearization to the global pool does not really change the
   * "physical representation" of the C05Function, but only its (partial)
-  * "abstract represenation" that the global pool provides. */
+  * "abstract representation" that the global pool provides. */
 
  virtual void store_combination_of_linearizations(
   c_LinearCombination & coefficients , Index name ,
@@ -975,7 +975,7 @@ class C05Function : public Function {
   * Observer::make_par(). Note that typically shift() of the modification
   * will be == 0, in that deleting a linearization from the global pool does
   * not really change the "physical representation" of the C05Function, but
-  * only its (partial) "abstract represenation" that the global pool
+  * only its (partial) "abstract representation" that the global pool
   * provides. */
 
  virtual void delete_linearization( Index name ,
@@ -993,7 +993,7 @@ class C05Function : public Function {
   * Observer::make_par(). Note that typically shift() of the Modification
   * will be == 0, in that deleting a linearization from the global pool does
   * not really change the "physical representation" of the C05Function, but
-  * only its (partial) "abstract represenation" that the global pool
+  * only its (partial) "abstract representation" that the global pool
   * provides.
   *
   * This method is given a rough default implementation that just calls
@@ -1010,7 +1010,7 @@ class C05Function : public Function {
  /** This method retrieves a range of the vector of coefficients g that is
   * the (largest part of the) linearization with the given name.
   *
-  * If the name of the linearization is the default value Inf<Index>(), then
+  * If the name of the linearization is the default value Inf< Index >(), then
   * it refers to the last computed linearization, which may "not yet have a
   * name" because store_linearization() may not have been called yet (and it
   * may never be, if this linearization is not deemed "important enough" to
@@ -1127,7 +1127,7 @@ class C05Function : public Function {
     throw( std::invalid_argument( "wrong size of nonempty SparseVector g" ) );
 
    for( Index i = range.first; i < range.second; ++i )
-    g.coeffRef( i ) = *( ggp++ );
+    g.coeffRef( i ) = *(ggp++);
 
    g.prune( 0 , 0 );
    }
@@ -1138,7 +1138,7 @@ class C05Function : public Function {
  /** This method retrieves a subset of the vector of coefficients g that is
   * the (largest part of the) linearization with the given name.
   *
-  * If the name of the linearization is the default value Inf<Index>(), then
+  * If the name of the linearization is the default value Inf< Index >(), then
   * it refers to the last computed linearization, which may "not yet have a
   * name" because store_linearization() may not have been called yet (and it
   * may never be, if this linearization is not deemed "important enough" to
@@ -1245,7 +1245,7 @@ class C05Function : public Function {
    for( auto i : subset ) {
     if( i >= get_num_active_var() )
      throw( std::invalid_argument( "wrong index in subset" ) );
-    auto gi = *( ggp++ );
+    auto gi = *(ggp++);
     if( gi )
      g.insert( i ) = gi;
     }
@@ -1257,7 +1257,7 @@ class C05Function : public Function {
    for( auto i : subset ) {
     if( i >= get_num_active_var() )
      throw( std::invalid_argument( "wrong index in subset" ) );
-    g.coeffRef( i ) = *( ggp++ );
+    g.coeffRef( i ) = *(ggp++);
     }
 
    g.prune( 0 , 0 );
@@ -1267,7 +1267,7 @@ class C05Function : public Function {
 /*--------------------------------------------------------------------------*/
  /// return the constant term of a linearization
  /** This method returns the constant term (alpha) of a linearization. If the
-  * name of the linearization is the default value Inf<Index>(), then it
+  * name of the linearization is the default value Inf< Index >(), then it
   * refers to the last computed linearization, which may "not yet have a
   * name" because store_linearization() may not have been called yet (and it
   * may never be, if this linearization is not deemed "important enough" to
@@ -1284,8 +1284,8 @@ class C05Function : public Function {
   * as the C05FunctionMod* specifies). If a linearization has become
   * invalid, the linearization should not be asked; if it is, the method
   * should retur NaN (e.g. as what is reported by
-  * std::numeric_limits::quiet_NaN<FunctionValue>() or by
-  * std::numeric_limits::signaling_NaN<FunctionValue>()). */
+  * std::numeric_limits::quiet_NaN< FunctionValue >() or by
+  * std::numeric_limits::signaling_NaN< FunctionValue >()). */
 
  virtual FunctionValue get_linearization_constant(
                                            Index name = Inf< Index >() ) = 0;
@@ -1454,7 +1454,7 @@ class C05Function : public Function {
  * which the max-function is abruptly changed to be a min-function on exactly
  * the same data: albeit the function changes from convex to concave, and
  * clearly the function values change (in this case they become <=, which
- * means that shift() == -INFshift can be reported); still all the previously
+ * means that shift() == - INFshift can be reported); still all the previously
  * computed linearizations remain valid without any change. The difference is
  * that when the function was convex they were (approximate) *sub*gradients,
  * i.e., *lower* linearizations of the *epi*graph; as the function is turned
@@ -1703,7 +1703,7 @@ class C05FunctionMod : public FunctionMod
     if( f_shift >= INFshift )
      output << "(+)";
     else
-     if( f_shift <= -INFshift )
+     if( f_shift <= - INFshift )
       output << "(-)";
      else
       output << " by " << f_shift;
@@ -1884,7 +1884,7 @@ class C05FunctionModRngd : public C05FunctionMod
     if( f_shift >= INFshift )
      output << "(+)";
     else
-     if( f_shift <= -INFshift )
+     if( f_shift <= - INFshift )
       output << "(-)";
      else
       output << " by " << f_shift;
@@ -2018,7 +2018,7 @@ class C05FunctionModSbst : public C05FunctionMod
     if( f_shift >= INFshift )
      output << "(+)";
     else
-     if( f_shift <= -INFshift )
+     if( f_shift <= - INFshift )
       output << "(-)";
      else
       output << " by " << f_shift;
@@ -2288,7 +2288,7 @@ class C05FunctionModVarsAddd : public FunctionModVarsAddd
    if( f_shift >= Inf< FunctionValue >() )
     output << "+(?)";
    else
-    if( f_shift <= -Inf< FunctionValue >() )
+    if( f_shift <= - Inf< FunctionValue >() )
      output << "-(?)";
     else
      output << f_shift;
@@ -2377,7 +2377,7 @@ class C05FunctionModVarsRngd : public FunctionModVarsRngd
    if( f_shift >= Inf< FunctionValue >() )
     output << "+(?)";
    else
-    if( f_shift <= -Inf< FunctionValue >() )
+    if( f_shift <= - Inf< FunctionValue >() )
      output << "-(?)";
     else
      output << f_shift;
@@ -2467,7 +2467,7 @@ class C05FunctionModVarsSbst : public FunctionModVarsSbst
    if( f_shift >= Inf< FunctionValue >() )
     output << "+(?)";
    else
-    if( f_shift <= -Inf< FunctionValue >() )
+    if( f_shift <= - Inf< FunctionValue >() )
      output << "-(?)";
     else
      output << f_shift;
@@ -2558,7 +2558,7 @@ class C05FunctionModVarsSbst : public FunctionModVarsSbst
  * d \bar{x}', which cannot be always equal. Thus, the expected value of
  * shift() should be NaN, except if the C05Function can infer something on
  * the sign; say, all Variable are non-negative and d >= 0, hence the shift
- * can only be positive and shift() = Inf<FunctionValue>() is appropriate.
+ * can only be positive and shift() = Inf< FunctionValue >() is appropriate.
  *
  * Finally, note that this is intended as the base class of this kind of
  * Modification, since it provides the pointers but *not* indices of the

@@ -12,7 +12,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
+ * \copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
@@ -69,10 +69,10 @@ void FRowConstraint::set_function( Function * const function ,
 
  // if so instructed, issue the FRowConstraintMod
  if( f_Block && f_Block->issue_mod( issueMod ) )
-  f_Block->add_Modification( std::make_shared< FRowConstraintMod >( this ,
-                                        FRowConstraintMod::eFunctionChanged ,
-                                        Observer::par2concern( issueMod ) ) ,
-			     Observer::par2chnl( issueMod ) );
+  f_Block->add_Modification( std::make_shared< FRowConstraintMod >(
+                              this , FRowConstraintMod::eFunctionChanged ,
+                              Observer::par2concern( issueMod ) ) ,
+                             Observer::par2chnl( issueMod ) );
 
  }  // end( FRowConstraint::set_function )
 
@@ -88,10 +88,10 @@ void FRowConstraint::set_rhs( c_RHSValue rhs_value , ModParam issueMod )
  if( ( ! f_Block ) || ( ! f_Block->issue_mod( issueMod ) ) )
   return;
 
- f_Block->add_Modification( std::make_shared< RowConstraintMod >( this ,
-                                        RowConstraintMod::eChgRHS ,
-                                        Observer::par2concern( issueMod ) ) ,
-			    Observer::par2chnl( issueMod ) );
+ f_Block->add_Modification( std::make_shared< RowConstraintMod >(
+                             this , RowConstraintMod::eChgRHS ,
+                             Observer::par2concern( issueMod ) ) ,
+                            Observer::par2chnl( issueMod ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -106,10 +106,10 @@ void FRowConstraint::set_lhs( c_RHSValue lhs_value , ModParam issueMod )
  if( ( ! f_Block ) || ( ! f_Block->issue_mod( issueMod ) ) )
   return;
 
- f_Block->add_Modification( std::make_shared< RowConstraintMod >( this ,
-                                        RowConstraintMod::eChgLHS ,
-                                        Observer::par2concern( issueMod ) ) ,
-			    Observer::par2chnl( issueMod ) );
+ f_Block->add_Modification( std::make_shared< RowConstraintMod >(
+                             this , RowConstraintMod::eChgLHS ,
+                             Observer::par2concern( issueMod ) ) ,
+                            Observer::par2chnl( issueMod ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -125,10 +125,10 @@ void FRowConstraint::set_both( c_RHSValue both_value , ModParam issueMod )
  if( ( ! f_Block ) || ( ! f_Block->issue_mod( issueMod ) ) )
   return;
 
- f_Block->add_Modification( std::make_shared< RowConstraintMod >( this ,
-                                        RowConstraintMod::eChgBTS ,
-                                        Observer::par2concern( issueMod ) ) ,
-			    Observer::par2chnl( issueMod ) );
+ f_Block->add_Modification( std::make_shared< RowConstraintMod >(
+                             this , RowConstraintMod::eChgBTS ,
+                             Observer::par2concern( issueMod ) ) ,
+                            Observer::par2chnl( issueMod ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -143,7 +143,7 @@ void FRowConstraint::remove_variable( Index i , ModParam issueMod )
   * happening. If there is no real reason to have the Modification issued,
   * it will instruct the Function not to and do the unregistering herein. */
 
- if( !f_function )
+ if( ! f_function )
   return;
 
  if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )

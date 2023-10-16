@@ -15,7 +15,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Antonio Frangioni, Enrico Gorgone
+ * \copyright &copy; by Antonio Frangioni, Enrico Gorgone
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
@@ -158,7 +158,7 @@ LagBFunction::LagBFunction( Block * innerblock , Observer * observer )
 
  init_CC();
 
- }  // end( LagBFunction::LagBFunction() )
+ }  // end( LagBFunction::LagBFunction )
 
 /*--------------------------------------------------------------------------*/
 
@@ -400,7 +400,7 @@ void LagBFunction::set_par( idx_type par , int value )
     }
    break;
   case( intGPMaxSz ):  // intGPMaxSz- - - - - - - - - - - - - - - - - - - - -
-   if( ( LastSolution < Inf<Index>() ) && ( LastSolution >= g_pool.size() ) )
+   if( ( LastSolution< Inf< Index >() ) && ( LastSolution >= g_pool.size() ) )
     // LastSolution is undefined: ensure it remains so even if
     LastSolution = value;         // the global pool grows
    // note: if the global pool shrinks and LastSolution is one of the deleted
@@ -456,10 +456,10 @@ void LagBFunction::set_par( idx_type par , int value )
      // issue a LagBFunctionMod with type() == GlobalPoolRemoved and
      // which().empty(); however, shift() == 0 since the function itself
      // has not really changed
-     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
-				        C05FunctionMod::GlobalPoolRemoved ,
-					Subset() , 64 , 0 , true ) ,
-				   eModBlck );
+     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
+                                    this , C05FunctionMod::GlobalPoolRemoved ,
+                                    Subset() , 64 , 0 , true ) ,
+                                   eModBlck );
     }
    break;
   case( intChkState ):  // intChkState - - - - - - - - - - - - - - - - - - -
@@ -994,11 +994,11 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
   if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( eModBlck ) ) )
    return;  // all done
   
-  // issue a LagBFunctionMod: if some linearisations have been removed it has
+  // issue a LagBFunctionMod: if some linearizations have been removed it has
   // type() == GlobalPoolRemoved, otherwise it has type() == NothingChanged
   // note: the explicit definition of type here was originally avoided by
   //       having the ? expression directly in the constructor, but this
-  //       meant that the same expressio had a check if which was nonempty
+  //       meant that the same expression had a check if which was nonempty
   //       and a std-move of which that could make it empty, i.e., the
   //       perfect example of an expression with side-effects whose result
   //       depended on the order of the sub-expressions and therefore was
@@ -1023,7 +1023,7 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
  }  // end( LagBFunction::add_Modification() )
 
 /*--------------------------------------------------------------------------*/
-/*---------- METHODS FOR PRINING/SAVING THE DATA OF THE LagBFunction -------*/
+/*--------- METHODS FOR PRINTING/SAVING THE DATA OF THE LagBFunction -------*/
 /*--------------------------------------------------------------------------*/
 
 void LagBFunction::print( std::ostream & output , char vlvl ) const
@@ -1059,7 +1059,7 @@ void LagBFunction::serialize( netCDF::NcGroup & group ) const
   }
 
  // temporarily put back the original costs into the Objective of the
- // inner Block before deserialising, and then restore the current one,
+ // inner Block before deserializing, and then restore the current one,
  // which requires locking it
  // note: one could be tempted to run modify_coefficients() with eNoMod, so
  //       that no Modification at all is issued. this would be OK if the
@@ -1127,7 +1127,7 @@ void LagBFunction::serialize( netCDF::NcGroup & group ) const
  if( ! owned )
   v_Block.front()->unlock( f_id );  // unlock it
 
- }  // end( LagBFunction::serialize() )
+ }  // end( LagBFunction::serialize )
 
 /*--------------------------------------------------------------------------*/
 /*----------- METHODS FOR HANDLING THE State OF THE LagBFunction -----------*/
@@ -1211,16 +1211,14 @@ void LagBFunction::put_State( const State & state )
  // note that the GlobalPoolRemoved Modification is issued with
  // what == 0, i.e., nothing really has changed in the inner Block
  if( ! gpempty )
-  f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
-				   C05FunctionMod::GlobalPoolRemoved ,
-				   std::move( Subset() ) , 0 , 0 ) );
+  f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
+   this , C05FunctionMod::GlobalPoolRemoved , std::move( Subset() ) , 0 , 0 ) );
 
  // then tell about additions (if there is anything to add), so that the
  // aggregated linearizations are substituted with the new ones
  if( ! Addd.empty() )
-  f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
-				   C05FunctionMod::GlobalPoolAdded ,
-				   std::move( Addd ) , 0 , 0 ) );
+  f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
+   this , C05FunctionMod::GlobalPoolAdded , std::move( Addd ) , 0 , 0 ) );
 
  }  // end( LagBFunction::put_State( const & ) )
 
@@ -1300,16 +1298,14 @@ void LagBFunction::put_State( State && state )
  // note that the GlobalPoolRemoved Modification is issued with
  // what == 0, i.e., nothing really has changed in the inner Block
  if( ! gpempty )
-  f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
-				   C05FunctionMod::GlobalPoolRemoved ,
-				   std::move( Subset() ) , 0 , 0 ) );
+  f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
+   this , C05FunctionMod::GlobalPoolRemoved , std::move( Subset() ) , 0 , 0 ) );
 
  // then tell about additions (if there is anything to add), so that the
  // aggregated linearizations are substituted with the new ones
  if( ! Addd.empty() )
-  f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
-				   C05FunctionMod::GlobalPoolAdded ,
-				   std::move( Addd ) , 0 , 0 ) );
+  f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
+   this , C05FunctionMod::GlobalPoolAdded , std::move( Addd ) , 0 , 0 ) );
 
  }  // end( LagBFunction::put_State( && ) )
 
@@ -1415,8 +1411,8 @@ void LagBFunction::store_linearization( Index name , ModParam issueMod )
 	 "LagBFunction::store_linearization: invalid linearization name" ) );
 
  // throw exception if the solution does not exist or has been already stored
- if( LastSolution < Inf<Index>() )
-  throw( std::logic_error( "LagBFunction: unvailable linearization" ) );
+ if( LastSolution< Inf< Index >() )
+  throw( std::logic_error( "LagBFunction: unavailable linearization" ) );
 
  // get the current Solution from the Solver - - - - - - - - - - - - - - - - -
 
@@ -1444,11 +1440,11 @@ void LagBFunction::store_linearization( Index name , ModParam issueMod )
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
   
- f_Observer->add_Modification( std::make_shared< C05FunctionMod >( this ,
-				        C05FunctionMod::GlobalPoolAdded ,
-					Subset( { name } ) , 0 ,
-				        Observer::par2concern( issueMod ) ) ,
-			       Observer::par2chnl( issueMod ) );
+ f_Observer->add_Modification( std::make_shared< C05FunctionMod >(
+                                this , C05FunctionMod::GlobalPoolAdded ,
+                                Subset( { name } ) , 0 ,
+                                Observer::par2concern( issueMod ) ) ,
+                               Observer::par2chnl( issueMod ) );
 
  }  // end( LagBFunction::store_linearization( Index ) )
 
@@ -1472,8 +1468,8 @@ void LagBFunction::store_combination_of_linearizations(
   return;
   }
 
- bool type = true;         // a diagonal one unless oherwise proven
- bool unfeasible = false;  // feasible unless oherwise proven
+ bool type = true;         // a diagonal one unless otherwise proven
+ bool unfeasible = false;  // feasible unless otherwise proven
 
  // get an "empty" solution from the Block
  auto convex_combination = v_Block.front()->get_Solution();
@@ -1509,11 +1505,11 @@ void LagBFunction::store_combination_of_linearizations(
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
 
- f_Observer->add_Modification( std::make_shared< C05FunctionMod >( this ,
-					C05FunctionMod::GlobalPoolAdded ,
-					Subset( { name } ) , 0 ,
-					Observer::par2concern( issueMod ) ) ,
-			       Observer::par2chnl( issueMod ) );
+ f_Observer->add_Modification( std::make_shared< C05FunctionMod >(
+                                this , C05FunctionMod::GlobalPoolAdded ,
+                                Subset( { name } ) , 0 ,
+                                Observer::par2concern( issueMod ) ) ,
+                               Observer::par2chnl( issueMod ) );
 
  }  // end( LagBFunction::store_convex_combination_of_linearizations )
 
@@ -1537,11 +1533,11 @@ void LagBFunction::delete_linearization( Index name , ModParam issueMod )
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
   
- f_Observer->add_Modification( std::make_shared< C05FunctionMod >( this ,
-				      C05FunctionMod::GlobalPoolRemoved ,
-				      Subset( { name } ) , 0 ,
-				      Observer::par2concern( issueMod ) ) ,
-			       Observer::par2chnl( issueMod ) );
+ f_Observer->add_Modification( std::make_shared< C05FunctionMod >(
+                                this , C05FunctionMod::GlobalPoolRemoved ,
+                                Subset( { name } ) , 0 ,
+                                Observer::par2concern( issueMod ) ) ,
+                               Observer::par2chnl( issueMod ) );
 
  }  // end( LagBFunction::delete_linearization )
 
@@ -1562,15 +1558,15 @@ void LagBFunction::delete_linearizations( Subset && which , bool ordered ,
      }
 
   f_max_glob = 0;
-  if( LastSolution < Inf<Index>() )  // LastSolution was in the global pool
+  if( LastSolution< Inf< Index >() )  // LastSolution was in the global pool
    LastSolution = g_pool.size();     // it is no longer valid
 
   if( f_Observer && f_Observer->issue_mod( issueMod ) )
-   f_Observer->add_Modification( std::make_shared< C05FunctionMod >( this ,
-				      C05FunctionMod::GlobalPoolRemoved ,
-				      std::move( which ) , 0 ,
-				      Observer::par2concern( issueMod ) ) ,
-				 Observer::par2chnl( issueMod ) );
+   f_Observer->add_Modification( std::make_shared< C05FunctionMod >(
+                                  this , C05FunctionMod::GlobalPoolRemoved ,
+                                  std::move( which ) , 0 ,
+                                  Observer::par2concern( issueMod ) ) ,
+                                 Observer::par2chnl( issueMod ) );
   return;  // all done
   }
 
@@ -1600,11 +1596,11 @@ void LagBFunction::delete_linearizations( Subset && which , bool ordered ,
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
   
- f_Observer->add_Modification( std::make_shared< C05FunctionMod >( this ,
-				      C05FunctionMod::GlobalPoolRemoved ,
-				      std::move( which ) , 0 ,
-				      Observer::par2concern( issueMod ) ) ,
-			       Observer::par2chnl( issueMod ) );
+ f_Observer->add_Modification( std::make_shared< C05FunctionMod >(
+                                this , C05FunctionMod::GlobalPoolRemoved ,
+                                std::move( which ) , 0 ,
+                                Observer::par2concern( issueMod ) ) ,
+                               Observer::par2chnl( issueMod ) );
 
  }  // end( LagBFunction::delete_linearizations )
 
@@ -1629,7 +1625,7 @@ int LagBFunction::compute( bool changedvars )
  if( changedvars && ( ! ( LagPairs.empty() && ( ! f_c_changed ) ) ) ) {
   // if the Lagrangian variables have changed, then Lagrangian costs
   // c^y = c + yA need be recomputed; however, this is unless there are
-  // actually no Lagrangian variables and the costs are stll the original
+  // actually no Lagrangian variables and the costs are still the original
   // ones, because then c^y = c
   f_dirty_Lc = true;
   if( ( ! std::isnan( f_yb ) ) && ( f_yb > -INF ) )
@@ -1720,7 +1716,7 @@ int LagBFunction::compute( bool changedvars )
  // return the status of the Solver as the status of the LagBFunction
  return( is->compute( false ) );
 
- }  // end( LagBFunction::compute() )
+ }  // end( LagBFunction::compute )
 
 /*--------------------------------------------------------------------------*/
 
@@ -1775,10 +1771,10 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
  // the solution shall be written in the Variable of the Block - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( name == Inf<Index>() ) {  // the last computed linearization- - - - - - -
+ if( name == Inf< Index >() ) {  // the last computed linearization- - - - - - -
 
   // get solution/direction from the solver
-  if( LastSolution != Inf<Index>() ) {  // ... if necessary
+  if( LastSolution != Inf< Index >() ) {  // ... if necessary
    auto is = inner_Solver();
    if( ! is )
     throw( std::logic_error(
@@ -1805,7 +1801,7 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
    else
     is->get_var_direction();
 
-   LastSolution = Inf<Index>();
+   LastSolution = Inf< Index >();
    }
   }
  else {  // a linearization of the global pool - - - - - - - - - - - - - - - -
@@ -1844,10 +1840,10 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
  // the solution shall be written in the Variable of the Block - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( name == Inf<Index>() ) {  // the last computed linearization- - - - - - -
+ if( name == Inf< Index >() ) {  // the last computed linearization- - - - - - -
 
   // get solution/direction from the solver
-  if( LastSolution != Inf<Index>() ) {  // ... if necessary
+  if( LastSolution != Inf< Index >() ) {  // ... if necessary
    auto is = inner_Solver();
    if( ! is )
     throw( std::logic_error(
@@ -1874,7 +1870,7 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
    else
     is->get_var_direction();
 
-   LastSolution = Inf<Index>();
+   LastSolution = Inf< Index >();
    }
   }
  else {  // a linearization of the global pool - - - - - - - - - - - - - - - -
@@ -1911,10 +1907,10 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
 
 Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
 {
- if( name == Inf<Index>() ) {  // the last computed linearization- - - - - - -
+ if( name == Inf< Index >() ) {  // the last computed linearization- - - - - - -
 
   // get solution/direction from the solver
-  if( LastSolution != Inf<Index>() ) {  // ... if necessary
+  if( LastSolution != Inf< Index >() ) {  // ... if necessary
    auto is = inner_Solver();
    if( ! is )
     throw( std::logic_error(
@@ -1941,7 +1937,7 @@ Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
    else
     is->get_var_direction();
 
-   LastSolution = Inf<Index>();
+   LastSolution = Inf< Index >();
    }
   }
  else {  // a linearization of the global pool - - - - - - - - - - - - - - - -
@@ -2078,7 +2074,7 @@ void LagBFunction::get_MatDesc( int * Abeg , int * Aind , double * Aval ,
 {
  // important note: the order of the variables in CostMatrix is *not* the
  // original order of the columns, which is how A here need be provided,
- // but rather the order of which they are in obj; not all of the varable
+ // but rather the order of which they are in obj; not all of the variable
  // may be in obj, which means they do not appear in A anywhere (for
  // otherwise they would have been forcibly added to obj), which means
  // that the corresponding column in A is empty
@@ -2234,13 +2230,13 @@ void LagBFunction::add_to_CostMatrix( v_c_dual_pair & newdp )
      CostMatrix.push_back( col_pair() );
      CostMatrix.back().first = 0;                   // c_j = 0
      CostMatrix.back().second.push_back( y_pair );  // add < y_i , a_{ij} >
-     j = Inf<Index>();
+     j = Inf< Index >();
      }
     else
      j = nv + std::distance( v_tmpCP.begin() , it );
     }
 
-   if( j < Inf<Index>() ) {
+   if( j < Inf< Index >() ) {
     // x_j was there already in CostMatrix, although possibly not in obj
     // find the place of < y_i , a_{ij} > in A_j; again, recall that the
     // name of y_i is LagPairs.size() + i
@@ -2310,13 +2306,13 @@ void LagBFunction::mod_CostMatrix( Index i , Index first )
     CostMatrix.push_back( col_pair() );
     CostMatrix.back().first = 0;                   // c_j = 0
     CostMatrix.back().second.push_back( y_pair );  // add < y_i , a_{ij} >
-    j = Inf<Index>();
+    j = Inf< Index >();
     }
    else
     j = nv + std::distance( v_tmpCP.begin() , it );
    }
 
-  if( j < Inf<Index>() ) {
+  if( j < Inf< Index >() ) {
    // x_j was there already in CostMatrix, although possibly not in obj
    // find the place of < y_i , a_{ij} > in A_j
    auto it = std::lower_bound( CostMatrix[ j ].second.begin() ,
@@ -2346,7 +2342,7 @@ void LagBFunction::guts_of_destructor( bool deleteinner )
 
  clear();
 
- // cleanup and poossibly delete the inner Block - - - - - - - - - - - - - - -
+ // cleanup and possibly delete the inner Block - - - - - - - - - - - - - - -
 
  if( ! v_Block.empty() ) {  // ... if any
   // the inner Block is orphan
@@ -2448,9 +2444,10 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
     // linearizations ( g , \alpha ) have to be computed again since
     // c has changed (while g remains unchanged)
     if( f_Observer )
-     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
-				     C05FunctionMod::AlphaChanged , Subset() ,
-				     1 , NaN , true ) , chnl );
+     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
+                                    this , C05FunctionMod::AlphaChanged ,
+                                    Subset() , 1 , NaN , true ) ,
+                                   chnl );
     return( 0 );  // all done
 
     }  // end( coming from obj )
@@ -2523,9 +2520,10 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
     // linearizations ( g , \alpha ) have to be computed again since
     // c has changed (while g remains unchanged)
     if( f_Observer )
-     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
-				     C05FunctionMod::AlphaChanged , Subset() ,
-				     1 , NaN , true ) , chnl );
+     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
+                                    this , C05FunctionMod::AlphaChanged ,
+                                    Subset() , 1 , NaN , true ) ,
+                                   chnl );
     return( 0 );  // all done
 
     }  // end( coming from qobj )
@@ -2554,9 +2552,10 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
     // linearizations ( g , \alpha ) have to be computed again since
     // c has changed (while g remains unchanged)
     if( f_Observer )
-     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
-				   C05FunctionMod::AlphaChanged , Subset() ,
-				   1 , NaN , true ) , chnl );
+     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
+                                    this , C05FunctionMod::AlphaChanged ,
+                                    Subset() , 1 , NaN , true ) ,
+                                   chnl );
     return( 0 );  // all done
 
     }  // end( coming from obj )
@@ -2629,9 +2628,10 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
     // linearizations ( g , \alpha ) have to be computed again since
     // c has changed (while g remains unchanged)
     if( f_Observer )
-     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
-				   C05FunctionMod::AlphaChanged , Subset() ,
-				   1 , NaN , true ) , chnl );
+     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
+                                    this , C05FunctionMod::AlphaChanged ,
+                                    Subset() , 1 , NaN , true ) ,
+                                   chnl );
     return( 0 );  // all done
 
     }  // end( coming from qobj )
@@ -2656,9 +2656,10 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
     // linearizations ( g , \alpha ) have to be computed again since
     // c has changed (while g remains unchanged)
     if( f_Observer )
-     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
-				     C05FunctionMod::AlphaChanged , Subset() ,
-				     1 , NaN , true ) , chnl );
+     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
+                                    this , C05FunctionMod::AlphaChanged ,
+                                    Subset() , 1 , NaN , true ) ,
+                                   chnl );
     return( 0 );  // all done
     }
 
@@ -2680,9 +2681,10 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
     // linearizations ( g , \alpha ) have to be computed again since
     // c has changed (while g remains unchanged)
     if( f_Observer )
-     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
-				     C05FunctionMod::AlphaChanged , Subset() ,
-				     1 , NaN , true ) , chnl );
+     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
+                                    this , C05FunctionMod::AlphaChanged ,
+                                    Subset() , 1 , NaN , true ) ,
+                                   chnl );
     return( 0 );  // all done
     }
 
@@ -2714,10 +2716,10 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
    // NothingChanged, what() == 1 and the very same shift() == c'_0 - c_0
 
    if( f_Observer )
-    f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
-				      C05FunctionMod::NothingChanged ,
-				      Subset() , 1 , tmod->shift() , true ) ,
-				  chnl );
+    f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
+                                   this , C05FunctionMod::NothingChanged ,
+                                   Subset() , 1 , tmod->shift() , true ) ,
+                                  chnl );
    return( 0 );  // all done
 
    }  // end( if( from obj ) )
@@ -2730,10 +2732,10 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
    // NothingChanged, what() == 1 and the very same shift() == c'_0 - c_0
 
    if( f_Observer )
-    f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
-				      C05FunctionMod::NothingChanged ,
-				      Subset() , 1 , tmod->shift() , true ) ,
-				  chnl );
+    f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
+                                   this , C05FunctionMod::NothingChanged ,
+                                   Subset() , 1 , tmod->shift() , true ) ,
+                                  chnl );
    return( 0 );  // all done
 
    }  // end( if( from qobj ) )
@@ -2750,10 +2752,10 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
     // with type() == NothingChanged, what() == 1 and the very same shift()
 
     if( f_Observer )
-     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
-				      C05FunctionMod::NothingChanged ,
-				      Subset() , 1 , tmod->shift() , true ) ,
-				   chnl );
+     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
+                                    this , C05FunctionMod::NothingChanged ,
+                                    Subset() , 1 , tmod->shift() , true ) ,
+                                   chnl );
     }
    else {  // an unpredictable change in an Objective
     // issue a LagBFunctionMod modification of the type AlphaChanged and
@@ -2762,10 +2764,10 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
     // linearizations ( g , \alpha ) have to be computed again since
     // c has changed (while g remains unchanged)
     if( f_Observer )
-     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
-				                C05FunctionMod::AlphaChanged ,
-					        Subset() , 1 , NaN , true ) ,
-				   chnl );
+     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
+                                    this , C05FunctionMod::AlphaChanged ,
+                                    Subset() , 1 , NaN , true ) ,
+                                   chnl );
      }
 
    return( 0 );  // in either case, all is done
@@ -2825,7 +2827,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
   // if shift() > 0 and RHS == +INF or shift() < 0 and LHS == -INF,
   // otherwise in principle it can be violated and we need to check
   if( auto cnsobs = dynamic_cast< FRowConstraint * >( f->get_Observer() ) )
-   if( ( ( tmod->shift() > 0 ) && ( cnsobs->get_rhs() < INF ) ) ||
+   if( ( ( tmod->shift() > 0 ) && ( cnsobs->get_rhs() <  INF ) ) ||
        ( ( tmod->shift() < 0 ) && ( cnsobs->get_lhs() > -INF ) ) ) {
     f_Lc = -1;    // yet, the Lipschitz constant must be recomputed
     return( 0 );
@@ -2875,9 +2877,10 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
     // linearizations ( g , \alpha ) have to be computed again since
     // c has changed (while g remains unchanged)
     if( f_Observer )
-     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
-				     C05FunctionMod::AlphaChanged , Subset() ,
-				     1 , NaN , true ) , chnl );
+     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
+                                    this , C05FunctionMod::AlphaChanged , Subset() ,
+                                    1 , NaN , true ) ,
+                                   chnl );
     return( 0 );  // all done
 
     }  // end( coming from obj )
@@ -2925,9 +2928,10 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
     // linearizations ( g , \alpha ) have to be computed again since
     // c has changed (while g remains unchanged)
     if( f_Observer )
-     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
-				     C05FunctionMod::AlphaChanged , Subset() ,
-				     1 , NaN , true ) , chnl );
+     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
+                                    this , C05FunctionMod::AlphaChanged , Subset() ,
+                                    1 , NaN , true ) ,
+                                   chnl );
     return( 0 );  // all done
 
     }  // end( coming from qobj )
@@ -2955,9 +2959,10 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
     // linearizations ( g , \alpha ) have to be computed again since c has
     // changed (while g remains unchanged)
     if( f_Observer )
-     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
-				     C05FunctionMod::AlphaChanged , Subset() ,
-				     1 , NaN , true ) , chnl );
+     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
+                                    this , C05FunctionMod::AlphaChanged ,
+                                    Subset() , 1 , NaN , true ) ,
+                                   chnl );
     return( 0 );  // all done
 
     }  // end( coming from obj )
@@ -3043,9 +3048,10 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
     // linearizations ( g , \alpha ) have to be computed again since c has
     // changed (while g remains unchanged)
     if( f_Observer )
-     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
-				     C05FunctionMod::AlphaChanged , Subset() ,
-				     1 , NaN , true ) , chnl );
+     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
+                                    this , C05FunctionMod::AlphaChanged ,
+                                    Subset() , 1 , NaN , true ) ,
+                                   chnl );
     return( 0 );  // all done
 
     }  // end( coming from qobj )
@@ -3071,9 +3077,10 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
     // linearizations ( g , \alpha ) have to be computed again since
     // c has changed (while g remains unchanged)
     if( f_Observer )
-     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
-				     C05FunctionMod::AlphaChanged , Subset() ,
-				     1 , NaN , true ) , chnl );
+     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
+                                    this , C05FunctionMod::AlphaChanged ,
+                                    Subset() , 1 , NaN , true ) ,
+                                   chnl );
     return( 0 );  // all done
 
     }  // end( coming from obj )
@@ -3159,9 +3166,10 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
     // linearizations ( g , \alpha ) have to be computed again since
     // c has changed (while g remains unchanged)
     if( f_Observer )
-     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
-				     C05FunctionMod::AlphaChanged , Subset() ,
-				     1 , NaN , true ) , chnl );
+     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
+                                    this , C05FunctionMod::AlphaChanged ,
+                                    Subset() , 1 , NaN , true ) ,
+                                   chnl );
     return( 0 );  // all done
 
     }  // end( coming from qobj )
@@ -3196,9 +3204,10 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
    // linearizations ( g , \alpha ) have to be computed again since
    // c has changed (while g remains unchanged)
    if( f_Observer )
-    f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
-				    C05FunctionMod::AlphaChanged , Subset() ,
-				    1 , NaN , true ) , chnl );
+    f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
+                                   this , C05FunctionMod::AlphaChanged ,
+                                   Subset() , 1 , NaN , true ) ,
+                                  chnl );
    return( 0 );  // all done
 
    }  // end( if( from the Objective of a further sub-Block ) )
@@ -3208,7 +3217,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
   // in theory, adding Variable should not violate the Constraint ...
   // but this is only true if, say, the Constraint is linear and the
   // [Col]Variable are allowed to take the value 0. since we have no
-  // way of knowing wether or not this is true, we have to assume it is not
+  // way of knowing whether or not this is true, we have to assume it is not
   return( 4 );
 
   }  // end( FunctionModVars )
@@ -3315,13 +3324,13 @@ void LagBFunction::update_CostMatrix_ModLinRngd( const v_coeff_pair & rc ,
  // note that one may think to update the corresponding Range of original
  // costs by adding delta(), but this would be wrong because delta() is
  // computed w.r.t. the last value of the costs, which is in general a
- // Lagrangian one. one may alernatively think to just mark the cost as in
+ // Lagrangian one. one may alternatively think to just mark the cost as in
  // need for refreshing and do it later (say, in compute()), but this would
  // be wrong as well because the costs that have *not* been changed are the
  // Lagrangian ones, and one would end up "fixing" them as the true costs.
  // hence, the only option is to read the costs now (since the Modification
  // is the only place where the information about which costs have actually
- // changed is), although reading the costs from obj is nontrovial since the
+ // changed is), although reading the costs from obj is nontrivial since the
  // Range may not be current if Variable have been added/deleted
 
  f_dirty_Lc = true;  // Lagrangian costs will have to be recomputed
@@ -3338,7 +3347,7 @@ void LagBFunction::update_CostMatrix_ModLinRngd( const v_coeff_pair & rc ,
   return;
   }
 
- // if Range is no longer current, it's compicated
+ // if Range is no longer current, it's complicated
  // however, note that CostMatrix is still "aligned" with the indices
  // found in the Modification, since if Variable have been added/removed
  // in obj by changes occurring prior to this the corresponding
@@ -3382,7 +3391,7 @@ void LagBFunction::update_CostMatrix_ModLinSbst( const v_coeff_pair & rc ,
  // note that one may think to update the corresponding Subset of original
  // costs by adding delta(), but this would be wrong because delta() is
  // computed w.r.t. the last value of the costs, which is in general a
- // Lagrangian one. one may alernatively think to just mark the cost as in
+ // Lagrangian one. one may alternatively think to just mark the cost as in
  // need for refreshing and do it later (say, in compute()), but this would
  // be wrong as well because the costs that have *not* been changed are the
  // Lagrangian ones, and one would end up "fixing" them as the true costs.
@@ -3405,7 +3414,7 @@ void LagBFunction::update_CostMatrix_ModLinSbst( const v_coeff_pair & rc ,
   return;
   }
 
- // if Subset is no longer current, it's compicated
+ // if Subset is no longer current, it's complicated
  // however, note that CostMatrix is still "aligned" with the indices found
  // in the Modification, since if Variable have been added/removed in obj by
  // changes occurring prior to this the corresponding Modification have been

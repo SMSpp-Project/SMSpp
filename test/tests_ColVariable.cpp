@@ -1,12 +1,11 @@
 /** @file
  * Unit tests for Variable and ColVariable.
  *
- * \author Niccolò Iardella \n
- *         Operations Research Group \n
+ * \author Niccolo' Iardella \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Niccolò Iardella
+ * \copyright &copy; by Niccolo' Iardella
  */
 
 #include <gtest/gtest.h>
@@ -125,10 +124,14 @@ TEST( ColVariableTest, IsFeasible) {
  var.set_type( ColVariable::kNatural );
  ASSERT_TRUE(var.is_feasible());
 }
+
 /*--------------------------------------------------------------------------*/
-/*---------------------------------- MAIN ----------------------------------*/
-/*--------------------------------------------------------------------------*/
+
 int main( int argc, char ** argv ) {
  ::testing::InitGoogleTest( &argc, argv );
- return RUN_ALL_TESTS();
+ return( RUN_ALL_TESTS() );
 }
+
+/*--------------------------------------------------------------------------*/
+/*--------------------- End File tests_ColVariable.cpp ---------------------*/
+/*--------------------------------------------------------------------------*/

@@ -15,14 +15,14 @@
 #          keep it in mind when editing it.                                   #
 #                                                                             #
 #                              Niccolo' Iardella                              #
-#                          Operations Research Group                          #
+#                                Donato Meoli                                 #
 #                         Dipartimento di Informatica                         #
 #                             Universita' di Pisa                             #
 # --------------------------------------------------------------------------- #
 cmake_minimum_required(VERSION 3.12)
 cmake_policy(VERSION 3.12)
 project(SMS++
-        VERSION 0.5.0
+        VERSION 0.5.2
         DESCRIPTION "SMS++ core library"
         HOMEPAGE_URL https://gitlab.com/smspp/smspp
         LANGUAGES C CXX)
@@ -49,8 +49,7 @@ include(CTest)
 include(BuildType)
 
 # ----- Requirements -------------------------------------------------------- #
-# The Boost find module is provided by CMake,
-# so this command will always work.
+# The Boost find module is provided by CMake.
 find_package(Boost 1.72.0 REQUIRED)
 
 # Try first with library's own configuration file, then with our find module.
@@ -60,9 +59,15 @@ if (NOT Eigen3_FOUND)
 endif ()
 
 # Try first with library's own configuration file, then with our find module.
-find_package(netCDFCxx QUIET NO_MODULE)
+if (UNIX)
+    find_package(netCDFCxx QUIET NO_MODULE)
+endif ()
 if (NOT netCDFCxx_FOUND)
     find_package(netCDFCxx REQUIRED)
+endif ()
+
+if (NOT getopt_FOUND)
+    find_package(getopt REQUIRED)
 endif ()
 
 # ----- Configuration header ------------------------------------------------ #
@@ -133,6 +138,7 @@ target_include_directories(
 # library, INTERFACE means they will be linked only to the targets that depend
 # on this library.
 target_link_libraries(${modName} PUBLIC
+                      getopt
                       Boost::boost
                       Eigen3::Eigen
                       netCDF::netCDFCxx)
@@ -222,7 +228,7 @@ endif ()
 # Using this with the umbrella project is too messy.
 if (NOT hasParent)
     set(CPACK_PACKAGE_VENDOR "SMS++ Team")
-    set(CPACK_PACKAGE_CONTACT "Niccolò Iardella")
+    set(CPACK_PACKAGE_CONTACT "Niccolo' Iardella")
     set(CPACK_PACKAGE_DESCRIPTION_SUMMARY ${PROJECT_DESCRIPTION})
     set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_LIST_DIR}/LICENSE")
     set(CPACK_RESOURCE_FILE_README "${CMAKE_CURRENT_LIST_DIR}/README.md")

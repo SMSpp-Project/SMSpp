@@ -18,7 +18,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Antonio Frangioni
+ * \copyright &copy; by Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -168,7 +168,7 @@ class Solver : public ThinComputeInterface
   *   solution ...) is highly dependent on the nature of the problem solved,
   *   and therefore it is not possible to provide a specific method for that
   *   in the general interface (not to mention that certificates of optimality
-  *   may be explonentially large). Yet, this is not the only "success"
+  *   may be exponentially large). Yet, this is not the only "success"
   *   value, cf. kUnbounded and kInfeasible.
   *
   * - kError is a general value for "something has gone very wrong", which
@@ -242,7 +242,7 @@ class Solver : public ThinComputeInterface
   * process. An *exact* solver will always eventually return kOK / kUnbounded
   * / kInfeasible (although "eventually" may be after the thermal death of the
   * universe) given enough resources, unless an error occurs, but not all
-  * problems are decidable and therefore allow an extact Solver. */
+  * problems are decidable and therefore allow an exact Solver. */
 
   kBlockLocked = kError + 1 ,  ///< could not acquire the lock on the Block
                   /**< compute() needed to lock the Block to work, but
@@ -365,7 +365,7 @@ class Solver : public ThinComputeInterface
   *
   * The roles of ub and lb are suitably reversed for a maximization problem
   * [see the comments to get_ub(), get_lb() and Objective::set_sense()]. The
-  * default is Inf<OFValue>(), which is intended to mean that the only working
+  * default is Inf< OFValue >(), which is intended to mean that the only working
   * accuracy is the relative one. */
 
   dblUpCutOff ,  ///< upper cutoff for stopping the algorithm
@@ -387,7 +387,7 @@ class Solver : public ThinComputeInterface
   * actually needed a solution with objective function value at least as
   * good as (i.e., smaller than) \eps, now that I have know for sure that
   * this is never going to happen the problem is as good as unfeasible to me.
-  * The default is Inf<OFValue>(). */
+  * The default is Inf< OFValue >(). */
 
   dblLwCutOff ,  ///< lower cutoff for stopping the algorithm
                  /**< The algorithmic parameter for setting the "lower cut 
@@ -408,7 +408,7 @@ class Solver : public ThinComputeInterface
   * actually needed a solution with objective function value at least as
   * good as (i.e., larger than) \eps, now that I have know for sure that
   * this is never going to happen the problem is as good as unfeasible to me.
-  * The default is - Inf<OFValue>(). */
+  * The default is - Inf< OFValue >(). */
 
   dblRAccSol ,   ///< maximum relative error in any reported solution
                  /**< The algorithmic parameter for setting the relative
@@ -428,7 +428,7 @@ class Solver : public ThinComputeInterface
   *
   * where fbest is the value of the best (with smallest objective value)
   * solution found so far. The roles of ub and lb are suitably reversed for
-  * a maximization problem. The default is Inf<OFValue>(). */
+  * a maximization problem. The default is Inf< OFValue >(). */
 
   dblAAccSol ,   ///< maximum absolute error in any reported solution
                  /**< Similar to dblRAccSol but for an *absolute* accuracy;
@@ -442,12 +442,12 @@ class Solver : public ThinComputeInterface
   *    ub - fbest <= \eps
   *
   * with the same notation as in dblRAccSol and the same provisions about the
-  * case of a maximization problem. The default is Inf<OFValue>(). */
+  * case of a maximization problem. The default is Inf< OFValue >(). */
 
   dblFAccSol ,   ///< maximum constraint violation in any reported solution
                  /**< The algorithmic parameter for setting the maximum
                   * relative allowed violation of constraints. Whenever the
-  * Solver is uncapable of finding feasible solutions (maybe because there is
+  * Solver is incapable of finding feasible solutions (maybe because there is
   * none), it may still be useful that it returns the "least unfeasible" ones.
   * This parameter instructs the Solver not to even consider a solution among
   * the ones to be reported (see intMaxSol) if its violation is "too" bad.
@@ -567,8 +567,8 @@ class Solver : public ThinComputeInterface
   *     SMSpp_insert_in_factory_cpp_0( ( name_of_the_class ) );
   *
   * Any whitespaces that the given \p classname may contain is ignored. So,
-  * for example, to create an instance of the class MySolver<int> one could
-  * pass "MySolver<int>" or "MySolver< int >" (even " M y S o l v e r < int >
+  * for example, to create an instance of the class MySolver< int > one could
+  * pass "MySolver< int >" or "MySolver< int >" (even " M y S o l v e r < int >
   * " would work).
   *
   * @param classname The name of the :Solver class that must be
@@ -622,7 +622,7 @@ class Solver : public ThinComputeInterface
  *   to bunch a block of them under the same lock/unlock stretch to
  *   improve performances;
  *
- * - there can be cases when one can be 100% sure that no other thread/entiy
+ * - there can be cases when one can be 100% sure that no other thread/entity
  *   can possibly operate on the Solver, either because the overall
  *   application is rigidly single-threaded, or because the Solver can only
  *   be accessed via a rigidly controlled access point (for instance, the
@@ -679,7 +679,7 @@ class Solver : public ThinComputeInterface
  /** Method to set the (pointer to the) Block that the Solver has to solve.
   * If there were any other block attached to Block this Solver, any
   * information about solutions to the previous Block the Solver had
-  * computed is lost for good. This is one reasin why the method is virtual:
+  * computed is lost for good. This is one reason why the method is virtual:
   * derived classes may need to do more to reach to such an abrupt change.
   * In general, a :Solver may have to (lock and) read (data from) the Block
   * to be stored in its internal data structures, hence this method is
@@ -877,7 +877,7 @@ class Solver : public ThinComputeInterface
   * kUnbounded, corresponding respectively to the case that the Solver
   * *proves* the problem to be infeasible and unbounded, are also "kOK-type"
   * return codes. Different Solver may be able to provide some further
-  * information about certificates of optimality, unboundendness or
+  * information about certificates of optimality, unboundedness or
   * infeasibility, and more functionalities can be expected to exist in the
   * derived classes about this.
   *
@@ -991,9 +991,9 @@ class Solver : public ThinComputeInterface
   *
   * For a minimization problem, get_lb() returns:
   *
-  * - - Inf<OFValue> if compute() returned kUnbounded.
+  * - - Inf< OFValue > if compute() returned kUnbounded.
   *
-  * - Inf<OFValue> if compute() returned kInfeasible.
+  * - Inf< OFValue > if compute() returned kInfeasible.
   *
   * - A finite value if compute() returned kOK. Since the lower bound for a
   *   minimization problem is not attached to a solution in terms of the
@@ -1002,14 +1002,14 @@ class Solver : public ThinComputeInterface
   *   lower bound is attached to a *dual* solution, but this concept is not
   *   general enough to be supported in the base class [see CDASolver.h].
   *
-  * - any value, comprised - Inf<OFValue> (meaning that no lower bound is
+  * - any value, comprised - Inf< OFValue > (meaning that no lower bound is
   *   currently available), if compute() returned any other value.
   *
   * For a maximization problem, get_lb() returns:
   *
-  * - Inf<OFValue> if compute() returned kUnbounded.
+  * - Inf< OFValue > if compute() returned kUnbounded.
   *
-  * - - Inf<OFValue> if compute() returned kInfeasible.
+  * - - Inf< OFValue > if compute() returned kInfeasible.
   *
   * - A finite value if compute() returned kOK. Since the lower bound for a
   *   maximization problem is typically attached to a feasible solution,
@@ -1041,17 +1041,17 @@ class Solver : public ThinComputeInterface
   *   returned by get_lb() may (necessarily have to) be different from their
   *   objective function value.
   *
-  * - Any value, comprised - Inf<OFValue> (meaning that no lower bound is
+  * - Any value, comprised - Inf< OFValue > (meaning that no lower bound is
   *   currently available), if compute() returned any other value. However,
   *   whatever the return status of compute(), the returned value should
   *   always be a valid lower bound.
   *
-  * The method is given an implementation returning -Inf<OFValue>(), which
+  * The method is given an implementation returning -Inf< OFValue >(), which
   * should be safe for any derived classes which simply don't have the
   * concept of real objective function. */
 
  [[nodiscard]] virtual OFValue get_lb( void ) {
-  return( -Inf< OFValue >() );
+  return( - Inf< OFValue >() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1063,9 +1063,9 @@ class Solver : public ThinComputeInterface
   *
   * For a maximization problem, get_ub() returns:
   *
-  * - Inf<OFValue> if compute() returned kUnbounded.
+  * - Inf< OFValue > if compute() returned kUnbounded.
   *
-  * - - Inf<OFValue> if compute() returned kInfeasible.
+  * - - Inf< OFValue > if compute() returned kInfeasible.
   *
   * - A finite value if compute() returned kOK. Since the upper bound for a
   *   maximization problem is not attached to a solution in terms of the
@@ -1074,14 +1074,14 @@ class Solver : public ThinComputeInterface
   *   upper bound is attached to a *dual* solution, but this concept is not
   *   general enough to be supported in the base class [see CDASolver.h].
   *
-  * - any value, comprised Inf<OFValue> (meaning that no upper bound is
+  * - any value, comprised Inf< OFValue > (meaning that no upper bound is
   *   currently available), if compute() returned any other value.
   *
   * For a minimization problem, get_ub() returns:
   *
-  * - - Inf<OFValue> if compute() returned kUnbounded.
+  * - - Inf< OFValue > if compute() returned kUnbounded.
   *
-  * - Inf<OFValue> if compute() returned kInfeasible.
+  * - Inf< OFValue > if compute() returned kInfeasible.
   *
   * - A finite value if compute() returned kOK. Since the upper bound for a
   *   minimization problem is typically attached to a feasible solution,
@@ -1120,12 +1120,12 @@ class Solver : public ThinComputeInterface
   *   value returned by get_ub() may (necessarily have to) be different from
   *   their objective function value.
   *
-  * - Any value, comprised Inf<OFValue> (meaning that no upper bound is
+  * - Any value, comprised Inf< OFValue > (meaning that no upper bound is
   *   currently available), if compute() returned any other value. However,
   *   whatever the return status of compute(), the returned value should
   *   always be a valid upper bound.
   *
-  * The method is given an implementation returning Inf<OFValue>(), which
+  * The method is given an implementation returning Inf< OFValue >(), which
   * should be safe for any derived classes which simply don't have the
   * concept of real objective function. */
 
@@ -1228,7 +1228,7 @@ class Solver : public ThinComputeInterface
   * (say, write it to a file or separate a Variable / Constraint out of it).
   * For this to happen one must be sure that the solution information has not
   * been accidentally rewritten by some other Solver, and therefore the lock
-  * on the Block must be kept for all the time in which the soution
+  * on the Block must be kept for all the time in which the solution
   * information is useful to the user. Hence the lock must be acquired prior
   * to calling get_var_solution(). It might in principle make sense to have
   * a separate lock for solution information, but this is not currently
@@ -1240,7 +1240,7 @@ class Solver : public ThinComputeInterface
   * in the format that the Variable of the Block require may be somewhat
   * costly. This is in particular true because a solution may involve a rather
   * large amount of data. In some cases, not all that data is actually
-  * necessary, as only "a part" of the solution migt be enough (say, that
+  * necessary, as only "a part" of the solution might be enough (say, that
   * which is required to separate one given family of valid inequalities).
   * This is why support is offered in the method to only retrieve "a part" of
   * the current solution by means of a (pointer to a) Configuration object.
@@ -1375,7 +1375,7 @@ class Solver : public ThinComputeInterface
   * provide a specific method for that in the general interface. This method
   * is a completely general way to exploit this information and therefore it
   * can be added to the general interface, but it can be expected that
-  * specialied Solver will offer their own specific ways to access to the
+  * specialized Solver will offer their own specific ways to access to the
   * unboundedness certificates. A (largish) step in this direction is
   * provided by the [has/get/new]_var_direction() methods. */
 
@@ -1384,7 +1384,7 @@ class Solver : public ThinComputeInterface
 /*--------------------------------------------------------------------------*/
  /// tells whether an unbounded direction is available
  /** A call to compute() that returned kUnbounded supposedly mean that the 
-  * Solver can guarante that it is always possible to find feasible
+  * Solver can guarantee that it is always possible to find feasible
   * solutions whose value is "better" than any given threshold. For many
   * models, this means that there exist an unbounded [a/de]scent direction,
   * i.e., a direction along which one may go forever without leaving the
@@ -1443,8 +1443,8 @@ class Solver : public ThinComputeInterface
   * See the comments to get_var_solution() about the need of lock()-ing the
   * Block prior to calling this method, which of course apply verbatim here.
   *
-  * Note that, while the largest burden of producing a directon is typically
-  * bore by compute() and/or new_var_directon(), it is still possible that
+  * Note that, while the largest burden of producing a direction is typically
+  * bore by compute() and/or new_var_direction(), it is still possible that
   * "decoding" the internal information of the CDASolver in order to produce
   * one in the proper format that the Variables of the Block require may be
   * somewhat costly. This is why, as in get_var_solution(), a (pointer to a)

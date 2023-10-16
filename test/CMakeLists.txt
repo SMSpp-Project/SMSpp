@@ -1,5 +1,5 @@
 # --------------------------------------------------------------------------- #
-#    CMake file for unit tests                                                #
+#    CMake file for SMS++/test                                                #
 #                                                                             #
 #    In this file we define the unit tests for this library.                  #
 #    Tests that should be supported by ctest executable must be added         #
@@ -9,7 +9,7 @@
 #          keep it in mind when editing it.                                   #
 #                                                                             #
 #                              Niccolo' Iardella                              #
-#                          Operations Research Group                          #
+#                                Donato Meoli                                 #
 #                         Dipartimento di Informatica                         #
 #                             Universita' di Pisa                             #
 # --------------------------------------------------------------------------- #
@@ -66,3 +66,5 @@ foreach (CLASS ${CLASSES})
 
     add_test(NAME ${CLASS}_test COMMAND ${CLASS}_test)
 endforeach ()
+
+# --------------------------------------------------------------------------- #

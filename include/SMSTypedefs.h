@@ -31,7 +31,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
+ * \copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -113,7 +113,7 @@ typedef const c_Vec_string::const_iterator c_Vec_string_it;
 ///< iterator for a c_Vec_string
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-/// Inf<T>() = infinity value for T
+/// Inf< T >() = infinity value for T
 
 template< typename T >
 static constexpr T Inf( void ) noexcept {
@@ -192,11 +192,11 @@ typedef const Vec_p_Var c_Vec_p_Var;
 
 template< std::size_t K >
 using KD_Vec_p_Var = boost::multi_array< p_Var , K >;
-///< Vec_p_Var<K> is a K-D vector of pointer to Variable
+///< Vec_p_Var< K > is a K-D vector of pointer to Variable
 
 template< std::size_t K >
 using KD_c_Vec_p_Var = const boost::multi_array< p_Var , K >;
-///< c_Vec_p_Var<K> is a const K-D vector of pointer to Variable
+///< c_Vec_p_Var< K > is a const K-D vector of pointer to Variable
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
@@ -220,11 +220,11 @@ typedef const Vec_List_p_Var c_Vec_List_p_Var;
 
 template< std::size_t K >
 using KD_Vec_List_p_Var = boost::multi_array< List_p_Var , K >;
-///< Vec_List_p_Var<K> is a K-D vector of lists of Variable *
+///< Vec_List_p_Var< K > is a K-D vector of lists of Variable *
 
 template< std::size_t K >
 using KD_c_Vec_List_p_Var = const boost::multi_array< List_p_Var , K >;
-///< c_Vec_List_p_Var<K> is a const K-D vector of lists of Variable *
+///< c_Vec_List_p_Var< K > is a const K-D vector of lists of Variable *
 
 
 /** @} end( group( Variable_TYPES ) ) */
@@ -251,11 +251,11 @@ typedef const Vec_p_Const c_Vec_p_Const;
 
 template< std::size_t K >
 using KD_Vec_p_Const = boost::multi_array< p_Const , K >;
-///< Vec_p_Const<K> is a K-D vector of pointer to Constraint
+///< Vec_p_Const< K > is a K-D vector of pointer to Constraint
 
 template< std::size_t K >
 using KD_c_Vec_p_Const = const boost::multi_array< p_Const , K >;
-///< c_Vec_p_Const<K> is a const K-D vector of pointer to Constraint
+///< c_Vec_p_Const< K > is a const K-D vector of pointer to Constraint
 
 typedef std::list< p_Const > List_p_Const;
 ///< a list of pointers to Constraint (Constraint *)
@@ -277,11 +277,11 @@ typedef const Vec_List_p_Const c_Vec_List_p_Const;
 
 template< std::size_t K >
 using KD_Vec_List_p_Const = boost::multi_array< List_p_Const , K >;
-///< Vec_List_p_Const<K> is a K-D vector of lists of Constraint *
+///< Vec_List_p_Const< K > is a K-D vector of lists of Constraint *
 
 template< std::size_t K >
 using KD_c_Vec_List_p_Const = const boost::multi_array< List_p_Const , K >;
-///< c_Vec_List_p_Const<K> is a const K-D vector of lists of Constraint *
+///< c_Vec_List_p_Const< K > is a const K-D vector of lists of Constraint *
 
 /** @} end( group( Constraint_TYPES ) ) */
 /*--------------------------------------------------------------------------*/
@@ -379,7 +379,7 @@ namespace SMSpp_type_traits
  * name which contains parentheses. To obtain the right type of any class
  * "ClassName" within these macros, one can do the following:
  *
- *     SMSpp_type_traits::t< void( ClassName ) >::type
+ *     SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type
  *
  * where ClassName is the parameter of the macro. For instance, the class
  *
@@ -497,13 +497,13 @@ inline std::string && SMSpp_classname_normalise( std::string && str ) {
  *     THE ONE THAT IS USED TO INDEX THE FACTORY, IS STRIPPED OF ANY
  *     WHITESPACE AND ENCLOSING PARENTHESES. For instance, a template class
  *     like MyBlock< std::pair< int , int > > gets name
- *     "MyBlock<std::pair<int,int>>" (which is syntactically wrong due to
+ *     "MyBlock< std::pair< int , int > >" (which is syntactically wrong due to
  *     the closing ">>" instead of "> >", but after all it is ony a string).
  *     This makes it possible to read it from a std::stream, where
  *     whitespaces are separators. If MyBlock derives from Block, it is then
  *     possible to create an object of class MyBlock with
  *
- *     new_Block( "MyBlock<std::pair<int,int>>" )
+ *     new_Block( "MyBlock< std::pair< int , int > >" )
  *
  *     Note that the implementation of Block::my_Block() automatically strips
  *     all the whitespaces from the input string, which means that
@@ -524,12 +524,12 @@ inline std::string && SMSpp_classname_normalise( std::string && str ) {
  *
  * must be registered in the factory by
  *
- *     SMSpp_insert_in_factory_cpp_1_t( ( MyBlock< std::pair<int , int> > ) );
+ *     SMSpp_insert_in_factory_cpp_1_t( ( MyBlock< std::pair< int , int > > ) );
  *
  * i.e., with at least one (possibly more, but there is no use in that) pair
  * of extra parentheses around the name of the class. For classes that do not
  * have commas in their names, the use of parentheses is optional. For
- * instance, the classes MyBlock and MyTBlock<int> could be registered in the
+ * instance, the classes MyBlock and MyTBlock< int > could be registered in the
  * factory by
  *
  *    SMSpp_insert_in_factory_cpp_1_t( MyBlock );
@@ -585,101 +585,117 @@ inline std::string && SMSpp_classname_normalise( std::string && str ) {
  * compile time; as C++-20 arrives most of std::algorithms will be
  * constexpr-able and therefore this will hopefully be possible. */
 
-#define SMSpp_insert_in_factory_cpp_0( ClassName )                           \
+// using ellipsis to take all preprocessor-tokens
+#define SMSpp_insert_in_factory_cpp_0( ... )                                 \
  const std::string &                                                         \
- SMSpp_type_traits::t<void(ClassName)>::type::_private_name( void ) {        \
+ SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::_private_name( void ) {  \
   static const std::string _name( SMSpp_classname_normalise(                 \
-                                              std::string( #ClassName ) ) ); \
+                                            std::string( #__VA_ARGS__ ) ) ); \
   return( _name );                                                           \
   }                                                                          \
                                                                              \
  const std::string &                                                         \
- SMSpp_type_traits::t<void(ClassName)>::type::private_name( void ) const {   \
-  return( SMSpp_type_traits::t<void(ClassName)>::type::_private_name() );    \
+ SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::private_name( void )     \
+ const {                                                                     \
+  return(                                                                    \
+       SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::_private_name() ); \
   }                                                                          \
                                                                              \
- SMSpp_type_traits::t<void(ClassName)>::type::_init::_init( void ) {         \
-  f_factory()[SMSpp_type_traits::t<void(ClassName)>::type::_private_name()] =\
-    boost::factory< SMSpp_type_traits::t<void(ClassName)>::type * >();       \
-  SMSpp_type_traits::t<void(ClassName)>::type::static_initialization();      \
+ SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::_init::_init( void ) {   \
+  f_factory()[                                                               \
+   SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::_private_name() ] =    \
+    boost::factory< SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type * >(); \
+  SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::static_initialization();\
   }                                                                          \
                                                                              \
- SMSpp_type_traits::t<void(ClassName)>::type::_init                          \
- SMSpp_type_traits::t<void(ClassName)>::type::_initializer
+ SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::_init                    \
+ SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::_initializer
 
-#define SMSpp_insert_in_factory_cpp_1( ClassName )                           \
+// using ellipsis to take all preprocessor-tokens
+#define SMSpp_insert_in_factory_cpp_1( ... )                                 \
  const std::string &                                                         \
- SMSpp_type_traits::t<void(ClassName)>::type::_private_name( void ) {        \
+ SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::_private_name( void ) {  \
   static const std::string _name( SMSpp_classname_normalise(                 \
-                                              std::string( #ClassName ) ) ); \
+                                            std::string( #__VA_ARGS__ ) ) ); \
   return( _name );                                                           \
   }                                                                          \
                                                                              \
  const std::string &                                                         \
- SMSpp_type_traits::t<void(ClassName)>::type::private_name( void ) const {   \
-  return( SMSpp_type_traits::t<void(ClassName)>::type::_private_name() );    \
+ SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::private_name( void )     \
+ const {                                                                     \
+  return(                                                                    \
+       SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::_private_name() ); \
   }                                                                          \
                                                                              \
- SMSpp_type_traits::t<void(ClassName)>::type::_init::_init( void ) {         \
-  f_factory()[SMSpp_type_traits::t<void(ClassName)>::type::_private_name()] =\
-    boost::factory< SMSpp_type_traits::t<void(ClassName)>::type * >();       \
-  SMSpp_type_traits::t<void(ClassName)>::type::static_initialization();      \
+ SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::_init::_init( void ) {   \
+  f_factory()[                                                               \
+   SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::_private_name() ] =    \
+    boost::factory< SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type * >(); \
+  SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::static_initialization();\
   }                                                                          \
                                                                              \
- SMSpp_type_traits::t<void(ClassName)>::type::_init                          \
- SMSpp_type_traits::t<void(ClassName)>::type::_initializer
+ SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::_init                    \
+ SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::_initializer
 
-#define SMSpp_insert_in_factory_cpp_0_t( ClassName )                         \
+// using ellipsis to take all preprocessor-tokens
+#define SMSpp_insert_in_factory_cpp_0_t( ... )                               \
  template<>                                                                  \
  const std::string &                                                         \
- SMSpp_type_traits::t<void(ClassName)>::type::_private_name( void ) {        \
+ SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::_private_name( void ) {  \
   static const std::string _name( SMSpp_classname_normalise(                 \
-                                              std::string( #ClassName ) ) ); \
+                                            std::string( #__VA_ARGS__ ) ) ); \
   return( _name );                                                           \
   }                                                                          \
                                                                              \
  template<>                                                                  \
  const std::string &                                                         \
- SMSpp_type_traits::t<void(ClassName)>::type::private_name( void ) const {   \
-  return( SMSpp_type_traits::t<void(ClassName)>::type::_private_name() );    \
+ SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::private_name( void )     \
+ const {                                                                     \
+  return(                                                                    \
+       SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::_private_name() ); \
   }                                                                          \
                                                                              \
  template<>                                                                  \
- SMSpp_type_traits::t<void(ClassName)>::type::_init::_init( void ) {         \
-  f_factory()[SMSpp_type_traits::t<void(ClassName)>::type::_private_name()] =\
-    boost::factory< SMSpp_type_traits::t<void(ClassName)>::type * >();       \
-  SMSpp_type_traits::t<void(ClassName)>::type::static_initialization();      \
+ SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::_init::_init( void ) {   \
+  f_factory()[                                                               \
+   SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::_private_name() ] =    \
+    boost::factory< SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type * >(); \
+  SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::static_initialization();\
   }                                                                          \
                                                                              \
  template<>                                                                  \
- SMSpp_type_traits::t<void(ClassName)>::type::_init                          \
- SMSpp_type_traits::t<void(ClassName)>::type::_initializer{}
+ SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::_init                    \
+ SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::_initializer{}
 
-#define SMSpp_insert_in_factory_cpp_1_t( ClassName )                         \
+// using ellipsis to take all preprocessor-tokens
+#define SMSpp_insert_in_factory_cpp_1_t( ... )                               \
  template<>                                                                  \
  const std::string &                                                         \
- SMSpp_type_traits::t<void(ClassName)>::type::_private_name( void ) {        \
+ SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::_private_name( void ) {  \
   static const std::string _name( SMSpp_classname_normalise(                 \
-                                              std::string( #ClassName ) ) ); \
+                                            std::string( #__VA_ARGS__ ) ) ); \
   return( _name );                                                           \
   }                                                                          \
                                                                              \
  template<>                                                                  \
  const std::string &                                                         \
- SMSpp_type_traits::t<void(ClassName)>::type::private_name( void ) const {   \
-  return( SMSpp_type_traits::t<void(ClassName)>::type::_private_name() );    \
+ SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::private_name( void )     \
+ const {                                                                     \
+  return(                                                                    \
+       SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::_private_name() ); \
   }                                                                          \
                                                                              \
  template<>                                                                  \
- SMSpp_type_traits::t<void(ClassName)>::type::_init::_init( void ) {         \
-  f_factory()[SMSpp_type_traits::t<void(ClassName)>::type::_private_name()] =\
-    boost::factory< SMSpp_type_traits::t<void(ClassName)>::type * >();       \
-  SMSpp_type_traits::t<void(ClassName)>::type::static_initialization();      \
+ SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::_init::_init( void ) {   \
+  f_factory()[                                                               \
+   SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::_private_name() ] =    \
+    boost::factory< SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type * >(); \
+  SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::static_initialization();\
   }                                                                          \
                                                                              \
  template<>                                                                  \
- SMSpp_type_traits::t<void(ClassName)>::type::_init                          \
- SMSpp_type_traits::t<void(ClassName)>::type::_initializer{}
+ SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::_init                    \
+ SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::_initializer{}
 
 /*--------------------------------------------------------------------------*/
 // definition of auxiliary template variable (don't you just love C++?), which
@@ -698,12 +714,13 @@ bool SMSpp_ensure_load_var;
 
 #define SMSpp_ensure_load( ClassName )                                      \
  template<>                                                                 \
- bool SMSpp_ensure_load_var< SMSpp_type_traits::t<void(ClassName)>::type > =\
+ bool SMSpp_ensure_load_var<                                                \
+   SMSpp_type_traits::t< void( ClassName ) >::type > =                      \
   []( void ) -> bool {                                                      \
-   if( auto p = new SMSpp_type_traits::t<void(ClassName)>::type() ) {       \
+   if( auto p = new SMSpp_type_traits::t< void( ClassName ) >::type() ) {   \
     delete p; return( true ); }                                             \
-   else        return( false ); \
-   }()
+   else        return( false );                                             \
+   }( )
 
 /** @} ---------------------------------------------------------------------*/
 /*------------------- HANDLE boost::any SPECIALIZATIONS --------------------*/
@@ -720,39 +737,39 @@ bool SMSpp_ensure_load_var;
  *  - a pointer to a std::vector of objects of some type (Constraint,
  *    Variable or some of their derived classes);
  *
- *  - a pointer to a boost::multi_array<K> of objects of some type (...);
+ *  - a pointer to a boost::multi_array< K > of objects of some type (...);
  *
  *  - a pointer to a single std::list of objects of some type (...);
  *
  *  - a pointer to a std::vector of std::list of objects of some type (...);
  *
- *  - a pointer to a boost::multi_array<K> of std::list of objects of some
+ *  - a pointer to a boost::multi_array< K > of std::list of objects of some
  *    type (...).
  *
  * This is provided through the eight template functions
  *
- *   bool un_any_static( boost::any & any , F f , un_any_type<T> )
+ *   bool un_any_static( boost::any & any , F f , un_any_type< T > )
  *
  *   bool un_any_static_2( boost::any & any1 , boost::any & any2 ,
- *                         F f , un_any_type<T> , un_any_type<U> )
+ *                         F f , un_any_type< T > , un_any_type< U > )
  *
  *   bool un_any_static_2_create( const boost::any & any1 ,
- *                                boost::any & any2 , un_any_type<T> ,
- *                                un_any_type<U> , F f , bool apply_f )
+ *                                boost::any & any2 , un_any_type< T > ,
+ *                                un_any_type< U > , F f , bool apply_f )
  *
- *   bool un_any_const_static( const boost::any & any , F f , un_any_type<T> )
+ *   bool un_any_const_static( const boost::any & any , F f , un_any_type< T > )
  *
- *   bool un_any_dynamic( boost::any & any , F f , un_any_type<T> )
+ *   bool un_any_dynamic( boost::any & any , F f , un_any_type< T > )
  *
  *   bool un_any_dynamic_2( boost::any & any1 , boost::any & any2 ,
- *                          F f , un_any_type<T> , un_any_type<U> )
+ *                          F f , un_any_type< T > , un_any_type< U > )
  *
  *   bool un_any_dynamic_2_create( const boost::any & any1 ,
- *                                 boost::any & any2 , un_any_type<T> ,
- *                                 un_any_type<U> , F f , bool apply_f )
+ *                                 boost::any & any2 , un_any_type< T > ,
+ *                                 un_any_type< U > , F f , bool apply_f )
  *
  *   bool un_any_const_dynamic( const boost::any & any , F f ,
- *                              un_any_type<T> )
+ *                              un_any_type< T > )
  *
  * and the four macros (which, however, behave as a bool-returning function)
  *
@@ -769,8 +786,8 @@ bool SMSpp_ensure_load_var;
  * boost any (it could also be a ( T ) --> void function but this would
  * mean copying the object and no one wants that, right?), whereas the macros
  * take a "f" that is a *piece of code* that is applied to the *container*
- * of the elements, i.e., either a thing_type, or a std::vector<thing_type>,
- * or a boost::multi_array<thing_type>. This requires the piece of code to
+ * of the elements, i.e., either a thing_type, or a std::vector< thing_type >,
+ * or a boost::multi_array< thing_type >. This requires the piece of code to
  * be "type polymorphic" (it has to work in all three cases), which is
  * nontrivial and (to the best of our knowledge) cannot be obtained with
  * templates at all, whence the not-very-C++ approach of using macros.
@@ -793,15 +810,15 @@ struct un_any_type {};
 /*--------------------------------------------------------------------------*/
 /** The template function
  *
- *   bool un_any_static( boost::any & any , F f , un_any_type<T> )
+ *   bool un_any_static( boost::any & any , F f , un_any_type< T > )
  *
  * is intended to take a boost::any that contains either:
  *
  * - a pointer (reference) to a T;
  *
- * - a pointer (reference) to a std::vector<T>;
+ * - a pointer (reference) to a std::vector< T >;
  *
- * - a pointer (reference) to a  boost::multi_array<T , K> for "all" K;
+ * - a pointer (reference) to a  boost::multi_array< T , K > for "all" K;
  *
  * and apply the function "f" to all the objects of type T it contains. "f"
  * must be a ( T & ) --> void function (it could also be a ( T ) --> void
@@ -848,7 +865,7 @@ bool un_any_static( boost::any & any , F f , un_any_type< T > ,
   auto & var = *boost::any_cast< boost::multi_array< T , K > * >( any );
   T * p = var.data();
   for( auto i = var.num_elements() ; i-- ; )
-   f( *( p++ ) );
+   f( *(p++) );
   return( true );
   }
  else
@@ -860,18 +877,18 @@ bool un_any_static( boost::any & any , F f , un_any_type< T > ,
 /** The template function
  *
  *   bool un_any_static_2( boost::any & any1 , boost::any & any2 ,
- *                         F f , un_any_type<T> , un_any_type<U> )
+ *                         F f , un_any_type< T > , un_any_type< U > )
  *
  * is intended to take two boost::any "any1" and "any2" so that they
  * contain respectively:
  *
  * - a pointer (reference) to a T and a pointer (reference) to a U;
  *
- * - a pointer (reference) to a std::vector<T> and a pointer (reference) to a
- *   std::vector<U>;
+ * - a pointer (reference) to a std::vector< T > and a pointer (reference) to a
+ *   std::vector< U >;
  *
- * - a pointer (reference) to a boost::multi_array<T , K> and a
- *   pointer (reference) to a boost::multi_array<U , K>, for "all" K;
+ * - a pointer (reference) to a boost::multi_array< T , K > and a
+ *   pointer (reference) to a boost::multi_array< U , K >, for "all" K;
  *
  * and apply the function "f" to all corresponding pairs of objects of type T
  * and U they contain. "f" must be a ( T & , U & ) --> void function (it could
@@ -918,7 +935,7 @@ bool un_any_static_2( const boost::any & any1 , const boost::any & any2 ,
    #ifndef NDEBUG
     if( any2.type() != typeid( std::vector< U > * ) )
      throw( std::invalid_argument(
-             "un_any_static_2: second argument not not std::vector<U> *" ) );
+             "un_any_static_2: second argument not not std::vector< U > *" ) );
    #endif
    auto & var2 = *boost::any_cast< std::vector< U > * >( any2 );
    #ifndef NDEBUG
@@ -955,7 +972,7 @@ bool un_any_static_2( const boost::any & any1 , const boost::any & any2 ,
   #ifndef NDEBUG
    if( any2.type() != typeid( boost::multi_array< U , K > * ) )
     throw( std::invalid_argument(
-      "un_any_static_2: second argument not boost::multi_array<U,K> *" ) );
+      "un_any_static_2: second argument not boost::multi_array< U , K > *" ) );
   #endif
   auto & var2 = *boost::any_cast< boost::multi_array< U , K > * >( any2 );
   #ifndef NDEBUG
@@ -969,7 +986,7 @@ bool un_any_static_2( const boost::any & any1 , const boost::any & any2 ,
   U * p2 = var2.data();
   for( auto i = std::min( var1.num_elements() , var2.num_elements() ) ;
        i-- ; )
-   f( *( p1++ ) , *( p2++ ) );
+   f( *(p1++) , *(p2++) );
   return( true );
   }
  else
@@ -981,8 +998,8 @@ bool un_any_static_2( const boost::any & any1 , const boost::any & any2 ,
 /** The template function
  *
  *   bool un_any_static_2_create( const boost::any & any1 ,
- *                                boost::any & any2 , un_any_type<T> ,
- *                                un_any_type<U> , F f , bool apply_f )
+ *                                boost::any & any2 , un_any_type< T > ,
+ *                                un_any_type< U > , F f , bool apply_f )
  *
  * is intended to take two boost::any "any1" and "any2" so that if "any1"
  * contains
@@ -990,12 +1007,12 @@ bool un_any_static_2( const boost::any & any1 , const boost::any & any2 ,
  * - a pointer (reference) to a T, then a U is created and a pointer to this
  *   newly created object is stored in "any2";
  *
- * - a pointer (reference) to a std::vector<T>, then a std::vector<U> is
+ * - a pointer (reference) to a std::vector< T >, then a std::vector< U > is
  *   created having the same size as the vector pointed by "any1" and the
  *   pointer to this just created object is stored in "any2";
  *
- * - a pointer (reference) to a boost::multi_array<T , K>, then a
- *   boost::multi_array<U , K> is created having the same shape as the
+ * - a pointer (reference) to a boost::multi_array< T , K >, then a
+ *   boost::multi_array< U , K > is created having the same shape as the
  *   boost::multi_array pointed by "any1" and the pointer to this newly
  *   created object is stored in "any2", for "all" K.
  *
@@ -1070,7 +1087,7 @@ bool un_any_static_2_create( const boost::any & any1 , boost::any & any2 ,
    U * p2 = var2.data();
    for( auto i = std::min( var1.num_elements() , var2.num_elements() ) ;
         i-- ; )
-    f( *( p1++ ) , *( p2++ ) );
+    f( *(p1++) , *(p2++) );
    }
 
   return( true );
@@ -1092,15 +1109,15 @@ bool un_any_static_2_create( const boost::any & any1 , boost::any & any2 ,
 /*--------------------------------------------------------------------------*/
 /** The template function
  *
- *   bool un_any_const_static( const boost::any & any , F f , un_any_type<T> )
+ *   bool un_any_const_static( const boost::any & any , F f , un_any_type< T > )
  *
  * is intended to take a const boost::any that contains either:
  *
  * - a pointer (reference) to a T;
  *
- * - a pointer (reference) to a std::vector<T>;
+ * - a pointer (reference) to a std::vector< T >;
  *
- * - a pointer (reference) to a  boost::multi_array<T , K> for "all" K;
+ * - a pointer (reference) to a  boost::multi_array< T , K > for "all" K;
  *
  * and apply the function "f" to all the objects of type T it contains. "f"
  * must be a ( T & ) --> void function (it could also be a ( T ) --> void
@@ -1149,7 +1166,7 @@ bool un_any_const_static( const boost::any & any , F f ,
   auto & var = *boost::any_cast< boost::multi_array< T , K > * >( any );
   T * p = var.data();
   for( auto i = var.num_elements() ; i-- ; )
-   f( *( p++ ) );
+   f( *(p++) );
   return( true );
   }
  else
@@ -1160,15 +1177,15 @@ bool un_any_const_static( const boost::any & any , F f ,
 /*--------------------------------------------------------------------------*/
 /** The template function
  *
- *   bool un_any_dynamic( boost::any & any , F f , un_any_type<T> )
+ *   bool un_any_dynamic( boost::any & any , F f , un_any_type< T > )
  *
  * is intended to take a boost::any that contains either:
  *
- * - a pointer (reference) to a std::list<T>;
+ * - a pointer (reference) to a std::list< T >;
  *
- * - a pointer (reference) to a std::vector<std::list<T> >;
+ * - a pointer (reference) to a std::vector< std::list< T > >;
  *
- * - a pointer (reference) to a  boost::multi_array<std::list<T> , K> for
+ * - a pointer (reference) to a  boost::multi_array< std::list< T > , K > for
  *   "all" K;
  *
  * and apply the function "f" to all the objects of type T it contains. Note
@@ -1234,22 +1251,22 @@ bool un_any_dynamic( boost::any & any , F f ,
 /** The template function
  *
  *   bool un_any_dynamic_2( boost::any & any1 , boost::any & any2 ,
- *                          F f , un_any_type<T> , un_any_type<U> )
+ *                          F f , un_any_type< T > , un_any_type< U > )
  *
  * is intended to take two boost::any "any1" and "any2" so that they
  * contain respectively:
  *
- * - a pointer (reference) to a std::list<T> and a pointer (reference) to a U;
+ * - a pointer (reference) to a std::list< T > and a pointer (reference) to a U;
  *
- * - a pointer (reference) to a std::vector<std::list<T>> and a pointer
- *   (reference) to a std::vector<U>;
+ * - a pointer (reference) to a std::vector< std::list< T > > and a pointer
+ *   (reference) to a std::vector< U >;
  *
- * - a pointer (reference) to a boost::multi_array<std::list<T> , K> and a
- *   pointer (reference) to a boost::multi_array<U , K>, for "all" K;
+ * - a pointer (reference) to a boost::multi_array< std::list< T > , K > and a
+ *   pointer (reference) to a boost::multi_array< U , K >, for "all" K;
  *
  * and apply the function "f" to the objects they point to. "f" must be a
- * ( std::list<T> & , U & ) --> void function (it could also be a
- * ( std::list<T> , U ) --> void function but this would mean copying the
+ * ( std::list< T > & , U & ) --> void function (it could also be a
+ * ( std::list< T > , U ) --> void function but this would mean copying the
  * object and no one wants that, right?); a lambda would work perfectly there.
  *
  * The function can work with any K, but a maximum K has to be fixed at
@@ -1334,7 +1351,7 @@ bool un_any_dynamic_2( const boost::any & any1 , const boost::any & any2 ,
   U * p2 = var2.data();
   for( auto i = std::min( var1.num_elements() , var2.num_elements() ) ;
        --i ; )
-   f( *( p1++ ) , *( p2++ ) );
+   f( *(p1++) , *(p2++) );
   return( true );
   }
  else
@@ -1346,21 +1363,21 @@ bool un_any_dynamic_2( const boost::any & any1 , const boost::any & any2 ,
 /** The template function
  *
  *   bool un_any_dynamic_2_create( const boost::any & any1 ,
- *                                 boost::any & any2 , un_any_type<T> ,
- *                                 un_any_type<U> , F f , bool apply_f )
+ *                                 boost::any & any2 , un_any_type< T > ,
+ *                                 un_any_type< U > , F f , bool apply_f )
  *
  * is intended to take two boost::any "any1" and "any2" so that if "any1"
  * contains
  *
- * - a pointer (reference) to a std::list<T>, then a U is created and a
+ * - a pointer (reference) to a std::list< T >, then a U is created and a
  *   pointer to this newly created object is stored in "any2";
  *
- * - a pointer (reference) to a std::vector<std::list<T>>, then a
- *   std::vector<U> is created having the same size as the vector pointed by
+ * - a pointer (reference) to a std::vector< std::list< T > >, then a
+ *   std::vector< U > is created having the same size as the vector pointed by
  *   "any1" and the pointer to this just created object is stored in "any2";
  *
- * - a pointer (reference) to a boost::multi_array<std::list<T> , K>, then a
- *   boost::multi_array<U , K> is created having the same shape as the
+ * - a pointer (reference) to a boost::multi_array< std::list< T > , K >, then a
+ *   boost::multi_array< U , K > is created having the same shape as the
  *   boost::multi_array pointed by "any1" and the pointer to this newly
  *   created object is stored in "any2", for "all" K.
  *
@@ -1370,9 +1387,9 @@ bool un_any_dynamic_2( const boost::any & any1 , const boost::any & any2 ,
  *
  * If the function "f" is present and "apply_f" is true, then the
  * function "f" is applied to all corresponding pairs of objects of
- * types std::list<T> and U that any1 and any2 contain. "f" must be a
- * ( std::list<T> & , U & ) --> void function (it could also be a
- * ( std::list<T> , U ) --> void function but this would mean copying
+ * types std::list< T > and U that any1 and any2 contain. "f" must be a
+ * ( std::list< T > & , U & ) --> void function (it could also be a
+ * ( std::list< T > , U ) --> void function but this would mean copying
  * the object and no one wants that, right?); a lambda would work
  * perfectly there.
  *
@@ -1433,7 +1450,7 @@ bool un_any_dynamic_2_create( const boost::any & any1 , boost::any & any2 ,
    U * p2 = var2.data();
    for( auto i = std::min( var1.num_elements() , var2.num_elements() ) ;
         --i ; )
-    f( *( p1++ ) , *( p2++ ) );
+    f( *(p1++) , *(p2++) );
    }
   return( true );
   }
@@ -1455,15 +1472,15 @@ bool un_any_dynamic_2_create( const boost::any & any1 , boost::any & any2 ,
 /** The template function
  *
  *   bool un_any_const_dynamic( const boost::any & any , F f ,
- *                              un_any_type<T> )
+ *                              un_any_type< T > )
  *
  * is intended to take a const boost::any that contains either:
  *
- * - a pointer (reference) to a std::list<T>;
+ * - a pointer (reference) to a std::list< T >;
  *
- * - a pointer (reference) to a std::vector<std::list<T> >;
+ * - a pointer (reference) to a std::vector< std::list< T > >;
  *
- * - a pointer (reference) to a  boost::multi_array<std::list<T> , K> for
+ * - a pointer (reference) to a  boost::multi_array< std::list< T > , K > for
  *   "all" K;
  *
  * and apply the function "f" to all the objects of type T it contains. Note
@@ -1556,13 +1573,13 @@ bool un_any_const_dynamic( const boost::any & any , F f ,
  *
  * - a pointer to a std::vector of "thing_type";
  *
- * - a pointer to a boost::multi_array<K> of "thing_type";
+ * - a pointer to a boost::multi_array< K > of "thing_type";
  *
  * - a pointer to a std::list of "thing_type";
  *
  * - a pointer to a std::vector of std::list of "thing_type";
  *
- * - a pointer to a boost::multi_array<K> of std::list of "thing_type";
+ * - a pointer to a boost::multi_array< K > of std::list of "thing_type";
  *
  * for "all" K, and apply the type-independent block of code "f" to the
  * corresponding variable "var" of the type (among the above) that the
@@ -1608,7 +1625,7 @@ bool un_any_const_dynamic( const boost::any & any , F f ,
  *
  * and
  *
- *   un_any_thing( std:list<basic_type> , ... );
+ *   un_any_thing( std:list< basic_type > , ... );
  *
  * The pesky part in these macros (in particular, in un_any_thing_K() and
  * therefore in un_any_thing()) is that they have to work with "all" K, but
@@ -1906,11 +1923,11 @@ std::istream & operator>>( std::istream & is , C< T > & l ) {
    unsigned int j;
    is >> eatcomments >> j;
    for( ; p < j ; ++p )
-    *( lit++ ) = T();
-   is >> eatcomments >> *( lit++ );
+    *(lit++) = T();
+   is >> eatcomments >> *(lit++);
    }
   while( lit != l.end() )
-   *( lit++ ) = T();
+   *(lit++) = T();
   }
 
  return( is );
@@ -1990,7 +2007,7 @@ deserialize( const netCDF::NcGroup & group , T & data ,
              const std::string & name = "value" , bool optional = true ) {
  auto ncVar = group.getVar( name );
  if( ncVar.isNull() ) {
-  if( !optional )
+  if( ! optional )
    throw( std::invalid_argument( "deserialize(): " + name +
                                  " not present in group " + group.getName()
                                  ) );
@@ -2288,7 +2305,7 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
   }
 
  auto dc = ncVar.getDimCount();
- if( ( ( dc == 0 ) && ( !allow_scalar_var ) ) || ( dc > 1 ) )
+ if( ( ( dc == 0 ) && ( ! allow_scalar_var ) ) || ( dc > 1 ) )
   throw( std::invalid_argument( "deserialize(): netCDF variable " +
                                  name + " of group " + group.getName() +
                                  " has " +
@@ -2530,7 +2547,7 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
   }
 
  std::vector< T2 > s;
- if( !deserialize( group , name + "_s" , size , s , optional ) ) {
+ if( ! deserialize( group , name + "_s" , size , s , optional ) ) {
   data.clear();
   return( false );
   }
@@ -2540,7 +2557,7 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
  auto fit = f.begin();
  auto sit = s.begin();
  for( auto & el : data )
-  el = std::pair( *( fit++ ) , *( sit++ ) );
+  el = std::pair( *(fit++) , *(sit++) );
 
  return( true );
  }
@@ -2645,8 +2662,8 @@ serialize( netCDF::NcGroup & group , const std::string & name ,
  auto fit = f.begin();
  auto sit = s.begin();
  for( auto & el : data ) {
-  *( fit++ ) = el.first;
-  *( sit++ ) = el.second;
+  *(fit++) = el.first;
+  *(sit++) = el.second;
   }
 
  serialize( group , name + "_f" , typ2nCDF< T1 >() , ncDim , f );
@@ -2985,7 +3002,7 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
   array[ i ].resize( strt[ i ] );
   auto aiit = array[ i ].begin();
   for( const auto aiend = array[ i ].end() ; aiit != aiend ; )
-   *( aiit++ ) = *( tit++ );
+   *(aiit++) = *(tit++);
   }
 
  return( true );

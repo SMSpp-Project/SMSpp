@@ -12,7 +12,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni
+ * \copyright &copy; by Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -206,7 +206,7 @@ class PolyhedralFunctionBlock : public AbstractBlock {
 
  PolyhedralFunctionBlock( Block * father = nullptr )
   : AbstractBlock( father ) , f_rep( 0 ) ,
-    f_polyf( {} , {} , {} , - Inf<Function::FunctionValue>() , true , this ) ,
+    f_polyf( {} , {} , {} , -Inf< Function::FunctionValue >() , true , this ) ,
     f_v() , f_const() { }
 
 /*--------------------------------------------------------------------------*/
@@ -300,12 +300,12 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   * true if the "linearized representation" is used, false otherwise, in
   * the following way:
   *
-  * - if stvv is not nullptr and it is a SimpleConfiguration<int>, then it
+  * - if stvv is not nullptr and it is a SimpleConfiguration< int >, then it
   *   if bool( stvv->f_value );
   *
   * - otherwise, if f_BlockConfig is not nullptr,
   *   f_BlockConfig->f_static_variables_Configuration is not nullptr and it
-  *   is a SimpleConfiguration<int>, then it is
+  *   is a SimpleConfiguration< int >, then it is
   *   bool( f_BlockConfig->f_static_variables_Configuration->f_value );
   *
   * - otherwise, false ("natural representation") is assumed.

@@ -18,7 +18,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Rafael Durbano Lobato
+ * \copyright &copy; by Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -86,12 +86,12 @@ public:
 
   /// constructor of ColRowSolution, does nothing
 
- ColRowSolution( ) : Solution() { }
+ ColRowSolution() : Solution() { }
 
 /*--------------------------------------------------------------------------*/
 
  ColRowSolution( const ColRowSolution & ) : Solution() {
-  throw std::invalid_argument( "Trying to copy ColRowSolution" );
+  throw( std::invalid_argument( "Trying to copy ColRowSolution" ) );
  }
  ///< copy constructor, so that it cannot be used
  /**< inhibit copy constructor */

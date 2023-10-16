@@ -11,7 +11,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Antonio Frangioni
+ * \copyright &copy; by Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -183,7 +183,7 @@ class LinearObjective : public FRealObjective {
  /// modify a range of coefficients
 
  void modify_coefficients( Vec_FunctionValue && NCoef ,
-			   Range range = std::make_pair( 0 , Inf<Index>() ) ,
+			   Range range = std::make_pair( 0 , Inf< Index >() ) ,
                            ModParam issueMod = eModBlck )  {
   static_cast< LinearFunction * >( f_function )->modify_coefficients(
 		                      std::move( NCoef ) , range , issueMod );

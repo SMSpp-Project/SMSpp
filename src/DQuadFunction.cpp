@@ -12,7 +12,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
+ * \copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
@@ -85,13 +85,13 @@ void DQuadFunction::get_hessian_approximation( SparseHessian & hessian ) const
 {
  int num_active_var = this->get_num_active_var();
 
- std::vector< Eigen::Triplet<FunctionValue> > tripletList;
+ std::vector< Eigen::Triplet< FunctionValue > > tripletList;
  tripletList.reserve( num_active_var );
 
  int index = 0;
  for( const auto & triple : v_triples )
   tripletList.push_back(
-   Eigen::Triplet<FunctionValue>( index , index, 2 * std::get< 2 >( triple )
+   Eigen::Triplet< FunctionValue >( index , index, 2 * std::get< 2 >( triple )
 				  ) );
  hessian.setZero();
  hessian.reserve( Eigen::VectorXi::Constant( num_active_var , 1 ) );
@@ -338,13 +338,13 @@ void DQuadFunction::modify_term( Index i , Coefficient lin_coeff ,
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;  // noone is there: all done
 
- f_Observer->add_Modification( std::make_shared< C05FunctionModRngd >( this ,
-                            C05FunctionMod::AllLinearizationChanged ,
-			    Vec_p_Var( { std::get< 0 >( v_triples[ i ] ) } ) ,
-			    std::make_pair( i , i + 1 ) , Subset( {}  ) ,
-			    FunctionMod::NaNshift ,
-			    Observer::par2concern( issueMod ) ),
-			       Observer::par2chnl( issueMod ) );
+ f_Observer->add_Modification( std::make_shared< C05FunctionModRngd >(
+                                this , C05FunctionMod::AllLinearizationChanged ,
+                                Vec_p_Var( { std::get< 0 >( v_triples[ i ] ) } ) ,
+                                std::make_pair( i , i + 1 ) , Subset( {} ) ,
+                                FunctionMod::NaNshift ,
+                                Observer::par2concern( issueMod ) ) ,
+                               Observer::par2chnl( issueMod ) );
 
  }  // end( DQuadFunction::modify_term )
 
@@ -400,13 +400,13 @@ void DQuadFunction::modify_terms( c_v_coeff_it NQuadCoef ,
    }
 
   // now issue the Modification
-  f_Observer->add_Modification( std::make_shared< C05FunctionModSbst >( this ,
-                                     C05FunctionMod::AllLinearizationChanged ,
-                                     std::move( vp ) , std::move( nms ) ,
-				     ordered , Subset( {} ) ,
-				     FunctionMod::NaNshift ,
-				     Observer::par2concern( issueMod ) ) ,
-				Observer::par2chnl( issueMod ) );
+  f_Observer->add_Modification( std::make_shared< C05FunctionModSbst >(
+                                 this , C05FunctionMod::AllLinearizationChanged ,
+                                 std::move( vp ) , std::move( nms ) ,
+                                 ordered , Subset( {} ) ,
+                                 FunctionMod::NaNshift ,
+                                 Observer::par2concern( issueMod ) ) ,
+                                Observer::par2chnl( issueMod ) );
   }
  else  // noone is there: just do it
   for( auto i : nms ) {
@@ -450,13 +450,13 @@ void DQuadFunction::modify_linear_coefficients( Vec_FunctionValue && NCoef ,
    }
 
   // now issue the Modification
-  f_Observer->add_Modification( std::make_shared<C05FunctionModLinSbst>(
-				 this , std::move( NCoef ) , std::move( vp ) ,
-				 std::move( nms ) , ordered ,
-				 FunctionMod::NaNshift ,
-				 Observer::par2concern( issueMod ) ) ,
-				Observer::par2chnl( issueMod ) );
-  }
+  f_Observer->add_Modification( std::make_shared< C05FunctionModLinSbst >(
+                                 this , std::move( NCoef ) , std::move( vp ) ,
+                                 std::move( nms ) , ordered ,
+                                 FunctionMod::NaNshift ,
+                                 Observer::par2concern( issueMod ) ) ,
+                                Observer::par2chnl( issueMod ) );
+ }
  else  // noone is there: just do it
   for( auto i : nms ) {
    if( i >= v_triples.size() )
@@ -493,12 +493,12 @@ void DQuadFunction::modify_terms( c_v_coeff_it NQuadCoef ,
    }
 
   // now issue the Modification
-  f_Observer->add_Modification( std::make_shared<C05FunctionModRngd>(
-			     this , C05FunctionMod::AllLinearizationChanged ,
-			     std::move( vp ) , range , Subset( {} ) ,
-			     FunctionMod::NaNshift ,
-			     Observer::par2concern( issueMod ) ) ,
-				Observer::par2chnl( issueMod ) );
+  f_Observer->add_Modification( std::make_shared< C05FunctionModRngd >(
+                                 this , C05FunctionMod::AllLinearizationChanged ,
+                                 std::move( vp ) , range , Subset( {} ) ,
+                                 FunctionMod::NaNshift ,
+                                 Observer::par2concern( issueMod ) ) ,
+                                Observer::par2chnl( issueMod ) );
   }
  else  // noone is there: just do it
   while( strtit < stopit ) {
@@ -540,11 +540,11 @@ void DQuadFunction::modify_linear_coefficients( Vec_FunctionValue && NCoef ,
    }
 
   // now issue the Modification
-  f_Observer->add_Modification( std::make_shared<C05FunctionModLinRngd>(
-				 this , std::move( NCoef ) , std::move( vp ) ,
-				 range , FunctionMod::NaNshift ,
-				 Observer::par2concern( issueMod ) ) ,
-				Observer::par2chnl( issueMod ) );
+  f_Observer->add_Modification( std::make_shared< C05FunctionModLinRngd >(
+                                 this , std::move( NCoef ) , std::move( vp ) ,
+                                 range , FunctionMod::NaNshift ,
+                                 Observer::par2concern( issueMod ) ) ,
+                                Observer::par2chnl( issueMod ) );
   }
  else  // noone is there: just do it
   while( strtit < stopit )
@@ -567,11 +567,11 @@ void DQuadFunction::remove_variable( Index i , ModParam issueMod )
   return;
 
  // a diagonal quadratic function is additive ==> strongly quasi-additive
- f_Observer->add_Modification( std::make_shared<C05FunctionModVarsRngd>(
-					this , Vec_p_Var( { var } ) ,
-			                Range( i , i + 1 ) , 0 ,
-				        Observer::par2concern( issueMod ) ) ,
-			       Observer::par2chnl( issueMod ) );
+ f_Observer->add_Modification( std::make_shared< C05FunctionModVarsRngd >(
+                                this , Vec_p_Var( { var } ) ,
+                                Range( i , i + 1 ) , 0 ,
+                                Observer::par2concern( issueMod ) ) ,
+                               Observer::par2chnl( issueMod ) );
 
  }  // end( DQuadFunction::remove_variable( index ) )
 
@@ -597,10 +597,10 @@ void DQuadFunction::remove_variables( Range range, ModParam issueMod )
   // now issue the Modification: note that the subset is empty
   // a diagonal quadratic function is additive ==> strongly quasi-additive
   if( f_Observer && f_Observer->issue_mod( issueMod ) )
-   f_Observer->add_Modification( std::make_shared<C05FunctionModVarsSbst>(
-				 this , std::move( vars ) , Subset() , true ,
-				 0 , Observer::par2concern( issueMod ) ) ,
-				 Observer::par2chnl( issueMod ) );
+   f_Observer->add_Modification( std::make_shared< C05FunctionModVarsSbst >(
+                                  this , std::move( vars ) , Subset() , true ,
+                                  0 , Observer::par2concern( issueMod ) ) ,
+                                 Observer::par2chnl( issueMod ) );
    }
   else       // no-one is listening
    clear();  // just do it
@@ -623,10 +623,10 @@ void DQuadFunction::remove_variables( Range range, ModParam issueMod )
 
   // now issue the Modification
   // a diagonal quadratic function is additive ==> strongly quasi-additive
-  f_Observer->add_Modification( std::make_shared<C05FunctionModVarsRngd>(
-				       this , std::move( vars ) , range , 0 ,
-				       Observer::par2concern( issueMod ) ) ,
-				Observer::par2chnl( issueMod ) );
+  f_Observer->add_Modification( std::make_shared< C05FunctionModVarsRngd >(
+                                 this , std::move( vars ) , range , 0 ,
+                                 Observer::par2concern( issueMod ) ) ,
+                                Observer::par2chnl( issueMod ) );
   }
  else  // noone is there: just do it
   v_triples.erase( strtit , stopit );
@@ -651,10 +651,10 @@ void DQuadFunction::remove_variables( Subset && nms , bool ordered ,
   // now issue the Modification: note that the subset is empty
   // a diagonal quadratic function is additive ==> strongly quasi-additive
   if( f_Observer && f_Observer->issue_mod( issueMod ) )
-   f_Observer->add_Modification( std::make_shared<C05FunctionModVarsSbst>(
-				 this , std::move( vars ) , Subset() , true ,
-				 0 , Observer::par2concern( issueMod ) ) ,
-				 Observer::par2chnl( issueMod ) );
+   f_Observer->add_Modification( std::make_shared< C05FunctionModVarsSbst >(
+                                  this , std::move( vars ) , Subset() , true ,
+                                  0 , Observer::par2concern( issueMod ) ) ,
+                                 Observer::par2chnl( issueMod ) );
    }
   else       // no-one is listening
    clear();  // just do it
@@ -716,7 +716,7 @@ void DQuadFunction::remove_variables( Subset && nms , bool ordered ,
 
   auto itv = v_triples.begin() + vi;
   for( ; itv < v_triples.end(); )  // copy the last part
-   *( curr++ ) = *( itv++ );       // after the last of v_var
+   *(curr++) = *(itv++);       // after the last of v_var
 
   v_triples.erase( curr, itv );    // erase the last part
   }
@@ -734,11 +734,11 @@ void DQuadFunction::set_constant_term( FunctionValue constant_term ,
   const FunctionValue delta = constant_term - f_constant_term;
   f_constant_term = constant_term;
 
-  f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-				      C05FunctionMod::NothingChanged ,
-				      Subset( {} ) , delta ,
-				      Observer::par2concern( issueMod ) ) ,
-				Observer::par2chnl( issueMod ) );
+  f_Observer->add_Modification( std::make_shared< C05FunctionMod >(
+                                 this , C05FunctionMod::NothingChanged ,
+                                 Subset( {} ) , delta ,
+                                 Observer::par2concern( issueMod ) ) ,
+                                Observer::par2chnl( issueMod ) );
   }
  else
   f_constant_term = constant_term;

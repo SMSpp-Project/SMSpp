@@ -3,7 +3,7 @@ from conans import ConanFile, CMake, tools
 
 class SmsppConan(ConanFile):
     name = "smspp"
-    version = "0.5.0"
+    version = "0.5.2"
     description = "A C++ library for modeling and solving mathematical models"
     topics = ("conan", "smspp")
     url = "https://gitlab.com/smspp/smspp"
