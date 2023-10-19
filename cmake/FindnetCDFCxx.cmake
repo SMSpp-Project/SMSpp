@@ -82,6 +82,7 @@ else ()
     # ----- Parse the version ----------------------------------------------- #
     # Get version from netCDF (there is no way to parse it from the headers)
     set(netCDFCxx_VERSION ${netCDF_VERSION})
+    # TODO https://github.com/Unidata/netcdf-cxx4/issues/136
     #[[if (netCDFCxx_INCLUDE_DIR)
         file(STRINGS
                 "${netCDFCxx_INCLUDE_DIR}/netcdfcpp_meta.h"
