@@ -20,7 +20,7 @@ DIR = ./
 SW = -g -std=c++17 -ferror-limit=1
 
 # production switches
-#SW = -O3 -DNDEBUG -std=c++1
+#SW = -O3 -DNDEBUG -std=c++17
 
 # compiler
 #CC = g++
@@ -55,8 +55,8 @@ clean::
 # *INC is the -I< include directories >
 
 # core SMS++
-SMS++SDR = ../../
-include $(SMS++SDR)lib/makefile-inc
+SMS++SDR = ../..
+include $(SMS++SDR)/lib/makefile-inc
 
 # main module (linking phase) - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -79,8 +79,7 @@ MH =    $(SMS++H)
 
 # compile command
 
-$(DIR)main.o: $(DIR)main.cpp $(MH) 
+$(DIR)main.o: $(DIR)main.cpp $(MH)
 	$(CC) -c $*.cpp -o $@ $(MINC) $(SW)
 
 ############################ End of makefile ################################
-
