@@ -16,15 +16,20 @@ NAME = test
 # basic directory
 DIR = ./
 
-# debug switches
-SW = -g -std=c++17 -ferror-limit=1
-
-# production switches
-#SW = -O3 -DNDEBUG -std=c++17
-
 # compiler
 #CC = g++
 CC = clang++
+
+# debug switches
+ifeq ($(CC),g++)
+	SW = -g -std=c++17 -Wno-enum-compare
+endif
+ifeq ($(CC),clang++)
+	SW = -g -std=c++17 -Wno-enum-compare -ferror-limit=1
+endif
+
+# production switches
+#SW = -O3 -DNDEBUG -std=c++17
 
 # linker option for forcing all the library to be loaded
 # if a component is not explicitly referenced anywhere in the object, the
@@ -34,7 +39,12 @@ CC = clang++
 # included and the test wll fail. in this case, one must use the option of
 # the linker that disables this optimization (e.g., whole-archive for g++,
 # force_load for clang++). this macro must define said option
-FORCE = -force_load
+ifeq ($(CC),g++)
+	FORCE = -Wl,--whole-archive,--allow-multiple-definition
+endif
+ifeq ($(CC),clang++)
+	FORCE = -Wl,-force_load
+endif
 
 # default target- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
