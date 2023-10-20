@@ -76,7 +76,7 @@ MOBJ =  $(SMS++OBJ)
 # libraries
 MLIB =  $(SMS++LIB)
 
-$(NAME): $(MOBJ) $(DIR)main.o 
+$(NAME): $(MOBJ) $(DIR)main.o
 	$(CC) -o $(NAME) $(DIR)main.o $(FORCE) $(MOBJ) $(MLIB) $(SW)
 
 # dependencies: every .o from its .C + every recursively included .h- - - - -
