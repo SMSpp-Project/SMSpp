@@ -17,16 +17,10 @@ NAME = test
 DIR = ./
 
 # compiler
-#CC = g++
 CC = clang++
 
 # debug switches
-ifeq ($(CC),g++)
-	SW = -g -std=c++17 -Wno-enum-compare
-endif
-ifeq ($(CC),clang++)
-	SW = -g -std=c++17 -Wno-enum-compare -ferror-limit=1
-endif
+SW = -g -std=c++17 -Wno-enum-compare -ferror-limit=1
 
 # production switches
 #SW = -O3 -DNDEBUG -std=c++17
@@ -39,12 +33,7 @@ endif
 # included and the test wll fail. in this case, one must use the option of
 # the linker that disables this optimization (e.g., whole-archive for g++,
 # force_load for clang++). this macro must define said option
-ifeq ($(CC),g++)
-	FORCE = -Wl,--whole-archive,--allow-multiple-definition
-endif
-ifeq ($(CC),clang++)
-	FORCE = -Wl,-force_load
-endif
+FORCE = -Wl,--whole-archive,--allow-multiple-definition
 
 # default target- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
