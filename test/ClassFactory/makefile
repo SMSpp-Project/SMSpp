@@ -14,7 +14,7 @@
 NAME = test
 
 # basic directory
-DIR = ./
+DIR = .
 
 # compiler
 CC = clang++
@@ -42,7 +42,7 @@ all default: $(NAME)
 # clean - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 clean::
-	rm -f $(DIR)*.o $(DIR)*~ $(NAME)
+	rm -f $(DIR)/*.o $(DIR)/*~ $(NAME)
 
 # define & include the necessary modules- - - - - - - - - - - - - - - - - - -
 # if a module is not used in the current configuration, just comment out the
@@ -65,8 +65,8 @@ MOBJ =  $(SMS++OBJ)
 # libraries
 MLIB =  $(SMS++LIB)
 
-$(NAME): $(MOBJ) $(DIR)main.o
-	$(CC) -o $(NAME) $(DIR)main.o $(FORCE) $(MOBJ) $(MLIB) $(SW)
+$(NAME): $(MOBJ) $(DIR)/main.o
+	$(CC) -o $(NAME) $(DIR)/main.o $(FORCE) $(MOBJ) $(MLIB) $(SW)
 
 # dependencies: every .o from its .C + every recursively included .h- - - - -
 
@@ -78,7 +78,7 @@ MH =    $(SMS++H)
 
 # compile command
 
-$(DIR)main.o: $(DIR)main.cpp $(MH)
+$(DIR)/main.o: $(DIR)/main.cpp $(MH)
 	$(CC) -c $*.cpp -o $@ $(MINC) $(SW)
 
 ############################ End of makefile ################################
