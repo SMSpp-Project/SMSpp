@@ -64,7 +64,6 @@ else ()
               HINTS ${netCDFCxx_ROOT}
               DOC "netCDF-C++ include directory.")
 
-    # Note that find_library() creates a cache entry
     find_library(netCDFCxx_LIBRARY
                  NAMES netcdf-cxx4 netcdf_c++4
                  HINTS ${netCDFCxx_ROOT}/lib

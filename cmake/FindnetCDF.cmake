@@ -53,7 +53,6 @@ else ()
               NAMES netcdf.h
               DOC "netCDF include directory.")
 
-    # Note that find_library() creates a cache entry
     find_library(netCDF_LIBRARY
                  NAMES netcdf
                  DOC "netCDF library.")
