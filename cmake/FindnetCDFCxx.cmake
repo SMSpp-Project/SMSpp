@@ -4,7 +4,7 @@
 #    This module finds netCDF-C++ include directories and libraries.          #
 #    Use it by invoking find_package() with the form:                         #
 #                                                                             #
-#        find_package(netCDF-C++ [version] [EXACT] [REQUIRED])                #
+#        find_package(netCDFCxx [version] [EXACT] [REQUIRED])                 #
 #                                                                             #
 #    The results are stored in the following variables:                       #
 #                                                                             #
