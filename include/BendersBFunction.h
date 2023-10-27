@@ -1317,7 +1317,7 @@ class BendersBFunction : public C05Function , public Block {
   * @param range contains the indices of the rows whose constants will be
   *        modified, hence <tt>range.second <= get_b().size()</tt>;
   *
-  * @param issuePMod this paramater is ignored as this function does not issue
+  * @param issuePMod this parameter is ignored as this function does not issue
   *        any physical modifications.
   *
   * @param issueAMod decides if and how the BendersBFunctionModRngd is issued,
@@ -1357,7 +1357,7 @@ class BendersBFunction : public C05Function , public Block {
   *        (if not it may be ordered inside, after all it becomes property
   *        of the BendersBFunction);
   *
-  * @param issuePMod this paramater is ignored as this function does not issue
+  * @param issuePMod this parameter is ignored as this function does not issue
   *        any physical modifications.
   *
   * @param issueAMod decides if and how the BendersBFunctionModSbst is issued,
