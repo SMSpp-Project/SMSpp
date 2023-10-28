@@ -975,33 +975,6 @@ void AbstractBlock::read_mps( std::istream & file )
   throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
  }
  file >> word;
- if( word != "OBJSENSE" ) {
-  problem_name = word;
-  file.ignore( max, '\n' );
-  file >> word;
- }
-
- // Read OBJSENSE (optional)
- if( word == "OBJSENSE" ) {
-  file >> word;
-  if( word == "MAX" || word == "MAXIMIZE" ) {
-   of->set_sense( Objective::eMax, eNoMod );
-  } else if( word == "MIN" || word == "MINIMIZE" ) {
-   of->set_sense( Objective::eMin, eNoMod );
-  } else {
-   throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
-  }
-  file >> word;
- } else {
-  // Minimize by default
-  of->set_sense( Objective::eMin, eNoMod );
- }
-
- // Read OBJNAME (optional)
- if( word == "OBJNAME" ) {
-  file >> of_name;
-  file >> word;
- }
 
  /*
   * First pass: get rows and columns number
