@@ -1496,17 +1496,21 @@ void AbstractBlock::read_lp( std::istream & file )
   ColVariable * v;
   
   char first_char = word[0];
+  int len_word = word.length();
+  bool read_sign = ( first_char == '-'  || first_char == '+' );
   
   // we can either read the sign, the coefficient or directly the 
-  // variable ( i.e. the coefficient is 1)
+  // variable ( i.e. the coefficient is 1). In Highs usually the 
+  // coefficient and the sign are grouped
 
-  if( std::isdigit( first_char ) ){ // we already read the coefficient
+  if( len_word == 1 && read_sign ){
+   file >> word; // reading the coefficient
+   file >> column; // reading the variable name
+  }
+  else if( std::isdigit( first_char ) || read_sign ){ 
+    // we already read the coefficient
     file >> column; // reading the variable name
   }
-  else if( first_char == '-'  || first_char == '+' ){
-    file >> word; // reading the coefficient
-    file >> column; // reading the variable name
-   }
   else{ // the only possibility left is that we read the variable name
     column = word;
   }
@@ -1547,15 +1551,18 @@ void AbstractBlock::read_lp( std::istream & file )
   // and coefficients
   while( first_char != '<' &&  first_char != '>' && first_char != '=' ){
    std::string column;
+   int len_word = word.length();
+   bool read_sign = ( first_char == '-'  || first_char == '+' );
 
    // we can either read the sign, the coefficient or directly the 
    // variable ( i.e. the coefficient is 1)
 
-   if( std::isdigit( first_char ) ){ // we already read the coefficient
-    file >> column; // reading the variable name
-    }
-   else if( first_char == '-'  || first_char == '+' ){
+   if( len_word == 1 && read_sign ){
     file >> word; // reading the coefficient
+    file >> column; // reading the variable name
+    }  
+   else if( std::isdigit( first_char ) || read_sign ){ 
+    // we already read the coefficient
     file >> column; // reading the variable name
     }
    else{ // the only possibility left is that we read the variable name
@@ -1616,20 +1623,24 @@ void AbstractBlock::read_lp( std::istream & file )
   ColVariable * v;
   
   char first_char = word[0];
-  
-  // we can either read the sign, the coefficient or directly the 
-  // variable ( i.e. the coefficient is 1)
+  int len_word = word.length();
+  bool read_sign = ( first_char == '-'  || first_char == '+' );
 
-  if( std::isdigit( first_char ) ){ // we already read the coefficient
+  // we can either read the sign, the coefficient or directly the 
+  // variable ( i.e. the coefficient is 1). In Highs usually the 
+  // coefficient and the sign are grouped
+
+  if( len_word == 1 && read_sign ){
+   value_sense = word;
+   file >> value; // reading the coefficient
+   file >> column; // reading the variable name
+   value = value_sense + value;
+  }
+  else if( std::isdigit( first_char ) || read_sign ){ 
+    // we already read the coefficient
     value = word;
     file >> column; // reading the variable name
   }
-  else if( first_char == '-'  || first_char == '+' ){
-    value_sense = word;
-    file >> value; // reading the coefficient
-    file >> column; // reading the variable name
-    value = value_sense + value;
-   }
   else{ // the only possibility left is that we read the variable name
     value = std::to_string( 1 );
     column = word;
@@ -1677,18 +1688,22 @@ void AbstractBlock::read_lp( std::istream & file )
    std::string value_sense = "+";
    ColVariable * v;
 
+   int len_word = word.length();
+   bool read_sign = ( first_char == '-'  || first_char == '+' );
+
    // we can either read the sign, the coefficient or directly the 
    // variable ( i.e. the coefficient is 1)
 
-   if( std::isdigit( first_char ) ){ // we already read the coefficient
-    value = word;
-    file >> column; // reading the variable name
-    }
-   else if( first_char == '-'  || first_char == '+' ){
+   if( len_word == 1 && read_sign ){
     value_sense = word;
     file >> value; // reading the coefficient
     file >> column; // reading the variable name
     value = value_sense + value;
+    }  
+   else if( std::isdigit( first_char ) || read_sign ){ 
+    // we already read the coefficient
+    value = word;
+    file >> column; // reading the variable name
     }
    else{ // the only possibility left is that we read the variable name
     value = std::to_string( 1 );
@@ -1754,9 +1769,7 @@ void AbstractBlock::read_lp( std::istream & file )
   
   char first_char = word[0];
   
-  if( std::isdigit( first_char ) || 
-         std::any_of( minfinity_names.begin() , minfinity_names.end() , 
-                        compare_words( word ) ) ){ 
+  if( std::isdigit( first_char ) || first_char == '-' ){ 
    // we read the lhs
    lhs_value = word;
    file >> word; // we can skip the <=
