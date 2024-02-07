@@ -478,7 +478,7 @@ class DQuadFunction : public C15Function {
   for( const auto & triple : v_triples ) {
    auto variable_value = std::get< 0 >( triple )->get_value();
    auto quadratic_coefficient_value = std::get< 2 >( triple );
-   quadratic_term += variable_value * quadratic_coefficient_value *
+   quadratic_term += variable_value * variable_value *
                      quadratic_coefficient_value;
    }
 
