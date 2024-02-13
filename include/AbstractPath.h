@@ -11,7 +11,7 @@
  *
  * Since AbstractPath has to scan the "abstract" representation to work, it
  * has to boost::any_cast<> (in particular, Constraint and Variable), and
- * therefore it has to have a list of the kind of types thay they may have.
+ * therefore it has to have a list of the kind of types that they may have.
  * Hence, this class at any point in time works only with a specific subset
  * of those classes, and if new types need be handled than the class has to
  * be manually updated. This is made a bit easier by the two macros
@@ -59,8 +59,8 @@
 
 #include <cstddef>
 #include <iterator>
-#include "netcdf"
 #include <vector>
+#include <netcdf>
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
@@ -103,7 +103,7 @@ namespace SMSpp_di_unipi_it
  *
  * Since AbstractPath has to scan the "abstract" representation to work, it
  * has to boost::any_cast<> (in particular, Constraint and Variable), and
- * therefore it has to have a list of the kind of types thay they may have.
+ * therefore it has to have a list of the kind of types that they may have.
  * Hence, this class at any point in time works only with a specific subset
  * of those classes, and if new types need be handled than the class has to
  * be manually updated. This is made a bit easier by the two macros
