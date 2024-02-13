@@ -369,29 +369,29 @@ class DQuadFunction : public C15Function {
 /*--------------------------------------------------------------------------*/
  /// returns the value of the DQuadFunction
 
- FunctionValue get_value( void ) const override { return( f_value ); }
+ FunctionValue get_value( void ) override { return( f_value ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// the DQuadFunction is exact, hence lower_estimate == value
 
- FunctionValue get_lower_estimate( void ) const override final {
+ FunctionValue get_lower_estimate( void ) override final {
   return( f_value );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// the DQuadFunction is exact, hence upper_estimate == value
 
- FunctionValue get_upper_estimate( void ) const override final {
+ FunctionValue get_upper_estimate( void ) override final {
   return( f_value );
   }
 
 /*--------------------------------------------------------------------------*/
 
- bool is_convex( void ) const override;
+ bool is_convex( void ) override;
 
 /*--------------------------------------------------------------------------*/
 
- bool is_concave( void ) const override;
+ bool is_concave( void ) override;
 
 /*--------------------------------------------------------------------------*/
 
@@ -403,7 +403,7 @@ class DQuadFunction : public C15Function {
 
 /*--------------------------------------------------------------------------*/
 
- bool is_linear( void ) const override;
+ bool is_linear( void ) override;
 
 /*--------------------------------------------------------------------------*/
 
@@ -468,7 +468,7 @@ class DQuadFunction : public C15Function {
   * at the current point x, which is given by c - x^T A x. */
 
  FunctionValue get_linearization_constant( Index name = Inf< Index >() )
-  override final {
+  override {
   if( name < Inf< Index >() )
    throw( std::invalid_argument(
 			"global pool not supported yet by DQuadFunction" ) );
@@ -478,7 +478,7 @@ class DQuadFunction : public C15Function {
   for( const auto & triple : v_triples ) {
    auto variable_value = std::get< 0 >( triple )->get_value();
    auto quadratic_coefficient_value = std::get< 2 >( triple );
-   quadratic_term += variable_value * variable_value *
+   quadratic_term += variable_value * quadratic_coefficient_value *
                      quadratic_coefficient_value;
    }
 
@@ -814,7 +814,7 @@ class DQuadFunction : public C15Function {
   * FunctionModVarsRngd one. */
 
  void remove_variable( Index i , ModParam issueMod = eModBlck )
-  override final;
+  override;
 
 /*--------------------------------------------------------------------------*/
  /// remove a range of "active" Variable
@@ -829,7 +829,7 @@ class DQuadFunction : public C15Function {
   * one. */
 
  void remove_variables( Range range , ModParam issueMod = eModBlck )
-  override final;
+  override;
   
 /*--------------------------------------------------------------------------*/
  /// remove the given subset of Variable
@@ -878,7 +878,7 @@ class DQuadFunction : public C15Function {
 /*--------------------------------------------------------------------------*/
 
  /// printing the DQuadFunction
- void print( std::ostream & output ) const override {
+ void print( std::ostream & output ) override {
   output << "DQuadFunction [" << this << "] observed by ["
          << &f_Observer << "] with " << get_num_active_var()
          << " active variables;";

@@ -562,18 +562,18 @@ class PolyhedralFunction : public C05Function {
 /*--------------------------------------------------------------------------*/
  /// returns the value of the PolyhedralFunction
 
- FunctionValue get_value( void ) const override { return( f_value ); }
+ FunctionValue get_value( void ) override { return( f_value ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// the PolyhedralFunction is exact, hence lower_estimate == value
  
- FunctionValue get_lower_estimate( void ) const override { return( f_value );
+ FunctionValue get_lower_estimate( void ) override { return( f_value );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// the PolyhedralFunction is exact, hence upper_estimate == value
 
- FunctionValue get_upper_estimate( void ) const override { return( f_value );
+ FunctionValue get_upper_estimate( void ) override { return( f_value );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -613,12 +613,12 @@ class PolyhedralFunction : public C05Function {
 /*--------------------------------------------------------------------------*/
  /// returns true if and only if this PolyhedralFunction is convex
 
- bool is_convex( void ) const override { return( f_is_convex ); }
+ bool is_convex( void ) override { return( f_is_convex ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns true if and only if this PolyhedralFunction is concave
 
- bool is_concave( void ) const override { return( ! f_is_convex ); }
+ bool is_concave( void ) override { return( ! f_is_convex ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns true only if this PolyhedralFunction is linear
@@ -628,7 +628,7 @@ class PolyhedralFunction : public C05Function {
   * is linear, but this is supposed to be an accident that may and probably
   * will change at any time, so we report the "safe" result. */
 
- bool is_linear( void ) const override { return( false ); }
+ bool is_linear( void ) override { return( false ); }
 
 /*--------------------------------------------------------------------------*/
  /// tells whether a linearization is available
@@ -1487,7 +1487,7 @@ class PolyhedralFunction : public C05Function {
   * is virtual so that derived classes can print their specific information
   * in the format they choose. */
 
- void print( std::ostream &output ) const override
+ void print( std::ostream &output ) override
  {
   output << "PolyhedralFunction [" << this << "]"
 	 << " with " << get_num_active_var() << " columns and"

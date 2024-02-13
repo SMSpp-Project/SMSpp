@@ -308,21 +308,21 @@ class LinearFunction : public C15Function
 /*--------------------------------------------------------------------------*/
  /// returns the value of the LinearFunction
 
- [[nodiscard]] FunctionValue get_value( void ) const override {
+ [[nodiscard]] FunctionValue get_value( void ) override {
   return( f_value );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// the LinearFunction is exact, hence lower_estimate == value
 
- [[nodiscard]] FunctionValue get_lower_estimate( void ) const override {
+ [[nodiscard]] FunctionValue get_lower_estimate( void ) override {
   return( f_value );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// the LinearFunction is exact, hence upper_estimate == value
 
- [[nodiscard]] FunctionValue get_upper_estimate( void ) const override {
+ [[nodiscard]] FunctionValue get_upper_estimate( void ) override {
   return( f_value );
   }
 
@@ -332,11 +332,11 @@ class LinearFunction : public C15Function
 
 /*--------------------------------------------------------------------------*/
 
- [[nodiscard]] bool is_convex( void ) const final { return( true ); }
+ [[nodiscard]] bool is_convex( void ) final { return( true ); }
 
 /*--------------------------------------------------------------------------*/
 
- [[nodiscard]] bool is_concave( void ) const final { return( true ); }
+ [[nodiscard]] bool is_concave( void ) final { return( true ); }
 
 /*--------------------------------------------------------------------------*/
 
@@ -729,7 +729,7 @@ class LinearFunction : public C15Function
 /*--------------------------------------------------------------------------*/
 
  /// printing the LinearFunction
- void print( std::ostream & output ) const override {
+ void print( std::ostream & output ) override {
   output << "LinearFunction [" << this << "] observed by ["
          << &f_Observer << "] with " << get_num_active_var()
          << " active variables;";

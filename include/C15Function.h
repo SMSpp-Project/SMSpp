@@ -205,7 +205,7 @@ class C15Function : public C05Function {
   * is virtual so that derived classes can print their specific information 
   *in the format they choose. */
 
- void print( std::ostream & output ) const override {
+ void print( std::ostream & output ) override {
   output << "C15Function [" << this << "]" << " with "
          << get_num_active_var() << " active variables";
  }
