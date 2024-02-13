@@ -265,7 +265,9 @@ void QuadFunction::modify_term( Index i , Index j , Coefficient quad_nd_coeff , 
   }
   // Observe that this insertion is highly inefficient if done one coeff at a time
   mat_nd.coeffRef( std::max(i,j), std::min(i,j) ) = quad_nd_coeff;
-  
+
+  my_convexity = Unknown;
+
   if( ( ! DQuadFunction::f_Observer ) || ( ! DQuadFunction::f_Observer->issue_mod( issueMod ) ) )
     return;  // noone is there: all done
 
@@ -277,8 +279,6 @@ void QuadFunction::modify_term( Index i , Index j , Coefficient quad_nd_coeff , 
                                 Observer::par2concern( issueMod ) ) ,
                                 Observer::par2chnl( issueMod ) );
 
-  
-  my_convexity = Unknown;
  }  // end( QuadFunction::modify_term )
 
 /*--------------------------------------------------------------------------*/
@@ -318,10 +318,11 @@ void QuadFunction::remove_variable( Index i , ModParam issueMod ){
   // Copy the beast around:
   mat_nd = mat_nd_tmp;
 
+  my_convexity = Unknown;
+
   // Now gun down the diagonal term
   DQuadFunction::remove_variable(i, issueMod);
 
-  my_convexity = Unknown;
 }  // end( QuadFunction::remove_variable( index ) )
 
 /*--------------------------------------------------------------------------*/
@@ -331,6 +332,8 @@ void QuadFunction::remove_variables( Range range, ModParam issueMod ){
   range.second = std::min( range.second , Index( v_triples.size() ) );
   if( range.second <= range.first )
     return;
+
+  my_convexity = Unknown;
 
   if( ( range.first == 0 ) && ( range.second >= v_triples.size() ) ) {
     // removing *all* variable
@@ -419,8 +422,6 @@ void QuadFunction::remove_variables( Range range, ModParam issueMod ){
     else  // noone is there: just do it
       DQuadFunction::v_triples.erase( strtit , stopit );
 
-
-    my_convexity = Unknown;
  }  // end( QuadFunction::remove_variables( range ) )
 
 /*--------------------------------------------------------------------------*/
@@ -434,6 +435,7 @@ void QuadFunction::identify_convexity(){
       if ( my_convexity == Unknown ){      
         int sze = DQuadFunction::get_num_active_var();
         Eigen::MatrixXd Q(sze, sze);
+        Q.setZero();
         for (int k=0; k < mat_nd.outerSize(); ++k){
           for (Qmat::InnerIterator it(mat_nd,k); it; ++it){
             Q( it.row(), it.col() ) = it.value();
@@ -442,12 +444,12 @@ void QuadFunction::identify_convexity(){
         }
         for (int i=0; i < sze; ++i){
           Q(i,i) = DQuadFunction::get_quadratic_coefficient(i) * 2.0;
-        } 
-        const auto ldlt = Q.selfadjointView<Eigen::Upper>().ldlt();
-        if ( ldlt.info() == ldlt.isPositive() ) {
+        }
+        const auto ldlt = Q.ldlt();
+        if ( ldlt.info() != Eigen::NumericalIssue && ldlt.isPositive() ) {
           my_convexity = Convex;
         }
-        else if ( ldlt.info() == ldlt.isNegative() ){
+        else if ( ldlt.info() != Eigen::NumericalIssue && ldlt.isNegative() ){
           my_convexity = Concave;
         }
         else if ( ldlt.info() == Eigen::NumericalIssue || ( !ldlt.isPositive() && !ldlt.isNegative() ) ){

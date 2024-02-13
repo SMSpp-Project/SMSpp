@@ -149,15 +149,24 @@ class QuadFunction : public DQuadFunction {
  explicit QuadFunction( v_coeff_triple && v_var = {} , v_off_diag_term && v_nd_var = {},
                          const FunctionValue ct = 0 ,
                          Observer * const observer = nullptr )
-  : DQuadFunction( std::move( v_var ), ct, observer ) , mat_nd( v_var.size(), v_var.size() ), my_convexity( Unknown )
+  : DQuadFunction( std::move( v_var ), ct, observer ), my_convexity( Unknown )
     { 
       /**
        *  copy the whole deal in the matrix
        *  for this we must copy the information to appropriate Eigen triplets
        */
+       mat_nd.resize( DQuadFunction::get_num_active_var(), DQuadFunction::get_num_active_var() );
        std::vector<Eigen::Triplet<Coefficient>> vv_nd;
        vv_nd.reserve( v_nd_var.size() );
        for (int i=0; i < v_nd_var.size(); ++i ){
+          #ifndef NDEBUG
+          // std::cout << "mat_nd is : " << mat_nd.rows() << " x " << mat_nd.cols() << "\n";
+          if ( ( std::min( std::get<0>(v_nd_var[i]),std::get<1>(v_nd_var[i]) ) < 0 ) || std::min( std::get<0>(v_nd_var[i]),std::get<1>(v_nd_var[i]) ) >= mat_nd.rows() ){
+            throw( std::invalid_argument("Invalid tuplet provided : out of bounds : " +  std::to_string( std::get<0>(v_nd_var[i]) ) 
+                                                                                      + std::to_string( std::get<1>(v_nd_var[i])  )
+                                                                       + " for term " + std::to_string( i ) + "!") ); 
+          }
+          #endif
           Eigen::Triplet<Coefficient> term( std::get<0>(v_nd_var[i]), std::get<1>(v_nd_var[i]), std::get<2>(v_nd_var[i]) );
           vv_nd.push_back( term ); 
        }
@@ -252,6 +261,11 @@ class QuadFunction : public DQuadFunction {
  *  @{ */
 
  int compute( bool changedvars ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// returns the value of the QuadFunction
+
+ FunctionValue get_value( void ) override { return( f_value ); }
 
 /*--------------------------------------------------------------------------*/
 
