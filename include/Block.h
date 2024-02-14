@@ -5968,7 +5968,7 @@ class Block : public Observer {
   * file already exists.
   *
   * The parameter \p vlvl is assumed to control the "level of the verbosity"
-  * of the printed information, i.e. the format of the output file; see
+  * of the printed information, i.e., the format of the output file; see
   * print( ostream & ) for comments. In fact, the implementation of this
   * method in the base Block class just opens an ofstream using the given
   * filename and then calls the print( ostream & ) version, which is where

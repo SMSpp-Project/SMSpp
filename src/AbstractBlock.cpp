@@ -1500,7 +1500,7 @@ void AbstractBlock::read_lp( std::istream & file )
   bool read_sign = ( first_char == '-'  || first_char == '+' );
   
   // we can either read the sign, the coefficient or directly the 
-  // variable ( i.e. the coefficient is 1). In Highs usually the 
+  // variable ( i.e., the coefficient is 1). In Highs usually the
   // coefficient and the sign are grouped
 
   if( len_word == 1 && read_sign ){
@@ -1547,7 +1547,7 @@ void AbstractBlock::read_lp( std::istream & file )
   file >> word;
   char first_char = word[0];
 
-  // we can read symbols until we get to the sign, i.e. we are reading variables
+  // we can read symbols until we get to the sign, i.e., we are reading variables
   // and coefficients
   while( first_char != '<' &&  first_char != '>' && first_char != '=' ){
    std::string column;
@@ -1555,7 +1555,7 @@ void AbstractBlock::read_lp( std::istream & file )
    bool read_sign = ( first_char == '-'  || first_char == '+' );
 
    // we can either read the sign, the coefficient or directly the 
-   // variable ( i.e. the coefficient is 1)
+   // variable ( i.e., the coefficient is 1)
 
    if( len_word == 1 && read_sign ){
     file >> word; // reading the coefficient
@@ -1627,7 +1627,7 @@ void AbstractBlock::read_lp( std::istream & file )
   bool read_sign = ( first_char == '-'  || first_char == '+' );
 
   // we can either read the sign, the coefficient or directly the 
-  // variable ( i.e. the coefficient is 1). In Highs usually the 
+  // variable ( i.e., the coefficient is 1). In Highs usually the
   // coefficient and the sign are grouped
 
   if( len_word == 1 && read_sign ){
@@ -1680,7 +1680,7 @@ void AbstractBlock::read_lp( std::istream & file )
   file >> word;
   char first_char = word[0];
 
-  // we can read symbols until we get to the sign, i.e. we are reading variables
+  // we can read symbols until we get to the sign, i.e., we are reading variables
   // and coefficients
   while( first_char != '<' &&  first_char != '>' && first_char != '=' ){
    std::string column;
@@ -1692,7 +1692,7 @@ void AbstractBlock::read_lp( std::istream & file )
    bool read_sign = ( first_char == '-'  || first_char == '+' );
 
    // we can either read the sign, the coefficient or directly the 
-   // variable ( i.e. the coefficient is 1)
+   // variable ( i.e., the coefficient is 1)
 
    if( len_word == 1 && read_sign ){
     value_sense = word;

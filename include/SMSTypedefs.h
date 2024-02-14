@@ -1866,7 +1866,7 @@ inline std::istream & eatcomments( std::istream & is ) {
  *     - i-th element of the array/list
  *
  * If k < 0, instead, the vector/list will have abs( k ) elements. The format
- * is instead the "sparse" one, i.e. (after k)
+ * is instead the "sparse" one, i.e., (after k)
  *
  *     number of non-default elements h (<= k)
  *     for i = 1 to h
