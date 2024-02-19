@@ -51,10 +51,12 @@ else ()
     # Note that find_path() creates a cache entry
     find_path(netCDF_INCLUDE_DIR
               NAMES netcdf.h
+              HINTS ${netCDF_ROOT}
               DOC "netCDF include directory.")
 
     find_library(netCDF_LIBRARY
                  NAMES netcdf
+                 HINTS ${netCDF_ROOT}/lib
                  DOC "netCDF library.")
 
     if (UNIX)
