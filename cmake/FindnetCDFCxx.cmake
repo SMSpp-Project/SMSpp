@@ -39,9 +39,9 @@ include(FindPackageHandleStandardArgs)
 
 # ----- Requirements -------------------------------------------------------- #
 # Try first with library's own configuration file, then with our find module.
-find_package(netCDF QUIET NO_MODULE) # TODO 4.9.2 if Win and else() just for Unix
+find_package(netCDF QUIET NO_MODULE)
 if (NOT netCDF_FOUND)
-    find_package(netCDF REQUIRED) # TODO 4.9.2 if Win and else() just for Unix
+    find_package(netCDF REQUIRED)
     set(ncTarget "netCDF::netcdf")
 else ()
     # Before 4.7.3, netCDF exported a target without namespace

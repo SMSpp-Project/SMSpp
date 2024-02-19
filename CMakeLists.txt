@@ -60,10 +60,10 @@ endif ()
 
 # Try first with library's own configuration file, then with our find module.
 if (UNIX)
-    find_package(netCDFCxx QUIET NO_MODULE) # TODO 4.3.1
+    find_package(netCDFCxx QUIET NO_MODULE)
 endif ()
 if (NOT netCDFCxx_FOUND)
-    find_package(netCDFCxx REQUIRED) # TODO 4.3.1
+    find_package(netCDFCxx REQUIRED)
 endif ()
 
 if (MSVC)
