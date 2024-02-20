@@ -205,16 +205,14 @@ $(SMS++SDR)/obj/ColRowSolution.o: $(SMS++SDR)/src/ColRowSolution.cpp \
 	$(SMS++SDR)/include/Solution.h $(SMS++SDR)/include/Variable.h \
 	$(SMS++SDR)/include/ThinComputeInterface.h \
 	$(SMS++SDR)/include/ThinVarDepInterface.h
-	$(CC) -c $(SMS++SDR)/src/ColRowSolution.cpp -o $@ \
-	$(SMS++INC) $(SW)
+	$(CC) -c $(SMS++SDR)/src/ColRowSolution.cpp -o $@ $(SMS++INC) $(SW)
 
 $(SMS++SDR)/obj/ColVariableSolution.o: $(SMS++SDR)/src/ColVariableSolution.cpp \
 	$(intBlockINC) $(SMS++SDR)/include/ColVariableSolution.h \
 	$(SMS++SDR)/include/Solution.h $(SMS++SDR)/include/ColVariable.h \
 	$(SMS++SDR)/include/Constraint.h $(SMS++SDR)/include/Variable.h \
 	$(SMS++SDR)/include/ThinComputeInterface.h
-	$(CC) -c $(SMS++SDR)/src/ColVariableSolution.cpp -o $@ \
-	$(SMS++INC) $(SW)
+	$(CC) -c $(SMS++SDR)/src/ColVariableSolution.cpp -o $@ $(SMS++INC) $(SW)
 
 $(SMS++SDR)/obj/Constraint.o: $(SMS++SDR)/src/Constraint.cpp \
 	$(SMS++SDR)/include/Constraint.h \
@@ -308,8 +306,7 @@ $(SMS++SDR)/obj/PolyhedralFunction.o: $(SMS++SDR)/src/PolyhedralFunction.cpp \
 	$(SMS++SDR)/include/ThinComputeInterface.h \
 	$(SMS++SDR)/include/ThinVarDepInterface.h \
 	$(SMS++SDR)/include/Variable.h
-	$(CC) -c $(SMS++SDR)/src/PolyhedralFunction.cpp -o $@ \
-	$(SMS++INC) $(SW)
+	$(CC) -c $(SMS++SDR)/src/PolyhedralFunction.cpp -o $@ $(SMS++INC) $(SW)
 
 $(SMS++SDR)/obj/PolyhedralFunctionBlock.o: $(intBlockINC) \
 	$(SMS++SDR)/src/PolyhedralFunctionBlock.cpp \
@@ -321,8 +318,7 @@ $(SMS++SDR)/obj/PolyhedralFunctionBlock.o: $(intBlockINC) \
 	$(SMS++SDR)/include/PolyhedralFunction.h \
 	$(SMS++SDR)/include/ThinComputeInterface.h \
 	$(SMS++SDR)/include/ThinVarDepInterface.h $(SMS++SDR)/include/Variable.h
-	$(CC) -c $(SMS++SDR)/src/PolyhedralFunctionBlock.cpp -o $@ \
-	$(SMS++INC) $(SW)
+	$(CC) -c $(SMS++SDR)/src/PolyhedralFunctionBlock.cpp -o $@ $(SMS++INC) $(SW)
 
 $(SMS++SDR)/obj/RBlockConfig.o: $(SMS++SDR)/src/RBlockConfig.cpp \
 	$(SMS++SDR)/include/RBlockConfig.h $(intBlockINC)
@@ -343,8 +339,7 @@ $(SMS++SDR)/obj/RowConstraintSolution.o: \
 	$(SMS++SDR)/include/RowConstraint.h $(SMS++SDR)/include/Solution.h \
 	$(SMS++SDR)/include/ThinComputeInterface.h \
 	$(SMS++SDR)/include/ThinVarDepInterface.h $(SMS++SDR)/include/Variable.h
-	$(CC) -c $(SMS++SDR)/src/RowConstraintSolution.cpp -o $@ $(SMS++INC) \
-	$(SW)
+	$(CC) -c $(SMS++SDR)/src/RowConstraintSolution.cpp -o $@ $(SMS++INC) $(SW)
 
 $(SMS++SDR)/obj/Solver.o: $(SMS++SDR)/src/Solver.cpp $(intBlockINC) \
 	$(SMS++SDR)/include/FakeSolver.h $(SMS++SDR)/include/UpdateSolver.h
@@ -358,7 +353,6 @@ $(SMS++SDR)/obj/ThinComputeInterface.o: \
 	$(SMS++SDR)/src/ThinComputeInterface.cpp \
 	$(SMS++SDR)/include/ThinComputeInterface.h \
 	$(SMS++SDR)/include/Configuration.h $(SMS++SDR)/include/SMSTypedefs.h
-	$(CC) -c $(SMS++SDR)/src/ThinComputeInterface.cpp -o $@ $(SMS++INC) \
-	$(SW)
+	$(CC) -c $(SMS++SDR)/src/ThinComputeInterface.cpp -o $@ $(SMS++INC) $(SW)
 
 ########################## End of makefile ###################################
