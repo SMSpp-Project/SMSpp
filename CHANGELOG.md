@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added 
+
+### Changed 
+
+### Fixed 
+
+## [0.5.3] - 2024-02-29
+
+### Added 
+
+- "father of LagBFunction" mechanism
+
+- AbstractBlock::read_lp()
+
+- AbstractBlock::read_mps()
+
+### Changed 
+
+- adapted to new CMake / makefile organisation
+
+### Fixed 
+
+- flaw in DQuadFunction
+
+- template arguments handling in SMSTypedefs.h
+
+- BendersBFunction::delete_rows()
+
+- badly mangled LagBFunction::InnerSolver
+
 ## [0.5.2] - 2023-05-17
 
 ### Added
@@ -208,7 +238,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - First test release.
 
-[Unreleased]: https://gitlab.com/smspp/smspp/-/compare/0.5.2...develop
+[Unreleased]: https://gitlab.com/smspp/smspp/-/compare/0.5.3...develop
+[0.5.3]: https://gitlab.com/smspp/smspp/-/compare/0.5.2...0.5.3
 [0.5.2]: https://gitlab.com/smspp/smspp/-/compare/0.5.1...0.5.2
 [0.5.1]: https://gitlab.com/smspp/smspp/-/compare/0.5.0...0.5.1
 [0.5.0]: https://gitlab.com/smspp/smspp/-/compare/0.4.0...0.5.0
