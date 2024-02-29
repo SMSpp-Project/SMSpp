@@ -23,7 +23,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
+ * \copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -388,7 +388,7 @@ class RowConstraint : public Constraint
 
 /*--------------------------------------------------------------------------*/
  /// method to set the dual value of the RowConstraint
- /** method to set the dual value (i.e. the Lagrangian multiplier) of the
+ /** method to set the dual value (i.e., the Lagrangian multiplier) of the
   * RowConstraint; typically, a CDASolver [see CDASolver.h] attached to the
   * Block to which this RowConstraint belongs will do it. For more ease of
   * mind, this method is virtual. */

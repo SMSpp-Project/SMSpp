@@ -29,6 +29,7 @@
 #    happens to be the case for some of our main developers and testers.      #
 #                                                                             #
 #                              Niccolo' Iardella                              #
+#                                Donato Meoli                                 #
 #                         Dipartimento di Informatica                         #
 #                             Universita' di Pisa                             #
 # --------------------------------------------------------------------------- #
@@ -41,15 +42,16 @@ else ()
 
     # ----- Find the headers ------------------------------------------------ #
     # Note that find_path() also creates a cache entry
-    find_path(Eigen3_INCLUDE_DIR Eigen/Dense
+    find_path(Eigen3_INCLUDE_DIR
+              NAMES Eigen/Dense
               PATH_SUFFIXES eigen3
               DOC "Eigen3 include directory.")
 
     # ----- Parse the version ----------------------------------------------- #
     if (Eigen3_INCLUDE_DIR)
         file(STRINGS
-             "${Eigen3_INCLUDE_DIR}/Eigen/src/Core/util/Macros.h"
-             _eigen3_version_lines REGEX "#define EIGEN_(WORLD|MAJOR|MINOR)_VERSION")
+                "${Eigen3_INCLUDE_DIR}/Eigen/src/Core/util/Macros.h"
+                _eigen3_version_lines REGEX "#define EIGEN_(WORLD|MAJOR|MINOR)_VERSION")
 
         string(REGEX REPLACE ".*EIGEN_WORLD_VERSION *\([0-9]*\).*" "\\1" _eigen3_version_major "${_eigen3_version_lines}")
         string(REGEX REPLACE ".*EIGEN_MAJOR_VERSION *\([0-9]*\).*" "\\1" _eigen3_version_minor "${_eigen3_version_lines}")
@@ -68,9 +70,10 @@ else ()
     # REQUIRED_VARS are set.
     # REQUIRED_VARS should be cache entries and not output variables. See:
     # https://cmake.org/cmake/help/latest/module/FindPackageHandleStandardArgs.html
-    find_package_handle_standard_args(Eigen3
-                                      REQUIRED_VARS Eigen3_INCLUDE_DIR
-                                      VERSION_VAR Eigen3_VERSION)
+    find_package_handle_standard_args(
+            Eigen3
+            REQUIRED_VARS Eigen3_INCLUDE_DIR
+            VERSION_VAR Eigen3_VERSION)
 endif ()
 
 # ----- Export the target --------------------------------------------------- #
@@ -81,12 +84,13 @@ if (Eigen3_FOUND)
         add_library(Eigen3::Eigen INTERFACE IMPORTED)
         set_target_properties(
                 Eigen3::Eigen PROPERTIES
-                INTERFACE_INCLUDE_DIRECTORIES "${Eigen3_INCLUDE_DIR}")
+                INTERFACE_INCLUDE_DIRECTORIES "${Eigen3_INCLUDE_DIRS}")
     endif ()
 endif ()
 
 # Variables marked as advanced are not displayed in CMake GUIs, see:
 # https://cmake.org/cmake/help/latest/command/mark_as_advanced.html
-mark_as_advanced(Eigen3_INCLUDE_DIR Eigen3_VERSION)
+mark_as_advanced(Eigen3_INCLUDE_DIR
+                 Eigen3_VERSION)
 
 # --------------------------------------------------------------------------- #

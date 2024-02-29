@@ -14,7 +14,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright Copyright &copy; by Antonio Frangioni, Federica Di Pasquale
+ * \copyright &copy; by Antonio Frangioni, Federica Di Pasquale
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -57,17 +57,17 @@ class Block;            // forward definition of Block
  * to represent and apply a (set of) method(s) to change a Block.
  *
  * The main difference between Change objects and Modification objects is that
- * the latter are used to notify changes that have already occured in a Block,
+ * the latter are used to notify changes that have already occurred in a Block,
  * while the former are used to represent changes that may occur in a Block
  * also before they are actually applied. A method apply() is then provided to
  * apply all the changes represented by the Change object to a given Block. 
  * Therefore, Change objects need to contain all the necessary informations to 
- * apply the changes, i.e. all the new data of the Block.
+ * apply the changes, i.e., all the new data of the Block.
  * 
  * Changes in a Block can be applied either to its Abstract Representation (AR) 
  * or to its Physical Representation (PR). Hence, derived classes of Change 
  * can be either "abstract" (and hence they can be applied to any Block) or 
- * "specific", i.e. for a specific derived class from Block. The base Change 
+ * "specific", i.e., for a specific derived class from Block. The base Change
  * class only provides the common interface, supporting the general virtual 
  * method apply( Block * ) that must be implemented by derived classes.
  * 
@@ -108,7 +108,7 @@ class Change {
   *
   *     Change * myChange = Change::new_Change( some_class );
   *
-  * i.e. without any reference to any specific Change (and, therefore, it 
+  * i.e., without any reference to any specific Change (and, therefore, it
   * can be used to construct the very first Change if needed).
   * 
   * For this to work, each :Change has to:
@@ -211,7 +211,7 @@ class Change {
   *
   *     auto myChange = Change::deserialize( somefile );
   *
-  * i.e. without any reference to any specific Change (and, therefore, it 
+  * i.e., without any reference to any specific Change (and, therefore, it
   * can be used to construct the very first Change, if needed). */
 
  static Change * deserialize( const std::string & filename ) {

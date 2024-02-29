@@ -12,7 +12,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato.
+ * \copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
@@ -1280,7 +1280,7 @@ void BendersBFunction::delete_rows( Subset && rows , bool ordered ,
   v_A[ idx ].clear();
   v_b[ idx ] = std::numeric_limits< FunctionValue >::quiet_NaN();
   v_constraints[ idx ] = nullptr;
-  v_sides[ idx ] = std::numeric_limits< ConstraintSide >::quiet_NaN();
+  v_sides[ idx ] = ConstraintSide::eNone;
  }
 
  // kill stuff in v_A[]
@@ -1301,8 +1301,7 @@ void BendersBFunction::delete_rows( Subset && rows , bool ordered ,
  v_sides.erase
   ( std::remove_if( v_sides.begin() + rows.front() , v_sides.end() ,
                     []( ConstraintSide si ) {
-                     return( std::isnan< typename std::underlying_type
-                             < ConstraintSide >::type >( si ) ); } ) ,
+                     return( si == ConstraintSide::eNone ); } ) ,
     v_sides.end() );
 
  if( mod_type == C05FunctionMod::AllLinearizationChanged )

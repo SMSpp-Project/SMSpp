@@ -15,10 +15,11 @@
 #          keep it in mind when editing it.                                   #
 #                                                                             #
 #                              Niccolo' Iardella                              #
+#                                Donato Meoli                                 #
 #                         Dipartimento di Informatica                         #
 #                             Universita' di Pisa                             #
 # --------------------------------------------------------------------------- #
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.19)
 cmake_policy(VERSION 3.12)
 project(SMS++
         VERSION 0.5.2
@@ -48,8 +49,7 @@ include(CTest)
 include(BuildType)
 
 # ----- Requirements -------------------------------------------------------- #
-# The Boost find module is provided by CMake,
-# so this command will always work.
+# The Boost find module is provided by CMake.
 find_package(Boost 1.72.0 REQUIRED)
 
 # Try first with library's own configuration file, then with our find module.
@@ -59,9 +59,15 @@ if (NOT Eigen3_FOUND)
 endif ()
 
 # Try first with library's own configuration file, then with our find module.
-find_package(netCDFCxx QUIET NO_MODULE)
+if (UNIX)
+    find_package(netCDFCxx QUIET NO_MODULE)
+endif ()
 if (NOT netCDFCxx_FOUND)
     find_package(netCDFCxx REQUIRED)
+endif ()
+
+if (MSVC)
+    find_library(GETOPT_LIBRARY getopt)
 endif ()
 
 # ----- Configuration header ------------------------------------------------ #
@@ -136,6 +142,10 @@ target_link_libraries(${modName} PUBLIC
                       Eigen3::Eigen
                       netCDF::netCDFCxx)
 
+if (MSVC)
+    target_link_libraries(${modName} PUBLIC ${GETOPT_LIBRARY})
+endif ()
+
 # This alias is defined so that executables in this same project can use
 # the library with this notation.
 add_library(${modNamespace}::${modName} ALIAS ${modName})
@@ -159,7 +169,7 @@ install(TARGETS ${modName}
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 # Install the headers
-install(DIRECTORY include/
+install(DIRECTORY include
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${modNamespace})
 
 # Install the auto-generated configuration header (see above).

@@ -8,7 +8,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright Copyright &copy; by Antonio Frangioni
+ * \copyright &copy; by Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
@@ -975,33 +975,6 @@ void AbstractBlock::read_mps( std::istream & file )
   throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
  }
  file >> word;
- if( word != "OBJSENSE" ) {
-  problem_name = word;
-  file.ignore( max, '\n' );
-  file >> word;
- }
-
- // Read OBJSENSE (optional)
- if( word == "OBJSENSE" ) {
-  file >> word;
-  if( word == "MAX" || word == "MAXIMIZE" ) {
-   of->set_sense( Objective::eMax, eNoMod );
-  } else if( word == "MIN" || word == "MINIMIZE" ) {
-   of->set_sense( Objective::eMin, eNoMod );
-  } else {
-   throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
-  }
-  file >> word;
- } else {
-  // Minimize by default
-  of->set_sense( Objective::eMin, eNoMod );
- }
-
- // Read OBJNAME (optional)
- if( word == "OBJNAME" ) {
-  file >> of_name;
-  file >> word;
- }
 
  /*
   * First pass: get rows and columns number
@@ -1406,7 +1379,601 @@ void AbstractBlock::read_mps( std::istream & file )
 
 void AbstractBlock::read_lp( std::istream & file )
 {
- throw( std::logic_error( "AbstractBlock::read_lp() not implemented yet" ) );
+
+ // function to convert a float value written in a string in a double
+ auto dbl_val = []( std::string & s ) {
+ assert( ! s.empty() );
+ if( s == "-infinity")
+   return( -Inf< double >() );
+ else if( s == "infinity")
+   return( Inf< double >() );
+
+ if( s[ 0 ] == '.' )
+  s.insert( 0 , "0" );
+ else
+  if( ( s[ 0 ] == '-' ) && ( s[ 1 ] == '.' ) )
+    s.insert( 1 , "0" );
+
+ if( s.back() == '.' )
+  s.pop_back();
+
+ return( std::stod( s ) );
+ };
+
+ struct compare_words
+ {
+    std::string key_s;
+    compare_words(std::string const &s): key_s(s) {}
+ 
+    bool operator()(std::string const &s) {
+        return boost::iequals( s , key_s);
+    }
+ };
+
+ std::string problem_name;
+ int num_rows = 0;
+ int num_cols = 0;
+
+ auto * of = new FRealObjective();
+ std::string of_name;
+ int of_sense = 0;
+
+ std::vector< FRowConstraint > * rows;
+ std::vector< std::string > row_names;
+ std::vector< char > row_type;
+
+ std::vector< ColVariable > * cols;
+ std::vector< std::string > col_names;
+ std::vector< BoxConstraint > * bounds;
+
+ std::string rhs_name; // Only one RHS vector is supported
+ std::string rng_name; // Only one RANGES vector is supported
+ std::string bnd_name; // Only one BOUNDS vector is supported
+
+ std::string word;
+ auto max = std::numeric_limits< std::streamsize >::max();
+
+ std::vector< std::string > minfinity_names = { "-inf" , 
+                              "-infinity" };
+
+ // int value used to store the section currently scanned
+ int current_section;
+
+ /*---------------------------------------*/
+ /* HERE WE ARE STARTING TO READ THE FILE */
+ /*---------------------------------------*/
+  
+  // Eat initial comments
+ while( file.peek() == file.widen( '\\' )  || 
+            file.peek() ==  '\n' ) {
+  file.ignore( max, '\n' );
+ }
+
+ /*---------------------------------------*/
+ /*----------- READ OBJECTIVE ------------*/
+ /*---------------------------------------*/
+ 
+ // Read Objective sense
+ file >> word;
+ if( boost::iequals(word, "maximize") || boost::iequals(word, "max") )
+    of_sense = 1;
+ else if( boost::iequals(word, "minimize") || boost::iequals(word, "min") )
+    of_sense = -1;
+ else
+    throw( std::invalid_argument( "Invalid objective sense in" 
+        " LP file" ) );
+  
+ // Get objective function data
+ file >> word;
+ int pos = word.find( ":" );
+ of_name = word.substr( 0 , pos );
+ 
+ // Intizialize objective function
+ of->set_function( new LinearFunction(), eNoMod );
+ of->set_sense( of_sense, eNoMod );
+
+ // Function name and row name should always end with a ":" in
+ // .lp format. Thus, if no ":" has been found, it means we
+ // are already reading the formula. Otherwise, we can skip to the next
+ // next word.
+ if( pos != -1 )
+  file >> word;
+
+ std::string first_obj_word = word;
+
+ current_section = LP_sections::LP_OBJECTIVE;
+ sec_reached( &current_section , word );
+ auto pos_start_objective = file.tellg(); // Save it for later
+
+ /*---------------------------------------*/
+ /*------------- FIRST SCAN --------------*/
+ /*---------------------------------------*/
+
+ // First pass: just get number of columns and rows
+
+ while( current_section == LP_sections::LP_OBJECTIVE ){
+  std::string column;
+  ColVariable * v;
+  
+  char first_char = word[0];
+  int len_word = word.length();
+  bool read_sign = ( first_char == '-'  || first_char == '+' );
+  
+  // we can either read the sign, the coefficient or directly the 
+  // variable ( i.e., the coefficient is 1). In Highs usually the
+  // coefficient and the sign are grouped
+
+  if( len_word == 1 && read_sign ){
+   file >> word; // reading the coefficient
+   file >> column; // reading the variable name
+  }
+  else if( std::isdigit( first_char ) || read_sign ){ 
+    // we already read the coefficient
+    file >> column; // reading the variable name
+  }
+  else{ // the only possibility left is that we read the variable name
+    column = word;
+  }
+  
+  // When reading the active variable in the objective function, no variable
+  // have been added before
+  col_names.push_back( column );
+  ++num_cols;
+  
+  file >> word;
+  sec_reached( &current_section , word );
+ }
+ 
+ file.ignore( max, '\n' );
+ 
+ /*---------------------------------------*/
+ /*------------- READ ROWS ---------------*/
+ /*---------------------------------------*/
+
+ file >> word;
+ 
+ sec_reached( &current_section , word );
+ 
+ while( current_section == LP_sections::LP_ROW ){
+  // All row name must end with a ":"
+  pos = word.find( ":" );
+  
+  if( pos != -1 ){ // we actually found a new row
+   ++num_rows;
+   std::string row_name = word.substr( 0 , pos );
+   row_names.push_back( row_name );
+   }
+ 
+  file >> word;
+  char first_char = word[0];
+
+  // we can read symbols until we get to the sign, i.e., we are reading variables
+  // and coefficients
+  while( first_char != '<' &&  first_char != '>' && first_char != '=' ){
+   std::string column;
+   int len_word = word.length();
+   bool read_sign = ( first_char == '-'  || first_char == '+' );
+
+   // we can either read the sign, the coefficient or directly the 
+   // variable ( i.e., the coefficient is 1)
+
+   if( len_word == 1 && read_sign ){
+    file >> word; // reading the coefficient
+    file >> column; // reading the variable name
+    }  
+   else if( std::isdigit( first_char ) || read_sign ){ 
+    // we already read the coefficient
+    file >> column; // reading the variable name
+    }
+   else{ // the only possibility left is that we read the variable name
+    column = word;
+    }
+
+   // Now we have to check if the variable considered has been already found
+   // in the objective function or in a precedent row
+   auto it = std::find( col_names.begin(), col_names.end(), column );
+   if( it == col_names.end() ){
+    col_names.push_back( column );
+    ++num_cols;
+    }
+
+   file >> word;
+   first_char = word[0];
+  }
+
+  // Now skip sense and rhs
+  file >> word;
+  file >> word;
+  sec_reached( &current_section , word );
+ }
+
+ /*---------------------------------------*/
+ /*---------- INITIALIZE STUFF -----------*/
+ /*---------------------------------------*/
+
+ rows = new std::vector< FRowConstraint >( num_rows );
+
+ for( auto & r: *rows ) {
+  r.set_function( new LinearFunction(), eNoMod );
+  r.set_Block( this );
+ }
+
+ cols = new std::vector< ColVariable >( num_cols );
+ bounds = new std::vector< BoxConstraint >( num_cols );
+
+ for( int i = 0; i < num_cols; ++i ) {
+  ( *bounds )[ i ].set_variable( &( *cols )[ i ], eNoMod );
+  ( *bounds )[ i ].set_Block( this );
+  ( *cols )[ i ].set_Block( this );
+ }
+
+ /*---------------------------------------*/
+ /*------------ SECOND SCAN --------------*/
+ /*---------------------------------------*/
+ 
+ file.seekg( pos_start_objective, file.beg ); // Go back to objective section
+ current_section = LP_sections::LP_OBJECTIVE;
+ word = first_obj_word;
+
+ while( current_section == LP_sections::LP_OBJECTIVE ){
+  std::string column;
+  std::string value;
+  std::string value_sense = "+";
+  LinearFunction * f = static_cast< LinearFunction * >(of->get_function());
+  ColVariable * v;
+  
+  char first_char = word[0];
+  int len_word = word.length();
+  bool read_sign = ( first_char == '-'  || first_char == '+' );
+
+  // we can either read the sign, the coefficient or directly the 
+  // variable ( i.e., the coefficient is 1). In Highs usually the
+  // coefficient and the sign are grouped
+
+  if( len_word == 1 && read_sign ){
+   value_sense = word;
+   file >> value; // reading the coefficient
+   file >> column; // reading the variable name
+   value = value_sense + value;
+  }
+  else if( std::isdigit( first_char ) || read_sign ){ 
+    // we already read the coefficient
+    value = word;
+    file >> column; // reading the variable name
+  }
+  else{ // the only possibility left is that we read the variable name
+    value = std::to_string( 1 );
+    column = word;
+  }
+
+  auto it = std::find( col_names.begin(), col_names.end(), column );
+  auto j = std::distance( col_names.begin(), it );
+  v = &( *cols )[ j ];
+  
+  f->add_variable( v, dbl_val( value ) );
+  
+  file >> word;
+  sec_reached( &current_section , word );
+ }
+ 
+ file.ignore( max, '\n' );
+ 
+ /*---------------------------------------*/
+ /*------------- READ ROWS ---------------*/
+ /*---------------------------------------*/
+
+ file >> word;
+ sec_reached( &current_section , word );
+ 
+ while( current_section == LP_sections::LP_ROW ){
+  std::string row_name;
+  std::string rhs;
+  LinearFunction * f;
+   
+  pos = word.find( ":" );
+  row_name = word.substr( 0 , pos );
+  auto it_row = std::find( row_names.begin(), row_names.end(), row_name );
+  auto r = std::distance( row_names.begin(), it_row );
+
+  f = static_cast< LinearFunction * >( (*rows)[ r ].get_function() );
+
+  file >> word;
+  char first_char = word[0];
+
+  // we can read symbols until we get to the sign, i.e., we are reading variables
+  // and coefficients
+  while( first_char != '<' &&  first_char != '>' && first_char != '=' ){
+   std::string column;
+   std::string value;
+   std::string value_sense = "+";
+   ColVariable * v;
+
+   int len_word = word.length();
+   bool read_sign = ( first_char == '-'  || first_char == '+' );
+
+   // we can either read the sign, the coefficient or directly the 
+   // variable ( i.e., the coefficient is 1)
+
+   if( len_word == 1 && read_sign ){
+    value_sense = word;
+    file >> value; // reading the coefficient
+    file >> column; // reading the variable name
+    value = value_sense + value;
+    }  
+   else if( std::isdigit( first_char ) || read_sign ){ 
+    // we already read the coefficient
+    value = word;
+    file >> column; // reading the variable name
+    }
+   else{ // the only possibility left is that we read the variable name
+    value = std::to_string( 1 );
+    column = word;
+    }
+
+   // Now we have to check if the variable considered has been already found
+   // in the objective function or in a precedent row
+   auto it = std::find( col_names.begin(), col_names.end(), column );
+   auto j = std::distance( col_names.begin(), it );
+   v = &( *cols )[j];
+   
+   f->add_variable( v, dbl_val( value ) );
+
+   file >> word;
+   first_char = word[0];
+   }
+  
+  // Now we should be reading the rhs
+  file >> rhs;
+  auto & row = (*rows)[ r ];
+
+  switch( first_char ) {
+   case '<' :
+    // G: -inf =< f() =< rhs
+    row.set_lhs( - Inf< double >(), eNoMod );
+    row.set_rhs( dbl_val( rhs ), eNoMod );
+    break;
+
+   case '>' :
+    // L: rhs =< f() =< +inf
+    row.set_lhs( dbl_val( rhs ), eNoMod );
+    row.set_rhs( Inf< double >(), eNoMod );
+    break;
+
+   case '=' :
+    // E (no range): rhs =< f() =< rhs
+    row.set_both( dbl_val( rhs ), eNoMod );
+    break;
+
+   default:
+    throw( std::invalid_argument( "Invalid row sense in" 
+        " LP file" ) );
+   }
+
+  file >> word;
+  sec_reached( &current_section , word );
+  }
+
+ /*---------------------------------------*/
+ /*------------- READ BOUNDS -------------*/
+ /*---------------------------------------*/
+ 
+ file >> word;
+ 
+ // In this case we have to control both for the general and binary section,
+ // because they can come in any order.
+ while( current_section == LP_sections::LP_BOUND ){
+  
+  std::string column;
+  std::string lhs_value = "0"; // default lhs value in .lp file
+  std::string rhs_value = "infinity"; // default rhs value in .lp file
+  
+  char first_char = word[0];
+  
+  if( std::isdigit( first_char ) || first_char == '-' ){ 
+   // we read the lhs
+   lhs_value = word;
+   file >> word; // we can skip the <=
+   file >> column;
+   }
+  else // we should have found the variable
+   column = word;
+
+  file >> word; // We expect to be reading the sense
+  first_char = word[0];
+  
+  if( first_char == '<' ){ // now reading rhs
+   file >> rhs_value;
+   file >> word;
+  }
+  else if( first_char == '>' ){ // now reading lhs
+   file >> lhs_value;
+   file >> word;
+  }
+  else if( first_char == '=' ){ // reading both
+   file >> rhs_value;
+   lhs_value = rhs_value;
+   file >> word;
+  }
+  else if( boost::iequals( word , "free" ) ){ // free variable
+   lhs_value = "-infinity";
+   file >> word;
+  }
+
+  auto it = std::find( col_names.begin(), col_names.end(), column );
+  if( it != col_names.end() ) {
+   auto j = std::distance( col_names.begin(), it );
+   auto & b = ( *bounds )[ j ];
+   auto & c = ( *cols )[j];
+   b.set_lhs( dbl_val( lhs_value ), eNoMod );
+   b.set_rhs( dbl_val( rhs_value ), eNoMod );
+   
+   if( lhs_value == rhs_value )
+    c.is_fixed( true, eNoMod );
+
+   } 
+  else
+   throw( std::invalid_argument( "Invalid syntax in LP file" ) );
+
+  sec_reached( &current_section , word );
+  }
+
+ /*---------------------------------------*/
+ /*-------------- READ TYPES -------------*/
+ /*---------------------------------------*/
+
+ while( current_section == LP_sections::LP_GENERAL || 
+         current_section == LP_sections::LP_BINARY ){
+   
+   std::string column;   
+   file >> column; // read new variable
+   auto it = std::find( col_names.begin(), col_names.end(), column );
+   if( it != col_names.end() ) {
+    auto j = std::distance( col_names.begin(), it );
+    auto & c = ( *cols )[j];
+    if( current_section == LP_sections::LP_GENERAL )
+     c.set_type( ColVariable::kInteger, eNoMod );
+    else // Binary
+     c.set_type( ColVariable::kBinary, eNoMod );
+    }
+   else // we already switched to a new section
+    sec_reached( &current_section , column );
+   
+   // In any case, now we can read a new word and update the section
+   file >> word;
+   sec_reached( &current_section , word );
+   }
+
+ /*---------------------------------------*/
+ /*------- READ REMAINING SECTIONS -------*/
+ /*---------------------------------------*/
+
+ if( current_section == LP_sections::LP_SEMI_CON ){
+  // TODO
+ }
+ else if( current_section == LP_sections::LP_SOS ){
+  // TODO
+ }
+ else if( current_section == LP_sections::LP_END ){
+   // Nothing to do
+ }
+ else{
+   throw( std::invalid_argument( "Invalid syntax in LP file" ) );
+ }
+
+ // Reset and set abstract representation
+ reset_static_constraints();
+ reset_static_variables();
+ reset_objective();
+
+ set_objective( of, eNoMod );
+ add_static_variable( *cols );
+ add_static_constraint( *rows );
+ add_static_constraint( *bounds );
+
+ // Issue the NBModification
+ if( anyone_there() )
+   add_Modification( std::make_shared< NBModification >( this ) );
+
+ }  // end( AbstractBlock::read_lp )
+
+/*--------------------------------------------------------------------------*/
+
+ void AbstractBlock::sec_reached( int * actual_sec , std::string word ) {
+
+  /* Here are listed all of the possible names of each section of a .lp file. */
+ const std::vector< std::string > ROW_SECTION = { "subject" , "such" , 
+                              "st" , "S.T." , "ST." };
+ 
+ const std::vector< std::string > BOUND_SECTION = { "bounds" , "bound" };
+
+ const std::vector< std::string > GENERAL_SECTION = { "general" , "generals" ,
+                              "gen" };
+
+ const std::vector< std::string > BINARY_SECTION = { "binary" , "binaries" ,
+                              "bin" };
+
+ const std::vector< std::string > SEMI_CON_SECTION = { "semi-continuos" , "semi" ,
+                              "semis" };           
+
+ const std::vector< std::string > SOS_SECTION = { "sos" }; 
+
+ const std::vector< std::string > END_SECTION = { "end" };
+
+ // Struct used to return true if the actual word read is in the specific 
+ // following section.
+ struct compare_section
+ {
+    std::string key_s;
+    compare_section(std::string const &s): key_s(s) {}
+ 
+    bool operator()(std::string const &s) {
+        return boost::iequals( s , key_s);
+    }
+ };
+
+ assert( *actual_sec <= LP_sections::LP_END );
+ 
+ switch( *actual_sec ){
+   case( LP_sections::LP_OBJECTIVE ) :
+    if ( std::any_of( ROW_SECTION.begin() , ROW_SECTION.end() , 
+                        compare_section( word ) ) ){
+      // we reached the row section
+      *actual_sec = LP_sections::LP_ROW;
+      return;
+    }
+    // In any case, there is no reason to continue searching because 
+    // the row section is mandatory
+    break;
+   case( LP_sections::LP_ROW ) :
+    if ( std::any_of( BOUND_SECTION.begin() , BOUND_SECTION.end() , 
+                        compare_section( word ) ) ){
+      // we reached the bound section
+      *actual_sec = LP_sections::LP_BOUND;
+      return;
+    }
+   case( LP_sections::LP_BOUND ) :
+   case( LP_sections::LP_GENERAL ) :
+   case( LP_sections::LP_BINARY ) :
+    if ( std::any_of( GENERAL_SECTION.begin() , GENERAL_SECTION.end() , 
+                        compare_section( word ) ) ){
+      // we reached the general section
+      *actual_sec = LP_sections::LP_GENERAL;
+      return;
+    }
+    if ( std::any_of( BINARY_SECTION.begin() , BINARY_SECTION.end() , 
+                        compare_section( word ) ) ){
+      // we reached the general section
+      *actual_sec = LP_sections::LP_BINARY;
+      return;
+    }
+    if ( std::any_of( SEMI_CON_SECTION.begin() , SEMI_CON_SECTION.end() , 
+                        compare_section( word ) ) ){
+      // we reached the semi-continuous section
+      *actual_sec = LP_sections::LP_SEMI_CON;
+      return;
+    }
+   case( LP_sections::LP_SEMI_CON ) :
+    if ( std::any_of( SOS_SECTION.begin() , SOS_SECTION.end() , 
+                        compare_section( word ) ) ){
+      // we reached the sos section
+      *actual_sec = LP_sections::LP_SOS;
+      return;
+    }
+   case( LP_sections::LP_SOS ) :
+    if ( std::any_of( END_SECTION.begin() , END_SECTION.end() , 
+                        compare_section( word ) ) ){
+      // we reached the sos section
+      *actual_sec = LP_sections::LP_END;
+      return;
+    }
+    break;
+   default : 
+    throw( std::logic_error(
+       "Error in reading LP file" ) );
+  }
+
+ // No new section has been reached. Nothing to do.
+ return;
  }
 
 /*--------------------------------------------------------------------------*/

@@ -8,7 +8,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright Copyright &copy; by Antonio Frangioni
+ * \copyright &copy; by Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
@@ -35,36 +35,35 @@ SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< int > );
 SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< double > );
 
 SMSpp_insert_in_factory_cpp_0_t(
- ( SimpleConfiguration< std::pair< int, int > > ) );
+ SimpleConfiguration< std::pair< int , int > > );
 
 SMSpp_insert_in_factory_cpp_0_t(
- ( SimpleConfiguration< std::pair< double, double > > ) );
+ SimpleConfiguration< std::pair< double , double > > );
 
 SMSpp_insert_in_factory_cpp_0_t(
- ( SimpleConfiguration< std::pair< int, double > > ) );
+ SimpleConfiguration< std::pair< int , double > > );
 
 SMSpp_insert_in_factory_cpp_0_t(
- ( SimpleConfiguration< std::pair< double, int > > ) );
+ SimpleConfiguration< std::pair< double , int > > );
 
 SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< std::vector< int > > );
 
 SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< std::vector< double > > );
 
 SMSpp_insert_in_factory_cpp_0_t(
- ( SimpleConfiguration< std::pair< Configuration *, Configuration * > > ) );
+ SimpleConfiguration< std::pair< Configuration * , Configuration * > > );
 
 SMSpp_insert_in_factory_cpp_0_t(
  SimpleConfiguration< std::vector< Configuration * > > );
 
 SMSpp_insert_in_factory_cpp_0_t(
- ( SimpleConfiguration< std::vector< std::pair< int , int > > > ) );
+ SimpleConfiguration< std::vector< std::pair< int , int > > > );
 
 SMSpp_insert_in_factory_cpp_0_t(
- ( SimpleConfiguration< std::vector< std::pair< int , Configuration * > > > )
-				);
+ SimpleConfiguration< std::vector< std::pair< int , Configuration * > > > );
 
 SMSpp_insert_in_factory_cpp_0_t(
- ( SimpleConfiguration< std::map< std::string , Configuration * > > ) );
+ SimpleConfiguration< std::map< std::string , Configuration * > > );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 

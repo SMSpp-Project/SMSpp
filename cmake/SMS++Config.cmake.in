@@ -10,6 +10,7 @@
 #    depending on a local build or an installed package.                      #
 #                                                                             #
 #                              Niccolo' Iardella                              #
+#                                Donato Meoli                                 #
 #                         Dipartimento di Informatica                         #
 #                             Universita' di Pisa                             #
 # --------------------------------------------------------------------------- #
@@ -29,17 +30,17 @@ find_dependency(Boost)
 list(APPEND CMAKE_MODULE_PATH ${@modName@_CMAKE_DIR})
 
 # Try first with library's own configuration file, then with our find module.
-# Don't use find_dependency() because it will call return().
 find_package(Eigen3 NO_MODULE)
 if (NOT Eigen3_FOUND)
     find_dependency(Eigen3)
 endif ()
 
 # Try first with library's own configuration file, then with our find module.
-# Don't use find_dependency() because it will call return().
-find_package(netCDFCxx QUIET NO_MODULE)
+if (UNIX)
+    find_package(netCDFCxx QUIET NO_MODULE)
+endif ()
 if (NOT netCDFCxx_FOUND)
-    find_dependency(netCDFCxx REQUIRED)
+    find_package(netCDFCxx REQUIRED)
 endif ()
 
 list(REMOVE_AT CMAKE_MODULE_PATH -1)

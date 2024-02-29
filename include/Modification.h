@@ -42,7 +42,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright Copyright &copy; by Antonio Frangioni
+ * \copyright &copy; by Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -886,7 +886,7 @@ using Vec_sp_Mod = std::vector< sp_Mod >;
 ///< a vector of shared pointer to Modification
 
 using Lst_sp_Mod = std::list< sp_Mod >;
-///< a vector of pointer to Modification
+///< a list of shared pointer to Modification
 
 /*--------------------------------------------------------------------------*/
 /// public type for parameters controlling issuing of Modification

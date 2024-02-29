@@ -5,129 +5,125 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Niccolo' Iardella
+ * \author Donato Meoli \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \copyright &copy; by Niccolo' Iardella, Donato Meoli
  */
 
-#include <gtest/gtest.h>
+/*--------------------------------------------------------------------------*/
+/*------------------------------ INCLUDES ----------------------------------*/
+/*--------------------------------------------------------------------------*/
 
 #include "ColVariable.h"
 #include "SMSTypedefs.h"
 
+/*--------------------------------------------------------------------------*/
+/*-------------------------------- USING -----------------------------------*/
+/*--------------------------------------------------------------------------*/
+
 using namespace SMSpp_di_unipi_it;
 
 /*--------------------------------------------------------------------------*/
-/*------------------------------- TEST CASES -------------------------------*/
+/*------------------------------ FUNCTIONS ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-TEST( VariableTest, FixUnfix ) {
+void runAllTests()
+{
  ColVariable var;
- ASSERT_FALSE( var.is_fixed() );
+
+ // test FixUnfix
+ assert( ! var.is_fixed() );
  var.is_fixed( true );
- ASSERT_TRUE( var.is_fixed() );
+ assert( var.is_fixed() );
  var.is_fixed( false );
- ASSERT_FALSE( var.is_fixed() );
-}
+ assert( ! var.is_fixed() );
 
-TEST( ColVariableTest, SetsValue ) {
- ColVariable var;
+ // test IsContinuous
+ assert( var.get_value() == 0 );
+ assert( var.get_type() == ColVariable::kContinuous );
+ assert( ! var.is_integer() );
+ assert( ! var.is_positive() );
+ assert( ! var.is_negative() );
+ assert( ! var.is_unitary() );
+ assert( var.get_lb() == -Inf< ColVariable::VarValue >() );
+ assert( var.get_ub() == Inf< ColVariable::VarValue >() );
 
- ColVariable::VarValue val = 42;
+ // test SetsValue
+ ColVariable::VarValue val = 42.0;
  var.set_value( val );
- ASSERT_EQ( val, var.get_value() );
-}
+ assert( val == var.get_value() );
 
-TEST( ColVariableTest, IsContinuous ) {
- ColVariable var;
- ASSERT_EQ( var.get_value(), 0 );
- ASSERT_EQ( var.get_type(), ColVariable::kContinuous );
- ASSERT_FALSE( var.is_integer() );
- ASSERT_FALSE( var.is_positive() );
- ASSERT_FALSE( var.is_negative() );
- ASSERT_FALSE( var.is_unitary() );
- ASSERT_EQ( var.get_lb(), -Inf< ColVariable::VarValue >() );
- ASSERT_EQ( var.get_ub(), Inf< ColVariable::VarValue >() );
-
-}
-
-TEST( ColVariableTest, IsInteger ) {
- ColVariable var;
-
+ // test IsInteger
  var.set_type( ColVariable::kInteger );
- ASSERT_EQ( var.get_type(), ColVariable::kInteger );
- ASSERT_TRUE( var.is_integer() );
- ASSERT_FALSE( var.is_positive() );
- ASSERT_FALSE( var.is_negative() );
- ASSERT_FALSE( var.is_unitary() );
- ASSERT_EQ( var.get_lb(), -Inf< ColVariable::VarValue >() );
- ASSERT_EQ( var.get_ub(), Inf< ColVariable::VarValue >() );
-}
+ assert( var.get_type() == ColVariable::kInteger );
+ assert( var.is_integer() );
+ assert( ! var.is_positive() );
+ assert( ! var.is_negative() );
+ assert( ! var.is_unitary() );
+ assert( var.get_lb() == -Inf< ColVariable::VarValue >() );
+ assert( var.get_ub() == Inf< ColVariable::VarValue >() );
 
-TEST( ColVariableTest, IsPositive ) {
- ColVariable var;
-
+ // test IsPositive
  var.set_type( ColVariable::kNonNegative );
- ASSERT_EQ( var.get_type(), ColVariable::kNonNegative );
- ASSERT_FALSE( var.is_integer() );
- ASSERT_TRUE( var.is_positive() );
- ASSERT_FALSE( var.is_negative() );
- ASSERT_FALSE( var.is_unitary() );
- ASSERT_EQ( var.get_lb(), 0 );
- ASSERT_EQ( var.get_ub(), Inf< ColVariable::VarValue >() );
-}
+ assert( var.get_type() == ColVariable::kNonNegative );
+ assert( ! var.is_integer() );
+ assert( var.is_positive() );
+ assert( ! var.is_negative() );
+ assert( ! var.is_unitary() );
+ assert( var.get_lb() == 0 );
+ assert( var.get_ub() == Inf< ColVariable::VarValue >() );
 
-TEST( ColVariableTest, IsNegative ) {
- ColVariable var;
-
+ // test IsNegative
  var.set_type( ColVariable::kNonPositive );
- ASSERT_EQ( var.get_type(), ColVariable::kNonPositive );
- ASSERT_FALSE( var.is_integer() );
- ASSERT_FALSE( var.is_positive() );
- ASSERT_TRUE( var.is_negative() );
- ASSERT_FALSE( var.is_unitary() );
- ASSERT_EQ( var.get_lb(), -Inf< ColVariable::VarValue >() );
- ASSERT_EQ( var.get_ub(), 0 );
-}
+ assert( var.get_type() == ColVariable::kNonPositive );
+ assert( ! var.is_integer() );
+ assert( ! var.is_positive() );
+ assert( var.is_negative() );
+ assert( ! var.is_unitary() );
+ assert( var.get_lb() == -Inf< ColVariable::VarValue >() );
+ assert( var.get_ub() == 0 );
 
-TEST( ColVariableTest, IsUnitary) {
- ColVariable var;
-
+ // test IsUnitary
  var.set_type( ColVariable::kUnitary );
- ASSERT_EQ( var.get_type(), ColVariable::kUnitary );
- ASSERT_FALSE( var.is_integer() );
- ASSERT_FALSE( var.is_positive() );
- ASSERT_FALSE( var.is_negative() );
- ASSERT_TRUE( var.is_unitary() );
- ASSERT_EQ( var.get_lb(), -1 );
- ASSERT_EQ( var.get_ub(), 1 );
-}
+ assert( var.get_type() == ColVariable::kUnitary );
+ assert( ! var.is_integer() );
+ assert( ! var.is_positive() );
+ assert( ! var.is_negative() );
+ assert( var.is_unitary() );
+ assert( var.get_lb() == -1 );
+ assert( var.get_ub() == 1 );
 
-TEST( ColVariableTest, IsFeasible) {
- ColVariable var;
-
- var.set_value(42.42);
+ // test IsFeasible
+ var.set_value( 42.42 );
  var.set_type( ColVariable::kInteger );
- ASSERT_FALSE(var.is_feasible());
+ assert( ! var.is_feasible() );
 
- var.set_value(42.42);
+ var.set_value( 42.42 );
  var.set_type( ColVariable::kNonNegative );
- ASSERT_TRUE(var.is_feasible());
+ assert( var.is_feasible() );
 
- var.set_value(-42.42);
+ var.set_value( -42.42 );
  var.set_type( ColVariable::kUnitary );
- ASSERT_FALSE(var.is_feasible());
+ assert( ! var.is_feasible() );
 
- var.set_value(0.42);
+ var.set_value( 0.42 );
  var.set_type( ColVariable::kUnitary );
- ASSERT_TRUE(var.is_feasible());
+ assert( var.is_feasible() );
 
- var.set_value(42);
+ var.set_value( 42 );
  var.set_type( ColVariable::kNatural );
- ASSERT_TRUE(var.is_feasible());
+ assert( var.is_feasible() );
 }
+
 /*--------------------------------------------------------------------------*/
-/*---------------------------------- MAIN ----------------------------------*/
-/*--------------------------------------------------------------------------*/
-int main( int argc, char ** argv ) {
- ::testing::InitGoogleTest( &argc, argv );
- return( RUN_ALL_TESTS() );
+
+int main() {
+ runAllTests();
+ return( 0 );
 }
+
+/*--------------------------------------------------------------------------*/
+/*--------------------- End File tests_ColVariable.cpp ---------------------*/
+/*--------------------------------------------------------------------------*/

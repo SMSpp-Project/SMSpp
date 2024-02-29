@@ -15,7 +15,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright Copyright &copy; by Antonio Frangioni, Enrico Gorgone
+ * \copyright &copy; by Antonio Frangioni, Enrico Gorgone
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
@@ -946,6 +946,10 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
  // if f_play_dumb == true, ignore any Modification coming directly from the
  // inner Block because that's a "self-inflicted Modification" that
  // LagBFunction caused by modifying the Objective of the inner Block
+ // THESE Modification ARE ALSO NOT FORWARDED TO THE f_Block OF THE
+ // LagBFunction, IF IT HAS BEEN SET, THE IDEA BEING THAT THEY ARE "TEMPORARY"
+ // AND THEY WILL BE UNDONE BY THE NEXT TIME ANYTHING ELSE WILL BE ALLOWED TO
+ // LOOK AT THE sub-Block (cf. cleanup_inner_objective())
  if( f_play_dumb && ( mod->get_Block() == v_Block.front() ) )
   return;
 
@@ -1020,6 +1024,20 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
 				chnl );
 
   }  // end( if( checking is required ) )
+
+ // finally, if the father Block of LagBFunction is defined, forward the
+ // Modification there; this is done, e.g., for the case where the sub-Block
+ // (B) in the LagBFunction was actually a sub-Block of some other Block and
+ // it has been "stolen" from it, but one still wants the Modification to
+ // reach the original father. hence, this is done only for Modification
+ // that actually come from the inner Block (or one of its sub-Block,
+ // recursively, i.e., avoiding those coming from the LagBFunction itself,
+ // which are those correspondong to changes in the linking constraints
+
+ if( mod->get_Block() != this )
+  if( auto fthr = get_f_Block() )
+   fthr->add_Modification( mod , chnl );
+
  }  // end( LagBFunction::add_Modification() )
 
 /*--------------------------------------------------------------------------*/

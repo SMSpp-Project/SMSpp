@@ -31,7 +31,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright Copyright &copy; by Antonio Frangioni
+ * \copyright &copy; by Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -687,6 +687,25 @@ class AbstractBlock : public Block {
 
  /// Loads the block from a MPS file
  void read_mps( std::istream & file );
+
+/*--------------------------------------------------------------------------*/
+/*------------------------------ LP READER ---------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ // An enumeration of all the possible sections of a .lp file
+ enum LP_sections {
+   LP_OBJECTIVE ,
+   LP_ROW ,
+   LP_BOUND ,
+   LP_GENERAL ,
+   LP_BINARY ,
+   LP_SEMI_CON ,
+   LP_SOS ,
+   LP_END
+ };
+
+ // Function used to update the current section analyzed in the .lp file
+ void sec_reached( int * actual_sec , std::string word );
 
  /// Loads the block from an LP file
  void read_lp( std::istream & file );
