@@ -533,9 +533,12 @@ class ColVariable : public Variable
 
  void remove_active( ThinVarDepInterface * stuff ) override {
   // find proper position in ascending order
-  auto it = std::find( v_active.begin() , v_active.end() , stuff );
+  auto idx = std::lower_bound( v_active.begin() , v_active.end() , stuff );
 
-  v_active.erase( it );  // now remove it
+  if( idx == v_active.end() )
+   throw( std::invalid_argument( "remove_active() called on non-active stuff" ) );
+
+  v_active.erase( idx );  // now remove it
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
