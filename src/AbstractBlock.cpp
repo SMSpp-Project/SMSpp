@@ -1980,6 +1980,36 @@ void AbstractBlock::read_lp( std::istream & file )
 
 void AbstractBlock::guts_of_deserialize( const netCDF::NcGroup & group )
 {
+ // first deserialise the abstract representation out of a LP or MPS file
+ auto mod = group.getVar( "Model" );
+ 
+ // check if the LP/MPS representation of the block is provided 
+ if( ! mod.isNull() ) {
+  // Prepare the stream of the file to be read
+  std::string str;
+  mod.getVar( {0} , &str );
+  std::istringstream file( str.data() );
+
+  /* Get the format of the file provided. Possible values for this attribute
+  *  are:
+  *    'L' if we have to read the file from an .lp file; 
+  *    'M' if we have to read the file from an .mps file;
+  *  
+  *  If no format is provided, we suppose that the file is provided in a .lp 
+  *  format. */
+  char type;
+  auto gtype = mod.getAtt( "ModelType" );
+  if( gtype.isNull() )
+   type = 'L';
+  else
+   gtype.getValues( &type );
+
+  if( type == 'L' )
+   read_lp( file ); // read the .lp file
+  else
+   read_mps( file ); // read the .mps file
+  }
+
  // deserialize the "abstract only inner Block"
  netCDF::NcDim nib = group.getDim( "NumberInnerBlock" );
  if( nib.isNull() )
