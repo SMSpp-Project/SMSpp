@@ -353,7 +353,7 @@ public:
   * @param sdmb_netCDF The struct containing the netCDF dimensions and
   *        variables describing the vector of SimpleDataMappingBase.
   *
-  * @param index The index of the SimpleDataMappingbase to be serialized in
+  * @param index The index of the SimpleDataMappingBase to be serialized in
   *        the vector of SimpleDataMappingBase.
   *
   * @param set_elements_start_index The index of the "SetElements" array at
@@ -515,13 +515,13 @@ private:
        ( sdmb_netCDF.DataType.getDimCount() != 1 ||
          sdmb_netCDF.DataType.getDim( 0 ).getSize() != num_data_mappings ) )
     throw( std::logic_error( "SimpleDataMappingBase::pre_deserialize: invalid "
-                           "'" + DataType_name + "' array." ) );
+                             "'" + DataType_name + "' array." ) );
 
    if( ! sdmb_netCDF.Caller.isNull() &&
        ( sdmb_netCDF.Caller.getDimCount() != 1 ||
          sdmb_netCDF.Caller.getDim( 0 ).getSize() != num_data_mappings ) )
     throw( std::logic_error( "SimpleDataMappingBase::pre_deserialize: invalid "
-                           "'" + Caller_name + "' array." ) );
+                             "'" + Caller_name + "' array." ) );
 
    if( sdmb_netCDF.FunctionName.isNull() ||
        sdmb_netCDF.FunctionName.getDimCount() != 1 ||
@@ -773,7 +773,7 @@ public:
   * @param set_to The set specifying which part of the data that will change.
   */
  SimpleDataMapping( const F * function = nullptr , Caller * caller = nullptr ,
-              const SetFrom & set_from = {} , const SetTo & set_to = {} ) :
+                    const SetFrom & set_from = {} , const SetTo & set_to = {} ) :
   function( function ) , caller( caller ) , set_from( set_from ) ,
   set_to( set_to ) {
 
@@ -1013,7 +1013,7 @@ public:
     * to the given data forward to the function. Also, when the cardinality of
     * the SetFrom set is smaller than that of the SetTo set, we have to expand
     * the given data. In both cases, we need to construct a new vector to
-    * accomodate the data to be passed to the function. */
+    * accommodate the data to be passed to the function. */
 
    assert( empty( set_from ) ||
            cardinality( set_to ) % cardinality( set_from ) == 0 );
