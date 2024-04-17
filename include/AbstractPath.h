@@ -129,7 +129,7 @@ namespace SMSpp_di_unipi_it
  * The path is defined as a sequence of nodes. Each node has one of the
  * following types:
  *
- * - 'O', if the node is associated with an Objective.
+ * - 'O', if the node is associated with an Objective;
  *
  * - 'B', if the node is associated with a Block;
  *
