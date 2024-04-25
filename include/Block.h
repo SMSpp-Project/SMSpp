@@ -3172,7 +3172,7 @@ class Block : public Observer {
  /// returns the number of groups of dynamic Constraint
 
  Index get_number_dynamic_constraints( void ) const {
-  return( v_s_Constraint.size() );
+  return( v_d_Constraint.size() );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
