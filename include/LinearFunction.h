@@ -30,6 +30,7 @@
 #include "C15Function.h"
 
 #include "ColVariable.h"
+
 #include "Observer.h"
 
 /*--------------------------------------------------------------------------*/
@@ -102,6 +103,8 @@ class LinearFunction : public C15Function
  using v_coeff = std::vector< Coefficient >;  ///< a vector of Coefficients
 
  using v_coeff_it = v_coeff::iterator;  ///< iterator in v_coeff
+
+ using c_v_coeff = const v_coeff;  ///< a const vector of Coefficients
 
  using c_v_coeff_it = v_coeff::const_iterator;  ///< const iterator in v_coeff
 
@@ -760,6 +763,89 @@ class LinearFunction : public C15Function
 
 };  // end( class( LinearFunction ) )
 
+/*--------------------------------------------------------------------------*/
+/*------------------- Class LinearFunctionModVarsAddd ----------------------*/
+/*--------------------------------------------------------------------------*/
+/// class to describe "nicely" adding Variable of a LinearFunction
+/** Derived class from C05FunctionModVarsAddd to describe adding "active"
+ * ColVariable to a LinearFunction. The only difference with the base
+ * C05FunctionModVarsAddd is that the LinearFunctionModVarsAddd stores the
+ * values of the coefficients given to the new ColVariable in the
+ * LinearFunction at the time when they are added. */
+
+class LinearFunctionModVarsAddd : public C05FunctionModVarsAddd
+{
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+ public:
+
+/*---------------------------- CONSTRUCTOR ---------------------------------*/
+ /// constructor: that of C05FunctionModVarsAddd plus the coefficients
+ /** Constructor of LinearFunctionModVarsAddd: takes the same arguments as
+  * that of C05FunctionModVarsAddd plus a std::vector( Coefficient ) with
+  * the initial values given to the newly added ColVariable, with positional
+  * correspondence to vars[] (i.e., coeff[ i ] is the coefficient given to
+  * vars[ i ]).  */
+
+ LinearFunctionModVarsAddd( C05Function * f ,
+			    LinearFunction::v_coeff && coeff ,
+			    Vec_p_Var && vars , Index first ,
+			    FunctionValue shift = NaNshift , bool cB = true )
+  : C05FunctionModVarsAddd( f , std::move( vars ) , first , shift , cB ) ,
+    f_coeff( std::move( coeff ) ) {}
+
+/*------------------------------ DESTRUCTOR --------------------------------*/
+ /// destructor: does nothing (explicitly)
+ 
+ ~LinearFunctionModVarsAddd() override = default;
+
+/*-------------------------------- GETTERS ----.----------------------------*/
+ /// returns (a const reference to) the vector of initial coefficient
+ 
+ LinearFunction::c_v_coeff & coeff( void ) { return( f_coeff ); }
+
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+
+ /// print the LinearFunctionModVarsAddd
+
+ void print( std::ostream & output ) const override {
+  output << "LinearFunctionModVarsAddd[";
+  if( concerns_Block() )
+   output << "t";
+  else
+   output << "f";
+  output << "] on Function [" << f_function
+         << " ]: strongly quasi-additively (";
+
+  if( std::isnan( f_shift ) )
+   output << "+-(?)";
+  else
+   if( f_shift >= Inf< FunctionValue >() )
+    output << "+(?)";
+   else
+    if( f_shift <= - Inf< FunctionValue >() )
+     output << "-(?)";
+    else
+     output << f_shift;
+
+  output << ") adding variables [ " << f_first << " , "
+         << f_first + v_vars.size() << " ]" << std::endl;
+  }
+
+/*--------------------------- PROTECTED FIELDS -----------------------------*/
+
+ LinearFunction::v_coeff f_coeff;
+ ///< the linear coefficients given to the added ColVariable
+  
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( LinearFunctionModVarsAddd ) )
+
+/*--------------------------------------------------------------------------*/
 /** @} end( group( LinearFunction_CLASSES ) ) ------------------------------*/
 /*--------------------------------------------------------------------------*/
 
