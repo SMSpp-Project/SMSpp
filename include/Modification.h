@@ -112,7 +112,7 @@ namespace SMSpp_di_unipi_it {
  * method of the specialized interface of a specific derived class from Block
  * is called. The PMod indicates how the PR changes, and this is all that a
  * *specialized* Solver for that *specific kind of Block* has to know to
- * update itself. However, any non-specialized solver, which rater relies on
+ * update itself. However, any non-specialized solver, which rather relies on
  * the "abstract representation" (AR) of the Block, has no way of properly
  * reacting to such a Modification. Yet, when the PR is modified, the AR must
  * change accordingly; this means that, besides the PMod, one or more
