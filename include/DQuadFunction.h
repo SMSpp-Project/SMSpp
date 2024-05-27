@@ -967,7 +967,7 @@ class DQuadFunctionModVarsAddd : public C05FunctionModVarsAddd
 /*-------------------------------- GETTERS ----.----------------------------*/
  /// returns (a const reference to) the vector of initial coefficient
  
- DQuadFunction::c_v_coeff_pair & coeff( void ) { return( f_coeff ); }
+ DQuadFunction::c_v_coeff_pair & coeff( void ) const { return( f_coeff ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 

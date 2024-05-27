@@ -802,7 +802,7 @@ class LinearFunctionModVarsAddd : public C05FunctionModVarsAddd
 /*-------------------------------- GETTERS ----.----------------------------*/
  /// returns (a const reference to) the vector of initial coefficient
  
- LinearFunction::c_v_coeff & coeff( void ) { return( f_coeff ); }
+ LinearFunction::c_v_coeff & coeff( void ) const { return( f_coeff ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
