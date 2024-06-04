@@ -1631,6 +1631,12 @@ class BendersBFunction : public C05Function , public Block {
  /** Prints some very basuc information about the BendersBFunction; vlvl is
   * ignored, and no "complete" format is implemented. */
 
+void print( std::ostream & output ) override {
+  output << "BendersBFunction [" << this << "]" << " with "
+	 << get_num_active_var() << " active variables and a"
+         << " mapping with " << get_b().size() << " rows.";
+  }
+
  void print( std::ostream & output , char vlvl = 0 ) const override {
   output << "BendersBFunction [" << this << "]" << " with "
 	 << get_num_active_var() << " active variables and a"
@@ -1753,13 +1759,13 @@ class BendersBFunction : public C05Function , public Block {
   * have a sub-Block or its sub-Block does not have a Solver attached to it,
   * then an exception is thrown. */
 
- FunctionValue get_value( void ) const override;
+ FunctionValue get_value( void ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns a lower estimate of the BendersBFunction
  /** This method simply returns get_value().  */
 
- FunctionValue get_lower_estimate( void ) const override {
+ FunctionValue get_lower_estimate( void ) override {
   return( get_value() );
   }
 
@@ -1767,7 +1773,7 @@ class BendersBFunction : public C05Function , public Block {
  /// returns an upper estimate of the BendersBFunction
  /** This method simply returns get_value().  */
 
- FunctionValue get_upper_estimate( void ) const override {
+ FunctionValue get_upper_estimate( void ) override {
   return( get_value() );
   }
 
@@ -1783,7 +1789,7 @@ class BendersBFunction : public C05Function , public Block {
   * sub-Block is maximization, then this method returns false. Otherwise, it
   * returns true. */
 
- bool is_convex( void ) const override;
+ bool is_convex( void ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns true only if this BendersBFunction is concave
@@ -1793,7 +1799,7 @@ class BendersBFunction : public C05Function , public Block {
   * it returns true.
   */
 
- bool is_concave( void ) const override;
+ bool is_concave( void ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns true only if this BendersBFunction is linear
@@ -1802,7 +1808,7 @@ class BendersBFunction : public C05Function , public Block {
   * linear. We do not attempt to find this out and this method simply returns
   * \c false. */
 
- bool is_linear( void ) const override { return( false ); }
+ bool is_linear( void ) override { return( false ); }
 
 /*--------------------------------------------------------------------------*/
  /// tells whether a linearization is available

@@ -65,4 +65,9 @@ target_link_libraries(LinearFunction_test PRIVATE SMS++::SMS++)
 add_test(NAME LinearFunction_test
          COMMAND LinearFunction_test)
 
+add_executable(QuadFunction_test tests_QuadFunction.cpp)
+target_link_libraries(QuadFunction_test PRIVATE SMS++::SMS++)
+add_test(NAME QuadFunction_test
+         COMMAND QuadFunction_test)
+
 # --------------------------------------------------------------------------- #

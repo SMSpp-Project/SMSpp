@@ -48,7 +48,7 @@ int DQuadFunction::compute( bool changedvars )
 
 /*--------------------------------------------------------------------------*/
 
-bool DQuadFunction::is_convex( void ) const
+bool DQuadFunction::is_convex( void ) 
 {
  for( const auto & triple : v_triples )
   if( std::get< 2 >( triple ) < 0 )
@@ -59,7 +59,7 @@ bool DQuadFunction::is_convex( void ) const
 
 /*--------------------------------------------------------------------------*/
 
-bool DQuadFunction::is_concave( void ) const
+bool DQuadFunction::is_concave( void ) 
 {
  for( const auto & triple : v_triples )
   if( std::get< 2 >( triple ) > 0 )
@@ -70,7 +70,7 @@ bool DQuadFunction::is_concave( void ) const
 
 /*--------------------------------------------------------------------------*/
 
-bool DQuadFunction::is_linear( void ) const
+bool DQuadFunction::is_linear( void )
 {
  for( const auto & triple : v_triples )
   if( std::get< 2 >( triple ) != 0 )
