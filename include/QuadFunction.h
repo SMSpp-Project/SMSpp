@@ -126,9 +126,9 @@ class QuadFunction : public DQuadFunction {
   *        become property of the LinearFunction object.
   * 
   * @param v_nd_var a && to a vector of triples < Index , Index ,
-  *        Coefficient >
-  *                 Here the indexes refer to variables in v_var and as a result 
-  *                 we must have Index i < v_var.size() 
+  *        Coefficient >, providing the off diagonal terms of the 
+  *        quadratic function. Here the indexes refer to variables 
+  *        in v_var and as a result we must have Index i < v_var.size(). 
   *
   * @param ct, a FunctionValue providing the value of the constant term of the
   *        function;
@@ -151,10 +151,8 @@ class QuadFunction : public DQuadFunction {
                          Observer * const observer = nullptr )
   : DQuadFunction( std::move( v_var ), ct, observer ), my_convexity( Unknown )
     { 
-      /**
-       *  copy the whole deal in the matrix
-       *  for this we must copy the information to appropriate Eigen triplets
-       */
+      /** Copy the all the off diagonal terms in an Eigen::SparseMatrix.
+       *  For this we must copy the information to appropriate Eigen triplets. */
        mat_nd.resize( DQuadFunction::get_num_active_var(), DQuadFunction::get_num_active_var() );
        std::vector<Eigen::Triplet<Coefficient>> vv_nd;
        vv_nd.reserve( v_nd_var.size() );
@@ -192,8 +190,8 @@ class QuadFunction : public DQuadFunction {
  ~QuadFunction() override = default;
 
 /*--------------------------------------------------------------------------*/
- /// clear method: clears the v_triples field
- /** Method to "clear" the QuadFunction: it clear() the vector v_triples.
+ /// clear method: clears the mat_nd field
+ /** Method to "clear" the QuadFunction: it clear() the matrix mat_nd.
   * This destroys the list of "active" Variable without unregistering from
   * them. Not that the LinearFunction would have, but the Observer may.
   * By not having any Variable, the Observer can no longer do that. */
@@ -481,11 +479,7 @@ class QuadFunction : public DQuadFunction {
  // It makes sense to store the Child version of the function value too
  FunctionValue f_value;  ///< the value of the function
 
- Qmat mat_nd;
- /**
-  * Matrix with the off diagonal terms
-  *  
-  */
+ Qmat mat_nd; ///< Matrix with the off diagonal terms
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
