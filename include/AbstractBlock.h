@@ -698,7 +698,8 @@ class AbstractBlock : public Block {
 
  // An enumeration of all the possible sections of a .lp file
  enum LP_sections {
-   LP_OBJECTIVE ,
+   LP_LINOBJECTIVE ,
+   LP_QUADOBJECTIVE ,
    LP_ROW ,
    LP_BOUND ,
    LP_GENERAL ,
