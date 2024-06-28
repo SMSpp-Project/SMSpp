@@ -1423,11 +1423,11 @@ void AbstractBlock::read_lp( std::istream & file )
  std::string of_name;
  int of_sense = 0;
  bool is_qp = 0;
- int num_q_terms = 0;
 
  std::vector< FRowConstraint > * rows;
  std::vector< std::string > row_names;
  std::vector< char > row_type;
+ std::vector< bool > is_row_q;
 
  std::vector< ColVariable > * cols;
  std::vector< std::string > col_names;
@@ -1593,7 +1593,6 @@ void AbstractBlock::read_lp( std::istream & file )
   else if( file.peek() == '*' ){
     // We read only the first term. In this first scan, simply skip to
     // the second
-    num_q_terms++;
     file >> word;
   }
   
@@ -1620,6 +1619,7 @@ void AbstractBlock::read_lp( std::istream & file )
   pos = word.find( ":" );
   
   if( pos != -1 ){ // we actually found a new row
+   is_row_q.push_back( false );
    ++num_rows;
    std::string row_name = word.substr( 0 , pos );
    row_names.push_back( row_name );
@@ -1638,8 +1638,25 @@ void AbstractBlock::read_lp( std::istream & file )
    // we can either read the sign, the coefficient or directly the 
    // variable ( i.e., the coefficient is 1)
 
-   if( len_word == 1 && read_sign ){
-    file >> word; 
+   if( ( len_word == 1 && read_sign ) || word[0] == '[' ){
+    // We take into account the strange case where we don't have any linear
+    // coefficient. Thus, no sign will be found before the quadratic part as
+    // we expected.
+    if( word[0] != '[' )
+      file >> word; // Read next word after the sign
+    
+    if( word[0] == '[' ){
+      // we reached the quadratic part of the row.
+      is_row_q[ num_rows - 1 ] = true; // Update row type
+      
+      file >> word;
+      first_char = word[0];
+      read_sign = ( first_char == '-'  || first_char == '+' );
+      len_word = word.length();
+      if( len_word == 1 && read_sign )
+        file >> word; // Read next word after the sign
+    }
+
     if( std::isdigit( word[0] ) )
       // we read the coefficient
       file >> column; // reading the variable name
@@ -1654,6 +1671,19 @@ void AbstractBlock::read_lp( std::istream & file )
     column = word;
     }
 
+   // Options to check if we are in the quadratic part
+   file.get(); // eat white space
+   if( column[ column.length() - 2 ] == '^' ){
+    // We are reading the quadratic term x^2. Thus the real name of the
+    // variable is obtained by removing the last two character
+    column = column.substr( 0 , column.length() - 2 );
+   }
+   else if( file.peek() == '*' ){
+    // We read only the first term. In this first scan, simply skip to
+    // the second
+    file >> word;
+   }
+
    // Now we have to check if the variable considered has been already found
    // in the objective function or in a precedent row
    auto it = std::find( col_names.begin(), col_names.end(), column );
@@ -1664,6 +1694,13 @@ void AbstractBlock::read_lp( std::istream & file )
 
    file >> word;
    first_char = word[0];
+
+   // Check if we reached the end of the quadratic part
+   if( first_char == ']'){
+    //Simply skip to the sense
+    file >> word;
+    first_char = word[0];
+   }
   }
 
   // Now skip sense and rhs
@@ -1682,24 +1719,11 @@ void AbstractBlock::read_lp( std::istream & file )
                           // to declare a quadratic function with diagonal terms
  v_off_diag_term qod_var; // vector of (var-var-qcoeff) used to declare 
                           // a quadratic function with off diagonal terms
-
- /*// Intizialize objective function
- if( is_qp == 0 ){
-  // Linear Function
-  lin_var.resize( num_cols );
- }
- else{
-  // Quadratic Function
-  qd_var.resize( num_cols );
-  qod_var.resize( num_q_terms );
- }*/
+ 
+ // Vector used to store local active var in a certain constrain/objective
+ std::vector< std::string > local_active_var; 
 
  rows = new std::vector< FRowConstraint >( num_rows );
-
- for( auto & r: *rows ) {
-  r.set_function( new LinearFunction(), eNoMod );
-  r.set_Block( this );
- }
 
  cols = new std::vector< ColVariable >( num_cols );
  bounds = new std::vector< BoxConstraint >( num_cols );
@@ -1717,8 +1741,6 @@ void AbstractBlock::read_lp( std::istream & file )
  file.seekg( pos_start_objective, file.beg ); // Go back to objective section
  current_section = LP_sections::LP_LINOBJECTIVE;
  word = first_obj_word;
- LinearFunction * lf;
- QuadFunction * qf;
 
  while( current_section == LP_sections::LP_LINOBJECTIVE ){
   std::string column;
@@ -1758,6 +1780,9 @@ void AbstractBlock::read_lp( std::istream & file )
       column = word;
     }
 
+    // Update active variable in the objective function
+    local_active_var.push_back( column );
+
     auto it = std::find( col_names.begin(), col_names.end(), column );
     auto j = std::distance( col_names.begin(), it );
     v = &( *cols )[ j ];
@@ -1765,13 +1790,11 @@ void AbstractBlock::read_lp( std::istream & file )
     if( ! is_qp ){
       // LinearFunction Modification
       lin_var.push_back( std::make_pair( v , dbl_val( value ) ) );
-      //lf->add_variable( v, dbl_val( value ) );
     }
     else{
       // DQuadFunction Modification (also consider a 
       // quadratic coefficient equal to 0)
       qd_var.push_back( std::make_tuple( v , dbl_val( value ) , 0 ) );
-      //qf->add_variable( v, dbl_val( value ) , 0 );
     }
   }
   file >> word;
@@ -1840,30 +1863,29 @@ void AbstractBlock::read_lp( std::istream & file )
     // variable is obtained by removing the last two character
     column = column.substr( 0 , column.length() - 2 );
 
+    // Map locally the column in the active variable for the objective
+    auto it_local = std::find( local_active_var.begin(), local_active_var.end(), 
+                                column );
+    auto idx_local = std::distance( local_active_var.begin(), it_local );
+
     auto it = std::find( col_names.begin(), col_names.end(), column );
     auto j = std::distance( col_names.begin(), it );
     v = &( *cols )[ j ];
-    
-    // Find if the variable was previously inserted for the linear term
-    auto it_idx = std::find_if( qd_var.begin() , qd_var.end() ,
-			   [ & v ]( const auto & p ) -> bool {
-			      return( std::get< 0 >( p ) == v );
-			      } );
 
-    int idx = std::distance( qd_var.begin(), it_idx);
-
-    if( it_idx != qd_var.end() ){
+    if( it_local != local_active_var.end() ){
       // Var v had already a linear coefficient set
       // DQuadFunction modification (nothing to be done on the linear term)
-
-      //dynamic_cast< DQuadFunction * >( qf )->modify_term( idx , 0 , dbl_val( value )/2 );
-
-      std::get<2>( qd_var[idx] ) = dbl_val( value )/2;
+      std::get<2>( qd_var[idx_local] ) = dbl_val( value )/2;
     }
     else{
       // Var v doesn't have a linear coefficient
       // DQuadFunction modification (nothing to be done on the linear term)
-      //qf->add_variable( v, 0 , dbl_val( value )/2 );
+      local_active_var.push_back( column );
+
+      auto it_global = std::find( col_names.begin(), col_names.end(), column );
+      auto idx_global = std::distance( col_names.begin(), it_global );
+      v = &( *cols )[ idx_global ];
+
       qd_var.push_back( std::make_tuple( v , 0 , dbl_val( value )/2 ) );
     }
   }
@@ -1872,17 +1894,39 @@ void AbstractBlock::read_lp( std::istream & file )
     file >> word; // *
     file >> column2;
 
-    auto it1 = std::find( col_names.begin(), col_names.end(), column );
-    auto j1 = std::distance( col_names.begin(), it1 );
-    auto it2 = std::find( col_names.begin(), col_names.end(), column2 );
-    auto j2 = std::distance( col_names.begin(), it2 );
+    // We have to check that both variables are active locally (first var)
+    auto it_local1 = std::find( local_active_var.begin(), local_active_var.end(), 
+                                  column );
+    auto idx_local1 = std::distance( local_active_var.begin(), it_local1 );
 
-    v = &( *cols )[ j1 ];
-    v2 = &( *cols )[ j2 ];
+    // If one of the variable is not active locally, we have to insert it in the
+    // set of active var of the constraint
+    if( it_local1 == local_active_var.end() ){
+      // Map globally the column in the set of all the variable  
+      auto it_global1 = std::find( col_names.begin(), col_names.end(), column );
+      auto idx_global1 = std::distance( col_names.begin(), it_global1 );
+      v = &( *cols )[ idx_global1 ];
 
-    // QuadFunction modification
-    qod_var.push_back( std::make_tuple( j1 , j2 , dbl_val( value )/2 ) );
-    //qf->add_nd_term( v , v2 , dbl_val( value )/2 );
+      local_active_var.push_back( column );
+      qd_var.push_back( std::make_tuple( v , 0 , 0 ) );
+    }
+    
+    // We have to check that both variables are active locally (second var)
+    auto it_local2 = std::find( local_active_var.begin(), local_active_var.end(), 
+                                  column2 );
+    auto idx_local2 = std::distance( local_active_var.begin(), it_local2 );
+
+    // If one of the variable is not active locally, we have to insert it in the
+    // set of active var of the constraint
+    if( it_local2 == local_active_var.end() ){
+      // Map globally the column in the set of all the variable  
+      auto it_global2 = std::find( col_names.begin(), col_names.end(), column2 );
+      auto idx_global2 = std::distance( col_names.begin(), it_global2 );
+      v2 = &( *cols )[ idx_global2 ];
+
+      local_active_var.push_back( column2 );
+      qd_var.push_back( std::make_tuple( v2 , 0 , 0 ) );
+    }
   }
   else{
     std::stringstream ss;
@@ -1894,6 +1938,18 @@ void AbstractBlock::read_lp( std::istream & file )
     throw( std::runtime_error( error ) );
   }
  }
+
+ // Intizialize objective function
+ if( is_qp == 0 ){
+  // Linear Function
+  of->set_function( new LinearFunction( std::move( lin_var ) ) , eNoMod );
+ }
+ else{
+  // Quadratic Function
+  of->set_function( new QuadFunction( std::move( qd_var ) , std::move( qod_var ) ), eNoMod );
+ }
+
+ of->set_sense( of_sense, eNoMod );
  
  /*---------------------------------------*/
  /*------------- READ ROWS ---------------*/
@@ -1907,14 +1963,22 @@ void AbstractBlock::read_lp( std::istream & file )
  while( current_section == LP_sections::LP_ROW ){
   std::string row_name;
   std::string rhs;
-  LinearFunction * f;
    
   pos = word.find( ":" );
   row_name = word.substr( 0 , pos );
   auto it_row = std::find( row_names.begin(), row_names.end(), row_name );
   auto r = std::distance( row_names.begin(), it_row );
 
-  f = static_cast< LinearFunction * >( (*rows)[ r ].get_function() );
+  // Reset vectors to store constraint information
+  lin_var.clear();    // vector of (var-coeff) used to declare
+                          // the linear function
+  qd_var.clear();  // vector of (var-lincoeff-quadcoeff) used 
+                          // to declare a quadratic function with diagonal terms
+  qod_var.clear(); // vector of (var-var-qcoeff) used to declare 
+                          // a quadratic function with off diagonal terms
+
+  // Vector to map the active variable in a specific row
+  local_active_var.clear();
 
   file >> word;
   char first_char = word[0];
@@ -1923,9 +1987,11 @@ void AbstractBlock::read_lp( std::istream & file )
   // and coefficients
   while( first_char != '<' &&  first_char != '>' && first_char != '=' ){
    std::string column;
+   std::string column2;
    std::string value = "1";
    std::string value_sense = "+";
    ColVariable * v;
+   ColVariable * v2;
 
    int len_word = word.length();
    bool read_sign = ( first_char == '-'  || first_char == '+' );
@@ -1933,9 +1999,27 @@ void AbstractBlock::read_lp( std::istream & file )
    // we can either read the sign, the coefficient or directly the 
    // variable ( i.e., the coefficient is 1)
 
-   if( len_word == 1 && read_sign ){
-    value_sense = word;
-    file >> word; // reading the coefficient
+   if( len_word == 1 && read_sign || word[0] == '[' ){
+    // We take into account the strange case where we don't have any linear
+    // coefficient. Thus, no sign will be found before the quadratic part as
+    // we expected.
+    if( word[0] != '[' ){
+      value_sense = word;
+      file >> word; // Read next word after the sign
+    }
+
+    if( word[0] == '[' ){
+      // we reached the quadratic part of the row.
+      file >> word;
+      first_char = word[0];
+      read_sign = ( first_char == '-'  || first_char == '+' );
+      len_word = word.length();
+      if( len_word == 1 && read_sign ){
+        value_sense = word;
+        file >> word; // Read next word after the sign
+      }
+    }
+
     if( std::isdigit( word[0] ) ){
       // we read the coefficient
       value = word;
@@ -1945,32 +2029,132 @@ void AbstractBlock::read_lp( std::istream & file )
       column = word;
 
     value = value_sense + value;
-    }  
+   }  
    else if( std::isdigit( first_char ) || read_sign ){ 
     // we already read the coefficient
     value = word;
     file >> column; // reading the variable name
-    }
+   }
    else{ // the only possibility left is that we read the variable name
     value = std::to_string( 1 );
     column = word;
+   }
+
+   // Check if we are in the quadratic part!
+   file.get(); // eat white space
+   if( column[ column.length() - 2 ] == '^' ){
+    // We are reading the quadratic term x^2. Thus the real name of the
+    // variable is obtained by removing the last two character
+    column = column.substr( 0 , column.length() - 2 );
+    
+    // Map locally the column in the active variable for the row
+    auto it_local = std::find( local_active_var.begin(), local_active_var.end(), 
+                                column );
+    auto idx_local = std::distance( local_active_var.begin(), it_local );
+
+    if( it_local != local_active_var.end() ){
+      // Var v had already a linear coefficient set
+      // DQuadFunction modification (nothing to be done on the linear term)
+      std::get<2>( qd_var[idx_local] ) = dbl_val( value )/2;
+    }
+    else{
+      // Var v doesn't have a linear coefficient
+      // DQuadFunction modification (nothing to be done on the linear term)
+      // Map globally the column in the set of all the variable  
+      auto it_global = std::find( col_names.begin(), col_names.end(), column );
+      auto idx_global = std::distance( col_names.begin(), it_global );
+      v = &( *cols )[ idx_global ];
+
+      local_active_var.push_back( column ); // Update set of local active var
+      qd_var.push_back( std::make_tuple( v , 0 , dbl_val( value )/2 ) );
+    }
+   }
+   else if( file.peek() == '*' ){
+    // We read only the first term. Now skip the * and read the second
+    file >> word; // *
+    file >> column2;
+
+    // We have to check that both variables are active locally (first var)
+    auto it_local1 = std::find( local_active_var.begin(), local_active_var.end(), 
+                                  column );
+    auto idx_local1 = std::distance( local_active_var.begin(), it_local1 );
+
+    // If one of the variable is not active locally, we have to insert it in the
+    // set of active var of the constraint
+    if( it_local1 == local_active_var.end() ){
+      // Map globally the column in the set of all the variable  
+      auto it_global1 = std::find( col_names.begin(), col_names.end(), column );
+      auto idx_global1 = std::distance( col_names.begin(), it_global1 );
+      v = &( *cols )[ idx_global1 ];
+
+      local_active_var.push_back( column );
+      qd_var.push_back( std::make_tuple( v , 0 , 0 ) );
+    }
+    
+    // We have to check that both variables are active locally (second var)
+    auto it_local2 = std::find( local_active_var.begin(), local_active_var.end(), 
+                                  column2 );
+    auto idx_local2 = std::distance( local_active_var.begin(), it_local2 );
+
+    // If one of the variable is not active locally, we have to insert it in the
+    // set of active var of the constraint
+    if( it_local2 == local_active_var.end() ){
+      // Map globally the column in the set of all the variable  
+      auto it_global2 = std::find( col_names.begin(), col_names.end(), column2 );
+      auto idx_global2 = std::distance( col_names.begin(), it_global2 );
+      v2 = &( *cols )[ idx_global2 ];
+
+      local_active_var.push_back( column2 );
+      qd_var.push_back( std::make_tuple( v2 , 0 , 0 ) );
     }
 
-   // Now we have to check if the variable considered has been already found
-   // in the objective function or in a precedent row
-   auto it = std::find( col_names.begin(), col_names.end(), column );
-   auto j = std::distance( col_names.begin(), it );
-   v = &( *cols )[j];
-   
-   f->add_variable( v, dbl_val( value ) );
+    // QuadFunction modification
+    qod_var.push_back( std::make_tuple( idx_local1 , idx_local2 , dbl_val( value )/2 ) );
+   }
+   else{
+    // We read a simple linear coefficient
+
+    // In the linear part we expect never to find a variable that was already active in the 
+    // scanned constraint.
+    local_active_var.push_back( column );
+
+    auto it_global = std::find( col_names.begin(), col_names.end(), column );
+    auto idx_global = std::distance( col_names.begin(), it_global );
+    v = &( *cols )[ idx_global ];
+
+    if( ! is_row_q[ r ] ){
+      // LinearFunction Modification
+      lin_var.push_back( std::make_pair( v , dbl_val( value ) ) );
+    }
+    else{
+      // DQuadFunction Modification (also consider a 
+      // quadratic coefficient equal to 0)
+      qd_var.push_back( std::make_tuple( v , dbl_val( value ) , 0 ) );
+    }
+   }
 
    file >> word;
    first_char = word[0];
+
+   // Check if we reached the end of the quadratic part
+   if( first_char == ']'){
+    //Simply skip to the sense
+    file >> word;
+    first_char = word[0];
    }
+  }
   
   // Now we should be reading the rhs
   file >> rhs;
   auto & row = (*rows)[ r ];
+
+  // Initialize row with data collected
+  if( ! is_row_q[ r ] )
+    row.set_function( new LinearFunction( std::move( lin_var ) ) , eNoMod );
+  else
+    row.set_function( new QuadFunction( std::move( qd_var ) , std::move( qod_var ) ), eNoMod );
+  
+  row.set_Block( this );
 
   switch( first_char ) {
    case '<' :
@@ -2105,19 +2289,6 @@ void AbstractBlock::read_lp( std::istream & file )
  else{
    throw( std::invalid_argument( "Invalid syntax in LP file" ) );
  }
-
- // Intizialize objective function
- if( is_qp == 0 ){
-  // Linear Function
-  lf = new LinearFunction( std::move( lin_var ) );
-  of->set_function( lf, eNoMod );
- }
- else{
-  // Quadratic Function
-  of->set_function( new QuadFunction( std::move( qd_var ) , std::move( qod_var ) ), eNoMod );
- }
-
- of->set_sense( of_sense, eNoMod );
 
  // Reset and set abstract representation
  reset_static_constraints();
