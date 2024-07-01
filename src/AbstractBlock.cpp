@@ -1927,6 +1927,8 @@ void AbstractBlock::read_lp( std::istream & file )
       local_active_var.push_back( column2 );
       qd_var.push_back( std::make_tuple( v2 , 0 , 0 ) );
     }
+
+    qod_var.push_back( std::make_tuple( idx_local1 , idx_local2 , dbl_val( value )/2 ) );
   }
   else{
     std::stringstream ss;
@@ -2199,7 +2201,7 @@ void AbstractBlock::read_lp( std::istream & file )
   
   char first_char = word[0];
   
-  if( std::isdigit( first_char ) || first_char == '-' ){ 
+  if( std::isdigit( first_char ) || first_char == '-' || first_char == '.' ){ 
    // we read the lhs
    lhs_value = word;
    file >> word; // we can skip the <=
