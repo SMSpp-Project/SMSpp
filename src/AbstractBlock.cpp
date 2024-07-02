@@ -2057,7 +2057,7 @@ void AbstractBlock::read_lp( std::istream & file )
     if( it_local != local_active_var.end() ){
       // Var v had already a linear coefficient set
       // DQuadFunction modification (nothing to be done on the linear term)
-      std::get<2>( qd_var[idx_local] ) = dbl_val( value )/2;
+      std::get<2>( qd_var[idx_local] ) = dbl_val( value );
     }
     else{
       // Var v doesn't have a linear coefficient
@@ -2068,7 +2068,7 @@ void AbstractBlock::read_lp( std::istream & file )
       v = &( *cols )[ idx_global ];
 
       local_active_var.push_back( column ); // Update set of local active var
-      qd_var.push_back( std::make_tuple( v , 0 , dbl_val( value )/2 ) );
+      qd_var.push_back( std::make_tuple( v , 0 , dbl_val( value ) ) );
     }
    }
    else if( file.peek() == '*' ){
@@ -2111,7 +2111,7 @@ void AbstractBlock::read_lp( std::istream & file )
     }
 
     // QuadFunction modification
-    qod_var.push_back( std::make_tuple( idx_local1 , idx_local2 , dbl_val( value )/2 ) );
+    qod_var.push_back( std::make_tuple( idx_local1 , idx_local2 , dbl_val( value ) ) );
    }
    else{
     // We read a simple linear coefficient
@@ -2253,11 +2253,12 @@ void AbstractBlock::read_lp( std::istream & file )
  /*-------------- READ TYPES -------------*/
  /*---------------------------------------*/
 
+ file >> word;
  while( current_section == LP_sections::LP_GENERAL || 
          current_section == LP_sections::LP_BINARY ){
    
    std::string column;   
-   file >> column; // read new variable
+   column = word; // read new variable
    auto it = std::find( col_names.begin(), col_names.end(), column );
    if( it != col_names.end() ) {
     auto j = std::distance( col_names.begin(), it );
