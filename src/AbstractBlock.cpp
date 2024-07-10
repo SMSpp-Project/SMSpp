@@ -1928,7 +1928,10 @@ void AbstractBlock::read_lp( std::istream & file )
       qd_var.push_back( std::make_tuple( v2 , 0 , 0 ) );
     }
 
-    qod_var.push_back( std::make_tuple( idx_local1 , idx_local2 , dbl_val( value )/2 ) );
+    // NOTE: we store the indexes in a way that we are actually preserving only the 
+    // lower traingul part of the matrix
+    qod_var.push_back( std::make_tuple( std::max( idx_local1 , idx_local2 ) ,
+                          std::min( idx_local1 , idx_local2 ) , dbl_val( value )/2 ) );
   }
   else{
     std::stringstream ss;
@@ -1948,7 +1951,10 @@ void AbstractBlock::read_lp( std::istream & file )
  }
  else{
   // Quadratic Function
-  of->set_function( new QuadFunction( std::move( qd_var ) , std::move( qod_var ) ), eNoMod );
+  if( qod_var.size() == 0 )
+    of->set_function( new DQuadFunction( std::move( qd_var ) ) , eNoMod );
+  else
+    of->set_function( new QuadFunction( std::move( qd_var ) , std::move( qod_var ) ), eNoMod );
  }
 
  of->set_sense( of_sense, eNoMod );
@@ -2111,7 +2117,10 @@ void AbstractBlock::read_lp( std::istream & file )
     }
 
     // QuadFunction modification
-    qod_var.push_back( std::make_tuple( idx_local1 , idx_local2 , dbl_val( value ) ) );
+    // NOTE: we store the indexes in a way that we are actually preserving only the 
+    // lower traingul part of the matrix
+    qod_var.push_back( std::make_tuple( std::max( idx_local1 , idx_local2 ) ,
+                          std::min( idx_local1 , idx_local2 ) , dbl_val( value ) ) );
    }
    else{
     // We read a simple linear coefficient
@@ -2190,6 +2199,7 @@ void AbstractBlock::read_lp( std::istream & file )
  /*---------------------------------------*/
  
  file >> word;
+ sec_reached( &current_section , word );
  
  // In this case we have to control both for the general and binary section,
  // because they can come in any order.
@@ -2254,6 +2264,7 @@ void AbstractBlock::read_lp( std::istream & file )
  /*---------------------------------------*/
 
  file >> word;
+ sec_reached( &current_section , word );
  while( current_section == LP_sections::LP_GENERAL || 
          current_section == LP_sections::LP_BINARY ){
    
