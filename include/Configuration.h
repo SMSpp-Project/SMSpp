@@ -816,8 +816,7 @@ class SimpleConfiguration : public Configuration
  * method of the specialised class istead of the empty one. */
 
  ~SimpleConfiguration() override {
-   SimpleConfiguration< SimpleConfiguration_value_type
-                        >::guts_of_destructor();
+   guts_of_destructor();
    }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/

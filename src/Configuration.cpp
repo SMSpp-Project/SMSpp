@@ -360,11 +360,10 @@ void SimpleConfiguration< std::vector< Configuration * >
 
 template<>
 inline SimpleConfiguration< std::vector< Configuration * >
- >::~SimpleConfiguration< std::vector< Configuration * > >() {
+ >::~SimpleConfiguration() {
  for( auto rit = f_value.rbegin() ; rit != f_value.rend() ; ++rit )
   delete *rit;
  }
-
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
@@ -500,7 +499,6 @@ void SimpleConfiguration< std::map< std::string , Configuration * >
  for( auto & [ key , val ] : f_value )
   delete val;
  }
-
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
