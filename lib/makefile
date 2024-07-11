@@ -45,6 +45,7 @@ SMS++OBJ = $(SMS++SDR)/obj/AbstractBlock.o \
 	$(SMS++SDR)/obj/Constraint.o \
 	$(SMS++SDR)/obj/DataMapping.o \
 	$(SMS++SDR)/obj/DQuadFunction.o \
+	$(SMS++SDR)/obj/QuadFunction.o \
 	$(SMS++SDR)/obj/FRealObjective.o \
 	$(SMS++SDR)/obj/FRowConstraint.o \
 	$(SMS++SDR)/obj/Function.o \
@@ -81,6 +82,7 @@ SMS++H = $(SMS++SDR)/include/AbstractBlock.h \
 	$(SMS++SDR)/include/Constraint.h \
 	$(SMS++SDR)/include/DataMapping.h \
 	$(SMS++SDR)/include/DQuadFunction.h \
+	$(SMS++SDR)/include/QuadFunction.h \
 	$(SMS++SDR)/include/FakeSolver.h \
 	$(SMS++SDR)/include/FRealObjective.h \
 	$(SMS++SDR)/include/FRowConstraint.h \
@@ -168,6 +170,7 @@ $(SMS++SDR)/obj/BoxSolver.o: $(SMS++SDR)/src/BoxSolver.cpp $(intBlockINC) \
 	$(SMS++SDR)/include/C15Function.h $(SMS++SDR)/include/CDASolver.h \
 	$(SMS++SDR)/include/ColVariable.h $(SMS++SDR)/include/Constraint.h \
 	$(SMS++SDR)/include/DQuadFunction.h \
+	$(SMS++SDR)/include/QuadFunction.h \
 	$(SMS++SDR)/include/FRealObjective.h \
 	$(SMS++SDR)/include/FRowConstraint.h $(SMS++SDR)/include/Function.h \
 	$(SMS++SDR)/include/LinearFunction.h $(SMS++SDR)/include/Objective.h \
@@ -238,6 +241,14 @@ $(SMS++SDR)/obj/DQuadFunction.o: $(SMS++SDR)/src/DQuadFunction.cpp \
 	$(SMS++SDR)/include/DQuadFunction.h $(SMS++SDR)/include/Function.h \
 	$(SMS++SDR)/include/Variable.h $(SMS++SDR)/include/ThinVarDepInterface.h
 	$(CC) -c $(SMS++SDR)/src/DQuadFunction.cpp -o $@ $(SMS++INC) $(SW)
+
+$(SMS++SDR)/obj/QuadFunction.o: $(SMS++SDR)/src/QuadFunction.cpp \
+	$(SMS++SDR)/include/C05Function.h $(SMS++SDR)/include/C15Function.h \
+	$(SMS++SDR)/include/ColVariable.h $(SMS++SDR)/include/Constraint.h \
+	$(SMS++SDR)/include/DQuadFunction.h $(SMS++SDR)/include/QuadFunction.h \
+	$(SMS++SDR)/include/Function.h \
+	$(SMS++SDR)/include/Variable.h $(SMS++SDR)/include/ThinVarDepInterface.h
+	$(CC) -c $(SMS++SDR)/src/QuadFunction.cpp -o $@ $(SMS++INC) $(SW)
 
 $(SMS++SDR)/obj/FRealObjective.o: $(SMS++SDR)/src/FRealObjective.cpp \
 	$(intBlockINC) $(SMS++SDR)/include/FRealObjective.h \
