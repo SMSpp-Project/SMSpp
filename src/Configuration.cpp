@@ -281,6 +281,16 @@ SimpleConfiguration< std::pair< Configuration * , Configuration * > > *
 
 template<>
 void SimpleConfiguration< std::pair< Configuration * , Configuration * >
+                          >::guts_of_destructor( void )
+{
+ delete f_value.second;
+ delete f_value.first;
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::pair< Configuration * , Configuration * >
 			  >::serialize( netCDF::NcGroup & group ) const
 {
  Configuration::serialize( group );
@@ -339,6 +349,26 @@ SimpleConfiguration< std::vector< Configuration * > > *
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 template<>
+void SimpleConfiguration< std::vector< Configuration * >
+                          >::guts_of_destructor( void )
+{
+ for( auto rit = f_value.rbegin() ; rit != f_value.rend() ; ++rit )
+  delete *rit;
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+inline SimpleConfiguration< std::vector< Configuration * >
+ >::~SimpleConfiguration< std::vector< Configuration * > >() {
+ for( auto rit = f_value.rbegin() ; rit != f_value.rend() ; ++rit )
+  delete *rit;
+ }
+
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
 void SimpleConfiguration< std::vector< Configuration * > >::clear( void )
 {
  for( auto c : f_value )
@@ -361,6 +391,16 @@ SimpleConfiguration< std::vector< std::pair< int , Configuration * > > > *
    c = c->clone();
 
  return( sc );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
+                          >::guts_of_destructor( void )
+{
+ for( auto rit = f_value.rbegin() ; rit != f_value.rend() ; ++rit )
+  delete rit->second;
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -450,6 +490,17 @@ SimpleConfiguration< std::map< std::string , Configuration * > > *
 
  return( sc );
  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::map< std::string , Configuration * >
+                          >::guts_of_destructor( void )
+{
+ for( auto & [ key , val ] : f_value )
+  delete val;
+ }
+
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
