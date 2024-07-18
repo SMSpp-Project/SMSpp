@@ -467,25 +467,33 @@ class LinearFunction : public C15Function
    auto oi = *(nmsit++);    // its original index
    // if var has not been deleted (and, possibly, re-added), its index
    // must be <= oi: search backward from oi to find it
-   auto avoi = v_pairs[ oi ].first;
    Index i = oi;
-   while( var != avoi ) {
-    if( ! i )
-     break;
-    avoi = v_pairs[ --i ].first;
-    }
-   if( var == avoi )  // the Variable was found
-    *(mapit++) = i;   // this is its index
-   else {             // the Variable was not found
-    // restart the search from the last variable to oi (excluded), for the
-    // case where var has been deleted and re-added, and therefore its
-    // index can now be arbitrary (but it is more likely to be "close to
-    // the end" than "at the beginning")
-    for( i = v_pairs.size() , avoi = v_pairs[ --i ].first ;
-	 ( var != avoi ) && ( i > oi ) ; )
+   if( i < v_pairs.size() ) {  // if i is still a valid index
+    auto avoi = v_pairs[ i ].first;
+    while( var != avoi ) {
+     if( ! i )
+      break;
      avoi = v_pairs[ --i ].first;
-    *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+     }
+
+    if( var == avoi ) {  // the Variable was found
+     *(mapit++) = i;     // this is its index
+     continue;           // all done for this variable
+     }
     }
+
+   // (re)start the search from the last variable to oi (excluded), for
+   // the case where var has been deleted and re-added, and therefore its
+   // index can now be arbitrary (but it is more likely to be "close to
+   // the end" than "at the beginning"), or the original index is no longer
+   // valid
+   i = v_pairs.size();
+   auto avoi = v_pairs[ --i ].first;
+   while( ( var != avoi ) && ( i > oi ) )
+    avoi = v_pairs[ --i ].first;
+
+   *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+
    }  // end( for all Variable )
 
   return( map );
@@ -511,25 +519,33 @@ class LinearFunction : public C15Function
    auto var = *(varsit++);  // next variable
    // if var has not been deleted (and, possibly, re-added), its index
    // must be <= oi: search backward from oi to find it
-   auto avoi = v_pairs[ oi ].first;
    Index i = oi;
-   while( var != avoi ) {
-    if( ! i )
-     break;
-    avoi = v_pairs[ --i ].first;
-    }
-   if( var == avoi )  // the Variable was found
-    *(mapit++) = i;   // this is its index
-   else {             // the Variable was not found
-    // restart the search from the last variable to oi (excluded), for the
-    // case where var has been deleted and re-added, and therefore its
-    // index can now be arbitrary (but it is more likely to be "close to
-    // the end" than "at the beginning")
-    for( i = v_pairs.size() , avoi = v_pairs[ --i ].first ;
-	 ( var != avoi ) && ( i > oi ) ; )
+   if( i < v_pairs.size() ) {  // if i is still a valid index
+    auto avoi = v_pairs[ i ].first;
+    while( var != avoi ) {
+     if( ! i )
+      break;
      avoi = v_pairs[ --i ].first;
-    *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+     }
+
+    if( var == avoi ) {  // the Variable was found
+     *(mapit++) = i;     // this is its index
+     continue;           // all done for this variable
+     }
     }
+
+   // (re)start the search from the last variable to oi (excluded), for
+   // the case where var has been deleted and re-added, and therefore its
+   // index can now be arbitrary (but it is more likely to be "close to
+   // the end" than "at the beginning"), or the original index is no longer
+   // valid
+   i = v_pairs.size();
+   auto avoi = v_pairs[ --i ].first;
+   while( ( var != avoi ) && ( i > oi ) )
+    avoi = v_pairs[ --i ].first;
+
+   *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+
    }  // end( for all Variable )
 
   return( map );

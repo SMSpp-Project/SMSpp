@@ -570,25 +570,33 @@ class DQuadFunction : public C15Function {
    auto oi = *(nmsit++);    // its original index
    // if var has not been deleted (and, possibly, re-added), its index
    // must be <= oi: search backward from oi to find it
-   auto avoi = std::get< 0 >( v_triples[ oi ] );
    Index i = oi;
-   while( var != avoi ) {
-    if( ! i )
-     break;
-    avoi = std::get< 0 >( v_triples[ --i ] );
-    }
-   if( var == avoi )  // the Variable was found
-    *(mapit++) = i;   // this is its index
-   else {             // the Variable was not found
-    // restart the search from the last variable to oi (excluded), for the
-    // case where var has been deleted and re-added, and therefore its
-    // index can now be arbitrary (but it is more likely to be "close to
-    // the end" than "at the beginning")
-    for( i = v_triples.size() , avoi = std::get< 0 >( v_triples[ --i ] ) ;
-	 ( var != avoi ) && ( i > oi ) ; )
+   if( i < v_triples.size() ) {  // if i is still a valid index
+    auto avoi = std::get< 0 >( v_triples[ i ] );
+    while( var != avoi ) {
+     if( ! i )
+      break;
      avoi = std::get< 0 >( v_triples[ --i ] );
-    *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+     }
+
+    if( var == avoi ) {  // the Variable was found
+     *(mapit++) = i;     // this is its index
+     continue;           // all done for this variable
+     }
     }
+
+   // (re)restart the search from the last variable to oi (excluded), for
+   // the case where var has been deleted and re-added, and therefore its
+   // index can now be arbitrary (but it is more likely to be "close to
+   // the end" than "at the beginning"), or the original index is no longer
+   // valid
+   i = v_triples.size();
+   auto avoi = std::get< 0 >( v_triples[ --i ] );
+   while( ( var != avoi ) && ( i > oi ) )
+     avoi = std::get< 0 >( v_triples[ --i ] );
+
+   *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+
    }  // end( for all Variable )
 
   return( map );
@@ -614,25 +622,33 @@ class DQuadFunction : public C15Function {
    auto var = *(varsit++);  // next variable
    // if var has not been deleted (and, possibly, re-added), its index
    // must be <= oi: search backward from oi to find it
-   auto avoi = std::get< 0 >( v_triples[ oi ] );
    Index i = oi;
-   while( var != avoi ) {
-    if( ! i )
-     break;
-    avoi = std::get< 0 >( v_triples[ --i ] );
-    }
-   if( var == avoi )  // the Variable was found
-    *(mapit++) = i;   // this is its index
-   else {             // the Variable was not found
-    // restart the search from the last variable to oi (excluded), for the
-    // case where var has been deleted and re-added, and therefore its
-    // index can now be arbitrary (but it is more likely to be "close to
-    // the end" than "at the beginning")
-    for( i = v_triples.size() , avoi = std::get< 0 >( v_triples[ --i ] ) ;
-	 ( var != avoi ) && ( i > oi ) ; )
+   if( i < v_triples.size() ) {  // if i is still a valid index
+    auto avoi = std::get< 0 >( v_triples[ i ] );
+    while( var != avoi ) {
+     if( ! i )
+      break;
      avoi = std::get< 0 >( v_triples[ --i ] );
-    *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+     }
+
+    if( var == avoi ) {  // the Variable was found
+     *(mapit++) = i;     // this is its index
+     continue;           // all done for this variable
+     }
     }
+
+   // (re)restart the search from the last variable to oi (excluded), for
+   // the case where var has been deleted and re-added, and therefore its
+   // index can now be arbitrary (but it is more likely to be "close to
+   // the end" than "at the beginning"), or the original index is no longer
+   // valid
+   i = v_triples.size();
+   auto avoi = std::get< 0 >( v_triples[ --i ] );
+   while( ( var != avoi ) && ( i > oi ) )
+    avoi = std::get< 0 >( v_triples[ --i ] );
+
+   *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+
    }  // end( for all Variable )
 
   return( map );
