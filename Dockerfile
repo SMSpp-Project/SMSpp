@@ -23,7 +23,6 @@
 #          changes, not when SMS++ changes.                                   #
 #                                                                             #
 #                              Niccolo' Iardella                              #
-#                                Donato Meoli                                 #
 #                         Dipartimento di Informatica                         #
 #                             Universita' di Pisa                             #
 # --------------------------------------------------------------------------- #
@@ -50,9 +49,3 @@ RUN set -ex; \
 	tar -xzC "boost" --strip-components 1; \
 	cp -R "boost/boost" /usr/local/include; \
 	rm -r "boost";
-
-# Install a specific version of CMake (for example, 3.19.1)
-RUN set -ex; \
-    curl -LO "https://github.com/Kitware/CMake/releases/download/v3.19.1/cmake-3.19.1-Linux-x86_64.tar.gz" && \
-    tar -xzvf cmake-3.19.1-Linux-x86_64.tar.gz --strip-components=1 -C /usr/local && \
-    rm cmake-3.19.1-Linux-x86_64.tar.gz
