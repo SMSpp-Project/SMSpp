@@ -36,7 +36,7 @@ RUN set -ex; \
 		apt-get update; \
 		apt-get install -y --no-install-recommends \
 		clang make cmake \
-        libboost-dev  \
+        libboost-dev \
 		libnetcdf-c++4-dev libeigen3-dev; \
 		rm -rf /var/lib/apt/lists/*; \
 		update-alternatives --set cc /usr/bin/clang; \
