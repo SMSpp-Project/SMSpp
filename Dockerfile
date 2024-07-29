@@ -7,6 +7,10 @@
 #    (See: https://gitlab.com/smspp/smspp/container_registry),                #
 #    the image can be fetched and used by the GitLab Runner.                  #
 #                                                                             #
+#    Login to GitLab registry with:                                           #
+#                                                                             #
+#        $ docker login registry.gitlab.com                                   #
+#                                                                             #
 #    Build this with:                                                         #
 #                                                                             #
 #        $ docker build -t registry.gitlab.com/smspp/smspp .                  #
