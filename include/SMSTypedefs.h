@@ -429,7 +429,6 @@ inline std::string && SMSpp_classname_normalise( std::string && str ) {
 }
 
 /*--------------------------------------------------------------------------*/
-
 /** The macros SMSpp_insert_in_factory_cpp_* do five things for the class
  * \p ClassName for which they are invoked:
  *
@@ -497,13 +496,13 @@ inline std::string && SMSpp_classname_normalise( std::string && str ) {
  *     THE ONE THAT IS USED TO INDEX THE FACTORY, IS STRIPPED OF ANY
  *     WHITESPACE AND ENCLOSING PARENTHESES. For instance, a template class
  *     like MyBlock< std::pair< int , int > > gets name
- *     "MyBlock< std::pair< int , int > >" (which is syntactically wrong due to
+ *     "MyBlock<std::pair<int,int>>" (which is syntactically wrong due to
  *     the closing ">>" instead of "> >", but after all it is ony a string).
  *     This makes it possible to read it from a std::stream, where
  *     whitespaces are separators. If MyBlock derives from Block, it is then
  *     possible to create an object of class MyBlock with
  *
- *     new_Block( "MyBlock< std::pair< int , int > >" )
+ *     new_Block( "MyBlock<std::pair<int,int>>" )
  *
  *     Note that the implementation of Block::my_Block() automatically strips
  *     all the whitespaces from the input string, which means that
@@ -711,16 +710,20 @@ bool SMSpp_ensure_load_var;
 // address of some method of the class, but this is not enough in all
 // case to force the linker to include the relevant object, while creating
 // an object of the class damn sure is
+// note that the namespace qualifier in the definition of
+// bool SMSpp_di_unipi_it::SMSpp_ensure_load_var< ... >
+// would not be necessary, as clang++ compiles without it, but g++ does not
+// (apparently a bug/quirk in g++, but adding it is just the simple way out)
 
 #define SMSpp_ensure_load( ClassName )                                      \
  template<>                                                                 \
- bool SMSpp_ensure_load_var<                                                \
-   SMSpp_type_traits::t< void( ClassName ) >::type > =                      \
+ bool SMSpp_di_unipi_it::SMSpp_ensure_load_var<                             \
+  SMSpp_type_traits::t< void( ClassName ) >::type > =                       \
   []( void ) -> bool {                                                      \
    if( auto p = new SMSpp_type_traits::t< void( ClassName ) >::type() ) {   \
     delete p; return( true ); }                                             \
-   else        return( false );                                             \
-   }( )
+   else       return( false );                                              \
+   }()
 
 /** @} ---------------------------------------------------------------------*/
 /*------------------- HANDLE boost::any SPECIALIZATIONS --------------------*/
