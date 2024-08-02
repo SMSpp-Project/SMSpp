@@ -46,6 +46,7 @@
 
 // standard C++ libraries (alphabetical order)
 #include <algorithm>
+#include <array>
 #include <fstream>
 #include <functional>
 #include <future>
