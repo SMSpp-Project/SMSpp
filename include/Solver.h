@@ -1561,6 +1561,14 @@ class Solver : public ThinComputeInterface
 /*--------------------------------------------------------------------------*/
 
  [[nodiscard]] int get_dflt_int_par( idx_type par ) const override {
+  static const std::array< int , 5 > dflt_int_par = {
+   Inf< int >() ,  // intMaxIter
+   0 ,             // intEverykIt
+   0 ,             // intMaxThread
+   1 ,             // intMaxSol
+   0               // intLogVerb
+   };
+
   if( par >= intLastAlgPar )
    throw( std::invalid_argument( "invalid int parameter name" ) );
   return( dflt_int_par[ par ] );
@@ -1569,6 +1577,18 @@ class Solver : public ThinComputeInterface
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  [[nodiscard]] double get_dflt_dbl_par( idx_type par ) const override {
+  static const std::array< double , 9 > dflt_dbl_par = {
+   Inf< double >() ,            // dblMaxTime
+   0 ,                          // dblEveryTTm
+   1e-6 ,                       // dblRelAcc
+   Inf< Solver::OFValue >() ,   // dblAbsAcc
+   Inf< Solver::OFValue >() ,   // dblUpCutOff
+   -Inf< Solver::OFValue >() ,  // dblLwCutOff
+   Inf< Solver::OFValue >() ,   // dblRAccSol
+   Inf< Solver::OFValue >() ,   // dblAAccSol
+   0                            // dblFAccSol
+   };
+
   if( par >= dblLastAlgPar )
    throw( std::invalid_argument( "invalid double parameter name" ) );
   return( dflt_dbl_par[ par ] );
@@ -1578,9 +1598,18 @@ class Solver : public ThinComputeInterface
 
  [[nodiscard]] idx_type int_par_str2idx( const std::string & name )
   const override {
+  // the (static const) map for int parameters names
+  static const std::map< std::string , idx_type > int_pars_map =
+  { { "intMaxIter",   Solver::intMaxIter },
+    { "intMaxThread", Solver::intMaxThread },
+    { "intEverykIt",  Solver::intEverykIt },
+    { "intMaxSol",    Solver::intMaxSol },
+    { "intLogVerb",   Solver::intLogVerb }
+    };
+
   const auto it = int_pars_map.find( name );
   if( it == int_pars_map.end() )
-   return( Inf< idx_type >());
+   return( Inf< idx_type >() );
   return( it->second );
   }
 
@@ -1588,16 +1617,32 @@ class Solver : public ThinComputeInterface
 
  [[nodiscard]] idx_type dbl_par_str2idx( const std::string & name )
   const override {
-  const auto it = dbl_pars_map.find( name );
-  if( it == dbl_pars_map.end() )
-   return( Inf< idx_type >() );
-  return( it->second );
-  }
+  // the (static const) map for double parameters names
+  static const std::map< std::string , idx_type > dbl_pars_map =
+  { { "dblMaxTime",  Solver::dblMaxTime } ,
+    { "dblEveryTTm", Solver::dblEveryTTm } ,
+    { "dblRelAcc",   Solver::dblRelAcc } ,
+    { "dblAbsAcc",   Solver::dblAbsAcc } ,
+    { "dblUpCutOff", Solver::dblUpCutOff } ,
+    { "dblLwCutOff", Solver::dblLwCutOff } ,
+    { "dblRAccSol",  Solver::dblRAccSol } ,
+    { "dblAAccSol",  Solver::dblAAccSol } ,
+    { "dblFAccSol",  Solver::dblFAccSol }
+    };
+
+ const auto it = dbl_pars_map.find( name );
+ if( it == dbl_pars_map.end() )
+  return( Inf< idx_type >() );
+ return( it->second );
+ }
 
 /*--------------------------------------------------------------------------*/
 
  [[nodiscard]] const std::string & int_par_idx2str( idx_type idx )
   const override {
+  static const std::array< std::string , 5 > int_pars_str = { "intMaxIter" ,
+   "intMaxThread" , "intEverykIt" , "intMaxSol" , "intLogVerb" };
+
   if( idx >= intLastAlgPar )
    throw( std::invalid_argument( "invalid int parameter name" ) );
   return( int_pars_str[ idx ] );
@@ -1607,6 +1652,10 @@ class Solver : public ThinComputeInterface
 
  [[nodiscard]] const std::string & dbl_par_idx2str( idx_type idx )
   const override {
+  static const std::array< std::string , 9 > dbl_pars_str = { "dblMaxTime" ,
+   "dblEveryTTm" , "dblRelAcc" , "dblAbsAcc" , "dblUpCutOff" , "dblLwCutOff" ,
+   "dblRAccSol" , "dblAAccSol" , "dblFAccSol" };
+
   if( idx >= dblLastAlgPar )
    throw( std::invalid_argument( "invalid double parameter name" ) );
   return( dbl_pars_str[ idx ] );
@@ -1952,24 +2001,6 @@ class Solver : public ThinComputeInterface
  ///< container of event handlers
  /**< v_events[ h ][ i ] contains the event handler of
   * ID i for the event type h. */
-
- const static std::vector< int > dflt_int_par;
- ///< the (static const) vector of int parameters default values
-
- const static std::vector< double > dflt_dbl_par;
- ///< the (static const) vector of double parameters default values
-
- const static std::vector< std::string > int_pars_str;
- ///< the (static const) vector of int parameters names
-
- const static std::vector< std::string > dbl_pars_str;
- ///< the (static const) vector of double parameters names
-
- const static std::map< std::string , idx_type > int_pars_map;
- ///< the (static const) map for int parameters names
-
- const static std::map< std::string , idx_type > dbl_pars_map;
- ///< the (static const) map for double parameters names
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
