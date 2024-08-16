@@ -111,7 +111,7 @@ SMS++H = $(SMS++SDR)/include/AbstractBlock.h \
 clean::
 	rm -f $(SMS++SDR)/obj/*.o $(SMS++SDR)/src/*~ $(SMS++SDR)/include/*~
 
-# dependencies: every .o from its .C + every recursively included .h- - - - -
+# dependencies: every .o from its .cpp + every recursively included .h- - - -
 
 # temp macro for what Block includes, and basically everything includes Block
 intBlockINC = $(SMS++SDR)/include/Block.h $(SMS++SDR)/include/Configuration.h \
