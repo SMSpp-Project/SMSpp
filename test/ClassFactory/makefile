@@ -11,7 +11,7 @@
 ##############################################################################
 
 # module name
-NAME = test
+NAME = CF_test
 
 # basic directory
 DIR = .
@@ -19,11 +19,13 @@ DIR = .
 # compiler
 CC = clang++
 
-# debug switches
-SW = -g -std=c++17 -Wno-enum-compare -ferror-limit=1
+# common flags
+COMMON_SW = -std=c++17 -Wno-enum-compare -ferror-limit=1
 
+# debug switches
+SW_DEBUG = -g $(COMMON_SW)
 # production switches
-#SW = -O3 -DNDEBUG -std=c++17
+SW_RELEASE = -O3 -DNDEBUG $(COMMON_SW)
 
 # linker option for forcing all the library to be loaded
 # if a component is not explicitly referenced anywhere in the object, the
@@ -37,9 +39,19 @@ FORCE = -Wl,--whole-archive,--allow-multiple-definition
 
 # default target- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-all default: $(NAME)
+default: release
 
-# clean - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# debug target- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+debug: SW = $(SW_DEBUG)
+debug: $(NAME)
+
+# release target- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+release: SW = $(SW_RELEASE)
+release: $(NAME)
+
+# clean target- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 clean::
 	rm -f $(DIR)/*.o $(DIR)/*~ $(NAME)
@@ -68,7 +80,7 @@ MLIB =  $(SMS++LIB)
 $(NAME): $(MOBJ) $(DIR)/main.o
 	$(CC) -o $(NAME) $(DIR)/main.o $(FORCE) $(MOBJ) $(MLIB) $(SW)
 
-# dependencies: every .o from its .C + every recursively included .h- - - - -
+# dependencies: every .o from its .cpp + every recursively included .h- - - -
 
 # include directives
 MINC =  $(SMS++INC)
@@ -80,5 +92,13 @@ MH =    $(SMS++H)
 
 $(DIR)/main.o: $(DIR)/main.cpp $(MH)
 	$(CC) -c $*.cpp -o $@ $(MINC) $(SW)
+
+# distclean target- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+distclean: clean
+
+# phony targets - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+.PHONY: debug release clean distclean
 
 ############################ End of makefile ################################
