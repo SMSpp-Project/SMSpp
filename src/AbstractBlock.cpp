@@ -2198,8 +2198,10 @@ void AbstractBlock::read_lp( std::istream & file )
  /*------------- READ BOUNDS -------------*/
  /*---------------------------------------*/
  
- file >> word;
- sec_reached( &current_section , word );
+ if( current_section == LP_sections::LP_BOUND ){
+  file >> word;
+  sec_reached( &current_section , word );
+ }
  
  // In this case we have to control both for the general and binary section,
  // because they can come in any order.

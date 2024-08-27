@@ -1027,6 +1027,204 @@ class DQuadFunctionModVarsAddd : public C05FunctionModVarsAddd
  };  // end( class( DQuadFunctionModVarsAddd ) )
 
 /*--------------------------------------------------------------------------*/
+/*---------------------- Class DQuadFunctionModRngd ------------------------*/
+/*--------------------------------------------------------------------------*/
+/// class to describe changes to a DQuadFunction involving a range of Variable
+/** Derived class from C05FunctionModRngd to describe modification to a range 
+ * of "active" ColVariable of a DQuadFunction. The only difference with the base
+ * C05FunctionModRngd is that the DQuadFunctionModRngd stores the difference
+ * between the old and the new values of both linear and quadratic coefficients
+ * of each modified ColVariable in the DQuadFunction. */
+
+class DQuadFunctionModRngd : public C05FunctionModRngd
+{
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+ public:
+
+/*---------------------------- CONSTRUCTOR ---------------------------------*/
+ /// constructor: that of C05FunctionModRngd plus the coefficients
+ /** Constructor of DQuadFunctionModRngd: takes the same arguments as
+  * that of C05FunctionModRngd plus a 
+  * std::vector( std::pair< Coefficient , Coefficient > ) with the delta
+  * values given to the modified ColVariable, with positional
+  * correspondence to vars[] (i.e., coeff[ i ].first and coeff[ i ].second
+  * are respectively the delta of linear and quadratic coefficient given 
+  * to vars[ i ]). */
+
+ DQuadFunctionModRngd( C05Function * f , int type,
+			   DQuadFunction::v_coeff_pair && coeff ,
+			   Vec_p_Var && vars , c_Range & range , Subset && which = {} ,
+			   FunctionValue shift = NaNshift , bool cB = true )
+  : C05FunctionModRngd( f , type , std::move( vars ) , range , 
+      std::move( which ), shift , cB ) , f_coeff( std::move( coeff ) ) {}
+
+/*------------------------------ DESTRUCTOR --------------------------------*/
+ /// destructor: does nothing (explicitly)
+ 
+ ~DQuadFunctionModRngd() override = default;
+
+/*-------------------------------- GETTERS ----.----------------------------*/
+ /// returns (a const reference to) the vector of coefficient
+ 
+ DQuadFunction::c_v_coeff_pair & delta( void ) const { return( f_coeff ); }
+
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+
+ /// print the DQuadFunctionModRngd
+
+ void print( std::ostream & output ) const override {
+  output << "DQuadFunctionModRngd[";
+  if( concerns_Block() )
+   output << "t";
+  else
+   output << "f";
+  output << "] on Function [" << f_function << " ]: in ";
+  if( ( f_type == AllEntriesChanged ) ||
+      ( f_type == AllLinearizationChanged ) ) {
+   if( v_which.empty() )
+    output << "all";
+   else
+    output << v_which.size();
+   output << "linearizations";
+   if( f_type == AllEntriesChanged )
+    output << " the g have changed";
+   else
+    output << "both \alpha and g have changed";
+   }
+  else
+   output << "[ incorrect type() ]";
+  if( f_shift ) {
+   output << ", f-values changed";
+   if( std::isnan( f_shift ) )
+    output << "(+-)";
+   else
+    if( f_shift >= INFshift )
+     output << "(+)";
+    else
+     if( f_shift <= - INFshift )
+      output << "(-)";
+     else
+      output << " by " << f_shift;
+   }
+  output << std::endl;
+  }
+
+/*--------------------------- PROTECTED FIELDS -----------------------------*/
+
+ DQuadFunction::v_coeff_pair f_coeff;
+ ///< the delta coefficients (linear and quadratic) given to the modified 
+ ///  ColVariable
+  
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( DQuadFunctionModRngd ) )
+
+/*--------------------------------------------------------------------------*/
+/*---------------------- Class DQuadFunctionModSbst ------------------------*/
+/*--------------------------------------------------------------------------*/
+/// class to describe changes to a DQuadFunction involving a subset of Variables
+/** Derived class from C05FunctionModSbst to describe modification to a subset 
+ * of "active" ColVariables of a DQuadFunction. The only difference with the base
+ * C05FunctionModSbst is that the DQuadFunctionModSbst stores the difference
+ * between the old and the new values of both linear and quadratic coefficients
+ * of each modified ColVariable in the DQuadFunction. */
+
+class DQuadFunctionModSbst : public C05FunctionModSbst
+{
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+ public:
+
+/*---------------------------- CONSTRUCTOR ---------------------------------*/
+ /// constructor: that of C05FunctionModSbst plus the coefficients
+ /** Constructor of DQuadFunctionModSbst: takes the same arguments as
+  * that of C05FunctionModSbst plus a 
+  * std::vector( std::pair< Coefficient , Coefficient > ) with the delta
+  * values given to the modified ColVariable, with positional
+  * correspondence to vars[] (i.e., coeff[ i ].first and coeff[ i ].second
+  * are respectively the delta of linear and quadratic coefficient given 
+  * to vars[ i ]). */
+
+ DQuadFunctionModSbst( C05Function * f , int type,
+			   DQuadFunction::v_coeff_pair && coeff ,
+			   Vec_p_Var && vars , Subset && subset , bool ordered = false ,
+			   Subset && which = {} , FunctionValue shift = NaNshift , 
+         bool cB = true )
+  : C05FunctionModSbst( f , type , std::move( vars ) , std::move( subset ) , 
+      ordered , std::move( which ) , shift , cB ) , 
+    f_coeff( std::move( coeff ) ) {}
+
+/*------------------------------ DESTRUCTOR --------------------------------*/
+ /// destructor: does nothing (explicitly)
+ 
+ ~DQuadFunctionModSbst() override = default;
+
+/*-------------------------------- GETTERS ----.----------------------------*/
+ /// returns (a const reference to) the vector of coefficient
+ 
+ DQuadFunction::c_v_coeff_pair & delta( void ) const { return( f_coeff ); }
+
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+
+ /// print the DQuadFunctionModSbst
+
+ void print( std::ostream & output ) const override {
+  output << "DQuadFunctionModSbst[";
+  if( concerns_Block() )
+   output << "t";
+  else
+   output << "f";
+  output << "] on Function [" << f_function << " ]: in ";
+  if( ( f_type == AllEntriesChanged ) ||
+      ( f_type == AllLinearizationChanged ) ) {
+   if( v_which.empty() )
+    output << "all";
+   else
+    output << v_which.size();
+   output << "linearizations";
+   if( f_type == AllEntriesChanged )
+    output << " the g have changed";
+   else
+    output << "both \alpha and g have changed";
+   }
+  else
+   output << "[ incorrect type() ]";
+  if( f_shift ) {
+   output << ", f-values changed";
+   if( std::isnan( f_shift ) )
+    output << "(+-)";
+   else
+    if( f_shift >= INFshift )
+     output << "(+)";
+    else
+     if( f_shift <= - INFshift )
+      output << "(-)";
+     else
+      output << " by " << f_shift;
+   }
+  output << std::endl;
+  }
+
+/*--------------------------- PROTECTED FIELDS -----------------------------*/
+
+ DQuadFunction::v_coeff_pair f_coeff;
+ ///< the delta coefficients (linear and quadratic) given to the modified 
+ ///  ColVariable
+  
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( DQuadFunctionModSbst ) )
+
+/*--------------------------------------------------------------------------*/
 /** @} end( group( DQuadFunction_CLASSES ) ) ------------------------------*/
 /*--------------------------------------------------------------------------*/
 
