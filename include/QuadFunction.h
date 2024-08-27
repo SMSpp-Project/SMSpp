@@ -198,6 +198,8 @@ class QuadFunction : public DQuadFunction {
 
  void clear( void ) override { 
     // Clear the matrix and clear all memory
+     DQuadFunction::clear();
+
     mat_nd.resize(0,0); 
     mat_nd.data().squeeze();
  }
@@ -225,6 +227,12 @@ class QuadFunction : public DQuadFunction {
       } 
     }
  }
+/*--------------------------------------------------------------------------*/
+
+ /// returns directly the Eigen::SparseMatrix
+
+ Qmat get_matrix( void ) const { return mat_nd; }
+ 
 /*--------------------------------------------------------------------------*/
 
  /// returns the term of the i-th and j-th Variable 
@@ -508,6 +516,209 @@ class QuadFunction : public DQuadFunction {
 /*--------------------------------------------------------------------------*/
 
  };  // end( class( QuadFunction ) )
+
+/*--------------------------------------------------------------------------*/
+/*------------------- Class QuadFunctionModVarsAddd ----------------------*/
+/*--------------------------------------------------------------------------*/
+/// class to describe "nicely" adding Variable of a QuadFunction
+/** Derived class from DQuadFunctionModVarsAddd to describe adding "active"
+ * ColVariables to a QuadFunction. The only difference with the base
+ * DQuadFunctionModVarsAddd is that the QuadFunctionModVarsAddd stores the
+ * values of the off-diagonal coefficients involving the new
+ * ColVariables in the QuadFunction at the time when they are added. */
+
+class QuadFunctionModVarsAddd : public DQuadFunctionModVarsAddd
+{
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+ public:
+
+/*---------------------------- CONSTRUCTOR ---------------------------------*/
+ /// constructor: that of DQuadFunctionModVarsAddd plus the coefficients
+ /** Constructor of QuadFunctionModVarsAddd: takes the same arguments as
+  * that of DQuadFunctionModVarsAddd plus a
+  * std::vector( std::tuple< Index , Index , Coefficient > ) with the 
+  * off-diagonal terms involving the newly added ColVariables.
+  */
+
+ QuadFunctionModVarsAddd( C05Function * f ,
+         QuadFunction::v_off_diag_term && od_terms ,
+			   DQuadFunction::v_coeff_pair && coeff ,
+			   Vec_p_Var && vars , Index first ,
+			   FunctionValue shift = NaNshift , bool cB = true )
+  : DQuadFunctionModVarsAddd( f , std::move( coeff ) , std::move( vars ) , 
+                              first , shift , cB ) ,
+    offdiag_terms( std::move( od_terms ) ) {}
+
+/*------------------------------ DESTRUCTOR --------------------------------*/
+ /// destructor: does nothing (explicitly)
+ 
+ ~QuadFunctionModVarsAddd() override = default;
+
+/*-------------------------------- GETTERS ----.----------------------------*/
+ /// returns (a const reference to) the vector of off diagonal terms
+ 
+ QuadFunction::v_c_off_diag_term & od_terms( void ) const 
+  { return( offdiag_terms ); }
+
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+
+ /// print the QuadFunctionModVarsAddd
+
+ void print( std::ostream & output ) const override {
+  output << "QuadFunctionModVarsAddd[";
+  if( concerns_Block() )
+   output << "t";
+  else
+   output << "f";
+  output << "] on Function [" << f_function
+         << " ]: strongly quasi-additively (";
+
+  if( std::isnan( f_shift ) )
+   output << "+-(?)";
+  else
+   if( f_shift >= Inf< FunctionValue >() )
+    output << "+(?)";
+   else
+    if( f_shift <= - Inf< FunctionValue >() )
+     output << "-(?)";
+    else
+     output << f_shift;
+
+  output << ") adding variables [ " << f_first << " , "
+         << f_first + v_vars.size() << " ]" << std::endl;
+  }
+
+/*--------------------------- PROTECTED FIELDS -----------------------------*/
+
+ QuadFunction::v_off_diag_term offdiag_terms;
+ ///< the off diagonal terms involving the newly added ColVariables
+  
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( QuadFunctionModVarsAddd ) )
+
+/*--------------------------------------------------------------------------*/
+/*---------------------- Class QuadFunctionModSbst -------------------------*/
+/*--------------------------------------------------------------------------*/
+/// class to describe changes to a QuadFunction involving a subset of Variable
+/** Derived class from C05FunctionModSbst to describe modification to a range 
+ * of "active" ColVariable of a QuadFunction. The only difference with the base
+ * C05FunctionModSbst is that the QuadFunctionModSbst stores the difference
+ * between the old and the new values of off-diagonal coefficients involving
+ * modified ColVariable in the QuadFunction. 
+ *
+ * NOTE: at the moment we assume that a Modification corresponding to a 
+ * change in the off-diagonal part of the quadratic matrix involves a single
+ * coefficient. Thus, in the subset field we will find only the two 
+ * variables affected by this modification (i.e. if we are modifying the term
+ * x_i*x_j, in the Subset field we will find the tuple (i,j)). */
+
+class QuadFunctionModSbst : public C05FunctionModSbst
+{
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+ public:
+
+/*--------------------------------------------------------------------------*/
+/*---------------------- PUBLIC TYPES OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ /// type of the coefficients of quadratic terms = FunctionValue
+ using Coefficient = FunctionValue;
+
+/*---------------------------- CONSTRUCTOR ---------------------------------*/
+ /// constructor: that of C05FunctionModSbst plus the coefficient
+ /** Constructor of QuadFunctionModSbst: takes the same arguments as
+  * that of C05FunctionModSbst plus a single Coefficient with the delta
+  * value for the off diagonal term identified by the Subset. Moreover,
+  * we also store a boolean value "is_added" to understand if the term have been
+  * added to the quadratic matrix or simply modified. */ 
+
+ QuadFunctionModSbst( C05Function * f , int type,
+			   Coefficient && od_term , bool added ,
+			   Vec_p_Var && vars , Subset && subset , bool ordered = false ,
+			   Subset && which = {} , FunctionValue shift = NaNshift , 
+         bool cB = true )
+  : C05FunctionModSbst( f , type , std::move( vars ) , std::move( subset ) , 
+      ordered , std::move( which ) , shift , cB ) , 
+    d_coeff( std::move( od_term ) ) { is_added = added; }
+
+/*------------------------------ DESTRUCTOR --------------------------------*/
+ /// destructor: does nothing (explicitly)
+ 
+ ~QuadFunctionModSbst() override = default;
+
+/*-------------------------------- GETTERS ----.----------------------------*/
+ /// returns (a const reference to) the coefficient
+ 
+ Coefficient delta( void ) const { return( d_coeff ); }
+
+ /// returns the type of Modification
+ 
+ bool Mod_type( void ) const { return( is_added ); }
+
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+
+ /// print the QuadFunctionModSbst
+
+ void print( std::ostream & output ) const override {
+  output << "QuadFunctionModSbst[";
+  if( concerns_Block() )
+   output << "t";
+  else
+   output << "f";
+  output << "] on Function [" << f_function << " ]: in ";
+  if( ( f_type == AllEntriesChanged ) ||
+      ( f_type == AllLinearizationChanged ) ) {
+   if( v_which.empty() )
+    output << "all";
+   else
+    output << v_which.size();
+   output << "linearizations";
+   if( f_type == AllEntriesChanged )
+    output << " the g have changed";
+   else
+    output << "both \alpha and g have changed";
+   }
+  else
+   output << "[ incorrect type() ]";
+  if( f_shift ) {
+   output << ", f-values changed";
+   if( std::isnan( f_shift ) )
+    output << "(+-)";
+   else
+    if( f_shift >= INFshift )
+     output << "(+)";
+    else
+     if( f_shift <= - INFshift )
+      output << "(-)";
+     else
+      output << " by " << f_shift;
+   }
+  output << std::endl;
+  }
+
+/*--------------------------- PROTECTED FIELDS -----------------------------*/
+
+ Coefficient d_coeff;
+ ///< the delta coefficient (quadratic) given to the term identified by the 
+ /// subset of ColVariable
+ bool is_added;
+ ///< boolean value stating if the term have been added for the first time to
+ /// the quadratic matrix
+  
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( QuadFunctionModSbst ) ) 
 
 /*--------------------------------------------------------------------------*/
 
