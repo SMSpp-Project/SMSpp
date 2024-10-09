@@ -240,6 +240,10 @@ void QuadFunction::add_nd_term ( ColVariable * var1 , ColVariable * var2 ,
                     Coefficient quad_coeff , ModParam issueMod ){
   // We will check if both variables exists in which case the coefficient gets 
   // added. (Maybe we want a numeric zero check...)
+
+  // Begin by sizing up the off diagonal matrix
+  Index ksz = DQuadFunction::get_num_active_var();
+  mat_nd.conservativeResize(ksz, ksz);
   if ( quad_coeff != 0.0 ){
     Index i = DQuadFunction::is_active( var1 );
     Index j = DQuadFunction::is_active( var2 );
