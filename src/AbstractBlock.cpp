@@ -23,6 +23,7 @@
 #include "ColVariable.h"
 
 #include "LinearFunction.h"
+#include "QuadFunction.h"
 #include "FRowConstraint.h"
 #include "OneVarConstraint.h"
 
@@ -37,6 +38,10 @@
 /*--------------------------------------------------------------------------*/
 
 using namespace SMSpp_di_unipi_it;
+
+using v_coeff_pair = LinearFunction::v_coeff_pair;
+using v_coeff_triple = DQuadFunction::v_coeff_triple;
+using v_off_diag_term = QuadFunction::v_off_diag_term;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------------- STATIC MEMBERS -----------------------------*/
@@ -975,33 +980,6 @@ void AbstractBlock::read_mps( std::istream & file )
   throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
  }
  file >> word;
- if( word != "OBJSENSE" ) {
-  problem_name = word;
-  file.ignore( max, '\n' );
-  file >> word;
- }
-
- // Read OBJSENSE (optional)
- if( word == "OBJSENSE" ) {
-  file >> word;
-  if( word == "MAX" || word == "MAXIMIZE" ) {
-   of->set_sense( Objective::eMax, eNoMod );
-  } else if( word == "MIN" || word == "MINIMIZE" ) {
-   of->set_sense( Objective::eMin, eNoMod );
-  } else {
-   throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
-  }
-  file >> word;
- } else {
-  // Minimize by default
-  of->set_sense( Objective::eMin, eNoMod );
- }
-
- // Read OBJNAME (optional)
- if( word == "OBJNAME" ) {
-  file >> of_name;
-  file >> word;
- }
 
  /*
   * First pass: get rows and columns number
@@ -1406,13 +1384,1089 @@ void AbstractBlock::read_mps( std::istream & file )
 
 void AbstractBlock::read_lp( std::istream & file )
 {
- throw( std::logic_error( "AbstractBlock::read_lp() not implemented yet" ) );
+
+ // function to convert a float value written in a string in a double
+ auto dbl_val = []( std::string & s ) {
+ assert( ! s.empty() );
+ if( s == "-infinity")
+   return( -Inf< double >() );
+ else if( s == "infinity")
+   return( Inf< double >() );
+
+ if( s[ 0 ] == '.' )
+  s.insert( 0 , "0" );
+ else
+  if( ( s[ 0 ] == '-' ) && ( s[ 1 ] == '.' ) )
+    s.insert( 1 , "0" );
+
+ if( s.back() == '.' )
+  s.pop_back();
+
+ return( std::stod( s ) );
+ };
+
+ struct compare_words
+ {
+    std::string key_s;
+    compare_words(std::string const &s): key_s(s) {}
+ 
+    bool operator()(std::string const &s) {
+        return boost::iequals( s , key_s);
+    }
+ };
+
+ std::string problem_name;
+ int num_rows = 0;
+ int num_cols = 0;
+
+ auto * of = new FRealObjective();
+ std::string of_name;
+ int of_sense = 0;
+ bool is_qp = 0;
+
+ std::vector< FRowConstraint > * rows;
+ std::vector< std::string > row_names;
+ std::vector< char > row_type;
+ std::vector< bool > is_row_q;
+
+ std::vector< ColVariable > * cols;
+ std::vector< std::string > col_names;
+ std::vector< BoxConstraint > * bounds;
+
+ std::string rhs_name; // Only one RHS vector is supported
+ std::string rng_name; // Only one RANGES vector is supported
+ std::string bnd_name; // Only one BOUNDS vector is supported
+
+ std::string word;
+ auto max = std::numeric_limits< std::streamsize >::max();
+
+ std::vector< std::string > minfinity_names = { "-inf" , 
+                              "-infinity" };
+
+ // int value used to store the section currently scanned
+ int current_section;
+
+ /*---------------------------------------*/
+ /* HERE WE ARE STARTING TO READ THE FILE */
+ /*---------------------------------------*/
+  
+  // Eat initial comments
+ while( file.peek() == file.widen( '\\' )  || 
+            file.peek() ==  '\n' ) {
+  file.ignore( max, '\n' );
+ }
+
+ /*---------------------------------------*/
+ /*----------- READ OBJECTIVE ------------*/
+ /*---------------------------------------*/
+ 
+ // Read Objective sense
+ file >> word;
+ if( boost::iequals(word, "maximize") || boost::iequals(word, "max") )
+    of_sense = 1;
+ else if( boost::iequals(word, "minimize") || boost::iequals(word, "min") )
+    of_sense = -1;
+ else
+    throw( std::invalid_argument( "Invalid objective sense in" 
+        " LP file" ) );
+  
+ // Get objective function data
+ file >> word;
+ int pos = word.find( ":" );
+ of_name = word.substr( 0 , pos );
+
+ // Function name and row name should always end with a ":" in
+ // .lp format. Thus, if no ":" has been found, it means we
+ // are already reading the formula. Otherwise, we can skip to the next
+ // next word.
+ if( pos != -1 )
+  file >> word;
+
+ std::string first_obj_word = word;
+
+ current_section = LP_sections::LP_LINOBJECTIVE;
+ sec_reached( &current_section , word );
+ auto pos_start_objective = file.tellg(); // Save it for later
+
+ /*---------------------------------------*/
+ /*------------- FIRST SCAN --------------*/
+ /*---------------------------------------*/
+
+ // First pass: just get number of columns and rows
+
+ while( current_section == LP_sections::LP_LINOBJECTIVE ){
+  std::string column;
+  ColVariable * v;
+  
+  char first_char = word[0];
+  int len_word = word.length();
+  bool read_sign = ( first_char == '-'  || first_char == '+' );
+  
+  // we can either read the sign, the coefficient or directly the 
+  // variable ( i.e., the coefficient is 1). In Highs usually the
+  // coefficient and the sign are grouped.
+  // NOTE: in the QP formulation, we have also the possibility to
+  // read a * or ^, but we expect to find a [ at the beginning of the
+  // quadratic part.
+  file.get(); // eat space
+  if( file.peek() !=  '[' ){
+    if( len_word == 1 && read_sign ){
+    file >> word; // reading the coefficient
+    if( std::isdigit( word[0] ) )
+      // we read the coefficient
+      file >> column; // reading the variable name
+    else
+      column = word;
+    }
+    else if( std::isdigit( first_char ) || read_sign ){ 
+      // we already read the coefficient
+      file >> column; // reading the variable name
+    }
+    else{ // the only possibility left is that we read the variable name
+      column = word;
+    }
+  
+    // When reading the active variable in the objective function, no variable
+    // have been added before
+    col_names.push_back( column );
+    ++num_cols;
+  }
+  
+  file >> word;
+  sec_reached( &current_section , word );
+ }
+
+ /*---------------------------------------*/
+ /*------ READ QUADRATIC OBJECTIVE -------*/
+ /*---------------------------------------*/
+
+ while( current_section == LP_sections::LP_QUADOBJECTIVE ){
+  file >> word;
+
+  if( is_qp == 0)
+    is_qp = 1;
+
+  std::string column;
+  ColVariable * v;
+  
+  char first_char = word[0];
+  int len_word = word.length();
+  bool read_sign = ( first_char == '-'  || first_char == '+' );
+
+  if( first_char == ']' ){
+    // we reached the end of the quadratic section.
+    file.ignore( max, '\n' );
+
+    file >> word;
+    sec_reached( &current_section , word );
+
+    break;
+  }
+  
+  // we can either read the sign, the coefficient or directly the 
+  // variable ( i.e., the coefficient is 1 or we are reading the 
+  // second variable in term x_i*x_j). In Highs usually the
+  // coefficient and the sign are grouped.
+
+  if( len_word == 1 && read_sign ){
+   file >> word; // reading the coefficient
+   if( std::isdigit( word[0] ) )
+      // we read the coefficient
+      file >> column; // reading the variable name
+    else
+      column = word;
+  }
+  else if( std::isdigit( first_char ) || read_sign ){ 
+    // we already read the coefficient
+    file >> column; // reading the variable name
+  }
+  else{ // the only possibility left is that we read the variable name
+    column = word;
+  }
+
+  file.get(); // eat white space
+  if( column[ column.length() - 2 ] == '^' ){
+    // We are reading the quadratic term x^2. Thus the real name of the
+    // variable is obtained by removing the last two character
+    column = column.substr( 0 , column.length() - 2 );
+  }
+  else if( file.peek() == '*' ){
+    // We read only the first term. In this first scan, simply skip to
+    // the second
+    file >> word;
+  }
+  
+  // Now we have to check if the variable considered has been already found
+  // in the linear objective function or in a precedent quadratic term
+  auto it = std::find( col_names.begin(), col_names.end(), column );
+  if( it == col_names.end() ){
+    col_names.push_back( column );
+    ++num_cols;
+  }
+ }
+ 
+ /*---------------------------------------*/
+ /*------------- READ ROWS ---------------*/
+ /*---------------------------------------*/
+
+ file.ignore( max, '\n' );
+
+ file >> word;
+ sec_reached( &current_section , word );
+ 
+ while( current_section == LP_sections::LP_ROW ){
+  // All row name must end with a ":"
+  pos = word.find( ":" );
+  
+  if( pos != -1 ){ // we actually found a new row
+   is_row_q.push_back( false );
+   ++num_rows;
+   std::string row_name = word.substr( 0 , pos );
+   row_names.push_back( row_name );
+   }
+ 
+  file >> word;
+  char first_char = word[0];
+
+  // we can read symbols until we get to the sign, i.e., we are reading variables
+  // and coefficients
+  while( first_char != '<' &&  first_char != '>' && first_char != '=' ){
+   std::string column;
+   int len_word = word.length();
+   bool read_sign = ( first_char == '-'  || first_char == '+' );
+
+   // we can either read the sign, the coefficient or directly the 
+   // variable ( i.e., the coefficient is 1)
+
+   if( ( len_word == 1 && read_sign ) || word[0] == '[' ){
+    // We take into account the strange case where we don't have any linear
+    // coefficient. Thus, no sign will be found before the quadratic part as
+    // we expected.
+    if( word[0] != '[' )
+      file >> word; // Read next word after the sign
+    
+    if( word[0] == '[' ){
+      // we reached the quadratic part of the row.
+      is_row_q[ num_rows - 1 ] = true; // Update row type
+      
+      file >> word;
+      first_char = word[0];
+      read_sign = ( first_char == '-'  || first_char == '+' );
+      len_word = word.length();
+      if( len_word == 1 && read_sign )
+        file >> word; // Read next word after the sign
+    }
+
+    if( std::isdigit( word[0] ) )
+      // we read the coefficient
+      file >> column; // reading the variable name
+    else
+      column = word;
+    }  
+   else if( std::isdigit( first_char ) || read_sign ){ 
+    // we already read the coefficient
+    file >> column; // reading the variable name
+    }
+   else{ // the only possibility left is that we read the variable name
+    column = word;
+    }
+
+   // Options to check if we are in the quadratic part
+   file.get(); // eat white space
+   if( column[ column.length() - 2 ] == '^' ){
+    // We are reading the quadratic term x^2. Thus the real name of the
+    // variable is obtained by removing the last two character
+    column = column.substr( 0 , column.length() - 2 );
+   }
+   else if( file.peek() == '*' ){
+    // We read only the first term. In this first scan, simply skip to
+    // the second
+    file >> word;
+   }
+
+   // Now we have to check if the variable considered has been already found
+   // in the objective function or in a precedent row
+   auto it = std::find( col_names.begin(), col_names.end(), column );
+   if( it == col_names.end() ){
+    col_names.push_back( column );
+    ++num_cols;
+    }
+
+   file >> word;
+   first_char = word[0];
+
+   // Check if we reached the end of the quadratic part
+   if( first_char == ']'){
+    //Simply skip to the sense
+    file >> word;
+    first_char = word[0];
+   }
+  }
+
+  // Now skip sense and rhs
+  file >> word;
+  file >> word;
+  sec_reached( &current_section , word );
+ }
+
+ /*---------------------------------------*/
+ /*---------- INITIALIZE STUFF -----------*/
+ /*---------------------------------------*/
+
+ v_coeff_pair lin_var;    // vector of (var-coeff) used to declare
+                          // the linear function
+ v_coeff_triple qd_var;  // vector of (var-lincoeff-quadcoeff) used 
+                          // to declare a quadratic function with diagonal terms
+ v_off_diag_term qod_var; // vector of (var-var-qcoeff) used to declare 
+                          // a quadratic function with off diagonal terms
+ 
+ // Vector used to store local active var in a certain constrain/objective
+ std::vector< std::string > local_active_var; 
+
+ rows = new std::vector< FRowConstraint >( num_rows );
+
+ cols = new std::vector< ColVariable >( num_cols );
+ bounds = new std::vector< BoxConstraint >( num_cols );
+
+ for( int i = 0; i < num_cols; ++i ) {
+  ( *bounds )[ i ].set_variable( &( *cols )[ i ], eNoMod );
+  ( *bounds )[ i ].set_Block( this );
+  ( *cols )[ i ].set_Block( this );
+ }
+
+ /*---------------------------------------*/
+ /*------------ SECOND SCAN --------------*/
+ /*---------------------------------------*/
+ 
+ file.seekg( pos_start_objective, file.beg ); // Go back to objective section
+ current_section = LP_sections::LP_LINOBJECTIVE;
+ word = first_obj_word;
+
+ while( current_section == LP_sections::LP_LINOBJECTIVE ){
+  std::string column;
+  std::string value = "1";
+  std::string value_sense = "+";
+  ColVariable * v;
+  
+  char first_char = word[0];
+  int len_word = word.length();
+  bool read_sign = ( first_char == '-'  || first_char == '+' );
+
+  // we can either read the sign, the coefficient or directly the 
+  // variable ( i.e., the coefficient is 1). In Highs usually the
+  // coefficient and the sign are grouped
+  file.get(); // eat space
+  if( file.peek() !=  '[' ){
+    if( len_word == 1 && read_sign ){
+    value_sense = word;
+    file >> word; // reading the coefficient
+    if( std::isdigit( word[0] ) ){
+      // we read the coefficient
+      value = word;
+      file >> column; // reading the variable name
+    }
+    else
+      column = word;
+
+    value = value_sense + value;
+    }
+    else if( std::isdigit( first_char ) || read_sign ){ 
+      // we already read the coefficient
+      value = word;
+      file >> column; // reading the variable name
+    }
+    else{ // the only possibility left is that we read the variable name
+      value = std::to_string( 1 );
+      column = word;
+    }
+
+    // Update active variable in the objective function
+    local_active_var.push_back( column );
+
+    auto it = std::find( col_names.begin(), col_names.end(), column );
+    auto j = std::distance( col_names.begin(), it );
+    v = &( *cols )[ j ];
+    
+    if( ! is_qp ){
+      // LinearFunction Modification
+      lin_var.push_back( std::make_pair( v , dbl_val( value ) ) );
+    }
+    else{
+      // DQuadFunction Modification (also consider a 
+      // quadratic coefficient equal to 0)
+      qd_var.push_back( std::make_tuple( v , dbl_val( value ) , 0 ) );
+    }
+  }
+  file >> word;
+  sec_reached( &current_section , word );
+ }
+
+ /*---------------------------------------*/
+ /*------ READ QUADRATIC OBJECTIVE -------*/
+ /*---------------------------------------*/
+
+ while( current_section == LP_sections::LP_QUADOBJECTIVE ){
+  file >> word;
+
+  std::string column;
+  std::string column2;
+  std::string value = "1";
+  std::string value_sense = "+";
+  ColVariable * v;
+  ColVariable * v2;
+  
+  char first_char = word[0];
+  int len_word = word.length();
+  bool read_sign = ( first_char == '-'  || first_char == '+' );
+
+  if( first_char == ']' ){
+    // we reached the end of the quadratic section.
+    file.ignore( max, '\n' );
+
+    file >> word;
+    sec_reached( &current_section , word );
+
+    break;
+  }
+  
+  // we can either read the sign, the coefficient or directly the 
+  // variable ( i.e., the coefficient is 1). In Highs usually the
+  // coefficient and the sign are grouped.
+
+  if( len_word == 1 && read_sign ){
+   value_sense = word;
+   file >> word; // reading the coefficient
+   if( std::isdigit( word[0] ) ){
+      // we read the coefficient
+      value = word;
+      file >> column; // reading the variable name
+    }
+    else
+      column = word;
+  
+   value = value_sense + value;
+  }
+  else if( std::isdigit( first_char ) || read_sign ){ 
+    // we already read the coefficient
+    value = word;
+    file >> column; // reading the variable name
+  }
+  else{ // the only possibility left is that we read the variable name
+    value = std::to_string( 1 );
+    column = word;
+  }
+
+  // eat white space
+  file.get();
+  if( column[ column.length() - 2 ] == '^' ){
+    // We are reading the quadratic term x^2. Thus the real name of the
+    // variable is obtained by removing the last two character
+    column = column.substr( 0 , column.length() - 2 );
+
+    // Map locally the column in the active variable for the objective
+    auto it_local = std::find( local_active_var.begin(), local_active_var.end(), 
+                                column );
+    auto idx_local = std::distance( local_active_var.begin(), it_local );
+
+    auto it = std::find( col_names.begin(), col_names.end(), column );
+    auto j = std::distance( col_names.begin(), it );
+    v = &( *cols )[ j ];
+
+    if( it_local != local_active_var.end() ){
+      // Var v had already a linear coefficient set
+      // DQuadFunction modification (nothing to be done on the linear term)
+      std::get<2>( qd_var[idx_local] ) = dbl_val( value )/2;
+    }
+    else{
+      // Var v doesn't have a linear coefficient
+      // DQuadFunction modification (nothing to be done on the linear term)
+      local_active_var.push_back( column );
+
+      auto it_global = std::find( col_names.begin(), col_names.end(), column );
+      auto idx_global = std::distance( col_names.begin(), it_global );
+      v = &( *cols )[ idx_global ];
+
+      qd_var.push_back( std::make_tuple( v , 0 , dbl_val( value )/2 ) );
+    }
+  }
+  else if( file.peek() == '*' ){
+    // We read only the first term. Now skip the * and read the second
+    file >> word; // *
+    file >> column2;
+
+    // We have to check that both variables are active locally (first var)
+    auto it_local1 = std::find( local_active_var.begin(), local_active_var.end(), 
+                                  column );
+    auto idx_local1 = std::distance( local_active_var.begin(), it_local1 );
+
+    // If one of the variable is not active locally, we have to insert it in the
+    // set of active var of the constraint
+    if( it_local1 == local_active_var.end() ){
+      // Map globally the column in the set of all the variable  
+      auto it_global1 = std::find( col_names.begin(), col_names.end(), column );
+      auto idx_global1 = std::distance( col_names.begin(), it_global1 );
+      v = &( *cols )[ idx_global1 ];
+
+      local_active_var.push_back( column );
+      qd_var.push_back( std::make_tuple( v , 0 , 0 ) );
+    }
+    
+    // We have to check that both variables are active locally (second var)
+    auto it_local2 = std::find( local_active_var.begin(), local_active_var.end(), 
+                                  column2 );
+    auto idx_local2 = std::distance( local_active_var.begin(), it_local2 );
+
+    // If one of the variable is not active locally, we have to insert it in the
+    // set of active var of the constraint
+    if( it_local2 == local_active_var.end() ){
+      // Map globally the column in the set of all the variable  
+      auto it_global2 = std::find( col_names.begin(), col_names.end(), column2 );
+      auto idx_global2 = std::distance( col_names.begin(), it_global2 );
+      v2 = &( *cols )[ idx_global2 ];
+
+      local_active_var.push_back( column2 );
+      qd_var.push_back( std::make_tuple( v2 , 0 , 0 ) );
+    }
+
+    // NOTE: we store the indexes in a way that we are actually preserving only the 
+    // lower traingul part of the matrix
+    qod_var.push_back( std::make_tuple( std::max( idx_local1 , idx_local2 ) ,
+                          std::min( idx_local1 , idx_local2 ) , dbl_val( value )/2 ) );
+  }
+  else{
+    std::stringstream ss;
+    ss << "Error while reading the quadratic part of objective function in" << 
+    "AbstractBlock::read_lp(). Expected ^ (got " << column[ column.length() - 2 ] 
+    << ") or * (got " << file.peek() << ")";
+
+    std::string error = ss.str();
+    throw( std::runtime_error( error ) );
+  }
+ }
+
+ // Intizialize objective function
+ if( is_qp == 0 ){
+  // Linear Function
+  of->set_function( new LinearFunction( std::move( lin_var ) ) , eNoMod );
+ }
+ else{
+  // Quadratic Function
+  if( qod_var.size() == 0 )
+    of->set_function( new DQuadFunction( std::move( qd_var ) ) , eNoMod );
+  else
+    of->set_function( new QuadFunction( std::move( qd_var ) , std::move( qod_var ) ), eNoMod );
+ }
+
+ of->set_sense( of_sense, eNoMod );
+ 
+ /*---------------------------------------*/
+ /*------------- READ ROWS ---------------*/
+ /*---------------------------------------*/
+
+ file.ignore( max, '\n' );
+
+ file >> word;
+ sec_reached( &current_section , word );
+ 
+ while( current_section == LP_sections::LP_ROW ){
+  std::string row_name;
+  std::string rhs;
+   
+  pos = word.find( ":" );
+  row_name = word.substr( 0 , pos );
+  auto it_row = std::find( row_names.begin(), row_names.end(), row_name );
+  auto r = std::distance( row_names.begin(), it_row );
+
+  // Reset vectors to store constraint information
+  lin_var.clear();    // vector of (var-coeff) used to declare
+                          // the linear function
+  qd_var.clear();  // vector of (var-lincoeff-quadcoeff) used 
+                          // to declare a quadratic function with diagonal terms
+  qod_var.clear(); // vector of (var-var-qcoeff) used to declare 
+                          // a quadratic function with off diagonal terms
+
+  // Vector to map the active variable in a specific row
+  local_active_var.clear();
+
+  file >> word;
+  char first_char = word[0];
+
+  // we can read symbols until we get to the sign, i.e., we are reading variables
+  // and coefficients
+  while( first_char != '<' &&  first_char != '>' && first_char != '=' ){
+   std::string column;
+   std::string column2;
+   std::string value = "1";
+   std::string value_sense = "+";
+   ColVariable * v;
+   ColVariable * v2;
+
+   int len_word = word.length();
+   bool read_sign = ( first_char == '-'  || first_char == '+' );
+
+   // we can either read the sign, the coefficient or directly the 
+   // variable ( i.e., the coefficient is 1)
+
+   if( len_word == 1 && read_sign || word[0] == '[' ){
+    // We take into account the strange case where we don't have any linear
+    // coefficient. Thus, no sign will be found before the quadratic part as
+    // we expected.
+    if( word[0] != '[' ){
+      value_sense = word;
+      file >> word; // Read next word after the sign
+    }
+
+    if( word[0] == '[' ){
+      // we reached the quadratic part of the row.
+      file >> word;
+      first_char = word[0];
+      read_sign = ( first_char == '-'  || first_char == '+' );
+      len_word = word.length();
+      if( len_word == 1 && read_sign ){
+        value_sense = word;
+        file >> word; // Read next word after the sign
+      }
+    }
+
+    if( std::isdigit( word[0] ) ){
+      // we read the coefficient
+      value = word;
+      file >> column; // reading the variable name
+    }
+    else
+      column = word;
+
+    value = value_sense + value;
+   }  
+   else if( std::isdigit( first_char ) || read_sign ){ 
+    // we already read the coefficient
+    value = word;
+    file >> column; // reading the variable name
+   }
+   else{ // the only possibility left is that we read the variable name
+    value = std::to_string( 1 );
+    column = word;
+   }
+
+   // Check if we are in the quadratic part!
+   file.get(); // eat white space
+   if( column[ column.length() - 2 ] == '^' ){
+    // We are reading the quadratic term x^2. Thus the real name of the
+    // variable is obtained by removing the last two character
+    column = column.substr( 0 , column.length() - 2 );
+    
+    // Map locally the column in the active variable for the row
+    auto it_local = std::find( local_active_var.begin(), local_active_var.end(), 
+                                column );
+    auto idx_local = std::distance( local_active_var.begin(), it_local );
+
+    if( it_local != local_active_var.end() ){
+      // Var v had already a linear coefficient set
+      // DQuadFunction modification (nothing to be done on the linear term)
+      std::get<2>( qd_var[idx_local] ) = dbl_val( value );
+    }
+    else{
+      // Var v doesn't have a linear coefficient
+      // DQuadFunction modification (nothing to be done on the linear term)
+      // Map globally the column in the set of all the variable  
+      auto it_global = std::find( col_names.begin(), col_names.end(), column );
+      auto idx_global = std::distance( col_names.begin(), it_global );
+      v = &( *cols )[ idx_global ];
+
+      local_active_var.push_back( column ); // Update set of local active var
+      qd_var.push_back( std::make_tuple( v , 0 , dbl_val( value ) ) );
+    }
+   }
+   else if( file.peek() == '*' ){
+    // We read only the first term. Now skip the * and read the second
+    file >> word; // *
+    file >> column2;
+
+    // We have to check that both variables are active locally (first var)
+    auto it_local1 = std::find( local_active_var.begin(), local_active_var.end(), 
+                                  column );
+    auto idx_local1 = std::distance( local_active_var.begin(), it_local1 );
+
+    // If one of the variable is not active locally, we have to insert it in the
+    // set of active var of the constraint
+    if( it_local1 == local_active_var.end() ){
+      // Map globally the column in the set of all the variable  
+      auto it_global1 = std::find( col_names.begin(), col_names.end(), column );
+      auto idx_global1 = std::distance( col_names.begin(), it_global1 );
+      v = &( *cols )[ idx_global1 ];
+
+      local_active_var.push_back( column );
+      qd_var.push_back( std::make_tuple( v , 0 , 0 ) );
+    }
+    
+    // We have to check that both variables are active locally (second var)
+    auto it_local2 = std::find( local_active_var.begin(), local_active_var.end(), 
+                                  column2 );
+    auto idx_local2 = std::distance( local_active_var.begin(), it_local2 );
+
+    // If one of the variable is not active locally, we have to insert it in the
+    // set of active var of the constraint
+    if( it_local2 == local_active_var.end() ){
+      // Map globally the column in the set of all the variable  
+      auto it_global2 = std::find( col_names.begin(), col_names.end(), column2 );
+      auto idx_global2 = std::distance( col_names.begin(), it_global2 );
+      v2 = &( *cols )[ idx_global2 ];
+
+      local_active_var.push_back( column2 );
+      qd_var.push_back( std::make_tuple( v2 , 0 , 0 ) );
+    }
+
+    // QuadFunction modification
+    // NOTE: we store the indexes in a way that we are actually preserving only the 
+    // lower traingul part of the matrix
+    qod_var.push_back( std::make_tuple( std::max( idx_local1 , idx_local2 ) ,
+                          std::min( idx_local1 , idx_local2 ) , dbl_val( value ) ) );
+   }
+   else{
+    // We read a simple linear coefficient
+
+    // In the linear part we expect never to find a variable that was already active in the 
+    // scanned constraint.
+    local_active_var.push_back( column );
+
+    auto it_global = std::find( col_names.begin(), col_names.end(), column );
+    auto idx_global = std::distance( col_names.begin(), it_global );
+    v = &( *cols )[ idx_global ];
+
+    if( ! is_row_q[ r ] ){
+      // LinearFunction Modification
+      lin_var.push_back( std::make_pair( v , dbl_val( value ) ) );
+    }
+    else{
+      // DQuadFunction Modification (also consider a 
+      // quadratic coefficient equal to 0)
+      qd_var.push_back( std::make_tuple( v , dbl_val( value ) , 0 ) );
+    }
+   }
+
+   file >> word;
+   first_char = word[0];
+
+   // Check if we reached the end of the quadratic part
+   if( first_char == ']'){
+    //Simply skip to the sense
+    file >> word;
+    first_char = word[0];
+   }
+  }
+  
+  // Now we should be reading the rhs
+  file >> rhs;
+  auto & row = (*rows)[ r ];
+
+  // Initialize row with data collected
+  if( ! is_row_q[ r ] )
+    row.set_function( new LinearFunction( std::move( lin_var ) ) , eNoMod );
+  else
+    row.set_function( new QuadFunction( std::move( qd_var ) , std::move( qod_var ) ), eNoMod );
+  
+  row.set_Block( this );
+
+  switch( first_char ) {
+   case '<' :
+    // G: -inf =< f() =< rhs
+    row.set_lhs( - Inf< double >(), eNoMod );
+    row.set_rhs( dbl_val( rhs ), eNoMod );
+    break;
+
+   case '>' :
+    // L: rhs =< f() =< +inf
+    row.set_lhs( dbl_val( rhs ), eNoMod );
+    row.set_rhs( Inf< double >(), eNoMod );
+    break;
+
+   case '=' :
+    // E (no range): rhs =< f() =< rhs
+    row.set_both( dbl_val( rhs ), eNoMod );
+    break;
+
+   default:
+    throw( std::invalid_argument( "Invalid row sense in" 
+        " LP file" ) );
+   }
+
+  file >> word;
+  sec_reached( &current_section , word );
+  }
+
+ /*---------------------------------------*/
+ /*------------- READ BOUNDS -------------*/
+ /*---------------------------------------*/
+ 
+ if( current_section == LP_sections::LP_BOUND ){
+  file >> word;
+  sec_reached( &current_section , word );
+ }
+ 
+ // In this case we have to control both for the general and binary section,
+ // because they can come in any order.
+ while( current_section == LP_sections::LP_BOUND ){
+  
+  std::string column;
+  std::string lhs_value = "0"; // default lhs value in .lp file
+  std::string rhs_value = "infinity"; // default rhs value in .lp file
+  
+  char first_char = word[0];
+  
+  if( std::isdigit( first_char ) || first_char == '-' || first_char == '.' ){ 
+   // we read the lhs
+   lhs_value = word;
+   file >> word; // we can skip the <=
+   file >> column;
+   }
+  else // we should have found the variable
+   column = word;
+
+  file >> word; // We expect to be reading the sense
+  first_char = word[0];
+  
+  if( first_char == '<' ){ // now reading rhs
+   file >> rhs_value;
+   file >> word;
+  }
+  else if( first_char == '>' ){ // now reading lhs
+   file >> lhs_value;
+   file >> word;
+  }
+  else if( first_char == '=' ){ // reading both
+   file >> rhs_value;
+   lhs_value = rhs_value;
+   file >> word;
+  }
+  else if( boost::iequals( word , "free" ) ){ // free variable
+   lhs_value = "-infinity";
+   file >> word;
+  }
+
+  auto it = std::find( col_names.begin(), col_names.end(), column );
+  if( it != col_names.end() ) {
+   auto j = std::distance( col_names.begin(), it );
+   auto & b = ( *bounds )[ j ];
+   auto & c = ( *cols )[j];
+   b.set_lhs( dbl_val( lhs_value ), eNoMod );
+   b.set_rhs( dbl_val( rhs_value ), eNoMod );
+   
+   if( lhs_value == rhs_value )
+    c.is_fixed( true, eNoMod );
+
+   } 
+  else
+   throw( std::invalid_argument( "Invalid syntax in LP file" ) );
+
+  sec_reached( &current_section , word );
+  }
+
+ /*---------------------------------------*/
+ /*-------------- READ TYPES -------------*/
+ /*---------------------------------------*/
+
+ file >> word;
+ sec_reached( &current_section , word );
+ while( current_section == LP_sections::LP_GENERAL || 
+         current_section == LP_sections::LP_BINARY ){
+   
+   std::string column;   
+   column = word; // read new variable
+   auto it = std::find( col_names.begin(), col_names.end(), column );
+   if( it != col_names.end() ) {
+    auto j = std::distance( col_names.begin(), it );
+    auto & c = ( *cols )[j];
+    if( current_section == LP_sections::LP_GENERAL )
+     c.set_type( ColVariable::kInteger, eNoMod );
+    else // Binary
+     c.set_type( ColVariable::kBinary, eNoMod );
+    }
+   else // we already switched to a new section
+    sec_reached( &current_section , column );
+   
+   // In any case, now we can read a new word and update the section
+   file >> word;
+   sec_reached( &current_section , word );
+   }
+
+ /*---------------------------------------*/
+ /*------- READ REMAINING SECTIONS -------*/
+ /*---------------------------------------*/
+
+ if( current_section == LP_sections::LP_SEMI_CON ){
+  // TODO
+ }
+ else if( current_section == LP_sections::LP_SOS ){
+  // TODO
+ }
+ else if( current_section == LP_sections::LP_END ){
+   // Nothing to do
+ }
+ else{
+   throw( std::invalid_argument( "Invalid syntax in LP file" ) );
+ }
+
+ // Reset and set abstract representation
+ reset_static_constraints();
+ reset_static_variables();
+ reset_objective();
+
+ set_objective( of, eNoMod );
+ add_static_variable( *cols );
+ add_static_constraint( *rows );
+ add_static_constraint( *bounds );
+
+ // Issue the NBModification
+ if( anyone_there() )
+   add_Modification( std::make_shared< NBModification >( this ) );
+
+ }  // end( AbstractBlock::read_lp )
+
+/*--------------------------------------------------------------------------*/
+
+ void AbstractBlock::sec_reached( int * actual_sec , std::string word ) {
+
+  /* Here are listed all of the possible names of each section of a .lp file. */
+ const std::vector< std::string > QOBJ_SECTION = { "[" };
+
+ const std::vector< std::string > ROW_SECTION = { "subject" , "such" , 
+                              "st" , "S.T." , "ST." };
+ 
+ const std::vector< std::string > BOUND_SECTION = { "bounds" , "bound" };
+
+ const std::vector< std::string > GENERAL_SECTION = { "general" , "generals" ,
+                              "gen" };
+
+ const std::vector< std::string > BINARY_SECTION = { "binary" , "binaries" ,
+                              "bin" };
+
+ const std::vector< std::string > SEMI_CON_SECTION = { "semi-continuos" , "semi" ,
+                              "semis" };           
+
+ const std::vector< std::string > SOS_SECTION = { "sos" }; 
+
+ const std::vector< std::string > END_SECTION = { "end" };
+
+ // Struct used to return true if the actual word read is in the specific 
+ // following section.
+ struct compare_section
+ {
+    std::string key_s;
+    compare_section(std::string const &s): key_s(s) {}
+ 
+    bool operator()(std::string const &s) {
+        return boost::iequals( s , key_s);
+    }
+ };
+
+ assert( *actual_sec <= LP_sections::LP_END );
+ 
+ switch( *actual_sec ){
+   case( LP_sections::LP_LINOBJECTIVE ) :
+    if ( std::any_of( QOBJ_SECTION.begin() , QOBJ_SECTION.end() , 
+                        compare_section( word ) ) ){
+      // we reached the quadratic objective section
+      *actual_sec = LP_sections::LP_QUADOBJECTIVE;
+      return;
+    }
+    case( LP_sections::LP_QUADOBJECTIVE ) :
+     if ( std::any_of( ROW_SECTION.begin() , ROW_SECTION.end() , 
+                        compare_section( word ) ) ){
+      // we reached the row section
+      *actual_sec = LP_sections::LP_ROW;
+      return;
+    }
+    // In any case, there is no reason to continue searching because 
+    // the row section is mandatory
+    break;
+   case( LP_sections::LP_ROW ) :
+    if ( std::any_of( BOUND_SECTION.begin() , BOUND_SECTION.end() , 
+                        compare_section( word ) ) ){
+      // we reached the bound section
+      *actual_sec = LP_sections::LP_BOUND;
+      return;
+    }
+   case( LP_sections::LP_BOUND ) :
+   case( LP_sections::LP_GENERAL ) :
+   case( LP_sections::LP_BINARY ) :
+    if ( std::any_of( GENERAL_SECTION.begin() , GENERAL_SECTION.end() , 
+                        compare_section( word ) ) ){
+      // we reached the general section
+      *actual_sec = LP_sections::LP_GENERAL;
+      return;
+    }
+    if ( std::any_of( BINARY_SECTION.begin() , BINARY_SECTION.end() , 
+                        compare_section( word ) ) ){
+      // we reached the general section
+      *actual_sec = LP_sections::LP_BINARY;
+      return;
+    }
+    if ( std::any_of( SEMI_CON_SECTION.begin() , SEMI_CON_SECTION.end() , 
+                        compare_section( word ) ) ){
+      // we reached the semi-continuous section
+      *actual_sec = LP_sections::LP_SEMI_CON;
+      return;
+    }
+   case( LP_sections::LP_SEMI_CON ) :
+    if ( std::any_of( SOS_SECTION.begin() , SOS_SECTION.end() , 
+                        compare_section( word ) ) ){
+      // we reached the sos section
+      *actual_sec = LP_sections::LP_SOS;
+      return;
+    }
+   case( LP_sections::LP_SOS ) :
+    if ( std::any_of( END_SECTION.begin() , END_SECTION.end() , 
+                        compare_section( word ) ) ){
+      // we reached the sos section
+      *actual_sec = LP_sections::LP_END;
+      return;
+    }
+    break;
+   case( LP_sections::LP_END ) :
+    break; // nothing to do
+   default : 
+    throw( std::logic_error(
+       "Error in reading LP file" ) );
+  }
+
+ // No new section has been reached. Nothing to do.
+ return;
  }
 
 /*--------------------------------------------------------------------------*/
 
 void AbstractBlock::guts_of_deserialize( const netCDF::NcGroup & group )
 {
+ // first deserialise the abstract representation out of a LP or MPS file
+ auto mod = group.getVar( "Model" );
+ 
+ // check if the LP/MPS representation of the block is provided 
+ if( ! mod.isNull() ) {
+  // Prepare the stream of the file to be read
+  std::string str;
+  mod.getVar( {0} , &str );
+  std::istringstream file( str.data() );
+
+  /* Get the format of the file provided. Possible values for this attribute
+  *  are:
+  *    'L' if we have to read the file from an .lp file; 
+  *    'M' if we have to read the file from an .mps file;
+  *  
+  *  If no format is provided, we suppose that the file is provided in a .lp 
+  *  format. */
+  char type;
+  auto gtype = mod.getAtt( "ModelType" );
+  if( gtype.isNull() )
+   type = 'L';
+  else
+   gtype.getValues( &type );
+
+  if( type == 'L' )
+   read_lp( file ); // read the .lp file
+  else
+   read_mps( file ); // read the .mps file
+  }
+
  // deserialize the "abstract only inner Block"
  netCDF::NcDim nib = group.getDim( "NumberInnerBlock" );
  if( nib.isNull() )

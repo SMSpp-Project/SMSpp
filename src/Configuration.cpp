@@ -267,14 +267,23 @@ SimpleConfiguration< std::pair< Configuration * , Configuration * > > *
  SimpleConfiguration< std::pair< Configuration * , Configuration * >
 		      >::clone( void ) const
 {
- auto sc = new SimpleConfiguration< std::pair< Configuration * ,
-					       Configuration * > >( *this );
+ auto sc = new SimpleConfiguration( *this );
  if( sc->f_value.first )
   sc->f_value.first = sc->f_value.first->clone();
  if( sc->f_value.second )
   sc->f_value.second = sc->f_value.second->clone();
 
  return( sc );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::pair< Configuration * , Configuration * >
+                          >::guts_of_destructor( void )
+{
+ delete f_value.second;
+ delete f_value.first;
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -327,13 +336,32 @@ template<>
 SimpleConfiguration< std::vector< Configuration * > > *
  SimpleConfiguration< std::vector< Configuration * > >::clone( void ) const
 {
- auto sc = new SimpleConfiguration< std::vector< Configuration * > >( *this );
+ auto sc = new SimpleConfiguration( *this );
 
  for( auto & c : sc->f_value )
   if( c )
    c = c->clone();
 
  return( sc );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::vector< Configuration * >
+                          >::guts_of_destructor( void )
+{
+ for( auto rit = f_value.rbegin() ; rit != f_value.rend() ; ++rit )
+  delete *rit;
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+inline SimpleConfiguration< std::vector< Configuration * >
+ >::~SimpleConfiguration() {
+ for( auto rit = f_value.rbegin() ; rit != f_value.rend() ; ++rit )
+  delete *rit;
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -361,6 +389,16 @@ SimpleConfiguration< std::vector< std::pair< int , Configuration * > > > *
    c = c->clone();
 
  return( sc );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
+                          >::guts_of_destructor( void )
+{
+ for( auto rit = f_value.rbegin() ; rit != f_value.rend() ; ++rit )
+  delete rit->second;
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -441,14 +479,23 @@ SimpleConfiguration< std::map< std::string , Configuration * > > *
  SimpleConfiguration< std::map< std::string , Configuration * >
 		      >::clone( void ) const
 {
- auto sc = new SimpleConfiguration< std::map< std::string , Configuration * >
-				    >( *this );
+ auto sc = new SimpleConfiguration( *this );
 
  for( auto & [ key , val ] : sc->f_value )
   if( val )
    val = val->clone();
 
  return( sc );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::map< std::string , Configuration * >
+                          >::guts_of_destructor( void )
+{
+ for( auto & [ key , val ] : f_value )
+  delete val;
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */

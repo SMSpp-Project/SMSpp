@@ -804,13 +804,20 @@ class SimpleConfiguration : public Configuration
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// default destructor, apparently does nothing
-/** The destructor must not be defined "default" since it is redefined by the
- * classes handling Configuration * as they muat delete them. However it must
- * be explicitly defined so that template specializations for those classes
- * are allowed. The default implementation does nothing, which means it
- * deletes f_value, whatever that is. */
+/** The destructor must not be defined "default" since some specialised
+ * classes handling Configuration * need be something other than deleting
+ * f_value (deleting the Configurations pointed by the pointers). Thus, the
+ * destructor calls a guts_of_destructor() method that is empty in the
+ * template class (so that the destructor just deletes f_value, whatever
+ * that is) but that can be redefined in specialised classes to do their
+ * turf. Note the (likely, useless)
+ *    SimpleConfiguration< SimpleConfiguration_value_type >::
+ * qualification to (try to) ensure that the compiler will actually use the
+ * method of the specialised class istead of the empty one. */
 
- ~SimpleConfiguration() override {};
+ ~SimpleConfiguration() override {
+   guts_of_destructor();
+   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// clone method
@@ -850,6 +857,19 @@ class SimpleConfiguration : public Configuration
  void print( std::ostream & output ) const override { output << f_value; }
 
 /*--------------------------------------------------------------------------*/
+ /// hook for implementing nonstandard destruction
+ /** Some specialised classes need to do something other than just deleting
+  * f_value in their destructor. However, specialising the destructor 
+  * without specialising the whole class runs afoul of a change in the
+  * standard (C++20 DR 2237) which makes it impossible in C++20 (or we could
+  * not find the way to do that. Hence, the destructor of the template class
+  * calls this guts_of_destructor(), that is empty here (so that the
+  * destructor usually only deletes f_value) but can be redefined in
+  * specialised classes to do their turf. */
+ 
+ void guts_of_destructor( void ) {}
+
+/*--------------------------------------------------------------------------*/
  /// load this SimpleConfiguration out of an istream
  /** Load this SimpleConfiguration out of an istream. The format of the
   * istream can only be rather simple: it "just" has to contain an object of
@@ -886,17 +906,7 @@ class SimpleConfiguration : public Configuration
 
 /*---------------------------- PRIVATE FIELDS ------------------------------*/
 
- /* manual expansion of SMSpp_insert_in_factory_h to avoid including the
-  * whole of SMSTypedefs.h. */
-
- static class _init {
-  public:
-  _init();
-  } _initializer;
-
- [[nodiscard]] const std::string & private_name( void ) const override;
-
- static const std::string & _private_name();
+ SMSpp_insert_in_factory_h;
 
 /*--------------------------------------------------------------------------*/
 
@@ -1017,6 +1027,7 @@ void serialize( netCDF::NcGroup & group , const C< Configuration * > & data ,
  *  exact same ways in which you work with non-pointer types.
  *  @{ */
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 // std::pair< Configuration * , Configuration * >
 
 template<>
@@ -1025,11 +1036,8 @@ SimpleConfiguration< std::pair< Configuration * , Configuration * > > *
  >::clone( void ) const;
 
 template<>
-inline SimpleConfiguration< std::pair< Configuration * , Configuration * >
- >::~SimpleConfiguration< std::pair< Configuration * , Configuration * > >() {
- delete f_value.second;
- delete f_value.first;
- }
+void SimpleConfiguration< std::pair< Configuration * , Configuration * >
+                          >::guts_of_destructor( void );
 
 template<>
 void SimpleConfiguration< std::pair< Configuration * , Configuration * >
@@ -1052,11 +1060,8 @@ SimpleConfiguration< std::vector< Configuration * > > *
 SimpleConfiguration< std::vector< Configuration * > >::clone( void ) const;
 
 template<>
-inline SimpleConfiguration< std::vector< Configuration * >
- >::~SimpleConfiguration< std::vector< Configuration * > >() {
- for( auto rit = f_value.rbegin() ; rit != f_value.rend() ; ++rit )
-  delete *rit;
- }
+void SimpleConfiguration< std::vector< Configuration * >
+                          >::guts_of_destructor( void );
 
 template<>
 inline void SimpleConfiguration< std::vector< Configuration * >
@@ -1082,12 +1087,8 @@ SimpleConfiguration< std::vector< std::pair< int , Configuration * > > > *
  >::clone( void ) const;
 
 template<>
-inline SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
- >::~SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
- >() {
- for( auto rit = f_value.rbegin() ; rit != f_value.rend() ; ++rit )
-  delete rit->second;
- }
+void SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
+                          >::guts_of_destructor( void );
 
 template<>
 void SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
@@ -1111,11 +1112,8 @@ SimpleConfiguration< std::map< std::string , Configuration * > > *
                       >::clone( void ) const;
 
 template<>
-inline SimpleConfiguration< std::map< std::string , Configuration * >
- >::~SimpleConfiguration< std::map< std::string , Configuration * > >() {
- for( auto & [ key , val ] : f_value )
-  delete val;
- }
+void SimpleConfiguration< std::map< std::string , Configuration * >
+                          >::guts_of_destructor( void );
 
 template<>
 void SimpleConfiguration< std::map< std::string , Configuration * >

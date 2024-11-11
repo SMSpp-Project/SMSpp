@@ -1551,13 +1551,13 @@ class LagBFunction : public C05Function , public Block {
   * needs to return an upper estimate of it (the converse for a minimization
   * problem). */
 
- FunctionValue get_value( void ) const override {
+ FunctionValue get_value( void ) override {
   return( is_convex() ? get_upper_estimate() : get_lower_estimate() );
   }
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- FunctionValue get_lower_estimate( void ) const override {
+ FunctionValue get_lower_estimate( void ) override {
   if( auto is = inner_Solver() ) {
    auto lb = is->get_lb();
    if( lb == - Inf< FunctionValue >() )
@@ -1574,7 +1574,7 @@ class LagBFunction : public C05Function , public Block {
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- FunctionValue get_upper_estimate( void ) const override {
+ FunctionValue get_upper_estimate( void ) override {
   if( auto is = inner_Solver() ) {
    auto ub = is->get_ub();
    if( ub == Inf< FunctionValue >() )
@@ -1606,11 +1606,11 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- bool is_convex( void ) const override { return( IsConvex ); }
+ bool is_convex( void ) override { return( IsConvex ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- bool is_concave( void ) const override { return( ! IsConvex ); }
+ bool is_concave( void ) override { return( ! IsConvex ); }
 
 /*--------------------------------------------------------------------------*/
 
@@ -2154,7 +2154,7 @@ class LagBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 
  void map_active( c_Vec_p_Var & vars , Subset & map ,
-		  const bool ordered = false ) const override;
+		  bool ordered = false ) const override;
 
 /*--------------------------------------------------------------------------*/
 
@@ -2177,25 +2177,33 @@ class LagBFunction : public C05Function , public Block {
    auto oi = *(nmsit++);    // its original index
    // if var has not been deleted (and, possibly, re-added), its index
    // must be <= oi: search backward from oi to find it
-   auto avoi = LagPairs[ oi ].first;
    Index i = oi;
-   while( var != avoi ) {
-    if( ! i )
-     break;
-    avoi = LagPairs[ --i ].first;
-    }
-   if( var == avoi )  // the Variable was found
-    *(mapit++) = i;   // this is its index
-   else {             // the Variable was not found
-    // restart the search from the last variable to oi (excluded), for the
-    // case where var has been deleted and re-added, and therefore its
-    // index can now be arbitrary (but it is more likely to be "close to
-    // the end" than "at the beginning")
-    for( i = LagPairs.size() , avoi = LagPairs[ --i ].first ;
-	 ( var != avoi ) && ( i > oi ) ; )
+   if( i < LagPairs.size() ) {  // if i is still a valid index
+    auto avoi = LagPairs[ i ].first;
+    while( var != avoi ) {
+     if( ! i )
+      break;
      avoi = LagPairs[ --i ].first;
-    *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+     }
+
+    if( var == avoi ) {  // the Variable was found
+     *(mapit++) = i;     // this is its index
+     continue;           // all done for this variable
+     }
     }
+
+   // (re)restart the search from the last variable to oi (excluded), for
+   // the case where var has been deleted and re-added, and therefore its
+   // index can now be arbitrary (but it is more likely to be "close to
+   // the end" than "at the beginning"), or the original index is no longer
+   // valid
+   i = LagPairs.size();
+   auto avoi = LagPairs[ --i ].first;
+   while( ( var != avoi ) && ( i > oi ) )
+    avoi = LagPairs[ --i ].first;
+
+   *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+
    }  // end( for all Variable )
 
   return( map );
@@ -2221,31 +2229,38 @@ class LagBFunction : public C05Function , public Block {
    auto var = *(varsit++);  // next variable
    // if var has not been deleted (and, possibly, re-added), its index
    // must be <= oi: search backward from oi to find it
-   auto avoi = LagPairs[ oi ].first;
    Index i = oi;
-   while( var != avoi ) {
-    if( ! i )
-     break;
-    avoi = LagPairs[ --i ].first;
-    }
-   if( var == avoi )  // the Variable was found
-    *(mapit++) = i;   // this is its index
-   else {             // the Variable was not found
-    // restart the search from the last variable to oi (excluded), for the
-    // case where var has been deleted and re-added, and therefore its
-    // index can now be arbitrary (but it is more likely to be "close to
-    // the end" than "at the beginning")
-    for( i = LagPairs.size() , avoi = LagPairs[ --i ].first ;
-	 ( var != avoi ) && ( i > oi ) ; )
+   if( i < LagPairs.size() ) {  // if i is still a valid index
+    auto avoi = LagPairs[ i ].first;
+    while( var != avoi ) {
+     if( ! i )
+      break;
      avoi = LagPairs[ --i ].first;
-    *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+     }
+
+    if( var == avoi ) {  // the Variable was found
+     *(mapit++) = i;     // this is its index
+     continue;           // all done for this variable
+     }
     }
+
+   // (re)start the search from the last variable to oi (excluded), for
+   // the case where var has been deleted and re-added, and therefore its
+   // index can now be arbitrary (but it is more likely to be "close to
+   // the end" than "at the beginning"), or the original index is no longer
+   // valid
+   i = LagPairs.size();
+   auto avoi = LagPairs[ --i ].first;
+   while( ( var != avoi ) && ( i > oi ) )
+    avoi = LagPairs[ --i ].first;
+
+   *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+
    }  // end( for all Variable )
 
   return( map );
 
   }  // end( map_index( Range )
-
 
 /*--------------------------------------------------------------------------*/
 

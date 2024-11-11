@@ -443,10 +443,15 @@ void PolyhedralFunctionBlock::print( std::ostream & output , char vlvl ) const
   output << "l/";
  else
   output << "n/";
- if( f_polyf.is_convex() )
-  output << "cvx";
- else
-  output << "cnc";
+  /**
+   * can't do anymore since is_convex no longer works on const functions
+  if( f_polyf.is_convex() ){
+   output << "cvx";
+  }
+  else{
+   output << "cnc";
+  }*/
+
  output << "] with PolyhedralFunction( " << f_polyf.get_num_active_var()
 	<< ", " << f_polyf.get_A().size() << " )" << std::endl;
 

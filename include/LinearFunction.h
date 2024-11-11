@@ -30,6 +30,7 @@
 #include "C15Function.h"
 
 #include "ColVariable.h"
+
 #include "Observer.h"
 
 /*--------------------------------------------------------------------------*/
@@ -102,6 +103,8 @@ class LinearFunction : public C15Function
  using v_coeff = std::vector< Coefficient >;  ///< a vector of Coefficients
 
  using v_coeff_it = v_coeff::iterator;  ///< iterator in v_coeff
+
+ using c_v_coeff = const v_coeff;  ///< a const vector of Coefficients
 
  using c_v_coeff_it = v_coeff::const_iterator;  ///< const iterator in v_coeff
 
@@ -308,21 +311,21 @@ class LinearFunction : public C15Function
 /*--------------------------------------------------------------------------*/
  /// returns the value of the LinearFunction
 
- [[nodiscard]] FunctionValue get_value( void ) const override {
+ [[nodiscard]] FunctionValue get_value( void ) override {
   return( f_value );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// the LinearFunction is exact, hence lower_estimate == value
 
- [[nodiscard]] FunctionValue get_lower_estimate( void ) const override {
+ [[nodiscard]] FunctionValue get_lower_estimate( void ) override {
   return( f_value );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// the LinearFunction is exact, hence upper_estimate == value
 
- [[nodiscard]] FunctionValue get_upper_estimate( void ) const override {
+ [[nodiscard]] FunctionValue get_upper_estimate( void ) override {
   return( f_value );
   }
 
@@ -332,11 +335,11 @@ class LinearFunction : public C15Function
 
 /*--------------------------------------------------------------------------*/
 
- [[nodiscard]] bool is_convex( void ) const final { return( true ); }
+ [[nodiscard]] bool is_convex( void ) final { return( true ); }
 
 /*--------------------------------------------------------------------------*/
 
- [[nodiscard]] bool is_concave( void ) const final { return( true ); }
+ [[nodiscard]] bool is_concave( void ) final { return( true ); }
 
 /*--------------------------------------------------------------------------*/
 
@@ -464,25 +467,33 @@ class LinearFunction : public C15Function
    auto oi = *(nmsit++);    // its original index
    // if var has not been deleted (and, possibly, re-added), its index
    // must be <= oi: search backward from oi to find it
-   auto avoi = v_pairs[ oi ].first;
    Index i = oi;
-   while( var != avoi ) {
-    if( ! i )
-     break;
-    avoi = v_pairs[ --i ].first;
-    }
-   if( var == avoi )  // the Variable was found
-    *(mapit++) = i;   // this is its index
-   else {             // the Variable was not found
-    // restart the search from the last variable to oi (excluded), for the
-    // case where var has been deleted and re-added, and therefore its
-    // index can now be arbitrary (but it is more likely to be "close to
-    // the end" than "at the beginning")
-    for( i = v_pairs.size() , avoi = v_pairs[ --i ].first ;
-	 ( var != avoi ) && ( i > oi ) ; )
+   if( i < v_pairs.size() ) {  // if i is still a valid index
+    auto avoi = v_pairs[ i ].first;
+    while( var != avoi ) {
+     if( ! i )
+      break;
      avoi = v_pairs[ --i ].first;
-    *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+     }
+
+    if( var == avoi ) {  // the Variable was found
+     *(mapit++) = i;     // this is its index
+     continue;           // all done for this variable
+     }
     }
+
+   // (re)start the search from the last variable to oi (excluded), for
+   // the case where var has been deleted and re-added, and therefore its
+   // index can now be arbitrary (but it is more likely to be "close to
+   // the end" than "at the beginning"), or the original index is no longer
+   // valid
+   i = v_pairs.size();
+   auto avoi = v_pairs[ --i ].first;
+   while( ( var != avoi ) && ( i > oi ) )
+    avoi = v_pairs[ --i ].first;
+
+   *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+
    }  // end( for all Variable )
 
   return( map );
@@ -508,25 +519,33 @@ class LinearFunction : public C15Function
    auto var = *(varsit++);  // next variable
    // if var has not been deleted (and, possibly, re-added), its index
    // must be <= oi: search backward from oi to find it
-   auto avoi = v_pairs[ oi ].first;
    Index i = oi;
-   while( var != avoi ) {
-    if( ! i )
-     break;
-    avoi = v_pairs[ --i ].first;
-    }
-   if( var == avoi )  // the Variable was found
-    *(mapit++) = i;   // this is its index
-   else {             // the Variable was not found
-    // restart the search from the last variable to oi (excluded), for the
-    // case where var has been deleted and re-added, and therefore its
-    // index can now be arbitrary (but it is more likely to be "close to
-    // the end" than "at the beginning")
-    for( i = v_pairs.size() , avoi = v_pairs[ --i ].first ;
-	 ( var != avoi ) && ( i > oi ) ; )
+   if( i < v_pairs.size() ) {  // if i is still a valid index
+    auto avoi = v_pairs[ i ].first;
+    while( var != avoi ) {
+     if( ! i )
+      break;
      avoi = v_pairs[ --i ].first;
-    *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+     }
+
+    if( var == avoi ) {  // the Variable was found
+     *(mapit++) = i;     // this is its index
+     continue;           // all done for this variable
+     }
     }
+
+   // (re)start the search from the last variable to oi (excluded), for
+   // the case where var has been deleted and re-added, and therefore its
+   // index can now be arbitrary (but it is more likely to be "close to
+   // the end" than "at the beginning"), or the original index is no longer
+   // valid
+   i = v_pairs.size();
+   auto avoi = v_pairs[ --i ].first;
+   while( ( var != avoi ) && ( i > oi ) )
+    avoi = v_pairs[ --i ].first;
+
+   *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+
    }  // end( for all Variable )
 
   return( map );
@@ -729,7 +748,7 @@ class LinearFunction : public C15Function
 /*--------------------------------------------------------------------------*/
 
  /// printing the LinearFunction
- void print( std::ostream & output ) const override {
+ void print( std::ostream & output ) override {
   output << "LinearFunction [" << this << "] observed by ["
          << &f_Observer << "] with " << get_num_active_var()
          << " active variables;";
@@ -760,6 +779,89 @@ class LinearFunction : public C15Function
 
 };  // end( class( LinearFunction ) )
 
+/*--------------------------------------------------------------------------*/
+/*------------------- Class LinearFunctionModVarsAddd ----------------------*/
+/*--------------------------------------------------------------------------*/
+/// class to describe "nicely" adding Variable of a LinearFunction
+/** Derived class from C05FunctionModVarsAddd to describe adding "active"
+ * ColVariable to a LinearFunction. The only difference with the base
+ * C05FunctionModVarsAddd is that the LinearFunctionModVarsAddd stores the
+ * values of the coefficients given to the new ColVariable in the
+ * LinearFunction at the time when they are added. */
+
+class LinearFunctionModVarsAddd : public C05FunctionModVarsAddd
+{
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+ public:
+
+/*---------------------------- CONSTRUCTOR ---------------------------------*/
+ /// constructor: that of C05FunctionModVarsAddd plus the coefficients
+ /** Constructor of LinearFunctionModVarsAddd: takes the same arguments as
+  * that of C05FunctionModVarsAddd plus a std::vector( Coefficient ) with
+  * the initial values given to the newly added ColVariable, with positional
+  * correspondence to vars[] (i.e., coeff[ i ] is the coefficient given to
+  * vars[ i ]).  */
+
+ LinearFunctionModVarsAddd( C05Function * f ,
+			    LinearFunction::v_coeff && coeff ,
+			    Vec_p_Var && vars , Index first ,
+			    FunctionValue shift = NaNshift , bool cB = true )
+  : C05FunctionModVarsAddd( f , std::move( vars ) , first , shift , cB ) ,
+    f_coeff( std::move( coeff ) ) {}
+
+/*------------------------------ DESTRUCTOR --------------------------------*/
+ /// destructor: does nothing (explicitly)
+ 
+ ~LinearFunctionModVarsAddd() override = default;
+
+/*-------------------------------- GETTERS ----.----------------------------*/
+ /// returns (a const reference to) the vector of initial coefficient
+ 
+ LinearFunction::c_v_coeff & coeff( void ) const { return( f_coeff ); }
+
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+
+ /// print the LinearFunctionModVarsAddd
+
+ void print( std::ostream & output ) const override {
+  output << "LinearFunctionModVarsAddd[";
+  if( concerns_Block() )
+   output << "t";
+  else
+   output << "f";
+  output << "] on Function [" << f_function
+         << " ]: strongly quasi-additively (";
+
+  if( std::isnan( f_shift ) )
+   output << "+-(?)";
+  else
+   if( f_shift >= Inf< FunctionValue >() )
+    output << "+(?)";
+   else
+    if( f_shift <= - Inf< FunctionValue >() )
+     output << "-(?)";
+    else
+     output << f_shift;
+
+  output << ") adding variables [ " << f_first << " , "
+         << f_first + v_vars.size() << " ]" << std::endl;
+  }
+
+/*--------------------------- PROTECTED FIELDS -----------------------------*/
+
+ LinearFunction::v_coeff f_coeff;
+ ///< the linear coefficients given to the added ColVariable
+  
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( LinearFunctionModVarsAddd ) )
+
+/*--------------------------------------------------------------------------*/
 /** @} end( group( LinearFunction_CLASSES ) ) ------------------------------*/
 /*--------------------------------------------------------------------------*/
 

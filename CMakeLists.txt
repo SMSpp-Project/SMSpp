@@ -19,10 +19,10 @@
 #                         Dipartimento di Informatica                         #
 #                             Universita' di Pisa                             #
 # --------------------------------------------------------------------------- #
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.19)
 cmake_policy(VERSION 3.12)
 project(SMS++
-        VERSION 0.5.2
+        VERSION 0.5.3
         DESCRIPTION "SMS++ core library"
         HOMEPAGE_URL https://gitlab.com/smspp/smspp
         LANGUAGES C CXX)
@@ -66,8 +66,8 @@ if (NOT netCDFCxx_FOUND)
     find_package(netCDFCxx REQUIRED)
 endif ()
 
-if (NOT getopt_FOUND)
-    find_package(getopt REQUIRED)
+if (MSVC)
+    find_library(GETOPT_LIBRARY getopt)
 endif ()
 
 # ----- Configuration header ------------------------------------------------ #
@@ -78,7 +78,7 @@ configure_file(cmake/${modName}Config.h.in ${modName}Config.h)
 # With the BUILD_SHARED_LIBS variable we can specify if the library will
 # be STATIC or SHARED, so no reason to do it now.
 add_library(${modName})
-target_compile_features(${modName} PUBLIC cxx_std_17)
+target_compile_features(${modName} PUBLIC cxx_std_20)
 include(ClangPatch) # TODO: Remove this when it's not needed anymore
 
 # When adding source files with target_sources(), PRIVATE means that the files
@@ -113,6 +113,7 @@ target_sources(${modName} PRIVATE
                src/RBlockConfig.cpp
                src/RowConstraintSolution.cpp
                src/PolyhedralFunctionBlock.cpp
+			   src/QuadFunction.cpp
                src/Solver.cpp
                src/ThinComputeInterface.cpp
                src/Variable.cpp)
@@ -138,10 +139,13 @@ target_include_directories(
 # library, INTERFACE means they will be linked only to the targets that depend
 # on this library.
 target_link_libraries(${modName} PUBLIC
-                      getopt
                       Boost::boost
                       Eigen3::Eigen
                       netCDF::netCDFCxx)
+
+if (MSVC)
+    target_link_libraries(${modName} PUBLIC ${GETOPT_LIBRARY})
+endif ()
 
 # This alias is defined so that executables in this same project can use
 # the library with this notation.

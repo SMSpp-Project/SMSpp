@@ -1896,14 +1896,14 @@ Function::FunctionValue BendersBFunction::get_constant_term( void ) const
 
 /*--------------------------------------------------------------------------*/
 
-bool BendersBFunction::is_convex( void ) const {
+bool BendersBFunction::is_convex( void ) {
  if( v_Block.empty() ) return( false );
  return( v_Block.front()->get_objective_sense() == Objective::eMin );
 }
 
 /*--------------------------------------------------------------------------*/
 
-bool BendersBFunction::is_concave( void ) const {
+bool BendersBFunction::is_concave( void ) {
  if( v_Block.empty() )
   return( false );
  return( v_Block.front()->get_objective_sense() == Objective::eMax );
@@ -1943,7 +1943,7 @@ bool BendersBFunction::compute_new_linearization( const bool diagonal ) {
 
 /*--------------------------------------------------------------------------*/
 
-Function::FunctionValue BendersBFunction::get_value( void ) const {
+Function::FunctionValue BendersBFunction::get_value( void ) {
  if( v_Block.size() != 1 )
   throw( std::logic_error( "BendersBFunction::get_value: there must be exactly "
                            "one sub-Block, but there is (are) " +

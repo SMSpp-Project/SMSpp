@@ -33,14 +33,18 @@
 
 #include "Observer.h"
 
-#include <cmath>
-
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 /// namespace for the Structured Modeling System++ (SMS++)
-namespace SMSpp_di_unipi_it {
+namespace SMSpp_di_unipi_it
+{
+/*--------------------------------------------------------------------------*/
+/*------------------------------- CLASSES ----------------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @defgroup DQuadFunction_CLASSES Classes in DQuadFunction.h
+ *  @{ */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS DQuadFunction ----------------------------*/
@@ -107,6 +111,18 @@ class DQuadFunction : public C15Function {
  using v_coeff_it = v_coeff::iterator;  ///< iterator in v_coeff
 
  using c_v_coeff_it = v_coeff::const_iterator;  ///< const iterator in v_coeff
+
+ using coeff_pair = std::pair< Coefficient , Coefficient >;
+ ///< a std::pait of Coefficient (the linear and the quadratic one)
+ 
+ using v_coeff_pair = std::vector< coeff_pair >;  ///< a vector of coeff_pair
+
+ using c_v_coeff_pair = const v_coeff_pair;  ///< a const vector of coeff_pair
+
+ using v_coeff_pair_it = v_coeff_pair::iterator;  ///< iterator in v_coeff_pair
+
+ using c_v_coeff_pair_it = v_coeff_pair::const_iterator;
+ ///< const iterator in v_coeff_pair
 
  /// one term of the sum: < ColVariable * , Coefficient , Coefficient >
  /** Triple < ColVariable * , Coefficient , Coefficient > that describes
@@ -369,29 +385,29 @@ class DQuadFunction : public C15Function {
 /*--------------------------------------------------------------------------*/
  /// returns the value of the DQuadFunction
 
- FunctionValue get_value( void ) const override { return( f_value ); }
+ FunctionValue get_value( void ) override { return( f_value ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// the DQuadFunction is exact, hence lower_estimate == value
 
- FunctionValue get_lower_estimate( void ) const override final {
+ FunctionValue get_lower_estimate( void ) override final {
   return( f_value );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// the DQuadFunction is exact, hence upper_estimate == value
 
- FunctionValue get_upper_estimate( void ) const override final {
+ FunctionValue get_upper_estimate( void ) override final {
   return( f_value );
   }
 
 /*--------------------------------------------------------------------------*/
 
- bool is_convex( void ) const override;
+ bool is_convex( void ) override;
 
 /*--------------------------------------------------------------------------*/
 
- bool is_concave( void ) const override;
+ bool is_concave( void ) override;
 
 /*--------------------------------------------------------------------------*/
 
@@ -403,7 +419,7 @@ class DQuadFunction : public C15Function {
 
 /*--------------------------------------------------------------------------*/
 
- bool is_linear( void ) const override;
+ bool is_linear( void ) override;
 
 /*--------------------------------------------------------------------------*/
 
@@ -468,7 +484,7 @@ class DQuadFunction : public C15Function {
   * at the current point x, which is given by c - x^T A x. */
 
  FunctionValue get_linearization_constant( Index name = Inf< Index >() )
-  override final {
+  override {
   if( name < Inf< Index >() )
    throw( std::invalid_argument(
 			"global pool not supported yet by DQuadFunction" ) );
@@ -554,25 +570,33 @@ class DQuadFunction : public C15Function {
    auto oi = *(nmsit++);    // its original index
    // if var has not been deleted (and, possibly, re-added), its index
    // must be <= oi: search backward from oi to find it
-   auto avoi = std::get< 0 >( v_triples[ oi ] );
    Index i = oi;
-   while( var != avoi ) {
-    if( ! i )
-     break;
-    avoi = std::get< 0 >( v_triples[ --i ] );
-    }
-   if( var == avoi )  // the Variable was found
-    *(mapit++) = i;   // this is its index
-   else {             // the Variable was not found
-    // restart the search from the last variable to oi (excluded), for the
-    // case where var has been deleted and re-added, and therefore its
-    // index can now be arbitrary (but it is more likely to be "close to
-    // the end" than "at the beginning")
-    for( i = v_triples.size() , avoi = std::get< 0 >( v_triples[ --i ] ) ;
-	 ( var != avoi ) && ( i > oi ) ; )
+   if( i < v_triples.size() ) {  // if i is still a valid index
+    auto avoi = std::get< 0 >( v_triples[ i ] );
+    while( var != avoi ) {
+     if( ! i )
+      break;
      avoi = std::get< 0 >( v_triples[ --i ] );
-    *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+     }
+
+    if( var == avoi ) {  // the Variable was found
+     *(mapit++) = i;     // this is its index
+     continue;           // all done for this variable
+     }
     }
+
+   // (re)restart the search from the last variable to oi (excluded), for
+   // the case where var has been deleted and re-added, and therefore its
+   // index can now be arbitrary (but it is more likely to be "close to
+   // the end" than "at the beginning"), or the original index is no longer
+   // valid
+   i = v_triples.size();
+   auto avoi = std::get< 0 >( v_triples[ --i ] );
+   while( ( var != avoi ) && ( i > oi ) )
+     avoi = std::get< 0 >( v_triples[ --i ] );
+
+   *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+
    }  // end( for all Variable )
 
   return( map );
@@ -598,25 +622,33 @@ class DQuadFunction : public C15Function {
    auto var = *(varsit++);  // next variable
    // if var has not been deleted (and, possibly, re-added), its index
    // must be <= oi: search backward from oi to find it
-   auto avoi = std::get< 0 >( v_triples[ oi ] );
    Index i = oi;
-   while( var != avoi ) {
-    if( ! i )
-     break;
-    avoi = std::get< 0 >( v_triples[ --i ] );
-    }
-   if( var == avoi )  // the Variable was found
-    *(mapit++) = i;   // this is its index
-   else {             // the Variable was not found
-    // restart the search from the last variable to oi (excluded), for the
-    // case where var has been deleted and re-added, and therefore its
-    // index can now be arbitrary (but it is more likely to be "close to
-    // the end" than "at the beginning")
-    for( i = v_triples.size() , avoi = std::get< 0 >( v_triples[ --i ] ) ;
-	 ( var != avoi ) && ( i > oi ) ; )
+   if( i < v_triples.size() ) {  // if i is still a valid index
+    auto avoi = std::get< 0 >( v_triples[ i ] );
+    while( var != avoi ) {
+     if( ! i )
+      break;
      avoi = std::get< 0 >( v_triples[ --i ] );
-    *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+     }
+
+    if( var == avoi ) {  // the Variable was found
+     *(mapit++) = i;     // this is its index
+     continue;           // all done for this variable
+     }
     }
+
+   // (re)restart the search from the last variable to oi (excluded), for
+   // the case where var has been deleted and re-added, and therefore its
+   // index can now be arbitrary (but it is more likely to be "close to
+   // the end" than "at the beginning"), or the original index is no longer
+   // valid
+   i = v_triples.size();
+   auto avoi = std::get< 0 >( v_triples[ --i ] );
+   while( ( var != avoi ) && ( i > oi ) )
+    avoi = std::get< 0 >( v_triples[ --i ] );
+
+   *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+
    }  // end( for all Variable )
 
   return( map );
@@ -814,7 +846,7 @@ class DQuadFunction : public C15Function {
   * FunctionModVarsRngd one. */
 
  void remove_variable( Index i , ModParam issueMod = eModBlck )
-  override final;
+  override;
 
 /*--------------------------------------------------------------------------*/
  /// remove a range of "active" Variable
@@ -829,7 +861,7 @@ class DQuadFunction : public C15Function {
   * one. */
 
  void remove_variables( Range range , ModParam issueMod = eModBlck )
-  override final;
+  override;
   
 /*--------------------------------------------------------------------------*/
  /// remove the given subset of Variable
@@ -878,7 +910,7 @@ class DQuadFunction : public C15Function {
 /*--------------------------------------------------------------------------*/
 
  /// printing the DQuadFunction
- void print( std::ostream & output ) const override {
+ void print( std::ostream & output ) override {
   output << "DQuadFunction [" << this << "] observed by ["
          << &f_Observer << "] with " << get_num_active_var()
          << " active variables;";
@@ -909,6 +941,292 @@ class DQuadFunction : public C15Function {
 /*--------------------------------------------------------------------------*/
 
  };  // end( class( DQuadFunction ) )
+
+/*--------------------------------------------------------------------------*/
+/*------------------- Class DQuadFunctionModVarsAddd ----------------------*/
+/*--------------------------------------------------------------------------*/
+/// class to describe "nicely" adding Variable of a DQuadFunction
+/** Derived class from C05FunctionModVarsAddd to describe adding "active"
+ * ColVariable to a DQuadFunction. The only difference with the base
+ * C05FunctionModVarsAddd is that the DQuadFunctionModVarsAddd stores the
+ * values of the linear and quadratic coefficients given to the new
+ * ColVariable in the DQuadFunction at the time when they are added. */
+
+class DQuadFunctionModVarsAddd : public C05FunctionModVarsAddd
+{
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+ public:
+
+/*---------------------------- CONSTRUCTOR ---------------------------------*/
+ /// constructor: that of C05FunctionModVarsAddd plus the coefficients
+ /** Constructor of DQuadFunctionModVarsAddd: takes the same arguments as
+  * that of C05FunctionModVarsAddd plus a
+  * std::vector( std::pair< Coefficient , Coefficient > ) with the initial
+  * values given to the newly added ColVariable, with positional
+  * correspondence to vars[] (i.e., coeff[ i ].first and coeff[ i ].second
+  * are respectively the linear and quadratic coefficient given to vars[ i ]).
+  */
+
+ DQuadFunctionModVarsAddd( C05Function * f ,
+			   DQuadFunction::v_coeff_pair && coeff ,
+			   Vec_p_Var && vars , Index first ,
+			   FunctionValue shift = NaNshift , bool cB = true )
+  : C05FunctionModVarsAddd( f , std::move( vars ) , first , shift , cB ) ,
+    f_coeff( std::move( coeff ) ) {}
+
+/*------------------------------ DESTRUCTOR --------------------------------*/
+ /// destructor: does nothing (explicitly)
+ 
+ ~DQuadFunctionModVarsAddd() override = default;
+
+/*-------------------------------- GETTERS ----.----------------------------*/
+ /// returns (a const reference to) the vector of initial coefficient
+ 
+ DQuadFunction::c_v_coeff_pair & coeff( void ) const { return( f_coeff ); }
+
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+
+ /// print the DQuadFunctionModVarsAddd
+
+ void print( std::ostream & output ) const override {
+  output << "DQuadFunctionModVarsAddd[";
+  if( concerns_Block() )
+   output << "t";
+  else
+   output << "f";
+  output << "] on Function [" << f_function
+         << " ]: strongly quasi-additively (";
+
+  if( std::isnan( f_shift ) )
+   output << "+-(?)";
+  else
+   if( f_shift >= Inf< FunctionValue >() )
+    output << "+(?)";
+   else
+    if( f_shift <= - Inf< FunctionValue >() )
+     output << "-(?)";
+    else
+     output << f_shift;
+
+  output << ") adding variables [ " << f_first << " , "
+         << f_first + v_vars.size() << " ]" << std::endl;
+  }
+
+/*--------------------------- PROTECTED FIELDS -----------------------------*/
+
+ DQuadFunction::v_coeff_pair f_coeff;
+ ///< the coefficients (linear and quadratic) given to the added ColVariable
+  
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( DQuadFunctionModVarsAddd ) )
+
+/*--------------------------------------------------------------------------*/
+/*---------------------- Class DQuadFunctionModRngd ------------------------*/
+/*--------------------------------------------------------------------------*/
+/// class to describe changes to a DQuadFunction involving a range of Variable
+/** Derived class from C05FunctionModRngd to describe modification to a range 
+ * of "active" ColVariable of a DQuadFunction. The only difference with the base
+ * C05FunctionModRngd is that the DQuadFunctionModRngd stores the difference
+ * between the old and the new values of both linear and quadratic coefficients
+ * of each modified ColVariable in the DQuadFunction. */
+
+class DQuadFunctionModRngd : public C05FunctionModRngd
+{
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+ public:
+
+/*---------------------------- CONSTRUCTOR ---------------------------------*/
+ /// constructor: that of C05FunctionModRngd plus the coefficients
+ /** Constructor of DQuadFunctionModRngd: takes the same arguments as
+  * that of C05FunctionModRngd plus a 
+  * std::vector( std::pair< Coefficient , Coefficient > ) with the delta
+  * values given to the modified ColVariable, with positional
+  * correspondence to vars[] (i.e., coeff[ i ].first and coeff[ i ].second
+  * are respectively the delta of linear and quadratic coefficient given 
+  * to vars[ i ]). */
+
+ DQuadFunctionModRngd( C05Function * f , int type,
+			   DQuadFunction::v_coeff_pair && coeff ,
+			   Vec_p_Var && vars , c_Range & range , Subset && which = {} ,
+			   FunctionValue shift = NaNshift , bool cB = true )
+  : C05FunctionModRngd( f , type , std::move( vars ) , range , 
+      std::move( which ), shift , cB ) , f_coeff( std::move( coeff ) ) {}
+
+/*------------------------------ DESTRUCTOR --------------------------------*/
+ /// destructor: does nothing (explicitly)
+ 
+ ~DQuadFunctionModRngd() override = default;
+
+/*-------------------------------- GETTERS ----.----------------------------*/
+ /// returns (a const reference to) the vector of coefficient
+ 
+ DQuadFunction::c_v_coeff_pair & delta( void ) const { return( f_coeff ); }
+
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+
+ /// print the DQuadFunctionModRngd
+
+ void print( std::ostream & output ) const override {
+  output << "DQuadFunctionModRngd[";
+  if( concerns_Block() )
+   output << "t";
+  else
+   output << "f";
+  output << "] on Function [" << f_function << " ]: in ";
+  if( ( f_type == AllEntriesChanged ) ||
+      ( f_type == AllLinearizationChanged ) ) {
+   if( v_which.empty() )
+    output << "all";
+   else
+    output << v_which.size();
+   output << "linearizations";
+   if( f_type == AllEntriesChanged )
+    output << " the g have changed";
+   else
+    output << "both \alpha and g have changed";
+   }
+  else
+   output << "[ incorrect type() ]";
+  if( f_shift ) {
+   output << ", f-values changed";
+   if( std::isnan( f_shift ) )
+    output << "(+-)";
+   else
+    if( f_shift >= INFshift )
+     output << "(+)";
+    else
+     if( f_shift <= - INFshift )
+      output << "(-)";
+     else
+      output << " by " << f_shift;
+   }
+  output << std::endl;
+  }
+
+/*--------------------------- PROTECTED FIELDS -----------------------------*/
+
+ DQuadFunction::v_coeff_pair f_coeff;
+ ///< the delta coefficients (linear and quadratic) given to the modified 
+ ///  ColVariable
+  
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( DQuadFunctionModRngd ) )
+
+/*--------------------------------------------------------------------------*/
+/*---------------------- Class DQuadFunctionModSbst ------------------------*/
+/*--------------------------------------------------------------------------*/
+/// class to describe changes to a DQuadFunction involving a subset of Variables
+/** Derived class from C05FunctionModSbst to describe modification to a subset 
+ * of "active" ColVariables of a DQuadFunction. The only difference with the base
+ * C05FunctionModSbst is that the DQuadFunctionModSbst stores the difference
+ * between the old and the new values of both linear and quadratic coefficients
+ * of each modified ColVariable in the DQuadFunction. */
+
+class DQuadFunctionModSbst : public C05FunctionModSbst
+{
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+ public:
+
+/*---------------------------- CONSTRUCTOR ---------------------------------*/
+ /// constructor: that of C05FunctionModSbst plus the coefficients
+ /** Constructor of DQuadFunctionModSbst: takes the same arguments as
+  * that of C05FunctionModSbst plus a 
+  * std::vector( std::pair< Coefficient , Coefficient > ) with the delta
+  * values given to the modified ColVariable, with positional
+  * correspondence to vars[] (i.e., coeff[ i ].first and coeff[ i ].second
+  * are respectively the delta of linear and quadratic coefficient given 
+  * to vars[ i ]). */
+
+ DQuadFunctionModSbst( C05Function * f , int type,
+			   DQuadFunction::v_coeff_pair && coeff ,
+			   Vec_p_Var && vars , Subset && subset , bool ordered = false ,
+			   Subset && which = {} , FunctionValue shift = NaNshift , 
+         bool cB = true )
+  : C05FunctionModSbst( f , type , std::move( vars ) , std::move( subset ) , 
+      ordered , std::move( which ) , shift , cB ) , 
+    f_coeff( std::move( coeff ) ) {}
+
+/*------------------------------ DESTRUCTOR --------------------------------*/
+ /// destructor: does nothing (explicitly)
+ 
+ ~DQuadFunctionModSbst() override = default;
+
+/*-------------------------------- GETTERS ----.----------------------------*/
+ /// returns (a const reference to) the vector of coefficient
+ 
+ DQuadFunction::c_v_coeff_pair & delta( void ) const { return( f_coeff ); }
+
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+
+ /// print the DQuadFunctionModSbst
+
+ void print( std::ostream & output ) const override {
+  output << "DQuadFunctionModSbst[";
+  if( concerns_Block() )
+   output << "t";
+  else
+   output << "f";
+  output << "] on Function [" << f_function << " ]: in ";
+  if( ( f_type == AllEntriesChanged ) ||
+      ( f_type == AllLinearizationChanged ) ) {
+   if( v_which.empty() )
+    output << "all";
+   else
+    output << v_which.size();
+   output << "linearizations";
+   if( f_type == AllEntriesChanged )
+    output << " the g have changed";
+   else
+    output << "both \alpha and g have changed";
+   }
+  else
+   output << "[ incorrect type() ]";
+  if( f_shift ) {
+   output << ", f-values changed";
+   if( std::isnan( f_shift ) )
+    output << "(+-)";
+   else
+    if( f_shift >= INFshift )
+     output << "(+)";
+    else
+     if( f_shift <= - INFshift )
+      output << "(-)";
+     else
+      output << " by " << f_shift;
+   }
+  output << std::endl;
+  }
+
+/*--------------------------- PROTECTED FIELDS -----------------------------*/
+
+ DQuadFunction::v_coeff_pair f_coeff;
+ ///< the delta coefficients (linear and quadratic) given to the modified 
+ ///  ColVariable
+  
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( DQuadFunctionModSbst ) )
+
+/*--------------------------------------------------------------------------*/
+/** @} end( group( DQuadFunction_CLASSES ) ) ------------------------------*/
+/*--------------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------------------*/
 

@@ -938,6 +938,47 @@ class Block : public Observer {
                              std::function< void( Block * ) > * f = nullptr );
 
 /*--------------------------------------------------------------------------*/
+ /// almost de-serialize a :Block out of a file
+ /** Top-level almost de-serialization method: does the same as
+  * deserialize( filename ), except stopping just short of doing the actual
+  * deserialization ("arrives in third basis"). That is, it:
+  *
+  * - finds and open the right netCDF::NcGroup containing the actual data
+  *   representing the :Block starting from \p filename, which may mean
+  *   managing fila mangling (see  deserialize( filename )) and going
+  *   through an arbitrary number of indirections (see [almost_]new_Block(
+  *   netCDF::NcGroup));
+  *
+  * - builds the :Block out of the factory
+  *
+  * - returns a pointer to the newly minted :Block, *not yet deserialized*,
+  *   together with the netCDF::NcGroup ready to be used to deserialize it.
+  *
+  * That is, deserialize( filename ) could be implemented as
+  *
+  *     auto res = almost_deserialize( filename , father );
+  *     res.second->deserialize( res.first );
+  *
+  * It is actually not because, for obvious reasons,
+  *
+  *     THIS METHOD DOES NOT SUPPORT THE :Block BEING load()-ED FROM A
+  *     TEXT FILE
+  *
+  * unlike deserialize( filename ).
+  *
+  * The rationale for this method is that one may need to perform some
+  * operation on the newly minted :Block *prior* to deserialize()-ing it,
+  * like passing a part of the information via different means, which
+  * obviously requires havning found and opened the right netCDF::NcGroup
+  * to get the "type" string to pass to the Block factory; then, of course
+  * one does not want to do all the work again and just use the already
+  * opened group. */
+
+ static std::pair< netCDF::NcGroup , Block * >
+        almost_deserialize( const std::string & filename ,
+			    Block * father = nullptr );
+
+/*--------------------------------------------------------------------------*/
  /// de-serialize a :Block out of an open netCDF SMS++ file at given position
  /** Second-level de-serialization method: takes an open netCDF file, the
   * index \pos of a Block into the file, and possibly a \p father, and 
@@ -965,8 +1006,8 @@ class Block : public Observer {
   * a call to new_Block( netCDF::NcGroup & ); see the corresponding comments
   * for the format options. Anything going wrong with the entire operation
   * (the file is not there, the "SMS++_file_type" attribute is not there,
-  * there is no required "Prob_< idx >" or "Block_< idx >" child group, there is
-  * any fatal error during the process, ...) results in nullptr being
+  * there is no required "Prob_< idx >" or "Block_< idx >" child group, there
+  * is any fatal error during the process, ...) results in nullptr being
   * returned.
   *
   * Note that the method is static, hence it is to be called as
@@ -979,6 +1020,50 @@ class Block : public Observer {
  static Block * deserialize( const netCDF::NcFile & file ,
                              unsigned int idx = 0 , Block * father = nullptr ,
                              std::function< void( Block * ) > * f = nullptr );
+
+/*--------------------------------------------------------------------------*/
+ /// almost de-serialize a :Block out of an open netCDF SMS++
+ /** Second-level de-serialization method: does the same as
+  * deserialize( netCDF::NcFile , unsigned int ), except stopping just short
+  * of doing the actual deserialization ("arrives in third basis"). That is,
+  * it:
+  *
+  * - finds and open the right netCDF::NcGroup containing the actual data
+  *   representing the :Block inside \p f, using \p idx; note that "inside
+  *   f" may be misleading, in that finding the actual group may mean
+  *   managing fila mangling (see  deserialize( filename )) and going
+  *   through an arbitrary number of indirections (see [almost_]new_Block(
+  *   netCDF::NcGroup));
+  *
+  * - builds the :Block out of the factory
+  *
+  * - returns a pointer to the newly minted :Block, *not yet deserialized*,
+  *   together with the netCDF::NcGroup ready to be used to deserialize it.
+  *
+  * That is, deserialize( f , idx , father ) could be implemented as
+  *
+  *     auto res = almost_deserialize( f , idx , father );
+  *     res.second->deserialize( res.first );
+  *
+  * It is actually not because, for obvious reasons,
+  *
+  *     THIS METHOD DOES NOT SUPPORT THE :Block BEING load()-ED FROM A
+  *     TEXT FILE
+  *
+  * unlike deserialize( f , idx [ , father ] ).
+  *
+  * The rationale for this method is that one may need to perform some
+  * operation on the newly minted :Block *prior* to deserialize()-ing it,
+  * like passing a part of the information via different means, which
+  * obviously requires havning found and opened the right netCDF::NcGroup
+  * to get the "type" string to pass to the Block factory; then, of course
+  * one does not want to do all the work again and just use the already
+  * opened group. */
+
+ static std::pair< netCDF::NcGroup , Block * >
+        almost_deserialize( const netCDF::NcFile & f ,
+			    unsigned int idx = 0 ,
+			    Block * father = nullptr );
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize a :Block out of netCDF::NcGroup, returns it
@@ -1018,6 +1103,46 @@ class Block : public Observer {
  static Block * new_Block( const netCDF::NcGroup & group ,
                            Block * father = nullptr ,
                            std::function< void( Block * ) > * f = nullptr );
+
+/*--------------------------------------------------------------------------*/
+ /// almost de-serialize a :Block out of netCDF::NcGroup, returns it
+ /** Third-level de-serialization method: does the same as deserialize(
+  * netCDF::NcGroup ), except stopping just short of doing the actual
+  * deserialization ("arrives in third basis"). That is, it:
+  *
+  * - finds and open the right netCDF::NcGroup containing the actual data
+  *   representing the :Block; this is very easy \p group is a "direct"
+  *   netCDF::NcGroup (see new_Block( netCDF::NcGroup )), since then it is
+  *   already it, but it is not if \p group is "indirect";
+  *
+  * - builds the :Block out of the factory
+  *
+  * - returns a pointer to the newly minted :Block, *not yet deserialized*,
+  *   together with the netCDF::NcGroup ready to be used to deserialize it.
+  *
+  * That is, deserialize( group , father ) could be implemented as
+  *
+  *     auto res = almost_deserialize( group , father );
+  *     res.second->deserialize( res.first );
+  *
+  * It is actually not because, for obvious reasons,
+  *
+  *     THIS METHOD DOES NOT SUPPORT THE :Block BEING load()-ED FROM A
+  *     TEXT FILE
+  *
+  * unlike deserialize( group [ , father ] ).
+  *
+  * The rationale for this method is that one may need to perform some
+  * operation on the newly minted :Block *prior* to deserialize()-ing it,
+  * like passing a part of the information via different means, which
+  * obviously requires havning found and opened the right netCDF::NcGroup
+  * to get the "type" string to pass to the Block factory; then, of course
+  * one does not want to do all the work again and just use the already
+  * opened group. */
+
+ static std::pair< netCDF::NcGroup , Block * >
+        almost_new_Block( const netCDF::NcGroup & group ,
+			  Block * father = nullptr );
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize the current :Block out of netCDF::NcGroup
@@ -3175,7 +3300,7 @@ class Block : public Observer {
  /// returns the number of groups of dynamic Constraint
 
  Index get_number_dynamic_constraints( void ) const {
-  return( v_s_Constraint.size() );
+  return( v_d_Constraint.size() );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -5971,7 +6096,7 @@ class Block : public Observer {
   * file already exists.
   *
   * The parameter \p vlvl is assumed to control the "level of the verbosity"
-  * of the printed information, i.e. the format of the output file; see
+  * of the printed information, i.e., the format of the output file; see
   * print( ostream & ) for comments. In fact, the implementation of this
   * method in the base Block class just opens an ofstream using the given
   * filename and then calls the print( ostream & ) version, which is where
@@ -8784,13 +8909,14 @@ Block::remove_dynamic_constraint( std::list< Const > & list ,
 
   Index i = 0;
   auto lit = list.begin();
+  int initial_el = list.size();
   for( ; lit != list.end() ; ++lit , ++i )
    if( &( *lit ) == &( *rmvd ) ) {
     removed.splice( removed.end() , list , rmvd );
     break;
     }
 
-  if( lit == list.end() )
+  if( i == initial_el )
    throw( std::invalid_argument( "invalid removed iterator" ) );
 
   // now issue the BlockModRmv*

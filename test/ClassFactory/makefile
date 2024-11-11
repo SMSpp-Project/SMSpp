@@ -11,20 +11,21 @@
 ##############################################################################
 
 # module name
-NAME = test
+NAME = CF_test
 
 # basic directory
-DIR = ./
-
-# debug switches
-SW = -g -std=c++17 -ferror-limit=1
-
-# production switches
-#SW = -O3 -DNDEBUG -std=c++1
+DIR = .
 
 # compiler
-#CC = g++
 CC = clang++
+
+# common flags
+COMMON_SW = -std=c++17 -Wno-enum-compare -ferror-limit=1
+
+# debug switches
+SW_DEBUG = -g $(COMMON_SW)
+# production switches
+SW_RELEASE = -O3 -DNDEBUG $(COMMON_SW)
 
 # linker option for forcing all the library to be loaded
 # if a component is not explicitly referenced anywhere in the object, the
@@ -34,16 +35,26 @@ CC = clang++
 # included and the test wll fail. in this case, one must use the option of
 # the linker that disables this optimization (e.g., whole-archive for g++,
 # force_load for clang++). this macro must define said option
-FORCE = -force_load
+FORCE = -Wl,--whole-archive,--allow-multiple-definition
 
 # default target- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-all default: $(NAME)
+default: release
 
-# clean - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# debug target- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+debug: SW = $(SW_DEBUG)
+debug: $(NAME)
+
+# release target- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+release: SW = $(SW_RELEASE)
+release: $(NAME)
+
+# clean target- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 clean::
-	rm -f $(DIR)*.o $(DIR)*~ $(NAME)
+	rm -f $(DIR)/*.o $(DIR)/*~ $(NAME)
 
 # define & include the necessary modules- - - - - - - - - - - - - - - - - - -
 # if a module is not used in the current configuration, just comment out the
@@ -55,8 +66,8 @@ clean::
 # *INC is the -I< include directories >
 
 # core SMS++
-SMS++SDR = ../../
-include $(SMS++SDR)lib/makefile-inc
+SMS++SDR = ../..
+include $(SMS++SDR)/lib/makefile-inc
 
 # main module (linking phase) - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -66,10 +77,10 @@ MOBJ =  $(SMS++OBJ)
 # libraries
 MLIB =  $(SMS++LIB)
 
-$(NAME): $(MOBJ) $(DIR)main.o 
-	$(CC) -o $(NAME) $(DIR)main.o $(FORCE) $(MOBJ) $(MLIB) $(SW)
+$(NAME): $(MOBJ) $(DIR)/main.o
+	$(CC) -o $(NAME) $(DIR)/main.o $(FORCE) $(MOBJ) $(MLIB) $(SW)
 
-# dependencies: every .o from its .C + every recursively included .h- - - - -
+# dependencies: every .o from its .cpp + every recursively included .h- - - -
 
 # include directives
 MINC =  $(SMS++INC)
@@ -79,8 +90,15 @@ MH =    $(SMS++H)
 
 # compile command
 
-$(DIR)main.o: $(DIR)main.cpp $(MH) 
+$(DIR)/main.o: $(DIR)/main.cpp $(MH)
 	$(CC) -c $*.cpp -o $@ $(MINC) $(SW)
 
-############################ End of makefile ################################
+# distclean target- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+distclean: clean
+
+# phony targets - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+.PHONY: debug release clean distclean
+
+############################ End of makefile ################################
