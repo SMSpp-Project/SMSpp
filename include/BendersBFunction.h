@@ -374,6 +374,8 @@ class BendersBFunction : public C05Function , public Block {
 
   intLinComp = intLastParC05F , ///< determines how linearizations are computed
 
+  intSolverIndex , ///< the index of the Solver of the inner Block to be used
+
   intLastBendersBFPar ///< first allowed new int parameter for derived classes
                       /**< Convenience value for easily allow derived classes
                        * to extend the set of int algorithmic parameters. */
@@ -678,6 +680,12 @@ class BendersBFunction : public C05Function , public Block {
   *   The default value for this parameter is 7, which means that all bits
   *   mentioned above are set to 1.
   *
+  * - intSolverIndex [0]: This parameter is the index of the Solver of
+  *   the inner Block that must be used to compute this
+  *   BendersBFunction. The default value is 0, which means that the
+  *   first Solver in the list of registered Solver of the inner Block
+  *   is considered.
+  *
   * Any other parameter is handled by the C05Function.
   *
   * @param par The parameter to be set.
@@ -777,6 +785,7 @@ class BendersBFunction : public C05Function , public Block {
   * - intLPMaxSz
   * - intGPMaxSz
   * - intLinComp
+  * - intSolverIndex
   *
   * Any other parameter is handled by the C05Function.
   *
@@ -790,6 +799,7 @@ class BendersBFunction : public C05Function , public Block {
    case( intLPMaxSz ): return( get_solver_int_par( CDASolver::intMaxDSol ) );
    case( intGPMaxSz ): return( global_pool.size() );
    case( intLinComp ): return( LinComp );
+   case( intSolverIndex ): return( f_inner_solver_index );
    }
   return( C05Function::get_int_par( par ) );
   }
@@ -834,6 +844,8 @@ class BendersBFunction : public C05Function , public Block {
  [[nodiscard]] int get_dflt_int_par( idx_type par ) const override {
   if( par == intLinComp )
    return( 7 );
+  if( par == intSolverIndex )
+   return( 0 );
   return( C05Function::get_dflt_int_par( par ) );
   }
 
@@ -843,6 +855,8 @@ class BendersBFunction : public C05Function , public Block {
   const override {
   if( name == "intLinComp" )
    return( intLinComp );
+  if( name == "intSolverIndex" )
+   return( intSolverIndex );
   return( C05Function::int_par_str2idx( name ) );
   }
 
@@ -850,10 +864,11 @@ class BendersBFunction : public C05Function , public Block {
 
  [[nodiscard]] const std::string & int_par_idx2str( idx_type idx )
   const override {
-  static const std::vector< std::string > pars = { "intLinComp" };
+  static const std::vector< std::string > pars =
+   { "intLinComp" , "intSolverIndex"};
 
-  if( idx == intLinComp )
-   return( pars[ 0 ] );
+  if( idx >= intLastParC05F && idx < intLastBendersBFPar )
+   return pars[ idx - intLastParC05F ];
 
   return( C05Function::int_par_idx2str( idx ) );
   }
@@ -2074,15 +2089,23 @@ void print( std::ostream & output ) override {
   */
 
  template< class T = Solver >
- inline T * get_solver() const {
+ inline T * get_solver( Index solver_index = Inf< Index >() ) const {
   if( v_Block.empty() )
    return( nullptr );
 
   if( v_Block.front()->get_registered_solvers().empty() )
    return( nullptr );
 
-  return( dynamic_cast< T * >
-  ( v_Block.front()->get_registered_solvers().front() ) );
+  auto & registered_solvers = v_Block.front()->get_registered_solvers();
+
+  if( solver_index == Inf< Index >() )
+   solver_index = f_inner_solver_index;
+
+  if( solver_index >= registered_solvers.size() )
+   return( nullptr );
+
+  return( dynamic_cast< T * >( *std::next( registered_solvers.begin() ,
+					   solver_index ) ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2168,6 +2191,8 @@ void print( std::ostream & output ) override {
  void * f_id; ///< the "identity" of the BendersBFunction
 
  int LinComp; ///< determines how linearizations are computed
+
+ int f_inner_solver_index = 0; ///< the index of the Solver of the inner Block
 
  Configuration * f_get_dual_solution_config = nullptr;
  ///< Configuration to be passed to Solver::get_dual_solution()
