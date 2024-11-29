@@ -23,6 +23,7 @@ build:
       - include/*
       - src/*
       - test/*
+      - tools/*
       - CMakeLists.txt
 
 test:
@@ -38,6 +39,7 @@ test:
       - include/*
       - src/*
       - test/*
+      - tools/*
       - CMakeLists.txt
 
 deploy:
