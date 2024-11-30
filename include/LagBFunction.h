@@ -2856,7 +2856,7 @@ class LagBFunctionState : public State {
   * - The variable "LagBFunction_ImpCoeffVal", of type netCDF::NcDouble and
   *   indexed over the dimension LagBFunction_ImpCoeffNum, which contains
   *   the vector of real values of the important coefficients. The variable
-  *   is optional if LagBFunction_ImpCoeffNum == 0.*/
+  *   is optional if LagBFunction_ImpCoeffNum == 0. */
 
  void serialize( netCDF::NcGroup & group ) const override;
 

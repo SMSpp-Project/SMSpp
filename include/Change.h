@@ -259,7 +259,7 @@ class Change {
   *     Change *myChange = Change::deserialize( somefile );
   *
   * i.e., without any reference to any specific Change (and,
-  * therefore, it can be used to construct the very first Change if needed).*/
+  * therefore, it can be used to construct the very first Change if needed). */
 
  static Change * deserialize( const netCDF::NcFile & f , int idx = 0 ) {
   
