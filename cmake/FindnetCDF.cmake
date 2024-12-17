@@ -125,7 +125,7 @@ if (netCDF_FOUND)
                 IMPORTED_LOCATION "${netCDF_LIBRARY}"
                 IMPORTED_LOCATION_DEBUG "${netCDF_LIBRARY_DEBUG}"
                 INTERFACE_INCLUDE_DIRECTORIES "${netCDF_INCLUDE_DIRS}"
-                INTERFACE_LINK_LIBRARIES "${HDF5_LIBRARIES}")
+                INTERFACE_LINK_LIBRARIES "HDF5::HDF5;HDF5::HL")
     endif ()
 endif ()
 
