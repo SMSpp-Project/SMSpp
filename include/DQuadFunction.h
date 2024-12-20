@@ -20,7 +20,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __DQuadFunction
-#define __DQuadFunction
+ #define __DQuadFunction
                      /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/

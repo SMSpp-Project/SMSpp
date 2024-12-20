@@ -22,7 +22,8 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __C05Function
-#define __C05Function /* self-identification: #endif at the end of the file */
+ #define __C05Function
+                      /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/

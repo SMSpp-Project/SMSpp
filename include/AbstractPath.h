@@ -45,7 +45,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __AbstractPath
-#define __AbstractPath
+ #define __AbstractPath
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/

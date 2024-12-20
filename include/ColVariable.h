@@ -25,7 +25,8 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __ColVariable
-#define __ColVariable /* self-identification: #endif at the end of the file */
+ #define __ColVariable
+                      /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/

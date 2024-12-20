@@ -24,7 +24,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __RowConstraintSolution
-#define __RowConstraintSolution
+ #define __RowConstraintSolution
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/

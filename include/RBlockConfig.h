@@ -67,7 +67,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __RBlockConfig
-#define __RBlockConfig
+ #define __RBlockConfig
                      /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/

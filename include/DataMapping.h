@@ -18,7 +18,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __DataMapping
-#define __DataMapping
+ #define __DataMapping
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/

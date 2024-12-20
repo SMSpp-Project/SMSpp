@@ -21,7 +21,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __FRowConstraint
-#define __FRowConstraint
+ #define __FRowConstraint
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/

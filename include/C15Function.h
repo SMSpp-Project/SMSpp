@@ -20,7 +20,8 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __C15Function
-#define __C15Function /* self-identification: #endif at the end of the file */
+ #define __C15Function
+                      /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/

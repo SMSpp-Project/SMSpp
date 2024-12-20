@@ -36,7 +36,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __BlockInspection
-#define __BlockInspection
+ #define __BlockInspection
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/

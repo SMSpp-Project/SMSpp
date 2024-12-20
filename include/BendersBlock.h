@@ -18,7 +18,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __BendersBlock
-#define __BendersBlock
+ #define __BendersBlock
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
