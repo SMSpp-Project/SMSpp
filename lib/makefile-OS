@@ -11,7 +11,9 @@
 #                                                                            #
 #   Input:  none                                                             #
 #                                                                            #
-#   Output: $(UNAME_S) = the name of the current system                      #
+#   Output: $(UNAME_S) = the name of the current operating system            #
+#           $(UNAME_P) = the name of the underlying architecture             #
+#           (x86, arm, ...)                                                  #
 #                                                                            #
 #                              Antonio Frangioni                             #
 #                                 Donato Meoli                               #
