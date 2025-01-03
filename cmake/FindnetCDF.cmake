@@ -40,8 +40,6 @@
 include(FindPackageHandleStandardArgs)
 
 # ----- Requirements -------------------------------------------------------- #
-find_package(HDF5 QUIET REQUIRED)
-
 # Check if already in cache
 if (netCDF_INCLUDE_DIR AND netCDF_LIBRARY AND netCDF_LIBRARY_DEBUG)
     set(netCDF_FOUND TRUE)
@@ -125,7 +123,7 @@ if (netCDF_FOUND)
                 IMPORTED_LOCATION "${netCDF_LIBRARY}"
                 IMPORTED_LOCATION_DEBUG "${netCDF_LIBRARY_DEBUG}"
                 INTERFACE_INCLUDE_DIRECTORIES "${netCDF_INCLUDE_DIRS}"
-                INTERFACE_LINK_LIBRARIES "HDF5::HDF5")
+                INTERFACE_LINK_LIBRARIES "${netCDF_LIBRARIES}"
     endif ()
 endif ()
 
