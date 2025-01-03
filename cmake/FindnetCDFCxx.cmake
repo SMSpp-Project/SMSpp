@@ -139,7 +139,7 @@ if (netCDFCxx_FOUND)
                 IMPORTED_LOCATION "${netCDFCxx_LIBRARY}"
                 IMPORTED_LOCATION_DEBUG "${netCDFCxx_LIBRARY_DEBUG}"
                 INTERFACE_INCLUDE_DIRECTORIES "${netCDFCxx_INCLUDE_DIRS}"
-                INTERFACE_LINK_LIBRARIES "${ncTarget};HDF5::HL;HDF5::HDF5")
+                INTERFACE_LINK_LIBRARIES "${ncTarget};HDF5::HDF5")
     endif ()
 endif ()
 

@@ -40,7 +40,7 @@
 include(FindPackageHandleStandardArgs)
 
 # ----- Requirements -------------------------------------------------------- #
-find_package(HDF5 QUIET REQUIRED)
+find_package(HDF5 QUIET REQUIRED COMPONENTS HL)
 
 # Check if already in cache
 if (netCDF_INCLUDE_DIR AND netCDF_LIBRARY AND netCDF_LIBRARY_DEBUG)
