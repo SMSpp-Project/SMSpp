@@ -31,29 +31,30 @@
 #                                                                            #
 ##############################################################################
 
-# OS-specific settings
+# OS-specific settings- - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # defines some general values, like UNAME_S, which identify the type of OS
-# and architecture for which the project is being compiled, so that other
-# makefiles can rely on these to automatically adapt without a need for the
-# user to manually edit them
+# and UNAME_P which identify the architecture for which the project is being
+# compiled, so that other makefiles can rely on these to automatically adapt
+# without a need for the user to manually edit them
 include $(SMS++SDR)/lib/makefile-OS
 
-# default paths
+# default paths - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # include a makefile that defines all the *_ROOT paths needed by every other
 # makefile (possibly after automatic OS adaptation, see above) relatively to
 # the places where all external libraries are to be found; use the previously
-# defined UNAME_S to load the one of the current architecture
+# defined UNAME_S and UNAME_P to load the one of the current architecture
 ifeq ($(UNAME_S),Linux)
     include $(SMS++SDR)/../extlib/makefile-default-paths-linux
 endif
 ifeq ($(UNAME_S),Darwin)
-    include $(SMS++SDR)/../extlib/makefile-default-paths-macos
-endif
-ifeq ($(UNAME_S),Windows)
-    include $(SMS++SDR)/../extlib/makefile-default-paths-win
+    ifeq ($(UNAME_P),x86_64)
+        include $(SMS++SDR)/../extlib/makefile-default-paths-macos-x86_64
+    else
+        include $(SMS++SDR)/../extlib/makefile-default-paths-macos-arm64
+    endif
 endif
 
-# non-default paths
+# non-default paths - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # optionally (note the "-" in front) include a makefile that defines all the
 # *_ROOT paths needed by every other makefile (possibly after automatic OS
 # adaptation, see above) to cater for external libraries being located in
