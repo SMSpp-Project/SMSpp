@@ -40,6 +40,8 @@
 include(FindPackageHandleStandardArgs)
 
 # ----- Requirements -------------------------------------------------------- #
+find_package(HDF5 QUIET REQUIRED)
+
 # Check if already in cache
 if (netCDF_INCLUDE_DIR AND netCDF_LIBRARY AND netCDF_LIBRARY_DEBUG)
     set(netCDF_FOUND TRUE)
@@ -48,14 +50,14 @@ else ()
     # ----- Find the headers and library ------------------------------------ #
     # Note that find_path() creates a cache entry
     find_path(netCDF_INCLUDE_DIR
-              NAMES netcdf.h
-              HINTS ${netCDF_ROOT}
-              DOC "netCDF include directory.")
+            NAMES netcdf.h
+            HINTS ${netCDF_ROOT}
+            DOC "netCDF include directory.")
 
     find_library(netCDF_LIBRARY
-                 NAMES netcdf
-                 HINTS ${netCDF_ROOT}/lib
-                 DOC "netCDF library.")
+            NAMES netcdf
+            HINTS ${netCDF_ROOT}/lib
+            DOC "netCDF library.")
 
     if (UNIX)
         set(netCDF_LIBRARY_DEBUG ${netCDF_LIBRARY})
@@ -123,15 +125,15 @@ if (netCDF_FOUND)
                 IMPORTED_LOCATION "${netCDF_LIBRARY}"
                 IMPORTED_LOCATION_DEBUG "${netCDF_LIBRARY_DEBUG}"
                 INTERFACE_INCLUDE_DIRECTORIES "${netCDF_INCLUDE_DIRS}"
-                INTERFACE_LINK_LIBRARIES "${netCDF_LIBRARIES}")
+                INTERFACE_LINK_LIBRARIES "${HDF5_LIBRARIES}")
     endif ()
 endif ()
 
 # Variables marked as advanced are not displayed in CMake GUIs, see:
 # https://cmake.org/cmake/help/latest/command/mark_as_advanced.html
 mark_as_advanced(netCDF_INCLUDE_DIR
-                 netCDF_LIBRARY
-                 netCDF_LIBRARY_DEBUG
-                 netCDF_VERSION)
+        netCDF_LIBRARY
+        netCDF_LIBRARY_DEBUG
+        netCDF_VERSION)
 
 # --------------------------------------------------------------------------- #

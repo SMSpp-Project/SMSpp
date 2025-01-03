@@ -44,6 +44,7 @@ if (NOT netCDF_FOUND)
     find_package(netCDF REQUIRED)
     set(ncTarget "netCDF::netcdf")
 else ()
+    find_package(HDF5 QUIET REQUIRED COMPONENTS HL)
     # Before 4.7.3, netCDF exported a target without namespace
     if ("${netCDF_VERSION}" VERSION_LESS "4.7.3")
         set(ncTarget "netcdf")
@@ -138,7 +139,7 @@ if (netCDFCxx_FOUND)
                 IMPORTED_LOCATION "${netCDFCxx_LIBRARY}"
                 IMPORTED_LOCATION_DEBUG "${netCDFCxx_LIBRARY_DEBUG}"
                 INTERFACE_INCLUDE_DIRECTORIES "${netCDFCxx_INCLUDE_DIRS}"
-                INTERFACE_LINK_LIBRARIES "${ncTarget}")
+                INTERFACE_LINK_LIBRARIES "${ncTarget};HDF5::HL;HDF5::HDF5")
     endif ()
 endif ()
 
