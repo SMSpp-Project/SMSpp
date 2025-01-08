@@ -136,7 +136,7 @@ if (netCDFCxx_FOUND)
 
     if (APPLE)
         set(_extra_libs "${HDF5_LIBRARIES}")
-    endif()
+    endif ()
 
     if (NOT TARGET netCDF::netCDFCxx)
         add_library(netCDF::netCDFCxx UNKNOWN IMPORTED)
