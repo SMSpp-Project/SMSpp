@@ -44,9 +44,7 @@ if (NOT netCDF_FOUND)
     find_package(netCDF REQUIRED)
     set(ncTarget "netCDF::netcdf")
 else ()
-    if (APPLE)
-        find_package(HDF5 QUIET REQUIRED COMPONENTS HL)
-    endif ()
+    find_package(HDF5 QUIET)
     # Before 4.7.3, netCDF exported a target without namespace
     if ("${netCDF_VERSION}" VERSION_LESS "4.7.3")
         set(ncTarget "netcdf")
@@ -134,10 +132,6 @@ if (netCDFCxx_FOUND)
     set(netCDFCxx_INCLUDE_DIRS "${netCDFCxx_INCLUDE_DIR}")
     set(netCDFCxx_LIBRARIES "${netCDFCxx_LIBRARY}")
 
-    if (APPLE)
-        set(_extra_libs "${HDF5_LIBRARIES}")
-    endif ()
-
     if (NOT TARGET netCDF::netCDFCxx)
         add_library(netCDF::netCDFCxx UNKNOWN IMPORTED)
         set_target_properties(
@@ -145,7 +139,7 @@ if (netCDFCxx_FOUND)
                 IMPORTED_LOCATION "${netCDFCxx_LIBRARY}"
                 IMPORTED_LOCATION_DEBUG "${netCDFCxx_LIBRARY_DEBUG}"
                 INTERFACE_INCLUDE_DIRECTORIES "${netCDFCxx_INCLUDE_DIRS}"
-                INTERFACE_LINK_LIBRARIES "${ncTarget};${_extra_libs}")
+                INTERFACE_LINK_LIBRARIES "${ncTarget};${HDF5_LIBRARIES}")
     endif ()
 endif ()
 

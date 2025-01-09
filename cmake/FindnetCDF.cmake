@@ -40,9 +40,7 @@
 include(FindPackageHandleStandardArgs)
 
 # ----- Requirements -------------------------------------------------------- #
-if (APPLE)
-    find_package(HDF5 QUIET REQUIRED COMPONENTS HL)
-endif ()
+find_package(HDF5 QUIET)
 
 # Check if already in cache
 if (netCDF_INCLUDE_DIR AND netCDF_LIBRARY AND netCDF_LIBRARY_DEBUG)
@@ -120,10 +118,6 @@ if (netCDF_FOUND)
     set(netCDF_INCLUDE_DIRS "${netCDF_INCLUDE_DIR}")
     set(netCDF_LIBRARIES "${netCDF_LIBRARY}")
 
-    if (APPLE)
-        set(_extra_libs "${HDF5_LIBRARIES}")
-    endif ()
-
     if (NOT TARGET netCDF::netcdf)
         add_library(netCDF::netcdf UNKNOWN IMPORTED)
         set_target_properties(
@@ -131,7 +125,7 @@ if (netCDF_FOUND)
                 IMPORTED_LOCATION "${netCDF_LIBRARY}"
                 IMPORTED_LOCATION_DEBUG "${netCDF_LIBRARY_DEBUG}"
                 INTERFACE_INCLUDE_DIRECTORIES "${netCDF_INCLUDE_DIRS}"
-                INTERFACE_LINK_LIBRARIES "${_extra_libs}")
+                INTERFACE_LINK_LIBRARIES "${HDF5_LIBRARIES}")
     endif ()
 endif ()
 
