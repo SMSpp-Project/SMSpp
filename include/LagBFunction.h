@@ -2442,20 +2442,19 @@ class LagBFunction : public C05Function , public Block {
   if( ( ! p_InnrSlvr ) && ( ! v_Block.empty() ) ) {
    Solver * iS;
    auto & rs = v_Block.front()->get_registered_solvers();
-   if( rs.empty() )
-    throw( std::logic_error( "LagBFunction: no Solver attached to inner Block"
-			     ) );
-   if( rs.size() > InnrSlvr ) {
-    auto rsit = rs.begin();
-    std::advance( rsit , InnrSlvr );
-    iS = *rsit;
-    }
-   else
-    iS = rs.back();
+   if( ! rs.empty() ) {
+    if( rs.size() > InnrSlvr ) {
+     auto rsit = rs.begin();
+     std::advance( rsit , InnrSlvr );
+     iS = *rsit;
+     }
+    else
+     iS = rs.back();
 
-   // note the horribly dirty trick of casting away const-ness from this
-   // to allow inner_Solver() to be const and therefore used in const methods
-   const_cast< LagBFunction * >( this )->p_InnrSlvr = iS;
+    // note the horribly dirty trick of casting away const-ness from this
+    // to allow inner_Solver() to be const and therefore used in const methods
+    const_cast< LagBFunction * >( this )->p_InnrSlvr = iS;
+    }
    }
   return( p_InnrSlvr );
   }
