@@ -612,7 +612,14 @@ void RBlockSolverConfig::apply( Block * block ) const
  BlockSolverConfig::apply( block );
 
  // set the configurations for the sub-Block- - - - - - - - - - - - - - - - -
-
+ // note: the following code is inefficient when block ids are numbers, in
+ // that it first calls get_nested_Block( id ), that scans all sub-Block
+ // sequentially, and only then tries to convert the id to a number and
+ // uses it as the index. the opposite would be more efficient but it would
+ // fail for sub-Block whose names can be converted in numbers but do not
+ // correspond to the index. this is unlikely to be a huge bottleneck, but
+ // it may have to be improved
+ 
  #ifndef NDEBUG
   if( v_BlockSolverConfig.size() != v_sub_Block_id.size() )
    throw( std::logic_error( "RBlockSolverConfig::apply: inconsistent state"
@@ -621,13 +628,26 @@ void RBlockSolverConfig::apply( Block * block ) const
 
  auto it = v_BlockSolverConfig.begin();
  for( const auto & id : v_sub_Block_id ) {
-  if( auto sub_Block = block->get_nested_Block( id ) ) {
-   if( *it )
-    ( *it )->apply( sub_Block );
-   else
-    if( ! f_diff )
-     sub_Block->unregister_Solvers( true );
+  // first try to use id as the string name of the sub-Block
+  auto sub_Block = block->get_nested_Block( id );
+  if( ! sub_Block ) {  // not found, so perhaps it was a number?
+   std::stringstream convertor;
+   convertor << id;
+   Index i;
+   convertor >> i;
+   if( ! convertor.fail() )
+    sub_Block = block->get_nested_Block( i );
    }
+
+  if( ! sub_Block )
+   throw( std::invalid_argument( "RBlockSolverConfig::apply: " + id +
+				 " neither a sub-Block name nor a valid index"
+				 ) );
+  if( *it )
+   ( *it )->apply( sub_Block );
+  else
+   if( ! f_diff )
+    sub_Block->unregister_Solvers( true );
   ++it;
   }
  }  // end( RBlockSolverConfig::apply )

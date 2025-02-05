@@ -2740,9 +2740,9 @@ class Block : public Observer {
   *
   *   - this is a certificate that the problem is *not unbounded below*;
   *
-  *   - any feasible solution whose value is (approximately) equal to the value
-  *     returned by this method is guaranteed to be an (approximately) optimal
-  *     solution;
+  *   - any feasible solution whose value is (approximately) equal to the
+  *     value returned by this method is guaranteed to be an (approximately)
+  *     optimal solution;
   *
   *   while if the sense of the [Real]Objective rather is "maximization" and
   *   the Block returns a *finite* globally valid lower bound:
@@ -2766,18 +2766,18 @@ class Block : public Observer {
   *     finds a feasible solution whose objective value is smaller than v,
   *     then the problem is unbounded below;
   *
-  *   - if the problem encoded by the Block is a maximization problem, then its
-  *     optimal value being - infinity means that the problem is empty; hence,
-  *     v is a conditionally valid lower bound if whenever one finds a valid
-  *     upper bound on the optimal value that is smaller than v, then the
-  *     problem is empty.
+  *   - if the problem encoded by the Block is a maximization problem, then
+  *     its optimal value being - infinity means that the problem is empty;
+  *     hence, v is a conditionally valid lower bound if whenever one finds
+  *     a valid upper bound on the optimal value that is smaller than v, then
+  *     the problem is empty.
   *
-  * - There are basically two different cases:
+  * There are basically two different cases:
   *
-  *   - the global valid lower bound (conditional == false) is - infinity;
-  *   then, necessarily the conditionally valid lower bound
-  *   (conditional == true) is >= than the global valid lower bound, and (as
-  *   we have discussed) it can be finite (or not);
+  * - the global valid lower bound (conditional == false) is - infinity;
+  *   then, necessarily the conditionally valid lower bound  (conditional ==
+  *   true) is >= than the global valid lower bound, and (as we have
+  *   discussed) it can be finite (or not);
   *
   * - the global valid lower bound (conditional == false) is finite
   *   (> - infinity); then, necessarily the conditionally valid lower bound
@@ -2786,9 +2786,10 @@ class Block : public Observer {
   *   bound (cf. the discussion), but this is pointless since there is no
   *   reason for checking it.
   *
-  * Conditionally valid lower bounds can sometimes be found by duality arguments
-  * and can be used as a convenient stopping condition in empty/unbounded cases
-  * for algorithms solving the problem, possibly via duality. */
+  * Conditionally valid lower bounds can sometimes be found by duality
+  * arguments and can be used as a convenient stopping condition in
+  * empty/unbounded cases for algorithms solving the problem, possibly via
+  * duality. */
 
  virtual double get_valid_lower_bound( bool conditional = false ) {
   return( - Inf< double >() );
