@@ -32,7 +32,6 @@
 #    hardcoded, and that doesn't work under macOS 11.0.                       #
 #    We use it in netCDF-C++ find module.                                     #
 #                                                                             #
-#                              Niccolo' Iardella                              #
 #                                Donato Meoli                                 #
 #                         Dipartimento di Informatica                         #
 #                             Universita' di Pisa                             #

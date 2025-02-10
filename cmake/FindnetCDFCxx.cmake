@@ -30,7 +30,6 @@
 #    was found to be lacking. In particular, it appears that netCDFCxx does   #
 #    not come with a CMake configuration (netCDFCxxConfig.cmake).             #
 #                                                                             #
-#                              Niccolo' Iardella                              #
 #                                Donato Meoli                                 #
 #                         Dipartimento di Informatica                         #
 #                             Universita' di Pisa                             #
