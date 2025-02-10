@@ -298,10 +298,10 @@ void BendersBFunction::deserialize( const netCDF::NcGroup & group ,
 void BendersBFunction::set_variables( VarVector && x ) {
  if( ! v_A.empty() )
   if( v_A[ 0 ].size() != x.size() )
-   throw( std::logic_error("BendersBFunction::set_variables: wrong x.size(). "
-                           "Matrix A has " + std::to_string( v_A[ 0 ].size() ) +
-                           " row(s), but x has size " +
-                           std::to_string( x.size() ) ) );
+   throw( std::logic_error( "BendersBFunction::set_variables: wrong x.size(). "
+                            "Matrix A has " + std::to_string( v_A[ 0 ].size() ) +
+                            " row(s), but x has size " +
+                            std::to_string( x.size() ) ) );
 
  v_x = std::move( x );
 
@@ -2250,9 +2250,9 @@ void BendersBFunction::get_linearization_coefficients
   g.reserve( subset.size() );
   for( auto i : subset ) {
    if( i >= v_x.size() )
-    throw( std::invalid_argument("BendersBFunction::get_linearization_"
-                                 "coefficients: wrong index in subset: " +
-                                 std::to_string( i ) ) );
+    throw( std::invalid_argument( "BendersBFunction::get_linearization_"
+                                  "coefficients: wrong index in subset: " +
+                                  std::to_string( i ) ) );
    g.insert( i ) = 0;
   }
  }
@@ -2263,9 +2263,9 @@ void BendersBFunction::get_linearization_coefficients
 
   for( auto i : subset ) {
    if( i >= v_x.size() )
-    throw( std::invalid_argument("BendersBFunction::get_linearization_"
-                                 "coefficients: wrong index in subset: " +
-                                 std::to_string( i ) ) );
+    throw( std::invalid_argument( "BendersBFunction::get_linearization_"
+                                  "coefficients: wrong index in subset: " +
+                                  std::to_string( i ) ) );
    g.coeffRef( i ) = 0;
   }
  }
