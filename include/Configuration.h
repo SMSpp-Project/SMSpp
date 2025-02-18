@@ -667,7 +667,7 @@ class Configuration
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
- static std::string f_prefix;  ///< the executable-wide filename prefix
+ inline static std::string f_prefix;  ///< the executable-wide filename prefix
 
 /** @} ---------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/

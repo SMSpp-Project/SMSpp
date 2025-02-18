@@ -65,10 +65,6 @@ SMSpp_insert_in_factory_cpp_0_t(
 SMSpp_insert_in_factory_cpp_0_t(
  SimpleConfiguration< std::map< std::string , Configuration * > > );
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
-std::string Configuration::f_prefix;  // the filename prefix
-
 /*--------------------------------------------------------------------------*/
 /*------------------------------- FUNCTIONS --------------------------------*/
 /*--------------------------------------------------------------------------*/

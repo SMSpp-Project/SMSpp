@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.19)
+cmake_minimum_required(VERSION 3.4)
 project(test_package)
 
 set(CMAKE_VERBOSE_MAKEFILE TRUE)
