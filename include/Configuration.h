@@ -193,18 +193,18 @@ class Configuration
   *   std::fstream is opened and deserialize( istream ) is called, with
   *   the Configuration being extracted is the first one found in it;
   *
-  * - otherwise a netCDF::NcFile is opened and deserialize( netCDF::NcFile )
-  *   is called; since netCDF::NcFile support the notion of having
-  *   multiple Configuration inside, \p filename can be used to encode the
-  *   position (Configuration) in the file:
+  * - otherwise a netCDF::NcFile is opened and
+  *   deserialize( const netCDF::NcFile & ) is called; since netCDF::NcFile
+  *   support the notion of having multiple Configuration inside,
+  *   \p filename can be used to encode the position (Configuration) in the
+  *   file:
   *
-  *     * if the \p filename ends with ']', then is supposed to have the
-  *       form "real filename[idx]": the "[idx] part is excised and used to
-  *       compute the int parameter of deserialize() (the position), with the
-  *       remaining part being used for the string parameter (the filename);
+  *   = if the \p filename ends with ']', then is supposed to have the form
+  *     "real filename[idx]": the "[idx] part is excised and used to 
+  *     compute the int parameter of deserialize() (the position), with the
+  *     remaining part being used as the filename;
   *
-  *     * otherwise, the whole string is used as the string parameter (the
-  *       filename).
+  *   = otherwise, the whole string is used as the filename.
   *
   * If anything goes wrong with the entire operation, nullptr is returned.
   *
@@ -215,10 +215,11 @@ class Configuration
   *
   * Note that the method is static, hence it is to be called as
   *
-  *     auto myConfig = Configuration::deserialize( somefile );
+  *     Configuration * myCfg = Configuration::deserialize( somefile );
   *
-  * i.e., without any reference to any specific Configuration (and, therefore,
-  * it can be used to construct the very first Configuration if needed). */
+  * i.e., without any reference to any specific Configuration (and,
+  * therefore, it can be used to construct the very first Configuration if
+  * needed). */
 
  static Configuration * deserialize( const std::string & filename );
 
@@ -262,11 +263,9 @@ class Configuration
   *
   * Note that the method is static, hence it is to be called as
   *
-  *     Configuration *myConfig = Configuration::deserialize( somefile );
+  *     Configuration * myCfg = Configuration::deserialize( somefile );
   *
-  * i.e., without any reference to any specific Configuration (and,
-  * therefore, it can be used to construct the very first Configuration if
-  * needed). */
+  * i.e., without any reference to any specific Configuration. */
 
  static Configuration * deserialize( const netCDF::NcFile & f , int idx = 0 );
 
@@ -317,7 +316,7 @@ class Configuration
   *      THIS IS THE METHOD TO BE IMPLEMENTED BY DERIVED CLASSES
   *
   * and in fact it is virtual. The format of the information is clearly that
-  * set by the serialize( netCDF::NcGroup ) method of the specific
+  * set by the serialize( const netCDF::NcGroup & ) method of the specific
   * :Configuration class, and exception should be thrown if anything goes
   * wrong in the process. */
 
@@ -326,13 +325,14 @@ class Configuration
   #ifndef NDEBUG
    netCDF::NcGroupAtt gtype = group.getAtt( "type" );
    if( gtype.isNull() )
-    throw( std::invalid_argument( "missing type attribute in netCDF group" )
-	   );
+    throw( std::invalid_argument(
+    "Configuration:deserialize: missing type attribute in netCDF group" ) );
 
    std::string cfgtype;
    gtype.getValues( cfgtype );
    if( cfgtype != classname() )
-    throw( std::invalid_argument( "wrong Config type in netCDF group" ) );
+    throw( std::invalid_argument(
+	 "Configuration:deserialize: wrong Config type in netCDF group" ) );
  #endif
  }
 

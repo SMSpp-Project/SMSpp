@@ -49,8 +49,7 @@ namespace SMSpp_di_unipi_it
  class Block;            // forward definition of Block
  class Solution;         // forward definition of Solution
 
- typedef Solution * p_Solution;
- ///< a pointer to Solution
+ typedef Solution * p_Solution;  ///< a pointer to Solution
 
  typedef std::vector< p_Solution > Vec_Solution;
  ///< a vector of pointers to Solution
@@ -68,13 +67,13 @@ namespace SMSpp_di_unipi_it
  * Solution be used to store and retrieve those values. A Solution must
  * implement the method
  *
- *    void read( Block * const block )
+ *    void read( const Block * block )
  *
  * which takes a (pointer to a) Block, reads the values of the current
  * solution of this Block and stores them. Once the values of a solution of a
  * Block have been stored, they can be retrieved by the method
  *
- *    void write( Block * const block )
+ *    void write( Block * block )
  *
  * which takes a (pointer to a) Block and writes the value of the solution
  * currently stored in this Solution into the Block.
@@ -84,7 +83,7 @@ namespace SMSpp_di_unipi_it
  * take only a specific part of the Block solution status (see the
  * Configuration parameter in Block::get_Solution()); say, only the primal
  * or the dual values, only the values of a specific set of Variable, ...
- * This configuration is "permanent": once a Solution is object created, it
+ * This Configuration is "permanent": once a Solution is object created, it
  * will only store that particular set of information. Trying to read a
  * Solution from a Block that does not have the required information (say,
  * because dual information is required which is stored in some Constraint,
@@ -92,15 +91,15 @@ namespace SMSpp_di_unipi_it
  * an exception being thrown.
  *
  * Of course, it is a fortiori an error (resulting in an exception being
- * thrown) to read or write a Solution out of the wrong Block. This does not
- * only mean "the wrong type of Block", but basically "the very same Block
- * that has created the solution object", or at least one that is "identical"
- * to it (say, a copy Block constructed as an R3 Block), or at the very very
- * least that is "compatible" (meaning it has the same size in the relevant
- * sets of Variable / Constraint). Solution are not meant to be exchanged
- * between different Block, even of the same type; exception to this rule
- * should be explicitly mentioned by each specific :Solution, and should be
- * exploited with due care.
+ * thrown) to read() or write() a Solution out of the wrong Block. This does
+ * not only mean "the wrong type of Block", but basically "the very same
+ * Block that has created the solution object", or at least one that is
+ * "identical" to it (say, a copy Block constructed as an R3 Block), or at
+ * the very very least that is "compatible" (meaning it has the same size in
+ * the relevant sets of Variable / Constraint). Solution are not meant to be
+ * exchanged between different Block, even of the same type; exception to
+ * this rule should be explicitly mentioned by each specific :Solution, and
+ * should be exploited with due care.
  *
  * Solution also provides support for producing weighted sum of solutions of
  * a given Block, which in particular allows to produce convex combinations
@@ -110,8 +109,8 @@ namespace SMSpp_di_unipi_it
  * not "be happy" with being arbitrarily scaled and/or summed, and thus
  * requires some care, see the comments to scale() and sum(). */
 
-class Solution {
-
+class Solution
+{
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -196,7 +195,7 @@ class Solution {
   * redirection"; a Solution netCDF file can contain one (or many) filenames
   * in which a parts of the description of that Solution (typically a
   * Solution inside a Solution inside a Solution ...) can be found, see
-  * new_Solution( netCDF::NcGroup ). It could arguably be convenient to be
+  * new_Solution( netCDF::NcGroup & ). It could arguably be convenient to be
   * able to specify filenames relative to some given prefix, so as to be
   * able to freely move the description of a Solution (which can be a rather
   * large object, and therefore require many files) across the filesystem.
@@ -228,11 +227,10 @@ class Solution {
   * - if the \p filename ends with ']', then is supposed to have the form
   *   "real filename[idx]": the "[idx] part is excised and used to compute
   *   the int parameter for deserialize( const netCDF::NcFile & , int ) (the
-  *   position), with the remaining part being used for the string parameter
-  *   (the filename);
+  *   position), with the remaining part being used as the filename for
+  *   opening the file;
   *
-  * - otherwise, the whole string is used as the string parameter (the
-  *   filename).
+  * - otherwise, the whole string is used as the filename.
   *
   * If anything goes wrong with the entire operation, nullptr is returned.
   *
@@ -264,7 +262,7 @@ class Solution {
   *
   * Note that the method is static, hence it is to be called as
   *
-  *     Configuration *myConfig = Solution::deserialize( somefile );
+  *     Solution * mySol = Solution::deserialize( somefile );
   *
   * i.e., without any reference to any specific Solution. */
 
@@ -281,24 +279,24 @@ class Solution {
   *
   * - A "direct" group that contains at least the string attribute "type";
   *   this is used it in the factory to construct an "empty" :Solution of
-  *   that type [see new_Solution( string )], and then the method
-  *   deserialize( netCDF::NcGroup ) of the newly minted :Solution is
-  *   invoked (with argument \p group) to finish the work.
+  *   that type [see new_Solution( const std::string & )], and then the
+  *   method deserialize( const netCDF::NcGroup ) of the newly minted
+  *   :Solution is invoked (with argument \p group) to finish the work.
   *
   * - An "indirect" group that just need to contain the single string
   *   attribute "filename"; in this case, the attribute is used as argument
   *   for a call to deserialize( const std::string & ) that will extract the
-  *   :Solution by the corresponding netCDF file (be it a text or  one).
-  *   Note that the filename string can also be used to encode the position
-  *   in the file, see the comments in the method for details.
+  *   :Solution by the corresponding netCDF file. Note that the filename
+  *   string can also be used to encode the position in the file, see the
+  *   comments in the method for details.
   *
-  * In case \p group contains both "type" and "filename", the first takes the
-  * precedence (direct groups have precedence over indirect ones).
+  * In case \p group contains both "type" and "filename", the first takes
+  * the precedence (direct groups have precedence over indirect ones).
   *
   * Note that this method is static (see the previous versions for comments
   * about it) and returns a pointer to Solution, hence it has to have a
-  * different name from deserialize( netCDF::NcGroup ) (since the signature
-  * is the same but for the return type).
+  * different name from deserialize( const netCDF::NcGroup & ) (since the
+  * signature is the same but the return type is not).
   *
   * If anything goes wrong with the process, nullptr is returned. */
 
@@ -315,8 +313,9 @@ class Solution {
   * :Solution so that possibly a netCDF::NcGroup containing some pre-computed
   * solution can be constructed from scratch whenever this is useful.
   *
-  * This method is pure virtual, as it clearly has to be implemented by
-  * derived classes. */
+  *      THIS IS THE METHOD TO BE IMPLEMENTED BY DERIVED CLASSES
+  *
+  * and in fact it is pure virtual. */
 
  virtual void deserialize( const netCDF::NcGroup & group ) = 0;
 
