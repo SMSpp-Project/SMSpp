@@ -485,9 +485,11 @@ class Configuration
  /// serialize a Configuration to a netCDF file given the filename
  /** Method to serialize a Configuration to a file in netCDF-based
   * SMS++-format, given the filename and its type. See deserialize( char * )
-  * for details of the different file types. Note that any existing contect
-  * of the file is overwritten, and that the Configuration is saved as *the
-  * first one* in the newly created file.
+  * for details of the different file types. If \p replace == true (the
+  * default) any existing content of the file is overwritten and the
+  * Configuration is saved as *the first one* in the newly created file, while
+  * if  \p replace == false the file is opened for appending and the
+  * Configuration is saved after the last one currently present (if any).
   *
   * The base class implementation opens the netCDF file, creates the required
   * attribute "SMS++_file_type" and assigns it the type, and dispatches to
@@ -497,12 +499,13 @@ class Configuration
   * re-define it. */
 
  virtual void serialize( const std::string & filename ,
-			 int type = eProbFile ) const
+			 int type = eProbFile , bool replace = true ) const
  {
   if( ( type != eProbFile ) && ( type != eConfigFile ) )
    throw( std::invalid_argument( "invalid SMS++ netCDF file type" ) );
 
-  netCDF::NcFile f( filename, netCDF::NcFile::replace );
+  netCDF::NcFile f( filename , replace ? netCDF::NcFile::replace
+		                       : netCDF::NcFile::write );
 
   f.putAtt( "SMS++_file_type", netCDF::NcInt(), type );
 
