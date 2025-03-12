@@ -163,83 +163,85 @@ void QuadFunction::get_hessian_approximation( DenseHessian & hessian ) const
 /*-------------- METHODS FOR MODIFYING THE QuadFunction -------------------*/
 /*--------------------------------------------------------------------------*/
 
-
 void QuadFunction::add_variables( v_coeff_triple && vars , 
-                    v_off_diag_term && v_nd_var , 
-                     ModParam issueMod ){
-  
-  // It is probably best to manage adding of variable all at this level and 
-  // not rely too much on parent functionalities
-  //
-  if( vars.empty() && v_nd_var.empty() )  // actually nothing to add
-    return;            // cowardly (and silently) return
+				  v_off_diag_term && v_nd_var , 
+				  ModParam issueMod )
+{
+ // It is probably best to manage adding of variable all at this level and 
+ // not rely too much on parent functionalities
+ if( vars.empty() && v_nd_var.empty() )  // actually nothing to add
+  return;                                // cowardly (and silently) return
 
-  // Variables that have to be added
-  auto added = & vars;
-  Index k = DQuadFunction::get_num_active_var();
-  if( k )    // adding to a nonempty set
-    DQuadFunction::v_triples.insert( v_triples.end() , vars.begin() , 
-                                      vars.end() );
-  else {     // adding to nothing
-    DQuadFunction::v_triples = std::move( vars );
-    added = & v_triples;
+ // Variables that have to be added
+ auto added = & vars;
+ Index k = DQuadFunction::get_num_active_var();
+ if( k )    // adding to a nonempty set
+  DQuadFunction::v_triples.insert( v_triples.end() , vars.begin() , 
+				   vars.end() );
+ else {     // adding to nothing
+  DQuadFunction::v_triples = std::move( vars );
+  added = & v_triples;
   }
 
-  // Upgrade the dimensions of the matrix
-  int new_sz = k + added->size();
-  mat_nd.conservativeResize(new_sz, new_sz);
-  if ( !v_nd_var.empty() ){
-    mat_nd.makeCompressed();
-    mat_nd.reserve( mat_nd.nonZeros() + v_nd_var.size() );
+ // Upgrade the dimensions of the matrix
+ int new_sz = k + added->size();
+ mat_nd.conservativeResize( new_sz , new_sz );
+ if ( ! v_nd_var.empty() ) {
+  mat_nd.makeCompressed();
+  mat_nd.reserve( mat_nd.nonZeros() + v_nd_var.size() );
   }
 
-  // Now working with the non-diagonal terms
-  for (int i=0; i < v_nd_var.size(); ++i ){
-    Index ir = std::get< 0 >( v_nd_var[i] );
-    Index ic = std::get< 1 >( v_nd_var[i] );
+ // Now working with the non-diagonal terms
+ for( boost::multi_array_types::size_type i = 0 ;
+      i < v_nd_var.size() ; ++i ) {
+  auto ir = std::get< 0 >( v_nd_var[ i ] );
+  auto ic = std::get< 1 >( v_nd_var[ i ] );
 
-    if ( std::max(ir,ic) >= new_sz ){
-      throw( std::logic_error( "Cross terms must belong to the set of variables" ) );
-    }
-    if ( ic == ir ){
-      throw( std::logic_error( "Diagonal terms are not to be specified in this way" ) );
-    }
+  if( std::max( ir , ic ) >= Index( new_sz ) )
+   throw( std::logic_error(
+		      "Cross terms must belong to the set of variables" ) );
+  if( ic == ir )
+   throw( std::logic_error(
+		   "Diagonal terms are not to be specified in this way" ) );
 
-    // Insert in the lower diagonal only ; 
-    // Double specification will lead to an error, likely thrown by Eigen
-    mat_nd.insert( std::max(ir,ic), std::min(ir,ic) ) = std::get< 2 >( v_nd_var[i] );
+  // Insert in the lower diagonal only ; 
+  // Double specification will lead to an error, likely thrown by Eigen
+  mat_nd.insert( std::max( ir , ic ) , std::min( ir , ic ) ) =
+   std::get< 2 >( v_nd_var[ i ] );
   }
 
-  // if noone is there or not listening
-  if( ( ! DQuadFunction::f_Observer ) || 
-        ( ! DQuadFunction::f_Observer->issue_mod( issueMod ) ) )
-    return;
+ // if noone is there or not listening
+ if( ( ! DQuadFunction::f_Observer ) || 
+     ( ! DQuadFunction::f_Observer->issue_mod( issueMod ) ) )
+  return;
 
-  // Firstly prepare the diagonal terms for modification
-  Vec_p_Var vptr( added->size() );
-  v_coeff_pair vcoef( added->size() );
-  for( Index i = 0 ; i < added->size() ; ++i ) {
-   vptr[ i ] = std::get< 0 >( (*added)[ i ] );
-   vcoef[ i ].first = std::get< 1 >( (*added)[ i ] );
-   vcoef[ i ].second = std::get< 2 >( (*added)[ i ] );
+ // Firstly prepare the diagonal terms for modification
+ Vec_p_Var vptr( added->size() );
+ v_coeff_pair vcoef( added->size() );
+ for( Index i = 0 ; i < added->size() ; ++i ) {
+  vptr[ i ] = std::get< 0 >( (*added)[ i ] );
+  vcoef[ i ].first = std::get< 1 >( (*added)[ i ] );
+  vcoef[ i ].second = std::get< 2 >( (*added)[ i ] );
   }
 
-  // a diagonal quadratic function is additive ==> strongly quasi-additive
-  DQuadFunction::f_Observer->add_Modification( 
-              std::make_shared< QuadFunctionModVarsAddd >(
-                this , std::move( v_nd_var ) , std::move( vcoef ) , 
-                std::move( vptr ) , k , 0 , Observer::par2concern( issueMod ) ) ,
-              Observer::par2chnl( issueMod ) );
+ // a diagonal quadratic function is additive ==> strongly quasi-additive
+ DQuadFunction::f_Observer->add_Modification( 
+          std::make_shared< QuadFunctionModVarsAddd >(
+            this , std::move( v_nd_var ) , std::move( vcoef ) , 
+            std::move( vptr ) , k , 0 , Observer::par2concern( issueMod ) ) ,
+            Observer::par2chnl( issueMod ) );
 
-  my_convexity = Unknown;
-}  // end( QuadFunction::add_variables )
+ my_convexity = Unknown;
+
+ }  // end( QuadFunction::add_variables )
 
 /*--------------------------------------------------------------------------*/
 
 void QuadFunction::add_nd_term ( ColVariable * var1 , ColVariable * var2 ,
-                    Coefficient quad_coeff , ModParam issueMod ){
-  // We will check if both variables exists in which case the coefficient gets 
-  // added. (Maybe we want a numeric zero check...)
+				 Coefficient quad_coeff , ModParam issueMod )
+{
+ // We will check if both variables exists in which case the coefficient gets 
+ // added. (Maybe we want a numeric zero check...)
 
   // Begin by sizing up the off diagonal matrix
   Index ksz = DQuadFunction::get_num_active_var();

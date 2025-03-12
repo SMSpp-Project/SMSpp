@@ -524,7 +524,7 @@ class Solution {
 
   f.putAtt( "SMS++_file_type" , netCDF::NcInt() , eSolutionFile );
 
-  serialize( f , type );
+  serialize( f );
   }
 
 /*--------------------------------------------------------------------------*/

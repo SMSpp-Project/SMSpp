@@ -8909,7 +8909,7 @@ Block::remove_dynamic_constraint( std::list< Const > & list ,
 
   Index i = 0;
   auto lit = list.begin();
-  int initial_el = list.size();
+  auto initial_el = list.size();
   for( ; lit != list.end() ; ++lit , ++i )
    if( &( *lit ) == &( *rmvd ) ) {
     removed.splice( removed.end() , list , rmvd );
