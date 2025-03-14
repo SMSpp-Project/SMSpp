@@ -518,8 +518,13 @@ class Solution
 
  virtual void serialize( const std::string & filename , bool replace = true )
   const {
-  netCDF::NcFile f( filename , replace ? netCDF::NcFile::replace
-		                       : netCDF::NcFile::write );
+  netCDF::NcFile f;
+  if( ! replace ) {
+   try { f.open( filename , netCDF::NcFile::write ); }
+   catch( netCDF::exceptions::NcException & e ) { replace = true; }
+   }
+  if( replace )
+   f.open( filename , netCDF::NcFile::replace );
 
   f.putAtt( "SMS++_file_type" , netCDF::NcInt() , eSolutionFile );
 
