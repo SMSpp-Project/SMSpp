@@ -146,43 +146,54 @@ class QuadFunction : public DQuadFunction {
   * That is, get_active_var( 0 ) == std::get< 0 >( vars[ 0 ] ),
   * get_active_var( 1 ) == std::get< 0 >( vars[ 1 ] ), ... */
 
- explicit QuadFunction( v_coeff_triple && v_var = {} , v_off_diag_term && v_nd_var = {},
-                         const FunctionValue ct = 0 ,
-                         Observer * const observer = nullptr )
-  : DQuadFunction( std::move( v_var ), ct, observer ), my_convexity( Unknown )
-    { 
-      /** Copy the all the off diagonal terms in an Eigen::SparseMatrix.
-       *  For this we must copy the information to appropriate Eigen triplets. */
-       mat_nd.resize( DQuadFunction::get_num_active_var(), DQuadFunction::get_num_active_var() );
-       std::vector<Eigen::Triplet<Coefficient>> vv_nd;
-       vv_nd.reserve( v_nd_var.size() );
-       for (int i=0; i < v_nd_var.size(); ++i ){
-          #ifndef NDEBUG
-          // std::cout << "mat_nd is : " << mat_nd.rows() << " x " << mat_nd.cols() << "\n";
-          if ( ( std::min( std::get<0>(v_nd_var[i]),std::get<1>(v_nd_var[i]) ) < 0 ) || std::min( std::get<0>(v_nd_var[i]),std::get<1>(v_nd_var[i]) ) >= mat_nd.rows() ){
-            throw( std::invalid_argument("Invalid tuplet provided : out of bounds : " +  std::to_string( std::get<0>(v_nd_var[i]) ) 
-                                                                                      + std::to_string( std::get<1>(v_nd_var[i])  )
-                                                                       + " for term " + std::to_string( i ) + "!") ); 
-          }
-          #endif
-          Eigen::Triplet<Coefficient> term( std::get<0>(v_nd_var[i]), std::get<1>(v_nd_var[i]), std::get<2>(v_nd_var[i]) );
-          vv_nd.push_back( term ); 
-       }
-       mat_nd.setFromTriplets( vv_nd.begin(), vv_nd.end() );
-       //mat_nd.setFromTriplets( v_nd_var.begin(), v_nd_var.end() );
-       #ifndef NDEBUG
-       for (int k=0; k < mat_nd.outerSize(); ++k){
-          for (Qmat::InnerIterator it(mat_nd,k); it; ++it){
-            if ( it.col() > it.row() ){
-              throw( std::invalid_argument("The non-diagonal terms must be lower diagonal in QuadFunction" ) );
-            }
-            if ( it.col() == it.row() ){
-              throw( std::invalid_argument("The non-diagonal terms can not contain diagonal elements in QuadFunction" ) );
-            }
-          }
-       }
-       #endif
-    }
+ explicit QuadFunction( v_coeff_triple && v_var = {} ,
+			v_off_diag_term && v_nd_var = {} ,
+			const FunctionValue ct = 0 ,
+			Observer * const observer = nullptr )
+  : DQuadFunction( std::move( v_var ) , ct , observer ) ,
+  my_convexity( Unknown )
+ { 
+  /** Copy the all the off diagonal terms in an Eigen::SparseMatrix.
+   *  For this we must copy the information to appropriate Eigen triplets. */
+  mat_nd.resize( DQuadFunction::get_num_active_var() ,
+		 DQuadFunction::get_num_active_var() );
+  std::vector< Eigen::Triplet< Coefficient > > vv_nd;
+  vv_nd.reserve( v_nd_var.size() );
+  for( boost::multi_array_types::size_type i = 0 ;
+       i < v_nd_var.size() ; ++i ) {
+   #ifndef NDEBUG
+    // std::cout << "mat_nd is : " << mat_nd.rows() << " x "
+    //           << mat_nd.cols() << "\n";
+    if( ( std::min( std::get< 0 >( v_nd_var[ i ] ) ,
+		    std::get< 1 >( v_nd_var[ i ]) ) < 0 ) ||
+	( std::min( std::get< 0 > ( v_nd_var[ i ] ) ,
+		    std::get< 1 >( v_nd_var[ i ] ) ) >= mat_nd.rows() ) )
+     throw( std::invalid_argument(
+			  "Invalid tuplet provided : out of bounds : " +
+			  std::to_string( std::get< 0 >( v_nd_var[ i ] ) ) +
+			  std::to_string( std::get< 1 >( v_nd_var[ i ] ) ) +
+			  " for term " + std::to_string( i ) ) ); 
+   #endif
+   Eigen::Triplet< Coefficient > term( std::get< 0 >( v_nd_var[ i ] ) ,
+				       std::get< 1 >( v_nd_var[ i ] ) ,
+				       std::get< 2 >( v_nd_var[ i ] ) );
+   vv_nd.push_back( term ); 
+   }
+  mat_nd.setFromTriplets( vv_nd.begin(), vv_nd.end() );
+  #ifndef NDEBUG
+   for( Index k = 0 ; k < mat_nd.outerSize() ; ++k )
+    for( Qmat::InnerIterator it( mat_nd , k ) ; it ; ++it ) {
+     if( it.col() > it.row() )
+      throw( std::invalid_argument(
+	"QuadFunction: non-diagonal terms must be lower diagonal" ) );
+            
+     if( it.col() == it.row() )
+      throw( std::invalid_argument(
+ 	  "QuadFunction: non-diagonal terms cannot contain diagonal elements"
+				   ) ); 
+     }
+  #endif
+  }
 
 /*--------------------------------------------------------------------------*/
  /// destructor: it does nothing (explicitly)
@@ -321,21 +332,19 @@ class QuadFunction : public DQuadFunction {
    }
 
   // Cache the variable values prior to use, in case get_value() is costly
-  std::vector<double> vals( DQuadFunction::get_num_active_var() );
-  for (int i=0; i < vals.size(); ++i ){
-    vals[i] = std::get< 0 >( DQuadFunction::v_triples[ i ] )->get_value();
-  }
+  std::vector< double > vals( DQuadFunction::get_num_active_var() );
+  for( boost::multi_array_types::size_type i = 0 ; i < vals.size() ; ++i )
+   vals[ i ] = std::get< 0 >( DQuadFunction::v_triples[ i ] )->get_value();
 
-  for (int k=0; k < mat_nd.outerSize(); ++k){
-    for (Qmat::InnerIterator it(mat_nd,k); it; ++it){
-      auto variable_value1 = vals[it.row()]; //std::get< 0 >( DQuadFunction::v_triples[it.row() ] )->get_value();
-      auto variable_value2 = vals[it.col()]; //std::get< 0 >( DQuadFunction::v_triples[it.col() ] )->get_value();
-      
-      quadratic_term += variable_value1 * variable_value2 * it.value();
+  for( int k = 0 ; k < mat_nd.outerSize() ; ++k )
+   for( Qmat::InnerIterator it( mat_nd , k ) ; it ; ++it ) {
+    auto variable_value1 = vals[ it.row() ];
+    auto variable_value2 = vals[ it.col() ];
+    quadratic_term += variable_value1 * variable_value2 * it.value();
     }
-  }
+
   return( this->f_constant_term - quadratic_term );
- }
+  }
 
 /** @} ---------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
@@ -709,12 +718,10 @@ class QuadFunctionModSbst : public C05FunctionModSbst
 
 /*--------------------------- PROTECTED FIELDS -----------------------------*/
 
- Coefficient d_coeff;
- ///< the delta coefficient (quadratic) given to the term identified by the 
- /// subset of ColVariable
- bool is_added;
- ///< boolean value stating if the term have been added for the first time to
- /// the quadratic matrix
+ Coefficient d_coeff;   /**< the delta coefficient (quadratic) given to the
+			 * term identified by the subset of ColVariable */
+ bool is_added;         /**< boolean value stating if the term have been
+			 * added for the first time to the quadratic matrix */
   
 /*--------------------------------------------------------------------------*/
 

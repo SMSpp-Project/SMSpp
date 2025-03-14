@@ -934,7 +934,8 @@ class Block : public Observer {
   * will be no \p father). */
 
  static Block * deserialize( const std::string & filename ,
-			     Block * father = nullptr );
+                             Block * father = nullptr ,
+                             std::function< void( Block * ) > * f = nullptr );
 
 /*--------------------------------------------------------------------------*/
  /// almost de-serialize a :Block out of a file
@@ -1016,9 +1017,9 @@ class Block : public Observer {
   * i.e., without any reference to any specific Block (and, therefore, it can
   * be used to construct the very first Block if needed). */
 
- static Block * deserialize( const netCDF::NcFile & f ,
-			     unsigned int idx = 0 ,
-			     Block * father = nullptr );
+ static Block * deserialize( const netCDF::NcFile & file ,
+                             unsigned int idx = 0 , Block * father = nullptr ,
+                             std::function< void( Block * ) > * f = nullptr );
 
 /*--------------------------------------------------------------------------*/
  /// almost de-serialize a :Block out of an open netCDF SMS++
@@ -1100,7 +1101,8 @@ class Block : public Observer {
   * If anything goes wrong with the process, nullptr is returned. */
 
  static Block * new_Block( const netCDF::NcGroup & group ,
-                           Block * father = nullptr );
+                           Block * father = nullptr ,
+                           std::function< void( Block * ) > * f = nullptr );
 
 /*--------------------------------------------------------------------------*/
  /// almost de-serialize a :Block out of netCDF::NcGroup, returns it
@@ -1337,7 +1339,8 @@ class Block : public Observer {
   *   version of load() for details. */
 
  static Block * deserialize( std::istream & input ,
-			     Block * father = nullptr );
+                             Block * father = nullptr ,
+                             std::function< void( Block * ) > * f = nullptr );
 
 /*--------------------------------------------------------------------------*/
  /// destructor of Block: it is virtual
@@ -8907,7 +8910,7 @@ Block::remove_dynamic_constraint( std::list< Const > & list ,
 
   Index i = 0;
   auto lit = list.begin();
-  int initial_el = list.size();
+  auto initial_el = list.size();
   for( ; lit != list.end() ; ++lit , ++i )
    if( &( *lit ) == &( *rmvd ) ) {
     removed.splice( removed.end() , list , rmvd );

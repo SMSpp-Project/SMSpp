@@ -750,7 +750,7 @@ class PolyhedralFunction : public C05Function {
   *   the A matrix, i.e., the number of active variables.
   *
   * - The dimension "PolyFunction_NumRow" containing the number of rows of the
-  *   A matrix. The dimension is optional, if it is not provided than 0 (no
+  *   A matrix. The dimension is optional, if it is not provided then 0 (no
   *   rows) is assumed.
   *
   * - The variable "PolyFunction_A", of type double and indexed over both

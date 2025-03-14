@@ -126,10 +126,11 @@ static constexpr T Inf( void ) noexcept {
 /*--------------------------------------------------------------------------*/
 /// public enum for types of SMS++ netCDF files
 /** Public enum for describing the different kinds of netCDF files that can
- * be read and produced by SMS++ objects (notably, Block and Configuration).
+ * be read and produced by SMS++ objects (notably, Block, Configuration, and
+ * Solution.
  *
- * There are three "basic" types of SMS++ netCDF files, corresponding to the
- * three values of this enum smspp_netCDF_file_type. Each file, when opened
+ * There are four "basic" types of SMS++ netCDF files, corresponding to the
+ * four values of this enum smspp_netCDF_file_type. Each file, when opened
  * in a netCDF::NcFile (which is also a netCDF::NcGroup), must have an int
  * netCDF attribute "SMS++_file_type" with one of the three values of the
  * enum. The structure of the corresponding files is:
@@ -160,17 +161,21 @@ static constexpr T Inf( void ) noexcept {
  *   the serialization of a :Configuration (the string attribute "type" and
  *   all the rest).
  *
- * The value eLastFileParam is provided if some :Block or :Configuration
- * needs to read/write files with a specific structure.
- */
+ * - eSolutionFile: the file (which is also a group) has any number of child
+ *   groups with names "Solution_0", "Solution_1", ... Each child group
+ *   contains the serialization of a :Solution (the string attribute "type"
+ *   and all the rest).
+ *
+ * The value eLastFileParam is provided if some :Block, :Configuration or
+ * :Solution needs to read/write files with a specific structure. */
 
-enum smspp_netCDF_file_type
-{
+enum smspp_netCDF_file_type {
  eProbFile = 0 ,      ///< a "complete" file of both Block and Configuration
  eBlockFile = 1 ,     ///< a file of Block
  eConfigFile = 2 ,    ///< a file of Configuration
- eLastFileParam = 3   ///< first value available to define new file types
-};
+ eSolutionFile = 3 ,  ///< a file of Solution
+ eLastFileParam = 4   ///< first value available to define new file types
+ };
 
 /** @} end( group( SMS_TYPES ) ) */
 /*--------------------------------------------------------------------------*/
@@ -2207,7 +2212,7 @@ inline bool deserialize_dim( const netCDF::NcGroup & group ,
   if( optional )
    return( false );
   throw( std::invalid_argument( "deserialize_dim(): " + name +
-                                " not present in group '" + group.getName()
+                                " not present in group " + group.getName()
                                 ) );
   }
 
@@ -2879,7 +2884,7 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
    }
 
   throw( std::invalid_argument( "deserialize(): " + name +
-                                " not present in group '" + group.getName()
+                                " not present in group " + group.getName()
                                 ) );
   }
 
@@ -3615,7 +3620,7 @@ serialize( netCDF::NcGroup & group , const std::string & name ,
      if( singleton_dim.getSize() != 1 ) {
       std::string error;
       error += "serialize(): error when serializing variable ";
-      error += name + " of group " + group.getName();
+      error += name + " of group '" + group.getName();
       error += "'. The singleton dimension must have size 1,"
                "but the dimension ";
       error += singleton_dim_name + " has size ";
