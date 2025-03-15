@@ -55,10 +55,10 @@ void runAllTests()
     //
     ColVariable x1, x2, x3;
     DQuadFunction::v_coeff_triple v_vars;
-    DQuadFunction::coeff_triple t1(&x1,0.0,2.0);
-    DQuadFunction::coeff_triple t2(&x2,0.0,2.0);
-    DQuadFunction::coeff_triple t3(&x3,0.0,2.0);
-    v_vars.reserve(3);
+    DQuadFunction::coeff_triple t1( &x1 , 0.0 , 2.0 );
+    DQuadFunction::coeff_triple t2( &x2 , 0.0 , 2.0 );
+    DQuadFunction::coeff_triple t3( &x3 , 0.0 , 2.0 );
+    v_vars.reserve( 3 );
     v_vars.push_back( t1 );
     v_vars.push_back( t2 );
     v_vars.push_back( t3 );
@@ -66,8 +66,8 @@ void runAllTests()
     // Off diagonal
     QuadFunction::v_off_diag_term v_nd_vars;
     v_nd_vars.reserve(2);
-    QuadFunction::off_diag_term od1(1,0,-2.0);
-    QuadFunction::off_diag_term od2(2,1,-2.0);
+    QuadFunction::off_diag_term od1( 1 , 0 , -2.0 );
+    QuadFunction::off_diag_term od2( 2 , 1 , -2.0 );
     v_nd_vars.push_back( od1 );
     v_nd_vars.push_back( od2 );
 
