@@ -113,6 +113,7 @@ target_sources(${modName} PRIVATE
                src/RowConstraintSolution.cpp
                src/PolyhedralFunctionBlock.cpp
 			   src/QuadFunction.cpp
+               src/Solution.cpp
                src/Solver.cpp
                src/ThinComputeInterface.cpp
                src/Variable.cpp)
