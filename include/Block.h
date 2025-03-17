@@ -6284,27 +6284,37 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
  /// serialize a Block (recursively) to a netCDF file given the filename
  /** Top-level method to serialize a Block (recursively) to a file in
-  * netCDF-based SMS++-format, given the filename and its type. See
+  * netCDF-based SMS++-format, given the \p filename and its \p type. See
   * deserialize( netCDF::NcFile & ) for details of the different file types.
-  * Note that any existing content of the file is overwritten, and that the
-  * Block is saved as *the first one* in the newly created file.
+  * If \p replace == true (the default) any existing content of the file is
+  * overwritten and the Block is saved as *the first one* in the newly created
+  * file, while if  \p replace == false the file is opened for appending and
+  * the Block is saved after the last one currently present (if any).
   *
   * The base class implementation opens the netCDF file, creates the required
-  * attribute "SMS++_file_type", assigns it the type, and dispatches to the
-  * netCDF::NcFile & version of the method. If anything goes wrong with any
-  * step of the process, exception is thrown. Although the method is virtual,
-  * it is not expected that derived classes will have a need to re-define it.
-  */
+  * attribute "SMS++_file_type" (if the file is created anew, otherwise it is
+  * assumed the field is already there), assigns it the type, and dispatches
+  * to the netCDF::NcFile & version of the method. If anything goes wrong with
+  * any step of the process, exception is thrown. Although the method is
+  * virtual, it is not expected that derived classes will have a need to
+  * re-define it. */
 
  virtual void serialize( const std::string & filename ,
-			 int type = eProbFile ) const
+			 int type = eProbFile , bool replace = true ) const
  {
   if( ( type != eProbFile ) && ( type != eBlockFile ) )
-   throw( std::invalid_argument( "invalid SMS++ netCDF file type" ) );
+   throw( std::invalid_argument(
+	"Block::serialize( std:string ): invalid SMS++ netCDF file type" ) );
 
-  netCDF::NcFile f( filename , netCDF::NcFile::replace );
-
-  f.putAtt( "SMS++_file_type" , netCDF::NcInt() , type );
+  netCDF::NcFile f;
+  if( ! replace ) {
+   try { f.open( filename , netCDF::NcFile::write ); }
+   catch( netCDF::exceptions::NcException & e ) { replace = true; }
+   }
+  if( replace ) {
+   f.open( filename , netCDF::NcFile::replace );
+   f.putAtt( "SMS++_file_type" , netCDF::NcInt() , type );
+   }
 
   serialize( f , type );
   }

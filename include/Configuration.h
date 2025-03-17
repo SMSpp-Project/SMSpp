@@ -492,8 +492,9 @@ class Configuration
   * Configuration is saved after the last one currently present (if any).
   *
   * The base class implementation opens the netCDF file, creates the required
-  * attribute "SMS++_file_type" and assigns it the type, and dispatches to
-  * the netCDF file version of the method. If anything goes wrong with any
+  * attribute "SMS++_file_type" (if the file is created anew, otherwise it is
+  * assumed the field is already there), assigns it the type, and dispatches
+  * to the netCDF file version of the method. If anything goes wrong with any
   * step of the process, exception is thrown. Although the method is
   * virtual, it is not expected that derived classes will have a need to
   * re-define it. */
@@ -509,10 +510,10 @@ class Configuration
    try { f.open( filename , netCDF::NcFile::write ); }
    catch( netCDF::exceptions::NcException & e ) { replace = true; }
    }
-  if( replace )
+  if( replace ) {
    f.open( filename , netCDF::NcFile::replace );
-
-  f.putAtt( "SMS++_file_type", netCDF::NcInt(), type );
+   f.putAtt( "SMS++_file_type", netCDF::NcInt(), type );
+   }
 
   serialize( f , type );
   }
