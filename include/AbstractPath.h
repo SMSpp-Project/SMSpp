@@ -13,7 +13,7 @@
  * has to boost::any_cast<> (in particular, Constraint and Variable), and
  * therefore it has to have a list of the kind of types that they may have.
  * Hence, this class at any point in time works only with a specific subset
- * of those classes, and if new types need be handled than the class has to
+ * of those classes, and if new types need to be handled, then the class has to
  * be manually updated. This is made a bit easier by the two macros
  *
  *     Constraint_Derived_Classes
@@ -23,7 +23,7 @@
  *
  * Also, AbstractPath has a specific management for:
  *
- * - Function that appear in the Constraint and Objective, i.e.,
+ * - Function that appears in the Constraint and Objective, i.e.,
  *   FRealObjective and FRowConstraint;
  *
  * - Function that have a Block (are a Block), i.e., BendersBFunction and
@@ -32,7 +32,7 @@
  * - PolyhedralFunction, if it is part of a PolyhedralFunctionBlock.
  *
  * Again, should more type of this kind of stuff be defined that needs
- * handling, this class would have to properly manually extended.
+ * handling, this class would have to properly manually extend.
  *
  * \author Rafael Durbano Lobato \n
  *         Dipartimento di Informatica \n
@@ -57,7 +57,6 @@
 #include "PolyhedralFunctionBlock.h"
 #include "SMSTypedefs.h"
 
-#include <cstddef>
 #include <iterator>
 #include <vector>
 #include <netcdf>
@@ -514,7 +513,7 @@ public:
  /** This function returns the length of this AbstractPath, i.e., the number
   * of nodes in the path.
   */
- inline Index length() const {
+ Index length() const {
   return( node_types.size() );
  }
 
@@ -524,7 +523,7 @@ public:
  /** This function returns true if and only if this AbstractPath is empty,
   * i.e., it does not represent a path to any object.
   */
- inline bool empty() const {
+ bool empty() const {
   return( length() == 0 );
  }
 
@@ -550,7 +549,7 @@ public:
   *
   * @return The Node representation of the i-th node in this AbstractPath.
   */
- inline Node get_node( Index i ) const {
+ Node get_node( Index i ) const {
   assert( i < this->length() );
   return( Node( node_types[ i ] , group_indices[ i ] , element_indices[ i ] ) );
  }
@@ -563,7 +562,7 @@ public:
   *
   * @return The Node representation of the last node in this AbstractPath.
   */
- inline Node get_last_node() const {
+ Node get_last_node() const {
   const auto length = this->length();
   assert( length > 0 );
   return( Node( node_types[ length - 1 ] , group_indices[ length - 1 ] ,
@@ -709,7 +708,7 @@ public:
 
   for( Index i = 0 ; i < this->length() - 1 ; ++i ) {
 
-   const auto node = this->get_node( i );
+   const auto node = get_node( i );
 
    // Intermediate nodes can be: Block, Constraint, or Objective.
 
@@ -755,9 +754,9 @@ public:
     return( nullptr );
   } // end for
 
-  // Now, we analyse the last node in the path.
+  // Now, we analyze the last node in the path.
 
-  const auto node = this->get_last_node();
+  const auto node = get_last_node();
 
   if constexpr( std::is_base_of_v< Constraint , T > ) {
    assert( Node::is_constraint( node.type ) );
@@ -784,18 +783,16 @@ public:
      ( block , node.is_static() , node.group_index , node.element_index );
     if( constraint )
      return( dynamic_cast< T * >( constraint->get_function() ) );
-    else
      return( nullptr );
    }
-   else if( node.type == Node::eObjective ) {
+   if( node.type == Node::eObjective ) {
     // It must be an FRealObjective
     auto objective = dynamic_cast< FRealObjective * >( block->get_objective() );
     if( objective )
      return( dynamic_cast< T * >( objective->get_function() ) );
-    else
      return( nullptr );
    }
-   else if( node.type == Node::eBlock ) {
+   if( node.type == Node::eBlock ) {
     // It must be a PolyhedralFunctionBlock
     PolyhedralFunctionBlock * pfb = nullptr;
     if( node.group_index == Inf< Index >() )
@@ -805,10 +802,8 @@ public:
        ( block->get_nested_Blocks()[ node.group_index ] );
     if( pfb )
      return( dynamic_cast< T * >( & ( pfb->get_PolyhedralFunction() ) ) );
-    else
      return( nullptr );
    }
-   else
     return( nullptr );
   }
   else if constexpr( std::is_base_of_v< Block , T > ) {
