@@ -6748,7 +6748,7 @@ class Block : public Observer {
  add_static_constraint( boost::multi_array< Const , K > & newc ,
                         std::string && name = "" , bool front = false ) {
   for( auto i = newc.data() ; i < ( newc.data() + newc.num_elements() ) ; )
-   (i++)->set_Block( this );
+   ( i++ )->set_Block( this );
 
   boost::multi_array< Const, K > * cnewc = &newc;
   if( front ) {
@@ -6778,6 +6778,29 @@ class Block : public Observer {
   boost::multi_array< Const, K > * cnewc = &newc;
   v_s_Constraint[ i ] = cnewc;
   v_s_Constraint_names[ i ] = std::move( name );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// boost::multi_array< K > of (...) of std::vector of Constraint
+
+ template< class Const , std::size_t K >
+ std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
+ add_static_constraint( boost::multi_array< std::vector< Const > , K > & newc ,
+                        std::string && name = "" , bool front = false ) {
+  for( auto v = newc.data() ; v < ( newc.data() + newc.num_elements() ) ; )
+   add_static_constraint( *( v++ ) , std::string( name ) , front );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// boost::multi_array< K > of (...) of std::vector of Constraint
+
+ template< class Const , std::size_t K >
+ std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
+ set_static_constraint( Index i ,
+                        boost::multi_array< std::vector< Const > , K > & newc ,
+                        std::string && name = "" ) {
+  for( auto v = newc.data() ; v < ( newc.data() + newc.num_elements() ) ; )
+   set_static_constraint( i++ , *( v++ ) , std::string( name ) );
   }
 
 /*--------------------------------------------------------------------------*/
