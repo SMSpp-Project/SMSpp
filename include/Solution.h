@@ -107,7 +107,12 @@ namespace SMSpp_di_unipi_it
  * being at the heart of countless many optimization techniques). This is
  * somehow delicate because some Solution, in particular discrete ones, may
  * not "be happy" with being arbitrarily scaled and/or summed, and thus
- * requires some care, see the comments to scale() and sum(). */
+ * requires some care, see the comments to scale() and sum().
+ *
+ * One may think that the base Solution class should be pure virtual, but
+ * this is not the case: the class is functional, but it does nothing. In
+ * other words, it represents an "empty Solution", suitable for an "empty
+ * Block" (or for "no solution has been generated yet". */
 
 class Solution
 {
@@ -315,9 +320,9 @@ class Solution
   *
   *      THIS IS THE METHOD TO BE IMPLEMENTED BY DERIVED CLASSES
   *
-  * and in fact it is pure virtual. */
+  * and in fact it does nothing in the base class. */
 
- virtual void deserialize( const netCDF::NcGroup & group ) = 0;
+ virtual void deserialize( const netCDF::NcGroup & group ) {};
 
 /*--------------------------------------------------------------------------*/
 
@@ -357,18 +362,20 @@ class Solution
  /** This method reads the solution of the given Block and stores it in this
   * Solution. A Solution object can be "configured" to take only a specific
   * part of the Block solution status: it is an error if block does not have
-  * the required part (and, a fortiori, if block is not the right Block). */
+  * the required part (and, a fortiori, if block is not the right Block).
+  * The method in the base class does nothing. */
 
- virtual void read( const Block * const block ) = 0;
+ virtual void read( const Block * const block ) {};
 
 /*--------------------------------------------------------------------------*/
  /// write the solution in the given Block
  /** This method writes the solution currently stored in this Solution in the
   * given Block. A Solution object can be "configured" to take only a specific
   * part of the Block solution status: it is an error if block does not have
-  * the required part (and, a fortiori, if block is not the right Block). */
+  * the required part (and, a fortiori, if block is not the right Block).
+  * The method in the base class does nothing. */
 
- virtual void write( Block * const block ) = 0;
+ virtual void write( Block * const block ) {};
 
 /*--------------------------------------------------------------------------*/
  /// returns a scaled version of this Solution
@@ -401,9 +408,12 @@ class Solution
   * a different type" than the originating one". The requirement is that the
   * newly created Solution must be a "general" one, in the sense that it
   * makes sense (obviously) to scale it, and also to *sum* it with other
-  * Solution objects, see sum(). */
+  * Solution objects, see sum(). The method in the base class returns
+  * another "empty" Solution object. */
 
- virtual Solution * scale( double factor ) const = 0;
+ virtual Solution * scale( double factor ) const {
+  return( new Solution() );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// adds a scaled version of the given Solution to this Solution
@@ -450,9 +460,10 @@ class Solution
   * integer). Thus, it may not be efficient to require scale() to return the
   * "more general" Solution. Yet, handling these special cases should always
   * be possible by requiring the Block to produce "the right kind of Solution
-  * object" by means of its Configuration. */
+  * object" by means of its Configuration.
+  * The method in the base class does nothing. */
 
- virtual void sum( const Solution * solution , double multiplier ) = 0;
+ virtual void sum( const Solution * solution , double multiplier ) {};
 
 /*--------------------------------------------------------------------------*/
 /// returns a clone of this Solution
@@ -467,9 +478,12 @@ class Solution
  * Note that clone() and scale( 1 ) return in principle the same Solution.
  * However, scale( 1 ) must return a "general solution" (see comments in
  * scale() and sum()), whereas clone() can return exactly the same type of
- * solution as the current one, i.e., a "less general" one if this is. */
+ * solution as the current one, i.e., a "less general" one if this is.
+ * The method in the base class returns another "empty" Solution object. */
 
- virtual Solution * clone( bool empty = false ) const = 0;
+ virtual Solution * clone( bool empty = false ) const  {
+  return( new Solution() );
+  }
 
 /** @} ---------------------------------------------------------------------*/
 /*--------------- METHODS FOR PRINTING & SAVING THE Solution ---------------*/
@@ -677,9 +691,13 @@ class Solution
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
- // Definition of Solution::private_name() (pure virtual)
+ // custom impementation of SMSpp_insert_in_factory_h
 
- [[nodiscard]] virtual const std::string & private_name( void ) const = 0;
+ [[nodiscard]] virtual const std::string & private_name( void ) const;
+
+ static class _init { public: _init( void ); } _initializer;
+
+ static const std::string & _private_name( void );
 
 /*--------------------------------------------------------------------------*/
 

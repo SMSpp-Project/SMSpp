@@ -406,10 +406,7 @@ namespace SMSpp_type_traits
 template< typename T >
 struct t;
 template< typename T , class U >
-struct t< T( U ) >
-{
- using type = U;
-};
+struct t< T( U ) > { using type = U; };
 }
 
 /*--------------------------------------------------------------------------*/
@@ -430,9 +427,9 @@ inline std::string && SMSpp_classname_normalise( std::string && str ) {
  while( str.front() == '(' ) {
   str.pop_back();
   str.erase( 0 , 1 );
- }
+  }
  return( std::move( str ) );
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 /** The macros SMSpp_insert_in_factory_cpp_* do five things for the class
