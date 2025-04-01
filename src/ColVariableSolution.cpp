@@ -44,8 +44,7 @@ SMSpp_insert_in_factory_cpp_0( ColVariableSolution );
 
 void ColVariableSolution::deserialize( const netCDF::NcGroup & group )
 {
- throw( std::logic_error( " ColVariableSolution::deserialize not ready yet" )
-	);
+ throw( std::logic_error( " ColVariableSolution::deserialize not ready yet" ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -60,8 +59,8 @@ void ColVariableSolution::delete_vectors() {
 
   for( Vec_any::size_type i = 0 ; i < static_variable_values.size() ; ++i )
 
-    if( ! un_any_thing( double , static_variable_values[i] ,
-                        [&var]() { delete &var; }() ) )
+    if( ! un_any_thing( double , static_variable_values[ i ] ,
+                        [ & var ]() { delete & var; }() ) )
 
       throw( std::logic_error
        ( std::string( "ColVariableSolution::~ColVariableSolution() "
@@ -71,8 +70,8 @@ void ColVariableSolution::delete_vectors() {
   for( Vec_any::size_type i = 0 ; i < dynamic_variable_values.size() ; ++i )
 
     if( ! un_any_thing( std::vector< double > ,
-                        dynamic_variable_values[i] ,
-                        [&var]() { delete &var; }() ) )
+                        dynamic_variable_values[ i ] ,
+                        [ & var ]() { delete & var; }() ) )
 
       throw( std::logic_error
        ( std::string( "ColVariableSolution::~ColVariableSolution() "
@@ -99,7 +98,7 @@ void ColVariableSolution::initialize( const Block * const block , bool read ) {
   auto nested_block_it = nested_blocks.begin();
   for( ; nested_solution_it != this->nested_solutions.end() ;
        ++nested_solution_it , ++nested_block_it )
-    (*nested_solution_it).initialize( *nested_block_it , read );
+    ( *nested_solution_it ).initialize( *nested_block_it , read );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -116,13 +115,13 @@ void ColVariableSolution::initialize_static_variable_values
 
     if( ! (
            un_any_static_2_create
-           ( variable_groups[i] , static_variable_values[i] ,
+           ( variable_groups[ i ] , static_variable_values[ i ] ,
              un_any_type< ColVariable >() , un_any_type< double >() ,
              []( ColVariable & variable , double & value ) {
              value = variable.get_value(); } , read )
            ||
            un_any_static_2_create
-           ( variable_groups[i] , static_variable_values[i] ,
+           ( variable_groups[ i ] , static_variable_values[ i ] ,
              un_any_type< ColVariable * >() , un_any_type< double >() ,
              []( ColVariable * variable , double & value ) {
              value = variable->get_value(); } , read ) ) )
@@ -147,7 +146,7 @@ void ColVariableSolution::initialize_dynamic_variable_values
 
     if( ! (
            un_any_dynamic_2_create
-           ( variable_groups[i] , dynamic_variable_values[i] ,
+           ( variable_groups[ i ] , dynamic_variable_values[ i ] ,
              un_any_type< ColVariable >() ,
              un_any_type< std::vector< double > >() ,
 
@@ -164,13 +163,13 @@ void ColVariableSolution::initialize_dynamic_variable_values
 
              for( ; i1 != list_variables.end() &&
                     i2 != list_values.end() ; ++i1 , ++i2 )
-               *i2 = (*i1).get_value();
+               *i2 = ( *i1 ).get_value();
            } , read )
 
            ||
 
            un_any_dynamic_2_create
-           ( variable_groups[i] , dynamic_variable_values[i] ,
+           ( variable_groups[ i ] , dynamic_variable_values[ i ] ,
              un_any_type< ColVariable * >() ,
              un_any_type< std::vector< double > >() ,
 
@@ -187,7 +186,7 @@ void ColVariableSolution::initialize_dynamic_variable_values
 
              for( ; i1 != list_variables.end() &&
                     i2 != list_values.end() ; ++i1 , ++i2 )
-               *i2 = (*i1)->get_value();
+               *i2 = ( *i1 )->get_value();
            } , read ) ) )
 
       throw( std::logic_error
@@ -218,13 +217,13 @@ void ColVariableSolution::apply_static( const Block * const block ,
   for( Vec_any::size_type i = 0; i < static_variable_values.size(); ++i ) {
 
     if( ! (
-           un_any_static_2( variable_groups[i] , static_variable_values[i] ,
+           un_any_static_2( variable_groups[ i ] , static_variable_values[ i ] ,
                             f1 ,
                             un_any_type< ColVariable >() ,
                             un_any_type< double >() )
            ||
-           un_any_static_2( variable_groups[i] ,
-                            static_variable_values[i] ,
+           un_any_static_2( variable_groups[ i ] ,
+                            static_variable_values[ i ] ,
                             f2 ,
                             un_any_type< ColVariable * >() ,
                             un_any_type< double >() )
@@ -255,12 +254,14 @@ void ColVariableSolution::apply_dynamic( const Block * const block ,
   for( Vec_any::size_type i = 0; i < dynamic_variable_values.size(); ++i ) {
 
     if( ! (
-           un_any_dynamic_2( variable_groups[i] , dynamic_variable_values[i] ,
+           un_any_dynamic_2( variable_groups[ i ] ,
+                             dynamic_variable_values[ i ] ,
                              f1 ,
                              un_any_type< ColVariable >() ,
                              un_any_type< std::vector< double > >() )
            ||
-           un_any_dynamic_2( variable_groups[i] , dynamic_variable_values[i] ,
+           un_any_dynamic_2( variable_groups[ i ] ,
+                             dynamic_variable_values[ i ] ,
                              f2 ,
                              un_any_type< ColVariable * >() ,
                              un_any_type< std::vector< double > >() )
@@ -308,7 +309,7 @@ void ColVariableSolution::read( const Block * const block ) {
 
                      for( ; i1 != list_variables.end() &&
                             i2 != list_values.end() ; ++i1 , ++i2 )
-                       *i2 = (*i1).get_value();
+                       *i2 = ( *i1 ).get_value();
                    } ,
 
                    []( std::list< ColVariable * > & list_variables ,
@@ -324,7 +325,7 @@ void ColVariableSolution::read( const Block * const block ) {
 
                      for( ; i1 != list_variables.end() &&
                             i2 != list_values.end() ; ++i1 , ++i2 )
-                       *i2 = (*i1)->get_value();
+                       *i2 = ( *i1 )->get_value();
                    }
                    );
   }
@@ -352,7 +353,7 @@ void ColVariableSolution::read( const Block * const block ) {
 
   auto sub_solution_iterator = nested_solutions.begin();
   for( auto & sub_block : sub_blocks ) {
-    (*sub_solution_iterator++).read( sub_block );
+    ( *sub_solution_iterator++ ).read( sub_block );
   }
 }
 
@@ -375,13 +376,13 @@ void ColVariableSolution::write( Block * const block ) {
 
                    for( ; i1 != list_variables.end() &&
                           i2 != list_values.end() ; ++i1 , ++i2 )
-                     (*i1).set_value(*i2);
+                     ( *i1 ).set_value( *i2 );
 
                    // If the number of Variables is greater than the number of
                    // values in the Solution, set the value of the remaining
                    // Variables to their default value.
                    for( ; i1 != list_variables.end() ; ++i1 )
-                     (*i1).set_to_default_value();
+                     ( *i1 ).set_to_default_value();
 
                  } ,
 
@@ -393,13 +394,13 @@ void ColVariableSolution::write( Block * const block ) {
 
                    for( ; i1 != list_variables.end() &&
                           i2 != list_values.end() ; ++i1 , ++i2 )
-                     (*i1)->set_value(*i2);
+                     ( *i1 )->set_value( *i2 );
 
                    // If the number of Variables is greater than the number of
                    // values in the Solution, set the value of the remaining
                    // Variables to their default value.
                    for( ; i1 != list_variables.end() ; ++i1 )
-                     (*i1)->set_to_default_value();
+                     ( *i1 )->set_to_default_value();
 
                  } );
 
@@ -416,7 +417,7 @@ void ColVariableSolution::write( Block * const block ) {
 
   auto sub_solution_iterator = nested_solutions.begin();
   for( auto & sub_block : sub_blocks ) {
-    (*sub_solution_iterator++).write( sub_block );
+    ( *sub_solution_iterator++ ).write( sub_block );
   }
 
 }
@@ -464,9 +465,9 @@ void ColVariableSolution::sum( const Solution * solution, double multiplier ) {
   for( Vec_any::size_type i = 0; i < static_variable_values.size(); ++i )
 
     if( ! un_any_static_2
-        ( this->static_variable_values[i] ,
-          other_solution->static_variable_values[i] ,
-          [multiplier]( double & this_value , double & other_value ) {
+        ( this->static_variable_values[ i ] ,
+          other_solution->static_variable_values[ i ] ,
+          [ multiplier ]( double & this_value , double & other_value ) {
           this_value += multiplier * other_value;
         } ,
           un_any_type< double >() , un_any_type< double >() ) )
@@ -482,9 +483,9 @@ void ColVariableSolution::sum( const Solution * solution, double multiplier ) {
   for( Vec_any::size_type i = 0; i < dynamic_variable_values.size(); ++i )
 
     if( ! un_any_static_2
-        ( this->dynamic_variable_values[i] ,
-          other_solution->dynamic_variable_values[i] ,
-          [multiplier]( std::vector< double > & this_values ,
+        ( this->dynamic_variable_values[ i ] ,
+          other_solution->dynamic_variable_values[ i ] ,
+          [ multiplier ]( std::vector< double > & this_values ,
                         std::vector< double > & other_values ) {
 
           // Reserve space in case the other solution has more dynamic
@@ -496,11 +497,11 @@ void ColVariableSolution::sum( const Solution * solution, double multiplier ) {
 
           for( ; i1 != this_values.end() &&
                  i2 != other_values.end() ; ++i1 , ++i2 )
-            *i1 += multiplier * (*i2);
+            *i1 += multiplier * ( *i2 );
 
           // Copy the values of the extra Variables
           for( ; i2 != other_values.end() ; ++i2 )
-            *i1 = multiplier * (*i2);
+            *i1 = multiplier * ( *i2 );
         } ,
           un_any_type< std::vector< double > >() ,
           un_any_type< std::vector< double > >() ) )
@@ -529,7 +530,7 @@ void ColVariableSolution::sum( const Solution * solution, double multiplier ) {
   auto i2 = other_solution->nested_solutions.begin();
 
   for( ; i1 != this->nested_solutions.end() ; ++i1 , ++i2 )
-    (*i1).sum( &(*i2) , multiplier );
+    ( *i1 ).sum( &( *i2 ) , multiplier );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -566,10 +567,10 @@ void ColVariableSolution::scale( const ColVariableSolution * const solution ,
   for( Vec_any::size_type i = 0; i < static_variable_values.size(); ++i )
 
     if( ! un_any_static_2_create
-        ( solution->static_variable_values[i] ,
-          this->static_variable_values[i] ,
+        ( solution->static_variable_values[ i ] ,
+          this->static_variable_values[ i ] ,
           un_any_type< double >() , un_any_type< double >() ,
-          [factor]( double & given_solution_value , double & scaled_value ) {
+          [ factor ]( double & given_solution_value , double & scaled_value ) {
           scaled_value = factor * given_solution_value;
         } ,
           true ) )
@@ -589,12 +590,12 @@ void ColVariableSolution::scale( const ColVariableSolution * const solution ,
   for( Vec_any::size_type i = 0; i < dynamic_variable_values.size(); ++i )
 
     if( ! un_any_static_2_create
-        ( solution->dynamic_variable_values[i] ,
-          this->dynamic_variable_values[i] ,
+        ( solution->dynamic_variable_values[ i ] ,
+          this->dynamic_variable_values[ i ] ,
           un_any_type< std::vector< double > >() ,
           un_any_type< std::vector< double > >() ,
-          [factor]( std::vector< double > & given_solution_values ,
-                    std::vector< double > & scaled_values ) {
+          [ factor ]( std::vector< double > & given_solution_values ,
+                      std::vector< double > & scaled_values ) {
           scaled_values.resize(0);
           scaled_values.reserve(given_solution_values.size());
           for( auto & value : given_solution_values )
@@ -616,7 +617,7 @@ void ColVariableSolution::scale( const ColVariableSolution * const solution ,
   auto i2 = solution->nested_solutions.begin();
 
   for( ; i1 != this->nested_solutions.end() ; ++i1 , ++i2 )
-    (*i1).scale( &(*i2) , factor );
+    ( *i1 ).scale( &( *i2 ) , factor );
 }
 
 /*--------------------------------------------------------------------------*/
