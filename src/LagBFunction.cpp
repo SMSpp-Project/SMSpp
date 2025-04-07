@@ -632,7 +632,9 @@ void LagBFunction::remove_variable( Index i , ModParam issueMod )
  // Lagrangian costs have to be updated unless in the stange case where the
  // removed variable had an empty corresponding Lagrangian term
 
- LagPairs.erase( itv );       // erase it
+ // delete the LinearFunction in the to-be-deleted LagPairs[ i ]
+ delete itv->second;
+ LagPairs.erase( itv );       // now erase it
 
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
@@ -748,7 +750,11 @@ void LagBFunction::remove_variables( Range range , ModParam issueMod )
    *(vpit++) = (tmpit++)->first;
    }
 
-  LagPairs.erase( strtit , stopit );
+  // delete the LinearFunction(s) in the to-be-deleted LagPairs[ i ]
+  for( auto LPi = strtit ; LPi < stopit ; ++LPi )
+   delete LPi->second;
+
+  LagPairs.erase( strtit , stopit );  // now erase them
 
   // a Lagrangian function is strongly quasi-additive: shift() == 0
   f_Observer->add_Modification( std::make_shared< C05FunctionModVarsRngd >(
@@ -766,7 +772,11 @@ void LagBFunction::remove_variables( Range range , ModParam issueMod )
      break;
      }
 
-  LagPairs.erase( strtit , stopit );
+  // delete the LinearFunction(s) in the to-be-deleted LagPairs[ i ]
+  for( auto LPi = strtit ; LPi < stopit ; ++LPi )
+   delete LPi->second;
+
+  LagPairs.erase( strtit , stopit );  // now erase them
   }
  }  // end( LinearFunction::remove_variables( range ) )
 
@@ -1789,7 +1799,7 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
  // the solution shall be written in the Variable of the Block - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( name == Inf< Index >() ) {  // the last computed linearization- - - - - - -
+ if( name == Inf< Index >() ) {  // the last computed linearization- - - - - -
 
   // get solution/direction from the solver
   if( LastSolution != Inf< Index >() ) {  // ... if necessary

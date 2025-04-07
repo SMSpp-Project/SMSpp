@@ -35,35 +35,42 @@ SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< int > );
 SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< double > );
 
 SMSpp_insert_in_factory_cpp_0_t(
- SimpleConfiguration< std::pair< int , int > > );
+                             SimpleConfiguration< std::pair< int , int > > );
 
 SMSpp_insert_in_factory_cpp_0_t(
- SimpleConfiguration< std::pair< double , double > > );
+                       SimpleConfiguration< std::pair< double , double > > );
 
 SMSpp_insert_in_factory_cpp_0_t(
- SimpleConfiguration< std::pair< int , double > > );
+                          SimpleConfiguration< std::pair< int , double > > );
 
 SMSpp_insert_in_factory_cpp_0_t(
- SimpleConfiguration< std::pair< double , int > > );
+                          SimpleConfiguration< std::pair< double , int > > );
+
+SMSpp_insert_in_factory_cpp_0_t(
+                 SimpleConfiguration< std::pair< int , Configuration * > > );
+
+SMSpp_insert_in_factory_cpp_0_t(
+              SimpleConfiguration< std::pair< double , Configuration * > > );
 
 SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< std::vector< int > > );
 
-SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< std::vector< double > > );
+SMSpp_insert_in_factory_cpp_0_t(
+			      SimpleConfiguration< std::vector< double > > );
 
 SMSpp_insert_in_factory_cpp_0_t(
- SimpleConfiguration< std::pair< Configuration * , Configuration * > > );
+     SimpleConfiguration< std::pair< Configuration * , Configuration * > > );
 
 SMSpp_insert_in_factory_cpp_0_t(
- SimpleConfiguration< std::vector< Configuration * > > );
+                     SimpleConfiguration< std::vector< Configuration * > > );
 
 SMSpp_insert_in_factory_cpp_0_t(
- SimpleConfiguration< std::vector< std::pair< int , int > > > );
+              SimpleConfiguration< std::vector< std::pair< int , int > > > );
 
 SMSpp_insert_in_factory_cpp_0_t(
- SimpleConfiguration< std::vector< std::pair< int , Configuration * > > > );
+  SimpleConfiguration< std::vector< std::pair< int , Configuration * > > > );
 
 SMSpp_insert_in_factory_cpp_0_t(
- SimpleConfiguration< std::map< std::string , Configuration * > > );
+          SimpleConfiguration< std::map< std::string , Configuration * > > );
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- FUNCTIONS --------------------------------*/
@@ -258,16 +265,138 @@ Configuration::ConfigurationFactoryMap & Configuration::f_factory( void ) {
 // these are the variants of serialize() and deserialize() for all the
 // "basic" versions of SimpleConfiguration
 
+/*--------------------------------------------------------------------------*/
+// std::pair< int , Configuration * >
+
+template<>
+SimpleConfiguration< std::pair< int , Configuration * > > *
+ SimpleConfiguration< std::pair< int , Configuration * > >::clone( void )
+ const {
+ auto sc = new SimpleConfiguration< std::pair< int , Configuration * > >();
+ sc->f_value.first = f_value.first;
+ sc->f_value.second = f_value.second ? f_value.second->clone() : nullptr;
+
+ return( sc );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::pair< int , Configuration * >
+                          >::guts_of_destructor( void )
+{
+ delete f_value.second;
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::pair< int , Configuration * >
+			  >::serialize( netCDF::NcGroup & group ) const
+{
+ Configuration::serialize( group );
+ SMSpp_di_unipi_it::serialize( group , f_value.first , "value_f" );
+ if( f_value.second ) {
+  auto cg = group.addGroup( "value_s" );
+  f_value.second->serialize( cg );
+  }
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::pair< int , Configuration * >
+			  >::deserialize( const netCDF::NcGroup & group )
+{
+ Configuration::deserialize( group );
+ SMSpp_di_unipi_it::deserialize( group , f_value.first , "value_f" , false );
+ delete f_value.second;
+ auto sc = group.getGroup( "value_s" );
+ f_value.second = new_Configuration( sc );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::pair< int , Configuration * >
+			  >::clear( void )
+{
+ if( f_value.second )
+  f_value.second->clear();
+ }
+
+/*--------------------------------------------------------------------------*/
+// std::pair< double , Configuration * >
+
+template<>
+SimpleConfiguration< std::pair< double , Configuration * > > *
+ SimpleConfiguration< std::pair< double , Configuration * > >::clone( void )
+ const {
+ auto sc = new SimpleConfiguration< std::pair< double , Configuration * > >();
+ sc->f_value.first = f_value.first;
+ sc->f_value.second = f_value.second ? f_value.second->clone() : nullptr;
+
+ return( sc );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::pair< double , Configuration * >
+                          >::guts_of_destructor( void )
+{
+ delete f_value.second;
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::pair< double , Configuration * >
+			  >::serialize( netCDF::NcGroup & group ) const
+{
+ Configuration::serialize( group );
+ SMSpp_di_unipi_it::serialize( group , f_value.first , "value_f" );
+ if( f_value.second ) {
+  auto cg = group.addGroup( "value_s" );
+  f_value.second->serialize( cg );
+  }
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::pair< double , Configuration * >
+			  >::deserialize( const netCDF::NcGroup & group )
+{
+ Configuration::deserialize( group );
+ SMSpp_di_unipi_it::deserialize( group , f_value.first , "value_f" , false );
+ delete f_value.second;
+ auto sc = group.getGroup( "value_s" );
+ f_value.second = new_Configuration( sc );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::pair< double , Configuration * >
+			  >::clear( void )
+{
+ if( f_value.second )
+  f_value.second->clear();
+ }
+
+/*--------------------------------------------------------------------------*/
+// std::pair< Configuration * , Configuration * >
+
 template<>
 SimpleConfiguration< std::pair< Configuration * , Configuration * > > *
  SimpleConfiguration< std::pair< Configuration * , Configuration * >
 		      >::clone( void ) const
 {
- auto sc = new SimpleConfiguration( *this );
- if( sc->f_value.first )
-  sc->f_value.first = sc->f_value.first->clone();
- if( sc->f_value.second )
-  sc->f_value.second = sc->f_value.second->clone();
+ auto sc = new SimpleConfiguration<
+                          std::pair< Configuration * , Configuration * > >();
+ sc->f_value.first = f_value.first ? f_value.first->clone() : nullptr;
+ sc->f_value.second = f_value.second ? f_value.second->clone() : nullptr;
 
  return( sc );
  }
@@ -327,16 +456,21 @@ void SimpleConfiguration< std::pair< Configuration * , Configuration * >
  }
 
 /*--------------------------------------------------------------------------*/
+// std::vector< Configuration * >
 
 template<>
 SimpleConfiguration< std::vector< Configuration * > > *
  SimpleConfiguration< std::vector< Configuration * > >::clone( void ) const
 {
- auto sc = new SimpleConfiguration( *this );
+ auto sc = new SimpleConfiguration< std::vector< Configuration * > >();
 
- for( auto & c : sc->f_value )
+ sc->f_value.resize( f_value.size() );
+ auto it = sc->f_value.begin();
+ for( auto c : f_value )
   if( c )
-   c = c->clone();
+   *(it++) = c->clone();
+  else
+   *(it++) = nullptr;
 
  return( sc );
  }
@@ -371,6 +505,7 @@ void SimpleConfiguration< std::vector< Configuration * > >::clear( void )
  }
 
 /*--------------------------------------------------------------------------*/
+// std::vector< std::pair< int , Configuration * > >
 
 template<>
 SimpleConfiguration< std::vector< std::pair< int , Configuration * > > > *
@@ -378,12 +513,14 @@ SimpleConfiguration< std::vector< std::pair< int , Configuration * > > > *
 		      >::clone( void ) const
 {
  auto sc = new SimpleConfiguration<
-               std::vector< std::pair< int , Configuration * > > >( *this );
+                       std::vector< std::pair< int , Configuration * > > >();
 
- for( auto & [ i , c ] : sc->f_value )
-  if( c )
-   c = c->clone();
-
+ sc->f_value.resize( f_value.size() );
+ auto it = sc->f_value.begin();
+ for( auto & [ i , c ] : f_value ) {
+  (*it).second = c ? c->clone() : nullptr;
+  (*(it++)).first = i;
+  }
  return( sc );
  }
 
@@ -407,16 +544,12 @@ void SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
  if( f_value.empty() )
   return;
 
- auto sz = group.addDim( "size" , f_value.size() );
-
  std::vector< int > tmp( f_value.size() );
  for( size_t i = 0 ; i < f_value.size() ; ++i )
   tmp[ i ] = f_value[ i ].first;
 
- std::vector< size_t > startp = { 0 };
- std::vector< size_t > countp = { f_value.size() };
- ( group.addVar( "int_vals" , netCDF::NcInt() , sz )
-   ).putVar( startp , countp , tmp.data() );
+ auto sz = group.addDim( "size" , f_value.size() );
+ ::serialize( group , "first_vals" , netCDF::NcInt() , sz , tmp );
 
  for( size_t i = 0 ; i < f_value.size() ; ++i )
   if( f_value[ i ].second ) {
@@ -440,15 +573,13 @@ void SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
   return;
   }
 
- size_t sz = dim.getSize();
+ auto sz = dim.getSize();
  if( ! sz )
   return;
 
  std::vector< int > tmp( sz );
- std::vector< size_t > start = { 0 };
- std::vector< size_t > count = { sz };
- ( group.getVar( "int_vals" ) ).getVar( start , count , tmp.data() );
-
+ ::deserialize( group , "first_vals" , sz , tmp , false );
+ 
  f_value.resize( sz );
  for( size_t i = 0 ; i < f_value.size() ; ++i ) {
   f_value[ i ].first = tmp[ i ];
@@ -469,6 +600,7 @@ void SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
  }
 
 /*--------------------------------------------------------------------------*/
+// std::map< std::string , Configuration * >
 
 template<>
 SimpleConfiguration< std::map< std::string , Configuration * > > *
