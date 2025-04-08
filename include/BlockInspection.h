@@ -206,6 +206,44 @@ namespace SMSpp_di_unipi_it::inspection
 
 /*--------------------------------------------------------------------------*/
 
+ template< typename T , std::size_t K >
+ static Index get_static_element_size_
+  ( const boost::multi_array< T , K > & multi_array ) {
+  return( multi_array.size() );
+ }
+
+ template< typename T >
+ static Index get_static_element_size_
+  ( const std::vector< T > & vector ) {
+  return( vector.size() );
+ }
+
+ template< typename T >
+ static Index get_static_element_size_( const T & t ) {
+  return( 1 );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ template< typename T , std::size_t K >
+ static Index get_dynamic_element_size_
+ ( const boost::multi_array< std::list< T > , K > & multi_array ) {
+  return( multi_array.size() );
+ }
+
+ template< typename T >
+ static Index get_dynamic_element_size_
+  ( const std::vector< std::list< T > > & vector ) {
+  return( vector.size() );
+ }
+
+ template< typename T >
+ static Index get_dynamic_element_size_( const std::list< T > & list ) {
+  return( list.size() );
+ }
+
+/*--------------------------------------------------------------------------*/
+
  template< class S , class T , class... Rest>
  static Index get_static_index( const S * s , const boost::any & group ) {
   if constexpr( std::is_base_of_v< S , T > ) {
@@ -293,6 +331,39 @@ namespace SMSpp_di_unipi_it::inspection
 
 /*--------------------------------------------------------------------------*/
 
+ template< class S , class T , class... Rest >
+ static Index get_static_element_size( const boost::any & group ) {
+  if constexpr( std::is_base_of_v< S , T > ) {
+   Index size;
+   bool group_found = un_any_thing
+    ( T , group , { size = get_static_element_size_( var ); } );
+   if( group_found )
+    return( size );
+  }
+  if constexpr( sizeof...(Rest) != 0 )
+   return( get_static_element_size< S , Rest... >( group ) );
+  return( Inf< Index >() );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ template< class S , class T , class... Rest >
+ static Index get_dynamic_element_size( const boost::any & group ) {
+  if constexpr( std::is_base_of_v< S , T > ) {
+   Index size;
+   bool group_found = un_any_thing
+    ( std::list< T > , group ,
+      { size = get_dynamic_element_size_( var ); } );
+   if( group_found )
+    return( size );
+  }
+  if constexpr( sizeof...(Rest) != 0 )
+   return( get_dynamic_element_size< S , Rest... >( group ) );
+  return( Inf< Index >() );
+ }
+
+/*--------------------------------------------------------------------------*/
+
  template< class T >
  static const boost::any & get_group( const Block * block , Index group_index ,
                                       bool is_static ) {
@@ -355,15 +426,34 @@ namespace SMSpp_di_unipi_it::inspection
    if( is_static )
     return( get_static_element< T , Variable_Derived_Classes >
      ( group , element_index ) );
-    return( get_dynamic_element< T , Variable_Derived_Classes >
-     ( group , element_index ) );
+   return( get_dynamic_element< T , Variable_Derived_Classes >
+    ( group , element_index ) );
   }
   else {
    if( is_static )
     return( get_static_element< T , Constraint_Derived_Classes >
      ( group , element_index ) );
-    return( get_dynamic_element< T , Constraint_Derived_Classes >
-     ( group , element_index ) );
+   return( get_dynamic_element< T , Constraint_Derived_Classes >
+    ( group , element_index ) );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ template< class T >
+ static Index get_element_size( const Block * block , bool is_static ,
+                                Index group_index ) {
+  auto group = get_group< T >( block , group_index , is_static );
+  constexpr bool is_variable = std::is_base_of_v< Variable , T >;
+  if constexpr ( is_variable ) {
+   if( is_static )
+    return( get_static_element_size< T , Variable_Derived_Classes >( group ) );
+   return( get_dynamic_element_size< T , Variable_Derived_Classes >( group ) );
+  }
+  else {
+   if( is_static )
+    return( get_static_element_size< T , Constraint_Derived_Classes >( group ) );
+   return( get_dynamic_element_size< T , Constraint_Derived_Classes >( group ) );
   }
  }
 
@@ -554,11 +644,11 @@ namespace SMSpp_di_unipi_it::inspection
   group_index = id.first - num_static_groups;
   const auto & dynamic_constraints = block->get_dynamic_constraints();
 
-   if( group_index >= dynamic_constraints.size() )
-    throw( std::logic_error( "get_Constraint: invalid dynamic Constraint group "
-                             "index: " + std::to_string( group_index ) ) );
+  if( group_index >= dynamic_constraints.size() )
+   throw( std::logic_error( "get_Constraint: invalid dynamic Constraint group "
+                            "index: " + std::to_string( group_index ) ) );
 
-   auto any_group = dynamic_constraints[ group_index ];
+  auto any_group = dynamic_constraints[ group_index ];
 
   return( get_dynamic_element< Constraint , Constraint_Derived_Classes >
    ( any_group , constraint_index ) );
