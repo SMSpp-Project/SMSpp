@@ -887,14 +887,17 @@ void LagBFunction::remove_variables( Subset && nms , bool ordered ,
     }
 
  // now actually eliminate the rows from LagPairs- - - - - - - - - - - - - - -
- auto it = nms.begin();
- auto vi = *it;    // first element to be eliminated
- auto curr = LagPairs.begin() + vi;   // position where to move stuff
+ // first of all delete the affected LinearFunction
+ for( auto idx : nms )
+  delete LagPairs[ idx ].second;
 
  if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
   // somebody is there: meanwhile, prepare data for the Modification
   // (as it will be destroyed during the process)
 
+  auto it = nms.begin();
+  auto vi = *it;    // first element to be eliminated
+  auto curr = LagPairs.begin() + vi;   // position where to move stuff
   Vec_p_Var vars( nms.size() );
   auto its = vars.begin();
 
@@ -903,7 +906,7 @@ void LagBFunction::remove_variables( Subset && nms , bool ordered ,
 
   for( ; it < nms.end() ; ++vi )
    if( *it == vi )                // one element to be eliminated
-    *(its++) = LagPairs[ *(it++) ].first;  // skip it, but record the Variable
+    *(its++) = LagPairs[ *(it++) ].first;  // skip it, but keep the Variable
    else
     *(curr++) = std::move( LagPairs[ vi ] );  // move in the current position
 
