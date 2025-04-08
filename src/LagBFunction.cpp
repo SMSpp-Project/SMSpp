@@ -632,7 +632,9 @@ void LagBFunction::remove_variable( Index i , ModParam issueMod )
  // Lagrangian costs have to be updated unless in the stange case where the
  // removed variable had an empty corresponding Lagrangian term
 
- LagPairs.erase( itv );       // erase it
+ // delete the LinearFunction in the to-be-deleted LagPairs[ i ]
+ delete itv->second;
+ LagPairs.erase( itv );       // now erase it
 
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
@@ -748,7 +750,11 @@ void LagBFunction::remove_variables( Range range , ModParam issueMod )
    *(vpit++) = (tmpit++)->first;
    }
 
-  LagPairs.erase( strtit , stopit );
+  // delete the LinearFunction(s) in the to-be-deleted LagPairs[ i ]
+  for( auto LPi = strtit ; LPi < stopit ; ++LPi )
+   delete LPi->second;
+
+  LagPairs.erase( strtit , stopit );  // now erase them
 
   // a Lagrangian function is strongly quasi-additive: shift() == 0
   f_Observer->add_Modification( std::make_shared< C05FunctionModVarsRngd >(
@@ -766,7 +772,11 @@ void LagBFunction::remove_variables( Range range , ModParam issueMod )
      break;
      }
 
-  LagPairs.erase( strtit , stopit );
+  // delete the LinearFunction(s) in the to-be-deleted LagPairs[ i ]
+  for( auto LPi = strtit ; LPi < stopit ; ++LPi )
+   delete LPi->second;
+
+  LagPairs.erase( strtit , stopit );  // now erase them
   }
  }  // end( LinearFunction::remove_variables( range ) )
 
@@ -877,14 +887,17 @@ void LagBFunction::remove_variables( Subset && nms , bool ordered ,
     }
 
  // now actually eliminate the rows from LagPairs- - - - - - - - - - - - - - -
- auto it = nms.begin();
- auto vi = *it;    // first element to be eliminated
- auto curr = LagPairs.begin() + vi;   // position where to move stuff
+ // first of all delete the affected LinearFunction
+ for( auto idx : nms )
+  delete LagPairs[ idx ].second;
 
  if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
   // somebody is there: meanwhile, prepare data for the Modification
   // (as it will be destroyed during the process)
 
+  auto it = nms.begin();
+  auto vi = *it;    // first element to be eliminated
+  auto curr = LagPairs.begin() + vi;   // position where to move stuff
   Vec_p_Var vars( nms.size() );
   auto its = vars.begin();
 
@@ -893,7 +906,7 @@ void LagBFunction::remove_variables( Subset && nms , bool ordered ,
 
   for( ; it < nms.end() ; ++vi )
    if( *it == vi )                // one element to be eliminated
-    *(its++) = LagPairs[ *(it++) ].first;  // skip it, but record the Variable
+    *(its++) = LagPairs[ *(it++) ].first;  // skip it, but keep the Variable
    else
     *(curr++) = std::move( LagPairs[ vi ] );  // move in the current position
 
@@ -1789,7 +1802,7 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
  // the solution shall be written in the Variable of the Block - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( name == Inf< Index >() ) {  // the last computed linearization- - - - - - -
+ if( name == Inf< Index >() ) {  // the last computed linearization- - - - - -
 
   // get solution/direction from the solver
   if( LastSolution != Inf< Index >() ) {  // ... if necessary

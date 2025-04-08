@@ -8402,7 +8402,7 @@ class BlockConfig : public Configuration {
 
   auto newBC = new BlockConfig( this->is_diff() );
   this->move_non_null_configuration_to( newBC );
-  block->set_BlockConfig( newBC, deleteold );
+  block->set_BlockConfig( newBC , deleteold );
   }
 
 /*--------------------------------------------------------------------------*/

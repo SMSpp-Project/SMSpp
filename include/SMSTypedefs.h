@@ -2374,7 +2374,7 @@ inline std::vector< std::size_t > get_sizes_dimensions(
 template< class T >
 std::enable_if_t< is_netCDF_type_v< T > , bool >
 deserialize( const netCDF::NcGroup & group , const std::string & name ,
-             const std::size_t & size , std::vector< T > & data ,
+             const std::size_t size , std::vector< T > & data ,
              bool optional = true , bool allow_scalar_var = false ) {
  if( ! size ) {
   data.clear();

@@ -721,6 +721,8 @@ class Configuration
  *  - SimpleConfiguration< std::pair< double , double > >
  *  - SimpleConfiguration< std::pair< int , double > >
  *  - SimpleConfiguration< std::pair< double , int > >
+ *  - SimpleConfiguration< std::pair< int , Configuration * > >
+ *  - SimpleConfiguration< std::pair< double , Configuration * > >
  *  - SimpleConfiguration< std::vector< int > >
  *  - SimpleConfiguration< std::vector< double > >
  *  - SimpleConfiguration< std::pair< Configuration * , Configuration * > >
@@ -1037,6 +1039,59 @@ void serialize( netCDF::NcGroup & group , const C< Configuration * > & data ,
  *  @{ */
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+// std::pair< int , Configuration * >
+// it would be nice to have this template over the type of the first element
+// of the std::pair, but apparently you cannot *partly* specialise template
+// functions, only *fully* specialise them; there may be a clever workaround
+// but it's simpler to do just a bit of cut&paste
+
+template<>
+SimpleConfiguration< std::pair< int , Configuration * > > *
+ SimpleConfiguration< std::pair< int , Configuration * > >::clone( void )
+ const;
+
+template<>
+void SimpleConfiguration< std::pair< int , Configuration * >
+                          >::guts_of_destructor( void );
+
+template<>
+void SimpleConfiguration< std::pair< int , Configuration * >
+                                     >::serialize( netCDF::NcGroup & group )
+ const;
+
+template<>
+void SimpleConfiguration< std::pair< int , Configuration * >
+                              >::deserialize( const netCDF::NcGroup & group );
+
+template<>
+void SimpleConfiguration< std::pair< int , Configuration * > >::clear( void );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+// std::pair< double , Configuration * > (see above)
+
+template<>
+SimpleConfiguration< std::pair< double , Configuration * > > *
+ SimpleConfiguration< std::pair< double , Configuration * > >::clone( void )
+ const;
+
+template<>
+void SimpleConfiguration< std::pair< double , Configuration * >
+                          >::guts_of_destructor( void );
+
+template<>
+void SimpleConfiguration< std::pair< double , Configuration * >
+                                     >::serialize( netCDF::NcGroup & group )
+ const;
+
+template<>
+void SimpleConfiguration< std::pair< double , Configuration * >
+                              >::deserialize( const netCDF::NcGroup & group );
+
+template<>
+void SimpleConfiguration< std::pair< double , Configuration * >
+                          >::clear( void );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 // std::pair< Configuration * , Configuration * >
 
 template<>
@@ -1089,11 +1144,15 @@ void SimpleConfiguration< std::vector< Configuration * > >::clear( void );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 // std::vector< std::pair< int , Configuration * > >
+// it would be nice to have this template over the type of the first element
+// of the std::pair, but apparently you cannot *partly* specialise template
+// functions, only *fully* specialise them; there may be a clever workaround
+// but it's simpler to do just a bit of cut&paste
 
 template<>
 SimpleConfiguration< std::vector< std::pair< int , Configuration * > > > *
  SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
- >::clone( void ) const;
+                                                      >::clone( void ) const;
 
 template<>
 void SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
@@ -1101,8 +1160,7 @@ void SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
 
 template<>
 void SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
-                          >::serialize( netCDF::NcGroup & group )
- const;
+                          >::serialize( netCDF::NcGroup & group ) const;
 
 template<>
 void SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
