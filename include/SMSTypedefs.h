@@ -745,6 +745,9 @@ bool SMSpp_ensure_load_var;
  *
  *  - a pointer to a boost::multi_array< K > of objects of some type (...);
  *
+ *  - a pointer to a boost::multi_array< K > of std::vector of objects of some
+ *    type (...);
+ *
  *  - a pointer to a single std::list of objects of some type (...);
  *
  *  - a pointer to a std::vector of std::list of objects of some type (...);
@@ -824,7 +827,10 @@ struct un_any_type {};
  *
  * - a pointer (reference) to a std::vector< T >;
  *
- * - a pointer (reference) to a  boost::multi_array< T , K > for "all" K;
+ * - a pointer (reference) to a boost::multi_array< T , K > for "all" K;
+ *
+ * - a pointer (reference) to a boost::multi_array< std::vector< T > , K > for
+ *   "all" K;
  *
  * and apply the function "f" to all the objects of type T it contains. "f"
  * must be a ( T & ) --> void function (it could also be a ( T ) --> void
@@ -871,12 +877,22 @@ bool un_any_static( boost::any & any , F f , un_any_type< T > ,
   auto & var = *boost::any_cast< boost::multi_array< T , K > * >( any );
   T * p = var.data();
   for( auto i = var.num_elements() ; i-- ; )
-   f( *(p++) );
+   f( *( p++ ) );
   return( true );
   }
  else
-  return( un_any_static( any , f , un_any_type< T >() ,
-                         un_any_int< K + 1 >() ) );
+  if( any.type() == typeid( boost::multi_array< std::vector< T > , K > * ) ) {
+   auto & var =
+    *boost::any_cast< boost::multi_array< std::vector< T > , K > * >( any );
+   std::vector< T > * p = var.data();
+   for( auto i = var.num_elements() ; i-- ; ++p )
+    for( auto & ell : *p )
+     f( ell );
+   return( true );
+   }
+  else
+   return( un_any_static( any , f , un_any_type< T >() ,
+                          un_any_int< K + 1 >() ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -894,6 +910,9 @@ bool un_any_static( boost::any & any , F f , un_any_type< T > ,
  *   std::vector< U >;
  *
  * - a pointer (reference) to a boost::multi_array< T , K > and a
+ *   pointer (reference) to a boost::multi_array< U , K >, for "all" K;
+ *
+ * - a pointer (reference) to a boost::multi_array< std::vector< T > , K > and a
  *   pointer (reference) to a boost::multi_array< U , K >, for "all" K;
  *
  * and apply the function "f" to all corresponding pairs of objects of type T
@@ -986,18 +1005,45 @@ bool un_any_static_2( const boost::any & any1 , const boost::any & any2 ,
        ( ! std::equal( var1.shape() , var1.shape() + var1.num_dimensions() ,
                        var2.shape() ) ) )
     throw( std::logic_error(
-              "un_any_static_2:  multi_arrays must have the same shape" ) );
+              "un_any_static_2: multi_arrays must have the same shape" ) );
   #endif
   T * p1 = var1.data();
   U * p2 = var2.data();
   for( auto i = std::min( var1.num_elements() , var2.num_elements() ) ;
        i-- ; )
-   f( *(p1++) , *(p2++) );
+   f( *( p1++ ) , *( p2++ ) );
   return( true );
   }
  else
-  return( un_any_static_2( any1 , any2 , f , un_any_type< T >() ,
-                           un_any_type< U >() , un_any_int< K + 1 >() ) );
+  if( any1.type() == typeid( boost::multi_array< std::vector< T > , K > * ) ) {
+   auto & var1 =
+    *boost::any_cast< boost::multi_array< std::vector< T > , K > * >( any1 );
+   #ifndef NDEBUG
+    if( any2.type() != typeid( boost::multi_array< std::vector< U > , K > * ) )
+     throw( std::invalid_argument(
+                           "un_any_static_2: second argument not U *" ) );
+   #endif
+   auto & var2 = *boost::any_cast< boost::multi_array< std::vector< U > , K > * >( any2 );
+   #ifndef NDEBUG
+    if( ( var1.num_dimensions() != var2.num_dimensions() ) ||
+        ( ! std::equal( var1.shape() , var1.shape() + var1.num_dimensions() ,
+                        var2.shape() ) ) )
+     throw( std::logic_error(
+             "un_any_static_2: multi_arrays must have the same shape" ) );
+   #endif
+   std::vector< T > * p1 = var1.data();
+   std::vector< U > * p2 = var2.data();
+   for( auto i = std::min( var1.num_elements() , var2.num_elements() ) ;
+        --i ; ++p1 , ++p2 ) {
+    auto it_p2 = p2->begin();
+    for( auto & ell : *p1 )
+     f( ell , *( it_p2++ ) );
+   }
+   return( true );
+   }
+  else
+   return( un_any_static_2( any1 , any2 , f , un_any_type< T >() ,
+                            un_any_type< U >() , un_any_int< K + 1 >() ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1022,6 +1068,11 @@ bool un_any_static_2( const boost::any & any1 , const boost::any & any2 ,
  *   boost::multi_array pointed by "any1" and the pointer to this newly
  *   created object is stored in "any2", for "all" K.
  *
+ * - a pointer (reference) to a boost::multi_array< std::vector< T > , K >, then
+ *   a boost::multi_array< U , K > is created having the same shape as the
+ *   boost::multi_array pointed by "any1" and the pointer to this newly
+ *   created object is stored in "any2", for "all" K.
+ *
  * The function can work with any K, but a maximum K has to be fixed at
  * compile time; currently the maximum K is 8, but it may be easily extended
  * to go higher if needed.
@@ -1041,14 +1092,11 @@ bool un_any_static_2_create( const boost::any & any1 , boost::any & any2 ,
                              bool apply_f = true ) {
  if( any1.type() == typeid( T * ) ) {
   any2 = new U();
-
   if( apply_f ) {
    auto & var1 = *boost::any_cast< T * >( any1 );
    auto & var2 = *boost::any_cast< U * >( any2 );
-
    f( var1 , var2 );
    }
-
   return( true );
   }
  else {
@@ -1061,7 +1109,6 @@ bool un_any_static_2_create( const boost::any & any1 , boost::any & any2 ,
     for( auto i1 = var1.begin() ; i1 != var1.end() ; ++i1 , ++i2 )
      f( *i1 , *i2 );
     }
-
    return( true );
    }
   else
@@ -1093,15 +1140,35 @@ bool un_any_static_2_create( const boost::any & any1 , boost::any & any2 ,
    U * p2 = var2.data();
    for( auto i = std::min( var1.num_elements() , var2.num_elements() ) ;
         i-- ; )
-    f( *(p1++) , *(p2++) );
+    f( *( p1++ ) , *( p2++ ) );
    }
-
   return( true );
   }
  else
-  return( un_any_static_2_create( any1 , any2 , un_any_type< T >() ,
-                                  un_any_type< U >() ,
-                                  un_any_int< K + 1 >() , f , apply_f ) );
+  if( any1.type() == typeid( boost::multi_array< std::vector< T > , K > * ) ) {
+   auto & var1 =
+    *boost::any_cast< boost::multi_array< std::vector< T > , K > * >( any1 );
+   auto first = var1.shape();
+   std::vector< int > shape( first , first + var1.num_dimensions() );
+   any2 = new boost::multi_array< std::vector< U > , K >( shape );
+   if( apply_f ) {
+    auto & var2 = *boost::any_cast< boost::multi_array< std::vector< U > , K > * >( any2 );
+    std::vector< T > * p1 = var1.data();
+    std::vector< U > * p2 = var2.data();
+    for( auto i = std::min( var1.num_elements() , var2.num_elements() ) ;
+         --i ; ++p1 , ++p2 ) {
+     p2->resize( p1->size() );
+     auto it_p2 = p2->begin();
+     for( auto & ell : *p1 )
+      f( ell , *( it_p2++ ) );
+    }
+   }
+   return( true );
+   }
+  else
+   return( un_any_static_2_create( any1 , any2 , un_any_type< T >() ,
+                                   un_any_type< U >() ,
+                                   un_any_int< K + 1 >() , f , apply_f ) );
  }
 
 template< typename T , typename U >
@@ -1123,7 +1190,10 @@ bool un_any_static_2_create( const boost::any & any1 , boost::any & any2 ,
  *
  * - a pointer (reference) to a std::vector< T >;
  *
- * - a pointer (reference) to a  boost::multi_array< T , K > for "all" K;
+ * - a pointer (reference) to a boost::multi_array< T , K > for "all" K;
+ *
+ * - a pointer (reference) to a boost::multi_array< std::vector< T > , K > for
+ *   "all" K;
  *
  * and apply the function "f" to all the objects of type T it contains. "f"
  * must be a ( T & ) --> void function (it could also be a ( T ) --> void
@@ -1172,11 +1242,21 @@ bool un_any_const_static( const boost::any & any , F f ,
   auto & var = *boost::any_cast< boost::multi_array< T , K > * >( any );
   T * p = var.data();
   for( auto i = var.num_elements() ; i-- ; )
-   f( *(p++) );
+   f( *( p++ ) );
   return( true );
   }
  else
-  return( un_any_const_static( any , f , un_any_type< T >() ,
+  if( any.type() == typeid( boost::multi_array< std::vector< T > , K > * ) ) {
+   auto & var =
+    *boost::any_cast< boost::multi_array< std::vector< T > , K > * >( any );
+   std::vector< T > * p = var.data();
+   for( auto i = var.num_elements() ; i-- ; ++p )
+    for( auto & ell : *p )
+     f( ell );
+   return( true );
+   }
+  else
+   return( un_any_const_static( any , f , un_any_type< T >() ,
                                un_any_int< K + 1 >() ) );
  }
 
@@ -1191,7 +1271,7 @@ bool un_any_const_static( const boost::any & any , F f ,
  *
  * - a pointer (reference) to a std::vector< std::list< T > >;
  *
- * - a pointer (reference) to a  boost::multi_array< std::list< T > , K > for
+ * - a pointer (reference) to a boost::multi_array< std::list< T > , K > for
  *   "all" K;
  *
  * and apply the function "f" to all the objects of type T it contains. Note
@@ -1357,7 +1437,7 @@ bool un_any_dynamic_2( const boost::any & any1 , const boost::any & any2 ,
   U * p2 = var2.data();
   for( auto i = std::min( var1.num_elements() , var2.num_elements() ) ;
        --i ; )
-   f( *(p1++) , *(p2++) );
+   f( *( p1++ ) , *( p2++ ) );
   return( true );
   }
  else
@@ -1456,7 +1536,7 @@ bool un_any_dynamic_2_create( const boost::any & any1 , boost::any & any2 ,
    U * p2 = var2.data();
    for( auto i = std::min( var1.num_elements() , var2.num_elements() ) ;
         --i ; )
-    f( *(p1++) , *(p2++) );
+    f( *( p1++ ) , *( p2++ ) );
    }
   return( true );
   }
@@ -1486,7 +1566,7 @@ bool un_any_dynamic_2_create( const boost::any & any1 , boost::any & any2 ,
  *
  * - a pointer (reference) to a std::vector< std::list< T > >;
  *
- * - a pointer (reference) to a  boost::multi_array< std::list< T > , K > for
+ * - a pointer (reference) to a boost::multi_array< std::list< T > , K > for
  *   "all" K;
  *
  * and apply the function "f" to all the objects of type T it contains. Note
@@ -1580,6 +1660,8 @@ bool un_any_const_dynamic( const boost::any & any , F f ,
  * - a pointer to a std::vector of "thing_type";
  *
  * - a pointer to a boost::multi_array< K > of "thing_type";
+ *
+ * - a pointer to a boost::multi_array< K > of std::vector of "thing_type";
  *
  * - a pointer to a std::list of "thing_type";
  *
@@ -1929,11 +2011,11 @@ std::istream & operator>>( std::istream & is , C< T > & l ) {
    unsigned int j;
    is >> eatcomments >> j;
    for( ; p < j ; ++p )
-    *(lit++) = T();
-   is >> eatcomments >> *(lit++);
+    *( lit++ ) = T();
+   is >> eatcomments >> *( lit++ );
    }
   while( lit != l.end() )
-   *(lit++) = T();
+   *( lit++ ) = T();
   }
 
  return( is );
@@ -2563,7 +2645,7 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
  auto fit = f.begin();
  auto sit = s.begin();
  for( auto & el : data )
-  el = std::pair( *(fit++) , *(sit++) );
+  el = std::pair( *( fit++ ) , *( sit++ ) );
 
  return( true );
  }
@@ -2668,8 +2750,8 @@ serialize( netCDF::NcGroup & group , const std::string & name ,
  auto fit = f.begin();
  auto sit = s.begin();
  for( auto & el : data ) {
-  *(fit++) = el.first;
-  *(sit++) = el.second;
+  *( fit++ ) = el.first;
+  *( sit++ ) = el.second;
   }
 
  serialize( group , name + "_f" , typ2nCDF< T1 >() , ncDim , f );
@@ -3008,7 +3090,7 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
   array[ i ].resize( strt[ i ] );
   auto aiit = array[ i ].begin();
   for( const auto aiend = array[ i ].end() ; aiit != aiend ; )
-   *(aiit++) = *(tit++);
+   *( aiit++ ) = *( tit++ );
   }
 
  return( true );

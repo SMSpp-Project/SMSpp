@@ -13,7 +13,7 @@
  * has to boost::any_cast<> (in particular, Constraint and Variable), and
  * therefore it has to have a list of the kind of types that they may have.
  * Hence, this class at any point in time works only with a specific subset
- * of those classes, and if new types need be handled than the class has to
+ * of those classes, and if new types need to be handled, then the class has to
  * be manually updated. This is made a bit easier by the two macros
  *
  *     Constraint_Derived_Classes
@@ -23,7 +23,7 @@
  *
  * Also, AbstractPath has a specific management for:
  *
- * - Function that appear in the Constraint and Objective, i.e.,
+ * - Function that appears in the Constraint and Objective, i.e.,
  *   FRealObjective and FRowConstraint;
  *
  * - Function that have a Block (are a Block), i.e., BendersBFunction and
@@ -32,7 +32,7 @@
  * - PolyhedralFunction, if it is part of a PolyhedralFunctionBlock.
  *
  * Again, should more type of this kind of stuff be defined that needs
- * handling, this class would have to properly manually extended.
+ * handling, this class would have to properly manually extend.
  *
  * \author Rafael Durbano Lobato \n
  *         Dipartimento di Informatica \n
@@ -57,7 +57,6 @@
 #include "PolyhedralFunctionBlock.h"
 #include "SMSTypedefs.h"
 
-#include <cstddef>
 #include <iterator>
 #include <vector>
 #include <netcdf>
@@ -253,8 +252,11 @@ private:
  /// Name of the netCDF variable that stores the array with group indices
  inline static const std::string group_index_name = "PathGroupIndices";
 
- /// Name of the netCDF variable that stores the array of element indices
+ /// Name of the netCDF variable that stores the array of first element indices
  inline static const std::string element_index_name = "PathElementIndices";
+
+ /// Name of the netCDF variable that stores the array of last element indices
+ inline static const std::string element_range_name = "PathRangeIndices";
 
 /** @} ---------------------------------------------------------------------*/
 /*-------------------------- PRIVATE CLASSES -------------------------------*/
@@ -292,13 +294,13 @@ private:
 /*--------------------------------------------------------------------------*/
 
   Node() : type( 'N' ) , group_index( Inf< Index >() ) ,
-           element_index( Inf< Index >() ) {}
+           element_index( Inf< Index >() ) , range_index( Inf< Index >() ) {}
 
 /*--------------------------------------------------------------------------*/
 
-  Node( NodeType type , Index group_index , Index element_index )
+  Node( NodeType type , Index group_index , Index element_index , Index range_index )
    : type( type ) , group_index( group_index ) ,
-     element_index( element_index ) {}
+     element_index( element_index ) , range_index( range_index ) {}
 
 /*--------------------------------------------------------------------------*/
 
@@ -348,9 +350,16 @@ private:
 
 /*--------------------------------------------------------------------------*/
 
+  static bool has_range( NodeType type ) {
+   return( is_variable( type ) || is_constraint( type ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+
   NodeType type;
   Index group_index;
   Index element_index;
+  Index range_index;
 
  };
 
@@ -374,6 +383,11 @@ private:
    else
     type = Node::to_dynamic( type );
    node_types.push_back( type );
+
+   if( Node::has_range( type ) )
+    range_indices.push_back( 1 );
+   else
+    range_indices.push_back( Inf< Index >() );
   }
   else
    throw( std::logic_error( "AbstractPath::add_node: Element not found." ) );
@@ -382,11 +396,14 @@ private:
 /*--------------------------------------------------------------------------*/
 
  /// adds a node to this AbstractPath
- void add_node( Node::NodeType type , Index group_index = Inf< Index >() ,
-                Index element_index = Inf< Index >() ) {
+ void add_node( Node::NodeType type ,
+                Index group_index = Inf< Index >() ,
+                Index element_index = Inf< Index >() ,
+                Index range_index = Inf< Index >() ) {
   node_types.push_back( type );
   group_indices.push_back( group_index );
   element_indices.push_back( element_index );
+  range_indices.push_back( range_index );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -396,6 +413,7 @@ private:
   std::reverse( std::begin( node_types ), std::end( node_types ) );
   std::reverse( std::begin( group_indices ), std::end( group_indices ) );
   std::reverse( std::begin( element_indices ), std::end( element_indices ) );
+  std::reverse( std::begin( range_indices ), std::end( range_indices) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -430,8 +448,11 @@ protected:
  /// group_indices[i] is the group index of the i-th node in the path
  std::vector< Index > group_indices;
 
- /// element_indices[i] is the element index of the i-th node in the path
+ /// element_indices[i] is the first element index of the i-th node in the path
  std::vector< Index > element_indices;
+
+ /// range_indices[i] is the last element index of the i-th node in the path
+ std::vector< Index > range_indices;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
@@ -469,8 +490,11 @@ public:
   /// Variable storing the group indices
   netCDF::NcVar PathGroupIndices;
 
-  /// Variable storing the element indices
+  /// Variable storing the first element indices
   netCDF::NcVar PathElementIndices;
+
+  /// Variable storing the last element indices
+  netCDF::NcVar PathRangeIndices;
  };
 
 /** @} ---------------------------------------------------------------------*/
@@ -514,7 +538,7 @@ public:
  /** This function returns the length of this AbstractPath, i.e., the number
   * of nodes in the path.
   */
- inline Index length() const {
+ Index length() const {
   return( node_types.size() );
  }
 
@@ -524,7 +548,7 @@ public:
  /** This function returns true if and only if this AbstractPath is empty,
   * i.e., it does not represent a path to any object.
   */
- inline bool empty() const {
+ bool empty() const {
   return( length() == 0 );
  }
 
@@ -537,6 +561,7 @@ public:
   node_types.clear();
   group_indices.clear();
   element_indices.clear();
+  range_indices.clear();
  }
 
 /*--------------------------------------------------------------------------*/
@@ -550,9 +575,10 @@ public:
   *
   * @return The Node representation of the i-th node in this AbstractPath.
   */
- inline Node get_node( Index i ) const {
+ Node get_node( Index i ) const {
   assert( i < this->length() );
-  return( Node( node_types[ i ] , group_indices[ i ] , element_indices[ i ] ) );
+  return( Node( node_types[ i ] , group_indices[ i ] ,
+                element_indices[ i ] , range_indices[ i ] ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -563,11 +589,11 @@ public:
   *
   * @return The Node representation of the last node in this AbstractPath.
   */
- inline Node get_last_node() const {
+ Node get_last_node() const {
   const auto length = this->length();
   assert( length > 0 );
   return( Node( node_types[ length - 1 ] , group_indices[ length - 1 ] ,
-                element_indices[ length - 1 ] ) );
+                element_indices[ length - 1 ] , range_indices[ length - 1 ] ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -687,6 +713,88 @@ public:
 
 /*--------------------------------------------------------------------------*/
 
+ /**
+ * Returns how many Variables(s) or Constraint(s) are specified by the range
+ * in this AbstractPath.
+ *
+ * Interprets element_indices[ i ] as "start" and range_indices[ i ] as "end",
+ * returning "end" - "start" if the node is of a Variable or Constraint type,
+ * 1 otherwise.
+ * Consider the dimension of the pointed Variables(s) or Constraint(s)
+ * structure as "end" value, if range_indices[ i ] is Inf< Index >().
+ */
+ template< class T >
+ Index get_number_elements( Block * reference ) const {
+
+  if( this->length() == 0 )
+   return( Inf< Index >() );
+
+  auto block = reference;
+
+  for( Index i = 0 ; i < this->length() - 1 ; ++i ) {
+
+   const auto node = get_node( i );
+
+   // Intermediate nodes can be: Block, Constraint, or Objective.
+
+   if( node.type == Node::eBlock ) {
+    assert( node.group_index < block->get_nested_Blocks().size() );
+    block = block->get_nested_Blocks()[ node.group_index ];
+   }
+   else if( Node::is_constraint( node.type ) ) {
+    auto constraint = inspection::get_element< Constraint >
+     ( block , node.is_static() , node.group_index , node.element_index );
+
+    if( const auto frowc =
+        dynamic_cast< const FRowConstraint * >( constraint ) ) {
+     auto function = frowc->get_function();
+
+     if( const auto benders =
+         dynamic_cast< const BendersBFunction * >( function ) )
+      block = benders->get_inner_block();
+     else if( const auto lag =
+              dynamic_cast< const LagBFunction * >( function ) )
+      block = lag->get_inner_block();
+     else // not found
+      return( Inf< Index >() );
+        }
+    else // not found
+     return( Inf< Index >() );
+   }
+   else if( node.type == Node::eObjective ) {
+    return( Inf< Index >() );
+   }
+  } // end for
+
+  // Now, we analyze the last node in the path.
+
+  const auto node = get_last_node();
+
+  if( ! Node::has_range( node.type ) )
+   return( 1 );
+
+  Index start = node.element_index;
+  Index end = node.range_index;
+
+  if( end == Inf< Index >() )
+   end = inspection::get_element_size< T >( block ,
+                                            node.is_static() ,
+                                            node.group_index );
+
+  if( end < start )
+   throw( std::logic_error(
+    "AbstractPath::get_number_elements: invalid range provided for node ["
+    + std::to_string( node_types.size() - 1 ) + "]" + " of type " +
+    std::string( 1 , node.type ) + " since the ending range index, " +
+    "i.e., the range_indices[" + std::to_string( range_indices.size() - 1 ) +
+    "], is less than the starting one, i.e., the element_indices[" +
+    std::to_string( element_indices.size() - 1 ) + "]." ) );
+
+  return( end - start );
+ }
+
+/*--------------------------------------------------------------------------*/
+
  /// returns a pointer to the target element of the given AbstractPath
  /** This function returns a pointer to the object of type T that is the
   * target element of the given \p path with respect to the given \p reference
@@ -700,7 +808,7 @@ public:
   * @param The pointer to the target element.
   */
  template< class T >
- T * get_element( Block * reference ) const {
+ T * get_element( Block * reference , Index offset = 0 ) const {
 
   if( this->length() == 0 )
    return( nullptr );
@@ -709,7 +817,7 @@ public:
 
   for( Index i = 0 ; i < this->length() - 1 ; ++i ) {
 
-   const auto node = this->get_node( i );
+   const auto node = get_node( i );
 
    // Intermediate nodes can be: Block, Constraint, or Objective.
 
@@ -755,23 +863,23 @@ public:
     return( nullptr );
   } // end for
 
-  // Now, we analyse the last node in the path.
+  // Now, we analyze the last node in the path.
 
-  const auto node = this->get_last_node();
+  const auto node = get_last_node();
 
   if constexpr( std::is_base_of_v< Constraint , T > ) {
    assert( Node::is_constraint( node.type ) );
    return( inspection::get_element< T >( block ,
                                          node.is_static() ,
                                          node.group_index ,
-                                         node.element_index ) );
+                                         node.element_index + offset ) );
   }
   else if constexpr( std::is_base_of_v< Variable , T > ) {
    assert( Node::is_variable( node.type ) );
    return( inspection::get_element< T >( block ,
                                          node.is_static() ,
                                          node.group_index ,
-                                         node.element_index ) );
+                                         node.element_index + offset ) );
   }
   else if constexpr( std::is_base_of_v< Objective , T > ) {
    assert( node.type == Node::eObjective );
@@ -784,32 +892,28 @@ public:
      ( block , node.is_static() , node.group_index , node.element_index );
     if( constraint )
      return( dynamic_cast< T * >( constraint->get_function() ) );
-    else
-     return( nullptr );
+    return( nullptr );
    }
-   else if( node.type == Node::eObjective ) {
+   if( node.type == Node::eObjective ) {
     // It must be an FRealObjective
     auto objective = dynamic_cast< FRealObjective * >( block->get_objective() );
     if( objective )
      return( dynamic_cast< T * >( objective->get_function() ) );
-    else
-     return( nullptr );
+    return( nullptr );
    }
-   else if( node.type == Node::eBlock ) {
+   if( node.type == Node::eBlock ) {
     // It must be a PolyhedralFunctionBlock
     PolyhedralFunctionBlock * pfb = nullptr;
     if( node.group_index == Inf< Index >() )
      pfb = dynamic_cast< PolyhedralFunctionBlock * >( block );
     else
      pfb = dynamic_cast< PolyhedralFunctionBlock * >
-       ( block->get_nested_Blocks()[ node.group_index ] );
+      ( block->get_nested_Blocks()[ node.group_index ] );
     if( pfb )
      return( dynamic_cast< T * >( & ( pfb->get_PolyhedralFunction() ) ) );
-    else
-     return( nullptr );
-   }
-   else
     return( nullptr );
+   }
+   return( nullptr );
   }
   else if constexpr( std::is_base_of_v< Block , T > ) {
    assert( node.type == Node::eBlock );
@@ -849,6 +953,8 @@ public:
              dim , this->group_indices );
   serialize( group , element_index_name , netCDF::NcUint() ,
              dim , this->element_indices );
+  serialize( group , element_range_name , netCDF::NcUint() ,
+             dim , this->range_indices );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1115,6 +1221,7 @@ public:
   netCDFvars.PathNodeTypes = group.getVar( node_type_name );
   netCDFvars.PathGroupIndices = group.getVar( group_index_name );
   netCDFvars.PathElementIndices = group.getVar( element_index_name );
+  netCDFvars.PathRangeIndices = group.getVar( element_range_name );
 
   /* The dimension PathDim is optional. If it is not present, then there is
    * only one path and PathStart is ignored. If PathDim is present, then it
@@ -1223,6 +1330,7 @@ public:
   this->node_types.resize( num_nodes );
   this->group_indices.resize( num_nodes );
   this->element_indices.resize( num_nodes );
+  this->range_indices.resize( num_nodes );
 
   netCDFvars.PathNodeTypes.getVar( { path_start } , { num_nodes } ,
                                    this->node_types.data() );
@@ -1237,6 +1345,32 @@ public:
    this->element_indices.resize( num_nodes );
    this->element_indices.assign( this->element_indices.size() , Inf< Index >() );
   }
+
+  if( ! netCDFvars.PathRangeIndices.isNull() ) {
+   netCDFvars.PathRangeIndices.getVar( { path_start } , { num_nodes } ,
+                                       range_indices.data() );
+
+   for( Index i = 0 ; i < num_nodes ; ++i )
+    if( ! Node::has_range( node_types[ i ] ) ) {
+     if( range_indices[ i ] != Inf< Index >() )
+      throw std::logic_error(
+       "AbstractPath::deserialize: range provided for node ["
+       + std::to_string( i ) + "]" + " of type " +
+       std::string( 1 , node_types[ i ] ) + " that does not support range" );
+    }
+    else if( range_indices[ i ] < element_indices[ i ] )
+     if( ( range_indices[ i ] != 0 ) && ( range_indices[ i ] != 1 ) )
+      throw std::logic_error(
+       "AbstractPath::deserialize: range_indices[" + std::to_string( i )
+       + "] < element_indices[" + std::to_string( i ) + "] not allowed, " +
+       "unless element_indices[" + std::to_string( i ) + "] is 0 or 1" );
+  }
+  else
+   for( Index i = 0 ; i < num_nodes ; ++i )
+    if( Node::has_range( node_types[ i ] ) )
+     range_indices[ i ] = 1;
+    else
+     range_indices[ i ] = Inf< Index >();
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1269,6 +1403,10 @@ public:
   netCDFvars.PathElementIndices = group.addVar( element_index_name ,
                                                 netCDF::NcUint() ,
                                                 netCDFvars.PathTotalLength );
+
+  netCDFvars.PathRangeIndices = group.addVar( element_range_name ,
+                                              netCDF::NcUint() ,
+                                              netCDFvars.PathTotalLength );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1293,6 +1431,10 @@ public:
   netCDFvars.PathElementIndices = group.addVar( element_index_name ,
                                                 netCDF::NcUint() ,
                                                 netCDFvars.PathTotalLength );
+
+  netCDFvars.PathRangeIndices = group.addVar( element_range_name ,
+                                              netCDF::NcUint() ,
+                                              netCDFvars.PathTotalLength );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1310,6 +1452,8 @@ public:
                                       this->group_indices.data() );
   netCDFvars.PathElementIndices.putVar( { path_start } , { num_nodes } ,
                                         this->element_indices.data() );
+  netCDFvars.PathRangeIndices.putVar( { path_start } , { num_nodes } ,
+                                      this->range_indices.data() );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1321,7 +1465,8 @@ public:
   for( Index i = 0 ; i < this->length() ; ++i ) {
    if( node_types[ i ] != path.node_types[ i ] ||
        group_indices[ i ] != path.group_indices[ i ] ||
-       element_indices[ i ] != path.element_indices[ i ] )
+       element_indices[ i ] != path.element_indices[ i ] ||
+       range_indices[ i ] != path.range_indices[ i ] )
     return( false );
   }
 
@@ -1333,7 +1478,7 @@ public:
  void print() const {
   for( Index i = 0 ; i < this->length() ; ++i ) {
    std::cout << node_types[ i ] << "( " << group_indices[ i ] << " , " <<
-    element_indices[ i ] << " )";
+    element_indices[ i ]  << " , " << range_indices[ i ] << " )";
    if( i < this->length() - 1 )
     std::cout << " -> ";
   }
