@@ -3133,7 +3133,7 @@ void BendersBFunction::GlobalPool::deserialize
 
  if( global_pool_size ) {
 
-  ::deserialize( group , "BendersBFunction_Constants" , { global_pool_size } ,
+  ::deserialize( group , "BendersBFunction_Constants" , global_pool_size ,
                  linearization_constants , false , false );
 
   auto nct = group.getVar( "BendersBFunction_Type" );
