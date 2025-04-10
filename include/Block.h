@@ -6741,6 +6741,50 @@ class Block : public Observer {
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// std::vector of std::vector of (...) Constraint
+
+ template< class Const >
+ std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
+ add_static_constraint( std::vector< std::vector< Const > > & newc ,
+                        std::string && name = "" ,
+                        bool front = false ) {
+  for( auto & c : newc )
+   for( auto & j : c )
+    j.set_Block( this );
+
+  std::vector< std::vector< Const > > * cnewc = &newc;
+  if( front ) {
+   v_s_Constraint.insert( v_s_Constraint.begin(), cnewc );
+   v_s_Constraint_names.insert( v_s_Constraint_names.begin() ,
+                                std::move( name ) );
+  }
+  else {
+   v_s_Constraint.push_back( cnewc );
+   v_s_Constraint_names.emplace_back( std::move( name ) );
+  }
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// std::vector of std::vector of (...) Constraint
+
+ template< class Const >
+ std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
+ set_static_constraint( Index i ,
+                        std::vector< std::vector< Const > > & newc ,
+                        std::string && name = "" ) {
+  if( i >= v_s_Constraint.size() )
+   throw( std::invalid_argument( "wrong index into v_s_Constraint" ) );
+
+  for( auto & c : newc )
+   for( auto & j : c )
+    j.set_Block( this );
+
+  std::vector< std::vector< Const > > * cnewc = &newc;
+  v_s_Constraint[ i ] = cnewc;
+  v_s_Constraint_names[ i ] = std::move( name );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// boost::multi_array< K > of (...) Constraint
 
  template< class Const , std::size_t K >
