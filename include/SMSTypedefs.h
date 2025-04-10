@@ -827,6 +827,8 @@ struct un_any_type {};
  *
  * - a pointer (reference) to a std::vector< T >;
  *
+ * - a pointer (reference) to a std::vector< std::vector< T > >;
+ *
  * - a pointer (reference) to a boost::multi_array< T , K > for "all" K;
  *
  * - a pointer (reference) to a boost::multi_array< std::vector< T > , K > for
@@ -861,8 +863,16 @@ bool un_any_static( boost::any & any , F f , un_any_type< T > ) {
    return( true );
    }
   else
-   return( un_any_static( any , f , un_any_type< T >() ,
-                          un_any_int< 2 >() ) );
+   if( any.type() == typeid( std::vector< std::vector< T > > * ) ) {
+    auto & var = *boost::any_cast< std::vector< std::vector< T > > * >( any );
+    for( auto & el : var )
+     for( auto & ell : el )
+      f( ell );
+    return( true );
+    }
+   else
+    return( un_any_static( any , f , un_any_type< T >() ,
+                           un_any_int< 2 >() ) );
  }
 
 template< typename T , class F >
@@ -1224,9 +1234,16 @@ bool un_any_const_static( const boost::any & any , F f , un_any_type< T > ) {
    return( true );
    }
   else
-   return( un_any_const_static( any , f , un_any_type< T >() ,
-                                un_any_int< 2 >() ) );
-
+   if( any.type() == typeid( std::vector< std::vector< T > > * ) ) {
+    auto & var = *boost::any_cast< std::vector< std::vector< T > > * >( any );
+    for( auto & el : var )
+     for( auto & ell : el )
+      f( ell );
+    return( true );
+    }
+   else
+    return( un_any_const_static( any , f , un_any_type< T >() ,
+                                 un_any_int< 2 >() ) );
  }
 
 template< typename T , class F >
