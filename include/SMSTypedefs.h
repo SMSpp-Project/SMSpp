@@ -919,6 +919,9 @@ bool un_any_static( boost::any & any , F f , un_any_type< T > ,
  * - a pointer (reference) to a std::vector< T > and a pointer (reference) to a
  *   std::vector< U >;
  *
+ * - a pointer (reference) to a std::vector< std::vector< T > > and a pointer
+ *   (reference) to a std::vector< std::vector < U > >;
+ *
  * - a pointer (reference) to a boost::multi_array< T , K > and a
  *   pointer (reference) to a boost::multi_array< U , K >, for "all" K;
  *
@@ -964,7 +967,7 @@ bool un_any_static_2( const boost::any & any1 , const boost::any & any2 ,
   f( el1 , el2 );
   return( true );
   }
- else {
+ else
   if( any1.type() == typeid( std::vector< T > * ) ) {
    auto & var1 = *boost::any_cast< std::vector< T > * >( any1 );
    #ifndef NDEBUG
@@ -986,9 +989,31 @@ bool un_any_static_2( const boost::any & any1 , const boost::any & any2 ,
    return( true );
    }
   else
-   return( un_any_static_2( any1 , any2 , f , un_any_type< T >() ,
-                            un_any_type< U >() , un_any_int< 2 >() ) );
-  }
+   if( any1.type() == typeid( std::vector< std::vector< T > > * ) ) {
+    auto & var1 = *boost::any_cast< std::vector< std::vector< T > > * >( any1 );
+    #ifndef NDEBUG
+    if( any2.type() != typeid( std::vector< std::vector< U > > * ) )
+     throw( std::invalid_argument(
+                          "un_any_static_2: second argument not U *" ) );
+    #endif
+    auto & var2 = *boost::any_cast< std::vector< std::vector< U > > * >( any2 );
+    #ifndef NDEBUG
+    if( var1.size() != var2.size() )
+     throw( std::invalid_argument(
+                     "un_any_static_2: vectors have different sizes" ) );
+    #endif
+    auto i2 = var2.begin();
+    for( auto i1 = var1.begin() ;
+         i1 != var1.end() && i2 != var2.end() ; ++i1 , ++i2 ) {
+     auto it_p2 = i2->begin();
+     for( auto & ell : *i1 )
+      f( ell , *( it_p2++ ) );
+     }
+    return( true );
+    }
+   else
+    return( un_any_static_2( any1 , any2 , f , un_any_type< T >() ,
+                             un_any_type< U >() , un_any_int< 2 >() ) );
  }
 
 template< typename T , typename U , class F >
@@ -1073,6 +1098,11 @@ bool un_any_static_2( const boost::any & any1 , const boost::any & any2 ,
  *   created having the same size as the vector pointed by "any1" and the
  *   pointer to this just created object is stored in "any2";
  *
+ * - a pointer (reference) to a std::vector< std::vector< T > > then a
+ *   std::vector< std::vector < U > > is created having the same size as the
+ *   vector pointed by "any1" and the pointer to this just created object is
+ *   stored in "any2";
+ *
  * - a pointer (reference) to a boost::multi_array< T , K >, then a
  *   boost::multi_array< U , K > is created having the same shape as the
  *   boost::multi_array pointed by "any1" and the pointer to this newly
@@ -1109,7 +1139,7 @@ bool un_any_static_2_create( const boost::any & any1 , boost::any & any2 ,
    }
   return( true );
   }
- else {
+ else
   if( any1.type() == typeid( std::vector< T > * ) ) {
    auto & var1 = *boost::any_cast< std::vector< T > * >( any1 );
    any2 = new std::vector< U >( var1.size() );
@@ -1122,10 +1152,24 @@ bool un_any_static_2_create( const boost::any & any1 , boost::any & any2 ,
    return( true );
    }
   else
-   return( un_any_static_2_create( any1 , any2 , un_any_type< T >() ,
-                                   un_any_type< U >() , un_any_int< 2 >() ,
-                                   f , apply_f ) );
-  }
+   if( any1.type() == typeid( std::vector< std::vector< T > > * ) ) {
+    auto & var1 = *boost::any_cast< std::vector< std::vector< T > > * >( any1 );
+    auto & var2 = *boost::any_cast< std::vector< std::vector< U > > * >( any2 );
+    var2.resize( var1.size() );
+    auto i2 = var2.begin();
+    for( auto i1 = var1.begin() ;
+         i1 != var1.end() && i2 != var2.end() ; ++i1 , ++i2 ) {
+     i2->resize( i1->size() );
+     auto it_p2 = i2->begin();
+     for( auto & ell : *i1 )
+      f( ell , *( it_p2++ ) );
+     }
+    return( true );
+    }
+   else
+    return( un_any_static_2_create( any1 , any2 , un_any_type< T >() ,
+                                    un_any_type< U >() , un_any_int< 2 >() ,
+                                    f , apply_f ) );
  }
 
 template< typename T , typename U , class F >
@@ -1199,6 +1243,8 @@ bool un_any_static_2_create( const boost::any & any1 , boost::any & any2 ,
  * - a pointer (reference) to a T;
  *
  * - a pointer (reference) to a std::vector< T >;
+ *
+ * - a pointer (reference) to a std::vector< std::vector< T > >;
  *
  * - a pointer (reference) to a boost::multi_array< T , K > for "all" K;
  *
