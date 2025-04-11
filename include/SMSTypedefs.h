@@ -743,6 +743,8 @@ bool SMSpp_ensure_load_var;
  *  - a pointer to a std::vector of objects of some type (Constraint,
  *    Variable or some of their derived classes);
  *
+ *  - a pointer to a std::vector of std::vector of objects of some type (...);
+ *
  *  - a pointer to a boost::multi_array< K > of objects of some type (...);
  *
  *  - a pointer to a boost::multi_array< K > of std::vector of objects of some
