@@ -725,6 +725,8 @@ class Configuration
  *  - SimpleConfiguration< std::pair< double , Configuration * > >
  *  - SimpleConfiguration< std::vector< int > >
  *  - SimpleConfiguration< std::vector< double > >
+ *  - SimpleConfiguration< std::pair< int , Configuration * > >
+ *  - SimpleConfiguration< std::pair< double , Configuration * > >
  *  - SimpleConfiguration< std::pair< Configuration * , Configuration * > >
  *  - SimpleConfiguration< std::vector< Configuration * > >
  *  - SimpleConfiguration< std::vector< std::pair< int , Configuration * > > >
@@ -807,6 +809,25 @@ class SimpleConfiguration : public Configuration
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// default deserialization of a SimpleConfiguration
+ /** Default version of the deserialize() method of SimpleConfiguration: it
+  * just calls some of the standard ::deserialize( group , < value > )
+  * template functions of SMSTypedefs.h that read < value > from \p group.
+  * The expected format of the data inside \p group is:
+  *
+  * - scalar values (int, double) they are read from a single scalar 
+  *   variable named "value";
+  *
+  * - for a std::pair, deserialize() is called again to read f_value.first
+  *   from a variable named "value_f" and f_value.second from a variable
+  *   named "value_s"
+  *
+  * - a std::vector is read from a single array variable of name "value"
+  *   assumed to be indiced over the dimension of name "size"
+  *
+  * However, this does not worw for SimpleConfiguration_value_type being
+  * anything that contains other Configuration [*], thereby specialised
+  * versions are implemented in these cases. */
 
  void deserialize( const netCDF::NcGroup & group ) override {
   Configuration::deserialize( group );
@@ -838,7 +859,27 @@ class SimpleConfiguration : public Configuration
   }
 
 /*--------------------------------------------------------------------------*/
-
+ /// default serialization of a SimpleConfiguration
+ /** Default version of the serialize() method of SimpleConfiguration: it
+  * just calls some of the standard ::serialize( group , < value > )
+  * template functions of SMSTypedefs.h that write < value > to \p group.
+  * The format of the produced \p group thus is:
+  *
+  * - for scalar values (int, double) they are written to a single scalar
+  *   variable named "value";
+  *
+  * - for std::pair, serialize() is called again on f_value.first and
+  *   f_value.second to be written in variables named "value_f" and
+  *   "value_s", respectively
+  *
+  * - for a std::vector, they are written to a single array variable of
+  *   name "value" indiced over an appropriately constructed dimension of
+  *   name "size"
+  *
+  * However, this does not worw for SimpleConfiguration_value_type being
+  * anything that contains other Configuration [*], thereby specialised
+  * versions are implemented in these cases. */
+ 
  void serialize( netCDF::NcGroup & group ) const override {
   Configuration::serialize( group );
   SMSpp_di_unipi_it::serialize( group , f_value );
@@ -891,18 +932,35 @@ class SimpleConfiguration : public Configuration
   * In particular, some of these are defined in SMSTypedefs.h for:
   *
   * - std::pair< T1 , T2 > that just read .first first and .second second
-  *   using T1::operator>> and T2::operator>
+  *   using T1::operator>> and T2::operator>>
   *
   * - std::vector< T > and std::list< T > that first read the number of
   *   elements (using [unsigned int]::operator>>) and then read the elements
-  *   one by one (using T::operator>>) 
+  *   one by one (using T::operator>>)
   *
-  * However, for SimpleConfiguration_value_type being anything that
-  * contains other Configuration [*], specialised versions are implemented
-  * that use Configuration::deserialize( std::istream ) to load the
-  * :Configuration object; this means that all the corresponding input
-  * options, like '*' for  nullptr and "*<filename>" for loading it out of a
-  * different file, can be used. */
+  * Despite its apparent simplicity, the method nicely covers almost all the
+  * necessary cases of SimpleConfiguration_value_type due to template magic.
+  * That is:
+  *
+  * - std::pair< T , U > works for T and U basic types due to operator>>
+  *   being defined for basic types in SMSTypedefs.h
+  *
+  * - but it also works for T and/or U being Configuration * due to
+  *   operator>> being defined for Configuration * in class Configuration
+  *   using Configuration::deserialize( std::istream & ) (see the comments
+  *   of the method for the format, which allows either "direct" or
+  *   "indirect" specification)
+  *
+  * - then it also works for T and/or U being std::vector<> of anything for
+  *   which operator>> is defined (see above)
+  *
+  * - hence, std::vector< std::pair< T , U > > also works for T and/or U 
+  *   being anything for which operator>> is defined, comprised
+  *   std::vector<> and std::list<> of basic tipes, Configuration * etc.
+  *   (see above and above).
+  *
+  * This means that, save for a few exceptions, it is not necessary to
+  * define specialised versions of load. Don't you just love templates? */
 
  void load( std::istream & input ) override {
   input >> eatcomments >> f_value;
@@ -1054,10 +1112,20 @@ template<>
 void SimpleConfiguration< std::pair< int , Configuration * >
                           >::guts_of_destructor( void );
 
+/// serialize a SimpleConfiguration< std::pair< int , Configuration * >
+/** serialize a SimpleConfiguration< std::pair< int , Configuration * > into
+ * \p group. The < int > is saved on a single variable with name "value_f",
+ * while the < Configuration * > is saved into a sub-group with name
+ * "value_s" if not-nullptr, otherwise nothing is done. */
+
 template<>
 void SimpleConfiguration< std::pair< int , Configuration * >
                                      >::serialize( netCDF::NcGroup & group )
  const;
+
+/// deserialize a SimpleConfiguration< std::pair< int , Configuration * >
+/** deserialize a SimpleConfiguration< std::pair< int , Configuration * > 
+ * from \p group; see serialize() for the expected format of \p group. */
 
 template<>
 void SimpleConfiguration< std::pair< int , Configuration * >
