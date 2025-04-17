@@ -147,61 +147,53 @@ AbstractBlock::~AbstractBlock()
 
  // now delete all the Constraint
  for( Index i = get_first_static_Constraint() ; i < sc.size() ; ++i ) {
-  if( un_any_thing( FRowConstraint , sc[ i ] , { delete &var; } ) )
+  if( un_any_thing_static( FRowConstraint , sc[ i ] , { delete &var; } ) )
    continue;
-  if( un_any_thing( BoxConstraint , sc[ i ] , { delete &var; } ) )
+  if( un_any_thing_static( BoxConstraint , sc[ i ] , { delete &var; } ) )
    continue;
-  if( un_any_thing( LB0Constraint , sc[ i ] , { delete &var; } ) )
+  if( un_any_thing_static( LB0Constraint , sc[ i ] , { delete &var; } ) )
    continue;
-  if( un_any_thing( UB0Constraint , sc[ i ] , { delete &var; } ) )
+  if( un_any_thing_static( UB0Constraint , sc[ i ] , { delete &var; } ) )
    continue;
-  if( un_any_thing( LBConstraint , sc[ i ] , { delete &var; } ) )
+  if( un_any_thing_static( LBConstraint , sc[ i ] , { delete &var; } ) )
    continue;
-  if( un_any_thing( UBConstraint , sc[ i ] , { delete &var; } ) )
+  if( un_any_thing_static( UBConstraint , sc[ i ] , { delete &var; } ) )
    continue;
-  if( un_any_thing( NNConstraint , sc[ i ] , { delete &var; } ) )
+  if( un_any_thing_static( NNConstraint , sc[ i ] , { delete &var; } ) )
    continue;
-  if( un_any_thing( NPConstraint , sc[ i ] , { delete &var; } ) )
+  if( un_any_thing_static( NPConstraint , sc[ i ] , { delete &var; } ) )
    continue;
-  un_any_thing( ZOConstraint , sc[ i ] , { delete &var; } );
- }
+  un_any_thing_static( ZOConstraint , sc[ i ] , { delete &var; } );
+  }
 
  for( Index i = get_first_dynamic_Constraint() ; i < dc.size() ; ++i ) {
-  if( un_any_thing( std::list< FRowConstraint > , dc[ i ] ,
-                    { delete &var; } ) )
+  if( un_any_thing_dynamic( FRowConstraint , dc[ i ] , { delete &var; } ) )
    continue;
-  if( un_any_thing( std::list< BoxConstraint > , dc[ i ] ,
-                    { delete &var; } ) )
+  if( un_any_thing_dynamic( BoxConstraint , dc[ i ] , { delete &var; } ) )
    continue;
-  if( un_any_thing( std::list< LB0Constraint > , dc[ i ] ,
-                    { delete &var; } ) )
+  if( un_any_thing_dynamic( LB0Constraint , dc[ i ] , { delete &var; } ) )
    continue;
-  if( un_any_thing( std::list< UB0Constraint > , dc[ i ] ,
-                    { delete &var; } ) )
+  if( un_any_thing_dynamic( UB0Constraint , dc[ i ] , { delete &var; } ) )
    continue;
-  if( un_any_thing( std::list< LBConstraint > , dc[ i ] ,
-                    { delete &var; } ) )
+  if( un_any_thing_dynamic( LBConstraint , dc[ i ] , { delete &var; } ) )
    continue;
-  if( un_any_thing( std::list< UBConstraint > , dc[ i ] ,
-                    { delete &var; } ) )
+  if( un_any_thing_dynamic( UBConstraint , dc[ i ] , { delete &var; } ) )
    continue;
-  if( un_any_thing( std::list< NNConstraint > , dc[ i ] ,
-                    { delete &var; } ) )
+  if( un_any_thing_dynamic( NNConstraint , dc[ i ] , { delete &var; } ) )
    continue;
-  if( un_any_thing( std::list< NPConstraint > , dc[ i ] ,
-                    { delete &var; } ) )
+  if( un_any_thing_dynamic( NPConstraint , dc[ i ] , { delete &var; } ) )
    continue;
-  un_any_thing( std::list< ZOConstraint > , dc[ i ] , { delete &var; } );
+  un_any_thing_dynamic( ZOConstraint , dc[ i ] , { delete &var; } );
   }
 
  // now delete all the Variable
  auto & sv = get_static_variables();
  for( Index i = get_first_static_Variable() ; i < sv.size() ; ++i )
-  un_any_thing( ColVariable , sv[ i ] , { delete &var; } );
+  un_any_thing_static( ColVariable , sv[ i ] , { delete &var; } );
 
  auto & dv = get_dynamic_variables();
  for( Index i = get_first_dynamic_Variable() ; i < dv.size() ; ++i )
-  un_any_thing( std::list< ColVariable > , dv[ i ] , { delete &var; } );
+  un_any_thing_dynamic( ColVariable , dv[ i ] , { delete &var; } );
 
  // now delete the Objective
  if( ( ! is_Objective_reserved() ) && get_objective() )

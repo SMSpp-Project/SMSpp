@@ -743,8 +743,6 @@ bool SMSpp_ensure_load_var;
  *  - a pointer to a std::vector of objects of some type (Constraint,
  *    Variable or some of their derived classes);
  *
- *  - a pointer to a std::vector of std::vector of objects of some type (...);
- *
  *  - a pointer to a boost::multi_array< K > of objects of some type (...);
  *
  *  - a pointer to a boost::multi_array< K > of std::vector of objects of some
@@ -1747,9 +1745,7 @@ bool un_any_const_dynamic( const boost::any & any , F f ,
  * and (to the best of our knowledge) cannot be obtained with templates at
  * all, whence the not-very-C++ approach of using macros.
  *
- * Because this may be impossible to do, there are four macros:
- *
- *  - un_any_thing() applies the same "f" to all types of containers;
+ * Because this may be impossible to do, there are three main macros:
  *
  *  - un_any_thing_0() only applies "f" if "my_thing" is a single
  *    "thing_type";
@@ -1769,34 +1765,33 @@ bool un_any_const_dynamic( const boost::any & any , F f ,
  * corresponding "var" of the right type, and false if "my_thing" contained
  * something else, and therefore "f" has not been executed at all anything.
  *
- * Note that, unlike in the un_any_*_*() functions, there is no distinction
- * between the static (single "thing_type" elements) and dynamic (lists of
- * "thing_type" elements), because one can (and perhaps must) separately
- * call
+ * To automate its use, in case "f" can be applied to any contained, two more
+ * macros are defined:
  *
- *   un_any_thing( basic_type , ... );
+ * - un_any_thing_static( thing_type , my_thing , f ) calls (in this order)
+ *   un_any_thing_0( thing_type ),
+ *   un_any_thing_1( thing_type ),
+ *   un_any_thing_1( std::vector< thing_type > ),
+ *   un_any_thing_K( thing_type ),
+ *   un_any_thing_K( std::vector< thing_type > )
+ *   returning true if any of these succeeds, and false otherwise;
  *
- * and
+ * - un_any_thing_dynamic( thing_type , my_thing , f ) calls (in this order)
+ *   un_any_thing_0( std::list< thing_type > ),
+ *   un_any_thing_1( std::list< thing_type > ),
+ *   un_any_thing_K( std::list< thing_type > )
+ *   returning true if any of these succeeds, and false otherwise;
  *
- *   un_any_thing( std:list< basic_type > , ... );
+ * Finally, the two macros
  *
- * The pesky part in these macros (in particular, in un_any_thing_K() and
- * therefore in un_any_thing()) is that they have to work with "all" K, but
- * a maximum K has to be fixed at compile time; currently the maximum K is
- * 8, but it may be easily extended to go higher if needed.
- */
-
-#define un_any_thing( thing_type , my_thing , f )                            \
- [&]( const boost::any & _any ) -> bool {                                    \
-  if( un_any_thing_0( thing_type , _any , f ) )                              \
-   return( true );                                                           \
-  else                                                                       \
-   if( un_any_thing_1( thing_type , _any , f ) )                             \
-    return( true );                                                          \
-  return( un_any_thing_K( thing_type , _any , f ) );                         \
-  }( my_thing )
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ * - un_any_thing_count_static( thing_type , my_thing ) 
+ * - un_any_thing_count_dynamic( thing_type , my_thing )
+ *
+ * behave as functions returning a std::size_t containing the number of
+ * different objects of the "basic" thing_type contained in my_thing; thus,
+ * thing_type must be a Constraint, Variable etc. but not a std::vector<>,
+ * std::list<> etc of these. If my_thing does not contain an appropriate
+ * (container of) thing_type, then Inf< std::size_t >() is returned. */
 
 // TODO: Remove this when it's not needed anymore
 #ifdef CLANG_1200_0_32_27_PATCH
@@ -1871,6 +1866,84 @@ bool un_any_const_dynamic( const boost::any & any , F f ,
    f; return( true );                                                        \
    }                                                                         \
   return( false );                                                           \
+  }( my_thing )
+
+/*--------------------------------------------------------------------------*/
+
+#define un_any_thing_static( thing_type , my_thing , f )                     \
+ [&]( const boost::any & _any ) -> bool {                                    \
+  if( un_any_thing_0( thing_type , _any , f ) )                              \
+   return( true );                                                           \
+  if( un_any_thing_1( thing_type , _any , f ) )                              \
+   return( true );                                                           \
+  if( un_any_thing_1( std::vector< thing_type > , _any , f ) )               \
+   return( true );                                                           \
+  if( un_any_thing_K( thing_type , _any , f ) )                              \
+   return( true );                                                           \
+  return( un_any_thing_K( std::vector< thing_type > , _any , f ) );          \
+  }( my_thing )
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+#define un_any_thing_dynamic( thing_type , my_thing , f )                    \
+ [&]( const boost::any & _any ) -> bool {                                    \
+  if( un_any_thing_0( std::list< thing_type > , _any , f ) )                 \
+   return( true );                                                           \
+  if( un_any_thing_1( std::list< thing_type > , _any , f ) )                 \
+   return( true );                                                           \
+  return( un_any_thing_K( std::list< thing_type > , _any , f ) );            \
+  }( my_thing )
+
+/*--------------------------------------------------------------------------*/
+
+#define un_any_thing_count_static( thing_type , my_thing , f )		    \
+ [&]( const boost::any & _any ) -> std::size_t {                            \
+  if( un_any_thing_0( thing_type , _any , [](){}() ) )                      \
+   return( 1 );                                                             \
+  std::size_t ret = 0;                                                      \
+  if( un_any_thing_1( thing_type , _any , ret = var.size(); ) )  	    \
+   return( ret );                                                           \
+  if( un_any_thing_1( std::vector< thing_type > , _any ,                    \
+                      {                                                     \
+                       for( auto & el : var )                               \
+                        ret += el.size();                                   \
+		      } ) )                                                 \
+   return( ret );                                                           \
+  if( un_any_thing_K( thing_type , _any , ret = var.num_elements(); )       \
+   return( ret );                                                           \
+  if( un_any_thing_K( std::vector< thing_type > , _any ,                    \
+                      {                                                     \
+                       auto it = var.data();                                \
+                       for( auto i = var.num_elements() ; i-- ; ++it )      \
+                        ret += it->size();                                  \
+		       }                                                    \
+		       ) )                                                  \
+   return( ret );                                                           \
+  return( Inf< std::size_t >();                                             \
+  }( my_thing )
+
+/*--------------------------------------------------------------------------*/
+
+#define un_any_thing_count_dynamic( thing_type , my_thing , f )             \
+ [&]( const boost::any & _any ) -> std::size_t {                            \
+  std::size_t ret = 0;                                                      \
+  if( un_any_thing_0( std::list< thing_type > , _any , ret = var.size(); ) )\
+   return( ret );                                                           \
+  if( un_any_thing_1( std::list< thing_type > , _any ,                      \
+                      {                                                     \
+                       for( auto & el : var )                               \
+                        ret += el.size();                                   \
+		       } ) )                                                \
+   return( ret );                                                           \
+  if( un_any_thing_K( std::list< thing_type > , _any ,                      \
+                      {                                                     \
+                       auto it = var.data();                                \
+                       for( auto i = var.num_elements() ; i-- ; ++it )      \
+                        ret += it->size();                                  \
+		       }                                                    \
+		       ) )                                                  \
+   return( ret );                                                           \
+  return( Inf< std::size_t >();                                             \
   }( my_thing )
 
 /** @} ---------------------------------------------------------------------*/
