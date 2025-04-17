@@ -128,28 +128,29 @@ namespace SMSpp_di_unipi_it::inspection
 /*--------------------------------------------------------------------------*/
 
  template< class S , class T >
- static Index get_dynamic_index_
- ( const S * s , const std::vector< std::list< T > > & var ) {
+ static Index get_dynamic_index_( const S * s ,
+				const std::vector< std::list< T > > & var ) {
   Index index = 0;
   for( typename std::vector< std::list< T > >::size_type i = 0 ;
        i < var.size() ; ++i ) {
    for( auto it = var[ i ].cbegin(); it != var[ i ].cend() ; ++it , ++index )
     if( s == &*it )
      return( index );
-  }
+   }
   return( Inf< Index >() );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 
  template< class S , class T >
- static Index get_dynamic_index_( const S * s , const std::list< T > & list ) {
+ static Index get_dynamic_index_( const S * s ,
+				  const std::list< T > & list ) {
   Index index = 0;
   for( auto it = list.cbegin(); it != list.end() ; ++it , ++index )
    if( s == &*it )
     return( index );
   return( Inf< Index >() );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 
@@ -186,8 +187,9 @@ namespace SMSpp_di_unipi_it::inspection
              const boost::multi_array< std::list< T > , K > & multi_array ,
 	     Index index ) {
   Index past_size = 0;
-  for( auto list = multi_array.origin();
-       list < ( multi_array.origin() + multi_array.num_elements() ); ++list ) {
+  for( auto list = multi_array.origin() ;
+       list < ( multi_array.origin() + multi_array.num_elements() ) ;
+       ++list ) {
    if( index < past_size + list->size() ) {
     auto it = list->begin();
     for( ; past_size < index ; ++past_size , ++it );
