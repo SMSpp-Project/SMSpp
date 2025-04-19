@@ -1900,18 +1900,18 @@ bool un_any_const_dynamic( const boost::any & any , F f ,
 
 /*--------------------------------------------------------------------------*/
 
-#define un_any_thing_count_static( thing_type , my_thing , f )		    \
+#define un_any_thing_count_static( thing_type , my_thing )                  \
  [&]( const boost::any & _any ) -> std::size_t {                            \
   if( un_any_thing_0( thing_type , _any , [](){}() ) )                      \
    return( 1 );                                                             \
   std::size_t ret = 0;                                                      \
-  if( un_any_thing_1( thing_type , _any , ret = var.size(); ) )  	    \
+  if( un_any_thing_1( thing_type , _any , ret = var.size(); ) )             \
    return( ret );                                                           \
   if( un_any_thing_1( std::vector< thing_type > , _any ,                    \
                       {                                                     \
                        for( auto & el : var )                               \
                         ret += el.size();                                   \
-		      } ) )                                                 \
+        } ) )                                                               \
    return( ret );                                                           \
   if( un_any_thing_K( thing_type , _any , ret = var.num_elements(); )       \
    return( ret );                                                           \
@@ -1920,15 +1920,14 @@ bool un_any_const_dynamic( const boost::any & any , F f ,
                        auto it = var.data();                                \
                        for( auto i = var.num_elements() ; i-- ; ++it )      \
                         ret += it->size();                                  \
-		       }                                                    \
-		       ) )                                                  \
+        } ) )                                                               \
    return( ret );                                                           \
-  return( Inf< std::size_t >();                                             \
+  return( Inf< std::size_t >() );                                           \
   }( my_thing )
 
 /*--------------------------------------------------------------------------*/
 
-#define un_any_thing_count_dynamic( thing_type , my_thing , f )             \
+#define un_any_thing_count_dynamic( thing_type , my_thing )                 \
  [&]( const boost::any & _any ) -> std::size_t {                            \
   std::size_t ret = 0;                                                      \
   if( un_any_thing_0( std::list< thing_type > , _any , ret = var.size(); ) )\
@@ -1937,17 +1936,16 @@ bool un_any_const_dynamic( const boost::any & any , F f ,
                       {                                                     \
                        for( auto & el : var )                               \
                         ret += el.size();                                   \
-		       } ) )                                                \
+        } ) )                                                               \
    return( ret );                                                           \
   if( un_any_thing_K( std::list< thing_type > , _any ,                      \
                       {                                                     \
                        auto it = var.data();                                \
                        for( auto i = var.num_elements() ; i-- ; ++it )      \
                         ret += it->size();                                  \
-		       }                                                    \
-		       ) )                                                  \
+        } ) )                                                               \
    return( ret );                                                           \
-  return( Inf< std::size_t >();                                             \
+  return( Inf< std::size_t >() );                                           \
   }( my_thing )
 
 /** @} ---------------------------------------------------------------------*/
