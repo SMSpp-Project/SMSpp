@@ -5,7 +5,7 @@
  *
  * This file defines the namespace "inspection" within
  * "SMSpp_di_unipi_it". This namespace contains a number of functions that are
- * useful for inspecting and obtaining information from a Block. In
+ * useful for inspecting and collecting information from a Block. In
  * particular, it provides functions that scan the "abstract" representation
  * of a Block to retrieve, for instance
  *
@@ -15,15 +15,15 @@
  *
  * For the scan of the "abstract" representation to work, it is necessary to
  * boost::any_cast<> (in particular, Constraint and Variable), and therefore
- * it has to have a list of the kind of types thay they may have. Hence, some
- * functions at any point in time works only with a specific subset of those
- * classes, and if new types need be handled then the class has to be manually
- * updated. This is made a bit easier by the two macros
+ * it has to have a list of the kind of types they may have. Hence, some
+ * functions at any point in time work only with a specific subset of those
+ * classes, and if new types need to be handled, then the class has to be
+ * manually updated. This is made a bit easier by the two macros
  *
  *     Constraint_Derived_Classes
  *     Variable_Derived_Classes
  *
- * defined in this header file (and immediately un-defined at the end).
+ * defined in this header file (and immediately undefined at the end).
  *
  * \author Rafael Durbano Lobato \n
  *         Dipartimento di Informatica \n
@@ -156,11 +156,42 @@ namespace SMSpp_di_unipi_it::inspection
 
  template< typename T , std::size_t K >
  static T * get_static_element_(
+     const boost::multi_array< std::vector< T > , K > & multi_array ,
+     Index index ) {
+  Index past_size = 0;
+  const std::vector< T > * vec = multi_array.data();
+  for( Index i = 0 ; i < multi_array.num_elements() ; ++i, ++vec ) {
+   if( index < past_size + vec->size() )
+    return( const_cast< T * >( &( ( *vec )[ index - past_size ] ) ) );
+   past_size += vec->size();
+  }
+  return( nullptr );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ template< typename T , std::size_t K >
+ static T * get_static_element_(
 	    const boost::multi_array< T , K > & multi_array , Index index ) {
   if( index >= multi_array.num_elements() )
    return( nullptr );
   return( const_cast< T * >( & multi_array.data()[ index ] ) );
   }
+
+/*--------------------------------------------------------------------------*/
+
+ template< typename T >
+ static T * get_static_element_(
+     const std::vector< std::vector< T > > & vector ,
+     Index index ) {
+  Index past_size = 0;
+  for( const auto & inner : vector ) {
+   if( past_size + inner.size() > index )
+    return( const_cast< T * >( &inner[ index - past_size ] ) );
+   past_size += inner.size();
+  }
+  return( nullptr );
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -234,8 +265,24 @@ namespace SMSpp_di_unipi_it::inspection
 
  template< typename T , std::size_t K >
  static Index get_static_element_size_(
+            const boost::multi_array< std::vector< T > , K > & multi_array ) {
+  return( multi_array.size() );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ template< typename T , std::size_t K >
+ static Index get_static_element_size_(
 		          const boost::multi_array< T , K > & multi_array ) {
   return( multi_array.size() );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ template< typename T >
+ static Index get_static_element_size_(
+            const std::vector< std::vector< T > > & vector ) {
+  return( vector.size() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -492,7 +539,7 @@ namespace SMSpp_di_unipi_it::inspection
 
  template< class T >
  static std::pair< Index , Index > get_element_index
- ( T * t , const Vec_any & groups , bool is_static ) {
+  ( T * t , const Vec_any & groups , bool is_static ) {
 
   constexpr bool is_variable = std::is_base_of_v< Variable , T >;
 

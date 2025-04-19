@@ -1722,6 +1722,8 @@ bool un_any_const_dynamic( const boost::any & any , F f ,
  *
  * - a pointer to a std::vector of "thing_type";
  *
+ * - a pointer to a std::vector of std::vector of "thing_type";
+ *
  * - a pointer to a boost::multi_array< K > of "thing_type";
  *
  * - a pointer to a boost::multi_array< K > of std::vector of "thing_type";
@@ -1751,10 +1753,10 @@ bool un_any_const_dynamic( const boost::any & any , F f ,
  *    "thing_type";
  *
  *  - un_any_thing_1() only applies "f" if "my_thing" is a
- *    std::vector<"thing_type">;
+ *    std::vector< "thing_type" >;
  *
  *  - un_any_thing_K() only applies "f" if "my_thing" is a
- *    boost::multi_array<"thing_type" , K>.
+ *    boost::multi_array< "thing_type" , K >.
  *
  * This is why, although these are macros, they have been structured to
  * "behave like functions", in the sense that they are an expression
