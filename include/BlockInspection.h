@@ -83,10 +83,10 @@ namespace SMSpp_di_unipi_it::inspection
  auto data = multi_array.data();
  Index n_vecs = multi_array.num_elements();
 
- for( Index i1 = 0 ; i1 < n_vecs ; ++i1 ) {
-  const std::vector< T > & vec = data[ i1 ];
+ for( Index i = 0 ; i < n_vecs ; ++i ) {
+  const std::vector< T > & vec = data[ i ];
   if( ! vec.empty() && ( s >= &vec.front() ) && ( s <= & vec.back() ) )
-   return( i1 + ( static_cast< const T * >( s ) - & vec.front() ) * n_vecs );
+   return( i + ( static_cast< const T * >( s ) - & vec.front() ) * n_vecs );
  }
  return( Inf< Index >() );
  }
@@ -233,7 +233,7 @@ namespace SMSpp_di_unipi_it::inspection
 
  template< typename T >
  static T * get_static_element_( const std::vector< T > & vector ,
-				 Index index ) {
+				                             Index index ) {
   if( index >= vector.size() )
    return( nullptr );
   return( const_cast< T * >( & vector[ index ] ) );
