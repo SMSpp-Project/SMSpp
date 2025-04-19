@@ -1913,7 +1913,7 @@ bool un_any_const_dynamic( const boost::any & any , F f ,
                         ret += el.size();                                   \
         } ) )                                                               \
    return( ret );                                                           \
-  if( un_any_thing_K( thing_type , _any , ret = var.num_elements(); )       \
+  if( un_any_thing_K( thing_type , _any , ret = var.num_elements(); ) )     \
    return( ret );                                                           \
   if( un_any_thing_K( std::vector< thing_type > , _any ,                    \
                       {                                                     \
