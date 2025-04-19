@@ -782,7 +782,9 @@ bool SMSpp_ensure_load_var;
  *
  * and the four macros (which, however, behave as a bool-returning function)
  *
- *   #define un_any_thing( thing_type , my_thing , f )
+ *   #define un_any_thing_static( thing_type , my_thing , f )
+ *
+ *   #define un_any_thing_dynamic( thing_type , my_thing , f )
  *
  *   #define un_any_thing_0( thing_type , my_thing , f )
  *

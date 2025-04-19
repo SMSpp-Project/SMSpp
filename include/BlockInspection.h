@@ -79,12 +79,39 @@ namespace SMSpp_di_unipi_it::inspection
 
  template< class S , class T , std::size_t K >
  static Index get_static_index_( const S * s ,
+     const boost::multi_array< std::vector< T > , K > & multi_array ) {
+ auto data = multi_array.data();
+ Index n_vecs = multi_array.num_elements();
+
+ for( Index i1 = 0 ; i1 < n_vecs ; ++i1 ) {
+  const std::vector< T > & vec = data[ i1 ];
+  if( ! vec.empty() && ( s >= &vec.front() ) && ( s <= & vec.back() ) )
+   return( i1 + ( static_cast< const T * >( s ) - & vec.front() ) * n_vecs );
+ }
+ return( Inf< Index >() );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ template< class S , class T , std::size_t K >
+ static Index get_static_index_( const S * s ,
                                  const boost::multi_array< T , K > & var ) {
   const auto p = var.data();
   if( ( s >= & p[ 0 ] ) && ( s <= & p[ var.num_elements() - 1 ] ) )
    return( static_cast< const T * >( s ) - & p[ 0 ] );
   return( Inf< Index >() );
   }
+
+/*--------------------------------------------------------------------------*/
+
+ template< class S , class T >
+ static Index get_static_index_( const S * s ,
+                                 const std::vector< std::vector< T > > & var ) {
+  for( Index i = 0 ; i < var.size() ; ++i )
+   if( ( s >= & var[ i ].front() ) && ( s <= & var[ i ].back() ) )
+    return( var.size() * ( static_cast< const T * >( s ) - & var[ i ].front() ) + i );
+  return( Inf< Index >() );
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -158,14 +185,21 @@ namespace SMSpp_di_unipi_it::inspection
  static T * get_static_element_(
      const boost::multi_array< std::vector< T > , K > & multi_array ,
      Index index ) {
-  Index past_size = 0;
-  const std::vector< T > * vec = multi_array.data();
-  for( Index i = 0 ; i < multi_array.num_elements() ; ++i, ++vec ) {
-   if( index < past_size + vec->size() )
-    return( const_cast< T * >( &( ( *vec )[ index - past_size ] ) ) );
-   past_size += vec->size();
-  }
-  return( nullptr );
+  if( multi_array.num_elements() == 0 )
+   return( nullptr );
+
+  auto i1 = index % multi_array.num_elements();
+  auto i2 = index / multi_array.num_elements();
+
+  auto data = multi_array.data();
+  if( i1 >= multi_array.num_elements() )
+   return( nullptr );
+
+  const std::vector< T > & vec = data[ i1 ];
+  if( i2 >= vec.size() )
+   return( nullptr );
+
+  return( const_cast< T * >( & vec[ i2 ] ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -184,13 +218,15 @@ namespace SMSpp_di_unipi_it::inspection
  static T * get_static_element_(
      const std::vector< std::vector< T > > & vector ,
      Index index ) {
-  Index past_size = 0;
-  for( const auto & inner : vector ) {
-   if( past_size + inner.size() > index )
-    return( const_cast< T * >( &inner[ index - past_size ] ) );
-   past_size += inner.size();
-  }
-  return( nullptr );
+  if( vector.empty() )
+   return( nullptr );
+
+  auto i1 = index % vector.size();
+  auto i2 = index / vector.size();
+  if( i2 >= vector[ i1 ].size() )
+   return( nullptr );
+
+  return( const_cast< T * >( & ( vector[ i1 ] )[ i2 ] ) );
  }
 
 /*--------------------------------------------------------------------------*/
