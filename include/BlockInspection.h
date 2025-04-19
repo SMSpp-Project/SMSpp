@@ -117,7 +117,7 @@ namespace SMSpp_di_unipi_it::inspection
 
  template< class S , class T >
  static Index get_static_index_( const S * s ,
-				 const std::vector< T > & var ) {
+				                             const std::vector< T > & var ) {
   if( ( s >= & var.front() ) && ( s <= & var.back() ) )
    return( static_cast< const T * >( s ) - & var.front() );
   return( Inf< Index >() );
