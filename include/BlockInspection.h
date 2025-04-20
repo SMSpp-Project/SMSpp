@@ -536,7 +536,7 @@ namespace SMSpp_di_unipi_it::inspection
                          Index group_index , Index element_index ) {
   auto group = get_group< T >( block , group_index , is_static );
   constexpr bool is_variable = std::is_base_of_v< Variable , T >;
-  if constexpr ( is_variable ) {
+  if constexpr( is_variable ) {
    if( is_static )
     return( get_static_element< T , Variable_Derived_Classes >
      ( group , element_index ) );
@@ -559,7 +559,7 @@ namespace SMSpp_di_unipi_it::inspection
                                 Index group_index ) {
   auto group = get_group< T >( block , group_index , is_static );
   constexpr bool is_variable = std::is_base_of_v< Variable , T >;
-  if constexpr ( is_variable ) {
+  if constexpr( is_variable ) {
    if( is_static )
     return( get_static_element_size< T , Variable_Derived_Classes >( group ) );
    return( get_dynamic_element_size< T , Variable_Derived_Classes >( group ) );
@@ -583,7 +583,7 @@ namespace SMSpp_di_unipi_it::inspection
 
    Index index;
 
-   if constexpr ( is_variable ) {
+   if constexpr( is_variable ) {
     if( is_static )
      index = get_static_index< T , Variable_Derived_Classes >
       ( t , groups[ group_index ] );
