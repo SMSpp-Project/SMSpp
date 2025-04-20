@@ -138,7 +138,7 @@ namespace SMSpp_di_unipi_it::inspection
 
  template< class S , class T , std::size_t K >
  static Index get_dynamic_index_( const S * s ,
-		    const boost::multi_array< std::list< T > , K > & var ) {
+     const boost::multi_array< std::list< T > , K > & var ) {
   auto p = var.data();
   Index index = 0;
   for( boost::multi_array_types::size_type i = var.num_elements() ;
@@ -156,7 +156,7 @@ namespace SMSpp_di_unipi_it::inspection
 
  template< class S , class T >
  static Index get_dynamic_index_( const S * s ,
-				                              const std::vector< std::list< T > > & var ) {
+                                  const std::vector< std::list< T > > & var ) {
   Index index = 0;
   for( typename std::vector< std::list< T > >::size_type i = 0 ;
        i < var.size() ; ++i ) {
