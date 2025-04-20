@@ -76,6 +76,66 @@ namespace SMSpp_di_unipi_it::inspection
  using Index = Block::Index;
 
 /*--------------------------------------------------------------------------*/
+/** The template function
+ *
+ *   Index get_static_index_( const S * s , const ContainerType & container )
+ *
+ * is intended to compute the index corresponding to a pointer `s` to an object
+ * of type T (or derived from T) stored inside one of the following container
+ * types, consistently with the layout logic of get_static_element_().
+ *
+ * Specifically, the function supports as input the following container forms:
+ *
+ * - a single object of type T;
+ *
+ * - a std::vector< T >;
+ *
+ * - a std::vector< std::vector< T > >;
+ *
+ * - a boost::multi_array< T , K > for "all" K;
+ *
+ * - a boost::multi_array< std::vector< T > , K > for "all" K.
+ *
+ * For each of these types, the index returned is the one that would allow
+ * get_static_element_() to retrieve the same object from the container.
+ *
+ * More precisely:
+ *
+ * - If the container is a single object T, the returned index is 0 if and only
+ *   if `s == & var`.
+ *
+ * - If the container is a std::vector< T >, the index is:
+ *
+ *       index = s - & var.front()
+ *
+ * - If the container is a std::vector< std::vector< T > >, the index is:
+ *
+ *       index = outer_index + ( inner_offset * var.size() )
+ *
+ *   where `outer_index` is the position of the inner vector, and `inner_offset`
+ *   is the index of the element inside that vector. This assumes a column-major
+ *   layout consistent with the get_static_element_() logic.
+ *
+ * - If the container is a boost::multi_array< T , K >, the index is:
+ *
+ *       index = s - & var.data()[ 0 ]
+ *
+ * - If the container is a boost::multi_array< std::vector< T > , K >, the index
+ *   is:
+ *
+ *       index = i + ( offset_in_vector * total_vectors )
+ *
+ *   where:
+ *     - `i` is the position of the std::vector< T > inside the flattened array
+ *       var.data();
+ *     - `offset_in_vector` is the position of the target element in that vector;
+ *     - `total_vectors` = var.num_elements().
+ *
+ * Returns the computed index if the pointer `s` matches a known element of the
+ * container. If the pointer is not found or falls outside valid bounds, the
+ * function returns Inf< Index >() to signal an invalid or non-matching
+ * reference.
+ */
 
  template< class S , class T , std::size_t K >
  static Index get_static_index_( const S * s ,
@@ -179,6 +239,63 @@ namespace SMSpp_di_unipi_it::inspection
   }
 
 /*--------------------------------------------------------------------------*/
+/** The template function
+ *
+ *   T * get_static_element_( const ContainerType & container , Index index )
+ *
+ * is intended to retrieve a pointer to an object of type T located at the
+ * position `index` inside a container, consistently with the indexing logic
+ * used in get_static_index_().
+ *
+ * The supported container types are:
+ *
+ * - a single object of type T;
+ *
+ * - a std::vector< T >;
+ *
+ * - a std::vector< std::vector< T > >;
+ *
+ * - a boost::multi_array< T , K > for "all" K;
+ *
+ * - a boost::multi_array< std::vector< T > , K > for "all" K.
+ *
+ * The interpretation of the index depends on the container:
+ *
+ * - If the container is a single object T, index must be 0.
+ *
+ * - If the container is a std::vector< T >, index directly corresponds to:
+ *
+ *       & vector[ index ]
+ *
+ * - If the container is a std::vector< std::vector< T > >, the index is
+ *   interpreted assuming a column-major layout:
+ *
+ *       i1 = index % vector.size();
+ *       i2 = index / vector.size();
+ *       & vector[ i1 ][ i2 ]
+ *
+ *   so the access is O(1) is guaranteed.
+ *
+ * - If the container is a boost::multi_array< T , K >, the index is interpreted
+ *   as the flat offset in the contiguous buffer returned by:
+ *
+ *       & multi_array.data()[ index ]
+ *
+ * - If the container is a boost::multi_array< std::vector< T > , K >, the logic
+ *   is:
+ *
+ *       i1 = index % total_vectors;
+ *       i2 = index / total_vectors;
+ *       & multi_array.data()[ i1 ][ i2 ]
+ *
+ *   where `total_vectors = multi_array.num_elements()`. This layout corresponds
+ *   to a column-major flattening over the outer container and assumes that each
+ *   std::vector< T > may have a different size. Access is O(1) assuming each
+ *   vector supports direct access to its elements.
+ *
+ * In all cases, if the index exceeds the valid range or points to a missing
+ * element (in irregular layouts), the function returns nullptr.
+ */
 
  template< typename T , std::size_t K >
  static T * get_static_element_(
