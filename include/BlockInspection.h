@@ -395,7 +395,8 @@ namespace SMSpp_di_unipi_it::inspection
 /** Returns the index of the given \p element in the given boost::any \p
  * group.
  *
- * @param element A pointer to the element whose index in \p group is desired.
+ * @param element A pointer to the element whose index in the \p group is
+ *                desired.
  *
  * @param group The group containing the element.
  *
@@ -514,10 +515,10 @@ namespace SMSpp_di_unipi_it::inspection
 
 /*--------------------------------------------------------------------------*/
 
- /// returns a pointer to the element of the \p block at the specified position
+ /// returns a pointer to the element of \p block at the specified position
  /** This function returns a pointer to the element of the given Block located
   * at the specified position. If no such an element is found, nullptr is
-  * returned. \p T must be the type of a Constraint or a Variable.
+  * returned. \p T must be the type of Constraint or a Variable.
   *
   * @param block A pointer to a Block.
   *
@@ -682,13 +683,13 @@ namespace SMSpp_di_unipi_it::inspection
   * sub-Block of its father (if any). If the given Block has no father Block,
   * Inf< Index >() is returned.
   *
-  * @param block a A pointer to a Block.
+  * @param block A pointer to a Block.
   *
   * @return The index of the given Block in the list of sub-Block of its
   *         father. If the given Block has no father, Inf< Index >() is
   *         returned. */
 
- static inline Index get_block_index( const Block * block ) {
+ static Index get_block_index( const Block * block ) {
   auto father = block->get_f_Block();
   if( father ) {
    const auto & nb = father->get_nested_Blocks();
@@ -735,14 +736,14 @@ namespace SMSpp_di_unipi_it::inspection
   * @param block The Block to which the desired Constraint belongs.
   *
   * @param id The Block::ConstraintID identifying the Constraint in the given
-  *        \p block.
+  *           \p block.
   *
   * @return If there is a Constraint with the given \p id in the given \p
   *         Block, then a pointer to this Constraint is returned. Otherwise,
   *         nullptr is returned.
   */
- static inline Constraint * get_Constraint( const Block * const block ,
-                                            const Block::ConstraintID id ) {
+ static Constraint * get_Constraint( const Block * const block ,
+                                     const Block::ConstraintID id ) {
   const auto & static_constraints = block->get_static_constraints();
   const auto num_static_groups = static_constraints.size();
   auto group_index = id.first;
@@ -825,7 +826,7 @@ namespace SMSpp_di_unipi_it::inspection
  /// get the ComputeConfig of the Constraint of the given Block
  /** This method scans all Constraint of the given \p block and adds the
   * (non-default) ComputeConfig of the Constraint to \p configs and the
-  * ConstraintID of those Constraint to \p ids. The correspondence between \p
+  * ConstraintID of those Constraints to \p ids. The correspondence between \p
   * configs and \p ids is positional: the i-th ConstraintID in \p ids
   * identifies the Constraint whose ComputeConfig is the i-th element of \p
   * configs. It is important to notice that both \p configs and \p ids are not
@@ -884,7 +885,7 @@ namespace SMSpp_di_unipi_it::inspection
  /// returns the indices of the Constraint that are not satisfied
  /** The given \p group must contain a group of Constraint (static or dynamic,
   * according to \p static_constraints). This function returns a vector
-  * containing the indices of the Constraint in \p group that are not
+  * containing the indices of the Constraint in the \p group that are not
   * satisfied at the current solution. If the given \p group is not a valid
   * group of static or dynamic Constraint, then this function returns an empty
   * vector.
@@ -892,8 +893,8 @@ namespace SMSpp_di_unipi_it::inspection
   * @param group A boost::any containing a group of Constraint.
   *
   * @param static_constraints If it is true, then the given \p group contains
-  *        a group of static Constraint. Otherwise, it indicates that \p group
-  *        contains a group of dynamic Constraint. */
+  *        a group of static Constraint. Otherwise, it indicates that the
+  *        \p group contains a group of dynamic Constraints. */
 
  template< class T , class... Rest >
  static std::vector< Index > get_infeasibility
@@ -925,13 +926,13 @@ namespace SMSpp_di_unipi_it::inspection
  /// returns the static or dynamic Constraint of \p block
  /** This function returns a vector of boost::any containing the static or
   * dynamic Constraint of \p block. If \p static_constraints is true, then the
-  * static Constraint are returned. Otherwise, the dynamic Constraint are
+  * static Constraints are returned. Otherwise, the dynamic Constraints are
   * returned.
   *
   * @param block A pointer to a Block whose Constraint will be checked.
   *
-  * @param static_constraints If it is true, then the static Constraint of the
-  *        given Block are returned. Otherwise, the dynamic Constraint are
+  * @param static_constraints If it is true, then the static Constraints of the
+  *        given Block are returned. Otherwise, the dynamic Constraints are
   *        returned.
   *
   * @return A vector of boost::any containing the static or dynamic Constraint
@@ -946,7 +947,7 @@ namespace SMSpp_di_unipi_it::inspection
 
 /*--------------------------------------------------------------------------*/
 
- /// displays all Constraint of \p block that are not satisfied
+ /// displays all Constraints of \p block that are not satisfied
  /** This function displays the indices of the Constraint of \p block
   * (ignoring those of its sub-Blocks) that are not satisfied at the current
   * solution (given by the values of the Variable of \p block). The parameter
@@ -955,21 +956,21 @@ namespace SMSpp_di_unipi_it::inspection
   * solution, its index together with the name of the group to which this
   * Constraint belongs and the name of \p block (if not empty) are
   * displayed. If the name of \p block (see Block::name()) is empty, then the
-  * name of the class of the \p block is displayed instead (see
+  * name of the class of \p block is displayed instead (see
   * Block::classname()).
   *
   * @param block A pointer to a Block whose Constraint will be checked.
   *
-  * @param static_constraints If it is true, then the static Constraint of the
-  *        given Block are checked. Otherwise, the dynamic Constraint are
+  * @param static_constraints If it is true, then the static Constraints of the
+  *        given Block are checked. Otherwise, the dynamic Constraints are
   *        checked.
   *
-  * @param stream An stream to which the description of the unsatisfied
+  * @param stream A stream to which the description of the unsatisfied
   *        Constraint will be output. */
 
- static inline void show_infeasibility( const Block * block ,
-                                        const bool static_constraints ,
-                                        std::ostream & stream = std::cout ) {
+ static void show_infeasibility( const Block * block ,
+                                 const bool static_constraints ,
+                                 std::ostream & stream = std::cout ) {
   std::string constraint_type = static_constraints ? "static" : "dynamic";
   std::string block_name = block->name();
   if( block_name.empty() )
@@ -996,7 +997,7 @@ namespace SMSpp_di_unipi_it::inspection
 
 /*--------------------------------------------------------------------------*/
 
- /// displays all Constraint of \p block that are not satisfied
+ /// displays all Constraints of \p block that are not satisfied
  /** This function displays the indices of the Constraint of \p block (and
   * those of its sub-Blocks, recursively) that are not satisfied at the
   * current solution (given by the values of the Variable of \p block). If a
@@ -1009,11 +1010,11 @@ namespace SMSpp_di_unipi_it::inspection
   *
   * @param block A pointer to a Block whose Constraint will be checked.
   *
-  * @param stream An stream to which the description of the unsatisfied
+  * @param stream A stream to which the description of the unsatisfied
   *        Constraint will be output. */
 
- static inline void show_infeasibility( const Block * block ,
-                                        std::ostream & stream = std::cout ) {
+ static void show_infeasibility( const Block * block ,
+                                 std::ostream & stream = std::cout ) {
   show_infeasibility( block , true , stream );
   show_infeasibility( block , false , stream );
   for( auto sub_block : block->get_nested_Blocks() )
