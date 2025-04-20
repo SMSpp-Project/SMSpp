@@ -571,8 +571,8 @@ namespace SMSpp_di_unipi_it::inspection
 /*--------------------------------------------------------------------------*/
 
  template< class T >
- static std::pair< Index , Index > get_element_index
-  ( T * t , const Vec_any & groups , bool is_static ) {
+ static std::pair< Index , Index > get_element_index(
+     T * t , const Vec_any & groups , bool is_static ) {
 
   constexpr bool is_variable = std::is_base_of_v< Variable , T >;
 
