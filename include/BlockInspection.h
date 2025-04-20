@@ -170,8 +170,7 @@ namespace SMSpp_di_unipi_it::inspection
 /*--------------------------------------------------------------------------*/
 
  template< class S , class T >
- static Index get_dynamic_index_( const S * s ,
-				                              const std::list< T > & list ) {
+ static Index get_dynamic_index_( const S * s , const std::list< T > & list ) {
   Index index = 0;
   for( auto it = list.cbegin(); it != list.end() ; ++it , ++index )
    if( s == &*it )
