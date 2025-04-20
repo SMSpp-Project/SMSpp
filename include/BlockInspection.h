@@ -231,7 +231,7 @@ namespace SMSpp_di_unipi_it::inspection
 
  template< typename T >
  static T * get_static_element_( const std::vector< T > & vector ,
-				                             Index index ) {
+                                 Index index ) {
   if( index >= vector.size() )
    return( nullptr );
   return( const_cast< T * >( & vector[ index ] ) );
@@ -250,7 +250,7 @@ namespace SMSpp_di_unipi_it::inspection
  template< typename T , std::size_t K >
  static T * get_dynamic_element_(
      const boost::multi_array< std::list< T > , K > & multi_array ,
-	    Index index ) {
+     Index index ) {
   Index past_size = 0;
   for( auto list = multi_array.origin() ;
        list < ( multi_array.origin() + multi_array.num_elements() ) ;
