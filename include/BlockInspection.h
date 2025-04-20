@@ -156,7 +156,7 @@ namespace SMSpp_di_unipi_it::inspection
 
  template< class S , class T >
  static Index get_dynamic_index_( const S * s ,
-				const std::vector< std::list< T > > & var ) {
+				                              const std::vector< std::list< T > > & var ) {
   Index index = 0;
   for( typename std::vector< std::list< T > >::size_type i = 0 ;
        i < var.size() ; ++i ) {
@@ -171,7 +171,7 @@ namespace SMSpp_di_unipi_it::inspection
 
  template< class S , class T >
  static Index get_dynamic_index_( const S * s ,
-				  const std::list< T > & list ) {
+				                              const std::list< T > & list ) {
   Index index = 0;
   for( auto it = list.cbegin(); it != list.end() ; ++it , ++index )
    if( s == &*it )
@@ -216,8 +216,7 @@ namespace SMSpp_di_unipi_it::inspection
 
  template< typename T >
  static T * get_static_element_(
-     const std::vector< std::vector< T > > & vector ,
-     Index index ) {
+     const std::vector< std::vector< T > > & vector , Index index ) {
   if( vector.empty() )
    return( nullptr );
 
@@ -251,8 +250,8 @@ namespace SMSpp_di_unipi_it::inspection
 
  template< typename T , std::size_t K >
  static T * get_dynamic_element_(
-             const boost::multi_array< std::list< T > , K > & multi_array ,
-	     Index index ) {
+     const boost::multi_array< std::list< T > , K > & multi_array ,
+	    Index index ) {
   Index past_size = 0;
   for( auto list = multi_array.origin() ;
        list < ( multi_array.origin() + multi_array.num_elements() ) ;
@@ -270,9 +269,8 @@ namespace SMSpp_di_unipi_it::inspection
 /*--------------------------------------------------------------------------*/
 
  template< typename T >
- static T * get_dynamic_element_(
-			       const std::vector< std::list< T > > & vector ,
-			       Index index ) {
+ static T * get_dynamic_element_( const std::vector< std::list< T > > & vector ,
+                                  Index index ) {
   Index past_size = 0;
   for( auto & list : vector ) {
    if( past_size + list.size() > index ) {
@@ -288,8 +286,7 @@ namespace SMSpp_di_unipi_it::inspection
 /*--------------------------------------------------------------------------*/
 
  template< typename T >
- static T * get_dynamic_element_( const std::list< T > & list ,
-				  Index index ) {
+ static T * get_dynamic_element_( const std::list< T > & list , Index index ) {
   auto it = list.begin();
   for( Index i = 0 ; i < index && it != list.cend(); ++i , ++it );
   if( it != list.end() )
@@ -301,7 +298,7 @@ namespace SMSpp_di_unipi_it::inspection
 
  template< typename T , std::size_t K >
  static Index get_static_element_size_(
-            const boost::multi_array< std::vector< T > , K > & multi_array ) {
+     const boost::multi_array< std::vector< T > , K > & multi_array ) {
   return( multi_array.size() );
   }
 
@@ -309,7 +306,7 @@ namespace SMSpp_di_unipi_it::inspection
 
  template< typename T , std::size_t K >
  static Index get_static_element_size_(
-		          const boost::multi_array< T , K > & multi_array ) {
+     const boost::multi_array< T , K > & multi_array ) {
   return( multi_array.size() );
   }
 
@@ -317,7 +314,7 @@ namespace SMSpp_di_unipi_it::inspection
 
  template< typename T >
  static Index get_static_element_size_(
-            const std::vector< std::vector< T > > & vector ) {
+     const std::vector< std::vector< T > > & vector ) {
   return( vector.size() );
   }
 
@@ -339,7 +336,7 @@ namespace SMSpp_di_unipi_it::inspection
 
  template< typename T , std::size_t K >
  static Index get_dynamic_element_size_(
-	     const boost::multi_array< std::list< T > , K > & multi_array ) {
+     const boost::multi_array< std::list< T > , K > & multi_array ) {
   return( multi_array.size() );
   }
 
@@ -347,7 +344,7 @@ namespace SMSpp_di_unipi_it::inspection
 
  template< typename T >
  static Index get_dynamic_element_size_(
-			     const std::vector< std::list< T > > & vector ) {
+     const std::vector< std::list< T > > & vector ) {
   return( vector.size() );
   }
 
