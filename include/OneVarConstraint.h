@@ -366,6 +366,52 @@ class OneVarConstraint : public RowConstraint {
   set_variable( nullptr , issueMod );
   }
 
+/*--------------------------------------------------------------------------*/
+
+#define un_any_thing_OneVarConstraint_static( my_thing , f )                \
+ [&]( const boost::any & _any ) -> bool {                                   \
+  if( un_any_thing_static( BoxConstraint , _any , f ) )                     \
+   return( true );                                                          \
+  if( un_any_thing_static( LB0Constraint , _any , f ) )                     \
+   return( true );                                                          \
+  if( un_any_thing_static( UB0Constraint , _any , f ) )                     \
+   return( true );                                                          \
+  if( un_any_thing_static( LBConstraint , _any , f ) )                      \
+   return( true );                                                          \
+  if( un_any_thing_static( UBConstraint , _any , f ) )                      \
+   return( true );                                                          \
+  if( un_any_thing_static( NNConstraint , _any , f ) )                      \
+   return( true );                                                          \
+  if( un_any_thing_static( NPConstraint , _any , f ) )                      \
+   return( true );                                                          \
+  if( un_any_thing_static( ZOConstraint , _any , f ) )                      \
+   return( true );                                                          \
+  return( false );                                                          \
+  }( my_thing )
+
+/*--------------------------------------------------------------------------*/
+
+#define un_any_thing_OneVarConstraint_dynamic( my_thing , f )               \
+ [&]( const boost::any & _any ) -> bool {                                   \
+  if( un_any_thing_dynamic( BoxConstraint , _any , f ) )                    \
+   return( true );                                                          \
+  if( un_any_thing_dynamic( LB0Constraint , _any , f ) )                    \
+   return( true );                                                          \
+  if( un_any_thing_dynamic( UB0Constraint , _any , f ) )                    \
+   return( true );                                                          \
+  if( un_any_thing_dynamic( LBConstraint , _any , f ) )                     \
+   return( true );                                                          \
+  if( un_any_thing_dynamic( UBConstraint , _any , f ) )                     \
+   return( true );                                                          \
+  if( un_any_thing_dynamic( NNConstraint , _any , f ) )                     \
+   return( true );                                                          \
+  if( un_any_thing_dynamic( NPConstraint , _any , f ) )                     \
+   return( true );                                                          \
+  if( un_any_thing_dynamic( ZOConstraint , _any , f ) )                     \
+   return( true );                                                          \
+  return( false );                                                          \
+  }( my_thing )
+
 /** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/

@@ -145,46 +145,21 @@ AbstractBlock::~AbstractBlock()
 
  v_Block.clear();
 
- // now delete all the Constraint
+ // now delete all the static Constraint
  for( Index i = get_first_static_Constraint() ; i < sc.size() ; ++i ) {
   if( un_any_thing_static( FRowConstraint , sc[ i ] , { delete &var; } ) )
    continue;
-  if( un_any_thing_static( BoxConstraint , sc[ i ] , { delete &var; } ) )
+  if( un_any_thing_OneVarConstraint_static( sc[ i ] , { delete &var; } ) )
    continue;
-  if( un_any_thing_static( LB0Constraint , sc[ i ] , { delete &var; } ) )
-   continue;
-  if( un_any_thing_static( UB0Constraint , sc[ i ] , { delete &var; } ) )
-   continue;
-  if( un_any_thing_static( LBConstraint , sc[ i ] , { delete &var; } ) )
-   continue;
-  if( un_any_thing_static( UBConstraint , sc[ i ] , { delete &var; } ) )
-   continue;
-  if( un_any_thing_static( NNConstraint , sc[ i ] , { delete &var; } ) )
-   continue;
-  if( un_any_thing_static( NPConstraint , sc[ i ] , { delete &var; } ) )
-   continue;
-  un_any_thing_static( ZOConstraint , sc[ i ] , { delete &var; } );
-  }
+ }
 
+ // now delete all the dynamic Constraint
  for( Index i = get_first_dynamic_Constraint() ; i < dc.size() ; ++i ) {
   if( un_any_thing_dynamic( FRowConstraint , dc[ i ] , { delete &var; } ) )
    continue;
-  if( un_any_thing_dynamic( BoxConstraint , dc[ i ] , { delete &var; } ) )
+  if( un_any_thing_OneVarConstraint_dynamic( dc[ i ] , { delete &var; } ) )
    continue;
-  if( un_any_thing_dynamic( LB0Constraint , dc[ i ] , { delete &var; } ) )
-   continue;
-  if( un_any_thing_dynamic( UB0Constraint , dc[ i ] , { delete &var; } ) )
-   continue;
-  if( un_any_thing_dynamic( LBConstraint , dc[ i ] , { delete &var; } ) )
-   continue;
-  if( un_any_thing_dynamic( UBConstraint , dc[ i ] , { delete &var; } ) )
-   continue;
-  if( un_any_thing_dynamic( NNConstraint , dc[ i ] , { delete &var; } ) )
-   continue;
-  if( un_any_thing_dynamic( NPConstraint , dc[ i ] , { delete &var; } ) )
-   continue;
-  un_any_thing_dynamic( ZOConstraint , dc[ i ] , { delete &var; } );
-  }
+ }
 
  // now delete all the Variable
  auto & sv = get_static_variables();
