@@ -59,8 +59,8 @@ void ColVariableSolution::delete_vectors() {
 
   for( Vec_any::size_type i = 0 ; i < static_variable_values.size() ; ++i )
 
-    if( ! un_any_thing( double , static_variable_values[ i ] ,
-                        [ & var ]() { delete & var; }() ) )
+    if( ! un_any_thing_static( double , static_variable_values[ i ] ,
+                               [ & var ]() { delete & var; }() ) )
 
       throw( std::logic_error
        ( std::string( "ColVariableSolution::~ColVariableSolution() "
@@ -69,9 +69,9 @@ void ColVariableSolution::delete_vectors() {
 
   for( Vec_any::size_type i = 0 ; i < dynamic_variable_values.size() ; ++i )
 
-    if( ! un_any_thing( std::vector< double > ,
-                        dynamic_variable_values[ i ] ,
-                        [ & var ]() { delete & var; }() ) )
+    if( ! un_any_thing_dynamic( std::vector< double > ,
+                                dynamic_variable_values[ i ] ,
+                                [ & var ]() { delete & var; }() ) )
 
       throw( std::logic_error
        ( std::string( "ColVariableSolution::~ColVariableSolution() "

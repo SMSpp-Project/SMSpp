@@ -660,14 +660,14 @@ public:
   }
 
   Block * block;
-  if constexpr ( std::is_base_of_v< Function , T > ) {
+  if constexpr( std::is_base_of_v< Function , T > ) {
    auto observer = t->get_Observer();
    if( ! observer )
     throw( std::logic_error( "AbstractPath::build: Path not found. "
                              "Function has no Observer." ) );
    block = observer->get_Block();
   }
-  else if constexpr ( std::is_base_of_v< Block , T > )
+  else if constexpr( std::is_base_of_v< Block , T > )
    block = t->get_f_Block();
   else
    block = t->get_Block();

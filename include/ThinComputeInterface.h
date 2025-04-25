@@ -564,6 +564,21 @@ class ThinComputeInterface
  virtual void set_par( idx_type par , int value ) {}
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// set a specific integer (int) numerical parameter
+ /** Set the integer (int) numerical parameter with name \p name to the new
+  * value \p value. The method uses int_par_str2idx() to retrieve the
+  * parameter index and then calls set_par( int ). Thus, the implementation
+  * of the base class should not need to be changed. */
+
+ virtual void set_par( const std::string & name , int value ) {
+  auto par = int_par_str2idx( name );
+  if( par == Inf< idx_type >() )
+   throw( std::invalid_argument( "set_par( int ): " + name +
+				 "not a valid parameter name" ) );
+  return( set_par( par , value ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set a given float (double) numerical parameter
  /** Set the float (double) numerical parameter with index \p par, which must
   * be in the range [ 0 , get_num_dbl_par() ). The method is given a "void"
@@ -573,6 +588,21 @@ class ThinComputeInterface
   * that they supposedly have) do not have to bother with implementing it. */
 
  virtual void set_par( idx_type par , double value ) {}
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// set a specific float (double) numerical parameter
+ /** Set the float (double) numerical parameter with name \p name to the new
+  * value \p value. The method uses dbl_par_str2idx() to retrieve the
+  * parameter index and then calls set_par( double ). Thus, the implementation
+  * of the base class should not need to be changed. */
+
+ virtual void set_par( const std::string & name , double value ) {
+  auto par = dbl_par_str2idx( name );
+  if( par == Inf< idx_type >() )
+   throw( std::invalid_argument( "set_par( double ): " + name +
+				 "not a valid parameter name" ) );
+  return( set_par( par , value ) );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// move a given string parameter
@@ -588,6 +618,22 @@ class ThinComputeInterface
  virtual void set_par( idx_type par , std::string && value ) {}
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// move a given string parameter
+ /** Set the string parameter with name \p name. The method takes an lvalue
+  * reference, which means that \p value can be moved into the
+  * ThinComputeInterface. The method uses str_par_str2idx() to retrieve the
+  * parameter index and then calls set_par( std::string && ). Thus, the
+  * implementation of the base class should not need to be changed. */
+
+ virtual void set_par( const std::string & name , std::string && value ) {
+  auto par = str_par_str2idx( name );
+  if( par == Inf< idx_type >() )
+   throw( std::invalid_argument( "set_par( std::string ): " + name +
+				 "not a valid parameter name" ) );
+  return( set_par( par , value ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set a given string parameter
  /** Like set_par( idx_type , std::string && ), but taking a const reference.
   * The method is given a default implementation that calls the "move"
@@ -596,6 +642,18 @@ class ThinComputeInterface
 
  virtual void set_par( idx_type par , const std::string & value ) {
   set_par( par , std::move( std::string( value ) ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// set a given string parameter
+ /** Like set_par( name , std::string && ), but taking a const reference.
+  * The method is given a default implementation that calls the "move"
+  * version with a copy of \p value, and this might not need to be ever
+  * re-implemented by derived classes. */
+
+ virtual void set_par( const std::string & name ,
+		       const std::string & value ) {
+  set_par( name , std::move( std::string( value ) ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -612,6 +670,24 @@ class ThinComputeInterface
  virtual void set_par( idx_type par , std::vector< int > && value ) {}
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// move a given vector-of-integer (std::vector< int >) numerical parameter
+ /** Set the vector-of-integer (std::vector< int >) numerical parameter with
+  * name \p name. The method takes an lvalue reference, which means that
+  * \p value can be moved into the ThinComputeInterface. The method uses
+  * vint_par_str2idx() to retrieve the parameter index and then calls
+  * set_par( std::vector< int > && ). Thus, the implementation of the base
+  * class should not need to be changed. */
+
+ virtual void set_par( const std::string & name ,
+		       std::vector< int > && value ) {
+  auto par = vint_par_str2idx( name );
+  if( par == Inf< idx_type >() )
+   throw( std::invalid_argument( "set_par( std::vector< int > ): " + name +
+				 "not a valid parameter name" ) );
+  return( set_par( par , value ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set a given vector-of-integer (std::vector< int >) numerical parameter
  /** Like set_par( idx_type , std::vector< int > && ), but taking a const
   * reference. The method is given a default implementation that calls the
@@ -620,6 +696,18 @@ class ThinComputeInterface
 
  virtual void set_par( idx_type par , const std::vector< int > & value ) {
   set_par( par , std::move( std::vector< int >( value ) ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// set a given vector-of-integer (std::vector< int >) numerical parameter
+ /** Like set_par( name , std::vector< int > && ), but taking a const
+  * reference. The method is given a default implementation that calls the
+  * "move" version with a copy of \p value, and this might not need to be
+  * ever re-implemented by derived classes. */
+
+ virtual void set_par( const std::string & name ,
+		       const std::vector< int > & value ) {
+  set_par( name , std::move( std::vector< int >( value ) ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -636,6 +724,24 @@ class ThinComputeInterface
  virtual void set_par( idx_type par , std::vector< double > && value ) {}
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// move a given vector-of-float (std::vector< double >) numerical parameter
+ /** Set the vector-of-float (std::vector< souble >) numerical parameter with
+  * name \p name. The method takes an lvalue reference, which means that
+  * \p value can be moved into the ThinComputeInterface. The method uses
+  * vdbl_par_str2idx() to retrieve the parameter index and then calls
+  * set_par( std::vector< double > && ). Thus, the implementation of the base
+  * class should not need to be changed. */
+
+ virtual void set_par( const std::string & name ,
+		       std::vector< double > && value ) {
+  auto par = vdbl_par_str2idx( name );
+  if( par == Inf< idx_type >() )
+   throw( std::invalid_argument( "set_par( std::vector< double > ): " + name +
+				 "not a valid parameter name" ) );
+  return( set_par( par , value ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set a given vector-of-float (std::vector< double >) numerical parameter
  /** Like set_par( idx_type , std::vector< double > && ), but taking a const
   * reference. The method is given a default implementation that calls the
@@ -644,6 +750,18 @@ class ThinComputeInterface
 
  virtual void set_par( idx_type par , const std::vector< double > & value ) {
   set_par( par , std::move( std::vector< double >( value ) ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// set a given vector-of-integer (std::vector< double >) numerical parameter
+ /** Like set_par( name , std::vector< double > && ), but taking a const
+  * reference. The method is given a default implementation that calls the
+  * "move" version with a copy of \p value, and this might not need to be
+  * ever re-implemented by derived classes. */
+
+ virtual void set_par( const std::string & name ,
+		       const std::vector< double > & value ) {
+  set_par( name , std::move( std::vector< double >( value ) ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -660,6 +778,24 @@ class ThinComputeInterface
  virtual void set_par( idx_type par , std::vector< std::string > && value ) {}
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// move a given vector-of-string (std::vector< std::string >) parameter
+ /** Set the  vector-of-string (std::vector< std::string >) parameter with
+  * name \p name. The method takes an lvalue reference, which means that
+  * \p value can be moved into the ThinComputeInterface. The method uses
+  * vstr_par_str2idx() to retrieve the parameter index and then calls
+  * set_par( std::vector< double > && ). Thus, the implementation of the base
+  * class should not need to be changed. */
+
+ virtual void set_par( const std::string & name ,
+		       std::vector< std::string > && value ) {
+  auto par = vstr_par_str2idx( name );
+  if( par == Inf< idx_type >() )
+   throw( std::invalid_argument( "set_par( std::vector< string > ): " + name
+				 + "not a valid parameter name" ) );
+  return( set_par( par , value ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set a given vector-of-string (std::vector< std::string >) parameter
  /** Like set_par( idx_type , std::vector< std::string > && ), but taking a
   * const reference. The method is given a default implementation that calls
@@ -672,11 +808,23 @@ class ThinComputeInterface
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// set a given vector-of-string (std::vector< std::string >) parameter
+ /** Like set_par( name , std::vector< std::string > && ), but taking a const
+  * reference. The method is given a default implementation that calls the
+  * "move" version with a copy of \p value, and this might not need to be
+  * ever re-implemented by derived classes. */
+
+ virtual void set_par( const std::string & name ,
+		       const std::vector< std::string > & value ) {
+  set_par( name , std::move( std::vector< std::string >( value ) ) );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// set the whole set of parameters in one blow
  /** This method sets the whole set of parameters in one blow using a
   * ComputeConfig object.
   *
-  * Although the class is thin, this method is given a working configuration
+  * Although the class is thin, this method is given a working implementation
   * using the class interface; hence, derived classes correctly implementing
   * set_par() (all the required versions), get_num_*_par(), get_dflt_*_par()
   * and *_par_str2idx() can in principle avoid to re-implement it.
@@ -1309,6 +1457,21 @@ class ThinComputeInterface
   const { return( get_dflt_int_par( par ) ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// get a specific integer (int) numerical parameter
+ /** Get the integer (int) numerical parameter with name \p name. The method
+  * uses int_par_str2idx() to retrieve the parameter index and then calls
+  * get_int_par(). Thus, the implementation of the base class should not
+  * need to be changed. */
+
+ [[nodiscard]] virtual int get_int_par( const std::string & name ) const {
+  auto par = int_par_str2idx( name );
+  if( par == Inf< idx_type >() )
+   throw( std::invalid_argument( "get_int_par: " + name +
+				 "not a valid parameter name" ) );
+  return( get_int_par( par ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get a specific float (double) numerical parameter
  /** Get the float (double) numerical parameter with index \p par, which must
  * be in the range [ 0 , get_num_dbl_par() ). The method is given a "void"
@@ -1322,6 +1485,21 @@ class ThinComputeInterface
   const { return( get_dflt_dbl_par( par ) ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// get a specific float (double) numerical parameter
+ /** Get the float (double) numerical parameter with name \p name. The
+  * method uses dbl_par_str2idx() to retrieve the parameter index and then
+  * calls get_dbl_par(). Thus, the implementation of the base class should not
+  * need to be changed. */
+
+ [[nodiscard]] virtual double get_dbl_par( const std::string & name ) const {
+  auto par = dbl_par_str2idx( name );
+  if( par == Inf< idx_type >() )
+   throw( std::invalid_argument( "get_dbl_par: " + name +
+				 "not a valid parameter name" ) );
+  return( get_dbl_par( par ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get a specific string parameter
  /** Returns a const reference to the current value of the string parameter
   * with index \p par, which must be in the range [ 0 , get_num_str_par() ).
@@ -1333,6 +1511,22 @@ class ThinComputeInterface
 
  [[nodiscard]] virtual const std::string & get_str_par( idx_type par )
   const { return( get_dflt_str_par( par ) ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// get a specific string parameter
+ /** Returns a const reference to the current value of the string parameter
+  * with name \p name. The method uses str_par_str2idx() to retrieve the
+  * parameter index and then calls get_str_par(). Thus, the implementation of
+  * the base class should not need to be changed. */
+
+ [[nodiscard]] virtual const std::string & get_str_par(
+					  const std::string & name ) const {
+  auto par = str_par_str2idx( name );
+  if( par == Inf< idx_type >() )
+   throw( std::invalid_argument( "get_str_par: " + name +
+				 "not a valid parameter name" ) );
+  return( get_str_par( par ) );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get a specific vector-of-integer (std::vector< int >) numerical parameter
@@ -1349,18 +1543,52 @@ class ThinComputeInterface
   get_vint_par( idx_type par ) const { return( get_dflt_vint_par( par ) ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// get a specific vector-of-integer (std::vector< int >) numerical parameter
+ /**  Returns a const reference to the current value of the vector-of-integer
+  * (std::vector< int >) numerical parameter with name \p name. The method
+  * uses vint_par_str2idx() to retrieve the parameter index and then calls
+  * get_vint_par(). Thus, the implementation of the base class should not
+  * need to be changed. */
+
+ [[nodiscard]] virtual const std::vector< int > &  get_vint_par(
+					   const std::string & name ) const {
+  auto par = vint_par_str2idx( name );
+  if( par == Inf< idx_type >() )
+   throw( std::invalid_argument( "get_vint_par: " + name +
+				 "not a valid parameter name" ) );
+  return( get_vint_par( par ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get a specific vector-of-float (std::vector< double >) numerical parameter
  /** Returns a const reference to the current value of the vector-of-float
   * (std::vector< double >) numerical parameter with index \p par, which must
- * be in the range [ 0 , get_num_vdbl_par() ). The method is given a "void"
- * implementation always returning the default value for the parameter,
- * rather than being pure virtual, so that derived classes not having any
- * working float parameter (i.e., either not having any or not really
- * reacting to the ones that they supposedly have) do not have to bother
- * with implementing it. */
+  * be in the range [ 0 , get_num_vdbl_par() ). The method is given a "void"
+  * implementation always returning the default value for the parameter,
+  * rather than being pure virtual, so that derived classes not having any
+  * working float parameter (i.e., either not having any or not really
+  * reacting to the ones that they supposedly have) do not have to bother
+  * with implementing it. */
 
  [[nodiscard]] virtual const std::vector< double > &
   get_vdbl_par( idx_type par ) const { return( get_dflt_vdbl_par( par ) ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// get a specific vector-of-float (std::vector< double >) numerical parameter
+ /** Returns a const reference to the current value of the vector-of-float
+  * (std::vector< double >) numerical parameter with name \p name. The method
+  * uses vdbl_par_str2idx() to retrieve the parameter index and then calls
+  * get_vdbl_par(). Thus, the implementation of the base class should not
+  * need to be changed. */
+
+ [[nodiscard]] virtual const std::vector< double > & get_vdbl_par(
+					   const std::string & name ) const {
+  auto par = vdbl_par_str2idx( name );
+  if( par == Inf< idx_type >() )
+   throw( std::invalid_argument( "get_vdbl_par: " + name +
+				 "not a valid parameter name" ) );
+  return( get_vdbl_par( par ) );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get a specific vector-of-string (std::vector< std::string >) parameter
@@ -1375,6 +1603,23 @@ class ThinComputeInterface
 
  [[nodiscard]] virtual const std::vector< std::string > &
   get_vstr_par( idx_type par ) const { return( get_dflt_vstr_par( par ) ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// get a specific vector-of-string (std::vector< string >) parameter
+ /** Returns a const reference to the current value of the vector-of-string
+  * (std::vector< string >) parameter with name \p name. The method uses
+  * vstr_par_str2idx() to retrieve the parameter index and then calls
+  * get_vstr_par(). Thus, the implementation of the base class should not
+  * need to be changed. */
+
+ [[nodiscard]] virtual const std::vector< std::string > &
+  get_vstr_par(  const std::string & name ) const {
+  auto par = vstr_par_str2idx( name );
+  if( par == Inf< idx_type >() )
+   throw( std::invalid_argument( "get_vstr_par: " + name +
+				 "not a valid parameter name" ) );
+  return( get_vstr_par( par ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// get the index of the int parameter with given string name

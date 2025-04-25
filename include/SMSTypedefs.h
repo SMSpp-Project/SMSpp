@@ -59,9 +59,7 @@
 #include <string>
 #include <tuple>
 #include <type_traits>
-#include <typeindex>
 #include <typeinfo>
-#include <unordered_map>
 #include <vector>
 
 // boost libraries
@@ -743,8 +741,6 @@ bool SMSpp_ensure_load_var;
  *  - a pointer to a std::vector of objects of some type (Constraint,
  *    Variable or some of their derived classes);
  *
- *  - a pointer to a std::vector of std::vector of objects of some type (...);
- *
  *  - a pointer to a boost::multi_array< K > of objects of some type (...);
  *
  *  - a pointer to a boost::multi_array< K > of std::vector of objects of some
@@ -784,7 +780,9 @@ bool SMSpp_ensure_load_var;
  *
  * and the four macros (which, however, behave as a bool-returning function)
  *
- *   #define un_any_thing( thing_type , my_thing , f )
+ *   #define un_any_thing_static( thing_type , my_thing , f )
+ *
+ *   #define un_any_thing_dynamic( thing_type , my_thing , f )
  *
  *   #define un_any_thing_0( thing_type , my_thing , f )
  *
@@ -853,20 +851,20 @@ struct un_any_type {};
 template< typename T , class F >
 bool un_any_static( boost::any & any , F f , un_any_type< T > ) {
  if( any.type() == typeid( T * ) ) {
-  auto & el = *boost::any_cast< T * >( any );
+  auto & el = * boost::any_cast< T * >( any );
   f( el );
   return( true );
   }
  else
   if( any.type() == typeid( std::vector< T > * ) ) {
-   auto & var = *boost::any_cast< std::vector< T > * >( any );
+   auto & var = * boost::any_cast< std::vector< T > * >( any );
    for( auto & el : var )
     f( el );
    return( true );
    }
   else
    if( any.type() == typeid( std::vector< std::vector< T > > * ) ) {
-    auto & var = *boost::any_cast< std::vector< std::vector< T > > * >( any );
+    auto & var = * boost::any_cast< std::vector< std::vector< T > > * >( any );
     for( auto & el : var )
      for( auto & ell : el )
       f( ell );
@@ -886,7 +884,7 @@ template< typename T , class F , unsigned short K >
 bool un_any_static( boost::any & any , F f , un_any_type< T > ,
                     un_any_int< K > ) {
  if( any.type() == typeid( boost::multi_array< T , K > * ) ) {
-  auto & var = *boost::any_cast< boost::multi_array< T , K > * >( any );
+  auto & var = * boost::any_cast< boost::multi_array< T , K > * >( any );
   T * p = var.data();
   for( auto i = var.num_elements() ; i-- ; )
    f( *( p++ ) );
@@ -895,7 +893,7 @@ bool un_any_static( boost::any & any , F f , un_any_type< T > ,
  else
   if( any.type() == typeid( boost::multi_array< std::vector< T > , K > * ) ) {
    auto & var =
-    *boost::any_cast< boost::multi_array< std::vector< T > , K > * >( any );
+    * boost::any_cast< boost::multi_array< std::vector< T > , K > * >( any );
    std::vector< T > * p = var.data();
    for( auto i = var.num_elements() ; i-- ; ++p )
     for( auto & ell : *p )
@@ -959,25 +957,25 @@ template< typename T , typename U , class F >
 bool un_any_static_2( const boost::any & any1 , const boost::any & any2 ,
                       F f , un_any_type< T > , un_any_type< U > ) {
  if( any1.type() == typeid( T * ) ) {
-  auto & el1 = *boost::any_cast< T * >( any1 );
+  auto & el1 = * boost::any_cast< T * >( any1 );
   #ifndef NDEBUG
    if( any2.type() != typeid( U * ) )
     throw( std::invalid_argument(
              "un_any_static_2: second argument not U *" ) );
   #endif
-  auto & el2 = *boost::any_cast< U * >( any2 );
+  auto & el2 = * boost::any_cast< U * >( any2 );
   f( el1 , el2 );
   return( true );
   }
  else
   if( any1.type() == typeid( std::vector< T > * ) ) {
-   auto & var1 = *boost::any_cast< std::vector< T > * >( any1 );
+   auto & var1 = * boost::any_cast< std::vector< T > * >( any1 );
    #ifndef NDEBUG
     if( any2.type() != typeid( std::vector< U > * ) )
      throw( std::invalid_argument(
              "un_any_static_2: second argument not not std::vector< U > *" ) );
    #endif
-   auto & var2 = *boost::any_cast< std::vector< U > * >( any2 );
+   auto & var2 = * boost::any_cast< std::vector< U > * >( any2 );
    #ifndef NDEBUG
     if( var1.size() != var2.size() )
      throw( std::logic_error(
@@ -992,13 +990,13 @@ bool un_any_static_2( const boost::any & any1 , const boost::any & any2 ,
    }
   else
    if( any1.type() == typeid( std::vector< std::vector< T > > * ) ) {
-    auto & var1 = *boost::any_cast< std::vector< std::vector< T > > * >( any1 );
+    auto & var1 = * boost::any_cast< std::vector< std::vector< T > > * >( any1 );
     #ifndef NDEBUG
     if( any2.type() != typeid( std::vector< std::vector< U > > * ) )
      throw( std::invalid_argument(
                           "un_any_static_2: second argument not U *" ) );
     #endif
-    auto & var2 = *boost::any_cast< std::vector< std::vector< U > > * >( any2 );
+    auto & var2 = * boost::any_cast< std::vector< std::vector< U > > * >( any2 );
     #ifndef NDEBUG
     if( var1.size() != var2.size() )
      throw( std::invalid_argument(
@@ -1030,13 +1028,13 @@ bool un_any_static_2( const boost::any & any1 , const boost::any & any2 ,
                       F f , un_any_type< T > , un_any_type< U > ,
                       un_any_int< K > ) {
  if( any1.type() == typeid( boost::multi_array< T , K > * ) ) {
-  auto & var1 = *boost::any_cast< boost::multi_array< T , K > * >( any1 );
+  auto & var1 = * boost::any_cast< boost::multi_array< T , K > * >( any1 );
   #ifndef NDEBUG
    if( any2.type() != typeid( boost::multi_array< U , K > * ) )
     throw( std::invalid_argument(
       "un_any_static_2: second argument not boost::multi_array< U , K > *" ) );
   #endif
-  auto & var2 = *boost::any_cast< boost::multi_array< U , K > * >( any2 );
+  auto & var2 = * boost::any_cast< boost::multi_array< U , K > * >( any2 );
   #ifndef NDEBUG
    if( ( var1.num_dimensions() != var2.num_dimensions() ) ||
        ( ! std::equal( var1.shape() , var1.shape() + var1.num_dimensions() ,
@@ -1054,13 +1052,13 @@ bool un_any_static_2( const boost::any & any1 , const boost::any & any2 ,
  else
   if( any1.type() == typeid( boost::multi_array< std::vector< T > , K > * ) ) {
    auto & var1 =
-    *boost::any_cast< boost::multi_array< std::vector< T > , K > * >( any1 );
+    * boost::any_cast< boost::multi_array< std::vector< T > , K > * >( any1 );
    #ifndef NDEBUG
     if( any2.type() != typeid( boost::multi_array< std::vector< U > , K > * ) )
      throw( std::invalid_argument(
                            "un_any_static_2: second argument not U *" ) );
    #endif
-   auto & var2 = *boost::any_cast< boost::multi_array< std::vector< U > , K > * >( any2 );
+   auto & var2 = * boost::any_cast< boost::multi_array< std::vector< U > , K > * >( any2 );
    #ifndef NDEBUG
     if( ( var1.num_dimensions() != var2.num_dimensions() ) ||
         ( ! std::equal( var1.shape() , var1.shape() + var1.num_dimensions() ,
@@ -1135,18 +1133,18 @@ bool un_any_static_2_create( const boost::any & any1 , boost::any & any2 ,
  if( any1.type() == typeid( T * ) ) {
   any2 = new U();
   if( apply_f ) {
-   auto & var1 = *boost::any_cast< T * >( any1 );
-   auto & var2 = *boost::any_cast< U * >( any2 );
+   auto & var1 = * boost::any_cast< T * >( any1 );
+   auto & var2 = * boost::any_cast< U * >( any2 );
    f( var1 , var2 );
    }
   return( true );
   }
  else
   if( any1.type() == typeid( std::vector< T > * ) ) {
-   auto & var1 = *boost::any_cast< std::vector< T > * >( any1 );
+   auto & var1 = * boost::any_cast< std::vector< T > * >( any1 );
    any2 = new std::vector< U >( var1.size() );
    if( apply_f ) {
-    auto & var2 = *boost::any_cast< std::vector< U > * >( any2 );
+    auto & var2 = * boost::any_cast< std::vector< U > * >( any2 );
     auto i2 = var2.begin();
     for( auto i1 = var1.begin() ; i1 != var1.end() ; ++i1 , ++i2 )
      f( *i1 , *i2 );
@@ -1155,8 +1153,8 @@ bool un_any_static_2_create( const boost::any & any1 , boost::any & any2 ,
    }
   else
    if( any1.type() == typeid( std::vector< std::vector< T > > * ) ) {
-    auto & var1 = *boost::any_cast< std::vector< std::vector< T > > * >( any1 );
-    auto & var2 = *boost::any_cast< std::vector< std::vector< U > > * >( any2 );
+    auto & var1 = * boost::any_cast< std::vector< std::vector< T > > * >( any1 );
+    auto & var2 = * boost::any_cast< std::vector< std::vector< U > > * >( any2 );
     var2.resize( var1.size() );
     auto i2 = var2.begin();
     for( auto i1 = var1.begin() ;
@@ -1186,12 +1184,12 @@ bool un_any_static_2_create( const boost::any & any1 , boost::any & any2 ,
                              un_any_type< T > , un_any_type< U > ,
                              un_any_int< K > , F f , bool apply_f = true ) {
  if( any1.type() == typeid( boost::multi_array< T , K > * ) ) {
-  auto & var1 = *boost::any_cast< boost::multi_array< T , K > * >( any1 );
+  auto & var1 = * boost::any_cast< boost::multi_array< T , K > * >( any1 );
   auto first = var1.shape();
   std::vector< int > shape( first , first + var1.num_dimensions() );
   any2 = new boost::multi_array< U , K >( shape );
   if( apply_f ) {
-   auto & var2 = *boost::any_cast< boost::multi_array< U , K > * >( any2 );
+   auto & var2 = * boost::any_cast< boost::multi_array< U , K > * >( any2 );
    T * p1 = var1.data();
    U * p2 = var2.data();
    for( auto i = std::min( var1.num_elements() , var2.num_elements() ) ;
@@ -1203,12 +1201,12 @@ bool un_any_static_2_create( const boost::any & any1 , boost::any & any2 ,
  else
   if( any1.type() == typeid( boost::multi_array< std::vector< T > , K > * ) ) {
    auto & var1 =
-    *boost::any_cast< boost::multi_array< std::vector< T > , K > * >( any1 );
+    * boost::any_cast< boost::multi_array< std::vector< T > , K > * >( any1 );
    auto first = var1.shape();
    std::vector< int > shape( first , first + var1.num_dimensions() );
    any2 = new boost::multi_array< std::vector< U > , K >( shape );
    if( apply_f ) {
-    auto & var2 = *boost::any_cast< boost::multi_array< std::vector< U > , K > * >( any2 );
+    auto & var2 = * boost::any_cast< boost::multi_array< std::vector< U > , K > * >( any2 );
     std::vector< T > * p1 = var1.data();
     std::vector< U > * p2 = var2.data();
     for( auto i = std::min( var1.num_elements() , var2.num_elements() ) ;
@@ -1270,20 +1268,20 @@ bool un_any_static_2_create( const boost::any & any1 , boost::any & any2 ,
 template< typename T , class F >
 bool un_any_const_static( const boost::any & any , F f , un_any_type< T > ) {
  if( any.type() == typeid( T * ) ) {
-  auto & el = *boost::any_cast< T * >( any );
+  auto & el = * boost::any_cast< T * >( any );
   f( el );
   return( true );
   }
  else
   if( any.type() == typeid( std::vector< T > * ) ) {
-   auto & var = *boost::any_cast< std::vector< T > * >( any );
+   auto & var = * boost::any_cast< std::vector< T > * >( any );
    for( auto & el : var )
     f( el );
    return( true );
    }
   else
    if( any.type() == typeid( std::vector< std::vector< T > > * ) ) {
-    auto & var = *boost::any_cast< std::vector< std::vector< T > > * >( any );
+    auto & var = * boost::any_cast< std::vector< std::vector< T > > * >( any );
     for( auto & el : var )
      for( auto & ell : el )
       f( ell );
@@ -1304,7 +1302,7 @@ template< typename T , class F , unsigned short K >
 bool un_any_const_static( const boost::any & any , F f ,
                           un_any_type< T > , un_any_int< K > ) {
  if( any.type() == typeid( boost::multi_array< T , K > * ) ) {
-  auto & var = *boost::any_cast< boost::multi_array< T , K > * >( any );
+  auto & var = * boost::any_cast< boost::multi_array< T , K > * >( any );
   T * p = var.data();
   for( auto i = var.num_elements() ; i-- ; )
    f( *( p++ ) );
@@ -1313,7 +1311,7 @@ bool un_any_const_static( const boost::any & any , F f ,
  else
   if( any.type() == typeid( boost::multi_array< std::vector< T > , K > * ) ) {
    auto & var =
-    *boost::any_cast< boost::multi_array< std::vector< T > , K > * >( any );
+    * boost::any_cast< boost::multi_array< std::vector< T > , K > * >( any );
    std::vector< T > * p = var.data();
    for( auto i = var.num_elements() ; i-- ; ++p )
     for( auto & ell : *p )
@@ -1358,14 +1356,14 @@ bool un_any_const_static( const boost::any & any , F f ,
 template< typename T , class F >
 bool un_any_dynamic( boost::any & any , F f , un_any_type< T > ) {
  if( any.type() == typeid( std::list< T > * ) ) {
-  auto & el = *boost::any_cast< std::list< T > * >( any );
+  auto & el = * boost::any_cast< std::list< T > * >( any );
   for( auto & ell : el )
    f( ell );
   return( true );
   }
  else
   if( any.type() == typeid( std::vector< std::list< T > > * ) ) {
-   auto & var = *boost::any_cast< std::vector< std::list< T > > * >( any );
+   auto & var = * boost::any_cast< std::vector< std::list< T > > * >( any );
    for( auto & el : var )
     for( auto & ell : el )
      f( ell );
@@ -1386,7 +1384,7 @@ bool un_any_dynamic( boost::any & any , F f ,
                      un_any_type< T > , un_any_int< K > ) {
  if( any.type() == typeid( boost::multi_array< std::list< T > , K > * ) ) {
   auto & var =
-   *boost::any_cast< boost::multi_array< std::list< T > , K > * >( any );
+   * boost::any_cast< boost::multi_array< std::list< T > , K > * >( any );
   std::list< T > * p = var.data();
   for( auto i = var.num_elements() ; i-- ; ++p )
    for( auto & ell : *p )
@@ -1437,25 +1435,25 @@ template< typename T , typename U , class F >
 bool un_any_dynamic_2( const boost::any & any1 , const boost::any & any2 ,
                        F f , un_any_type< T > c , un_any_type< U > ) {
  if( any1.type() == typeid( std::list< T > * ) ) {
-  auto & el1 = *boost::any_cast< std::list< T > * >( any1 );
+  auto & el1 = * boost::any_cast< std::list< T > * >( any1 );
   #ifndef NDEBUG
    if( any2.type() != typeid( U * ) )
     throw( std::invalid_argument(
                          "un_any_dynamic_2: second argument not U *" ) );
   #endif
-  auto & el2 = *boost::any_cast< U * >( any2 );
+  auto & el2 = * boost::any_cast< U * >( any2 );
   f( el1 , el2 );
   return( true );
   }
  else
   if( any1.type() == typeid( std::vector< std::list< T > > * ) ) {
-   auto & var1 = *boost::any_cast< std::vector< std::list< T > > * >( any1 );
+   auto & var1 = * boost::any_cast< std::vector< std::list< T > > * >( any1 );
    #ifndef NDEBUG
     if( any2.type() != typeid( std::vector< U > * ) )
      throw( std::invalid_argument(
                           "un_any_dynamic_2: second argument not U *" ) );
    #endif
-   auto & var2 = *boost::any_cast< std::vector< U > * >( any2 );
+   auto & var2 = * boost::any_cast< std::vector< U > * >( any2 );
    #ifndef NDEBUG
     if( var1.size() != var2.size() )
      throw( std::invalid_argument(
@@ -1484,13 +1482,13 @@ bool un_any_dynamic_2( const boost::any & any1 , const boost::any & any2 ,
                        un_any_int< K > ) {
  if( any1.type() == typeid( boost::multi_array< std::list< T > , K > * ) ) {
   auto & var1 =
-   *boost::any_cast< boost::multi_array< std::list< T > , K > * >( any1 );
+   * boost::any_cast< boost::multi_array< std::list< T > , K > * >( any1 );
   #ifndef NDEBUG
    if( any2.type() != typeid( boost::multi_array< U , K > * ) )
     throw( std::invalid_argument(
                           "un_any_dynamic_2: second argument not U *" ) );
   #endif
-  auto & var2 = *boost::any_cast< boost::multi_array< U , K > * >( any2 );
+  auto & var2 = * boost::any_cast< boost::multi_array< U , K > * >( any2 );
   #ifndef NDEBUG
    if( ( var1.num_dimensions() != var2.num_dimensions() ) ||
        ( ! std::equal( var1.shape() , var1.shape() + var1.num_dimensions() ,
@@ -1553,18 +1551,18 @@ bool un_any_dynamic_2_create( const boost::any & any1 , boost::any & any2 ,
  if( any1.type() == typeid( std::list< T > * ) ) {
   any2 = new U();
   if( apply_f ) {
-   auto & var1 = *boost::any_cast< std::list< T > * >( any1 );
-   auto & var2 = *boost::any_cast< U * >( any2 );
+   auto & var1 = * boost::any_cast< std::list< T > * >( any1 );
+   auto & var2 = * boost::any_cast< U * >( any2 );
    f( var1 , var2 );
    }
   return( true );
   }
  else
   if( any1.type() == typeid( std::vector< std::list< T > > * ) ) {
-   auto & var1 = *boost::any_cast< std::vector< std::list< T > > * >( any1 );
+   auto & var1 = * boost::any_cast< std::vector< std::list< T > > * >( any1 );
    any2 = new std::vector< U >( var1.size() );
    if( apply_f ) {
-    auto & var2 = *boost::any_cast< std::vector< U > * >( any2 );
+    auto & var2 = * boost::any_cast< std::vector< U > * >( any2 );
     auto i2 = var2.begin();
     for( auto i1 = var1.begin() ;
          i1 != var1.end() && i2 != var2.end() ; ++i1 , ++i2 )
@@ -1591,12 +1589,12 @@ bool un_any_dynamic_2_create( const boost::any & any1 , boost::any & any2 ,
                               un_any_int< K > , F f , bool apply_f ) {
  if( any1.type() == typeid( boost::multi_array< std::list< T > , K > * ) ) {
   auto & var1 =
-   *boost::any_cast< boost::multi_array< std::list< T > , K > * >( any1 );
+   * boost::any_cast< boost::multi_array< std::list< T > , K > * >( any1 );
   auto first = var1.shape();
   std::vector< int > shape( first , first + var1.num_dimensions() );
   any2 = new boost::multi_array< U , K >( shape );
   if( apply_f ) {
-   auto & var2 = *boost::any_cast< boost::multi_array< U , K > * >( any2 );
+   auto & var2 = * boost::any_cast< boost::multi_array< U , K > * >( any2 );
    std::list< T > * p1 = var1.data();
    U * p2 = var2.data();
    for( auto i = std::min( var1.num_elements() , var2.num_elements() ) ;
@@ -1652,14 +1650,14 @@ bool un_any_dynamic_2_create( const boost::any & any1 , boost::any & any2 ,
 template< typename T , class F >
 bool un_any_const_dynamic( const boost::any & any , F f , un_any_type< T > ) {
  if( any.type() == typeid( std::list< T > * ) ) {
-  auto & el = *boost::any_cast< std::list< T > * >( any );
+  auto & el = * boost::any_cast< std::list< T > * >( any );
   for( auto & ell : el )
    f( ell );
   return( true );
   }
  else
   if( any.type() == typeid( std::vector< std::list< T > > * ) ) {
-   auto & var = *boost::any_cast< std::vector< std::list< T > > * >( any );
+   auto & var = * boost::any_cast< std::vector< std::list< T > > * >( any );
    for( auto & el : var )
     for( auto & ell : el )
      f( ell );
@@ -1681,7 +1679,7 @@ bool un_any_const_dynamic( const boost::any & any , F f ,
                            un_any_type< T > , un_any_int< K > ) {
  if( any.type() == typeid( boost::multi_array< std::list< T > , K > * ) ) {
   auto & var =
-   *boost::any_cast< boost::multi_array< std::list< T > , K > * >( any );
+   * boost::any_cast< boost::multi_array< std::list< T > , K > * >( any );
   std::list< T > * p = var.data();
   for( auto i = var.num_elements() ; i-- ; ++p )
    for( auto & ell : *p )
@@ -1724,6 +1722,8 @@ bool un_any_const_dynamic( const boost::any & any , F f ,
  *
  * - a pointer to a std::vector of "thing_type";
  *
+ * - a pointer to a std::vector of std::vector of "thing_type";
+ *
  * - a pointer to a boost::multi_array< K > of "thing_type";
  *
  * - a pointer to a boost::multi_array< K > of std::vector of "thing_type";
@@ -1747,18 +1747,16 @@ bool un_any_const_dynamic( const boost::any & any , F f ,
  * and (to the best of our knowledge) cannot be obtained with templates at
  * all, whence the not-very-C++ approach of using macros.
  *
- * Because this may be impossible to do, there are four macros:
- *
- *  - un_any_thing() applies the same "f" to all types of containers;
+ * Because this may be impossible to do, there are three main macros:
  *
  *  - un_any_thing_0() only applies "f" if "my_thing" is a single
  *    "thing_type";
  *
  *  - un_any_thing_1() only applies "f" if "my_thing" is a
- *    std::vector<"thing_type">;
+ *    std::vector< "thing_type" >;
  *
  *  - un_any_thing_K() only applies "f" if "my_thing" is a
- *    boost::multi_array<"thing_type" , K>.
+ *    boost::multi_array< "thing_type" , K >.
  *
  * This is why, although these are macros, they have been structured to
  * "behave like functions", in the sense that they are an expression
@@ -1769,34 +1767,33 @@ bool un_any_const_dynamic( const boost::any & any , F f ,
  * corresponding "var" of the right type, and false if "my_thing" contained
  * something else, and therefore "f" has not been executed at all anything.
  *
- * Note that, unlike in the un_any_*_*() functions, there is no distinction
- * between the static (single "thing_type" elements) and dynamic (lists of
- * "thing_type" elements), because one can (and perhaps must) separately
- * call
+ * To automate its use, in case "f" can be applied to any contained, two more
+ * macros are defined:
  *
- *   un_any_thing( basic_type , ... );
+ * - un_any_thing_static( thing_type , my_thing , f ) calls (in this order)
+ *   un_any_thing_0( thing_type ),
+ *   un_any_thing_1( thing_type ),
+ *   un_any_thing_1( std::vector< thing_type > ),
+ *   un_any_thing_K( thing_type ),
+ *   un_any_thing_K( std::vector< thing_type > )
+ *   returning true if any of these succeeds, and false otherwise;
  *
- * and
+ * - un_any_thing_dynamic( thing_type , my_thing , f ) calls (in this order)
+ *   un_any_thing_0( std::list< thing_type > ),
+ *   un_any_thing_1( std::list< thing_type > ),
+ *   un_any_thing_K( std::list< thing_type > )
+ *   returning true if any of these succeeds, and false otherwise;
  *
- *   un_any_thing( std:list< basic_type > , ... );
+ * Finally, the two macros
  *
- * The pesky part in these macros (in particular, in un_any_thing_K() and
- * therefore in un_any_thing()) is that they have to work with "all" K, but
- * a maximum K has to be fixed at compile time; currently the maximum K is
- * 8, but it may be easily extended to go higher if needed.
- */
-
-#define un_any_thing( thing_type , my_thing , f )                            \
- [&]( const boost::any & _any ) -> bool {                                    \
-  if( un_any_thing_0( thing_type , _any , f ) )                              \
-   return( true );                                                           \
-  else                                                                       \
-   if( un_any_thing_1( thing_type , _any , f ) )                             \
-    return( true );                                                          \
-  return( un_any_thing_K( thing_type , _any , f ) );                         \
-  }( my_thing )
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ * - un_any_thing_count_static( thing_type , my_thing ) 
+ * - un_any_thing_count_dynamic( thing_type , my_thing )
+ *
+ * behave as functions returning a std::size_t containing the number of
+ * different objects of the "basic" thing_type contained in my_thing; thus,
+ * thing_type must be a Constraint, Variable etc. but not a std::vector<>,
+ * std::list<> etc of these. If my_thing does not contain an appropriate
+ * (container of) thing_type, then Inf< std::size_t >() is returned. */
 
 // TODO: Remove this when it's not needed anymore
 #ifdef CLANG_1200_0_32_27_PATCH
@@ -1871,6 +1868,82 @@ bool un_any_const_dynamic( const boost::any & any , F f ,
    f; return( true );                                                        \
    }                                                                         \
   return( false );                                                           \
+  }( my_thing )
+
+/*--------------------------------------------------------------------------*/
+
+#define un_any_thing_static( thing_type , my_thing , f )                     \
+ [&]( const boost::any & _any ) -> bool {                                    \
+  if( un_any_thing_0( thing_type , _any , f ) )                              \
+   return( true );                                                           \
+  if( un_any_thing_1( thing_type , _any , f ) )                              \
+   return( true );                                                           \
+  if( un_any_thing_1( std::vector< thing_type > , _any , f ) )               \
+   return( true );                                                           \
+  if( un_any_thing_K( thing_type , _any , f ) )                              \
+   return( true );                                                           \
+  return( un_any_thing_K( std::vector< thing_type > , _any , f ) );          \
+  }( my_thing )
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+#define un_any_thing_dynamic( thing_type , my_thing , f )                    \
+ [&]( const boost::any & _any ) -> bool {                                    \
+  if( un_any_thing_0( std::list< thing_type > , _any , f ) )                 \
+   return( true );                                                           \
+  if( un_any_thing_1( std::list< thing_type > , _any , f ) )                 \
+   return( true );                                                           \
+  return( un_any_thing_K( std::list< thing_type > , _any , f ) );            \
+  }( my_thing )
+
+/*--------------------------------------------------------------------------*/
+
+#define un_any_thing_count_static( thing_type , my_thing )                  \
+ [&]( const boost::any & _any ) -> std::size_t {                            \
+  if( un_any_thing_0( thing_type , _any , [](){}() ) )                      \
+   return( 1 );                                                             \
+  std::size_t ret = 0;                                                      \
+  if( un_any_thing_1( thing_type , _any , ret = var.size(); ) )             \
+   return( ret );                                                           \
+  if( un_any_thing_1( std::vector< thing_type > , _any ,                    \
+                      {                                                     \
+                       for( auto & el : var )                               \
+                        ret += el.size();                                   \
+        } ) )                                                               \
+   return( ret );                                                           \
+  if( un_any_thing_K( thing_type , _any , ret = var.num_elements(); ) )     \
+   return( ret );                                                           \
+  if( un_any_thing_K( std::vector< thing_type > , _any ,                    \
+                      {                                                     \
+                       auto it = var.data();                                \
+                       for( auto i = var.num_elements() ; i-- ; ++it )      \
+                        ret += it->size();                                  \
+        } ) )                                                               \
+   return( ret );                                                           \
+  return( Inf< std::size_t >() );                                           \
+  }( my_thing )
+
+/*--------------------------------------------------------------------------*/
+
+#define un_any_thing_count_dynamic( thing_type , my_thing )                 \
+ [&]( const boost::any & _any ) -> std::size_t {                            \
+  std::size_t ret = 0;                                                      \
+  if( un_any_thing_0( std::list< thing_type > , _any , ret = var.size(); ) )\
+   return( ret );                                                           \
+  if( un_any_thing_1( std::list< thing_type > , _any ,                      \
+                      {                                                     \
+                       for( auto & el : var )                               \
+                        ret += el.size();                                   \
+        } ) )                                                               \
+   return( ret );                                                           \
+  if( un_any_thing_K( std::list< thing_type > , _any ,                      \
+                      {                                                     \
+                       auto it = var.data();                                \
+                       for( auto i = var.num_elements() ; i-- ; ++it )      \
+                        ret += it->size();                                  \
+        } ) )                                                               \
+   return( ret );                                                           \
+  return( Inf< std::size_t >() );                                           \
   }( my_thing )
 
 /** @} ---------------------------------------------------------------------*/
