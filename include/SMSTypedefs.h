@@ -1821,7 +1821,7 @@ bool un_any_const_dynamic( const boost::any & any , F f ,
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-#define un_any_thing_0( thing_type , my_thing , f )			                       \
+#define un_any_thing_0( thing_type , my_thing , f )                          \
  [&]( const boost::any & _any ) -> bool {                                    \
   if( _any.type() == typeid( thing_type ) ) {}                               \
   if( _any.type() == typeid( thing_type * ) ) {                              \
@@ -1896,7 +1896,7 @@ bool un_any_const_dynamic( const boost::any & any , F f ,
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-#define un_any_thing_0( thing_type , my_thing , f )			                       \
+#define un_any_thing_0( thing_type , my_thing , f )                          \
  [&]( const boost::any & _any ) -> bool {                                    \
   if( _any.type() == typeid( thing_type * ) ) {                              \
    auto & var = * boost::any_cast< thing_type * >( _any );                   \
