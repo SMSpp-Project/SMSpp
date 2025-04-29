@@ -1796,8 +1796,32 @@ bool un_any_const_dynamic( const boost::any & any , F f ,
  * (container of) thing_type, then Inf< std::size_t >() is returned. */
 
 // TODO: Remove this when it's not needed anymore
+// This patch ensures that an apparently useless line of the form
+//
+//   if( _any.type() == typeid( something ) ) {} [do nothing]
+//
+// is present before the "real" ones that actually check
+//
+//   if( _any.type() == typeid( something * ) ) ...
+//
+// This likely has to do with the fact that "something *" is an incomplete
+// type while "something" is a complete one; what happens is that without
+// the apparently useless line, _any.type().hash_code() is different from
+// typeid( something * ).hash_code() even if _any.type().name() is equal to
+// typeid( something * ).name() and the objects are actually of the same
+// type. This seems to only happen on MacOS, and it has been verified to
+// happen up to at least clanf 1700_0_13_3. What seems to happen is that
+// _any.type() may be established in one translation unit while
+// typeid( something * ) is established in a different one, and they can thus
+// differ -- since something * is incomplete -- even if the underlying type
+// is the same. By ensuring that typeid() is computed by the *complete* type
+// something in the same translation unit the issue is apparently solved.
+
 #ifdef CLANG_1200_0_32_27_PATCH
-#define un_any_thing_0( thing_type , my_thing , f )                          \
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+#define un_any_thing_0( thing_type , my_thing , f )			     \
  [&]( const boost::any & _any ) -> bool {                                    \
   if( _any.type() == typeid( thing_type ) ) {}                               \
   if( _any.type() == typeid( thing_type * ) ) {                              \
@@ -1806,8 +1830,73 @@ bool un_any_const_dynamic( const boost::any & any , F f ,
    }                                                                         \
   return( false );                                                           \
   }( my_thing )
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+#define un_any_thing_1( thing_type , my_thing , f )                          \
+ [&]( const boost::any & _any ) -> bool {                                    \
+  if( _any.type() == typeid( std::vector< thing_type > ) ) {}                \
+  if( _any.type() == typeid( std::vector< thing_type > * ) ) {               \
+   auto & var = * boost::any_cast< std::vector< thing_type > * >( _any );    \
+   f; return( true );                                                        \
+   }                                                                         \
+  return( false );                                                           \
+  }( my_thing )
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+#define un_any_thing_K( thing_type , my_thing , f )                          \
+ [&]( const boost::any & _any ) -> bool {                                    \
+  if( _any.type() == typeid( boost::multi_array< thing_type , 2 > ) ) {}     \
+  if( _any.type() == typeid( boost::multi_array< thing_type , 2 > * ) ) {    \
+   auto & var =                                                              \
+    * boost::any_cast< boost::multi_array< thing_type , 2 > * >( _any );     \
+   f; return( true );                                                        \
+   }                                                                         \
+  if( _any.type() == typeid( boost::multi_array< thing_type , 3 > ) ) {}     \
+  if( _any.type() == typeid( boost::multi_array< thing_type , 3 > * ) ) {    \
+   auto & var =                                                              \
+    * boost::any_cast< boost::multi_array< thing_type , 3 > * >( _any );     \
+   f; return( true );                                                        \
+   }                                                                         \
+  if( _any.type() == typeid( boost::multi_array< thing_type , 4 > ) ) {}     \
+  if( _any.type() == typeid( boost::multi_array< thing_type , 4 > * ) ) {    \
+   auto & var =                                                              \
+    * boost::any_cast< boost::multi_array< thing_type , 4 > * >( _any );     \
+   f; return( true );                                                        \
+   }                                                                         \
+  if( _any.type() == typeid( boost::multi_array< thing_type , 5 > ) ) {}     \
+  if( _any.type() == typeid( boost::multi_array< thing_type , 5 > * ) ) {    \
+   auto & var =                                                              \
+    * boost::any_cast< boost::multi_array< thing_type , 5 > * >( _any );     \
+   f; return( true );                                                        \
+   }                                                                         \
+  if( _any.type() == typeid( boost::multi_array< thing_type , 6 > ) ) {}     \
+  if( _any.type() == typeid( boost::multi_array< thing_type , 6 > * ) ) {    \
+   auto & var =                                                              \
+    * boost::any_cast< boost::multi_array< thing_type , 6 > * >( _any );     \
+   f; return( true );                                                        \
+   }                                                                         \
+  if( _any.type() == typeid( boost::multi_array< thing_type , 7 > ) ) {}     \
+  if( _any.type() == typeid( boost::multi_array< thing_type , 7 > * ) ) {    \
+   auto & var =                                                              \
+    * boost::any_cast< boost::multi_array< thing_type , 7 > * >( _any );     \
+   f; return( true );                                                        \
+   }                                                                         \
+  if( _any.type() == typeid( boost::multi_array< thing_type , 8 > ) ) {}     \
+  if( _any.type() == typeid( boost::multi_array< thing_type , 8 > * ) ) {    \
+   auto & var =                                                              \
+    * boost::any_cast< boost::multi_array< thing_type , 8 > * >( _any );     \
+   f; return( true );                                                        \
+   }                                                                         \
+  return( false );                                                           \
+  }( my_thing )
+
 #else
-#define un_any_thing_0( thing_type , my_thing , f )                          \
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+#define un_any_thing_0( thing_type , my_thing , f )			\
  [&]( const boost::any & _any ) -> bool {                                    \
   if( _any.type() == typeid( thing_type * ) ) {                              \
    auto & var = * boost::any_cast< thing_type * >( _any );                   \
@@ -1815,7 +1904,6 @@ bool un_any_const_dynamic( const boost::any & any , F f ,
    }                                                                         \
   return( false );                                                           \
   }( my_thing )
-#endif
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
@@ -1869,6 +1957,11 @@ bool un_any_const_dynamic( const boost::any & any , F f ,
    }                                                                         \
   return( false );                                                           \
   }( my_thing )
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+#endif
+
 
 /*--------------------------------------------------------------------------*/
 
