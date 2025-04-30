@@ -313,7 +313,7 @@ class DQuadFunction : public C15Function {
   * does not currently implement the global pool management, and therefore
   * it will throw exception if a nonzero global pool size is set. */
 
- void set_ComputeConfig( ComputeConfig * scfg ) override final
+ void set_ComputeConfig( const ComputeConfig * scfg = nullptr ) override
  {
   if( ! scfg )  // setting nothing
    return;      // nothing to do

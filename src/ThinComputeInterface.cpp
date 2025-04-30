@@ -65,7 +65,7 @@ SMSpp_insert_in_factory_cpp_0( ComputeConfig );
 /*--------------------- METHODS of ThinComputeInterface --------------------*/
 /*--------------------------------------------------------------------------*/
 
-void ThinComputeInterface::set_ComputeConfig( ComputeConfig * scfg )
+void ThinComputeInterface::set_ComputeConfig( const ComputeConfig * scfg )
 {
  if( ( ! scfg ) || ( ! scfg->f_diff ) ) {  // "factory reset"
   for( int i = 0 ; i < get_num_int_par() ; ++i )

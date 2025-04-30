@@ -567,10 +567,11 @@ class ThinComputeInterface
  /// set a specific integer (int) numerical parameter
  /** Set the integer (int) numerical parameter with name \p name to the new
   * value \p value. The method uses int_par_str2idx() to retrieve the
-  * parameter index and then calls set_par( int ). Thus, the implementation
-  * of the base class should not need to be changed. */
+  * parameter index and then calls set_par( idx_type , int ). Thus, the
+  * method is not virtual as implementation of the base class does not need
+  * to be changed. */
 
- virtual void set_par( const std::string & name , int value ) {
+ void set_par( const std::string & name , int value ) {
   auto par = int_par_str2idx( name );
   if( par == Inf< idx_type >() )
    throw( std::invalid_argument( "set_par( int ): " + name +
@@ -593,10 +594,11 @@ class ThinComputeInterface
  /// set a specific float (double) numerical parameter
  /** Set the float (double) numerical parameter with name \p name to the new
   * value \p value. The method uses dbl_par_str2idx() to retrieve the
-  * parameter index and then calls set_par( double ). Thus, the implementation
-  * of the base class should not need to be changed. */
+  * parameter index and then calls set_par( idx_type , double ). Thus, the
+  * method is not virtual as implementation of the base class does not need
+  * to be changed. */
 
- virtual void set_par( const std::string & name , double value ) {
+ void set_par( const std::string & name , double value ) {
   auto par = dbl_par_str2idx( name );
   if( par == Inf< idx_type >() )
    throw( std::invalid_argument( "set_par( double ): " + name +
@@ -622,10 +624,11 @@ class ThinComputeInterface
  /** Set the string parameter with name \p name. The method takes an lvalue
   * reference, which means that \p value can be moved into the
   * ThinComputeInterface. The method uses str_par_str2idx() to retrieve the
-  * parameter index and then calls set_par( std::string && ). Thus, the
-  * implementation of the base class should not need to be changed. */
+  * parameter index and then calls set_par( idx_type , std::string && ).
+  * Thus, the method is not virtual as implementation of the base class
+  * does not need to be changed. */
 
- virtual void set_par( const std::string & name , std::string && value ) {
+ void set_par( const std::string & name , std::string && value ) {
   auto par = str_par_str2idx( name );
   if( par == Inf< idx_type >() )
    throw( std::invalid_argument( "set_par( std::string ): " + name +
@@ -648,11 +651,10 @@ class ThinComputeInterface
  /// set a given string parameter
  /** Like set_par( name , std::string && ), but taking a const reference.
   * The method is given a default implementation that calls the "move"
-  * version with a copy of \p value, and this might not need to be ever
+  * version with a copy of \p value, and this should not need to be ever
   * re-implemented by derived classes. */
 
- virtual void set_par( const std::string & name ,
-		       const std::string & value ) {
+ void set_par( const std::string & name , const std::string & value ) {
   set_par( name , std::move( std::string( value ) ) );
   }
 
@@ -661,11 +663,12 @@ class ThinComputeInterface
  /** Set the vector-of-integer (std::vector< int >) numerical parameter with
   * index \p par, which must be in the range [ 0 , get_num_vint_par() ). The
   * method takes an lvalue reference, which means that \p value can be moved
-  * into the ThinComputeInterface. The method is given a "void" implementation
-  * doing nothing (i.e., ignoring \p value), rather than being pure virtual,
-  * so that derived classes not having any working vector-of-integer parameter
-  * (i.e., either not having any or not really reacting to the ones that they
-  * supposedly have) do not have to bother with implementing it. */
+  * into the ThinComputeInterface. The method is given a "void"
+  * implementation doing nothing (i.e., ignoring \p value), rather than
+  * being pure virtual, so that derived classes not having any working
+  * vector-of-integer parameter (i.e., either not having any or not really
+  * reacting to the ones that they supposedly have) do not have to bother
+  * with implementing it. */
 
  virtual void set_par( idx_type par , std::vector< int > && value ) {}
 
@@ -675,11 +678,11 @@ class ThinComputeInterface
   * name \p name. The method takes an lvalue reference, which means that
   * \p value can be moved into the ThinComputeInterface. The method uses
   * vint_par_str2idx() to retrieve the parameter index and then calls
-  * set_par( std::vector< int > && ). Thus, the implementation of the base
-  * class should not need to be changed. */
+  * set_par( idx_type , std::vector< int > && ). Thus, the method is not
+  * virtual as implementation of the base class does not need to be changed.
+  */
 
- virtual void set_par( const std::string & name ,
-		       std::vector< int > && value ) {
+ void set_par( const std::string & name , std::vector< int > && value ) {
   auto par = vint_par_str2idx( name );
   if( par == Inf< idx_type >() )
    throw( std::invalid_argument( "set_par( std::vector< int > ): " + name +
@@ -691,10 +694,10 @@ class ThinComputeInterface
  /// set a given vector-of-integer (std::vector< int >) numerical parameter
  /** Like set_par( idx_type , std::vector< int > && ), but taking a const
   * reference. The method is given a default implementation that calls the
-  * "move" version with a copy of \p value, and this might not need to be
+  * "move" version with a copy of \p value, and this should not need to be
   * ever re-implemented by derived classes. */
 
- virtual void set_par( idx_type par , const std::vector< int > & value ) {
+ void set_par( idx_type par , const std::vector< int > & value ) {
   set_par( par , std::move( std::vector< int >( value ) ) );
   }
 
@@ -702,11 +705,11 @@ class ThinComputeInterface
  /// set a given vector-of-integer (std::vector< int >) numerical parameter
  /** Like set_par( name , std::vector< int > && ), but taking a const
   * reference. The method is given a default implementation that calls the
-  * "move" version with a copy of \p value, and this might not need to be
+  * "move" version with a copy of \p value, and this should not need to be
   * ever re-implemented by derived classes. */
 
- virtual void set_par( const std::string & name ,
-		       const std::vector< int > & value ) {
+ void set_par( const std::string & name ,
+	       const std::vector< int > & value ) {
   set_par( name , std::move( std::vector< int >( value ) ) );
   }
 
@@ -715,11 +718,12 @@ class ThinComputeInterface
  /** Set the vector-of-float (std::vector< double >) numerical parameter with
   * index \p par, which must be in the range [ 0 , get_num_vdbl_par() ). The
   * method takes an lvalue reference, which means that \p value can be moved
-  * into the ThinComputeInterface. The method is given a "void" implementation
-  * doing nothing (i.e., ignoring \p value), rather than being pure virtual,
-  * so that derived classes not having any working vector-of-float parameter
-  * (i.e., either not having any or not really reacting to the ones that they
-  * supposedly have) do not have to bother with implementing it. */
+  * into the ThinComputeInterface. The method is given a "void"
+  * implementation doing nothing (i.e., ignoring \p value), rather than
+  * being pure virtual, so that derived classes not having any working 
+  * vector-of-float parameter (i.e., either not having any or not really
+  * reacting to the ones that they supposedly have) do not have to bother
+  * with implementing it. */
 
  virtual void set_par( idx_type par , std::vector< double > && value ) {}
 
@@ -729,11 +733,11 @@ class ThinComputeInterface
   * name \p name. The method takes an lvalue reference, which means that
   * \p value can be moved into the ThinComputeInterface. The method uses
   * vdbl_par_str2idx() to retrieve the parameter index and then calls
-  * set_par( std::vector< double > && ). Thus, the implementation of the base
-  * class should not need to be changed. */
+  * set_par( idx_type , std::vector< double > && ). Thus, the method is not
+  * virtual as implementation of the base class does not need to be changed.
+  */
 
- virtual void set_par( const std::string & name ,
-		       std::vector< double > && value ) {
+ void set_par( const std::string & name , std::vector< double > && value ) {
   auto par = vdbl_par_str2idx( name );
   if( par == Inf< idx_type >() )
    throw( std::invalid_argument( "set_par( std::vector< double > ): " + name +
@@ -745,10 +749,10 @@ class ThinComputeInterface
  /// set a given vector-of-float (std::vector< double >) numerical parameter
  /** Like set_par( idx_type , std::vector< double > && ), but taking a const
   * reference. The method is given a default implementation that calls the
-  * "move" version with a copy of \p value, and this might not need to be
+  * "move" version with a copy of \p value, and this should not need to be
   * ever re-implemented by derived classes. */
 
- virtual void set_par( idx_type par , const std::vector< double > & value ) {
+ void set_par( idx_type par , const std::vector< double > & value ) {
   set_par( par , std::move( std::vector< double >( value ) ) );
   }
 
@@ -756,11 +760,11 @@ class ThinComputeInterface
  /// set a given vector-of-integer (std::vector< double >) numerical parameter
  /** Like set_par( name , std::vector< double > && ), but taking a const
   * reference. The method is given a default implementation that calls the
-  * "move" version with a copy of \p value, and this might not need to be
+  * "move" version with a copy of \p value, and this shuould not need to be
   * ever re-implemented by derived classes. */
 
- virtual void set_par( const std::string & name ,
-		       const std::vector< double > & value ) {
+ void set_par( const std::string & name ,
+	       const std::vector< double > & value ) {
   set_par( name , std::move( std::vector< double >( value ) ) );
   }
 
@@ -769,13 +773,15 @@ class ThinComputeInterface
  /** Set the vector-of-string (std::vector< std::string >) parameter with
   * index \p par, which must be in the range [ 0 , get_num_vstr_par() ). The
   * method takes an lvalue reference, which means that \p value can be moved
-  * into the ThinComputeInterface. The method is given a "void" implementation
-  * doing nothing (i.e., ignoring \p value), rather than being pure virtual,
-  * so that derived classes not having any working vector-of-string parameter
-  * (i.e., either not having any or not really reacting to the ones that they
-  * supposedly have) do not have to bother with implementing it. */
+  * into the ThinComputeInterface. The method is given a "void"
+  * implementation doing nothing (i.e., ignoring \p value), rather than
+  * being pure virtual, so that derived classes not having any working
+  * vector-of-string parameter (i.e., either not having any or not really
+  * reacting to the ones that they supposedly have) do not have to bother
+  * with implementing it. */
 
- virtual void set_par( idx_type par , std::vector< std::string > && value ) {}
+ virtual void set_par( idx_type par ,
+		       std::vector< std::string > && value ) {}
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// move a given vector-of-string (std::vector< std::string >) parameter
@@ -783,11 +789,12 @@ class ThinComputeInterface
   * name \p name. The method takes an lvalue reference, which means that
   * \p value can be moved into the ThinComputeInterface. The method uses
   * vstr_par_str2idx() to retrieve the parameter index and then calls
-  * set_par( std::vector< double > && ). Thus, the implementation of the base
-  * class should not need to be changed. */
+  * set_par( idx_type , std::vector< double > && ). Thus, the method is not
+  * virtual as implementation of the base class does not need to be changed.
+  */
 
- virtual void set_par( const std::string & name ,
-		       std::vector< std::string > && value ) {
+ void set_par( const std::string & name ,
+	       std::vector< std::string > && value ) {
   auto par = vstr_par_str2idx( name );
   if( par == Inf< idx_type >() )
    throw( std::invalid_argument( "set_par( std::vector< string > ): " + name
@@ -799,23 +806,22 @@ class ThinComputeInterface
  /// set a given vector-of-string (std::vector< std::string >) parameter
  /** Like set_par( idx_type , std::vector< std::string > && ), but taking a
   * const reference. The method is given a default implementation that calls
-  * the "move" version with a copy of \p value, and this might not need to be
-  * ever re-implemented by derived classes. */
+  * the "move" version with a copy of \p value, and this should not need to
+  * be ever re-implemented by derived classes. */
 
- virtual void set_par( idx_type par ,
-		       const std::vector< std::string > & value ) {
+ void set_par( idx_type par , const std::vector< std::string > & value ) {
   set_par( par , std::move( std::vector< std::string >( value ) ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set a given vector-of-string (std::vector< std::string >) parameter
- /** Like set_par( name , std::vector< std::string > && ), but taking a const
-  * reference. The method is given a default implementation that calls the
-  * "move" version with a copy of \p value, and this might not need to be
-  * ever re-implemented by derived classes. */
+ /** Like set_par( name , std::vector< std::string > && ), but taking a
+  * const reference. The method is given a default implementation that calls
+  * the "move" version with a copy of \p value, and this should not need to
+  * be ever re-implemented by derived classes. */
 
- virtual void set_par( const std::string & name ,
-		       const std::vector< std::string > & value ) {
+ void set_par( const std::string & name ,
+	       const std::vector< std::string > & value ) {
   set_par( name , std::move( std::vector< std::string >( value ) ) );
   }
 
@@ -831,9 +837,9 @@ class ThinComputeInterface
   *
   * Note that the ComputeConfig in principle only contains a subset of the
   * possible parameters. The way in which the ComputeConfig must be
-  * "interpreted" depends on the f_diff field in there: if f_diff == true then
-  * all the other parameters are left unchanged, while if f_diff == false then
-  * all the parameters that are *not* specified in the ComputeConfig are
+  * "interpreted" depends on the f_diff field in there: if f_diff == true,
+  * then all the other parameters are left unchanged, while if f_diff == false
+  * then all the parameters that are *not* specified in the ComputeConfig are
   * rather reset to their default value. Note that for a "fresh" (just
   * constructed) object, the two values of f_diff are equivalent. Since
   * calling set_ComputeConfig( nullptr ) would not make sense if the "empty"
@@ -861,13 +867,12 @@ class ThinComputeInterface
   *
   * Note that the :ThinComputeInterface is *not* expected to retain the
   * pointer scfg; once it is used to configure the :ThinComputeInterface,
-  * the ComputeConfig is "free" and can be freely deleted. However, the
-  * :ThinComputeInterface *is* allowed to "extract" the extra Configuration
-  * from the ComputeConfig and retain a pointer to that. If it does,
-  * however, the f_extra_Configuration field of scfg has to be
-  * nullptr-ed, so that scfg can be safely deleted after the call. */
+  * the ComputeConfig is "free" and can be freely deleted. Additionally,
+  * \p scfg is const and therefore it cannot be changed by the
+  * :ThinComputeInterface, allowing the caller to do what it pleases with
+  * it after the call. */
 
- virtual void set_ComputeConfig( ComputeConfig * scfg = nullptr );
+ virtual void set_ComputeConfig( const ComputeConfig * scfg = nullptr );
 
 /** @} ---------------------------------------------------------------------*/
 /*----------------- METHODS FOR MANAGING THE "IDENTITY" --------------------*/

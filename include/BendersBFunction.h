@@ -1729,10 +1729,9 @@ class BendersBFunction : public C05Function , public Block {
   * BlockSolverConfig (if provided) in the extra Configuration is nullptr,
   * then (3) above is performed.
   *
-  * @param scfg a pointer to a ComputeConfig.
-  */
+  * @param scfg a pointer to a ComputeConfig. */
 
- void set_ComputeConfig( ComputeConfig *scfg = nullptr ) override;
+ void set_ComputeConfig( const ComputeConfig *scfg = nullptr ) override;
 
 /** @} ---------------------------------------------------------------------*/
 /*-------------------- Methods for handling Modification -------------------*/

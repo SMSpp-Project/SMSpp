@@ -297,7 +297,7 @@ void LagBFunction::set_dual_pairs( v_dual_pair && dp )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::set_ComputeConfig( ComputeConfig * scfg )
+void LagBFunction::set_ComputeConfig( const ComputeConfig * scfg )
 {
  auto inner_block = get_inner_block();
  if( ! inner_block )

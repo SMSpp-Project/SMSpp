@@ -1172,7 +1172,7 @@ class LagBFunction : public C05Function , public Block {
   * exception will be thrown if any of the non-null pointers turns out not to
   * be of the right type. */
 
- void set_ComputeConfig( ComputeConfig * scfg = nullptr ) override;
+ void set_ComputeConfig( const ComputeConfig * scfg = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
  /// load a LagBFunction out of an istream - not implemented yet

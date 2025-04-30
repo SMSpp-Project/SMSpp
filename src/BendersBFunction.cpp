@@ -1415,8 +1415,8 @@ void BendersBFunction::set_default_inner_Block_BlockSolverConfig() {
 
 /*--------------------------------------------------------------------------*/
 
-void BendersBFunction::set_ComputeConfig( ComputeConfig * scfg ) {
-
+void BendersBFunction::set_ComputeConfig( const ComputeConfig * scfg )
+{
  ThinComputeInterface::set_ComputeConfig( scfg );
 
  auto inner_block = get_inner_block();
