@@ -163,6 +163,13 @@ static constexpr T Inf( void ) noexcept {
  *   groups with names "Solution_0", "Solution_1", ... Each child group
  *   contains the serialization of a :Solution (the string attribute "type"
  *   and all the rest).
+ * 
+ * - eWarmStartFile: This file (which is also a group) contains any number of 
+ *   child groups named "WarmStart_0", "WarmStart_1", ...  Each child group 
+ *   includes a dimension named "NumberVariableGroups", which indicates how 
+ *   many :AbstractPath instances are serialized within that group. 
+ *   These instances are stored in subgroups named "VariableGroup_0", 
+ *   "VariableGroup_1", ...
  *
  * The value eLastFileParam is provided if some :Block, :Configuration or
  * :Solution needs to read/write files with a specific structure. */
@@ -172,7 +179,8 @@ enum smspp_netCDF_file_type {
  eBlockFile = 1 ,     ///< a file of Block
  eConfigFile = 2 ,    ///< a file of Configuration
  eSolutionFile = 3 ,  ///< a file of Solution
- eLastFileParam = 4   ///< first value available to define new file types
+ eWarmStartFile = 4 , ///< a file of Warm Start
+ eLastFileParam = 5   ///< first value available to define new file types
  };
 
 /** @} end( group( SMS_TYPES ) ) */
