@@ -24,6 +24,7 @@
 #include "Block.h"
 #include "Objective.h"
 #include "Solver.h"
+#include "AbstractPath.h"
 
 #include "FakeSolver.h"
 
@@ -111,6 +112,131 @@ Solver::OFValue Solver::get_var_value( void ) {
 	           get_ub() : get_lb()
                  : Objective::eMin );
  }
+
+
+/*--------------------------------------------------------------------------*/
+/*------------------------ METHODS FOR WARM STARTS -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+std::vector< AbstractPath > Solver::deserialize( const std::string & filename )
+{
+ int idx = 0;
+ std::string fn = filename;
+ if( fn.back() == ']' ) {
+  auto pos = fn.find_last_of( '[' );
+  if( pos != std::string::npos ) {
+   try {
+    idx = std::stoi( fn.substr( pos + 1 ) );
+    fn.erase( pos );
+    }
+   catch( ... ) { idx = 0; }
+   }
+  }
+ try {
+  netCDF::NcFile f( fn.c_str() , netCDF::NcFile::read );
+  return( Solver::deserialize( f , idx ) );
+  }
+ catch( netCDF::exceptions::NcException & e ) {
+  std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
+  }
+ catch( std::exception & e ) {
+  std::cerr << "error " << e.what() << " in deserialize" << std::endl;
+  }
+ catch( ... ) {
+  std::cerr << "unknown error in deserialize" << std::endl;
+  }
+
+ return( std::vector< AbstractPath >{} );
+
+ }  // end( Solver::deserialize( const std::string ) )
+
+/*--------------------------------------------------------------------------*/
+
+std::vector< AbstractPath > Solver::deserialize( const netCDF::NcFile & f , int idx )
+{
+ try {
+  auto gtype = f.getAtt( "SMS++_file_type" );
+  if( gtype.isNull() )
+   return( std::vector< AbstractPath >{} );
+
+  int type;
+  gtype.getValues( & type );
+
+  if( type != eWarmStartFile ) //// CHECK
+   return( std::vector< AbstractPath >{} );
+
+  auto cg = f.getGroup( "WarmStart_" + std::to_string( idx ) );
+
+  return( deserialize( cg ) );
+  }
+ catch( netCDF::exceptions::NcException & e ) {
+  std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
+  }
+ catch( std::exception & e ) {
+  std::cerr << "error " << e.what() << " in deserialize" << std::endl;
+  }
+ catch( ... ) {
+  std::cerr << "unknown error in deserialize" << std::endl;
+  }
+
+ return( std::vector< AbstractPath >{} );
+
+ }  // end( Solver::deserialize( netCDF::NcFile ) )
+
+/*--------------------------------------------------------------------------*/
+
+std::vector< AbstractPath > Solver::deserialize( const netCDF::NcGroup & group )
+{
+ try {
+  if( group.isNull() )
+   return( std::vector< AbstractPath >{} );
+
+  // Retrieve number of Variable in the Group
+  int nvars;
+  auto gNVar = group.getDim( "NumberVariableGroups" );
+  if( gNVar.isNull() )
+   nvars = 1;
+  else
+   nvars = gNVar.getSize();
+
+  // Initialize empty vector
+  std::vector< AbstractPath > output_struct( nvars );
+
+  for( int idx = 0; idx < nvars; ++idx ){
+   auto vg = group.getGroup( "VariableGroup_" + std::to_string( idx ) );
+
+   AbstractPath varpath;
+   varpath.deserialize( vg );
+
+   // Append it to the output struct
+   output_struct[ idx ] = varpath;
+
+   return( output_struct );
+   }
+  }
+ catch( netCDF::exceptions::NcException & e ) {
+  std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
+  }
+ catch( std::exception & e ) {
+  std::cerr << "error " << e.what() << " in deserialize" << std::endl;
+  }
+ catch( ... ) {
+  std::cerr << "unknown error in deserialize" << std::endl;
+  }
+
+ return( std::vector< AbstractPath >{} );
+
+ }  // end( Solver::new_WarmStart( netCDF::NcGroup ) )
+
+/*----------------------------------------------------------------------------
+
+
+
+
+
+
+
+
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PROTECTED METHODS -----------------------------*/

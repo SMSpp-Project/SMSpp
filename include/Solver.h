@@ -44,6 +44,10 @@ namespace SMSpp_di_unipi_it {
 
 class Block;                // forward definition of Block
 
+class AbstractPath;         // forward definition of AbstractPath
+
+class Solution;             // forward definition of Solution
+
 /*--------------------------------------------------------------------------*/
 /*--------------------------- CLASS Solver ---------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -1830,6 +1834,139 @@ class Solver : public ThinComputeInterface
   * mechanism, but the method is virtual for extra flexibility. */
 
  virtual void inhibit_Modification( bool do_it = true ) { f_no_Mod = do_it; }
+
+
+
+
+/** @} ---------------------------------------------------------------------*/
+/*------------------------ METHODS FOR WARM STARTS -------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Reading intial solution for the model
+ *  @{ */
+
+/*--------------------------------------------------------------------------*/
+ /// de-serialize a vector of :AbstractPath out of a file
+ /** Top-level de-serialization method: takes the \p filename of a SMS++ 
+  * netCDF file (possibly also encoding a position into it), and returns the
+  * vector of :AbstractPaths whose description is the one found (at the
+  * specified position) in the file. Each element of the vector should 
+  * describe the path to a set of variables for which we would like to provide
+  * starting values. \p filename has to be a SMS++ WarmStart
+  * file, i.e., to have int netCDF attribute "SMS++_file_type" of value
+  * eWarmStart (see SMSTypedefs.h).
+  *
+  * SMS++ WarmStart files exploit the capacity of netCDF::NcFile to support
+  * the notion of having multiple WarmStart inside; thus, \p filename can be
+  * used to encode the position (WarmStart) in the file:
+  *
+  * - if the \p filename ends with ']', then is supposed to have the form
+  *   "real filename[idx]": the "[idx] part is excised and used to compute
+  *   the int parameter for deserialize( const netCDF::NcFile & , int ) (the
+  *   position), with the remaining part being used as the filename for
+  *   opening the file;
+  *
+  * - otherwise, the whole string is used as the filename.
+  *
+  * If anything goes wrong with the entire operation, an empty vector 
+  * is returned.
+  *
+  * Note: This method is not static, so it must be called on an instance of 
+  * Solver, like:
+  *
+  *     Solver solv;
+  *     auto vAbsPath = solv.deserialize(somefile);
+  *
+  * That is, it operates on a specific Solver object. */
+
+ std::vector< AbstractPath > deserialize( const std::string & filename );
+
+/*--------------------------------------------------------------------------*/
+ /// de-serialize a vector of :AbstractPath out of an open netCDF SMS++ file
+ /** Second-level de-serialization method: takes the open SMS++ netCDF
+  * WarmStart file \p f and the index \p idx of a Warm Start into the file and
+  * returns the correspinding vetor of :AbstractPath, which is the one
+  * extracted by the "WarmStart_< \p idx >" group, by calling 
+  * deserialize( netCDF::NcGroup & ); see the corresponding comments for the
+  * format options (that is, file indirection). Anything going wrong with the
+  * entire operation (the file is not there, the "SMS++_file_type" attribute
+  * is not there, there is no required "WarmStart_< \p idx >" child group,
+  * there is any fatal error during the process, ...) results in an empty  
+  * vector being returned.
+  *
+  * Note: This method is not static, so it must be called on an instance of 
+  * Solver, like:
+  *
+  *     Solver solv;
+  *     auto vAbsPath = solv.deserialize(somefile);
+  *
+  * That is, it operates on a specific Solver object. */
+  
+ std::vector< AbstractPath > deserialize( const netCDF::NcFile & f , int idx = 0 );
+  
+/*--------------------------------------------------------------------------*/
+ /// de-serialize a vector of :AbstractPath out of netCDF::NcGroup, returns it
+ /** Third-level de-serialization method: takes a netCDF::NcGroup supposedly
+  * containing (all the information describing) a vector of :AbstractPath
+  * and returns it.
+  *
+  * This method expects the netCDF::NcGroup to include a dimension named 
+  * "NumberVariableGroups", which specifies how many :AbstractPath instances
+  * (i.e. subgroups ) should be deserialized. If the dimension is missing, 
+  * the method assumes there is a single :AbstractPath. It then calls 
+  * AbstractPath::deserialize( netCDF::NcGroup ) for each relevant subgroup 
+  * and stores the resulting objects in a vector, which is returned.
+  *
+  * Note that this method is static (see the previous versions for comments
+  * about it).
+  *
+  * If anything goes wrong with the process, an empty vector is returned. */
+  
+ std::vector< AbstractPath > deserialize( const netCDF::NcGroup & group );
+
+/*--------------------------------------------------------------------------*/
+ /// Adds a new warm start to the solver.
+  /** In the current implementation a warm start consists of two components:
+  * - A pointer to a Solution object, which provides initial values for the 
+  *   variables.
+  * - A vector of AbstractPath objects that identifies the subset of variables 
+  *   to initialize.
+  *
+  * This method expects both structures to be provided. However, the vector 
+  * of :AbstractPath may be empty. In that case, the method will assume that
+  * the Solution refers to the most recently provided vector of :AbstractPath.
+  * I.e. we are willing to initialize the same set of variables to different
+  * starting values.
+  *
+  * Example usage:
+  * @code
+  *   Solver solv;
+  *   Solution* sol1 = ...;
+  *   Solution* sol2 = ...;
+  *   std::vector<AbstractPath> vec1 = ...;
+  *   solv.add_warm_start(sol1, vec1); // uses vec1
+  *   solv.add_warm_start(sol2, {});   // reuses vec1
+  * @endcode
+  * 
+  * NOTE: this method is virtual and should be implemented in the derived
+  * classes. 
+  *
+  * @param sol      The pointer to the Solution providing initial values.
+  * @param varpaths The vector of :AbstractPath objects specifying the
+  *                 variables to initialize (may be empty).   */
+
+  virtual void add_warm_start( const Solution * sol ,
+                              const std::vector< AbstractPath > varpaths ){}
+
+/*--------------------------------------------------------------------------*/
+ /// Adds a set of warm start to the solver.
+ /** This method allow you to simultaneously add multiple warm starts to 
+  * the solver for the same set of variables. Thus, it expects multiple
+  * Solutions and a single vector of :AbstractPath.
+  * 
+  * See above method for a further explanation. */
+
+  virtual void add_warm_start( const std::vector< Solution * > sols ,
+                              const std::vector< AbstractPath > varpaths ){}
 
 /** @} ---------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
