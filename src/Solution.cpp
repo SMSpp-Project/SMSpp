@@ -60,13 +60,15 @@ Solution * Solution::deserialize( const std::string & filename )
   return( Solution::deserialize( f , idx ) );
   }
  catch( netCDF::exceptions::NcException & e ) {
-  std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
+  std::cerr << "netCDF error " << e.what() << " in Solution::deserialize"
+	    << std::endl;
   }
  catch( std::exception & e ) {
-  std::cerr << "error " << e.what() << " in deserialize" << std::endl;
+  std::cerr << "error " << e.what() << " in Solution::deserialize"
+	    << std::endl;
   }
  catch( ... ) {
-  std::cerr << "unknown error in deserialize" << std::endl;
+  std::cerr << "unknown error in Solution::deserialize" << std::endl;
   }
 
  return( nullptr );
@@ -93,13 +95,15 @@ Solution * Solution::deserialize( const netCDF::NcFile & f , int idx )
   return( new_Solution( cg ) );
   }
  catch( netCDF::exceptions::NcException & e ) {
-  std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
+  std::cerr << "netCDF error " << e.what() << " in Solution::deserialize"
+	    << std::endl;
   }
  catch( std::exception & e ) {
-  std::cerr << "error " << e.what() << " in deserialize" << std::endl;
+  std::cerr << "error " << e.what() << " in Solution::deserialize"
+	    << std::endl;
   }
  catch( ... ) {
-  std::cerr << "unknown error in deserialize" << std::endl;
+  std::cerr << "unknown error in Solution::deserialize" << std::endl;
   }
 
  return( nullptr );
@@ -132,13 +136,15 @@ Solution * Solution::new_Solution( const netCDF::NcGroup & group )
   return( result );
   }
  catch( netCDF::exceptions::NcException & e ) {
-  std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
+  std::cerr << "netCDF error " << e.what() << " in Solution::new_Solution"
+	    << std::endl;
   }
  catch( std::exception & e ) {
-  std::cerr << "error " << e.what() << " in deserialize" << std::endl;
+  std::cerr << "error " << e.what() << " in Solution::new_Solution"
+	    << std::endl;
   }
  catch( ... ) {
-  std::cerr << "unknown error in deserialize" << std::endl;
+  std::cerr << "unknown error in Solution::new_Solution" << std::endl;
   }
 
  return( nullptr );

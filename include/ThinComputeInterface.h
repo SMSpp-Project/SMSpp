@@ -38,6 +38,7 @@
 namespace SMSpp_di_unipi_it
 {
  class ComputeConfig;  // forward declaration of ComputeConfig
+ class Solution;       // forward declaration of Solution
  class State;          // forward declaration of State
 
 /*--------------------------------------------------------------------------*/
@@ -1978,18 +1979,20 @@ class ThinComputeInterface
  virtual void put_State( State && state ) {}
 
 /*--------------------------------------------------------------------------*/
- /// serialize a :State into a netCDF::NcGroup
- /** This method serializes the current "internal state" (if any) of this
+ /// serialize the current :State to a netCDF file given the filename
+ /** Method to serialize the current "internal state" (if any) of this
   * ThinComputeInterface under the form of a :State (of appropriate type)
-  * into the given \p group, so that it can possibly be later on read back
-  * by State::deserialize() and put back (see put_State()) into this
-  * ThinComputeInterface.
+  * to a file in SMS++ netCDF-based State format, given the \p filename. If
+  * \p replace == true (the default) any existing content of the file is
+  * overwritten and the State is saved as *the first one* in the newly
+  * created file, while if  \p replace == false the file is opened for
+  * appending and the State is saved after the last one currently present (if any).
   *
   * This method is in principle not strictly necessary, since it is
   * semantically equivalent to
   *
   *     auto s = this->get_State();
-  *     s->serialize( g );
+  *     s->serialize( filename , replace );
   *     delete s;
   *
   * (except for the fact that get_State() may return nullptr). Yet, the
@@ -2004,9 +2007,86 @@ class ThinComputeInterface
   * without these copying operations, and therefore more efficiently.
   * However, a :ThinComputeInterface is completely free to completely ignore
   * the issue and rather use the (possibly inefficient) working default
-  * implementation, provided for convenience, which makes use of the
-  * get_State() and State::serialize() methods along the lines of the
+  * implementation, provided for convenience, which -- going through the
+  * intermediate steps of serialize_State( netCDF::NcFile ) and
+  * serialize_State( netCDF::NcGroup ), see the comments there -- makes use
+  * of the get_State() and State::serialize() methods along the lines of the
   * snippet above.
+  *
+  * In fact, the base class implementation opens the netCDF file, creates the
+  * required attribute "SMS++_file_type" (if the file is created anew,
+  * otherwise it is assumed the field is already there), assigns it the
+  * eStateFile type, and "kicks the can down the road" by dispatching to
+  * serialize_State( netCDF::NcFile & ), so the decision as to whether the
+  * implementation is efficient or not is deferred. As such, this method is
+  * not even virtual. If anything goes wrong with any step of the process,
+  * exception is thrown. */
+
+ void serialize_State( const std::string & filename , bool replace = true )
+  const {
+  netCDF::NcFile f;
+  if( ! replace ) {
+   try { f.open( filename , netCDF::NcFile::write ); }
+   catch( netCDF::exceptions::NcException & e ) { replace = true; }
+   }
+  if( replace ) {
+   f.open( filename , netCDF::NcFile::replace );
+   f.putAtt( "SMS++_file_type" , netCDF::NcInt() , eStateFile );
+   }
+
+  serialize_State( f );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// serialize the the current :State to an open netCDF file
+ /** Method to serialize the the current "internal state" (if any) of this
+  * ThinComputeInterface under the form of a :State (of appropriate type) to
+  * an open netCDF file in SMS++ State format. The State is *appended* after
+  * any existing State in the file.
+  *
+  * This method is in principle not strictly necessary, since it is
+  * semantically equivalent to
+  *
+  *     auto s = this->get_State();
+  *     s->serialize( f );
+  *     delete s;
+  *
+  * but see the comments to serialize_State( filename , replace ) for the
+  * rationale of having it. Indeed, the base class implementation "kicks
+  * the can down the road" by just choosing the "standard" name for the new
+  * group and dispatching to serialize_State( netCDF::NcGroup , std::string ),
+  * so the decision as to whether the implementation is efficient or not is
+  * deferred. As such, this method is not even virtual. Note that the group
+  * may ultimately *not* be constructed, see the comments to
+  * serialize_State( netCDF::NcGroup , std::string ) for details. If
+  * anything goes wrong with any step of the process, exception is thrown. */
+
+ void serialize_State( netCDF::NcFile & f ) const
+ {
+  serialize_State( f , std::string( "State_" ) +
+		       std::to_string( f.getGroupCount() ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// serialize a :State into a netCDF::NcGroup
+ /** This method serializes the current "internal state" (if any) of this
+  * ThinComputeInterface under the form of a :State (of appropriate type)
+  * into the given \p group, so that it can possibly be later on read back
+  * by State::deserialize() and put back (see put_State()) into this
+  * ThinComputeInterface.
+  *
+  * This method is in principle not strictly necessary, since it is
+  * semantically equivalent to
+  *
+  *     auto s = this->get_State();
+  *     s->serialize( group );
+  *     delete s;
+  *
+  * but see the comments to serialize_State( filename , replace ) for the
+  * rationale of having it. Indeed, the base class implementation of this
+  * "final" method makes use of the get_State() and State::serialize()
+  * methods to provide a working (albeit possibly inefficient)
+  * implementation along the lines of the snippet above.
   *
   * @param group The netCDF group in which the State of this
   *        ThinComputeInterface (if any) should be serialized.
@@ -2019,7 +2099,7 @@ class ThinComputeInterface
   *        not have any "internal state" (get_State() returns nullptr)
   *        then the sub-group is never created even if a name is provided.
   *
-  * Note that it is somewhat unusual to provide the sub_group_name in a
+  * Note that it is somewhat unusual to provide the \p sub_group_name in a
   * serialize() method. However, this is sensible here since a
   * ThinComputeInterface may have no State at all (this being the default).
   * If the caller does not know whether or not this is the case, it would
@@ -2029,11 +2109,11 @@ class ThinComputeInterface
   *
   * A possible downside of this approach is that the caller cannot be sure a
   * priori that the sub-group will be there after the call. If this is a
-  * problem, it is always possible to externally create the sub-group and then
-  * pass it as \p group with empty name. */
+  * problem, it is always possible to externally create the sub-group and
+  * then pass it as \p group with empty \p sub_group_name. */
 
  virtual void serialize_State( netCDF::NcGroup & group ,
-                               const std::string & sub_group_name = "" ) const;
+                               const std::string & sub_group_name ) const;
 
 /** @} ---------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
@@ -2752,13 +2832,93 @@ class State {
   }
 
 /*--------------------------------------------------------------------------*/
+ /// set the executable-wide prefix for all State filenames
+ /** The static method deserialize( std::string ) is provided for loading a
+  * State from a netCDF file. That method is in turn used for "file
+  * redirection"; a State netCDF file can contain one (or many) filenames
+  * in which a parts of the description of that State (typically a State
+  * inside a State inside a State ...) can be found, see
+  * new_State( netCDF::NcGroup & ). It could arguably be convenient to be
+  * able to specify filenames relative to some given prefix, so as to be
+  * able to freely move the description of a State (which can be a rather
+  * large object, and therefore require many files) across the filesystem.
+  * State provides a *static* member for this purpose, that can be set
+  * with this (static) method. Note that
+  *
+  *     BEING THE MEMBER STATIC, THE PREFIX IS APPLIED TO ALL LOADING 
+  *     OPERATIONS OF ANY State IN THE EXECUTABLE
+  *
+  * Use of this feature therefore requires care. */
+
+ static void set_filename_prefix( std::string && prefix ) {
+  f_prefix = prefix;
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// de-serialize a :State out of a file
+ /** Top-level de-serialization method: takes the \p filename of a SMS++ 
+  * netCDF file (possibly also encoding a position into it), and returns the
+  * complete :State object whose description is the one found (at the
+  * specified position) in the file. \p filename has to be a SMS++ State
+  * file, i.e., to have int netCDF attribute "SMS++_file_type" of value
+  * eStateFile (see SMSTypedefs.h).
+  *
+  * SMS++ State files exploit the capacity of netCDF::NcFile to support the
+  * notion of having multiple State inside; thus, \p filename can be used to
+  * encode the position (State) in the file:
+  *
+  * - if the \p filename ends with ']', then is supposed to have the form
+  *   "real filename[idx]": the "[idx] part is excised and used to compute
+  *   the int parameter for deserialize( const netCDF::NcFile & , int ) (the
+  *   position), with the remaining part being used as the filename for
+  *   opening the file;
+  *
+  * - otherwise, the whole string is used as the filename.
+  *
+  * If anything goes wrong with the entire operation, nullptr is returned.
+  *
+  * Note that if a filename prefix has been defined (for all Solution)
+  * by means of set_filename_prefix(), then \p filename has to be intended
+  * as relative to that prefix (in the sense that the prefix is prefix to
+  * \p filename).
+  *
+  * Note that the method is static, hence it is to be called as
+  *
+  *     auto myState = State::deserialize( somefile );
+  *
+  * i.e., without any reference to any specific Solution. */
+
+ static State * deserialize( const std::string & filename );
+
+/*--------------------------------------------------------------------------*/
+ /// de-serialize a :State out of an open netCDF SMS++ file
+ /** Second-level de-serialization method: takes the open SMS++ netCDF
+  * State file \p f and the index \p idx of a State into the file and
+  * returns the correspinding complete :State object, which is the one
+  * extracted by the "State_< \p idx >" group, by calling 
+  * new_State( netCDF::NcGroup & ); see the corresponding comments for the
+  * format options (that is, file indirection). Anything going wrong with the
+  * entire operation (the file is not there, the "SMS++_file_type" attribute
+  * is not there, there is no required "Solution_< \p idx >" child group,
+  * there is any fatal error during the process, ...) results in nullptr
+  * being returned.
+  *
+  * Note that the method is static, hence it is to be called as
+  *
+  *     Solution * myState = State::deserialize( somefile );
+  *
+  * i.e., without any reference to any specific Solution. */
+
+ static State * deserialize( const netCDF::NcFile & f , int idx = 0 );
+
+/*--------------------------------------------------------------------------*/
  /// de-serialize a :State out of netCDF::NcGroup, returns it
- /** First-level, static de-serialization method: takes a netCDF::NcGroup
-  * supposedly containing  (all the information describing) a :State and
-  * returns a pointer to a newly minted :State object corresponding to what
-  * is found in the file. The netCDF::NcGroup \p group must contain at least
-  * the string attribute "type"; this is used it in the factory to construct
-  * an "empty" :State of that type, see new_Solution( std::string & ), and
+ /** Third-level de-serialization method: takes a netCDF::NcGroup supposedly
+  * containing  (all the information describing) a :State and returns a
+  * pointer to a newly minted :State object corresponding to what is found
+  * in the file. The netCDF::NcGroup \p group must contain at least the
+  * string attribute "type"; this is used it in the factory to construct an
+  * "empty" :State of that type, see new_Solution( std::string & ), and
   * then the method deserialize( netCDF::NcGroup ) of the newly minted
   * :State is invoked (with argument \p group) to finish the work.
   *
@@ -2769,44 +2929,18 @@ class State {
   *
   * If anything goes wrong with the process, nullptr is returned. */
 
- static State * new_State( const netCDF::NcGroup & group ) {
-  if( group.isNull() )
-   return( nullptr );
-
-  auto gtype = group.getAtt( "type" );
-  if( gtype.isNull() )
-   return( nullptr );
-
-  std::string tmp;
-  gtype.getValues( tmp );
-  auto result = new_State( tmp );
-  try {
-   result->deserialize( group );
-   return( result );
-   }
-  catch( netCDF::exceptions::NcException & e ) {
-   std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
-   }
-  catch( std::exception & e ) {
-   std::cerr << "error " << e.what() << " in deserialize" << std::endl;
-   }
-  catch( ... ) {
-   std::cerr << "unknown error in deserialize" << std::endl;
-   }
-
-  return( nullptr );
-  }
+ static State * new_State( const netCDF::NcGroup & group );
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize a :State out of netCDF::NcGroup
- /** Second-level deserialization method: takes a netCDF::NcGroup supposedly
-  * containing all the information required to de-serialize the :State, and
-  * produces a "full" State object as a result. The netCDF::NcGroup has been
-  * produced either by calling serialize() with a previously existing :State
-  * (of the very same type as this one), or by directly calling
-  * serialize_State() in the corresponding :ThinComputeInterface, which is why
-  * individual :State should openly declare the format of the netCDF::NcGroup
-  * they produce.
+ /** Fourth and final leve deserialization method: takes a netCDF::NcGroup
+  * supposedly containing all the information required to de-serialize the
+  * :State, and produces a "full" State object as a result. The
+  * netCDF::NcGroup has been produced either by calling serialize() with a
+  * previously existing :State (of the very same type as this one), or by
+  * directly calling serialize_State() in the corresponding
+  * :ThinComputeInterface, which is why individual :State should openly
+  * declare the format of the netCDF::NcGroup they produce.
   *
   * This method is pure virtual, as it clearly has to be implemented by
   * derived classes. */
@@ -2817,13 +2951,104 @@ class State {
 
  virtual ~State() { }  ///< destructor: it is virtual, and empty
 
+ /** @} ---------------------------------------------------------------------*/
+/*--------------- Methods for reading the data of a State ------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for reading the data of a State
+ *  @{ */
+
+ /// getting the classname of this State
+ /** Given a State, this method returns a string with its class name; unlike
+  * std::type_info.name(), there *are* guarantees, i.e., the name will
+  * always be the same.
+  *
+  * The method works by dispatching the private virtual method private_name().
+  * The latter is automatically implemented by the 
+  * SMSpp_insert_in_factory_cpp_* macros [see SMSTypedefs.h], hence this
+  * comes at no cost since these have to be called somewhere to ensure that
+  * any :State will be added to the factory. Actually, since
+  * State::private_name() is pure virtual, this ensures that it is not
+  * possible to forget to call the appropriate SMSpp_insert_in_factory_cpp_*
+  * for any :State because otherwise it is a pure virtual class (unless the
+  * programmer purposely defines private_name() without calling the macro,
+  * which seems rather pointless). */
+
+ const std::string & classname( void ) const { return( private_name() ); }
+
 /** @} ---------------------------------------------------------------------*/
 /*--------------- METHODS DESCRIBING THE BEHAVIOR OF A State ---------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a State
  *  @{ */
 
- /// serialize a :State into a netCDF::NcGroup
+/** @} ---------------------------------------------------------------------*/
+/*------------ METHODS FOR LOADING, PRINTING & SAVING THE State ------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for printing the State
+ */
+
+ /// friend operator<<(), dispatching to virtual protected print()
+ /** Not really a method, but a friend operator<<() that just dispatches the
+  * ostream to the protected virtual method print(). This way operator<<() is
+  * defined for each State, but its behavior can be customized by derived
+  * classes. */
+
+ friend std::ostream& operator<<( std::ostream& out , const State &s ) {
+  s.print( out );
+  return( out );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// serialize the State to a netCDF file given the filename
+ /** Method to serialize the State to a file in SMS++ netCDF-based State
+  * format, given the \p filename. If \p replace == true (the default) any
+  * existing content of the file is overwritten and the State is saved as
+  * *the first one* in the newly created file, while if  \p replace == false
+  * the file is opened for appending and the State is saved after the last
+  * one currently present (if any).
+  *
+  * The base class implementation opens the netCDF file, creates the required
+  * attribute "SMS++_file_type" (if the file is created anew, otherwise it is
+  * assumed the field is already there), assigns it the eStateFile type, and
+  * dispatches to serialize( netCDF::NcFile & ). If anything goes wrong with
+  * any step of the process, exception is thrown. Although the method is
+  * virtual, it is not expected that derived classes will have a need to
+  * re-define it. */
+
+ virtual void serialize( const std::string & filename , bool replace = true )
+  const {
+  netCDF::NcFile f;
+  if( ! replace ) {
+   try { f.open( filename , netCDF::NcFile::write ); }
+   catch( netCDF::exceptions::NcException & e ) { replace = true; }
+   }
+  if( replace ) {
+   f.open( filename , netCDF::NcFile::replace );
+   f.putAtt( "SMS++_file_type" , netCDF::NcInt() , eStateFile );
+   }
+
+  serialize( f );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// serialize the State to an open netCDF file
+ /** Method to serialize the State to an open netCDF file in SMS++ State
+  * format. This State is *appended* after any existing State in the file.
+  *
+  * The base class implementation creates the new group and dispatches to
+  * serialize( netCDF::NcGroup ), which is where the :Solution-dependent
+  * serialization happens. If anything goes wrong with any step of the
+  * process, exception is thrown. Although the method is virtual, it is not
+  * expected that derived classes will have a need to re-define it. */
+
+ virtual void serialize( netCDF::NcFile & f ) const
+ {
+  auto cg = f.addGroup( "State_" + std::to_string( f.getGroupCount() ) );
+  serialize( cg );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// serialize thw :State into a netCDF::NcGroup
  /** The method takes a (supposedly, "full") State object and serializes
   * it into the provided netCDF::NcGroup, so that it can possibly be read by
   * deserialize() (of a :State of the very same type as this one).
@@ -2845,42 +3070,6 @@ class State {
  virtual void serialize( netCDF::NcGroup & group ) const {
   group.putAtt( "type" , classname() );
   }
-
-/** @} ---------------------------------------------------------------------*/
-/*------------ METHODS FOR LOADING, PRINTING & SAVING THE State ------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Methods for printing the State
- */
-
- /// friend operator<<(), dispatching to virtual protected print()
- /** Not really a method, but a friend operator<<() that just dispatches the
-  * ostream to the protected virtual method print(). This way operator<<() is
-  * defined for each State, but its behavior can be customized by derived
-  * classes. */
-
- friend std::ostream& operator<<( std::ostream& out , const State &s ) {
-  s.print( out );
-  return( out );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// getting the classname of this State
- /** Given a State, this method returns a string with its class name; unlike
-  * std::type_info.name(), there *are* guarantees, i.e., the name will
-  * always be the same.
-  *
-  * The method works by dispatching the private virtual method private_name().
-  * The latter is automatically implemented by the 
-  * SMSpp_insert_in_factory_cpp_* macros [see SMSTypedefs.h], hence this
-  * comes at no cost since these have to be called somewhere to ensure that
-  * any :State will be added to the factory. Actually, since
-  * State::private_name() is pure virtual, this ensures that it is not
-  * possible to forget to call the appropriate SMSpp_insert_in_factory_cpp_*
-  * for any :State because otherwise it is a pure virtual class (unless the
-  * programmer purposely defines private_name() without calling the macro,
-  * which seems rather pointless). */
-
- const std::string & classname( void ) const { return( private_name() ); }
 
 /** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -2963,6 +3152,14 @@ class State {
   * of static variables without telling you). */
 
  static void static_initialization( void ) {}
+
+/** @} ---------------------------------------------------------------------*/
+/*--------------------------- PROTECTED FIELDS  ----------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Protected fields of State
+    @{ */
+
+ inline static std::string f_prefix;  ///< the executable-wide filename prefix
 
 /** @} ---------------------------------------------------------------------*/
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/

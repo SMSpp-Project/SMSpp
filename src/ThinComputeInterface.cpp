@@ -192,7 +192,8 @@ ComputeConfig * ThinComputeInterface::get_ComputeConfig( bool all ,
 /*--------------------------------------------------------------------------*/
 
 void ThinComputeInterface::serialize_State( netCDF::NcGroup & group ,
-                                const std::string & sub_group_name ) const {
+                                const std::string & sub_group_name ) const
+{
  auto state = get_State();
  if( ! state )
   return;
@@ -209,7 +210,7 @@ void ThinComputeInterface::serialize_State( netCDF::NcGroup & group ,
   }
  delete state;
 
- }  // end( ThinComputeInterface::serialize_State )
+ }  // end( ThinComputeInterface::serialize_State( NcGroup , std::string )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ METHODS of ComputeConfig ------------------------*/
@@ -684,6 +685,118 @@ void ComputeConfig::load( std::istream & input )
  f_extra_Configuration = Configuration::deserialize( input );
 
  }  // end( ComputeConfig::load )
+
+/*--------------------------------------------------------------------------*/
+/*---------------------------- METHODS of State ----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+State * State::deserialize( const std::string & filename )
+{
+ int idx = 0;
+ std::string fn = f_prefix + filename;
+ if( fn.back() == ']' ) {
+  auto pos = fn.find_last_of( '[' );
+  if( pos != std::string::npos ) {
+   try {
+    idx = std::stoi( fn.substr( pos + 1 ) );
+    fn.erase( pos );
+    }
+   catch( ... ) { idx = 0; }
+   }
+  }
+ try {
+  netCDF::NcFile f( fn.c_str() , netCDF::NcFile::read );
+  return( State::deserialize( f , idx ) );
+  }
+ catch( netCDF::exceptions::NcException & e ) {
+  std::cerr << "netCDF error " << e.what() << " in State::deserialize"
+	    << std::endl;
+  }
+ catch( std::exception & e ) {
+  std::cerr << "error " << e.what() << " in State::deserialize" << std::endl;
+  }
+ catch( ... ) {
+  std::cerr << "unknown error in State::deserialize" << std::endl;
+  }
+
+ return( nullptr );
+
+ }  // end( State::deserialize( const std::string ) )
+
+/*--------------------------------------------------------------------------*/
+
+State * State::deserialize( const netCDF::NcFile & f , int idx )
+{
+ try {
+  auto gtype = f.getAtt( "SMS++_file_type" );
+  if( gtype.isNull() )
+   return( nullptr );
+
+  int type;
+  gtype.getValues( & type );
+
+  if( type != eSolutionFile )
+   return( nullptr );
+
+  auto cg = f.getGroup( "State_" + std::to_string( idx ) );
+
+  return( new_State( cg ) );
+  }
+ catch( netCDF::exceptions::NcException & e ) {
+  std::cerr << "netCDF error " << e.what() << " in State::deserialize"
+	    << std::endl;
+  }
+ catch( std::exception & e ) {
+  std::cerr << "error " << e.what() << " in State::deserialize" << std::endl;
+  }
+ catch( ... ) {
+  std::cerr << "unknown error in State::deserialize" << std::endl;
+  }
+
+ return( nullptr );
+
+ }  // end( State::deserialize( netCDF::NcFile ) )
+
+/*--------------------------------------------------------------------------*/
+
+State * State::new_State( const netCDF::NcGroup & group )
+{
+ try {
+  if( group.isNull() )
+   return( nullptr );
+
+  std::string tmp;
+  auto gtype = group.getAtt( "type" );
+  if( gtype.isNull() ) {
+   auto gfile = group.getAtt( "filename" );
+   if( gfile.isNull() )
+    return( nullptr );
+
+   gfile.getValues( tmp );
+
+   return( deserialize( tmp ) );
+   }
+
+  gtype.getValues( tmp );
+  auto result = new_State( tmp );
+  result->deserialize( group );
+  return( result );
+  }
+ catch( netCDF::exceptions::NcException & e ) {
+  std::cerr << "netCDF error " << e.what() << " in State::new_State"
+	    << std::endl;
+  }
+ catch( std::exception & e ) {
+  std::cerr << "error " << e.what() << " in State::new_State"
+	    << std::endl;
+  }
+ catch( ... ) {
+  std::cerr << "unknown error in State::new_State" << std::endl;
+  }
+
+ return( nullptr );
+
+ }  // end( State::new_State( netCDF::NcGroup ) )
 
 /*--------------------------------------------------------------------------*/
 /*------------------ End File ThinComputeInterface.cpp ---------------------*/

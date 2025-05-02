@@ -515,13 +515,13 @@ class Solution
   }
 
 /*--------------------------------------------------------------------------*/
- /// serialize a Solution to a netCDF file given the filename
- /** Method to serialize a Solution to a file in SMS++ netCDF-based Solution
-  * format, given the \p filename. If \p replace == true (the default) any
-  * existing content of the file is overwritten and the Solution is saved as
-  * *the first one* in the newly created file, while if  \p replace == false
-  * the file is opened for appending and the Solution is saved after the last
-  * one currently present (if any).
+ /// serialize the Solution to a netCDF file given the filename
+ /** Method to serialize the Solution to a file in SMS++ netCDF-based
+  * Solution format, given the \p filename. If \p replace == true (the
+  * default) any existing content of the file is overwritten and the Solution
+  * is saved as *the first one* in the newly created file, while if 
+  * \p replace == false the file is opened for appending and the Solution is
+  * saved after the last one currently present (if any).
   *
   * The base class implementation opens the netCDF file, creates the required
   * attribute "SMS++_file_type" (if the file is created anew, otherwise it is
@@ -547,9 +547,9 @@ class Solution
   }
 
 /*--------------------------------------------------------------------------*/
- /// serialize a Solution to an open netCDF file
- /** Method to serialize a Solution to an open netCDF file in SMS++ Solution
-  * format. The current Solution is *appended* after any existing Solution
+ /// serialize the Solution to an open netCDF file
+ /** Method to serialize the Solution to an open netCDF file in SMS++
+  * Solution format. This Solution is *appended* after any existing Solution
   * in the file.
   *
   * The base class implementation creates the new group and dispatches to

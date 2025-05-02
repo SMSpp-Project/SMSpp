@@ -164,6 +164,11 @@ static constexpr T Inf( void ) noexcept {
  *   contains the serialization of a :Solution (the string attribute "type"
  *   and all the rest).
  *
+ * - eStateFile: the file (which is also a group) has any number of child
+ *   groups with names "State_0", "State_1", ... Each child group contains
+ *   the serialization of a :State (the string attribute "type" and all the
+ *   rest).
+ *
  * The value eLastFileParam is provided if some :Block, :Configuration or
  * :Solution needs to read/write files with a specific structure. */
 
@@ -172,6 +177,7 @@ enum smspp_netCDF_file_type {
  eBlockFile = 1 ,     ///< a file of Block
  eConfigFile = 2 ,    ///< a file of Configuration
  eSolutionFile = 3 ,  ///< a file of Solution
+ eStateFile = 4 ,     ///< a file of State
  eLastFileParam = 4   ///< first value available to define new file types
  };
 
