@@ -6651,8 +6651,7 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
  /// empty slot
 
- void add_static_constraint( std::string && name = "" ,
-                             bool front = false ) {
+ void add_static_constraint( std::string && name = "" , bool front = false ) {
   if( front ) {
    v_s_Constraint.insert( v_s_Constraint.begin(), boost::any() );
    v_s_Constraint_names.insert( v_s_Constraint_names.begin() ,
@@ -6746,8 +6745,7 @@ class Block : public Observer {
  template< class Const >
  std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
  add_static_constraint( std::vector< std::vector< Const > > & newc ,
-                        std::string && name = "" ,
-                        bool front = false ) {
+                        std::string && name = "" , bool front = false ) {
   for( auto & c : newc )
    for( auto & j : c )
     j.set_Block( this );
@@ -6825,26 +6823,45 @@ class Block : public Observer {
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// boost::multi_array< K > of (...) of std::vector of Constraint
+ /// boost::multi_array< K > of std::vector of (...) Constraint
 
  template< class Const , std::size_t K >
  std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
  add_static_constraint( boost::multi_array< std::vector< Const > , K > & newc ,
                         std::string && name = "" , bool front = false ) {
-  for( auto v = newc.data() ; v < ( newc.data() + newc.num_elements() ) ; )
-   add_static_constraint( *( v++ ) , std::string( name ) , front );
+  for( auto i = newc.data() ; i < ( newc.data() + newc.num_elements() ) ; ++i )
+   for( auto & c : *i )
+    c.set_Block( this );
+
+  boost::multi_array< std::vector< Const > , K > * cnewc = &newc;
+  if( front ) {
+   v_s_Constraint.insert( v_s_Constraint.begin(), cnewc );
+   v_s_Constraint_names.insert( v_s_Constraint_names.begin(),
+                                std::move( name ) );
+   }
+  else {
+   v_s_Constraint.push_back( cnewc );
+   v_s_Constraint_names.emplace_back( std::move( name ) );
+   }
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// boost::multi_array< K > of (...) of std::vector of Constraint
+ /// boost::multi_array< K > of std::vector of (...) Constraint
 
  template< class Const , std::size_t K >
  std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
  set_static_constraint( Index i ,
                         boost::multi_array< std::vector< Const > , K > & newc ,
                         std::string && name = "" ) {
-  for( auto v = newc.data() ; v < ( newc.data() + newc.num_elements() ) ; )
-   set_static_constraint( i++ , *( v++ ) , std::string( name ) );
+  if( i >= v_s_Constraint.size() )
+   throw std::invalid_argument( "wrong index into v_s_Constraint" );
+
+  for( auto & c : newc )
+   for( auto & j : c )
+    j.set_Block( this );
+
+  v_s_Constraint[ i ] = &newc;
+  v_s_Constraint_names[ i ] = std::move( name );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -6938,6 +6955,49 @@ class Block : public Observer {
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// std::vector of std::vector of (...) Variable
+
+ template< class Var >
+ std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
+ set_static_variable( std::vector< std::vector< Var > > & newv ,
+                      std::string && name = "" , bool front = false ) {
+  for( auto & v : newv )
+   for( auto & j : v )
+    j.set_Block( this );
+
+  std::vector< std::vector< Var > > * cnewv = &newv;
+  if( front ) {
+   v_s_Variable.insert( v_s_Variable.begin(), cnewv );
+   v_s_Variable_names.insert( v_s_Variable_names.begin() ,
+                              std::move( name ) );
+   }
+  else {
+   v_s_Variable.push_back( cnewv );
+   v_s_Variable_names.emplace_back( std::move( name ) );
+   }
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// std::vector of std::vector of (...) Variable
+
+ template< class Var >
+ std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
+ set_static_variable( Index i ,
+                      std::vector< std::vector< Var > > & newv ,
+                      std::string && name = "" ) {
+  if( i >= v_s_Variable.size() )
+   throw( std::invalid_argument( "wrong index into v_s_Variable" ) );
+
+  for( auto & v : newv )
+   for( auto & j : v )
+    j.set_Block( this );
+
+  std::vector< std::vector< Var > > * cnewv = &newv;
+  v_s_Variable[ i ] = cnewv;
+  v_s_Variable_names[ i ] = std::move( name );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// boost::multi_array< K > of (...) Variable
 
  template< class Var , std::size_t K >
@@ -6977,6 +7037,48 @@ class Block : public Observer {
   v_s_Variable_names[ i ] = std::move( name );
   }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// boost::multi_array< K > of std::vector of (...) Variable
+
+ template< class Var , std::size_t K >
+ std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
+ add_static_variable( boost::multi_array< std::vector< Var > , K > & newv ,
+                      std::string && name = "" , bool front = false ) {
+  for( auto i = newv.data() ; i < ( newv.data() + newv.num_elements() ) ; ++i )
+   for( auto & v : *i )
+    v.set_Block( this );
+
+  boost::multi_array< std::vector< Var > , K > * cnewv = &newv;
+  if( front ) {
+   v_s_Variable.insert( v_s_Variable.begin(), cnewv );
+   v_s_Variable_names.insert( v_s_Variable_names.begin(),
+                              std::move( name ) );
+   }
+  else {
+   v_s_Variable.push_back( cnewv );
+   v_s_Variable_names.emplace_back( std::move( name ) );
+   }
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// boost::multi_array< K > of std::vector of (...) Variable
+
+ template< class Var , std::size_t K >
+ std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
+ set_static_variable( Index i ,
+                      boost::multi_array< std::vector< Var > , K > & newv ,
+                      std::string && name = "" ) {
+  if( i >= v_s_Variable.size() )
+   throw std::invalid_argument( "wrong index into v_s_Variable" );
+
+  for( auto & v : newv )
+   for( auto & j : v )
+    j.set_Block( this );
+
+  v_s_Variable[ i ] = &newv;
+  v_s_Variable_names[ i ] = std::move( name );
+  }
+
 /*--------------------------------------------------------------------------*/
  /// empty slot
 
@@ -6998,8 +7100,7 @@ class Block : public Observer {
  template< class Const >
  std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
  add_dynamic_constraint( std::list< Const > & newc ,
-                         std::string && name = "" ,
-                         bool front = false ) {
+                         std::string && name = "" , bool front = false ) {
   for( auto & c : newc )
    c.set_Block( this );
 
@@ -7039,8 +7140,7 @@ class Block : public Observer {
  template< class Const >
  std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
  add_dynamic_constraint( std::vector< std::list< Const > > & newc ,
-                         std::string && name = "" ,
-                         bool front = false ) {
+                         std::string && name = "" , bool front = false ) {
   for( auto & c : newc )
    for( auto & j : c )
     j.set_Block( this );
@@ -7082,14 +7182,11 @@ class Block : public Observer {
 
  template< class Const , std::size_t K >
  std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
- add_dynamic_constraint(
-  boost::multi_array< std::list< Const > , K > & newc ,
-  std::string && name = "" , bool front = false ) {
-
-  for( auto i = newc.data(); i < ( newc.data() + newc.num_elements() ) ;
-       ++i )
-   for( auto & j : *i )
-    j.set_Block( this );
+ add_dynamic_constraint( boost::multi_array< std::list< Const > , K > & newc ,
+                         std::string && name = "" , bool front = false ) {
+  for( auto i = newc.data(); i < ( newc.data() + newc.num_elements() ) ; ++i )
+   for( auto & c : *i )
+    c.set_Block( this );
 
   boost::multi_array< std::list< Const > , K > * cnewc = &newc;
   if( front ) {
@@ -7229,8 +7326,8 @@ class Block : public Observer {
  add_dynamic_variable( boost::multi_array< std::list< Var > , K > & newv ,
                        std::string && name = "" , bool front = false ) {
   for( auto i = newv.data(); i < ( newv.data() + newv.num_elements() ) ; ++i )
-   for( auto & j : *i )
-    j.set_Block( this );
+   for( auto & v : *i )
+    v.set_Block( this );
 
   boost::multi_array< std::list< Var > , K > * cnewv = &newv;
   if( front ) {
