@@ -527,7 +527,7 @@ class QuadFunction : public DQuadFunction {
  };  // end( class( QuadFunction ) )
 
 /*--------------------------------------------------------------------------*/
-/*------------------- Class QuadFunctionModVarsAddd ----------------------*/
+/*------------------- Class QuadFunctionModVarsAddd ------------------------*/
 /*--------------------------------------------------------------------------*/
 /// class to describe "nicely" adding Variable of a QuadFunction
 /** Derived class from DQuadFunctionModVarsAddd to describe adding "active"
