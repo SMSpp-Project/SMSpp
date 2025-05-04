@@ -1816,7 +1816,7 @@ bool un_any_const_dynamic( const boost::any & any , F f ,
 // typeid( something * ).hash_code() even if _any.type().name() is equal to
 // typeid( something * ).name() and the objects are actually of the same
 // type. This seems to only happen on MacOS, and it has been verified to
-// happen up to at least clanf 1700_0_13_3. What seems to happen is that
+// happen up to at least clang 1700_0_13_3. What seems to happen is that
 // _any.type() may be established in one translation unit while
 // typeid( something * ) is established in a different one, and they can thus
 // differ -- since something * is incomplete -- even if the underlying type
