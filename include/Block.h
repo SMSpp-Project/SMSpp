@@ -6856,8 +6856,8 @@ class Block : public Observer {
   if( i >= v_s_Constraint.size() )
    throw std::invalid_argument( "wrong index into v_s_Constraint" );
 
-  for( auto & c : newc )
-   for( auto & j : c )
+  for( auto c = newc.data(); c < ( newc.data() + newc.num_elements() ); ++c )
+   for( auto & j : *c )
     j.set_Block( this );
 
   v_s_Constraint[ i ] = &newc;
@@ -7071,8 +7071,8 @@ class Block : public Observer {
   if( i >= v_s_Variable.size() )
    throw std::invalid_argument( "wrong index into v_s_Variable" );
 
-  for( auto & v : newv )
-   for( auto & j : v )
+  for( auto v = newv.data(); v < ( newv.data() + newv.num_elements() ); ++v )
+   for( auto & j : *v )
     j.set_Block( this );
 
   v_s_Variable[ i ] = &newv;
