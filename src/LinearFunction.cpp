@@ -75,7 +75,7 @@ void LinearFunction::get_hessian_approximation( DenseHessian & hessian ) const{
 
 void LinearFunction::get_linearization_coefficients( FunctionValue * g ,
                                                      Range range ,
-						     Index name )
+                                                     Index name )
 {
  range.second = std::min( range.second , get_num_active_var() );
  if( range.second <= range.first )
