@@ -75,7 +75,7 @@ void LinearFunction::get_hessian_approximation( DenseHessian & hessian ) const{
 
 void LinearFunction::get_linearization_coefficients( FunctionValue * g ,
                                                      Range range ,
-						     Index name )
+                                                     Index name )
 {
  range.second = std::min( range.second , get_num_active_var() );
  if( range.second <= range.first )
@@ -227,7 +227,7 @@ void LinearFunction::map_active( c_Vec_p_Var & vars , Subset & map ,
 /*--------------------------------------------------------------------------*/
 
 void LinearFunction::add_variables( v_coeff_pair && vars ,
-				    ModParam issueMod )
+				                                ModParam issueMod )
 {
  if( vars.empty() )  // actually nothing to add
   return;            // cowardly (and silently) return

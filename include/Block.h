@@ -2526,7 +2526,7 @@ class Block : public Observer {
   auto obj = dynamic_cast< Obj * >( f_Objective );
   if( ! obj )
    throw( std::invalid_argument(
-		     "get_objective: objective is not of  required type" ) );
+		     "get_objective: objective is not of required type" ) );
   return( obj );
   }
 
