@@ -128,7 +128,7 @@ namespace SMSpp_di_unipi_it
  * The function l(y) is convex in y (concave if (B) is a minimization
  * problem), since it is the pointwise maximum of (possibly, infinitely
  * many) linear functions in y. As such it is continuous in the interior of
- * its domain; however, it typically is non differentiable. Indeed, if x(y) 
+ * its domain; however, it typically is non differentiable. Indeed, if x(y)
  * is the (eps-)optimal solution of (L_y), then
  *
  *       h = g( x(  y) ) = [ g_i( x( y ) ) ]_{ i \in I }
@@ -143,7 +143,7 @@ namespace SMSpp_di_unipi_it
  *
  * The aim of LagBFunction is to automate the process of turning the block B
  * (given g and y) into the Lagrangian function l( y ), implementing all the
- * notrivial mechanics about local and global pool of linearizations (=
+ * nontrivial mechanics about local and global pool of linearizations (=
  * eps-subgradients = eps-optimal solutions to (L_y)), transforming
  * Modification of the block (B) into Modification of the C05Function, and so
  * on. To do this in the most general way, no assumption is made on (B) and g
@@ -156,7 +156,7 @@ namespace SMSpp_di_unipi_it
  *
  *   = FRealObjective whose inside Function is a DQuadFunction
  *
- * - each g[ i ] is a generic Function (*), but the Function has to be 
+ * - each g[ i ] is a generic Function (*), but the Function has to be
  *   "simple" function, i.e., belonging to following classes:
  *
  *   = LinearFunction
@@ -240,7 +240,7 @@ namespace SMSpp_di_unipi_it
  * - THE LAGRANGIAN TERM MAY HAVE A DIFFERENT "SHAPE" THAN THE ORIGINAL
  *   LinearFunction c( x ) (i.e., more ColVariable may have a nonzero
  *   coefficient than in happened in c(x)), which means that ColVariable
- *   CAN BE ADDED TO c( x ) THAT WERE NOT ORIGINERILY THERE.
+ *   CAN BE ADDED TO c( x ) THAT WERE NOT ORIGINALLY THERE.
  *
  *   This, as already mentioned, my be a problem for some Block/Solver that
  *   require a specific arrangement. Furthermore, it means that ANY PROCESS
@@ -274,7 +274,7 @@ namespace SMSpp_di_unipi_it
  *
  * - Similarly, A TERM < x_j , a_{ij} > IN g_i( x ) WILL GIVE RISE TO AN
  *   EXPLICIT TERM < y_i , a_{ij} > IN THE (LINEAR) EXPRESSION FOR THE
- *   LAGRANGIAN COST OF x_j EVEN IF a_{ij} == 0; no attemp is done to optimize
+ *   LAGRANGIAN COST OF x_j EVEN IF a_{ij} == 0; no attempt is done to optimize
  *   away zero coefficients from g_i( x ), in case the entity producing them
  *   relies on their position in the LinearFunction to handle them.
  *
@@ -309,7 +309,7 @@ namespace SMSpp_di_unipi_it
  *      c^y = c + yA
  *
  * and change the Objective of (B) accordingly. Note, however, the g(x) may
- * have constant terms: for instanxe, it could be an affine function
+ * have constant terms: for instance, it could be an affine function
  * ( g( x ) = Ax + b ) rather than a linear function. In this case, which is
  * actually supported by LagBFunction, the value of the LagBFunction has the
  * form
@@ -423,7 +423,7 @@ class LagBFunction : public C05Function , public Block {
   * corresponding names. */
  using coeff_triple = DQuadFunction::coeff_triple;
  using v_coeff_triple = DQuadFunction::v_coeff_triple;
-  
+
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// an element of the global pool
  /** An element of the global pool ia a Solution equipped with a boolean
@@ -434,10 +434,10 @@ class LagBFunction : public C05Function , public Block {
  using v_gpool_el = std::vector< gpool_el >;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// a pair to represent a monomial y_i * a_{ij} 
+ /// a pair to represent a monomial y_i * a_{ij}
  using mon_pair = std::pair< Index , Coefficient >;
 
- /// a vector of mon_pair (a complete term y_i A_i) 
+ /// a vector of mon_pair (a complete term y_i A_i)
  using v_mon_pair = std::vector< mon_pair >;
 
  /// a pair to represent the original c_i and the vector of < y_i , A_i >
@@ -572,9 +572,11 @@ class LagBFunction : public C05Function , public Block {
 
  intChkState ,     ///< whether to check the Solution in the put_State
 
- intLastLagBFPar   ///< first allowed new int parameter for derived classes
+ intLastLagBFPar , ///< first allowed new int parameter for derived classes
                    /**< Convenience value for easily allow derived classes
 		    * to extend the set of int algorithmic parameters. */
+
+ intPushCostToOwner ///<
 
  };  // end( int_par_type_LagBF )
 
@@ -610,7 +612,7 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
  /// public enum for the vector-of-int algorithmic parameters
- /** Public enum describing the different algorithmic parameters of type 
+ /** Public enum describing the different algorithmic parameters of type
   * vector-of-int that LagBFunction has in addition to these of C05Function
   * (currently, none). The value vintLastLagBFPar is provided so that the
   * list can be easily further extended by derived classes. */
@@ -779,7 +781,7 @@ class LagBFunction : public C05Function , public Block {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set a given double numerical parameter (see set_ComputeConfig())
- /** Set the doubke numerical parameters of the LagBFunction, which mostly
+ /** Set the double numerical parameters of the LagBFunction, which mostly
   * (but not exclusively) means setting those of the inner Solver used to
   * compute() it. In fact, the int parameters here can be divided in three
   * cases:
@@ -1097,7 +1099,7 @@ class LagBFunction : public C05Function , public Block {
   * while the inner Solver may have many. It is therefore advantageous to
   * allow to set the algorithmic parameters of the inner Solver to b
   * directly set by the set_par() of LagBFunction.
-  * 
+  *
   * This is done by "translating" all the indices of the parameters of the
   * inner Solver, apart from the standard ones that any ThinComputeInterface
   * (and, therefore, Solver) has, so that they are > than the indices of
@@ -1163,7 +1165,7 @@ class LagBFunction : public C05Function , public Block {
   * - or a BlockSolverConfig *
   *
   * Note that passing nullptr resets the inner Block, as does passing a
-  * non-nullptr scfg with a nullptr f_extra_Configuration if scfg->f_diff == 
+  * non-nullptr scfg with a nullptr f_extra_Configuration if scfg->f_diff ==
   * false.  Also, if a pair of Configuration * is passed, any one of those is
   * nullptr and scfg->f_diff == false, then the corresponding part of the
   * inner Block (BlockConfig or BlockSolverConfig) is reset.
@@ -1343,9 +1345,9 @@ class LagBFunction : public C05Function , public Block {
   * save with a 0 coefficient. We are implicitly assuming that this difference
   * is irrelevant "to the outside", which is a somewhat reasonable but not
   * completely watertight assumption. */
- 
+
  void cleanup_inner_objective( void );
- 
+
 /** @} ---------------------------------------------------------------------*/
 /*-------------------- Methods for handling Modification -------------------*/
 /*--------------------------------------------------------------------------*/
@@ -1376,13 +1378,13 @@ class LagBFunction : public C05Function , public Block {
   *     (OR, PERHAPS BETTER, ITS LACK OF GENERAL INFORMATION), ONLY THE
   *     "ABSTRACT" Modification COMING OUT OF THE INNER Block CAN BE
   *     PROCESSED, THE OTHER ONES BEING IGNORED. THIS IS CLEARLY AN
-  *     ISSUE IF THE CHANGES IN THE INNER Block ONLY RESULT IN "PHISICAL"
+  *     ISSUE IF THE CHANGES IN THE INNER Block ONLY RESULT IN "PHYSICAL"
   *     Modification BEING ISSUED (this will be improved upon by the
   *     planned re-haul of the Modification system).
   *
   * - Most of the changes made to the inner Block result in a C05FunctionMod
   *   (actually, LagBFunctionMod) with type() == GlobalPoolRemoved because
-  *   they mess up with feasibility of the previous solutions / directions. 
+  *   they mess up with feasibility of the previous solutions / directions.
   *   Thus, there is a risk of a long stream of basically identical
   *   Modification to be be produced, which is clearly useless. It would be
   *   nice to be able to "wait until the last Modification is received and
@@ -1682,15 +1684,18 @@ class LagBFunction : public C05Function , public Block {
   * method will not bother and still return nullptr. */
 
  const col_pair * get_A_by_col( const ColVariable * xj ) {
-  if( qobj )
-   throw( std::logic_error(
-	   "matrix representation not available for quadratic objective" ) );
-  auto j = obj->is_active( xj );
-  if( j >= obj->get_num_active_var() )
-   return( nullptr );
-  else
-   return( & CostMatrix[ j ] );
+  // search over all objectives
+  for( Index h = 0 ; h < v_Obj.size() ; ++h ) {
+   auto * linf = dynamic_cast< LinearFunction * >( v_Obj[ h ]->get_function() );
+   if( ! linf ) continue;
+
+   auto j = linf->is_active( xj );
+   if( j < linf->get_num_active_var() )
+    return( &CostMatrix[ h ][ j ] );
   }
+
+  return( nullptr );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// get the matrix representation of g(x) TO BE DELETED
@@ -1776,7 +1781,7 @@ class LagBFunction : public C05Function , public Block {
 
  [[nodiscard]] int get_dflt_int_par( idx_type par ) const override {
   if( ( par == intInnrSlvr ) || ( par == intNoSol ) ||
-      ( par == intChkState ) )
+      ( par == intChkState ) || ( par == intPushCostToOwner ) )
    return( 0 );
 
   if( par < intLastLagBFPar )
@@ -1877,6 +1882,7 @@ class LagBFunction : public C05Function , public Block {
    case( intInnrSlvr ): return( InnrSlvr );
    case( intNoSol ):    return( NoSol ? 1 : 0 );
    case( intChkState ): return( ChkState ? 1 : 0 );
+   case( intPushCostToOwner ): return( PushCostToOwner ? 1 : 0 );
    }
 
   return( C05Function::get_dflt_int_par( par ) );
@@ -1955,6 +1961,8 @@ class LagBFunction : public C05Function , public Block {
    return( intNoSol );
   if( name == "intChkState" )
    return( intChkState );
+  if( name == "intPushCostToOwner" )
+   return ( intPushCostToOwner );
 
   if( auto is = inner_Solver() )
    return( int_par_lbf( is->int_par_str2idx( name ) ) );
@@ -2017,7 +2025,7 @@ class LagBFunction : public C05Function , public Block {
  [[nodiscard]] const std::string & int_par_idx2str( idx_type idx )
   const override {
   static const std::vector< std::string > pars =
-   { "intInnrSlvr", "intNoSol" , "intChkState" };
+   { "intInnrSlvr", "intNoSol" , "intChkState" , "intPushCostToOwner" };
 
   if( idx == intInnrSlvr )
    return( pars[ 0 ] );
@@ -2025,6 +2033,8 @@ class LagBFunction : public C05Function , public Block {
    return( pars[ 1 ] );
   if( idx == intChkState )
    return( pars[ 2 ] );
+  if( idx == intPushCostToOwner )
+   return( pars[ 3 ] );
 
   if( auto is = inner_Solver() )
    return( is->int_par_idx2str( int_par_is( idx ) ) );
@@ -2323,11 +2333,11 @@ class LagBFunction : public C05Function , public Block {
 
  bool flush_v_tmpCP( void );
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/ 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  void add_to_CostMatrix( v_c_dual_pair & newdp );
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/ 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  void mod_CostMatrix( Index i , Index first );
 
@@ -2462,14 +2472,10 @@ class LagBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 
  void compute_Lipschitz_constant( void );
- 
+
 /** @} ---------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
-
- LinearFunction * obj;  ///< the (LinearFunction inside the) Objective of (B)
-
- DQuadFunction * qobj;  ///< the (DQuadFunction inside the) Objective of (B)
 
  bool IsConvex;         ///< true if the LagBFunction is convex
 
@@ -2478,6 +2484,8 @@ class LagBFunction : public C05Function , public Block {
  bool NoSol;            ///< true if no Solution are stored
 
  bool ChkState;         ///< true if the State is checked for correctness
+
+ bool PushCostToOwner; ///<
 
  Solver * p_InnrSlvr;   ///< [pointer to the] Solver of the inner Block
 
@@ -2508,7 +2516,7 @@ class LagBFunction : public C05Function , public Block {
   * g_pool[ f_max_glob ], as f_max_glob == g_pool.size() may happen (in
   * particular when g_pool.empty() and f_max_glob == 0). */
 
- m_column CostMatrix;
+ std::vector< m_column > CostMatrix;
  ///< the matrix < c_j , y A^j > used to update the Lagrangian cost vector
  /**< CostMatrix[ j ] contains the information < c_j , y A^j > that is
   * needed to construct the Lagrangian cost of x[ j ], the j-th ColVariable
@@ -2542,7 +2550,7 @@ class LagBFunction : public C05Function , public Block {
   * terms are already stored in CostMatrix in the same order, i.e.,
   * v_tmpCP[ i ] corresponds to CostMatrix[ i + obj->get_num_active_var() ].
   */
- 
+
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  Index LastSolution;  ///< the last Solution read by get_linearization
@@ -2559,7 +2567,7 @@ class LagBFunction : public C05Function , public Block {
  bool VarSol;         ///< true if Variable in the inner Block are a solution
                       /**< true if the values of the Variable in the inner
 		       * Block describe a feasible solution, i.e., they
- * correspond to a diagonal linearization; false if the values of the 
+ * correspond to a diagonal linearization; false if the values of the
  * Variable in the inner Block describe a direction of the feasible set,
  * i.e., they correspond to a vertical linearization. It of course only makes
  * sense if NoSol == false. */
@@ -2608,8 +2616,8 @@ class LagBFunction : public C05Function , public Block {
  bool f_CC_changed;          ///< true if the ComputeConfig has changed
 
  BoxSolver * f_BS;    ///< the BoxSolver to compute the Lipschitz constant
- 
- void * f_id;         ///< the "identity" of the LagBFunction 
+
+ void * f_id;         ///< the "identity" of the LagBFunction
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
@@ -2624,6 +2632,18 @@ class LagBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 /*---------------------------- PRIVATE FIELDS ------------------------------*/
 /*--------------------------------------------------------------------------*/
+
+ /// Objectives in BFS order (can be LinearFunction *or* DQuadFunction)
+ std::vector< FRealObjective * > v_Obj;
+
+ /// true if v_Obj[ h ] is a DQuadFunction, false if is a LinearFunction
+ std::vector< bool > v_ObjIsQuad;
+
+ /// Blocks in the same BFS order as v_Obj
+ std::vector< Block * > v_BlockBFS;
+
+ /// fast lookup: Block* → its index h in v_Obj / v_BlockBFS
+ std::unordered_map< const Block * , Index > Block2Idx;
 
  SMSpp_insert_in_factory_h;  // insert LagBFunction in the Block factory
 
@@ -2783,7 +2803,7 @@ class LagBFunctionState : public State {
   if( ! lbf ) {
    f_max_glob = 0;
    return;
-   }  
+   }
   if( lbf->NoSol )
    f_max_glob = 0;
   else {

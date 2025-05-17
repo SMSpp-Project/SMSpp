@@ -576,7 +576,7 @@ class ThinComputeInterface
   auto par = int_par_str2idx( name );
   if( par == Inf< idx_type >() )
    throw( std::invalid_argument( "set_par( int ): " + name +
-				 "not a valid parameter name" ) );
+				 " not a valid parameter name" ) );
   return( set_par( par , value ) );
   }
 
