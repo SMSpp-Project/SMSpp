@@ -1499,29 +1499,37 @@ void LagBFunction::store_combination_of_linearizations(
   return;
   }
 
- bool type = true;         // a diagonal one unless otherwise proven
- bool unfeasible = false;  // feasible unless otherwise proven
-
- // get an "empty" solution from the Block
- auto convex_combination = v_Block.front()->get_Solution();
-
  #if CHECK_SOLUTIONS & 4
   std::cout << "LagBFunction " << this << ": computing "
 	    << coefficients.size() << "-combination in "
 	    << name << std::endl;
  #endif
 
- for( auto & pair : coefficients ) {
+ bool unfeasible = false;  // feasible unless otherwise proven
+
+ // get a scaled version of the first Solution
+ auto first = coefficients[ 0 ].first;
+ auto convex_combination = ( g_pool[ first ].first
+			     )->scale( coefficients[ 0 ].second );
+ bool type = g_pool[ first ].second;  // diagonal unless already vertical
+
+ // for all other Solution in the pool
+ for( Index i = 1 ; i < coefficients.size() ; ++i ) {
+  auto pos = coefficients[ i ].first;
+  if( pos == first )
+   continue;
+  auto mult = coefficients[ i ].second;
+  
   #if CHECK_SOLUTIONS & 4
-   std::cout << "pos = " << pair.first << ", mult = " << pair.second
-             << ", sol = " << * g_pool[ pair.first ].first;
+   std::cout << "pos = " << pos << ", mult = " << mult << ", sol = "
+	     << * g_pool[ pos ].first;
   #endif
 
   // add the new term to the convex combination
-  convex_combination->sum( g_pool[ pair.first ].first , pair.second );
+  convex_combination->sum( g_pool[ pos ].first , mult );
 
   // if the convex combination contains even a single direction
-  if( ! g_pool[ pair.first ].second )
+  if( ! g_pool[ pos ].second )
    type = false;  // then it is a direction
   }
 
