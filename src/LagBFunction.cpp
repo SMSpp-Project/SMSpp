@@ -143,11 +143,11 @@ SMSpp_insert_in_factory_cpp_1( LagBFunction );
 
 LagBFunction::LagBFunction( Block * innerblock , Observer * observer )
  : C05Function() , IsConvex( true ) , InnrSlvr( 0 ) , NoSol( false ) ,
-   ChkState( false ) , p_InnrSlvr( nullptr ) , f_max_glob( 0 ) ,
-   LastSolution( 0 ) , VarSol( true ) , f_yb( -INF ) , f_play_dumb( false ) ,
-   f_dirty_Lc( false ) , f_c_changed( false ) ,  f_Lc( -1 ) , LPMaxSz( 0 ) ,
-   f_BSC( nullptr ) , f_CC( nullptr ) , f_CC_changed( false ) ,
-   f_BS( nullptr ) , f_id( this )
+   ChkState( false ) , PushCostToOwner( true ) , p_InnrSlvr( nullptr ) ,
+   f_max_glob( 0 ) , LastSolution( 0 ) , VarSol( true ) , f_yb( -INF ) ,
+   f_play_dumb( false ) , f_dirty_Lc( false ) , f_c_changed( false ) ,
+   f_Lc( -1 ) , LPMaxSz( 0 ) , f_BSC( nullptr ) , f_CC( nullptr ) ,
+   f_CC_changed( false ) , f_BS( nullptr ) , f_id( this )
 {
  // set the pointer to the sub-Block (B) - - - - - - - - - - - - - - - - - - -
  if( innerblock )
