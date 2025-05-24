@@ -3524,16 +3524,15 @@ void LagBFunction::update_CostMatrix_ModLinRngd( const v_coeff_pair & rc ,
  if( vars.empty() || ( rng.second <= rng.first ) )
   return;
 
- // determine the block b to which the modified variables belong
- Index b = Inf< Index >();
- for( Index h = 0 ; h < v_Obj.size() ; ++h )
-  if( v_Obj[ h ]->is_active( vars.front() ) < Inf< Index >() ) {
-   b = h;
-   break;
-  }
-
- if( b >= v_Obj.size() )
-  throw( std::logic_error( "Variable not found in any objective" ) );
+ Index b;
+ if( v_Obj.size() == 1 )
+  b = 0;
+ else {
+  auto it = Block2Idx.find( vars.front()->get_Block() );
+  if( ( it == Block2Idx.end() ) || ( it->second >= v_Obj.size() ) )
+   throw std::logic_error( "Variable not found in any objective" );
+  b = it->second;
+ }
 
  m_column & CM = CostMatrix[ b ];
 
@@ -3607,16 +3606,15 @@ void LagBFunction::update_CostMatrix_ModLinSbst( const v_coeff_pair & rc ,
  if( vars.empty() || sbst.empty() )
   return;
 
- // determine the block b to which the new variables belong
- Index b = Inf< Index >();
- for( Index h = 0 ; h < v_Obj.size() ; ++h )
-  if( v_Obj[ h ]->is_active( vars.front() ) < Inf< Index >() ) {
-   b = h;
-   break;
-  }
-
- if( b >= v_Obj.size() )
-  throw( std::logic_error( "Variable not found in any objective" ) );
+ Index b;
+ if( v_Obj.size() == 1 )
+  b = 0;
+ else {
+  auto it = Block2Idx.find( vars.front()->get_Block() );
+  if( ( it == Block2Idx.end() ) || ( it->second >= v_Obj.size() ) )
+   throw std::logic_error( "Variable not found in any objective" );
+  b = it->second;
+ }
 
  m_column & CM = CostMatrix[ b ];
 
@@ -3681,16 +3679,15 @@ void LagBFunction::update_CostMatrix_ModVarsAddd( c_Vec_p_Var & vars ,
  if( vars.empty() )
   return;
 
- // determine the block b to which the new variables belong
- Index b = Inf< Index >();
- for( Index h = 0 ; h < v_Obj.size() ; ++h )
-  if( v_Obj[ h ]->is_active( vars.front() ) < Inf< Index >() ) {
-   b = h;
-   break;
-  }
-
- if( b >= v_Obj.size() )
-  throw( std::logic_error( "Variable not found in any objective" ) );
+ Index b;
+ if( v_Obj.size() == 1 )
+  b = 0;
+ else {
+  auto it = Block2Idx.find( vars.front()->get_Block() );
+  if( ( it == Block2Idx.end() ) || ( it->second >= v_Obj.size() ) )
+   throw std::logic_error( "Variable not found in any objective" );
+  b = it->second;
+ }
 
  m_column & CM = CostMatrix[ b ];
 
@@ -3746,16 +3743,15 @@ void LagBFunction::update_CostMatrix_ModVarsRngd( c_Vec_p_Var & vars ,
  if( vars.empty() || ( rng.second <= rng.first ) )
   return;
 
- // determine the block b to which the new variables belong
- Index b = Inf< Index >();
- for( Index h = 0 ; h < v_Obj.size() ; ++h )
-  if( v_Obj[ h ]->is_active( vars.front() ) < Inf< Index >() ) {
-   b = h;
-   break;
-  }
-
- if( b >= v_Obj.size() )
-  throw( std::logic_error( "Variable not found in any objective" ) );
+ Index b;
+ if( v_Obj.size() == 1 )
+  b = 0;
+ else {
+  auto it = Block2Idx.find( vars.front()->get_Block() );
+  if( ( it == Block2Idx.end() ) || ( it->second >= v_Obj.size() ) )
+   throw std::logic_error( "Variable not found in any objective" );
+  b = it->second;
+ }
 
  m_column & CM = CostMatrix[ b ];
 
@@ -3809,16 +3805,15 @@ void LagBFunction::update_CostMatrix_ModVarsSbst( c_Vec_p_Var & vars ,
  if( vars.empty() || sbst.empty() )
   return;
 
- // determine the block b to which the new variables belong
- Index b = Inf< Index >();
- for( Index h = 0 ; h < v_Obj.size() ; ++h )
-  if( v_Obj[ h ]->is_active( vars.front() ) < Inf< Index >() ) {
-   b = h;
-   break;
-  }
-
- if( b >= v_Obj.size() )
-  throw( std::logic_error( "Variable not found in any objective" ) );
+ Index b;
+ if( v_Obj.size() == 1 )
+  b = 0;
+ else {
+  auto it = Block2Idx.find( vars.front()->get_Block() );
+  if( ( it == Block2Idx.end() ) || ( it->second >= v_Obj.size() ) )
+   throw std::logic_error( "Variable not found in any objective" );
+  b = it->second;
+ }
 
  m_column & CM = CostMatrix[ b ];
 
