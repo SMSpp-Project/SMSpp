@@ -2449,24 +2449,25 @@ class LagBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 
  Solver * inner_Solver( void ) const {
-  if( ( ! p_InnrSlvr ) && ( ! v_Block.empty() ) ) {
-   Solver * iS;
-   auto & rs = v_Block.front()->get_registered_solvers();
-   if( ! rs.empty() ) {
-    if( rs.size() > InnrSlvr ) {
-     auto rsit = rs.begin();
-     std::advance( rsit , InnrSlvr );
-     iS = *rsit;
-     }
-    else
-     iS = rs.back();
+  // note: we used to save the pointer to the inner Solver in a field of the
+  //       class to avoid having to std::advance()-ing the list each time,
+  //       but this fails if the list of Solver of the inner Block is
+  //       changed between two calls, since LagBFunction has no way of
+  //       knowing this happened
+  if( v_Block.empty() )
+   return( nullptr );
 
-    // note the horribly dirty trick of casting away const-ness from this
-    // to allow inner_Solver() to be const and therefore used in const methods
-    const_cast< LagBFunction * >( this )->p_InnrSlvr = iS;
-    }
+  auto & rs = v_Block.front()->get_registered_solvers();
+  if( rs.empty() )
+   return( nullptr );
+
+  if( rs.size() > InnrSlvr ) {
+   auto rsit = rs.begin();
+   std::advance( rsit , InnrSlvr );
+   return( *rsit );
    }
-  return( p_InnrSlvr );
+  else
+   return( rs.back() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -2486,8 +2487,6 @@ class LagBFunction : public C05Function , public Block {
  bool ChkState;         ///< true if the State is checked for correctness
 
  bool PushCostToOwner; ///<
-
- Solver * p_InnrSlvr;   ///< [pointer to the] Solver of the inner Block
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 

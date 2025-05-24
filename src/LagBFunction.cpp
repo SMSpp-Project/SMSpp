@@ -143,8 +143,8 @@ SMSpp_insert_in_factory_cpp_1( LagBFunction );
 
 LagBFunction::LagBFunction( Block * innerblock , Observer * observer )
  : C05Function() , IsConvex( true ) , InnrSlvr( 0 ) , NoSol( false ) ,
-   ChkState( false ) , PushCostToOwner( true ) , p_InnrSlvr( nullptr ) ,
-   f_max_glob( 0 ) , LastSolution( 0 ) , VarSol( true ) , f_yb( -INF ) ,
+   ChkState( false ) , PushCostToOwner( true ) , f_max_glob( 0 ) ,
+   LastSolution( 0 ) , VarSol( true ) , f_yb( -INF ) ,
    f_play_dumb( false ) , f_dirty_Lc( false ) , f_c_changed( false ) ,
    f_Lc( -1 ) , LPMaxSz( 0 ) , f_BSC( nullptr ) , f_CC( nullptr ) ,
    f_CC_changed( false ) , f_BS( nullptr ) , f_id( this )
@@ -480,7 +480,6 @@ void LagBFunction::set_par( idx_type par , int value )
   case( intInnrSlvr ):  // intInnrSlvr - - - - - - - - - - - - - - - - - - -
    if( InnrSlvr != Index( value ) ) {
     InnrSlvr = Index( value );
-    p_InnrSlvr = nullptr;
     // ensure there is a ComputeConfig in diff mode ready
     while( f_BSC->num_ComputeConfig() <= InnrSlvr ) {
      auto cc = new ComputeConfig;
