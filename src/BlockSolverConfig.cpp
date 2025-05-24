@@ -294,17 +294,28 @@ void BlockSolverConfig::apply( Block * block ) const
   // process existing Solvers
 
   for( ; ( sit != solvers.end() ) && ( nit != v_SolverNames.end() ) ;
-         ++sit , ++nit , ++cit ) {
-   //  note: the order of operations is important
+       ++sit , ++nit , ++cit ) {
+   auto slvr = *sit;     // the current Solver
 
-   // if the name is empty use the existing solver, otherwise create one
-   auto slvr = nit->empty() ? *sit : Solver::new_Solver( *nit );
+   if( ( nit->empty() ) || ( *nit == slvr->classname() ) ) {
+    // if no new Solver (name) is specified, or the name is actually the same
+    // as current one, keep using the current one: note that, in the latter
+    // case, this does not 100% match the semantic since parameters set in
+    // the old Solver will not automatically be reset to their default as it
+    // would happen by creating a new one, but it is always possible to force
+    // this to be true by setting f_diff == false in the ComputeConfig
 
-   if( *cit )                             // if the ComputeConfig is there
-    slvr->set_ComputeConfig( *cit );      // ComputeConfig-ure it
+    if( *cit )                         // if the ComputeConfig is there
+     slvr->set_ComputeConfig( *cit );  // ComputeConfig-ure it
+    }
+   else {                // a new and different Solver (name) is specified
+    slvr = Solver::new_Solver( *nit );
 
-   if( ! nit->empty() )                   // if it is a new one, only now it
-    block->replace_Solver( slvr, sit, true );  // replaces the existing one
+    if( *cit )                             // if the ComputeConfig is there
+     slvr->set_ComputeConfig( *cit );      // ComputeConfig-ure it
+
+    block->replace_Solver( slvr , sit , true );  // replace the existing one
+    }
    }
 
   // if any Solver in the Block remains after that the end of v_SolverNames
