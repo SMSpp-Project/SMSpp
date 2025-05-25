@@ -572,11 +572,11 @@ class LagBFunction : public C05Function , public Block {
 
  intChkState ,     ///< whether to check the Solution in the put_State
 
- intLastLagBFPar , ///< first allowed new int parameter for derived classes
+ intPushCostToOwner,  ///< whether sub-Block Objective are changed
+
+ intLastLagBFPar   ///< first allowed new int parameter for derived classes
                    /**< Convenience value for easily allow derived classes
 		    * to extend the set of int algorithmic parameters. */
-
- intPushCostToOwner ///<
 
  };  // end( int_par_type_LagBF )
 
@@ -1780,9 +1780,11 @@ class LagBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 
  [[nodiscard]] int get_dflt_int_par( idx_type par ) const override {
-  if( ( par == intInnrSlvr ) || ( par == intNoSol ) ||
-      ( par == intChkState ) || ( par == intPushCostToOwner ) )
+  if( ( par >= intInnrSlvr ) && ( par <= intChkState ) )
    return( 0 );
+
+  if( par == intPushCostToOwner )
+   return( 1 );
 
   if( par < intLastLagBFPar )
    return( C05Function::get_dflt_int_par( par ) );
@@ -1877,11 +1879,11 @@ class LagBFunction : public C05Function , public Block {
    }
 
   switch( par ) {
-   case( intLPMaxSz ):  return( LPMaxSz );
-   case( intGPMaxSz ):  return( g_pool.size() );
-   case( intInnrSlvr ): return( InnrSlvr );
-   case( intNoSol ):    return( NoSol ? 1 : 0 );
-   case( intChkState ): return( ChkState ? 1 : 0 );
+   case( intLPMaxSz ):         return( LPMaxSz );
+   case( intGPMaxSz ):         return( g_pool.size() );
+   case( intInnrSlvr ):        return( InnrSlvr );
+   case( intNoSol ):           return( NoSol ? 1 : 0 );
+   case( intChkState ):        return( ChkState ? 1 : 0 );
    case( intPushCostToOwner ): return( PushCostToOwner ? 1 : 0 );
    }
 
@@ -1962,7 +1964,7 @@ class LagBFunction : public C05Function , public Block {
   if( name == "intChkState" )
    return( intChkState );
   if( name == "intPushCostToOwner" )
-   return ( intPushCostToOwner );
+   return( intPushCostToOwner );
 
   if( auto is = inner_Solver() )
    return( int_par_lbf( is->int_par_str2idx( name ) ) );
@@ -2024,17 +2026,11 @@ class LagBFunction : public C05Function , public Block {
 
  [[nodiscard]] const std::string & int_par_idx2str( idx_type idx )
   const override {
-  static const std::vector< std::string > pars =
+  static const std::array< std::string , 4 > pars =
    { "intInnrSlvr", "intNoSol" , "intChkState" , "intPushCostToOwner" };
 
-  if( idx == intInnrSlvr )
-   return( pars[ 0 ] );
-  if( idx == intNoSol )
-   return( pars[ 1 ] );
-  if( idx == intChkState )
-   return( pars[ 2 ] );
-  if( idx == intPushCostToOwner )
-   return( pars[ 3 ] );
+  if( ( idx >= intInnrSlvr ) && ( idx <= intPushCostToOwner ) )
+   return( pars[ idx - intInnrSlvr ] );
 
   if( auto is = inner_Solver() )
    return( is->int_par_idx2str( int_par_is( idx ) ) );
@@ -2486,7 +2482,7 @@ class LagBFunction : public C05Function , public Block {
 
  bool ChkState;         ///< true if the State is checked for correctness
 
- bool PushCostToOwner; ///<
+ bool PushCostToOwner;  ///< true if sub-Block objectives are changed
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 

@@ -299,11 +299,11 @@ void BlockSolverConfig::apply( Block * block ) const
 
    if( ( nit->empty() ) || ( *nit == slvr->classname() ) ) {
     // if no new Solver (name) is specified, or the name is actually the same
-    // as current one, keep using the current one: note that, in the latter
-    // case, this does not 100% match the semantic since parameters set in
-    // the old Solver will not automatically be reset to their default as it
-    // would happen by creating a new one, but it is always possible to force
-    // this to be true by setting f_diff == false in the ComputeConfig
+    // as the current one, keep using the current one: note that, in the 
+    // latter case, this does not 100% match the semantic since parameters set
+    // in the old Solver will not automatically be reset to their default as
+    // it would happen by creating a new one, but it is always possible to
+    // force this to be true by setting f_diff == false in the ComputeConfig
 
     if( *cit )                         // if the ComputeConfig is there
      slvr->set_ComputeConfig( *cit );  // ComputeConfig-ure it
