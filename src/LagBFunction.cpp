@@ -2376,12 +2376,16 @@ void LagBFunction::add_to_CostMatrix( v_c_dual_pair & newdp )
    const auto y_pair = mon_pair( LagPairs.size() + i , rpj.second );
 
    // identify the owning Block of the variable
-   Block * bj = rpj.first->get_Block();
-   auto it = Block2Idx.find( bj );
-   if( it == Block2Idx.end() )
-    throw( std::logic_error( "add_to_CostMatrix: variable block not found" ) );
-
-   Index h = it->second;
+   Index h;
+   if( v_Obj.size() == 1 )
+    h = 0;
+   else {
+    Block * bj = rpj.first->get_Block();
+    auto it = Block2Idx.find( bj );
+    if( it == Block2Idx.end() )
+     throw std::logic_error( "add_to_CostMatrix: variable block not found" );
+    h = it->second;
+   }
 
    // get the Function and active index
    auto * fobj = v_Obj[ h ];
@@ -2463,12 +2467,16 @@ void LagBFunction::mod_CostMatrix( Index i , Index first )
   const auto y_pair = mon_pair( i , rp[ h ].second );
 
   // identify the owning Block of the variable
-  Block * bj = rp[ h ].first->get_Block();
-  auto it = Block2Idx.find( bj );
-  if( it == Block2Idx.end() )
-   throw( std::logic_error( "mod_CostMatrix: variable block not found" ) );
-
-  Index k = it->second;
+  Index k;
+  if( v_Obj.size() == 1 )
+   k = 0;
+  else {
+   Block * bj = rp[ h ].first->get_Block();
+   auto it = Block2Idx.find( bj );
+   if( it == Block2Idx.end() )
+    throw std::logic_error( "mod_CostMatrix: variable block not found" );
+   k = it->second;
+  }
 
   // get the Function and active index
   auto * fobj = v_Obj[ k ];
