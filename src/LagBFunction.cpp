@@ -113,7 +113,7 @@ static void Compact( std::vector< T > & g , Function::c_Subset & B )
 
  auto Bit = B.begin();
  auto i = *( Bit++ );
- auto git = g.begin() + (i++);
+ auto git = g.begin() + ( i++ );
 
  for( ; Bit != B.end() ; ++i ) {
   auto h = *( Bit++ );
@@ -291,7 +291,7 @@ void LagBFunction::set_inner_block( Block * innerblock , bool deleteold )
     cm[ i ].first = std::get< 1 >( rp[ i ] );
   }
   else
-   throw std::invalid_argument( "Unsupported objective function type" );
+   throw( std::invalid_argument( "Unsupported objective function type" ) );
 
   CostMatrix.emplace_back( std::move( cm ) );
 
@@ -756,7 +756,8 @@ void LagBFunction::remove_variables( Range range , ModParam issueMod )
 
   auto it = Block2Idx.find( defBlock );
   if( it == Block2Idx.end() )
-   throw std::logic_error("LagBFunction::remove_variables: Block not found in Block2Idx");
+   throw( std::logic_error(
+    "LagBFunction::remove_variables: Block not found in Block2Idx" ) );
 
   Index h = it->second;
   auto & CMh = CostMatrix[ h ];
@@ -895,7 +896,8 @@ void LagBFunction::remove_variables( Subset && nms , bool ordered ,
 
   auto it = Block2Idx.find( defBlock );
   if( it == Block2Idx.end() )
-   throw std::logic_error("LagBFunction::remove_variables(Subset): Block not found in Block2Idx");
+   throw( std::logic_error(
+    "LagBFunction::remove_variables(Subset): Block not found in Block2Idx" ) );
 
   Index h = it->second;
   auto & CMh = CostMatrix[ h ];
@@ -1218,7 +1220,8 @@ void LagBFunction::serialize( netCDF::NcGroup & group ) const
    qf->modify_linear_coefficients( std::move( NCoef1 ) );
   }
   else
-   throw std::logic_error( "LagBFunction::serialize: unsupported Function type" );
+   throw( std::logic_error(
+    "LagBFunction::serialize: unsupported Function type" ) );
  }
 
  // serialize the sub-block
@@ -2376,7 +2379,7 @@ void LagBFunction::add_to_CostMatrix( v_c_dual_pair & newdp )
    Block * bj = rpj.first->get_Block();
    auto it = Block2Idx.find( bj );
    if( it == Block2Idx.end() )
-    throw std::logic_error( "add_to_CostMatrix: variable block not found" );
+    throw( std::logic_error( "add_to_CostMatrix: variable block not found" ) );
 
    Index h = it->second;
 
@@ -2463,7 +2466,7 @@ void LagBFunction::mod_CostMatrix( Index i , Index first )
   Block * bj = rp[ h ].first->get_Block();
   auto it = Block2Idx.find( bj );
   if( it == Block2Idx.end() )
-   throw std::logic_error( "mod_CostMatrix: variable block not found" );
+   throw( std::logic_error( "mod_CostMatrix: variable block not found" ) );
 
   Index k = it->second;
 
@@ -3530,7 +3533,7 @@ void LagBFunction::update_CostMatrix_ModLinRngd( const v_coeff_pair & rc ,
  else {
   auto it = Block2Idx.find( vars.front()->get_Block() );
   if( ( it == Block2Idx.end() ) || ( it->second >= v_Obj.size() ) )
-   throw std::logic_error( "Variable not found in any objective" );
+   throw( std::logic_error( "Variable not found in any objective" ) );
   b = it->second;
  }
 
@@ -3612,7 +3615,7 @@ void LagBFunction::update_CostMatrix_ModLinSbst( const v_coeff_pair & rc ,
  else {
   auto it = Block2Idx.find( vars.front()->get_Block() );
   if( ( it == Block2Idx.end() ) || ( it->second >= v_Obj.size() ) )
-   throw std::logic_error( "Variable not found in any objective" );
+   throw( std::logic_error( "Variable not found in any objective" ) );
   b = it->second;
  }
 
@@ -3685,7 +3688,7 @@ void LagBFunction::update_CostMatrix_ModVarsAddd( c_Vec_p_Var & vars ,
  else {
   auto it = Block2Idx.find( vars.front()->get_Block() );
   if( ( it == Block2Idx.end() ) || ( it->second >= v_Obj.size() ) )
-   throw std::logic_error( "Variable not found in any objective" );
+   throw( std::logic_error( "Variable not found in any objective" ) );
   b = it->second;
  }
 
@@ -3749,7 +3752,7 @@ void LagBFunction::update_CostMatrix_ModVarsRngd( c_Vec_p_Var & vars ,
  else {
   auto it = Block2Idx.find( vars.front()->get_Block() );
   if( ( it == Block2Idx.end() ) || ( it->second >= v_Obj.size() ) )
-   throw std::logic_error( "Variable not found in any objective" );
+   throw( std::logic_error( "Variable not found in any objective" ) );
   b = it->second;
  }
 
@@ -3811,7 +3814,7 @@ void LagBFunction::update_CostMatrix_ModVarsSbst( c_Vec_p_Var & vars ,
  else {
   auto it = Block2Idx.find( vars.front()->get_Block() );
   if( ( it == Block2Idx.end() ) || ( it->second >= v_Obj.size() ) )
-   throw std::logic_error( "Variable not found in any objective" );
+   throw( std::logic_error( "Variable not found in any objective" ) );
   b = it->second;
  }
 
