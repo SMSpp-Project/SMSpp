@@ -198,8 +198,17 @@ void LagBFunction::clear( void )
 void LagBFunction::set_inner_block( Block * innerblock , bool deleteold )
 {
  // if there is an existing inner Block, cleanup it
- if( ! v_Block.empty() )
-  guts_of_destructor( deleteold );
+ if( ! v_Block.empty() ) {
+  if( deleteold )
+   guts_of_destructor( deleteold );
+  else {
+   v_Obj.clear();
+   v_ObjIsQuad.clear();
+   CostMatrix.clear();
+   v_BlockBFS.clear();
+   Block2Idx.clear();
+  }
+ }
 
  if( ! innerblock )  // was a cleanup
   return;            // all done
@@ -523,8 +532,15 @@ void LagBFunction::set_par( idx_type par , int value )
    break;
   case( intChkState ):  // intChkState - - - - - - - - - - - - - - - - - - -
    ChkState = ( value > 0 );
+   break;
   case( intPushCostToOwner ): // intPushCostToOwner - - - - - - - - - - - - -
-   PushCostToOwner = ( value != 0 );
+   bool new_val = ( value != 0 );
+   if( PushCostToOwner != new_val ) {
+    PushCostToOwner = new_val;
+
+    if( get_inner_block() && ( ! v_Obj.empty() ) )
+     set_inner_block( get_inner_block() , false );
+   }
   }
  }  // end( LagBFunction::set_par( int ) )
 
