@@ -537,7 +537,6 @@ void LagBFunction::set_par( idx_type par , int value )
    bool new_val = ( value != 0 );
    if( PushCostToOwner != new_val ) {
     PushCostToOwner = new_val;
-
     if( get_inner_block() && ( ! v_Obj.empty() ) )
      set_inner_block( get_inner_block() , false );
    }
