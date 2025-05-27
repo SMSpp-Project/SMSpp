@@ -199,19 +199,15 @@ void LagBFunction::set_inner_block( Block * innerblock , bool deleteold )
 {
  // if there is an existing inner Block, cleanup it
  if( ! v_Block.empty() ) {
-  if( deleteold )
-   guts_of_destructor( deleteold );
-  else {
-   v_Obj.clear();
-   v_ObjIsQuad.clear();
-   CostMatrix.clear();
-   v_BlockBFS.clear();
-   Block2Idx.clear();
+  if( ! deleteold ) {
+   if( ! innerblock ) {          // was a cleanup
+    guts_of_destructor( false ); // all done
+    return;
+   }
   }
+  else
+   guts_of_destructor( deleteold );
  }
-
- if( ! innerblock )  // was a cleanup
-  return;            // all done
 
  v_Block.resize( 1 );
  v_Block.front() = innerblock;
