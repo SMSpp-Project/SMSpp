@@ -1672,7 +1672,7 @@ class LagBFunction : public C05Function , public Block {
   * (pointer to) a [Col]Variable in the inner Block, it returns a (const
   * pointer to) a data structure describing its Lagrangian cost. In
   * particular, if the [Col]Variable does *not* belong to any Lagrangian
-  * term, i.e., it appears nowhere in A, then it returns nullptr. Otherwise
+  * term, i.e., it appears nowhere in A, then it returns nullptr. Otherwise,
   * it returns a (const) pointer to a std::pair< Coefficient , v_mon_pair >.
   * The coefficient is the original cost c_j of the [Col]Variable.
   * v_mon_pair is a vector of std::pair< Index , Coefficient > describing the
@@ -1684,17 +1684,25 @@ class LagBFunction : public C05Function , public Block {
   * method will not bother and still return nullptr. */
 
  const col_pair * get_A_by_col( const ColVariable * xj ) {
-  // search over all objectives
-  for( Index h = 0 ; h < v_Obj.size() ; ++h ) {
-   auto * linf = dynamic_cast< LinearFunction * >( v_Obj[ h ]->get_function() );
-   if( ! linf ) continue;
+  Block * bj = xj->get_Block();
+  auto it = Block2Idx.find( bj );
+  if( it == Block2Idx.end() )
+   return( nullptr );
 
-   auto j = linf->is_active( xj );
-   if( j < linf->get_num_active_var() )
-    return( &CostMatrix[ h ][ j ] );
-  }
+  Index h = it->second;
+  if( v_ObjIsQuad[ h ] )
+   throw( std::logic_error( "get_A_by_col: matrix representation not available "
+                            "for quadratic objective" ) );
 
-  return( nullptr );
+  auto * linf = dynamic_cast< LinearFunction * >( v_Obj[ h ]->get_function() );
+  if( ! linf )
+   throw( std::logic_error( "get_A_by_col: expected linear objective" ) );
+
+  Index j = linf->is_active( xj );
+  if( j >= linf->get_num_active_var() )
+   return( nullptr );
+
+  return( &CostMatrix[ h ][ j ] );
  }
 
 /*--------------------------------------------------------------------------*/
