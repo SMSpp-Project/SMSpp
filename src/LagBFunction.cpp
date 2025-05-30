@@ -2341,15 +2341,15 @@ bool LagBFunction::flush_v_tmpCP( void )
  f_play_dumb = true;                // ignore any ensuing Modification
 
  // work on the first Objective (inner block) — linear or quadratic
- if( ! v_ObjIsQuad[0] ) {  // the linear case
-  auto * lf = static_cast< p_LF >( v_Obj[0]->get_function() );
+ if( ! v_ObjIsQuad[ 0 ] ) { // the linear case
+  auto * lf = static_cast< p_LF >( v_Obj[ 0 ]->get_function() );
   if( v_tmpCP.size() == 1 )
    lf->add_variable( v_tmpCP.front().first , v_tmpCP.front().second );
   else
    lf->add_variables( std::move( v_tmpCP ) );
  }
- else {                    // the quadratic case
-  auto * qf = static_cast< p_QF >( v_Obj[0]->get_function() );
+ else {                     // the quadratic case
+  auto * qf = static_cast< p_QF >( v_Obj[ 0 ]->get_function() );
   if( v_tmpCP.size() == 1 )
    qf->add_variable( v_tmpCP.front().first , v_tmpCP.front().second , 0 );
   else {
