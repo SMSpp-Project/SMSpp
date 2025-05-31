@@ -1530,8 +1530,9 @@ class LagBFunction : public C05Function , public Block {
   * ensures that the latter is, in fact, done. */
 
  void apply_obj_Modification( void ) {
-  if( ( ! v_tmpCP.empty() ) && flush_v_tmpCP() )
-   v_Block.front()->unlock( this );
+  for( Index h = 0 ; h < v_Obj.size() ; ++h )
+   if( ( ! v_tmpCP.empty() ) && flush_v_tmpCP( h ) )
+    v_Block.front()->unlock( this );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -2335,7 +2336,7 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- bool flush_v_tmpCP( void );
+ bool flush_v_tmpCP( Index h );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 

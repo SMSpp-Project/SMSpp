@@ -167,7 +167,7 @@ LagBFunction::~LagBFunction( void )
 {
  guts_of_destructor();
  delete f_BS;
- };
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -683,7 +683,7 @@ void LagBFunction::remove_variable( Index i , ModParam issueMod )
 
   CMh.erase( itcm );  // finally erase it
 
-  // NOTE: we do not remove the row from CostMatrix[h] even if it's now empty,
+  // NOTE: we do not remove the row from CostMatrix[ h ] even if it's now empty,
   // because the objective still exists and we want to keep the alignment
  }
 
@@ -794,7 +794,7 @@ void LagBFunction::remove_variables( Range range , ModParam issueMod )
     (nit->first) -= range.second - range.first;
 
    CMh.erase( iit , eit );   // finally, erase them all
-   // NOTE: we do not remove the row from CostMatrix[h] even if it's now empty,
+   // NOTE: we do not remove the row from CostMatrix[ h ] even if it's now empty,
    // because the objective still exists and we want to keep the alignment
   }
  }
@@ -945,7 +945,7 @@ void LagBFunction::remove_variables( Subset && nms , bool ordered ,
   // if this leaves the term empty and the term actually was of some variable
   // that still had to be added to obj, just don't do that: rather, erase
   // the row of CostMatrix and the corresponding one in v_tmpCP
-  // [NOT APPLICABLE]: do not erase CostMatrix[h] entry; must remain aligned
+  // [NOT APPLICABLE]: do not erase CostMatrix[ h ] entry; must remain aligned
  }
 
  // if b != 0 but we are eliminating nonzeros, it may have become 0 - - - - - -
@@ -1133,7 +1133,7 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
  // reach the original father. hence, this is done only for Modification
  // that actually come from the inner Block (or one of its sub-Block,
  // recursively, i.e., avoiding those coming from the LagBFunction itself,
- // which are those correspondong to changes in the linking constraints
+ // which are those corresponding to changes in the linking constraints
 
  if( mod->get_Block() != this )
   if( auto fthr = get_f_Block() )
@@ -1313,7 +1313,7 @@ void LagBFunction::put_State( const State & state )
   // now add back all the Solution in the State (possibly after a check)
   auto gpit = g_pool.begin();
 
-  if( ChkState )  // is Solutions are checked
+  if( ChkState )  // if Solutions are checked
    for( Index i = 0 ; i < s.g_pool.size() ; ++i ) {
     if( s.g_pool[ i ].first ) {
      // write the Solution to the inner Block
@@ -1398,7 +1398,7 @@ void LagBFunction::put_State( State && state )
   // now add back all the Solution in the State (possibly after a check)
   auto gpit = g_pool.begin();
 
-  if( ChkState )  // is Solutions are checked
+  if( ChkState )  // if Solutions are checked
    for( Index i = 0 ; i < s.g_pool.size() ; ++i ) {
     if( s.g_pool[ i ].first ) {
      // write the Solution to the inner Block
@@ -1617,15 +1617,13 @@ void LagBFunction::store_combination_of_linearizations(
 	    << name << std::endl;
  #endif
 
- bool unfeasible = false;  // feasible unless otherwise proven
-
  // get a scaled version of the first Solution
  auto first = coefficients[ 0 ].first;
  auto convex_combination = ( g_pool[ first ].first
         )->scale( coefficients[ 0 ].second );
  bool type = g_pool[ first ].second;  // diagonal unless already vertical
 
- // for all other Solution in the pool
+ // for all other Solutions in the pool
  for( Index i = 1 ; i < coefficients.size() ; ++i ) {
   auto pos = coefficients[ i ].first;
   if( pos == first )
@@ -1640,7 +1638,7 @@ void LagBFunction::store_combination_of_linearizations(
   // add the new term to the convex combination
   convex_combination->sum( g_pool[ pos ].first , mult );
 
-  // if the convex combination contains even a single direction
+  // if the convex combination even contains a single direction
   if( ! g_pool[ pos ].second )
    type = false;  // then it is a direction
   }
@@ -1788,8 +1786,9 @@ int LagBFunction::compute( bool changedvars )
  // this requires locking the inner Block, which we do only once
  bool tounlock = false;
 
- if( ! v_tmpCP.empty() )
-  tounlock = flush_v_tmpCP();
+ for( Index h = 0 ; h < v_Obj.size() ; ++h )
+  if( ! v_tmpCP.empty() )
+   tounlock = flush_v_tmpCP( h );
 
  // if necessary, recompute the Lagrangian costs c^y = c + yA- - - - - - - - -
  if( f_dirty_Lc ) {
@@ -1817,8 +1816,8 @@ int LagBFunction::compute( bool changedvars )
    Block * blk = v_BlockBFS[ h ];
    if( ( ! tounlock ) && ( ! blk->is_owned_by( f_id ) ) ) {
     if( ! blk->lock( f_id ) )  // try to lock it; failure
-     return( kError );        // clearly is an error
-    block_locked = true;      // it'll have to be unlocked
+     return( kError );         // clearly is an error
+    block_locked = true;       // it'll have to be unlocked
    }
 
    f_play_dumb = true;         // ignore any ensuing Modification
@@ -1853,7 +1852,7 @@ int LagBFunction::compute( bool changedvars )
    f_yb += static_cast< p_LF >( lp.second )->get_constant_term() *
            lp.first->get_value();
   }
- 
+
  // if some parameters have been changed, set BlockSolverConfig- - - - - - - -
  if( f_CC_changed ) {
   is->set_ComputeConfig( f_CC );
@@ -1890,9 +1889,8 @@ static RealObjective::OFValue get_recours_obj( const Block * blck )
   rv = obj->get_constant_term();
  for( const auto bk : blck->get_nested_Blocks() )
   rv += get_recours_obj( bk );
-
  return( rv );
- };
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -1900,8 +1898,7 @@ Function::FunctionValue LagBFunction::get_constant_term( void ) const
 {
  if( auto bk = get_inner_block() )
   return( get_recours_obj( bk ) );
- else
-  return( 0 );
+ return( 0 );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2329,9 +2326,10 @@ void LagBFunction::map_active( c_Vec_p_Var & vars , Subset & map ,
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-bool LagBFunction::flush_v_tmpCP( void )
+bool LagBFunction::flush_v_tmpCP( Index h )
 {
  bool tounlock = false;
+
  if( ! v_Block.front()->is_owned_by( f_id ) ) {  // if the inner Block is free
   if( ! v_Block.front()->lock( f_id ) )          // try to lock it
    throw( std::logic_error( "LagBFunction: cannot lock inner Block" ) );
@@ -2340,16 +2338,16 @@ bool LagBFunction::flush_v_tmpCP( void )
 
  f_play_dumb = true;                // ignore any ensuing Modification
 
- // work on the first Objective (inner block) — linear or quadratic
- if( ! v_ObjIsQuad[ 0 ] ) { // the linear case
-  auto * lf = static_cast< p_LF >( v_Obj[ 0 ]->get_function() );
+ // work on the h-th Objective (inner block) — linear or quadratic
+ if( ! v_ObjIsQuad[ h ] ) {  // the linear case
+  auto * lf = static_cast< p_LF >( v_Obj[ h ]->get_function() );
   if( v_tmpCP.size() == 1 )
    lf->add_variable( v_tmpCP.front().first , v_tmpCP.front().second );
   else
    lf->add_variables( std::move( v_tmpCP ) );
  }
- else {                     // the quadratic case
-  auto * qf = static_cast< p_QF >( v_Obj[ 0 ]->get_function() );
+ else {                      // the quadratic case
+  auto * qf = static_cast< p_QF >( v_Obj[ h ]->get_function() );
   if( v_tmpCP.size() == 1 )
    qf->add_variable( v_tmpCP.front().first , v_tmpCP.front().second , 0 );
   else {
@@ -2366,7 +2364,7 @@ bool LagBFunction::flush_v_tmpCP( void )
  v_tmpCP.clear();                   // done
 
  return( tounlock );
-}
+}  // end( LagBFunction::flush_v_tmpCP )
 
 /*--------------------------------------------------------------------------*/
 
@@ -2453,8 +2451,9 @@ void LagBFunction::add_to_CostMatrix( v_c_dual_pair & newdp )
 
  // if needed, immediately flush the set of variables to be re-added to obj;
  // if the inner Block had to be locked for this, unlock it
- if( ( ! v_tmpCP.empty() ) && flush_v_tmpCP() )
-  v_Block.front()->unlock( f_id );
+  for( Index h = 0 ; h < v_Block.size() ; ++h )
+   if( ( ! v_tmpCP.empty() ) && flush_v_tmpCP( h ) )
+    v_Block.front()->unlock( f_id );
 
 }  // end( LagBFunction::add_to_CostMatrix )
 
@@ -3225,12 +3224,12 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod , ChnlName chnl )
        throw( std::logic_error( "a_{ij} term not found in CostMatrix" ) );
 #endif
 
-      // remove < y_i , a_{ij} > to from A_j
+      // remove < y_i , a_{ij} > from A_j
       CMh[ j ].second.erase( ajit );
 
       // if this leaves the term empty and the term actually was of some
       // variable that still had to be added to obj, just don't do that:
-      // rather, erase the row of CostMatrix amd the corresponding one in
+      // rather, erase the row of CostMatrix and the corresponding one in
       // v_tmpCP
       if( CMh[ j ].second.empty() && ( j >= nv ) ) {
        CMh.erase( CMh.begin() + j );
@@ -3342,12 +3341,12 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod , ChnlName chnl )
        throw( std::logic_error( "a_{ij} term not found in CostMatrix" ) );
 #endif
 
-      // remove < y_i , a_{ij} > to from A_j
+      // remove < y_i , a_{ij} > from A_j
       CMh[ j ].second.erase( ajit );
 
       // if this leaves the term empty and the term actually was of some
       // variable that still had to be added to obj, just don't do that:
-      // rather, erase the row of CostMatrix amd the corresponding one in
+      // rather, erase the row of CostMatrix and the corresponding one in
       // v_tmpCP
       if( CMh[ j ].second.empty() && ( j >= nv ) ) {
        CMh.erase( CMh.begin() + j );
