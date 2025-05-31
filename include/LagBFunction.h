@@ -2637,16 +2637,16 @@ class LagBFunction : public C05Function , public Block {
 /*---------------------------- PRIVATE FIELDS ------------------------------*/
 /*--------------------------------------------------------------------------*/
 
- /// Objectives in BFS order (can be LinearFunction *or* DQuadFunction)
+ /// Blocks in BFS order
+ std::vector< Block * > v_BlockBFS;
+
+ /// Objectives in BFS order
  std::vector< FRealObjective * > v_Obj;
 
  /// true if v_Obj[ h ] is a DQuadFunction, false if is a LinearFunction
  std::vector< bool > v_ObjIsQuad;
 
- /// Blocks in the same BFS order as v_Obj
- std::vector< Block * > v_BlockBFS;
-
- /// fast lookup: Block* → its index h in v_Obj / v_BlockBFS
+ /// fast lookup Block wrt its index h in v_BlockBFS and v_Obj
  std::unordered_map< const Block * , Index > Block2Idx;
 
  SMSpp_insert_in_factory_h;  // insert LagBFunction in the Block factory
