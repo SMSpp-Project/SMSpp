@@ -331,7 +331,8 @@ void LagBFunction::set_inner_block( Block * innerblock , bool deleteold )
 void LagBFunction::set_dual_pairs( v_dual_pair && dp )
 {
  clear_lp();       // ensure we are starting from a "tabula rasa"
- v_tmpCP.clear();  // no terms to be stealthily added to obj yet
+ for( auto & tmp : v_tmpCP )
+  tmp.clear();     // no terms to be stealthily added to obj yet
 
  // construct the auxiliary structure CostMatrix which is used to update the
  // Lagrangian cost vector
