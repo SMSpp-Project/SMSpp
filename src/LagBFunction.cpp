@@ -1778,7 +1778,7 @@ int LagBFunction::compute( bool changedvars )
  // check what needs be updated- - - - - - - - - - - - - - - - - - - - - - - -
  if( changedvars && ( ! ( LagPairs.empty() && ( ! f_c_changed ) ) ) ) {
   // if the Lagrangian variables have changed, then Lagrangian costs
-  // c^y = c + yA need be recomputed; however, this is unless there are
+  // c^y = c + yA need to be recomputed; however, this is unless there are
   // actually no Lagrangian variables and the costs are still the original
   // ones, because then c^y = c
   f_dirty_Lc = true;
