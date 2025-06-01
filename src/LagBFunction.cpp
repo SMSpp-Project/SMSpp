@@ -3085,7 +3085,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod , ChnlName chnl )
   // There are three types of C05FunctionModVars, according to if the
   // Variable are added or deleted, and in the latter case if what is
   // deleted is a Range or a Subset. Hence, three similar pieces of code
-  // follow, two almost being almost identical.
+  // follow, two almost being identical.
   //
   // IMPORTANT NOTE: see IMPORTANT NOTE 1 and IMPORTANT NOTE 2 for the
   //                 C05FunctionModLin, which apply verbatim here as well
