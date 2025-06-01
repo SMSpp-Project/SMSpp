@@ -681,10 +681,10 @@ void LagBFunction::remove_variable( Index i , ModParam issueMod )
      return( a.first < b.first );
    });
 
- if( itcm != CMh.end() && itcm->first == i ) {
+ if( ( itcm != CMh.end() ) && ( itcm->first == i ) ) {
   // decrease by 1 the names of all the < h , a_{hj} > with h > i
   for( auto nit = itcm + 1 ; nit != CMh.end() ; ++nit )
-   --(nit->first);
+   --( nit->first );
 
   CMh.erase( itcm );  // finally erase it
 
