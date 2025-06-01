@@ -2426,19 +2426,18 @@ void LagBFunction::add_to_CostMatrix( v_c_dual_pair & newdp )
 
    if( j >= nv ) {
     // the variable x_j is not (yet) in obj, but it may be in v_tmpCP[ h ] already
-    auto & tmpCP_h = v_tmpCP[ h ];
-    auto itv = std::find_if( tmpCP_h.begin() , tmpCP_h.end() ,
+    auto itv = std::find_if( v_tmpCP[ h ].begin() , v_tmpCP[ h ].end() ,
         [ & ]( const auto & el )
       { return( el.first == rpj.first ); } );
-    if( itv == tmpCP_h.end() ) {
+    if( itv == v_tmpCP[ h ].end() ) {
      // it was not in v_tmpCP[ h ], it has to be added now
-     tmpCP_h.push_back( coeff_pair( rpj.first , 0 ) );
+     v_tmpCP[ h ].push_back( coeff_pair( rpj.first , 0 ) );
      CostMatrix[ h ].push_back( col_pair() );
      CostMatrix[ h ].back().first = 0;                  // c_j = 0
      CostMatrix[ h ].back().second.push_back( y_pair ); // add < y_i , a_{ij} >
      j = Inf< Index >();
     } else
-     j = nv + std::distance( tmpCP_h.begin() , itv );
+     j = nv + std::distance( v_tmpCP[ h ].begin() , itv );
    }
 
    if( j < Inf< Index >() ) {
@@ -2518,19 +2517,18 @@ void LagBFunction::mod_CostMatrix( Index i , Index first )
 
   if( j >= nv ) {
    // the variable x_j is not (yet) in obj, but it may be in v_tmpCP[k] already
-   auto & tmpCP_k = v_tmpCP[ k ];
-   auto itv = std::find_if( tmpCP_k.begin() , tmpCP_k.end() ,
+   auto itv = std::find_if( v_tmpCP[ k ].begin() , v_tmpCP[ k ].end() ,
        [ & ]( const auto & el )
             { return( el.first == rp[ h ].first ); } );
-   if( itv == tmpCP_k.end() ) {
+   if( itv == v_tmpCP[ k ].end() ) {
     // it was not in v_tmpCP[k], it has to be added now
-    tmpCP_k.push_back( coeff_pair( rp[ h ].first , 0 ) );
+    v_tmpCP[ k ].push_back( coeff_pair( rp[ h ].first , 0 ) );
     CostMatrix[ k ].push_back( col_pair() );
     CostMatrix[ k ].back().first = 0;                  // c_j = 0
     CostMatrix[ k ].back().second.push_back( y_pair ); // add < y_i , a_{ij} >
     j = Inf< Index >();
    } else
-    j = nv + std::distance( tmpCP_k.begin() , itv );
+    j = nv + std::distance( v_tmpCP[ k ].begin() , itv );
   }
 
   if( j < Inf< Index >() ) {
