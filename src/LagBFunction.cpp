@@ -15,7 +15,11 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Enrico Gorgone
+ * \author Donato Meoli \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \copyright &copy; by Antonio Frangioni, Enrico Gorgone, Donato Meoli
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
@@ -312,7 +316,8 @@ void LagBFunction::set_inner_block( Block * innerblock , bool deleteold )
   Block2Idx[ innerblock ] = 0;
  }
 
- v_tmpCP.clear();      // no terms to be stealthily added to obj yet
+ v_tmpCP.clear();                // no terms to be stealthily added to obj yet
+ v_tmpCP.resize( v_Obj.size() ); // one entry per objective block
 
  f_c_changed = false;  // Lagrangian costs are still == to original costs
  f_dirty_Lc = ! LagPairs.empty();  // ... hence they have to be updated,
@@ -1786,9 +1791,8 @@ int LagBFunction::compute( bool changedvars )
  // this requires locking the inner Block, which we do only once
  bool tounlock = false;
 
- for( Index h = 0 ; h < v_Obj.size() ; ++h )
-  if( ! v_tmpCP.empty() )
-   tounlock = flush_v_tmpCP( h );
+ if( ! v_tmpCP.empty() )
+  tounlock = flush_v_tmpCP();
 
  // if necessary, recompute the Lagrangian costs c^y = c + yA- - - - - - - - -
  if( f_dirty_Lc ) {
@@ -2326,7 +2330,7 @@ void LagBFunction::map_active( c_Vec_p_Var & vars , Subset & map ,
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-bool LagBFunction::flush_v_tmpCP( Index h )
+bool LagBFunction::flush_v_tmpCP( void )
 {
  bool tounlock = false;
 
@@ -2338,30 +2342,32 @@ bool LagBFunction::flush_v_tmpCP( Index h )
 
  f_play_dumb = true;                // ignore any ensuing Modification
 
- // work on the h-th Objective (inner block) — linear or quadratic
- if( ! v_ObjIsQuad[ h ] ) {  // the linear case
-  auto * lf = static_cast< p_LF >( v_Obj[ h ]->get_function() );
-  if( v_tmpCP.size() == 1 )
-   lf->add_variable( v_tmpCP.front().first , v_tmpCP.front().second );
-  else
-   lf->add_variables( std::move( v_tmpCP ) );
- }
- else {                      // the quadratic case
-  auto * qf = static_cast< p_QF >( v_Obj[ h ]->get_function() );
-  if( v_tmpCP.size() == 1 )
-   qf->add_variable( v_tmpCP.front().first , v_tmpCP.front().second , 0 );
-  else {
-   v_coeff_triple vars( v_tmpCP.size() , coeff_triple( nullptr , 0 , 0 ) );
-   for( Index i = 0 ; i < v_tmpCP.size() ; ++i ) {
-    std::get< 0 >( vars[ i ] ) = v_tmpCP[ i ].first;
-    std::get< 1 >( vars[ i ] ) = v_tmpCP[ i ].second;
-   }
-   qf->add_variables( std::move( vars ) );
+ // work on each Objective (inner block) — linear or quadratic
+ for( Index h = 0 ; h < v_Obj.size() ; ++h ) {
+  if( ! v_ObjIsQuad[ h ] ) {  // the linear case
+   auto * lf = static_cast< p_LF >( v_Obj[ h ]->get_function() );
+   if( v_tmpCP[ h ].size() == 1 )
+    lf->add_variable( v_tmpCP[ h ].front().first , v_tmpCP[ h ].front().second );
+   else
+    lf->add_variables( std::move( v_tmpCP[ h ] ) );
   }
+  else {                      // the quadratic case
+   auto * qf = static_cast< p_QF >( v_Obj[ h ]->get_function() );
+   if( v_tmpCP[ h ].size() == 1 )
+    qf->add_variable( v_tmpCP[ h ].front().first , v_tmpCP[ h ].front().second , 0 );
+   else {
+    v_coeff_triple vars( v_tmpCP[ h ].size() , coeff_triple( nullptr , 0 , 0 ) );
+    for( Index i = 0 ; i < v_tmpCP[ h ].size() ; ++i ) {
+     std::get< 0 >( vars[ i ] ) = v_tmpCP[ h ][ i ].first;
+     std::get< 1 >( vars[ i ] ) = v_tmpCP[ h ][ i ].second;
+    }
+    qf->add_variables( std::move( vars ) );
+   }
+  }
+  v_tmpCP[ h ].clear();             // done
  }
 
  f_play_dumb = false;               // back to normal operations
- v_tmpCP.clear();                   // done
 
  return( tounlock );
 }  // end( LagBFunction::flush_v_tmpCP )
@@ -2419,19 +2425,20 @@ void LagBFunction::add_to_CostMatrix( v_c_dual_pair & newdp )
    }
 
    if( j >= nv ) {
-    // the variable x_j is not (yet) in obj, but it may be in v_tmpCP already
-    auto itv = std::find_if( v_tmpCP.begin() , v_tmpCP.end() ,
-			     [ & ]( const auto & el )
-				  { return( el.first == rpj.first ); } );
-    if( itv == v_tmpCP.end() ) {
-     // it was not in v_tmpCP, it has to be added now
-     v_tmpCP.push_back( coeff_pair( rpj.first , 0 ) );
+    // the variable x_j is not (yet) in obj, but it may be in v_tmpCP[ h ] already
+    auto & tmpCP_h = v_tmpCP[ h ];
+    auto itv = std::find_if( tmpCP_h.begin() , tmpCP_h.end() ,
+        [ & ]( const auto & el )
+      { return( el.first == rpj.first ); } );
+    if( itv == tmpCP_h.end() ) {
+     // it was not in v_tmpCP[ h ], it has to be added now
+     tmpCP_h.push_back( coeff_pair( rpj.first , 0 ) );
      CostMatrix[ h ].push_back( col_pair() );
      CostMatrix[ h ].back().first = 0;                  // c_j = 0
      CostMatrix[ h ].back().second.push_back( y_pair ); // add < y_i , a_{ij} >
      j = Inf< Index >();
     } else
-     j = nv + std::distance( v_tmpCP.begin() , itv );
+     j = nv + std::distance( tmpCP_h.begin() , itv );
    }
 
    if( j < Inf< Index >() ) {
@@ -2451,9 +2458,8 @@ void LagBFunction::add_to_CostMatrix( v_c_dual_pair & newdp )
 
  // if needed, immediately flush the set of variables to be re-added to obj;
  // if the inner Block had to be locked for this, unlock it
-  for( Index h = 0 ; h < v_Block.size() ; ++h )
-   if( ( ! v_tmpCP.empty() ) && flush_v_tmpCP( h ) )
-    v_Block.front()->unlock( f_id );
+ if( ( ! v_tmpCP.empty() ) && flush_v_tmpCP() )
+  v_Block.front()->unlock( f_id );
 
 }  // end( LagBFunction::add_to_CostMatrix )
 
@@ -2511,19 +2517,20 @@ void LagBFunction::mod_CostMatrix( Index i , Index first )
   }
 
   if( j >= nv ) {
-   // the variable x_j is not (yet) in obj, but it may be in v_tmpCP already
-   auto itv = std::find_if( v_tmpCP.begin() , v_tmpCP.end() ,
-			    [ & ]( const auto & el )
-			         { return( el.first == rp[ h ].first ); } );
-   if( itv == v_tmpCP.end() ) {
-    // it was not in v_tmpCP, it has to be added now
-    v_tmpCP.push_back( coeff_pair( rp[ h ].first , 0 ) );
+   // the variable x_j is not (yet) in obj, but it may be in v_tmpCP[k] already
+   auto & tmpCP_k = v_tmpCP[ k ];
+   auto itv = std::find_if( tmpCP_k.begin() , tmpCP_k.end() ,
+       [ & ]( const auto & el )
+            { return( el.first == rp[ h ].first ); } );
+   if( itv == tmpCP_k.end() ) {
+    // it was not in v_tmpCP[k], it has to be added now
+    tmpCP_k.push_back( coeff_pair( rp[ h ].first , 0 ) );
     CostMatrix[ k ].push_back( col_pair() );
     CostMatrix[ k ].back().first = 0;                  // c_j = 0
     CostMatrix[ k ].back().second.push_back( y_pair ); // add < y_i , a_{ij} >
     j = Inf< Index >();
    } else
-    j = nv + std::distance( v_tmpCP.begin() , itv );
+    j = nv + std::distance( tmpCP_k.begin() , itv );
   }
 
   if( j < Inf< Index >() ) {
@@ -3212,13 +3219,21 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod , ChnlName chnl )
       if( j >= nv ) {
        // the deleted variable is not in obj yet, but it may be in v_tmpCP
        // waiting to be added to obj
-       auto tCPit = std::find_if( v_tmpCP.begin() , v_tmpCP.end() ,
-      [ & xj ]( const auto & p )
-                     { return( p.first == xj ); } );
-       if( tCPit == v_tmpCP.end() )
+       Index h;
+       if( v_Obj.size() == 1 )
+        h = 0;
+       else {
+        auto itb = Block2Idx.find( xj->get_Block() );
+        if( ( itb == Block2Idx.end() ) || ( itb->second >= v_Obj.size() ) )
+         throw( std::logic_error( "deleted variable not found in Block2Idx" ) );
+        h = itb->second;
+       }
+
+       auto tCPit = std::find_if( v_tmpCP[ h ].begin() , v_tmpCP[ h ].end() ,
+         [ & xj ]( const auto & p ) { return( p.first == xj ); } );
+       if( tCPit == v_tmpCP[ h ].end() )
         throw( std::logic_error( "deleted variable not found" ) );
-       else
-        j = nv + std::distance( v_tmpCP.begin() , tCPit );
+       j = nv + std::distance( v_tmpCP[ h ].begin() , tCPit );
       }
 
       auto ajit = std::lower_bound( CMh[ j ].second.begin() ,
@@ -3241,7 +3256,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod , ChnlName chnl )
       // v_tmpCP
       if( CMh[ j ].second.empty() && ( j >= nv ) ) {
        CMh.erase( CMh.begin() + j );
-       v_tmpCP.erase( v_tmpCP.begin() + ( j - nv ) );
+       v_tmpCP[ h ].erase( v_tmpCP[ h ].begin() + ( j - nv ) );
       }
      }
 
@@ -3329,15 +3344,22 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod , ChnlName chnl )
      for( auto xj : tmod->vars() ) {
       auto j = CMh_f->is_active( xj );
       if( j >= nv ) {
-       // the deleted variable is not in obj yet, but it may be in v_tmpCP
-       // waiting to be added to obj
-       auto tCPit = std::find_if( v_tmpCP.begin() , v_tmpCP.end() ,
-      [ & xj ]( const auto & p )
-                     { return( p.first == xj ); } );
-       if( tCPit == v_tmpCP.end() )
+       // the deleted variable is not in obj yet, but it may be in v_tmpCP[h]
+       Index h;
+       if( v_Obj.size() == 1 )
+        h = 0;
+       else {
+        auto itb = Block2Idx.find( xj->get_Block() );
+        if( ( itb == Block2Idx.end() ) || ( itb->second >= v_Obj.size() ) )
+         throw( std::logic_error( "deleted variable not found in Block2Idx" ) );
+        h = itb->second;
+       }
+
+       auto tCPit = std::find_if( v_tmpCP[ h ].begin() , v_tmpCP[ h ].end() ,
+        [ & xj ]( const auto & p ) { return( p.first == xj ); } );
+       if( tCPit == v_tmpCP[ h ].end() )
         throw( std::logic_error( "deleted variable not found" ) );
-       else
-        j = nv + std::distance( v_tmpCP.begin() , tCPit );
+       j = nv + std::distance( v_tmpCP[ h ].begin() , tCPit );
       }
 
       auto ajit = std::lower_bound( CMh[ j ].second.begin() ,
@@ -3360,7 +3382,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod , ChnlName chnl )
       // v_tmpCP
       if( CMh[ j ].second.empty() && ( j >= nv ) ) {
        CMh.erase( CMh.begin() + j );
-       v_tmpCP.erase( v_tmpCP.begin() + ( j - nv ) );
+       v_tmpCP[ h ].erase( v_tmpCP[ h ].begin() + ( j - nv ) );
       }
      }
 
@@ -3712,7 +3734,7 @@ void LagBFunction::update_CostMatrix_ModVarsAddd( c_Vec_p_Var & vars ,
  // update CostMatrix for the addition of new variables. note that the new
  // rows are empty, because if a new term is added, it means it was not
  // there before
- // IN FACT WE ARE SHIFTING ON WHO IS DOING THIS THE BURDEN OF NOT
+ // IN FACT WE ARE SHIFTING ON WHO IS DOING THE BURDEN OF NOT
  // INTERFERING WITH THE "AUTOMATIC" ADDITION OF Variable TO obj
 
  if( vars.empty() )
@@ -3730,7 +3752,7 @@ void LagBFunction::update_CostMatrix_ModVarsAddd( c_Vec_p_Var & vars ,
 
  m_column & CM = CostMatrix[ b ];
 
- if( v_tmpCP.empty() ) {
+ if( v_tmpCP.empty() || v_tmpCP[ b ].empty() ) {
   // there are no variables to be "stealthily" added to obj, hence
   // CostMatrix.size() == [q]obj->gen_num_active_var()
 
@@ -3751,10 +3773,11 @@ void LagBFunction::update_CostMatrix_ModVarsAddd( c_Vec_p_Var & vars ,
   c_Index nv = vars.size();
   CM.insert( CM.begin() + first , nv , col_pair() );
 
-  for( Index i = 0 ; i < v_tmpCP.size() ; ++i )
+  auto & tmpCP = v_tmpCP[ b ];
+  for( Index i = 0 ; i < tmpCP.size() ; ++i )
    for( Index j = 0 ; j < nv ; ++j )
-    if( vars[ j ] == v_tmpCP[ i ].first ) {
-     v_tmpCP.erase( v_tmpCP.begin() + i );
+    if( vars[ j ] == tmpCP[ i ].first ) {
+     tmpCP.erase( tmpCP.begin() + i );
      CM[ first + j ] = std::move( CM[ first + nv + j ] );
      CM.erase( CM.begin() + first + nv + i );
      break;
@@ -3809,7 +3832,7 @@ void LagBFunction::update_CostMatrix_ModVarsRngd( c_Vec_p_Var & vars ,
   if( ! it->second.empty() ) {
    tempCM.push_back( std::move( *it ) );
    tempCM.back().first = 0;
-   v_tmpCP.push_back( coeff_pair(
+   v_tmpCP[ b ].push_back( coeff_pair(
      static_cast< ColVariable * >( vars[ std::distance( strtit , it ) ] ) ,
      Coefficient( 0 ) ) );
   }
@@ -3869,7 +3892,7 @@ void LagBFunction::update_CostMatrix_ModVarsSbst( c_Vec_p_Var & vars ,
   if( ! CM[ sbst[ i ] ].second.empty() ) {
    tempCM.push_back( std::move( CM[ sbst[ i ] ] ) );
    tempCM.back().first = 0;
-   v_tmpCP.push_back( coeff_pair(
+   v_tmpCP[ b ].push_back( coeff_pair(
      static_cast< ColVariable * >( vars[ i ] ) , Coefficient( 0 ) ) );
   }
 

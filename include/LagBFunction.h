@@ -15,7 +15,11 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Enrico Gorgone.
+ * \author Donato Meoli \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \copyright &copy; by Antonio Frangioni, Enrico Gorgone, Donato Meoli
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -1530,9 +1534,8 @@ class LagBFunction : public C05Function , public Block {
   * ensures that the latter is, in fact, done. */
 
  void apply_obj_Modification( void ) {
-  for( Index h = 0 ; h < v_Obj.size() ; ++h )
-   if( ( ! v_tmpCP.empty() ) && flush_v_tmpCP( h ) )
-    v_Block.front()->unlock( this );
+  if( ( ! v_tmpCP.empty() ) && flush_v_tmpCP() )
+   v_Block.front()->unlock( this );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -2336,7 +2339,7 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- bool flush_v_tmpCP( Index h );
+ bool flush_v_tmpCP( void );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -2544,7 +2547,8 @@ class LagBFunction : public C05Function , public Block {
   * i.e., CostMatrix[ i ] corresponds to
   * v_tmpCP[ i - obv->get_num_active_var() ]. */
 
- v_coeff_pair v_tmpCP;  ///< temporary for coefficients to be re-added
+ std::vector< v_coeff_pair > v_tmpCP;
+ ///< temporary for coefficients to be re-added
  /**< If [Col]Variable are removed from the objective of the inner Block that
   * appear in any Lagrangian term, they must be "stealthily" be re-added.
   * This is done in compute() just before the Lagrangian costs are recomputed,
