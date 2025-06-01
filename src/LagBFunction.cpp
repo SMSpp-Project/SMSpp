@@ -27,13 +27,13 @@
  #define CHECK_SOLUTIONS 0
  /* CHECK_SOLUTIONS, coded bit-wise, activates some checks about the solutions
   * that are generated and used to compute linearizations. This should not be
-  * necessary and it's costly, but it may be useful to catch some bugs in the
+  * necessary, and it's costly, but it may be useful to catch some bugs in the
   * inner Block and/or its Solver.
   *
   * - bit 0: the feasibility of the solutions is checked
   *
   * - bit 1: the objective value returned by the Solver is compared with the
-  *          value as computed by the FRealObjective
+  *          value as computed by FRealObjective
   *
   * - bit 2: during store_combination_of_linearizations(), all the Solution
   *          are printed together with their coefficients, and the combined
@@ -2682,10 +2682,11 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod , ChnlName chnl )
      auto it = std::find_if( LagPairs.begin() , LagPairs.end() ,
         [ lf ]( auto & p )
               { return( p.second == lf ); } );
-#ifndef NDEBUG
-     if( it == LagPairs.end() )
-      throw( std::logic_error( "Lagrangian term not found" ) );
-#endif
+
+     #ifndef NDEBUG
+      if( it == LagPairs.end() )
+       throw( std::logic_error( "Lagrangian term not found" ) );
+     #endif
 
      c_Index i = std::distance( LagPairs.begin() , it );
      const auto & rc = lf->get_v_var();
@@ -2701,10 +2702,11 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod , ChnlName chnl )
         mon_pair( i , 0 ) ,
         []( const auto & a , const auto & b )
               { return( a.first < b.first ); } );
-#ifndef NDEBUG
-      if( ajit == CMh[ j ].second.end() )
-       throw( std::logic_error( "inconsistent CostMatrix" ) );
-#endif
+
+      #ifndef NDEBUG
+       if( ajit == CMh[ j ].second.end() )
+        throw( std::logic_error( "inconsistent CostMatrix" ) );
+      #endif
 
       ajit->second += *( dit++ );  // update a_{ij}
 
@@ -2788,10 +2790,11 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod , ChnlName chnl )
      auto it = std::find_if( LagPairs.begin() , LagPairs.end() ,
         [ lf ]( auto & p )
               { return( p.second == lf ); } );
-#ifndef NDEBUG
-     if( it == LagPairs.end() )
-      throw( std::logic_error( "Lagrangian term not found" ) );
-#endif
+
+     #ifndef NDEBUG
+      if( it == LagPairs.end() )
+       throw( std::logic_error( "Lagrangian term not found" ) );
+     #endif
 
      c_Index i = std::distance( LagPairs.begin() , it );
      const auto & rc = lf->get_v_var();
@@ -2807,10 +2810,11 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod , ChnlName chnl )
         mon_pair( i , 0 ) ,
         []( const auto & a , const auto & b )
               { return( a.first < b.first ); } );
-#ifndef NDEBUG
-      if( ajit == CMh[ j ].second.end() )
-       throw( std::logic_error( "inconsistent CostMatrix" ) );
-#endif
+
+      #ifndef NDEBUG
+       if( ajit == CMh[ j ].second.end() )
+        throw( std::logic_error( "inconsistent CostMatrix" ) );
+      #endif
 
       ajit->second += *( dit++ );  // update a_{ij}
 
@@ -3019,10 +3023,11 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod , ChnlName chnl )
         [ f ]( auto & p )
              { return( p.second ==
          static_cast< p_LF >( f ) ); } );
-#ifndef NDEBUG
-     if( it == LagPairs.end() )
-      throw( std::logic_error( "Lagrangian term not found" ) );
-#endif
+
+     #ifndef NDEBUG
+      if( it == LagPairs.end() )
+       throw( std::logic_error( "Lagrangian term not found" ) );
+     #endif
 
      Index i = std::distance( LagPairs.begin() , it );
      f_Observer->add_Modification( std::make_shared< C05FunctionModLinRngd >(
@@ -3110,10 +3115,11 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod , ChnlName chnl )
      auto it = std::find_if( LagPairs.begin() , LagPairs.end() ,
         [ lf ]( auto & p )
               { return( p.second == lf ); } );
-#ifndef NDEBUG
-     if( it == LagPairs.end() )
-      throw( std::logic_error( "Lagrangian term not found" ) );
-#endif
+
+     #ifndef NDEBUG
+      if( it == LagPairs.end() )
+       throw( std::logic_error( "Lagrangian term not found" ) );
+     #endif
 
      c_Index i = std::distance( LagPairs.begin() , it );
      mod_CostMatrix( i , tmod->first() );
@@ -3191,10 +3197,11 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod , ChnlName chnl )
      auto it = std::find_if( LagPairs.begin() , LagPairs.end() ,
         [ lf ]( auto & p )
               { return( p.second == lf ); } );
-#ifndef NDEBUG
-     if( it == LagPairs.end() )
-      throw( std::logic_error( "Lagrangian term not found" ) );
-#endif
+
+     #ifndef NDEBUG
+      if( it == LagPairs.end() )
+       throw( std::logic_error( "Lagrangian term not found" ) );
+     #endif
 
      c_Index i = std::distance( LagPairs.begin() , it );
      c_Index nv = CMh_f->get_num_active_var();
@@ -3219,10 +3226,11 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod , ChnlName chnl )
         mon_pair( i , 0 ) ,
         []( const auto & a , const auto & b )
               { return( a.first < b.first ); } );
-#ifndef NDEBUG
-      if( ajit == CMh[ j ].second.end() )
-       throw( std::logic_error( "a_{ij} term not found in CostMatrix" ) );
-#endif
+
+      #ifndef NDEBUG
+       if( ajit == CMh[ j ].second.end() )
+        throw( std::logic_error( "a_{ij} term not found in CostMatrix" ) );
+      #endif
 
       // remove < y_i , a_{ij} > from A_j
       CMh[ j ].second.erase( ajit );
@@ -3308,10 +3316,11 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod , ChnlName chnl )
      auto it = std::find_if( LagPairs.begin() , LagPairs.end() ,
         [ lf ]( auto & p )
               { return( p.second == lf ); } );
-#ifndef NDEBUG
-     if( it == LagPairs.end() )
-      throw( std::logic_error( "Lagrangian term not found" ) );
-#endif
+
+     #ifndef NDEBUG
+      if( it == LagPairs.end() )
+       throw( std::logic_error( "Lagrangian term not found" ) );
+     #endif
 
      c_Index i = std::distance( LagPairs.begin() , it );
      c_Index nv = CMh_f->get_num_active_var();
@@ -3336,10 +3345,11 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod , ChnlName chnl )
         std::make_pair( i , 0 ) ,
         []( const auto & a , const auto & b )
               { return( a.first < b.first ); } );
-#ifndef NDEBUG
-      if( ajit == CMh[ j ].second.end() )
-       throw( std::logic_error( "a_{ij} term not found in CostMatrix" ) );
-#endif
+
+      #ifndef NDEBUG
+       if( ajit == CMh[ j ].second.end() )
+        throw( std::logic_error( "a_{ij} term not found in CostMatrix" ) );
+      #endif
 
       // remove < y_i , a_{ij} > from A_j
       CMh[ j ].second.erase( ajit );
@@ -3724,10 +3734,10 @@ void LagBFunction::update_CostMatrix_ModVarsAddd( c_Vec_p_Var & vars ,
   // there are no variables to be "stealthily" added to obj, hence
   // CostMatrix.size() == [q]obj->gen_num_active_var()
 
-#ifndef NDEBUG
-  if( first != CM.size() )
-   throw( std::logic_error( "inconsistent CostMatrix[" + std::to_string( b ) + "]" ) );
-#endif
+  #ifndef NDEBUG
+   if( first != CM.size() )
+    throw( std::logic_error( "inconsistent CostMatrix[" + std::to_string( b ) + "]" ) );
+  #endif
 
   CM.resize( CM.size() + vars.size() );
  }
