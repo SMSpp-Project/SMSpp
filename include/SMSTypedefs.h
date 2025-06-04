@@ -458,7 +458,7 @@ inline std::string && SMSpp_classname_normalise( std::string && str ) {
  * to each of its derived classes, and therefore typically protected):
  *
  * - private_name(), defined e.g. as
- *   
+ *
  *      virtual const std::string & private_name( void ) const = 0;
  *
  * - f_factory(), defined e.g. as
@@ -1792,7 +1792,7 @@ bool un_any_const_dynamic( const boost::any & any , F f ,
  *
  * Finally, the two macros
  *
- * - un_any_thing_count_static( thing_type , my_thing ) 
+ * - un_any_thing_count_static( thing_type , my_thing )
  * - un_any_thing_count_dynamic( thing_type , my_thing )
  *
  * behave as functions returning a std::size_t containing the number of
@@ -3612,8 +3612,14 @@ serialize( netCDF::NcGroup & group , const std::string & name ,
  *
  * @param[in] name  The name of the variable within the given \p group.
  *
- * @param[out] array A reference to the boost::multi_array that will store
- *                   the multi-dimensional array in row-major layout.
+ * @param[in] sizes This parameter specifies the expected ordering of netCDF
+ *                  dimensions. If the variable in the file has dimensions in
+ *                  the reverse order with respect to what is expected (e.g.,
+ *                  [N,1] instead of [1,N]), and N == 2, the array will be
+ *                  reshaped to match the expected layout.
+ *
+ * @param[out] multi_array A reference to the boost::multi_array that will store
+ *                         the multi-dimensional array in row-major layout.
  *
  * @param[in] optional This parameter informs whether the variable is
  *                     optional. This means that if the variable is not
@@ -3637,15 +3643,16 @@ serialize( netCDF::NcGroup & group , const std::string & name ,
 template< class T , std::size_t N >
 std::enable_if_t< is_netCDF_type_v< T > , bool >
 deserialize( const netCDF::NcGroup & group , const std::string & name ,
-             boost::multi_array< T , N > & array , bool optional = true ,
-             bool allow_scalar_var = false ) {
+             const std::vector< std::size_t > & sizes ,
+             boost::multi_array< T , N > & multi_array ,
+             bool optional = true , bool allow_scalar_var = false ) {
  using index = typename boost::multi_array< T , N >::index;
 
  auto ncVar = group.getVar( name );
  if( ncVar.isNull() ) {
   if( optional ) {
    std::vector< index > new_sizes( N , 0 );
-   array.resize( new_sizes );
+   multi_array.resize( new_sizes );
    return( false );
    }
 
@@ -3657,8 +3664,8 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
  if( ncVar.getDimCount() == 0 ) {
   if( allow_scalar_var ) {
    std::vector< index > new_sizes( N , 1 );
-   array.resize( new_sizes );
-   ncVar.getVar( array.origin() );
+   multi_array.resize( new_sizes );
+   ncVar.getVar( multi_array.origin() );
    return( true );
    }
 
@@ -3669,14 +3676,33 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
   }
 
  auto sizes_dimensions = get_sizes_dimensions( ncVar );
- if( sizes_dimensions.size() < array.num_dimensions() )
-  sizes_dimensions.resize( array.num_dimensions() , 1 );
+ if( sizes_dimensions.size() < multi_array.num_dimensions() )
+  sizes_dimensions.resize( multi_array.num_dimensions() , 1 );
 
- array.resize( sizes_dimensions );
+ multi_array.resize( sizes_dimensions );
 
  std::vector< std::size_t > start( sizes_dimensions.size() , 0 );
 
- ncVar.getVar( start , sizes_dimensions , array.data() );
+ ncVar.getVar( start , sizes_dimensions , multi_array.data() );
+
+ // if expected dims are reversed compared to what is found, apply reshape
+ if constexpr( N == 2 )
+  if( ( sizes.size() == 2 ) &&
+      ( sizes_dimensions[ 0 ] == sizes[ 1 ] ) &&
+      ( sizes_dimensions[ 1 ] == sizes[ 0 ] ) ) {
+   index rows = multi_array.shape()[ 0 ];
+   index cols = multi_array.shape()[ 1 ];
+   multi_array.reshape( boost::array< index , N >{ { cols , rows } } );
+   }
+
+ // final shape check
+ if( ( multi_array.num_dimensions() != sizes.size() ) ||
+     ( ! std::equal( multi_array.shape() ,
+                     multi_array.shape() + multi_array.num_dimensions() ,
+                     sizes.begin() ) ) )
+  throw( std::logic_error( "deserialize(): shape mismatch for variable " +
+                            name + " in group " + group.getName() ) );
+
  return( true );
  }
 
