@@ -1508,8 +1508,7 @@ private:
                             char & set_from_type , char & set_to_type ) {
 
   std::vector< Index > set_size = { 0 , 0 };
-  if( ::SMSpp_di_unipi_it::deserialize( group , "SetSize" ,
-                                        set_size , true ) ) {
+  if( ::SMSpp_di_unipi_it::deserialize( group , "SetSize" , set_size , true ) ) {
    if( set_size.size() != 2 )
     throw( std::logic_error( "SimpleDataMappingFactory::get_sets_type: array "
                              "'SetSize' must have size 2." ) );

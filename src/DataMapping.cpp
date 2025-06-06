@@ -130,15 +130,13 @@ DataMapping * SimpleDataMappingFactory::deserialize(
  // DataType
 
  char data_type;
- if( ! ::SMSpp_di_unipi_it::deserialize( group , data_type , "DataType" ,
-                                         true ) )
+ if( ! ::deserialize( group , data_type , "DataType" , true ) )
   data_type = SimpleDataMappingBase::get_id< double >();
 
  // Caller type
 
  char caller_type;
- if( ! ::SMSpp_di_unipi_it::deserialize( group , caller_type , "Caller" ,
-                                         true ) )
+ if( ! ::deserialize( group , caller_type , "Caller" , true ) )
   caller_type = 'B';
 
  char set_from_type, set_to_type;
