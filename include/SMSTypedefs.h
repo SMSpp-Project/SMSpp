@@ -504,7 +504,7 @@ inline std::string && SMSpp_classname_normalise( std::string && str ) {
  *     WHITESPACE AND ENCLOSING PARENTHESES. For instance, a template class
  *     like MyBlock< std::pair< int , int > > gets name
  *     "MyBlock<std::pair<int,int>>" (which is syntactically wrong due to
- *     the closing ">>" instead of "> >", but after all it is ony a string).
+ *     the closing ">>" instead of "> >", but after all it is only a string).
  *     This makes it possible to read it from a std::stream, where
  *     whitespaces are separators. If MyBlock derives from Block, it is then
  *     possible to create an object of class MyBlock with
