@@ -503,13 +503,13 @@ inline std::string && SMSpp_classname_normalise( std::string && str ) {
  *     THE ONE THAT IS USED TO INDEX THE FACTORY, IS STRIPPED OF ANY
  *     WHITESPACE AND ENCLOSING PARENTHESES. For instance, a template class
  *     like MyBlock< std::pair< int , int > > gets name
- *     "MyBlock<std::pair<int,int>>" (which is syntactically wrong due to
+ *     "MyBlock< std::pair< int , int > >" (which is syntactically wrong due to
  *     the closing ">>" instead of "> >", but after all it is only a string).
  *     This makes it possible to read it from a std::stream, where
  *     whitespaces are separators. If MyBlock derives from Block, it is then
  *     possible to create an object of class MyBlock with
  *
- *     new_Block( "MyBlock<std::pair<int,int>>" )
+ *     new_Block( "MyBlock< std::pair< int , int > >" )
  *
  *     Note that the implementation of Block::my_Block() automatically strips
  *     all the whitespaces from the input string, which means that
@@ -2380,9 +2380,77 @@ inline bool deserialize( const netCDF::NcGroup & group , std::string & data ,
   return( false );
   }
 
- char * data_ptr;
- ncVar.getVar( &data_ptr );
- data = std::string( data_ptr );
+ char * data_tmp;
+ ncVar.getVar( &data_tmp );
+ data = std::string( data_tmp );
+ free( data_tmp );
+ return( true );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// deserialize a std::vector< std::string > out of a netCDF NcGroup
+/** This function reads a std::vector of std::string from a netCDF variable
+ * with name \p name within the given netCDF NcGroup \p group. The values
+ * read are stored in the given std::vector \p data.
+ *
+ * The variable is expected to have a single dimension and contain C-style
+ * strings (char*). For each element, the corresponding C-string is converted
+ * to std::string and freed after use.
+ *
+ * If the variable is not present in the given \p group, then the vector \p
+ * data is resized to zero if \p optional == true, while an
+ * std::invalid_argument exception is thrown if \p optional == false.
+ *
+ * @param[in] group The netCDF NcGroup from which the array will be obtained.
+ *
+ * @param[in] name  The name of the variable within the given group.
+ *
+ * @param[in] size  The expected size of the variable. If this is not
+ *                  Inf< Index >(), the function checks that the variable's
+ *                  size matches the given size.
+ *
+ * @param[out] data A reference to the vector that will store the values.
+ *
+ * @param[in] optional This parameter informs whether the variable is
+ *                     optional. If the variable is not present and this
+ *                     is false, an exception is thrown. Default is true.
+ *
+ * @return true if the desired variable was deserialized; false otherwise. */
+inline bool deserialize( const netCDF::NcGroup & group ,
+                         const std::string & name ,
+                         std::size_t size ,
+                         std::vector< std::string > & data ,
+                         bool optional = true ) {
+ auto ncVar = group.getVar( name );
+ if( ncVar.isNull() ) {
+  if( optional ) {
+   data.clear();
+   return( false );
+   }
+  throw std::invalid_argument( "deserialize(): variable " + name +
+                               " not present in group " + group.getName() );
+  }
+
+ if( ncVar.getDimCount() != 1 )
+  throw std::logic_error( "deserialize(): variable " + name +
+                          " must have dimension 1" );
+
+ std::size_t var_size = ncVar.getDim( 0 ).getSize();
+ if( ( size != Inf< std::size_t >() ) && ( var_size != size ) )
+  throw std::logic_error( "deserialize(): variable " + name +
+                          " expected size " + std::to_string( size ) +
+                          ", got " + std::to_string( var_size ) );
+
+ std::vector< char * > data_tmp( var_size );
+ ncVar.getVar( data_tmp.data() );
+
+ data.resize( var_size );
+ std::transform( data_tmp.begin() , data_tmp.end() , data.begin() ,
+                 []( char * s ) { return( std::string( s ) ); } );
+
+ for( char * s : data_tmp )
+  free( s );
+
  return( true );
  }
 
@@ -2631,7 +2699,8 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
    return( false );
    }
 
-  throw( std::invalid_argument( "deserialize(): " + name + " is not present" ) );
+  throw( std::invalid_argument( "deserialize(): " + name +
+                                " not present in group " + group.getName() ) );
   }
 
  auto dc = ncVar.getDimCount();
@@ -3150,7 +3219,7 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
   }
 
   throw( std::invalid_argument( "deserialize(): " + name +
-                                 " is not present" ) );
+                                " not present in group " + group.getName() ) );
   }
 
  if( ( ( ncVar.getDimCount() < 0 ) ||
@@ -3323,8 +3392,7 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
    }
 
   throw( std::invalid_argument( "deserialize(): " + name +
-                                " is not present in group " +
-                                group.getName() ) );
+                                " is not present in group " + group.getName() ) );
   }
 
  if( ncVar.getDimCount() != 1 )
@@ -3528,8 +3596,7 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
    }
 
   throw( std::invalid_argument( "deserialize(): " + name +
-                                " is not present in group " +
-                                group.getName() ) );
+                                " is not present in group " + group.getName() ) );
   }
 
  if( ncVar.getDimCount() != 2 )
