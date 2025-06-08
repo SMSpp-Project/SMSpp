@@ -304,7 +304,7 @@ private:
 
 /*--------------------------------------------------------------------------*/
 
-  bool is_static() const {
+  bool is_static( void ) const {
    if( type == 'c' || type == 'v' )
     return( false );
    return( true );
@@ -409,9 +409,10 @@ private:
 /*--------------------------------------------------------------------------*/
 
  /// reverses this AbstractPath
- void reverse() {
+ void reverse( void ) {
   std::reverse( std::begin( node_types ), std::end( node_types ) );
   std::reverse( std::begin( group_indices ), std::end( group_indices ) );
+  std::reverse( std::begin( group_index_names ) , std::end( group_index_names ) );
   std::reverse( std::begin( element_indices ), std::end( element_indices ) );
   std::reverse( std::begin( range_indices ), std::end( range_indices) );
  }
@@ -447,6 +448,7 @@ protected:
 
  /// group_indices[i] is the group index of the i-th node in the path
  std::vector< Index > group_indices;
+ std::vector< std::string > group_index_names;
 
  /// element_indices[i] is the first element index of the i-th node in the path
  std::vector< Index > element_indices;
@@ -538,7 +540,7 @@ public:
  /** This function returns the length of this AbstractPath, i.e., the number
   * of nodes in the path.
   */
- Index length() const {
+ Index length( void ) const {
   return( node_types.size() );
  }
 
@@ -548,7 +550,7 @@ public:
  /** This function returns true if and only if this AbstractPath is empty,
   * i.e., it does not represent a path to any object.
   */
- bool empty() const {
+ bool empty( void ) const {
   return( length() == 0 );
  }
 
@@ -557,9 +559,10 @@ public:
  /// clears this AbstractPath
  /** This function clears this AbstractPath making it an empty path.
   */
- void clear() {
+ void clear( void ) {
   node_types.clear();
   group_indices.clear();
+  group_index_names.clear();
   element_indices.clear();
   range_indices.clear();
  }
@@ -570,15 +573,44 @@ public:
  /** This function returns the Node representation of the i-th node in this
   * AbstractPath.
   *
+  * @param block The pointer to the reference Block.
+  *
   * @param i The index of the node of this AbstractPath whose Node
   *        representation is required.
   *
   * @return The Node representation of the i-th node in this AbstractPath.
   */
- Node get_node( Index i ) const {
-  assert( i < this->length() );
-  return( Node( node_types[ i ] , group_indices[ i ] ,
-                element_indices[ i ] , range_indices[ i ] ) );
+ Node get_node( const Block * block , const Index i ) const {
+  assert( i < length() );
+
+  Index group_index;
+  if( ( ! group_index_names.empty() ) &&
+      ( ! group_index_names[ i ].empty() ) ) {
+
+   const bool is_static = Node::is_static( node_types[ i ] );
+
+   if( Node::is_variable( node_types[ i ] ) )
+    if( is_static )
+    group_index = block->get_s_var_index( group_index_names[ i ] );
+    else
+     group_index = block->get_d_var_index( group_index_names[ i ] );
+
+   else if( Node::is_constraint( node_types[ i ] ) )
+    if( is_static )
+     group_index = block->get_s_const_index( group_index_names[ i ] );
+    else
+     group_index = block->get_d_const_index( group_index_names[ i ] );
+
+   else
+    group_index = static_cast< Index >( std::stoul( group_index_names[ i ] ) );
+  }
+  else
+   group_index = group_indices[ i ];
+
+  return( Node( node_types[ i ] ,
+                group_index ,
+                element_indices[ i ] ,
+                range_indices[ i ] ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -587,13 +619,12 @@ public:
  /** This function returns the Node representation of the last node in this
   * AbstractPath.
   *
+  * @param block The pointer to the reference Block.
+  *
   * @return The Node representation of the last node in this AbstractPath.
   */
- Node get_last_node() const {
-  const auto length = this->length();
-  assert( length > 0 );
-  return( Node( node_types[ length - 1 ] , group_indices[ length - 1 ] ,
-                element_indices[ length - 1 ] , range_indices[ length - 1 ] ) );
+ Node get_last_node( Block * block ) const {
+  return( get_node( block , length() - 1 ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -620,31 +651,31 @@ public:
                  "AbstractPath::build: the element type must be one of: "
                  "Block, Constraint, Function, Objective, Variable." );
 
-  this->clear();
+  clear();
 
   if( ! t )
    return;
 
   if constexpr( std::is_base_of_v< Constraint , T > ) {
-   this->add_node( t , Node::eConstraint );
+   add_node( t , Node::eConstraint );
   }
   else if constexpr( std::is_base_of_v< Variable , T > ) {
-   this->add_node( t , Node::eVariable );
+   add_node( t , Node::eVariable );
   }
   else if constexpr( std::is_base_of_v< Objective , T > ) {
-   this->add_node( Node::eObjective );
+   add_node( Node::eObjective );
   }
   else if constexpr( std::is_base_of_v< Function , T > ) {
    auto observer = t->get_Observer();
    if( const auto constraint = dynamic_cast< FRowConstraint * >( observer ) ) {
-    this->add_node( constraint , Node::eConstraint );
+    add_node( constraint , Node::eConstraint );
    }
    else if( dynamic_cast< FRealObjective * >( observer ) ) {
-    this->add_node( Node::eObjective );
+    add_node( Node::eObjective );
    }
    else if( dynamic_cast< PolyhedralFunctionBlock * >( observer ) ) {
     if( observer == reference_block )
-     this->add_node( Node::eBlock );
+     add_node( Node::eBlock );
    }
    else
     throw( std::logic_error( "AbstractPath::build: Unknown Observer of "
@@ -652,11 +683,11 @@ public:
   }
   else if constexpr( std::is_base_of_v< Block , T > ) {
    if( t == reference_block ) {
-    this->add_node( Node::eBlock , Inf< Index >() );
+    add_node( Node::eBlock , Inf< Index >() );
     return;
    }
    auto group_index = inspection::get_block_index( t );
-   this->add_node( Node::eBlock , group_index );
+   add_node( Node::eBlock , group_index );
   }
 
   Block * block;
@@ -678,7 +709,7 @@ public:
 
    if( index < Inf< Index >() ) {
     // block has a father Block
-    this->add_node( Node::eBlock , index );
+    add_node( Node::eBlock , index );
     block = block->get_f_Block();
    }
 
@@ -696,11 +727,11 @@ public:
      throw( std::logic_error( "AbstractPath::build: Path not found." ) );
 
     if( const auto frc = dynamic_cast< FRowConstraint * >( observer ) ) {
-     this->add_node( frc , Node::eConstraint );
+     add_node( frc , Node::eConstraint );
      block = frc->get_Block();
     }
     else if( const auto fro = dynamic_cast< FRealObjective * >( observer ) ) {
-     this->add_node( Node::eObjective );
+     add_node( Node::eObjective );
      block = fro->get_Block();
     }
     else
@@ -708,7 +739,7 @@ public:
    }
   }
 
-  this->reverse();
+  reverse();
  }
 
 /*--------------------------------------------------------------------------*/
@@ -726,14 +757,14 @@ public:
  template< class T >
  Index get_number_elements( Block * reference ) const {
 
-  if( this->length() == 0 )
+  if( length() == 0 )
    return( Inf< Index >() );
 
   auto block = reference;
 
-  for( Index i = 0 ; i < this->length() - 1 ; ++i ) {
+  for( Index i = 0 ; i < length() - 1 ; ++i ) {
 
-   const auto node = get_node( i );
+   const auto node = get_node( block , i );
 
    // Intermediate nodes can be: Block, Constraint, or Objective.
 
@@ -768,7 +799,7 @@ public:
 
   // Now, we analyze the last node in the path.
 
-  const auto node = get_last_node();
+  const auto node = get_last_node( block );
 
   if( ! Node::has_range( node.type ) )
    return( 1 );
@@ -810,14 +841,14 @@ public:
  template< class T >
  T * get_element( Block * reference , Index offset = 0 ) const {
 
-  if( this->length() == 0 )
+  if( length() == 0 )
    return( nullptr );
 
   auto block = reference;
 
-  for( Index i = 0 ; i < this->length() - 1 ; ++i ) {
+  for( Index i = 0 ; i < length() - 1 ; ++i ) {
 
-   const auto node = get_node( i );
+   const auto node = get_node( block , i );
 
    // Intermediate nodes can be: Block, Constraint, or Objective.
 
@@ -865,7 +896,7 @@ public:
 
   // Now, we analyze the last node in the path.
 
-  const auto node = get_last_node();
+  const auto node = get_last_node( block );
 
   if constexpr( std::is_base_of_v< Constraint , T > ) {
    assert( Node::is_constraint( node.type ) );
@@ -943,18 +974,16 @@ public:
   */
 
  void serialize( netCDF::NcGroup & group ) const {
-
-  auto dim = group.addDim( path_total_length_dim_name , this->length() );
-
+  auto dim = group.addDim( path_total_length_dim_name , length() );
   using ::SMSpp_di_unipi_it::serialize;
   serialize( group , node_type_name , netCDF::NcChar() ,
-             dim , this->node_types );
+             dim , node_types );
   serialize( group , group_index_name , netCDF::NcUint() ,
-             dim , this->group_indices );
+             dim , group_indices );
   serialize( group , element_index_name , netCDF::NcUint() ,
-             dim , this->element_indices );
+             dim , element_indices );
   serialize( group , element_range_name , netCDF::NcUint() ,
-             dim , this->range_indices );
+             dim , range_indices );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1327,23 +1356,41 @@ public:
 
   const auto num_nodes = path_end - path_start;
 
-  this->node_types.resize( num_nodes );
-  this->group_indices.resize( num_nodes );
-  this->element_indices.resize( num_nodes );
-  this->range_indices.resize( num_nodes );
+  node_types.resize( num_nodes );
+  element_indices.resize( num_nodes );
+  range_indices.resize( num_nodes );
 
   netCDFvars.PathNodeTypes.getVar( { path_start } , { num_nodes } ,
-                                   this->node_types.data() );
-  netCDFvars.PathGroupIndices.getVar( { path_start } , { num_nodes } ,
-                                      this->group_indices.data() );
+                                   node_types.data() );
+
+  if( netCDFvars.PathGroupIndices.getType().getTypeClass() ==
+      netCDF::NcType::nc_STRING ) {
+   group_index_names.resize( num_nodes );
+   std::vector< char * > tmp( num_nodes );
+   netCDFvars.PathGroupIndices.getVar( { path_start } , { num_nodes } ,
+                                       tmp.data() );
+   std::transform( tmp.begin() , tmp.end() , group_index_names.begin() ,
+                   []( char * s ) { return( std::string( s ) ); } );
+   for( char * s : tmp ) free( s );
+  }
+  else if( netCDFvars.PathGroupIndices.getType().getTypeClass() ==
+           netCDF::NcType::nc_UINT ) {
+   group_indices.resize( num_nodes );
+   netCDFvars.PathGroupIndices.getVar( { path_start } , { num_nodes } ,
+                                       group_indices.data() );
+  }
+  else {
+   throw std::logic_error(
+    "AbstractPath::deserialize: unsupported type for PathGroupIndices" );
+  }
 
   if( ! netCDFvars.PathElementIndices.isNull() ) {
    netCDFvars.PathElementIndices.getVar( { path_start } , { num_nodes } ,
-                                         this->element_indices.data() );
+                                         element_indices.data() );
   }
   else {
-   this->element_indices.resize( num_nodes );
-   this->element_indices.assign( this->element_indices.size() , Inf< Index >() );
+   element_indices.resize( num_nodes );
+   element_indices.assign( element_indices.size() , Inf< Index >() );
   }
 
   if( ! netCDFvars.PathRangeIndices.isNull() ) {
@@ -1441,28 +1488,28 @@ public:
 
  void serialize( const Index path_index , APnetCDF & netCDFvars ) const {
 
-  const auto num_nodes = this->length();
+  const auto num_nodes = length();
 
   Index path_start;
   netCDFvars.PathStart.getVar( { path_index } , & path_start );
 
   netCDFvars.PathNodeTypes.putVar( { path_start } , { num_nodes } ,
-                                   this->node_types.data() );
+                                   node_types.data() );
   netCDFvars.PathGroupIndices.putVar( { path_start } , { num_nodes } ,
-                                      this->group_indices.data() );
+                                      group_indices.data() );
   netCDFvars.PathElementIndices.putVar( { path_start } , { num_nodes } ,
-                                        this->element_indices.data() );
+                                        element_indices.data() );
   netCDFvars.PathRangeIndices.putVar( { path_start } , { num_nodes } ,
-                                      this->range_indices.data() );
+                                      range_indices.data() );
  }
 
 /*--------------------------------------------------------------------------*/
 
  bool operator==( const AbstractPath & path ) const {
-  if( this->length() != path.length() )
+  if( length() != path.length() )
    return( false );
 
-  for( Index i = 0 ; i < this->length() ; ++i ) {
+  for( Index i = 0 ; i < length() ; ++i ) {
    if( node_types[ i ] != path.node_types[ i ] ||
        group_indices[ i ] != path.group_indices[ i ] ||
        element_indices[ i ] != path.element_indices[ i ] ||
@@ -1475,11 +1522,11 @@ public:
 
 /*--------------------------------------------------------------------------*/
 
- void print() const {
-  for( Index i = 0 ; i < this->length() ; ++i ) {
+ void print( void ) const {
+  for( Index i = 0 ; i < length() ; ++i ) {
    std::cout << node_types[ i ] << "( " << group_indices[ i ] << " , " <<
     element_indices[ i ]  << " , " << range_indices[ i ] << " )";
-   if( i < this->length() - 1 )
+   if( i < length() - 1 )
     std::cout << " -> ";
   }
   std::cout << std::endl;

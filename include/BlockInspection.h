@@ -842,7 +842,7 @@ namespace SMSpp_di_unipi_it::inspection
   *         nullptr is returned. */
 
  template< class T >
- static T * get_element( const boost::any & group , Block::Index index ,
+ static T * get_element( const boost::any & group , Index index ,
 			 bool is_static )
  {
   if( is_static )
@@ -1088,8 +1088,7 @@ namespace SMSpp_di_unipi_it::inspection
   *        Constraint will be output. */
 
  static void show_infeasibility( const Block * block ,
-				 bool static_constraints ,
-                                 std::ostream & stream = std::cout )
+				 bool static_constraints , std::ostream & stream = std::cout )
  {
   std::string constraint_type = static_constraints ? "static" : "dynamic";
   std::string block_name = block->name();
