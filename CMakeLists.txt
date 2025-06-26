@@ -47,6 +47,8 @@ include(CTest)
 # See: https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html
 include(BuildType)
 
+include(FetchContent)
+
 # ----- Requirements -------------------------------------------------------- #
 # The Boost find module is provided by CMake.
 find_package(Boost 1.72.0 REQUIRED)
@@ -68,6 +70,26 @@ endif ()
 if (MSVC)
     find_library(GETOPT_LIBRARY getopt)
 endif ()
+
+# This sets the variable CMAKE_THREAD_LIBS_INIT / CMAKE_USE_WIN32_THREADS_INIT, see:
+# https://cmake.org/cmake/help/latest/module/FindThreads.html
+if (WIN32)
+    find_package(PThreads4W QUIET)
+else ()
+    find_package(Threads QUIET)
+endif ()
+
+if (Threads_FOUND) # FastFlow fix
+    set(CMAKE_HAVE_PTHREAD_H TRUE CACHE INTERNAL "pthread.h is available")
+endif ()
+
+FetchContent_Declare(
+        fastflow
+        GIT_REPOSITORY https://github.com/fastflow/fastflow.git
+        GIT_TAG master
+)
+
+FetchContent_MakeAvailable(fastflow)
 
 # ----- Configuration header ------------------------------------------------ #
 # This will generate a *Config.h header in the build directory.
@@ -131,7 +153,8 @@ target_sources(${modName} PRIVATE
 target_include_directories(
         ${modName} PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:include/${modNamespace}>)
+        $<INSTALL_INTERFACE:include/${modNamespace}>
+        $<BUILD_INTERFACE:${fastflow_SOURCE_DIR}>)
 
 # When linking other targets to the library with target_link_libraries(),
 # PRIVATE means that the libraries will be linked only to this library,
