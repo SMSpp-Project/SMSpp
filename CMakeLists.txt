@@ -83,6 +83,13 @@ if (Threads_FOUND) # FastFlow fix
     set(CMAKE_HAVE_PTHREAD_H TRUE CACHE INTERNAL "pthread.h is available")
 endif ()
 
+# Save the current BUILD_TESTING setting
+set(_BUILD_TESTING ${BUILD_TESTING})
+
+# Disable testing and examples for FastFlow only
+set(BUILD_TESTING OFF CACHE BOOL "Disable testing in FastFlow" FORCE)
+set(BUILD_EXAMPLES OFF CACHE BOOL "Disable examples in FastFlow" FORCE)
+
 # Declare and fetch FastFlow
 FetchContent_Declare(
         fastflow
@@ -176,13 +183,12 @@ endif ()
 add_library(${modNamespace}::${modName} ALIAS ${modName})
 
 # ----- Subdirectories ------------------------------------------------------ #
+# Restore the original setting for BUILD_TESTING
+set(BUILD_TESTING ${_BUILD_TESTING} CACHE BOOL "Restore user preference for testing" FORCE)
+
 if (BUILD_TESTING)
     add_subdirectory(test)
 endif ()
-
-# Disable testing and examples for FastFlow only
-set(BUILD_TESTING OFF CACHE BOOL "Disable testing in FastFlow" FORCE)
-set(BUILD_EXAMPLES OFF CACHE BOOL "Disable examples in FastFlow" FORCE)
 
 # ----- Install instructions ------------------------------------------------ #
 # The following commands are used when installing the library
