@@ -83,7 +83,7 @@ include $(SMS++SDR)/../extlib/makefile-libEigen
 include $(SMS++SDR)/../extlib/makefile-libNetCDF
 
 # external -I directives for the core SMS++
-SMS++INC = $(libBoostINC) $(libEigenINC) $(libNtCDFINC)
+SMS++INC = $(libBoostINC) $(libEigenINC) $(libNtCDFINC) $(FastFlow_ROOT)
 
 # include the SMS++ makefile requiring all external modules in input
 include $(SMS++SDR)/lib/makefile
