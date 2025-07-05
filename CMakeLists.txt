@@ -71,30 +71,13 @@ if (MSVC)
     find_library(GETOPT_LIBRARY getopt)
 endif ()
 
-# This sets the variable CMAKE_THREAD_LIBS_INIT / CMAKE_USE_WIN32_THREADS_INIT, see:
-# https://cmake.org/cmake/help/latest/module/FindThreads.html
-if (WIN32)
-    find_package(PThreads4W QUIET)
-else ()
-    find_package(Threads QUIET)
-endif ()
-
-if (Threads_FOUND) # FastFlow fix
-    set(CMAKE_HAVE_PTHREAD_H TRUE CACHE INTERNAL "pthread.h is available")
-endif ()
-
-# Disable testing and examples for FastFlow
-set(BUILD_TESTS OFF CACHE BOOL "Disable testing in FastFlow" FORCE)
-set(BUILD_EXAMPLES OFF CACHE BOOL "Disable examples in FastFlow" FORCE)
-
 # Declare and fetch FastFlow
 FetchContent_Declare(
         fastflow
         GIT_REPOSITORY https://github.com/fastflow/fastflow.git
-        GIT_TAG        master
-)
+        GIT_TAG        master)
 
-FetchContent_MakeAvailable(fastflow)
+FetchContent_Populate(fastflow)
 
 # ----- Configuration header ------------------------------------------------ #
 # This will generate a *Config.h header in the build directory.
