@@ -135,7 +135,8 @@ if (netCDFCxx_FOUND)
         add_library(netCDF::netCDFCxx UNKNOWN IMPORTED)
         set_target_properties(
                 netCDF::netCDFCxx PROPERTIES
-                IMPORTED_LOCATION "${netCDFCxx_LIBRARY}"
+                IMPORTED_CONFIGURATIONS "Release;Debug"
+                IMPORTED_LOCATION_RELEASE "${netCDFCxx_LIBRARY}"
                 IMPORTED_LOCATION_DEBUG "${netCDFCxx_LIBRARY_DEBUG}"
                 INTERFACE_INCLUDE_DIRECTORIES "${netCDFCxx_INCLUDE_DIRS}"
                 INTERFACE_LINK_LIBRARIES "${ncTarget};${HDF5_LIBRARIES}")
