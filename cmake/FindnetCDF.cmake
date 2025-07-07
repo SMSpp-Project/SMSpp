@@ -61,26 +61,10 @@ else ()
     if (UNIX)
         set(netCDF_LIBRARY_DEBUG ${netCDF_LIBRARY})
     else ()
-
-        # ----- Macro: find_win_netcdf_library ------------------------------ #
-        # On Windows the version is appended to the library name which cannot be
-        # handled by find_library, so here a macro to search manually.
-        macro(find_win_netcdf_library var path_suffixes)
-            foreach (s ${path_suffixes})
-                file(GLOB netCDF_LIBRARY_CANDIDATES "${netCDF_ROOT}/${s}/netcdf.lib")
-                if (netCDF_LIBRARY_CANDIDATES)
-                    list(GET netCDF_LIBRARY_CANDIDATES 0 ${var})
-                    break()
-                endif ()
-            endforeach ()
-            if (NOT ${var})
-                set(${var} NOTFOUND)
-            endif ()
-        endmacro ()
-
-        # Debug library
-        find_win_netcdf_library(netCDF_LIB_DEBUG "debug/lib")
-        set(netCDF_LIBRARY_DEBUG ${netCDF_LIB_DEBUG})
+        find_library(netCDF_LIBRARY_DEBUG
+                     NAMES netcdf
+                     HINTS ${netCDF_ROOT}/debug/lib
+                     DOC "netCDF debug library.")
     endif ()
 
     # ----- Parse the version ----------------------------------------------- #
@@ -132,8 +116,8 @@ endif ()
 # Variables marked as advanced are not displayed in CMake GUIs, see:
 # https://cmake.org/cmake/help/latest/command/mark_as_advanced.html
 mark_as_advanced(netCDF_INCLUDE_DIR
-        netCDF_LIBRARY
-        netCDF_LIBRARY_DEBUG
-        netCDF_VERSION)
+                 netCDF_LIBRARY
+                 netCDF_LIBRARY_DEBUG
+                 netCDF_VERSION)
 
 # --------------------------------------------------------------------------- #

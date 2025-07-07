@@ -72,26 +72,10 @@ else ()
     if (UNIX)
         set(netCDFCxx_LIBRARY_DEBUG ${netCDFCxx_LIBRARY})
     else ()
-
-        # ----- Macro: find_win_netcdfcxx_library --------------------------- #
-        # On Windows the version is appended to the library name which cannot be
-        # handled by find_library, so here a macro to search manually.
-        macro(find_win_netcdfcxx_library var path_suffixes)
-            foreach (s ${path_suffixes})
-                file(GLOB netCDFCxx_LIBRARY_CANDIDATES "${netCDFCxx_ROOT}/${s}/netcdf-cxx4.lib")
-                if (netCDFCxx_LIBRARY_CANDIDATES)
-                    list(GET netCDFCxx_LIBRARY_CANDIDATES 0 ${var})
-                    break()
-                endif ()
-            endforeach ()
-            if (NOT ${var})
-                set(${var} NOTFOUND)
-            endif ()
-        endmacro ()
-
-        # Debug library
-        find_win_netcdfcxx_library(netCDFCxx_LIB_DEBUG "debug/lib")
-        set(netCDFCxx_LIBRARY_DEBUG ${netCDFCxx_LIB_DEBUG})
+        find_library(netCDFCxx_LIBRARY_DEBUG
+                     NAMES netcdf-cxx4
+                     HINTS ${netCDFCxx_ROOT}/debug/lib
+                     DOC "netCDF-C++ debug library.")
     endif ()
 
     # ----- Parse the version ----------------------------------------------- #
