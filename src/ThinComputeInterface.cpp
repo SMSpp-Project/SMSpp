@@ -735,7 +735,7 @@ State * State::deserialize( const netCDF::NcFile & f , int idx )
   int type;
   gtype.getValues( & type );
 
-  if( type != eSolutionFile )
+  if( type != eStateFile )
    return( nullptr );
 
   auto cg = f.getGroup( "State_" + std::to_string( idx ) );
