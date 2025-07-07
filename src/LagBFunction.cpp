@@ -2127,9 +2127,12 @@ Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
  // linear term b is not involved)
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- // start by collecting the Objective value of all the sub-Block of the inner
- // Block: since they are un-modified, that's the original value
- OFValue alpha = get_objective_value( get_inner_block() );
+ // start by collecting the Objective value of all the sub-Blocks of the inner
+ // Block: if PushCostToOwner == 0, only the root Block has modified Objective,
+ // so get_objective_value() returns the correct original value (recursively);
+ // otherwise, if PushCostToOwner == 1, some sub-Blocks may have modified
+ // Objectives, so the root value is excluded and must be computed manually below
+ OFValue alpha = ( PushCostToOwner ? 0 : get_objective_value( get_inner_block() ) );
 
  // now add the Objective value of the inner Block: since that is modified
  // one cannot rely on the value() of the Objective but has to compute it
