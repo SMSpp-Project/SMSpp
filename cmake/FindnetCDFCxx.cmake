@@ -64,15 +64,19 @@ else ()
               HINTS ${netCDFCxx_ROOT}
               DOC "netCDF-C++ include directory.")
 
-    find_library(netCDFCxx_LIBRARY
-                 NAMES netcdf-cxx4 netcdf_c++4
-                 HINTS ${netCDFCxx_ROOT}/lib
-                 NO_DEFAULT_PATH
-                 DOC "netCDF-C++ library.")
-
     if (UNIX)
+        find_library(netCDFCxx_LIBRARY
+                     NAMES netcdf-cxx4 netcdf_c++4
+                     HINTS ${netCDFCxx_ROOT}/lib
+                     DOC "netCDF-C++ library.")
         set(netCDFCxx_LIBRARY_DEBUG ${netCDFCxx_LIBRARY})
     else ()
+        find_library(netCDFCxx_LIBRARY
+                     NAMES netcdf-cxx4 netcdf_c++4
+                     HINTS ${netCDFCxx_ROOT}/lib
+                     NO_DEFAULT_PATH
+                     DOC "netCDF-C++ library.")
+
         find_library(netCDFCxx_LIBRARY_DEBUG
                      NAMES netcdf-cxx4
                      HINTS ${netCDFCxx_ROOT}/debug/lib

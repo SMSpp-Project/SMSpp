@@ -53,15 +53,19 @@ else ()
               HINTS ${netCDF_ROOT}
               DOC "netCDF include directory.")
 
-    find_library(netCDF_LIBRARY
-                 NAMES netcdf
-                 HINTS ${netCDF_ROOT}/lib
-                 NO_DEFAULT_PATH
-                 DOC "netCDF library.")
-
     if (UNIX)
+        find_library(netCDF_LIBRARY
+                     NAMES netcdf
+                     HINTS ${netCDF_ROOT}/lib
+                     DOC "netCDF library.")
         set(netCDF_LIBRARY_DEBUG ${netCDF_LIBRARY})
     else ()
+        find_library(netCDF_LIBRARY
+                     NAMES netcdf
+                     HINTS ${netCDF_ROOT}/lib
+                     NO_DEFAULT_PATH
+                     DOC "netCDF library.")
+
         find_library(netCDF_LIBRARY_DEBUG
                      NAMES netcdf
                      HINTS ${netCDF_ROOT}/debug/lib
