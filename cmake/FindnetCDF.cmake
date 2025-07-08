@@ -49,14 +49,15 @@ else ()
     # ----- Find the headers and library ------------------------------------ #
     # Note that find_path() creates a cache entry
     find_path(netCDF_INCLUDE_DIR
-            NAMES netcdf.h
-            HINTS ${netCDF_ROOT}
-            DOC "netCDF include directory.")
+              NAMES netcdf.h
+              HINTS ${netCDF_ROOT}
+              DOC "netCDF include directory.")
 
     find_library(netCDF_LIBRARY
-            NAMES netcdf
-            HINTS ${netCDF_ROOT}/lib
-            DOC "netCDF library.")
+                 NAMES netcdf
+                 HINTS ${netCDF_ROOT}/lib
+                 NO_DEFAULT_PATH
+                 DOC "netCDF library.")
 
     if (UNIX)
         set(netCDF_LIBRARY_DEBUG ${netCDF_LIBRARY})
@@ -64,6 +65,7 @@ else ()
         find_library(netCDF_LIBRARY_DEBUG
                      NAMES netcdf
                      HINTS ${netCDF_ROOT}/debug/lib
+                     NO_DEFAULT_PATH
                      DOC "netCDF debug library.")
     endif ()
 
