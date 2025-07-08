@@ -73,6 +73,19 @@ void Solver::set_Block( Block * block )
  }
 
 /*--------------------------------------------------------------------------*/
+
+void Solver::set_par( idx_type par , std::string && value )
+{
+ switch( par ) {
+  case( strLogFileName ):
+   LogFileName = std::move( value );
+   break;
+ default:
+   ThinComputeInterface::set_par( par , std::move( value ) );
+  }
+ }  // end( BundleSolver::set_par( std::string && ) )
+
+/*--------------------------------------------------------------------------*/
 /*---------------------- METHODS FOR EVENTS HANDLING -----------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -111,6 +124,15 @@ Solver::OFValue Solver::get_var_value( void ) {
 	           get_ub() : get_lb()
                  : Objective::eMin );
  }
+
+/*--------------------------------------------------------------------------*/
+
+const std::string & Solver::get_str_par( idx_type par ) const {
+ switch( par ) {
+  case( strLogFileName ):   return( LogFileName );
+  default:                  return( ThinComputeInterface::get_str_par( par ) );
+  }
+ }  // end( Solver::get_str_par )
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PROTECTED METHODS -----------------------------*/

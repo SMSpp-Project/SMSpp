@@ -547,11 +547,11 @@ class ThinComputeInterface
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
  *
- * These methods allow to set the algorithmic paramters of the 
+ * These methods allow to set the algorithmic parameters of the
  * ThinComputeInterface, that currently are of 6 different types: int,
  * double, std::string and vectors of these. Each parameter can be changed
- * individully using the corresponding set_par(), or any arbitrary subset of
- * them can be canged in one blow using a ComputeConfig.
+ * individually using the corresponding set_par(), or any arbitrary subset of
+ * them can be changed in one blow using a ComputeConfig.
  * @{ */
 
  /// set a given integer (int) numerical parameter
@@ -781,8 +781,7 @@ class ThinComputeInterface
   * reacting to the ones that they supposedly have) do not have to bother
   * with implementing it. */
 
- virtual void set_par( idx_type par ,
-		       std::vector< std::string > && value ) {}
+ virtual void set_par( idx_type par , std::vector< std::string > && value ) {}
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// move a given vector-of-string (std::vector< std::string >) parameter

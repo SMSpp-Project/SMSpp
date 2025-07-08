@@ -250,7 +250,7 @@ class Solver : public ThinComputeInterface
   * not have in place any mechanism to overcome this issue. */
 
   kLowPrecision ,  ///< a solution found but not provably optimal
-                   /**< The Solver was indeed able to obtain 
+                   /**< The Solver was indeed able to obtain
                     * feasible solution (to within the required tolerance for
   * each Block) but *not* to reach the required accuracy, and this not for an
   * issue relative to limits on the available resources (see kStopTime and
@@ -289,7 +289,7 @@ class Solver : public ThinComputeInterface
  enum int_par_type_S {
   intMaxSol = intLastAlgParTCI ,
                 ///< maximum number of different solutions to report
-                /**< The algorithmic parameter for setting the maximum 
+                /**< The algorithmic parameter for setting the maximum
                  * number of different solutions to the Block that the
   * Solver should attempt to obtain and store. Mathematical models can have
   * (very) many solutions: an objective function precisely helps in selecting
@@ -369,7 +369,7 @@ class Solver : public ThinComputeInterface
   * accuracy is the relative one. */
 
   dblUpCutOff ,  ///< upper cutoff for stopping the algorithm
-                 /**< The algorithmic parameter for setting the "upper cut 
+                 /**< The algorithmic parameter for setting the "upper cut
                   * off" of the solution process. This is a value basically
   * telling the Solver "when enough is enough". In particular, if the Solver
   * obtains a certified lower bound "lb" on the optimal value such that
@@ -390,7 +390,7 @@ class Solver : public ThinComputeInterface
   * The default is Inf< OFValue >(). */
 
   dblLwCutOff ,  ///< lower cutoff for stopping the algorithm
-                 /**< The algorithmic parameter for setting the "lower cut 
+                 /**< The algorithmic parameter for setting the "lower cut
                   * off" of the solution process. This is a value basically
   * telling the Solver "when enough is enough". In particular, if the Solver
   * obtains a certified upper bound "ub" on the optimal value such that
@@ -470,7 +470,8 @@ class Solver : public ThinComputeInterface
   * derived classes. */
 
  enum str_par_type_S {
-  strLastAlgPar = strLastAlgParTCI  ///< first allowed new string parameter
+  strLogFileName = strLastAlgParTCI ,  ///< string name for the log file
+  strLastAlgPar  ///< first allowed new string parameter
   /**< Convenience value for easily allow derived classes to extend the set
    * of string algorithmic parameters. */
   };  // end( str_par_type_S )
@@ -547,7 +548,7 @@ class Solver : public ThinComputeInterface
   *
   * i.e., without any reference to any specific Solver (and, therefore, it can
   * be used to construct the very first Solver if needed).
-  * 
+  *
   * For this to work, each :Solver has to:
   *
   * - add the line
@@ -725,6 +726,18 @@ class Solver : public ThinComputeInterface
   *     NOTHING IN CASE (which is easy, cheap and very reasonable). */
 
  virtual void set_Block( Block * block );
+
+/*--------------------------------------------------------------------------*/
+
+ using ThinComputeInterface::set_par;  // restore the hidden overloaded methods
+
+ /// move the string parameters of Solver
+ /** Move in the string parameters specific of Solver, together with
+  * the parameters of ThinComputeInterface that Solver actually "listens to":
+  *
+  * - strLogFileName [empty]: filename for the inner Solver log. */
+
+ void set_par( idx_type par , std::string && value ) override;
 
 /*--------------------------------------------------------------------------*/
  /// set the ostream for the Solver log
@@ -1594,6 +1607,11 @@ class Solver : public ThinComputeInterface
   return( dflt_dbl_par[ par ] );
   }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ [[nodiscard]] const std::string & get_str_par( idx_type par )
+  const override;
+
 /*--------------------------------------------------------------------------*/
 
  [[nodiscard]] idx_type int_par_str2idx( const std::string & name )
@@ -1660,6 +1678,29 @@ class Solver : public ThinComputeInterface
    throw( std::invalid_argument( "invalid double parameter name" ) );
   return( dbl_pars_str[ idx ] );
   }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ [[nodiscard]] idx_type str_par_str2idx( const std::string & name )
+  const override {
+  if( name == "strLogFileName" )
+   return( strLogFileName );
+
+  return( ThinComputeInterface::str_par_str2idx( name ) );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ [[nodiscard]] const std::string & str_par_idx2str( idx_type idx )
+  const override {
+  static const std::array< std::string , 1 > str_pars_str = {
+   "strLogFileName" };
+
+  if( ( idx >= strLastAlgParTCI ) && ( idx < strLastAlgPar ) )
+   return( str_pars_str[ idx - strLastAlgParTCI ] );
+
+  return( ThinComputeInterface::str_par_idx2str( idx ) );
+ }
 
 /** @} ---------------------------------------------------------------------*/
 /*------------- METHODS FOR ADDING / REMOVING / CHANGING DATA --------------*/
@@ -2001,6 +2042,8 @@ class Solver : public ThinComputeInterface
  ///< container of event handlers
  /**< v_events[ h ][ i ] contains the event handler of
   * ID i for the event type h. */
+
+ std::string LogFileName;  ///< filename for the inner Solver log
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
