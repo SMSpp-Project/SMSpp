@@ -1693,11 +1693,9 @@ class Solver : public ThinComputeInterface
 
  [[nodiscard]] const std::string & str_par_idx2str( idx_type idx )
   const override {
-  static const std::array< std::string , 1 > str_pars_str = {
-   "strLogFileName" };
-
-  if( ( idx >= strLastAlgParTCI ) && ( idx < strLastAlgPar ) )
-   return( str_pars_str[ idx - strLastAlgParTCI ] );
+  static const std::string _par = "strLogFileName";
+  if( idx == strLogFileName )
+   return( _par );
 
   return( ThinComputeInterface::str_par_idx2str( idx ) );
  }
@@ -2044,6 +2042,8 @@ class Solver : public ThinComputeInterface
   * ID i for the event type h. */
 
  std::string LogFileName;  ///< filename for the inner Solver log
+
+ std::fstream f_log_file;  ///< file stream for the inner Solver log file
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/

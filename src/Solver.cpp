@@ -76,13 +76,14 @@ void Solver::set_Block( Block * block )
 
 void Solver::set_par( idx_type par , std::string && value )
 {
- switch( par ) {
-  case( strLogFileName ):
-   LogFileName = std::move( value );
-   break;
- default:
-   ThinComputeInterface::set_par( par , std::move( value ) );
+ if( par == strLogFileName ) {
+  if( f_log_file.is_open() )
+   f_log_file.close();
+  f_log_file.open( value , std::fstream::out | std::fstream::app );
+  set_log( & f_log_file );
+  return;
   }
+ ThinComputeInterface::set_par( par , std::move( value ) );
  }  // end( BundleSolver::set_par( std::string && ) )
 
 /*--------------------------------------------------------------------------*/
