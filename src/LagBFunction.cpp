@@ -1044,7 +1044,8 @@ void LagBFunction::cleanup_inner_objective( void )
  f_c_changed = false;  // Lagrangian costs are now == to original costs
  f_dirty_Lc = ! LagPairs.empty();  // ... hence they have to be updated,
  // unless the Lagrangian term is empty
-}
+
+ }  // end( LagBFunction::cleanup_inner_objective() )
 
 /*--------------------------------------------------------------------------*/
 

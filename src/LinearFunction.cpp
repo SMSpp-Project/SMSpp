@@ -82,7 +82,7 @@ void LinearFunction::get_linearization_coefficients( FunctionValue * g ,
   return;
 
  for( Index i = range.first ; i < range.second ; i++ )
-  *(g++) = v_pairs[ i ].second;
+  *( g++ ) = v_pairs[ i ].second;
 
  }  // end( :get_linearization_coefficients( FunctionValue * , Range ) )
 
@@ -137,7 +137,7 @@ void LinearFunction::get_linearization_coefficients( FunctionValue * g ,
    throw( std::invalid_argument( "LinearFunction::get_linearization_"
                                  "coefficients: wrong index in subset: " +
                                  std::to_string( i ) ) );
-  *(g++) = v_pairs[ i ].second;
+  *( g++ ) = v_pairs[ i ].second;
   }
  }  // end( get_linearization_coefficients( FunctionValue * , Subset )
 
@@ -217,7 +217,7 @@ void LinearFunction::map_active( c_Vec_p_Var & vars , Subset & map ,
    if( i >= v_pairs.size() )
     throw( std::invalid_argument( "LinearFunction::map_active: "
                                   "some Variable is not active" ) );
-   *(it++) = i;
+   *( it++ ) = i;
    }
   }
  }  // end( LinearFunction::map_active )
@@ -335,10 +335,10 @@ void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
    if( i >= v_pairs.size() )
     throw( std::invalid_argument( "LinearFunction::modify_coefficients: "
                                   "invalid index: " + std::to_string( i ) ) );
-   *(vpit++) = v_pairs[ i ].first;
+   *( vpit++ ) = v_pairs[ i ].first;
    auto di = *NCit - v_pairs[ i ].second;
    v_pairs[ i ].second = *NCit;
-   *(NCit++) = di;
+   *( NCit++ ) = di;
    }
 
   // now issue the Modification
@@ -354,7 +354,7 @@ void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
    if( i >= v_pairs.size() )
     throw( std::invalid_argument( "LinearFunction::modify_coefficients: "
                                   "invalid index: " + std::to_string( i ) ) );
-   v_pairs[ i ].second = *(NCit++);
+   v_pairs[ i ].second = *( NCit++ );
    }
 
  }  // end( LinearFunction::modify_coefficients( subset ) )
@@ -383,10 +383,10 @@ void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
   auto vpit = vp.begin();
 
   while( strtit < stopit ) {
-   *(vpit++) = strtit->first;
+   *( vpit++ ) = strtit->first;
    auto di = *NCit - strtit->second;
    ( strtit++ )->second = *NCit;
-   *(NCit++) = di;
+   *( NCit++ ) = di;
    }
 
   // now issue the Modification
@@ -399,7 +399,7 @@ void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
   }
  else  // noone is there: just do it
   while( strtit < stopit )
-   ( *(strtit++) ).second = *(NCit++);
+   ( *( strtit++ ) ).second = *( NCit++ );
 
  }  // end( LinearFunction::modify_coefficients( range ) )
 
@@ -470,7 +470,7 @@ void LinearFunction::remove_variables( Range range , ModParam issueMod )
   Vec_p_Var vars( range.second - range.first );
   auto vpit = vars.begin();
   for( auto tmpit = strtit ; tmpit < stopit ; )
-   *(vpit++) = ( *(tmpit++) ).first;
+   *( vpit++ ) = ( *( tmpit++ ) ).first;
 
   v_pairs.erase( strtit , stopit );
 
@@ -534,19 +534,19 @@ void LinearFunction::remove_variables( Subset && nms , bool ordered ,
   Vec_p_Var vars( nms.size() );
   auto its = vars.begin();
 
-  *(its++) = v_pairs[ *(it++) ].first;
+  *( its++ ) = v_pairs[ *( it++ ) ].first;
   ++vi;              // skip the first element, it will be overwritten
 
   for( ; it < nms.end() ; ++vi )
    if( *it == vi )                // one element to be eliminated
-    *(its++) = v_pairs[ *(it++) ]
+    *( its++ ) = v_pairs[ *( it++ ) ]
      .first;  // skip it, but record the Variable
    else
-    *(curr++) = v_pairs[ vi ];   // move in the current position
+    *( curr++ ) = v_pairs[ vi ];  // move in the current position
 
   auto itv = v_pairs.begin() + vi;
   for( ; itv < v_pairs.end() ; )  // copy the last part
-   *(curr++) = *(itv++);         // after the last of nms[]
+   *( curr++ ) = *( itv++ );      // after the last of nms[]
 
   v_pairs.erase( curr , itv );    // erase the last part
 
@@ -563,14 +563,14 @@ void LinearFunction::remove_variables( Subset && nms , bool ordered ,
   ++vi;   // as it will be overwritten
 
   for( ; it < nms.end() ; ++vi )
-   if( *it == vi )               // one element to be eliminated
-    ++it;                        // skip it
+   if( *it == vi )                // one element to be eliminated
+    ++it;                         // skip it
    else
-    *(curr++) = v_pairs[ vi ];   // move in the current position
+    *( curr++ ) = v_pairs[ vi ];  // move in the current position
 
   auto itv = v_pairs.begin() + vi;
   for( ; itv < v_pairs.end() ; )  // copy the last part
-   *(curr++) = *(itv++);         // after the last of v_var
+   *( curr++ ) = *( itv++ );      // after the last of v_var
 
   v_pairs.erase( curr , itv );    // erase the last part
   }
