@@ -58,7 +58,6 @@ if (netCDFCxx_INCLUDE_DIR AND netCDFCxx_LIBRARY AND netCDFCxx_LIBRARY_DEBUG)
 else ()
 
     # ----- Find the headers and library ------------------------------------ #
-    # Note that find_path() creates a cache entry
     find_path(netCDFCxx_INCLUDE_DIR
               NAMES netcdf
               HINTS ${netCDFCxx_ROOT}
@@ -112,7 +111,7 @@ else ()
     # https://cmake.org/cmake/help/latest/module/FindPackageHandleStandardArgs.html
     find_package_handle_standard_args(
             netCDFCxx
-            REQUIRED_VARS netCDFCxx_LIBRARY netCDFCxx_LIBRARY_DEBUG netCDFCxx_INCLUDE_DIR
+            REQUIRED_VARS netCDFCxx_LIBRARY netCDFCxx_INCLUDE_DIR
             VERSION_VAR netCDFCxx_VERSION)
 endif ()
 
