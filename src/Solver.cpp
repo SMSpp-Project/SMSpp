@@ -73,6 +73,20 @@ void Solver::set_Block( Block * block )
  }
 
 /*--------------------------------------------------------------------------*/
+
+void Solver::set_par( idx_type par , std::string && value )
+{
+ if( par == strLogFileName ) {
+  if( f_log_file.is_open() )
+   f_log_file.close();
+  f_log_file.open( value , std::fstream::out | std::fstream::app );
+  set_log( & f_log_file );
+  return;
+  }
+ ThinComputeInterface::set_par( par , std::move( value ) );
+ }  // end( BundleSolver::set_par( std::string && ) )
+
+/*--------------------------------------------------------------------------*/
 /*---------------------- METHODS FOR EVENTS HANDLING -----------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -111,6 +125,15 @@ Solver::OFValue Solver::get_var_value( void ) {
 	           get_ub() : get_lb()
                  : Objective::eMin );
  }
+
+/*--------------------------------------------------------------------------*/
+
+const std::string & Solver::get_str_par( idx_type par ) const {
+ switch( par ) {
+  case( strLogFileName ):   return( LogFileName );
+  default:                  return( ThinComputeInterface::get_str_par( par ) );
+  }
+ }  // end( Solver::get_str_par )
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PROTECTED METHODS -----------------------------*/
