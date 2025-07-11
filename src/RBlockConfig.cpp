@@ -313,7 +313,9 @@ void RHandler::load( std::istream & input )
    v_sub_Block_id[ i ] = std::to_string( i );
 
   auto cfg = Configuration::deserialize( input );
-  v_sub_BlockConfig[ i ] = dynamic_cast< BlockConfig * >( cfg );
+  if( cfg ) {  // empty Configuration are allowed, but if nonempty they
+               // have to be BlockConfig
+   v_sub_BlockConfig[ i ] = dynamic_cast< BlockConfig * >( cfg );
    if( ! v_sub_BlockConfig[ i ] ) {
     delete cfg;
     throw( std::invalid_argument(
@@ -321,7 +323,8 @@ void RHandler::load( std::istream & input )
 		    + v_sub_Block_id[ i ] ) );
     }
    }
-  }  // end( RHandler::load )
+  }
+ }  // end( RHandler::load )
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- METHODS of CHandler --------------------------*/
