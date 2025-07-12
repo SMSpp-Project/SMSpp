@@ -57,8 +57,10 @@ else ()
                      NAMES netcdf
                      HINTS ${netCDF_ROOT}/lib
                      DOC "netCDF library.")
-        set(netCDF_LIBRARY_DEBUG ${netCDF_LIBRARY})
-    else ()
+
+        set(netCDF_LIBRARY_DEBUG ${netCDF_LIBRARY}
+                CACHE FILEPATH "netCDF debug library." FORCE)
+    elseif (WIN32)
         find_library(netCDF_LIBRARY
                      NAMES netcdf
                      HINTS ${netCDF_ROOT}/lib
