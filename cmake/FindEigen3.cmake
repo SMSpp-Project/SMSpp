@@ -76,13 +76,13 @@ endif ()
 
 # ----- Export the target --------------------------------------------------- #
 if (Eigen3_FOUND)
-    set(Eigen3_INCLUDE_DIRS "${Eigen3_INCLUDE_DIR}")
+    set(Eigen3_INCLUDE_DIRS ${Eigen3_INCLUDE_DIR})
 
     if (NOT TARGET Eigen3::Eigen)
         add_library(Eigen3::Eigen INTERFACE IMPORTED)
         set_target_properties(
                 Eigen3::Eigen PROPERTIES
-                INTERFACE_INCLUDE_DIRECTORIES "${Eigen3_INCLUDE_DIRS}")
+                INTERFACE_INCLUDE_DIRECTORIES ${Eigen3_INCLUDE_DIRS})
     endif ()
 endif ()
 

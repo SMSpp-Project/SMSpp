@@ -119,16 +119,16 @@ endif ()
 
 # ----- Export the target --------------------------------------------------- #
 if (netCDFCxx_FOUND)
-    set(netCDFCxx_INCLUDE_DIRS "${netCDFCxx_INCLUDE_DIR}")
-    set(netCDFCxx_LIBRARIES "${netCDFCxx_LIBRARY}")
+    set(netCDFCxx_INCLUDE_DIRS ${netCDFCxx_INCLUDE_DIR})
+    set(netCDFCxx_LIBRARIES ${netCDFCxx_LIBRARY})
 
     if (NOT TARGET netCDF::netCDFCxx)
         add_library(netCDF::netCDFCxx UNKNOWN IMPORTED)
         set_target_properties(
                 netCDF::netCDFCxx PROPERTIES
-                IMPORTED_LOCATION "${netCDFCxx_LIBRARY}"
-                IMPORTED_LOCATION_DEBUG "${netCDFCxx_LIBRARY_DEBUG}"
-                INTERFACE_INCLUDE_DIRECTORIES "${netCDFCxx_INCLUDE_DIRS}"
+                IMPORTED_LOCATION ${netCDFCxx_LIBRARY}
+                IMPORTED_LOCATION_DEBUG ${netCDFCxx_LIBRARY_DEBUG}
+                INTERFACE_INCLUDE_DIRECTORIES ${netCDFCxx_INCLUDE_DIRS}
                 INTERFACE_LINK_LIBRARIES "${ncTarget};${HDF5_LIBRARIES}")
     endif ()
 endif ()
