@@ -60,13 +60,13 @@ else ()
     # ----- Find the headers and library ------------------------------------ #
     find_path(netCDFCxx_INCLUDE_DIR
               NAMES netcdf
-              HINTS ${netCDFCxx_ROOT}
+              PATHS ${netCDFCxx_ROOT}
               DOC "netCDF-C++ include directory.")
 
     if (UNIX)
         find_library(netCDFCxx_LIBRARY
                      NAMES netcdf-cxx4 netcdf_c++4
-                     HINTS ${netCDFCxx_ROOT}/lib
+                     PATHS ${netCDFCxx_ROOT}/lib
                      DOC "netCDF-C++ library.")
 
         set(netCDFCxx_LIBRARY_DEBUG ${netCDFCxx_LIBRARY}
@@ -74,13 +74,13 @@ else ()
     elseif (WIN32)
         find_library(netCDFCxx_LIBRARY
                      NAMES netcdf-cxx4 netcdf_c++4
-                     HINTS ${netCDFCxx_ROOT}/lib
+                     PATHS ${netCDFCxx_ROOT}/lib
                      NO_DEFAULT_PATH
                      DOC "netCDF-C++ library.")
 
         find_library(netCDFCxx_LIBRARY_DEBUG
                      NAMES netcdf-cxx4
-                     HINTS ${netCDFCxx_ROOT}/debug/lib
+                     PATHS ${netCDFCxx_ROOT}/debug/lib
                      NO_DEFAULT_PATH
                      DOC "netCDF-C++ debug library.")
     endif ()
