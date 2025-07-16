@@ -64,6 +64,7 @@ else ()
         find_library(netCDF_LIBRARY
                      NAMES netcdf
                      PATHS ${netCDF_ROOT}/lib
+                           $ENV{LIBRARY_LIB}
                      NO_DEFAULT_PATH
                      DOC "netCDF library.")
 
