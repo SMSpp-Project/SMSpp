@@ -1967,7 +1967,6 @@ bool un_any_const_dynamic( const boost::any & any , F f ,
 
 #endif
 
-
 /*--------------------------------------------------------------------------*/
 
 #define un_any_thing_static( thing_type , my_thing , f )                     \
