@@ -75,7 +75,7 @@ else ()
         find_library(netCDFCxx_LIBRARY
                      NAMES netcdf-cxx4
                      PATHS ${netCDFCxx_ROOT}/lib
-                           $ENV{LIBRARY_PREFIX}/lib
+                           $ENV{LIBRARY_LIB}
                      NO_DEFAULT_PATH
                      DOC "netCDF-C++ library.")
 
