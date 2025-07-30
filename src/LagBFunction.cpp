@@ -2354,7 +2354,7 @@ bool LagBFunction::flush_v_tmpCP( void )
   if( ! v_Block.front()->lock( f_id ) )          // try to lock it
    throw( std::logic_error( "LagBFunction: cannot lock inner Block" ) );
   tounlock = true;                               // it'll have to be unlocked
- }
+  }
 
  f_play_dumb = true;                // ignore any ensuing Modification
 
@@ -2363,29 +2363,33 @@ bool LagBFunction::flush_v_tmpCP( void )
   if( ! v_ObjIsQuad[ h ] ) {  // the linear case
    auto * lf = static_cast< p_LF >( v_Obj[ h ]->get_function() );
    if( v_tmpCP[ h ].size() == 1 )
-    lf->add_variable( v_tmpCP[ h ].front().first , v_tmpCP[ h ].front().second );
+    lf->add_variable( v_tmpCP[ h ].front().first ,
+		      v_tmpCP[ h ].front().second );
    else
     lf->add_variables( std::move( v_tmpCP[ h ] ) );
-  }
+   }
   else {                      // the quadratic case
    auto * qf = static_cast< p_QF >( v_Obj[ h ]->get_function() );
    if( v_tmpCP[ h ].size() == 1 )
-    qf->add_variable( v_tmpCP[ h ].front().first , v_tmpCP[ h ].front().second , 0 );
+    qf->add_variable( v_tmpCP[ h ].front().first ,
+		      v_tmpCP[ h ].front().second , 0 );
    else {
-    v_coeff_triple vars( v_tmpCP[ h ].size() , coeff_triple( nullptr , 0 , 0 ) );
+    v_coeff_triple vars( v_tmpCP[ h ].size() ,
+			 coeff_triple( nullptr , 0 , 0 ) );
     for( Index i = 0 ; i < v_tmpCP[ h ].size() ; ++i ) {
      std::get< 0 >( vars[ i ] ) = v_tmpCP[ h ][ i ].first;
      std::get< 1 >( vars[ i ] ) = v_tmpCP[ h ][ i ].second;
-    }
+     }
     qf->add_variables( std::move( vars ) );
+    }
    }
-  }
   v_tmpCP[ h ].clear();             // done
- }
+  }
 
  f_play_dumb = false;               // back to normal operations
 
  return( tounlock );
+
  }  // end( LagBFunction::flush_v_tmpCP )
 
 /*--------------------------------------------------------------------------*/
@@ -3762,7 +3766,7 @@ void LagBFunction::update_CostMatrix_ModVarsAddd( c_Vec_p_Var & vars ,
   if( ( it == Block2Idx.end() ) || ( it->second >= v_Obj.size() ) )
    throw( std::logic_error( "Variable not found in any objective" ) );
   b = it->second;
- }
+  }
 
  m_column & CM = CostMatrix[ b ];
 
@@ -3772,11 +3776,12 @@ void LagBFunction::update_CostMatrix_ModVarsAddd( c_Vec_p_Var & vars ,
 
   #ifndef NDEBUG
    if( first != CM.size() )
-    throw( std::logic_error( "inconsistent CostMatrix[" + std::to_string( b ) + "]" ) );
+    throw( std::logic_error( "inconsistent CostMatrix[" +
+			     std::to_string( b ) + "]" ) );
   #endif
 
   CM.resize( CM.size() + vars.size() );
- }
+  }
  else {
   // some variables must be "stealthily" added to obj: thus, the entries
   // of CostMatrix have not to be added at the end, and we have to check
