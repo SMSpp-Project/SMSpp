@@ -112,13 +112,13 @@ namespace SMSpp_di_unipi_it
  *    Variable of the LagBFunction seen as a Block, because they are
  *    conceptually fixed when the Block is solved. The y_i corresponding to
  *    inequality constraints will have an appropriate sign constraint (either
- *    by y_i being is_positive)= or is_negative() or by, say, some appropriate
+ *    by y_i being is_positive() or is_negative() or by, say, some appropriate
  *    :OneVarConstraint regarding y_i); however, this will be a concern of
  *    the "outer" Block defining them, and therefore is not a concern of the
  *    LagBFunction.
  *
  * 3) A list of pairs of relaxed functions and their Lagrangian multipliers:
- *    { ( y_i , g_i( x ) ) }_{ i \in \bar{I} } which handle the  dynamic
+ *    { ( y_i , g_i( x ) ) }_{ i \in \bar{I} } which handle the dynamic
  *    generation/removal which handle the dynamic relaxation of constraints.
  *
  * Note that the LagBFunction is not supposed to have any Constraint or
@@ -135,7 +135,7 @@ namespace SMSpp_di_unipi_it
  * its domain; however, it typically is non differentiable. Indeed, if x(y)
  * is the (eps-)optimal solution of (L_y), then
  *
- *       h = g( x(  y) ) = [ g_i( x( y ) ) ]_{ i \in I }
+ *       h = g( x(  y ) ) = [ g_i( x( y ) ) ]_{ i \in I }
  *
  * is a(n eps-)subgradient of l( y ) at y (supergradient if (B) is a
  * minimization problem and therefore l is concave). Hence, the gradient of l
@@ -243,24 +243,24 @@ namespace SMSpp_di_unipi_it
  *
  * - THE LAGRANGIAN TERM MAY HAVE A DIFFERENT "SHAPE" THAN THE ORIGINAL
  *   LinearFunction c( x ) (i.e., more ColVariable may have a nonzero
- *   coefficient than in happened in c(x)), which means that ColVariable
+ *   coefficient than in happened in c( x )), which means that ColVariable
  *   CAN BE ADDED TO c( x ) THAT WERE NOT ORIGINALLY THERE.
  *
  *   This, as already mentioned, my be a problem for some Block/Solver that
  *   require a specific arrangement. Furthermore, it means that ANY PROCESS
- *   CHANGING THE COEFFICIENTS OF c(x) "FROM OUTSIDE OF THE LagBFunction"
+ *   CHANGING THE COEFFICIENTS OF c( x ) "FROM OUTSIDE OF THE LagBFunction"
  *   MAY FIND "UNEXPECTED" ColVariable IN IT; ALSO, A PROCESS MAY DELETE A
- *   ColVariable FROM c(x) AND "MYSTERIOUSLY SEE IT IMMEDIATELY REINSTATED"
+ *   ColVariable FROM c( x ) AND "MYSTERIOUSLY SEE IT IMMEDIATELY REINSTATED"
  *   (since that ColVariable has a nonzero coefficient in the Lagrangian
- *   function even if it has not in c(x)). This must not be a problem for
+ *   function even if it has not in c( x )). This must not be a problem for
  *   the "outside" process.
  *
  * - THE LagBFunction WILL ONLY *ADD* TERMS TO c(x), BUT NEVER REMOVE THEM.
  *   In particular, it may happen that a coefficient is added to c( x ) for
  *   some variable x_j due to some term g_i(x) having a nonzero coefficient
  *   in x_j, while, say, the original coefficient(s) of x_j in c( x ) was 0,
- *   i.e., x_j was *not* in c(x). Later, the Lagrangian term(s) g_i(x )  may
- *   be changed and x_j may no longer have a nonzero coefficient in the
+ *   i.e., x_j was *not* in c( x ). Later, the Lagrangian term(s) g_i(x )
+ *   may be changed and x_j may no longer have a nonzero coefficient in the
  *   Lagrangian term for any value of y. YET, x_j IS KEPT IN THE
  *   LinearFunction / DQuadFunction IN THE Objective OF (B) WITH 0
  *   COEFFICIENT(S): no attempt is made to "optimize away" such Variable. The
