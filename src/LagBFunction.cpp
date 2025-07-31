@@ -324,7 +324,7 @@ void LagBFunction::set_inner_block( Block * innerblock , bool deleteold )
                                    // unless the Lagrangian term is empty
  f_Lc = -1;            // the Lipschitz constant must be computed
 
- }  // end( LagBFunction::set_inner_block )
+}  // end( LagBFunction::set_inner_block )
 
 /*--------------------------------------------------------------------------*/
 
@@ -484,7 +484,7 @@ void LagBFunction::set_par( idx_type par , int value )
     if( f_max_glob > Index( value ) ) {
      f_max_glob = value;
      update_f_max_glob();
-     }
+     }    
     }
    g_pool.resize( value , gpool_el( nullptr , true ) );
    break;
@@ -858,8 +858,8 @@ void LagBFunction::remove_variables( Range range , ModParam issueMod )
    delete LPi->second;
 
   LagPairs.erase( strtit , stopit );  // now erase them
-  }
- }  // end( LagBFunction::remove_variables( range ) )
+ }
+}  // end( LagBFunction::remove_variables( range ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -1010,7 +1010,7 @@ void LagBFunction::remove_variables( Subset && nms , bool ordered ,
  else    // noone is there: just do it
   Compact( LagPairs , nms );
 
- }  // end( LagBFunction::remove_variables( subset ) )
+}  // end( LagBFunction::remove_variables( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -1027,24 +1027,17 @@ void LagBFunction::cleanup_inner_objective( void )
   const auto & CMh = CostMatrix[ h ];
 
   // construct the vector of original coefficients
-  Vec_FunctionValue NC;
+  Vec_FunctionValue NC( CMh.size() );
+  for( Index i = 0 ; i < CMh.size() ; ++i )
+   NC[ i ] = CMh[ i ].first;
 
-  if( ! v_ObjIsQuad[ h ] ) {
-   auto * lf = static_cast< p_LF >( v_Obj[ h ]->get_function() );
-   const auto & vars = lf->get_v_var();
-   NC.reserve( vars.size() );
-   for( Index i = 0 ; i < vars.size() ; ++i )
-    NC.push_back( ( i < CMh.size() ? CMh[ i ].first : 0.0 ) );
-   lf->modify_coefficients( std::move( NC ) );
-  }
-  else {
-   auto * qf = static_cast< p_QF >( v_Obj[ h ]->get_function() );
-   const auto & vars = qf->get_v_var();
-   NC.reserve( vars.size() );
-   for( Index i = 0 ; i < vars.size() ; ++i )
-    NC.push_back( ( i < CMh.size() ? CMh[ i ].first : 0.0 ) );
-   qf->modify_linear_coefficients( std::move( NC ) );
-  }
+  // modify the objective (linear or quadratic)
+  if( ! v_ObjIsQuad[ h ] )
+   static_cast< p_LF >( v_Obj[ h ]->get_function() )
+    ->modify_coefficients( std::move( NC ) );
+  else
+   static_cast< p_QF >( v_Obj[ h ]->get_function() )
+    ->modify_linear_coefficients( std::move( NC ) );
  }
 
  f_play_dumb = false;  // back to normal operations
@@ -1284,7 +1277,7 @@ void LagBFunction::serialize( netCDF::NcGroup & group ) const
 
  if( ! owned )
   v_Block.front()->unlock( f_id );  // unlock it
- }  // end( LagBFunction::serialize )
+}  // end( LagBFunction::serialize )
 
 /*--------------------------------------------------------------------------*/
 /*----------- METHODS FOR HANDLING THE State OF THE LagBFunction -----------*/
@@ -2189,7 +2182,7 @@ Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
 
  return( alpha );
 
- }  // end( LagBFunction::get_linearization_constant )
+}  // end( LagBFunction::get_linearization_constant )
 
 /*--------------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
@@ -2289,7 +2282,7 @@ void LagBFunction::get_MatDesc( int * Abeg , int * Aind , double * Aval ,
 
  Abeg[ j ] = count;
 
- }  // end( LagBFunction::get_MatDesc )
+}  // end( LagBFunction::get_MatDesc )
 
 /*--------------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE LagBFunction ---------*/
@@ -2480,7 +2473,7 @@ void LagBFunction::add_to_CostMatrix( v_c_dual_pair & newdp )
  if( ( ! v_tmpCP.empty() ) && flush_v_tmpCP() )
   v_Block.front()->unlock( f_id );
 
- }  // end( LagBFunction::add_to_CostMatrix )
+}  // end( LagBFunction::add_to_CostMatrix )
 
 /*--------------------------------------------------------------------------*/
 
@@ -2561,9 +2554,9 @@ void LagBFunction::mod_CostMatrix( Index i , Index first )
 				     { return( a.first < b.first ); } );
    // add < y_i , a_{ij} > to A_j
    CMj.second.insert( itp , y_pair );
-   }
-  }  // end( for( each monomial in g_i( x ) ) )
- }  // end( LagBFunction::mod_CostMatrix )
+  }
+ }  // end( for( each monomial in g_i( x ) ) )
+}  // end( LagBFunction::mod_CostMatrix )
 
 /*--------------------------------------------------------------------------*/
 
@@ -3578,7 +3571,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod , ChnlName chnl )
  // yet another example about why we should be adding some "semantic"
  // information to Modification that give an idea of the kind of change that
  // they can exert on the model
- }  // end( LagBFunction::guts_of_guts_of_add_Modification )
+}  // end( LagBFunction::guts_of_guts_of_add_Modification )
 
 /*--------------------------------------------------------------------------*/
 
@@ -3657,10 +3650,10 @@ void LagBFunction::update_CostMatrix_ModLinRngd( const v_coeff_pair & rc ,
     // otherwise, do nothing: the changed Variable is no longer in obj
     // at this point, which means that the corresponding Modification
     // is waiting in the queue to be discovered and acted upon
-    }
    }
   }
- }  // end( LagBFunction::update_CostMatrix_ModLinRngd )
+ }
+}  // end( LagBFunction::update_CostMatrix_ModLinRngd )
 
 /*--------------------------------------------------------------------------*/
 
@@ -3739,10 +3732,10 @@ void LagBFunction::update_CostMatrix_ModLinSbst( const v_coeff_pair & rc ,
     // otherwise, do nothing: the changed Variable is no longer in obj
     // at this point, which means that the corresponding Modification
     // is waiting in the queue to be discovered and acted upon
-    }
    }
   }
- }  // end( LagBFunction::update_CostMatrix_ModLinSbst )
+ }
+}  // end( LagBFunction::update_CostMatrix_ModLinSbst )
 
 /*--------------------------------------------------------------------------*/
 
@@ -3800,9 +3793,9 @@ void LagBFunction::update_CostMatrix_ModVarsAddd( c_Vec_p_Var & vars ,
      CM[ first + j ] = std::move( CM[ first + nv + j ] );
      CM.erase( CM.begin() + first + nv + i );
      break;
-     }
-  }
- }  // end( LagBFunction::update_CostMatrix_ModVarsAddd )
+    }
+ }
+}  // end( LagBFunction::update_CostMatrix_ModVarsAddd )
 
 /*--------------------------------------------------------------------------*/
 
@@ -3864,7 +3857,7 @@ void LagBFunction::update_CostMatrix_ModVarsRngd( c_Vec_p_Var & vars ,
              std::make_move_iterator( tempCM.begin() ),
              std::make_move_iterator( tempCM.end() ) );
 
- }  // end( LagBFunction::update_CostMatrix_ModVarsRngd )
+}  // end( LagBFunction::update_CostMatrix_ModVarsRngd )
 
 /*--------------------------------------------------------------------------*/
 
@@ -3923,7 +3916,7 @@ void LagBFunction::update_CostMatrix_ModVarsSbst( c_Vec_p_Var & vars ,
              std::make_move_iterator( tempCM.begin() ),
              std::make_move_iterator( tempCM.end() ) );
 
- }  // end( LagBFunction::update_CostMatrix_ModVarsSbst )
+}  // end( LagBFunction::update_CostMatrix_ModVarsSbst )
 
 /*--------------------------------------------------------------------------*/
 

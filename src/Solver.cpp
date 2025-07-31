@@ -79,7 +79,7 @@ void Solver::set_par( idx_type par , std::string && value )
  if( par == strLogFileName ) {
   if( f_log_file.is_open() )
    f_log_file.close();
-  f_log_file.open( value , std::fstream::out | std::fstream::trunc );
+  f_log_file.open( value , std::fstream::out | std::fstream::app );
   set_log( & f_log_file );
   return;
   }
