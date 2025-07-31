@@ -52,7 +52,7 @@ else ()
     endif ()
 endif ()
 
-# ----- Check if already in cache ------------------------------------------- #
+# Check if already in cache
 if (netCDFCxx_INCLUDE_DIR AND netCDFCxx_LIBRARY AND netCDFCxx_LIBRARY_DEBUG)
     set(netCDFCxx_FOUND TRUE)
 else ()
