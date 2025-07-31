@@ -2160,12 +2160,8 @@ Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
    const auto & rp = static_cast< p_LF >( obj->get_function() )->get_v_var();
 
    #ifndef NDEBUG
-   if( rp.size() > cm.size() ) {
-    std::cerr << "[get_linearization_constant] block " << v_Obj[ h ]->get_Block()->classname() << " rp.size() = "
-     << rp.size() << ", cm.size() = " << cm.size() << std::endl;
-
-    throw( std::logic_error( "CostMatrix inconsistent with linear objective" ) );
-    }
+    if( rp.size() > cm.size() )
+     throw( std::logic_error( "CostMatrix inconsistent with linear objective" ) );
    #endif
 
    for( Index i = 0 ; i < rp.size() ; ++i )
