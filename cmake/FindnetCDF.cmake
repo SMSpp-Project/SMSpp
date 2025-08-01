@@ -46,12 +46,13 @@ if (netCDF_INCLUDE_DIR AND netCDF_LIBRARY AND netCDF_LIBRARY_DEBUG)
     set(netCDF_FOUND TRUE)
 else ()
 
-    # ----- Find the headers and library ------------------------------------ #
+    # ----- Find the headers ------------------------------------------------ #
     find_path(netCDF_INCLUDE_DIR
               NAMES netcdf.h
               PATHS ${netCDF_ROOT}
               DOC "netCDF include directory.")
 
+    # ----- Find the library ------------------------------------------------ #
     if (UNIX)
         find_library(netCDF_LIBRARY
                      NAMES netcdf
