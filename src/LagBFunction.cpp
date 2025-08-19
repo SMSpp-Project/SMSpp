@@ -2378,6 +2378,7 @@ bool LagBFunction::flush_v_tmpCP( void )
    }
   v_tmpCP[ h ].clear();             // done
   }
+ v_tmpCP.clear();
 
  f_play_dumb = false;               // back to normal operations
 
