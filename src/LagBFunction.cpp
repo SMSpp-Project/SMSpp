@@ -2736,7 +2736,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod , ChnlName chnl )
 
      // issue a C05FunctionModRngd saying that the entry i of all
      // the linearizations in the global pool has changed (the value of
-     // the function has changed unpredictably, i.e, shift() == NaN)
+     // the function has changed unpredictably, i.e., shift() == NaN)
      if( f_Observer )
       f_Observer->add_Modification( std::make_shared< C05FunctionModRngd >(
            this , C05FunctionMod::AllEntriesChanged ,
@@ -2845,7 +2845,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod , ChnlName chnl )
      // issue a C05FunctionModRngd (yes, it is Rngd, even if the originating
      // C05FunctionModLin was a Sbst one) saying that the entry i of all
      // the linearizations in the global pool has changed (the value of
-     // the function has changed unpredictably, i.e, shift() == NaN)
+     // the function has changed unpredictably, i.e., shift() == NaN)
      if( f_Observer )
       f_Observer->add_Modification( std::make_shared< C05FunctionModRngd >(
            this , C05FunctionMod::AllEntriesChanged ,
@@ -3145,7 +3145,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod , ChnlName chnl )
 
      // issue a C05FunctionModRngd saying that the entry i of all
      // the linearizations in the global pool has changed (the value of
-     // the function has changed unpredictably, i.e, shift() == NaN)
+     // the function has changed unpredictably, i.e., shift() == NaN)
      if( f_Observer )
       f_Observer->add_Modification( std::make_shared< C05FunctionModRngd >(
            this , C05FunctionMod::AllEntriesChanged ,
@@ -3274,7 +3274,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod , ChnlName chnl )
 
      // issue a C05FunctionModRngd saying that the entry i of all
      // the linearizations in the global pool has changed (the value of
-     // the function has changed unpredictably, i.e, shift() == NaN)
+     // the function has changed unpredictably, i.e., shift() == NaN)
      if( f_Observer )
       f_Observer->add_Modification( std::make_shared< C05FunctionModRngd >(
            this , C05FunctionMod::AllEntriesChanged ,
@@ -3400,7 +3400,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod , ChnlName chnl )
 
      // issue a C05FunctionModRngd saying that the entry i of all
      // the linearizations in the global pool has changed (the value of
-     // the function has changed unpredictably, i.e, shift() == NaN)
+     // the function has changed unpredictably, i.e., shift() == NaN)
      if( f_Observer )
       f_Observer->add_Modification( std::make_shared< C05FunctionModRngd >(
            this , C05FunctionMod::AllEntriesChanged ,
