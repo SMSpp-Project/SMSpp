@@ -649,9 +649,9 @@ void LagBFunction::add_dual_pairs( v_dual_pair && dp , ModParam issueMod )
 
  // a Lagrangian function is strongly quasi-additive: shift() == 0
  f_Observer->add_Modification( std::make_shared< C05FunctionModVarsAddd >(
-					 this , std::move( vars ) , k , 0 ,
-					 Observer::par2concern( issueMod ) ) ,
-			       Observer::par2chnl( issueMod ) );
+                                this , std::move( vars ) , k , 0 ,
+                                Observer::par2concern( issueMod ) ) ,
+                               Observer::par2chnl( issueMod ) );
 
  }  // end( LagBFunction::add_dual_pairs )
 
@@ -676,11 +676,9 @@ void LagBFunction::remove_variable( Index i , ModParam issueMod )
  auto & CMh = CostMatrix[ h ];
 
  // find the position of the term < i , a_{ij} > in CMj
- auto itcm = std::lower_bound(
-   CMh.begin(), CMh.end(), mon_pair( i , 0 ),
-   []( const auto & a , const auto & b ) {
-     return( a.first < b.first );
-   });
+ auto itcm = std::lower_bound( CMh.begin() , CMh.end() , mon_pair( i , 0 ) ,
+                               []( const auto & a , const auto & b ) {
+                                return ( a.first < b.first ); } );
 
  if( ( itcm != CMh.end() ) && ( itcm->first == i ) ) {
   // decrease by 1 the names of all the < h , a_{hj} > with h > i
@@ -718,9 +716,9 @@ void LagBFunction::remove_variable( Index i , ModParam issueMod )
 
  // a Lagrangian function is strongly quasi-additive: shift() == 0
  f_Observer->add_Modification( std::make_shared< C05FunctionModVarsRngd >(
-                                  this , Vec_p_Var( { var } ) ,
-                                  Range( i , i + 1 ) , 0 ,
-                                  Observer::par2concern( issueMod ) ) ,
+                                this , Vec_p_Var( { var } ) ,
+                                Range( i , i + 1 ) , 0 ,
+                                Observer::par2concern( issueMod ) ) ,
                                Observer::par2chnl( issueMod ) );
 
 }  // end( LagBFunction::remove_variable )
@@ -747,9 +745,9 @@ void LagBFunction::remove_variables( Range range , ModParam issueMod )
    // now issue the Modification: note that the subset is empty
    // a LagBFunction is strongly quasi-additive
    f_Observer->add_Modification( std::make_shared< C05FunctionModVarsSbst >(
-				 this , std::move( vars ) , Subset() , true ,
-				 0 , Observer::par2concern( issueMod ) ) ,
-				 Observer::par2chnl( issueMod ) );
+                                  this , std::move( vars ) , Subset() , true ,
+                                  0 , Observer::par2concern( issueMod ) ) ,
+                                 Observer::par2chnl( issueMod ) );
   }
   else          // no-one is listening
    clear_lp();  // just do it
@@ -780,24 +778,22 @@ void LagBFunction::remove_variables( Range range , ModParam issueMod )
   auto & CMh = CostMatrix[ h ];
 
   // find the position of the term < range.first , a_{*j} > in CMj
-  auto iit = std::lower_bound( CMh.begin(), CMh.end(),
-			       mon_pair( i , 0 ),
-			       []( const auto & a , const auto & b ) {
-			        return( a.first < b.first );
-			       });
+  auto iit = std::lower_bound( CMh.begin() , CMh.end() ,
+                               mon_pair( i , 0 ) ,
+                               []( const auto & a , const auto & b ) {
+                                return ( a.first < b.first ); } );
 
   // find the position of the term < range.second , a_{*j} > in CMj
-  auto eit = std::lower_bound( CMh.begin(), CMh.end(),
-			       mon_pair( range.second , 0 ),
-			       []( const auto & a , const auto & b ) {
-			        return( a.first < b.first );
-			       });
+  auto eit = std::lower_bound( CMh.begin() , CMh.end() ,
+                               mon_pair( range.second , 0 ) ,
+                               []( const auto & a , const auto & b ) {
+                                return ( a.first < b.first ); } );
 
   if( iit != eit ) {  // if any of these are found
    // decrease by range.second - range.first the names of all the
    // < h , a_{hj} > with h >= range.second
    for( auto nit = eit ; nit != CMh.end() ; ++nit )
-    (nit->first) -= range.second - range.first;
+    ( nit->first ) -= range.second - range.first;
 
    CMh.erase( iit , eit );   // finally, erase them all
    // NOTE: we do not remove the row from CostMatrix[ h ] even if it's now empty,
@@ -839,9 +835,9 @@ void LagBFunction::remove_variables( Range range , ModParam issueMod )
 
   // a Lagrangian function is strongly quasi-additive: shift() == 0
   f_Observer->add_Modification( std::make_shared< C05FunctionModVarsRngd >(
-				       this , std::move( vars ) , range , 0 ,
-				       Observer::par2concern( issueMod ) ) ,
-				Observer::par2chnl( issueMod ) );
+                                 this , std::move( vars ) , range , 0 ,
+                                 Observer::par2concern( issueMod ) ) ,
+                                Observer::par2chnl( issueMod ) );
  }
  else {  // noone is there: just do it
   // if any of the removed Lagrangian terms is nonempty, Lagrangian costs
@@ -879,9 +875,9 @@ void LagBFunction::remove_variables( Subset && nms , bool ordered ,
    // now issue the Modification: note that the subset is empty
    // a LagBFunction is strongly quasi-additive
    f_Observer->add_Modification( std::make_shared< C05FunctionModVarsSbst >(
-				 this , std::move( vars ) , Subset() , true ,
-				 0 , Observer::par2concern( issueMod ) ) ,
-				 Observer::par2chnl( issueMod ) );
+                                  this , std::move( vars ) , Subset() , true ,
+                                  0 , Observer::par2concern( issueMod ) ) ,
+                                 Observer::par2chnl( issueMod ) );
   }
   else          // no-one is listening
    clear_lp();  // just do it
@@ -921,9 +917,9 @@ void LagBFunction::remove_variables( Subset && nms , bool ordered ,
 
   // find the position of the term < nms.front() , a_{*j} > in CMj
   auto iit = std::lower_bound( CMh.begin() , CMh.end() ,
-			       mon_pair( nms.front() , 0 ) ,
-			       []( const auto & a , const auto & b )
-			         { return( a.first < b.first ); } );
+                               mon_pair( nms.front() , 0 ) ,
+                               []( const auto & a , const auto & b ) {
+                                return ( a.first < b.first ); } );
 
   if( iit == CMh.end() )  // none of them is there
    continue;              // next
@@ -945,7 +941,7 @@ void LagBFunction::remove_variables( Subset && nms , bool ordered ,
   // decrease by nms.size() the names of all the < h , a_{hj} > with
   // h > nms.back()
   for( auto nit = iit ; nit != CMh.end() ; ++nit )
-   (nit->first) -= nms.size();
+   ( nit->first ) -= nms.size();
 
   CMh.erase( wit , iit );  // now erase the deleted part
   // if this leaves the term empty and the term actually was of some variable
@@ -1002,10 +998,10 @@ void LagBFunction::remove_variables( Subset && nms , bool ordered ,
 
   // a Lagrangian function is strongly quasi-additive: shift() == 0
   f_Observer->add_Modification( std::make_shared< C05FunctionModVarsSbst >(
-					 this , std::move( vars ) ,
-					 std::move( nms ) , ordered , 0 ,
-                                         Observer::par2concern( issueMod ) ) ,
-				Observer::par2chnl( issueMod ) );
+                                 this , std::move( vars ) ,
+                                 std::move( nms ) , ordered , 0 ,
+                                 Observer::par2concern( issueMod ) ) ,
+                                Observer::par2chnl( issueMod ) );
  }
  else    // noone is there: just do it
   Compact( LagPairs , nms );
@@ -2314,7 +2310,7 @@ void LagBFunction::map_active( c_Vec_p_Var & vars , Subset & map ,
  if( ordered )
   for( Index i = 0 ; i < LagPairs.size() ; ++i ) {
    auto itvi = std::lower_bound( vars.begin() , vars.end() ,
-				 LagPairs[ i ].first );
+                                 LagPairs[ i ].first );
    if( itvi != vars.end() )
     map[ std::distance( vars.begin() , itvi ) ] = i;
    else
@@ -2460,9 +2456,9 @@ void LagBFunction::add_to_CostMatrix( v_c_dual_pair & newdp )
     // name of y_i is LagPairs.size() + i
     auto & CMh = CostMatrix[ h ][ j ];
     auto itp = std::lower_bound( CMh.second.begin() , CMh.second.end() ,
-				 mon_pair( LagPairs.size() + i , 0 ) ,
-				 []( const auto & a , const auto & b )
-					  { return( a.first < b.first ); } );
+                                 mon_pair( LagPairs.size() + i , 0 ) ,
+                                 []( const auto & a , const auto & b )
+                                 { return( a.first < b.first ); } );
     // add < y_i , a_{ij} > to A_j
     CMh.second.insert( itp , y_pair );
    }
@@ -2550,9 +2546,9 @@ void LagBFunction::mod_CostMatrix( Index i , Index first )
    // find the place of < y_i , a_{ij} > in A_j
    auto & CMj = CostMatrix[ k ][ j ];
    auto itp = std::lower_bound( CMj.second.begin() , CMj.second.end() ,
-				mon_pair( i , 0 ) ,
-				[]( const auto & a , const auto & b )
-				     { return( a.first < b.first ); } );
+                                mon_pair( i , 0 ) ,
+                                []( const auto & a , const auto & b )
+                                { return( a.first < b.first ); } );
    // add < y_i , a_{ij} > to A_j
    CMj.second.insert( itp , y_pair );
   }
@@ -2717,10 +2713,10 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod , ChnlName chnl )
 
       // find the place of < y_i , a_{ij} > in A_j (has to be there)
       auto ajit = std::lower_bound( CMh[ j ].second.begin() ,
-        CMh[ j ].second.end() ,
-        mon_pair( i , 0 ) ,
-        []( const auto & a , const auto & b )
-              { return( a.first < b.first ); } );
+                                    CMh[ j ].second.end() ,
+                                    mon_pair( i , 0 ) ,
+                                    []( const auto & a , const auto & b )
+                                    { return( a.first < b.first ); } );
 
       #ifndef NDEBUG
        if( ajit == CMh[ j ].second.end() )
@@ -2825,10 +2821,10 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod , ChnlName chnl )
 
       // find the place of < y_i , a_{ij} > in A_j (has to be there)
       auto ajit = std::lower_bound( CMh[ j ].second.begin() ,
-        CMh[ j ].second.end() ,
-        mon_pair( i , 0 ) ,
-        []( const auto & a , const auto & b )
-              { return( a.first < b.first ); } );
+                                    CMh[ j ].second.end() ,
+                                    mon_pair( i , 0 ) ,
+                                    []( const auto & a , const auto & b )
+                                    { return( a.first < b.first ); } );
 
       #ifndef NDEBUG
        if( ajit == CMh[ j ].second.end() )
@@ -3249,10 +3245,10 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod , ChnlName chnl )
       }
 
       auto ajit = std::lower_bound( CMh[ j ].second.begin() ,
-        CMh[ j ].second.end() ,
-        mon_pair( i , 0 ) ,
-        []( const auto & a , const auto & b )
-              { return( a.first < b.first ); } );
+                                    CMh[ j ].second.end() ,
+                                    mon_pair( i , 0 ) ,
+                                    []( const auto & a , const auto & b )
+                                    { return( a.first < b.first ); } );
 
       #ifndef NDEBUG
        if( ajit == CMh[ j ].second.end() )
@@ -3375,10 +3371,10 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod , ChnlName chnl )
       }
 
       auto ajit = std::lower_bound( CMh[ j ].second.begin() ,
-        CMh[ j ].second.end() ,
-        std::make_pair( i , 0 ) ,
-        []( const auto & a , const auto & b )
-              { return( a.first < b.first ); } );
+                                    CMh[ j ].second.end() ,
+                                    std::make_pair( i , 0 ) ,
+                                    []( const auto & a , const auto & b )
+                                    { return( a.first < b.first ); } );
 
       #ifndef NDEBUG
        if( ajit == CMh[ j ].second.end() )
