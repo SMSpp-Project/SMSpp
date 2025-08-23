@@ -678,7 +678,7 @@ void LagBFunction::remove_variable( Index i , ModParam issueMod )
  // find the position of the term < i , a_{ij} > in CMj
  auto itcm = std::lower_bound( CMh.begin() , CMh.end() , mon_pair( i , 0 ) ,
                                []( const auto & a , const auto & b ) {
-                                return ( a.first < b.first ); } );
+                                return( a.first < b.first ); } );
 
  if( ( itcm != CMh.end() ) && ( itcm->first == i ) ) {
   // decrease by 1 the names of all the < h , a_{hj} > with h > i
@@ -781,13 +781,13 @@ void LagBFunction::remove_variables( Range range , ModParam issueMod )
   auto iit = std::lower_bound( CMh.begin() , CMh.end() ,
                                mon_pair( i , 0 ) ,
                                []( const auto & a , const auto & b ) {
-                                return ( a.first < b.first ); } );
+                                return( a.first < b.first ); } );
 
   // find the position of the term < range.second , a_{*j} > in CMj
   auto eit = std::lower_bound( CMh.begin() , CMh.end() ,
                                mon_pair( range.second , 0 ) ,
                                []( const auto & a , const auto & b ) {
-                                return ( a.first < b.first ); } );
+                                return( a.first < b.first ); } );
 
   if( iit != eit ) {  // if any of these are found
    // decrease by range.second - range.first the names of all the
@@ -919,7 +919,7 @@ void LagBFunction::remove_variables( Subset && nms , bool ordered ,
   auto iit = std::lower_bound( CMh.begin() , CMh.end() ,
                                mon_pair( nms.front() , 0 ) ,
                                []( const auto & a , const auto & b ) {
-                                return ( a.first < b.first ); } );
+                                return( a.first < b.first ); } );
 
   if( iit == CMh.end() )  // none of them is there
    continue;              // next
