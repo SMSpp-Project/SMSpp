@@ -1792,7 +1792,10 @@ int LagBFunction::compute( bool changedvars )
  bool tounlock = false;
 
  // if there are pending additions to the inner objective, flush them now
- bool had_pending = ( ! v_tmpCP.empty() );
+ bool had_pending = false;
+ for( const auto & bucket : v_tmpCP )
+  if( ! bucket.empty() ) { had_pending = true; break; }
+
  if( had_pending )
   tounlock = flush_v_tmpCP();
 
@@ -1846,7 +1849,7 @@ int LagBFunction::compute( bool changedvars )
    // if the Block has not been locked yet and it is not owned
    bool block_locked = false;
    Block * blk = v_BlockBFS[ h ];
-   if( ( ! tounlock ) && ( ! blk->is_owned_by( f_id ) ) ) {
+   if( ! blk->is_owned_by( f_id ) ) {
     if( ! blk->lock( f_id ) )  // try to lock it; failure
      return( kError );         // clearly is an error
     block_locked = true;       // it'll have to be unlocked
@@ -2182,7 +2185,7 @@ Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
    const auto & rp = static_cast< p_LF >( obj->get_function() )->get_v_var();
 
    #ifndef NDEBUG
-    if( rp.size() > cm.size() )
+    if( rp.size() != cm.size() )
      throw( std::logic_error( "CostMatrix inconsistent with linear objective" ) );
    #endif
 
@@ -2194,7 +2197,7 @@ Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
    const auto & rp = static_cast< p_QF >( obj->get_function() )->get_v_var();
 
    #ifndef NDEBUG
-    if( rp.size() > cm.size() )
+    if( rp.size() != cm.size() )
      throw( std::logic_error( "CostMatrix inconsistent with quadratic objective" ) );
    #endif
 
@@ -2481,7 +2484,8 @@ bool LagBFunction::flush_v_tmpCP( void )
    }
   }
  if( all_flushed )
-  v_tmpCP.clear();
+  for( auto & bucket : v_tmpCP )
+   bucket.clear();
 
  f_play_dumb = false;               // back to normal operations
 
@@ -2581,7 +2585,11 @@ void LagBFunction::add_to_CostMatrix( v_c_dual_pair & newdp )
 
  // if needed, immediately flush the set of variables to be re-added to obj;
  // if the inner Block had to be locked for this, unlock it
- if( ( ! v_tmpCP.empty() ) && flush_v_tmpCP() )
+ bool pend = false;
+ for( const auto & bucket : v_tmpCP )
+  if( ! bucket.empty() ) { pend = true; break; }
+
+ if( pend && flush_v_tmpCP() )
   v_Block.front()->unlock( f_id );
 
 }  // end( LagBFunction::add_to_CostMatrix )
