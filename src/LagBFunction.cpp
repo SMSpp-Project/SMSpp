@@ -378,7 +378,7 @@ void LagBFunction::set_ComputeConfig( const ComputeConfig * scfg )
   if( scfg->f_extra_Configuration ) {
    BlockConfig * BC = nullptr;
    BlockSolverConfig * BSC = nullptr;
-    
+
    if( auto scpp = dynamic_cast< SConf_p_p * >(
 			                   scfg->f_extra_Configuration ) ) {
     if( scpp->f_value.first ) {
@@ -663,32 +663,37 @@ void LagBFunction::remove_variable( Index i , ModParam issueMod )
   throw( std::invalid_argument( "LagBFunction::remove_variable: wrong index" ) );
 
  // update CostMatrix - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ for( Index h = 0 ; h < CostMatrix.size() ; ++h ) {
+  auto & CMh = CostMatrix[ h ];
 
- // determine which Block defines the i-th variable
- Block * defBlock = LagPairs[ i ].first->get_Block();
+  for( auto & col : CMh ) {
+   auto & Aj = col.second;  // ordered vector of mon_pair < y_name , a_{ij} >
 
- // find the index of the Block in the BFS order
- auto it = Block2Idx.find( defBlock );
- if( it == Block2Idx.end() )
-  throw( std::logic_error( "LagBFunction::remove_variable: Block not found in Block2Idx" ) );
- Index h = it->second;
+   // search < i , * >
+   auto it_i = std::lower_bound( Aj.begin() , Aj.end() ,
+                                 mon_pair( i , 0 ) ,
+                                 []( const auto & a , const auto & b )
+                                 { return( a.first < b.first ); } );
 
- auto & CMh = CostMatrix[ h ];
+   if( ( it_i != Aj.end() ) && ( it_i->first == i ) ) {
+    // decrement all subsequent names
+    for( auto jt = it_i + 1 ; jt != Aj.end() ; ++jt )
+     --( jt->first );
 
- // find the position of the term < i , a_{ij} > in CMj
- auto itcm = std::lower_bound( CMh.begin() , CMh.end() , mon_pair( i , 0 ) ,
-                               []( const auto & a , const auto & b ) {
-                                return( a.first < b.first ); } );
-
- if( ( itcm != CMh.end() ) && ( itcm->first == i ) ) {
-  // decrease by 1 the names of all the < h , a_{hj} > with h > i
-  for( auto nit = itcm + 1 ; nit != CMh.end() ; ++nit )
-   --( nit->first );
-
-  CMh.erase( itcm );  // finally erase it
-
-  // NOTE: we do not remove the row from CostMatrix[ h ] even if it's now empty,
-  // because the objective still exists and we want to keep the alignment
+    // and remove exactly < i , a_{ij} >
+    Aj.erase( it_i );
+   }
+   else {
+    // no < i , * >: shift only names > i
+    auto jt = std::lower_bound( Aj.begin() , Aj.end() ,
+                                mon_pair( i + 1 , 0 ) ,
+                                []( const auto & a , const auto & b )
+                                { return( a.first < b.first ); } );
+    for( ; jt != Aj.end() ; ++jt )
+     --( jt->first );
+   }
+   // NOTE: do not delete columns even if they become empty: objective alignment
+  }
  }
 
  // if b != 0 but we are eliminating a nonzero, it may have become 0 - - - - -
@@ -732,9 +737,9 @@ void LagBFunction::remove_variables( Range range , ModParam issueMod )
   return;                           // cowardly (and silently) return
 
  if( ( ! range.first ) && ( range.second >= LagPairs.size() ) ) {
-  // removing *all* variable
+  // removing *all* variables
   if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
-   // an Observer is there: copy the names of deleted Variable (all of them)
+   // an Observer is there: copy the names of deleted Variables (all of them)
    Vec_p_Var vars( LagPairs.size() );
 
    for( Index i = 0 ; i < LagPairs.size() ; ++i )
@@ -764,40 +769,43 @@ void LagBFunction::remove_variables( Range range , ModParam issueMod )
  // this is not a complete reset
  // update CostMatrix - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- // for each variable in the range to be removed
- for( Index i = range.first ; i < range.second ; ++i )
  {
-  Block * defBlock = LagPairs[ i ].first->get_Block();
+  const Index delt = range.second - range.first;
 
-  auto it = Block2Idx.find( defBlock );
-  if( it == Block2Idx.end() )
-   throw( std::logic_error(
-    "LagBFunction::remove_variables: Block not found in Block2Idx" ) );
+  // for each Block/Objective, for each column A_j: remove all the pairs
+  // < y_k , a_{kj} > with k in [range.first , range.second) and decrement by
+  // 'delt' all the names k >= range.second
+  for( Index h = 0 ; h < CostMatrix.size() ; ++h ) {
+   auto & CMh = CostMatrix[ h ];
+   for( auto & col : CMh ) {
+    auto & Aj = col.second;  // ordered vector of mon_pair < y_name , a_{ij} >
 
-  Index h = it->second;
-  auto & CMh = CostMatrix[ h ];
+    // first k >= range.first
+    auto iit = std::lower_bound( Aj.begin() , Aj.end() ,
+                                 mon_pair( range.first , 0 ) ,
+                                 []( const auto & a , const auto & b )
+                                 { return( a.first < b.first ); } );
 
-  // find the position of the term < range.first , a_{*j} > in CMj
-  auto iit = std::lower_bound( CMh.begin() , CMh.end() ,
-                               mon_pair( i , 0 ) ,
-                               []( const auto & a , const auto & b ) {
-                                return( a.first < b.first ); } );
+    if( iit == Aj.end() )
+     continue;
 
-  // find the position of the term < range.second , a_{*j} > in CMj
-  auto eit = std::lower_bound( CMh.begin() , CMh.end() ,
-                               mon_pair( range.second , 0 ) ,
-                               []( const auto & a , const auto & b ) {
-                                return( a.first < b.first ); } );
+    // first k >= range.second
+    auto eit = std::lower_bound( iit , Aj.end() ,
+                                 mon_pair( range.second , 0 ) ,
+                                 []( const auto & a , const auto & b )
+                                 { return( a.first < b.first ); } );
 
-  if( iit != eit ) {  // if any of these are found
-   // decrease by range.second - range.first the names of all the
-   // < h , a_{hj} > with h >= range.second
-   for( auto nit = eit ; nit != CMh.end() ; ++nit )
-    ( nit->first ) -= range.second - range.first;
+    // shift subsequent names
+    for( auto jt = eit ; jt != Aj.end() ; ++jt )
+     ( jt->first ) -= delt;
 
-   CMh.erase( iit , eit );   // finally, erase them all
-   // NOTE: we do not remove the row from CostMatrix[ h ] even if it's now empty,
-   // because the objective still exists and we want to keep the alignment
+    // delete the block [range.first , range.second)
+    if( eit != iit )
+     Aj.erase( iit , eit );
+
+    // NOTE: do not delete the column from CostMatrix[ h ] even if now empty,
+    // because the Objective still exists and we want to keep the alignment
+   }
   }
  }
 
@@ -862,9 +870,9 @@ void LagBFunction::remove_variables( Range range , ModParam issueMod )
 void LagBFunction::remove_variables( Subset && nms , bool ordered ,
 				                                 ModParam issueMod )
 {
- if( nms.empty() ) {  // removing all Variable
+ if( nms.empty() ) {  // removing all Variables
   if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
-   // an Observer is there: copy the names of deleted Variable (all of them)
+   // an Observer is there: copy the names of deleted Variables (all of them)
    Vec_p_Var vars( LagPairs.size() );
 
    for( Index i = 0 ; i < LagPairs.size() ; ++i )
@@ -900,54 +908,46 @@ void LagBFunction::remove_variables( Subset && nms , bool ordered ,
   throw( std::invalid_argument( "LagBFunction::remove_variables: wrong index" ) );
 
  // update CostMatrix - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
- // for each variable to remove, update its corresponding CostMatrix[ h ]
- for( Index j = 0 ; j < nms.size() ; ++j )
+ // for each Block/Objective, for each column A_j:
+ //   - delete all pairs < y_k , a_{kj} > with k in nms
+ //   - decrement the name k by how many entries of nms are < k
  {
-  Index i = nms[ j ];  // index of variable to remove
-  Block * defBlock = LagPairs[ i ].first->get_Block();
+  if( ! nms.empty() )
+   for( Index h = 0 ; h < CostMatrix.size() ; ++h ) {
+    auto & CMh = CostMatrix[ h ];
+    for( auto & col : CMh ) {
+     auto & Aj = col.second;  // ordered vector of mon_pair < y_name , a_{ij} >
+     if( Aj.empty() )
+      continue;
 
-  auto it = Block2Idx.find( defBlock );
-  if( it == Block2Idx.end() )
-   throw( std::logic_error(
-    "LagBFunction::remove_variables(Subset): Block not found in Block2Idx" ) );
+     auto nit   = nms.begin();       // iterates over indices to remove
+     Index cnt  = 0;                 // how many removals seen so far (< k)
+     auto wit   = Aj.begin();        // compact write position
 
-  Index h = it->second;
-  auto & CMh = CostMatrix[ h ];
+     for( auto itp = Aj.begin() ; itp != Aj.end() ; ++itp ) {
+      // advance nms while it removes indices < itp->first (only shift)
+      while( ( nit != nms.end() ) && ( *nit < itp->first ) ) { ++nit; ++cnt; }
 
-  // find the position of the term < nms.front() , a_{*j} > in CMj
-  auto iit = std::lower_bound( CMh.begin() , CMh.end() ,
-                               mon_pair( nms.front() , 0 ) ,
-                               []( const auto & a , const auto & b ) {
-                                return( a.first < b.first ); } );
+      if( ( nit != nms.end() ) && ( *nit == itp->first ) ) {
+       // this term has y_k to delete: skip (and count this removal too)
+       ++nit; ++cnt;
+      }
+      else {
+       // keep the term, but shift the y_k index by the number of removals seen
+       wit->first  = itp->first  - cnt;
+       wit->second = itp->second;
+       ++wit;
+      }
+     }
 
-  if( iit == CMh.end() )  // none of them is there
-   continue;              // next
+     // erase the now-unused tail
+     if( wit != Aj.end() )
+      Aj.erase( wit , Aj.end() );
 
-  // for each < h , a_{hj} > in CMj with h >= nms.front(); if h is in nms
-  // erase the element (meaning, leave it there to be overwritten), if h
-  // is not in nms then decrease it by the proper amount, which is the
-  // number of elements in nms that are < h
-
-  auto wit = iit;    // free position where to write
-  Index count = 0;   // how many elements of nms have been overtaken already
-  for( auto nit = nms.begin() ; ( nit != nms.end() ) &&
-	                        ( iit != CMh.end() ) ; )
-   if( iit->first == *nit ) {  ++iit; ++nit; ++count; }
-   else
-    if( iit->first > *nit ) { ++nit; ++count; }
-    else { *wit = *iit; wit->first -= count; ++wit; }
-
-  // decrease by nms.size() the names of all the < h , a_{hj} > with
-  // h > nms.back()
-  for( auto nit = iit ; nit != CMh.end() ; ++nit )
-   ( nit->first ) -= nms.size();
-
-  CMh.erase( wit , iit );  // now erase the deleted part
-  // if this leaves the term empty and the term actually was of some variable
-  // that still had to be added to obj, just don't do that: rather, erase
-  // the row of CostMatrix and the corresponding one in v_tmpCP
-  // [NOT APPLICABLE]: do not erase CostMatrix[ h ] entry; must remain aligned
+     // NOTE: do not delete the column from CostMatrix[ h ] even if now empty,
+     // because the Objective still exists and we want to keep the alignment
+    }
+   }
  }
 
  // if b != 0 but we are eliminating nonzeros, it may have become 0 - - - - - -
@@ -1054,7 +1054,9 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
  // LagBFunction, IF IT HAS BEEN SET, THE IDEA BEING THAT THEY ARE "TEMPORARY"
  // AND THEY WILL BE UNDONE BY THE NEXT TIME ANYTHING ELSE WILL BE ALLOWED TO
  // LOOK AT THE sub-Block (cf. cleanup_inner_objective())
- if( f_play_dumb && ( mod->get_Block() == v_Block.front() ) )
+ if( f_play_dumb && ( std::find( v_BlockBFS.begin() ,
+                                 v_BlockBFS.end() ,
+                                 mod->get_Block() ) != v_BlockBFS.end() ) )
   return;
 
  // if the Modification requires it, now check all the Solution in the global
@@ -1789,8 +1791,29 @@ int LagBFunction::compute( bool changedvars )
  // this requires locking the inner Block, which we do only once
  bool tounlock = false;
 
- if( ! v_tmpCP.empty() )
+ // if there are pending additions to the inner objective, flush them now
+ bool had_pending = ( ! v_tmpCP.empty() );
+ if( had_pending )
   tounlock = flush_v_tmpCP();
+
+ // flushing new variables into the objective changes costs, so mark dirty
+ if( had_pending )
+  f_dirty_Lc = true;
+
+ // ensure CostMatrix has at least as many columns as the current #active var
+ // in each objective (do not shrink here; we will use min(cm,nv) below)
+ for( Index h = 0 ; h < CostMatrix.size() ; ++h ) {
+  auto * fn = v_Obj[ h ]->get_function();
+  Index nv = ! v_ObjIsQuad[ h ]
+              ? static_cast< p_LF >( fn )->get_num_active_var()
+              : static_cast< p_QF >( fn )->get_num_active_var();
+
+  if( CostMatrix[ h ].size() < nv ) {
+   CostMatrix[ h ].reserve( nv );
+   while( CostMatrix[ h ].size() < nv )
+    CostMatrix[ h ].emplace_back();  // default column (0.0, {})
+  }
+ }
 
  // if necessary, recompute the Lagrangian costs c^y = c + yA- - - - - - - - -
  if( f_dirty_Lc ) {
@@ -1803,11 +1826,18 @@ int LagBFunction::compute( bool changedvars )
   for( Index h = 0 ; h < CostMatrix.size() ; ++h ) {
    const auto & cm = CostMatrix[ h ];
 
+   // compute how many coefficients we can safely write (objective may have grown)
+   auto * fn = v_Obj[ h ]->get_function();
+   Index nv = ! v_ObjIsQuad[ h ]
+               ? static_cast< p_LF >( fn )->get_num_active_var()
+               : static_cast< p_QF >( fn )->get_num_active_var();
+   const Index m = std::min< Index >( nv , static_cast< Index >( cm.size() ) );
+
    // array of new Lagrangian costs c^y = c + yA
-   Vec_FunctionValue NCoef( cm.size() );
+   Vec_FunctionValue NCoef( m );
 
    // compute the Lagrangian costs
-   for( Index i = 0 ; i < cm.size() ; ++i ) {
+   for( Index i = 0 ; i < m ; ++i ) {
     NCoef[ i ] = cm[ i ].first;
     for( const auto & el : cm[ i ].second )
      NCoef[ i ] += y[ el.first ] * el.second;
@@ -1824,13 +1854,13 @@ int LagBFunction::compute( bool changedvars )
 
    f_play_dumb = true;         // ignore any ensuing Modification
 
-   // modify the coefficients in the Objective
+   // modify the coefficients in the Objective (only the first m entries)
    if( ! v_ObjIsQuad[ h ] )
     static_cast< p_LF >( v_Obj[ h ]->get_function() )
-      ->modify_coefficients( std::move( NCoef ) , Range( 0 , cm.size() ) );
+      ->modify_coefficients( std::move( NCoef ) , Range( 0 , m ) );
    else
     static_cast< p_QF >( v_Obj[ h ]->get_function() )
-      ->modify_linear_coefficients( std::move( NCoef ) , Range( 0 , cm.size() ) );
+      ->modify_linear_coefficients( std::move( NCoef ) , Range( 0 , m ) );
 
    f_play_dumb = false;        // back to normal operations
 
@@ -2069,6 +2099,9 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
 
 Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
 {
+ if( f_play_dumb )
+  return 0;
+
  if( name == Inf< Index >() ) {  // the last computed linearization- - - - - - -
 
   // get solution/direction from the solver
@@ -2188,7 +2221,7 @@ ComputeConfig * LagBFunction::get_ComputeConfig( bool all ,
 					         ComputeConfig * ocfg ) const
 {
  // get the "standard" part of the ComputeConfig - - - - - - - - - - - - - - -
- 
+
  ComputeConfig * ccfg = C05Function::get_ComputeConfig( all , ocfg );
 
  if( ccfg && ccfg->f_extra_Configuration ) {
@@ -2348,33 +2381,107 @@ bool LagBFunction::flush_v_tmpCP( void )
  f_play_dumb = true;                // ignore any ensuing Modification
 
  // work on each Objective (inner block) — linear or quadratic
+ bool all_flushed = true;
  for( Index h = 0 ; h < v_Obj.size() ; ++h ) {
   if( ! v_ObjIsQuad[ h ] ) {  // the linear case
    auto * lf = static_cast< p_LF >( v_Obj[ h ]->get_function() );
-   if( v_tmpCP[ h ].size() == 1 )
+   const Index cur  = lf->get_num_active_var();
+   const Index pend = v_tmpCP[ h ].size();
+
+   // ensure CostMatrix has at least 'cur' columns even if there is nothing to flush
+   if( CostMatrix[ h ].size() < cur ) {
+    CostMatrix[ h ].reserve( cur );
+    while( CostMatrix[ h ].size() < cur )
+     CostMatrix[ h ].emplace_back();  // default column (0.0, {})
+   }
+   // if there are pending variables, pre-grow columns up to cur + pend
+   if( pend && CostMatrix[ h ].size() < cur + pend ) {
+    const Index target = cur + pend;
+    CostMatrix[ h ].reserve( target );
+    while( CostMatrix[ h ].size() < target )
+     CostMatrix[ h ].emplace_back();  // default column (0.0, {})
+   }
+
+   const Index cm_sz = CostMatrix[ h ].size();
+   const Index can   = ( cm_sz > cur ) ? std::min< Index >( pend , cm_sz - cur ) : 0;
+
+   if( can == 1 )
     lf->add_variable( v_tmpCP[ h ].front().first ,
-		      v_tmpCP[ h ].front().second );
-   else
-    lf->add_variables( std::move( v_tmpCP[ h ] ) );
+                      v_tmpCP[ h ].front().second );
+   else if( can > 1 ) {
+    v_coeff_pair to_add( v_tmpCP[ h ].begin() , v_tmpCP[ h ].begin() + can );
+    lf->add_variables( std::move( to_add ) );
+    }
+
+   if( can )
+    v_tmpCP[ h ].erase( v_tmpCP[ h ].begin() , v_tmpCP[ h ].begin() + can );
+
+   // after add, ensure columns cover the new number of active variables
+   {
+    const Index new_cur = lf->get_num_active_var();
+    if( CostMatrix[ h ].size() < new_cur ) {
+     CostMatrix[ h ].reserve( new_cur );
+     while( CostMatrix[ h ].size() < new_cur )
+      CostMatrix[ h ].emplace_back();  // default column (0.0, {})
+    }
+   }
+
+   if( ! v_tmpCP[ h ].empty() )
+    all_flushed = false;
    }
   else {                      // the quadratic case
    auto * qf = static_cast< p_QF >( v_Obj[ h ]->get_function() );
-   if( v_tmpCP[ h ].size() == 1 )
+   const Index cur  = qf->get_num_active_var();
+   const Index pend = v_tmpCP[ h ].size();
+
+   // ensure CostMatrix has at least 'cur' columns even if there is nothing to flush
+   if( CostMatrix[ h ].size() < cur ) {
+    CostMatrix[ h ].reserve( cur );
+    while( CostMatrix[ h ].size() < cur )
+     CostMatrix[ h ].emplace_back();  // default column (0.0, {})
+   }
+   // if there are pending variables, pre-grow columns up to cur + pend
+   if( pend && CostMatrix[ h ].size() < cur + pend ) {
+    const Index target = cur + pend;
+    CostMatrix[ h ].reserve( target );
+    while( CostMatrix[ h ].size() < target )
+     CostMatrix[ h ].emplace_back();  // default column (0.0, {})
+   }
+
+   const Index cm_sz = CostMatrix[ h ].size();
+   const Index can   = ( cm_sz > cur ) ? std::min< Index >( pend , cm_sz - cur ) : 0;
+
+   if( can == 1 )
     qf->add_variable( v_tmpCP[ h ].front().first ,
-		      v_tmpCP[ h ].front().second , 0 );
-   else {
-    v_coeff_triple vars( v_tmpCP[ h ].size() ,
-			 coeff_triple( nullptr , 0 , 0 ) );
-    for( Index i = 0 ; i < v_tmpCP[ h ].size() ; ++i ) {
+                      v_tmpCP[ h ].front().second , 0 );
+   else if( can > 1 ) {
+    v_coeff_triple vars( can , coeff_triple( nullptr , 0 , 0 ) );
+    for( Index i = 0 ; i < can ; ++i ) {
      std::get< 0 >( vars[ i ] ) = v_tmpCP[ h ][ i ].first;
      std::get< 1 >( vars[ i ] ) = v_tmpCP[ h ][ i ].second;
      }
     qf->add_variables( std::move( vars ) );
     }
+
+   if( can )
+    v_tmpCP[ h ].erase( v_tmpCP[ h ].begin() , v_tmpCP[ h ].begin() + can );
+
+   // after add, ensure columns cover the new number of active variables
+   {
+    const Index new_cur = qf->get_num_active_var();
+    if( CostMatrix[ h ].size() < new_cur ) {
+     CostMatrix[ h ].reserve( new_cur );
+     while( CostMatrix[ h ].size() < new_cur )
+      CostMatrix[ h ].emplace_back();  // default column (0.0, {})
+    }
    }
-  v_tmpCP[ h ].clear();             // done
+
+   if( ! v_tmpCP[ h ].empty() )
+    all_flushed = false;
+   }
   }
- v_tmpCP.clear();
+ if( all_flushed )
+  v_tmpCP.clear();
 
  f_play_dumb = false;               // back to normal operations
 
@@ -2432,6 +2539,13 @@ void LagBFunction::add_to_CostMatrix( v_c_dual_pair & newdp )
     auto * qf = static_cast< p_QF >( fn );
     nv = qf->get_num_active_var();
     j = qf->is_active( rpj.first );
+   }
+
+   // ensure CostMatrix has at least nv columns for this Objective
+   if( CostMatrix[ h ].size() < nv ) {
+    CostMatrix[ h ].reserve( nv );
+    while( CostMatrix[ h ].size() < nv )
+     CostMatrix[ h ].emplace_back();  // default column (0.0, {})
    }
 
    if( j >= nv ) {
@@ -2606,7 +2720,7 @@ char LagBFunction::guts_of_add_Modification( p_Mod mod , ChnlName chnl )
   char what = 0;
   for( auto & ttmod : tmod->sub_Modifications() )
    what |= guts_of_add_Modification( ttmod.get() , chnl );
-  return( what );  
+  return( what );
   }
  else
   return( guts_of_guts_of_add_Modification( mod , chnl ) );
@@ -2652,7 +2766,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod , ChnlName chnl )
  //                   "immediately reach" the LagBFunction, since they do
  // not pass from any other Block before and therefore they cannot ever be
  // packed in a GroupModification and delayed (before getting here, this can
- // happen for Block further up the tree and for Solver) 
+ // happen for Block further up the tree and for Solver)
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  for( Index h = 0 ; h < CostMatrix.size() ; ++h ) {
