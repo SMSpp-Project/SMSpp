@@ -2037,8 +2037,8 @@ class ThinComputeInterface
   }
 
 /*--------------------------------------------------------------------------*/
- /// serialize the the current :State to an open netCDF file
- /** Method to serialize the the current "internal state" (if any) of this
+ /// serialize the current :State to an open netCDF file
+ /** Method to serialize the current "internal state" (if any) of this
   * ThinComputeInterface under the form of a :State (of appropriate type) to
   * an open netCDF file in SMS++ State format. The State is *appended* after
   * any existing State in the file.

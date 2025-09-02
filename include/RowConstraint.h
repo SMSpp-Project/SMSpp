@@ -564,49 +564,38 @@ class RowConstraint : public Constraint
  [[nodiscard]] RHSValue get_dual( void ) const { return( d_value ); }
 
 /*--------------------------------------------------------------------------*/
- /// checks if the violation of each RowConstraint does not exceed the tolerance
- /** This function checks whether the violation of each RowConstraint (that is
-  * not relaxed; see is_relaxed()) in the given collection of RowConstraint is
-  * not greater than the provided tolerance. The parameter \p rel_viol
-  * indicates whether the relative (see rel_viol()) or the absolute (see
-  * abs_viol()) violation must be considered.
+ /// checks if the violation of a RowConstraint does not exceed the tolerance
+ /** This function checks whether the violation of the given RowConstraint (that
+  * is not relaxed; see is_relaxed()) is not greater than the provided tolerance.
+  * The parameter \p rel_viol indicates whether the relative (see rel_viol()) or
+  * the absolute (see abs_viol()) violation must be considered.
   *
-  * If a RowConstraint in the collection is not relaxed, then it will be
-  * compute()-ed before its violation is checked. Moreover, it is not
-  * guaranteed that every RowConstraint in the collection will be
-  * compute()-ed, since this function may return false early (in the case a
-  * RowConstraint is not correctly compute()-ed or its violation exceeds the
-  * given tolerance).
+  * If the RowConstraint is not relaxed, then it will be compute()-ed before its
+  * violation is checked.
   *
-  * @param constraints A collection of RowConstraint.
+  * @param constraint A RowConstraint.
   *
-  * @param tolerance The value that determines whether each RowConstraint in
-  *        the given collection is satisfied.
+  * @param tolerance The value that determines whether the RowConstraint is
+  *        satisfied.
   *
-  * @param rel_viol If true, the the relative violation is considered (see
+  * @param rel_viol If true, the relative violation is considered (see
   *        rel_viol()). Otherwise, the absolute violation is considered (see
   *        abs_viol()).
   *
-  * @return This function returns true if and only if the violation of each
-  *         RowConstraint of the given collection is not greater than the
-  *         given tolerance. */
-
- template< template< class ... > class C , class T >
- static std::enable_if_t< std::is_base_of_v< RowConstraint , T > , bool >
- is_feasible( C< T > & constraints , double tolerance = 1e-10 ,
-              bool rel_viol = true ) {
-  for( auto & constraint : constraints ) {
-   if( constraint.is_relaxed() )
-    continue;
-   if( auto ret = constraint.compute();
-    ( ret <= Constraint::kUnEval ) || ( ret > Constraint::kOK ) )
+  * @return This function returns true if and only if the violation of the given
+  *         RowConstraint is not greater than the given tolerance. */
+template< class T >
+static std::enable_if_t< std::is_base_of_v< RowConstraint , T > , bool >
+is_feasible( T & constraint , double tolerance = 1e-10 , bool rel_viol = true ) {
+  if( constraint.is_relaxed() )
+    return( true );
+  if( auto ret = constraint.compute();
+      ( ret <= Constraint::kUnEval ) || ( ret > Constraint::kOK ) )
     return( false );
-   if( ( rel_viol ? constraint.rel_viol() :
-         constraint.abs_viol() ) > tolerance )
+  if( ( rel_viol ? constraint.rel_viol() : constraint.abs_viol() ) > tolerance )
     return( false );
-  }
   return( true );
- }
+}
 
 /*--------------------------------------------------------------------------*/
  /// checks if the violation of each RowConstraint does not exceed the tolerance
@@ -628,32 +617,61 @@ class RowConstraint : public Constraint
   * @param tolerance The value that determines whether each RowConstraint in
   *        the given collection is satisfied.
   *
-  * @param rel_viol If true, the the relative violation is considered (see
+  * @param rel_viol If true, the relative violation is considered (see
   *        rel_viol()). Otherwise, the absolute violation is considered (see
   *        abs_viol()).
   *
   * @return This function returns true if and only if the violation of each
   *         RowConstraint of the given collection is not greater than the
   *         given tolerance. */
+template< template< class ... > class C , class T >
+static std::enable_if_t< std::is_base_of_v< RowConstraint , T > , bool >
+is_feasible( C< T > & constraints , double tolerance = 1e-10 ,
+             bool rel_viol = true ) {
+  for( auto & constraint : constraints )
+    if( ! is_feasible( constraint , tolerance , rel_viol ) )
+      return( false );
+  return( true );
+}
 
- template< typename T , std::size_t K >
- static std::enable_if_t< std::is_base_of_v< RowConstraint , T > , bool >
- is_feasible( boost::multi_array< T , K > & constraints ,
-              double tolerance = 1e-10 , bool rel_viol = true ) {
+/*--------------------------------------------------------------------------*/
+ /// checks if the violation of each RowConstraint does not exceed the tolerance
+ /** This function checks whether the violation of each RowConstraint (that is
+  * not relaxed; see is_relaxed()) in the given collection of RowConstraint is
+  * not greater than the provided tolerance. The parameter \p rel_viol
+  * indicates whether the relative (see rel_viol()) or the absolute (see
+  * abs_viol()) violation must be considered.
+  *
+  * If a RowConstraint in the collection is not relaxed, then it will be
+  * compute()-ed before its violation is checked. Moreover, it is not
+  * guaranteed that every RowConstraint in the collection will be
+  * compute()-ed, since this function may return false early (in the case a
+  * RowConstraint is not correctly compute()-ed or its violation exceeds the
+  * given tolerance).
+  *
+  * @param constraints A collection of RowConstraint.
+  *
+  * @param tolerance The value that determines whether each RowConstraint in
+  *        the given collection is satisfied.
+  *
+  * @param rel_viol If true, the relative violation is considered (see
+  *        rel_viol()). Otherwise, the absolute violation is considered (see
+  *        abs_viol()).
+  *
+  * @return This function returns true if and only if the violation of each
+  *         RowConstraint of the given collection is not greater than the
+  *         given tolerance. */
+template< typename T , std::size_t K >
+static std::enable_if_t< std::is_base_of_v< RowConstraint , T > , bool >
+is_feasible( boost::multi_array< T , K > & constraints ,
+             double tolerance = 1e-10 , bool rel_viol = true ) {
   auto n = constraints.num_elements();
   auto constraint = constraints.data();
-  for( decltype( n ) i = 0 ; i < n ; ++i , ++constraint ) {
-   if( constraint->is_relaxed() )
-    continue;
-   if( auto ret = constraint->compute();
-    ( ret <= Constraint::kUnEval ) || ( ret > Constraint::kOK ) )
-    return( false );
-   if( ( rel_viol ? constraint->rel_viol() :
-         constraint->abs_viol() ) > tolerance )
-    return( false );
-  }
+  for( decltype( n ) i = 0 ; i < n ; ++i , ++constraint )
+    if( ! is_feasible( *constraint , tolerance , rel_viol ) )
+      return( false );
   return( true );
- }
+}
 
 /*--------------------------------------------------------------------------*/
  /// checks if the violation of each RowConstraint does not exceed the tolerance
@@ -675,7 +693,7 @@ class RowConstraint : public Constraint
   * @param tolerance The value that determines whether each RowConstraint in
   *        the given collection is satisfied.
   *
-  * @param rel_viol If true, the the relative violation is considered (see
+  * @param rel_viol If true, the relative violation is considered (see
   *        rel_viol()). Otherwise, the absolute violation is considered (see
   *        abs_viol()).
   *
@@ -716,7 +734,7 @@ class RowConstraint : public Constraint
   * @param tolerance The value that determines whether each RowConstraint in
   *        the given collection is satisfied.
   *
-  * @param rel_viol If true, the the relative violation is considered (see
+  * @param rel_viol If true, the relative violation is considered (see
   *        rel_viol()). Otherwise, the absolute violation is considered (see
   *        abs_viol()).
   *
