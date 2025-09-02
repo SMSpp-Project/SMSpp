@@ -6158,7 +6158,7 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
  /// load the Block out of a text file with given filename
  /** Method intended to provide support for Blocks to load themselves out of
-  * one (or more) file(s) with the the filename given in \p fname (prefixed
+  * one (or more) file(s) with the filename given in \p fname (prefixed
   * as set by set_filename_prefix(), if any).
   *
   * The parameter \p frmt is provided to support the notion that the input
