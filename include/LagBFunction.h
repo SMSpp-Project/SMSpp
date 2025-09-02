@@ -2534,7 +2534,7 @@ class LagBFunction : public C05Function , public Block {
   * appear for an x[ j ] that originally had 0 coefficient in obj, x[ j ] is
   * added to the list of active Variable (at the bottom, as usual) and a new
   * row is added to CostMatrix (at the bottom). The linear term y A^j is
-  * represented by a v_mod_pair, where each mod_pair < i , a_{ij} > is the
+  * represented by a v_mon_pair, where each mod_pair < i , a_{ij} > is the
   * *index* of y_i (as active Variable in the LagBFunction) with its
   * coefficient. Note that THE VECTOR IS KEPT ORDERED BY INDEX.
   *
