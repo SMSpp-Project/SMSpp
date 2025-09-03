@@ -215,7 +215,7 @@ namespace SMSpp_di_unipi_it
  *
  *   The first, obvious consequence is that (B) must necessarily have an
  *   "abstract") Objective that is a FRealObjective whose Function is either
- *   a LinearFunction or a DQuadFunction, as as already stated. This also
+ *   a LinearFunction or a DQuadFunction, as already stated. This also
  *   means that if (B) has a "physical" representation, it must reflect all
  *   changes of its Objective resulting from the Lagrangian term into it.
  *   Some :Block may make assumptions on the form of its Objective (say, a
