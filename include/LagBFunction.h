@@ -1390,7 +1390,7 @@ class LagBFunction : public C05Function , public Block {
   *   (actually, LagBFunctionMod) with type() == GlobalPoolRemoved because
   *   they mess up with feasibility of the previous solutions / directions.
   *   Thus, there is a risk of a long stream of basically identical
-  *   Modification to be be produced, which is clearly useless. It would be
+  *   Modification to be produced, which is clearly useless. It would be
   *   nice to be able to "wait until the last Modification is received and
   *   answer only once", but there is no way to know when the "last
   *   Modification" will happen.
