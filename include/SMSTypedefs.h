@@ -2680,8 +2680,18 @@ inline std::vector< std::size_t > get_sizes_dimensions(
  *
  * @return true if the desired variable was deserialized; false, otherwise. */
 
+// if T is enum -> underlying_type_t< T >, else -> T
+template< class T , bool = std::is_enum_v< T > >
+struct _nc_read_type { using type = T; };
+
 template< class T >
-std::enable_if_t< is_netCDF_type_v< T > , bool >
+struct _nc_read_type< T , true > { using type = std::underlying_type_t< T >; };
+
+template< class T >
+using read_type_t = typename _nc_read_type< T >::type;
+
+template< class T >
+std::enable_if_t< is_netCDF_type_v< read_type_t< T > > , bool >
 deserialize( const netCDF::NcGroup & group , const std::string & name ,
              const std::size_t size , std::vector< T > & data ,
              bool optional = true , bool allow_scalar_var = false ,
@@ -2709,37 +2719,41 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
                                 " has " + std::to_string( dc ) +
                                 " != 1 dimensions" ) );
 
+ using R = read_type_t< T >;
+ std::vector< R > buf;
+
  if( dc == 0 ) {
-  T value;
+  R value;
   ncVar.getVar( &value );
-  data.assign( size, value );
-  return( true );
+  buf.assign( size , value );
   }
 
- data.resize( size );
- ncVar.getVar( { 0 } , { size } , data.data() );
+ else {
+  buf.resize( size );
+  ncVar.getVar( { 0 } , { size } , buf.data() );
+  }
 
  // Apply decompression if requested
  if( ! change_intervals.empty() ) {
-  if( data.empty() )
+  if( buf.empty() )
    return( true );
 
-  if( data.size() == 1 ) {
+  if( buf.size() == 1 ) {
    // Fill with constant value
-   data.resize( size , data[ 0 ] );
+   buf.resize( size , buf[ 0 ] );
    }
-  else if( data.size() < size ) {
+  else if( buf.size() < size ) {
    // Must match change_intervals
-   if( data.size() != change_intervals.size() ) {
+   if( buf.size() != change_intervals.size() ) {
     throw( std::logic_error(
      "deserialize(): invalid number of elements (" +
-     std::to_string( data.size() ) + ") for variable " + name +
+     std::to_string( buf.size() ) + ") for variable " + name +
      ". It should be equal to the number of change intervals (" +
      std::to_string( change_intervals.size() ) + ")" ) );
     }
 
-   std::vector< T > given_vector = data;
-   data.resize( size );
+   std::vector< R > given_vector = buf;
+   buf.resize( size );
 
    auto t = 0;
    for( auto k = 0 ; k < change_intervals.size() ; ++k ) {
@@ -2748,9 +2762,19 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
      upper_endpoint = size - 1;
 
     for( ; t <= upper_endpoint ; ++t )
-     data[ t ] = given_vector[ k ];
+     buf[ t ] = given_vector[ k ];
     }
    }
+  }
+
+ // Cast back to T if enum, else copy
+ data.resize( buf.size() );
+ if constexpr( std::is_enum_v< T > ) {
+  std::transform( buf.begin() , buf.end() , data.begin() ,
+                  []( const R & v ){ return static_cast< T >( v ); } );
+  }
+ else {
+  std::copy( buf.begin() , buf.end() , data.begin() );
   }
 
  return( true );
