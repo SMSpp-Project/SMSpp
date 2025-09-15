@@ -374,6 +374,22 @@ public:
 
 /*--------------------------------------------------------------------------*/
 
+ /// sets the caller object for this SimpleDataMappingBase
+ /** This function sets the caller object that will be used when invoking
+  * the function associated with this SimpleDataMappingBase.
+  *
+  * @param new_caller A pointer to the new caller object.
+  * 
+  * @note The user is responsible for ensuring that the new caller is 
+  *       compatible with the stored function and can correctly invoke it.
+  *       The new caller must have the same interface as the original caller
+  *       for the DataMapping to work correctly. A typical use case is 
+  *       replacing the caller with a copy of the original Block after 
+  *       Block duplication.
+  */
+
+ virtual void set_caller( void * new_caller ) = 0;
+
  /// serialize a vector of SimpleDataMappingBase from a netCDF::NcGroup
  /** Serialize a vector of SimpleDataMappingBase from a netCDF::NcGroup. A
   * vector of SimpleDataMappingBase is specified as follows.
@@ -998,6 +1014,26 @@ public:
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of the SimpleDataMapping
  *  @{ */
+
+ /// sets the caller object for this SimpleDataMapping
+ /** This function sets the caller object that will be used when invoking
+  * the function associated with this SimpleDataMapping.
+  *
+  * @param new_caller A pointer to the new caller object.
+  * 
+  * @note The user is responsible for ensuring that the new caller is 
+  *       compatible with the stored function and can correctly invoke it.
+  *       The new caller must be of type Caller* (or convertible to it) and
+  *       must have the same interface as the original caller. A typical use 
+  *       case is replacing the caller with a copy of the original Block 
+  *       after Block duplication.
+  */
+ 
+ void set_caller( void * new_caller ) override {
+  caller = static_cast< Caller * >( new_caller );
+ }
+
+/*--------------------------------------------------------------------------*/
 
  void set_data( std::vector< double >::const_iterator data ,
                 c_ModParam issueMod = eModBlck ,

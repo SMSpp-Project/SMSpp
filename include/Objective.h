@@ -313,7 +313,7 @@ class Objective : public ThinComputeInterface , public ThinVarDepInterface
 /// an Objective that is a function between Variable and the reals
 /** The class RealObjective quickly specializes the more general Objective to
  * the case where the objective function is a function between Variable (of
- * any possinle type) and the reals.
+ * any possible type) and the reals.
  * More specifically, a type "OFValue" is defined, which is bound by default
  * to doubles, to hold the type of the objective function return value.
  * Changing this type here is possible but it changes it to the whole SMS++
