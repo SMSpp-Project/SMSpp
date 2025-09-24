@@ -215,7 +215,7 @@ namespace SMSpp_di_unipi_it
  *
  *   The first, obvious consequence is that (B) must necessarily have an
  *   "abstract") Objective that is a FRealObjective whose Function is either
- *   a LinearFunction or a DQuadFunction, as as already stated. This also
+ *   a LinearFunction or a DQuadFunction, as already stated. This also
  *   means that if (B) has a "physical" representation, it must reflect all
  *   changes of its Objective resulting from the Lagrangian term into it.
  *   Some :Block may make assumptions on the form of its Objective (say, a
@@ -1390,7 +1390,7 @@ class LagBFunction : public C05Function , public Block {
   *   (actually, LagBFunctionMod) with type() == GlobalPoolRemoved because
   *   they mess up with feasibility of the previous solutions / directions.
   *   Thus, there is a risk of a long stream of basically identical
-  *   Modification to be be produced, which is clearly useless. It would be
+  *   Modification to be produced, which is clearly useless. It would be
   *   nice to be able to "wait until the last Modification is received and
   *   answer only once", but there is no way to know when the "last
   *   Modification" will happen.
@@ -2534,7 +2534,7 @@ class LagBFunction : public C05Function , public Block {
   * appear for an x[ j ] that originally had 0 coefficient in obj, x[ j ] is
   * added to the list of active Variable (at the bottom, as usual) and a new
   * row is added to CostMatrix (at the bottom). The linear term y A^j is
-  * represented by a v_mod_pair, where each mod_pair < i , a_{ij} > is the
+  * represented by a v_mon_pair, where each mod_pair < i , a_{ij} > is the
   * *index* of y_i (as active Variable in the LagBFunction) with its
   * coefficient. Note that THE VECTOR IS KEPT ORDERED BY INDEX.
   *
