@@ -255,12 +255,13 @@ class QuadFunction : public DQuadFunction {
   * */
  Coefficient get_quadratic_coefficient( Index i, Index j ) const {
     #ifndef NDEBUG
-      if ( ( std::min(i,j) < 0 ) || ( std::max(i,j) >= DQuadFunction::get_num_active_var() ) ){
+      if ( ( std::min( i , j ) < 0 ) ||
+           ( std::max( i , j ) >= DQuadFunction::get_num_active_var() ) ) {
         throw( std::invalid_argument( "QuadFunction::get_quadratic_coefficient: invalid "
-                                  "index: " + std::to_string( i ) + " , " + std::to_string( j ) ) );
+                                      "index: " + std::to_string( i ) + " , " + std::to_string( j ) ) );
       }
     #endif
-    if ( i < j ){
+    if ( i < j ) {
       return mat_nd.coeff( j , i);
     }
     else if ( i == j){

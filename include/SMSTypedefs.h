@@ -2771,7 +2771,7 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
  data.resize( buf.size() );
  if constexpr( std::is_enum_v< T > ) {
   std::transform( buf.begin() , buf.end() , data.begin() ,
-                  []( const R & v ){ return static_cast< T >( v ); } );
+                  []( const R & v ) { return( static_cast< T >( v ) ); } );
   }
  else {
   std::copy( buf.begin() , buf.end() , data.begin() );

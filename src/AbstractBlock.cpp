@@ -1461,7 +1461,7 @@ void AbstractBlock::read_lp( std::istream & file )
 
  // First pass: just get number of columns and rows
 
- while( current_section == LP_sections::LP_LINOBJECTIVE ){
+ while( current_section == LP_sections::LP_LINOBJECTIVE ) {
   std::string column;
   ColVariable * v;
   
@@ -1476,8 +1476,8 @@ void AbstractBlock::read_lp( std::istream & file )
   // read a * or ^, but we expect to find a [ at the beginning of the
   // quadratic part.
   file.get(); // eat space
-  if( file.peek() !=  '[' ){
-    if( len_word == 1 && read_sign ){
+  if( file.peek() !=  '[' ) {
+    if( len_word == 1 && read_sign ) {
     file >> word; // reading the coefficient
     if( std::isdigit( word[0] ) )
       // we read the coefficient
@@ -1507,7 +1507,7 @@ void AbstractBlock::read_lp( std::istream & file )
  /*------ READ QUADRATIC OBJECTIVE -------*/
  /*---------------------------------------*/
 
- while( current_section == LP_sections::LP_QUADOBJECTIVE ){
+ while( current_section == LP_sections::LP_QUADOBJECTIVE ) {
   file >> word;
 
   if( is_qp == 0)
@@ -1520,7 +1520,7 @@ void AbstractBlock::read_lp( std::istream & file )
   int len_word = word.length();
   bool read_sign = ( first_char == '-'  || first_char == '+' );
 
-  if( first_char == ']' ){
+  if( first_char == ']' ) {
     // we reached the end of the quadratic section.
     file.ignore( max, '\n' );
 
@@ -1535,7 +1535,7 @@ void AbstractBlock::read_lp( std::istream & file )
   // second variable in term x_i*x_j). In Highs usually the
   // coefficient and the sign are grouped.
 
-  if( len_word == 1 && read_sign ){
+  if( len_word == 1 && read_sign ) {
    file >> word; // reading the coefficient
    if( std::isdigit( word[0] ) )
       // we read the coefficient
@@ -1552,12 +1552,12 @@ void AbstractBlock::read_lp( std::istream & file )
   }
 
   file.get(); // eat white space
-  if( column[ column.length() - 2 ] == '^' ){
+  if( column[ column.length() - 2 ] == '^' ) {
     // We are reading the quadratic term x^2. Thus the real name of the
     // variable is obtained by removing the last two character
     column = column.substr( 0 , column.length() - 2 );
   }
-  else if( file.peek() == '*' ){
+  else if( file.peek() == '*' ) {
     // We read only the first term. In this first scan, simply skip to
     // the second
     file >> word;
@@ -1566,7 +1566,7 @@ void AbstractBlock::read_lp( std::istream & file )
   // Now we have to check if the variable considered has been already found
   // in the linear objective function or in a precedent quadratic term
   auto it = std::find( col_names.begin(), col_names.end(), column );
-  if( it == col_names.end() ){
+  if( it == col_names.end() ) {
     col_names.push_back( column );
     ++num_cols;
   }
@@ -1581,7 +1581,7 @@ void AbstractBlock::read_lp( std::istream & file )
  file >> word;
  sec_reached( &current_section , word );
  
- while( current_section == LP_sections::LP_ROW ){
+ while( current_section == LP_sections::LP_ROW ) {
   // All row name must end with a ":"
   pos = word.find( ":" );
   
@@ -1597,7 +1597,7 @@ void AbstractBlock::read_lp( std::istream & file )
 
   // we can read symbols until we get to the sign, i.e., we are reading variables
   // and coefficients
-  while( first_char != '<' &&  first_char != '>' && first_char != '=' ){
+  while( first_char != '<' &&  first_char != '>' && first_char != '=' ) {
    std::string column;
    int len_word = word.length();
    bool read_sign = ( first_char == '-'  || first_char == '+' );
@@ -1605,14 +1605,14 @@ void AbstractBlock::read_lp( std::istream & file )
    // we can either read the sign, the coefficient or directly the 
    // variable ( i.e., the coefficient is 1)
 
-   if( ( len_word == 1 && read_sign ) || word[0] == '[' ){
+   if( ( len_word == 1 && read_sign ) || word[0] == '[' ) {
     // We take into account the strange case where we don't have any linear
     // coefficient. Thus, no sign will be found before the quadratic part as
     // we expected.
     if( word[0] != '[' )
       file >> word; // Read next word after the sign
     
-    if( word[0] == '[' ){
+    if( word[0] == '[' ) {
       // we reached the quadratic part of the row.
       is_row_q[ num_rows - 1 ] = true; // Update row type
       
@@ -1640,12 +1640,12 @@ void AbstractBlock::read_lp( std::istream & file )
 
    // Options to check if we are in the quadratic part
    file.get(); // eat white space
-   if( column[ column.length() - 2 ] == '^' ){
+   if( column[ column.length() - 2 ] == '^' ) {
     // We are reading the quadratic term x^2. Thus the real name of the
     // variable is obtained by removing the last two character
     column = column.substr( 0 , column.length() - 2 );
    }
-   else if( file.peek() == '*' ){
+   else if( file.peek() == '*' ) {
     // We read only the first term. In this first scan, simply skip to
     // the second
     file >> word;
@@ -1654,7 +1654,7 @@ void AbstractBlock::read_lp( std::istream & file )
    // Now we have to check if the variable considered has been already found
    // in the objective function or in a precedent row
    auto it = std::find( col_names.begin(), col_names.end(), column );
-   if( it == col_names.end() ){
+   if( it == col_names.end() ) {
     col_names.push_back( column );
     ++num_cols;
     }
@@ -1709,7 +1709,7 @@ void AbstractBlock::read_lp( std::istream & file )
  current_section = LP_sections::LP_LINOBJECTIVE;
  word = first_obj_word;
 
- while( current_section == LP_sections::LP_LINOBJECTIVE ){
+ while( current_section == LP_sections::LP_LINOBJECTIVE ) {
   std::string column;
   std::string value = "1";
   std::string value_sense = "+";
@@ -1723,11 +1723,11 @@ void AbstractBlock::read_lp( std::istream & file )
   // variable ( i.e., the coefficient is 1). In Highs usually the
   // coefficient and the sign are grouped
   file.get(); // eat space
-  if( file.peek() !=  '[' ){
-    if( len_word == 1 && read_sign ){
+  if( file.peek() !=  '[' ) {
+    if( len_word == 1 && read_sign ) {
     value_sense = word;
     file >> word; // reading the coefficient
-    if( std::isdigit( word[0] ) ){
+    if( std::isdigit( word[0] ) ) {
       // we read the coefficient
       value = word;
       file >> column; // reading the variable name
@@ -1754,7 +1754,7 @@ void AbstractBlock::read_lp( std::istream & file )
     auto j = std::distance( col_names.begin(), it );
     v = &( *cols )[ j ];
     
-    if( ! is_qp ){
+    if( ! is_qp ) {
       // LinearFunction Modification
       lin_var.push_back( std::make_pair( v , dbl_val( value ) ) );
     }
@@ -1772,7 +1772,7 @@ void AbstractBlock::read_lp( std::istream & file )
  /*------ READ QUADRATIC OBJECTIVE -------*/
  /*---------------------------------------*/
 
- while( current_section == LP_sections::LP_QUADOBJECTIVE ){
+ while( current_section == LP_sections::LP_QUADOBJECTIVE ) {
   file >> word;
 
   std::string column;
@@ -1786,7 +1786,7 @@ void AbstractBlock::read_lp( std::istream & file )
   int len_word = word.length();
   bool read_sign = ( first_char == '-'  || first_char == '+' );
 
-  if( first_char == ']' ){
+  if( first_char == ']' ) {
     // we reached the end of the quadratic section.
     file.ignore( max, '\n' );
 
@@ -1800,10 +1800,10 @@ void AbstractBlock::read_lp( std::istream & file )
   // variable ( i.e., the coefficient is 1). In Highs usually the
   // coefficient and the sign are grouped.
 
-  if( len_word == 1 && read_sign ){
+  if( len_word == 1 && read_sign ) {
    value_sense = word;
    file >> word; // reading the coefficient
-   if( std::isdigit( word[0] ) ){
+   if( std::isdigit( word[0] ) ) {
       // we read the coefficient
       value = word;
       file >> column; // reading the variable name
@@ -1825,7 +1825,7 @@ void AbstractBlock::read_lp( std::istream & file )
 
   // eat white space
   file.get();
-  if( column[ column.length() - 2 ] == '^' ){
+  if( column[ column.length() - 2 ] == '^' ) {
     // We are reading the quadratic term x^2. Thus the real name of the
     // variable is obtained by removing the last two character
     column = column.substr( 0 , column.length() - 2 );
@@ -1839,7 +1839,7 @@ void AbstractBlock::read_lp( std::istream & file )
     auto j = std::distance( col_names.begin(), it );
     v = &( *cols )[ j ];
 
-    if( it_local != local_active_var.end() ){
+    if( it_local != local_active_var.end() ) {
       // Var v had already a linear coefficient set
       // DQuadFunction modification (nothing to be done on the linear term)
       std::get<2>( qd_var[idx_local] ) = dbl_val( value )/2;
@@ -1856,7 +1856,7 @@ void AbstractBlock::read_lp( std::istream & file )
       qd_var.push_back( std::make_tuple( v , 0 , dbl_val( value )/2 ) );
     }
   }
-  else if( file.peek() == '*' ){
+  else if( file.peek() == '*' ) {
     // We read only the first term. Now skip the * and read the second
     file >> word; // *
     file >> column2;
@@ -1868,7 +1868,7 @@ void AbstractBlock::read_lp( std::istream & file )
 
     // If one of the variable is not active locally, we have to insert it in the
     // set of active var of the constraint
-    if( it_local1 == local_active_var.end() ){
+    if( it_local1 == local_active_var.end() ) {
       // Map globally the column in the set of all the variable  
       auto it_global1 = std::find( col_names.begin(), col_names.end(), column );
       auto idx_global1 = std::distance( col_names.begin(), it_global1 );
@@ -1885,7 +1885,7 @@ void AbstractBlock::read_lp( std::istream & file )
 
     // If one of the variable is not active locally, we have to insert it in the
     // set of active var of the constraint
-    if( it_local2 == local_active_var.end() ){
+    if( it_local2 == local_active_var.end() ) {
       // Map globally the column in the set of all the variable  
       auto it_global2 = std::find( col_names.begin(), col_names.end(), column2 );
       auto idx_global2 = std::distance( col_names.begin(), it_global2 );
@@ -1912,7 +1912,7 @@ void AbstractBlock::read_lp( std::istream & file )
  }
 
  // Intizialize objective function
- if( is_qp == 0 ){
+ if( is_qp == 0 ) {
   // Linear Function
   of->set_function( new LinearFunction( std::move( lin_var ) ) , eNoMod );
  }
@@ -1935,7 +1935,7 @@ void AbstractBlock::read_lp( std::istream & file )
  file >> word;
  sec_reached( &current_section , word );
  
- while( current_section == LP_sections::LP_ROW ){
+ while( current_section == LP_sections::LP_ROW ) {
   std::string row_name;
   std::string rhs;
    
@@ -1960,7 +1960,7 @@ void AbstractBlock::read_lp( std::istream & file )
 
   // we can read symbols until we get to the sign, i.e., we are reading variables
   // and coefficients
-  while( first_char != '<' &&  first_char != '>' && first_char != '=' ){
+  while( first_char != '<' &&  first_char != '>' && first_char != '=' ) {
    std::string column;
    std::string column2;
    std::string value = "1";
@@ -1974,28 +1974,28 @@ void AbstractBlock::read_lp( std::istream & file )
    // we can either read the sign, the coefficient or directly the 
    // variable ( i.e., the coefficient is 1)
 
-   if( len_word == 1 && read_sign || word[0] == '[' ){
+   if( len_word == 1 && read_sign || word[0] == '[' ) {
     // We take into account the strange case where we don't have any linear
     // coefficient. Thus, no sign will be found before the quadratic part as
     // we expected.
-    if( word[0] != '[' ){
+    if( word[0] != '[' ) {
       value_sense = word;
       file >> word; // Read next word after the sign
     }
 
-    if( word[0] == '[' ){
+    if( word[0] == '[' ) {
       // we reached the quadratic part of the row.
       file >> word;
       first_char = word[0];
       read_sign = ( first_char == '-'  || first_char == '+' );
       len_word = word.length();
-      if( len_word == 1 && read_sign ){
+      if( len_word == 1 && read_sign ) {
         value_sense = word;
         file >> word; // Read next word after the sign
       }
     }
 
-    if( std::isdigit( word[0] ) ){
+    if( std::isdigit( word[0] ) ) {
       // we read the coefficient
       value = word;
       file >> column; // reading the variable name
@@ -2017,7 +2017,7 @@ void AbstractBlock::read_lp( std::istream & file )
 
    // Check if we are in the quadratic part!
    file.get(); // eat white space
-   if( column[ column.length() - 2 ] == '^' ){
+   if( column[ column.length() - 2 ] == '^' ) {
     // We are reading the quadratic term x^2. Thus the real name of the
     // variable is obtained by removing the last two character
     column = column.substr( 0 , column.length() - 2 );
@@ -2027,7 +2027,7 @@ void AbstractBlock::read_lp( std::istream & file )
                                 column );
     auto idx_local = std::distance( local_active_var.begin(), it_local );
 
-    if( it_local != local_active_var.end() ){
+    if( it_local != local_active_var.end() ) {
       // Var v had already a linear coefficient set
       // DQuadFunction modification (nothing to be done on the linear term)
       std::get<2>( qd_var[idx_local] ) = dbl_val( value );
@@ -2044,7 +2044,7 @@ void AbstractBlock::read_lp( std::istream & file )
       qd_var.push_back( std::make_tuple( v , 0 , dbl_val( value ) ) );
     }
    }
-   else if( file.peek() == '*' ){
+   else if( file.peek() == '*' ) {
     // We read only the first term. Now skip the * and read the second
     file >> word; // *
     file >> column2;
@@ -2056,7 +2056,7 @@ void AbstractBlock::read_lp( std::istream & file )
 
     // If one of the variable is not active locally, we have to insert it in the
     // set of active var of the constraint
-    if( it_local1 == local_active_var.end() ){
+    if( it_local1 == local_active_var.end() ) {
       // Map globally the column in the set of all the variable  
       auto it_global1 = std::find( col_names.begin(), col_names.end(), column );
       auto idx_global1 = std::distance( col_names.begin(), it_global1 );
@@ -2073,7 +2073,7 @@ void AbstractBlock::read_lp( std::istream & file )
 
     // If one of the variable is not active locally, we have to insert it in the
     // set of active var of the constraint
-    if( it_local2 == local_active_var.end() ){
+    if( it_local2 == local_active_var.end() ) {
       // Map globally the column in the set of all the variable  
       auto it_global2 = std::find( col_names.begin(), col_names.end(), column2 );
       auto idx_global2 = std::distance( col_names.begin(), it_global2 );
@@ -2100,7 +2100,7 @@ void AbstractBlock::read_lp( std::istream & file )
     auto idx_global = std::distance( col_names.begin(), it_global );
     v = &( *cols )[ idx_global ];
 
-    if( ! is_row_q[ r ] ){
+    if( ! is_row_q[ r ] ) {
       // LinearFunction Modification
       lin_var.push_back( std::make_pair( v , dbl_val( value ) ) );
     }
@@ -2165,14 +2165,14 @@ void AbstractBlock::read_lp( std::istream & file )
  /*------------- READ BOUNDS -------------*/
  /*---------------------------------------*/
  
- if( current_section == LP_sections::LP_BOUND ){
+ if( current_section == LP_sections::LP_BOUND ) {
   file >> word;
   sec_reached( &current_section , word );
  }
  
  // In this case we have to control both for the general and binary section,
  // because they can come in any order.
- while( current_section == LP_sections::LP_BOUND ){
+ while( current_section == LP_sections::LP_BOUND ) {
   
   std::string column;
   std::string lhs_value = "0"; // default lhs value in .lp file
@@ -2235,7 +2235,7 @@ void AbstractBlock::read_lp( std::istream & file )
  file >> word;
  sec_reached( &current_section , word );
  while( current_section == LP_sections::LP_GENERAL || 
-         current_section == LP_sections::LP_BINARY ){
+         current_section == LP_sections::LP_BINARY ) {
    
    std::string column;   
    column = word; // read new variable
@@ -2260,13 +2260,13 @@ void AbstractBlock::read_lp( std::istream & file )
  /*------- READ REMAINING SECTIONS -------*/
  /*---------------------------------------*/
 
- if( current_section == LP_sections::LP_SEMI_CON ){
+ if( current_section == LP_sections::LP_SEMI_CON ) {
   // TODO
  }
- else if( current_section == LP_sections::LP_SOS ){
+ else if( current_section == LP_sections::LP_SOS ) {
   // TODO
  }
- else if( current_section == LP_sections::LP_END ){
+ else if( current_section == LP_sections::LP_END ) {
    // Nothing to do
  }
  else{
@@ -2328,17 +2328,17 @@ void AbstractBlock::read_lp( std::istream & file )
 
  assert( *actual_sec <= LP_sections::LP_END );
  
- switch( *actual_sec ){
+ switch( *actual_sec ) {
    case( LP_sections::LP_LINOBJECTIVE ) :
     if ( std::any_of( QOBJ_SECTION.begin() , QOBJ_SECTION.end() , 
-                        compare_section( word ) ) ){
+                        compare_section( word ) ) ) {
       // we reached the quadratic objective section
       *actual_sec = LP_sections::LP_QUADOBJECTIVE;
       return;
     }
     case( LP_sections::LP_QUADOBJECTIVE ) :
      if ( std::any_of( ROW_SECTION.begin() , ROW_SECTION.end() , 
-                        compare_section( word ) ) ){
+                        compare_section( word ) ) ) {
       // we reached the row section
       *actual_sec = LP_sections::LP_ROW;
       return;
@@ -2348,7 +2348,7 @@ void AbstractBlock::read_lp( std::istream & file )
     break;
    case( LP_sections::LP_ROW ) :
     if ( std::any_of( BOUND_SECTION.begin() , BOUND_SECTION.end() , 
-                        compare_section( word ) ) ){
+                        compare_section( word ) ) ) {
       // we reached the bound section
       *actual_sec = LP_sections::LP_BOUND;
       return;
@@ -2357,33 +2357,33 @@ void AbstractBlock::read_lp( std::istream & file )
    case( LP_sections::LP_GENERAL ) :
    case( LP_sections::LP_BINARY ) :
     if ( std::any_of( GENERAL_SECTION.begin() , GENERAL_SECTION.end() , 
-                        compare_section( word ) ) ){
+                        compare_section( word ) ) ) {
       // we reached the general section
       *actual_sec = LP_sections::LP_GENERAL;
       return;
     }
     if ( std::any_of( BINARY_SECTION.begin() , BINARY_SECTION.end() , 
-                        compare_section( word ) ) ){
+                        compare_section( word ) ) ) {
       // we reached the general section
       *actual_sec = LP_sections::LP_BINARY;
       return;
     }
     if ( std::any_of( SEMI_CON_SECTION.begin() , SEMI_CON_SECTION.end() , 
-                        compare_section( word ) ) ){
+                        compare_section( word ) ) ) {
       // we reached the semi-continuous section
       *actual_sec = LP_sections::LP_SEMI_CON;
       return;
     }
    case( LP_sections::LP_SEMI_CON ) :
     if ( std::any_of( SOS_SECTION.begin() , SOS_SECTION.end() , 
-                        compare_section( word ) ) ){
+                        compare_section( word ) ) ) {
       // we reached the sos section
       *actual_sec = LP_sections::LP_SOS;
       return;
     }
    case( LP_sections::LP_SOS ) :
     if ( std::any_of( END_SECTION.begin() , END_SECTION.end() , 
-                        compare_section( word ) ) ){
+                        compare_section( word ) ) ) {
       // we reached the sos section
       *actual_sec = LP_sections::LP_END;
       return;
