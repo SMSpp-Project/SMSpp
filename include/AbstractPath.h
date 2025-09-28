@@ -1380,8 +1380,8 @@ public:
                                        group_indices.data() );
   }
   else {
-   throw std::logic_error(
-    "AbstractPath::deserialize: unsupported type for PathGroupIndices" );
+   throw( std::logic_error(
+    "AbstractPath::deserialize: unsupported type for PathGroupIndices" ) );
   }
 
   if( ! netCDFvars.PathElementIndices.isNull() ) {
@@ -1400,17 +1400,17 @@ public:
    for( Index i = 0 ; i < num_nodes ; ++i )
     if( ! Node::has_range( node_types[ i ] ) ) {
      if( range_indices[ i ] != Inf< Index >() )
-      throw std::logic_error(
+      throw( std::logic_error(
        "AbstractPath::deserialize: range provided for node ["
        + std::to_string( i ) + "]" + " of type " +
-       std::string( 1 , node_types[ i ] ) + " that does not support range" );
+       std::string( 1 , node_types[ i ] ) + " that does not support range" ) );
     }
     else if( range_indices[ i ] < element_indices[ i ] )
      if( ( range_indices[ i ] != 0 ) && ( range_indices[ i ] != 1 ) )
-      throw std::logic_error(
+      throw( std::logic_error(
        "AbstractPath::deserialize: range_indices[" + std::to_string( i )
        + "] < element_indices[" + std::to_string( i ) + "] not allowed, " +
-       "unless element_indices[" + std::to_string( i ) + "] is 0 or 1" );
+       "unless element_indices[" + std::to_string( i ) + "] is 0 or 1" ) );
   }
   else
    for( Index i = 0 ; i < num_nodes ; ++i )

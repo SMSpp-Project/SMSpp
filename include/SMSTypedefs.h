@@ -2426,19 +2426,19 @@ inline bool deserialize( const netCDF::NcGroup & group ,
    data.clear();
    return( false );
    }
-  throw std::invalid_argument( "deserialize(): variable " + name +
-                               " not present in group " + group.getName() );
+  throw( std::invalid_argument( "deserialize(): variable " + name +
+                                " not present in group " + group.getName() ) );
   }
 
  if( ncVar.getDimCount() != 1 )
-  throw std::logic_error( "deserialize(): variable " + name +
-                          " must have dimension 1" );
+  throw( std::logic_error( "deserialize(): variable " + name +
+                           " must have dimension 1" ) );
 
  std::size_t var_size = ncVar.getDim( 0 ).getSize();
  if( ( size != Inf< std::size_t >() ) && ( var_size != size ) )
-  throw std::logic_error( "deserialize(): variable " + name +
-                          " expected size " + std::to_string( size ) +
-                          ", got " + std::to_string( var_size ) );
+  throw( std::logic_error( "deserialize(): variable " + name +
+                           " expected size " + std::to_string( size ) +
+                           ", got " + std::to_string( var_size ) ) );
 
  std::vector< char * > data_tmp( var_size );
  ncVar.getVar( data_tmp.data() );

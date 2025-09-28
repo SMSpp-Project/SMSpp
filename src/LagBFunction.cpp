@@ -2527,7 +2527,7 @@ void LagBFunction::add_to_CostMatrix( v_c_dual_pair & newdp )
     Block * bj = rpj.first->get_Block();
     auto it = Block2Idx.find( bj );
     if( it == Block2Idx.end() )
-     throw std::logic_error( "add_to_CostMatrix: variable block not found" );
+     throw( std::logic_error( "add_to_CostMatrix: variable block not found" ) );
     h = it->second;
    }
 
@@ -2629,7 +2629,7 @@ void LagBFunction::mod_CostMatrix( Index i , Index first )
    Block * bj = rp[ h ].first->get_Block();
    auto it = Block2Idx.find( bj );
    if( it == Block2Idx.end() )
-    throw std::logic_error( "mod_CostMatrix: variable block not found" );
+    throw( std::logic_error( "mod_CostMatrix: variable block not found" ) );
    k = it->second;
   }
 

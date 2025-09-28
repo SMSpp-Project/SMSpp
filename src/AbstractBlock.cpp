@@ -1485,7 +1485,7 @@ void AbstractBlock::read_lp( std::istream & file )
     else
       column = word;
     }
-    else if( std::isdigit( first_char ) || read_sign ){ 
+    else if( std::isdigit( first_char ) || read_sign ) {
       // we already read the coefficient
       file >> column; // reading the variable name
     }
@@ -1543,7 +1543,7 @@ void AbstractBlock::read_lp( std::istream & file )
     else
       column = word;
   }
-  else if( std::isdigit( first_char ) || read_sign ){ 
+  else if( std::isdigit( first_char ) || read_sign ) {
     // we already read the coefficient
     file >> column; // reading the variable name
   }
@@ -1585,7 +1585,7 @@ void AbstractBlock::read_lp( std::istream & file )
   // All row name must end with a ":"
   pos = word.find( ":" );
   
-  if( pos != -1 ){ // we actually found a new row
+  if( pos != -1 ) { // we actually found a new row
    is_row_q.push_back( false );
    ++num_rows;
    std::string row_name = word.substr( 0 , pos );
@@ -1630,7 +1630,7 @@ void AbstractBlock::read_lp( std::istream & file )
     else
       column = word;
     }  
-   else if( std::isdigit( first_char ) || read_sign ){ 
+   else if( std::isdigit( first_char ) || read_sign ) {
     // we already read the coefficient
     file >> column; // reading the variable name
     }
@@ -1737,7 +1737,7 @@ void AbstractBlock::read_lp( std::istream & file )
 
     value = value_sense + value;
     }
-    else if( std::isdigit( first_char ) || read_sign ){ 
+    else if( std::isdigit( first_char ) || read_sign ) {
       // we already read the coefficient
       value = word;
       file >> column; // reading the variable name
@@ -1813,7 +1813,7 @@ void AbstractBlock::read_lp( std::istream & file )
   
    value = value_sense + value;
   }
-  else if( std::isdigit( first_char ) || read_sign ){ 
+  else if( std::isdigit( first_char ) || read_sign ) {
     // we already read the coefficient
     value = word;
     file >> column; // reading the variable name
@@ -2005,7 +2005,7 @@ void AbstractBlock::read_lp( std::istream & file )
 
     value = value_sense + value;
    }  
-   else if( std::isdigit( first_char ) || read_sign ){ 
+   else if( std::isdigit( first_char ) || read_sign ) {
     // we already read the coefficient
     value = word;
     file >> column; // reading the variable name
@@ -2180,7 +2180,7 @@ void AbstractBlock::read_lp( std::istream & file )
   
   char first_char = word[0];
   
-  if( std::isdigit( first_char ) || first_char == '-' || first_char == '.' ){ 
+  if( std::isdigit( first_char ) || first_char == '-' || first_char == '.' ) {
    // we read the lhs
    lhs_value = word;
    file >> word; // we can skip the <=
@@ -2192,20 +2192,20 @@ void AbstractBlock::read_lp( std::istream & file )
   file >> word; // We expect to be reading the sense
   first_char = word[0];
   
-  if( first_char == '<' ){ // now reading rhs
+  if( first_char == '<' ) { // now reading rhs
    file >> rhs_value;
    file >> word;
   }
-  else if( first_char == '>' ){ // now reading lhs
+  else if( first_char == '>' ) { // now reading lhs
    file >> lhs_value;
    file >> word;
   }
-  else if( first_char == '=' ){ // reading both
+  else if( first_char == '=' ) { // reading both
    file >> rhs_value;
    lhs_value = rhs_value;
    file >> word;
   }
-  else if( boost::iequals( word , "free" ) ){ // free variable
+  else if( boost::iequals( word , "free" ) ) { // free variable
    lhs_value = "-infinity";
    file >> word;
   }

@@ -6854,7 +6854,7 @@ class Block : public Observer {
                         boost::multi_array< std::vector< Const > , K > & newc ,
                         std::string && name = "" ) {
   if( i >= v_s_Constraint.size() )
-   throw std::invalid_argument( "wrong index into v_s_Constraint" );
+   throw( std::invalid_argument( "wrong index into v_s_Constraint" ) );
 
   for( auto c = newc.data(); c < ( newc.data() + newc.num_elements() ); ++c )
    for( auto & j : *c )
@@ -7069,7 +7069,7 @@ class Block : public Observer {
                       boost::multi_array< std::vector< Var > , K > & newv ,
                       std::string && name = "" ) {
   if( i >= v_s_Variable.size() )
-   throw std::invalid_argument( "wrong index into v_s_Variable" );
+   throw( std::invalid_argument( "wrong index into v_s_Variable" ) );
 
   for( auto v = newv.data(); v < ( newv.data() + newv.num_elements() ); ++v )
    for( auto & j : *v )
