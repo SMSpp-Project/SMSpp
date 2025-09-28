@@ -71,7 +71,7 @@ void runAllTests()
     v_nd_vars.push_back( od1 );
     v_nd_vars.push_back( od2 );
 
-    QuadFunction nw_quad( std::move(v_vars), std::move(v_nd_vars) );
+    QuadFunction nw_quad( std::move( v_vars ) , std::move( v_nd_vars ) );
 
     x1.set_value( 1.0 );
     x2.set_value( 2.0 );

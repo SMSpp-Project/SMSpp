@@ -2330,15 +2330,15 @@ void AbstractBlock::read_lp( std::istream & file )
  
  switch( *actual_sec ) {
    case( LP_sections::LP_LINOBJECTIVE ) :
-    if ( std::any_of( QOBJ_SECTION.begin() , QOBJ_SECTION.end() , 
-                        compare_section( word ) ) ) {
+    if( std::any_of( QOBJ_SECTION.begin() , QOBJ_SECTION.end() ,
+                     compare_section( word ) ) ) {
       // we reached the quadratic objective section
       *actual_sec = LP_sections::LP_QUADOBJECTIVE;
       return;
     }
     case( LP_sections::LP_QUADOBJECTIVE ) :
-     if ( std::any_of( ROW_SECTION.begin() , ROW_SECTION.end() , 
-                        compare_section( word ) ) ) {
+     if( std::any_of( ROW_SECTION.begin() , ROW_SECTION.end() ,
+                      compare_section( word ) ) ) {
       // we reached the row section
       *actual_sec = LP_sections::LP_ROW;
       return;
@@ -2347,8 +2347,8 @@ void AbstractBlock::read_lp( std::istream & file )
     // the row section is mandatory
     break;
    case( LP_sections::LP_ROW ) :
-    if ( std::any_of( BOUND_SECTION.begin() , BOUND_SECTION.end() , 
-                        compare_section( word ) ) ) {
+    if( std::any_of( BOUND_SECTION.begin() , BOUND_SECTION.end() ,
+                     compare_section( word ) ) ) {
       // we reached the bound section
       *actual_sec = LP_sections::LP_BOUND;
       return;
@@ -2356,34 +2356,34 @@ void AbstractBlock::read_lp( std::istream & file )
    case( LP_sections::LP_BOUND ) :
    case( LP_sections::LP_GENERAL ) :
    case( LP_sections::LP_BINARY ) :
-    if ( std::any_of( GENERAL_SECTION.begin() , GENERAL_SECTION.end() , 
-                        compare_section( word ) ) ) {
+    if( std::any_of( GENERAL_SECTION.begin() , GENERAL_SECTION.end() ,
+                     compare_section( word ) ) ) {
       // we reached the general section
       *actual_sec = LP_sections::LP_GENERAL;
       return;
     }
-    if ( std::any_of( BINARY_SECTION.begin() , BINARY_SECTION.end() , 
-                        compare_section( word ) ) ) {
+    if( std::any_of( BINARY_SECTION.begin() , BINARY_SECTION.end() ,
+                     compare_section( word ) ) ) {
       // we reached the general section
       *actual_sec = LP_sections::LP_BINARY;
       return;
     }
-    if ( std::any_of( SEMI_CON_SECTION.begin() , SEMI_CON_SECTION.end() , 
-                        compare_section( word ) ) ) {
+    if( std::any_of( SEMI_CON_SECTION.begin() , SEMI_CON_SECTION.end() ,
+                     compare_section( word ) ) ) {
       // we reached the semi-continuous section
       *actual_sec = LP_sections::LP_SEMI_CON;
       return;
     }
    case( LP_sections::LP_SEMI_CON ) :
-    if ( std::any_of( SOS_SECTION.begin() , SOS_SECTION.end() , 
-                        compare_section( word ) ) ) {
+    if( std::any_of( SOS_SECTION.begin() , SOS_SECTION.end() ,
+                     compare_section( word ) ) ) {
       // we reached the sos section
       *actual_sec = LP_sections::LP_SOS;
       return;
     }
    case( LP_sections::LP_SOS ) :
-    if ( std::any_of( END_SECTION.begin() , END_SECTION.end() , 
-                        compare_section( word ) ) ) {
+    if( std::any_of( END_SECTION.begin() , END_SECTION.end() ,
+                     compare_section( word ) ) ) {
       // we reached the sos section
       *actual_sec = LP_sections::LP_END;
       return;
