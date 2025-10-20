@@ -723,6 +723,7 @@ class Configuration
  *  - SimpleConfiguration< std::pair< double , int > >
  *  - SimpleConfiguration< std::pair< int , Configuration * > >
  *  - SimpleConfiguration< std::pair< double , Configuration * > >
+ *  - SimpleConfiguration< std::pair< std::string , Configuration * > >
  *  - SimpleConfiguration< std::vector< int > >
  *  - SimpleConfiguration< std::vector< double > >
  *  - SimpleConfiguration< std::pair< int , Configuration * > >
@@ -1134,29 +1135,63 @@ void SimpleConfiguration< std::pair< int , Configuration * >
 template<>
 void SimpleConfiguration< std::pair< int , Configuration * > >::clear( void );
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-// std::pair< double , Configuration * > (see above)
+/*--------------------------------------------------------------------------*/
+// std::pair< double , Configuration * >
+// see the std::pair< int , Configuration * > for comments
 
 template<>
 SimpleConfiguration< std::pair< double , Configuration * > > *
  SimpleConfiguration< std::pair< double , Configuration * > >::clone( void )
  const;
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
 template<>
 void SimpleConfiguration< std::pair< double , Configuration * >
                           >::guts_of_destructor( void );
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
 template<>
 void SimpleConfiguration< std::pair< double , Configuration * >
+                          >::serialize( netCDF::NcGroup & group ) const;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::pair< double , Configuration * >
+                          >::deserialize( const netCDF::NcGroup & group );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::pair< double , Configuration * >
+                          >::clear( void );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+// std::pair< std::string , Configuration * >
+// see the std::pair< int , Configuration * > for comments
+
+template<>
+SimpleConfiguration< std::pair< std::string , Configuration * > > *
+ SimpleConfiguration< std::pair< std::string , Configuration * >
+                      >::clone( void ) const;
+
+template<>
+void SimpleConfiguration< std::pair< std::string , Configuration * >
+                          >::guts_of_destructor( void );
+
+template<>
+void SimpleConfiguration< std::pair< std::string , Configuration * >
                                      >::serialize( netCDF::NcGroup & group )
  const;
 
 template<>
-void SimpleConfiguration< std::pair< double , Configuration * >
+void SimpleConfiguration< std::pair< std::string , Configuration * >
                               >::deserialize( const netCDF::NcGroup & group );
 
 template<>
-void SimpleConfiguration< std::pair< double , Configuration * >
+void SimpleConfiguration< std::pair< std::string , Configuration * >
                           >::clear( void );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */

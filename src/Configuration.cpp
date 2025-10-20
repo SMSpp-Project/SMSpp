@@ -52,6 +52,9 @@ SMSpp_insert_in_factory_cpp_0_t(
 SMSpp_insert_in_factory_cpp_0_t(
               SimpleConfiguration< std::pair< double , Configuration * > > );
 
+SMSpp_insert_in_factory_cpp_0_t(
+	 SimpleConfiguration< std::pair< std::string , Configuration * > > );
+
 SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< std::vector< int > > );
 
 SMSpp_insert_in_factory_cpp_0_t(
@@ -379,6 +382,68 @@ void SimpleConfiguration< std::pair< double , Configuration * >
 
 template<>
 void SimpleConfiguration< std::pair< double , Configuration * >
+			  >::clear( void )
+{
+ if( f_value.second )
+  f_value.second->clear();
+ }
+
+/*--------------------------------------------------------------------------*/
+// std::pair< std::string , Configuration * >
+
+template<>
+SimpleConfiguration< std::pair< std::string , Configuration * > > *
+ SimpleConfiguration< std::pair< std::string , Configuration * >
+		      >::clone( void )
+ const {
+ auto sc = new SimpleConfiguration< std::pair< std::string ,
+					       Configuration * > >();
+ sc->f_value.first = f_value.first;
+ sc->f_value.second = f_value.second ? f_value.second->clone() : nullptr;
+
+ return( sc );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::pair< std::string , Configuration * >
+                          >::guts_of_destructor( void )
+{
+ delete f_value.second;
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::pair< std::string , Configuration * >
+			  >::serialize( netCDF::NcGroup & group ) const
+{
+ Configuration::serialize( group );
+ SMSpp_di_unipi_it::serialize( group , f_value.first , "value_f" );
+ if( f_value.second ) {
+  auto cg = group.addGroup( "value_s" );
+  f_value.second->serialize( cg );
+  }
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::pair< std::string , Configuration * >
+			  >::deserialize( const netCDF::NcGroup & group )
+{
+ Configuration::deserialize( group );
+ SMSpp_di_unipi_it::deserialize( group , f_value.first , "value_f" , false );
+ delete f_value.second;
+ auto sc = group.getGroup( "value_s" );
+ f_value.second = new_Configuration( sc );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::pair< std::string , Configuration * >
 			  >::clear( void )
 {
  if( f_value.second )
