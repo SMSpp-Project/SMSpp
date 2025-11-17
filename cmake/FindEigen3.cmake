@@ -54,15 +54,15 @@ else ()
                 "${Eigen3_INCLUDE_DIR}/Eigen/src/Core/util/Macros.h"
                 _eigen3_version_lines REGEX "#define EIGEN_(WORLD|MAJOR|MINOR)_VERSION")
 
-        string(REGEX REPLACE ".*EIGEN_WORLD_VERSION *\([0-9]*\).*" "\\1" _eigen3_version_major "${_eigen3_version_lines}")
-        string(REGEX REPLACE ".*EIGEN_MAJOR_VERSION *\([0-9]*\).*" "\\1" _eigen3_version_minor "${_eigen3_version_lines}")
-        string(REGEX REPLACE ".*EIGEN_MINOR_VERSION *\([0-9]*\).*" "\\1" _eigen3_version_patch "${_eigen3_version_lines}")
+        string(REGEX REPLACE ".*EIGEN_WORLD_VERSION *\([0-9]*\).*" "\\1" _eigen3_version_world "${_eigen3_version_lines}")
+        string(REGEX REPLACE ".*EIGEN_MAJOR_VERSION *\([0-9]*\).*" "\\1" _eigen3_version_major "${_eigen3_version_lines}")
+        string(REGEX REPLACE ".*EIGEN_MINOR_VERSION *\([0-9]*\).*" "\\1" _eigen3_version_minor "${_eigen3_version_lines}")
 
-        set(Eigen3_VERSION "${_eigen3_version_major}.${_eigen3_version_minor}.${_eigen3_version_patch}")
+        set(Eigen3_VERSION "${_eigen3_version_world}.${_eigen3_version_major}.${_eigen3_version_minor}")
         unset(_eigen3_version_lines)
+        unset(_eigen3_version_world)
         unset(_eigen3_version_major)
         unset(_eigen3_version_minor)
-        unset(_eigen3_version_patch)
     endif ()
 
     # ----- Handle the standard arguments ----------------------------------- #
