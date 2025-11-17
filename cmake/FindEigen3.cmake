@@ -42,7 +42,6 @@ else ()
     # ----- Find the headers ------------------------------------------------ #
     find_path(Eigen3_INCLUDE_DIR
               NAMES Eigen/Dense
-              HINTS ${Eigen3_ROOT}
               PATHS ${Eigen3_ROOT}
               PATH_SUFFIXES include/eigen3
                             eigen3
@@ -50,6 +49,7 @@ else ()
 
     # ----- Parse the version ----------------------------------------------- #
     if (Eigen3_INCLUDE_DIR)
+        # Eigen <= 3.4
         file(STRINGS
                 "${Eigen3_INCLUDE_DIR}/Eigen/src/Core/util/Macros.h"
                 _eigen3_version_lines REGEX "#define EIGEN_(WORLD|MAJOR|MINOR)_VERSION")
@@ -58,7 +58,21 @@ else ()
         string(REGEX REPLACE ".*EIGEN_MAJOR_VERSION *\([0-9]*\).*" "\\1" _eigen3_version_major "${_eigen3_version_lines}")
         string(REGEX REPLACE ".*EIGEN_MINOR_VERSION *\([0-9]*\).*" "\\1" _eigen3_version_minor "${_eigen3_version_lines}")
 
+        # Eigen >= 3.5
+        if (_eigen3_version_world STREQUAL "" OR
+            _eigen3_version_major STREQUAL "" OR
+            _eigen3_version_minor STREQUAL "")
+            file(STRINGS
+                    "${Eigen3_INCLUDE_DIR}/Eigen/Version"
+                    _eigen3_version_lines REGEX "#define EIGEN_(WORLD|MAJOR|MINOR)_VERSION")
+
+            string(REGEX REPLACE ".*EIGEN_WORLD_VERSION *\([0-9]*\).*" "\\1" _eigen3_version_world "${_eigen3_version_lines}")
+            string(REGEX REPLACE ".*EIGEN_MAJOR_VERSION *\([0-9]*\).*" "\\1" _eigen3_version_major "${_eigen3_version_lines}")
+            string(REGEX REPLACE ".*EIGEN_MINOR_VERSION *\([0-9]*\).*" "\\1" _eigen3_version_minor "${_eigen3_version_lines}")
+        endif ()
+
         set(Eigen3_VERSION "${_eigen3_version_world}.${_eigen3_version_major}.${_eigen3_version_minor}")
+
         unset(_eigen3_version_lines)
         unset(_eigen3_version_world)
         unset(_eigen3_version_major)
