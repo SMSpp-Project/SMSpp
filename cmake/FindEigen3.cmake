@@ -42,8 +42,10 @@ else ()
     # ----- Find the headers ------------------------------------------------ #
     find_path(Eigen3_INCLUDE_DIR
               NAMES Eigen/Dense
+              HINTS ${Eigen3_ROOT}
               PATHS ${Eigen3_ROOT}
-              PATH_SUFFIXES eigen3
+              PATH_SUFFIXES include/eigen3
+                            eigen3
               DOC "Eigen3 include directory.")
 
     # ----- Parse the version ----------------------------------------------- #
