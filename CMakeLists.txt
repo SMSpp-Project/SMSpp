@@ -51,7 +51,7 @@ include(FetchContent)
 find_package(Boost 1.72.0 REQUIRED)
 
 # Try first with library's own configuration file, then with our find module.
-#find_package(Eigen3 NO_MODULE)
+find_package(Eigen3 NO_MODULE)
 if (NOT Eigen3_FOUND)
     find_package(Eigen3 REQUIRED)
 endif ()
