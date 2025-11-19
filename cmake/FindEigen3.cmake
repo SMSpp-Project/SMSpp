@@ -49,7 +49,6 @@ else ()
 
     # ----- Parse the version ----------------------------------------------- #
     if (Eigen3_INCLUDE_DIR)
-        message(STATUS "Trying Eigen version extraction in: ${Eigen3_INCLUDE_DIR}")
         # Eigen <= 3.4
         file(STRINGS
                 "${Eigen3_INCLUDE_DIR}/Eigen/src/Core/util/Macros.h"
@@ -59,13 +58,10 @@ else ()
         string(REGEX REPLACE ".*EIGEN_MAJOR_VERSION *\([0-9]*\).*" "\\1" _eigen3_version_major "${_eigen3_version_lines}")
         string(REGEX REPLACE ".*EIGEN_MINOR_VERSION *\([0-9]*\).*" "\\1" _eigen3_version_minor "${_eigen3_version_lines}")
 
-        message(STATUS "After Macros.h : world='${_eigen3_version_world}', major='${_eigen3_version_major}', minor='${_eigen3_version_minor}'")
-
         # Eigen >= 3.5
         if (_eigen3_version_world STREQUAL "" OR
             _eigen3_version_major STREQUAL "" OR
             _eigen3_version_minor STREQUAL "")
-            message(STATUS "Fallback to Eigen/Version")
             file(STRINGS
                     "${Eigen3_INCLUDE_DIR}/Eigen/Version"
                     _eigen3_version_lines REGEX "#define EIGEN_(WORLD|MAJOR|MINOR)_VERSION")
@@ -75,7 +71,6 @@ else ()
             string(REGEX REPLACE ".*EIGEN_MINOR_VERSION *\([0-9]*\).*" "\\1" _eigen3_version_minor "${_eigen3_version_lines}")
         endif ()
 
-        message(STATUS "After Version : world='${_eigen3_version_world}', major='${_eigen3_version_major}', minor='${_eigen3_version_minor}'")
         set(Eigen3_VERSION "${_eigen3_version_world}.${_eigen3_version_major}.${_eigen3_version_minor}")
 
         unset(_eigen3_version_lines)
