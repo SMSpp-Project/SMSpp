@@ -771,6 +771,14 @@ class LagBFunction : public C05Function , public Block {
   *               the Solver, each one of which (again) corresponds to a
   *               linearization
   *
+  * - intPushCostToOwner [default 1]: if nonzero, it sets that the Lagrangian
+  *                                   term corresponding to any ColVariable
+  *                                   appearing in the g( x ) functions added
+  *   with add_dual_pairs() is added (or the existing value changed) in the
+  *   [Linear/DQuad]Function inside the FRealObjective of the Block where the
+  *   ColVariable is defined. Otherwise all of them are added to the [...]
+  *   FRealObjective to the "root" inner Block.
+  *
   * The second group comprises:
   *
   * - intLPMaxSz: the value of intLPMaxSz is passed to the inner Solver as

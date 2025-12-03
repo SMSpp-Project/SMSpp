@@ -9,9 +9,88 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added 
 
+- SimpleConfiguration< std::pair< std::string ,
+  Configuration * > >
+
+- set\_caller() method to DataMapping
+
+- strLogFileName string parameter in Solver
+
+- ::deserialize for std::vector< std::string >
+
+- [huge] new parameter intPushCostToOwner in LagBFunction
+  allows to decide whether the Lagrangian term is added
+  to the "root" inner Block (as previously) or rather
+  in the [Linear/DQuad]Function of the Block where the
+  ColVariable is defined
+  
+- added full netCDF file support for State
+
+- un\_any\_thing\_OneVarConstraint\_*
+
+- added full netCDF file support for Configuration
+
+- updated interface to handle two-nested std::vector
+
+- range_index field in AbstractPath
+
+- updated SMSTypedefs to handle
+  boost::multi\_array< std::vector< T > , K >
+
+- added couple SimpleConfiguration
+
+- added full netCDF file support for Solution
+
+- support for arm64 under MacOS
+
+- parameter to select the Solver of the inner Block in
+  BendersBFunctio
+
+- Block::almost\_deserialize()
+
+- [huge] QuadFunction for non-diagonal general quadratic
+  functions
+
+- DQuadFunctionModVarsAddd
+
+- support for reading .lp and .mps files in AbstractBlock,
+  comprised handling of QP problems
+
 ### Changed 
 
+- parameter in set\_ComputeConfig() is now const
+
+- extended CLANG_1200_0_32_27_PATCH to all
+  un\_any\_thing\_*, not only un\_any\_thing\_0
+
+- Solution is no longer pure virtual (useful to define
+  empty placeholder Solution)
+
+- removed support for x86-64 under MacOS
+
+- almost complete rehaul of makefiles (but more is needed)
+
+- moved vectors for parameters inside methods
+
 ### Fixed 
+
+- fixed conceptual flaw in LagBFunction: getting an empty
+  Solution from the Block and accumulating all the
+  Solution of a convex combination was not the right
+  approach according to Solution definition, and in fact
+  it was miserably failing with UnitBlockSolution
+
+- removed memory leak in LagBFunction
+
+- catastrophic bug in RBlockSolverConfig::apply()
+
+- g++ issue with SMSpp_ensure_load
+
+- dynamic destructor of SimpleConfiguration< stuff >
+
+- map_active() in most *Function (added in BendersBFunction)
+
+- many minor and major flaws
 
 ## [0.5.3] - 2024-02-29
 
@@ -238,7 +317,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - First test release.
 
-[Unreleased]: https://gitlab.com/smspp/smspp/-/compare/0.5.3...develop
+[Unreleased]: https://gitlab.com/smspp/smspp/-/compare/0.5.4...develop
+[Unreleased]: https://gitlab.com/smspp/smspp/-/compare/0.5.3...0.5.4
 [0.5.3]: https://gitlab.com/smspp/smspp/-/compare/0.5.2...0.5.3
 [0.5.2]: https://gitlab.com/smspp/smspp/-/compare/0.5.1...0.5.2
 [0.5.1]: https://gitlab.com/smspp/smspp/-/compare/0.5.0...0.5.1
