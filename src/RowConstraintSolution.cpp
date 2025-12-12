@@ -75,8 +75,8 @@ void RowConstraintSolution::delete_vectors() {
  for( Vec_any::size_type i = 0 ; i < static_constraint_dual_values.size() ;
       ++i )
 
-  if( ! un_any_thing( double , static_constraint_dual_values[ i ] ,
-                      [ & var ]() { delete &var; }() ) )
+  if( ! un_any_thing_static( double , static_constraint_dual_values[ i ] ,
+                             [ & var ]() { delete &var; }() ) )
 
    throw( std::logic_error
     ( "RowConstraintSolution::~RowConstraintSolution() "
@@ -86,9 +86,9 @@ void RowConstraintSolution::delete_vectors() {
  for( Vec_any::size_type i = 0 ;
       i < dynamic_constraint_dual_values.size() ; ++i )
 
-  if( ! un_any_thing( std::vector< double > ,
-                      dynamic_constraint_dual_values[ i ] ,
-                      [ & var ]() { delete &var; }() ) )
+  if( ! un_any_thing_dynamic( std::vector< double > ,
+                              dynamic_constraint_dual_values[ i ] ,
+                              [ & var ]() { delete &var; }() ) )
 
    throw( std::logic_error
     ( "RowConstraintSolution::~RowConstraintSolution() "

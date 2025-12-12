@@ -28,7 +28,6 @@
 #    configuration file installed in the system default directories, which    #
 #    happens to be the case for some of our main developers and testers.      #
 #                                                                             #
-#                              Niccolo' Iardella                              #
 #                                Donato Meoli                                 #
 #                         Dipartimento di Informatica                         #
 #                             Universita' di Pisa                             #
@@ -41,27 +40,43 @@ if (Eigen3_INCLUDE_DIR)
 else ()
 
     # ----- Find the headers ------------------------------------------------ #
-    # Note that find_path() also creates a cache entry
     find_path(Eigen3_INCLUDE_DIR
               NAMES Eigen/Dense
-              PATH_SUFFIXES eigen3
+              PATHS ${Eigen3_ROOT}
+              PATH_SUFFIXES include/eigen3
+                            eigen3
               DOC "Eigen3 include directory.")
 
     # ----- Parse the version ----------------------------------------------- #
     if (Eigen3_INCLUDE_DIR)
+        # Eigen <= 3.4
         file(STRINGS
                 "${Eigen3_INCLUDE_DIR}/Eigen/src/Core/util/Macros.h"
                 _eigen3_version_lines REGEX "#define EIGEN_(WORLD|MAJOR|MINOR)_VERSION")
 
-        string(REGEX REPLACE ".*EIGEN_WORLD_VERSION *\([0-9]*\).*" "\\1" _eigen3_version_major "${_eigen3_version_lines}")
-        string(REGEX REPLACE ".*EIGEN_MAJOR_VERSION *\([0-9]*\).*" "\\1" _eigen3_version_minor "${_eigen3_version_lines}")
-        string(REGEX REPLACE ".*EIGEN_MINOR_VERSION *\([0-9]*\).*" "\\1" _eigen3_version_patch "${_eigen3_version_lines}")
+        string(REGEX REPLACE ".*EIGEN_WORLD_VERSION *\([0-9]*\).*" "\\1" _eigen3_version_world "${_eigen3_version_lines}")
+        string(REGEX REPLACE ".*EIGEN_MAJOR_VERSION *\([0-9]*\).*" "\\1" _eigen3_version_major "${_eigen3_version_lines}")
+        string(REGEX REPLACE ".*EIGEN_MINOR_VERSION *\([0-9]*\).*" "\\1" _eigen3_version_minor "${_eigen3_version_lines}")
 
-        set(Eigen3_VERSION "${_eigen3_version_major}.${_eigen3_version_minor}.${_eigen3_version_patch}")
+        # Eigen >= 3.5
+        if (_eigen3_version_world STREQUAL "" OR
+            _eigen3_version_major STREQUAL "" OR
+            _eigen3_version_minor STREQUAL "")
+            file(STRINGS
+                    "${Eigen3_INCLUDE_DIR}/Eigen/Version"
+                    _eigen3_version_lines REGEX "#define EIGEN_(WORLD|MAJOR|MINOR)_VERSION")
+
+            string(REGEX REPLACE ".*EIGEN_WORLD_VERSION *\([0-9]*\).*" "\\1" _eigen3_version_world "${_eigen3_version_lines}")
+            string(REGEX REPLACE ".*EIGEN_MAJOR_VERSION *\([0-9]*\).*" "\\1" _eigen3_version_major "${_eigen3_version_lines}")
+            string(REGEX REPLACE ".*EIGEN_MINOR_VERSION *\([0-9]*\).*" "\\1" _eigen3_version_minor "${_eigen3_version_lines}")
+        endif ()
+
+        set(Eigen3_VERSION "${_eigen3_version_world}.${_eigen3_version_major}.${_eigen3_version_minor}")
+
         unset(_eigen3_version_lines)
+        unset(_eigen3_version_world)
         unset(_eigen3_version_major)
         unset(_eigen3_version_minor)
-        unset(_eigen3_version_patch)
     endif ()
 
     # ----- Handle the standard arguments ----------------------------------- #
@@ -78,13 +93,13 @@ endif ()
 
 # ----- Export the target --------------------------------------------------- #
 if (Eigen3_FOUND)
-    set(Eigen3_INCLUDE_DIRS "${Eigen3_INCLUDE_DIR}")
+    set(Eigen3_INCLUDE_DIRS ${Eigen3_INCLUDE_DIR})
 
     if (NOT TARGET Eigen3::Eigen)
         add_library(Eigen3::Eigen INTERFACE IMPORTED)
         set_target_properties(
                 Eigen3::Eigen PROPERTIES
-                INTERFACE_INCLUDE_DIRECTORIES "${Eigen3_INCLUDE_DIRS}")
+                INTERFACE_INCLUDE_DIRECTORIES ${Eigen3_INCLUDE_DIRS})
     endif ()
 endif ()
 

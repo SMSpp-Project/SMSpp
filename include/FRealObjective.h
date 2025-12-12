@@ -199,30 +199,23 @@ class FRealObjective : public RealObjective , public Observer {
 
 /*--------------------------------------------------------------------------*/
 
- void set_par( const idx_type par , int value ) override {
+ void set_par( idx_type par , int value ) override {
   if( f_function )
    f_function->set_par( par , value );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- void set_par( const idx_type par , double value ) override {
+ void set_par( idx_type par , double value ) override {
   if( f_function )
    f_function->set_par( par , value );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- void set_par( const idx_type par , std::string && value ) override {
+ void set_par( idx_type par , std::string && value ) override {
   if( f_function )
    f_function->set_par( par , std::move( value ) );
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
- void set_par( idx_type par , const std::string & value ) override {
-  if( f_function )
-   f_function->set_par( par , value );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -234,23 +227,9 @@ class FRealObjective : public RealObjective , public Observer {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- void set_par( idx_type par , const std::vector< int > & value ) override {
-  if( f_function )
-   f_function->set_par( par , value );
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
  void set_par( idx_type par , std::vector< double > && value ) override {
   if( f_function )
    f_function->set_par( par , std::move( value ) );
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
- void set_par( idx_type par , const std::vector< double > & value ) override {
-  if( f_function )
-   f_function->set_par( par , value );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -260,17 +239,9 @@ class FRealObjective : public RealObjective , public Observer {
    f_function->set_par( par , std::move( value ) );
   }
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
- void set_par( idx_type par , const std::vector< std::string > & value )
-  override {
-  if( f_function )
-   f_function->set_par( par , value );
-  }
-
 /*--------------------------------------------------------------------------*/
 
- void set_ComputeConfig( ComputeConfig * scfg = nullptr ) override {
+ void set_ComputeConfig( const ComputeConfig * scfg = nullptr ) override {
   if( f_function )
    f_function->set_ComputeConfig( scfg );
   }

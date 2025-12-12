@@ -934,7 +934,49 @@ class Block : public Observer {
   * will be no \p father). */
 
  static Block * deserialize( const std::string & filename ,
-			     Block * father = nullptr );
+                             Block * father = nullptr ,
+                             std::function< void( Block * ) > * f = nullptr );
+
+/*--------------------------------------------------------------------------*/
+ /// almost de-serialize a :Block out of a file
+ /** Top-level almost de-serialization method: does the same as
+  * deserialize( filename ), except stopping just short of doing the actual
+  * deserialization ("arrives in third basis"). That is, it:
+  *
+  * - finds and open the right netCDF::NcGroup containing the actual data
+  *   representing the :Block starting from \p filename, which may mean
+  *   managing fila mangling (see  deserialize( filename )) and going
+  *   through an arbitrary number of indirections (see [almost_]new_Block(
+  *   netCDF::NcGroup));
+  *
+  * - builds the :Block out of the factory
+  *
+  * - returns a pointer to the newly minted :Block, *not yet deserialized*,
+  *   together with the netCDF::NcGroup ready to be used to deserialize it.
+  *
+  * That is, deserialize( filename ) could be implemented as
+  *
+  *     auto res = almost_deserialize( filename , father );
+  *     res.second->deserialize( res.first );
+  *
+  * It is actually not because, for obvious reasons,
+  *
+  *     THIS METHOD DOES NOT SUPPORT THE :Block BEING load()-ED FROM A
+  *     TEXT FILE
+  *
+  * unlike deserialize( filename ).
+  *
+  * The rationale for this method is that one may need to perform some
+  * operation on the newly minted :Block *prior* to deserialize()-ing it,
+  * like passing a part of the information via different means, which
+  * obviously requires havning found and opened the right netCDF::NcGroup
+  * to get the "type" string to pass to the Block factory; then, of course
+  * one does not want to do all the work again and just use the already
+  * opened group. */
+
+ static std::pair< netCDF::NcGroup , Block * >
+        almost_deserialize( const std::string & filename ,
+			    Block * father = nullptr );
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize a :Block out of an open netCDF SMS++ file at given position
@@ -964,8 +1006,8 @@ class Block : public Observer {
   * a call to new_Block( netCDF::NcGroup & ); see the corresponding comments
   * for the format options. Anything going wrong with the entire operation
   * (the file is not there, the "SMS++_file_type" attribute is not there,
-  * there is no required "Prob_< idx >" or "Block_< idx >" child group, there is
-  * any fatal error during the process, ...) results in nullptr being
+  * there is no required "Prob_< idx >" or "Block_< idx >" child group, there
+  * is any fatal error during the process, ...) results in nullptr being
   * returned.
   *
   * Note that the method is static, hence it is to be called as
@@ -975,9 +1017,53 @@ class Block : public Observer {
   * i.e., without any reference to any specific Block (and, therefore, it can
   * be used to construct the very first Block if needed). */
 
- static Block * deserialize( const netCDF::NcFile & f ,
-			     unsigned int idx = 0 ,
-			     Block * father = nullptr );
+ static Block * deserialize( const netCDF::NcFile & file ,
+                             unsigned int idx = 0 , Block * father = nullptr ,
+                             std::function< void( Block * ) > * f = nullptr );
+
+/*--------------------------------------------------------------------------*/
+ /// almost de-serialize a :Block out of an open netCDF SMS++
+ /** Second-level de-serialization method: does the same as
+  * deserialize( netCDF::NcFile , unsigned int ), except stopping just short
+  * of doing the actual deserialization ("arrives in third basis"). That is,
+  * it:
+  *
+  * - finds and open the right netCDF::NcGroup containing the actual data
+  *   representing the :Block inside \p f, using \p idx; note that "inside
+  *   f" may be misleading, in that finding the actual group may mean
+  *   managing fila mangling (see  deserialize( filename )) and going
+  *   through an arbitrary number of indirections (see [almost_]new_Block(
+  *   netCDF::NcGroup));
+  *
+  * - builds the :Block out of the factory
+  *
+  * - returns a pointer to the newly minted :Block, *not yet deserialized*,
+  *   together with the netCDF::NcGroup ready to be used to deserialize it.
+  *
+  * That is, deserialize( f , idx , father ) could be implemented as
+  *
+  *     auto res = almost_deserialize( f , idx , father );
+  *     res.second->deserialize( res.first );
+  *
+  * It is actually not because, for obvious reasons,
+  *
+  *     THIS METHOD DOES NOT SUPPORT THE :Block BEING load()-ED FROM A
+  *     TEXT FILE
+  *
+  * unlike deserialize( f , idx [ , father ] ).
+  *
+  * The rationale for this method is that one may need to perform some
+  * operation on the newly minted :Block *prior* to deserialize()-ing it,
+  * like passing a part of the information via different means, which
+  * obviously requires havning found and opened the right netCDF::NcGroup
+  * to get the "type" string to pass to the Block factory; then, of course
+  * one does not want to do all the work again and just use the already
+  * opened group. */
+
+ static std::pair< netCDF::NcGroup , Block * >
+        almost_deserialize( const netCDF::NcFile & f ,
+			    unsigned int idx = 0 ,
+			    Block * father = nullptr );
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize a :Block out of netCDF::NcGroup, returns it
@@ -1015,7 +1101,48 @@ class Block : public Observer {
   * If anything goes wrong with the process, nullptr is returned. */
 
  static Block * new_Block( const netCDF::NcGroup & group ,
-                           Block * father = nullptr );
+                           Block * father = nullptr ,
+                           std::function< void( Block * ) > * f = nullptr );
+
+/*--------------------------------------------------------------------------*/
+ /// almost de-serialize a :Block out of netCDF::NcGroup, returns it
+ /** Third-level de-serialization method: does the same as deserialize(
+  * netCDF::NcGroup ), except stopping just short of doing the actual
+  * deserialization ("arrives in third basis"). That is, it:
+  *
+  * - finds and open the right netCDF::NcGroup containing the actual data
+  *   representing the :Block; this is very easy \p group is a "direct"
+  *   netCDF::NcGroup (see new_Block( netCDF::NcGroup )), since then it is
+  *   already it, but it is not if \p group is "indirect";
+  *
+  * - builds the :Block out of the factory
+  *
+  * - returns a pointer to the newly minted :Block, *not yet deserialized*,
+  *   together with the netCDF::NcGroup ready to be used to deserialize it.
+  *
+  * That is, deserialize( group , father ) could be implemented as
+  *
+  *     auto res = almost_deserialize( group , father );
+  *     res.second->deserialize( res.first );
+  *
+  * It is actually not because, for obvious reasons,
+  *
+  *     THIS METHOD DOES NOT SUPPORT THE :Block BEING load()-ED FROM A
+  *     TEXT FILE
+  *
+  * unlike deserialize( group [ , father ] ).
+  *
+  * The rationale for this method is that one may need to perform some
+  * operation on the newly minted :Block *prior* to deserialize()-ing it,
+  * like passing a part of the information via different means, which
+  * obviously requires havning found and opened the right netCDF::NcGroup
+  * to get the "type" string to pass to the Block factory; then, of course
+  * one does not want to do all the work again and just use the already
+  * opened group. */
+
+ static std::pair< netCDF::NcGroup , Block * >
+        almost_new_Block( const netCDF::NcGroup & group ,
+			  Block * father = nullptr );
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize the current :Block out of netCDF::NcGroup
@@ -1212,7 +1339,8 @@ class Block : public Observer {
   *   version of load() for details. */
 
  static Block * deserialize( std::istream & input ,
-			     Block * father = nullptr );
+                             Block * father = nullptr ,
+                             std::function< void( Block * ) > * f = nullptr );
 
 /*--------------------------------------------------------------------------*/
  /// destructor of Block: it is virtual
@@ -2398,7 +2526,7 @@ class Block : public Observer {
   auto obj = dynamic_cast< Obj * >( f_Objective );
   if( ! obj )
    throw( std::invalid_argument(
-		     "get_objective: objective is not of  required type" ) );
+		     "get_objective: objective is not of required type" ) );
   return( obj );
   }
 
@@ -2615,9 +2743,9 @@ class Block : public Observer {
   *
   *   - this is a certificate that the problem is *not unbounded below*;
   *
-  *   - any feasible solution whose value is (approximately) equal to the value
-  *     returned by this method is guaranteed to be an (approximately) optimal
-  *     solution;
+  *   - any feasible solution whose value is (approximately) equal to the
+  *     value returned by this method is guaranteed to be an (approximately)
+  *     optimal solution;
   *
   *   while if the sense of the [Real]Objective rather is "maximization" and
   *   the Block returns a *finite* globally valid lower bound:
@@ -2641,18 +2769,18 @@ class Block : public Observer {
   *     finds a feasible solution whose objective value is smaller than v,
   *     then the problem is unbounded below;
   *
-  *   - if the problem encoded by the Block is a maximization problem, then its
-  *     optimal value being - infinity means that the problem is empty; hence,
-  *     v is a conditionally valid lower bound if whenever one finds a valid
-  *     upper bound on the optimal value that is smaller than v, then the
-  *     problem is empty.
+  *   - if the problem encoded by the Block is a maximization problem, then
+  *     its optimal value being - infinity means that the problem is empty;
+  *     hence, v is a conditionally valid lower bound if whenever one finds
+  *     a valid upper bound on the optimal value that is smaller than v, then
+  *     the problem is empty.
   *
-  * - There are basically two different cases:
+  * There are basically two different cases:
   *
-  *   - the global valid lower bound (conditional == false) is - infinity;
-  *   then, necessarily the conditionally valid lower bound
-  *   (conditional == true) is >= than the global valid lower bound, and (as
-  *   we have discussed) it can be finite (or not);
+  * - the global valid lower bound (conditional == false) is - infinity;
+  *   then, necessarily the conditionally valid lower bound  (conditional ==
+  *   true) is >= than the global valid lower bound, and (as we have
+  *   discussed) it can be finite (or not);
   *
   * - the global valid lower bound (conditional == false) is finite
   *   (> - infinity); then, necessarily the conditionally valid lower bound
@@ -2661,9 +2789,10 @@ class Block : public Observer {
   *   bound (cf. the discussion), but this is pointless since there is no
   *   reason for checking it.
   *
-  * Conditionally valid lower bounds can sometimes be found by duality arguments
-  * and can be used as a convenient stopping condition in empty/unbounded cases
-  * for algorithms solving the problem, possibly via duality. */
+  * Conditionally valid lower bounds can sometimes be found by duality
+  * arguments and can be used as a convenient stopping condition in
+  * empty/unbounded cases for algorithms solving the problem, possibly via
+  * duality. */
 
  virtual double get_valid_lower_bound( bool conditional = false ) {
   return( - Inf< double >() );
@@ -3172,7 +3301,7 @@ class Block : public Observer {
  /// returns the number of groups of dynamic Constraint
 
  Index get_number_dynamic_constraints( void ) const {
-  return( v_s_Constraint.size() );
+  return( v_d_Constraint.size() );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -6029,7 +6158,7 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
  /// load the Block out of a text file with given filename
  /** Method intended to provide support for Blocks to load themselves out of
-  * one (or more) file(s) with the the filename given in \p fname (prefixed
+  * one (or more) file(s) with the filename given in \p fname (prefixed
   * as set by set_filename_prefix(), if any).
   *
   * The parameter \p frmt is provided to support the notion that the input
@@ -6155,27 +6284,37 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
  /// serialize a Block (recursively) to a netCDF file given the filename
  /** Top-level method to serialize a Block (recursively) to a file in
-  * netCDF-based SMS++-format, given the filename and its type. See
+  * netCDF-based SMS++-format, given the \p filename and its \p type. See
   * deserialize( netCDF::NcFile & ) for details of the different file types.
-  * Note that any existing content of the file is overwritten, and that the
-  * Block is saved as *the first one* in the newly created file.
+  * If \p replace == true (the default) any existing content of the file is
+  * overwritten and the Block is saved as *the first one* in the newly created
+  * file, while if  \p replace == false the file is opened for appending and
+  * the Block is saved after the last one currently present (if any).
   *
   * The base class implementation opens the netCDF file, creates the required
-  * attribute "SMS++_file_type", assigns it the type, and dispatches to the
-  * netCDF::NcFile & version of the method. If anything goes wrong with any
-  * step of the process, exception is thrown. Although the method is virtual,
-  * it is not expected that derived classes will have a need to re-define it.
-  */
+  * attribute "SMS++_file_type" (if the file is created anew, otherwise it is
+  * assumed the field is already there), assigns it the type, and dispatches
+  * to the netCDF::NcFile & version of the method. If anything goes wrong with
+  * any step of the process, exception is thrown. Although the method is
+  * virtual, it is not expected that derived classes will have a need to
+  * re-define it. */
 
  virtual void serialize( const std::string & filename ,
-			 int type = eProbFile ) const
+			 int type = eProbFile , bool replace = true ) const
  {
   if( ( type != eProbFile ) && ( type != eBlockFile ) )
-   throw( std::invalid_argument( "invalid SMS++ netCDF file type" ) );
+   throw( std::invalid_argument(
+	"Block::serialize( std:string ): invalid SMS++ netCDF file type" ) );
 
-  netCDF::NcFile f( filename , netCDF::NcFile::replace );
-
-  f.putAtt( "SMS++_file_type" , netCDF::NcInt() , type );
+  netCDF::NcFile f;
+  if( ! replace ) {
+   try { f.open( filename , netCDF::NcFile::write ); }
+   catch( netCDF::exceptions::NcException & e ) { replace = true; }
+   }
+  if( replace ) {
+   f.open( filename , netCDF::NcFile::replace );
+   f.putAtt( "SMS++_file_type" , netCDF::NcInt() , type );
+   }
 
   serialize( f , type );
   }
@@ -6512,8 +6651,7 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
  /// empty slot
 
- void add_static_constraint( std::string && name = "" ,
-                             bool front = false ) {
+ void add_static_constraint( std::string && name = "" , bool front = false ) {
   if( front ) {
    v_s_Constraint.insert( v_s_Constraint.begin(), boost::any() );
    v_s_Constraint_names.insert( v_s_Constraint_names.begin() ,
@@ -6602,6 +6740,49 @@ class Block : public Observer {
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// std::vector of std::vector of (...) Constraint
+
+ template< class Const >
+ std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
+ add_static_constraint( std::vector< std::vector< Const > > & newc ,
+                        std::string && name = "" , bool front = false ) {
+  for( auto & c : newc )
+   for( auto & j : c )
+    j.set_Block( this );
+
+  std::vector< std::vector< Const > > * cnewc = &newc;
+  if( front ) {
+   v_s_Constraint.insert( v_s_Constraint.begin(), cnewc );
+   v_s_Constraint_names.insert( v_s_Constraint_names.begin() ,
+                                std::move( name ) );
+  }
+  else {
+   v_s_Constraint.push_back( cnewc );
+   v_s_Constraint_names.emplace_back( std::move( name ) );
+  }
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// std::vector of std::vector of (...) Constraint
+
+ template< class Const >
+ std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
+ set_static_constraint( Index i ,
+                        std::vector< std::vector< Const > > & newc ,
+                        std::string && name = "" ) {
+  if( i >= v_s_Constraint.size() )
+   throw( std::invalid_argument( "wrong index into v_s_Constraint" ) );
+
+  for( auto & c : newc )
+   for( auto & j : c )
+    j.set_Block( this );
+
+  std::vector< std::vector< Const > > * cnewc = &newc;
+  v_s_Constraint[ i ] = cnewc;
+  v_s_Constraint_names[ i ] = std::move( name );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// boost::multi_array< K > of (...) Constraint
 
  template< class Const , std::size_t K >
@@ -6609,7 +6790,7 @@ class Block : public Observer {
  add_static_constraint( boost::multi_array< Const , K > & newc ,
                         std::string && name = "" , bool front = false ) {
   for( auto i = newc.data() ; i < ( newc.data() + newc.num_elements() ) ; )
-   (i++)->set_Block( this );
+   ( i++ )->set_Block( this );
 
   boost::multi_array< Const, K > * cnewc = &newc;
   if( front ) {
@@ -6638,6 +6819,48 @@ class Block : public Observer {
 
   boost::multi_array< Const, K > * cnewc = &newc;
   v_s_Constraint[ i ] = cnewc;
+  v_s_Constraint_names[ i ] = std::move( name );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// boost::multi_array< K > of std::vector of (...) Constraint
+
+ template< class Const , std::size_t K >
+ std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
+ add_static_constraint( boost::multi_array< std::vector< Const > , K > & newc ,
+                        std::string && name = "" , bool front = false ) {
+  for( auto i = newc.data() ; i < ( newc.data() + newc.num_elements() ) ; ++i )
+   for( auto & c : *i )
+    c.set_Block( this );
+
+  boost::multi_array< std::vector< Const > , K > * cnewc = &newc;
+  if( front ) {
+   v_s_Constraint.insert( v_s_Constraint.begin(), cnewc );
+   v_s_Constraint_names.insert( v_s_Constraint_names.begin(),
+                                std::move( name ) );
+   }
+  else {
+   v_s_Constraint.push_back( cnewc );
+   v_s_Constraint_names.emplace_back( std::move( name ) );
+   }
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// boost::multi_array< K > of std::vector of (...) Constraint
+
+ template< class Const , std::size_t K >
+ std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
+ set_static_constraint( Index i ,
+                        boost::multi_array< std::vector< Const > , K > & newc ,
+                        std::string && name = "" ) {
+  if( i >= v_s_Constraint.size() )
+   throw( std::invalid_argument( "wrong index into v_s_Constraint" ) );
+
+  for( auto c = newc.data(); c < ( newc.data() + newc.num_elements() ); ++c )
+   for( auto & j : *c )
+    j.set_Block( this );
+
+  v_s_Constraint[ i ] = &newc;
   v_s_Constraint_names[ i ] = std::move( name );
   }
 
@@ -6732,6 +6955,49 @@ class Block : public Observer {
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// std::vector of std::vector of (...) Variable
+
+ template< class Var >
+ std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
+ set_static_variable( std::vector< std::vector< Var > > & newv ,
+                      std::string && name = "" , bool front = false ) {
+  for( auto & v : newv )
+   for( auto & j : v )
+    j.set_Block( this );
+
+  std::vector< std::vector< Var > > * cnewv = &newv;
+  if( front ) {
+   v_s_Variable.insert( v_s_Variable.begin(), cnewv );
+   v_s_Variable_names.insert( v_s_Variable_names.begin() ,
+                              std::move( name ) );
+   }
+  else {
+   v_s_Variable.push_back( cnewv );
+   v_s_Variable_names.emplace_back( std::move( name ) );
+   }
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// std::vector of std::vector of (...) Variable
+
+ template< class Var >
+ std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
+ set_static_variable( Index i ,
+                      std::vector< std::vector< Var > > & newv ,
+                      std::string && name = "" ) {
+  if( i >= v_s_Variable.size() )
+   throw( std::invalid_argument( "wrong index into v_s_Variable" ) );
+
+  for( auto & v : newv )
+   for( auto & j : v )
+    j.set_Block( this );
+
+  std::vector< std::vector< Var > > * cnewv = &newv;
+  v_s_Variable[ i ] = cnewv;
+  v_s_Variable_names[ i ] = std::move( name );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// boost::multi_array< K > of (...) Variable
 
  template< class Var , std::size_t K >
@@ -6771,6 +7037,48 @@ class Block : public Observer {
   v_s_Variable_names[ i ] = std::move( name );
   }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// boost::multi_array< K > of std::vector of (...) Variable
+
+ template< class Var , std::size_t K >
+ std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
+ add_static_variable( boost::multi_array< std::vector< Var > , K > & newv ,
+                      std::string && name = "" , bool front = false ) {
+  for( auto i = newv.data() ; i < ( newv.data() + newv.num_elements() ) ; ++i )
+   for( auto & v : *i )
+    v.set_Block( this );
+
+  boost::multi_array< std::vector< Var > , K > * cnewv = &newv;
+  if( front ) {
+   v_s_Variable.insert( v_s_Variable.begin(), cnewv );
+   v_s_Variable_names.insert( v_s_Variable_names.begin(),
+                              std::move( name ) );
+   }
+  else {
+   v_s_Variable.push_back( cnewv );
+   v_s_Variable_names.emplace_back( std::move( name ) );
+   }
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// boost::multi_array< K > of std::vector of (...) Variable
+
+ template< class Var , std::size_t K >
+ std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
+ set_static_variable( Index i ,
+                      boost::multi_array< std::vector< Var > , K > & newv ,
+                      std::string && name = "" ) {
+  if( i >= v_s_Variable.size() )
+   throw( std::invalid_argument( "wrong index into v_s_Variable" ) );
+
+  for( auto v = newv.data(); v < ( newv.data() + newv.num_elements() ); ++v )
+   for( auto & j : *v )
+    j.set_Block( this );
+
+  v_s_Variable[ i ] = &newv;
+  v_s_Variable_names[ i ] = std::move( name );
+  }
+
 /*--------------------------------------------------------------------------*/
  /// empty slot
 
@@ -6792,8 +7100,7 @@ class Block : public Observer {
  template< class Const >
  std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
  add_dynamic_constraint( std::list< Const > & newc ,
-                         std::string && name = "" ,
-                         bool front = false ) {
+                         std::string && name = "" , bool front = false ) {
   for( auto & c : newc )
    c.set_Block( this );
 
@@ -6833,8 +7140,7 @@ class Block : public Observer {
  template< class Const >
  std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
  add_dynamic_constraint( std::vector< std::list< Const > > & newc ,
-                         std::string && name = "" ,
-                         bool front = false ) {
+                         std::string && name = "" , bool front = false ) {
   for( auto & c : newc )
    for( auto & j : c )
     j.set_Block( this );
@@ -6876,14 +7182,11 @@ class Block : public Observer {
 
  template< class Const , std::size_t K >
  std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
- add_dynamic_constraint(
-  boost::multi_array< std::list< Const > , K > & newc ,
-  std::string && name = "" , bool front = false ) {
-
-  for( auto i = newc.data(); i < ( newc.data() + newc.num_elements() ) ;
-       ++i )
-   for( auto & j : *i )
-    j.set_Block( this );
+ add_dynamic_constraint( boost::multi_array< std::list< Const > , K > & newc ,
+                         std::string && name = "" , bool front = false ) {
+  for( auto i = newc.data(); i < ( newc.data() + newc.num_elements() ) ; ++i )
+   for( auto & c : *i )
+    c.set_Block( this );
 
   boost::multi_array< std::list< Const > , K > * cnewc = &newc;
   if( front ) {
@@ -7023,8 +7326,8 @@ class Block : public Observer {
  add_dynamic_variable( boost::multi_array< std::list< Var > , K > & newv ,
                        std::string && name = "" , bool front = false ) {
   for( auto i = newv.data(); i < ( newv.data() + newv.num_elements() ) ; ++i )
-   for( auto & j : *i )
-    j.set_Block( this );
+   for( auto & v : *i )
+    v.set_Block( this );
 
   boost::multi_array< std::list< Var > , K > * cnewv = &newv;
   if( front ) {
@@ -7230,7 +7533,7 @@ class Block : public Observer {
 
  unsigned int f_channel;   ///< the "default GroupModification channel"
 
- static std::string f_prefix;  ///< the executable-wide filename prefix
+ inline static std::string f_prefix;  ///< the executable-wide filename prefix
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
@@ -8240,7 +8543,7 @@ class BlockConfig : public Configuration {
 
   auto newBC = new BlockConfig( this->is_diff() );
   this->move_non_null_configuration_to( newBC );
-  block->set_BlockConfig( newBC, deleteold );
+  block->set_BlockConfig( newBC , deleteold );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -8781,13 +9084,14 @@ Block::remove_dynamic_constraint( std::list< Const > & list ,
 
   Index i = 0;
   auto lit = list.begin();
+  auto initial_el = list.size();
   for( ; lit != list.end() ; ++lit , ++i )
    if( &( *lit ) == &( *rmvd ) ) {
     removed.splice( removed.end() , list , rmvd );
     break;
     }
 
-  if( lit == list.end() )
+  if( i == initial_el )
    throw( std::invalid_argument( "invalid removed iterator" ) );
 
   // now issue the BlockModRmv*

@@ -24,7 +24,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __ColVariableSolution
-#define __ColVariableSolution
+ #define __ColVariableSolution
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/

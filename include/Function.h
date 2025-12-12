@@ -451,7 +451,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface
   * computed in the most recent call to compute(); if the latter has never
   * been invoked, then the value returned by this method is meaningless. */
 
- [[nodiscard]] virtual FunctionValue get_value( void ) const = 0;
+ [[nodiscard]] virtual FunctionValue get_value( void ) = 0;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns a lower estimate of the value of the Function
@@ -462,7 +462,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface
   * "easy" functions for which get_value() always returns "exact" (save
   * possibly unavoidable numerical errors) values. */
 
- [[nodiscard]] virtual FunctionValue get_lower_estimate( void ) const {
+ [[nodiscard]] virtual FunctionValue get_lower_estimate( void ) {
   return( get_value() );
   }
 
@@ -475,7 +475,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface
   * "easy" functions for which get_value() always returns "exact" (save
   * possibly unavoidable numerical errors) values. */
 
- [[nodiscard]] virtual FunctionValue get_upper_estimate( void ) const {
+ [[nodiscard]] virtual FunctionValue get_upper_estimate( void ) {
   return( get_value() );
   }
 
@@ -564,7 +564,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface
   * false (convexity being good for optimization, in particular minimization,
   * often too good to be true). */
 
- [[nodiscard]] virtual bool is_convex( void ) const { return( false ); }
+ [[nodiscard]] virtual bool is_convex( void ) { return( false ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns true only if this Function is concave
@@ -572,7 +572,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface
   * false (concavity being good for optimization, in particular maximization,
   * often too good to be true). */
 
- [[nodiscard]] virtual bool is_concave( void ) const { return( false ); }
+ [[nodiscard]] virtual bool is_concave( void ) { return( false ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns true only if this Function is linear
@@ -581,7 +581,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface
   * functions that are both convex and concave is precisely that of linear
   * functions (and therefore this method is not very useful ... ) */
 
- [[nodiscard]] virtual bool is_linear( void ) const {
+ [[nodiscard]] virtual bool is_linear( void ) {
   return( this->is_convex() && this->is_concave() );
   }
 
@@ -746,7 +746,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface
   * is defined for each Function, but its behavior can be customized by
   * derived classes. */
 
- friend std::ostream & operator<<( std::ostream & out , const Function & o ) {
+ friend std::ostream & operator<<( std::ostream & out , Function & o ) {
   o.print( out );
   return( out );
   }
@@ -768,7 +768,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface
   * virtual so that derived classes can print their specific information in
   * the format they choose. */
 
- virtual void print( std::ostream & output ) const {
+ virtual void print( std::ostream & output ) {
   output << "Function [" << this << "]" << " with " << get_num_active_var()
          << " active variables";
  }

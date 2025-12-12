@@ -5,7 +5,7 @@
  *
  * This file defines the namespace "inspection" within
  * "SMSpp_di_unipi_it". This namespace contains a number of functions that are
- * useful for inspecting and obtaining information from a Block. In
+ * useful for inspecting and collecting information from a Block. In
  * particular, it provides functions that scan the "abstract" representation
  * of a Block to retrieve, for instance
  *
@@ -15,15 +15,15 @@
  *
  * For the scan of the "abstract" representation to work, it is necessary to
  * boost::any_cast<> (in particular, Constraint and Variable), and therefore
- * it has to have a list of the kind of types thay they may have. Hence, some
- * functions at any point in time works only with a specific subset of those
- * classes, and if new types need be handled then the class has to be manually
- * updated. This is made a bit easier by the two macros
+ * it has to have a list of the kind of types they may have. Hence, some
+ * functions at any point in time work only with a specific subset of those
+ * classes, and if new types need to be handled, then the class has to be
+ * manually updated. This is made a bit easier by the two macros
  *
  *     Constraint_Derived_Classes
  *     Variable_Derived_Classes
  *
- * defined in this header file (and immediately un-defined at the end).
+ * defined in this header file (and immediately undefined at the end).
  *
  * \author Rafael Durbano Lobato \n
  *         Dipartimento di Informatica \n
@@ -36,7 +36,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __BlockInspection
-#define __BlockInspection
+ #define __BlockInspection
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
@@ -56,8 +56,8 @@
 
 /* The following are the types derived from Constraint and Variable. At the
  * end of this file, both Constraint_Derived_Classes and
- * Variable_Derived_Classes are undefined (#undef).
- */
+ * Variable_Derived_Classes are undefined (#undef). */
+
 #define Constraint_Derived_Classes FRowConstraint , BoxConstraint , \
   ZOConstraint , NPConstraint , NNConstraint , UBConstraint , \
   LBConstraint , UB0Constraint , LB0Constraint
@@ -70,39 +70,141 @@
 
 namespace SMSpp_di_unipi_it::inspection
 {
+/*--------------------------------------------------------------------------*/
 
  using Index = Block::Index;
 
+/*--------------------------------------------------------------------------*/
+/** The template function
+ *
+ *   Index get_static_index_( const S * s , const ContainerType & container )
+ *
+ * is intended to compute the index corresponding to a pointer `s` to an object
+ * of type T (or derived from T) stored inside one of the following container
+ * types, consistently with the layout logic of get_static_element_().
+ *
+ * Specifically, the function supports as input the following container forms:
+ *
+ * - a single object of type T;
+ *
+ * - a std::vector< T >;
+ *
+ * - a std::vector< std::vector< T > >;
+ *
+ * - a boost::multi_array< T , K > for "all" K;
+ *
+ * - a boost::multi_array< std::vector< T > , K > for "all" K.
+ *
+ * For each of these types, the index returned is the one that would allow
+ * get_static_element_() to retrieve the same object from the container.
+ *
+ * More precisely, if *s is *not* in the container then Inf< Index >() is
+ * returned. Otherwise:
+ *
+ * - if container is a single object T, then index == 0
+ *
+ * - if container is a std::vector< T >, then index is the "natural" one,
+ *   i.e., such that container[ index ] == *s
+ *
+ * - if the container is a std::vector< std::vector< T > >, the index is
+ *
+ *       index = outer_index + ( inner_offset * container.size() )
+ *
+ *   where `outer_index` is the position of the inner vector, and `inner_offset`
+ *   is the index of the element inside that vector; that is, *s if found at
+ *
+ *       container[ index % container.size() ][ index / container.size() ]
+ *
+ *    (which can be computed in O( 1 ) ) 
+ *
+ * - if container is a boost::multi_array< T , K >, the index is the
+ *   "natural" one, i.e., such that ( container.data() )[ index ] == *s
+ *
+ * - if container is a boost::multi_array< std::vector< T > , K >, the index is
+ *
+ *       index = i + ( offset_in_vector * container.num_elements() )
+ *
+ *   where:
+ *
+ *     - `i` is the position of the std::vector< T > inside the flattened array
+ *       container.data()
+ *
+ *     - `offset_in_vector` is the position of the target element in that vector;
+ *
+ *   and therefore *s is found in
+ *
+ *       container[ index % container.num_elements() ]
+ *                [ index / container.num_elements() ]
+ */
+
  template< class S , class T , std::size_t K >
  static Index get_static_index_( const S * s ,
-                                 const boost::multi_array< T , K > & var ) {
-  const auto p = var.data();
-  if( ( s >= & p[ 0 ] ) && ( s <= & p[ var.num_elements() - 1 ] ) )
-   return( static_cast< const T * >( s ) - & p[ 0 ] );
-  return( Inf< Index >() );
- }
-
- template< class S , class T >
- static Index get_static_index_( const S * s , const std::vector< T > & var ) {
-  if( ( s >= & var.front() ) && ( s <= & var.back() ) )
-   return( static_cast< const T * >( s ) - & var.front() );
-  return( Inf< Index >() );
- }
-
- template< class S , class T >
- static std::enable_if_t< std::is_base_of_v< S , T > ||
-                          std::is_base_of_v< T , S > , Index >
- get_static_index_( const S * s , const T & var ) {
-  if( s == & var )
-   return( 0 );
-  return( Inf< Index >() );
+     const boost::multi_array< std::vector< T > , K > & multi_array )
+ {
+ Index n_vecs = multi_array.num_elements();
+ for( Index i = 0 ; i < n_vecs ; ++i ) {
+  const std::vector< T > & vec = ( multi_array.data() )[ i ];
+  if( ( ! vec.empty() ) && ( s >= &vec.front() ) && ( s <= & vec.back() ) )
+   return( i + ( static_cast< const T * >( s ) - & vec.front() ) * n_vecs );
+  }
+ return( Inf< Index >() );
  }
 
 /*--------------------------------------------------------------------------*/
 
  template< class S , class T , std::size_t K >
- static Index get_dynamic_index_
- ( const S * s , const boost::multi_array< std::list< T > , K > & var ) {
+ static Index get_static_index_( const S * s ,
+                                 const boost::multi_array< T , K > & var )
+ {
+  const auto p = var.data();
+  if( ( s >= & ( var.data() )[ 0 ] ) &&
+      ( s <= & ( var.data() )[ var.num_elements() - 1 ] ) )
+   return( static_cast< const T * >( s ) - & ( var.data() )[ 0 ] );
+  return( Inf< Index >() );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ template< class S , class T >
+ static Index get_static_index_( const S * s ,
+                                 const std::vector< std::vector< T > > & var )
+ {
+  for( Index i = 0 ; i < var.size() ; ++i )
+   if( ( s >= & var[ i ].front() ) && ( s <= & var[ i ].back() ) )
+    return( var.size() * ( static_cast< const T * >( s ) - & var[ i ].front() )
+	    + i );
+  return( Inf< Index >() );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ template< class S , class T >
+ static Index get_static_index_( const S * s ,
+                                 const std::vector< T > & var )
+ {
+  if( ( s >= & var.front() ) && ( s <= & var.back() ) )
+   return( static_cast< const T * >( s ) - & var.front() );
+  return( Inf< Index >() );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ template< class S , class T >
+ static std::enable_if_t< std::is_base_of_v< S , T > ||
+                          std::is_base_of_v< T , S > , Index >
+ get_static_index_( const S * s , const T & var )
+ {
+  if( s == & var )
+   return( 0 );
+  return( Inf< Index >() );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ template< class S , class T , std::size_t K >
+ static Index get_dynamic_index_( const S * s ,
+                       const boost::multi_array< std::list< T > , K > & var )
+ {
   auto p = var.data();
   Index index = 0;
   for( boost::multi_array_types::size_type i = var.num_elements() ;
@@ -111,23 +213,28 @@ namespace SMSpp_di_unipi_it::inspection
     if( s == & ell )
      return( index );
     ++index;
+    }
    }
-  }
   return( Inf< Index >() );
- }
+  }
+
+/*--------------------------------------------------------------------------*/
 
  template< class S , class T >
- static Index get_dynamic_index_
- ( const S * s , const std::vector< std::list< T > > & var ) {
+ static Index get_dynamic_index_( const S * s ,
+                                  const std::vector< std::list< T > > & var )
+ {
   Index index = 0;
   for( typename std::vector< std::list< T > >::size_type i = 0 ;
        i < var.size() ; ++i ) {
    for( auto it = var[ i ].cbegin(); it != var[ i ].cend() ; ++it , ++index )
     if( s == &*it )
      return( index );
-  }
+   }
   return( Inf< Index >() );
- }
+  }
+
+/*--------------------------------------------------------------------------*/
 
  template< class S , class T >
  static Index get_dynamic_index_( const S * s , const std::list< T > & list ) {
@@ -136,63 +243,163 @@ namespace SMSpp_di_unipi_it::inspection
    if( s == &*it )
     return( index );
   return( Inf< Index >() );
- }
+  }
+
+/*--------------------------------------------------------------------------*/
+/** The template function
+ *
+ *   T * get_static_element_( const ContainerType & container , Index index )
+ *
+ * is intended to retrieve a pointer to an object of type T located at the
+ * position `index` inside a container, consistently with the indexing logic
+ * used in get_static_index_().
+ *
+ * The supported container types are:
+ *
+ * - a single object of type T
+ *
+ * - a std::vector< T >
+ *
+ * - a std::vector< std::vector< T > >
+ *
+ * - a boost::multi_array< T , K > for "all" K
+ *
+ * - a boost::multi_array< std::vector< T > , K > for "all" K
+ *
+ * The interpretation of the index depends on the container:
+ *
+ * - if container is a single object T, index must be 0 and &T is returned
+ *
+ * - if container is a std::vector< T >, & container[ index ] is returned
+ *
+ * - if container is a std::vector< std::vector< T > >,
+ *
+ *       & container[ index % container.size() ][ index / container.size() ]
+ *
+ *   is returned (so the access in O( 1 ) is guaranteed)
+ *
+ * - if container is a boost::multi_array< T , K >, index is interpreted as
+ *   the flat offset in the contiguous buffer, i.e.,
+ *
+ *       & ( container.data() )[ index ]
+ *
+ * - if container is a boost::multi_array< std::vector< T > , K >, then
+ *
+ *       & ( container.data() )[ index % container.num_elements() ]
+ *                             [ index / container.num_elements() ]
+ *
+ *   is returned; this layout corresponds to a column-major flattening over
+ *   the outer container while allowinw each std::vector< T > to have a
+ *   different size and still guaranteeing access in O(1)
+ *
+ * In all cases, if the index exceeds the valid range or points to a missing
+ * element (in irregular layouts), the function returns nullptr. */
+
+ template< typename T , std::size_t K >
+ static T * get_static_element_(
+             const boost::multi_array< std::vector< T > , K > & multi_array ,
+	     Index index )
+ {
+  if( multi_array.num_elements() == 0 )
+   return( nullptr );
+
+  auto i1 = index % multi_array.num_elements();
+  if( i1 >= multi_array.num_elements() )
+   return( nullptr );
+
+  const std::vector< T > & vec = ( multi_array.data() )[ i1 ];
+  auto i2 = index / multi_array.num_elements();
+  if( i2 >= vec.size() )
+   return( nullptr );
+
+  return( const_cast< T * >( & vec[ i2 ] ) );
+  }
 
 /*--------------------------------------------------------------------------*/
 
  template< typename T , std::size_t K >
- static T * get_static_element_( const boost::multi_array< T , K > & array ,
-                                 Index index ) {
-  if( index >= array.num_elements() )
+ static T * get_static_element_(
+	     const boost::multi_array< T , K > & multi_array , Index index )
+ {
+  if( index >= multi_array.num_elements() )
    return( nullptr );
-  return( const_cast< T *>( & array.data()[ index ] ) );
- }
+  return( const_cast< T * >( & multi_array.data()[ index ] ) );
+  }
+
+/*--------------------------------------------------------------------------*/
 
  template< typename T >
- static T * get_static_element_( const std::vector< T > & vec , Index index ) {
-  if( index >= vec.size() )
+ static T * get_static_element_(
+	       const std::vector< std::vector< T > > & vector , Index index )
+ {
+  if( vector.empty() )
    return( nullptr );
-  return( const_cast< T *>( & vec[ index ] ) );
- }
+
+  auto i1 = index % vector.size();
+  auto i2 = index / vector.size();
+  if( i2 >= vector[ i1 ].size() )
+   return( nullptr );
+
+  return( const_cast< T * >( & ( vector[ i1 ] )[ i2 ] ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ template< typename T >
+ static T * get_static_element_( const std::vector< T > & vector ,
+                                 Index index )
+ {
+  if( index >= vector.size() )
+   return( nullptr );
+  return( const_cast< T * >( & vector[ index ] ) );
+  }
+
+/*--------------------------------------------------------------------------*/
 
  template< typename T >
  static T * get_static_element_( const T & t , Index index ) {
   assert( index == 0 );
-  return( const_cast< T *>( &t ) );
- }
+  return( const_cast< T * >( &t ) );
+  }
 
 /*--------------------------------------------------------------------------*/
 
  template< typename T , std::size_t K >
- static T * get_dynamic_element_
- ( const boost::multi_array< std::list< T > , K > & multi_array , Index index ) {
+ static T * get_dynamic_element_(
+     const boost::multi_array< std::list< T > , K > & multi_array ,
+     Index index ) {
   Index past_size = 0;
-  for( auto list = multi_array.origin();
-       list < ( multi_array.origin() + multi_array.num_elements() ); ++list ) {
+  for( auto list = multi_array.origin() ;
+       list < ( multi_array.origin() + multi_array.num_elements() ) ;
+       ++list ) {
    if( index < past_size + list->size() ) {
     auto it = list->begin();
     for( ; past_size < index ; ++past_size , ++it );
     return( const_cast< T * >( &*it ) );
-   }
+    }
    past_size += list->size();
-  }
+   }
   return( nullptr );
- }
+  }
+
+/*--------------------------------------------------------------------------*/
 
  template< typename T >
- static T * get_dynamic_element_( const std::vector< std::list< T > > & lists ,
+ static T * get_dynamic_element_( const std::vector< std::list< T > > & vector ,
                                   Index index ) {
   Index past_size = 0;
-  for( auto & list : lists ) {
+  for( auto & list : vector ) {
    if( past_size + list.size() > index ) {
     auto it = list.begin();
     for( ; past_size < index ; ++it , ++past_size );
     return( const_cast< T * >( &*it ) );
-   }
+    }
    past_size += list.size();
-  }
+   }
   return( nullptr );
- }
+  }
+
+/*--------------------------------------------------------------------------*/
 
  template< typename T >
  static T * get_dynamic_element_( const std::list< T > & list , Index index ) {
@@ -201,23 +408,84 @@ namespace SMSpp_di_unipi_it::inspection
   if( it != list.end() )
    return( const_cast< T * >( &*it ) );
   return( nullptr );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 
- template< class S , class T , class... Rest>
+ template< typename T , std::size_t K >
+ static Index get_static_element_size_(
+     const boost::multi_array< std::vector< T > , K > & multi_array ) {
+  return( multi_array.size() );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ template< typename T , std::size_t K >
+ static Index get_static_element_size_(
+     const boost::multi_array< T , K > & multi_array ) {
+  return( multi_array.size() );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ template< typename T >
+ static Index get_static_element_size_(
+     const std::vector< std::vector< T > > & vector ) {
+  return( vector.size() );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ template< typename T >
+ static Index get_static_element_size_( const std::vector< T > & vector ) {
+  return( vector.size() );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ template< typename T >
+ static Index get_static_element_size_( const T & t ) {
+  return( 1 );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ template< typename T , std::size_t K >
+ static Index get_dynamic_element_size_(
+     const boost::multi_array< std::list< T > , K > & multi_array ) {
+  return( multi_array.size() );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ template< typename T >
+ static Index get_dynamic_element_size_(
+     const std::vector< std::list< T > > & vector ) {
+  return( vector.size() );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ template< typename T >
+ static Index get_dynamic_element_size_( const std::list< T > & list ) {
+  return( list.size() );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ template< class S , class T , class... Rest >
  static Index get_static_index( const S * s , const boost::any & group ) {
   if constexpr( std::is_base_of_v< S , T > ) {
    Index index = Inf< Index >();
-   bool group_found =
-    un_any_thing( T , group , { index = get_static_index_( s , var ); } );
+   bool group_found = un_any_thing_static( T , group ,
+				 { index = get_static_index_( s , var ); } );
    if( group_found && index < Inf< Index >()  )
     return( index );
-  }
+    }
   if constexpr( sizeof...(Rest) != 0 )
    return( get_static_index< S , Rest... >( s , group ) );
   return( Inf< Index >() );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 
@@ -225,23 +493,23 @@ namespace SMSpp_di_unipi_it::inspection
  static Index get_dynamic_index( const S * s , const boost::any & group ) {
   if constexpr( std::is_base_of_v< S , T > ) {
    Index index = Inf< Index >();
-   bool group_found = un_any_thing
-    ( std::list< T > , group , { index = get_dynamic_index_( s , var ); } );
-   if( group_found && index < Inf< Index >()  )
+   bool group_found = un_any_thing_dynamic( T , group ,
+				{ index = get_dynamic_index_( s , var ); } );
+   if( group_found && index < Inf< Index >() )
     return( index );
-  }
+    }
   if constexpr( sizeof...(Rest) != 0 )
    return( get_dynamic_index< S , Rest... >( s , group ) );
   return( Inf< Index >() );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
-
 /// returns the index of the given element in the given boost::any group
 /** Returns the index of the given \p element in the given boost::any \p
  * group.
  *
- * @param element A pointer to the element whose index in \p group is desired.
+ * @param element A pointer to the element whose index in the \p group is
+ *                desired.
  *
  * @param group The group containing the element.
  *
@@ -249,14 +517,15 @@ namespace SMSpp_di_unipi_it::inspection
  *
  * @return The index of the given element in the given group.
  */
+
  template< class T >
  static Index get_index( const T * element , const boost::any & group ,
-                         const bool is_static ) {
+			 bool is_static )
+ {
   if( is_static )
    return( inspection::get_static_index< T , T >( element , group ) );
-  else
-   return( inspection::get_dynamic_index< T , T >( element , group ) );
- }
+  return( inspection::get_dynamic_index< T , T >( element , group ) );
+  }
 
 /*--------------------------------------------------------------------------*/
 
@@ -264,38 +533,73 @@ namespace SMSpp_di_unipi_it::inspection
  static S * get_static_element( const boost::any & group , Index index ) {
   if constexpr( std::is_base_of_v< S , T > ) {
    S * element = nullptr;
-   bool group_found = un_any_thing
-    ( T , group , { element = get_static_element_( var , index ); } );
+   bool group_found = un_any_thing_static( T , group ,
+			 { element = get_static_element_( var , index ); } );
    if( group_found )
     return( element );
-  }
+   }
   if constexpr( sizeof...(Rest) != 0 )
    return( get_static_element< S , Rest... >( group , index ) );
   return( nullptr );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 
  template< class S , class T , class... Rest >
- static S * get_dynamic_element( const boost::any & group , Index index ) {
+ static S * get_dynamic_element( const boost::any & group , Index index )
+ {
   if constexpr( std::is_base_of_v< S , T > ) {
    S * element = nullptr;
-   bool group_found = un_any_thing
-    ( std::list< T > , group ,
-      { element = get_dynamic_element_( var , index ); } );
+   bool group_found = un_any_thing_dynamic( T , group ,
+			{ element = get_dynamic_element_( var , index ); } );
    if( group_found )
     return( element );
-  }
+    }
   if constexpr( sizeof...(Rest) != 0 )
    return( get_dynamic_element< S , Rest... >( group , index ) );
   return( nullptr );
- }
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ template< class S , class T , class... Rest >
+ static Index get_static_element_size( const boost::any & group )
+ {
+  if constexpr( std::is_base_of_v< S , T > ) {
+   Index size;
+   bool group_found = un_any_thing_static( T , group ,
+			       { size = get_static_element_size_( var ); } );
+   if( group_found )
+    return( size );
+   }
+  if constexpr( sizeof...(Rest) != 0 )
+   return( get_static_element_size< S , Rest... >( group ) );
+  return( Inf< Index >() );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ template< class S , class T , class... Rest >
+ static Index get_dynamic_element_size( const boost::any & group )
+ {
+  if constexpr( std::is_base_of_v< S , T > ) {
+   Index size;
+   bool group_found = un_any_thing_dynamic( T , group ,
+                              { size = get_dynamic_element_size_( var ); } );
+   if( group_found )
+    return( size );
+   }
+  if constexpr( sizeof...(Rest) != 0 )
+   return( get_dynamic_element_size< S , Rest... >( group ) );
+  return( Inf< Index >() );
+  }
 
 /*--------------------------------------------------------------------------*/
 
  template< class T >
  static const boost::any & get_group( const Block * block , Index group_index ,
-                                      bool is_static ) {
+                                      bool is_static )
+ {
   if( std::is_base_of_v< Constraint , T > ) {
    if( is_static ) {
     const auto & group = block->get_static_constraints();
@@ -303,41 +607,35 @@ namespace SMSpp_di_unipi_it::inspection
      throw( std::invalid_argument( "get_group: invalid group index: " +
                                    std::to_string( group_index ) ) );
     return( group[ group_index ] );
+    }
+   const auto & group = block->get_dynamic_constraints();
+   if( group_index >= group.size() )
+    throw( std::invalid_argument( "get_group: invalid group index: " +
+                                  std::to_string( group_index ) ) );
+   return( group[ group_index ] );
    }
-   else {
-    const auto & group = block->get_dynamic_constraints();
-    if( group_index >= group.size() )
-     throw( std::invalid_argument( "get_group: invalid group index: " +
-                                   std::to_string( group_index ) ) );
-    return( group[ group_index ] );
-   }
-  }
-  else if( std::is_base_of_v< Variable , T > ) {
+  if( std::is_base_of_v< Variable , T > ) {
    if( is_static ) {
     const auto & group = block->get_static_variables();
     if( group_index >= group.size() )
      throw( std::invalid_argument( "get_group: invalid group index: " +
                                    std::to_string( group_index ) ) );
     return( group[ group_index ] );
+    }
+   const auto & group = block->get_dynamic_variables();
+   if( group_index >= group.size() )
+    throw( std::invalid_argument( "get_group: invalid group index: " +
+                                  std::to_string( group_index ) ) );
+   return( group[ group_index ] );
    }
-   else {
-    const auto & group = block->get_dynamic_variables();
-    if( group_index >= group.size() )
-     throw( std::invalid_argument( "get_group: invalid group index: " +
-                                   std::to_string( group_index ) ) );
-    return( group[ group_index ] );
-   }
+  throw( std::invalid_argument( "get_group: group not found: " ) );
   }
-  else
-   throw( std::invalid_argument( "get_group: group not found: " ) );
- }
 
 /*--------------------------------------------------------------------------*/
-
- /// returns a pointer to the element of the \p block at the specified position
+ /// returns a pointer to the element of \p block at the specified position
  /** This function returns a pointer to the element of the given Block located
   * at the specified position. If no such an element is found, nullptr is
-  * returned. \p T must be the type of a Constraint or a Variable.
+  * returned. \p T must be the type of Constraint or a Variable.
   *
   * @param block A pointer to a Block.
   *
@@ -353,68 +651,89 @@ namespace SMSpp_di_unipi_it::inspection
 
  template< class T >
  static T * get_element( const Block * block , bool is_static ,
-                         Index group_index , Index element_index ) {
+                         Index group_index , Index element_index )
+ {
   auto group = get_group< T >( block , group_index , is_static );
   constexpr bool is_variable = std::is_base_of_v< Variable , T >;
-  if constexpr ( is_variable ) {
+  if constexpr( is_variable ) {
    if( is_static )
-    return( get_static_element< T , Variable_Derived_Classes >
-     ( group , element_index ) );
-   else
-    return( get_dynamic_element< T , Variable_Derived_Classes >
-     ( group , element_index ) );
-  }
+    return( get_static_element< T , Variable_Derived_Classes >( group ,
+								element_index )
+	    );
+   return( get_dynamic_element< T , Variable_Derived_Classes >( group ,
+								element_index )
+	   );
+   }
   else {
    if( is_static )
-    return( get_static_element< T , Constraint_Derived_Classes >
-     ( group , element_index ) );
-   else
-    return( get_dynamic_element< T , Constraint_Derived_Classes >
-     ( group , element_index ) );
+    return( get_static_element< T , Constraint_Derived_Classes >( group ,
+								  element_index
+								  ) );
+   return( get_dynamic_element< T , Constraint_Derived_Classes >( group ,
+								  element_index
+								  ) );
+   }
   }
- }
 
 /*--------------------------------------------------------------------------*/
 
  template< class T >
- static std::pair< Index , Index > get_element_index
- ( T * t , const Vec_any & groups , bool is_static ) {
+ static Index get_element_size( const Block * block , bool is_static ,
+                                Index group_index )
+ {
+  auto group = get_group< T >( block , group_index , is_static );
+  constexpr bool is_variable = std::is_base_of_v< Variable , T >;
+  if constexpr( is_variable ) {
+   if( is_static )
+    return( get_static_element_size< T , Variable_Derived_Classes >( group ) );
+   return( get_dynamic_element_size< T , Variable_Derived_Classes >( group ) );
+   }
+  else {
+   if( is_static )
+    return( get_static_element_size< T , Constraint_Derived_Classes >( group ) );
+   return( get_dynamic_element_size< T , Constraint_Derived_Classes >( group ) );
+   }
+  }
 
+/*--------------------------------------------------------------------------*/
+
+ template< class T >
+ static std::pair< Index , Index > get_element_index( T * t ,
+				    const Vec_any & groups , bool is_static )
+ {
   constexpr bool is_variable = std::is_base_of_v< Variable , T >;
 
-  for( Index group_index = 0 ; group_index < groups.size() ;
-       ++group_index  ) {
-
+  for( Index group_index = 0 ; group_index < groups.size() ; ++group_index ) {
    Index index;
 
-   if constexpr ( is_variable ) {
+   if constexpr( is_variable ) {
     if( is_static )
-     index = get_static_index< T , Variable_Derived_Classes >
-      ( t , groups[ group_index ] );
+     index = get_static_index< T , Variable_Derived_Classes >( t ,
+						      groups[ group_index ] );
     else
-     index = get_dynamic_index< T , Variable_Derived_Classes >
-      ( t , groups[ group_index ] );
-   }
+     index = get_dynamic_index< T , Variable_Derived_Classes >( t ,
+						      groups[ group_index ] );
+     }
    else {
     if( is_static )
-     index = get_static_index< T , Constraint_Derived_Classes >
-      ( t , groups[ group_index ] );
+     index = get_static_index< T , Constraint_Derived_Classes >( t ,
+						     groups[ group_index ] );
     else
-     index = get_dynamic_index< T , Constraint_Derived_Classes >
-      ( t , groups[ group_index ] );
-   }
+     index = get_dynamic_index< T , Constraint_Derived_Classes >( t ,
+						     groups[ group_index ] );
+    }
 
    if( index < Inf< Index >() )
     return( std::make_pair( group_index , index ) );
-  }
+   }
   return( std::make_pair( Inf< Index >() , Inf< Index >() ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 
  template< class T >
- static std::pair< Index , Index > get_static_element_index( T * t ) {
-
+ static std::pair< Index , Index > get_static_element_index( T * t )
+ {
   const auto block = t->get_Block();
 
   if( ! block )
@@ -422,17 +741,18 @@ namespace SMSpp_di_unipi_it::inspection
 
   if constexpr( std::is_base_of_v< Constraint , T > )
    return( get_element_index( t , block->get_static_constraints() , true ) );
-  else if constexpr( std::is_base_of_v< Variable , T > )
-   return( get_element_index( t , block->get_static_variables() , true ) );
   else
-   return( std::make_pair( Inf< Index >() , Inf< Index >() ) );
- }
+   if constexpr( std::is_base_of_v< Variable , T > )
+    return( get_element_index( t , block->get_static_variables() , true ) );
+   else
+    return( std::make_pair( Inf< Index >() , Inf< Index >() ) );
+  }
 
 /*--------------------------------------------------------------------------*/
 
  template< class T >
- static std::pair< Index , Index > get_dynamic_element_index( T * t ) {
-
+ static std::pair< Index , Index > get_dynamic_element_index( T * t )
+ {
   const auto block = t->get_Block();
 
   if( ! block )
@@ -440,14 +760,14 @@ namespace SMSpp_di_unipi_it::inspection
 
   if constexpr( std::is_base_of_v< Constraint , T > )
    return( get_element_index( t , block->get_dynamic_constraints() , false ) );
-  else if constexpr( std::is_base_of_v< Variable , T > )
-   return( get_element_index( t , block->get_dynamic_variables() , false ) );
   else
-   return( std::make_pair( Inf< Index >() , Inf< Index >() ) );
- }
+   if constexpr( std::is_base_of_v< Variable , T > )
+    return( get_element_index( t , block->get_dynamic_variables() , false ) );
+   else
+    return( std::make_pair( Inf< Index >() , Inf< Index >() ) );
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /** This function returns information about the position of the given \p
   * element in its father Block. The given \p element must be either a pointer
   * to a Constraint or a pointer to a Variable. The information returned by
@@ -469,42 +789,42 @@ namespace SMSpp_di_unipi_it::inspection
   *         Block. */
 
  template< class T >
- static std::tuple< bool , Index , Index > get_element_index( T * element ) {
+ static std::tuple< bool , Index , Index > get_element_index( T * element )
+ {
   auto index_pair = get_static_element_index( element );
   if( index_pair.first < Inf< Index >() )
    return( std::make_tuple( true , index_pair.first , index_pair.second ) );
   else {
    index_pair = get_dynamic_element_index( element );
    return( std::make_tuple( false , index_pair.first , index_pair.second ) );
+   }
   }
- }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the index of the given Block in the list of sub-Block of its father
  /** This function returns the index of the given Block in the list of
   * sub-Block of its father (if any). If the given Block has no father Block,
   * Inf< Index >() is returned.
   *
-  * @param block a A pointer to a Block.
+  * @param block A pointer to a Block.
   *
   * @return The index of the given Block in the list of sub-Block of its
   *         father. If the given Block has no father, Inf< Index >() is
   *         returned. */
 
- static inline Index get_block_index( const Block * block ) {
+ static Index get_block_index( const Block * block )
+ {
   auto father = block->get_f_Block();
   if( father ) {
    const auto & nb = father->get_nested_Blocks();
    const auto nbit = std::find( nb.begin() , nb.end() , block );
    if( nbit != nb.end() )
     return( std::distance( nb.begin() , nbit ) );
-  }
+   }
   return( Inf< Index >() );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns a pointer to the element at the given index in the given group
  /** Returns a pointer to the element of type \p T located at the given
   * position \p index in the given boost::any \p group. If the element is not
@@ -519,19 +839,18 @@ namespace SMSpp_di_unipi_it::inspection
   *
   * @return If an element of type T is found at position \p index in the given
   *         \p group, then a pointer to this element is returned. Otherwise,
-  *         nullptr is returned.
-  */
+  *         nullptr is returned. */
+
  template< class T >
- static T * get_element( const boost::any & group , const Block::Index index ,
-                         const bool is_static ) {
+ static T * get_element( const boost::any & group , Index index ,
+			 bool is_static )
+ {
   if( is_static )
    return( get_static_element< T , T >( group , index ) );
-  else
-   return( get_dynamic_element< T , T >( group , index ) );
- }
+  return( get_dynamic_element< T , T >( group , index ) );
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns a pointer to the Constraint identified by the given \p id
  /** Returns a pointer to the Constraint identified by the given \p id in the
   * given \p block. If no Constraint with the given \p id is found, nullptr is
@@ -540,14 +859,15 @@ namespace SMSpp_di_unipi_it::inspection
   * @param block The Block to which the desired Constraint belongs.
   *
   * @param id The Block::ConstraintID identifying the Constraint in the given
-  *        \p block.
+  *           \p block.
   *
   * @return If there is a Constraint with the given \p id in the given \p
   *         Block, then a pointer to this Constraint is returned. Otherwise,
-  *         nullptr is returned.
-  */
- static inline Constraint * get_Constraint( const Block * const block ,
-                                            const Block::ConstraintID id ) {
+  *         nullptr is returned. */
+
+ static Constraint * get_Constraint( const Block * const block ,
+                                     const Block::ConstraintID id )
+ {
   const auto & static_constraints = block->get_static_constraints();
   const auto num_static_groups = static_constraints.size();
   auto group_index = id.first;
@@ -556,83 +876,80 @@ namespace SMSpp_di_unipi_it::inspection
   if( group_index < num_static_groups ) {
    // A static Constraint
    auto any_group = static_constraints[ group_index ];
-   return( get_static_element< Constraint , Constraint_Derived_Classes >
-    ( any_group , constraint_index ) );
+   return( get_static_element< Constraint , Constraint_Derived_Classes >(
+					     any_group , constraint_index ) );
+   }
+  // A dynamic Constraint
+  group_index = id.first - num_static_groups;
+  const auto & dynamic_constraints = block->get_dynamic_constraints();
+
+  if( group_index >= dynamic_constraints.size() )
+   throw( std::logic_error( "get_Constraint: invalid dynamic Constraint group "
+                            "index: " + std::to_string( group_index ) ) );
+
+  auto any_group = dynamic_constraints[ group_index ];
+
+  return( get_dynamic_element< Constraint , Constraint_Derived_Classes >(
+					    any_group , constraint_index ) );
   }
-  else {
-   // A dynamic Constraint
-   group_index = id.first - num_static_groups;
-   const auto & dynamic_constraints = block->get_dynamic_constraints();
-
-   if( group_index >= dynamic_constraints.size() )
-    throw( std::logic_error( "get_Constraint: invalid dynamic Constraint group "
-                             "index: " + std::to_string( group_index ) ) );
-
-   auto any_group = dynamic_constraints[ group_index ];
-
-   return( get_dynamic_element< Constraint , Constraint_Derived_Classes >
-    ( any_group , constraint_index ) );
-  }
- }
 
 /*--------------------------------------------------------------------------*/
 
  template< class P1 , class P2 , class T , class... Rest >
- static void fill_static_ComputeConfig
- ( boost::any & group , const P1 group_index ,
-   std::vector< ComputeConfig * > & configs ,
-   std::vector< std::pair< P1 , P2 > > & ids ) {
-
+ static void fill_static_ComputeConfig( boost::any & group ,
+					const P1 group_index ,
+				   std::vector< ComputeConfig * > & configs ,
+				  std::vector< std::pair< P1 , P2 > > & ids )
+ {
   Index constraint_index = 0;
-  bool group_found = un_any_static
-   ( group , [ & ]( T & constraint ) {
+  bool group_found = un_any_static( group , [ & ]( T & constraint ) {
               auto config = constraint.get_ComputeConfig();
               if( config ) {
                configs.push_back( config );
                ids.push_back( std::make_pair( group_index ,
                                               P2( constraint_index ) ) );
-              }
+               }
               ++constraint_index;
-             } , un_any_type< T >() );
+              } , un_any_type< T >() );
   if( group_found )
    return;
-  else if constexpr( sizeof...(Rest) != 0 )
-   fill_static_ComputeConfig< P1 , P2 , Rest... >( group , group_index ,
-                                                   configs , ids );
- }
+  else
+   if constexpr( sizeof...(Rest) != 0 )
+    fill_static_ComputeConfig< P1 , P2 , Rest... >( group , group_index ,
+						    configs , ids );
+  }
 
 /*--------------------------------------------------------------------------*/
 
  template< class P1 , class P2 , class T , class... Rest >
- static void fill_dynamic_ComputeConfig
- ( boost::any & group , const P1 group_index ,
-   std::vector< ComputeConfig * > & configs ,
-   std::vector< std::pair< P1 , P2 > > & ids ) {
-
+ static void fill_dynamic_ComputeConfig( boost::any & group ,
+					 const P1 group_index ,
+                                std::vector< ComputeConfig * > & configs ,
+                                std::vector< std::pair< P1 , P2 > > & ids )
+ {
   Index constraint_index = 0;
-  bool group_found = un_any_dynamic
-   ( group , [ & ]( T & constraint ) {
+  bool group_found = un_any_dynamic( group , [ & ]( T & constraint ) {
               auto config = constraint.get_ComputeConfig();
               if( config ) {
                configs.push_back( config );
                ids.push_back( std::make_pair( group_index ,
                                               P2( constraint_index ) ) );
-              }
+               }
               ++constraint_index;
-             } , un_any_type< T >() );
+              } , un_any_type< T >() );
   if( group_found )
    return;
-  else if constexpr( sizeof...(Rest) != 0 )
-   fill_dynamic_ComputeConfig< P1 , P2 , Rest... >( group , group_index ,
-                                                    configs , ids );
- }
+  else
+   if constexpr( sizeof...(Rest) != 0 )
+    fill_dynamic_ComputeConfig< P1 , P2 , Rest... >( group , group_index ,
+						     configs , ids );
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /// get the ComputeConfig of the Constraint of the given Block
  /** This method scans all Constraint of the given \p block and adds the
   * (non-default) ComputeConfig of the Constraint to \p configs and the
-  * ConstraintID of those Constraint to \p ids. The correspondence between \p
+  * ConstraintID of those Constraints to \p ids. The correspondence between \p
   * configs and \p ids is positional: the i-th ConstraintID in \p ids
   * identifies the Constraint whose ComputeConfig is the i-th element of \p
   * configs. It is important to notice that both \p configs and \p ids are not
@@ -650,10 +967,10 @@ namespace SMSpp_di_unipi_it::inspection
   *        retrieved will be added to this vector. */
 
  template< class P1 , class P2 >
- static void fill_ComputeConfig_Constraint
- ( Block * block , std::vector< ComputeConfig * > & configs ,
-   std::vector< std::pair< P1 , P2 > > & ids ) {
-
+ static void fill_ComputeConfig_Constraint( Block * block ,
+			      std::vector< ComputeConfig * > & configs ,
+                              std::vector< std::pair< P1 , P2 > > & ids )
+ {
   if( ! block )
    return;
 
@@ -668,30 +985,27 @@ namespace SMSpp_di_unipi_it::inspection
   // Static Constraint
   auto static_constraints = block->get_static_constraints();
   for( Index group_index = 0 ; group_index < static_constraints.size() ;
-       ++group_index ) {
-   fill_static_ComputeConfig< P1 , P2 , Constraint_Derived_Classes >
-    ( static_constraints[ group_index ] , convert_index_type( group_index ) ,
-      configs , ids );
-  }
+       ++group_index )
+   fill_static_ComputeConfig< P1 , P2 , Constraint_Derived_Classes >(
+       static_constraints[ group_index ] , convert_index_type( group_index ) ,
+       configs , ids );
 
   const auto group_index_offset = static_constraints.size();
 
   // Dynamic Constraint
   auto dynamic_constraints = block->get_dynamic_constraints();
   for( Index group_index = 0 ; group_index < dynamic_constraints.size() ;
-       ++group_index ) {
-   fill_dynamic_ComputeConfig< P1 , P2 , Constraint_Derived_Classes >
-    ( dynamic_constraints[ group_index ] ,
+       ++group_index )
+   fill_dynamic_ComputeConfig< P1 , P2 , Constraint_Derived_Classes >(
+      dynamic_constraints[ group_index ] ,
       convert_index_type( group_index + group_index_offset ) , configs , ids );
   }
- }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the indices of the Constraint that are not satisfied
  /** The given \p group must contain a group of Constraint (static or dynamic,
   * according to \p static_constraints). This function returns a vector
-  * containing the indices of the Constraint in \p group that are not
+  * containing the indices of the Constraint in the \p group that are not
   * satisfied at the current solution. If the given \p group is not a valid
   * group of static or dynamic Constraint, then this function returns an empty
   * vector.
@@ -699,13 +1013,13 @@ namespace SMSpp_di_unipi_it::inspection
   * @param group A boost::any containing a group of Constraint.
   *
   * @param static_constraints If it is true, then the given \p group contains
-  *        a group of static Constraint. Otherwise, it indicates that \p group
-  *        contains a group of dynamic Constraint. */
+  *        a group of static Constraint. Otherwise, it indicates that the
+  *        \p group contains a group of dynamic Constraints. */
 
  template< class T , class... Rest >
- static std::vector< Index > get_infeasibility
- ( boost::any & group , const bool static_constraints ) {
-
+ static std::vector< Index > get_infeasibility( boost::any & group ,
+						bool static_constraints )
+ {
   std::vector< Index > indices;
   Index constraint_index = 0;
   const auto fill_indices =
@@ -725,35 +1039,34 @@ namespace SMSpp_di_unipi_it::inspection
   if constexpr( sizeof...(Rest) != 0 )
    return( get_infeasibility< Rest... >( group , static_constraints ) );
   return {};
- }
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the static or dynamic Constraint of \p block
  /** This function returns a vector of boost::any containing the static or
   * dynamic Constraint of \p block. If \p static_constraints is true, then the
-  * static Constraint are returned. Otherwise, the dynamic Constraint are
+  * static Constraints are returned. Otherwise, the dynamic Constraints are
   * returned.
   *
   * @param block A pointer to a Block whose Constraint will be checked.
   *
-  * @param static_constraints If it is true, then the static Constraint of the
-  *        given Block are returned. Otherwise, the dynamic Constraint are
+  * @param static_constraints If it is true, then the static Constraints of the
+  *        given Block are returned. Otherwise, the dynamic Constraints are
   *        returned.
   *
   * @return A vector of boost::any containing the static or dynamic Constraint
   *         of the given Block. */
 
  static auto & get_constraints( const Block * block ,
-                                const bool static_constraints ) {
+                                const bool static_constraints )
+ {
   if( static_constraints )
    return( const_cast< Vec_any & >( block->get_static_constraints() ) );
   return( const_cast< Vec_any & >( block->get_dynamic_constraints() ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
-
- /// displays all Constraint of \p block that are not satisfied
+ /// displays all Constraints of \p block that are not satisfied
  /** This function displays the indices of the Constraint of \p block
   * (ignoring those of its sub-Blocks) that are not satisfied at the current
   * solution (given by the values of the Variable of \p block). The parameter
@@ -762,29 +1075,29 @@ namespace SMSpp_di_unipi_it::inspection
   * solution, its index together with the name of the group to which this
   * Constraint belongs and the name of \p block (if not empty) are
   * displayed. If the name of \p block (see Block::name()) is empty, then the
-  * name of the class of the \p block is displayed instead (see
+  * name of the class of \p block is displayed instead (see
   * Block::classname()).
   *
   * @param block A pointer to a Block whose Constraint will be checked.
   *
-  * @param static_constraints If it is true, then the static Constraint of the
-  *        given Block are checked. Otherwise, the dynamic Constraint are
+  * @param static_constraints If it is true, then the static Constraints of the
+  *        given Block are checked. Otherwise, the dynamic Constraints are
   *        checked.
   *
-  * @param stream An stream to which the description of the unsatisfied
+  * @param stream A stream to which the description of the unsatisfied
   *        Constraint will be output. */
 
- static inline void show_infeasibility( const Block * block ,
-                                        const bool static_constraints ,
-                                        std::ostream & stream = std::cout ) {
+ static void show_infeasibility( const Block * block ,
+				 bool static_constraints , std::ostream & stream = std::cout )
+ {
   std::string constraint_type = static_constraints ? "static" : "dynamic";
   std::string block_name = block->name();
   if( block_name.empty() )
    block_name = block->classname();
   Index i = 0;
   for( auto & group : get_constraints( block , static_constraints ) ) {
-   auto indices = get_infeasibility< Constraint_Derived_Classes >
-    ( group , static_constraints );
+   auto indices = get_infeasibility< Constraint_Derived_Classes >( group ,
+							 static_constraints );
    if( ! indices.empty() ) {
     const auto & group_name = block->get_s_const_name( i );
     stream << "Unsatisfied " << constraint_type << " constraints in '"
@@ -794,16 +1107,15 @@ namespace SMSpp_di_unipi_it::inspection
      if( add_comma ) stream << ", ";
      stream << index;
      add_comma = true;
-    }
+     }
     stream << std::endl;
-   }
+    }
    ++i;
+   }
   }
- }
 
 /*--------------------------------------------------------------------------*/
-
- /// displays all Constraint of \p block that are not satisfied
+ /// displays all Constraints of \p block that are not satisfied
  /** This function displays the indices of the Constraint of \p block (and
   * those of its sub-Blocks, recursively) that are not satisfied at the
   * current solution (given by the values of the Variable of \p block). If a
@@ -816,16 +1128,17 @@ namespace SMSpp_di_unipi_it::inspection
   *
   * @param block A pointer to a Block whose Constraint will be checked.
   *
-  * @param stream An stream to which the description of the unsatisfied
+  * @param stream A stream to which the description of the unsatisfied
   *        Constraint will be output. */
 
- static inline void show_infeasibility( const Block * block ,
-                                        std::ostream & stream = std::cout ) {
+ static void show_infeasibility( const Block * block ,
+                                 std::ostream & stream = std::cout )
+ {
   show_infeasibility( block , true , stream );
   show_infeasibility( block , false , stream );
   for( auto sub_block : block->get_nested_Blocks() )
    show_infeasibility( sub_block , stream );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 

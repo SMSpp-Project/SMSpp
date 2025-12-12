@@ -18,7 +18,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __BendersBlock
-#define __BendersBlock
+ #define __BendersBlock
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
@@ -73,7 +73,7 @@ public:
  BendersBlock( Block * father = nullptr , Index num_variables = 0 ) :
   Block( father ) {
   v_variables.resize( num_variables );
-  set_objective( & objective , eNoMod );
+  set_objective( &objective , eNoMod );
   }
 
 /*--------------------------------------------------------------------------*/

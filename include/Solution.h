@@ -49,8 +49,7 @@ namespace SMSpp_di_unipi_it
  class Block;            // forward definition of Block
  class Solution;         // forward definition of Solution
 
- typedef Solution * p_Solution;
- ///< a pointer to Solution
+ typedef Solution * p_Solution;  ///< a pointer to Solution
 
  typedef std::vector< p_Solution > Vec_Solution;
  ///< a vector of pointers to Solution
@@ -68,13 +67,13 @@ namespace SMSpp_di_unipi_it
  * Solution be used to store and retrieve those values. A Solution must
  * implement the method
  *
- *    void read( Block * const block )
+ *    void read( const Block * block )
  *
  * which takes a (pointer to a) Block, reads the values of the current
  * solution of this Block and stores them. Once the values of a solution of a
  * Block have been stored, they can be retrieved by the method
  *
- *    void write( Block * const block )
+ *    void write( Block * block )
  *
  * which takes a (pointer to a) Block and writes the value of the solution
  * currently stored in this Solution into the Block.
@@ -84,7 +83,7 @@ namespace SMSpp_di_unipi_it
  * take only a specific part of the Block solution status (see the
  * Configuration parameter in Block::get_Solution()); say, only the primal
  * or the dual values, only the values of a specific set of Variable, ...
- * This configuration is "permanent": once a Solution is object created, it
+ * This Configuration is "permanent": once a Solution is object created, it
  * will only store that particular set of information. Trying to read a
  * Solution from a Block that does not have the required information (say,
  * because dual information is required which is stored in some Constraint,
@@ -92,15 +91,15 @@ namespace SMSpp_di_unipi_it
  * an exception being thrown.
  *
  * Of course, it is a fortiori an error (resulting in an exception being
- * thrown) to read or write a Solution out of the wrong Block. This does not
- * only mean "the wrong type of Block", but basically "the very same Block
- * that has created the solution object", or at least one that is "identical"
- * to it (say, a copy Block constructed as an R3 Block), or at the very very
- * least that is "compatible" (meaning it has the same size in the relevant
- * sets of Variable / Constraint). Solution are not meant to be exchanged
- * between different Block, even of the same type; exception to this rule
- * should be explicitly mentioned by each specific :Solution, and should be
- * exploited with due care.
+ * thrown) to read() or write() a Solution out of the wrong Block. This does
+ * not only mean "the wrong type of Block", but basically "the very same
+ * Block that has created the solution object", or at least one that is
+ * "identical" to it (say, a copy Block constructed as an R3 Block), or at
+ * the very very least that is "compatible" (meaning it has the same size in
+ * the relevant sets of Variable / Constraint). Solution are not meant to be
+ * exchanged between different Block, even of the same type; exception to
+ * this rule should be explicitly mentioned by each specific :Solution, and
+ * should be exploited with due care.
  *
  * Solution also provides support for producing weighted sum of solutions of
  * a given Block, which in particular allows to produce convex combinations
@@ -108,10 +107,15 @@ namespace SMSpp_di_unipi_it
  * being at the heart of countless many optimization techniques). This is
  * somehow delicate because some Solution, in particular discrete ones, may
  * not "be happy" with being arbitrarily scaled and/or summed, and thus
- * requires some care, see the comments to scale() and sum(). */
+ * requires some care, see the comments to scale() and sum().
+ *
+ * One may think that the base Solution class should be pure virtual, but
+ * this is not the case: the class is functional, but it does nothing. In
+ * other words, it represents an "empty Solution", suitable for an "empty
+ * Block" (or for "no solution has been generated yet". */
 
-class Solution {
-
+class Solution
+{
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -190,71 +194,163 @@ class Solution {
   }
 
 /*--------------------------------------------------------------------------*/
- /// de-serialize a :Solution out of netCDF::NcGroup, returns it
- /** First-level, static de-serialization method: takes a netCDF::NcGroup
-  * supposedly containing  (all the information describing) a :Solution and
-  * returns a pointer to a newly minted :Solution object corresponding to
-  * what is found in the file. The netCDF::NcGroup \p group must contain at
-  * least the string attribute "type"; this is used it in the factory
-  * to construct an "empty" :Solution of that type, see new_Solution(
-  * std::string & ), and then the method deserialize( netCDF::NcGroup ) of
-  * the newly minted :Solution is invoked (with argument \p group) to finish
-  * the work.
+ /// set the executable-wide prefix for all Solution filenames
+ /** The static method deserialize( std::string ) is provided for loading a
+  * Solution from a netCDF file. That method is in turn used for "file
+  * redirection"; a Solution netCDF file can contain one (or many) filenames
+  * in which a parts of the description of that Solution (typically a
+  * Solution inside a Solution inside a Solution ...) can be found, see
+  * new_Solution( netCDF::NcGroup & ). It could arguably be convenient to be
+  * able to specify filenames relative to some given prefix, so as to be
+  * able to freely move the description of a Solution (which can be a rather
+  * large object, and therefore require many files) across the filesystem.
+  * Solution provides a *static* member for this purpose, that can be
+  * set with this (static) method. Note that
   *
-  * Note that this method is static (see the previous versions for comments
-  * about it) and returns a pointer to Solution, hence it has to have a
-  * different name from deserialize( netCDF::NcGroup ) (since the signature
-  * is the same but for the return type).
+  *     BEING THE MEMBER STATIC, THE PREFIX IS APPLIED TO ALL LOADING 
+  *     OPERATIONS OF ANY Solution IN THE EXECUTABLE
   *
-  * If anything goes wrong with the process, nullptr is returned. */
+  * Use of this feature therefore requires care. */
 
- static Solution * new_Solution( const netCDF::NcGroup & group ) {
-  if( group.isNull() )
-   return( nullptr );
-
-  auto gtype = group.getAtt( "type" );
-  if( gtype.isNull() )
-   return( nullptr );
-
-  std::string tmp;
-  gtype.getValues( tmp );
-  auto result = new_Solution( tmp );
-  try {
-   result->deserialize( group );
-   return( result );
-   }
-  catch( netCDF::exceptions::NcException & e ) {
-   std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
-   }
-  catch( std::exception & e ) {
-   std::cerr << "error " << e.what() << " in deserialize" << std::endl;
-   }
-  catch( ... ) {
-   std::cerr << "unknown error in deserialize" << std::endl;
-   }
-
-  return( nullptr );
+ static void set_filename_prefix( std::string && prefix ) {
+  f_prefix = prefix;
   }
 
 /*--------------------------------------------------------------------------*/
- /// de-serialize a :Solution out of netCDF::NcGroup
- /** The method takes a netCDF::NcGroup supposedly containing all the
-  * information required to de-serialize the :Solution, and produces a "full"
-  * Solution object as a result. Most likely, the netCDF::NcGroup has been
-  * produced by calling serialize() with a previously existing :Solution (of
-  * the very same type as this one), but individual :Solution should openly
-  * declare the format of their :Solution so that possibly a netCDF::NcGroup
-  * containing some pre-computed solution can be constructed from scratch
-  * whenever this is useful.
+ /// de-serialize a :Solution out of a file
+ /** Top-level de-serialization method: takes the \p filename of a SMS++ 
+  * netCDF file (possibly also encoding a position into it), and returns the
+  * complete :Solution object whose description is the one found (at the
+  * specified position) in the file. \p filename has to be a SMS++ Solution
+  * file, i.e., to have int netCDF attribute "SMS++_file_type" of value
+  * eSolutionFile (see SMSTypedefs.h).
   *
-  * This method is pure virtual, as it clearly has to be implemented by
-  * derived classes. */
+  * SMS++ Solution files exploit the capacity of netCDF::NcFile to support
+  * the notion of having multiple Solution inside; thus, \p filename can be
+  * used to encode the position (Solution) in the file:
+  *
+  * - if the \p filename ends with ']', then is supposed to have the form
+  *   "real filename[idx]": the "[idx] part is excised and used to compute
+  *   the int parameter for deserialize( const netCDF::NcFile & , int ) (the
+  *   position), with the remaining part being used as the filename for
+  *   opening the file;
+  *
+  * - otherwise, the whole string is used as the filename.
+  *
+  * If anything goes wrong with the entire operation, nullptr is returned.
+  *
+  * Note that if a filename prefix has been defined (for all Solution)
+  * by means of set_filename_prefix(), then \p filename has to be intended
+  * as relative to that prefix (in the sense that the prefix is prefix to
+  * \p filename).
+  *
+  * Note that the method is static, hence it is to be called as
+  *
+  *     auto mySol = Solution::deserialize( somefile );
+  *
+  * i.e., without any reference to any specific Solution. */
 
- virtual void deserialize( const netCDF::NcGroup & group ) = 0;
+ static Solution * deserialize( const std::string & filename );
+
+/*--------------------------------------------------------------------------*/
+ /// de-serialize a :Solution out of an open netCDF SMS++ file
+ /** Second-level de-serialization method: takes the open SMS++ netCDF
+  * Solution file \p f and the index \p idx of a Solution into the file and
+  * returns the correspinding complete :Solution object, which is the one
+  * extracted by the "Solution_< \p idx >" group, by calling 
+  * new_Solution( netCDF::NcGroup & ); see the corresponding comments for the
+  * format options (that is, file indirection). Anything going wrong with the
+  * entire operation (the file is not there, the "SMS++_file_type" attribute
+  * is not there, there is no required "Solution_< \p idx >" child group,
+  * there is any fatal error during the process, ...) results in nullptr
+  * being returned.
+  *
+  * Note that the method is static, hence it is to be called as
+  *
+  *     Solution * mySol = Solution::deserialize( somefile );
+  *
+  * i.e., without any reference to any specific Solution. */
+
+ static Solution * deserialize( const netCDF::NcFile & f , int idx = 0 );
+
+/*--------------------------------------------------------------------------*/
+ /// de-serialize a :Solution out of netCDF::NcGroup, returns it
+/** Third-level de-serialization method: takes a netCDF::NcGroup supposedly
+  * containing (all the information describing) a :Solution (either
+  * "directly" or "indirectly") and returns a pointer to a newly minted
+  * Solution object corresponding to what is found in the group.
+  *
+  * The method works with two different kinds of netCDF::NcGroup:
+  *
+  * - A "direct" group that contains at least the string attribute "type";
+  *   this is used it in the factory to construct an "empty" :Solution of
+  *   that type [see new_Solution( const std::string & )], and then the
+  *   method deserialize( const netCDF::NcGroup ) of the newly minted
+  *   :Solution is invoked (with argument \p group) to finish the work.
+  *
+  * - An "indirect" group that just need to contain the single string
+  *   attribute "filename"; in this case, the attribute is used as argument
+  *   for a call to deserialize( const std::string & ) that will extract the
+  *   :Solution by the corresponding netCDF file. Note that the filename
+  *   string can also be used to encode the position in the file, see the
+  *   comments in the method for details.
+  *
+  * In case \p group contains both "type" and "filename", the first takes
+  * the precedence (direct groups have precedence over indirect ones).
+  *
+  * Note that this method is static (see the previous versions for comments
+  * about it) and returns a pointer to Solution, hence it has to have a
+  * different name from deserialize( const netCDF::NcGroup & ) (since the
+  * signature is the same but the return type is not).
+  *
+  * If anything goes wrong with the process, nullptr is returned. */
+
+ static Solution * new_Solution( const netCDF::NcGroup & group );
+
+/*--------------------------------------------------------------------------*/
+ /// de-serialize a :Solution out of netCDF::NcGroup
+ /** Fourth and final level de-serialization method: takes a netCDF::NcGroup
+  * supposedly containing all the information required to de-serialize the
+  * :Solution, and produces a "full" Solution object as a result. The
+  * netCDF::NcGroup \p group may have been produced by calling serialize()
+  * with a previously existing :Solution (of the very same type as this one),
+  * but individual :Solution should openly declare the format of their
+  * :Solution so that possibly a netCDF::NcGroup containing some pre-computed
+  * solution can be constructed from scratch whenever this is useful.
+  *
+  *      THIS IS THE METHOD TO BE IMPLEMENTED BY DERIVED CLASSES
+  *
+  * and in fact it does nothing in the base class. */
+
+ virtual void deserialize( const netCDF::NcGroup & group ) {};
 
 /*--------------------------------------------------------------------------*/
 
- virtual ~Solution() { }  ///< destructor: it is virtual, and empty
+ virtual ~Solution() {}  ///< destructor: it is virtual, and empty
+
+/** @} ---------------------------------------------------------------------*/
+/*--------------- Methods for reading the data of the Solution -------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for reading the data of the Solution
+ *  @{ */
+
+ /// getting the classname of this Solution
+ /** Given a Solution, this method returns a string with its class name;
+  * unlike std::type_info.name(), there *are* guarantees, i.e., the name will
+  * always be the same.
+  *
+  * The method works by dispatching the private virtual method private_name().
+  * The latter is automatically implemented by the 
+  * SMSpp_insert_in_factory_cpp_* macros [see SMSTypedefs.h], hence this
+  * comes at no cost since these have to be called somewhere to ensure that
+  * any :Solution will be added to the factory. Actually, since
+  * Solution::private_name() is pure virtual, this ensures that it is not
+  * possible to forget to call the appropriate SMSpp_insert_in_factory_cpp_*
+  * for any :Solution because otherwise it is a pure virtual class (unless
+  * the programmer purposely defines private_name() without calling the macro,
+  * which seems rather pointless). */
+
+ const std::string & classname( void ) const { return( private_name() ); }
 
 /** @} ---------------------------------------------------------------------*/
 /*-------------- METHODS DESCRIBING THE BEHAVIOR OF A Solution -------------*/
@@ -266,42 +362,20 @@ class Solution {
  /** This method reads the solution of the given Block and stores it in this
   * Solution. A Solution object can be "configured" to take only a specific
   * part of the Block solution status: it is an error if block does not have
-  * the required part (and, a fortiori, if block is not the right Block). */
+  * the required part (and, a fortiori, if block is not the right Block).
+  * The method in the base class does nothing. */
 
- virtual void read( const Block * const block ) = 0;
+ virtual void read( const Block * const block ) {};
 
 /*--------------------------------------------------------------------------*/
  /// write the solution in the given Block
  /** This method writes the solution currently stored in this Solution in the
   * given Block. A Solution object can be "configured" to take only a specific
   * part of the Block solution status: it is an error if block does not have
-  * the required part (and, a fortiori, if block is not the right Block). */
+  * the required part (and, a fortiori, if block is not the right Block).
+  * The method in the base class does nothing. */
 
- virtual void write( Block * const block ) = 0;
-
-/*--------------------------------------------------------------------------*/
- /// serialize a :Solution into a netCDF::NcGroup
- /** The method takes a (supposedly, "full") Solution object and serializes
-  * it into the provided netCDF::NcGroup, so that it can possibly be read by
-  * deserialize() (of a :Solution of the very same type as this one).
-  *
-  * The method of the base class just creates and fills the "type" attribute
-  * (with the right name, thanks to the classname() method) and the optional
-  * "name" attribute. Yet
-  *
-  *     serialize() OF ANY :Solution SHOULD CALL Solution::serialize()
-  *
-  * While this currently does so little that one might well be tempted to
-  * skip the call and just copy the three lines of code, enforcing this
-  * standard is forward-looking since in this way any future revision of the
-  * base Solution class may add other mandatory/optional fields: as soon as
-  * they are managed by the (revised) method of the base class, they would
-  * then be automatically dealt with by the derived classes without them even
-  * knowing it happened. */
-
- virtual void serialize( netCDF::NcGroup & group ) const {
-  group.putAtt( "type" , classname() );
-  }
+ virtual void write( Block * const block ) {};
 
 /*--------------------------------------------------------------------------*/
  /// returns a scaled version of this Solution
@@ -334,9 +408,12 @@ class Solution {
   * a different type" than the originating one". The requirement is that the
   * newly created Solution must be a "general" one, in the sense that it
   * makes sense (obviously) to scale it, and also to *sum* it with other
-  * Solution objects, see sum(). */
+  * Solution objects, see sum(). The method in the base class returns
+  * another "empty" Solution object. */
 
- virtual Solution * scale( double factor ) const = 0;
+ virtual Solution * scale( double factor ) const {
+  return( new Solution() );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// adds a scaled version of the given Solution to this Solution
@@ -383,9 +460,10 @@ class Solution {
   * integer). Thus, it may not be efficient to require scale() to return the
   * "more general" Solution. Yet, handling these special cases should always
   * be possible by requiring the Block to produce "the right kind of Solution
-  * object" by means of its Configuration. */
+  * object" by means of its Configuration.
+  * The method in the base class does nothing. */
 
- virtual void sum( const Solution * solution , double multiplier ) = 0;
+ virtual void sum( const Solution * solution , double multiplier ) {};
 
 /*--------------------------------------------------------------------------*/
 /// returns a clone of this Solution
@@ -400,14 +478,29 @@ class Solution {
  * Note that clone() and scale( 1 ) return in principle the same Solution.
  * However, scale( 1 ) must return a "general solution" (see comments in
  * scale() and sum()), whereas clone() can return exactly the same type of
- * solution as the current one, i.e., a "less general" one if this is. */
+ * solution as the current one, i.e., a "less general" one if this is.
+ * The method in the base class returns another "empty" Solution object. */
 
- virtual Solution * clone( bool empty = false ) const = 0;
+ virtual Solution * clone( bool empty = false ) const  {
+  return( new Solution() );
+  }
 
 /** @} ---------------------------------------------------------------------*/
-/*----------- METHODS FOR LOADING, PRINTING & SAVING THE Solution ----------*/
+/*--------------- METHODS FOR PRINTING & SAVING THE Solution ---------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Methods for printing the Solution
+/** @name Methods for printing & saving the Solution
+ *
+ * The base Solution class provides the friend operator<<() dispatching to a
+ * protected virtual method print( std::ostream& ); the idea is that
+ * derived classes will implement the latter in order to provide output on
+ * std::stream.
+ *
+ * The base Solution class also defines the interface for serializing and
+ * de-serializing a :Solution onto netCDF files. This is done via the two
+ * versions of serialize() taking a file name (char *) and a netCDF file.
+ * The first dispatches on the second, and the latter ultimately to the
+ * protected method taking a netCDF group, like their deserialize()
+ * counterparts.
  *  @{ */
 
  /// friend operator<<(), dispatching to virtual protected print()
@@ -422,23 +515,80 @@ class Solution {
   }
 
 /*--------------------------------------------------------------------------*/
- /// getting the classname of this Solution
- /** Given a Solution, this method returns a string with its class name;
-  * unlike std::type_info.name(), there *are* guarantees, i.e., the name will
-  * always be the same.
+ /// serialize the Solution to a netCDF file given the filename
+ /** Method to serialize the Solution to a file in SMS++ netCDF-based
+  * Solution format, given the \p filename. If \p replace == true (the
+  * default) any existing content of the file is overwritten and the Solution
+  * is saved as *the first one* in the newly created file, while if 
+  * \p replace == false the file is opened for appending and the Solution is
+  * saved after the last one currently present (if any).
   *
-  * The method works by dispatching the private virtual method private_name().
-  * The latter is automatically implemented by the 
-  * SMSpp_insert_in_factory_cpp_* macros [see SMSTypedefs.h], hence this
-  * comes at no cost since these have to be called somewhere to ensure that
-  * any :Solution will be added to the factory. Actually, since
-  * Solution::private_name() is pure virtual, this ensures that it is not
-  * possible to forget to call the appropriate SMSpp_insert_in_factory_cpp_*
-  * for any :Solution because otherwise it is a pure virtual class (unless
-  * the programmer purposely defines private_name() without calling the macro,
-  * which seems rather pointless). */
+  * The base class implementation opens the netCDF file, creates the required
+  * attribute "SMS++_file_type" (if the file is created anew, otherwise it is
+  * assumed the field is already there), assigns it the eSolutionFile type,
+  * and dispatches to serialize( netCDF::NcFile & ). If anything goes wrong
+  * with any step of the process, exception is thrown. Although the method is
+  * virtual, it is not expected that derived classes will have a need to
+  * re-define it. */
 
- const std::string & classname( void ) const { return( private_name() ); }
+ virtual void serialize( const std::string & filename , bool replace = true )
+  const {
+  netCDF::NcFile f;
+  if( ! replace ) {
+   try { f.open( filename , netCDF::NcFile::write ); }
+   catch( netCDF::exceptions::NcException & e ) { replace = true; }
+   }
+  if( replace ) {
+   f.open( filename , netCDF::NcFile::replace );
+   f.putAtt( "SMS++_file_type" , netCDF::NcInt() , eSolutionFile );
+   }
+
+  serialize( f );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// serialize the Solution to an open netCDF file
+ /** Method to serialize the Solution to an open netCDF file in SMS++
+  * Solution format. This Solution is *appended* after any existing Solution
+  * in the file.
+  *
+  * The base class implementation creates the new group and dispatches to
+  * serialize( netCDF::NcGroup ), which is where the :Solution-dependent
+  * serialization happens. If anything goes wrong with any step of the
+  * process, exception is thrown. Although the method is virtual, it is not
+  * expected that derived classes will have a need to re-define it. */
+
+ virtual void serialize( netCDF::NcFile & f ) const
+ {
+  auto cg = f.addGroup( "Solution_" + std::to_string( f.getGroupCount() ) );
+  serialize( cg );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// serialize a :Solution into a netCDF::NcGroup
+ /** The method takes a (supposedly, "full") Solution object and serializes
+  * it into the provided netCDF::NcGroup, so that it can possibly be read by
+  * deserialize() (of a :Solution of the very same type as this one).
+  *
+  *      THIS IS THE METHOD TO BE IMPLEMENTED BY DERIVED CLASSES
+  *
+  * The method of the base class just creates and fills the "type" attribute
+  * (with the right name, thanks to the classname() method) and the optional
+  * "name" attribute. Yet
+  *
+  *     serialize() OF ANY :Solution SHOULD CALL Solution::serialize()
+  *
+  * While this currently does so little that one might well be tempted to
+  * skip the call and just copy the one line of code, enforcing this
+  * standard is forward-looking since in this way any future revision of the
+  * base Solution class may add other mandatory/optional fields: as soon as
+  * they are managed by the (revised) method of the base class, they would
+  * then be automatically dealt with by the derived classes without them
+  * even knowing it happened. */
+
+ virtual void serialize( netCDF::NcGroup & group ) const {
+  group.putAtt( "type" , classname() );
+  }
 
 /** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -523,6 +673,12 @@ class Solution {
  static void static_initialization( void ) {}
 
 /** @} ---------------------------------------------------------------------*/
+/*--------------------------- PROTECTED FIELDS  ----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ static std::string f_prefix;  ///< the executable-wide filename prefix
+
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- PROTECTED FIELDS ------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -535,9 +691,13 @@ class Solution {
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
- // Definition of Solution::private_name() (pure virtual)
+ // custom impementation of SMSpp_insert_in_factory_h
 
- [[nodiscard]] virtual const std::string & private_name( void ) const = 0;
+ [[nodiscard]] virtual const std::string & private_name( void ) const;
+
+ static class _init { public: _init( void ); } _initializer;
+
+ static const std::string & _private_name( void );
 
 /*--------------------------------------------------------------------------*/
 

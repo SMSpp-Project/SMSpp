@@ -35,58 +35,63 @@ using namespace SMSpp_di_unipi_it;
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF THE LinearFunction ----------*/
 /*--------------------------------------------------------------------------*/
 
-int LinearFunction::compute( bool changedvars ) {
+int LinearFunction::compute( bool changedvars )
+{
  if( changedvars ) {
   f_value = f_constant_term;  // value of the function
   for( const auto el : v_pairs )
    f_value += el.first->get_value() * el.second;
- }
+  }
 
  return( kOK );
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 
-Function::FunctionValue LinearFunction::get_Lipschitz_constant() {
+Function::FunctionValue LinearFunction::get_Lipschitz_constant( void )
+{
  FunctionValue L = 0;
  for( const auto el : v_pairs )
   L += el.second * el.second;
 
  return( sqrt( double( L ) ) );
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 
-void
-LinearFunction::get_hessian_approximation( SparseHessian & hessian ) const {
+void LinearFunction::get_hessian_approximation( SparseHessian & hessian )
+ const {
  hessian.setZero();
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 
-void LinearFunction::get_hessian_approximation( DenseHessian & hessian ) const {
+void LinearFunction::get_hessian_approximation( DenseHessian & hessian ) const{
  const Eigen::Index num_active_var = get_num_active_var();
  hessian.setZero( num_active_var , num_active_var );
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 
 void LinearFunction::get_linearization_coefficients( FunctionValue * g ,
                                                      Range range ,
-                                                     Index name ) {
+                                                     Index name )
+{
  range.second = std::min( range.second , get_num_active_var() );
  if( range.second <= range.first )
   return;
 
  for( Index i = range.first ; i < range.second ; i++ )
-  *(g++) = v_pairs[ i ].second;
-}
+  *( g++ ) = v_pairs[ i ].second;
+
+ }  // end( :get_linearization_coefficients( FunctionValue * , Range ) )
 
 /*--------------------------------------------------------------------------*/
 
 void LinearFunction::get_linearization_coefficients( SparseVector & g ,
                                                      Range range ,
-                                                     Index name ) {
+                                                     Index name )
+{
  c_Index num_active_var = get_num_active_var();
  range.second = std::min( range.second , num_active_var );
  if( range.second <= range.first )
@@ -101,44 +106,48 @@ void LinearFunction::get_linearization_coefficients( SparseVector & g ,
   for( Index i = range.first ; i < range.second ; ++i )
    if( v_pairs[ i ].second )
     g.insert( i ) = v_pairs[ i ].second;
- } else {                  // g contains some non-zero elements
+  }
+ else {                  // g contains some non-zero elements
   if( g.size() != num_active_var )
    throw( std::invalid_argument( "LinearFunction::get_linearization_"
                                  "coefficients: wrong size of nonempty "
                                  "SparseVector g: g has size " +
-                                 std::to_string( g.size() ) + " but there are "
-                                 + std::to_string( num_active_var ) +
+                                 std::to_string( g.size() ) +
+				 " but there are " +
+                                 std::to_string( num_active_var ) +
                                  " active Variables" ) );
 
   for( Index i = range.first ; i < range.second ; ++i )
    g.coeffRef( i ) = v_pairs[ i ].second;
 
   g.prune( 0 , 0 );
- }
-}
+  }
+ } // end( get_linearization_coefficients( SparseVector & , Range ) )
 
 /*--------------------------------------------------------------------------*/
 
 void LinearFunction::get_linearization_coefficients( FunctionValue * g ,
                                                      c_Subset & subset ,
                                                      bool ordered ,
-                                                     Index name ) {
+                                                     Index name )
+{
  c_Index num_active_var = get_num_active_var();
  for( const auto & i : subset ) {
   if( i >= num_active_var )
    throw( std::invalid_argument( "LinearFunction::get_linearization_"
                                  "coefficients: wrong index in subset: " +
                                  std::to_string( i ) ) );
-  *(g++) = v_pairs[ i ].second;
- }
-}
+  *( g++ ) = v_pairs[ i ].second;
+  }
+ }  // end( get_linearization_coefficients( FunctionValue * , Subset )
 
 /*--------------------------------------------------------------------------*/
 
 void LinearFunction::get_linearization_coefficients( SparseVector & g ,
                                                      c_Subset & subset ,
                                                      const bool ordered ,
-                                                     Index name ) {
+                                                     Index name )
+{
  c_Index num_active_var = get_num_active_var();
 
  if( g.nonZeros() == 0 ) {  // g contains no non-zero element
@@ -154,14 +163,16 @@ void LinearFunction::get_linearization_coefficients( SparseVector & g ,
                                   std::to_string( i ) ) );
    if( v_pairs[ i ].second )
     g.insert( i ) = v_pairs[ i ].second;
+   }
   }
- } else {                  // g contains some non-zero elements
+ else {                  // g contains some non-zero elements
   if( g.size() != num_active_var )
    throw( std::invalid_argument( "LinearFunction::get_linearization_"
                                  "coefficients: wrong size of nonempty "
                                  "SparseVector g: g has size " +
-                                 std::to_string( g.size() ) + " but there are "
-                                 + std::to_string( num_active_var ) +
+                                 std::to_string( g.size() ) +
+				 " but there are " +
+                                 std::to_string( num_active_var ) +
                                  " active Variables" ) );
 
   for( const auto & i : subset ) {
@@ -170,18 +181,19 @@ void LinearFunction::get_linearization_coefficients( SparseVector & g ,
                                   "coefficients: wrong index in subset: " +
                                   std::to_string( i ) ) );
    g.coeffRef( i ) = v_pairs[ i ].second;
-  }
+   }
 
   g.prune( 0 , 0 );
- }
-}
+  }
+ }  // end( get_linearization_coefficients( SparseVector & , Subset ) )
 
 /*--------------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE LinearFunction -------*/
 /*--------------------------------------------------------------------------*/
 
 void LinearFunction::map_active( c_Vec_p_Var & vars , Subset & map ,
-                                 const bool ordered ) const {
+                                 const bool ordered ) const
+{
  if( vars.empty() )
   return;
 
@@ -205,43 +217,49 @@ void LinearFunction::map_active( c_Vec_p_Var & vars , Subset & map ,
    if( i >= v_pairs.size() )
     throw( std::invalid_argument( "LinearFunction::map_active: "
                                   "some Variable is not active" ) );
-   *(it++) = i;
+   *( it++ ) = i;
+   }
   }
- }
-}  // end( LinearFunction::map_active )
+ }  // end( LinearFunction::map_active )
 
 /*--------------------------------------------------------------------------*/
 /*-------------- METHODS FOR MODIFYING THE LinearFunction ------------------*/
 /*--------------------------------------------------------------------------*/
 
 void LinearFunction::add_variables( v_coeff_pair && vars ,
-                                    ModParam issueMod ) {
+				                                ModParam issueMod )
+{
  if( vars.empty() )  // actually nothing to add
   return;            // cowardly (and silently) return
 
- auto added = &vars;
+ auto added = & vars;
  Index k = v_pairs.size();
  if( k )  // adding to a nonempty set
   v_pairs.insert( v_pairs.end() , vars.begin() , vars.end() );
- else {     // adding to nothing
+ else {   // adding to nothing
   v_pairs = std::move( vars );
   added = &v_pairs;
- }
+  }
 
+ // if noone is there or not listening
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
-  return;
+  return;  // all done
 
  Vec_p_Var vptr( added->size() );
- for( Index i = 0 ; i < added->size() ; ++i )
+ v_coeff vcoef( added->size() );
+ for( Index i = 0 ; i < added->size() ; ++i ) {
   vptr[ i ] = ( *added )[ i ].first;
+  vcoef[ i ] = ( *added )[ i ].second;
+  }
 
  // a linear function is additive ==> strongly quasi-additive
- f_Observer->add_Modification( std::make_shared< C05FunctionModVarsAddd >(
-                                this , std::move( vptr ) , k , 0 ,
+ f_Observer->add_Modification( std::make_shared< LinearFunctionModVarsAddd >(
+			        this , std::move( vcoef ) ,
+				std::move( vptr ) , k , 0 ,
                                 Observer::par2concern( issueMod ) ) ,
                                Observer::par2chnl( issueMod ) );
 
-}  // end( LinearFunction::add_variables )
+ }  // end( LinearFunction::add_variables )
 
 /*--------------------------------------------------------------------------*/
 
@@ -252,22 +270,24 @@ void LinearFunction::add_variable( ColVariable * var , Coefficient coeff ,
 
  v_pairs.push_back( std::make_pair( var , coeff ) );
 
+ // if noone is there or not listening
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
-  return;
+  return;  // all done
 
  // a linear function is additive ==> strongly quasi-additive
- f_Observer->add_Modification( std::make_shared< C05FunctionModVarsAddd >(
-                                this , Vec_p_Var( { var } ) ,
-                                v_pairs.size() - 1 , 0 ,
-                                Observer::par2concern( issueMod ) ) ,
+ f_Observer->add_Modification( std::make_shared< LinearFunctionModVarsAddd >(
+				this , v_coeff( { coeff } ) ,
+				Vec_p_Var( { var } ) , v_pairs.size() - 1 ,
+				0 , Observer::par2concern( issueMod ) ) ,
                                Observer::par2chnl( issueMod ) );
 
-}  // end( LinearFunction::add_variable )
+ }  // end( LinearFunction::add_variable )
 
 /*--------------------------------------------------------------------------*/
 
 void LinearFunction::modify_coefficient( Index i , Coefficient coeff ,
-                                         ModParam issueMod ) {
+                                         ModParam issueMod )
+{
  if( i >= v_pairs.size() )
   throw( std::invalid_argument( "LinearFunction::modify_coefficient: invalid"
                                 " index: " + std::to_string( i ) ) );
@@ -288,13 +308,14 @@ void LinearFunction::modify_coefficient( Index i , Coefficient coeff ,
                                 Observer::par2concern( issueMod ) ) ,
                                Observer::par2chnl( issueMod ) );
 
-}  // end( LinearFunction::modify_coefficient )
+ }  // end( LinearFunction::modify_coefficient )
 
 /*--------------------------------------------------------------------------*/
 
 void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
                                           Subset && nms , bool ordered ,
-                                          ModParam issueMod ) {
+                                          ModParam issueMod )
+{
  if( nms.empty() )
   return;
 
@@ -314,11 +335,11 @@ void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
    if( i >= v_pairs.size() )
     throw( std::invalid_argument( "LinearFunction::modify_coefficients: "
                                   "invalid index: " + std::to_string( i ) ) );
-   *(vpit++) = v_pairs[ i ].first;
+   *( vpit++ ) = v_pairs[ i ].first;
    auto di = *NCit - v_pairs[ i ].second;
    v_pairs[ i ].second = *NCit;
-   *(NCit++) = di;
-  }
+   *( NCit++ ) = di;
+   }
 
   // now issue the Modification
   f_Observer->add_Modification( std::make_shared< C05FunctionModLinSbst >(
@@ -327,20 +348,22 @@ void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
                                  ordered , FunctionMod::NaNshift ,
                                  Observer::par2concern( issueMod ) ) ,
                                 Observer::par2chnl( issueMod ) );
- } else  // noone is there: just do it
+  }
+ else  // noone is there: just do it
   for( auto i : nms ) {
    if( i >= v_pairs.size() )
     throw( std::invalid_argument( "LinearFunction::modify_coefficients: "
                                   "invalid index: " + std::to_string( i ) ) );
-   v_pairs[ i ].second = *(NCit++);
-  }
+   v_pairs[ i ].second = *( NCit++ );
+   }
 
-}  // end( LinearFunction::modify_coefficients( subset ) )
+ }  // end( LinearFunction::modify_coefficients( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
 void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
-                                          Range range , ModParam issueMod ) {
+                                          Range range , ModParam issueMod )
+{
  range.second = std::min( range.second , c_Index( v_pairs.size() ) );
  if( range.second <= range.first )
   return;
@@ -360,11 +383,11 @@ void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
   auto vpit = vp.begin();
 
   while( strtit < stopit ) {
-   *(vpit++) = strtit->first;
+   *( vpit++ ) = strtit->first;
    auto di = *NCit - strtit->second;
    ( strtit++ )->second = *NCit;
-   *(NCit++) = di;
-  }
+   *( NCit++ ) = di;
+   }
 
   // now issue the Modification
   f_Observer->add_Modification( std::make_shared< C05FunctionModLinRngd >(
@@ -373,15 +396,17 @@ void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
                                  FunctionMod::NaNshift ,
                                  Observer::par2concern( issueMod ) ) ,
                                 Observer::par2chnl( issueMod ) );
- } else  // noone is there: just do it
+  }
+ else  // noone is there: just do it
   while( strtit < stopit )
-   ( *(strtit++) ).second = *(NCit++);
+   ( *( strtit++ ) ).second = *( NCit++ );
 
-}  // end( LinearFunction::modify_coefficients( range ) )
+ }  // end( LinearFunction::modify_coefficients( range ) )
 
 /*--------------------------------------------------------------------------*/
 
-void LinearFunction::remove_variable( Index i , ModParam issueMod ) {
+void LinearFunction::remove_variable( Index i , ModParam issueMod )
+{
  if( v_pairs.size() <= i )
   throw( std::logic_error( "LinearFunction::remove_variable: there is no "
                            "Variable with index " + std::to_string( i ) ) );
@@ -400,11 +425,12 @@ void LinearFunction::remove_variable( Index i , ModParam issueMod ) {
                                 Observer::par2concern( issueMod ) ) ,
                                Observer::par2chnl( issueMod ) );
 
-}  // end( LinearFunction::remove_variable( index ) )
+ }  // end( LinearFunction::remove_variable( index ) )
 
 /*--------------------------------------------------------------------------*/
 
-void LinearFunction::remove_variables( Range range , ModParam issueMod ) {
+void LinearFunction::remove_variables( Range range , ModParam issueMod )
+{
  range.second = std::min( range.second , Index( v_pairs.size() ) );
  if( range.second <= range.first )
   return;
@@ -427,11 +453,12 @@ void LinearFunction::remove_variables( Range range , ModParam issueMod ) {
                                   true , 0 ,
                                   Observer::par2concern( issueMod ) ) ,
                                  Observer::par2chnl( issueMod ) );
-  } else       // no-one is listening
+   }
+  else       // no-one is listening
    clear();  // just do it
 
   return;    // all done
- }
+  }
 
  // this is not a complete reset
  const auto strtit = v_pairs.begin() + range.first;
@@ -443,7 +470,7 @@ void LinearFunction::remove_variables( Range range , ModParam issueMod ) {
   Vec_p_Var vars( range.second - range.first );
   auto vpit = vars.begin();
   for( auto tmpit = strtit ; tmpit < stopit ; )
-   *(vpit++) = ( *(tmpit++) ).first;
+   *( vpit++ ) = ( *( tmpit++ ) ).first;
 
   v_pairs.erase( strtit , stopit );
 
@@ -453,15 +480,17 @@ void LinearFunction::remove_variables( Range range , ModParam issueMod ) {
                                  this , std::move( vars ) , range , 0 ,
                                  Observer::par2concern( issueMod ) ) ,
                                 Observer::par2chnl( issueMod ) );
- } else  // noone is there: just do it
+  }
+ else  // noone is there: just do it
   v_pairs.erase( strtit , stopit );
 
-}  // end( LinearFunction::remove_variables( range ) )
+ }  // end( LinearFunction::remove_variables( range ) )
 
 /*--------------------------------------------------------------------------*/
 
 void LinearFunction::remove_variables( Subset && nms , bool ordered ,
-                                       ModParam issueMod ) {
+                                       ModParam issueMod )
+{
  if( nms.empty() ) {      // removing *all* variable
   if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
    // an Observer is there: copy the names of deleted Variable (all of them)
@@ -479,11 +508,12 @@ void LinearFunction::remove_variables( Subset && nms , bool ordered ,
                                   true , 0 ,
                                   Observer::par2concern( issueMod ) ) ,
                                  Observer::par2chnl( issueMod ) );
-  } else       // no-one is listening
+   }
+  else       // no-one is listening
    clear();  // just do it
 
   return;    // all done
- }
+  }
 
  // this is not a complete reset
  if( ! ordered )
@@ -504,19 +534,19 @@ void LinearFunction::remove_variables( Subset && nms , bool ordered ,
   Vec_p_Var vars( nms.size() );
   auto its = vars.begin();
 
-  *(its++) = v_pairs[ *(it++) ].first;
+  *( its++ ) = v_pairs[ *( it++ ) ].first;
   ++vi;              // skip the first element, it will be overwritten
 
   for( ; it < nms.end() ; ++vi )
    if( *it == vi )                // one element to be eliminated
-    *(its++) = v_pairs[ *(it++) ]
+    *( its++ ) = v_pairs[ *( it++ ) ]
      .first;  // skip it, but record the Variable
    else
-    *(curr++) = v_pairs[ vi ];   // move in the current position
+    *( curr++ ) = v_pairs[ vi ];  // move in the current position
 
   auto itv = v_pairs.begin() + vi;
   for( ; itv < v_pairs.end() ; )  // copy the last part
-   *(curr++) = *(itv++);         // after the last of nms[]
+   *( curr++ ) = *( itv++ );      // after the last of nms[]
 
   v_pairs.erase( curr , itv );    // erase the last part
 
@@ -527,28 +557,30 @@ void LinearFunction::remove_variables( Subset && nms , bool ordered ,
                                  std::move( nms ) , ordered , 0 ,
                                  Observer::par2concern( issueMod ) ) ,
                                 Observer::par2chnl( issueMod ) );
- } else {  // noone is there: just do it
-  ++it;              // skip the first element
-  ++vi;              // as it will be overwritten
+  }
+ else  {  // noone is there: just do it
+  ++it;   // skip the first element
+  ++vi;   // as it will be overwritten
 
   for( ; it < nms.end() ; ++vi )
-   if( *it == vi )               // one element to be eliminated
-    ++it;                        // skip it
+   if( *it == vi )                // one element to be eliminated
+    ++it;                         // skip it
    else
-    *(curr++) = v_pairs[ vi ];   // move in the current position
+    *( curr++ ) = v_pairs[ vi ];  // move in the current position
 
   auto itv = v_pairs.begin() + vi;
   for( ; itv < v_pairs.end() ; )  // copy the last part
-   *(curr++) = *(itv++);         // after the last of v_var
+   *( curr++ ) = *( itv++ );      // after the last of v_var
 
   v_pairs.erase( curr , itv );    // erase the last part
- }
-}  // end( LinearFunction::remove_variables( subset ) )
+  }
+ }  // end( LinearFunction::remove_variables( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
 void LinearFunction::set_constant_term( FunctionValue constant_term ,
-                                        ModParam issueMod ) {
+                                        ModParam issueMod )
+{
  if( f_constant_term == constant_term )  // actually nothing to change
   return;                                // cowardly (and silently) return
 
@@ -557,12 +589,14 @@ void LinearFunction::set_constant_term( FunctionValue constant_term ,
   f_constant_term = constant_term;
 
   f_Observer->add_Modification( std::make_shared< C05FunctionMod >(
-                                 this , C05FunctionMod::NothingChanged , Subset( {} ) , delta ,
+                                 this , C05FunctionMod::NothingChanged ,
+				 Subset( {} ) , delta ,
                                  Observer::par2concern( issueMod ) ) ,
                                 Observer::par2chnl( issueMod ) );
- } else
+  }
+ else
   f_constant_term = constant_term;
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- End File LinearFunction.cpp -----------------------*/

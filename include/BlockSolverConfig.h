@@ -548,7 +548,7 @@ class BlockSolverConfig : public Configuration {
  *  @{ */
 
  /// change the mode of this configuration
- /** This function changes the mode of this BlockSolverConfig. If \p diff is
+/** This function changes the mode of this BlockSolverConfig. If \p diff is
   * true, then this BlockSolverConfig is to be "interpreted in a
   * differential sense". */
 

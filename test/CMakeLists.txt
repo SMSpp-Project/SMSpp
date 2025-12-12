@@ -5,10 +5,6 @@
 #    Tests that should be supported by ctest executable must be added         #
 #    with the add_test() command.                                             #
 #                                                                             #
-#    Note: this file tries to respect the principles of Modern CMake,         #
-#          keep it in mind when editing it.                                   #
-#                                                                             #
-#                              Niccolo' Iardella                              #
 #                                Donato Meoli                                 #
 #                         Dipartimento di Informatica                         #
 #                             Universita' di Pisa                             #
@@ -18,13 +14,14 @@
 # may wrongly appear unused, and by default the linker does not include them,
 # so we have to force the linking.
 if (BUILD_SHARED_LIBS)
-    if (UNIX AND (NOT APPLE))
+    if (MSVC)
+        add_link_options("/OPT:NOREF")
+    elseif (UNIX AND (NOT APPLE))
         add_link_options("-Wl,--no-as-needed")
     endif ()
 else ()
     if (MSVC)
-        add_link_options("/WHOLEARCHIVE")
-        add_link_options("/FORCE:MULTIPLE")
+        add_link_options("/WHOLEARCHIVE" "/FORCE:MULTIPLE")
     else () # Unix
         if (APPLE)
             add_link_options("-Wl,-all_load")
@@ -64,5 +61,10 @@ add_executable(LinearFunction_test tests_LinearFunction.cpp)
 target_link_libraries(LinearFunction_test PRIVATE SMS++::SMS++)
 add_test(NAME LinearFunction_test
          COMMAND LinearFunction_test)
+
+add_executable(QuadFunction_test tests_QuadFunction.cpp)
+target_link_libraries(QuadFunction_test PRIVATE SMS++::SMS++)
+add_test(NAME QuadFunction_test
+         COMMAND QuadFunction_test)
 
 # --------------------------------------------------------------------------- #

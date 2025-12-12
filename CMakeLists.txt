@@ -11,18 +11,14 @@
 #                                                                             #
 #        $ cmake --build <build-path> --target install                        #
 #                                                                             #
-#    Note: this file tries to respect the principles of Modern CMake,         #
-#          keep it in mind when editing it.                                   #
-#                                                                             #
-#                              Niccolo' Iardella                              #
 #                                Donato Meoli                                 #
 #                         Dipartimento di Informatica                         #
 #                             Universita' di Pisa                             #
 # --------------------------------------------------------------------------- #
-cmake_minimum_required(VERSION 3.19)
-cmake_policy(VERSION 3.12)
+cmake_minimum_required(VERSION 3.16)
+cmake_policy(VERSION 3.15)
 project(SMS++
-        VERSION 0.5.2
+        VERSION 0.6.0
         DESCRIPTION "SMS++ core library"
         HOMEPAGE_URL https://gitlab.com/smspp/smspp
         LANGUAGES C CXX)
@@ -48,6 +44,8 @@ include(CTest)
 # See: https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html
 include(BuildType)
 
+include(FetchContent)
+
 # ----- Requirements -------------------------------------------------------- #
 # The Boost find module is provided by CMake.
 find_package(Boost 1.72.0 REQUIRED)
@@ -70,6 +68,14 @@ if (MSVC)
     find_library(GETOPT_LIBRARY getopt)
 endif ()
 
+# Declare and fetch FastFlow
+FetchContent_Declare(
+        fastflow
+        GIT_REPOSITORY https://github.com/fastflow/fastflow.git
+        GIT_TAG        master)
+
+FetchContent_Populate(fastflow)
+
 # ----- Configuration header ------------------------------------------------ #
 # This will generate a *Config.h header in the build directory.
 configure_file(cmake/${modName}Config.h.in ${modName}Config.h)
@@ -78,7 +84,7 @@ configure_file(cmake/${modName}Config.h.in ${modName}Config.h)
 # With the BUILD_SHARED_LIBS variable we can specify if the library will
 # be STATIC or SHARED, so no reason to do it now.
 add_library(${modName})
-target_compile_features(${modName} PUBLIC cxx_std_17)
+target_compile_features(${modName} PUBLIC cxx_std_20)
 include(ClangPatch) # TODO: Remove this when it's not needed anymore
 
 # When adding source files with target_sources(), PRIVATE means that the files
@@ -113,6 +119,8 @@ target_sources(${modName} PRIVATE
                src/RBlockConfig.cpp
                src/RowConstraintSolution.cpp
                src/PolyhedralFunctionBlock.cpp
+			   src/QuadFunction.cpp
+               src/Solution.cpp
                src/Solver.cpp
                src/ThinComputeInterface.cpp
                src/Variable.cpp)
@@ -130,7 +138,8 @@ target_sources(${modName} PRIVATE
 target_include_directories(
         ${modName} PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:include/${modNamespace}>)
+        $<INSTALL_INTERFACE:include/${modNamespace}>
+        $<BUILD_INTERFACE:${fastflow_SOURCE_DIR}>)
 
 # When linking other targets to the library with target_link_libraries(),
 # PRIVATE means that the libraries will be linked only to this library,
@@ -165,11 +174,12 @@ include(GNUInstallDirs)
 # Install the library
 install(TARGETS ${modName}
         EXPORT ${modName}Targets
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} # .dll
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} # .so .dylib
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}) # .lib
 
 # Install the headers
-install(DIRECTORY include
+install(DIRECTORY include/
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${modNamespace})
 
 # Install the auto-generated configuration header (see above).
@@ -231,7 +241,7 @@ endif ()
 # Using this with the umbrella project is too messy.
 if (NOT hasParent)
     set(CPACK_PACKAGE_VENDOR "SMS++ Team")
-    set(CPACK_PACKAGE_CONTACT "Niccolo' Iardella")
+    set(CPACK_PACKAGE_CONTACT "Donato Meoli")
     set(CPACK_PACKAGE_DESCRIPTION_SUMMARY ${PROJECT_DESCRIPTION})
     set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_LIST_DIR}/LICENSE")
     set(CPACK_RESOURCE_FILE_README "${CMAKE_CURRENT_LIST_DIR}/README.md")

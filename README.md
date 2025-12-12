@@ -39,7 +39,7 @@ section](https://gitlab.com/smspp/smspp-project/-/wikis/Troubleshooting).
 
 For further details on software dependencies, see [this
 page](https://gitlab.com/smspp/smspp-project/-/wikis/About-SMS++-requirements).
-If you can't or wont install the required libraries, you will need to specify
+If you can't or won't install the required libraries, you will need to specify
 their custom path, see [here](https://gitlab.com/smspp/smspp-project/-/wikis/Customize-the-configuration).
 
 
@@ -51,7 +51,7 @@ Configure and build the library with:
 mkdir build
 cd build
 cmake ..
-make
+cmake --build .
 ```
 
 Some configuration options are available, see
@@ -60,7 +60,7 @@ Some configuration options are available, see
 Optionally, install the library in the system with:
 
 ```sh
-sudo make install
+cmake --install .
 ```
 
 ### Usage with CMake

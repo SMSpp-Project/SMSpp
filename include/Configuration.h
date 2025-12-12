@@ -193,18 +193,18 @@ class Configuration
   *   std::fstream is opened and deserialize( istream ) is called, with
   *   the Configuration being extracted is the first one found in it;
   *
-  * - otherwise a netCDF::NcFile is opened and deserialize( netCDF::NcFile )
-  *   is called; since netCDF::NcFile support the notion of having
-  *   multiple Configuration inside, \p filename can be used to encode the
-  *   position (Configuration) in the file:
+  * - otherwise a netCDF::NcFile is opened and
+  *   deserialize( const netCDF::NcFile & ) is called; since netCDF::NcFile
+  *   support the notion of having multiple Configuration inside,
+  *   \p filename can be used to encode the position (Configuration) in the
+  *   file:
   *
-  *     * if the \p filename ends with ']', then is supposed to have the
-  *       form "real filename[idx]": the "[idx] part is excised and used to
-  *       compute the int parameter of deserialize() (the position), with the
-  *       remaining part being used for the string parameter (the filename);
+  *   = if the \p filename ends with ']', then is supposed to have the form
+  *     "real filename[idx]": the "[idx] part is excised and used to 
+  *     compute the int parameter of deserialize() (the position), with the
+  *     remaining part being used as the filename;
   *
-  *     * otherwise, the whole string is used as the string parameter (the
-  *       filename).
+  *   = otherwise, the whole string is used as the filename.
   *
   * If anything goes wrong with the entire operation, nullptr is returned.
   *
@@ -215,10 +215,11 @@ class Configuration
   *
   * Note that the method is static, hence it is to be called as
   *
-  *     auto myConfig = Configuration::deserialize( somefile );
+  *     Configuration * myCfg = Configuration::deserialize( somefile );
   *
-  * i.e., without any reference to any specific Configuration (and, therefore,
-  * it can be used to construct the very first Configuration if needed). */
+  * i.e., without any reference to any specific Configuration (and,
+  * therefore, it can be used to construct the very first Configuration if
+  * needed). */
 
  static Configuration * deserialize( const std::string & filename );
 
@@ -262,11 +263,9 @@ class Configuration
   *
   * Note that the method is static, hence it is to be called as
   *
-  *     Configuration *myConfig = Configuration::deserialize( somefile );
+  *     Configuration * myCfg = Configuration::deserialize( somefile );
   *
-  * i.e., without any reference to any specific Configuration (and,
-  * therefore, it can be used to construct the very first Configuration if
-  * needed). */
+  * i.e., without any reference to any specific Configuration. */
 
  static Configuration * deserialize( const netCDF::NcFile & f , int idx = 0 );
 
@@ -317,7 +316,7 @@ class Configuration
   *      THIS IS THE METHOD TO BE IMPLEMENTED BY DERIVED CLASSES
   *
   * and in fact it is virtual. The format of the information is clearly that
-  * set by the serialize( netCDF::NcGroup ) method of the specific
+  * set by the serialize( const netCDF::NcGroup & ) method of the specific
   * :Configuration class, and exception should be thrown if anything goes
   * wrong in the process. */
 
@@ -326,13 +325,14 @@ class Configuration
   #ifndef NDEBUG
    netCDF::NcGroupAtt gtype = group.getAtt( "type" );
    if( gtype.isNull() )
-    throw( std::invalid_argument( "missing type attribute in netCDF group" )
-	   );
+    throw( std::invalid_argument(
+    "Configuration:deserialize: missing type attribute in netCDF group" ) );
 
    std::string cfgtype;
    gtype.getValues( cfgtype );
    if( cfgtype != classname() )
-    throw( std::invalid_argument( "wrong Config type in netCDF group" ) );
+    throw( std::invalid_argument(
+	 "Configuration:deserialize: wrong Config type in netCDF group" ) );
  #endif
  }
 
@@ -485,26 +485,35 @@ class Configuration
  /// serialize a Configuration to a netCDF file given the filename
  /** Method to serialize a Configuration to a file in netCDF-based
   * SMS++-format, given the filename and its type. See deserialize( char * )
-  * for details of the different file types. Note that any existing contect
-  * of the file is overwritten, and that the Configuration is saved as *the
-  * first one* in the newly created file.
+  * for details of the different file types. If \p replace == true (the
+  * default) any existing content of the file is overwritten and the
+  * Configuration is saved as *the first one* in the newly created file, while
+  * if  \p replace == false the file is opened for appending and the
+  * Configuration is saved after the last one currently present (if any).
   *
   * The base class implementation opens the netCDF file, creates the required
-  * attribute "SMS++_file_type" and assigns it the type, and dispatches to
-  * the netCDF file version of the method. If anything goes wrong with any
-  * step of the process, exception is thrown.  Although the method is
+  * attribute "SMS++_file_type" (if the file is created anew, otherwise it is
+  * assumed the field is already there), assigns it the type, and dispatches
+  * to the netCDF file version of the method. If anything goes wrong with any
+  * step of the process, exception is thrown. Although the method is
   * virtual, it is not expected that derived classes will have a need to
   * re-define it. */
 
  virtual void serialize( const std::string & filename ,
-			 int type = eProbFile ) const
+			 int type = eProbFile , bool replace = true ) const
  {
   if( ( type != eProbFile ) && ( type != eConfigFile ) )
    throw( std::invalid_argument( "invalid SMS++ netCDF file type" ) );
 
-  netCDF::NcFile f( filename, netCDF::NcFile::replace );
-
-  f.putAtt( "SMS++_file_type", netCDF::NcInt(), type );
+  netCDF::NcFile f;
+  if( ! replace ) {
+   try { f.open( filename , netCDF::NcFile::write ); }
+   catch( netCDF::exceptions::NcException & e ) { replace = true; }
+   }
+  if( replace ) {
+   f.open( filename , netCDF::NcFile::replace );
+   f.putAtt( "SMS++_file_type", netCDF::NcInt(), type );
+   }
 
   serialize( f , type );
   }
@@ -667,7 +676,7 @@ class Configuration
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
- static std::string f_prefix;  ///< the executable-wide filename prefix
+ inline static std::string f_prefix;  ///< the executable-wide filename prefix
 
 /** @} ---------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
@@ -712,8 +721,13 @@ class Configuration
  *  - SimpleConfiguration< std::pair< double , double > >
  *  - SimpleConfiguration< std::pair< int , double > >
  *  - SimpleConfiguration< std::pair< double , int > >
+ *  - SimpleConfiguration< std::pair< int , Configuration * > >
+ *  - SimpleConfiguration< std::pair< double , Configuration * > >
+ *  - SimpleConfiguration< std::pair< std::string , Configuration * > >
  *  - SimpleConfiguration< std::vector< int > >
  *  - SimpleConfiguration< std::vector< double > >
+ *  - SimpleConfiguration< std::pair< int , Configuration * > >
+ *  - SimpleConfiguration< std::pair< double , Configuration * > >
  *  - SimpleConfiguration< std::pair< Configuration * , Configuration * > >
  *  - SimpleConfiguration< std::vector< Configuration * > >
  *  - SimpleConfiguration< std::vector< std::pair< int , Configuration * > > >
@@ -796,6 +810,25 @@ class SimpleConfiguration : public Configuration
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// default deserialization of a SimpleConfiguration
+ /** Default version of the deserialize() method of SimpleConfiguration: it
+  * just calls some of the standard ::deserialize( group , < value > )
+  * template functions of SMSTypedefs.h that read < value > from \p group.
+  * The expected format of the data inside \p group is:
+  *
+  * - scalar values (int, double) they are read from a single scalar 
+  *   variable named "value";
+  *
+  * - for a std::pair, deserialize() is called again to read f_value.first
+  *   from a variable named "value_f" and f_value.second from a variable
+  *   named "value_s"
+  *
+  * - a std::vector is read from a single array variable of name "value"
+  *   assumed to be indiced over the dimension of name "size"
+  *
+  * However, this does not worw for SimpleConfiguration_value_type being
+  * anything that contains other Configuration [*], thereby specialised
+  * versions are implemented in these cases. */
 
  void deserialize( const netCDF::NcGroup & group ) override {
   Configuration::deserialize( group );
@@ -804,13 +837,20 @@ class SimpleConfiguration : public Configuration
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// default destructor, apparently does nothing
-/** The destructor must not be defined "default" since it is redefined by the
- * classes handling Configuration * as they muat delete them. However it must
- * be explicitly defined so that template specializations for those classes
- * are allowed. The default implementation does nothing, which means it
- * deletes f_value, whatever that is. */
+/** The destructor must not be defined "default" since some specialised
+ * classes handling Configuration * need be something other than deleting
+ * f_value (deleting the Configurations pointed by the pointers). Thus, the
+ * destructor calls a guts_of_destructor() method that is empty in the
+ * template class (so that the destructor just deletes f_value, whatever
+ * that is) but that can be redefined in specialised classes to do their
+ * turf. Note the (likely, useless)
+ *    SimpleConfiguration< SimpleConfiguration_value_type >::
+ * qualification to (try to) ensure that the compiler will actually use the
+ * method of the specialised class istead of the empty one. */
 
- ~SimpleConfiguration() override {};
+ ~SimpleConfiguration() override {
+   guts_of_destructor();
+   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// clone method
@@ -820,7 +860,27 @@ class SimpleConfiguration : public Configuration
   }
 
 /*--------------------------------------------------------------------------*/
-
+ /// default serialization of a SimpleConfiguration
+ /** Default version of the serialize() method of SimpleConfiguration: it
+  * just calls some of the standard ::serialize( group , < value > )
+  * template functions of SMSTypedefs.h that write < value > to \p group.
+  * The format of the produced \p group thus is:
+  *
+  * - for scalar values (int, double) they are written to a single scalar
+  *   variable named "value";
+  *
+  * - for std::pair, serialize() is called again on f_value.first and
+  *   f_value.second to be written in variables named "value_f" and
+  *   "value_s", respectively
+  *
+  * - for a std::vector, they are written to a single array variable of
+  *   name "value" indiced over an appropriately constructed dimension of
+  *   name "size"
+  *
+  * However, this does not worw for SimpleConfiguration_value_type being
+  * anything that contains other Configuration [*], thereby specialised
+  * versions are implemented in these cases. */
+ 
  void serialize( netCDF::NcGroup & group ) const override {
   Configuration::serialize( group );
   SMSpp_di_unipi_it::serialize( group , f_value );
@@ -850,6 +910,19 @@ class SimpleConfiguration : public Configuration
  void print( std::ostream & output ) const override { output << f_value; }
 
 /*--------------------------------------------------------------------------*/
+ /// hook for implementing nonstandard destruction
+ /** Some specialised classes need to do something other than just deleting
+  * f_value in their destructor. However, specialising the destructor 
+  * without specialising the whole class runs afoul of a change in the
+  * standard (C++20 DR 2237) which makes it impossible in C++20 (or we could
+  * not find the way to do that. Hence, the destructor of the template class
+  * calls this guts_of_destructor(), that is empty here (so that the
+  * destructor usually only deletes f_value) but can be redefined in
+  * specialised classes to do their turf. */
+ 
+ void guts_of_destructor( void ) {}
+
+/*--------------------------------------------------------------------------*/
  /// load this SimpleConfiguration out of an istream
  /** Load this SimpleConfiguration out of an istream. The format of the
   * istream can only be rather simple: it "just" has to contain an object of
@@ -860,18 +933,35 @@ class SimpleConfiguration : public Configuration
   * In particular, some of these are defined in SMSTypedefs.h for:
   *
   * - std::pair< T1 , T2 > that just read .first first and .second second
-  *   using T1::operator>> and T2::operator>
+  *   using T1::operator>> and T2::operator>>
   *
   * - std::vector< T > and std::list< T > that first read the number of
   *   elements (using [unsigned int]::operator>>) and then read the elements
-  *   one by one (using T::operator>>) 
+  *   one by one (using T::operator>>)
   *
-  * However, for SimpleConfiguration_value_type being anything that
-  * contains other Configuration [*], specialised versions are implemented
-  * that use Configuration::deserialize( std::istream ) to load the
-  * :Configuration object; this means that all the corresponding input
-  * options, like '*' for  nullptr and "*<filename>" for loading it out of a
-  * different file, can be used. */
+  * Despite its apparent simplicity, the method nicely covers almost all the
+  * necessary cases of SimpleConfiguration_value_type due to template magic.
+  * That is:
+  *
+  * - std::pair< T , U > works for T and U basic types due to operator>>
+  *   being defined for basic types in SMSTypedefs.h
+  *
+  * - but it also works for T and/or U being Configuration * due to
+  *   operator>> being defined for Configuration * in class Configuration
+  *   using Configuration::deserialize( std::istream & ) (see the comments
+  *   of the method for the format, which allows either "direct" or
+  *   "indirect" specification)
+  *
+  * - then it also works for T and/or U being std::vector<> of anything for
+  *   which operator>> is defined (see above)
+  *
+  * - hence, std::vector< std::pair< T , U > > also works for T and/or U 
+  *   being anything for which operator>> is defined, comprised
+  *   std::vector<> and std::list<> of basic tipes, Configuration * etc.
+  *   (see above and above).
+  *
+  * This means that, save for a few exceptions, it is not necessary to
+  * define specialised versions of load. Don't you just love templates? */
 
  void load( std::istream & input ) override {
   input >> eatcomments >> f_value;
@@ -886,17 +976,7 @@ class SimpleConfiguration : public Configuration
 
 /*---------------------------- PRIVATE FIELDS ------------------------------*/
 
- /* manual expansion of SMSpp_insert_in_factory_h to avoid including the
-  * whole of SMSTypedefs.h. */
-
- static class _init {
-  public:
-  _init();
-  } _initializer;
-
- [[nodiscard]] const std::string & private_name( void ) const override;
-
- static const std::string & _private_name();
+ SMSpp_insert_in_factory_h;
 
 /*--------------------------------------------------------------------------*/
 
@@ -1017,6 +1097,104 @@ void serialize( netCDF::NcGroup & group , const C< Configuration * > & data ,
  *  exact same ways in which you work with non-pointer types.
  *  @{ */
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+// std::pair< int , Configuration * >
+// it would be nice to have this template over the type of the first element
+// of the std::pair, but apparently you cannot *partly* specialise template
+// functions, only *fully* specialise them; there may be a clever workaround
+// but it's simpler to do just a bit of cut&paste
+
+template<>
+SimpleConfiguration< std::pair< int , Configuration * > > *
+ SimpleConfiguration< std::pair< int , Configuration * > >::clone( void )
+ const;
+
+template<>
+void SimpleConfiguration< std::pair< int , Configuration * >
+                          >::guts_of_destructor( void );
+
+/// serialize a SimpleConfiguration< std::pair< int , Configuration * >
+/** serialize a SimpleConfiguration< std::pair< int , Configuration * > into
+ * \p group. The < int > is saved on a single variable with name "value_f",
+ * while the < Configuration * > is saved into a sub-group with name
+ * "value_s" if not-nullptr, otherwise nothing is done. */
+
+template<>
+void SimpleConfiguration< std::pair< int , Configuration * >
+                                     >::serialize( netCDF::NcGroup & group )
+ const;
+
+/// deserialize a SimpleConfiguration< std::pair< int , Configuration * >
+/** deserialize a SimpleConfiguration< std::pair< int , Configuration * > 
+ * from \p group; see serialize() for the expected format of \p group. */
+
+template<>
+void SimpleConfiguration< std::pair< int , Configuration * >
+                              >::deserialize( const netCDF::NcGroup & group );
+
+template<>
+void SimpleConfiguration< std::pair< int , Configuration * > >::clear( void );
+
+/*--------------------------------------------------------------------------*/
+// std::pair< double , Configuration * >
+// see the std::pair< int , Configuration * > for comments
+
+template<>
+SimpleConfiguration< std::pair< double , Configuration * > > *
+ SimpleConfiguration< std::pair< double , Configuration * > >::clone( void )
+ const;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::pair< double , Configuration * >
+                          >::guts_of_destructor( void );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::pair< double , Configuration * >
+                          >::serialize( netCDF::NcGroup & group ) const;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::pair< double , Configuration * >
+                          >::deserialize( const netCDF::NcGroup & group );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::pair< double , Configuration * >
+                          >::clear( void );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+// std::pair< std::string , Configuration * >
+// see the std::pair< int , Configuration * > for comments
+
+template<>
+SimpleConfiguration< std::pair< std::string , Configuration * > > *
+ SimpleConfiguration< std::pair< std::string , Configuration * >
+                      >::clone( void ) const;
+
+template<>
+void SimpleConfiguration< std::pair< std::string , Configuration * >
+                          >::guts_of_destructor( void );
+
+template<>
+void SimpleConfiguration< std::pair< std::string , Configuration * >
+                                     >::serialize( netCDF::NcGroup & group )
+ const;
+
+template<>
+void SimpleConfiguration< std::pair< std::string , Configuration * >
+                              >::deserialize( const netCDF::NcGroup & group );
+
+template<>
+void SimpleConfiguration< std::pair< std::string , Configuration * >
+                          >::clear( void );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 // std::pair< Configuration * , Configuration * >
 
 template<>
@@ -1025,11 +1203,8 @@ SimpleConfiguration< std::pair< Configuration * , Configuration * > > *
  >::clone( void ) const;
 
 template<>
-inline SimpleConfiguration< std::pair< Configuration * , Configuration * >
- >::~SimpleConfiguration< std::pair< Configuration * , Configuration * > >() {
- delete f_value.second;
- delete f_value.first;
- }
+void SimpleConfiguration< std::pair< Configuration * , Configuration * >
+                          >::guts_of_destructor( void );
 
 template<>
 void SimpleConfiguration< std::pair< Configuration * , Configuration * >
@@ -1052,11 +1227,8 @@ SimpleConfiguration< std::vector< Configuration * > > *
 SimpleConfiguration< std::vector< Configuration * > >::clone( void ) const;
 
 template<>
-inline SimpleConfiguration< std::vector< Configuration * >
- >::~SimpleConfiguration< std::vector< Configuration * > >() {
- for( auto rit = f_value.rbegin() ; rit != f_value.rend() ; ++rit )
-  delete *rit;
- }
+void SimpleConfiguration< std::vector< Configuration * >
+                          >::guts_of_destructor( void );
 
 template<>
 inline void SimpleConfiguration< std::vector< Configuration * >
@@ -1075,24 +1247,23 @@ void SimpleConfiguration< std::vector< Configuration * > >::clear( void );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 // std::vector< std::pair< int , Configuration * > >
+// it would be nice to have this template over the type of the first element
+// of the std::pair, but apparently you cannot *partly* specialise template
+// functions, only *fully* specialise them; there may be a clever workaround
+// but it's simpler to do just a bit of cut&paste
 
 template<>
 SimpleConfiguration< std::vector< std::pair< int , Configuration * > > > *
  SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
- >::clone( void ) const;
-
-template<>
-inline SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
- >::~SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
- >() {
- for( auto rit = f_value.rbegin() ; rit != f_value.rend() ; ++rit )
-  delete rit->second;
- }
+                                                      >::clone( void ) const;
 
 template<>
 void SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
-                          >::serialize( netCDF::NcGroup & group )
- const;
+                          >::guts_of_destructor( void );
+
+template<>
+void SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
+                          >::serialize( netCDF::NcGroup & group ) const;
 
 template<>
 void SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
@@ -1111,11 +1282,8 @@ SimpleConfiguration< std::map< std::string , Configuration * > > *
                       >::clone( void ) const;
 
 template<>
-inline SimpleConfiguration< std::map< std::string , Configuration * >
- >::~SimpleConfiguration< std::map< std::string , Configuration * > >() {
- for( auto & [ key , val ] : f_value )
-  delete val;
- }
+void SimpleConfiguration< std::map< std::string , Configuration * >
+                          >::guts_of_destructor( void );
 
 template<>
 void SimpleConfiguration< std::map< std::string , Configuration * >
@@ -1146,7 +1314,7 @@ void SimpleConfiguration< std::map< std::string , Configuration * >
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#endif /* Configuration.h included */
+#endif /* __Configuration */
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- End File Configuration.h -------------------------*/

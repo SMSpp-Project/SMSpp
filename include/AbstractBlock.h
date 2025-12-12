@@ -239,17 +239,20 @@ class AbstractBlock : public Block {
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize the current :AbstractBlock out of netCDF::NcGroup
- /** The AbstractBlock de-serializes itself out of a netCDF::NcGroup. The
-  * method of the base AbstractBlock class only handles
-  *
-  *      OR, BETTER, WILL HANDLE WHEN THIS METHOD WILL BE IMPLEMENTED
-  *
-  * the "arbitrary" part, i.e., that after the "reserved" one as dictated
-  * by the get_first_*_*() methods.
-  *
+ /** The AbstractBlock de-serializes itself out of a .lp/.mps representation
+  * stored in a netCDF::NcGroup. The method of the base AbstractBlock class 
+  * only handles the "arbitrary" part, i.e., that after the "reserved" one
+  * as dictated by the get_first_*_*() methods.
+  * 
   * In the current, partial implementation of the method, besides what is
   * managed by the serialize() method of the base Block class, the group
   * should contain the following:
+  * 
+  * - a string netCDF::Ncvar "Model", storing inside the .lp/.mps 
+  *   representation of the Block. This variable can also contain
+  *   a "ModelType" char attribute, used to determine the extension of the
+  *   model ('M' for .mps and 'L' for .lp). NOTE: for the moment, this is the
+  *   only option to actually deserialize the AbstractBlock.
   *
   * - the dimension "NumberInnerBlock", containing the number of the
   *   inner Block. The dimension is optional, it is not provided 0 is
@@ -261,11 +264,12 @@ class AbstractBlock : public Block {
   *   of the i-th inner Block.
   *
   * The method dispatches the protected guts_of_deserialize(), and then the
-  * method of the base class, in this order. This is done so that the
-  * necessary NBModification is issued last, while allowing derived classes
-  * to call the (equivalent to) AbstractBlock::deserialize() at any point in
-  * their deserialize() is they so need; see comments to
-  * Block::deserialize() for a complete discussion. */
+  * method of the base class, in this order. The read of the model from the 
+  * .lp/.mps representation is only performed inside the guts_of_deserialize()
+  * method. This is done so that the necessary NBModification is issued last, 
+  * while allowing derived classes to call the (equivalent to) 
+  * AbstractBlock::deserialize() at any point in their deserialize() is they 
+  * so need; see comments to Block::deserialize() for a complete discussion. */
 
  void deserialize( const netCDF::NcGroup & group ) override {
   guts_of_deserialize( group );
@@ -694,7 +698,8 @@ class AbstractBlock : public Block {
 
  // An enumeration of all the possible sections of a .lp file
  enum LP_sections {
-   LP_OBJECTIVE ,
+   LP_LINOBJECTIVE ,
+   LP_QUADOBJECTIVE ,
    LP_ROW ,
    LP_BOUND ,
    LP_GENERAL ,

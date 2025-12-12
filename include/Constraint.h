@@ -154,6 +154,16 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
  }
 
 /*--------------------------------------------------------------------------*/
+ /// clear a std::vector of std::vector of Constraint
+ template< typename T >
+ static std::enable_if_t< std::is_base_of_v< Constraint , T > , void >
+ clear( std::vector< std::vector< T > > & constraints ) {
+  for( auto & v_constraints : constraints )
+   Constraint::clear( v_constraints );
+  constraints.clear();
+ }
+
+/*--------------------------------------------------------------------------*/
  /// clear a K-D boost::multi_array of Constraint
  template< typename T , std::size_t K >
  static std::enable_if_t< std::is_base_of_v< Constraint , T > , void >
@@ -162,6 +172,19 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
   auto n = constraints.num_elements();
   for( decltype( n ) i = 0 ; i < n ; ++i , ++constraint )
    constraint->clear();
+  std::array< int , K > shape = {}; // for int, {} will zero-initialize
+  constraints.resize( shape );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// clear a K-D boost::multi_array of std::vector of Constraint
+ template< typename T , std::size_t K >
+ static std::enable_if_t< std::is_base_of_v< Constraint , T > , void >
+ clear( boost::multi_array< std::vector< T > , K > & constraints ) {
+  auto v_constraints = constraints.data();
+  auto n = constraints.num_elements();
+  for( decltype( n ) i = 0 ; i < n ; ++i , ++v_constraints )
+   Constraint::clear( *v_constraints );
   std::array< int , K > shape = {}; // for int, {} will zero-initialize
   constraints.resize( shape );
  }

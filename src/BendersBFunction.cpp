@@ -72,6 +72,7 @@ BendersBFunction::BendersBFunction( Block * inner_block , VarVector && x ,
  // default parameter values
  LinComp = get_dflt_int_par( intLinComp );
  AAccMlt = get_dflt_dbl_par( dblAAccMlt );
+ f_inner_solver_index = get_dflt_dbl_par( intSolverIndex );
  set_par( intGPMaxSz , C05Function::get_dflt_int_par( intGPMaxSz ) );
  }
 
@@ -298,10 +299,10 @@ void BendersBFunction::deserialize( const netCDF::NcGroup & group ,
 void BendersBFunction::set_variables( VarVector && x ) {
  if( ! v_A.empty() )
   if( v_A[ 0 ].size() != x.size() )
-   throw( std::logic_error("BendersBFunction::set_variables: wrong x.size(). "
-                           "Matrix A has " + std::to_string( v_A[ 0 ].size() ) +
-                           " row(s), but x has size " +
-                           std::to_string( x.size() ) ) );
+   throw( std::logic_error( "BendersBFunction::set_variables: wrong x.size(). "
+                            "Matrix A has " + std::to_string( v_A[ 0 ].size() ) +
+                            " row(s), but x has size " +
+                            std::to_string( x.size() ) ) );
 
  v_x = std::move( x );
 
@@ -346,6 +347,10 @@ void BendersBFunction::set_par( const idx_type par , const int value ) {
 
   case( intLinComp ):
    LinComp = value;
+   break;
+
+  case( intSolverIndex ):
+   f_inner_solver_index = value;
    break;
 
   default: C05Function::set_par( par , value );
@@ -1410,8 +1415,8 @@ void BendersBFunction::set_default_inner_Block_BlockSolverConfig() {
 
 /*--------------------------------------------------------------------------*/
 
-void BendersBFunction::set_ComputeConfig( ComputeConfig * scfg ) {
-
+void BendersBFunction::set_ComputeConfig( const ComputeConfig * scfg )
+{
  ThinComputeInterface::set_ComputeConfig( scfg );
 
  auto inner_block = get_inner_block();
@@ -1896,14 +1901,14 @@ Function::FunctionValue BendersBFunction::get_constant_term( void ) const
 
 /*--------------------------------------------------------------------------*/
 
-bool BendersBFunction::is_convex( void ) const {
+bool BendersBFunction::is_convex( void ) {
  if( v_Block.empty() ) return( false );
  return( v_Block.front()->get_objective_sense() == Objective::eMin );
 }
 
 /*--------------------------------------------------------------------------*/
 
-bool BendersBFunction::is_concave( void ) const {
+bool BendersBFunction::is_concave( void ) {
  if( v_Block.empty() )
   return( false );
  return( v_Block.front()->get_objective_sense() == Objective::eMax );
@@ -1943,7 +1948,7 @@ bool BendersBFunction::compute_new_linearization( const bool diagonal ) {
 
 /*--------------------------------------------------------------------------*/
 
-Function::FunctionValue BendersBFunction::get_value( void ) const {
+Function::FunctionValue BendersBFunction::get_value( void ) {
  if( v_Block.size() != 1 )
   throw( std::logic_error( "BendersBFunction::get_value: there must be exactly "
                            "one sub-Block, but there is (are) " +
@@ -2250,9 +2255,9 @@ void BendersBFunction::get_linearization_coefficients
   g.reserve( subset.size() );
   for( auto i : subset ) {
    if( i >= v_x.size() )
-    throw( std::invalid_argument("BendersBFunction::get_linearization_"
-                                 "coefficients: wrong index in subset: " +
-                                 std::to_string( i ) ) );
+    throw( std::invalid_argument( "BendersBFunction::get_linearization_"
+                                  "coefficients: wrong index in subset: " +
+                                  std::to_string( i ) ) );
    g.insert( i ) = 0;
   }
  }
@@ -2263,9 +2268,9 @@ void BendersBFunction::get_linearization_coefficients
 
   for( auto i : subset ) {
    if( i >= v_x.size() )
-    throw( std::invalid_argument("BendersBFunction::get_linearization_"
-                                 "coefficients: wrong index in subset: " +
-                                 std::to_string( i ) ) );
+    throw( std::invalid_argument( "BendersBFunction::get_linearization_"
+                                  "coefficients: wrong index in subset: " +
+                                  std::to_string( i ) ) );
    g.coeffRef( i ) = 0;
   }
  }
@@ -3128,7 +3133,7 @@ void BendersBFunction::GlobalPool::deserialize
 
  if( global_pool_size ) {
 
-  ::deserialize( group , "BendersBFunction_Constants" , { global_pool_size } ,
+  ::deserialize( group , "BendersBFunction_Constants" , global_pool_size ,
                  linearization_constants , false , false );
 
   auto nct = group.getVar( "BendersBFunction_Type" );

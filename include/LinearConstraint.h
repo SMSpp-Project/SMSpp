@@ -18,7 +18,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __LinearConstraint
-#define __LinearConstraint
+ #define __LinearConstraint
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/

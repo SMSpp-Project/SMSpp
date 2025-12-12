@@ -20,7 +20,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __BendersBFunction
-#define __BendersBFunction
+ #define __BendersBFunction
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
@@ -374,6 +374,8 @@ class BendersBFunction : public C05Function , public Block {
 
   intLinComp = intLastParC05F , ///< determines how linearizations are computed
 
+  intSolverIndex , ///< the index of the Solver of the inner Block to be used
+
   intLastBendersBFPar ///< first allowed new int parameter for derived classes
                       /**< Convenience value for easily allow derived classes
                        * to extend the set of int algorithmic parameters. */
@@ -678,6 +680,12 @@ class BendersBFunction : public C05Function , public Block {
   *   The default value for this parameter is 7, which means that all bits
   *   mentioned above are set to 1.
   *
+  * - intSolverIndex [0]: This parameter is the index of the Solver of
+  *   the inner Block that must be used to compute this
+  *   BendersBFunction. The default value is 0, which means that the
+  *   first Solver in the list of registered Solver of the inner Block
+  *   is considered.
+  *
   * Any other parameter is handled by the C05Function.
   *
   * @param par The parameter to be set.
@@ -777,6 +785,7 @@ class BendersBFunction : public C05Function , public Block {
   * - intLPMaxSz
   * - intGPMaxSz
   * - intLinComp
+  * - intSolverIndex
   *
   * Any other parameter is handled by the C05Function.
   *
@@ -790,6 +799,7 @@ class BendersBFunction : public C05Function , public Block {
    case( intLPMaxSz ): return( get_solver_int_par( CDASolver::intMaxDSol ) );
    case( intGPMaxSz ): return( global_pool.size() );
    case( intLinComp ): return( LinComp );
+   case( intSolverIndex ): return( f_inner_solver_index );
    }
   return( C05Function::get_int_par( par ) );
   }
@@ -834,6 +844,8 @@ class BendersBFunction : public C05Function , public Block {
  [[nodiscard]] int get_dflt_int_par( idx_type par ) const override {
   if( par == intLinComp )
    return( 7 );
+  if( par == intSolverIndex )
+   return( 0 );
   return( C05Function::get_dflt_int_par( par ) );
   }
 
@@ -843,6 +855,8 @@ class BendersBFunction : public C05Function , public Block {
   const override {
   if( name == "intLinComp" )
    return( intLinComp );
+  if( name == "intSolverIndex" )
+   return( intSolverIndex );
   return( C05Function::int_par_str2idx( name ) );
   }
 
@@ -850,10 +864,11 @@ class BendersBFunction : public C05Function , public Block {
 
  [[nodiscard]] const std::string & int_par_idx2str( idx_type idx )
   const override {
-  static const std::vector< std::string > pars = { "intLinComp" };
+  static const std::vector< std::string > pars =
+   { "intLinComp" , "intSolverIndex"};
 
-  if( idx == intLinComp )
-   return( pars[ 0 ] );
+  if( idx >= intLastParC05F && idx < intLastBendersBFPar )
+   return pars[ idx - intLastParC05F ];
 
   return( C05Function::int_par_idx2str( idx ) );
   }
@@ -940,6 +955,112 @@ class BendersBFunction : public C05Function , public Block {
 
  void map_active( c_Vec_p_Var & vars , Subset & map , bool ordered = false )
   const override final;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ Subset map_index( const std::vector< Variable * > & vars , c_Subset & nms )
+  const override {
+  if( vars.size() != nms.size() )
+   throw( std::invalid_argument( "vars and nms sizes do not match" ) );
+
+  Subset map( nms.size() );
+  if( map.empty() )
+   return( map );
+
+  auto nmsit = nms.begin();
+  auto varsit = vars.begin();
+  auto mapit = map.begin();
+
+  // for all Variable in the set
+  while( varsit != vars.end() ) {
+   auto var = *(varsit++);  // next variable
+   auto oi = *(nmsit++);    // its original index
+   // if var has not been deleted (and, possibly, re-added), its index
+   // must be <= oi: search backward from oi to find it
+   Index i = oi;
+   if( i < v_x.size() ) {  // if i is still a valid index
+    auto avoi = v_x[ i ];
+    while( var != avoi ) {
+     if( ! i )
+      break;
+     avoi = v_x[ --i ];
+     }
+
+    if( var == avoi ) {  // the Variable was found
+     *(mapit++) = i;     // this is its index
+     continue;           // all done for this variable
+     }
+    }
+
+   // (re)start the search from the last variable to oi (excluded), for
+   // the case where var has been deleted and re-added, and therefore its
+   // index can now be arbitrary (but it is more likely to be "close to
+   // the end" than "at the beginning"), or the original index is no longer
+   // valid
+   i = v_x.size();
+   auto avoi = v_x[ --i ];
+   while( ( var != avoi ) && ( i > oi ) )
+    avoi = v_x[ --i ];
+
+   *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+
+   }  // end( for all Variable )
+
+  return( map );
+
+  }  // end( map_index( Subset )
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ Subset map_index( const std::vector< Variable * > & vars , Range rng )
+  const override {
+  if( vars.size() != rng.second - rng.first )
+   throw( std::invalid_argument( "vars and rng sizes do not match" ) );
+
+  Subset map( vars.size() );
+  if( map.empty() )
+   return( map );
+
+  auto varsit = vars.begin();
+  auto mapit = map.begin();
+
+  // for all Variable in the set
+  for( auto oi = rng.first ; oi < rng.second ; ++oi ) {
+   auto var = *(varsit++);  // next variable
+   // if var has not been deleted (and, possibly, re-added), its index
+   // must be <= oi: search backward from oi to find it
+   Index i = oi;
+   if( i < v_x.size() ) {  // if i is still a valid index
+    auto avoi = v_x[ i ];
+    while( var != avoi ) {
+     if( ! i )
+      break;
+     avoi = v_x[ --i ];
+     }
+
+    if( var == avoi ) {  // the Variable was found
+     *(mapit++) = i;     // this is its index
+     continue;           // all done for this variable
+     }
+    }
+
+   // (re)start the search from the last variable to oi (excluded), for
+   // the case where var has been deleted and re-added, and therefore its
+   // index can now be arbitrary (but it is more likely to be "close to
+   // the end" than "at the beginning"), or the original index is no longer
+   // valid
+   i = v_x.size();
+   auto avoi = v_x[ --i ];
+   while( ( var != avoi ) && ( i > oi ) )
+    avoi = v_x[ --i ];
+
+   *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+
+   }  // end( for all Variable )
+
+  return( map );
+
+  }  // end( map_index( Range )
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -1608,10 +1729,9 @@ class BendersBFunction : public C05Function , public Block {
   * BlockSolverConfig (if provided) in the extra Configuration is nullptr,
   * then (3) above is performed.
   *
-  * @param scfg a pointer to a ComputeConfig.
-  */
+  * @param scfg a pointer to a ComputeConfig. */
 
- void set_ComputeConfig( ComputeConfig *scfg = nullptr ) override;
+ void set_ComputeConfig( const ComputeConfig *scfg = nullptr ) override;
 
 /** @} ---------------------------------------------------------------------*/
 /*-------------------- Methods for handling Modification -------------------*/
@@ -1630,6 +1750,12 @@ class BendersBFunction : public C05Function , public Block {
  /// print information about the BendersBFunction on an ostream
  /** Prints some very basuc information about the BendersBFunction; vlvl is
   * ignored, and no "complete" format is implemented. */
+
+void print( std::ostream & output ) override {
+  output << "BendersBFunction [" << this << "]" << " with "
+	 << get_num_active_var() << " active variables and a"
+         << " mapping with " << get_b().size() << " rows.";
+  }
 
  void print( std::ostream & output , char vlvl = 0 ) const override {
   output << "BendersBFunction [" << this << "]" << " with "
@@ -1753,13 +1879,13 @@ class BendersBFunction : public C05Function , public Block {
   * have a sub-Block or its sub-Block does not have a Solver attached to it,
   * then an exception is thrown. */
 
- FunctionValue get_value( void ) const override;
+ FunctionValue get_value( void ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns a lower estimate of the BendersBFunction
  /** This method simply returns get_value().  */
 
- FunctionValue get_lower_estimate( void ) const override {
+ FunctionValue get_lower_estimate( void ) override {
   return( get_value() );
   }
 
@@ -1767,7 +1893,7 @@ class BendersBFunction : public C05Function , public Block {
  /// returns an upper estimate of the BendersBFunction
  /** This method simply returns get_value().  */
 
- FunctionValue get_upper_estimate( void ) const override {
+ FunctionValue get_upper_estimate( void ) override {
   return( get_value() );
   }
 
@@ -1783,7 +1909,7 @@ class BendersBFunction : public C05Function , public Block {
   * sub-Block is maximization, then this method returns false. Otherwise, it
   * returns true. */
 
- bool is_convex( void ) const override;
+ bool is_convex( void ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns true only if this BendersBFunction is concave
@@ -1793,7 +1919,7 @@ class BendersBFunction : public C05Function , public Block {
   * it returns true.
   */
 
- bool is_concave( void ) const override;
+ bool is_concave( void ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns true only if this BendersBFunction is linear
@@ -1802,7 +1928,7 @@ class BendersBFunction : public C05Function , public Block {
   * linear. We do not attempt to find this out and this method simply returns
   * \c false. */
 
- bool is_linear( void ) const override { return( false ); }
+ bool is_linear( void ) override { return( false ); }
 
 /*--------------------------------------------------------------------------*/
  /// tells whether a linearization is available
@@ -1962,15 +2088,23 @@ class BendersBFunction : public C05Function , public Block {
   */
 
  template< class T = Solver >
- inline T * get_solver() const {
+ inline T * get_solver( Index solver_index = Inf< Index >() ) const {
   if( v_Block.empty() )
    return( nullptr );
 
   if( v_Block.front()->get_registered_solvers().empty() )
    return( nullptr );
 
-  return( dynamic_cast< T * >
-  ( v_Block.front()->get_registered_solvers().front() ) );
+  auto & registered_solvers = v_Block.front()->get_registered_solvers();
+
+  if( solver_index == Inf< Index >() )
+   solver_index = f_inner_solver_index;
+
+  if( solver_index >= registered_solvers.size() )
+   return( nullptr );
+
+  return( dynamic_cast< T * >( *std::next( registered_solvers.begin() ,
+					   solver_index ) ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2056,6 +2190,8 @@ class BendersBFunction : public C05Function , public Block {
  void * f_id; ///< the "identity" of the BendersBFunction
 
  int LinComp; ///< determines how linearizations are computed
+
+ int f_inner_solver_index = 0; ///< the index of the Solver of the inner Block
 
  Configuration * f_get_dual_solution_config = nullptr;
  ///< Configuration to be passed to Solver::get_dual_solution()
@@ -2244,8 +2380,7 @@ class BendersBFunction : public C05Function , public Block {
    *        pointer to the Solution will be stored.
    *
    * @param diagonal_linearization indicates whether the linearization is a
-   *        diagonal one.
-   */
+   *        diagonal one. */
 
   void store( FunctionValue linearization_constant , Solution * solution ,
               Index name , bool diagonal_linearization );
@@ -2254,12 +2389,14 @@ class BendersBFunction : public C05Function , public Block {
   /// tells if there is a linearization in this GlobalPool with the given name
   /** This method returns true if \p name is the index (name) of a
    * linearization currently in this GlobalPool. */
+
   bool is_linearization_there( Index name ) const;
 
 /*--------------------------------------------------------------------------*/
  /// tells if the linearization in this GlobalPool with that name is vertical
  /** This method returns true if \p name is the index (name) of a vertical
   * linearization currently in this GlobalPool. */
+
   bool is_linearization_vertical( Index name ) const;
 
 /*--------------------------------------------------------------------------*/
@@ -2278,7 +2415,7 @@ class BendersBFunction : public C05Function , public Block {
    throw( std::invalid_argument( "GlobalPool::get_solution: linearization "
                                  "with name " + std::to_string( name ) +
                                  " does not exist." ) );
-  }
+   }
 
 /*--------------------------------------------------------------------------*/
   /// returns the linearization constant stored under the given name
@@ -2289,8 +2426,7 @@ class BendersBFunction : public C05Function , public Block {
    * @param name the name of the desired constant.
    *
    * @return the value of the linearization constant that is stored under the
-   *         given \p name.
-   */
+   *         given \p name. */
 
   FunctionValue get_linearization_constant( Index name ) const {
    if( name < size() )
@@ -2298,7 +2434,7 @@ class BendersBFunction : public C05Function , public Block {
    throw( std::invalid_argument( "GlobalPool::get_linearization_constant: linea"
                                  "rization with name " + std::to_string( name )
                                  + " does not exist." ) );
-  }
+   }
 
 /*--------------------------------------------------------------------------*/
   /// sets the linearization constant under the given name
@@ -2307,8 +2443,7 @@ class BendersBFunction : public C05Function , public Block {
    *
    * @param constant the value of the linearization constant to be stored.
    *
-   * @param name the name under which the constant will be stored.
-   */
+   * @param name the name under which the constant will be stored. */
 
   void set_linearization_constant( FunctionValue constant , Index name ) {
    if( name >= size() )
@@ -2318,7 +2453,7 @@ class BendersBFunction : public C05Function , public Block {
                                   " does not exist." ) );
 
    linearization_constants[ name ] = constant;
-  }
+   }
 
 /*--------------------------------------------------------------------------*/
   /// invalidates all linearizations
@@ -2334,7 +2469,7 @@ class BendersBFunction : public C05Function , public Block {
 
   void invalidate( void ) {
    linearization_constants.assign( linearization_constants.size() , NaN );
-  }
+   }
 
 /*--------------------------------------------------------------------------*/
   /// resets all the linearization constants
@@ -2342,13 +2477,12 @@ class BendersBFunction : public C05Function , public Block {
    * linearization constant currently stored. This means that any
    * linearization previously computed may no longer be valid, but dual
    * solutions are still feasible and the linearizations can be recomputed
-   * from them.
-   */
+   * from them. */
 
   void reset_linearization_constants( void ) {
    linearization_constants.assign( linearization_constants.size() ,
                                    Inf< FunctionValue >() );
-  }
+   }
 
 /*--------------------------------------------------------------------------*/
 
@@ -2359,8 +2493,8 @@ class BendersBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
   /// return the combination used to form "the important linearization"
 
-  c_LinearCombination & get_important_linearization_coefficients( void ) const
-  { return( important_linearization_lin_comb ); }
+  c_LinearCombination & get_important_linearization_coefficients( void )
+   const { return( important_linearization_lin_comb ); }
 
 /*--------------------------------------------------------------------------*/
   /// stores a combination of the linearizations that are already stored
@@ -2401,8 +2535,8 @@ class BendersBFunction : public C05Function , public Block {
    * \p which, destroying all the Solution associated with them. If any given
    * name is invalid, an exception is thrown.
    *
-   * @param which the names of the linearizations that must be deleted.
-   */
+   * @param which the names of the linearizations that must be deleted. */
+
   void delete_linearizations( Subset & which , bool ordered );
 
 /*--------------------------------------------------------------------------*/
@@ -2529,7 +2663,7 @@ class BendersBFunction : public C05Function , public Block {
                                  "inner Block must have a CDASolver attached "
                                  "to it." ) );
   return( solver->get_int_par( par ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// get a specific double  numerical parameter of the inner Block's Solver
@@ -2552,13 +2686,11 @@ class BendersBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
  /// update the RowConstraint of the sub-Block
  /** This function updates the RowConstraint of the sub-Block to reflect the
-  * current mapping and values of the x variables.
-  */
+  * current mapping and values of the x variables. */
 
- void update_constraints();
+ void update_constraints( void );
 
 /*--------------------------------------------------------------------------*/
-
  /// write the Solution with the given name in the sub-Block
  /** If <tt>name == Inf< Index >()</tt>, this function writes the dual solution
   * associated with the last computed linearization in the sub-Block. In this
@@ -2571,21 +2703,18 @@ class BendersBFunction : public C05Function , public Block {
   * invalid or the Solution is not present in the global pool, an exception is
   * thrown.
   *
-  * @param name the name of the solution to be written
-  */
+  * @param name the name of the solution to be written */
 
  void write_dual_solution( Index name );
 
 /*--------------------------------------------------------------------------*/
-
  /// write the Solution with the given name in the sub-Block
  /** This function writes the Solution stored in the global pool under the
   * given \p name in the sub-Block. If the given \p name is invalid or the
   * Solution is not present, an exception is thrown.
   *
   * @param name the name under which the Solution is stored in the global
-  *        pool.
-  */
+  *        pool. */
 
  void write_dual_solution_from_global_pool( Index name );
 
@@ -2641,60 +2770,51 @@ class BendersBFunction : public C05Function , public Block {
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// indicate whether linearization constants can be recomputed
  /** This method indicates whether linearization constants can be recomputed
   * from a Solution stored in the global pool.
   *
   * @return true only if linearization constants can be recomputed from the
-  *         Solution stored in the global pool.
-  */
+  *         Solution stored in the global pool. */
 
- bool can_recompute_linearization_constant() const {
+ bool can_recompute_linearization_constant( void ) const {
   return( LinComp & 2 );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /// indicate whether linearization coefficients can be recomputed
  /** This method indicates whether linearization coefficients can be
   * recomputed from a Solution stored in the global pool.
   *
   * @return true only if linearization coefficients can be recomputed from the
-  *         Solution stored in the global pool.
-  */
+  *         Solution stored in the global pool. */
 
- bool can_recompute_linearization_coefficients() const {
+ bool can_recompute_linearization_coefficients( void ) const {
   return( LinComp & 4 );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /// sends a nuclear modification, invalidates the global pool
  /** Besides sending a "nuclear modification" for Function, it also invalidates
   * the global pool and declares that the Constraint of the sub-Block are not
   * updated.
   *
   * @param chnl the name of the channel to which the Modification should be
-  *        sent.
-  */
+  *        sent. */
 
  void send_nuclear_modification( const Observer::ChnlName chnl = 0 );
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the behaviour of this Function considering the given Modification
 
  function_value_behaviour get_behaviour( std::shared_ptr< BlockModAD > mod );
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the behaviour of this Function considering the given Modification
 
  function_value_behaviour get_behaviour( std::shared_ptr< ConstraintMod > mod );
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the behaviour of this Function considering the given Modification
  /** Returns the behaviour of this BendersBFunction considering that some
   * Constraint was added or enforced (if \p added_or_enforced_constraint is
@@ -2706,15 +2826,13 @@ class BendersBFunction : public C05Function , public Block {
   *
   * @param added_or_enforced_constraint if true, indicates that the Constraint
   *        was added or enforced; if false, indicates that the Constraint
-  *        was removed or relaxed.
-  */
+  *        was removed or relaxed. */
 
  function_value_behaviour get_behaviour( Objective::of_type sense ,
                                          bool added_or_enforced_constraint )
   const;
 
 /*--------------------------------------------------------------------------*/
-
  /// returns true if the given Constraint is handled by this BendersBFunction
  /** Returns true if and only if the Constraint pointed by the given pointer
   * is handled by this BendersBFunction.
@@ -2722,13 +2840,11 @@ class BendersBFunction : public C05Function , public Block {
   * @param constraint the pointer to the Constraint.
   *
   * @return true if the given Constraint is handled by this BendersBFunction;
-  *         false otherwise.
-  */
+  *         false otherwise. */
 
  bool has_constraint( Constraint * constraint );
 
 /*--------------------------------------------------------------------------*/
-
  /// returns true if and only if the A matrix is sparse
  /** This function returns true if and only if the A matrix stored in v_A is
   * sparse. This matrix is considered sparse if at most a quarter of its
@@ -2739,13 +2855,12 @@ class BendersBFunction : public C05Function , public Block {
   * @param matrix The SparseMatrix that will contain the sparse representation
   *        of the A matrix in case it turns out to be sparse.
   *
-  * @return true if and ony if A is sparse.
-  */
+  * @return true if and ony if A is sparse. */
+
  template< class T >
  bool is_A_sparse( SparseMatrix< T > & matrix ) const;
 
 /*--------------------------------------------------------------------------*/
-
  /// retrieve the list of affected RowConstraint from the inner Block
  /** If the vector of AbstractPath to the affected RowConstraint
   * (#v_paths_to_constraints) is not empty, this method retrieves the pointers
@@ -2753,20 +2868,20 @@ class BendersBFunction : public C05Function , public Block {
   * #v_constraints. After the end of the call to this method,
   * #v_paths_to_constraints is emptied. */
 
- void retrieve_constraints();
+ void retrieve_constraints( void );
 
 /*--------------------------------------------------------------------------*/
-
  /// return the pointer to the RowConstraint at the given \p index
+
  RowConstraint * get_constraint( Block::Index index ) {
   retrieve_constraints();
   assert( index < v_constraints.size() );
   return( v_constraints[ index ] );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /// return the index of the given  RowConstraint
+
  Index get_constraint_index( RowConstraint * constraint ) {
   retrieve_constraints();
   auto it = std::find( std::begin( v_constraints ) , std::end( v_constraints ) ,
@@ -2774,11 +2889,11 @@ class BendersBFunction : public C05Function , public Block {
   if( it != std::end( v_constraints ) )
    return( std::distance( std::begin( v_constraints ) , it ) );
   return( Inf< Index >() );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /// return the index of the given RowConstraint
+
  Index get_constraint_index( RowConstraint * constraint ,
                              ConstraintSide side ) {
   retrieve_constraints();
@@ -2786,57 +2901,56 @@ class BendersBFunction : public C05Function , public Block {
    if( v_constraints[ i ] == constraint && v_sides[ i ] == side )
     return( i );
   return( Inf< Index >() );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /// add the pointers to the Constraint in the given vector
+
  void add_constraints( const ConstraintVector & nc );
 
 /*--------------------------------------------------------------------------*/
-
  /// add the pointer to the given Constraint
+
  void add_constraint( RowConstraint * constraint );
 
 /*--------------------------------------------------------------------------*/
-
  /// remove all the Constraint in the given \p range
+
  void remove_constraints( Range range );
 
 /*--------------------------------------------------------------------------*/
-
  /// remove all the Constraint indicated in \p rows
  /** This function removes all the Constrant indicated in \p rows. It is
-  * assumed that \p rows is ordered.
-  */
+  * assumed that \p rows is ordered. */
+
  void remove_constraints( const Subset & rows );
 
 /*--------------------------------------------------------------------------*/
-
  /// removes all Constraint
+
  void remove_constraints( void );
 
 /*--------------------------------------------------------------------------*/
-
  /// remove the Constraint with the given \p index
+
  void remove_constraint( Block::Index index );
 
 /*--------------------------------------------------------------------------*/
-
  /// reset the BlockConfig of the inner Block to the default one
+
  void set_default_inner_Block_BlockConfig();
 
 /*--------------------------------------------------------------------------*/
-
  /// reset the BlockSolverConfig of the inner Block to the default one
+
  void set_default_inner_Block_BlockSolverConfig();
 
 /*--------------------------------------------------------------------------*/
-
  /// reset the configuration of the inner Block to the default one
  /** Reset both the BlockConfig and the BlockSolverConfig of the inner Block
   * to the default ones. */
- void set_default_inner_Block_configuration() {
+
+ void set_default_inner_Block_configuration( void ) {
   set_default_inner_Block_BlockSolverConfig();
   set_default_inner_Block_BlockConfig();
   }
@@ -2881,7 +2995,7 @@ class BendersBFunction : public C05Function , public Block {
  /// Names of the netCDF sub-groups
  inline static const std::string BLOCK_NAME = "Block";
 
-};  // end( class( BendersBFunction ) )
+ };  // end( class( BendersBFunction ) )
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- CLASS BendersBFunctionMod ------------------------*/

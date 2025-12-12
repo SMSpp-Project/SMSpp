@@ -57,60 +57,6 @@ SMSpp_insert_in_factory_cpp_0( FakeSolver );
 SMSpp_insert_in_factory_cpp_0( UpdateSolver );
 
 /*--------------------------------------------------------------------------*/
-// define and initialize here the vector of int parameters names
-const std::vector< std::string > Solver::int_pars_str = {
- "intMaxIter" , "intMaxThread" , "intEverykIt" , "intMaxSol" , "intLogVerb" };
-
-// define and initialize here the vector of double parameters names
-const std::vector< std::string > Solver::dbl_pars_str =
- { "dblMaxTime" ,  "dblEveryTTm" , "dblRelAcc" , "dblAbsAcc" , "dblUpCutOff" ,
-   "dblLwCutOff" , "dblRAccSol" , "dblAAccSol" , "dblFAccSol" };
-
-// define and initialize here the map for int parameters names
-const std::map< std::string, Solver::idx_type > Solver::int_pars_map =
- { { "intMaxIter",   Solver::intMaxIter },
-   { "intMaxThread", Solver::intMaxThread },
-   { "intEverykIt",  Solver::intEverykIt },
-   { "intMaxSol",    Solver::intMaxSol },
-   { "intLogVerb",   Solver::intLogVerb }
-  };
-
-// define and initialize here the map for double parameters names
-const std::map< std::string, Solver::idx_type > Solver::dbl_pars_map =
- { { "dblMaxTime",  Solver::dblMaxTime } ,
-   { "dblEveryTTm", Solver::dblEveryTTm } ,
-   { "dblRelAcc",   Solver::dblRelAcc } ,
-   { "dblAbsAcc",   Solver::dblAbsAcc } ,
-   { "dblUpCutOff", Solver::dblUpCutOff } ,
-   { "dblLwCutOff", Solver::dblLwCutOff } ,
-   { "dblRAccSol",  Solver::dblRAccSol } ,
-   { "dblAAccSol",  Solver::dblAAccSol } ,
-   { "dblFAccSol",  Solver::dblFAccSol }
-  };
-
-// define and initialize here the default int parameters
-const std::vector< int > Solver::dflt_int_par =
- { Inf< int >() ,  // intMaxIter
-   0 ,             // intEverykIt
-   0 ,             // intMaxThread
-   1 ,             // intMaxSol
-   0               // intLogVerb
-  };
-
-// define and initialize here the default double parameters
-const std::vector< double > Solver::dflt_dbl_par =
- { Inf< double >() ,            // dblMaxTime
-   0 ,                          // dblEveryTTm
-   1e-6 ,                       // dblRelAcc
-   Inf< Solver::OFValue >() ,   // dblAbsAcc
-   Inf< Solver::OFValue >() ,   // dblUpCutOff
-   -Inf< Solver::OFValue >() ,  // dblLwCutOff
-   Inf< Solver::OFValue >() ,   // dblRAccSol
-   Inf< Solver::OFValue >() ,   // dblAAccSol
-   0                            // dblFAccSol
-  };
-
-/*--------------------------------------------------------------------------*/
 /*---------------------------- METHODS of Solver ---------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -125,6 +71,20 @@ void Solver::set_Block( Block * block )
 
  f_Block = block;        // this is the new Block now
  }
+
+/*--------------------------------------------------------------------------*/
+
+void Solver::set_par( idx_type par , std::string && value )
+{
+ if( par == strLogFileName ) {
+  if( f_log_file.is_open() )
+   f_log_file.close();
+  f_log_file.open( value , std::fstream::out | std::fstream::trunc );
+  set_log( & f_log_file );
+  return;
+  }
+ ThinComputeInterface::set_par( par , std::move( value ) );
+ }  // end( BundleSolver::set_par( std::string && ) )
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- METHODS FOR EVENTS HANDLING -----------------------*/
@@ -165,6 +125,15 @@ Solver::OFValue Solver::get_var_value( void ) {
 	           get_ub() : get_lb()
                  : Objective::eMin );
  }
+
+/*--------------------------------------------------------------------------*/
+
+const std::string & Solver::get_str_par( idx_type par ) const {
+ switch( par ) {
+  case( strLogFileName ):   return( LogFileName );
+  default:                  return( ThinComputeInterface::get_str_par( par ) );
+  }
+ }  // end( Solver::get_str_par )
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PROTECTED METHODS -----------------------------*/

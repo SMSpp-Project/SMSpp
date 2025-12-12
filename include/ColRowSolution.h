@@ -25,7 +25,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __ColRowSolution
-#define __ColRowSolution
+ #define __ColRowSolution
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/

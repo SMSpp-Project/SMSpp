@@ -45,6 +45,7 @@ SMS++OBJ = $(SMS++SDR)/obj/AbstractBlock.o \
 	$(SMS++SDR)/obj/Constraint.o \
 	$(SMS++SDR)/obj/DataMapping.o \
 	$(SMS++SDR)/obj/DQuadFunction.o \
+	$(SMS++SDR)/obj/QuadFunction.o \
 	$(SMS++SDR)/obj/FRealObjective.o \
 	$(SMS++SDR)/obj/FRowConstraint.o \
 	$(SMS++SDR)/obj/Function.o \
@@ -57,6 +58,7 @@ SMS++OBJ = $(SMS++SDR)/obj/AbstractBlock.o \
 	$(SMS++SDR)/obj/RBlockConfig.o \
 	$(SMS++SDR)/obj/RowConstraintSolution.o \
 	$(SMS++SDR)/obj/Solver.o \
+	$(SMS++SDR)/obj/Solution.o \
 	$(SMS++SDR)/obj/ThinComputeInterface.o \
 	$(SMS++SDR)/obj/Variable.o
 #	$(SMS++SDR)/obj/RowConstraint.o \
@@ -81,6 +83,7 @@ SMS++H = $(SMS++SDR)/include/AbstractBlock.h \
 	$(SMS++SDR)/include/Constraint.h \
 	$(SMS++SDR)/include/DataMapping.h \
 	$(SMS++SDR)/include/DQuadFunction.h \
+	$(SMS++SDR)/include/QuadFunction.h \
 	$(SMS++SDR)/include/FakeSolver.h \
 	$(SMS++SDR)/include/FRealObjective.h \
 	$(SMS++SDR)/include/FRowConstraint.h \
@@ -109,7 +112,7 @@ SMS++H = $(SMS++SDR)/include/AbstractBlock.h \
 clean::
 	rm -f $(SMS++SDR)/obj/*.o $(SMS++SDR)/src/*~ $(SMS++SDR)/include/*~
 
-# dependencies: every .o from its .C + every recursively included .h- - - - -
+# dependencies: every .o from its .cpp + every recursively included .h- - - -
 
 # temp macro for what Block includes, and basically everything includes Block
 intBlockINC = $(SMS++SDR)/include/Block.h $(SMS++SDR)/include/Configuration.h \
@@ -168,6 +171,7 @@ $(SMS++SDR)/obj/BoxSolver.o: $(SMS++SDR)/src/BoxSolver.cpp $(intBlockINC) \
 	$(SMS++SDR)/include/C15Function.h $(SMS++SDR)/include/CDASolver.h \
 	$(SMS++SDR)/include/ColVariable.h $(SMS++SDR)/include/Constraint.h \
 	$(SMS++SDR)/include/DQuadFunction.h \
+	$(SMS++SDR)/include/QuadFunction.h \
 	$(SMS++SDR)/include/FRealObjective.h \
 	$(SMS++SDR)/include/FRowConstraint.h $(SMS++SDR)/include/Function.h \
 	$(SMS++SDR)/include/LinearFunction.h $(SMS++SDR)/include/Objective.h \
@@ -207,7 +211,8 @@ $(SMS++SDR)/obj/ColRowSolution.o: $(SMS++SDR)/src/ColRowSolution.cpp \
 	$(SMS++SDR)/include/ThinVarDepInterface.h
 	$(CC) -c $(SMS++SDR)/src/ColRowSolution.cpp -o $@ $(SMS++INC) $(SW)
 
-$(SMS++SDR)/obj/ColVariableSolution.o: $(SMS++SDR)/src/ColVariableSolution.cpp \
+$(SMS++SDR)/obj/ColVariableSolution.o: \
+	$(SMS++SDR)/src/ColVariableSolution.cpp \
 	$(intBlockINC) $(SMS++SDR)/include/ColVariableSolution.h \
 	$(SMS++SDR)/include/Solution.h $(SMS++SDR)/include/ColVariable.h \
 	$(SMS++SDR)/include/Constraint.h $(SMS++SDR)/include/Variable.h \
@@ -238,6 +243,14 @@ $(SMS++SDR)/obj/DQuadFunction.o: $(SMS++SDR)/src/DQuadFunction.cpp \
 	$(SMS++SDR)/include/DQuadFunction.h $(SMS++SDR)/include/Function.h \
 	$(SMS++SDR)/include/Variable.h $(SMS++SDR)/include/ThinVarDepInterface.h
 	$(CC) -c $(SMS++SDR)/src/DQuadFunction.cpp -o $@ $(SMS++INC) $(SW)
+
+$(SMS++SDR)/obj/QuadFunction.o: $(SMS++SDR)/src/QuadFunction.cpp \
+	$(SMS++SDR)/include/C05Function.h $(SMS++SDR)/include/C15Function.h \
+	$(SMS++SDR)/include/ColVariable.h $(SMS++SDR)/include/Constraint.h \
+	$(SMS++SDR)/include/DQuadFunction.h $(SMS++SDR)/include/QuadFunction.h \
+	$(SMS++SDR)/include/Function.h \
+	$(SMS++SDR)/include/Variable.h $(SMS++SDR)/include/ThinVarDepInterface.h
+	$(CC) -c $(SMS++SDR)/src/QuadFunction.cpp -o $@ $(SMS++INC) $(SW)
 
 $(SMS++SDR)/obj/FRealObjective.o: $(SMS++SDR)/src/FRealObjective.cpp \
 	$(intBlockINC) $(SMS++SDR)/include/FRealObjective.h \
@@ -318,7 +331,8 @@ $(SMS++SDR)/obj/PolyhedralFunctionBlock.o: $(intBlockINC) \
 	$(SMS++SDR)/include/PolyhedralFunction.h \
 	$(SMS++SDR)/include/ThinComputeInterface.h \
 	$(SMS++SDR)/include/ThinVarDepInterface.h $(SMS++SDR)/include/Variable.h
-	$(CC) -c $(SMS++SDR)/src/PolyhedralFunctionBlock.cpp -o $@ $(SMS++INC) $(SW)
+	$(CC) -c $(SMS++SDR)/src/PolyhedralFunctionBlock.cpp -o \
+	$@ $(SMS++INC) $(SW)
 
 $(SMS++SDR)/obj/RBlockConfig.o: $(SMS++SDR)/src/RBlockConfig.cpp \
 	$(SMS++SDR)/include/RBlockConfig.h $(intBlockINC)
@@ -339,11 +353,16 @@ $(SMS++SDR)/obj/RowConstraintSolution.o: \
 	$(SMS++SDR)/include/RowConstraint.h $(SMS++SDR)/include/Solution.h \
 	$(SMS++SDR)/include/ThinComputeInterface.h \
 	$(SMS++SDR)/include/ThinVarDepInterface.h $(SMS++SDR)/include/Variable.h
-	$(CC) -c $(SMS++SDR)/src/RowConstraintSolution.cpp -o $@ $(SMS++INC) $(SW)
+	$(CC) -c $(SMS++SDR)/src/RowConstraintSolution.cpp \
+	-o $@ $(SMS++INC) $(SW)
 
 $(SMS++SDR)/obj/Solver.o: $(SMS++SDR)/src/Solver.cpp $(intBlockINC) \
 	$(SMS++SDR)/include/FakeSolver.h $(SMS++SDR)/include/UpdateSolver.h
 	$(CC) -c $(SMS++SDR)/src/Solver.cpp -o $@ $(SMS++INC) $(SW)
+
+$(SMS++SDR)/obj/Solution.o: $(SMS++SDR)/src/Solution.cpp $(intBlockINC) \
+	$(SMS++SDR)/include/Solution.h
+	$(CC) -c $(SMS++SDR)/src/Solution.cpp -o $@ $(SMS++INC) $(SW)
 
 $(SMS++SDR)/obj/Variable.o: $(SMS++SDR)/src/Variable.cpp \
 	$(SMS++SDR)/include/Variable.h $(intBlockINC)
@@ -353,6 +372,7 @@ $(SMS++SDR)/obj/ThinComputeInterface.o: \
 	$(SMS++SDR)/src/ThinComputeInterface.cpp \
 	$(SMS++SDR)/include/ThinComputeInterface.h \
 	$(SMS++SDR)/include/Configuration.h $(SMS++SDR)/include/SMSTypedefs.h
-	$(CC) -c $(SMS++SDR)/src/ThinComputeInterface.cpp -o $@ $(SMS++INC) $(SW)
+	$(CC) -c $(SMS++SDR)/src/ThinComputeInterface.cpp \
+	-o $@ $(SMS++INC) $(SW)
 
 ########################## End of makefile ###################################

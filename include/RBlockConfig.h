@@ -67,7 +67,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __RBlockConfig
-#define __RBlockConfig
+ #define __RBlockConfig
                      /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
@@ -958,10 +958,10 @@ class OCRBlockConfig : public BlockConfig ,
 
  void apply( Block * block, bool deleteold = true ) override {
   if( ! block ) return;
-  BlockConfig::apply( block, deleteold );
-  OHandler::apply( block, deleteold, f_diff );
-  CHandler::apply( block, deleteold, f_diff );
-  RHandler::apply( block, deleteold, f_diff );
+  BlockConfig::apply( block , deleteold );
+  OHandler::apply( block , deleteold , f_diff );
+  CHandler::apply( block , deleteold , f_diff );
+  RHandler::apply( block , deleteold , f_diff );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1266,9 +1266,9 @@ class CRBlockConfig : public BlockConfig ,
 
  void apply( Block * block , bool deleteold = true ) override {
   if( ! block ) return;
-  BlockConfig::apply( block, deleteold );
-  CHandler::apply( block, deleteold, f_diff );
-  RHandler::apply( block, deleteold, f_diff );
+  BlockConfig::apply( block , deleteold );
+  CHandler::apply( block , deleteold, f_diff );
+  RHandler::apply( block , deleteold, f_diff );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1523,11 +1523,11 @@ class ORBlockConfig : public BlockConfig ,
   * @param deleteold Indicates whether the current Configuration of Block must
   *        be deleted (see BlockConfig::apply()). */
 
- void apply( Block * block, bool deleteold = true ) override {
+ void apply( Block * block , bool deleteold = true ) override {
   if( ! block ) return;
-  BlockConfig::apply( block, deleteold );
-  OHandler::apply( block, deleteold, f_diff );
-  RHandler::apply( block, deleteold, f_diff );
+  BlockConfig::apply( block , deleteold );
+  OHandler::apply( block , deleteold , f_diff );
+  RHandler::apply( block , deleteold , f_diff );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1784,9 +1784,9 @@ class OCBlockConfig : public BlockConfig ,
 
  void apply( Block * block , bool deleteold = true ) override {
   if( ! block ) return;
-  BlockConfig::apply( block, deleteold );
-  OHandler::apply( block, deleteold, f_diff );
-  CHandler::apply( block, deleteold, f_diff );
+  BlockConfig::apply( block , deleteold );
+  OHandler::apply( block , deleteold , f_diff );
+  CHandler::apply( block , deleteold , f_diff );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2030,7 +2030,7 @@ class OBlockConfig : public BlockConfig ,
  void apply( Block * block , bool deleteold = true ) override {
   BlockConfig::apply( block , deleteold );
   OHandler::apply( block , deleteold , f_diff );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// clear this OBlockConfig

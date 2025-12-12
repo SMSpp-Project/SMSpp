@@ -18,7 +18,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __DataMapping
-#define __DataMapping
+ #define __DataMapping
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
@@ -353,7 +353,7 @@ public:
   * @param sdmb_netCDF The struct containing the netCDF dimensions and
   *        variables describing the vector of SimpleDataMappingBase.
   *
-  * @param index The index of the SimpleDataMappingbase to be serialized in
+  * @param index The index of the SimpleDataMappingBase to be serialized in
   *        the vector of SimpleDataMappingBase.
   *
   * @param set_elements_start_index The index of the "SetElements" array at
@@ -373,6 +373,22 @@ public:
                          Block * block_reference ) const = 0;
 
 /*--------------------------------------------------------------------------*/
+
+ /// sets the caller object for this SimpleDataMappingBase
+ /** This function sets the caller object that will be used when invoking
+  * the function associated with this SimpleDataMappingBase.
+  *
+  * @param new_caller A pointer to the new caller object.
+  * 
+  * @note The user is responsible for ensuring that the new caller is 
+  *       compatible with the stored function and can correctly invoke it.
+  *       The new caller must have the same interface as the original caller
+  *       for the DataMapping to work correctly. A typical use case is 
+  *       replacing the caller with a copy of the original Block after 
+  *       Block duplication.
+  */
+
+ virtual void set_caller( void * new_caller ) = 0;
 
  /// serialize a vector of SimpleDataMappingBase from a netCDF::NcGroup
  /** Serialize a vector of SimpleDataMappingBase from a netCDF::NcGroup. A
@@ -515,13 +531,13 @@ private:
        ( sdmb_netCDF.DataType.getDimCount() != 1 ||
          sdmb_netCDF.DataType.getDim( 0 ).getSize() != num_data_mappings ) )
     throw( std::logic_error( "SimpleDataMappingBase::pre_deserialize: invalid "
-                           "'" + DataType_name + "' array." ) );
+                             "'" + DataType_name + "' array." ) );
 
    if( ! sdmb_netCDF.Caller.isNull() &&
        ( sdmb_netCDF.Caller.getDimCount() != 1 ||
          sdmb_netCDF.Caller.getDim( 0 ).getSize() != num_data_mappings ) )
     throw( std::logic_error( "SimpleDataMappingBase::pre_deserialize: invalid "
-                           "'" + Caller_name + "' array." ) );
+                             "'" + Caller_name + "' array." ) );
 
    if( sdmb_netCDF.FunctionName.isNull() ||
        sdmb_netCDF.FunctionName.getDimCount() != 1 ||
@@ -773,7 +789,7 @@ public:
   * @param set_to The set specifying which part of the data that will change.
   */
  SimpleDataMapping( const F * function = nullptr , Caller * caller = nullptr ,
-              const SetFrom & set_from = {} , const SetTo & set_to = {} ) :
+                    const SetFrom & set_from = {} , const SetTo & set_to = {} ) :
   function( function ) , caller( caller ) , set_from( set_from ) ,
   set_to( set_to ) {
 
@@ -999,6 +1015,26 @@ public:
 /** @name Methods describing the behavior of the SimpleDataMapping
  *  @{ */
 
+ /// sets the caller object for this SimpleDataMapping
+ /** This function sets the caller object that will be used when invoking
+  * the function associated with this SimpleDataMapping.
+  *
+  * @param new_caller A pointer to the new caller object.
+  * 
+  * @note The user is responsible for ensuring that the new caller is 
+  *       compatible with the stored function and can correctly invoke it.
+  *       The new caller must be of type Caller* (or convertible to it) and
+  *       must have the same interface as the original caller. A typical use 
+  *       case is replacing the caller with a copy of the original Block 
+  *       after Block duplication.
+  */
+ 
+ void set_caller( void * new_caller ) override {
+  caller = static_cast< Caller * >( new_caller );
+ }
+
+/*--------------------------------------------------------------------------*/
+
  void set_data( std::vector< double >::const_iterator data ,
                 c_ModParam issueMod = eModBlck ,
                 c_ModParam issueAMod = eModBlck ) const override {
@@ -1013,7 +1049,7 @@ public:
     * to the given data forward to the function. Also, when the cardinality of
     * the SetFrom set is smaller than that of the SetTo set, we have to expand
     * the given data. In both cases, we need to construct a new vector to
-    * accomodate the data to be passed to the function. */
+    * accommodate the data to be passed to the function. */
 
    assert( empty( set_from ) ||
            cardinality( set_to ) % cardinality( set_from ) == 0 );
@@ -1508,8 +1544,7 @@ private:
                             char & set_from_type , char & set_to_type ) {
 
   std::vector< Index > set_size = { 0 , 0 };
-  if( ::SMSpp_di_unipi_it::deserialize( group , "SetSize" ,
-                                        set_size , true ) ) {
+  if( ::SMSpp_di_unipi_it::deserialize( group , "SetSize" , set_size , true ) ) {
    if( set_size.size() != 2 )
     throw( std::logic_error( "SimpleDataMappingFactory::get_sets_type: array "
                              "'SetSize' must have size 2." ) );

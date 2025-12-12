@@ -30,7 +30,6 @@
 #    was found to be lacking. In particular, it appears that netCDFCxx does   #
 #    not come with a CMake configuration (netCDFCxxConfig.cmake).             #
 #                                                                             #
-#                              Niccolo' Iardella                              #
 #                                Donato Meoli                                 #
 #                         Dipartimento di Informatica                         #
 #                             Universita' di Pisa                             #
@@ -44,6 +43,7 @@ if (NOT netCDF_FOUND)
     find_package(netCDF REQUIRED)
     set(ncTarget "netCDF::netcdf")
 else ()
+    find_package(HDF5 QUIET)
     # Before 4.7.3, netCDF exported a target without namespace
     if ("${netCDF_VERSION}" VERSION_LESS "4.7.3")
         set(ncTarget "netcdf")
@@ -52,46 +52,41 @@ else ()
     endif ()
 endif ()
 
-# ----- Check if already in cache ------------------------------------------- #
+# Check if already in cache
 if (netCDFCxx_INCLUDE_DIR AND netCDFCxx_LIBRARY AND netCDFCxx_LIBRARY_DEBUG)
     set(netCDFCxx_FOUND TRUE)
 else ()
 
-    # ----- Find the headers and library ------------------------------------ #
-    # Note that find_path() creates a cache entry
+    # ----- Find the headers ------------------------------------------------ #
     find_path(netCDFCxx_INCLUDE_DIR
               NAMES netcdf
-              HINTS ${netCDFCxx_ROOT}
+              PATHS ${netCDFCxx_ROOT}
               DOC "netCDF-C++ include directory.")
 
-    find_library(netCDFCxx_LIBRARY
-                 NAMES netcdf-cxx4 netcdf_c++4
-                 HINTS ${netCDFCxx_ROOT}/lib
-                 DOC "netCDF-C++ library.")
-
+    # ----- Find the library ------------------------------------------------ #
     if (UNIX)
-        set(netCDFCxx_LIBRARY_DEBUG ${netCDFCxx_LIBRARY})
-    else ()
+        find_library(netCDFCxx_LIBRARY
+                     NAMES netcdf-cxx4 netcdf_c++4
+                     PATHS ${netCDFCxx_ROOT}/lib
+                     DOC "netCDF-C++ library.")
 
-        # ----- Macro: find_win_netcdfcxx_library --------------------------- #
-        # On Windows the version is appended to the library name which cannot be
-        # handled by find_library, so here a macro to search manually.
-        macro(find_win_netcdfcxx_library var path_suffixes)
-            foreach (s ${path_suffixes})
-                file(GLOB netCDFCxx_LIBRARY_CANDIDATES "${netCDFCxx_ROOT}/${s}/netcdf-cxx4.lib")
-                if (netCDFCxx_LIBRARY_CANDIDATES)
-                    list(GET netCDFCxx_LIBRARY_CANDIDATES 0 ${var})
-                    break()
-                endif ()
-            endforeach ()
-            if (NOT ${var})
-                set(${var} NOTFOUND)
-            endif ()
-        endmacro ()
+        set(netCDFCxx_LIBRARY_DEBUG ${netCDFCxx_LIBRARY}
+                CACHE FILEPATH "netCDF-C++ debug library." FORCE)
+    elseif (WIN32)
+        find_library(netCDFCxx_LIBRARY
+                     NAMES netcdf-cxx4
+                     PATHS ${netCDFCxx_ROOT}/lib
+                           ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib
+                           $ENV{LIBRARY_LIB}
+                     NO_DEFAULT_PATH
+                     DOC "netCDF-C++ library.")
 
-        # Debug library
-        find_win_netcdfcxx_library(netCDFCxx_LIB_DEBUG "debug/lib")
-        set(netCDFCxx_LIBRARY_DEBUG ${netCDFCxx_LIB_DEBUG})
+        find_library(netCDFCxx_LIBRARY_DEBUG
+                     NAMES netcdf-cxx4
+                     PATHS ${netCDFCxx_ROOT}/debug/lib
+                           ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/lib
+                     NO_DEFAULT_PATH
+                     DOC "netCDF-C++ debug library.")
     endif ()
 
     # ----- Parse the version ----------------------------------------------- #
@@ -122,23 +117,23 @@ else ()
     # https://cmake.org/cmake/help/latest/module/FindPackageHandleStandardArgs.html
     find_package_handle_standard_args(
             netCDFCxx
-            REQUIRED_VARS netCDFCxx_LIBRARY netCDFCxx_LIBRARY_DEBUG netCDFCxx_INCLUDE_DIR
+            REQUIRED_VARS netCDFCxx_LIBRARY netCDFCxx_INCLUDE_DIR
             VERSION_VAR netCDFCxx_VERSION)
 endif ()
 
 # ----- Export the target --------------------------------------------------- #
 if (netCDFCxx_FOUND)
-    set(netCDFCxx_INCLUDE_DIRS "${netCDFCxx_INCLUDE_DIR}")
-    set(netCDFCxx_LIBRARIES "${netCDFCxx_LIBRARY}")
+    set(netCDFCxx_INCLUDE_DIRS ${netCDFCxx_INCLUDE_DIR})
+    set(netCDFCxx_LIBRARIES ${netCDFCxx_LIBRARY})
 
     if (NOT TARGET netCDF::netCDFCxx)
         add_library(netCDF::netCDFCxx UNKNOWN IMPORTED)
         set_target_properties(
                 netCDF::netCDFCxx PROPERTIES
-                IMPORTED_LOCATION "${netCDFCxx_LIBRARY}"
-                IMPORTED_LOCATION_DEBUG "${netCDFCxx_LIBRARY_DEBUG}"
-                INTERFACE_INCLUDE_DIRECTORIES "${netCDFCxx_INCLUDE_DIRS}"
-                INTERFACE_LINK_LIBRARIES "${ncTarget}")
+                IMPORTED_LOCATION ${netCDFCxx_LIBRARY}
+                IMPORTED_LOCATION_DEBUG ${netCDFCxx_LIBRARY_DEBUG}
+                INTERFACE_INCLUDE_DIRECTORIES ${netCDFCxx_INCLUDE_DIRS}
+                INTERFACE_LINK_LIBRARIES "${ncTarget};${HDF5_LIBRARIES}")
     endif ()
 endif ()
 

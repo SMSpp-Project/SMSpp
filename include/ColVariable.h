@@ -25,7 +25,8 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __ColVariable
-#define __ColVariable /* self-identification: #endif at the end of the file */
+ #define __ColVariable
+                      /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -59,7 +60,7 @@ namespace SMSpp_di_unipi_it {
 /// a Variable that holds a single real value, possibly restricted to a subset
 /** The ColVariable class, derived from Variable, is intended as the simple
  * version of "Variable whose value is a single real, possibly restricted to
- * some "interesting" subset (e.g., the integers)". In a Linear Program this
+ * some "interesting" subset (e.g., the integers)". In a Linear Program, this
  * would correspond to a column in the coefficient matrix, whence the name.
  *
  * This class extends Variable to support the following further facts:
@@ -131,7 +132,7 @@ class ColVariable : public Variable
   * These give the possibility to specify many "interesting subsets of the
   * reals", such as binary variables (those that can only attain either value
   * 0 or value 1). Very many variables in practical models fit in one of
-  * these cases. In order to allow all possible combinations some "weird"
+  * these cases. To allow all possible combinations, some "weird"
   * cases are also comprised, but likely the "type" of the ColVariable is
   * read/manipulated with the methods allowing to check/set the individual
   * properties rather than looking at these enums, so it does not matter
@@ -155,7 +156,7 @@ class ColVariable : public Variable
   kZeroRealU   = 14 ,  ///< any real value between -1 and 1 provided it is 0
   kZeroIntU    = 15 ,  ///< any int value between -1 and 1 provided it is 0
   ColVarLastType       ///< first allowed parameter value for derived classes
-                       /**< Convenience value for easily allow derived classes
+                       /**< Convenience value for easily allows derived classes
                         * to extend the set of types of real subsets. */
   };
 
@@ -177,7 +178,7 @@ class ColVariable : public Variable
   * has a default (nullptr and kContinuous, respectively), so that this can
   * be used as the void constructor. Note that while the enum col_var_type is
   * provided to encode the possible "types" of the ColVariable, the
-  * parameter of the constructor is a generic var_type in order to allow
+  * parameter of the constructor is a generic var_type to allow
   * further derived classes to further "extend" the set of possible types.
   *
   * The constructor sets the value of the ColVariable to its default. */
@@ -203,7 +204,7 @@ class ColVariable : public Variable
   * destructor of any :Variable, it does *not* check the list of "stuff" this
   * ColVariable, but just destroys it (and the list with it).
   *
-  * This would of course leave any "stuff" in which the Variable is active in
+  * This would, of course, leave any "stuff" in which the Variable is active in
   * an inconsistent state, so care has to be exercised to ensure this does not
   * happen by, if necessary, scan the list and do the removal *before*
   * destroying the Variable. However, this also ties in with the
@@ -231,7 +232,7 @@ class ColVariable : public Variable
   * Changing the value of [Col]Variable is arguably not a change in the data
   * of the problem, although it could be a change of the data for a sub-Block
   * that does not directly own the Variable but for which the Variable is
-  * active in some Constraint / Objective. Yet, this occurrence is not
+  * active in some Constraint / Objective. Yet this occurrence is not
   * reported by a Modification, and other mechanisms must be put in place to
   * (avoid) deal(ing) with it; see the discussion in ThinComputeInterface. */
 
@@ -241,7 +242,7 @@ class ColVariable : public Variable
  /// sets the "type" of the ColVariable
  /** Sets the "type" of the ColVariable. This is encoded in the protected
   * field f_state that the base Variable class uses to store the "state",
-  * i.e., whether or not the [Col]Variable is fixed, so this method takes
+  * i.e., whether the [Col]Variable is fixed, so this method takes
   * great care to not mess up with the LSB of the field where that information
   * is stored.
   *
@@ -281,7 +282,7 @@ class ColVariable : public Variable
  [[nodiscard]] VarValue get_value( void ) const { return( f_value ); }
 
 /*--------------------------------------------------------------------------*/
- /// method to check feasibility of a ColVariable
+ /// method to check the feasibility of a ColVariable
  /** The current value of a ColVariable may or may not be "compatible" with
   * the current "type" of the ColVariable; this method returns true if it is.
   * The eps parameter gives the maximum deviation from the "ideal" value;
@@ -325,6 +326,28 @@ class ColVariable : public Variable
  }
 
 /*--------------------------------------------------------------------------*/
+ /// verifies whether the given std::vector of std::vector of ColVariable is
+ /// feasible
+ /** This function returns true if and only if each ColVariable in the given
+  * std::vector of std::vector is feasible with respect to the given tolerance
+  * (see ColVariable::is_feasible()).
+  *
+  * @return This function returns true if and only if each of the given
+  *         ColVariable is feasible considering the given tolerance. */
+
+ template< typename T >
+ static std::enable_if_t< std::is_base_of_v< ColVariable , T > , bool >
+ is_feasible( const std::vector< std::vector< T > > & variables ,
+              double tolerance = 1e-10 ) {
+  // if empty, std::all_of returns true, i.e., the solution is feasible
+  return( std::all_of( variables.begin() , variables.end() ,
+                       [ tolerance ]( const auto & l_variables ) {
+                        return( ColVariable::is_feasible( l_variables ,
+                                                          tolerance ) );
+                       } ) );
+ }
+
+/*--------------------------------------------------------------------------*/
 /// verifies whether the given K-D boost::multi_array of ColVariable is feasible
 /** This function returns true if and only if each ColVariable in the given
  * K-D boost::multi_array is feasible with respect to the given tolerance (see
@@ -339,10 +362,31 @@ class ColVariable : public Variable
               double tolerance = 1e-10 ) {
   auto n = variables.num_elements();
   auto variable = variables.data();
-  for( decltype( n ) i = 0 ; i < n ; ++i , ++variable ) {
+  for( decltype( n ) i = 0 ; i < n ; ++i , ++variable )
    if( ! variable->is_feasible( tolerance ) )
     return( false );
-  }
+  return( true );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// verifies whether the given K-D boost::multi_array of std::vector of
+ /// ColVariable is feasible
+ /** This function returns true if and only if each ColVariable in the given
+  * K-D boost::multi_array of std::vector is feasible with respect to the given
+  * tolerance (see ColVariable::is_feasible()).
+  *
+  * @return This function returns true if and only if each of the given
+  *         ColVariable is feasible considering the given tolerance. */
+
+ template< typename T , std::size_t K >
+ static std::enable_if_t< std::is_base_of_v< ColVariable , T > , bool >
+ is_feasible( const boost::multi_array< std::vector< T > , K > & variables ,
+              double tolerance = 1e-10 ) {
+  auto n = variables.num_elements();
+  auto v_variables = variables.data();
+  for( decltype( n ) i = 0 ; i < n ; ++i , ++v_variables )
+   if( ! ColVariable::is_feasible( *v_variables , tolerance ) )
+    return( false );
   return( true );
  }
 
@@ -404,10 +448,9 @@ class ColVariable : public Variable
               double tolerance = 1e-10 ) {
   auto n = variables.num_elements();
   auto l_variables = variables.data();
-  for( decltype( n ) i = 0 ; i < n ; ++i , ++l_variables ) {
+  for( decltype( n ) i = 0 ; i < n ; ++i , ++l_variables )
    if( ! ColVariable::is_feasible( *l_variables , tolerance ) )
     return( false );
-  }
   return( true );
  }
 
@@ -506,7 +549,7 @@ class ColVariable : public Variable
 /*--------------------------------------------------------------------------*/
  /// returns (a reference to) the vector of pointers to active stuff
  /** Method that returns (a reference to) the vector of pointers to active
-  * stuff, which is ordered in increasing sense (using as key the "name"
+  * stuff, which is ordered in increasing sense (using as a key the "name"
   * of the ThinVarDepInterface, i.e., the pointer itself). */
 
  [[nodiscard]] const std::vector< ThinVarDepInterface * > & active_stuff(
@@ -533,9 +576,12 @@ class ColVariable : public Variable
 
  void remove_active( ThinVarDepInterface * stuff ) override {
   // find proper position in ascending order
-  auto it = std::find( v_active.begin() , v_active.end() , stuff );
+  auto idx = std::lower_bound( v_active.begin() , v_active.end() , stuff );
 
-  v_active.erase( it );  // now remove it
+  if( idx == v_active.end() )
+   throw( std::invalid_argument( "remove_active() called on non-active stuff" ) );
+
+  v_active.erase( idx );  // now remove it
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -550,7 +596,7 @@ class ColVariable : public Variable
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// sets the value of this ColVariable to its default value (0)
  /** The default value of a ColVariable is 0. If ColVariable with a different
-  * default value is needed then one of the following approaches could be
+  * default value is needed, then one of the following approaches could be
   * used:
   *
   * - add a (static) field to this class that stores the default value for 

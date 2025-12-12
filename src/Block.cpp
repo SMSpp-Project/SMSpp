@@ -53,10 +53,6 @@ std::set< Observer::ChnlName > Observer::v_free_chnl;
 
 SMSpp_insert_in_factory_cpp_0( BlockConfig );
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
-std::string Block::f_prefix;  // the filename prefix
-
 /*--------------------------------------------------------------------------*/
 /*------------------------------- FUNCTIONS --------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -67,19 +63,19 @@ std::string Block::f_prefix;  // the filename prefix
 /*-------------------------- METHODS of Block ------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-Block * Block::deserialize( const std::string & filename , Block * father )
+Block * Block::deserialize( const std::string & filename , Block * father ,
+                            std::function< void( Block * ) > * f )
 {
  try {
   if( ( filename.size() > 4 ) &&
       ( filename.substr( filename.size() - 4 , 4 ) == ".txt" ) ) {
-   std::ifstream f( f_prefix.empty() ? filename : f_prefix + filename ,
-		    std::fstream::in );
-   if( ! f.is_open() ) {
+   std::ifstream file( f_prefix + filename , std::fstream::in );
+   if( ! file.is_open() ) {
     std::cerr << "Error: cannot open text file " << f_prefix + filename
 	      << std::endl;
     return( nullptr );
     }
-   return( Block::deserialize( f , father ) );
+   return( Block::deserialize( file , father , f ) );
    }
   else {
    int idx = 0;
@@ -94,18 +90,20 @@ Block * Block::deserialize( const std::string & filename , Block * father )
      catch( ... ) { idx = 0; }
      }
     }
-   netCDF::NcFile f( fn.c_str() , netCDF::NcFile::read );
-   return( Block::deserialize( f , idx , father ) );
+   netCDF::NcFile file( fn.c_str() , netCDF::NcFile::read );
+   return( Block::deserialize( file , idx , father , f ) );
    }
   }
  catch( netCDF::exceptions::NcException & e ) {
-  std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
+  std::cerr << "netCDF error " << e.what() << " in deserialize( string )"
+	    << std::endl;
   }
  catch( std::exception & e ) {
-  std::cerr << "error " << e.what() << " in deserialize" << std::endl;
+  std::cerr << "error " << e.what() << " in deserialize( string )"
+	    << std::endl;
   }
  catch( ... ) {
-  std::cerr << "unknown error in deserialize" << std::endl;
+  std::cerr << "unknown error in deserialize( string )" << std::endl;
   }
 
  return( nullptr );
@@ -114,11 +112,53 @@ Block * Block::deserialize( const std::string & filename , Block * father )
 
 /*--------------------------------------------------------------------------*/
 
-Block * Block::deserialize( const netCDF::NcFile & f , unsigned int idx ,
-			    Block * father )
+std::pair< netCDF::NcGroup , Block * >
+Block::almost_deserialize( const std::string & filename , Block * father )
+{
+ if( ( filename.size() > 4 ) &&
+     ( filename.substr( filename.size() - 4 , 4 ) == ".txt" ) )
+  throw( std::invalid_argument( "almost_deserialize called with text file" )
+	 );
+ try {
+  int idx = 0;
+  std::string fn = f_prefix + filename;
+  if( fn.back() == ']' ) {
+   auto pos = fn.find_last_of( '[' );
+   if( pos != std::string::npos ) {
+    try {
+     idx = std::stoi( fn.substr( pos + 1 ) );
+     fn.erase( pos );
+     }
+    catch( ... ) { idx = 0; }
+    }
+   }
+  netCDF::NcFile f( fn.c_str() , netCDF::NcFile::read );
+  return( Block::almost_deserialize( f , idx , father ) );
+  }
+ catch( netCDF::exceptions::NcException & e ) {
+  std::cerr << "netCDF error " << e.what()
+	    << " in almost_deserialize( string )" << std::endl;
+  }
+ catch( std::exception & e ) {
+  std::cerr << "error " << e.what() << " in almost_deserialize( string )"
+	    << std::endl;
+  }
+ catch( ... ) {
+  std::cerr << "unknown error in almost_deserialize( string )" << std::endl;
+  }
+
+ return( std::pair( netCDF::NcGroup() , nullptr )  );
+
+ }  // end( Block::almost_deserialize( const std::string ) )
+
+/*--------------------------------------------------------------------------*/
+
+Block * Block::deserialize( const netCDF::NcFile & file , unsigned int idx ,
+                            Block * father ,
+                            std::function< void( Block * ) > * f )
 {
  try {
-  netCDF::NcGroupAtt gtype = f.getAtt( "SMS++_file_type" );
+  netCDF::NcGroupAtt gtype = file.getAtt( "SMS++_file_type" );
   if( gtype.isNull() )
    return( nullptr );
 
@@ -130,25 +170,26 @@ Block * Block::deserialize( const netCDF::NcFile & f , unsigned int idx ,
 
   netCDF::NcGroup bg;
   if( type == eProbFile ) {
-   netCDF::NcGroup dg = f.getGroup( "Prob_" + std::to_string( idx ) );
+   netCDF::NcGroup dg = file.getGroup( "Prob_" + std::to_string( idx ) );
    if( dg.isNull() )
     return( nullptr );
 
    bg = dg.getGroup( "Block" );
    }
   else
-   bg = f.getGroup( "Block_" + std::to_string( idx ) );
+   bg = file.getGroup( "Block_" + std::to_string( idx ) );
 
-  return( new_Block( bg , father ) );
+  return( new_Block( bg , father , f ) );
   }
  catch( netCDF::exceptions::NcException & e ) {
-  std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
+  std::cerr << "netCDF error " << e.what() << " in deserialize( file )"
+	    << std::endl;
   }
  catch( std::exception & e ) {
-  std::cerr << "error " << e.what() << " in deserialize" << std::endl;
+  std::cerr << "error " << e.what() << " in deserialize( file )" << std::endl;
   }
  catch( ... ) {
-  std::cerr << "unknown error in deserialize" << std::endl;
+  std::cerr << "unknown error in deserialize( file )" << std::endl;
   }
 
  return( nullptr );
@@ -157,7 +198,54 @@ Block * Block::deserialize( const netCDF::NcFile & f , unsigned int idx ,
 
 /*--------------------------------------------------------------------------*/
 
-Block * Block::new_Block( const netCDF::NcGroup & group , Block * father )
+std::pair< netCDF::NcGroup , Block * >
+Block::almost_deserialize( const netCDF::NcFile & f , unsigned int idx ,
+			   Block * father )
+{
+ try {
+  netCDF::NcGroupAtt gtype = f.getAtt( "SMS++_file_type" );
+  if( gtype.isNull() )
+   return( std::pair( netCDF::NcGroup() , nullptr )  );
+
+  int type;
+  gtype.getValues( & type );
+
+  if( ( type != eProbFile ) && ( type != eBlockFile ) )
+   return( std::pair( netCDF::NcGroup() , nullptr )  );
+
+  netCDF::NcGroup bg;
+  if( type == eProbFile ) {
+   netCDF::NcGroup dg = f.getGroup( "Prob_" + std::to_string( idx ) );
+   if( dg.isNull() )
+    return( std::pair( netCDF::NcGroup() , nullptr )  );
+
+   bg = dg.getGroup( "Block" );
+   }
+  else
+   bg = f.getGroup( "Block_" + std::to_string( idx ) );
+
+  return( almost_new_Block( bg , father ) );
+  }
+ catch( netCDF::exceptions::NcException & e ) {
+  std::cerr << "netCDF error " << e.what()
+	    << " in almost_deserialize( file )" << std::endl;
+  }
+ catch( std::exception & e ) {
+  std::cerr << "error " << e.what() << " in almost_deserialize( file )"
+	    << std::endl;
+  }
+ catch( ... ) {
+  std::cerr << "unknown error in almost_deserialize( file )" << std::endl;
+  }
+
+ return( std::pair( netCDF::NcGroup() , nullptr )  );
+
+ }  // end( Block::almost_deserialize( netCDF::NcFile ) )
+
+/*--------------------------------------------------------------------------*/
+
+Block * Block::new_Block( const netCDF::NcGroup & group , Block * father ,
+                          std::function< void( Block * ) > * f )
 {
  try {
   if( group.isNull() )
@@ -172,22 +260,25 @@ Block * Block::new_Block( const netCDF::NcGroup & group , Block * father )
 
    gfile.getValues( tmp );
 
-   return( deserialize( tmp , father ) );
+   return( deserialize( tmp , father , f ) );
    }
 
   gtype.getValues( tmp );
   auto result = new_Block( tmp , father );
+  if( f )
+   std::invoke( *f , result );
   result->deserialize( group );
   return( result );
   }
  catch( netCDF::exceptions::NcException & e ) {
-  std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
+  std::cerr << "netCDF error " << e.what() << " in new_Block( group )"
+	    << std::endl;
   }
  catch( std::exception & e ) {
-  std::cerr << "error " << e.what() << " in deserialize" << std::endl;
+  std::cerr << "error " << e.what() << " in new_Block( group )" << std::endl;
   }
  catch( ... ) {
-  std::cerr << "unknown error in deserialize" << std::endl;
+  std::cerr << "unknown error in new_Block( group )" << std::endl;
   }
 
  return( nullptr );
@@ -196,7 +287,48 @@ Block * Block::new_Block( const netCDF::NcGroup & group , Block * father )
 
 /*--------------------------------------------------------------------------*/
 
-Block * Block::deserialize( std::istream & input , Block * father )
+std::pair< netCDF::NcGroup , Block * >
+Block::almost_new_Block( const netCDF::NcGroup & group , Block * father )
+{
+ try {
+  if( group.isNull() )
+   return( std::pair( netCDF::NcGroup() , nullptr ) );
+
+  std::string tmp;
+  auto gtype = group.getAtt( "type" );
+  if( gtype.isNull() ) {
+   auto gfile = group.getAtt( "filename" );
+   if( gfile.isNull() )
+    return( std::pair( netCDF::NcGroup() , nullptr ) );
+
+   gfile.getValues( tmp );
+
+   return( almost_deserialize( tmp , father ) );
+   }
+
+  gtype.getValues( tmp );
+  return( std::pair( group , new_Block( tmp , father ) ) );
+  }
+ catch( netCDF::exceptions::NcException & e ) {
+  std::cerr << "netCDF error " << e.what() << " in almost_new_Block( group )"
+	    << std::endl;
+  }
+ catch( std::exception & e ) {
+  std::cerr << "error " << e.what() << " in almost_new_Block( group )"
+	    << std::endl;
+  }
+ catch( ... ) {
+  std::cerr << "unknown error in almost_new_Block( group )" << std::endl;
+  }
+
+ return( std::pair( netCDF::NcGroup() , nullptr ) );
+
+ }  // end( Block::almost_new_Block( netCDF::NcGroup ) )
+
+/*--------------------------------------------------------------------------*/
+
+Block * Block::deserialize( std::istream & input , Block * father ,
+                            std::function< void( Block * ) > * f )
 {
  input >> eatcomments;
  if( input.eof() )
@@ -224,7 +356,7 @@ Block * Block::deserialize( std::istream & input , Block * father )
   if( input.fail() )
     throw( std::invalid_argument( sre ) );
 
-  return( Block::deserialize( tmp , father ) );
+  return( Block::deserialize( tmp , father , f ) );
   }
  else {
   input >> tmp;
@@ -234,6 +366,9 @@ Block * Block::deserialize( std::istream & input , Block * father )
   auto block = Block::new_Block( tmp , father );
   // note: block surely is not nullptr, as new_Block() throws exception
   // on failure
+
+  if( f )
+   std::invoke( *f , block );
 
   char frmt = 0;
   input >> eatcomments;

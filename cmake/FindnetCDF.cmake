@@ -32,7 +32,6 @@
 #    hardcoded, and that doesn't work under macOS 11.0.                       #
 #    We use it in netCDF-C++ find module.                                     #
 #                                                                             #
-#                              Niccolo' Iardella                              #
 #                                Donato Meoli                                 #
 #                         Dipartimento di Informatica                         #
 #                             Universita' di Pisa                             #
@@ -40,48 +39,43 @@
 include(FindPackageHandleStandardArgs)
 
 # ----- Requirements -------------------------------------------------------- #
-find_package(HDF5 QUIET REQUIRED)
+find_package(HDF5 QUIET)
 
 # Check if already in cache
 if (netCDF_INCLUDE_DIR AND netCDF_LIBRARY AND netCDF_LIBRARY_DEBUG)
     set(netCDF_FOUND TRUE)
 else ()
 
-    # ----- Find the headers and library ------------------------------------ #
-    # Note that find_path() creates a cache entry
+    # ----- Find the headers ------------------------------------------------ #
     find_path(netCDF_INCLUDE_DIR
               NAMES netcdf.h
-              HINTS ${netCDF_ROOT}
+              PATHS ${netCDF_ROOT}
               DOC "netCDF include directory.")
 
-    find_library(netCDF_LIBRARY
-                 NAMES netcdf
-                 HINTS ${netCDF_ROOT}/lib
-                 DOC "netCDF library.")
-
+    # ----- Find the library ------------------------------------------------ #
     if (UNIX)
-        set(netCDF_LIBRARY_DEBUG ${netCDF_LIBRARY})
-    else ()
+        find_library(netCDF_LIBRARY
+                     NAMES netcdf
+                     PATHS ${netCDF_ROOT}/lib
+                     DOC "netCDF library.")
 
-        # ----- Macro: find_win_netcdf_library ------------------------------ #
-        # On Windows the version is appended to the library name which cannot be
-        # handled by find_library, so here a macro to search manually.
-        macro(find_win_netcdf_library var path_suffixes)
-            foreach (s ${path_suffixes})
-                file(GLOB netCDF_LIBRARY_CANDIDATES "${netCDF_ROOT}/${s}/netcdf.lib")
-                if (netCDF_LIBRARY_CANDIDATES)
-                    list(GET netCDF_LIBRARY_CANDIDATES 0 ${var})
-                    break()
-                endif ()
-            endforeach ()
-            if (NOT ${var})
-                set(${var} NOTFOUND)
-            endif ()
-        endmacro ()
+        set(netCDF_LIBRARY_DEBUG ${netCDF_LIBRARY}
+                CACHE FILEPATH "netCDF debug library." FORCE)
+    elseif (WIN32)
+        find_library(netCDF_LIBRARY
+                     NAMES netcdf
+                     PATHS ${netCDF_ROOT}/lib
+                           ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib
+                           $ENV{LIBRARY_LIB}
+                     NO_DEFAULT_PATH
+                     DOC "netCDF library.")
 
-        # Debug library
-        find_win_netcdf_library(netCDF_LIB_DEBUG "debug/lib")
-        set(netCDF_LIBRARY_DEBUG ${netCDF_LIB_DEBUG})
+        find_library(netCDF_LIBRARY_DEBUG
+                     NAMES netcdf
+                     PATHS ${netCDF_ROOT}/debug/lib
+                           ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/lib
+                     NO_DEFAULT_PATH
+                     DOC "netCDF debug library.")
     endif ()
 
     # ----- Parse the version ----------------------------------------------- #
@@ -109,23 +103,23 @@ else ()
     # https://cmake.org/cmake/help/latest/module/FindPackageHandleStandardArgs.html
     find_package_handle_standard_args(
             netCDF
-            REQUIRED_VARS netCDF_LIBRARY netCDF_LIBRARY_DEBUG netCDF_INCLUDE_DIR
+            REQUIRED_VARS netCDF_LIBRARY netCDF_INCLUDE_DIR
             VERSION_VAR netCDF_VERSION)
 endif ()
 
 # ----- Export the target --------------------------------------------------- #
 if (netCDF_FOUND)
-    set(netCDF_INCLUDE_DIRS "${netCDF_INCLUDE_DIR}")
-    set(netCDF_LIBRARIES "${netCDF_LIBRARY}")
+    set(netCDF_INCLUDE_DIRS ${netCDF_INCLUDE_DIR})
+    set(netCDF_LIBRARIES ${netCDF_LIBRARY})
 
     if (NOT TARGET netCDF::netcdf)
         add_library(netCDF::netcdf UNKNOWN IMPORTED)
         set_target_properties(
                 netCDF::netcdf PROPERTIES
-                IMPORTED_LOCATION "${netCDF_LIBRARY}"
-                IMPORTED_LOCATION_DEBUG "${netCDF_LIBRARY_DEBUG}"
-                INTERFACE_INCLUDE_DIRECTORIES "${netCDF_INCLUDE_DIRS}"
-                INTERFACE_LINK_LIBRARIES "${HDF5_LIBRARIES}")
+                IMPORTED_LOCATION ${netCDF_LIBRARY}
+                IMPORTED_LOCATION_DEBUG ${netCDF_LIBRARY_DEBUG}
+                INTERFACE_INCLUDE_DIRECTORIES ${netCDF_INCLUDE_DIRS}
+                INTERFACE_LINK_LIBRARIES ${HDF5_LIBRARIES})
     endif ()
 endif ()
 

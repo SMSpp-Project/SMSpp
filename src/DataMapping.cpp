@@ -97,14 +97,22 @@ SimpleDataMappingBase * SimpleDataMappingFactory::new_SimpleDataMapping(
  }
  else if( types.size() == 3 || ( types.size() == 4 && types[ 3 ] == 'B' ) ) {
   const auto t = types.substr( 0, 3 );
-       if( t == "RRD" ) return( new SimpleDataMapping< Range , Range , double > );
-  else if( t == "RRI" ) return( new SimpleDataMapping< Range , Range , int > );
-  else if( t == "RSD" ) return( new SimpleDataMapping< Range , Subset , double > );
-  else if( t == "RSI" ) return( new SimpleDataMapping< Range , Subset , int > );
-  else if( t == "SRD" ) return( new SimpleDataMapping< Subset , Range , double > );
-  else if( t == "SRI" ) return( new SimpleDataMapping< Subset , Range , int > );
-  else if( t == "SSD" ) return( new SimpleDataMapping< Subset , Subset , double > );
-  else if( t == "SSI" ) return( new SimpleDataMapping< Subset , Subset , int > );
+  if( t == "RRD" )
+   return( new SimpleDataMapping< Range , Range , double > );
+  else if( t == "RRI" )
+   return( new SimpleDataMapping< Range , Range , int > );
+  else if( t == "RSD" )
+   return( new SimpleDataMapping< Range , Subset , double > );
+  else if( t == "RSI" )
+   return( new SimpleDataMapping< Range , Subset , int > );
+  else if( t == "SRD" )
+   return( new SimpleDataMapping< Subset , Range , double > );
+  else if( t == "SRI" )
+   return( new SimpleDataMapping< Subset , Range , int > );
+  else if( t == "SSD" )
+   return( new SimpleDataMapping< Subset , Subset , double > );
+  else if( t == "SSI" )
+   return( new SimpleDataMapping< Subset , Subset , int > );
   else
    throw( std::invalid_argument( "new_SimpleDataMapping: invalid template "
                                  "parameter types string: " + types ) );
@@ -122,15 +130,13 @@ DataMapping * SimpleDataMappingFactory::deserialize(
  // DataType
 
  char data_type;
- if( ! ::SMSpp_di_unipi_it::deserialize( group , data_type , "DataType" ,
-                                         true ) )
+ if( ! ::deserialize( group , data_type , "DataType" , true ) )
   data_type = SimpleDataMappingBase::get_id< double >();
 
  // Caller type
 
  char caller_type;
- if( ! ::SMSpp_di_unipi_it::deserialize( group , caller_type , "Caller" ,
-                                         true ) )
+ if( ! ::deserialize( group , caller_type , "Caller" , true ) )
   caller_type = 'B';
 
  char set_from_type, set_to_type;
