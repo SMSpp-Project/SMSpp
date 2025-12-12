@@ -18,7 +18,7 @@
 cmake_minimum_required(VERSION 3.16)
 cmake_policy(VERSION 3.15)
 project(SMS++
-        VERSION 0.5.3
+        VERSION 0.6.0
         DESCRIPTION "SMS++ core library"
         HOMEPAGE_URL https://gitlab.com/smspp/smspp
         LANGUAGES C CXX)
