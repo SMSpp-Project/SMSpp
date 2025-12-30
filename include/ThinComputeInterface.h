@@ -554,7 +554,7 @@ class ThinComputeInterface
  * them can be changed in one blow using a ComputeConfig.
  * @{ */
 
- /// set a given integer (int) numerical parameter
+ /// set an integer (int) numerical parameter
  /** Set the integer (int) numerical parameter with index \p par, which must
   * be in the range [ 0 , get_num_int_par() ). The method is given a "void"
   * implementation doing nothing (i.e., ignoring \p value), rather than being
@@ -565,23 +565,25 @@ class ThinComputeInterface
  virtual void set_par( idx_type par , int value ) {}
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// set a specific integer (int) numerical parameter
+ /// set an integer (int) parameter identified by \p name
  /** Set the integer (int) numerical parameter with name \p name to the new
   * value \p value. The method uses int_par_str2idx() to retrieve the
   * parameter index and then calls set_par( idx_type , int ). Thus, the
   * method is not virtual as implementation of the base class does not need
-  * to be changed. */
+  * to be changed. Returns true if \p name encodes for a valid parameter
+  * name (and therefore the parameter has been set), and false otherwise
+  * (and therefore no parameter has been set). */
 
- void set_par( const std::string & name , int value ) {
+ [[nodiscard]] bool set_par( const std::string & name , int value ) {
   auto par = int_par_str2idx( name );
   if( par == Inf< idx_type >() )
-   throw( std::invalid_argument( "set_par( int ): " + name +
-				 " not a valid parameter name" ) );
-  return( set_par( par , value ) );
+   return( false );
+  set_par( par , value );
+  return( true );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// set a given float (double) numerical parameter
+ /// set a float (double) parameter
  /** Set the float (double) numerical parameter with index \p par, which must
   * be in the range [ 0 , get_num_dbl_par() ). The method is given a "void"
   * implementation doing nothing (i.e., ignoring \p value), rather than being
@@ -592,23 +594,25 @@ class ThinComputeInterface
  virtual void set_par( idx_type par , double value ) {}
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// set a specific float (double) numerical parameter
+ /// set a float (double) parameter identified by \p name
  /** Set the float (double) numerical parameter with name \p name to the new
   * value \p value. The method uses dbl_par_str2idx() to retrieve the
   * parameter index and then calls set_par( idx_type , double ). Thus, the
   * method is not virtual as implementation of the base class does not need
-  * to be changed. */
+  * to be changed. Returns true if \p name encodes for a valid parameter
+  * name (and therefore the parameter has been set), and false otherwise
+  * (and therefore no parameter has been set). */
 
- void set_par( const std::string & name , double value ) {
+ [[nodiscard]] bool set_par( const std::string & name , double value ) {
   auto par = dbl_par_str2idx( name );
   if( par == Inf< idx_type >() )
-   throw( std::invalid_argument( "set_par( double ): " + name +
-				 "not a valid parameter name" ) );
-  return( set_par( par , value ) );
+   return( false );
+  set_par( par , value );
+  return( true );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// move a given string parameter
+ /// move a string parameter
  /** Set the string parameter with index \p par, which must be in the range
   * [ 0 , get_num_str_par() ). The method takes an lvalue reference, which
   * means that \p value can be moved into the ThinComputeInterface. The method
@@ -616,29 +620,34 @@ class ThinComputeInterface
   * rather than being pure virtual, so that derived classes not having any
   * working string parameter (i.e., either not having any or not really
   * reacting to the ones that they supposedly have) do not have to bother
-  * with implementing it. */
+  * with implementing it. Returns true if \p name encodes for a valid
+  * parameter name (and therefore the parameter has been set), and false
+  * otherwise (and therefore no parameter has been set). */
 
  virtual void set_par( idx_type par , std::string && value ) {}
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// move a given string parameter
+ /// move a string parameter identified by \p name
  /** Set the string parameter with name \p name. The method takes an lvalue
   * reference, which means that \p value can be moved into the
   * ThinComputeInterface. The method uses str_par_str2idx() to retrieve the
   * parameter index and then calls set_par( idx_type , std::string && ).
   * Thus, the method is not virtual as implementation of the base class
-  * does not need to be changed. */
+  * does not need to be changed. Returns true if \p name encodes for a valid
+  * parameter name (and therefore the parameter has been set), and false
+  * otherwise (and therefore no parameter has been set). */
 
- void set_par( const std::string & name , std::string && value ) {
+ [[nodiscard]] bool set_par( const std::string & name ,
+			     std::string && value ) {
   auto par = str_par_str2idx( name );
   if( par == Inf< idx_type >() )
-   throw( std::invalid_argument( "set_par( std::string ): " + name +
-				 "not a valid parameter name" ) );
-  return( set_par( par , value ) );
+   return( false );
+  set_par( par , value );
+  return( true );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// set a given string parameter
+ /// set a string parameter identified by \p name
  /** Like set_par( idx_type , std::string && ), but taking a const reference.
   * The method is given a default implementation that calls the "move"
   * version with a copy of \p value, and this might not need to be ever
@@ -649,18 +658,21 @@ class ThinComputeInterface
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// set a given string parameter
+ /// set a string parameter identified by \p name
  /** Like set_par( name , std::string && ), but taking a const reference.
   * The method is given a default implementation that calls the "move"
   * version with a copy of \p value, and this should not need to be ever
-  * re-implemented by derived classes. */
+  * re-implemented by derived classes. Returns true if \p name encodes for
+  * a valid parameter name (and therefore the parameter has been set), and
+  * false otherwise (and therefore no parameter has been set). */
 
- void set_par( const std::string & name , const std::string & value ) {
-  set_par( name , std::move( std::string( value ) ) );
+ [[nodiscard]] bool set_par( const std::string & name ,
+			     const std::string & value ) {
+  return( set_par( name , std::move( std::string( value ) ) ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// move a given vector-of-integer (std::vector< int >) numerical parameter
+ /// move a vector-of-integer (std::vector< int >) parameter
  /** Set the vector-of-integer (std::vector< int >) numerical parameter with
   * index \p par, which must be in the range [ 0 , get_num_vint_par() ). The
   * method takes an lvalue reference, which means that \p value can be moved
@@ -674,25 +686,28 @@ class ThinComputeInterface
  virtual void set_par( idx_type par , std::vector< int > && value ) {}
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// move a given vector-of-integer (std::vector< int >) numerical parameter
+ /// move a std::vector< int > parameter identified by \p name
  /** Set the vector-of-integer (std::vector< int >) numerical parameter with
   * name \p name. The method takes an lvalue reference, which means that
   * \p value can be moved into the ThinComputeInterface. The method uses
   * vint_par_str2idx() to retrieve the parameter index and then calls
   * set_par( idx_type , std::vector< int > && ). Thus, the method is not
   * virtual as implementation of the base class does not need to be changed.
-  */
+  * Returns true if \p name encodes for a valid parameter name (and
+  * therefore the parameter has been set), and false otherwise (and
+  * therefore no parameter has been set). */
 
- void set_par( const std::string & name , std::vector< int > && value ) {
+ [[nodiscard]] bool set_par( const std::string & name ,
+			     std::vector< int > && value ) {
   auto par = vint_par_str2idx( name );
   if( par == Inf< idx_type >() )
-   throw( std::invalid_argument( "set_par( std::vector< int > ): " + name +
-				 "not a valid parameter name" ) );
-  return( set_par( par , value ) );
+   return( false );
+  set_par( par , value );
+  return( true );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// set a given vector-of-integer (std::vector< int >) numerical parameter
+ /// set a std::vector< int > parameter
  /** Like set_par( idx_type , std::vector< int > && ), but taking a const
   * reference. The method is given a default implementation that calls the
   * "move" version with a copy of \p value, and this should not need to be
@@ -703,19 +718,21 @@ class ThinComputeInterface
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// set a given vector-of-integer (std::vector< int >) numerical parameter
+ /// set a std::vector< int > parameter identified by \p name
  /** Like set_par( name , std::vector< int > && ), but taking a const
   * reference. The method is given a default implementation that calls the
   * "move" version with a copy of \p value, and this should not need to be
-  * ever re-implemented by derived classes. */
+  * ever re-implemented by derived classes. Returns true if \p name encodes
+  * for a valid parameter name (and therefore the parameter has been set),
+  * and false otherwise (and therefore no parameter has been set). */
 
- void set_par( const std::string & name ,
-	       const std::vector< int > & value ) {
-  set_par( name , std::move( std::vector< int >( value ) ) );
+ [[nodiscard]] bool set_par( const std::string & name ,
+			     const std::vector< int > & value ) {
+  return( set_par( name , std::move( std::vector< int >( value ) ) ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// move a given vector-of-float (std::vector< double >) numerical parameter
+ /// move a vector-of-float (std::vector< double >) parameter
  /** Set the vector-of-float (std::vector< double >) numerical parameter with
   * index \p par, which must be in the range [ 0 , get_num_vdbl_par() ). The
   * method takes an lvalue reference, which means that \p value can be moved
@@ -729,25 +746,28 @@ class ThinComputeInterface
  virtual void set_par( idx_type par , std::vector< double > && value ) {}
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// move a given vector-of-float (std::vector< double >) numerical parameter
+ /// move a std::vector< double > parameter identified by \p name
  /** Set the vector-of-float (std::vector< souble >) numerical parameter with
   * name \p name. The method takes an lvalue reference, which means that
   * \p value can be moved into the ThinComputeInterface. The method uses
   * vdbl_par_str2idx() to retrieve the parameter index and then calls
   * set_par( idx_type , std::vector< double > && ). Thus, the method is not
   * virtual as implementation of the base class does not need to be changed.
-  */
+  * Returns true if \p name encodes for a valid parameter name (and
+  * therefore the parameter has been set), and false otherwise (and
+  * therefore no parameter has been set). */
 
- void set_par( const std::string & name , std::vector< double > && value ) {
+ [[nodiscard]] bool set_par( const std::string & name ,
+			     std::vector< double > && value ) {
   auto par = vdbl_par_str2idx( name );
   if( par == Inf< idx_type >() )
-   throw( std::invalid_argument( "set_par( std::vector< double > ): " + name +
-				 "not a valid parameter name" ) );
-  return( set_par( par , value ) );
+   return( false );
+  set_par( par , value );
+  return( true );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// set a given vector-of-float (std::vector< double >) numerical parameter
+ /// set a std::vector< double > parameter
  /** Like set_par( idx_type , std::vector< double > && ), but taking a const
   * reference. The method is given a default implementation that calls the
   * "move" version with a copy of \p value, and this should not need to be
@@ -758,19 +778,21 @@ class ThinComputeInterface
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// set a given vector-of-integer (std::vector< double >) numerical parameter
+ /// set a std::vector< double > parameter identified by \p name
  /** Like set_par( name , std::vector< double > && ), but taking a const
   * reference. The method is given a default implementation that calls the
   * "move" version with a copy of \p value, and this shuould not need to be
-  * ever re-implemented by derived classes. */
+  * ever re-implemented by derived classes. Returns true if \p name encodes
+  * for a valid parameter name (and therefore the parameter has been set),
+  * and false otherwise (and therefore no parameter has been set). */
 
- void set_par( const std::string & name ,
-	       const std::vector< double > & value ) {
-  set_par( name , std::move( std::vector< double >( value ) ) );
+ [[nodiscard]] bool set_par( const std::string & name ,
+			     const std::vector< double > & value ) {
+  return( set_par( name , std::move( std::vector< double >( value ) ) ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// move a given vector-of-string (std::vector< std::string >) parameter
+ /// move a vector-of-string (std::vector< std::string >) parameter
  /** Set the vector-of-string (std::vector< std::string >) parameter with
   * index \p par, which must be in the range [ 0 , get_num_vstr_par() ). The
   * method takes an lvalue reference, which means that \p value can be moved
@@ -784,26 +806,28 @@ class ThinComputeInterface
  virtual void set_par( idx_type par , std::vector< std::string > && value ) {}
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// move a given vector-of-string (std::vector< std::string >) parameter
+ /// move a std::vector< std::string > parameter identified by \p name
  /** Set the  vector-of-string (std::vector< std::string >) parameter with
   * name \p name. The method takes an lvalue reference, which means that
   * \p value can be moved into the ThinComputeInterface. The method uses
   * vstr_par_str2idx() to retrieve the parameter index and then calls
   * set_par( idx_type , std::vector< double > && ). Thus, the method is not
   * virtual as implementation of the base class does not need to be changed.
-  */
+  * Returns true if \p name encodes for a valid parameter name (and
+  * therefore the parameter has been set), and false otherwise (and
+  * therefore no parameter has been set). */ 
 
- void set_par( const std::string & name ,
-	       std::vector< std::string > && value ) {
+ [[nodiscard]] bool set_par( const std::string & name ,
+			     std::vector< std::string > && value ) {
   auto par = vstr_par_str2idx( name );
   if( par == Inf< idx_type >() )
-   throw( std::invalid_argument( "set_par( std::vector< string > ): " + name
-				 + "not a valid parameter name" ) );
-  return( set_par( par , value ) );
+   return( false );
+  set_par( par , value );
+  return( true );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// set a given vector-of-string (std::vector< std::string >) parameter
+ /// set std::vector< std::string > parameter
  /** Like set_par( idx_type , std::vector< std::string > && ), but taking a
   * const reference. The method is given a default implementation that calls
   * the "move" version with a copy of \p value, and this should not need to
@@ -814,15 +838,18 @@ class ThinComputeInterface
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// set a given vector-of-string (std::vector< std::string >) parameter
+ /// set a std::vector< std::string > parameter identified by \p name
  /** Like set_par( name , std::vector< std::string > && ), but taking a
   * const reference. The method is given a default implementation that calls
   * the "move" version with a copy of \p value, and this should not need to
-  * be ever re-implemented by derived classes. */
+  * be ever re-implemented by derived classes. Returns true if \p name
+  * encodes for a valid parameter name (and therefore the parameter has been
+  * set), and false otherwise (and therefore no parameter has been set). */
 
- void set_par( const std::string & name ,
-	       const std::vector< std::string > & value ) {
-  set_par( name , std::move( std::vector< std::string >( value ) ) );
+ [[nodiscard]] bool set_par( const std::string & name ,
+			     const std::vector< std::string > & value ) {
+  return( set_par( name , std::move( std::vector< std::string >( value ) ) )
+	  );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -832,10 +859,11 @@ class ThinComputeInterface
   *
   * Although the class is thin, this method is given a working implementation
   * using the class interface; hence, derived classes correctly implementing
-  * set_par() (all the required versions), get_num_*_par(), get_dflt_*_par()
-  * and *_par_str2idx() can in principle avoid to re-implement it.
+  * (all the required versions of) set_par( std::string , * ) (and therefore
+  * *_par_str2idx() that is needed to implement them), get_num_*_par(), ans
+  * get_dflt_*_par() can avoid to re-implement it.
   *
-  * Note that the ComputeConfig in principle only contains a subset of the
+  * Note that the ComputeConfig in general only contains a subset of the
   * possible parameters. The way in which the ComputeConfig must be
   * "interpreted" depends on the f_diff field in there: if f_diff == true,
   * then all the other parameters are left unchanged, while if f_diff == false
@@ -870,9 +898,21 @@ class ThinComputeInterface
   * the ComputeConfig is "free" and can be freely deleted. Additionally,
   * \p scfg is const and therefore it cannot be changed by the
   * :ThinComputeInterface, allowing the caller to do what it pleases with
-  * it after the call. */
+  * it after the call.
+  *
+  * The implementation calls the set_par( name , * ) methods, which return
+  * true if name is a correct parameter name and false otherwise. If
+  * \p strict is true (default), upon any return of false the method throws
+  * exception lamenting that the paameter name is incorrect. If \p strict is
+  * false instead, the issue is ignored and the method continues to setting
+  * the next parameter(s) without any warning. This is consistent with
+  * set_par( index , * ) gracefully ignoring the fact that a parameter is
+  * not managed by a specific :ThinComputeInterface, and allows to use a
+  * single ComputeConfig to Config-ure heterogeneous :ThinComputeInterface
+  * that may not all support exactly the same set of parameters. */
 
- virtual void set_ComputeConfig( const ComputeConfig * scfg = nullptr );
+ virtual void set_ComputeConfig( const ComputeConfig * scfg = nullptr ,
+				 bool strict = true );
 
 /** @} ---------------------------------------------------------------------*/
 /*----------------- METHODS FOR MANAGING THE "IDENTITY" --------------------*/

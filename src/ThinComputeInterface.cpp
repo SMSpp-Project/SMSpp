@@ -65,7 +65,8 @@ SMSpp_insert_in_factory_cpp_0( ComputeConfig );
 /*--------------------- METHODS of ThinComputeInterface --------------------*/
 /*--------------------------------------------------------------------------*/
 
-void ThinComputeInterface::set_ComputeConfig( const ComputeConfig * scfg )
+void ThinComputeInterface::set_ComputeConfig( const ComputeConfig * scfg ,
+					      bool strict )
 {
  if( ( ! scfg ) || ( ! scfg->f_diff ) ) {  // "factory reset"
   for( int i = 0 ; i < get_num_int_par() ; ++i )
@@ -91,22 +92,34 @@ void ThinComputeInterface::set_ComputeConfig( const ComputeConfig * scfg )
   return;      // all done
 
  for( const auto & pair : scfg->int_pars )
-  set_par( pair.first , pair.second );
+  if( ( ! set_par( pair.first , pair.second ) ) && strict )
+   throw( std::invalid_argument( "Invalid int parameter name " +
+				 pair.first ) );
 
  for( const auto & pair : scfg->dbl_pars )
-  set_par( pair.first , pair.second );
+  if( ( ! set_par( pair.first , pair.second ) ) && strict )
+   throw( std::invalid_argument( "Invalid double parameter name " +
+				 pair.first ) );
 
  for( const auto & pair : scfg->str_pars )
-  set_par( pair.first , pair.second );
+  if( ( ! set_par( pair.first , pair.second ) ) && strict )
+   throw( std::invalid_argument( "Invalid string parameter name " +
+				 pair.first ) );
 
  for( const auto & pair : scfg->vint_pars )
-  set_par( pair.first , pair.second );
+  if( ( ! set_par( pair.first , pair.second ) ) && strict )
+   throw( std::invalid_argument( "Invalid vector-of-int parameter name " +
+				 pair.first ) );
 
  for( const auto & pair : scfg->vdbl_pars )
-  set_par( pair.first , pair.second );
+  if( ( ! set_par( pair.first , pair.second ) ) && strict )
+   throw( std::invalid_argument( "Invalid vector-of-double parameter name "
+				 + pair.first ) );
 
  for( const auto & pair : scfg->vstr_pars )
-  set_par( pair.first , pair.second );
+  if( ( ! set_par( pair.first , pair.second ) ) && strict )
+  throw( std::invalid_argument( "Invalid vector-of-string parameter name "
+				+ pair.first ) );
 
  }  // end( ThinComputeInterface::set_ComputeConfig )
 

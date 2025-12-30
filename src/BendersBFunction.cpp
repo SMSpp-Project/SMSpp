@@ -1415,9 +1415,10 @@ void BendersBFunction::set_default_inner_Block_BlockSolverConfig() {
 
 /*--------------------------------------------------------------------------*/
 
-void BendersBFunction::set_ComputeConfig( const ComputeConfig * scfg )
+void BendersBFunction::set_ComputeConfig( const ComputeConfig * scfg ,
+					  bool strict )
 {
- ThinComputeInterface::set_ComputeConfig( scfg );
+ ThinComputeInterface::set_ComputeConfig( scfg , strict );
 
  auto inner_block = get_inner_block();
 
@@ -1472,7 +1473,7 @@ void BendersBFunction::set_ComputeConfig( const ComputeConfig * scfg )
    }
    else if( auto bsc = dynamic_cast< BlockSolverConfig * >( config ) )
     // A BlockSolverConfig for the inner Block has been provided. Apply it.
-    bsc->apply( inner_block );
+    bsc->apply( inner_block , strict );
    else
     // An invalid Configuration has been provided.
     throw( std::invalid_argument
