@@ -1731,8 +1731,7 @@ class BendersBFunction : public C05Function , public Block {
   *
   * @param scfg a pointer to a ComputeConfig. */
 
- void set_ComputeConfig( const ComputeConfig *scfg = nullptr  ,
-			 bool strict = true ) override;
+ void set_ComputeConfig( const ComputeConfig *scfg = nullptr ) override;
 
 /** @} ---------------------------------------------------------------------*/
 /*-------------------- Methods for handling Modification -------------------*/

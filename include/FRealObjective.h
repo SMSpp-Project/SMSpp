@@ -241,10 +241,9 @@ class FRealObjective : public RealObjective , public Observer {
 
 /*--------------------------------------------------------------------------*/
 
- void set_ComputeConfig( const ComputeConfig * scfg = nullptr ,
-			 bool strict = true ) override {
+ void set_ComputeConfig( const ComputeConfig * scfg = nullptr ) override {
   if( f_function )
-   f_function->set_ComputeConfig( scfg , strict );
+   f_function->set_ComputeConfig( scfg );
   }
 
 /** @} ---------------------------------------------------------------------*/

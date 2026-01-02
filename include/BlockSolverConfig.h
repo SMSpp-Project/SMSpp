@@ -469,12 +469,11 @@ class BlockSolverConfig : public Configuration {
   * with precisely the given SolverConfig.
   *
   * This method uses ThinComputeInterface::set_ComputeConfig() to Config-ure
-  * the Solver (be them old or new); by default, if any of the parameter
-  * names in there is not among these that the given :Solver recognises an
-  * exception is thrown. The parameter \p strict is passed to
-  * ThinComputeInterface::set_ComputeConfig(), so that setting it to false
-  * rather makes the method ignore any non-recognised parameter name and
-  * keep on going without any warning.
+  * the Solver (be them old or new); if the field f_relax in the used
+  * ComputeConfig is false and any of the parameter names in there is not
+  * among these that the given :Solver recognises, an exception is thrown.
+  * If, rather, f_relax is true the method ignores any non-recognised
+  * parameter name and keep on going without any warning.
   *
   * Important note: the moment when the Block is passed to the Solver, the
   * Solver should in principle do all the necessary initializations, since
@@ -508,7 +507,7 @@ class BlockSolverConfig : public Configuration {
   *
   * @param block A pointer to the Block that must be configured. */
 
- virtual void apply( Block * block , bool strict = true ) const;
+ virtual void apply( Block * block ) const;
 
 /*--------------------------------------------------------------------------*/
  /// delete all the ComputeConfig and empty the names of the Solver
@@ -1073,7 +1072,7 @@ class RBlockSolverConfig : public BlockSolverConfig {
   *
   * @param block A pointer to the Block that must be configured. */
 
- void apply( Block * block , bool strict = true ) const override;
+ void apply( Block * block ) const override;
 
 /*--------------------------------------------------------------------------*/
  /// clear this RBlockSolverConfig

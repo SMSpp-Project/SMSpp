@@ -901,18 +901,18 @@ class ThinComputeInterface
   * it after the call.
   *
   * The implementation calls the set_par( name , * ) methods, which return
-  * true if name is a correct parameter name and false otherwise. If
-  * \p strict is true (default), upon any return of false the method throws
-  * exception lamenting that the paameter name is incorrect. If \p strict is
-  * false instead, the issue is ignored and the method continues to setting
-  * the next parameter(s) without any warning. This is consistent with
-  * set_par( index , * ) gracefully ignoring the fact that a parameter is
-  * not managed by a specific :ThinComputeInterface, and allows to use a
-  * single ComputeConfig to Config-ure heterogeneous :ThinComputeInterface
-  * that may not all support exactly the same set of parameters. */
+  * true if name is a correct parameter name and false otherwise. If the
+  * field f_relax in \p scfg is false, upon any return of false the method
+  * throws exception lamenting that the paameter name is incorrect. If
+  * the field f_relax in \p scfg is true instead, the issue is ignored and
+  * the method continues to setting the next parameter(s) without any
+  * warning. This is consistent with set_par( index , * ) gracefully
+  * ignoring the fact that a parameter is not managed by a specific
+  * :ThinComputeInterface, and allows to use a single ComputeConfig to
+  * Config-ure heterogeneous :ThinComputeInterface that may not all support
+  * exactly the same set of parameters. */
 
- virtual void set_ComputeConfig( const ComputeConfig * scfg = nullptr ,
-				 bool strict = true );
+ virtual void set_ComputeConfig( const ComputeConfig * scfg = nullptr );
 
 /** @} ---------------------------------------------------------------------*/
 /*----------------- METHODS FOR MANAGING THE "IDENTITY" --------------------*/
@@ -1394,7 +1394,7 @@ class ThinComputeInterface
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// get the number of vector-of-string (std::vector< std::string >) parameters
+ /// get the number of std::vector< std::string > parameters
  /** Get the number of vector-of-string (std::vector< std::string >)
   *  parameters. The method is given an implementation (returning 0), rather
   * than being pure virtual, so that derived classes not having any
@@ -1588,7 +1588,7 @@ class ThinComputeInterface
   get_vint_par( idx_type par ) const { return( get_dflt_vint_par( par ) ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// get a specific vector-of-integer (std::vector< int >) numerical parameter
+ /// get a specific vector-of-integer (std::vector< int >) parameter
  /**  Returns a const reference to the current value of the vector-of-integer
   * (std::vector< int >) numerical parameter with name \p name. The method
   * uses vint_par_str2idx() to retrieve the parameter index and then calls
@@ -1605,7 +1605,7 @@ class ThinComputeInterface
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// get a specific vector-of-float (std::vector< double >) numerical parameter
+ /// get a specific vector-of-float (std::vector< double >) parameter
  /** Returns a const reference to the current value of the vector-of-float
   * (std::vector< double >) numerical parameter with index \p par, which must
   * be in the range [ 0 , get_num_vdbl_par() ). The method is given a "void"
@@ -1619,7 +1619,7 @@ class ThinComputeInterface
   get_vdbl_par( idx_type par ) const { return( get_dflt_vdbl_par( par ) ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// get a specific vector-of-float (std::vector< double >) numerical parameter
+ /// get a specific vector-of-float (std::vector< double >) parameter
  /** Returns a const reference to the current value of the vector-of-float
   * (std::vector< double >) numerical parameter with name \p name. The method
   * uses vdbl_par_str2idx() to retrieve the parameter index and then calls
@@ -2025,7 +2025,8 @@ class ThinComputeInterface
   * \p replace == true (the default) any existing content of the file is
   * overwritten and the State is saved as *the first one* in the newly
   * created file, while if  \p replace == false the file is opened for
-  * appending and the State is saved after the last one currently present (if any).
+  * appending and the State is saved after the last one currently present
+  * (if any).
   *
   * This method is in principle not strictly necessary, since it is
   * semantically equivalent to
@@ -2100,8 +2101,7 @@ class ThinComputeInterface
   * serialize_State( netCDF::NcGroup , std::string ) for details. If
   * anything goes wrong with any step of the process, exception is thrown. */
 
- void serialize_State( netCDF::NcFile & f ) const
- {
+ void serialize_State( netCDF::NcFile & f ) const {
   serialize_State( f , std::string( "State_" ) +
 		       std::to_string( f.getGroupCount() ) );
   }
@@ -2161,7 +2161,7 @@ class ThinComputeInterface
 
 /*--------------------------------------------------------------------------*/
 
-};   // end( class ThinComputeInterface )
+ };   // end( class ThinComputeInterface )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- CLASS ComputeConfig --------------------------*/
@@ -2207,8 +2207,8 @@ class ThinComputeInterface
  * Configuration field may be enough to cover many use cases without a 
  * specific :ComputeConfig class definition. */
 
-class ComputeConfig : public Configuration {
-
+class ComputeConfig : public Configuration
+{
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
  public:
@@ -2216,7 +2216,7 @@ class ComputeConfig : public Configuration {
 /*---------------------------- CONSTRUCTORS --------------------------------*/
  /// constructor: initializes everything to "default configuration"
 
- ComputeConfig( void ) : Configuration() , f_diff( true ) ,
+ ComputeConfig( void ) : Configuration() , f_diff( true ) , f_relax( false ) ,
                          f_extra_Configuration( nullptr ) {}
 
 /*--------------------------------------------------------------------------*/
@@ -2224,6 +2224,7 @@ class ComputeConfig : public Configuration {
 
  ComputeConfig( const ComputeConfig & old ) : Configuration() {
   f_diff = old.f_diff;
+  f_relax = old.f_relax;
   int_pars = old.int_pars;
   dbl_pars = old.dbl_pars;
   str_pars = old.str_pars;
@@ -2239,6 +2240,7 @@ class ComputeConfig : public Configuration {
 
  ComputeConfig( ComputeConfig && old ) : Configuration() {
   f_diff = old.f_diff;
+  f_relax = old.f_relax;
   int_pars = std::move( old.int_pars );
   dbl_pars = std::move( old.dbl_pars );
   str_pars = std::move( old.str_pars );
@@ -2267,11 +2269,19 @@ class ComputeConfig : public Configuration {
   * format of a ComputeConfig. Besides the mandatory "type" attribute of
   * any :Configuration, the group should contain the following:
   *
-  * - the optional attribute "diff" of int type containing the value for the
-  *   f_diff field of the ComputeConfig (basically, a bool telling if the
-  *   information in it has to be taken as "the configuration to be set" or
-  *   as "the changes to be made from the current configuration"); if the
-  *   attribute is not there, f_diff == false is assumed.
+  * - the optional attribute "diff" of int type containing the values for the
+  *   f_diff and f_relax fields of the ComputeConfig, encoded bit-wise:
+  *
+  *   = bit 0 (+1) for f_diff, telling if the information in the
+  *     ComputeConfig has to be taken as "the configuration to be set" or
+  *     as "the changes to be made from the current configuration"); if the
+  *     attribute is not there, f_diff == false is assumed.
+  *
+  *   = bit 1 (+2) for f_relax, telling if the ComputeConfig is allowed to
+  *     contain names of parameters that are not recognised by the
+  *     :ThinComputeInterface is will be set_*() to; if false, trying to
+  *     set an unrecognised parameter should raise an exception; if the
+  *     attribute is not there, f_diff == false is assumed.
   *
   * - three alike groups of dimensions and variables, one for each type
   *   of scalar parameter TYP in { "int" , "dbl" , "str" }:
@@ -2370,6 +2380,7 @@ class ComputeConfig : public Configuration {
   vstr_pars.clear();
 
   f_diff = false;
+  f_relax = false;
 
   if( f_extra_Configuration )
    f_extra_Configuration->clear();
@@ -2628,7 +2639,9 @@ class ComputeConfig : public Configuration {
 
 /*--------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
 
- bool f_diff;  ///< tells is the configuration is a "differential" one
+ bool f_diff;   ///< tells is the configuration is a "differential" one
+
+ bool f_relax;  ///< true if setting an unknown parameter should be ignored
 
  /// list of pairs < string , int > for integer-valued parameters
  std::vector< std::pair< std::string, int > > int_pars;
@@ -2665,7 +2678,18 @@ class ComputeConfig : public Configuration {
  /// load this ComputeConfig out of an istream
  /** Load this ComputeConfig out of an istream. The format of the istream is:
   *
-  * a bool
+  * an int encoding bit-wise for the f_diff and f_relax fields:
+  *
+  *   = bit 0 (+1) for f_diff, telling if the information in the
+  *     ComputeConfig has to be taken as "the configuration to be set" or
+  *     as "the changes to be made from the current configuration"); if the
+  *     attribute is not there, f_diff == false is assumed.
+  *
+  *   = bit 1 (+2) for f_relax, telling if the ComputeConfig is allowed to
+  *     contain names of parameters that are not recognised by the
+  *     :ThinComputeInterface is will be set_*() to; if false, trying to
+  *     set an unrecognised parameter should raise an exception; if the
+  *     attribute is not there, f_diff == false is assumed.
   *
   * number k of the names of int parameters
   *

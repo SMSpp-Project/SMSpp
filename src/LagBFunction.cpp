@@ -368,8 +368,7 @@ void LagBFunction::set_dual_pairs( v_dual_pair && dp )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::set_ComputeConfig( const ComputeConfig * scfg ,
-				      bool strict )
+void LagBFunction::set_ComputeConfig( const ComputeConfig * scfg )
 {
  auto inner_block = get_inner_block();
  if( ! inner_block )
@@ -420,7 +419,7 @@ void LagBFunction::set_ComputeConfig( const ComputeConfig * scfg ,
      delete f_BSC;                     // delete the old one
      }
 
-    BSC->apply( inner_block , strict );  // apply the new BlockSolverConfig
+    BSC->apply( inner_block );         // apply the new BlockSolverConfig
     f_BSC = BSC->clone();                // keep a copy of the new one
     f_BSC->clear();                      // but clear it
     }
@@ -445,7 +444,7 @@ void LagBFunction::set_ComputeConfig( const ComputeConfig * scfg ,
    set_par( intInnrSlvr , pair.second );
 
  // now do all the rest
- ThinComputeInterface::set_ComputeConfig( scfg , strict );
+ ThinComputeInterface::set_ComputeConfig( scfg );
 
  }  // end( LagBFunction::set_ComputeConfig )
 

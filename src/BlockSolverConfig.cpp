@@ -270,7 +270,7 @@ void BlockSolverConfig::get( const Block * block , bool clear )
 /*---------- METHODS DESCRIBING THE BEHAVIOR OF BlockSolverConfig ----------*/
 /*--------------------------------------------------------------------------*/
 
-void BlockSolverConfig::apply( Block * block , bool strict ) const
+void BlockSolverConfig::apply( Block * block ) const
 {
  if( ! block )
   return;
@@ -306,13 +306,13 @@ void BlockSolverConfig::apply( Block * block , bool strict ) const
     // force this to be true by setting f_diff == false in the ComputeConfig
 
     if( *cit )                         // if the ComputeConfig is there
-     slvr->set_ComputeConfig( *cit , strict );  // ComputeConfig-ure it
+     slvr->set_ComputeConfig( *cit );  // ComputeConfig-ure it
     }
    else {                // a new and different Solver (name) is specified
     slvr = Solver::new_Solver( *nit );
 
     if( *cit )                             // if the ComputeConfig is there
-     slvr->set_ComputeConfig( *cit , strict );      // ComputeConfig-ure it
+     slvr->set_ComputeConfig( *cit );      // ComputeConfig-ure it
 
     block->replace_Solver( slvr , sit , true );  // replace the existing one
     }
@@ -336,7 +336,7 @@ void BlockSolverConfig::apply( Block * block , bool strict ) const
    auto slvr = Solver::new_Solver( *nit );  // first create a new Solver
 
    if( *cit )                                // if the ComputeConfig is there
-    slvr->set_ComputeConfig( *cit , strict );         // ComputeConfig-ure it
+    slvr->set_ComputeConfig( *cit );         // ComputeConfig-ure it
 
    // only then replace the existing one
    block->replace_Solver( slvr, sit, true );
@@ -352,7 +352,7 @@ void BlockSolverConfig::apply( Block * block , bool strict ) const
   auto slvr = Solver::new_Solver( *nit );  // first create the Solver
 
   if( *cit )                               // if the ComputeConfig is there
-   slvr->set_ComputeConfig( *cit , strict );        // ComputeConfig-ure it
+   slvr->set_ComputeConfig( *cit );        // ComputeConfig-ure it
 
   block->register_Solver( slvr );          // only then pass it to the Block
   }
@@ -613,14 +613,14 @@ void RBlockSolverConfig::get( const Block * block , bool clear )
 /*-------- METHODS DESCRIBING THE BEHAVIOR OF THE RBlockSolverConfig -------*/
 /*--------------------------------------------------------------------------*/
 
-void RBlockSolverConfig::apply( Block * block  , bool strict ) const
+void RBlockSolverConfig::apply( Block * block ) const
 {
  if( ! block )
   return;
 
  // set the configurations for the Solver of the "root" Block - - - - - - - -
 
- BlockSolverConfig::apply( block , strict );
+ BlockSolverConfig::apply( block );
 
  // set the configurations for the sub-Block- - - - - - - - - - - - - - - - -
  // note: the following code is inefficient when block ids are numbers, in
@@ -655,7 +655,7 @@ void RBlockSolverConfig::apply( Block * block  , bool strict ) const
 				 " neither a sub-Block name nor a valid index"
 				 ) );
   if( *it )
-   ( *it )->apply( sub_Block , strict );
+   ( *it )->apply( sub_Block );
   else
    if( ! f_diff )
     sub_Block->unregister_Solvers( true );

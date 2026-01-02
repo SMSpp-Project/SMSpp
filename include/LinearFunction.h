@@ -276,8 +276,7 @@ class LinearFunction : public C15Function
   * "listens to no-one"; hence, the implementation of set_ComputeConfig() is
   * quite a trivial one. */
 
- void set_ComputeConfig( const ComputeConfig * scfg = nullptr ,
-			 bool strict = true  ) final {}
+ void set_ComputeConfig( const ComputeConfig * scfg = nullptr ) final {}
 
 /** @} ---------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE DATA OF THE LinearFunction ------------*/
