@@ -67,7 +67,7 @@ SMSpp_insert_in_factory_cpp_0( ComputeConfig );
 
 void ThinComputeInterface::set_ComputeConfig( const ComputeConfig * scfg )
 {
- if( ( ! scfg ) || ( ! scfg->f_diff ) ) {  // "factory reset"
+ if( ( ! scfg ) || ( ! scfg->diff() ) ) {  // "factory reset"
   for( int i = 0 ; i < get_num_int_par() ; ++i )
    set_par( i , get_dflt_int_par( i ) );
 
@@ -91,32 +91,32 @@ void ThinComputeInterface::set_ComputeConfig( const ComputeConfig * scfg )
   return;      // all done
 
  for( const auto & pair : scfg->int_pars )
-  if( ( ! set_par( pair.first , pair.second ) ) && ( ! f_relax ) )
+  if( ( ! set_par( pair.first , pair.second ) ) && ( ! scfg->relax() ) )
    throw( std::invalid_argument( "Invalid int parameter name " +
 				 pair.first ) );
 
  for( const auto & pair : scfg->dbl_pars )
-  if( ( ! set_par( pair.first , pair.second ) ) && ( ! f_relax ) )
+  if( ( ! set_par( pair.first , pair.second ) ) && ( ! scfg->relax() ) )
    throw( std::invalid_argument( "Invalid double parameter name " +
 				 pair.first ) );
 
  for( const auto & pair : scfg->str_pars )
-  if( ( ! set_par( pair.first , pair.second ) ) && ( ! f_relax ) )
+  if( ( ! set_par( pair.first , pair.second ) ) && ( ! scfg->relax() ) )
    throw( std::invalid_argument( "Invalid string parameter name " +
 				 pair.first ) );
 
  for( const auto & pair : scfg->vint_pars )
-  if( ( ! set_par( pair.first , pair.second ) ) && ( ! f_relax ) )
+  if( ( ! set_par( pair.first , pair.second ) ) && ( ! scfg->relax() ) )
    throw( std::invalid_argument( "Invalid vector-of-int parameter name " +
 				 pair.first ) );
 
  for( const auto & pair : scfg->vdbl_pars )
-  if( ( ! set_par( pair.first , pair.second ) ) && ( ! f_relax ) )
+  if( ( ! set_par( pair.first , pair.second ) ) && ( ! scfg->relax() ) )
    throw( std::invalid_argument( "Invalid vector-of-double parameter name "
 				 + pair.first ) );
 
  for( const auto & pair : scfg->vstr_pars )
-  if( ( ! set_par( pair.first , pair.second ) ) && ( ! f_relax ) )
+  if( ( ! set_par( pair.first , pair.second ) ) && ( ! scfg->relax() ) )
   throw( std::invalid_argument( "Invalid vector-of-string parameter name "
 				+ pair.first ) );
 
@@ -128,7 +128,7 @@ ComputeConfig * ThinComputeInterface::get_ComputeConfig( bool all ,
 						ComputeConfig * ocfg ) const
 {
  ComputeConfig * ccfg = ocfg ? ocfg : new ComputeConfig;
- ccfg->f_diff = ! all;
+ ccfg->set_diff( ! all );
  if( all ) {
   ccfg->int_pars.resize( get_num_int_par() );
   for( int i = 0; i < get_num_int_par(); ++i ) {
@@ -376,7 +376,7 @@ void ComputeConfig::serialize( netCDF::NcGroup & group ) const
 
  // f_diff field- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  group.putAtt( "diff", netCDF::NcInt(),
-	       int( f_diff ? 1 : 0 + f_relax ? 2 : 0 ) );
+	       int( ( f_diff ? 1 : 0 ) + ( f_relax ? 2 : 0 ) ) );
 
  // int parameters- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  if( ! int_pars.empty() ) {

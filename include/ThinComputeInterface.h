@@ -1854,8 +1854,8 @@ class ThinComputeInterface
   *
   * If all == true, then the whole set of parameters is copied. If all ==
   * false instead (default), only the parameters that are *not* at their
-  * default value are. The f_diff field of the produced ComputeConfig is
-  * set accordingly, i.e., f_diff == true <==> all == false. If for some
+  * default value are. The diff() value of the produced ComputeConfig is
+  * set accordingly, i.e., diff() == true <==> all == false. If for some
   * reason this is not the intended value it can easily be changed later.
   *
   * Although the class is thin, this method is given a working configuration
@@ -2187,19 +2187,19 @@ class ThinComputeInterface
  * The idea is that each list contains the pairs < parameter name , value >
  * to be changed/set. The lists need *not* contain all the parameters (of the
  * given type), all those not directly specified are treated as specified in
- * the bool field f_diff. If f_diff == true, then the ComputeConfig has to be
+ * the bool value diff(). If diff() == true, then the ComputeConfig has to be
  * "interpreted in a differential sense": all parameters not specified must
- * not be changed from their current value. If f_diff == false instead, then
+ * not be changed from their current value. If diff() == false instead, then
  * all the parameters that are *not* specified in the ComputeConfig are
  * rather reset to their default value. Note that the same holds for the
- * "extra" Configuration: if f_diff == true and f_extra_Configuration
+ * "extra" Configuration: if diff() == true and f_extra_Configuration
  * == nullptr this has to be interpreted as "leave the previous extra
- * Configuration as it is", whereas if f_diff == false then the current extra
+ * Configuration as it is", whereas if diff() == false then the current extra
  * Configuration is replaced by that in the ComputeConfig (which may be
  * nullptr; depending on the :ThinComputeInterface this may be implemented by
  * just storing the nullptr, or by resetting that part of the configuration
  * to its default value as the rest). Note, however, that for a "fresh" (just
- * constructed) solver, the two values of f_diff are equivalent.
+ * constructed) solver, the two values of diff() are equivalent.
  * 
  * It is always possible to define a specific :ComputeConfig corresponding to
  * a specific :ThinComputeInterface, but the fact that the set of parameters
@@ -2270,18 +2270,18 @@ class ComputeConfig : public Configuration
   * any :Configuration, the group should contain the following:
   *
   * - the optional attribute "diff" of int type containing the values for the
-  *   f_diff and f_relax fields of the ComputeConfig, encoded bit-wise:
+  *   diff() and relax() values [see] of the ComputeConfig, encoded bit-wise:
   *
-  *   = bit 0 (+1) for f_diff, telling if the information in the
+  *   = bit 0 (+1) for diff(), telling if the information in the
   *     ComputeConfig has to be taken as "the configuration to be set" or
   *     as "the changes to be made from the current configuration"); if the
-  *     attribute is not there, f_diff == false is assumed.
+  *     attribute is not there, diff() == false is assumed.
   *
-  *   = bit 1 (+2) for f_relax, telling if the ComputeConfig is allowed to
+  *   = bit 1 (+2) for relax(), telling if the ComputeConfig is allowed to
   *     contain names of parameters that are not recognised by the
   *     :ThinComputeInterface is will be set_*() to; if false, trying to
   *     set an unrecognised parameter should raise an exception; if the
-  *     attribute is not there, f_diff == false is assumed.
+  *     attribute is not there relax() == false is assumed.
   *
   * - three alike groups of dimensions and variables, one for each type
   *   of scalar parameter TYP in { "int" , "dbl" , "str" }:
@@ -2372,6 +2372,8 @@ class ComputeConfig : public Configuration
   * invoked for #f_extra_Configuration. Moreover, #f_diff is set to false. */
 
  void clear( void ) override {
+  f_diff = f_relax = false;
+
   int_pars.clear();
   dbl_pars.clear();
   str_pars.clear();
@@ -2379,16 +2381,45 @@ class ComputeConfig : public Configuration
   vdbl_pars.clear();
   vstr_pars.clear();
 
-  f_diff = false;
-  f_relax = false;
-
   if( f_extra_Configuration )
    f_extra_Configuration->clear();
   }
 
 /*--------------- METHODS FOR READING DATA OF THE ComputeConfig ------------*/
 
- // returns true if the ComputeConfig is "completely empty" of any data
+ /// returns the "diff value" of the ComputeConfig
+ /** Returns the "diff value" of the ComputeConfig, i.e., a bool with the
+  * following meaning:
+  *
+  *   = true if the information in the ComputeConfig has to be taken as
+  *     "the changes to be made from the current configuration", i.e.,
+  *     "all parameters that are not explicitly changes remains as they are";
+  *
+  *   = false if the information in the ComputeConfig has to be taken as
+  *     "the configuration to be set", i.e., "all parameters have to become
+  *     precisely as this ComputeConfig says", i.e., "all parameters in the
+  *     ComputeConfig are set to the given value, all others are set to their
+  *     default value. */
+
+ [[nodiscard]] bool diff( void ) const { return( f_diff ); }
+ 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns the "relax value" of the ComputeConfig
+ /** Returns the "relax value" of the ComputeConfig, i.e., a bool with the
+  * following meaning:
+  *
+  *   = true if the the ComputeConfig is allowed to contain names of
+  *     parameters that are not recognised by the :ThinComputeInterface is
+  *     will be set_*() to;
+  *
+  *   = false if trying to set a parameter that is not recognised by the
+  *     :ThinComputeInterface is will be set_*() should raise an exception.
+  */
+
+ [[nodiscard]] bool relax( void ) const { return( f_relax ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns true if the ComputeConfig is "completely empty" of any data
 
  [[nodiscard]] virtual bool empty( void ) const {
   return( int_pars.empty() && dbl_pars.empty() && str_pars.empty() &&
@@ -2397,6 +2428,17 @@ class ComputeConfig : public Configuration
   }
 
 /*--------------------- METHODS FOR CHANGING PARAMETERS --------------------*/
+
+ /// set the "diff value" of the ComputeConfig
+
+ void set_diff( bool diff = true ) { f_diff = diff; }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// set the "relax value" of the ComputeConfig
+
+ void set_relax( bool relax = true ) { f_relax = relax; }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set the given integer (int) numerical parameter
  /** Set the integer (int) numerical parameter specified by \p name. If the
   * parameter is not in the corresponding list it is added (in which case
@@ -2639,10 +2681,6 @@ class ComputeConfig : public Configuration
 
 /*--------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
 
- bool f_diff;   ///< tells is the configuration is a "differential" one
-
- bool f_relax;  ///< true if setting an unknown parameter should be ignored
-
  /// list of pairs < string , int > for integer-valued parameters
  std::vector< std::pair< std::string, int > > int_pars;
 
@@ -2668,6 +2706,10 @@ class ComputeConfig : public Configuration
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
  protected:
+
+ bool f_diff;   ///< tells is the configuration is a "differential" one
+
+ bool f_relax;  ///< true if setting an unknown parameter should be ignored
 
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 

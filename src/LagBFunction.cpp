@@ -387,7 +387,7 @@ void LagBFunction::set_ComputeConfig( const ComputeConfig * scfg )
       "LagBFunction::set_ComputeConfig: invalid extra_Configuration.fist" ) );
      }
     else
-     if( ! scfg->f_diff )  // if not in differential mode
+     if( ! scfg->diff() )  // if not in differential mode
       set_default_inner_BlockSolverConfig();  // reset the BlockSolverConfig
 
     if( scpp->f_value.second ) {
@@ -396,7 +396,7 @@ void LagBFunction::set_ComputeConfig( const ComputeConfig * scfg )
      "LagBFunction::set_ComputeConfig: invalid extra_Configuration.second" ) );
      }
     else
-     if( ! scfg->f_diff )  // if not in differential mode
+     if( ! scfg->diff() )  // if not in differential mode
       set_default_inner_BlockConfig();  // reset the BlockConfig
     }
    else
@@ -425,7 +425,7 @@ void LagBFunction::set_ComputeConfig( const ComputeConfig * scfg )
     }
    }
   else {  // scfg->f_extra_Configuration is nullptr
-   if( ! scfg->f_diff )  // if not in differential mode
+   if( ! scfg->diff() )  // if not in differential mode
     set_default_inner_Block_configuration();  // reset everything
    }
  else     // scfg == nullptr
@@ -494,7 +494,7 @@ void LagBFunction::set_par( idx_type par , int value )
     // ensure there is a ComputeConfig in diff mode ready
     while( f_BSC->num_ComputeConfig() <= InnrSlvr ) {
      auto cc = new ComputeConfig;
-     cc->f_diff = true;
+     cc->set_diff( true );
      f_BSC->add_ComputeConfig( "" , cc );
      }
     }
@@ -2682,7 +2682,7 @@ void LagBFunction::mod_CostMatrix( Index i , Index first )
 void LagBFunction::init_CC( void )
 {
  f_CC = new ComputeConfig;  // create a new empty one
- f_CC->f_diff = true;       // set it in "diff mode"
+ f_CC->set_diff( true );    // set it in "diff mode"
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2700,7 +2700,7 @@ void LagBFunction::guts_of_destructor( bool deleteinner )
   v_Block.front()->set_f_Block( nullptr );
 
   // use the clear()-ed BlockSolverConfig to delete all the Solver that were
-  // registered by it (hence, be sure it is in f_diff == true mode)
+  // registered by it (hence, be sure it is in diff() == true mode)
   if( f_BSC )
    f_BSC->apply( v_Block.front() );
 
