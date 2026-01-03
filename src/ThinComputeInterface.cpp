@@ -67,7 +67,7 @@ SMSpp_insert_in_factory_cpp_0( ComputeConfig );
 
 void ThinComputeInterface::set_ComputeConfig( const ComputeConfig * scfg )
 {
- if( ( ! scfg ) || ( ! scfg->f_diff ) ) {  // "factory reset"
+ if( ( ! scfg ) || ( ! scfg->diff() ) ) {  // "factory reset"
   for( int i = 0 ; i < get_num_int_par() ; ++i )
    set_par( i , get_dflt_int_par( i ) );
 
@@ -91,22 +91,34 @@ void ThinComputeInterface::set_ComputeConfig( const ComputeConfig * scfg )
   return;      // all done
 
  for( const auto & pair : scfg->int_pars )
-  set_par( pair.first , pair.second );
+  if( ( ! set_par( pair.first , pair.second ) ) && ( ! scfg->relax() ) )
+   throw( std::invalid_argument( "Invalid int parameter name " +
+				 pair.first ) );
 
  for( const auto & pair : scfg->dbl_pars )
-  set_par( pair.first , pair.second );
+  if( ( ! set_par( pair.first , pair.second ) ) && ( ! scfg->relax() ) )
+   throw( std::invalid_argument( "Invalid double parameter name " +
+				 pair.first ) );
 
  for( const auto & pair : scfg->str_pars )
-  set_par( pair.first , pair.second );
+  if( ( ! set_par( pair.first , pair.second ) ) && ( ! scfg->relax() ) )
+   throw( std::invalid_argument( "Invalid string parameter name " +
+				 pair.first ) );
 
  for( const auto & pair : scfg->vint_pars )
-  set_par( pair.first , pair.second );
+  if( ( ! set_par( pair.first , pair.second ) ) && ( ! scfg->relax() ) )
+   throw( std::invalid_argument( "Invalid vector-of-int parameter name " +
+				 pair.first ) );
 
  for( const auto & pair : scfg->vdbl_pars )
-  set_par( pair.first , pair.second );
+  if( ( ! set_par( pair.first , pair.second ) ) && ( ! scfg->relax() ) )
+   throw( std::invalid_argument( "Invalid vector-of-double parameter name "
+				 + pair.first ) );
 
  for( const auto & pair : scfg->vstr_pars )
-  set_par( pair.first , pair.second );
+  if( ( ! set_par( pair.first , pair.second ) ) && ( ! scfg->relax() ) )
+  throw( std::invalid_argument( "Invalid vector-of-string parameter name "
+				+ pair.first ) );
 
  }  // end( ThinComputeInterface::set_ComputeConfig )
 
@@ -116,7 +128,7 @@ ComputeConfig * ThinComputeInterface::get_ComputeConfig( bool all ,
 						ComputeConfig * ocfg ) const
 {
  ComputeConfig * ccfg = ocfg ? ocfg : new ComputeConfig;
- ccfg->f_diff = ! all;
+ ccfg->set_diff( ! all );
  if( all ) {
   ccfg->int_pars.resize( get_num_int_par() );
   for( int i = 0; i < get_num_int_par(); ++i ) {
@@ -221,14 +233,15 @@ void ComputeConfig::deserialize( const netCDF::NcGroup & group )
  // call the method of the base class, which does not much
  Configuration::deserialize( group );
 
- // f_diff field- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // f_diff and f_relax fields - - - - - - - - - - - - - - - - - - - - - - - -
  netCDF::NcGroupAtt diff = group.getAtt( "diff" );
  if( diff.isNull() )
-  f_diff = false;
+  f_diff = f_relax = false;
  else {
   int diffint;
   diff.getValues( &diffint );
-  f_diff = diffint > 0;
+  f_diff = ( diffint & 1 );
+  f_relax = ( diffint & 2 );
   }
 
  // int parameters- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -362,7 +375,8 @@ void ComputeConfig::serialize( netCDF::NcGroup & group ) const
  Configuration::serialize( group );
 
  // f_diff field- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- group.putAtt( "diff", netCDF::NcInt(), int( f_diff ) );
+ group.putAtt( "diff", netCDF::NcInt(),
+	       int( ( f_diff ? 1 : 0 ) + ( f_relax ? 2 : 0 ) ) );
 
  // int parameters- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  if( ! int_pars.empty() ) {
@@ -566,7 +580,14 @@ void ComputeConfig::reset_par( const std::string & name , char type )
 void ComputeConfig::print( std::ostream & output ) const
 {
  output << "ComputeConfig";
- if( f_diff ) output << "[diff]";
+ if( f_diff )
+  if( f_relax )
+   output << "[diff,relax]";
+  else
+   output << "[diff]";
+ else
+  if( f_relax )
+   output << "[relax]";
  output << ": " << std::endl;
  for( auto & pair : int_pars )
   output << pair.first << " = " << pair.second << std::endl;
@@ -600,11 +621,13 @@ void ComputeConfig::load( std::istream & input )
  if( advance( input , sre ) )
   return;
 
- input >> f_diff;
+ unsigned int k;
+ input >> k;
+ f_diff = k & 1;
+ f_relax = k & 2;
  if( advance( input , sre ) )
   return;
 
- unsigned int k;
  input >> k;
  checkfail( input , sre );
 

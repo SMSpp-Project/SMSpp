@@ -335,8 +335,8 @@ void BlockSolverConfig::apply( Block * block ) const
 
    auto slvr = Solver::new_Solver( *nit );  // first create a new Solver
 
-   if( *cit )                               // if the ComputeConfig is there
-    slvr->set_ComputeConfig( *cit );        // ComputeConfig-ure it
+   if( *cit )                                // if the ComputeConfig is there
+    slvr->set_ComputeConfig( *cit );         // ComputeConfig-ure it
 
    // only then replace the existing one
    block->replace_Solver( slvr, sit, true );

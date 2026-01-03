@@ -402,11 +402,13 @@ class BlockSolverConfig : public Configuration {
 /** @name Methods describing the behavior of the BlockSolverConfig
  *  @{ */
 
- /// create/delete and un/register all the Solver attached to the Block
- /** Method for creating, configuring and registering all the Solver that the
-  * given Block may need. The configuration depends on the field #f_diff,
-  * which indicates whether the BlockSolverConfig has to be interpreted in
-  * "differential mode".
+ /// create/delete and un/register Solver to \p block
+ /** Method for creating, configuring and registering some Solver to the
+  * given \p block. The way this happens depends on the field #f_diff, which
+  * indicates whether the BlockSolverConfig has to be interpreted in
+  * "differential mode" (whatever is not mentioned remains as it is) rather
+  * than in "setting mode" (the final state is going to be precisely the one
+  * that the BlockSolverConfig represents).
   *
   * Note that the main "driver" of the configuration is the list of Solver
   * names. The list of corresponding SolverConfig * may be shorter than that,
@@ -420,34 +422,36 @@ class BlockSolverConfig : public Configuration {
   *   BlockSolverConfig are examined. Then:
   *
   *   = If #f_diff == true
+  *
   *     * if the name of the Solver in this BlockSolverConfig is empty then
   *       the Solver is left there, otherwise the existing Solver is
   *       un-registered and deleted and a new Solver is created and registered
   *       in that position
-  *     * if the corresponding SolverConfig * is null then nothing is done,
-  *       otherwise the SolverConfig * is passed to the Solver (be it the old
-  *       or the new one)
+  *
+  *     * if the corresponding ComputeConfig * is null then nothing is done,
+  *       otherwise the ComputeConfig * is set_() to the Solver (be it the
+  *       old or the new one)
   *
   *   = If #f_diff == false, the existing Solver is un-registered and
   *     deleted, then new Solver is created and registered in that position,
-  *     and the corresponding SolverConfig is passed to it (unless it is
-  *     nullptr, because setting a nullptr SolverConfig to a newly minted
+  *     and the corresponding ComputeConfig is passed to it (unless it is
+  *     nullptr, because setting a nullptr ComputeConfig to a newly minted
   *     Solver is useless); note that this means that the name of the Solver
   *     can *not* be empty (as the name is used in the Solver factory, which
   *     will throw exception if the name is not there).
   *
   *   Note that this would seem to not allow completely resetting the
   *   configuration of some existing Solver without changing it, but this is
-  *   not true: it is sufficient to pass it a SolverConfig object (hence, not
-  *   nullptr) which is "empty" (no parameter set) but with its #f_diff field
-  *   == false [see SolverConfig].
+  *   not true: it is sufficient to pass it a not-nullptr ComputeConfig
+  *   object which is "empty" (no parameter set) but with its #f_diff field
+  *   == false [see ThinComputeInterface::set_ComputeConfig()].
   *
   * - After the end of the list of currently registered Solver is reached (if
   *   ever), the behaviour is instead independent on the value of #f_diff
   *   (adding to nothing is setting): a new Solver is created and registered
   *   after the current ones (which means that the name must *not* be empty),
-  *   and the corresponding SolverConfig is passed to it (unless it is
-  *   nullptr, because setting a nullptr SolverConfig to a newly minted
+  *   and the corresponding ComputeConfig is set_*() to it (unless it is
+  *   nullptr, because setting a nullptr ComputeConfig to a newly minted
   *   Solver is useless).
   *
   * - However, after the end of the Solver names the behaviour is again
@@ -463,6 +467,13 @@ class BlockSolverConfig : public Configuration {
   * ensures that the resulting list of Solver registered to the Block is
   * precisely the one specified in the BlockSolverConfig (no more, no less)
   * with precisely the given SolverConfig.
+  *
+  * This method uses ThinComputeInterface::set_ComputeConfig() to Config-ure
+  * the Solver (be them old or new); if the field f_relax in the used
+  * ComputeConfig is false and any of the parameter names in there is not
+  * among these that the given :Solver recognises, an exception is thrown.
+  * If, rather, f_relax is true the method ignores any non-recognised
+  * parameter name and keep on going without any warning.
   *
   * Important note: the moment when the Block is passed to the Solver, the
   * Solver should in principle do all the necessary initializations, since

@@ -1430,7 +1430,7 @@ void BendersBFunction::set_ComputeConfig( const ComputeConfig * scfg )
  }
  else if( ! scfg->f_extra_Configuration ) {
   // scfg->f_extra_Configuration is nullptr
-  if( ! scfg->f_diff )
+  if( ! scfg->diff() )
    set_default_inner_Block_configuration();
   return;
  }
@@ -1448,7 +1448,7 @@ void BendersBFunction::set_ComputeConfig( const ComputeConfig * scfg )
 
   if( key == "BlockConfig" ) {
    if( ! config ) {
-    if( ! scfg->f_diff )
+    if( ! scfg->diff() )
      // A BlockConfig for the inner Block was not provided. The inner Block is
      // configured to its default configuration.
      set_default_inner_Block_BlockConfig();
@@ -1464,7 +1464,7 @@ void BendersBFunction::set_ComputeConfig( const ComputeConfig * scfg )
   }
   else if( key == "BlockSolverConfig" ) {
    if( ! config ) {
-    if( ! scfg->f_diff )
+    if( ! scfg->diff() )
      // A BlockSolverConfig for the inner Block was not provided. The Solver
      // of the inner Block (and their sub-Block, recursively) are unregistered
      // and deleted.
@@ -2528,7 +2528,7 @@ ComputeConfig * BendersBFunction::get_ComputeConfig
  if( ! ccfg ) {
   default_config = true;
   ccfg = new ComputeConfig();
-  ccfg->f_diff = ! all;
+  ccfg->set_diff( ! all );
  }
 
  auto extra_config = dynamic_cast< SimpleConfiguration<
