@@ -1890,9 +1890,10 @@ int LagBFunction::compute( bool changedvars )
 
  // if some parameters have been changed, set BlockSolverConfig- - - - - - - -
  if( f_CC_changed ) {
-  is->set_ComputeConfig( f_CC );
-  f_CC->clear();
-  f_CC_changed = false;
+  is->set_ComputeConfig( f_CC );  // push the changes
+  f_CC->clear();                  // clear the ComputeConfig
+  f_CC->set_diff( true );         // but keep it in "diff mode"
+  f_CC_changed = false;           // no changes so far
   }
 
  // if the solution in the Block was the one out of the last call to
