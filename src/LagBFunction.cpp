@@ -2184,22 +2184,27 @@ Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
   if( ! v_ObjIsQuad[ h ] ) {
    alpha += obj->get_constant_term();
    const auto & rp = static_cast< p_LF >( obj->get_function() )->get_v_var();
+   const auto & tp = v_tmpCP[ h ];
 
    #ifndef NDEBUG
-    if( rp.size() != cm.size() )
-     throw( std::logic_error( "CostMatrix inconsistent with linear objective" ) );
+   if( cm.size() < ( rp.size() + tp.size() ) )
+    throw( std::logic_error( "CostMatrix inconsistent with linear objective" ) );
    #endif
 
    for( Index i = 0 ; i < rp.size() ; ++i )
     alpha += rp[ i ].first->get_value() * cm[ i ].first;
+
+   for( Index i = 0 ; i < tp.size() ; ++i )
+    alpha += tp[ i ].first->get_value() * cm[ rp.size() + i ].first;
   }
   else {
    alpha += obj->get_constant_term();
    const auto & rp = static_cast< p_QF >( obj->get_function() )->get_v_var();
+   const auto & tp = v_tmpCP[ h ];
 
    #ifndef NDEBUG
-    if( rp.size() != cm.size() )
-     throw( std::logic_error( "CostMatrix inconsistent with quadratic objective" ) );
+   if( cm.size() < ( rp.size() + tp.size() ) )
+    throw( std::logic_error( "CostMatrix inconsistent with quadratic objective" ) );
    #endif
 
    for( Index i = 0 ; i < rp.size() ; ++i ) {
@@ -2209,6 +2214,12 @@ Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
      val *= val;
      alpha += std::get< 2 >( rp[ i ] ) * val;
     }
+   }
+
+   for( Index i = 0 ; i < tp.size() ; ++i ) {
+    auto val = tp[ i ].first->get_value();
+    if( val )
+     alpha += cm[ rp.size() + i ].first * val;
    }
   }
  }
