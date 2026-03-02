@@ -468,7 +468,7 @@ class Solution
 /*--------------------------------------------------------------------------*/
 /// returns a clone of this Solution
 /** This method creates and returns a Solution of the same type of this
- * Solution. If the parameter empty is true, then the returned Solution is
+ * Solution. If the parameter \p empty is true, then the returned Solution is
  * "empty", i.e., the solution information is not passed over, otherwise the
  * new Solution is a complete copy of the current one. A Solution object can
  * be "configured" to take only a specific part of the Block solution status:
@@ -479,11 +479,19 @@ class Solution
  * However, scale( 1 ) must return a "general solution" (see comments in
  * scale() and sum()), whereas clone() can return exactly the same type of
  * solution as the current one, i.e., a "less general" one if this is.
- * The method in the base class returns another "empty" Solution object. */
+ *
+ * The \p sol parameter, if non-nullptr, provides an existing Solution
+ * object that should be filled-in with the right data and returned. This is
+ * useful for implementing clone() in derived classes, as they can build an
+ * object of the right type, fill-in their data and then pass it up to the
+ * method of the base class to do the rest of the work. Crucially, this
+ * works recursively for any level of derivation.
+ *
+ * The method in the base class returns \p sol if it is not nullptr,
+ * otherwise (the default) returns another "empty" Solution object. */
 
- virtual Solution * clone( bool empty = false ) const  {
-  return( new Solution() );
-  }
+ virtual Solution * clone( bool empty = false , Solution * sol = nullptr )
+  const { return( sol ? sol : new Solution() );  }
 
 /** @} ---------------------------------------------------------------------*/
 /*--------------- METHODS FOR PRINTING & SAVING THE Solution ---------------*/
@@ -609,8 +617,27 @@ class Solution
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 /*--------------------------------------------------------------------------*/
+/** @name Static method to facilitate recursive clone()
+ *  @{ */
+
+template< class DerivedSolution >
+std::enable_if_t< std::is_base_of_v< Solution , DerivedSolution > , void >
+static DerivedSolution * check_or_make( Solution * sol ) const {
+ if( sol ) {
+  if( auto dsol = dynamic_cast< DerivedSolution * >( sol ) )
+   return( dsol );
+  else
+   throw( std::invalid_argument( DerivedSolution::classname()
+				 "::clone() error: sol is not a "
+				 DerivedSolution::classname() ) );
+  }
+ else
+  return( new DerivedSolution() );
+ }
+
+/** @} ---------------------------------------------------------------------*/
 /** @name Protected methods for printing and serializing
-    @{ */
+ *  @{ */
 
  /// print information about the Solution on an ostream
  /** Protected method intended to print information about the Solution; it is
@@ -677,10 +704,6 @@ class Solution
 /*--------------------------------------------------------------------------*/
 
  static std::string f_prefix;  ///< the executable-wide filename prefix
-
-/** @} ---------------------------------------------------------------------*/
-/*-------------------------- PROTECTED FIELDS ------------------------------*/
-/*--------------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
