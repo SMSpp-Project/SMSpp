@@ -97,7 +97,8 @@ void runAllTests()
 
 /*--------------------------------------------------------------------------*/
 
-int main() {
+int main( int argc , char ** argv )
+{
     std::cout << "Running tests for QuadFunction\n";
     runAllTests();
     return( 0 );

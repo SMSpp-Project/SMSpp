@@ -592,8 +592,18 @@ inline std::string && SMSpp_classname_normalise( std::string && str ) {
  * compile time; as C++-20 arrives most of std::algorithms will be
  * constexpr-able and therefore this will hopefully be possible. */
 
+#define SMSpp_pp_cat_0( x , y ) x ## y
+#define SMSpp_pp_cat( x , y ) SMSpp_pp_cat_0( x , y )
+
+// using ellipsis to take all preprocessor-tokens
+#define SMSpp_define_force_load( ... )                                       \
+extern "C" void SMSpp_pp_cat( SMSpp_force_load_ , __VA_ARGS__ )( void );     \
+extern "C" void SMSpp_pp_cat( SMSpp_force_load_ , __VA_ARGS__ )( void ) {}
+
 // using ellipsis to take all preprocessor-tokens
 #define SMSpp_insert_in_factory_cpp_0( ... )                                 \
+ SMSpp_define_force_load( __VA_ARGS__ )                                      \
+                                                                             \
  const std::string &                                                         \
  SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::_private_name( void ) {  \
   static const std::string _name( SMSpp_classname_normalise(                 \
@@ -620,6 +630,8 @@ inline std::string && SMSpp_classname_normalise( std::string && str ) {
 
 // using ellipsis to take all preprocessor-tokens
 #define SMSpp_insert_in_factory_cpp_1( ... )                                 \
+ SMSpp_define_force_load( __VA_ARGS__ )                                      \
+                                                                             \
  const std::string &                                                         \
  SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::_private_name( void ) {  \
   static const std::string _name( SMSpp_classname_normalise(                 \
@@ -703,35 +715,6 @@ inline std::string && SMSpp_classname_normalise( std::string && str ) {
  template<>                                                                  \
  SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::_init                    \
  SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::_initializer{}
-
-/*--------------------------------------------------------------------------*/
-// definition of auxiliary template variable (don't you just love C++?), which
-// serves to avoid having duplicated names in case SMSpp_ensure_load() is
-// called for multiple classes in the same .cpp
-
-template< class ClassName >
-bool SMSpp_ensure_load_var;
-
-// the SMSpp_ensure_load() creates an empty object of the given class and
-// immediately destroys it; in all our cases, the empty constructor exists
-// and should be relatively cheap. we tried to avoid it by taking the
-// address of some method of the class, but this is not enough in all
-// case to force the linker to include the relevant object, while creating
-// an object of the class damn sure is
-// note that the namespace qualifier in the definition of
-// bool SMSpp_di_unipi_it::SMSpp_ensure_load_var< ... >
-// would not be necessary, as clang++ compiles without it, but g++ does not
-// (apparently a bug/quirk in g++, but adding it is just the simple way out)
-
-#define SMSpp_ensure_load( ClassName )                                      \
- template<>                                                                 \
- bool SMSpp_di_unipi_it::SMSpp_ensure_load_var<                             \
-  SMSpp_type_traits::t< void( ClassName ) >::type > =                       \
-  []( void ) -> bool {                                                      \
-   if( auto p = new SMSpp_type_traits::t< void( ClassName ) >::type() ) {   \
-    delete p; return( true ); }                                             \
-   else       return( false );                                              \
-   }()
 
 /** @} ---------------------------------------------------------------------*/
 /*------------------- HANDLE boost::any SPECIALIZATIONS --------------------*/

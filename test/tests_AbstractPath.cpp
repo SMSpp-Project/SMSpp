@@ -301,7 +301,8 @@ void simple_full_test() {
 
 /*--------------------------------------------------------------------------*/
 
-int main() {
+int main( int argc , char ** argv )
+{
  simple_full_test();
  return( 0 );
 }
