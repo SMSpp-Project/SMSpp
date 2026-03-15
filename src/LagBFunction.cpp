@@ -204,14 +204,14 @@ void LagBFunction::set_inner_block( Block * innerblock , bool deleteold )
  // if there is an existing inner Block, cleanup it
  if( ! v_Block.empty() ) {
   if( ! deleteold ) {
-   if( ! innerblock ) {          // was a cleanup
-    guts_of_destructor( false ); // all done
+   if( ! innerblock ) {           // was a cleanup
+    guts_of_destructor( false );  // all done
     return;
+    }
    }
-  }
   else
    guts_of_destructor( deleteold );
- }
+  }
 
  v_Block.resize( 1 );
  v_Block.front() = innerblock;
@@ -224,12 +224,12 @@ void LagBFunction::set_inner_block( Block * innerblock , bool deleteold )
 
  const auto frobj = innerblock->get_objective< FRealObjective >();
  if( ! frobj )
-  throw( std::invalid_argument( "inner Block Objective not a FRealObjective" ) );
+  throw( std::invalid_argument(
+			   "inner Block Objective not a FRealObjective" ) );
 
  IsConvex = ( frobj->get_sense() == Objective::eMax );
 
- if( PushCostToOwner )
- {
+ if( PushCostToOwner ) {
   // Clear data structures (in case of reuse)
   v_Obj.clear();
   v_ObjIsQuad.clear();
@@ -241,66 +241,62 @@ void LagBFunction::set_inner_block( Block * innerblock , bool deleteold )
   std::queue< Block * > q;
   q.push( innerblock );
 
-  while( ! q.empty() )
-  {
+  while( ! q.empty() ) {
    Block * curr = q.front(); q.pop();
 
    Index h = v_BlockBFS.size();
    v_BlockBFS.push_back( curr );
    Block2Idx[ curr ] = h;
 
-   FRealObjective * obj = static_cast< FRealObjective * >( curr->get_objective() );
+   FRealObjective * obj = static_cast< FRealObjective * >(
+						     curr->get_objective() );
    v_Obj.push_back( obj );
 
    bool isQuad = dynamic_cast< const p_QF >( obj->get_function() ) != nullptr;
    v_ObjIsQuad.push_back( isQuad );
 
    // Init CostMatrix for each Block's objective
-   if( ! isQuad )
-   {
+   if( ! isQuad ) {
     const auto & rp = static_cast< p_LF >( obj->get_function() )->get_v_var();
     m_column cm( rp.size() );
     for( Index i = 0 ; i < rp.size() ; ++i )
      cm[ i ].first = rp[ i ].second;
     CostMatrix.emplace_back( std::move( cm ) );
-   }
-   else
-   {
+    }
+   else {
     const auto & rp = static_cast< p_QF >( obj->get_function() )->get_v_var();
     m_column cm( rp.size() );
     for( Index i = 0 ; i < rp.size() ; ++i )
      cm[ i ].first = std::get< 1 >( rp[ i ] );
     CostMatrix.emplace_back( std::move( cm ) );
-   }
+    }
 
    for( Index i = 0 ; i < curr->get_number_nested_Blocks() ; ++i )
     q.push( curr->get_nested_Block( i ) );
+   }
   }
- }
- else
- {
+ else {
   // if we are not pushing the cost to the owner, build a single CostMatrix
   CostMatrix.clear();  // ensure empty
 
   m_column cm;
   auto * fn = frobj->get_function();
 
-  if( auto * lf = dynamic_cast< p_LF >( fn ) )
-  {
+  if( auto * lf = dynamic_cast< p_LF >( fn ) ) {
    const auto & rp = lf->get_v_var();
    cm.resize( rp.size() );
    for( Index i = 0 ; i < rp.size() ; ++i )
     cm[ i ].first = rp[ i ].second;
-  }
-  else if( auto * qf = dynamic_cast< p_QF >( fn ) )
-  {
-   const auto & rp = qf->get_v_var();
-   cm.resize( rp.size() );
-   for( Index i = 0 ; i < rp.size() ; ++i )
-    cm[ i ].first = std::get< 1 >( rp[ i ] );
-  }
+   }
   else
-   throw( std::invalid_argument( "Unsupported objective function type" ) );
+   if( auto * qf = dynamic_cast< p_QF >( fn ) ) {
+    const auto & rp = qf->get_v_var();
+    cm.resize( rp.size() );
+    for( Index i = 0 ; i < rp.size() ; ++i )
+     cm[ i ].first = std::get< 1 >( rp[ i ] );
+    }
+   else
+    throw( std::invalid_argument( "Unsupported objective function type" ) );
 
   CostMatrix.emplace_back( std::move( cm ) );
 
@@ -314,7 +310,7 @@ void LagBFunction::set_inner_block( Block * innerblock , bool deleteold )
   v_ObjIsQuad.push_back( dynamic_cast< const p_QF >( fn ) != nullptr );
   v_BlockBFS.push_back( innerblock );
   Block2Idx[ innerblock ] = 0;
- }
+  }
 
  v_tmpCP.clear();                // no terms to be stealthily added to obj yet
  v_tmpCP.resize( v_Obj.size() ); // one entry per objective block
@@ -324,7 +320,7 @@ void LagBFunction::set_inner_block( Block * innerblock , bool deleteold )
                                    // unless the Lagrangian term is empty
  f_Lc = -1;            // the Lipschitz constant must be computed
 
-}  // end( LagBFunction::set_inner_block )
+ }  // end( LagBFunction::set_inner_block )
 
 /*--------------------------------------------------------------------------*/
 
@@ -333,6 +329,27 @@ void LagBFunction::set_dual_pairs( v_dual_pair && dp )
  clear_lp();       // ensure we are starting from a "tabula rasa"
  for( auto & tmp : v_tmpCP )
   tmp.clear();     // no terms to be stealthily added to obj yet
+
+ #ifndef NDEBUG
+  // check that all the pairs in dp have distinct variables
+  if( dp.size() > 1 ) {
+   std::vector< Index > sorted( dp.size() );
+   std::iota( sorted.begin() , sorted.end() , 0 );
+   std::sort( sorted.begin() , sorted.end() ,
+	      [ dp ]( Index i , Index j ) {
+	       return( std::less< ColVariable * >{}( dp[ i ].first ,
+						     dp[ j ].first ) );
+	       } );
+   for( Index i = 0 ; i < dp.size() - 1 ; ++i )
+    if( dp[ sorted[ i ] ].first == dp[ sorted[ i + 1 ] ].first )
+     throw( std::invalid_argument( "LagBFunction::set_dual_pairs: repeated "
+				   "ColVariable in dp[ " +
+				   std::to_string( sorted[ i ] ) +
+				   " ] and dp[ "
+				   + std::to_string( sorted[ i + 1 ] ) + " ]"
+				   ) );
+   }
+ #endif
 
  // construct the auxiliary structure CostMatrix which is used to update the
  // Lagrangian cost vector

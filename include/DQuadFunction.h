@@ -284,7 +284,29 @@ class DQuadFunction : public C15Function {
                          const FunctionValue ct = 0 ,
                          Observer * const observer = nullptr )
   : C15Function( observer ) , v_triples( std::move( v_var ) ) ,
-    f_value( Inf< FunctionValue >() ), f_constant_term( ct ) { }
+    f_value( Inf< FunctionValue >() ), f_constant_term( ct ) {
+ #ifndef NDEBUG
+  // check that all the triples in v_var have distinct variables
+  if( v_triples.size() > 1 ) {
+   std::vector< Index > sorted( v_triples.size() );
+   std::iota( sorted.begin() , sorted.end() , 0 );
+   std::sort( sorted.begin() , sorted.end() ,
+	      [ this ]( Index i , Index j ) {
+	       return( std::less< ColVariable * >{}(
+					 std::get< 0 >( v_triples[ i ] ) ,
+					 std::get< 0 >( v_triples[ j ] ) ) );
+	       } );
+   for( Index i = 0 ; i < v_triples.size() - 1 ; ++i )
+    if( std::get< 0 >( v_triples[ sorted[ i ] ] ) ==
+	std::get< 0 >( v_triples[ sorted[ i + 1 ] ] ) )
+     throw( std::invalid_argument( "DQuadFunction: repeated ColVariable in "
+				   "v_var[ " + std::to_string( sorted[ i ] ) +
+				   " ] and v_var[ "
+				   + std::to_string( sorted[ i + 1 ] ) + " ]"
+				   ) );
+   }
+ #endif
+ }
 
 /*--------------------------------------------------------------------------*/
  /// destructor: it does nothing (explicitly)

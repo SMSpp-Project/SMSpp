@@ -249,7 +249,27 @@ class LinearFunction : public C15Function
  explicit LinearFunction( v_coeff_pair && vars = {}, FunctionValue ct = 0,
                           Observer * const observer = nullptr )
   : C15Function( observer ), v_pairs( std::move( vars ) ),
-    f_value( Inf< FunctionValue >() ), f_constant_term( ct ) {}
+    f_value( Inf< FunctionValue >() ), f_constant_term( ct ) {
+ #ifndef NDEBUG
+  // check that all the pairs in vars have distinct variables
+  if( v_pairs.size() > 1 ) {
+   std::vector< Index > sorted( v_pairs.size() );
+   std::iota( sorted.begin() , sorted.end() , 0 );
+   std::sort( sorted.begin() , sorted.end() ,
+	      [ this ]( Index i , Index j ) {
+	       return( std::less< ColVariable * >{}( v_pairs[ i ].first ,
+						     v_pairs[ j ].first ) );
+	       } );
+   for( Index i = 0 ; i < v_pairs.size() - 1 ; ++i )
+    if( v_pairs[ sorted[ i ] ].first == v_pairs[ sorted[ i + 1 ] ].first )
+     throw( std::invalid_argument( "LinearFunction: repeated ColVariable in "
+				   "vars[ " + std::to_string( sorted[ i ] ) +
+				   " ] and vars[ "
+				   + std::to_string( sorted[ i + 1 ] ) + " ]"
+				   ) );
+   }
+ #endif
+ }
 
 /*--------------------------------------------------------------------------*/
  /// destructor: it does nothing (explicitly)

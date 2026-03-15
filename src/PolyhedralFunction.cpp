@@ -120,10 +120,28 @@ void PolyhedralFunction::deserialize( const netCDF::NcGroup & group ,
 
 void PolyhedralFunction::set_variables( VarVector && x )
 {
- if( ! v_A.empty() )
-  if( v_A[ 0 ].size() != x.size() )
-   throw( std::logic_error(
-		    "PolyhedralFunction::set_variables: wrong x.size()" ) );
+ if( ( ! v_A.empty() ) && ( v_A[ 0 ].size() != x.size() ) )
+  throw( std::logic_error(
+		     "PolyhedralFunction::set_variables: wrong x.size()" ) );
+ #ifndef NDEBUG
+  // check that all the variables are distinct 
+  if( x.size() > 1 ) {
+   std::vector< Index > sorted( x.size() );
+   std::iota( sorted.begin() , sorted.end() , 0 );
+   std::sort( sorted.begin() , sorted.end() ,
+	      [ & x ]( Index i , Index j ) {
+	       return( std::less< ColVariable * >{}( x[ i ] , x[ j ] ) );
+	       } );
+   for( Index i = 0 ; i < x.size() - 1 ; ++i )
+    if( x[ sorted[ i ] ] == x[ sorted[ i + 1 ] ] )
+     throw( std::invalid_argument( "PolyhedralFunction::set_variables: "
+				   "repeated ColVariable in x[ "
+				   + std::to_string( sorted[ i ] ) +
+				   " ] and x[ "
+				   + std::to_string( sorted[ i + 1 ] ) + " ]"
+				   ) );
+   }
+ #endif
 
  v_x = std::move( x );
 

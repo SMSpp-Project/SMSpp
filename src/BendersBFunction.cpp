@@ -296,18 +296,38 @@ void BendersBFunction::deserialize( const netCDF::NcGroup & group ,
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void BendersBFunction::set_variables( VarVector && x ) {
- if( ! v_A.empty() )
-  if( v_A[ 0 ].size() != x.size() )
-   throw( std::logic_error( "BendersBFunction::set_variables: wrong x.size(). "
-                            "Matrix A has " + std::to_string( v_A[ 0 ].size() ) +
-                            " row(s), but x has size " +
-                            std::to_string( x.size() ) ) );
+void BendersBFunction::set_variables( VarVector && x )
+{
+ if( ( ! v_A.empty() ) && ( v_A[ 0 ].size() != x.size() ) )
+  throw( std::logic_error( "BendersBFunction::set_variables: matrix A has "
+			   + std::to_string( v_A[ 0 ].size() ) +
+			   " row(s), but x has size " +
+			   std::to_string( x.size() ) ) );
+ #ifndef NDEBUG
+  // check that all the variables are distinct 
+  if( x.size() > 1 ) {
+   std::vector< Index > sorted( x.size() );
+   std::iota( sorted.begin() , sorted.end() , 0 );
+   std::sort( sorted.begin() , sorted.end() ,
+	      [ & x ]( Index i , Index j ) {
+	       return( std::less< ColVariable * >{}( x[ i ] , x[ j ] ) );
+	       } );
+   for( Index i = 0 ; i < x.size() - 1 ; ++i )
+    if( x[ sorted[ i ] ] == x[ sorted[ i + 1 ] ] )
+     throw( std::invalid_argument( "BendersBFunction::set_variables: "
+				   "repeated ColVariable in x[ "
+				   + std::to_string( sorted[ i ] ) +
+				   " ] and x[ "
+				   + std::to_string( sorted[ i + 1 ] ) + " ]"
+				   ) );
+   }
+ #endif
 
  v_x = std::move( x );
 
  f_constraints_are_updated = false;
-}  // end( BendersBFunction::set_variables )
+
+ }  // end( BendersBFunction::set_variables )
 
 /*--------------------------------------------------------------------------*/
 
