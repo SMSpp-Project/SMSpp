@@ -1061,7 +1061,10 @@ public:
   */
 
  void set_caller_from_reference( Block * block_reference ) override {
-  caller = caller_path.get_element< Caller >( block_reference );
+  if( caller_path.empty() )
+   caller = static_cast< Caller * >( block_reference );
+  else
+   caller = caller_path.get_element< Caller >( block_reference );
  }
 
 /*--------------------------------------------------------------------------*/
