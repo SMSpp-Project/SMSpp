@@ -390,6 +390,12 @@ public:
 
  virtual void set_caller( void * new_caller ) = 0;
 
+/*--------------------------------------------------------------------------*/
+
+ virtual void set_caller_from_reference( Block * block_reference ) = 0;
+
+/*--------------------------------------------------------------------------*/
+
  /// serialize a vector of SimpleDataMappingBase from a netCDF::NcGroup
  /** Serialize a vector of SimpleDataMappingBase from a netCDF::NcGroup. A
   * vector of SimpleDataMappingBase is specified as follows.
@@ -845,9 +851,8 @@ public:
     std::logic_error( "SimpleDataMapping::deserialize: group '" +
                       AbstractPath_name + "' was not found." );
 
-   AbstractPath path( path_group );
-
-   caller = path.get_element< Caller >( block_reference );
+   caller_path = AbstractPath( path_group );
+   caller = caller_path.get_element< Caller >( block_reference );
   }
 
   // SetFrom and SetTo
@@ -942,8 +947,8 @@ public:
 
   // AbstractPath
 
-  AbstractPath path( index , sdmb_netCDF.ap_netCDF );
-  caller = path.get_element< Caller >( block_reference );
+  caller_path = AbstractPath( index , sdmb_netCDF.ap_netCDF );
+  caller = caller_path.get_element< Caller >( block_reference );
 
   // SetFrom and SetTo
 
@@ -1028,9 +1033,35 @@ public:
   *       case is replacing the caller with a copy of the original Block 
   *       after Block duplication.
   */
- 
+
  void set_caller( void * new_caller ) override {
   caller = static_cast< Caller * >( new_caller );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// sets the caller object using a Block reference and the stored AbstractPath
+ /** This function sets the caller object by navigating from the provided
+  * Block reference using the internally stored AbstractPath.
+  *
+  * The AbstractPath is applied to the given block_reference in order to
+  * retrieve the correct sub-block (or object) that will act as caller
+  * for this DataMapping.
+  *
+  * @param block_reference A pointer to the root Block from which the
+  *        AbstractPath navigation starts.
+  *
+  * @note This method is typically used when working with duplicated Blocks
+  *       (e.g., in stochastic scenarios), where the original caller pointer
+  *       is no longer valid and must be recomputed on the new Block instance.
+  *
+  * @note Unlike set_caller(), this method guarantees consistency with the
+  *       original DataMapping definition by reapplying the AbstractPath,
+  *       rather than relying on a raw pointer assignment.
+  */
+
+ void set_caller_from_reference( Block * block_reference ) override {
+  caller = caller_path.get_element< Caller >( block_reference );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1422,7 +1453,27 @@ private:
  const F * function;
 
  /// Pointer to the object that will invoke the function
+ /** This pointer represents the actual caller instance on which the mapped
+  * function will be invoked.
+  *
+  * It is resolved during deserialization using the AbstractPath and may be
+  * updated at runtime (e.g., when operating on duplicated Blocks in
+  * stochastic settings).
+  */
  Caller * caller;
+
+ /// AbstractPath used to resolve the caller from a Block reference
+ /** This object stores the navigation path required to locate the caller
+  * within a Block hierarchy.
+  *
+  * It is initialized during deserialization and later reused to recompute
+  * the caller when a new Block reference is provided (e.g., for scenario-
+  * specific Block copies).
+  *
+  * This ensures that the DataMapping remains consistent and independent
+  * from any specific Block instance.
+  */
+ AbstractPath caller_path;
 
  /// The set specifying which subset of the given data should be considered
  SetFrom set_from;
