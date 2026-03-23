@@ -256,6 +256,30 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   }
 
 /*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+ /// extends Block::expected_dims()
+
+ std::vector< std::string > expected_dims( void ) const override {
+  auto ret = AbstractBlock::expected_dims();
+  auto pfev = f_polyf.expected_dims();
+  ret.insert( ret.end() , pfev.begin() , pfev.end() );
+  return( ret );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// extends Block::expected_vars()
+
+ std::vector< std::string > expected_vars( void ) const override {
+  auto ret = AbstractBlock::expected_vars();
+  auto pfev = f_polyf.expected_vars();
+  ret.insert( ret.end() , pfev.begin() , pfev.end() );
+  return( ret );
+  }
+
+#endif
+
+/*--------------------------------------------------------------------------*/
  /// the destructor actually destroys the abstract representation
  /** The destructor of PolyhedralFunctionBlock (unlike that of Block, but
   * like that of AbstractBlock) takes care of (clear()-ing first, and)

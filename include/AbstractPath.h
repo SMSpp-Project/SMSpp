@@ -215,8 +215,8 @@ namespace SMSpp_di_unipi_it
  * To help understand how a path is defined, we present some examples. TODO
  */
 
-class AbstractPath {
-
+class AbstractPath
+{
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -276,8 +276,8 @@ private:
   * A 'C' node is associated with a static Constraint, while a 'c' node is
   * associated with a dynamic Constraint. Likewise, a 'V' node is associated
   * with a static Variable, while a 'v' node is associated with a dynamic
-  * Variable.
-  */
+  * Variable. */
+
  class Node {
 
  public:
@@ -298,7 +298,8 @@ private:
 
 /*--------------------------------------------------------------------------*/
 
-  Node( NodeType type , Index group_index , Index element_index , Index range_index )
+  Node( NodeType type , Index group_index , Index element_index ,
+	Index range_index )
    : type( type ) , group_index( group_index ) ,
      element_index( element_index ) , range_index( range_index ) {}
 
@@ -308,13 +309,13 @@ private:
    if( type == 'c' || type == 'v' )
     return( false );
    return( true );
-  }
+   }
 
 /*--------------------------------------------------------------------------*/
 
   static NodeType to_static( NodeType type ) {
    return( std::toupper( type ) );
-  }
+   }
 
 /*--------------------------------------------------------------------------*/
 
@@ -322,7 +323,7 @@ private:
    if( type == 'C' || type == 'V' )
     return( std::tolower( type ) );
    return( type );
-  }
+   }
 
 /*--------------------------------------------------------------------------*/
 
@@ -330,7 +331,7 @@ private:
    if( type == 'c' || type == 'v' )
     return( false );
    return( true );
-  }
+   }
 
 /*--------------------------------------------------------------------------*/
 
@@ -338,7 +339,7 @@ private:
    if( type == 'c' || type == 'C' )
     return( true );
    return( false );
-  }
+   }
 
 /*--------------------------------------------------------------------------*/
 
@@ -346,13 +347,13 @@ private:
    if( type == 'v' || type == 'V' )
     return( true );
    return( false );
-  }
+   }
 
 /*--------------------------------------------------------------------------*/
 
   static bool has_range( NodeType type ) {
    return( is_variable( type ) || is_constraint( type ) );
-  }
+   }
 
 /*--------------------------------------------------------------------------*/
 
@@ -470,8 +471,8 @@ public:
 
  /// APnetCDF is a struct to store netCDF dimensions and variables of paths
  /** This struct is used simply to store the netCDF dimensions and variables
-  * used to represent an AbstractPath or a vector of AbstractPath.
-  */
+  * used to represent an AbstractPath or a vector of AbstractPath. */
+
  struct APnetCDF {
 
   /// Number of paths
@@ -497,7 +498,7 @@ public:
 
   /// Variable storing the last element indices
   netCDF::NcVar PathRangeIndices;
- };
+  };
 
 /** @} ---------------------------------------------------------------------*/
 /*--------------- CONSTRUCTING AND DESTRUCTING AbstractPath ----------------*/
@@ -512,19 +513,19 @@ public:
  template< class T >
  AbstractPath( const T * t , const Block * reference_block ) {
   build( t , reference_block );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 
  AbstractPath( const netCDF::NcGroup & group ) {
   deserialize( group );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 
  AbstractPath( Index path_index , const APnetCDF & netCDFvars ) {
   deserialize( path_index , netCDFvars );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 
@@ -538,37 +539,30 @@ public:
 
  /// returns the length of this AbstractPath
  /** This function returns the length of this AbstractPath, i.e., the number
-  * of nodes in the path.
-  */
- Index length( void ) const {
-  return( node_types.size() );
- }
+  * of nodes in the path. */
+
+ Index length( void ) const { return( node_types.size() ); }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns true if and only if this AbstractPath is empty
  /** This function returns true if and only if this AbstractPath is empty,
-  * i.e., it does not represent a path to any object.
-  */
- bool empty( void ) const {
-  return( length() == 0 );
- }
+  * i.e., it does not represent a path to any object. */
+
+ bool empty( void ) const { return( length() == 0 ); }
 
 /*--------------------------------------------------------------------------*/
-
  /// clears this AbstractPath
- /** This function clears this AbstractPath making it an empty path.
-  */
+ /** This function clears this AbstractPath making it an empty path. */
+
  void clear( void ) {
   node_types.clear();
   group_indices.clear();
   group_index_names.clear();
   element_indices.clear();
   range_indices.clear();
- }
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the Node representation of the i-th node in this AbstractPath
  /** This function returns the Node representation of the i-th node in this
   * AbstractPath.
@@ -580,6 +574,7 @@ public:
   *
   * @return The Node representation of the i-th node in this AbstractPath.
   */
+
  Node get_node( const Block * block , const Index i ) const {
   assert( i < length() );
 
@@ -962,7 +957,6 @@ public:
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// serializes the given AbstractPath into the given netCDF::NcGroup
  /** This function serializes the given AbstractPath into the given
   * netCDF::NcGroup. Please refer to the comments to deserialize() for the
@@ -970,8 +964,7 @@ public:
   *
   * @param path The AbstractPath to be serialized.
   *
-  * @param group The group in which the path will be serialized.
-  */
+  * @param group The group in which the path will be serialized. */
 
  void serialize( netCDF::NcGroup & group ) const {
   auto dim = group.addDim( path_total_length_dim_name , length() );
@@ -984,10 +977,9 @@ public:
              dim , element_indices );
   serialize( group , element_range_name , netCDF::NcUint() ,
              dim , range_indices );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /// serialize a vector of AbstractPath into the given NcGroup
  /** This function serializes a vector of AbstractPath in the given \p
   * group. Please refer to the comments to vector_deserialize() for a
@@ -997,19 +989,18 @@ public:
   * @param paths The vector of AbstractPath to be serialized.
   *
   * @param group The netCDF::NcGroup in which the vector of AbstractPath will
-  *        be stored.
-  */
- static void serialize
- ( const std::vector< AbstractPath > & paths , netCDF::NcGroup & group ) {
+  *        be stored. */
+
+ static void serialize( const std::vector< AbstractPath > & paths ,
+			netCDF::NcGroup & group ) {
   APnetCDF netCDFvars;
   pre_serialize( paths , netCDFvars , group );
   for( Index i = 0 ; i < paths.size() ; ++i ) {
    paths[ i ].serialize( i , netCDFvars );
+   }
   }
- }
 
 /*--------------------------------------------------------------------------*/
-
  /// serialize a vector of AbstractPath into the given NcGroup
  /** This function serializes a vector of (unique_ptr to) AbstractPath in the
   * given \p group. Please refer to the comments to vector_deserialize() for a
@@ -1020,20 +1011,19 @@ public:
   *              serialized.
   *
   * @param group The netCDF::NcGroup in which the vector of AbstractPath will
-  *        be stored.
-  */
- static void serialize
- ( const std::vector< std::unique_ptr< AbstractPath > > & paths ,
-   netCDF::NcGroup & group ) {
+  *        be stored. */
+
+ static void serialize(
+	      const std::vector< std::unique_ptr< AbstractPath > > & paths ,
+	      netCDF::NcGroup & group ) {
   APnetCDF netCDFvars;
   pre_serialize( paths , netCDFvars , group );
   for( Index i = 0 ; i < paths.size() ; ++i ) {
    paths[ i ]->serialize( i , netCDFvars );
+   }
   }
- }
 
 /*--------------------------------------------------------------------------*/
-
  /// deserializes an AbstractPath from a netCDF::NcGroup and returns it
  /** This function constructs and returns an AbstractPath by deserializing it
   * from the given \p group. This \p group has a dimension called
@@ -1115,7 +1105,6 @@ public:
   * from 0). In general, for a multidimensional array with k dimensions with
   * sizes (n_0, ..., n_{k-1}), the element at position (i_0, ..., i_{k-1})
   * would have an element index equal to
-  *
   * \f[
   *    \sum_{r = 0}^{k-1} ( \prod_{s = r + 1}^{k-1} n_s ) i_r.
   * \f]
@@ -1133,7 +1122,6 @@ public:
   * case, in which the group is a vector of lists of Constraint/Variable, for
   * an element at position j of the k-th list of the vector, element_index[i]
   * is given by
-  *
   * \f[
   *    j + \sum_{t = 0}^{k-1} s_t
   * \f]
@@ -1143,15 +1131,13 @@ public:
   *
   * @param group The netCDF::NcGroup containing the path.
   *
-  * @return The AbstractPath corresponding to the given group.
-  */
+  * @return The AbstractPath corresponding to the given group. */
 
  void deserialize( const netCDF::NcGroup & group ) {
   deserialize( 0 , pre_deserialize( group ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /// deserializes a vector of AbstractPath
  /** This function deserializes a vector of AbstractPath and returns it. The
   * format is similar to that described in the comments to deserialize() with
@@ -1190,11 +1176,10 @@ public:
   * @param group The NcGroup that contains the description of the AbstractPaths
   *              to be deserialized.
   *
-  * @return A vector with the AbstractPaths.
-  */
+  * @return A vector with the AbstractPaths. */
 
- static std::vector< AbstractPath > vector_deserialize
- ( const netCDF::NcGroup & group ) {
+ static std::vector< AbstractPath > vector_deserialize(
+					    const netCDF::NcGroup & group ) {
   std::vector< AbstractPath > paths;
   if( group.isNull() )
    return( paths );
@@ -1203,10 +1188,8 @@ public:
   for( Index i = 0 ; i < netCDFvars.NumPaths ; ++i )
    paths.emplace_back( i , netCDFvars );
   return( paths );
- }
-
+  }
 /*--------------------------------------------------------------------------*/
-
  /// deserializes a vector of AbstractPath
  /** This function deserializes a vector of (unique_ptr) AbstractPath and
   * returns it. The format of the netCDF \p group is specified in
@@ -1215,12 +1198,10 @@ public:
   * @param group The NcGroup that contains the description of the vector of
   *              AbstractPath to be deserialized.
   *
-  * @return A vector with the AbstractPaths.
-  */
- static void vector_deserialize
- ( const netCDF::NcGroup & group ,
-   std::vector< std::unique_ptr< AbstractPath > > & paths ) {
+  * @return A vector with the AbstractPaths. */
 
+ static void vector_deserialize( const netCDF::NcGroup & group ,
+		  std::vector< std::unique_ptr< AbstractPath > > & paths ) {
   paths.clear();
   if( group.isNull() )
    return;
@@ -1228,10 +1209,9 @@ public:
   paths.reserve( netCDFvars.NumPaths );
   for( Index i = 0 ; i < netCDFvars.NumPaths ; ++i )
    paths.emplace_back( std::make_unique< AbstractPath >( i , netCDFvars ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /// pre-deserializes a vector of AbstractPath
  /** This function pre-deserializes a vector of AbstractPath and returns an
   * APnetCDF. The format of the netCDF \p group is specified in
@@ -1242,6 +1222,7 @@ public:
   *
   * @return An APnetCDF for the vector of AbstractPath described in \p group.
   */
+
  static APnetCDF pre_deserialize( const netCDF::NcGroup & group ) {
   APnetCDF netCDFvars;
   netCDFvars.NumPaths = 1;
@@ -1256,8 +1237,7 @@ public:
    * only one path and PathStart is ignored. If PathDim is present, then it
    * indicates the number of paths and PathStart must be present and indexed
    * over PathDim. PathStart[i] is the index where the i-th path starts, for i
-   * in {0, ..., PathDim - 1}.
-   */
+   * in {0, ..., PathDim - 1}. */
 
   if( ! netCDFvars.PathDim.isNull() ) {
    netCDFvars.NumPaths = netCDFvars.PathDim.getSize();
@@ -1304,7 +1284,6 @@ public:
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// deserialize the AbstractPath with given index
  /** This function deserializes the AbstractPath whose index is \p path_index
   * from the given netCDF dimensions and variables in \p netCDFvars. The
@@ -1323,8 +1302,7 @@ public:
   * @param netCDFvars The struct containing the netCDF dimensions and
   *        variables describing the vector of AbstractPath.
   *
-  * @return The AbstractPath with index \p path_index.
-  */
+  * @return The AbstractPath with index \p path_index. */
 
  void deserialize( Index path_index , const APnetCDF & netCDFvars ) {
 
@@ -1335,24 +1313,25 @@ public:
    if( path_index >= netCDFvars.PathDim.getSize() )
     throw( std::invalid_argument( "AbstractPath::deserialize: AbstractPath "
                                   "number " + std::to_string( path_index ) +
-                                  " is not present in the given NcGroup." ) );
+                                  " is not present in the given NcGroup" ) );
 
    netCDFvars.PathStart.getVar( { path_index } , & path_start );
 
    if( path_index < netCDFvars.PathDim.getSize() - 1 )
     netCDFvars.PathStart.getVar( { path_index + 1 } , & path_end );
 
-
    if( path_start > path_end )
     throw( std::invalid_argument( "AbstractPath::deserialize: invalid "
-                                  "PathStart index." ) );
-  }
-  else if( path_index != 0 ) {
-   // There is only one path. So the path index must be 0.
-   throw( std::invalid_argument( "AbstractPath::deserialize: invalid path "
-                                 "index " + std::to_string( path_index ) + "."
-                                 "Given NcGroup has a single AbstractPath." ) );
-  }
+                                  "PathStart index" ) );
+   }
+  else
+   if( path_index != 0 ) {
+    // There is only one path. So the path index must be 0.
+    throw( std::invalid_argument( "AbstractPath::deserialize: invalid path "
+				  "index " + std::to_string( path_index ) +
+				  ", the NcGroup has a single AbstractPath" )
+	   );
+    }
 
   const auto num_nodes = path_end - path_start;
 
@@ -1379,19 +1358,17 @@ public:
    netCDFvars.PathGroupIndices.getVar( { path_start } , { num_nodes } ,
                                        group_indices.data() );
   }
-  else {
-   throw( std::logic_error(
-    "AbstractPath::deserialize: unsupported type for PathGroupIndices" ) );
-  }
+  else
+   throw( std::logic_error( "AbstractPath::deserialize: unsupported type "
+			    "for PathGroupIndices" ) );
 
-  if( ! netCDFvars.PathElementIndices.isNull() ) {
+  if( ! netCDFvars.PathElementIndices.isNull() )
    netCDFvars.PathElementIndices.getVar( { path_start } , { num_nodes } ,
                                          element_indices.data() );
-  }
   else {
    element_indices.resize( num_nodes );
    element_indices.assign( element_indices.size() , Inf< Index >() );
-  }
+   }
 
   if( ! netCDFvars.PathRangeIndices.isNull() ) {
    netCDFvars.PathRangeIndices.getVar( { path_start } , { num_nodes } ,
@@ -1418,7 +1395,31 @@ public:
      range_indices[ i ] = 1;
     else
      range_indices[ i ] = Inf< Index >();
- }
+  }
+
+/*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+ /// mimics Block::expected_dims()
+
+ virtual std::vector< std::string > expected_dims( void ) const {
+  static const std::vector< std::string > ed =
+  { path_dim_name , path_total_length_dim_name };
+
+  return( ed );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// mimics Block::expected_vars()
+
+ virtual std::vector< std::string > expected_vars( void ) const {
+  static const std::vector< std::string > ed =
+  { path_start_name , node_type_name , group_index_name ,
+    element_index_name , element_range_name };
+  return( ed );
+  }
+
+#endif
 
 /*--------------------------------------------------------------------------*/
 
@@ -1435,7 +1436,7 @@ public:
   for( Index i = 0 ; i < paths.size() ; ++i ) {
    netCDFvars.PathStart.putVar( { i } , total_length );
    total_length += length( paths[ i ] );
-  }
+   }
 
   netCDFvars.PathTotalLength = group.addDim( path_total_length_dim_name ,
                                              total_length );
@@ -1454,7 +1455,7 @@ public:
   netCDFvars.PathRangeIndices = group.addVar( element_range_name ,
                                               netCDF::NcUint() ,
                                               netCDFvars.PathTotalLength );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 
@@ -1509,16 +1510,15 @@ public:
   if( length() != path.length() )
    return( false );
 
-  for( Index i = 0 ; i < length() ; ++i ) {
+  for( Index i = 0 ; i < length() ; ++i )
    if( node_types[ i ] != path.node_types[ i ] ||
        group_indices[ i ] != path.group_indices[ i ] ||
        element_indices[ i ] != path.element_indices[ i ] ||
        range_indices[ i ] != path.range_indices[ i ] )
     return( false );
-  }
 
   return( true );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 
@@ -1528,9 +1528,9 @@ public:
     element_indices[ i ]  << " , " << range_indices[ i ] << " )";
    if( i < length() - 1 )
     std::cout << " -> ";
-  }
+   }
   std::cout << std::endl;
- }
+  }
 
 /** @} ---------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/

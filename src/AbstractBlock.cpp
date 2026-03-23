@@ -2453,5 +2453,28 @@ void AbstractBlock::guts_of_deserialize( const netCDF::NcGroup & group )
  }  // end( AbstractBlock::guts_of_deserialize )
 
 /*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+
+std::vector< std::string > AbstractBlock::expected_dims( void ) const {
+ auto ret = Block::expected_dims();
+ ret.push_back( "NumberInnerBlock" );
+
+ return( ret );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+std::vector< std::string > AbstractBlock::expected_vars( void ) const {
+ auto ret = Block::expected_vars();
+ ret.push_back( "Model" );
+
+ return( ret );
+ }
+
+#endif
+
+
+/*--------------------------------------------------------------------------*/
 /*-------------------- End File AbstractBlock.cpp --------------------------*/
 /*--------------------------------------------------------------------------*/

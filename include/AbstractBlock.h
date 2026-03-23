@@ -195,8 +195,8 @@ namespace SMSpp_di_unipi_it
  * derived classes. Yet, doing all this right is entirely the responsibility
  * of the derived classes themselves. */
 
-class AbstractBlock : public Block {
-
+class AbstractBlock : public Block
+{
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -275,6 +275,20 @@ class AbstractBlock : public Block {
   guts_of_deserialize( group );
   Block::deserialize( group );
   }
+
+/*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+ /// extends Block::expected_dims()
+
+ std::vector< std::string > expected_dims( void ) const override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// extends UnitBlock::expected_vars()
+
+ virtual std::vector< std::string > expected_vars( void ) const override;
+
+#endif
 
 /*--------------------------------------------------------------------------*/
  /// destructor of AbstractBlock, destroys the abstract representation

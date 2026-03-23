@@ -115,6 +115,28 @@ void PolyhedralFunction::deserialize( const netCDF::NcGroup & group ,
  }  // end( PolyhedralFunction::deserialize )
 
 /*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+
+std::vector< std::string > PolyhedralFunction::expected_dims( void ) const {
+ static const std::vector< std::string > ed =
+ { "PolyFunction_NumVar" , "PolyFunction_NumRow" , "PolyFunction_sign" };
+
+ return( ed );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+std::vector< std::string > PolyhedralFunction::expected_vars( void ) const {
+ static const std::vector< std::string > ev =
+ { "PolyFunction_A" , "PolyFunction_b" , "PolyFunction_lb" };
+
+ return( ev );
+ }
+
+#endif
+
+/*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 

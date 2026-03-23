@@ -398,6 +398,20 @@ class PolyhedralFunction : public C05Function {
 		   ModParam issueMod = eNoMod );
 
 /*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+ /// mimics Block::expected_dims()
+
+ virtual std::vector< std::string > expected_dims( void ) const;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// mimics UnitBlock::expected_vars()
+
+ virtual std::vector< std::string > expected_vars( void ) const;
+
+#endif
+
+/*--------------------------------------------------------------------------*/
  /// destructor: it is virtual, and empty
 
  virtual ~PolyhedralFunction() = default;

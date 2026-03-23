@@ -785,6 +785,18 @@ class Block : public Observer {
  Block( const Block & ) = delete;
 
 /*--------------------------------------------------------------------------*/
+ /// destructor of Block: it is virtual
+ /** Destructor of Block: it invokes set_BlockConfig() to clean up the
+  * BlockConfig of the Block. It also cleans up any currently open
+  * GroupModification. */
+
+ virtual ~Block() {
+  set_BlockConfig();
+  for( auto &el : v_GroupMod )
+   delete el.second;
+  }
+
+/*--------------------------------------------------------------------------*/
  /// construct a :Block of specific type using the Block factory
  /** Use the Block factory to construct a :Block object of type specified by
   * classname (a std::string with the name of the class inside). If there is
@@ -1266,6 +1278,20 @@ class Block : public Observer {
 
  virtual void deserialize( const netCDF::NcGroup & group )
  {
+  #ifndef NDEBUG
+   // in debug mode, complain if unexpected dimensions are there; however,
+   // only do it if anything is declared as expected
+   auto ed = expected_dims();
+   if( ! ed.empty() )
+    check_dimensions( group , ed , std::cerr );
+
+   // in debug mode, complain if unexpected variables are there; however,
+   // only do it if anything is declared as expected
+   auto ev = expected_vars();
+   if( ! ev.empty() )
+   check_variables( group , ev , std::cerr );
+  #endif
+
   netCDF::NcGroupAtt gname = group.getAtt( "name" );
   if( gname.isNull() )
    f_name.clear();
@@ -1342,17 +1368,57 @@ class Block : public Observer {
                              Block * father = nullptr ,
                              std::function< void( Block * ) > * f = nullptr );
 
-/*--------------------------------------------------------------------------*/
- /// destructor of Block: it is virtual
- /** Destructor of Block: it invokes set_BlockConfig() to clean up the
-  * configuration of the Block. It also cleans up any currently open
-  * GroupModification. */
+/** @} ---------------------------------------------------------------------*/
+/** @name Public methods for handling the list of expected variables and
+ *  dimensions in deserialize().
+ *
+ *  The two virtual methods
+ *
+ *   std::vector< std::string > expected_dims( void )
+ *
+ *   std::vector< std::string > expected_vars( void )
+ *
+ * are only declared if NDEBUG is defined. They are invoked, under the same
+ * condition, inside Block::deserialize( const netCDF::NcGroup & ) to check
+ * the list of dimensions and variables that are expected to be found in
+ * the netCDF::NcGroup, and complain if *un*expected ones are found in there.
+ * This may (but not necessarily is) be a warning for some error.
+ *
+ * While this check can be useful, the issue is that derived classes
+ * typically handle more dimensions and/or variables than base ones. That
+ * is, if one has Block_one : Block and Block_two : Block_one, it can be
+ * expected that Block_two::deserialize() will need more  dimensions and/or
+ * variables than Block_one::deserialize(). However, Block_one is not
+ * supposed to be aware of the existence of Block_two, hence if the check
+ * is done in Block_one::deserialize() it would complain for the stuff that
+ * Block_two::deserialize() actually needs. However, Block_two::expected_*()
+ * can "extend" Block_one::expected_*() by returning whatever that one did
+ * plus its own expected stuff; all this is automarically checked when
+ * Block::deserialize( const netCDF::NcGroup & ) is called, and every
+ * deserialize() of every :Block should eventually end up calling this.
+ *
+ * Both methods are given a default implementation returning an empty
+ * std::vector so that :Block not bothering to implement the check can just
+ * ignore the issue and do nothing.
+ *
+ * These methods are public for the odd chance that a :Block uses a different
+ * :Block without deriving from it and therefore it may want to know its list
+ * of expected variables / dimensions. */
 
- virtual ~Block() {
-  set_BlockConfig();
-  for( auto &el : v_GroupMod )
-   delete el.second;
+#ifndef NDEBUG
+
+ virtual std::vector< std::string > expected_dims( void ) const {
+  static const std::vector< std::string > _empty;
+  return( _empty );
   }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ virtual std::vector< std::string > expected_vars( void ) const {
+  static const std::vector< std::string > _empty;
+  return( _empty );
+  }
+
+#endif
 
 /** @} ---------------------------------------------------------------------*/
 /*----------------- Methods for acquiring/releasing the Block --------------*/
@@ -7401,7 +7467,7 @@ class Block : public Observer {
   newSolver->set_Block( this );
   }
 
-/*--------------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /** @name Protected methods for handling static fields
  *
  * These methods allow derived classes to partake into static initialization
