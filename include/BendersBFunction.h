@@ -2957,12 +2957,13 @@ void print( std::ostream & output ) override {
 
 /*--------------------------------------------------------------------------*/
 
- static void static_initialization() {
+ static void static_initialization()
+ {
   /*!!
-   * Not all C++ compilers enjoy the template wizardry behind the three-args
-   * version of register_method<> with the compact MS_*_*::args(), so we just
-   * use the slightly less compact one with the explicit argument and be done
-   * with it.
+   * Warning: Not all C++ compilers enjoy the template wizardry behind the
+   * three-args version of register_method<> with the compact MS_*_*::args(),
+   * so we just use the slightly less compact one with the explicit argument
+   * and be done with it.
 
   register_method< BendersBFunction >( "BendersBFunction::modify_constants" ,
                                        & BendersBFunction::modify_constants ,
