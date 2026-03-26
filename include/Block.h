@@ -679,6 +679,21 @@ class Block : public Observer {
  /// type for ( int , subset ) functions
  using MS_int_sbst = arg_packer< MF_int_it , Subset && , bool >;
 
+ /// typedef for the bimap used by one methods factory
+ template< class F >
+ using MethodsFactoryMap = boost::bimap< std::string , F * >;
+
+ /// canonical factory types for the six standard method signatures
+ using MF_rngd_map = MethodsFactoryMap< FunctionType< Range > >;
+ using MF_dbl_rngd_map = MethodsFactoryMap< FunctionType< MF_dbl_it , Range > >;
+ using MF_int_rngd_map = MethodsFactoryMap< FunctionType< MF_int_it , Range > >;
+
+ using MF_sbst_map = MethodsFactoryMap< FunctionType< Subset && , bool > >;
+ using MF_dbl_sbst_map = MethodsFactoryMap< FunctionType<
+  MF_dbl_it , Subset && , bool > >;
+ using MF_int_sbst_map = MethodsFactoryMap< FunctionType<
+  MF_int_it , Subset && , bool > >;
+
 /** @} ---------------------------------------------------------------------*/
 
  /// ConstraintID identifies a Constraint within a Block
@@ -1368,6 +1383,18 @@ class Block : public Observer {
                              Block * father = nullptr ,
                              std::function< void( Block * ) > * f = nullptr );
 
+/*--------------------------------------------------------------------------*/
+/// ensure that the methods of this concrete Block type are registered
+/** This hook is meant to guarantee, in a shared-library-safe way, that
+ * the methods factory entries required by the concrete Block type are
+ * registered before any lookup is attempted. The base implementation
+ * does nothing. Derived classes can override it and use std::call_once()
+ * to perform one-time registration of their methods. */
+
+ virtual void ensure_methods_registered( void ) const {
+  static_initialization();
+ }
+
 /** @} ---------------------------------------------------------------------*/
 /** @name Public methods for handling the list of expected variables and
  *  dimensions in deserialize().
@@ -1393,7 +1420,7 @@ class Block : public Observer {
  * is done in Block_one::deserialize() it would complain for the stuff that
  * Block_two::deserialize() actually needs. However, Block_two::expected_*()
  * can "extend" Block_one::expected_*() by returning whatever that one did
- * plus its own expected stuff; all this is automarically checked when
+ * plus its own expected stuff; all this is automatically checked when
  * Block::deserialize( const netCDF::NcGroup & ) is called, and every
  * deserialize() of every :Block should eventually end up calling this.
  *
@@ -5618,8 +5645,17 @@ class Block : public Observer {
  *      EACH TIME THE (PRIVATE) FUNCTION methods< F >() IS CALLED WITH A
  *      DIFFERENT FUNCTION TYPE F, WHICH IN TURN HAPPENS IF EITHER
  *      register_method( , F * ), OR get_method< F >(), OR
- *      get_method_name< F >() ARE CALLED, A NEW METHODS FACTORY FOR F IS
- *      AUTOMAGICALLY CREATED (AT COMPILE TIME)
+ *      get_method_name< F >() ARE CALLED, THE CORRESPONDING METHODS
+ *      FACTORY FOR F IS SELECTED.
+ *
+ * For the standard function signatures supported by Block (such as the
+ * predefined MS[_D]_S families), methods< F >() returns a reference to a
+ * unique, centralized factory owned by the core Block implementation.
+ * This avoids having separate copies of the same methods factory in
+ * different translation units or shared libraries.
+ *
+ * Additional signatures can still be supported by extending the internal
+ * dispatching machinery used by methods< F >().
  *
  * However, the issue is that
  *
@@ -5885,8 +5921,8 @@ class Block : public Observer {
    auto replaced = methods< F >().left.replace_data( iter, function );
    assert( replaced );
   } else
-   methods< F >().insert( typename bimap< F >::value_type( std::move( name ),
-                                                           function ) );
+   methods< F >().insert( typename MethodsFactoryMap< F >::value_type(
+                           std::move( name ), function ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -5992,7 +6028,7 @@ class Block : public Observer {
   * @param name The name associated with the function. */
 
  template< class F >
- static const F * get_method( const std::string & name ) {
+ static F * get_method( const std::string & name ) {
   auto it = methods< F >().left.find( name );
   return( it != methods< F >().left.end() ? it->second : nullptr );
   }
@@ -6075,7 +6111,7 @@ class Block : public Observer {
   * @param fnct A pointer to the function whose associated name is desired. */
 
  template< class F >
- static const std::string & get_method_name( const F * fnct ) {
+ static const std::string & get_method_name( F * fnct ) {
   static const std::string empty;
   auto it = methods< F >().right.find( fnct );
   return( it != methods< F >().right.end() ? it->second : empty );
@@ -7518,6 +7554,21 @@ class Block : public Observer {
 
  static void static_initialization( void ) {}
 
+/*--------------------------------------------------------------------------*/
+ /// out-of-line accessors to the unique methods factories
+
+ static MF_rngd_map & methods_rngd_factory( void );
+
+ static MF_dbl_rngd_map & methods_dbl_rngd_factory( void );
+
+ static MF_int_rngd_map & methods_int_rngd_factory( void );
+
+ static MF_sbst_map & methods_sbst_factory( void );
+
+ static MF_dbl_sbst_map & methods_dbl_sbst_factory( void );
+
+ static MF_int_sbst_map & methods_int_sbst_factory( void );
+
 /** @} ---------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -7608,14 +7659,6 @@ class Block : public Observer {
  private:
 
 /*--------------------------------------------------------------------------*/
-/*--------------------------- PRIVATE TYPES --------------------------------*/
-/*--------------------------------------------------------------------------*/
-
- template< class F >
- using bimap = boost::bimap< std::string , const F * >;
- ///< a bidirectional map for the methods factory
-
-/*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
  // Definition of Block::private_name() (pure virtual)
@@ -7646,9 +7689,11 @@ class Block : public Observer {
  * names) in the methods factory are stored. */
 
  template< class F >
- static inline bimap< F > & methods( void ) {
-  static bimap< F > methods;
-  return( methods );
+ struct methods_factory_accessor;
+
+ template< class F >
+ static MethodsFactoryMap< F > & methods( void ) {
+  return( methods_factory_accessor< F >::get() );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -7681,6 +7726,53 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
 
 };  // end( class( Block ) )
+
+template<>
+struct Block::methods_factory_accessor< Block::FunctionType< Block::Range > > {
+ static Block::MF_rngd_map & get( void ) {
+  return( Block::methods_rngd_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor<
+ Block::FunctionType< Block::MF_dbl_it , Block::Range > > {
+ static Block::MF_dbl_rngd_map & get( void ) {
+  return( Block::methods_dbl_rngd_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor<
+ Block::FunctionType< Block::MF_int_it , Block::Range > > {
+ static Block::MF_int_rngd_map & get( void ) {
+  return( Block::methods_int_rngd_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor<
+ Block::FunctionType< Block::Subset && , bool > > {
+ static Block::MF_sbst_map & get( void ) {
+  return( Block::methods_sbst_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor<
+ Block::FunctionType< Block::MF_dbl_it , Block::Subset && , bool > > {
+ static Block::MF_dbl_sbst_map & get( void ) {
+  return( Block::methods_dbl_sbst_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor<
+ Block::FunctionType< Block::MF_int_it , Block::Subset && , bool > > {
+ static Block::MF_int_sbst_map & get( void ) {
+  return( Block::methods_int_sbst_factory() );
+ }
+};
 
 /*--------------------------------------------------------------------------*/
 /*---------------------------- CLASS BlockMod ------------------------------*/

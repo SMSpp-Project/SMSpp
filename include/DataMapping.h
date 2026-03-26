@@ -794,7 +794,7 @@ public:
   *
   * @param set_to The set specifying which part of the data that will change.
   */
- SimpleDataMapping( const F * function = nullptr , Caller * caller = nullptr ,
+ SimpleDataMapping( F * function = nullptr , Caller * caller = nullptr ,
                     const SetFrom & set_from = {} , const SetTo & set_to = {} ) :
   function( function ) , caller( caller ) , set_from( set_from ) ,
   set_to( set_to ) {
@@ -832,11 +832,6 @@ public:
   SMSpp_di_unipi_it::deserialize( group , function_name , FunctionName_name ,
                                   false );
 
-  function = Block::get_method< F >( function_name );
-  if( ! function )
-   throw( std::invalid_argument( function_name +
-                                 " not present in method factory" ) );
-
   // AbstractPath
 
   {
@@ -848,6 +843,16 @@ public:
    caller_path = AbstractPath( path_group );
    caller = caller_path.get_element< Caller >( block_reference );
   }
+
+  // Ensure that methods for the concrete caller type are registered
+  if constexpr( std::is_base_of_v< Block , Caller > ) {
+   if( caller )
+    caller->ensure_methods_registered();
+  }
+  function = Block::get_method< F >( function_name );
+  if( ! function )
+   throw( std::invalid_argument( function_name +
+                                 " not present in method factory" ) );
 
   // SetFrom and SetTo
 
@@ -935,15 +940,20 @@ public:
   std::string function_name( fname );
   free( fname );
 
-  function = Block::get_method< F >( function_name );
-  if( ! function )
-   throw( std::invalid_argument( function_name +
-                                 " not present in method factory" ) );
-
   // AbstractPath
 
   caller_path = AbstractPath( index , sdmb_netCDF.ap_netCDF );
   caller = caller_path.get_element< Caller >( block_reference );
+
+  // Ensure that methods for the concrete caller type are registered
+  if constexpr( std::is_base_of_v< Block , Caller > ) {
+   if( caller )
+    caller->ensure_methods_registered();
+  }
+  function = Block::get_method< F >( function_name );
+  if( ! function )
+   throw( std::invalid_argument( function_name +
+                                 " not present in method factory" ) );
 
   // SetFrom and SetTo
 
@@ -1448,7 +1458,7 @@ private:
  *  @{ */
 
  /// Pointer to the function that will be invoked
- const F * function;
+ F * function;
 
  /// Pointer to the object that will invoke the function
  /** This pointer represents the actual caller instance on which the mapped
