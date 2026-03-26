@@ -842,8 +842,8 @@ public:
   {
    auto path_group = group.getGroup( AbstractPath_name );
    if( path_group.isNull() )
-    std::logic_error( "SimpleDataMapping::deserialize: group '" +
-                      AbstractPath_name + "' was not found." );
+    throw( std::logic_error( "SimpleDataMapping::deserialize: group '" +
+                             AbstractPath_name + "' was not found." ) );
 
    caller_path = AbstractPath( path_group );
    caller = caller_path.get_element< Caller >( block_reference );

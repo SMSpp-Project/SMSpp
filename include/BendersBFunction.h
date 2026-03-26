@@ -2974,11 +2974,11 @@ void print( std::ostream & output ) override {
 				       !!*/
   register_method< BendersBFunction , MF_dbl_it , Subset && , const bool >(
 				       "BendersBFunction::modify_constants" ,
-                                       & BendersBFunction::modify_constants );
+   &BendersBFunction::modify_constants );
 
   register_method< BendersBFunction , MF_dbl_it , Range >(
 				       "BendersBFunction::modify_constants" ,
-                                       & BendersBFunction::modify_constants );
+   &BendersBFunction::modify_constants );
   }
 
 /*--------------------------------------------------------------------------*/
