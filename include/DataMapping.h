@@ -832,6 +832,11 @@ public:
   SMSpp_di_unipi_it::deserialize( group , function_name , FunctionName_name ,
                                   false );
 
+  function = Block::get_method< F >( function_name );
+  if( ! function )
+   throw( std::invalid_argument( function_name +
+                                 " not present in method factory" ) );
+
   // AbstractPath
 
   {
@@ -843,16 +848,6 @@ public:
    caller_path = AbstractPath( path_group );
    caller = caller_path.get_element< Caller >( block_reference );
   }
-
-  // Ensure that methods for the concrete caller type are registered
-  if constexpr( std::is_base_of_v< Block , Caller > ) {
-   if( caller )
-    caller->ensure_methods_registered();
-  }
-  function = Block::get_method< F >( function_name );
-  if( ! function )
-   throw( std::invalid_argument( function_name +
-                                 " not present in method factory" ) );
 
   // SetFrom and SetTo
 
@@ -940,20 +935,15 @@ public:
   std::string function_name( fname );
   free( fname );
 
-  // AbstractPath
-
-  caller_path = AbstractPath( index , sdmb_netCDF.ap_netCDF );
-  caller = caller_path.get_element< Caller >( block_reference );
-
-  // Ensure that methods for the concrete caller type are registered
-  if constexpr( std::is_base_of_v< Block , Caller > ) {
-   if( caller )
-    caller->ensure_methods_registered();
-  }
   function = Block::get_method< F >( function_name );
   if( ! function )
    throw( std::invalid_argument( function_name +
                                  " not present in method factory" ) );
+
+  // AbstractPath
+
+  caller_path = AbstractPath( index , sdmb_netCDF.ap_netCDF );
+  caller = caller_path.get_element< Caller >( block_reference );
 
   // SetFrom and SetTo
 

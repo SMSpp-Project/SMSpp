@@ -1383,18 +1383,6 @@ class Block : public Observer {
                              Block * father = nullptr ,
                              std::function< void( Block * ) > * f = nullptr );
 
-/*--------------------------------------------------------------------------*/
-/// ensure that the methods of this concrete Block type are registered
-/** This hook is meant to guarantee, in a shared-library-safe way, that
- * the methods factory entries required by the concrete Block type are
- * registered before any lookup is attempted. The base implementation
- * does nothing. Derived classes can override it and use std::call_once()
- * to perform one-time registration of their methods. */
-
- virtual void ensure_methods_registered( void ) const {
-  static_initialization();
- }
-
 /** @} ---------------------------------------------------------------------*/
 /** @name Public methods for handling the list of expected variables and
  *  dimensions in deserialize().
