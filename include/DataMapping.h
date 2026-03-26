@@ -834,7 +834,8 @@ public:
 
   function = Block::get_method< F >( function_name );
   if( ! function )
-   throw( std::invalid_argument( function_name + " not present in factory" ) );
+   throw( std::invalid_argument( function_name +
+                                 " not present in method factory" ) );
 
   // AbstractPath
 
@@ -936,7 +937,8 @@ public:
 
   function = Block::get_method< F >( function_name );
   if( ! function )
-   throw( std::invalid_argument( function_name + " not present in factory" ) );
+   throw( std::invalid_argument( function_name +
+                                 " not present in method factory" ) );
 
   // AbstractPath
 
