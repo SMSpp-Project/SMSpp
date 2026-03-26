@@ -828,20 +828,13 @@ public:
 
   // FunctionName
 
-  auto FunctionName_var = group.getVar( FunctionName_name );
-  if( FunctionName_var.isNull() ) {
-   throw( std::logic_error( "SimpleDataMapping::deserialize: variable '" +
-                            FunctionName_name + "' is not present." ) );
-  }
-
-  // TODO The following implementation should change when netCDF provides a
-  // better C++ interface.
-  char * fname = nullptr;
-  FunctionName_var.getVar( & fname );
-  std::string function_name( fname );
-  free( fname );
+  std::string function_name;
+  SMSpp_di_unipi_it::deserialize( group , function_name , FunctionName_name ,
+                                  false );
 
   function = Block::get_method< F >( function_name );
+  if( ! function )
+   throw( std::invalid_argument( function_name + " not present in factory" ) );
 
   // AbstractPath
 
@@ -859,16 +852,16 @@ public:
 
   {
    std::vector< Index > set_size = { 0 , 0 };
-   if( ::SMSpp_di_unipi_it::deserialize( group , SetSize_name ,
-                                         set_size , true ) ) {
+   if( SMSpp_di_unipi_it::deserialize( group , SetSize_name ,
+                                       set_size , true ) ) {
     if( set_size.size() != 2 )
      throw( std::logic_error( "SimpleDataMapping::deserialize: array '" +
                               SetSize_name + "' must have size 2." ) );
    }
 
    std::vector< Index > set_elements;
-   ::SMSpp_di_unipi_it::deserialize( group , SetElements_name ,
-                                     set_elements , false );
+   SMSpp_di_unipi_it::deserialize( group , SetElements_name ,
+                                   set_elements , false );
 
    Index next_index = 0;
    if constexpr( std::is_same_v< SetFrom , Range > ) {
@@ -936,14 +929,14 @@ public:
 
   // FunctionName
 
-  // TODO The following implementation should change when netCDF provides a
-  // better C++ interface.
   char * fname = nullptr;
   sdmb_netCDF.FunctionName.getVar( { index } , { 1 } , & fname );
   std::string function_name( fname );
   free( fname );
 
   function = Block::get_method< F >( function_name );
+  if( ! function )
+   throw( std::invalid_argument( function_name + " not present in factory" ) );
 
   // AbstractPath
 
@@ -1255,7 +1248,7 @@ public:
   // FunctionName
 
   auto function_name = Block::get_method_name( function );
-  ::SMSpp_di_unipi_it::serialize< std::string >
+  SMSpp_di_unipi_it::serialize< std::string >
    ( group , FunctionName_name , netCDF::NcString() , function_name );
 
   // AbstractPath
@@ -1297,8 +1290,8 @@ public:
 
   auto SetSize_dim = group.addDim( SetSize_dim_name , set_size.size() );
 
-  ::SMSpp_di_unipi_it::serialize( group , SetSize_name , netCDF::NcUint() ,
-                                  SetSize_dim , set_size , false );
+  SMSpp_di_unipi_it::serialize( group , SetSize_name , netCDF::NcUint() ,
+                                SetSize_dim , set_size , false );
 
   std::vector< Index > set_elements( set_elements_size );
   Index next_index = 0;
@@ -1325,14 +1318,14 @@ public:
   auto SetElements_dim = group.addDim( SetElements_dim_name ,
                                        set_elements.size() );
 
-  ::SMSpp_di_unipi_it::serialize( group , SetElements_name ,
-                                  netCDF::NcUint() , SetElements_dim ,
-                                  set_elements , false );
+  SMSpp_di_unipi_it::serialize( group , SetElements_name ,
+                                netCDF::NcUint() , SetElements_dim ,
+                                set_elements , false );
 
   // DataType
 
-  ::SMSpp_di_unipi_it::serialize( group , DataType_name , netCDF::NcChar() ,
-                                  get_id< DataType >() );
+  SMSpp_di_unipi_it::serialize( group , DataType_name , netCDF::NcChar() ,
+                                get_id< DataType >() );
 
   // Caller type
 
@@ -1340,8 +1333,8 @@ public:
   if constexpr( std::is_base_of_v< Function , Caller > )
    caller_type = 'F';
 
-  ::SMSpp_di_unipi_it::serialize( group , Caller_name , netCDF::NcChar() ,
-                                  caller_type );
+  SMSpp_di_unipi_it::serialize( group , Caller_name , netCDF::NcChar() ,
+                                caller_type );
  }
 
 /** @} ---------------------------------------------------------------------*/
@@ -1598,7 +1591,7 @@ private:
                             char & set_from_type , char & set_to_type ) {
 
   std::vector< Index > set_size = { 0 , 0 };
-  if( ::SMSpp_di_unipi_it::deserialize( group , "SetSize" , set_size , true ) ) {
+  if( SMSpp_di_unipi_it::deserialize( group , "SetSize" , set_size , true ) ) {
    if( set_size.size() != 2 )
     throw( std::logic_error( "SimpleDataMappingFactory::get_sets_type: array "
                              "'SetSize' must have size 2." ) );
