@@ -41,11 +41,11 @@ else ()
 
     # ----- Find the headers ------------------------------------------------ #
     find_path(Eigen3_INCLUDE_DIR
-              NAMES Eigen/Dense
-              PATHS ${Eigen3_ROOT}
-              PATH_SUFFIXES include/eigen3
-                            eigen3
-              DOC "Eigen3 include directory.")
+            NAMES Eigen/Dense
+            PATHS ${Eigen3_ROOT}
+            PATH_SUFFIXES include/eigen3
+            eigen3
+            DOC "Eigen3 include directory.")
 
     # ----- Parse the version ----------------------------------------------- #
     if (Eigen3_INCLUDE_DIR)
@@ -60,8 +60,8 @@ else ()
 
         # Eigen >= 3.5
         if (_eigen3_version_world STREQUAL "" OR
-            _eigen3_version_major STREQUAL "" OR
-            _eigen3_version_minor STREQUAL "")
+                _eigen3_version_major STREQUAL "" OR
+                _eigen3_version_minor STREQUAL "")
             file(STRINGS
                     "${Eigen3_INCLUDE_DIR}/Eigen/Version"
                     _eigen3_version_lines REGEX "#define EIGEN_(WORLD|MAJOR|MINOR)_VERSION")
@@ -106,6 +106,6 @@ endif ()
 # Variables marked as advanced are not displayed in CMake GUIs, see:
 # https://cmake.org/cmake/help/latest/command/mark_as_advanced.html
 mark_as_advanced(Eigen3_INCLUDE_DIR
-                 Eigen3_VERSION)
+        Eigen3_VERSION)
 
 # --------------------------------------------------------------------------- #

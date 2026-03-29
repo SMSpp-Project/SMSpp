@@ -794,7 +794,7 @@ public:
   *
   * @param set_to The set specifying which part of the data that will change.
   */
- SimpleDataMapping( const F * function = nullptr , Caller * caller = nullptr ,
+ SimpleDataMapping( F * function = nullptr , Caller * caller = nullptr ,
                     const SetFrom & set_from = {} , const SetTo & set_to = {} ) :
   function( function ) , caller( caller ) , set_from( set_from ) ,
   set_to( set_to ) {
@@ -1448,7 +1448,7 @@ private:
  *  @{ */
 
  /// Pointer to the function that will be invoked
- const F * function;
+ F * function;
 
  /// Pointer to the object that will invoke the function
  /** This pointer represents the actual caller instance on which the mapped
