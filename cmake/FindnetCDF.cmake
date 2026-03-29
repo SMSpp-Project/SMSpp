@@ -48,34 +48,34 @@ else ()
 
     # ----- Find the headers ------------------------------------------------ #
     find_path(netCDF_INCLUDE_DIR
-              NAMES netcdf.h
-              PATHS ${netCDF_ROOT}
-              DOC "netCDF include directory.")
+            NAMES netcdf.h
+            PATHS ${netCDF_ROOT}
+            DOC "netCDF include directory.")
 
     # ----- Find the library ------------------------------------------------ #
     if (UNIX)
         find_library(netCDF_LIBRARY
-                     NAMES netcdf
-                     PATHS ${netCDF_ROOT}/lib
-                     DOC "netCDF library.")
+                NAMES netcdf
+                PATHS ${netCDF_ROOT}/lib
+                DOC "netCDF library.")
 
         set(netCDF_LIBRARY_DEBUG ${netCDF_LIBRARY}
                 CACHE FILEPATH "netCDF debug library." FORCE)
     elseif (WIN32)
         find_library(netCDF_LIBRARY
-                     NAMES netcdf
-                     PATHS ${netCDF_ROOT}/lib
-                           ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib
-                           $ENV{LIBRARY_LIB}
-                     NO_DEFAULT_PATH
-                     DOC "netCDF library.")
+                NAMES netcdf
+                PATHS ${netCDF_ROOT}/lib
+                ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib
+                $ENV{LIBRARY_LIB}
+                NO_DEFAULT_PATH
+                DOC "netCDF library.")
 
         find_library(netCDF_LIBRARY_DEBUG
-                     NAMES netcdf
-                     PATHS ${netCDF_ROOT}/debug/lib
-                           ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/lib
-                     NO_DEFAULT_PATH
-                     DOC "netCDF debug library.")
+                NAMES netcdf
+                PATHS ${netCDF_ROOT}/debug/lib
+                ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/lib
+                NO_DEFAULT_PATH
+                DOC "netCDF debug library.")
     endif ()
 
     # ----- Parse the version ----------------------------------------------- #
@@ -126,8 +126,8 @@ endif ()
 # Variables marked as advanced are not displayed in CMake GUIs, see:
 # https://cmake.org/cmake/help/latest/command/mark_as_advanced.html
 mark_as_advanced(netCDF_INCLUDE_DIR
-                 netCDF_LIBRARY
-                 netCDF_LIBRARY_DEBUG
-                 netCDF_VERSION)
+        netCDF_LIBRARY
+        netCDF_LIBRARY_DEBUG
+        netCDF_VERSION)
 
 # --------------------------------------------------------------------------- #
