@@ -43,7 +43,8 @@ else ()
     find_path(Eigen3_INCLUDE_DIR
             NAMES Eigen/Dense
             PATHS ${Eigen3_ROOT}
-            PATH_SUFFIXES include/eigen3
+            PATH_SUFFIXES
+            include/eigen3
             eigen3
             DOC "Eigen3 include directory.")
 

@@ -64,7 +64,8 @@ else ()
     elseif (WIN32)
         find_library(netCDF_LIBRARY
                 NAMES netcdf
-                PATHS ${netCDF_ROOT}/lib
+                PATHS
+                ${netCDF_ROOT}/lib
                 ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib
                 $ENV{LIBRARY_LIB}
                 NO_DEFAULT_PATH
@@ -72,7 +73,8 @@ else ()
 
         find_library(netCDF_LIBRARY_DEBUG
                 NAMES netcdf
-                PATHS ${netCDF_ROOT}/debug/lib
+                PATHS
+                ${netCDF_ROOT}/debug/lib
                 ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/lib
                 NO_DEFAULT_PATH
                 DOC "netCDF debug library.")
