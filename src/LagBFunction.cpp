@@ -2808,13 +2808,15 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod , ChnlName chnl )
 
  Index h = 0;
  Block * block;
- if( ! PushCostToOwner ) {
+ if( PushCostToOwner ) {
   block = mod->get_Block();
   auto it = Block2Idx.find( block );
   if( it == Block2Idx.end() )
    throw( std::logic_error( "add_Modification: mod is from unknown Block" ) );
   h = it->second;
   }
+ else
+  block = v_Block.front();
 
  auto & CMh = CostMatrix[ h ];
  auto * CMh_f = v_Obj[ h ]->get_function();
