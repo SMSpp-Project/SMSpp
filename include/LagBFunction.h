@@ -2380,16 +2380,33 @@ class LagBFunction : public C05Function , public Block {
   }
 
 /*--------------------------------------------------------------------------*/
- /** handle every Modification, comprised GroupModification. returns true if
-  * the global pool has to be checked for feasibility. */
+ /** handle every Modification, comprised GroupModification. returns a char
+  * telling what changes must be done to the global pool (what has to be
+  * checked for feasibility, etc.) coded bit-wise, with the same encoding
+  * of the what() field of LagBFunctionMod [see]. If \p mod is a
+  * GroupModification, this is the combination of the what() values of the
+  * individual Modification in the GroupModification, i.e., their logical
+  * or. */
 
  char guts_of_add_Modification( p_Mod mod , ChnlName chnl );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /** handle only "basic" Modification, i.e., no GroupModification. returns
-  * true if the global pool has to be checked for feasibility. */
+  * a char telling what changes must be done to the global pool (what has
+  * to be checked for feasibility, etc.) coded bit-wise, with the same
+  * encoding of the what() field of LagBFunctionMod [see]. */
 
  char guts_of_guts_of_add_Modification( p_Mod mod , ChnlName chnl );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /** handle only "basic" Modification coming directly from the LagBFunction
+  * itself, i.e., changes of the linear terms; hence it must necessarily
+  * be either a FunctionMod or a FunctionModVars. returns a char telling
+  * what changes must be done to the global pool (what has to be checked for
+  * feasibility, etc.) coded bit-wise, with the same encoding of the what()
+  * field of LagBFunctionMod [see]. */
+
+ char guts_of_this_add_Modification( p_Mod mod , ChnlName chnl );
 
 /*--------------------------------------------------------------------------*/
 
