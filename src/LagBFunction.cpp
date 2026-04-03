@@ -2776,7 +2776,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
   * immediately deferred to guts_of_this_add_Modification(). */
 
  if( mod->get_Block() == this )
-  return( guts_of_this_add_Modification( fmod , cnhl ) );
+  return( guts_of_this_add_Modification( mod , chnl ) );
  
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // C05FunctionModLin: the "linear part" of a Function has been changed
@@ -3400,6 +3400,36 @@ char LagBFunction::guts_of_this_add_Modification( p_Mod mod , ChnlName chnl )
   throw( std::logic_error( "LagBFunction::add_Modification: mod from "
 			   "Lagrangian term which is not LinearFunction" ) );
 
+ // keep information about the current Block to which the "current
+ // ColVariable being looked at" belongs to: while it may change (if
+ // PushCostToOwner == true), it's likely pretty stable so that we can
+ // avoid repeated searches. initialization is to the Block being the
+ // inner Block of the LagBFunction, which is always right when
+ // PushCostToOwner == false
+ Block * block = v_Block.front();            // current block
+ Index b = 0;                                // its index
+ auto & CMb = CostMatrix[ b ];               // its CostMatrix[]
+ auto * CMb_f = v_Obj[ b ]->get_function();  // its Objective and ...
+ Index nv = CMb_f->get_num_active_var();     // its number of variables
+
+ // small local lambda to keep the stuff above updated when a new variable
+ // x is looked at; only needs be called if PushCostToOwner == true
+ auto updatestuff =
+  [ & block , & b , & CMb , & CMb_f , & nv , this ] ( Variable * x )
+  -> void {
+  if( auto cb = x->get_Block() ; cb != block ) {
+   // find the sub-Block to which x belongs
+   auto it = Block2Idx.find( cb );
+   if( ( it == Block2Idx.end() ) || ( it->second >= v_Obj.size() ) )
+    throw( std::logic_error( "Variable not found in any objective" ) );
+   b = it->second;
+   block = cb;
+   CMb = CostMatrix[ b ];
+   CMb_f = v_Obj[ b ]->get_function();
+   nv = CMb_f->get_num_active_var();
+   }
+  };
+
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // IMPORTANT NOTE: unlike the general case, Modification coming from
  //                 Lagrangian terms "immediately reach" the LagBFunction,
@@ -3418,7 +3448,7 @@ char LagBFunction::guts_of_this_add_Modification( p_Mod mod , ChnlName chnl )
 
  // C05FunctionModLinRngd- - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- if( const auto tmod = dynamic_cast< const C05FunctionModLinRngd * >( fmod )
+ if( const auto tmod = dynamic_cast< const C05FunctionModLinRngd * >( mod )
      ) {
   // the corresponding entry of all the linearizations changes
 
@@ -3428,7 +3458,8 @@ char LagBFunction::guts_of_this_add_Modification( p_Mod mod , ChnlName chnl )
 			  );
   #ifndef NDEBUG
    if( it == LagPairs.end() )
-    throw( std::logic_error( "Lagrangian term not found" ) );
+    throw( std::logic_error( "LagBFunction::add_Modification: Lagrangian "
+			     "term not found" ) );
   #endif
 
   Index i = std::distance( LagPairs.begin() , it );
@@ -3437,14 +3468,8 @@ char LagBFunction::guts_of_this_add_Modification( p_Mod mod , ChnlName chnl )
 
   // for all the coefficients a_{ij} in A_j that have changed
   for( Index h = tmod->range().first ; h < tmod->range().second ; ++h ) {
-   // find the sub-Block to which x_j belongs
-   auto it = Block2Idx.find( rc[ h ].first->get_Block() );
-   if( ( it == Block2Idx.end() ) || ( it->second >= v_Obj.size() ) )
-    throw( std::logic_error( "Variable not found in any objective" ) );
-   Index b = it->second;
-
-   auto & CMb = CostMatrix[ b ];
-   auto * CMb_f = v_Obj[ b ]->get_function();
+   if( PushCostToOwner )
+    updatestuff( rc[ h ].first );
 
    auto j = CMb_f->is_active( rc[ h ].first ); // find x_j
 
@@ -3452,11 +3477,12 @@ char LagBFunction::guts_of_this_add_Modification( p_Mod mod , ChnlName chnl )
    auto ajit = std::lower_bound( CMb[ j ].second.begin() ,
 				 CMb[ j ].second.end() ,
 				 mon_pair( i , 0 ) ,
-				 []( const auto & a , const auto & b )
-				 { return( a.first < b.first ); } );
+				 []( const auto & a , const auto & b ) {
+				  return( a.first < b.first ); } );
    #ifndef NDEBUG
-    if( ajit == CMh[ j ].second.end() )
-     throw( std::logic_error( "inconsistent CostMatrix" ) );
+    if( ajit == CMb[ j ].second.end() )
+     throw( std::logic_error( "LagBFunction::add_Modification: "
+			      "inconsistent CostMatrix" ) );
    #endif
 
    ajit->second += *( dit++ );  // update a_{ij}
@@ -3494,12 +3520,11 @@ char LagBFunction::guts_of_this_add_Modification( p_Mod mod , ChnlName chnl )
 
   // search for the Lagrangian term which has changed
   auto it = std::find_if( LagPairs.begin() , LagPairs.end() ,
-			  [ lf ]( auto & p ) { return( p.second == lf ); }
-			  );
-
+			  [ lf ]( auto & p ) { return( p.second == lf ); } );
   #ifndef NDEBUG
    if( it == LagPairs.end() )
-    throw( std::logic_error( "Lagrangian term not found" ) );
+    throw( std::logic_error( "LagBFunction::add_Modification: Lagrangian "
+			     "term not found" ) );
   #endif
 
   Index i = std::distance( LagPairs.begin() , it );
@@ -3508,14 +3533,8 @@ char LagBFunction::guts_of_this_add_Modification( p_Mod mod , ChnlName chnl )
 
   // for all the coefficients a_{ij} in A_j that have changed
   for( auto h : tmod->subset() ) {
-   // find the sub-Block to which x_j belongs
-   auto it = Block2Idx.find( rc[ h ].first->get_Block() );
-   if( ( it == Block2Idx.end() ) || ( it->second >= v_Obj.size() ) )
-    throw( std::logic_error( "Variable not found in any objective" ) );
-   Index b = it->second;
-
-   auto & CMb = CostMatrix[ b ];
-   auto * CMb_f = v_Obj[ b ]->get_function();
+   if( PushCostToOwner )
+    updatestuff( rc[ h ].first );
 
    auto j = CMb_f->is_active( rc[ h ].first ); // find x_j
 
@@ -3523,12 +3542,12 @@ char LagBFunction::guts_of_this_add_Modification( p_Mod mod , ChnlName chnl )
    auto ajit = std::lower_bound( CMb[ j ].second.begin() ,
 				 CMb[ j ].second.end() ,
 				 mon_pair( i , 0 ) ,
-				 []( const auto & a , const auto & b )
-				 { return( a.first < b.first ); } );
-
+				 []( const auto & a , const auto & b ) {
+				  return( a.first < b.first ); } );
    #ifndef NDEBUG
-    if( ajit == CMh[ j ].second.end() )
-     throw( std::logic_error( "inconsistent CostMatrix" ) );
+    if( ajit == CMb[ j ].second.end() )
+     throw( std::logic_error( "LagBFunction::add_Modification: "
+			      "inconsistent CostMatrix" ) );
    #endif
 
    ajit->second += *( dit++ );  // update a_{ij}
@@ -3573,13 +3592,12 @@ char LagBFunction::guts_of_this_add_Modification( p_Mod mod , ChnlName chnl )
   if( f_Observer ) {
    // search for the Lagrangian term which has changed
    auto it = std::find_if( LagPairs.begin() , LagPairs.end() ,
-			   [ f ]( auto & p )
-			   { return( p.second == static_cast< p_LF >( f ) );
+			   [ lf ]( auto & p ) { return( p.second == lf );
 			   } );
-
    #ifndef NDEBUG
     if( it == LagPairs.end() )
-     throw( std::logic_error( "Lagrangian term not found" ) );
+     throw( std::logic_error( "LagBFunction::add_Modification: Lagrangian "
+			      "term not found" ) );
    #endif
 
    Index i = std::distance( LagPairs.begin() , it );
@@ -3621,7 +3639,8 @@ char LagBFunction::guts_of_this_add_Modification( p_Mod mod , ChnlName chnl )
 			  [ lf ]( auto & p ) { return( p.second == lf ); } );
   #ifndef NDEBUG
    if( it == LagPairs.end() )
-    throw( std::logic_error( "Lagrangian term not found" ) );
+    throw( std::logic_error( "LagBFunction::add_Modification: Lagrangian "
+			     "term not found" ) );
   #endif
 
   Index i = std::distance( LagPairs.begin() , it );
@@ -3661,13 +3680,14 @@ char LagBFunction::guts_of_this_add_Modification( p_Mod mod , ChnlName chnl )
     throw( std::logic_error( "Lagrangian term not found" ) );
   #endif
 
-   Index i = std::distance( LagPairs.begin() , it );
-   Index nv = CMh_f->get_num_active_var();
+  Index i = std::distance( LagPairs.begin() , it );
 
    // for all the Variable that have been eliminated
    for( auto xj : tmod->vars() ) {
-   //!!!!!!
-     auto j = CMh_f->is_active( xj );
+    if( PushCostToOwner )
+     updatestuff( xj );
+
+     auto j = CMb_f->is_active( xj );
      if( j >= nv ) {
       // the deleted variable is not in obj yet, but it may be in v_tmpCP
       // waiting to be added to obj
@@ -3677,38 +3697,41 @@ char LagBFunction::guts_of_this_add_Modification( p_Mod mod , ChnlName chnl )
       else {
        auto itb = Block2Idx.find( xj->get_Block() );
        if( ( itb == Block2Idx.end() ) || ( itb->second >= v_Obj.size() ) )
-	throw( std::logic_error( "deleted variable not found in Block2Idx" ) );
+	throw( std::logic_error( "LagBFunction::add_Modification: deleted "
+				 "variable not found in Block2Idx" ) );
        h = itb->second;
        }
 
       auto tCPit = std::find_if( v_tmpCP[ h ].begin() , v_tmpCP[ h ].end() ,
-				 [ & xj ]( const auto & p )
-				 { return( p.first == xj ); } );
+				 [ & xj ]( const auto & p ) {
+				  return( p.first == xj ); } );
       if( tCPit == v_tmpCP[ h ].end() )
-       throw( std::logic_error( "deleted variable not found" ) );
+       throw( std::logic_error( "LagBFunction::add_Modification: deleted "
+				"variable not found" ) );
       j = nv + std::distance( v_tmpCP[ h ].begin() , tCPit );
       }
 
-     auto ajit = std::lower_bound( CMh[ j ].second.begin() ,
-				   CMh[ j ].second.end() ,
+     auto ajit = std::lower_bound( CMb[ j ].second.begin() ,
+				   CMb[ j ].second.end() ,
 				   mon_pair( i , 0 ) ,
-				   []( const auto & a , const auto & b )
-				   { return( a.first < b.first ); } );
+				   []( const auto & a , const auto & b ) {
+				    return( a.first < b.first ); } );
      #ifndef NDEBUG
-      if( ajit == CMh[ j ].second.end() )
-       throw( std::logic_error( "a_{ij} term not found in CostMatrix" ) );
+      if( ajit == CMb[ j ].second.end() )
+       throw( std::logic_error( "LagBFunction::add_Modification: a_{ij} "
+				"term not found in CostMatrix" ) );
      #endif
 
      // remove < y_i , a_{ij} > from A_j
-     CMh[ j ].second.erase( ajit );
+     CMb[ j ].second.erase( ajit );
 
      // if this leaves the term empty and the term actually was of some
      // variable that still had to be added to obj, just don't do that:
      // rather, erase the row of CostMatrix and the corresponding one in
      // v_tmpCP
-     if( CMh[ j ].second.empty() && ( j >= nv ) ) {
-      CMh.erase( CMh.begin() + j );
-      v_tmpCP[ h ].erase( v_tmpCP[ h ].begin() + ( j - nv ) );
+     if( CMb[ j ].second.empty() && ( j >= nv ) ) {
+      CMb.erase( CMb.begin() + j );
+      v_tmpCP[ b ].erase( v_tmpCP[ b ].begin() + ( j - nv ) );
       }
      }
 
@@ -3745,67 +3768,71 @@ char LagBFunction::guts_of_this_add_Modification( p_Mod mod , ChnlName chnl )
   #endif
 
   Index i = std::distance( LagPairs.begin() , it );
-  Index nv = CMh_f->get_num_active_var();
 
   // for all the Variable that have been eliminated
   for( auto xj : tmod->vars() ) {
-   //!!!!!!
-     auto j = CMh_f->is_active( xj );
-     if( j >= nv ) {
-      // the deleted variable is not in obj yet, but it may be in v_tmpCP[h]
-      Index h;
-      if( v_Obj.size() == 1 )
-       h = 0;
-      else {
-       auto itb = Block2Idx.find( xj->get_Block() );
-       if( ( itb == Block2Idx.end() ) || ( itb->second >= v_Obj.size() ) )
-	throw( std::logic_error( "deleted variable not found in Block2Idx" ) );
-       h = itb->second;
-       }
+   if( PushCostToOwner )
+     updatestuff( xj );
 
-      auto tCPit = std::find_if( v_tmpCP[ h ].begin() , v_tmpCP[ h ].end() ,
-				 [ & xj ]( const auto & p )
-				 { return( p.first == xj ); } );
-      if( tCPit == v_tmpCP[ h ].end() )
-       throw( std::logic_error( "deleted variable not found" ) );
-      j = nv + std::distance( v_tmpCP[ h ].begin() , tCPit );
-      }
-
-     auto ajit = std::lower_bound( CMh[ j ].second.begin() ,
-				   CMh[ j ].second.end() ,
-				   std::make_pair( i , 0 ) ,
-				   []( const auto & a , const auto & b )
-				   { return( a.first < b.first ); } );
-     #ifndef NDEBUG
-      if( ajit == CMh[ j ].second.end() )
-       throw( std::logic_error( "a_{ij} term not found in CostMatrix" ) );
-     #endif
-
-     // remove < y_i , a_{ij} > from A_j
-     CMh[ j ].second.erase( ajit );
-
-     // if this leaves the term empty and the term actually was of some
-     // variable that still had to be added to obj, just don't do that:
-     // rather, erase the row of CostMatrix and the corresponding one in
-     // v_tmpCP
-     if( CMh[ j ].second.empty() && ( j >= nv ) ) {
-      CMh.erase( CMh.begin() + j );
-      v_tmpCP[ h ].erase( v_tmpCP[ h ].begin() + ( j - nv ) );
-      }
+   auto j = CMb_f->is_active( xj );
+   if( j >= nv ) {
+    // the deleted variable is not in obj yet, but it may be in v_tmpCP[h]
+    Index h;
+    if( v_Obj.size() == 1 )
+     h = 0;
+    else {
+     auto itb = Block2Idx.find( xj->get_Block() );
+     if( ( itb == Block2Idx.end() ) || ( itb->second >= v_Obj.size() ) )
+      throw( std::logic_error( "LagBFunction::add_Modification: deleted "
+			       "variable not found in Block2Idx" ) );
+     h = itb->second;
      }
 
-    // issue a C05FunctionModRngd saying that the entry i of all
-    // the linearizations in the global pool has changed (the value of
-    // the function has changed unpredictably, i.e., shift() == NaN)
-    if( f_Observer )
-     f_Observer->add_Modification( std::make_shared< C05FunctionModRngd >(
+    auto tCPit = std::find_if( v_tmpCP[ h ].begin() , v_tmpCP[ h ].end() ,
+			       [ & xj ]( const auto & p ) {
+				return( p.first == xj ); } );
+    if( tCPit == v_tmpCP[ h ].end() )
+     throw( std::logic_error( "LagBFunction::add_Modification: deleted "
+			      "variable not found" ) );
+    j = nv + std::distance( v_tmpCP[ h ].begin() , tCPit );
+    }
+
+   auto ajit = std::lower_bound( CMb[ j ].second.begin() ,
+				 CMb[ j ].second.end() ,
+				 std::make_pair( i , 0 ) ,
+				 []( const auto & a , const auto & b ) {
+				  return( a.first < b.first ); } );
+   #ifndef NDEBUG
+    if( ajit == CMb[ j ].second.end() )
+     throw( std::logic_error( "LagBFunction::add_Modification: a_{ij} "
+			      "term not found in CostMatrix" ) );
+   #endif
+
+   // remove < y_i , a_{ij} > from A_j
+   CMb[ j ].second.erase( ajit );
+
+   // if this leaves the term empty and the term actually was of some
+   // variable that still had to be added to obj, just don't do that:
+   // rather, erase the row of CostMatrix and the corresponding one in
+   // v_tmpCP
+   if( CMb[ j ].second.empty() && ( j >= nv ) ) {
+    CMb.erase( CMb.begin() + j );
+    v_tmpCP[ b ].erase( v_tmpCP[ b ].begin() + ( j - nv ) );
+    }
+   }
+
+  // issue a C05FunctionModRngd saying that the entry i of all
+  // the linearizations in the global pool has changed (the value of
+  // the function has changed unpredictably, i.e., shift() == NaN)
+  if( f_Observer )
+   f_Observer->add_Modification( std::make_shared< C05FunctionModRngd >(
 			       this , C05FunctionMod::AllEntriesChanged ,
 			       Vec_p_Var( { it->first } ) ,
 			       Range( i , i + 1 ) , Subset() , NaN , true ) ,
-				   chnl );
+				 chnl );
 
-    f_Lc = -1;    // the Lipschitz constant must be computed
-    return( 0 );  // all done
+  f_Lc = -1;    // the Lipschitz constant must be computed
+  return( 0 );  // all done
 
   }  // end( C05FunctionModVarsSbst )
 
