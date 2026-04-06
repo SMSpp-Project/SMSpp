@@ -28,6 +28,8 @@ using namespace SMSpp_di_unipi_it;
 /*----------------------------- STATIC MEMBERS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
+std::string Configuration::f_prefix;
+
 // register various versions of SimpleConfiguration<> to the factory
 
 SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< int > );

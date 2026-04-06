@@ -28,7 +28,7 @@ using namespace SMSpp_di_unipi_it;
 /*----------------------------- STATIC MEMBERS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
-std::string Solution::f_prefix;  // the filename prefix
+std::string Solution::f_prefix;
 
 // register Solution to the Solution factory
 SMSpp_insert_in_factory_cpp_0( Solution );

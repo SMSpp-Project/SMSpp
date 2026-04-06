@@ -49,6 +49,8 @@ std::set< Observer::ChnlName > Observer::v_free_chnl;
 /*------------------------- STATIC MEMBERS OF Block ------------------------*/
 /*--------------------------------------------------------------------------*/
 
+std::string Block::f_prefix;
+
 // register BlockConfig to the Configuration factory
 
 SMSpp_insert_in_factory_cpp_0( BlockConfig );
