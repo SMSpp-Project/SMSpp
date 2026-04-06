@@ -345,13 +345,13 @@ Block * Block::deserialize( std::istream & input , Block * father ,
 
   if( input.eof() )
    return( nullptr );
-  
+
   if( input.fail() )
    throw( std::invalid_argument( sre ) );
 
   if( std::isspace( input.peek() ) )
    return( nullptr );
- 
+
   input >> tmp;
   if( input.fail() )
     throw( std::invalid_argument( sre ) );
