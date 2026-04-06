@@ -892,9 +892,12 @@ class Block : public Observer {
   *
   * Use of this feature therefore requires care. */
 
- static void set_filename_prefix( std::string && prefix ) {
-  f_prefix = prefix;
-  }
+ static void set_filename_prefix( std::string && prefix );
+
+/*--------------------------------------------------------------------------*/
+ /// get the executable-wide prefix for all Block filenames
+
+ static const std::string & get_filename_prefix();
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize a :Block out of a file
@@ -2013,8 +2016,7 @@ class Block : public Observer {
 
  virtual void read_unlock( void ) {
   if( ( f_owner != ReadOnlyLock() ) && ( f_owner != v_ownersLock() ) )
-   throw( std::logic_error( "trying to read-unlock a non-read-locked Block"
-			    ) );
+   throw( std::logic_error( "trying to read-unlock a non-read-locked Block" ) );
 
   // read-unlock all the sub-Block
   for( auto sb = v_Block.end() ; sb != v_Block.begin() ; )
@@ -6202,12 +6204,12 @@ class Block : public Observer {
   * case, and a proper override of this method is required instead. */
 
  virtual void print( const std::string & fname , char vlvl = 0 ) const {
-  std::ofstream f( f_prefix + fname , std::ofstream::trunc );
+  std::ofstream f( get_filename_prefix() + fname , std::ofstream::trunc );
   if( f.is_open() )
    print( f , vlvl );
   else
-   std::cerr << "Error: cannot open text file " << f_prefix + fname
-	     << std::endl;
+   std::cerr << "Error: cannot open text file " <<
+      get_filename_prefix() + fname << std::endl;
   }
 
 /*--------------------------------------------------------------------------*/
@@ -6272,12 +6274,12 @@ class Block : public Observer {
   * for details. */
 
  virtual void load( const std::string & input , char frmt = 0 ) {
-  std::ifstream f( f_prefix + input , std::fstream::in );
+  std::ifstream f( get_filename_prefix() + input , std::fstream::in );
   if( f.is_open() )
    load( f , frmt );
   else
-   std::cerr << "Error: cannot open text file " << f_prefix + input
-	     << std::endl;
+   std::cerr << "Error: cannot open text file " <<
+      get_filename_prefix() + input << std::endl;
   }
 
 /*--------------------------------------------------------------------------*/
@@ -7504,7 +7506,10 @@ class Block : public Observer {
   * rationale for using a method is that this is the "Construct On First Use
   * Idiom" that solves the "static initialization order problem". */
 
- static BlockFactoryMap & f_factory( void );
+ static BlockFactoryMap & f_factory( void ) {
+  static BlockFactoryMap s_factory;
+  return( s_factory );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// empty placeholder for class-specific static initialization
@@ -7533,7 +7538,7 @@ class Block : public Observer {
   * classes to redefine their (empty) static_initialization(). Alternatively
   * (and preferably), X::static_initialization() may contain mechanisms to
   * ensure that it will actually do things only the very first time it is
-  * called. One standard trick is to do everything within the initialisation
+  * called. One standard trick is to do everything within the initialization
   * of a static local variable of X::static_initialization(): this is
   * guaranteed by the compiler to happen only once, regardless of how many
   * times the function is called. Alternatively, an explicit static boolean
@@ -7545,17 +7550,35 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
  /// out-of-line accessors to the unique methods factories
 
- static MF_rngd_map & methods_rngd_factory( void );
+ static MF_rngd_map & methods_rngd_factory( void ) {
+  static MF_rngd_map f;
+  return( f );
+  }
 
- static MF_dbl_rngd_map & methods_dbl_rngd_factory( void );
+ static MF_dbl_rngd_map & methods_dbl_rngd_factory( void ) {
+  static MF_dbl_rngd_map f;
+  return( f );
+  }
 
- static MF_int_rngd_map & methods_int_rngd_factory( void );
+ static MF_int_rngd_map & methods_int_rngd_factory( void ) {
+  static MF_int_rngd_map f;
+  return( f );
+  }
 
- static MF_sbst_map & methods_sbst_factory( void );
+ static MF_sbst_map & methods_sbst_factory( void ) {
+  static MF_sbst_map f;
+  return( f );
+  }
 
- static MF_dbl_sbst_map & methods_dbl_sbst_factory( void );
+ static MF_dbl_sbst_map & methods_dbl_sbst_factory( void ) {
+  static MF_dbl_sbst_map f;
+  return( f );
+  }
 
- static MF_int_sbst_map & methods_int_sbst_factory( void );
+ static MF_int_sbst_map & methods_int_sbst_factory( void ) {
+  static MF_int_sbst_map f;
+  return( f );
+  }
 
 /** @} ---------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
@@ -7637,8 +7660,6 @@ class Block : public Observer {
   * vector is preferred to, say, a std::map for the lower memory overhead. */
 
  unsigned int f_channel;   ///< the "default GroupModification channel"
-
- static std::string f_prefix;  ///< the executable-wide filename prefix
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/

@@ -58,8 +58,6 @@ static void checkfail( std::istream & input , const std::string & msg )
 /*----------------------------- STATIC MEMBERS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
-std::string State::f_prefix;
-
 // register ComputeConfig to the Configuration factory
 SMSpp_insert_in_factory_cpp_0( ComputeConfig );
 
@@ -718,7 +716,7 @@ void ComputeConfig::load( std::istream & input )
 State * State::deserialize( const std::string & filename )
 {
  int idx = 0;
- std::string fn = f_prefix + filename;
+ std::string fn = get_filename_prefix() + filename;
  if( fn.back() == ']' ) {
   auto pos = fn.find_last_of( '[' );
   if( pos != std::string::npos ) {
@@ -822,6 +820,24 @@ State * State::new_State( const netCDF::NcGroup & group )
  return( nullptr );
 
  }  // end( State::new_State( netCDF::NcGroup ) )
+
+/*--------------------------------------------------------------------------*/
+
+std::string & state_filename_prefix()
+{
+ static std::string prefix;
+ return( prefix );
+ }
+
+void State::set_filename_prefix( std::string && prefix )
+{
+ state_filename_prefix() = std::move( prefix );
+ }
+
+const std::string & State::get_filename_prefix()
+{
+ return( state_filename_prefix() );
+ }
 
 /*--------------------------------------------------------------------------*/
 /*------------------ End File ThinComputeInterface.cpp ---------------------*/

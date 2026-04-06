@@ -494,7 +494,7 @@ class Change {
   * to redefine their (empty) static_initialization(). Alternatively,
   * X::static_initialization() may contain mechanisms to ensure that it will
   * actually do things only the very first time it is called. One standard
-  * trick is to do everything within the initialisation of a static local
+  * trick is to do everything within the initialization of a static local
   * variable of X::static_initialization(): this is guaranteed by the
   * compiler to happen only once, regardless of how many times the function
   * is called. Alternatively, an explicit static boolean could be used (this

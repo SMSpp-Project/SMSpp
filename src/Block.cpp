@@ -49,8 +49,6 @@ std::set< Observer::ChnlName > Observer::v_free_chnl;
 /*------------------------- STATIC MEMBERS OF Block ------------------------*/
 /*--------------------------------------------------------------------------*/
 
-std::string Block::f_prefix;
-
 // register BlockConfig to the Configuration factory
 
 SMSpp_insert_in_factory_cpp_0( BlockConfig );
@@ -71,17 +69,17 @@ Block * Block::deserialize( const std::string & filename , Block * father ,
  try {
   if( ( filename.size() > 4 ) &&
       ( filename.substr( filename.size() - 4 , 4 ) == ".txt" ) ) {
-   std::ifstream file( f_prefix + filename , std::fstream::in );
+   std::ifstream file( get_filename_prefix() + filename , std::fstream::in );
    if( ! file.is_open() ) {
-    std::cerr << "Error: cannot open text file " << f_prefix + filename
-	      << std::endl;
+    std::cerr << "Error: cannot open text file " <<
+       get_filename_prefix() + filename << std::endl;
     return( nullptr );
     }
    return( Block::deserialize( file , father , f ) );
    }
   else {
    int idx = 0;
-   std::string fn = f_prefix + filename;
+   std::string fn = get_filename_prefix() + filename;
    if( fn.back() == ']' ) {
     auto pos = fn.find_last_of( '[' );
     if( pos != std::string::npos ) {
@@ -123,7 +121,7 @@ Block::almost_deserialize( const std::string & filename , Block * father )
 	 );
  try {
   int idx = 0;
-  std::string fn = f_prefix + filename;
+  std::string fn = get_filename_prefix() + filename;
   if( fn.back() == ']' ) {
    auto pos = fn.find_last_of( '[' );
    if( pos != std::string::npos ) {
@@ -725,42 +723,20 @@ void Block::print( std::ostream & output , char vlvl ) const
 
 /*--------------------------------------------------------------------------*/
 
-Block::BlockFactoryMap & Block::f_factory( void )
+std::string & block_filename_prefix( void )
 {
- static BlockFactoryMap s_factory;
- return( s_factory );
+ static std::string prefix;
+ return( prefix );
  }
 
-/*--------------------------------------------------------------------------*/
-
-Block::MF_rngd_map & Block::methods_rngd_factory( void ) {
- static MF_rngd_map f;
- return( f );
+void Block::set_filename_prefix( std::string && prefix )
+{
+ block_filename_prefix() = std::move( prefix );
  }
 
-Block::MF_dbl_rngd_map & Block::methods_dbl_rngd_factory( void ) {
- static MF_dbl_rngd_map f;
- return( f );
- }
-
-Block::MF_int_rngd_map & Block::methods_int_rngd_factory( void ) {
- static MF_int_rngd_map f;
- return( f );
- }
-
-Block::MF_sbst_map & Block::methods_sbst_factory( void ) {
- static MF_sbst_map f;
- return( f );
- }
-
-Block::MF_dbl_sbst_map & Block::methods_dbl_sbst_factory( void ) {
- static MF_dbl_sbst_map f;
- return( f );
- }
-
-Block::MF_int_sbst_map & Block::methods_int_sbst_factory( void ) {
- static MF_int_sbst_map f;
- return( f );
+const std::string & Block::get_filename_prefix( void )
+{
+ return( block_filename_prefix() );
  }
 
 /*--------------------------------------------------------------------------*/

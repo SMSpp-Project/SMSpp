@@ -169,9 +169,12 @@ class Configuration
   *
   * Use of this feature therefore requires care. */
 
- static void set_filename_prefix( std::string && prefix ) {
-  f_prefix = prefix;
-  }
+ static void set_filename_prefix( std::string && prefix );
+
+/*--------------------------------------------------------------------------*/
+ /// get the executable-wide prefix for all Configuration filenames
+
+ static const std::string & get_filename_prefix();
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize a :Configuration out of a file
@@ -663,7 +666,7 @@ class Configuration
   * to redefine their (empty) static_initialization(). Alternatively,
   * X::static_initialization() may contain mechanisms to ensure that it will
   * actually do things only the very first time it is called. One standard
-  * trick is to do everything within the initialisation of a static local
+  * trick is to do everything within the initialization of a static local
   * variable of X::static_initialization(): this is guaranteed by the
   * compiler to happen only once, regardless of how many times the function
   * is called. Alternatively, an explicit static boolean could be used (this
@@ -675,8 +678,6 @@ class Configuration
 /** @} ---------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
-
- static std::string f_prefix;  ///< the executable-wide filename prefix
 
 /** @} ---------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/

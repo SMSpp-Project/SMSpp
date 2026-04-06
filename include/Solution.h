@@ -212,9 +212,12 @@ class Solution
   *
   * Use of this feature therefore requires care. */
 
- static void set_filename_prefix( std::string && prefix ) {
-  f_prefix = prefix;
-  }
+ static void set_filename_prefix( std::string && prefix );
+
+/*--------------------------------------------------------------------------*/
+ /// get the executable-wide prefix for all Solution filenames
+
+ static const std::string & get_filename_prefix();
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize a :Solution out of a file
@@ -629,7 +632,7 @@ class Solution
  * are typically related with factories.
  * @{ */
 
- /// method incapsulating the Solution factory
+ /// method encapsulating the Solution factory
  /** This method returns the Solution factory, which is a static object.
   * The rationale for using a method is that this is the "Construct On First
   * Use Idiom" that solves the "static initialization order problem". */
@@ -663,7 +666,7 @@ class Solution
   * to redefine their (empty) static_initialization(). Alternatively,
   * X::static_initialization() may contain mechanisms to ensure that it will
   * actually do things only the very first time it is called. One standard
-  * trick is to do everything within the initialisation of a static local
+  * trick is to do everything within the initialization of a static local
   * variable of X::static_initialization(): this is guaranteed by the
   * compiler to happen only once, regardless of how many times the function
   * is called. Alternatively, an explicit static boolean could be used (this
@@ -671,12 +674,6 @@ class Solution
   * of static variables without telling you). */
 
  static void static_initialization( void ) {}
-
-/** @} ---------------------------------------------------------------------*/
-/*--------------------------- PROTECTED FIELDS  ----------------------------*/
-/*--------------------------------------------------------------------------*/
-
- static std::string f_prefix;  ///< the executable-wide filename prefix
 
 /** @} ---------------------------------------------------------------------*/
 /*-------------------------- PROTECTED FIELDS ------------------------------*/
@@ -691,7 +688,7 @@ class Solution
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
- // custom impementation of SMSpp_insert_in_factory_h
+ // custom implementation of SMSpp_insert_in_factory_h
 
  [[nodiscard]] virtual const std::string & private_name( void ) const;
 

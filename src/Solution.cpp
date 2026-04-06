@@ -28,8 +28,6 @@ using namespace SMSpp_di_unipi_it;
 /*----------------------------- STATIC MEMBERS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
-std::string Solution::f_prefix;
-
 // register Solution to the Solution factory
 SMSpp_insert_in_factory_cpp_0( Solution );
 
@@ -44,7 +42,7 @@ SMSpp_insert_in_factory_cpp_0( Solution );
 Solution * Solution::deserialize( const std::string & filename )
 {
  int idx = 0;
- std::string fn = f_prefix + filename;
+ std::string fn = get_filename_prefix() + filename;
  if( fn.back() == ']' ) {
   auto pos = fn.find_last_of( '[' );
   if( pos != std::string::npos ) {
@@ -151,14 +149,24 @@ Solution * Solution::new_Solution( const netCDF::NcGroup & group )
 
  }  // end( Solution::new_Solution( netCDF::NcGroup ) )
 
-/*----------------------------------------------------------------------------
+/*--------------------------------------------------------------------------*/
 
-Solution::SolutionFactoryMap & Solution::f_factory( void ) {
- static SolutionFactoryMap s_factory;
- return( s_factory );
+std::string & solution_filename_prefix( void )
+{
+ static std::string prefix;
+ return( prefix );
  }
 
-----------------------------------------------------------------------------*/
+void Solution::set_filename_prefix( std::string && prefix )
+{
+ solution_filename_prefix() = std::move( prefix );
+ }
+
+const std::string & Solution::get_filename_prefix( void )
+{
+ return( solution_filename_prefix() );
+ }
+
 /*--------------------------------------------------------------------------*/
 /*----------------------- End File Solution.cpp ----------------------------*/
 /*--------------------------------------------------------------------------*/

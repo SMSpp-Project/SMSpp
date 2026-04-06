@@ -28,8 +28,6 @@ using namespace SMSpp_di_unipi_it;
 /*----------------------------- STATIC MEMBERS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
-std::string Configuration::f_prefix;
-
 // register various versions of SimpleConfiguration<> to the factory
 
 SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< int > );
@@ -90,18 +88,18 @@ Configuration * Configuration::deserialize( const std::string & filename )
  try {
   if( ( filename.size() > 4 ) &&
       ( ! filename.compare( filename.size() - 4 , 4 , ".txt" ) ) ) {
-   std::ifstream f( f_prefix.empty() ? filename : f_prefix + filename ,
-		    std::fstream::in );
+   std::ifstream f( get_filename_prefix().empty() ? filename :
+      get_filename_prefix() + filename , std::fstream::in );
    if( ! f.is_open() ) {
-    std::cerr << "Error: cannot open text file " <<  f_prefix + filename
-	      << std::endl;
+    std::cerr << "Error: cannot open text file " <<
+       get_filename_prefix() + filename << std::endl;
     return( nullptr );
     }
    return( Configuration::deserialize( f ) );
    }
   else {
    int idx = 0;
-   std::string fn = f_prefix + filename;
+   std::string fn = get_filename_prefix() + filename;
    if( fn.back() == ']' ) {
     auto pos = fn.find_last_of( '[' );
     if( pos != std::string::npos ) {
@@ -805,6 +803,24 @@ void SimpleConfiguration< std::map< std::string , Configuration * >
    output << "*";
   output << " )" << std::endl;
   }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+std::string & config_filename_prefix( void )
+{
+ static std::string prefix;
+ return( prefix );
+ }
+
+void Configuration::set_filename_prefix( std::string && prefix )
+{
+ config_filename_prefix() = std::move( prefix );
+ }
+
+const std::string & Configuration::get_filename_prefix( void )
+{
+ return( config_filename_prefix() );
  }
 
 /*--------------------------------------------------------------------------*/
