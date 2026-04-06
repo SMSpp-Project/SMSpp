@@ -723,6 +723,44 @@ void Block::print( std::ostream & output , char vlvl ) const
 
 /*--------------------------------------------------------------------------*/
 
+Block::MF_rngd_map & Block::methods_rngd_factory( void )
+{
+ static MF_rngd_map f;
+ return( f );
+ }
+
+Block::MF_dbl_rngd_map & Block::methods_dbl_rngd_factory( void )
+{
+ static MF_dbl_rngd_map f;
+ return( f );
+ }
+
+Block::MF_int_rngd_map & Block::methods_int_rngd_factory( void )
+{
+ static MF_int_rngd_map f;
+ return( f );
+ }
+
+Block::MF_sbst_map & Block::methods_sbst_factory( void )
+{
+ static MF_sbst_map f;
+ return( f );
+ }
+
+Block::MF_dbl_sbst_map & Block::methods_dbl_sbst_factory( void )
+{
+ static MF_dbl_sbst_map f;
+ return( f );
+ }
+
+Block::MF_int_sbst_map & Block::methods_int_sbst_factory( void )
+{
+ static MF_int_sbst_map f;
+ return( f );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 std::string & block_filename_prefix( void )
 {
  static std::string prefix;

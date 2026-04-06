@@ -7550,35 +7550,17 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
  /// out-of-line accessors to the unique methods factories
 
- static MF_rngd_map & methods_rngd_factory( void ) {
-  static MF_rngd_map f;
-  return( f );
-  }
+ static MF_rngd_map & methods_rngd_factory( void );
 
- static MF_dbl_rngd_map & methods_dbl_rngd_factory( void ) {
-  static MF_dbl_rngd_map f;
-  return( f );
-  }
+ static MF_dbl_rngd_map & methods_dbl_rngd_factory( void );
 
- static MF_int_rngd_map & methods_int_rngd_factory( void ) {
-  static MF_int_rngd_map f;
-  return( f );
-  }
+ static MF_int_rngd_map & methods_int_rngd_factory( void );
 
- static MF_sbst_map & methods_sbst_factory( void ) {
-  static MF_sbst_map f;
-  return( f );
-  }
+ static MF_sbst_map & methods_sbst_factory( void );
 
- static MF_dbl_sbst_map & methods_dbl_sbst_factory( void ) {
-  static MF_dbl_sbst_map f;
-  return( f );
-  }
+ static MF_dbl_sbst_map & methods_dbl_sbst_factory( void );
 
- static MF_int_sbst_map & methods_int_sbst_factory( void ) {
-  static MF_int_sbst_map f;
-  return( f );
-  }
+ static MF_int_sbst_map & methods_int_sbst_factory( void );
 
 /** @} ---------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
