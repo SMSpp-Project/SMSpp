@@ -58,6 +58,8 @@ static void checkfail( std::istream & input , const std::string & msg )
 /*----------------------------- STATIC MEMBERS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
+std::string State::f_prefix;
+
 // register ComputeConfig to the Configuration factory
 SMSpp_insert_in_factory_cpp_0( ComputeConfig );
 

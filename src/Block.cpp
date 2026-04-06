@@ -49,6 +49,8 @@ std::set< Observer::ChnlName > Observer::v_free_chnl;
 /*------------------------- STATIC MEMBERS OF Block ------------------------*/
 /*--------------------------------------------------------------------------*/
 
+std::string Block::f_prefix;
+
 // register BlockConfig to the Configuration factory
 
 SMSpp_insert_in_factory_cpp_0( BlockConfig );
@@ -345,13 +347,13 @@ Block * Block::deserialize( std::istream & input , Block * father ,
 
   if( input.eof() )
    return( nullptr );
-  
+
   if( input.fail() )
    throw( std::invalid_argument( sre ) );
 
   if( std::isspace( input.peek() ) )
    return( nullptr );
- 
+
   input >> tmp;
   if( input.fail() )
     throw( std::invalid_argument( sre ) );

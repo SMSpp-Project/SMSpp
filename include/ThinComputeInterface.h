@@ -3264,7 +3264,7 @@ class State {
 /** @name Protected fields of State
     @{ */
 
- inline static std::string f_prefix;  ///< the executable-wide filename prefix
+ static std::string f_prefix;  ///< the executable-wide filename prefix
 
 /** @} ---------------------------------------------------------------------*/
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/

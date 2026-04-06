@@ -887,7 +887,7 @@ class Block : public Observer {
   * filesystem. Block provides a *static* member for this purpose, that can
   * be set with this (static) method. Note that
   *
-  *     BEING THE MEMBER STATIC, THE PREFIX IS APPLIED TO ALL LOADING 
+  *     BEING THE MEMBER STATIC, THE PREFIX IS APPLIED TO ALL LOADING
   *     OPERATIONS OF ANY Block IN THE EXECUTABLE
   *
   * Use of this feature therefore requires care. */
@@ -1008,7 +1008,7 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
  /// de-serialize a :Block out of an open netCDF SMS++ file at given position
  /** Second-level de-serialization method: takes an open netCDF file, the
-  * index \pos of a Block into the file, and possibly a \p father, and 
+  * index \pos of a Block into the file, and possibly a \p father, and
   * returns the corresponding complete :Block object with the prescribed
   * father (if any).
   *
@@ -1700,7 +1700,7 @@ class Block : public Observer {
   * operations naturally travel "downward" on a tree, the lock attempts must
   * always proceed top-down. Obviously, if an entity is trying to own two
   * different Block, say B1 and B2 in this order, any other entity trying to
-  * own B2 and B1 (in this order) may deadlock. If this can happen, an 
+  * own B2 and B1 (in this order) may deadlock. If this can happen, an
   * additional ad-hoc synchronization layer will be needed. Yet, note that
   *
   *     NO ADDITIONAL MECHANISM IS REQUIRED IF B1 AND B2 ARE BOTH DESCENDANTS
@@ -5061,7 +5061,7 @@ class Block : public Observer {
   * map_forward_Modification() corresponding to changing the constraint is
   * called *after* that the Constraint has been deleted, the original Block
   * no longer has any information on the Constraint, and therefore may have
-  * no way to properly implement the change. Each :Block should clearly 
+  * no way to properly implement the change. Each :Block should clearly
   * state if it supports deferred map_forward_Modification() for all the
   * Modification it produces, or which Modification need be mapped
   * "immediately".
@@ -5381,7 +5381,7 @@ class Block : public Observer {
   *     VERY Block AND THE Block HAS NO FATHER, BECAUSE IT MEANS THE
   *     Modification HAS NOWHERE TO GO TO; MORE IN GENERAL, IT IS AN ERROR TO
   *     SEND A Modification TO A CHANNEL THAT IS NOT DEFINED IN SOME ANCESTOR
-  *     OF THE Block. 
+  *     OF THE Block.
   *
   * While this mechanism is not thought to be modified by derived classes,
   * these *will* have to redefine add_Modification() to "catch" the
@@ -5527,7 +5527,7 @@ class Block : public Observer {
   * with the Block. If oldSolver is not among the registered solvers, then
   * nothing is done (and no warning is issued); otherwise the vector of
   * registered Solver is shortened by one, and the remaining solvers (if any)
-  * are shifted in the obvious way. If \p deleteold is true, then the 
+  * are shifted in the obvious way. If \p deleteold is true, then the
   * Solver is also deleted. Note that the Block calls
   * Solver::set_Block( nullptr ) to the Solver that is un-registered, which is
   * why the converse is not done (see Solver.h). Note that the method is
@@ -6236,7 +6236,7 @@ class Block : public Observer {
   *
   * In case a "complete" format requires more than one file, the
   * corresponding implementation has to be provided by the
-  * print( std::string & ) version of the method, ideally with specific 
+  * print( std::string & ) version of the method, ideally with specific
   * values of \p vlvl (not handled by this version). It might be possible
   * to read back such multi-file outputs using load( std::string & ),
   * possibly with the corresponding value of the \p frmt parameter, but the
@@ -6665,7 +6665,7 @@ class Block : public Observer {
  *   ensure that nothing bad happens (like, erasing the only existing
  *   pointer to some stuff that was previously there before having deleted
  *   the stuff).
- *   
+ *
  * The methods will allow derived classes some flexibility in the order in
  * which the "abstract" representation is constructed, in particular for the
  * case in which this happens in different steps (say, a :Block class does
@@ -7638,7 +7638,7 @@ class Block : public Observer {
 
  unsigned int f_channel;   ///< the "default GroupModification channel"
 
- inline static std::string f_prefix;  ///< the executable-wide filename prefix
+ static std::string f_prefix;  ///< the executable-wide filename prefix
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
@@ -7968,10 +7968,10 @@ class BlockModAdd : public BlockModAD
   * other information that the Modification contains, and therefore is not
   * needed. */
 
- BlockModAdd( std::list< ConstOrVar > & whc , 
+ BlockModAdd( std::list< ConstOrVar > & whc ,
               std::vector< ConstOrVar * > && add , Block::Index first ,
               bool cB = false )
-  : BlockModAD( cB ) , whc_list( whc ) , add_vec( std::move( add ) ) , 
+  : BlockModAD( cB ) , whc_list( whc ) , add_vec( std::move( add ) ) ,
     f_first( first ) {
   static_assert( std::is_base_of< Variable , ConstOrVar >::value ||
                  std::is_base_of< Constraint , ConstOrVar >::value ,
@@ -8386,7 +8386,7 @@ class BlockModRmvSbst : public BlockModRmv< ConstOrVar >
   *     subset IS ASSUMED TO BE ORDERED IN INCREASING SENSE AND WITHOUT
   *     REPEATED ELEMENTS, AND THE MAPPING BETWEEN rmvd AND subset IS
   *     POSITIONAL, I.E., rmvd[ 0 ] IS THE Constraint/Variable THAT WAS IN
-  *     whc IN POSITION subset[ 0 ], rmvd[ 1 ] IS THE ONE IN POSITION 
+  *     whc IN POSITION subset[ 0 ], rmvd[ 1 ] IS THE ONE IN POSITION
   *     subset[ 1 ], ...; THIS IMPLIES THAT THE ELEMENTS IN rmvd ARE
   *     ORDERED BETWEEN THEMSELVES EXACTLY AS THEY WERE IN whc
   *
