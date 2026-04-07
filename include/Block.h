@@ -7506,10 +7506,7 @@ class Block : public Observer {
   * rationale for using a method is that this is the "Construct On First Use
   * Idiom" that solves the "static initialization order problem". */
 
- static BlockFactoryMap & f_factory( void ) {
-  static BlockFactoryMap s_factory;
-  return( s_factory );
-  }
+ static BlockFactoryMap & f_factory( void );
 
 /*--------------------------------------------------------------------------*/
  /// empty placeholder for class-specific static initialization

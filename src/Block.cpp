@@ -723,6 +723,14 @@ void Block::print( std::ostream & output , char vlvl ) const
 
 /*--------------------------------------------------------------------------*/
 
+Block::BlockFactoryMap & Block::f_factory( void )
+{
+ static BlockFactoryMap s_factory;
+ return( s_factory );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 Block::MF_rngd_map & Block::methods_rngd_factory( void )
 {
  static MF_rngd_map f;
