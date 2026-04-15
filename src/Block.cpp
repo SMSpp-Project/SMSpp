@@ -71,8 +71,8 @@ Block * Block::deserialize( const std::string & filename , Block * father ,
       ( filename.substr( filename.size() - 4 , 4 ) == ".txt" ) ) {
    std::ifstream file( get_filename_prefix() + filename , std::fstream::in );
    if( ! file.is_open() ) {
-    std::cerr << "Error: cannot open text file " <<
-       get_filename_prefix() + filename << std::endl;
+    std::cerr << "Error: cannot open text file "
+	      << get_filename_prefix() + filename << std::endl;
     return( nullptr );
     }
    return( Block::deserialize( file , father , f ) );
@@ -90,7 +90,7 @@ Block * Block::deserialize( const std::string & filename , Block * father ,
      catch( ... ) { idx = 0; }
      }
     }
-   netCDF::NcFile file( fn.c_str() , netCDF::NcFile::read );
+   netCDF::NcFile file( fn , netCDF::NcFile::read );
    return( Block::deserialize( file , idx , father , f ) );
    }
   }
@@ -132,7 +132,7 @@ Block::almost_deserialize( const std::string & filename , Block * father )
     catch( ... ) { idx = 0; }
     }
    }
-  netCDF::NcFile f( fn.c_str() , netCDF::NcFile::read );
+  netCDF::NcFile f( fn , netCDF::NcFile::read );
   return( Block::almost_deserialize( f , idx , father ) );
   }
  catch( netCDF::exceptions::NcException & e ) {

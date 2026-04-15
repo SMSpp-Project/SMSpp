@@ -1053,10 +1053,11 @@ class DQuadFunctionModVarsAddd : public C05FunctionModVarsAddd
 /*--------------------------------------------------------------------------*/
 /// class to describe changes to a DQuadFunction involving a range of Variable
 /** Derived class from C05FunctionModRngd to describe modification to a range 
- * of "active" ColVariable of a DQuadFunction. The only difference with the base
- * C05FunctionModRngd is that the DQuadFunctionModRngd stores the difference
- * between the old and the new values of both linear and quadratic coefficients
- * of each modified ColVariable in the DQuadFunction. */
+ * of "active" ColVariable of a DQuadFunction. The only difference with the
+ * base C05FunctionModRngd is that the DQuadFunctionModRngd stores the
+ * difference between the old and the new values of both linear and
+ * quadratic coefficients of each modified ColVariable in the DQuadFunction.
+ */
 
 class DQuadFunctionModRngd : public C05FunctionModRngd
 {
