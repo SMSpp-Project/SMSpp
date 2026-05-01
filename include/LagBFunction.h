@@ -1696,12 +1696,24 @@ class LagBFunction : public C05Function , public Block {
   * method will not bother and still return nullptr. */
 
  const col_pair * get_A_by_col( const ColVariable * xj ) {
-  Block * bj = xj->get_Block();
-  auto it = Block2Idx.find( bj );
-  if( it == Block2Idx.end() )
-   return( nullptr );
+  // mirror the special case of add_to_CostMatrix: when PushCostToOwner == 0
+  // we have v_Obj.size() == 1 and add_to_CostMatrix forces h = 0 for every
+  // Lagrangian-coupled variable regardless of where xj is declared, so we
+  // must look it up in CostMatrix[ 0 ] directly. otherwise (PushCostToOwner
+  // == 1) the coupling is distributed across blocks and we resolve via
+  // Block2Idx using the variable's owning Block.
+  Index h;
+  if( v_Obj.size() == 1 ) {
+   h = 0;
+   }
+  else {
+   Block * bj = xj->get_Block();
+   auto it = Block2Idx.find( bj );
+   if( it == Block2Idx.end() )
+    return( nullptr );
+   h = it->second;
+   }
 
-  Index h = it->second;
   if( v_ObjIsQuad[ h ] )
    throw( std::logic_error( "get_A_by_col: matrix representation not available "
                             "for quadratic objective" ) );
