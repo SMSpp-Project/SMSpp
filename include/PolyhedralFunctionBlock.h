@@ -240,7 +240,6 @@ namespace SMSpp_di_unipi_it
  * The coupling constraint \f$\sum \theta_i a_i = 0\f$ is handled externally,
  * as described above, to allow multiple PolyhedralFunctionBlocks to share
  * the same global constraint structure.
- *
  */
 
 class PolyhedralFunctionBlock : public AbstractBlock {
