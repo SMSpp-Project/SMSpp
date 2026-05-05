@@ -1045,6 +1045,19 @@ class PolyhedralFunctionBlock : public AbstractBlock {
 
  BoxConstraint f_bcv;    ///< the box constraint on v
 
+ // (NEW)
+ std::list< ColVariable > f_theta;
+                         ///< the variables theta in the dual representation
+
+ // (NEW)
+ ColVariable f_lambda;   ///< the variable lambda in the dual representation
+                         /// associated with the bound on v
+                         
+ // (NEW)
+ FRowConstraint f_normcns; 
+                         ///< the normalized constraints summing all the 
+                         /// dual multipliers to one
+
  SMSpp_insert_in_factory_h;
 
 /*--------------------------------------------------------------------------*/
