@@ -72,14 +72,27 @@ namespace SMSpp_di_unipi_it
  * on the value of the function everywhere that can be returned by
  *  get_global_[lower/upper]_bound().
  *
- * The function is anyhow finite-valued everywhere, and each of the pairs
- * \f$ ( A_i , b_i ) \f$ define one of the possible diagonal linearizations
- * (comprised the "flat" all-0 one associated with the lower/upper bound
- * \f$ b_m \f$, if defined); thus far vertical linearizations are not handled,
- * but adding them would not be too much of an issue. The only exception is
- * when \f$ m = 0 \f$ and \f$ b_m = - \infty \f$ (in the convex case), in
- * which case the function evaluates to \f$ - \infty \f$ (\f$ + \infty \f$ in
- * the concave one with the obvious change).
+ * Each of the pairs \f$ ( A_i , b_i ) \f$ defines one of the possible
+ * linearizations of the function. By default each row is a *diagonal*
+ * linearization, in which case the value at \f$ x \f$ is the max/min of the
+ * corresponding affine forms (comprised the "flat" all-0 one associated with
+ * the lower/upper bound \f$ b_m \f$, if defined). However, individual rows
+ * can be marked as *vertical* linearizations: for a vertical row \f$ i \f$
+ * the encoded constraint is \f$ A_i x + b_i \le 0 \f$ in the convex case,
+ * and \f$ A_i x + b_i \ge 0 \f$ in the concave one; if any vertical row is
+ * violated at \f$ x \f$, then \f$ x \f$ is *outside* the domain of \f$ pf \f$
+ * and the value of the function is \f$ + \infty \f$ (convex) /
+ * \f$ - \infty \f$ (concave). In this case the most violated vertical row
+ * is the linearization returned by get_linearization_coefficients() and
+ * get_linearization_constant() (see is_linearization_vertical()), playing
+ * the role of an infeasibility cut for the domain. The default of "all
+ * diagonal" is preserved by all the constructors / setters / mutators
+ * having an extra optional parameter to mark which rows are vertical, with
+ * a default value that means "no row is vertical": user code unaware of
+ * this feature is therefore unaffected. The function is also \f$ \pm
+ * \infty \f$ when \f$ m = 0 \f$ and \f$ b_m = - \infty \f$ (in the convex
+ * case, \f$ + \infty \f$ in the concave one), in which case it has no
+ * linearization at all.
  *
  * When the function is evaluated, all the m ( + 1 if the lower/upper bound is
  * defined) linearizations enter the local pool in order of their value
@@ -193,6 +206,17 @@ class PolyhedralFunction : public C05Function {
 
  using c_VarVector = const VarVector;
  ///< a const version of the x variables upon which the function depends
+
+ using BoolVector = std::vector< bool >;
+ ///< a vector of bool flags, used to mark which rows are vertical
+ /**< For each row i of A x + b, the corresponding entry tells whether the
+  * row encodes a *vertical* linearization ( true ) or a *diagonal* one
+  * ( false ). The empty BoolVector is taken as a synonym of "all entries
+  * are false", i.e., "all rows are diagonal", to preserve the original
+  * semantics in which all linearizations of a PolyhedralFunction are
+  * diagonal: see the GENERAL NOTES of PolyhedralFunction for details. */
+
+ using c_BoolVector = const BoolVector;
 
 /*--------------------------------------------------------------------------*/
  /// virtualized concrete iterator
@@ -329,25 +353,36 @@ class PolyhedralFunction : public C05Function {
   *        functions, and therefore is a convex function, or as the
   *        minimization, and therefore it is a concave function.
   *
+  * @param is_vert a BoolVector that, if non-empty, must have size
+  *        A.size() == m and tells which rows are *vertical* linearizations
+  *        (those for which is_vert[ i ] == true): the default is the empty
+  *        vector, which is equivalent to "all rows are diagonal" and
+  *        preserves the original semantics in which the function is finite
+  *        everywhere. As the && implies, is_vert becomes property of the
+  *        PolyhedralFunction object.
+  *
   * As the && implies, x, A and b become property of the PolyhedralFunction
   * object.
   *
-  * All inputs have a default ({}, {}, {}, - Inf< FunctionValue >(), true, and
-  * nullptr, respectively) so that this can be used as the void constructor. */
+  * All inputs have a default ({}, {}, {}, - Inf< FunctionValue >(), true,
+  * {}, and nullptr, respectively) so that this can be used as the void
+  * constructor. */
 
  PolyhedralFunction( VarVector && x = {} , MultiVector && A = {} ,
 		     RealVector && b = {} ,
 		     FunctionValue bound = - Inf< FunctionValue >() ,
 		     bool is_convex = true ,
-		     Observer * const observer = nullptr )
+		     Observer * const observer = nullptr ,
+		     BoolVector && is_vert = {} )
   : C05Function( observer ) , f_is_convex( is_convex ) , f_bound( bound ) ,
-    f_loc_pool_sz( 1 ) , f_next( 0 ) ,  f_max_glob( 0 )
+    f_loc_pool_sz( 1 ) , f_next( 0 ) ,  f_max_glob( 0 ) , f_inf_idx( 0 ) ,
+    f_n_vert( 0 ) , f_n_violated( 0 )
  {
   v_ord.resize( 1 );
   v_ord[ 0 ] = 0;
   set_variables( std::move( x ) );
   set_PolyhedralFunction( std::move( A ) , std::move( b ) , bound ,
-			  is_convex , eNoMod );
+			  is_convex , eNoMod , std::move( is_vert ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -654,8 +689,33 @@ class PolyhedralFunction : public C05Function {
 
  bool compute_new_linearization( bool diagonal = true ) override
  {
+  // exhausted the local-pool budget?
+  if( ( v_ord.size() <= 1 ) ||
+      ( f_next >= v_ord.size() - 1 ) ||
+      ( f_next >= f_loc_pool_sz - 1 ) )
+   return( false );
+
+  if( f_inf_idx ) {
+   // INF state: only vertical linearizations are available, and they
+   // are the violated rows v_ord[ get_nrows() - f_n_vert + 1 .. ... +
+   // f_n_violated ] (sorted by decreasing violation in compute()).
+   // Advance f_next within that segment; the call is unsuccessful for
+   // diagonal requests, and for vertical requests once we run out of
+   // violated entries
+   if( diagonal )
+    return( false );
+   const Index first_v = get_nrows() - f_n_vert + 1;
+   if( f_next + 1 >= first_v + f_n_violated )
+    return( false );
+   ++f_next;
+   return( true );
+   }
+
+  // finite state: only diagonal linearizations are available, and they
+  // are v_ord[ 0 .. get_nrows() - f_n_vert ] (bound + diagonal rows
+  // sorted by value)
   if( ( ! diagonal ) || ( v_A.empty() && ( ! is_bound_set() ) ) ||
-      ( f_next >= v_ord.size() - 1 ) || ( f_next >= f_loc_pool_sz - 1 ) )
+      ( f_next + 1 > get_nrows() - f_n_vert ) )
    return( false );
 
   ++f_next;
@@ -672,6 +732,18 @@ class PolyhedralFunction : public C05Function {
 
  bool is_linearization_there( Index name ) const override {
   return( v_glob[ name ] < Inf< int >() );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// tells if the linearization in the global pool with that name is vertical
+
+ bool is_linearization_vertical( Index name ) const override {
+  if( name >= v_glob.size() )
+   return( false );
+  int gn = v_glob[ name ];
+  if( ( gn == Inf< int >() ) || ( gn <= 0 ) )
+   return( false );           // empty / bound / aggregated: never vertical
+  return( is_row_vertical( Index( gn - 1 ) ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -805,7 +877,28 @@ class PolyhedralFunction : public C05Function {
  /// returns the number of rows in the PolyhedralFunction
 
  Index get_nrows( void ) const { return( v_A.size() ); }
- 
+
+/*--------------------------------------------------------------------------*/
+ /// returns the BoolVector marking which rows are vertical linearizations
+ /** Returns a (const reference) to the per-row "is vertical" flag vector.
+  * The vector is either empty (which is the convention for "all rows are
+  * diagonal", the default) or has size get_nrows() with entry i true iff
+  * the i-th row of A x + b is a vertical linearization (see the GENERAL
+  * NOTES of PolyhedralFunction). The returned reference becomes invalid
+  * if the PolyhedralFunction is modified. */
+
+ c_BoolVector & get_is_vert( void ) const { return( v_is_vert ); }
+
+/*--------------------------------------------------------------------------*/
+ /// returns true iff the i-th row is a vertical linearization
+ /** Returns true iff row i of the PolyhedralFunction is a vertical
+  * linearization. Cheap query that handles the usual "empty v_is_vert means
+  * all diagonal" convention transparently. */
+
+ bool is_row_vertical( Index i ) const {
+  return( i < v_is_vert.size() && v_is_vert[ i ] );
+  }
+
 /** @} ---------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
 /*--------------------------------------------------------------------------*/
@@ -971,7 +1064,8 @@ class PolyhedralFunction : public C05Function {
  void set_PolyhedralFunction( MultiVector && A , RealVector && b ,
 			      FunctionValue bound = - Inf< FunctionValue >() ,
 			      bool is_convex = true ,
-			      ModParam issueMod = eModBlck );
+			      ModParam issueMod = eModBlck ,
+			      BoolVector && is_vert = {} );
 
 /*--------------------------------------------------------------------------*/
  /// change the "sign" of the PolyhedralFunction
@@ -1154,7 +1248,8 @@ class PolyhedralFunction : public C05Function {
   *        ModifyRows. */  
 
  void modify_rows( MultiVector && nA , c_RealVector & nb , Range range ,
-		   ModParam issueMod = eModBlck );
+		   ModParam issueMod = eModBlck ,
+		   BoolVector && is_vert = {} );
  
 /*--------------------------------------------------------------------------*/
  /// modify a subset of rows of the linear mapping
@@ -1188,7 +1283,8 @@ class PolyhedralFunction : public C05Function {
   *        ModifyRows. */  
 
  void modify_rows( MultiVector && nA , c_RealVector & nb , Subset && rows ,
-		   bool ordered = false , ModParam issueMod = eModBlck );
+		   bool ordered = false , ModParam issueMod = eModBlck ,
+		   BoolVector && is_vert = {} );
  
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify one single row of the linear mapping
@@ -1212,7 +1308,8 @@ class PolyhedralFunction : public C05Function {
   *        ModifyRows. */  
 
  void modify_row( Index i , RealVector && Ai , FunctionValue bi ,
-		  ModParam issueMod = eModBlck );
+		  ModParam issueMod = eModBlck ,
+		  bool is_vert = false );
 
 /*--------------------------------------------------------------------------*/
  /// modify only the constant term of a range of rows of the linear mapping
@@ -1349,7 +1446,8 @@ class PolyhedralFunction : public C05Function {
   * C05FunctionMod. */
 
  void add_rows( MultiVector && nA , c_RealVector & nb ,
-		ModParam issueMod = eModBlck );
+		ModParam issueMod = eModBlck ,
+		BoolVector && is_vert = {} );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// add one single new row to the linear mapping
@@ -1372,7 +1470,8 @@ class PolyhedralFunction : public C05Function {
   * C05FunctionMod. */
 
  void add_row( RealVector && Ai , FunctionValue bi ,
-	       ModParam issueMod = eModBlck );
+	       ModParam issueMod = eModBlck ,
+	       bool is_vert = false );
  
 /*--------------------------------------------------------------------------*/
  /// deletes a range of rows from the linear mapping in the PolyhedralFunction
@@ -1586,8 +1685,18 @@ class PolyhedralFunction : public C05Function {
  bool f_is_convex;    ///< true if the function is a "max" = convex one
 
  MultiVector v_A;     ///< the A matrix of A x + b
- 
+
  RealVector v_b;      ///< the b vector of A x + b
+
+ BoolVector v_is_vert;  ///< per-row flag: true iff row i is a vertical
+ /**< For each row of v_A / v_b, true means the row encodes a vertical
+  * linearization (a domain constraint A_i x + b_i <= 0 for convex,
+  * A_i x + b_i >= 0 for concave) rather than a diagonal one (a piece
+  * of the max/min representation). The vector is either empty (the
+  * default, equivalent to "all rows are diagonal") or has size equal
+  * to v_A.size(). The "empty == all diagonal" convention preserves
+  * backward compatibility with code that does not know about vertical
+  * linearizations. */
 
  FunctionValue f_bound;  ///< the global (upper or lower) bound
  
@@ -1614,6 +1723,29 @@ class PolyhedralFunction : public C05Function {
   *   found in v_A[ h - 1 ] and v_b[ h - 1 ];
   * - if h < 0 then it's an aggregated one and it's found in v_aA[ - h - 1 ]
   *   and v_ab[ - h - 1 ]. */
+
+ Index f_inf_idx;     ///< index of the most-violated vertical row, or 0
+ /**< When f_value is +/- INF because some vertical linearization is
+  * violated, f_inf_idx > 0 stores ( i + 1 ) where i is the row index
+  * of the violated row that is currently selected as "the" vertical
+  * linearization (the one with maximum violation). When f_value is
+  * finite (no vertical row violated), f_inf_idx is 0. The "+1" shift
+  * matches the encoding used in v_glob and v_ord. */
+
+ Index f_n_vert;      ///< number of vertical rows in v_A
+ /**< Cached count of how many entries in v_A are vertical (i.e., how
+  * many true entries v_is_vert has when non-empty, or 0 otherwise).
+  * Maintained whenever v_is_vert is updated. The "v_is_vert empty
+  * means all-diagonal" convention is preserved: f_n_vert == 0 iff
+  * v_is_vert.empty() (or, equivalently, no row is vertical). */
+
+ Index f_n_violated;  ///< number of currently-violated vertical rows
+ /**< Set by compute(): how many of the f_n_vert vertical rows are
+  * violated at the current x. When v_ord.size() > 1, the entries
+  * v_ord[ get_nrows() - f_n_vert + 1 ] ...
+  * v_ord[ get_nrows() - f_n_vert + f_n_violated ] are exactly the
+  * violated verticals, sorted by decreasing violation. Used by
+  * compute_new_linearization() to walk through them. */
 
  Index f_max_glob;           ///< 1 + maximum active name in the global pool
  /**< f_max_glob is strictly larger than the maximum index h such that

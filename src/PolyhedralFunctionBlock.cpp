@@ -155,7 +155,9 @@ Block * PolyhedralFunctionBlock::get_R3_Block( Configuration *r3bc ,
  PFB->f_polyf.set_PolyhedralFunction( MultiVector( f_polyf.get_A() ) ,
 				      RealVector( f_polyf.get_b() ) ,
 				      f_polyf.get_global_bound() ,
-				      f_polyf.is_convex() , eNoMod );
+				      f_polyf.is_convex() , eNoMod ,
+				      PolyhedralFunction::BoolVector(
+					f_polyf.get_is_vert() ) );
  return( PFB );
 
  }  // end( MCFBlock::get_R3_Block )
@@ -216,13 +218,20 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
    Index nr = f_polyf.get_A().size();
    MultiVector nA( tmod->addedrows() );
    RealVector nb( tmod->addedrows() );
+   PolyhedralFunction::BoolVector niV;  // empty unless some are vertical
    Index j = 0;
    for( Index i = nr - tmod->addedrows() ; i < nr ; ) {
     nA[ j ] = f_polyf.get_A()[ i ];
-    nb[ j++ ] = f_polyf.get_b()[ i++ ];
+    nb[ j ] = f_polyf.get_b()[ i ];
+    if( f_polyf.is_row_vertical( i ) ) {
+     if( niV.empty() )
+      niV.assign( tmod->addedrows() , false );
+     niV[ j ] = true;
+     }
+    ++j; ++i;
     }
-       
-   PFB->f_polyf.add_rows( std::move( nA ) , nb , iPM );
+
+   PFB->f_polyf.add_rows( std::move( nA ) , nb , iPM , std::move( niV ) );
    return( true );
    }
 
@@ -235,21 +244,29 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
    switch( tmod->PFtype() ) {
     case( PolyhedralFunctionMod::ModifyRows ):
      if( n == 1 )
-      PFB->f_polyf.modify_row( tmod->range().first ,
-			       RealVector(
-				   f_polyf.get_A()[ tmod->range().first ] ) ,
-			      f_polyf.get_b()[ tmod->range().first ] , iPM );
+      PFB->f_polyf.modify_row(
+		    tmod->range().first ,
+		    RealVector( f_polyf.get_A()[ tmod->range().first ] ) ,
+		    f_polyf.get_b()[ tmod->range().first ] , iPM ,
+		    f_polyf.is_row_vertical( tmod->range().first ) );
      else {
       MultiVector nA( n );
       RealVector nb( n );
+      PolyhedralFunction::BoolVector niV;  // empty unless some are vertical
       Index j = 0;
       for( Index i = tmod->range().first ; i < tmod->range().second ; ) {
        nA[ j ] = f_polyf.get_A()[ i ];
-       nb[ j++ ] = f_polyf.get_b()[ i++ ];
+       nb[ j ] = f_polyf.get_b()[ i ];
+       if( f_polyf.is_row_vertical( i ) ) {
+	if( niV.empty() )
+	 niV.assign( n , false );
+	niV[ j ] = true;
+	}
+       ++j; ++i;
        }
-       
+
       PFB->f_polyf.modify_rows( std::move( nA ) , std::move( nb ) ,
-				tmod->range() , iPM );
+				tmod->range() , iPM , std::move( niV ) );
       }
      break;
     case( PolyhedralFunctionMod::ModifyCnst ):
@@ -293,21 +310,30 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
    switch( tmod->PFtype() ) {
     case( PolyhedralFunctionMod::ModifyRows ):
      if( n == 1 )
-      PFB->f_polyf.modify_row( tmod->rows()[ 0 ] ,
-			       RealVector(
-				    f_polyf.get_A()[ tmod->rows()[ 0 ] ] ) ,
-				f_polyf.get_b()[ tmod->rows()[ 0 ] ] , iPM );
+      PFB->f_polyf.modify_row(
+		    tmod->rows()[ 0 ] ,
+		    RealVector( f_polyf.get_A()[ tmod->rows()[ 0 ] ] ) ,
+		    f_polyf.get_b()[ tmod->rows()[ 0 ] ] , iPM ,
+		    f_polyf.is_row_vertical( tmod->rows()[ 0 ] ) );
      else {
       MultiVector nA( n );
       RealVector nb( n );
+      PolyhedralFunction::BoolVector niV;
       Index j = 0;
       for( auto i : tmod->rows() ) {
        nA[ j ] = f_polyf.get_A()[ i ];
-       nb[ j++ ] = f_polyf.get_b()[ i ];
+       nb[ j ] = f_polyf.get_b()[ i ];
+       if( f_polyf.is_row_vertical( i ) ) {
+	if( niV.empty() )
+	 niV.assign( n , false );
+	niV[ j ] = true;
+	}
+       ++j;
        }
-       
+
       PFB->f_polyf.modify_rows( std::move( nA ) , std::move( nb ) ,
-				Subset( tmod->rows() ) , true , iPM );
+				Subset( tmod->rows() ) , true , iPM ,
+				std::move( niV ) );
       }
      break;
     case( PolyhedralFunctionMod::ModifyCnst ):
@@ -395,7 +421,9 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
    PFB->f_polyf.set_PolyhedralFunction( MultiVector( f_polyf.get_A() ) ,
 					RealVector( f_polyf.get_b() ) ,
 					f_polyf.get_global_bound() ,
-					f_polyf.is_convex() , iPM );
+					f_polyf.is_convex() , iPM ,
+					PolyhedralFunction::BoolVector(
+					  f_polyf.get_is_vert() ) );
    return( true );
    }
 
@@ -619,12 +647,15 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF(
               std::next( f_const.begin() , strt );
 
    if( tmod->PFtype() == PolyhedralFunctionMod::ModifyRows ) {
-    // modify rows & constants
-    Range rng = Range( 1 , f_polyf.get_num_active_var() + 1 );
+    // modify rows & constants. Cover index 0 (the coefficient of v) so
+    // that diagonal-vs-vertical type changes are reflected in the LP too
+    Range rng = Range( 0 , f_polyf.get_num_active_var() + 1 );
+    const auto nv = f_polyf.get_num_active_var();
     for( Index i = strt ; i < stop ; ) {
-     RealVector Ai( f_polyf.get_A()[ i ] );
-     for( auto & aij : Ai )
-      aij = -aij;
+     LinearFunction::Vec_FunctionValue Ai( nv + 1 );
+     Ai[ 0 ] = f_polyf.is_row_vertical( i ) ? 0.0 : 1.0;
+     for( Index j = 0 ; j < nv ; ++j )
+      Ai[ j + 1 ] = - f_polyf.get_A()[ i ][ j ];
      static_cast< LinearFunction * >( cit->get_function() )->
                           modify_coefficients( std::move( Ai ) , rng , par );
      if( f_polyf.is_convex() )
@@ -666,13 +697,16 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF(
    }
   else
    if( tmod->PFtype() == PolyhedralFunctionMod::ModifyRows ) {
-    // modify rows & constants
-    Range rng = Range( 1 , f_polyf.get_num_active_var() + 1 );
+    // modify rows & constants. Cover index 0 (the coefficient of v) so
+    // that diagonal-vs-vertical type changes are reflected in the LP too
+    Range rng = Range( 0 , f_polyf.get_num_active_var() + 1 );
+    const auto nv = f_polyf.get_num_active_var();
     for( ; rit != tmod->rows().end() ; ) {
      cit = std::next( cit , *rit - prev );
-     RealVector Ai( f_polyf.get_A()[ *rit ] );
-     for( auto & aij : Ai )
-      aij = -aij;
+     LinearFunction::Vec_FunctionValue Ai( nv + 1 );
+     Ai[ 0 ] = f_polyf.is_row_vertical( *rit ) ? 0.0 : 1.0;
+     for( Index j = 0 ; j < nv ; ++j )
+      Ai[ j + 1 ] = - f_polyf.get_A()[ *rit ][ j ];
      static_cast< LinearFunction * >( cit->get_function() )->
                           modify_coefficients( std::move( Ai ) , rng , par );
      if( f_polyf.is_convex() )
@@ -808,6 +842,10 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR( c_p_Mod mod ,
    return;           // nothing to do
   MultiVector A( arr.size() );
   RealVector b( arr.size() );
+  // recover the per-row vertical flag from the coefficient of v (which is
+  // 1 for diagonal rows and 0 for vertical rows; see ConstructLPConstraint
+  // and the GENERAL NOTES of PolyhedralFunction)
+  PolyhedralFunction::BoolVector iV;
 
   Index i = 0;
   for( auto ci : arr ) {
@@ -834,10 +872,20 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR( c_p_Mod mod ,
    for( Index j = 1 ; j < coeff.size() ; ++j )
     A[ i ][ j - 1 ] = - coeff[ j ].second;
 
+   // a vertical row has coef of v == 0; we use a small tolerance because
+   // floating-point arithmetic upstream might leave coef[ 0 ] not exactly
+   // 0 or 1
+   if( std::abs( coeff[ 0 ].second ) < 0.5 ) {
+    if( iV.empty() )
+     iV.assign( arr.size() , false );
+    iV[ i ] = true;
+    }
+
    ++i;
    }
 
-  f_polyf.add_rows( std::move( A ) , b , make_par( eNoBlck , chnl ) );
+  f_polyf.add_rows( std::move( A ) , b , make_par( eNoBlck , chnl ) ,
+		    std::move( iV ) );
   return;
   }
 
@@ -932,15 +980,31 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR( c_p_Mod mod ,
 
   // note that the LinearFunction has exactly one active Variable more than
   // the PolyhedralFunction, the first one being "v", whence the "- 1"
-  // also, note that the coefficients are the opposite of the entries in A;
-  // hence, if the coefficients are changed by adding them tmod->delta(),
-  // the entries of A must change by subtracting them tmod->delta()
+  // for variable index translation. The coefficients of the x variables
+  // are the opposite of the entries in A; hence, if the coefficients are
+  // changed by adding tmod->delta(), the entries of A change by
+  // subtracting tmod->delta(). Index 0 in the LinearFunction is v
+  // itself: if its coefficient ends up non-1 (typically 0), the row is
+  // a *vertical* linearization of the PolyhedralFunction
   RealVector ai( f_polyf.get_A()[ i ] );
-  for( Index j = 0 ; j < tmod->delta().size() ; ++j )
-   ai[ tmod->range().first + j - 1 ] -= tmod->delta()[ j ];
+  bool is_vert = f_polyf.is_row_vertical( i );
+  bool v_changed = false;
+  for( Index j = 0 ; j < tmod->delta().size() ; ++j ) {
+   const Index pos = tmod->range().first + j;
+   if( pos == 0 )
+    v_changed = true;       // delta on v's coefficient: type may change
+   else
+    ai[ pos - 1 ] -= tmod->delta()[ j ];
+   }
+  if( v_changed ) {
+   // re-derive the row's vertical/diagonal status from the *new* v coef
+   const auto & vp = static_cast< LinearFunction * >( ci->get_function() )
+		     ->get_v_var();
+   is_vert = std::abs( vp[ 0 ].second ) < 0.5;
+   }
 
   f_polyf.modify_row( i , std::move( ai ) , f_polyf.get_b()[ i ] ,
-		      make_par( eNoBlck , chnl ) );
+		      make_par( eNoBlck , chnl ) , is_vert );
   return;
   }
 
@@ -955,17 +1019,25 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR( c_p_Mod mod ,
   if( ci == f_const.end() )  // that's not in the linearized representation
    return;                   // none of my business
 
-  // note that the LinearFunction has exactly one active Variable more than
-  // the PolyhedralFunction, the first one being "v", whence the "- 1"
-  // also, note that the coefficients are the opposite of the entries in A;
-  // hence, if the coefficients are changed by adding them tmod->delta(),
-  // the entries of A must change by subtracting them tmod->delta()
+  // see comment for C05FunctionModLinRngd above for the index translation
   RealVector ai( f_polyf.get_A()[ i ] );
-  for( Index j = 0 ; j < tmod->subset().size() ; ++j )
-   ai[ tmod->subset()[ j ] - 1 ] -= tmod->delta()[ j ];
+  bool is_vert = f_polyf.is_row_vertical( i );
+  bool v_changed = false;
+  for( Index j = 0 ; j < tmod->subset().size() ; ++j ) {
+   const Index pos = tmod->subset()[ j ];
+   if( pos == 0 )
+    v_changed = true;
+   else
+    ai[ pos - 1 ] -= tmod->delta()[ j ];
+   }
+  if( v_changed ) {
+   const auto & vp = static_cast< LinearFunction * >( ci->get_function() )
+		     ->get_v_var();
+   is_vert = std::abs( vp[ 0 ].second ) < 0.5;
+   }
 
   f_polyf.modify_row( i , std::move( ai ) , f_polyf.get_b()[ i ] ,
-		      make_par( eNoBlck , chnl ) );
+		      make_par( eNoBlck , chnl ) , is_vert );
   return;
   }
 
@@ -1005,8 +1077,12 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR( c_p_Mod mod ,
 void PolyhedralFunctionBlock::ConstructLPConstraint( Index i ,
 						     FRowConstraint & ci )
 {
- // if the PolyhedralFunction is convex, then the constraint is
- // b_i <= v - A_i x <= INF, otherwise it is -INF <= v - A_i x <= b_i
+ // if the PolyhedralFunction is convex, then the (diagonal) constraint is
+ // b_i <= v - A_i x <= INF, otherwise it is -INF <= v - A_i x <= b_i.
+ // For vertical rows the encoding is identical except that the coefficient
+ // of v is zero, so the LP constraint becomes a "domain" constraint on x:
+ //   convex  vertical:  b_i <= - A_i x <= INF   (i.e. A_i x + b_i <= 0)
+ //   concave vertical:  -INF <= - A_i x <= b_i  (i.e. A_i x + b_i >= 0)
  ci.set_lhs( f_polyf.is_convex() ? f_polyf.get_b()[ i ]
 	                         : -Inf< Function::FunctionValue >() ,
 	     eNoMod );
@@ -1020,10 +1096,12 @@ void PolyhedralFunctionBlock::ConstructLPConstraint( Index i ,
 
  // v is the *first* Variable of the LinearFunction, since it is the only
  // one that "never moves"; as a consequence, x[ i ] is the (i+1)-th active
- // Variable in each constraint
- *(vit++) = std::make_pair( & f_v , 1 );
+ // Variable in each constraint. Its coefficient is 1 for diagonal rows
+ // and 0 for vertical rows
+ *(vit++) = std::make_pair( & f_v ,
+			    f_polyf.is_row_vertical( i ) ? 0.0 : 1.0 );
 
- auto Aiit = f_polyf.get_A()[ i ].begin(); 
+ auto Aiit = f_polyf.get_A()[ i ].begin();
  for( Index j = 0 ; j < nv ; ++j )
   *(vit++) = std::make_pair( static_cast< ColVariable * >(
 					      f_polyf.get_active_var( j ) ) ,

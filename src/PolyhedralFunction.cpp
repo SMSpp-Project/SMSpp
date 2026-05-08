@@ -109,6 +109,8 @@ void PolyhedralFunction::deserialize( const netCDF::NcGroup & group ,
  else
   nclb.getVar( & bound );
 
+ // the netCDF format does not (yet) carry the per-row "is vertical" flag,
+ // so we deserialize as "all diagonal" (the default)
  set_PolyhedralFunction( std::move( tA ) , std::move( tb ) , bound , cnvx ,
 			 issueMod );
 
@@ -184,6 +186,8 @@ int PolyhedralFunction::compute( bool changedvars )
  f_value = f_bound;
  // at the very least the lower/upper bound, possibly -/+INF
  f_next = 0;
+ f_inf_idx = 0;
+ f_n_violated = 0;
 
  if( v_A.empty() ) {      // no "real" rows
   if( ! is_bound_set() )  // and the lower/upper bound is *not* set
@@ -199,36 +203,62 @@ int PolyhedralFunction::compute( bool changedvars )
  for( Index j = 0 ; j < v_x.size() ; ++j )
   x[ j ] = v_x[ j ]->get_value();
 
- if( v_ord.size() > 1 ) {
-  RealVector v( get_nrows() + 1 );
-  auto ordend = - is_bound_set() ? 1 : 0;
+ // tolerance for declaring a vertical row violated: it must be looser
+ // than the feasibility tolerance of any LP/QP solver evaluating the
+ // same constraint, so that points at the boundary (where small
+ // floating-point residuals are unavoidable) are not declared
+ // infeasible here. 1e-6 matches the typical default feasibility
+ // tolerance of CPLEX, Gurobi, OSI, ...
+ //
+ // TODO: a cleaner long-term design exposes this as a parameter (e.g.
+ // via dblRelAcc or a new dblViol parameter on the function), so that
+ // the caller can match the master problem solver's effective
+ // feasibility tolerance.
+ auto vert_violation_tol = [ this ]( Index i ) -> FunctionValue {
+  FunctionValue rowmag = std::abs( v_b[ i ] );
+  for( auto a : v_A[ i ] )
+   rowmag += std::abs( a );
+  return( 1e-6 * std::max( FunctionValue( 1 ) , rowmag ) );
+  };
 
-  auto vi = v.begin();
-  *(vi++) = f_bound;  // the lower bound
-
-  // ordinary rows
-  for( Index i = 0 ; i < get_nrows() ; ++i )
-   *(vi++) = std::inner_product( x.begin() , x.end() , v_A[ i ].begin() ,
-				 v_b[ i ] );
-
-  if( f_is_convex )
-   std::sort( v_ord.begin() , v_ord.end() ,
-	      [ & v ]( c_Index x , c_Index y ) {
-	       return( v[ x ] > v[ y ] );
-	       } );
-  else
-   std::sort( v_ord.begin() , v_ord.end() ,
-	      [ & v ]( c_Index x , c_Index y ) {
-	       return( v[ x ] < v[ y ] );
-	       } );
-   
-  f_value = v[ v_ord[ 0 ] ];
-  }
- else {
-  v_ord[ 0 ] = 0;  // == lower/upper bound
-
-  if( f_is_convex )
+ // single-linearization local pool: do the cheap, in-place computation
+ if( v_ord.size() <= 1 ) {
+  // first scan vertical rows for the most violated one (if any)
+  if( f_n_vert ) {
+   Index inf_i = get_nrows();      // sentinel: no violation found
+   FunctionValue inf_val = 0;
    for( Index i = 0 ; i < get_nrows() ; ++i ) {
+    if( ! v_is_vert[ i ] )
+     continue;
+    FunctionValue vi = std::inner_product( x.begin() , x.end() ,
+					   v_A[ i ].begin() , v_b[ i ] );
+    const auto tol = vert_violation_tol( i );
+    if( f_is_convex ) {
+     if( vi > tol && ( ( inf_i == get_nrows() ) || ( vi > inf_val ) ) ) {
+      inf_i = i; inf_val = vi;
+      }
+     }
+    else {
+     if( vi < - tol && ( ( inf_i == get_nrows() ) || ( vi < inf_val ) ) ) {
+      inf_i = i; inf_val = vi;
+      }
+     }
+    }
+   if( inf_i != get_nrows() ) {  // a violation was found: f is +/- INF
+    f_value = f_is_convex ? Inf< FunctionValue >() : - Inf< FunctionValue >();
+    f_inf_idx = inf_i + 1;       // +1 to align with v_ord/v_glob convention
+    v_ord[ 0 ] = f_inf_idx;
+    f_n_violated = 1;
+    return( kOK );
+    }
+   }
+
+  // no vertical violation: usual max/min over the diagonal rows
+  v_ord[ 0 ] = 0;  // == lower/upper bound
+  if( f_is_convex ) {
+   for( Index i = 0 ; i < get_nrows() ; ++i ) {
+    if( is_row_vertical( i ) )
+     continue;
     auto vi = std::inner_product( x.begin() , x.end() , v_A[ i ].begin() ,
 				  v_b[ i ] );
     if( vi > f_value ) {
@@ -236,8 +266,11 @@ int PolyhedralFunction::compute( bool changedvars )
      v_ord[ 0 ] = i + 1;
      }
     }
-  else
+   }
+  else {
    for( Index i = 0 ; i < get_nrows() ; ++i ) {
+    if( is_row_vertical( i ) )
+     continue;
     auto vi = std::inner_product( x.begin() , x.end() , v_A[ i ].begin() ,
 				  v_b[ i ] );
     if( vi < f_value ) {
@@ -245,6 +278,69 @@ int PolyhedralFunction::compute( bool changedvars )
      v_ord[ 0 ] = i + 1;
      }
     }
+   }
+
+  return( kOK );
+  }
+
+ // multi-linearization local pool: compute v[ ] for all rows + the bound
+ // and sort v_ord lexicographically. After the sort:
+ //   v_ord[ 0 .. get_nrows() - f_n_vert ] = bound + diagonal rows, sorted
+ //                                          by value (most "active" first)
+ //   v_ord[ get_nrows() - f_n_vert + 1 .. get_nrows() ] = vertical rows,
+ //                                          sorted by violation (most
+ //                                          violated first)
+ // any diagonal entry comes lexicographically before any vertical one
+ RealVector v( get_nrows() + 1 );
+ v[ 0 ] = f_bound;
+ for( Index i = 0 ; i < get_nrows() ; ++i )
+  v[ i + 1 ] = std::inner_product( x.begin() , x.end() , v_A[ i ].begin() ,
+				   v_b[ i ] );
+
+ if( f_is_convex )
+  std::sort( v_ord.begin() , v_ord.end() ,
+	     [ & v , this ]( c_Index a , c_Index b ) {
+	      const bool a_v = ( a > 0 ) && is_row_vertical( a - 1 );
+	      const bool b_v = ( b > 0 ) && is_row_vertical( b - 1 );
+	      if( a_v != b_v ) return( ! a_v );  // diagonal first
+	      return( v[ a ] > v[ b ] );
+	      } );
+ else
+  std::sort( v_ord.begin() , v_ord.end() ,
+	     [ & v , this ]( c_Index a , c_Index b ) {
+	      const bool a_v = ( a > 0 ) && is_row_vertical( a - 1 );
+	      const bool b_v = ( b > 0 ) && is_row_vertical( b - 1 );
+	      if( a_v != b_v ) return( ! a_v );  // diagonal first
+	      return( v[ a ] < v[ b ] );
+	      } );
+
+ // count violated verticals at the head of the vertical section. Since
+ // the section is sorted by decreasing violation, we can stop as soon as
+ // we hit a non-violated entry
+ if( f_n_vert ) {
+  const Index first_v = get_nrows() - f_n_vert + 1;
+  for( Index p = first_v ; p <= get_nrows() ; ++p ) {
+   const Index name = v_ord[ p ];
+   const Index row = name - 1;
+   const FunctionValue vi = v[ name ];
+   const auto tol = vert_violation_tol( row );
+   if( f_is_convex ? vi > tol : vi < - tol )
+    ++f_n_violated;
+   else
+    break;
+   }
+  }
+
+ if( f_n_violated > 0 ) {
+  // INF state: the "active" linearization is the most violated vertical,
+  // which sits at v_ord[ first_v ] right after the diagonal section
+  f_value = f_is_convex ? Inf< FunctionValue >() : - Inf< FunctionValue >();
+  f_next = get_nrows() - f_n_vert + 1;
+  f_inf_idx = v_ord[ f_next ];
+  }
+ else {
+  // no violation: f_value is the most active diagonal (or the bound)
+  f_value = v[ v_ord[ 0 ] ];
   }
 
  return( kOK );
@@ -255,16 +351,23 @@ int PolyhedralFunction::compute( bool changedvars )
 
 bool PolyhedralFunction::has_linearization( bool diagonal )
 {
+ // when f_inf_idx is non-zero, f_value is +/- INF because the row encoded
+ // by f_inf_idx (a vertical linearization) is violated at the current point;
+ // in that state the available linearization is vertical, not diagonal
+ if( f_inf_idx )
+  return( ! diagonal );
+
  #if( EXPLICIT_BOUND )
   // there is always a linearization provided there are rows, counting the
   // all-0 one implicit in the bound among them
 
   return( diagonal ? ( ! v_A.empty() ) || is_bound_set() : false );
  #else
- // vertical linearizations are not available. also, the flat all-zero
- // subgradient corresponding to the lower bound is never explicitly produced
- // since there is no need for it (the lower bound already implies it). as
- // a consequence, if there are no linearizations nothing is ever returned
+ // outside of the INF state vertical linearizations are not available. also,
+ // the flat all-zero subgradient corresponding to the lower bound is never
+ // explicitly produced since there is no need for it (the lower bound
+ // already implies it). as a consequence, if there are no linearizations
+ // nothing is ever returned
 
   if( ( ! diagonal ) || v_A.empty() )
    return( false );
@@ -891,7 +994,8 @@ void PolyhedralFunction::set_PolyhedralFunction( MultiVector && A ,
 						 RealVector && b ,
 						 FunctionValue bound ,
 						 bool is_convex ,
-						 ModParam issueMod )
+						 ModParam issueMod ,
+						 BoolVector && is_vert )
 {
  if( ( ! A.empty() ) && ( ! v_x.empty() ) )
   if( v_x.size() != A[ 0 ].size() )
@@ -904,11 +1008,17 @@ void PolyhedralFunction::set_PolyhedralFunction( MultiVector && A ,
  if( A.size() != b.size() )
   throw( std::invalid_argument( "A and b must have the same rows" ) );
 
+ if( ( ! is_vert.empty() ) && ( is_vert.size() != A.size() ) )
+  throw( std::invalid_argument( "is_vert and A must have the same rows "
+				"(or is_vert empty)" ) );
+
  f_is_convex = is_convex;
 
  if( A.empty() ) {
   v_A.clear();
   v_b.clear();
+  v_is_vert.clear();
+  f_n_vert = 0;
   }
  else {
   const Index n = A[ 0 ].size();
@@ -918,10 +1028,19 @@ void PolyhedralFunction::set_PolyhedralFunction( MultiVector && A ,
 
   v_A = std::move( A );
   v_b = std::move( b );
+  // count vertical rows; keep v_is_vert empty if none, to preserve the
+  // default "no vertical" representation; otherwise store it
+  f_n_vert = Index( std::count( is_vert.begin() , is_vert.end() , true ) );
+  if( f_n_vert )
+   v_is_vert = std::move( is_vert );
+  else
+   v_is_vert.clear();
   }
 
  f_bound = bound;
  f_max_glob = f_next = 0;
+ f_inf_idx = 0;
+ f_n_violated = 0;
  v_glob.assign( v_glob.size() , Inf< int >() );
  v_aA.clear();
  v_ab.clear();
@@ -1244,7 +1363,8 @@ void PolyhedralFunction::remove_variables( Subset && nms , bool ordered ,
 /*--------------------------------------------------------------------------*/
 
 void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
-				      Range range , ModParam issueMod )
+				      Range range , ModParam issueMod ,
+				      BoolVector && is_vert )
 {
  if( range.second <= range.first )  // actually nothing to modify
   return;                           // cowardly (and silently) return
@@ -1258,6 +1378,9 @@ void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
  if( nA.size() != nb.size() )
   throw( std::invalid_argument( "na and nb sizes do not match" ) );
 
+ if( ( ! is_vert.empty() ) && ( is_vert.size() != nA.size() ) )
+  throw( std::invalid_argument( "is_vert size must match nA, or be empty" ) );
+
  // copy rows
  for( Index i = 0 , j = range.first ; i < nA.size() ; ++i ) {
   if( nA[ i ].size() != v_x.size() )
@@ -1266,6 +1389,31 @@ void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
   v_A[ j ] = std::move( nA[ i ] );
   v_b[ j++ ] = nb[ i ];
   }
+
+ // update v_is_vert for the modified range. If is_vert is empty the modified
+ // rows become diagonal (the documented default), so we may need to clear the
+ // corresponding entries in v_is_vert; otherwise we copy is_vert in place.
+ // After the update we shrink v_is_vert back to empty if no row is vertical.
+ if( ! is_vert.empty() ) {
+  if( v_is_vert.empty() )
+   v_is_vert.assign( get_nrows() , false );
+  for( Index i = 0 , j = range.first ; j < range.second ; ++i , ++j ) {
+   if( v_is_vert[ j ] && ! is_vert[ i ] )
+    --f_n_vert;             // was vertical, becomes diagonal
+   else if( ( ! v_is_vert[ j ] ) && is_vert[ i ] )
+    ++f_n_vert;             // was diagonal, becomes vertical
+   v_is_vert[ j ] = is_vert[ i ];
+   }
+  }
+ else if( ! v_is_vert.empty() ) {
+  for( Index j = range.first ; j < range.second ; ++j )
+   if( v_is_vert[ j ] ) {
+    --f_n_vert;
+    v_is_vert[ j ] = false;
+    }
+  }
+ if( ( ! v_is_vert.empty() ) && f_n_vert == 0 )
+  v_is_vert.clear();
 
  set_f_uncomputed();                // the function value has changed
  f_Lipschitz_constant = -Inf< FunctionValue >();  // == unknown
@@ -1338,7 +1486,8 @@ void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
 
 void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
 				      Subset && rows , bool ordered ,
-				      ModParam issueMod )
+				      ModParam issueMod ,
+				      BoolVector && is_vert )
 {
  if( rows.empty() )  // actually nothing to modify
   return;            // cowardly (and silently) return
@@ -1349,8 +1498,30 @@ void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
  if( nA.size() != nb.size() )
   throw( std::invalid_argument( "nA and nb sizes do not match" ) );
 
- if( ! ordered )
-  std::sort( rows.begin() , rows.end() );
+ if( ( ! is_vert.empty() ) && ( is_vert.size() != nA.size() ) )
+  throw( std::invalid_argument( "is_vert size must match nA, or be empty" ) );
+
+ // if is_vert came in we have to keep it aligned with rows; sorting rows
+ // requires sorting is_vert with the same permutation
+ if( ! ordered ) {
+  if( is_vert.empty() ) {
+   std::sort( rows.begin() , rows.end() );
+   }
+  else {
+   // permutation-aware sort: build pairs ( row , is_vert_flag ) and sort
+   std::vector< std::pair< Index , bool > > tmp( rows.size() );
+   for( Index i = 0 ; i < rows.size() ; ++i )
+    tmp[ i ] = { rows[ i ] , is_vert[ i ] };
+   std::sort( tmp.begin() , tmp.end() ,
+	      []( const auto & a , const auto & b ) {
+	       return( a.first < b.first );
+	       } );
+   for( Index i = 0 ; i < rows.size() ; ++i ) {
+    rows[ i ]    = tmp[ i ].first;
+    is_vert[ i ] = tmp[ i ].second;
+    }
+   }
+  }
 
  if( rows.back() >= get_nrows() )
   throw( std::invalid_argument( "wrong row names" ) );
@@ -1362,6 +1533,29 @@ void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
   v_A[ rows[ i ] ] = std::move( nA[ i ] );
   v_b[ rows[ i ] ] = nb[ i ];
   }
+
+ // update v_is_vert for the modified rows (same logic as in the Range version)
+ if( ! is_vert.empty() ) {
+  if( v_is_vert.empty() )
+   v_is_vert.assign( get_nrows() , false );
+  for( Index i = 0 ; i < rows.size() ; ++i ) {
+   const auto r = rows[ i ];
+   if( v_is_vert[ r ] && ! is_vert[ i ] )
+    --f_n_vert;             // was vertical, becomes diagonal
+   else if( ( ! v_is_vert[ r ] ) && is_vert[ i ] )
+    ++f_n_vert;             // was diagonal, becomes vertical
+   v_is_vert[ r ] = is_vert[ i ];
+   }
+  }
+ else if( ! v_is_vert.empty() ) {
+  for( auto r : rows )
+   if( v_is_vert[ r ] ) {
+    --f_n_vert;
+    v_is_vert[ r ] = false;
+    }
+  }
+ if( ( ! v_is_vert.empty() ) && f_n_vert == 0 )
+  v_is_vert.clear();
 
  set_f_uncomputed();                // the function value has changed
  f_Lipschitz_constant = -Inf< FunctionValue >();  // == unknown
@@ -1448,7 +1642,8 @@ void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
 /*--------------------------------------------------------------------------*/
 
 void PolyhedralFunction::modify_row( Index i , RealVector && Ai ,
-				     FunctionValue bi , ModParam issueMod )
+				     FunctionValue bi , ModParam issueMod ,
+				     bool is_vert )
 {
  if( i >= get_nrows() )
   throw( std::invalid_argument( "wrong row name" ) );
@@ -1459,6 +1654,27 @@ void PolyhedralFunction::modify_row( Index i , RealVector && Ai ,
  // actually change things
  v_A[ i ] = std::move( Ai );
  v_b[ i ] = bi;
+
+ // keep v_is_vert / f_n_vert consistent
+ if( is_vert ) {
+  if( v_is_vert.empty() ) {
+   v_is_vert.assign( get_nrows() , false );
+   v_is_vert[ i ] = true;
+   ++f_n_vert;
+   }
+  else if( ! v_is_vert[ i ] ) {
+   v_is_vert[ i ] = true;
+   ++f_n_vert;
+   }
+  }
+ else if( ! v_is_vert.empty() ) {
+  if( v_is_vert[ i ] ) {
+   v_is_vert[ i ] = false;
+   --f_n_vert;
+   }
+  if( f_n_vert == 0 )
+   v_is_vert.clear();
+  }
 
  set_f_uncomputed();                // the function value has changed
  f_Lipschitz_constant = -Inf< FunctionValue >();  // == unknown
@@ -1998,11 +2214,15 @@ void PolyhedralFunction::modify_bound( FunctionValue newbound ,
 /*--------------------------------------------------------------------------*/
 
 void PolyhedralFunction::add_rows( MultiVector && nA , c_RealVector & nb ,
-				   ModParam issueMod )
+				   ModParam issueMod ,
+				   BoolVector && is_vert )
 {
  c_Index k = nA.size();
  if( k != nb.size() )
   throw( std::invalid_argument( "nA and nb must have the same size" ) );
+
+ if( ( ! is_vert.empty() ) && ( is_vert.size() != k ) )
+  throw( std::invalid_argument( "is_vert size must match nA, or be empty" ) );
 
  c_Index n = v_x.size();
  for( auto & a : nA )
@@ -2013,10 +2233,28 @@ void PolyhedralFunction::add_rows( MultiVector && nA , c_RealVector & nb ,
  if( f_Lipschitz_constant >= 0 )
   compute_Lipschitz_constant( nA , f_Lipschitz_constant );
 
- v_A.insert( v_A.end() , std::make_move_iterator( nA.begin() ) , 
+ c_Index oldnr = v_A.size();
+
+ v_A.insert( v_A.end() , std::make_move_iterator( nA.begin() ) ,
                          std::make_move_iterator( nA.end() ) );
 
  v_b.insert( v_b.end() , nb.begin() , nb.end() );
+
+ // append per-row vertical flags. We materialise v_is_vert iff at least one
+ // row (current or new) is vertical; otherwise we keep it empty
+ const Index n_new_vert = Index( std::count( is_vert.begin() , is_vert.end() ,
+					     true ) );
+ if( n_new_vert || ( ! v_is_vert.empty() ) ) {
+  if( v_is_vert.empty() )
+   v_is_vert.assign( oldnr , false );
+  if( is_vert.empty() )
+   v_is_vert.insert( v_is_vert.end() , k , false );
+  else
+   v_is_vert.insert( v_is_vert.end() ,
+		     std::make_move_iterator( is_vert.begin() ) ,
+		     std::make_move_iterator( is_vert.end() ) );
+  f_n_vert += n_new_vert;
+  }
 
  set_f_uncomputed();                // the function value has changed
  if( f_loc_pool_sz > 1 )  // resize v_ord
@@ -2035,13 +2273,24 @@ void PolyhedralFunction::add_rows( MultiVector && nA , c_RealVector & nb ,
 /*--------------------------------------------------------------------------*/
 
 void PolyhedralFunction::add_row( RealVector && Ai , FunctionValue bi ,
-				  ModParam issueMod )
+				  ModParam issueMod , bool is_vert )
 {
  if( Ai.size() != v_x.size() )
   throw( std::invalid_argument( "Ai has a wrong size" ) );
 
+ c_Index oldnr = v_A.size();
+
  v_A.push_back( std::move( Ai ) );
  v_b.push_back( bi );
+
+ // materialise v_is_vert iff at least one row (current or new) is vertical
+ if( is_vert || ( ! v_is_vert.empty() ) ) {
+  if( v_is_vert.empty() )
+   v_is_vert.assign( oldnr , false );
+  v_is_vert.push_back( is_vert );
+  if( is_vert )
+   ++f_n_vert;
+  }
 
  set_f_uncomputed();                // the function value has changed
  // update the Lipschitz constant (if computed)
@@ -2086,6 +2335,17 @@ void PolyhedralFunction::delete_rows( Range range , ModParam issueMod )
  v_A.erase( v_A.begin() + range.first , v_A.begin() + range.second );
  // kill stuff in v_b[]
  v_b.erase( v_b.begin() + range.first , v_b.begin() + range.second );
+ // kill stuff in v_is_vert[] (if present); update f_n_vert and shrink to
+ // empty if no vertical row remains
+ if( ! v_is_vert.empty() ) {
+  for( Index j = range.first ; j < range.second ; ++j )
+   if( v_is_vert[ j ] )
+    --f_n_vert;
+  v_is_vert.erase( v_is_vert.begin() + range.first ,
+		   v_is_vert.begin() + range.second );
+  if( f_n_vert == 0 )
+   v_is_vert.clear();
+  }
 
  // reset all aggregated linearizations, since there is no way to know if
  // they are still valid
@@ -2184,6 +2444,18 @@ void PolyhedralFunction::delete_rows( Subset && rows , bool ordered ,
 		       []( FunctionValue bi ) {	return( std::isnan( bi ) ); }
 		       ) , v_b.end() );
 
+ // kill stuff in v_is_vert[] for the same indices (if present); since we
+ // sorted rows above, we can just erase from back to front
+ if( ! v_is_vert.empty() ) {
+  for( auto it = rows.rbegin() ; it != rows.rend() ; ++it ) {
+   if( v_is_vert[ *it ] )
+    --f_n_vert;
+   v_is_vert.erase( v_is_vert.begin() + *it );
+   }
+  if( f_n_vert == 0 )
+   v_is_vert.clear();
+  }
+
  // reset all aggregated linearizations, since there is no way to know if
  // they are still valid
  v_aA.clear();
@@ -2265,6 +2537,13 @@ void PolyhedralFunction::delete_row( Index i , ModParam issueMod )
 
  v_A.erase( v_A.begin() + i );      // kill i in v_A[]
  v_b.erase( v_b.begin() + i );      // kill i in v_b[]
+ if( ! v_is_vert.empty() ) {        // and kill i in v_is_vert[] if present
+  if( v_is_vert[ i ] )
+   --f_n_vert;
+  v_is_vert.erase( v_is_vert.begin() + i );
+  if( f_n_vert == 0 )
+   v_is_vert.clear();
+  }
 
  // reset all aggregated linearizations, since there is no way to know if
  // they are still valid
@@ -2333,6 +2612,8 @@ void PolyhedralFunction::delete_rows( ModParam issueMod )
 {
  v_A.clear();   // delete original rows
  v_b.clear();
+ v_is_vert.clear();    // and the per-row vertical flags
+ f_n_vert = 0;
  f_bound = get_default_bound();
  v_aA.clear();  // delete aggregated linearizations
  v_ab.clear();
