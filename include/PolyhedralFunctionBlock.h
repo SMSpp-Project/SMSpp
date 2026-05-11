@@ -64,7 +64,7 @@ namespace SMSpp_di_unipi_it
  * PolyhedralFunction is a perfectly fine object in itself, but one that
  * several solver cannot easily deal with in its "natural" form. However, a
  * PolyhedralFunction can also be represented in a very natural way by means
- * of ome extra continuous ColVariable plus a finite set of (dynamic)
+ * of some extra continuous ColVariable plus a finite set of (dynamic)
  * FRowConstraint with LinearFunction inside (a.k.a., linear constraints).
  * Thus, the main feature that PolyhedralFunctionBlock implements is the
  * ability to "present" itself (construct an "abstract representation") as
@@ -73,24 +73,49 @@ namespace SMSpp_di_unipi_it
  * first the "natural representation" of a PolyhedralFunctionBlock, and the
  * latter its "linearized representation".
  *
- * Indeed, having a PolyhedralFunction as objective is equivalent to the
+ * Indeed, minimizing a convex PolyhedralFunction is equivalent to the
  * linear program
  * \f[
- *     \min \{ v : v >= a_i x + b_i \}    \qquad     i = 0, ... , m - 1
+ *     \min_{x,v} \{ v :
+ *          v \ge a_i x + b_i        \quad i \in B_D,
+ *          a_j x + b_j \le 0        \quad j \in B_V
+ *     \}
  * \f]
- * in the convex case, as this corresponds to
+ * since this is the epigraph formulation of
  * \f[
- *     pf( x ) = max \{ a_i x + b_i : i = 0, ... , m - 1 \}
+ *     pf(x) = \max \{ a_i x + b_i : i \in B_D \}
  * \f]
- * (pointwise maximum of a finite set of linear functions), and
+ * over the domain
  * \f[
- *     max \{ v : v <= a_i x + b_i \}     \qquad     i = 0, ... , m - 1
+ *     a_j x + b_j \le 0 \quad j \in B_V.
  * \f]
- * in the concave one, as this corresponds to
+ * Equivalently, maximizing a concave PolyhedralFunction is equivalent to the
+ * linear program
  * \f[
- *     pf( x ) = min \{ a_i x + b_i : i = 0, ... , m - 1 \}
+ *     \max_{x,v} \{ v :
+ *          v \le a_i x + b_i        \quad i \in B_D,
+ *          a_j x + b_j \le 0        \quad j \in B_V
+ *     \}
  * \f]
- * (pointwise minimum of a finite set of linear functions). Note that above
+ * since this is the hypograph formulation of
+ * \f[
+ *     pf(x) = \min \{ a_i x + b_i : i \in B_D \}
+ * \f]
+ * over the domain
+ * \f[
+ *     a_j x + b_j \le 0 \quad j \in B_V.
+ * \f]
+ *
+ * In the convex case the PolyhedralFunction is the pointwise maximum of a
+ * finite set of affine functions, while in the concave case it is the
+ * pointwise minimum of a finite set of affine functions. Here, B_D and B_V
+ * represent respectively the sets of the so-called "diagonal" and "vertical"
+ * linearizations. Even though here they are considerate as separate set, in
+ * the current implementation of PolyhedralFunction, they are contained in the
+ * unique pool of linearizations, and an appropriate vector is used to mark
+ * the vertical ones (see PolyhedralFunction.h:75 for additional information).
+ * 
+ * Note that above
  *
  *     x IS FIXED AND v IS THE ONLY Variable
  *
@@ -119,7 +144,7 @@ namespace SMSpp_di_unipi_it
  * - with the "linearized representation", the first group of static Variable
  *   contains a single ColVariable (v), the first group of dynamic Constraint
  *   contains the FRowConstraint (with LinearFunction inside, i.e.,
- *   v <op> a_i x + b_i for i = 1, ..., m where <op> depends on if the
+ *   v <op> a_i x + b_i OR a_j x + b_j \le 0, where <op> depends on if the
  *   PolyhedralFunction is convex or concave), and the  Objective is also
  *   reserved (since it must be a FRealObjective with another LinearFunction
  *   inside, having nonzero coefficient only for v).
@@ -171,13 +196,15 @@ namespace SMSpp_di_unipi_it
  * written as:
  *
  * \f[
- *     \max \left\{ -\sum_{i=0}^{m-1} \theta_i b_i :
- *         \sum_{i=0}^{m-1} \theta_i = 1,\;
- *         \sum_{i=0}^{m-1} \theta_i a_i = 0
+ *     \max \left\{ -\sum_{i \in B_D} \theta_i b_i 
+ *                   -\sum_{j \in B_V} \theta_j b_j:
+ *         \sum_{i \in B_D} \theta_i = 1,\;
+ *         \sum_{i \in B_D} \theta_i a_i + \sum_{j \in B_V} \theta_j a_j = 0
  *     \right\}
  * \f]
  *
- * where the \f$\theta_i\f$ are dual variables associated with the affine pieces.
+ * where the \f$\theta_i\f$ and \f$\theta_j\f$ are dual variables associated 
+ * respectively with the "diagonal" and "vertical" linearizations.
  *
  * Additionally, the PolyhedralFunction may include a global bound, namely a
  * lower bound in the convex case (or an upper bound in the concave case). In
@@ -196,7 +223,7 @@ namespace SMSpp_di_unipi_it
  * - The normalization constraint becomes:
  *
  * \f[
- *     \sum_{i=0}^{m-1} \theta_i + \gamma = 1
+ *     \sum_{i \in B_D} \theta_i + \gamma = 1
  * \f]
  *
  * This dual formulation can be interpreted as a pin function. The problem is
@@ -207,14 +234,15 @@ namespace SMSpp_di_unipi_it
  * In particular, the constraint
  *
  * \f[
- *     \sum_{i=0}^{m-1} \theta_i a_i = 0
+ *     \sum_{i \in B_D} \theta_i a_i + \sum_{j \in B_V} \theta_j a_j = 0
  * \f]
  *
  * is not implemented internally as a standalone constraint of the block.
  * Instead, this reflects a coupling condition that may involve multiple
  * PolyhedralFunctionBlocks within a larger model. Therefore, the class provides
  * a dedicated method that receives a list of external constraints and augments
- * them with the corresponding terms \f$\sum \theta_i a_i\f$.
+ * them with the corresponding terms 
+ *    \f$\sum \theta_i a_i + \sum \theta_j a_j\f$.
  *
  * ---------------------------------------------------------------------------
  * Internal Structures for the Dual Representation (NEW)
@@ -224,8 +252,12 @@ namespace SMSpp_di_unipi_it
  * defined:
  *
  * - A first group of dynamic variables representing all the \f$\theta_i\f$,
- *   together with the additional static variable \f$\gamma\f$ 
- *   (we expect it to be fixed to 0 when a bound is absent).
+ *   \f$\theta_j\f$, together with the additional static variable \f$\gamma\f$ 
+ *   (we expect it to be fixed to 0 when a bound is absent). 
+ *   NOTE: the dual multipliers associated with the vertical and diagonal
+ *   linearizations follows the same order of the corresponding rows in the
+ *   primal representation. Hence, they will be mixed and not come one after
+ *   the other.
  *
  * - An objective function given by a LinearFunction containing the terms
  *   \f$-\theta_i b_i\f$, and, if applicable, the term \f$\gamma \, LB\f$.
@@ -233,13 +265,13 @@ namespace SMSpp_di_unipi_it
  * - A single static constraint enforcing the normalization condition:
  *
  *   \f[
- *       \sum_{i=0}^{m-1} \theta_i + \gamma = 1
+ *       \sum_{i \in B_D} \theta_i + \gamma = 1
  *   \f]
  *   (which reduces to \f$\sum \theta_i = 1\f$ when no bound is present).
  *
- * The coupling constraint \f$\sum \theta_i a_i = 0\f$ is handled externally,
- * as described above, to allow multiple PolyhedralFunctionBlocks to share
- * the same global constraint structure.
+ * The coupling constraint \f$\sum \theta_i a_i + \sum \theta_j a_j = 0\f$ 
+ * is handled externally, as described above, to allow multiple
+ * PolyhedralFunctionBlocks to share the same global constraint structure.
  */
 
 class PolyhedralFunctionBlock : public AbstractBlock {
@@ -447,7 +479,8 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   * files are provided, then the same mechanism as above is retained.
   *
   * If B_type == 2, then we initialize in this method the m dynamic variables
-  * \theta_i desribed above and the \gamma variable associated with the bound. */
+  * \theta_i/\theta_j desribed above and the \gamma variable associated with 
+  * the bound. */
 
  void generate_abstract_variables( Configuration *stvv = nullptr ) override;
 
@@ -472,11 +505,12 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   *
   *  - The first group of dynamic Constraint contains a single
   *    std::list< FRowConstraint > with LinearFunction inside (a.k.a. "linear
-  *    constraint") representing the m inequalities v >= [<=] a_i x + b_i.
-  *    Note that the "verse" of the Constraint depend on
-  *    PolyhedralFunction->is_convex(); if it is true than the inequalities
-  *    are ">=" (the LHS is -INF and the RHS is b_i), otherwise they are "<="
-  *    (the LHS b_i and the RHS is INF).
+  *    constraint") representing the m inequalities v >= [<=] a_i x + b_i
+  *    OR a_j x + b_j <= 0.
+  *    Note that the "verse" of the Constraint in the diagonal linearizations
+  *    depend on PolyhedralFunction->is_convex(); if it is true than the 
+  *    inequalities are ">=" (the LHS is -INF and the RHS is b_i), otherwise 
+  *    they are "<=" (the LHS b_i and the RHS is INF).
   *
   *  - The first group of static Constraint contains a single BoxConstraint
   *    whose variable is "v", which serves to store the global lower/upper
@@ -532,7 +566,7 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   * ---------------------------------------------------------------------------
   *
   * If B_type == 2, then we crete the objective function with the LinearFunction
-  * having as coeffcients -\theta_i b_i and \gamma LB. */
+  * having as coeffcients -\theta_i b_i, -\theta_j b_j and \gamma LB. */
 
  void generate_objective( Configuration *objc = nullptr ) override;
 
@@ -544,13 +578,13 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   * normalization constraint has the form
   * 
   * \f[
-  *     \sum_{i=0}^{m-1} \theta_i + \gamma = 1
+  *     \sum_{i \in B_D} \theta_i + \gamma = 1
   * \f]
   * 
   * when a bound is present, or simply
   * 
   * \f[
-  *     \sum_{i=0}^{m-1} \theta_i = 1
+  *     \sum_{i \in B_D} \theta_i = 1
   * \f]
   * 
   * otherwise.
@@ -562,13 +596,13 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   * condition becomes
   * 
   * \f[
-  *     \sum_{i=0}^{m-1} \theta_i + \gamma = \lambda
+  *     \sum_{i \in B_D} \theta_i + \gamma = \lambda
   * \f]
   * 
   * or, if no bound variable \f$\gamma\f$ is present,
   * 
   * \f[
-  *     \sum_{i=0}^{m-1} \theta_i = \lambda .
+  *     \sum_{i \in B_D} \theta_i = \lambda .
   * \f]
   * 
   * This method sets the ColVariable representing such multiplier
@@ -587,7 +621,7 @@ class PolyhedralFunctionBlock : public AbstractBlock {
  /* In the dual formulation of a PolyhedralFunctionBlock, the condition
   *
   * \f[
-  *     \sum_{i=0}^{m-1} \theta_i g_i = 0
+  *     \sum_{i \in B_D} \theta_i a_i + \sum \sum_{j \in B_V} \theta_j a_j = 0
   * \f]
   * 
   * is not implemented internally as a standalone constraint. This design
