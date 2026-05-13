@@ -64,7 +64,7 @@ namespace SMSpp_di_unipi_it
  * PolyhedralFunction is a perfectly fine object in itself, but one that
  * several solver cannot easily deal with in its "natural" form. However, a
  * PolyhedralFunction can also be represented in a very natural way by means
- * of ome extra continuous ColVariable plus a finite set of (dynamic)
+ * of some extra continuous ColVariable plus a finite set of (dynamic)
  * FRowConstraint with LinearFunction inside (a.k.a., linear constraints).
  * Thus, the main feature that PolyhedralFunctionBlock implements is the
  * ability to "present" itself (construct an "abstract representation") as
@@ -73,24 +73,49 @@ namespace SMSpp_di_unipi_it
  * first the "natural representation" of a PolyhedralFunctionBlock, and the
  * latter its "linearized representation".
  *
- * Indeed, having a PolyhedralFunction as objective is equivalent to the
+ * Indeed, minimizing a convex PolyhedralFunction is equivalent to the
  * linear program
  * \f[
- *     \min \{ v : v >= a_i x + b_i \}    \qquad     i = 0, ... , m - 1
+ *   \min_{x,v} \{ v :
+ *                 v \ge a_i x + b_i        \quad i \in B_D,
+ *                 a_j x + b_j \le 0        \quad j \in B_V
+ *              \}
  * \f]
- * in the convex case, as this corresponds to
+ * since this is the epigraph formulation of
  * \f[
- *     pf( x ) = max \{ a_i x + b_i : i = 0, ... , m - 1 \}
+ *     pf(x) = \max \{ a_i x + b_i : i \in B_D \}
  * \f]
- * (pointwise maximum of a finite set of linear functions), and
+ * over the domain
  * \f[
- *     max \{ v : v <= a_i x + b_i \}     \qquad     i = 0, ... , m - 1
+ *     a_j x + b_j \le 0 \quad j \in B_V.
  * \f]
- * in the concave one, as this corresponds to
+ * Equivalently, maximizing a concave PolyhedralFunction is equivalent to the
+ * linear program
  * \f[
- *     pf( x ) = min \{ a_i x + b_i : i = 0, ... , m - 1 \}
+ *     \max_{x,v} \{ v :
+ *          v \le a_i x + b_i        \quad i \in B_D,
+ *          a_j x + b_j \le 0        \quad j \in B_V
+ *     \}
  * \f]
- * (pointwise minimum of a finite set of linear functions). Note that above
+ * since this is the hypograph formulation of
+ * \f[
+ *     pf(x) = \min \{ a_i x + b_i : i \in B_D \}
+ * \f]
+ * over the domain
+ * \f[
+ *     a_j x + b_j \le 0 \quad j \in B_V.
+ * \f]
+ * In the convex case the PolyhedralFunction is the pointwise maximum of a
+ * finite set of affine functions, while in the concave case it is the
+ * pointwise minimum of a finite set of affine functions. Here, B_D and B_V
+ * represent respectively the sets of the so-called "diagonal" and "vertical"
+ * linearizations. Even though here they are considerate as separate set, in
+ * the current implementation of PolyhedralFunction, they are contained in the
+ * unique pool of linearizations, and an appropriate vector is used to mark
+ * the vertical ones. In fact, whenever there is no need to distinguish
+ * between them we will just use B = B_D \cup B_V.
+ * 
+ * Note that above
  *
  *     x IS FIXED AND v IS THE ONLY Variable
  *
@@ -119,7 +144,7 @@ namespace SMSpp_di_unipi_it
  * - with the "linearized representation", the first group of static Variable
  *   contains a single ColVariable (v), the first group of dynamic Constraint
  *   contains the FRowConstraint (with LinearFunction inside, i.e.,
- *   v <op> a_i x + b_i for i = 1, ..., m where <op> depends on if the
+ *   v <op> a_i x + b_i OR a_j x + b_j \le 0, where <op> depends on if the
  *   PolyhedralFunction is convex or concave), and the  Objective is also
  *   reserved (since it must be a FRealObjective with another LinearFunction
  *   inside, having nonzero coefficient only for v).
@@ -157,10 +182,112 @@ namespace SMSpp_di_unipi_it
  * Other than that, PolyhedralFunctionBlock entirely relies on the machinery
  * proivided by AbstractBlock to handle all the rest of the Block, and
  * therefore is subject to the limitations of that class regarding what
- * kind of Constraint, Variable and Objective are supported. */
+ * kind of Constraint, Variable and Objective are supported. 
+ *
+ * ---------------------------------------------------------------------------
+ * Dual (Fenchel Conjugate) Representation
+ * ---------------------------------------------------------------------------
+ *
+ * In addition to the primal representation, the class can also be initialized
+ * to represent the dual form of the polyhedral function, corresponding to its
+ * Fenchel conjugate
+ * \f[
+ *  pf^*(z) = \sup_x \{ z * x - pf(x) \}
+ * \f]
+ * Given the (linearized) primal formulation above, the conjugate can be 
+ * written as:
+ * \f[
+ *   pf^*(z) = 
+ *   \max \left\{ -\sum_{i \in B} \theta_i b_i \;:\;
+ *                \sum_{i \in B_D} \theta_i = 1 \;,\;
+ *                \sum_{i \in B} \theta_i a_i = z
+ *                \theta_i \geq 0 \quad i \in B
+ *         \right\}
+ * \f]
+ * where the \f$\theta_i\f$ "dual variables" associated with each 
+ * linearizations, be them "diagonal" or "vertical" (but only the "diagonal"
+ * ones appear in the simplex constraint). This conjugate is a "pin
+ * function", i.e., \f$ pf^*(z) \f$ is the minimum value of the convex
+ * combination of the b_i corresponding to all possible conbinations of the
+ * a_i that give z, if there is any, and +INF if z does not belong to the
+ * convex hull of the a_i.
+ *
+ * Additionally, the PolyhedralFunction may include a global bound, namely a
+ * lower bound in the convex case (or an upper bound in the concave case). In
+ * the linearized primal representation, this simply appears as
+ * \f[
+ *   v \geq LB
+ * \f]
+ * This basically corresponds to a "flat" all-0 subgradient with a_i = 0 and
+ * b_i = LB. Hence, the bound is reflected in the dual formulation through
+ * the introduction of an additional variable, denoted by \f$\gamma\f$. The
+ * dual problem is then modified as follows:
+ *
+ * - the objective function includes an additional term \f$ \gamma LB \f$;
+ *
+ * - the normalization constraint becomes
+ *   \f[
+ *     \sum_{i \in B_D} \theta_i + \gamma = 1
+ *   \f]
+ *
+ * This follows the same structural principles as the primal case: the
+ * "main" variables z lives "outside" the PolyhedralFunctionBlock, hence
+ *
+ *    THE PolyhedralFunctionBlock IS NOT INTENDED TO OPERATE IN ISOLATION
+ *
+ * In particular, besides the "main" variables z, the constraint
+ * \f[
+ *   \sum_{i \in B} \theta_i a_i = z
+ * \f]
+ * is *not* implemented internally as a standalone constraint of the
+ * PolyhedralFunctionBlock. This is because, if the "outer" Block contains
+ * (say) multiple PolyhedralFunctionBlocks within a larger model, this
+ * becomes a coupling constraint due to the fact that "the conjugate of the
+ * sum is the inf-convolution":
+ * \f[
+ *  [ f_1(x) + f_2(x) ]^* =
+ *    \inf_{z_1, z_2} \{ f_1^*(z_1) + f_2^*(z_2) : z_1 + z_2 = z \}
+ * \f]
+ * Therefore, the class provides a dedicated method that receives a list of
+ * external constraints and augments them with the corresponding terms 
+ * \f[
+ *  \sum_{i \in B} \theta_i a_i
+ * \f]
+ * so that the constraint linking this PolyhedralFunctionBlock (and,
+ * possibly others) with the "main" z variables can be built in the father
+ * Block that necessarily contains this (and possibly other)
+ * PolyhedralFunctionBlock.
+ *
+ * ---------------------------------------------------------------------------
+ * Internal Structures for the Dual Representation
+ * ---------------------------------------------------------------------------
+ *
+ * When the block is initialized in its dual form, the following structures
+ * are defined:
+ *
+ * - A first group of dynamic variables representing all the \f$\theta_i\f$,
+ *   together with the additional static variable \f$\gamma\f$ (we expect it
+ *   to be fixed to 0 when a bound is absent). 
+ *   NOTE: the dual multipliers associated with the vertical and diagonal
+ *   linearizations follows the same order of the corresponding rows in the
+ *   primal representation. Hence, they will be mixed and not come one after
+ *   the other.
+ *
+ * - An objective function given by a LinearFunction containing the terms
+ *   \f$-\theta_i b_i\f$, and, if applicable, the term \f$\gamma LB\f$.
+ *
+ * - A single static constraint enforcing the normalization condition:
+ *   \f[
+ *     \sum_{i \in B_D} \theta_i + \gamma = 1
+ *   \f]
+ *   (which reduces to \f$\sum \theta_i = 1\f$ when no bound is present).
+ *
+ * The coupling constraint \f$\sum \theta_i a_i = z\f$ is handled
+ * externally, as described above, to allow multiple
+ * PolyhedralFunctionBlocks to share the same global constraint. */
 
-class PolyhedralFunctionBlock : public AbstractBlock {
-
+class PolyhedralFunctionBlock : public AbstractBlock
+{
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -206,7 +333,8 @@ class PolyhedralFunctionBlock : public AbstractBlock {
 
  PolyhedralFunctionBlock( Block * father = nullptr )
   : AbstractBlock( father ) , f_rep( 0 ) ,
-    f_polyf( {} , {} , {} , -Inf< Function::FunctionValue >() , true , this ) ,
+    f_polyf( {} , {} , {} , -Inf< Function::FunctionValue >() , true , this
+	     ) ,
     f_v() , f_const() { }
 
 /*--------------------------------------------------------------------------*/
@@ -311,46 +439,81 @@ class PolyhedralFunctionBlock : public AbstractBlock {
  *
  *  @{ */
 
- /// generate the Variable in the "linearized representation"
- /** This method serves is to ensure that the "abstract representation" of
-  * the Variable in the PolyhedralFunctionBlock is initialized, so that it
-  * can be read with get_static_variables() and get_dynamic_variables(). Of
-  * course, the effect changes depending on whether the "natural
-  * representation" or the "linearized representation" are used. In fact,
+ /// generate the Variable in the abstract representation, primal or dual
+ /** This method ensures that the "abstract representation" of the Variable
+  * in the PolyhedralFunctionBlock is initialized, so that it can be read
+  * with get_static_variables() and get_dynamic_variables(). The effect
+  * changes depending on which representation is used. In fact,
   *
-  *    THE CHOICE BETWEEN THE TWO IS DONE PRECISELY IN THIS METHOD
+  *    THE CHOICE OF THE REPRESENTATION IS DONE PRECISELY IN THIS METHOD
   *
-  * by means of the stvv parameter. The boolean field f_rep is set here to
-  * true if the "linearized representation" is used, false otherwise, in
-  * the following way:
+  * by means of the stvv parameter, which is interpreted as a
+  * SimpleConfiguration< int > whose value is treated bit-wise (only the
+  * lowest two bits are read):
   *
-  * - if stvv is not nullptr and it is a SimpleConfiguration< int >, then it
-  *   if bool( stvv->f_value );
+  * - bit 0 = 0 : the "natural representation" is used (the only abstract
+  *               representation is the PolyhedralFunction itself, wrapped
+  *               into a FRealObjective in generate_objective()); the value
+  *               of bit 1 is irrelevant in this case;
+  *
+  * - bit 0 = 1, bit 1 = 0 : the "linearized primal representation" is
+  *               used: a single ColVariable v is added as the first
+  *               static Variable; see the original comments below;
+  *
+  * - bit 0 = 1, bit 1 = 1 : the "linearized dual representation"
+  *               (the abstract form of the Fenchel conjugate / pin
+  *               function) is used: see the notes below.
+  *
+  * The chosen representation is then stored in the f_rep field (lowest
+  * two bits) and never changed afterwards; this means that the parameters
+  * of generate_abstract_constraints() and generate_objective() are plainly
+  * ignored, and that this method has to be called before these.
+  *
+  * The value to be read into f_rep is determined as follows:
+  *
+  * - if stvv is not nullptr and it is a SimpleConfiguration< int >, then
+  *   it is stvv->f_value;
   *
   * - otherwise, if f_BlockConfig is not nullptr,
   *   f_BlockConfig->f_static_variables_Configuration is not nullptr and it
   *   is a SimpleConfiguration< int >, then it is
-  *   bool( f_BlockConfig->f_static_variables_Configuration->f_value );
+  *   f_BlockConfig->f_static_variables_Configuration->f_value;
   *
-  * - otherwise, false ("natural representation") is assumed.
+  * - otherwise, 0 ("natural representation") is assumed.
   *
-  * The value is set upon call to this method, and never changed afterwards;
-  * this means that the parameters of generate_abstract_constraints() and
-  * generate_objective() are plainly ignored, and that this mathod has to
-  * be called before these (which is only reasonable).
+  * --------------------------------------------------------------------------
+  * Linearized primal representation (the "01" choice)
+  * --------------------------------------------------------------------------
   *
-  * If f_rep == false, the PolyhedralFunctionBlock has no extra Variable, be
-  * them static or dynamic. If f_rep == true, the first group of static
-  * Variable contains a single ColVariable (v), and there are no extra
-  * dyanmic Variable. Note that "v" is added "in front", so that even if
-  * the AbstractBlock has constructed some "abstract" representation
-  * already (say, in deserialize()), "v" is still the first group of static
-  * ColVariable. Classes derived from PolyhedralFunctionBlock will have to
-  * be careful about this.
+  * The first group of static Variable contains a single ColVariable (v),
+  * and there are no extra dynamic Variable. Note that "v" is added "in
+  * front", so that even if the AbstractBlock has constructed some
+  * "abstract" representation already (say, in deserialize()), "v" is still
+  * the first group of static ColVariable. Classes derived from
+  * PolyhedralFunctionBlock will have to be careful about this.
   *
   * Note that if further derived classes add some other structure, their
   * version of this method will have to call the method of this class
-  * first, because it uses (if any) the *first* group of static Variable. */
+  * first, because it uses (if any) the *first* group of static Variable.
+  *
+  * --------------------------------------------------------------------------
+  * Linearized dual representation (the "11" choice)
+  * --------------------------------------------------------------------------
+  *
+  * The variable v is NOT generated. In its place we generate
+  *
+  * - one *non-negative* ColVariable \f$\theta_i\f$ per row of f_polyf
+  *   (both diagonal and vertical, in the same order as in f_polyf), as
+  *   the first group of *dynamic* Variable (f_theta);
+  *
+  * - one *non-negative* static ColVariable \f$\gamma\f$ as the first
+  *   group of static Variable (f_gamma), playing the role of the dual
+  *   multiplier of the global bound of f_polyf. If
+  *   f_polyf.is_bound_set() is false, then \f$\gamma\f$ is is_fixed-ed to
+  *   0 to make sure it has no effect (the contribution to the
+  *   normalization constraint is null and the contribution to the
+  *   objective is null too, regardless of how the "ineffective" bound
+  *   value gets handled). */
 
  void generate_abstract_variables( Configuration *stvv = nullptr ) override;
 
@@ -375,11 +538,12 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   *
   *  - The first group of dynamic Constraint contains a single
   *    std::list< FRowConstraint > with LinearFunction inside (a.k.a. "linear
-  *    constraint") representing the m inequalities v >= [<=] a_i x + b_i.
-  *    Note that the "verse" of the Constraint depend on
-  *    PolyhedralFunction->is_convex(); if it is true than the inequalities
-  *    are ">=" (the LHS is -INF and the RHS is b_i), otherwise they are "<="
-  *    (the LHS b_i and the RHS is INF).
+  *    constraint") representing the m inequalities v >= [<=] a_i x + b_i
+  *    OR a_j x + b_j <= 0.
+  *    Note that the "verse" of the Constraint in the diagonal linearizations
+  *    depend on PolyhedralFunction->is_convex(); if it is true than the 
+  *    inequalities are ">=" (the LHS is -INF and the RHS is b_i), otherwise 
+  *    they are "<=" (the LHS b_i and the RHS is INF).
   *
   *  - The first group of static Constraint contains a single BoxConstraint
   *    whose variable is "v", which serves to store the global lower/upper
@@ -392,7 +556,18 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   * corresponding vector, so that even if the AbstractBlock has constructed
   * some "abstract" representation already (say, in deserialize()), they 
   * still are the first group of dynamic/static Constraint. Classes derived
-  * from PolyhedralFunctionBlock will have to be careful about this. */
+  * from PolyhedralFunctionBlock will have to be careful about this. 
+  * 
+  * --------------------------------------------------------------------------
+  * Dual Representation
+  * --------------------------------------------------------------------------
+  *
+  * If f_rep & 3 == 3, then we initialize in this method only the static
+  * constraint
+  * \f[
+  *  \sum_{i \in B_D} \theta_i + \gamma = 1.
+  * \f]
+  */
 
  void generate_abstract_constraints( Configuration *stcc = nullptr ) override;
 
@@ -421,9 +596,111 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   * "natural verse", which is mandatory if the "linearised representation" is
   * used (because an LP can only represent convex or concave functions);
   * nonetheless, the verse can in principle be changed manually after that the
-  * method is called (at your own risk). */
+  * method is called (at your own risk). 
+  * 
+  * --------------------------------------------------------------------------
+  * Dual Representation
+  * --------------------------------------------------------------------------
+  *
+  * If f_rep & 3 == 3, then we crete the objective function with the
+  * LinearFunction having as coeffcients -\theta_i b_i and \gamma LB. */
 
  void generate_objective( Configuration *objc = nullptr ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// inject the external coupling multiplier into the normalization
+ /// constraint of the dual representation
+ /** In the standard dual representation of a PolyhedralFunctionBlock, the
+  * normalization constraint has the form
+  * \f[
+  *   \sum_{i \in B_D} \theta_i + \gamma = 1 ,
+  * \f]
+  * where the internal \f$\gamma\f$ (this PolyhedralFunctionBlock's own
+  * static ColVariable f_gamma, fixed to 0 if no bound is set) plays the
+  * role of the dual multiplier of the global lower/upper bound of f_polyf.
+  *
+  * When the PolyhedralFunctionBlock is used as one component of a larger
+  * "inf-convolution" structure (typically: the father AbstractBlock packs
+  * several PolyhedralFunctionBlock and has the coupling constraint
+  * \f$\sum z_k = z\f$ over the z-variables, see set_conjugate_constraint),
+  * and the father itself imposes a *global* lower (upper for concave)
+  * bound on the sum of the v_k contributed by all the nested PFBs, the
+  * dual of that global-LB constraint is a single shared variable
+  * \f$\lambda\f$, owned by the father, that appears with coefficient
+  * \f$+1\f$ in the simplex (= normalization) constraint of *every*
+  * nested PolyhedralFunctionBlock. This is the LP-correct statement of
+  * dual feasibility at the v_k column: both \f$\gamma\f$ (per-PFB LB)
+  * and \f$\lambda\f$ (global LB) contribute a coefficient \f$+1\f$ to
+  * v_k's column in the primal, so both appear on the LHS with
+  * coefficient \f$+1\f$ in the dual:
+  * \f[
+  *   \sum_{i \in B_D} \theta_i + \gamma + \lambda = 1 .
+  * \f]
+  * Note that the variable passed to this method is not owned by the
+  * PolyhedralFunctionBlock: it is expected to belong to the father block
+  * (or another external block coupling several PolyhedralFunctionBlock).
+  * Its objective coefficient (= the global LB) lives in the father's
+  * own objective (not inside this PolyhedralFunctionBlock); when the
+  * global LB is unset, the father simply fixes \f$\lambda\f$ to 0, and
+  * the constraint reduces to \f$\sum \theta + \gamma = 1\f$.
+  *
+  * IMPORTANT NOTES:
+  *
+  * - this method must be called *after* generate_abstract_constraints()
+  *   has built the normalization constraint (i.e. with the "dual
+  *   representation" active);
+  *
+  * - calling this method more than once with the *same* lambda is a no-op
+  *   (lambda is added only if not already present); each PolyhedralFunction-
+  *   Block can however have multiple distinct lambda's registered, one
+  *   per global-LB-style coupling it participates in. */
+
+ void set_lambda( ColVariable * lambda );
+
+/*--------------------------------------------------------------------------*/
+ /// add this block's coupling terms to a list of external constraints
+ /** In the dual representation of a PolyhedralFunctionBlock, the
+  * "coupling" condition
+  * \f[
+  *   \sum_{i \in B} \theta_i a_i = z
+  * \f]
+  * (where the \f$a_i\f$'s are the rows of f_polyf and z is the "main"
+  * coordinate w.r.t. which the conjugate is computed) is *not*
+  * implemented internally. This design choice reflects the fact that
+  * multiple PolyhedralFunctionBlock may coexist within the same parent
+  * Block, sharing the same global z; the parent then maintains a list of
+  * coupling constraints \f$\sum_{B \in blocks} \sum_{i \in B} \theta_i^B
+  * a_i^B = z\f$, and each PolyhedralFunctionBlock adds its own
+  * contribution to the parent's list.
+  *
+  * The list passed as input is assumed to already exist (i.e. it contains
+  * one FRowConstraint per coordinate of z) and to be in 1:1
+  * correspondence with the active Variable of f_polyf, that is:
+  * \p constraints.size() must equal f_polyf.get_num_active_var(), and the
+  * j-th constraint (0-based) is the one corresponding to the j-th active
+  * Variable of f_polyf.
+  *
+  * The method augments each constraint by adding to its LinearFunction
+  * the term \f$\theta_i \, a_{i,j}\f$ for every row i of f_polyf for
+  * which \f$a_{i,j} \ne 0\f$.
+  *
+  * The variables \f$\theta_i\f$ involved in these terms are the dynamic
+  * variables of the dual representation of the block, and they are
+  * owned by this PolyhedralFunctionBlock.
+  *
+  * IMPORTANT NOTES:
+  *
+  * - this method must be called *after* generate_abstract_variables() has
+  *   built the f_theta list (i.e. with the "dual representation" active);
+  *
+  * - this method is meant to be called *at most once*: the assumption is
+  *   that the list of external constraints is set once and for all.
+  *
+  * - the LinearFunction of each provided FRowConstraint must already
+  *   exist (so that this method can simply add the new coefficients to
+  *   it) or be empty (so that this method creates it on the fly). */
+
+ void set_conjugate_constraint( std::list< FRowConstraint > & constraints );
 
 /** @} ---------------------------------------------------------------------*/
 /*------- Methods for reading the data of the PolyhedralFunctionBlock ------*/
@@ -649,9 +926,13 @@ class PolyhedralFunctionBlock : public AbstractBlock {
  {
   //!! std::cout << *mod << std::endl;
 
-  // if the "natural" representation is used, or the Modification comes
-  // from a sub-Block, or it does not concern the Block any longer
-  if( ( ! ( f_rep & 1 ) ) || ( mod->get_Block() != this ) ||
+  // if the "natural" representation is used (bit 0 of f_rep is 0), or
+  // the Modification comes from a sub-Block, or it does not concern the
+  // Block any longer, just pass it up. With the "linearized primal"
+  // ("01") and "linearized dual" ("11") encodings this method intercepts
+  // Modifications and mirrors them between f_polyf and the (primal or
+  // dual) abstract representation.
+  if( is_natural() || ( mod->get_Block() != this ) ||
       ( ! mod->concerns_Block() ) ) {
    AbstractBlock::add_Modification( mod , chnl );  // just pass it up
    return;
@@ -662,25 +943,32 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   auto tmod = std::dynamic_pointer_cast< const FunctionMod >( mod );
   if( tmod && ( tmod->function() == & f_polyf ) ) {
    // if the Modification comes from the PolyhedralFunction; it will
-   // generate a (bunch of) Modification(s) in the "linearized"
+   // generate a (bunch of) Modification(s) in the abstract
    // representation, and this Modification itself will also remain to
    // serves a the "physical" Modification) unless the Modification
    // causes a NBModification to be issued, in which case it is useless
-   if( guts_of_add_Modification_PF( tmod.get() , chnl ) )
+   const bool reissued_nb = is_dual()
+      ? guts_of_add_Modification_PF_dual( tmod.get() , chnl )
+      : guts_of_add_Modification_PF( tmod.get() , chnl );
+   if( reissued_nb )
     return;
    }
-  else
+  else {
    // this Modification comes from some other part of the abstract
    // representation of the PolyhedralFunctionBlock, possibly (but not
-   // surely) the "linearized" one: deal with it
-   guts_of_add_Modification_LR( mod.get() , chnl );
+   // surely) the "linearized" (primal or dual) one: deal with it
+   if( is_dual() )
+    guts_of_add_Modification_LR_dual( mod.get() , chnl );
+   else
+    guts_of_add_Modification_LR( mod.get() , chnl );
+   }
 
   // finally, pass iT up, but only if there really is someone "listening",
   // which may not be, because anyone_there() returns true anyway
-  // (since f_rep & 1 == true when we get here)
+  // (since the abstract representation is in use when we get here)
   // someone is listening if the PolyhedralFunctionBlock has any Solver
   // directly attached, or it has a father Block and the father says so
-  
+
   if( ( ! v_Solver.empty() ) ||
       ( get_f_Block() && get_f_Block()->anyone_there() ) )
    AbstractBlock::add_Modification( mod , chnl );
@@ -806,6 +1094,32 @@ class PolyhedralFunctionBlock : public AbstractBlock {
  void guts_of_add_Modification_LR( c_p_Mod mod , ChnlName chnl );
 
 /*--------------------------------------------------------------------------*/
+ /// PF -> dual abstract: counterpart of guts_of_add_Modification_PF
+ /** Mirrors a Modification coming from f_polyf into the *dual* abstract
+  * representation (f_theta dynamic variables, f_normcns normalization
+  * constraint, the FRealObjective LinearFunction and, when registered, the
+  * f_coupling external coupling constraints).
+  *
+  * The return value has the same semantics as guts_of_add_Modification_PF:
+  * true means a NBModification was issued (so the caller should not
+  * forward the original Modification any further), false otherwise. */
+
+ bool guts_of_add_Modification_PF_dual( const FunctionMod * mod ,
+                                        ChnlName chnl );
+
+/*--------------------------------------------------------------------------*/
+ /// dual abstract -> PF: counterpart of guts_of_add_Modification_LR
+ /** Mirrors a Modification coming from the *dual* abstract representation
+  * back into f_polyf. Most direct modifications of the dual abstract
+  * structures (theta variables, normalization, objective LinearFunction,
+  * coupling constraints) would leave f_polyf in an inconsistent state and
+  * are rejected. The few "internal" Modifications produced by this class
+  * itself while processing a PolyhedralFunctionMod from f_polyf are
+  * recognised and silently absorbed. */
+
+ void guts_of_add_Modification_LR_dual( c_p_Mod mod , ChnlName chnl );
+
+/*--------------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -833,13 +1147,31 @@ class PolyhedralFunctionBlock : public AbstractBlock {
  * derved classes may do whatever they want with "the rest" of the "abstract"
  * representation, but they are not supposed to mess up with that part. */
 
- char f_rep;                  ///< how the representation is constructed
-                              /**< This field is coded bit-wise:
-			       * bit 0: 1 if the linearized is used
-			       * bit 1: 1 if the variable are constructed
-			       * bit 2: 1 if the constraint are constructed
-			       * bit 3: 1 if the objective is constructed
-			       */
+ char f_rep;  ///< how the representation is constructed
+              /**< This field is coded bit-wise. The first two bits,
+	       * bit 0 and bit 1, encode which formulation is used:
+ * - 00 : natural formulation (one PolyhedralFunction, wrapped in a
+ *        FRealObjective);
+ * - 01 : linearised primal formulation
+ * - 10 : same as 00 (i.e., natural): if bit 0 is 0 the natural
+ *        representation is used regardless of bit 1
+ * - 11 : linearised dual formulation (Fenchel conjugate / pin function)
+ * The following bits rather encode which part of the formulation has been
+ * constructed already:
+ * bit 2: 1 if the variables are constructed
+ * bit 3: 1 if the constraints are constructed
+ * bit 4: 1 if the objective is constructed
+ * The named bit masks are defined as static constexpr in the .cpp; the
+ * helper inline methods is_natural() / is_linearized() / is_dual() below
+ * provide a readable API to query the chosen formulation. */
+
+ // readable helpers for the formulation encoded in the lowest two bits
+ // of f_rep, as documented above
+ bool is_natural( void ) const { return( ( f_rep & 1 ) == 0 ); }
+ bool is_linearized( void ) const  // primal linearized representation
+ { return( ( f_rep & 3 ) == 1 ); }
+ bool is_dual( void ) const  // dual linearized representation
+ { return( ( f_rep & 3 ) == 3 ); }
 
  PolyhedralFunction f_polyf;  ///< the PolyhedralFunction
 
@@ -849,6 +1181,34 @@ class PolyhedralFunctionBlock : public AbstractBlock {
                          ///< the constraints in the linearized representation
 
  BoxConstraint f_bcv;    ///< the box constraint on v
+
+ std::list< ColVariable > f_theta;
+                         ///< the dynamic variables theta in the dual
+                         /// representation, one per row of f_polyf (both
+                         /// diagonal and vertical, in the same order)
+
+ ColVariable f_gamma;    ///< the static ColVariable gamma in the dual
+                         /// representation, playing the role of the dual
+                         /// multiplier of the global lower/upper bound of
+                         /// f_polyf (is_fixed-ed to 0 when no bound is set)
+
+ FRowConstraint f_normcns;
+                         ///< the static "normalization" constraint of the
+                         /// dual representation, enforcing that the sum of
+                         /// all the diagonal multipliers theta_i together
+                         /// with gamma equals 1 (or, equivalently, the
+                         /// external multiplier lambda passed to
+                         /// set_lambda()).
+
+ std::list< FRowConstraint > * f_coupling = nullptr;
+                         ///< pointer (non-owning) to the list of external
+                         /// "coupling" constraints registered via
+                         /// set_conjugate_constraint(). Used by the
+                         /// add_Modification machinery to keep the
+                         /// coupling LinearFunctions in sync with the rows
+                         /// of f_polyf in the dual representation.
+                         /// nullptr until set_conjugate_constraint() is
+                         /// called (and remains nullptr if it never is).
 
  SMSpp_insert_in_factory_h;
 

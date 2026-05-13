@@ -590,34 +590,42 @@ class DQuadFunction : public C15Function {
   while( varsit != vars.end() ) {
    auto var = *(varsit++);  // next variable
    auto oi = *(nmsit++);    // its original index
-   // if var has not been deleted (and, possibly, re-added), its index
-   // must be <= oi: search backward from oi to find it
-   Index i = oi;
-   if( i < v_triples.size() ) {  // if i is still a valid index
-    auto avoi = std::get< 0 >( v_triples[ i ] );
-    while( var != avoi ) {
-     if( ! i )
-      break;
-     avoi = std::get< 0 >( v_triples[ --i ] );
-     }
 
-    if( var == avoi ) {  // the Variable was found
-     *(mapit++) = i;     // this is its index
-     continue;           // all done for this variable
-     }
+   if( v_triples.empty() ) {
+    *(mapit++) = Inf< Index >();
+    continue;
     }
 
-   // (re)restart the search from the last variable to oi (excluded), for
-   // the case where var has been deleted and re-added, and therefore its
-   // index can now be arbitrary (but it is more likely to be "close to
-   // the end" than "at the beginning"), or the original index is no longer
-   // valid
-   i = v_triples.size();
-   auto avoi = std::get< 0 >( v_triples[ --i ] );
-   while( ( var != avoi ) && ( i > oi ) )
-     avoi = std::get< 0 >( v_triples[ --i ] );
+   // Phase 1: search backward from the original index oi down to 0.
+   // If oi is no longer a valid index (because Variable(s) have been
+   // deleted since the Modification was issued), the search starts at
+   // the last valid index instead --- which means Phase 1 already
+   // covers the entire v_triples and Phase 2 below is unneeded.
+   Index i = std::min( oi , Index( v_triples.size() - 1 ) );
+   auto avoi = std::get< 0 >( v_triples[ i ] );
+   while( var != avoi ) {
+    if( ! i )
+     break;
+    avoi = std::get< 0 >( v_triples[ --i ] );
+    }
 
-   *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+   if( var == avoi ) {  // the Variable was found
+    *(mapit++) = i;     // this is its index
+    continue;           // all done for this variable
+    }
+
+   // Phase 2: var was not found in [0, min(oi, size-1)]. Search the
+   // remaining range (oi, size-1], which is non-empty only when
+   // oi + 1 < v_triples.size().
+   if( oi + 1 < v_triples.size() ) {
+    i = v_triples.size();
+    avoi = std::get< 0 >( v_triples[ --i ] );
+    while( ( var != avoi ) && ( i > oi ) )
+     avoi = std::get< 0 >( v_triples[ --i ] );
+    *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+    }
+   else
+    *(mapit++) = Inf< Index >();
 
    }  // end( for all Variable )
 
@@ -642,34 +650,42 @@ class DQuadFunction : public C15Function {
   // for all Variable in the set
   for( auto oi = rng.first ; oi < rng.second ; ++oi ) {
    auto var = *(varsit++);  // next variable
-   // if var has not been deleted (and, possibly, re-added), its index
-   // must be <= oi: search backward from oi to find it
-   Index i = oi;
-   if( i < v_triples.size() ) {  // if i is still a valid index
-    auto avoi = std::get< 0 >( v_triples[ i ] );
-    while( var != avoi ) {
-     if( ! i )
-      break;
-     avoi = std::get< 0 >( v_triples[ --i ] );
-     }
 
-    if( var == avoi ) {  // the Variable was found
-     *(mapit++) = i;     // this is its index
-     continue;           // all done for this variable
-     }
+   if( v_triples.empty() ) {
+    *(mapit++) = Inf< Index >();
+    continue;
     }
 
-   // (re)restart the search from the last variable to oi (excluded), for
-   // the case where var has been deleted and re-added, and therefore its
-   // index can now be arbitrary (but it is more likely to be "close to
-   // the end" than "at the beginning"), or the original index is no longer
-   // valid
-   i = v_triples.size();
-   auto avoi = std::get< 0 >( v_triples[ --i ] );
-   while( ( var != avoi ) && ( i > oi ) )
+   // Phase 1: search backward from the original index oi down to 0.
+   // If oi is no longer a valid index (because Variable(s) have been
+   // deleted since the Modification was issued), the search starts at
+   // the last valid index instead --- which means Phase 1 already
+   // covers the entire v_triples and Phase 2 below is unneeded.
+   Index i = std::min( oi , Index( v_triples.size() - 1 ) );
+   auto avoi = std::get< 0 >( v_triples[ i ] );
+   while( var != avoi ) {
+    if( ! i )
+     break;
     avoi = std::get< 0 >( v_triples[ --i ] );
+    }
 
-   *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+   if( var == avoi ) {  // the Variable was found
+    *(mapit++) = i;     // this is its index
+    continue;           // all done for this variable
+    }
+
+   // Phase 2: var was not found in [0, min(oi, size-1)]. Search the
+   // remaining range (oi, size-1], which is non-empty only when
+   // oi + 1 < v_triples.size().
+   if( oi + 1 < v_triples.size() ) {
+    i = v_triples.size();
+    avoi = std::get< 0 >( v_triples[ --i ] );
+    while( ( var != avoi ) && ( i > oi ) )
+     avoi = std::get< 0 >( v_triples[ --i ] );
+    *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+    }
+   else
+    *(mapit++) = Inf< Index >();
 
    }  // end( for all Variable )
 

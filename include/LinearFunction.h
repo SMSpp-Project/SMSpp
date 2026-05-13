@@ -485,34 +485,44 @@ class LinearFunction : public C15Function
   while( varsit != vars.end() ) {
    auto var = *(varsit++);  // next variable
    auto oi = *(nmsit++);    // its original index
-   // if var has not been deleted (and, possibly, re-added), its index
-   // must be <= oi: search backward from oi to find it
-   Index i = oi;
-   if( i < v_pairs.size() ) {  // if i is still a valid index
-    auto avoi = v_pairs[ i ].first;
-    while( var != avoi ) {
-     if( ! i )
-      break;
-     avoi = v_pairs[ --i ].first;
-     }
 
-    if( var == avoi ) {  // the Variable was found
-     *(mapit++) = i;     // this is its index
-     continue;           // all done for this variable
-     }
+   if( v_pairs.empty() ) {
+    *(mapit++) = Inf< Index >();
+    continue;
     }
 
-   // (re)start the search from the last variable to oi (excluded), for
-   // the case where var has been deleted and re-added, and therefore its
-   // index can now be arbitrary (but it is more likely to be "close to
-   // the end" than "at the beginning"), or the original index is no longer
-   // valid
-   i = v_pairs.size();
-   auto avoi = v_pairs[ --i ].first;
-   while( ( var != avoi ) && ( i > oi ) )
+   // Phase 1: search backward from the original index oi down to 0.
+   // If oi is no longer a valid index (because Variable(s) have been
+   // deleted since the Modification was issued), the search starts at
+   // the last valid index instead --- which means Phase 1 already
+   // covers the entire v_pairs and Phase 2 below is unneeded.
+   Index i = std::min( oi , Index( v_pairs.size() - 1 ) );
+   auto avoi = v_pairs[ i ].first;
+   while( var != avoi ) {
+    if( ! i )
+     break;
     avoi = v_pairs[ --i ].first;
+    }
 
-   *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+   if( var == avoi ) {  // the Variable was found
+    *(mapit++) = i;     // this is its index
+    continue;           // all done for this variable
+    }
+
+   // Phase 2: var was not found in [0, min(oi, size-1)]. Search the
+   // remaining range (oi, size-1], which is non-empty only when
+   // oi + 1 < v_pairs.size() (i.e., oi was originally a valid index
+   // strictly less than the last position). Otherwise Phase 1 already
+   // covered everything.
+   if( oi + 1 < v_pairs.size() ) {
+    i = v_pairs.size();
+    avoi = v_pairs[ --i ].first;
+    while( ( var != avoi ) && ( i > oi ) )
+     avoi = v_pairs[ --i ].first;
+    *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+    }
+   else
+    *(mapit++) = Inf< Index >();
 
    }  // end( for all Variable )
 
@@ -537,34 +547,44 @@ class LinearFunction : public C15Function
   // for all Variable in the set
   for( auto oi = rng.first ; oi < rng.second ; ++oi ) {
    auto var = *(varsit++);  // next variable
-   // if var has not been deleted (and, possibly, re-added), its index
-   // must be <= oi: search backward from oi to find it
-   Index i = oi;
-   if( i < v_pairs.size() ) {  // if i is still a valid index
-    auto avoi = v_pairs[ i ].first;
-    while( var != avoi ) {
-     if( ! i )
-      break;
-     avoi = v_pairs[ --i ].first;
-     }
 
-    if( var == avoi ) {  // the Variable was found
-     *(mapit++) = i;     // this is its index
-     continue;           // all done for this variable
-     }
+   if( v_pairs.empty() ) {
+    *(mapit++) = Inf< Index >();
+    continue;
     }
 
-   // (re)start the search from the last variable to oi (excluded), for
-   // the case where var has been deleted and re-added, and therefore its
-   // index can now be arbitrary (but it is more likely to be "close to
-   // the end" than "at the beginning"), or the original index is no longer
-   // valid
-   i = v_pairs.size();
-   auto avoi = v_pairs[ --i ].first;
-   while( ( var != avoi ) && ( i > oi ) )
+   // Phase 1: search backward from the original index oi down to 0.
+   // If oi is no longer a valid index (because Variable(s) have been
+   // deleted since the Modification was issued), the search starts at
+   // the last valid index instead --- which means Phase 1 already
+   // covers the entire v_pairs and Phase 2 below is unneeded.
+   Index i = std::min( oi , Index( v_pairs.size() - 1 ) );
+   auto avoi = v_pairs[ i ].first;
+   while( var != avoi ) {
+    if( ! i )
+     break;
     avoi = v_pairs[ --i ].first;
+    }
 
-   *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+   if( var == avoi ) {  // the Variable was found
+    *(mapit++) = i;     // this is its index
+    continue;           // all done for this variable
+    }
+
+   // Phase 2: var was not found in [0, min(oi, size-1)]. Search the
+   // remaining range (oi, size-1], which is non-empty only when
+   // oi + 1 < v_pairs.size() (i.e., oi was originally a valid index
+   // strictly less than the last position). Otherwise Phase 1 already
+   // covered everything.
+   if( oi + 1 < v_pairs.size() ) {
+    i = v_pairs.size();
+    avoi = v_pairs[ --i ].first;
+    while( ( var != avoi ) && ( i > oi ) )
+     avoi = v_pairs[ --i ].first;
+    *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+    }
+   else
+    *(mapit++) = Inf< Index >();
 
    }  // end( for all Variable )
 

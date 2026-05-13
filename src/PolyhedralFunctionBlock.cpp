@@ -18,6 +18,8 @@
 
 #include "PolyhedralFunctionBlock.h"
 
+#include <unordered_set>
+
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -33,15 +35,40 @@ using namespace SMSpp_di_unipi_it;
 SMSpp_insert_in_factory_cpp_1( PolyhedralFunctionBlock );
 
 /*--------------------------------------------------------------------------*/
+/*------------------------- BIT MASKS FOR f_rep ----------------------------*/
+/*--------------------------------------------------------------------------*/
+/* The "representation" character f_rep is bit-encoded. The two lowest bits
+ * (k_rep_type_mask) tell *which* representation has been requested:
+ *
+ *   bit 0 (k_rep_abstract): 0 == "natural representation",
+ *                           1 == one of the "abstract" representations
+ *   bit 1 (k_rep_dual):     only meaningful when bit 0 == 1, selects
+ *                           between linearized primal (0) and linearized
+ *                           dual (1)
+ *
+ * The remaining bits track which slice of the abstract representation has
+ * been constructed already, so that the build can be done in steps. */
+
+static constexpr char k_rep_abstract = 0x1;   // bit 0
+static constexpr char k_rep_dual     = 0x2;   // bit 1
+static constexpr char k_rep_type_mask = k_rep_abstract | k_rep_dual;
+
+static constexpr char k_built_var    = 0x4;   // bit 2
+static constexpr char k_built_cnst   = 0x8;   // bit 3
+static constexpr char k_built_obj    = 0x10;  // bit 4
+
+/*--------------------------------------------------------------------------*/
 /*----------------- METHODS of PolyhedralFunctionBlock ---------------------*/
 /*--------------------------------------------------------------------------*/
 
 void PolyhedralFunctionBlock::generate_abstract_variables(
 						        Configuration * stvv )
 {
- if( f_rep & 2 )  // done already
-  return;         // nothing else to do
+ if( f_rep & k_built_var )  // done already
+  return;                   // nothing else to do
 
+ // figure out the requested representation; only the lowest two bits of
+ // the int are read (cf. the bit-mask comments at the top of the file)
  int wsol = 0;
  auto tstvv = dynamic_cast< SimpleConfiguration< int > * >( stvv );
 
@@ -52,16 +79,47 @@ void PolyhedralFunctionBlock::generate_abstract_variables(
  if( tstvv )
   wsol = tstvv->f_value;
 
- if( wsol )
-  f_rep |= 1;
+ // record only the representation bits, not the build-status ones
+ f_rep |= ( wsol & k_rep_type_mask );
 
- if( f_rep & 1 ) {  // use linearized representation
-  // note: the static ColVariable "v" is added "in front"
+ if( is_linearized() ) {
+  // linearized primal: the static ColVariable "v" is added "in front" of
+  // any pre-existing group, so that even if the AbstractBlock has
+  // constructed some abstract representation already (say, in
+  // deserialize()), "v" is still the first group of static ColVariable
   f_1st_stat_var = 1;
   add_static_variable( f_v , "PolyF_v" , true );
   }
+ else
+  if( is_dual() ) {
+   // linearized dual: gamma is a single non-negative ColVariable;
+   // if no bound is set it is fixed to 0 so it contributes nothing to
+   // either the normalization constraint or the objective
+   f_gamma.is_positive( true , eNoMod );
+   if( ! f_polyf.is_bound_set() ) {
+    f_gamma.set_value( 0 );
+    f_gamma.is_fixed( true , eNoMod );
+    }
+   // gamma is added as the first static ColVariable, so that further
+   // derived classes coming after cannot displace it
+   f_1st_stat_var = 1;
+   add_static_variable( f_gamma , "PolyF_gamma" , true );
 
- f_rep |= 2;
+   // theta_i: one non-negative ColVariable per row of f_polyf
+   // (both diagonal and vertical, in the same order). It is a *dynamic*
+   // list because the rows of f_polyf can be added/removed
+   f_theta.clear();
+   const Index nr = f_polyf.get_A().size();
+   for( Index i = 0 ; i < nr ; ++i ) {
+    f_theta.emplace_back();
+    f_theta.back().is_positive( true , eNoMod );
+    }
+   f_1st_dyn_var = 1;
+   add_dynamic_variable( f_theta , "PolyF_theta" , true );
+   }
+ // else (natural): nothing to do here
+
+ f_rep |= k_built_var;
 
  }  // end( PolyhedralFunctionBlock::generate_abstract_variables )
 
@@ -70,18 +128,18 @@ void PolyhedralFunctionBlock::generate_abstract_variables(
 void PolyhedralFunctionBlock::generate_abstract_constraints(
 						        Configuration * stcc )
 {
- if( f_rep & 4 )  // done already
-  return;         // nothing else to do
+ if( f_rep & k_built_cnst )  // done already
+  return;                    // nothing else to do
 
- if( ! ( f_rep & 2 ) )  // variables not constructed
+ if( ! ( f_rep & k_built_var ) )  // variables not constructed
   throw( std::logic_error( "Variable must be generated before Constraint" ) );
 
- if( f_rep & 1 ) {  // use linearized representation
+ if( is_linearized() ) {
+  // linearized primal: bounds on v + linear cuts
   // add the bounds on v
   f_bcv.set_variable( &f_v );
   f_bcv.set_rhs( f_polyf.get_global_upper_bound() , eNoMod );
   f_bcv.set_lhs( f_polyf.get_global_lower_bound() , eNoMod );
-  
 
   // note: the bounds on v are added "in front"
   f_1st_stat_cnst = 1;
@@ -97,8 +155,35 @@ void PolyhedralFunctionBlock::generate_abstract_constraints(
   f_1st_dyn_cnst = 1;
   add_dynamic_constraint( f_const , "" , true );
   }
+ else
+  if( is_dual() ) {
+   // linearized dual: the single static normalization constraint
+   //   sum_{i in B_D} theta_i + gamma = 1
+   // (after set_lambda(lambda), lambda is appended with coefficient +1
+   // to the LHS LinearFunction, leaving the RHS at 1; cf. set_lambda())
+   LinearFunction::v_coeff_pair vp;
+   vp.reserve( 1 + f_polyf.get_A().size() );
 
- f_rep |= 4;
+   // gamma always appears with coefficient 1, even when it is fixed to 0
+   vp.emplace_back( & f_gamma , 1.0 );
+
+   // each non-vertical theta_i appears with coefficient 1
+   auto thit = f_theta.begin();
+   for( Index i = 0 ; i < f_polyf.get_A().size() ; ++i , ++thit )
+    if( ! f_polyf.is_row_vertical( i ) )
+     vp.emplace_back( & *thit , 1.0 );
+
+   f_normcns.set_lhs( 1.0 , eNoMod );
+   f_normcns.set_rhs( 1.0 , eNoMod );
+   f_normcns.set_function( new LinearFunction( std::move( vp ) ) , eNoMod );
+
+   // the normalization is added as the first static constraint
+   f_1st_stat_cnst = 1;
+   add_static_constraint( f_normcns , "PolyF_norm" , true );
+   }
+ // else (natural): nothing to do here
+
+ f_rep |= k_built_cnst;
 
  }  // end( PolyhedralFunctionBlock::generate_abstract_constraints )
 
@@ -106,28 +191,201 @@ void PolyhedralFunctionBlock::generate_abstract_constraints(
 
 void PolyhedralFunctionBlock::generate_objective( Configuration * objc )
 {
- if( f_rep & 8 )  // done already
-  return;         // nothing else to do
+ if( f_rep & k_built_obj )  // done already
+  return;                   // nothing else to do
 
- if( ! ( f_rep & 2 ) )  // variables not constructed
+ if( ! ( f_rep & k_built_var ) )  // variables not constructed
   throw( std::logic_error( "Variable must be generated before Objective" ) );
 
- f_res_obj = true;  // in either representation the objective is "reserved"
+ f_res_obj = true;  // in any representation the objective is "reserved"
 
  auto obj = new FRealObjective();
- obj->set_sense( f_polyf.is_convex() ? FRealObjective::eMin :
-		                       FRealObjective::eMax , eNoMod );
 
- if( f_rep & 1 )  // use linearized representation
+ // For the natural / linearized-primal representations the
+ // objective sense is the "natural" verse of f_polyf (min for convex,
+ // max for concave). For the linearized-dual representation it is the
+ // *opposite* verse: the dual LP is a max-problem when the primal is a
+ // min (convex case), and a min-problem when the primal is a max
+ // (concave case). With this choice, primal and dual problems have the
+ // same numerical optimum, so the test harness can compare them
+ // directly.
+ const bool convex = f_polyf.is_convex();
+ const bool dual_min = ! convex;  // dual sense = opposite of primal
+ obj->set_sense( ( is_dual() ? dual_min : convex )
+                 ? FRealObjective::eMin : FRealObjective::eMax , eNoMod );
+
+ if( is_linearized() )
   obj->set_function( new LinearFunction( { std::make_pair( & f_v , 1 ) } ) );
- else             // use natural representation
-  obj->set_function( & f_polyf );
+ else
+  if( is_dual() ) {
+   // Build the dual objective. By LP duality (cf. ConstructLPConstraint
+   // for the primal row form), in both convex and concave cases the dual
+   // objective has POSITIVE b_i as coefficient on each theta_i and positive
+   // bound (LB for convex, UB for concave) on gamma; only the sense flips:
+   //   convex : maximize  +sum_i theta_i b_i + gamma * LB
+   //   concave: minimize  +sum_i theta_i b_i + gamma * UB
+   // (the sense is already set above)
+   LinearFunction::v_coeff_pair vp;
+   const Index nr = f_polyf.get_A().size();
+   vp.reserve( 1 + nr );
+
+   // gamma * bound; if no bound is set, gamma is fixed to 0 and the bound
+   // returned by get_global_bound() may be +/- INF: use 0 as the coefficient
+   // in that case so that no INF * 0 ever appears
+   const double bnd = f_polyf.is_bound_set()
+                      ? f_polyf.get_global_bound()
+                      : 0.0;
+   vp.emplace_back( & f_gamma , bnd );
+
+   // + theta_i b_i for every row of f_polyf (diagonal AND vertical)
+   auto thit = f_theta.begin();
+   for( Index i = 0 ; i < nr ; ++i , ++thit )
+    vp.emplace_back( & *thit , f_polyf.get_b()[ i ] );
+
+   obj->set_function( new LinearFunction( std::move( vp ) ) );
+   }
+  else
+   obj->set_function( & f_polyf );  // natural representation
 
  set_objective( obj , eNoMod );
 
- f_rep |= 8;
+ f_rep |= k_built_obj;
 
  }  // end( PolyhedralFunctionBlock::generate_objective )
+
+/*--------------------------------------------------------------------------*/
+
+void PolyhedralFunctionBlock::set_lambda( ColVariable * lambda )
+{
+ // sanity checks
+ if( ! is_dual() )
+  throw( std::logic_error(
+            "set_lambda() requires the dual representation" ) );
+ if( ! ( f_rep & k_built_cnst ) )
+  throw( std::logic_error(
+       "set_lambda() must be called after generate_abstract_constraints()" ) );
+ if( ! lambda )
+  throw( std::invalid_argument( "set_lambda(): nullptr lambda" ) );
+
+ // the normalization constraint built by generate_abstract_constraints
+ // is "sum_{i in B_D} theta_i + gamma_local = 1", where gamma_local is the
+ // per-PFB f_gamma whose objective coefficient is the per-PFB LB on f_polyf
+ // (fixed at 0 when there is no per-PFB LB). When the *father* Block also
+ // imposes a *global* LB (on the sum of all the v_k contributed by the
+ // PFBs sharing the father), it owns a single shared dual variable lambda
+ // whose objective coefficient (in the father's objective) is the global
+ // LB, and lambda appears with coefficient +1 in every nested PFB's
+ // simplex (= normalization) constraint. This is the LP-correct
+ // statement of dual feasibility for the v-equality at level k:
+ //
+ //     sum_{i in B_D} theta_i^k + gamma_local^k + lambda = 1
+ //
+ // (both gamma_local^k and lambda are coefficient-1 contributors to v_k's
+ // column, the former from the per-PFB LB row and the latter from the
+ // global LB row). set_lambda() therefore ADDS lambda to f_normcns
+ // without altering f_gamma or the RHS (=1).
+
+ auto lf = static_cast< LinearFunction * >( f_normcns.get_function() );
+ if( ! lf )
+  throw( std::logic_error(
+            "set_lambda(): normalization constraint not initialized" ) );
+
+ // build a new LinearFunction with lambda appended (skipping the append
+ // if lambda is already present, e.g. because of a re-invocation).
+ LinearFunction::v_coeff_pair new_vp;
+ const auto & old_vp = lf->get_v_var();
+ new_vp.reserve( old_vp.size() + 1 );
+ bool already_present = false;
+ for( const auto & p : old_vp ) {
+  if( p.first == lambda )
+   already_present = true;
+  new_vp.emplace_back( p );
+  }
+ if( ! already_present )
+  new_vp.emplace_back( lambda , 1.0 );
+
+ f_normcns.set_function( new LinearFunction( std::move( new_vp ) ) , eNoMod );
+
+ // the LHS / RHS stays at 1 (set by generate_abstract_constraints)
+
+ }  // end( set_lambda )
+
+/*--------------------------------------------------------------------------*/
+
+void PolyhedralFunctionBlock::set_conjugate_constraint(
+                                  std::list< FRowConstraint > & constraints )
+{
+ // sanity checks
+ if( ! is_dual() )
+  throw( std::logic_error(
+   "set_conjugate_constraint() requires the dual representation" ) );
+ if( ! ( f_rep & k_built_var ) )
+  throw( std::logic_error( "set_conjugate_constraint() must be called "
+                           "after generate_abstract_variables()" ) );
+
+ const Index nv = f_polyf.get_num_active_var();
+ if( constraints.size() != nv )
+  throw( std::invalid_argument( "set_conjugate_constraint(): the size of "
+                                "the provided constraint list does not "
+                                "match get_num_active_var()" ) );
+
+ // remember the list of coupling constraints so that the
+ // add_Modification machinery can keep them in sync with f_polyf
+ f_coupling = & constraints;
+
+ const Index nr = f_polyf.get_A().size();
+ const auto & A = f_polyf.get_A();
+
+ // build, for each j, the list of ( theta_i , A[i][j] ) pairs that this
+ // PolyhedralFunctionBlock contributes to the j-th coupling constraint
+ std::vector< LinearFunction::v_coeff_pair > contribs( nv );
+
+ auto thit = f_theta.begin();
+ for( Index i = 0 ; i < nr ; ++i , ++thit )
+  for( Index j = 0 ; j < nv ; ++j )
+   if( A[ i ][ j ] != 0 )
+    contribs[ j ].emplace_back( & *thit , A[ i ][ j ] );
+
+ // attach the contributions to each external constraint. The
+ // constraint may already have an empty LinearFunction (which the
+ // caller created so that the constraint already has a valid Function
+ // when this method runs) or it may have an existing one with some
+ // variables in it (e.g. populated by another PolyhedralFunctionBlock
+ // sharing the same coupling list). In either case we *replace* the
+ // LinearFunction with a new one built from "old contents + new
+ // contributions", since add_variables() with issueMod = eNoMod does
+ // not update the parent FRowConstraint's active-Variable list and
+ // therefore MILPSolver does not see the freshly-added Variables
+ // (whereas set_function() does invalidate and rebuild the list).
+ Index j = 0;
+ for( auto cit = constraints.begin() ; cit != constraints.end() ;
+      ++cit , ++j ) {
+  if( contribs[ j ].empty() )
+   continue;
+
+  LinearFunction::v_coeff_pair merged;
+
+  // preserve any pre-existing terms in the constraint
+  if( auto old_lf = static_cast< LinearFunction * >( cit->get_function() ) ) {
+   const auto & old_vp = old_lf->get_v_var();
+   merged.reserve( old_vp.size() + contribs[ j ].size() );
+   merged.insert( merged.end() , old_vp.begin() , old_vp.end() );
+   }
+  else
+   merged.reserve( contribs[ j ].size() );
+
+  // append our own contributions
+  merged.insert( merged.end() ,
+                 std::make_move_iterator( contribs[ j ].begin() ) ,
+                 std::make_move_iterator( contribs[ j ].end() ) );
+
+  // install the new LinearFunction in the constraint (this also takes
+  // care of registering the active Variable through the constraint's
+  // own machinery)
+  cit->set_function( new LinearFunction( std::move( merged ) ) , eNoMod );
+  }
+
+ }  // end( set_conjugate_constraint )
 
 /*--------------------------------------------------------------------------*/
 /*------- Methods for reading the data of the PolyhedralFunctionBlock ------*/
@@ -467,10 +725,13 @@ bool PolyhedralFunctionBlock::map_back_Modification(
 void PolyhedralFunctionBlock::print( std::ostream & output , char vlvl ) const
 {
  output << std::endl << "PolyhedralFunctionBlock[";
- if( f_rep & 1 )
-  output << "l/";
+ if( is_dual() )
+  output << "d/";
  else
-  output << "n/";
+  if( is_linearized() )
+   output << "l/";
+  else
+   output << "n/";
   /**
    * can't do anymore since is_convex no longer works on const functions
   if( f_polyf.is_convex() ) {
@@ -522,7 +783,7 @@ void PolyhedralFunctionBlock::guts_of_destructor( void )
  if( obj )
   obj->clear();
 
- if( f_rep & 1 ) {  // use linearized representation
+ if( is_linearized() ) {  // linearized primal representation
   // first clear() all the constraints
   Constraint::clear( f_const );
   f_bcv.clear();
@@ -533,11 +794,28 @@ void PolyhedralFunctionBlock::guts_of_destructor( void )
   if( obj )
    obj->set_function( nullptr , eNoMod , true );
   }
- else {             // use natural representation
-  // ensure that the PolyhedralFunction inside the Objective is NOT deleted
-  if( obj )
-   obj->set_function( nullptr , eNoMod , false );
-  }
+ else
+  if( is_dual() ) {  // linearized dual representation
+   // clear the normalization constraint (its LinearFunction is owned
+   // by f_normcns and will be deleted with it)
+   f_normcns.clear();
+
+   // the f_theta dynamic Variable and the static f_gamma ColVariable
+   // are owned by this PolyhedralFunctionBlock and will be destroyed
+   // along with it; no explicit clear is needed (ColVariable has no
+   // clear()), but f_theta gets emptied to release the storage now
+   f_theta.clear();
+
+   // ensure that the LinearFunction inside the Objective is deleted
+   if( obj )
+    obj->set_function( nullptr , eNoMod , true );
+   }
+  else {             // natural representation
+   // ensure that the PolyhedralFunction inside the Objective is NOT
+   // deleted (it is f_polyf, which lives on)
+   if( obj )
+    obj->set_function( nullptr , eNoMod , false );
+   }
 
  // finally delete the Objective
  delete obj;
@@ -1071,6 +1349,668 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR( c_p_Mod mod ,
   return;  // else, none of my business
   }
  }  // end( PolyhedralFunctionBlock::guts_of_add_Modification_LR )
+
+/*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
+/*------------------ MODIFICATION HANDLERS FOR DUAL REPRESENTATION ---------*/
+/*--------------------------------------------------------------------------*/
+
+bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
+                                    const FunctionMod * mod , ChnlName chnl )
+{
+ // process a FunctionMod produced by f_polyf in the *dual* representation,
+ // mirroring the change into f_theta (the dynamic theta variables),
+ // f_normcns (the static normalisation constraint), the FRealObjective
+ // LinearFunction, and f_coupling (the external coupling constraints
+ // registered via set_conjugate_constraint(), if any).
+ //
+ // Strategy:
+ //  * for "cheap" Modifications that only touch the objective LinearFunction
+ //    or gamma (ModifyCnst, modify bound, convex/concave flip), apply the
+ //    change in place via modify_coefficient(s) / set_sense / VariableMod
+ //    -- MILPSolver / CPXMILPSolver support those.
+ //  * for Modifications that touch the constraint matrix of the dual LP
+ //    (AddRows / DeleteRows / ModifyRows, since rows of f_polyf are
+ //    *columns* of the dual LP), apply the corresponding incremental
+ //    column-side updates: add_dynamic_variables / remove_dynamic_variables
+ //    on f_theta plus the matching add_variables / remove_variables /
+ //    modify_coefficients on obj_lf, on the normalisation constraint, and
+ //    on every external coupling LinearFunction (the latter through the
+ //    f_coupling pointer set up by set_conjugate_constraint()). These
+ //    are propagated to CPXMILPSolver / GRBMILPSolver via their
+ //    add_dynamic_variable / remove_dynamic_variable /
+ //    constraint_function_modification / constraint_fvars_modification
+ //    overrides (which call CPXaddcols / CPXdelcols / CPXchgcoeflist and
+ //    the Gurobi equivalents).
+
+ // shortcuts to the abstract structures of the dual representation
+ auto frobj = static_cast< FRealObjective * >( get_objective() );
+ auto obj_lf = static_cast< LinearFunction * >( frobj->get_function() );
+
+ // C05FunctionModVarsAddd/Rngd/Sbst - - - - - - - - - - - - - - - - - - - -
+ // x variables of f_polyf added/removed: this also requires the father
+ // Block to add/remove its corresponding coupling constraints, which is
+ // outside the responsibility of a single PolyhedralFunctionBlock. Until
+ // a higher-level coordination mechanism is in place, refuse these mods
+ if( dynamic_cast< const C05FunctionModVarsAddd * >( mod ) ||
+     dynamic_cast< const C05FunctionModVarsRngd * >( mod ) ||
+     dynamic_cast< const C05FunctionModVarsSbst * >( mod ) )
+  throw( std::logic_error( "PolyhedralFunctionBlock: changing the active "
+                           "Variable of f_polyf is not yet supported in "
+                           "the dual representation" ) );
+
+ // detect the "cheap" sub-cases that can be handled incrementally
+ // (without touching the constraint matrix of the dual LP) before
+ // falling through to the rebuild path.
+
+ // ModifyCnst is cheap: only b_i changes -> only obj coefficients
+ const auto rng_mod = dynamic_cast< const PolyhedralFunctionModRngd * >( mod );
+ const auto sbst_mod = dynamic_cast< const PolyhedralFunctionModSbst * >( mod );
+
+ // bound change is encoded as PolyhedralFunctionModRngd with empty range
+ if( rng_mod && rng_mod->range().first == rng_mod->range().second ) {
+  // recompute the new bound (possibly +/-INF if the bound is unset)
+  const bool was_fixed = f_gamma.is_fixed();
+  const bool now_set = f_polyf.is_bound_set();
+  const double nbnd = now_set ? f_polyf.get_global_bound() : 0.0;
+
+  auto par = make_par( eNoBlck , chnl );
+  if( was_fixed != ( ! now_set ) ) {
+   // gamma's "fixed-to-0" status flips
+   if( now_set )
+    f_gamma.is_fixed( false , par );
+   else {
+    f_gamma.set_value( 0 );
+    f_gamma.is_fixed( true , par );
+    }
+   }
+  // update gamma's coefficient in the objective LinearFunction (gamma
+  // is always at position 0 of obj_lf by construction)
+  obj_lf->modify_coefficient( 0 , nbnd , par );
+  return( false );
+  }
+
+ // ModifyCnst (range / subset): only b coefficients change in obj LF
+ if( rng_mod && rng_mod->PFtype() == PolyhedralFunctionMod::ModifyCnst ) {
+  const Index strt = rng_mod->range().first;
+  const Index stop = rng_mod->range().second;
+  LinearFunction::Vec_FunctionValue nb( stop - strt );
+  for( Index i = strt ; i < stop ; ++i )
+   nb[ i - strt ] = f_polyf.get_b()[ i ];
+  obj_lf->modify_coefficients( std::move( nb ) ,
+                               Range( strt + 1 , stop + 1 ) ,
+                               make_par( eNoBlck , chnl ) );
+  return( false );
+  }
+ if( sbst_mod && sbst_mod->PFtype() == PolyhedralFunctionMod::ModifyCnst ) {
+  const auto & rows = sbst_mod->rows();
+  LinearFunction::Vec_FunctionValue nb( rows.size() );
+  Subset nms( rows.size() );
+  for( Index i = 0 ; i < rows.size() ; ++i ) {
+   nb[ i ] = f_polyf.get_b()[ rows[ i ] ];
+   nms[ i ] = rows[ i ] + 1;
+   }
+  obj_lf->modify_coefficients( std::move( nb ) , std::move( nms ) , true ,
+                               make_par( eNoBlck , chnl ) );
+  return( false );
+  }
+
+ // C05FunctionMod (NothingChanged): convex/concave flip; just flip the
+ // sense of the dual objective (dual sense = opposite of primal)
+ if( auto tmod = dynamic_cast< const C05FunctionMod * >( mod ) ) {
+  if( ! rng_mod && ! sbst_mod &&
+      ! dynamic_cast< const PolyhedralFunctionModAddd * >( mod ) ) {
+   if( tmod->type() != C05FunctionMod::NothingChanged )
+    throw( std::logic_error(
+                       "wrong C05FunctionMod in PolyhedralFunction" ) );
+
+   frobj->set_sense( f_polyf.is_convex() ? Objective::eMax : Objective::eMin ,
+                     make_par( eNoBlck , chnl ) );
+   return( false );
+   }
+  // else fall through: PolyhedralFunctionMod[Addd|Rngd|Sbst] derive from
+  // C05FunctionMod and we want the rebuild path for them
+  }
+
+ // The remaining PolyhedralFunctionMod variants — AddRows, DeleteRows,
+ // ModifyRows (in both range- and subset-flavoured forms) — change the
+ // *constraint matrix* of the dual LP, since rows of f_polyf correspond
+ // to *columns* of the dual LP. The incremental column-side updates
+ // are supported by CPXMILPSolver (CPXaddcols / CPXdelcols /
+ // CPXchgcoeflist) and GRBMILPSolver via their overrides of
+ // add_dynamic_variable / remove_dynamic_variable /
+ // constraint_function_modification / constraint_fvars_modification.
+
+ // PolyhedralFunctionModAddd: append `nadd` rows at the end of f_polyf
+ if( auto tmod = dynamic_cast< const PolyhedralFunctionModAddd * >( mod ) ) {
+  const Index nadd = tmod->addedrows();
+  if( nadd == 0 )
+   return( false );
+
+  const Index nr_total = f_polyf.get_A().size();
+  const Index nr_old = nr_total - nadd;
+
+  // use the caller's channel directly (don't open a nested one)
+  auto par = make_par( eNoBlck , chnl );
+
+  // 1) create the new theta ColVariables in a temporary list and splice
+  //    them into f_theta via add_dynamic_variables(). splice keeps the
+  //    node addresses we collected here valid afterwards
+  std::list< ColVariable > newt( nadd );
+  std::vector< ColVariable * > new_ptrs( nadd );
+  {
+   Index k = 0;
+   for( auto & v : newt ) {
+    v.is_positive( true , eNoMod );
+    new_ptrs[ k++ ] = & v;
+    }
+   }
+  add_dynamic_variables( f_theta , newt , par );
+
+  // 2) append (theta_new , b_new) to the FRealObjective LinearFunction
+  {
+   LinearFunction::v_coeff_pair to_obj( nadd );
+   for( Index i = 0 ; i < nadd ; ++i )
+    to_obj[ i ] = std::make_pair( new_ptrs[ i ] ,
+                                  f_polyf.get_b()[ nr_old + i ] );
+   obj_lf->add_variables( std::move( to_obj ) , par );
+   }
+
+  // 3) append (theta_new , 1) to the normalisation LinearFunction for
+  //    every new diagonal row
+  {
+   auto nrm_lf = static_cast< LinearFunction * >(
+                                            f_normcns.get_function() );
+   LinearFunction::v_coeff_pair to_nrm;
+   for( Index i = 0 ; i < nadd ; ++i )
+    if( ! f_polyf.is_row_vertical( nr_old + i ) )
+     to_nrm.emplace_back( new_ptrs[ i ] , 1.0 );
+   if( ! to_nrm.empty() )
+    nrm_lf->add_variables( std::move( to_nrm ) , par );
+   }
+
+  // 4) for each external coupling FRowConstraint, append the non-zero
+  //    (theta_new , a_{new,j}) contributions of the new rows
+  if( f_coupling ) {
+   Index j = 0;
+   for( auto & c : *f_coupling ) {
+    auto cf = static_cast< LinearFunction * >( c.get_function() );
+    LinearFunction::v_coeff_pair to_cp;
+    to_cp.reserve( nadd );
+    for( Index i = 0 ; i < nadd ; ++i ) {
+     const double a = f_polyf.get_A()[ nr_old + i ][ j ];
+     if( a != 0 )
+      to_cp.emplace_back( new_ptrs[ i ] , a );
+     }
+    if( ! to_cp.empty() )
+     cf->add_variables( std::move( to_cp ) , par );
+    ++j;
+    }
+   }
+
+  return( false );
+  }
+
+ // PolyhedralFunctionModRngd with DeleteRows / ModifyRows
+ if( rng_mod ) {
+  const Index strt = rng_mod->range().first;
+  const Index stop = rng_mod->range().second;
+  auto par = make_par( eNoBlck , chnl );
+  auto nrm_lf = static_cast< LinearFunction * >( f_normcns.get_function() );
+
+  if( rng_mod->PFtype() == PolyhedralFunctionMod::DeleteRows ) {
+   // collect pointers of the theta variables being removed
+   std::vector< ColVariable * > rem_ptrs;
+   rem_ptrs.reserve( stop - strt );
+   auto thit = std::next( f_theta.begin() , strt );
+   for( Index i = strt ; i < stop ; ++i , ++thit )
+    rem_ptrs.push_back( & *thit );
+
+   // 1) obj_lf: the theta variables sit at positions [strt+1, stop+1)
+   //    (gamma is at position 0)
+   obj_lf->remove_variables( Range( strt + 1 , stop + 1 ) , par );
+
+   // 2) normcns_lf: lookup by pointer (only diagonal thetas are there)
+   {
+    Subset to_rm;
+    to_rm.reserve( rem_ptrs.size() );
+    for( auto p : rem_ptrs ) {
+     const Index k = nrm_lf->is_active( p );
+     if( k < nrm_lf->get_num_active_var() )
+      to_rm.push_back( k );
+     }
+    if( ! to_rm.empty() ) {
+     std::sort( to_rm.begin() , to_rm.end() );
+     nrm_lf->remove_variables( std::move( to_rm ) , true , par );
+     }
+    }
+
+   // 3) each coupling[j]: lookup by pointer (entries are present only
+   //    for non-zero a_{i,j})
+   if( f_coupling )
+    for( auto & c : *f_coupling ) {
+     auto cf = static_cast< LinearFunction * >( c.get_function() );
+     Subset to_rm;
+     to_rm.reserve( rem_ptrs.size() );
+     for( auto p : rem_ptrs ) {
+      const Index k = cf->is_active( p );
+      if( k < cf->get_num_active_var() )
+       to_rm.push_back( k );
+      }
+     if( ! to_rm.empty() ) {
+      std::sort( to_rm.begin() , to_rm.end() );
+      cf->remove_variables( std::move( to_rm ) , true , par );
+      }
+     }
+
+   // 4) finally remove the theta variables themselves from the dynamic
+   //    list (this delivers a BlockModRmv<ColVariable> to the Solver)
+   remove_dynamic_variables( f_theta , Range( strt , stop ) , par );
+
+   return( false );
+   }
+
+  if( rng_mod->PFtype() == PolyhedralFunctionMod::ModifyRows ) {
+   const auto & A = f_polyf.get_A();
+
+   // 1) obj_lf: update b for rows [strt, stop) at positions [strt+1, stop+1)
+   {
+    LinearFunction::Vec_FunctionValue nb( stop - strt );
+    for( Index i = strt ; i < stop ; ++i )
+     nb[ i - strt ] = f_polyf.get_b()[ i ];
+    obj_lf->modify_coefficients( std::move( nb ) ,
+                                 Range( strt + 1 , stop + 1 ) , par );
+    }
+
+   // 2) normcns_lf: handle diag/vert flips (theta_i may need to be
+   //    added if it just became diagonal, or removed if it just became
+   //    vertical; otherwise no change)
+   {
+    LinearFunction::v_coeff_pair to_add;
+    Subset to_rm;
+    auto thit = std::next( f_theta.begin() , strt );
+    for( Index i = strt ; i < stop ; ++i , ++thit ) {
+     ColVariable * p = & *thit;
+     const Index k = nrm_lf->is_active( p );
+     const bool in_nrm = ( k < nrm_lf->get_num_active_var() );
+     const bool should_in = ! f_polyf.is_row_vertical( i );
+     if( in_nrm && ! should_in )
+      to_rm.push_back( k );
+     else if( should_in && ! in_nrm )
+      to_add.emplace_back( p , 1.0 );
+     }
+    if( ! to_rm.empty() ) {
+     std::sort( to_rm.begin() , to_rm.end() );
+     nrm_lf->remove_variables( std::move( to_rm ) , true , par );
+     }
+    if( ! to_add.empty() )
+     nrm_lf->add_variables( std::move( to_add ) , par );
+    }
+
+   // 3) each coupling[j]: update a_{i,j} for rows i in [strt, stop)
+   if( f_coupling ) {
+    Index j = 0;
+    for( auto & c : *f_coupling ) {
+     auto cf = static_cast< LinearFunction * >( c.get_function() );
+     Subset nms;
+     LinearFunction::Vec_FunctionValue ncoef;
+     auto thit = std::next( f_theta.begin() , strt );
+     for( Index i = strt ; i < stop ; ++i , ++thit ) {
+      ColVariable * p = & *thit;
+      const Index k = cf->is_active( p );
+      if( k < cf->get_num_active_var() ) {
+       nms.push_back( k );
+       ncoef.push_back( A[ i ][ j ] );
+       }
+      else if( A[ i ][ j ] != 0 )
+       cf->add_variable( p , A[ i ][ j ] , par );
+      }
+     if( ! nms.empty() )
+      cf->modify_coefficients( std::move( ncoef ) , std::move( nms ) ,
+                               false , par );
+     ++j;
+     }
+    }
+
+   return( false );
+   }
+
+  throw( std::invalid_argument(
+                       "unknown PolyhedralFunctionModRngd PFtype" ) );
+  }
+
+ // PolyhedralFunctionModSbst with DeleteRows / ModifyRows
+ if( sbst_mod ) {
+  const auto & rows = sbst_mod->rows();
+  auto par = make_par( eNoBlck , chnl );
+  auto nrm_lf = static_cast< LinearFunction * >( f_normcns.get_function() );
+
+  // PolyhedralFunctionModSbst always has rows sorted by Subst contract;
+  // resolve them once into iterators / pointers into f_theta
+  std::vector< ColVariable * > sub_ptrs( rows.size() );
+  {
+   Index prev = 0;
+   auto thit = f_theta.begin();
+   for( Index k = 0 ; k < rows.size() ; ++k ) {
+    thit = std::next( thit , rows[ k ] - prev );
+    sub_ptrs[ k ] = & *thit;
+    prev = rows[ k ];
+    }
+   }
+
+  if( sbst_mod->PFtype() == PolyhedralFunctionMod::DeleteRows ) {
+
+   // 1) obj_lf: positions are rows[i]+1, already sorted
+   {
+    Subset to_rm( rows.size() );
+    for( Index i = 0 ; i < rows.size() ; ++i )
+     to_rm[ i ] = rows[ i ] + 1;
+    obj_lf->remove_variables( std::move( to_rm ) , true , par );
+    }
+
+   // 2) normcns_lf: lookup by pointer
+   {
+    Subset to_rm;
+    to_rm.reserve( sub_ptrs.size() );
+    for( auto p : sub_ptrs ) {
+     const Index k = nrm_lf->is_active( p );
+     if( k < nrm_lf->get_num_active_var() )
+      to_rm.push_back( k );
+     }
+    if( ! to_rm.empty() ) {
+     std::sort( to_rm.begin() , to_rm.end() );
+     nrm_lf->remove_variables( std::move( to_rm ) , true , par );
+     }
+    }
+
+   // 3) each coupling[j]: lookup by pointer
+   if( f_coupling )
+    for( auto & c : *f_coupling ) {
+     auto cf = static_cast< LinearFunction * >( c.get_function() );
+     Subset to_rm;
+     to_rm.reserve( sub_ptrs.size() );
+     for( auto p : sub_ptrs ) {
+      const Index k = cf->is_active( p );
+      if( k < cf->get_num_active_var() )
+       to_rm.push_back( k );
+      }
+     if( ! to_rm.empty() ) {
+      std::sort( to_rm.begin() , to_rm.end() );
+      cf->remove_variables( std::move( to_rm ) , true , par );
+      }
+     }
+
+   // 4) finally remove from f_theta
+   remove_dynamic_variables( f_theta , Subset( rows ) , true , par );
+
+   return( false );
+   }
+
+  if( sbst_mod->PFtype() == PolyhedralFunctionMod::ModifyRows ) {
+   const auto & A = f_polyf.get_A();
+
+   // 1) obj_lf: positions rows[i]+1
+   {
+    LinearFunction::Vec_FunctionValue nb( rows.size() );
+    Subset nms( rows.size() );
+    for( Index i = 0 ; i < rows.size() ; ++i ) {
+     nb[ i ] = f_polyf.get_b()[ rows[ i ] ];
+     nms[ i ] = rows[ i ] + 1;
+     }
+    obj_lf->modify_coefficients( std::move( nb ) , std::move( nms ) ,
+                                 true , par );
+    }
+
+   // 2) normcns_lf: diag/vert flips per row in subset
+   {
+    LinearFunction::v_coeff_pair to_add;
+    Subset to_rm;
+    for( Index i = 0 ; i < rows.size() ; ++i ) {
+     ColVariable * p = sub_ptrs[ i ];
+     const Index k = nrm_lf->is_active( p );
+     const bool in_nrm = ( k < nrm_lf->get_num_active_var() );
+     const bool should_in = ! f_polyf.is_row_vertical( rows[ i ] );
+     if( in_nrm && ! should_in )
+      to_rm.push_back( k );
+     else if( should_in && ! in_nrm )
+      to_add.emplace_back( p , 1.0 );
+     }
+    if( ! to_rm.empty() ) {
+     std::sort( to_rm.begin() , to_rm.end() );
+     nrm_lf->remove_variables( std::move( to_rm ) , true , par );
+     }
+    if( ! to_add.empty() )
+     nrm_lf->add_variables( std::move( to_add ) , par );
+    }
+
+   // 3) each coupling[j]: a_{rows[i], j} update per row in subset
+   if( f_coupling ) {
+    Index j = 0;
+    for( auto & c : *f_coupling ) {
+     auto cf = static_cast< LinearFunction * >( c.get_function() );
+     Subset nms;
+     LinearFunction::Vec_FunctionValue ncoef;
+     for( Index i = 0 ; i < rows.size() ; ++i ) {
+      ColVariable * p = sub_ptrs[ i ];
+      const Index k = cf->is_active( p );
+      if( k < cf->get_num_active_var() ) {
+       nms.push_back( k );
+       ncoef.push_back( A[ rows[ i ] ][ j ] );
+       }
+      else if( A[ rows[ i ] ][ j ] != 0 )
+       cf->add_variable( p , A[ rows[ i ] ][ j ] , par );
+      }
+     if( ! nms.empty() )
+      cf->modify_coefficients( std::move( ncoef ) , std::move( nms ) ,
+                               false , par );
+     ++j;
+     }
+    }
+
+   return( false );
+   }
+
+  throw( std::invalid_argument(
+                       "unknown PolyhedralFunctionModSbst PFtype" ) );
+  }
+
+ // Rebuild-and-NBModification fallback for any generic FunctionMod
+ // with shift==NaN ("everything changed"). PolyhedralFunctionMod
+ // [Addd|Rngd|Sbst] all derive from C05FunctionMod / FunctionMod and
+ // are already handled by the incremental branches above; reaching
+ // this point means the modification is the bare FunctionMod variant
+ // with no incremental info.
+
+ assert( std::isnan( mod->shift() ) );
+
+ // Snapshot foreign entries (entries in coupling/normcns LFs that
+ // belong to other PFBs or to set_lambda-installed lambdas)
+ std::unordered_set< const Variable * > old_theta;
+ old_theta.reserve( f_theta.size() );
+ for( const auto & t : f_theta )
+  old_theta.insert( & t );
+
+ std::vector< LinearFunction::v_coeff_pair > cpl_kept;
+ if( f_coupling ) {
+  cpl_kept.resize( f_coupling->size() );
+  Index j = 0;
+  for( auto & c : *f_coupling ) {
+   auto cf = static_cast< LinearFunction * >( c.get_function() );
+   if( cf )
+    for( const auto & p : cf->get_v_var() )
+     if( ! old_theta.count( p.first ) )
+      cpl_kept[ j ].push_back( p );
+   ++j;
+   }
+  }
+
+ LinearFunction::v_coeff_pair nrm_kept;
+ if( auto nrm_lf = static_cast< LinearFunction * >( f_normcns.get_function() ) )
+  for( const auto & p : nrm_lf->get_v_var() )
+   if( ! old_theta.count( p.first ) && ( p.first != & f_gamma ) )
+    nrm_kept.push_back( p );
+
+ // Build new theta in a temporary, replace LFs via set_function()
+ // (which properly deregisters old thetas from v_active), swap with
+ // f_theta, then issue NBModification.
+ const Index nr = f_polyf.get_A().size();
+ std::list< ColVariable > new_theta;
+ std::vector< ColVariable * > new_ptrs;
+ new_ptrs.reserve( nr );
+ for( Index i = 0 ; i < nr ; ++i ) {
+  new_theta.emplace_back();
+  auto & v = new_theta.back();
+  v.is_positive( true , eNoMod );
+  v.set_Block( this );
+  new_ptrs.push_back( & v );
+  }
+
+ if( f_polyf.is_bound_set() ) {
+  if( f_gamma.is_fixed() )
+   f_gamma.is_fixed( false , eNoMod );
+  }
+ else {
+  f_gamma.set_value( 0 );
+  if( ! f_gamma.is_fixed() )
+   f_gamma.is_fixed( true , eNoMod );
+  }
+
+ {
+  LinearFunction::v_coeff_pair obj_vp;
+  obj_vp.reserve( 1 + nr );
+  const double bnd = f_polyf.is_bound_set()
+                     ? f_polyf.get_global_bound()
+                     : 0.0;
+  obj_vp.emplace_back( & f_gamma , bnd );
+  for( Index i = 0 ; i < nr ; ++i )
+   obj_vp.emplace_back( new_ptrs[ i ] , f_polyf.get_b()[ i ] );
+  frobj->set_function( new LinearFunction( std::move( obj_vp ) ) , eNoMod );
+  }
+
+ {
+  LinearFunction::v_coeff_pair nrm_vp;
+  nrm_vp.reserve( 1 + nr + nrm_kept.size() );
+  nrm_vp.emplace_back( & f_gamma , 1.0 );
+  for( Index i = 0 ; i < nr ; ++i )
+   if( ! f_polyf.is_row_vertical( i ) )
+    nrm_vp.emplace_back( new_ptrs[ i ] , 1.0 );
+  for( auto & p : nrm_kept )
+   nrm_vp.push_back( p );
+  f_normcns.set_function( new LinearFunction( std::move( nrm_vp ) ) ,
+                          eNoMod );
+  }
+
+ if( f_coupling ) {
+  const Index nv = f_polyf.get_num_active_var();
+  Index j = 0;
+  auto cit = f_coupling->begin();
+  for( ; cit != f_coupling->end() && j < nv ; ++cit , ++j ) {
+   LinearFunction::v_coeff_pair vp = std::move( cpl_kept[ j ] );
+   for( Index i = 0 ; i < nr ; ++i ) {
+    const double a = f_polyf.get_A()[ i ][ j ];
+    if( a != 0 )
+     vp.emplace_back( new_ptrs[ i ] , a );
+    }
+   cit->set_function( new LinearFunction( std::move( vp ) ) , eNoMod );
+   }
+  }
+
+ f_theta.swap( new_theta );
+
+ AbstractBlock::add_Modification( std::make_shared< NBModification >( this )
+                                  );
+ return( false );
+
+ }  // end( PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual )
+
+/*--------------------------------------------------------------------------*/
+
+void PolyhedralFunctionBlock::guts_of_add_Modification_LR_dual( c_p_Mod mod ,
+                                                                ChnlName chnl )
+{
+ // process a Modification produced by the *dual* abstract
+ // representation. In contrast to the primal LR direction, the dual
+ // abstract structures (theta, normalisation constraint, objective
+ // LinearFunction, coupling constraints) are not expected to be
+ // modified directly by the user: changes should always come through
+ // f_polyf, which then flows into the dual abstract via
+ // guts_of_add_Modification_PF_dual().
+ //
+ // However the LinearFunction::modify_coefficient(s)() / add_variable(s)()
+ // / remove_variables() calls inside guts_of_add_Modification_PF_dual
+ // *do* produce Modifications, which are observed by this Block and
+ // routed back here through add_Modification(). We must therefore
+ // recognise such "self-generated" Modifications and silently absorb
+ // them. To do so we check whether the Modification refers to one of
+ // our own dual structures, and if so, just let it pass through.
+
+ // Self-generated Modifications on the dual abstract structures:
+ // anything coming from a LinearFunction associated to f_normcns, the
+ // FRealObjective, or one of the f_coupling constraints is "internal"
+ // and should be passed up unchanged (we just return without rebuilding
+ // f_polyf). The same goes for BlockModAdd< ColVariable > / Rmv on
+ // f_theta.
+
+ // BlockModAdd / Rmv on f_theta -> internal
+ if( auto tmod = dynamic_cast< const BlockModAdd< ColVariable > * >( mod ) ) {
+  if( & tmod->whc() == & f_theta )
+   return;
+  }
+ if( dynamic_cast< const BlockModRmvRngd< ColVariable > * >( mod ) )
+  return;
+ if( dynamic_cast< const BlockModRmvSbst< ColVariable > * >( mod ) )
+  return;
+
+ // VariableMod on f_gamma (fix/unfix) -> internal
+ if( auto tmod = dynamic_cast< const VariableMod * >( mod ) ) {
+  if( tmod->variable() == & f_gamma )
+   return;
+  // any other VariableMod is not our business
+  return;
+  }
+
+ // LinearFunctionModVarsAddd / Rngd / Sbst (and C05FunctionModLin*)
+ // affecting obj_lf, nrm_lf or any coupling LF -> internal
+ auto matches_internal_LF = [ this ]( const Function * f ) -> bool {
+  if( auto frobj = static_cast< FRealObjective * >( get_objective() ) )
+   if( f == frobj->get_function() )
+    return( true );
+  if( f == f_normcns.get_function() )
+   return( true );
+  if( f_coupling )
+   for( auto & c : *f_coupling )
+    if( f == c.get_function() )
+     return( true );
+  return( false );
+  };
+
+ if( auto tmod = dynamic_cast< const FunctionMod * >( mod ) )
+  if( matches_internal_LF( tmod->function() ) )
+   return;
+
+ // RowConstraintMod on f_normcns (e.g. set_lhs/set_rhs from set_lambda)
+ // or on any f_coupling constraint -> internal
+ if( auto tmod = dynamic_cast< const RowConstraintMod * >( mod ) ) {
+  if( tmod->constraint() == & f_normcns )
+   return;
+  if( f_coupling )
+   for( auto & c : *f_coupling )
+    if( tmod->constraint() == & c )
+     return;
+  // any other RowConstraintMod is not about our structures, ignore
+  return;
+  }
+
+ // ObjectiveMod (e.g. set_sense from convex/concave flip) -> internal
+ if( dynamic_cast< const ObjectiveMod * >( mod ) )
+  return;
+
+ // anything else from somewhere in the dual abstract representation:
+ // not supported, throw
+ throw( std::logic_error( "PolyhedralFunctionBlock: unsupported Modification "
+                          "on dual abstract representation" ) );
+
+ }  // end( PolyhedralFunctionBlock::guts_of_add_Modification_LR_dual )
 
 /*--------------------------------------------------------------------------*/
 
