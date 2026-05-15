@@ -2896,6 +2896,34 @@ void print( std::ostream & output ) override {
   }
 
 /*--------------------------------------------------------------------------*/
+ /// true if any handled RowConstraint currently has lhs > rhs
+ /** Returns true iff at least one of the RowConstraints handled by this
+  * BendersBFunction (i.e., in v_constraints) is in an "inverted" state
+  * with lhs > rhs, which makes the inner sub-Block structurally
+  * infeasible. Used as a fallback by has_linearization() /
+  * compute_new_linearization() to synthesize a feasibility (vertical)
+  * linearization when the inner Solver cannot produce a Farkas
+  * certificate (e.g., because infeasibility was detected by presolve
+  * before any simplex/barrier iteration). */
+
+ bool has_inverted_row( void );
+
+ /// effective per-entry dual value used to assemble a vertical cut
+ /** Returns the dual value to be used for the j-th BendersBFunction row
+  * entry when building a linearization. When the underlying RowConstraint
+  * has lhs > rhs (structurally infeasible), the inner Solver may have no
+  * Farkas certificate available; in that case a side-aware synthetic
+  * value is returned, equal to \p obj_sign for an eLHS entry and to
+  * \f$ -\p obj\_sign \f$ for an eRHS entry, so that the standard
+  * (sign-based) accumulation in get_linearization_coefficients() and
+  * compute_linearization_constant() picks up both sides and yields the
+  * cut \f$ (M_1 - M_2)\,y \leq b_2 - b_1 \f$, which is exactly the
+  * Farkas-derived feasibility cut for the inverted row. */
+
+ FunctionValue effective_dual_for_cut( RowConstraint * c , Block::Index j ,
+                                       int obj_sign );
+
+/*--------------------------------------------------------------------------*/
  /// return the index of the given  RowConstraint
 
  Index get_constraint_index( RowConstraint * constraint ) {
