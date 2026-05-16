@@ -2437,12 +2437,18 @@ bool LagBFunction::flush_v_tmpCP( void )
    const Index cm_sz = CostMatrix[ h ].size();
    const Index can   = ( cm_sz > cur ) ? std::min< Index >( pend , cm_sz - cur ) : 0;
 
+   // use eNoBlck: the inner Block need not mirror the abstract change,
+   // because LagBFunction manages the consistency externally (the added
+   // variable carries no immediate cost contribution: linear coeff is set
+   // when the Lagrangian costs are later updated via set_linear_term).
+   // Without this, leaf Blocks whose add_Modification dispatcher does not
+   // recognise FunctionModVarsAddd (e.g. ThermalUnitBlock) would throw.
    if( can == 1 )
     lf->add_variable( v_tmpCP[ h ].front().first ,
-                      v_tmpCP[ h ].front().second );
+                      v_tmpCP[ h ].front().second , eNoBlck );
    else if( can > 1 ) {
     v_coeff_pair to_add( v_tmpCP[ h ].begin() , v_tmpCP[ h ].begin() + can );
-    lf->add_variables( std::move( to_add ) );
+    lf->add_variables( std::move( to_add ) , eNoBlck );
     }
 
    if( can )
@@ -2483,16 +2489,17 @@ bool LagBFunction::flush_v_tmpCP( void )
    const Index cm_sz = CostMatrix[ h ].size();
    const Index can   = ( cm_sz > cur ) ? std::min< Index >( pend , cm_sz - cur ) : 0;
 
+   // see comment in the LinearFunction branch above for why eNoBlck
    if( can == 1 )
     qf->add_variable( v_tmpCP[ h ].front().first ,
-                      v_tmpCP[ h ].front().second , 0 );
+                      v_tmpCP[ h ].front().second , 0 , eNoBlck );
    else if( can > 1 ) {
     v_coeff_triple vars( can , coeff_triple( nullptr , 0 , 0 ) );
     for( Index i = 0 ; i < can ; ++i ) {
      std::get< 0 >( vars[ i ] ) = v_tmpCP[ h ][ i ].first;
      std::get< 1 >( vars[ i ] ) = v_tmpCP[ h ][ i ].second;
      }
-    qf->add_variables( std::move( vars ) );
+    qf->add_variables( std::move( vars ) , eNoBlck );
     }
 
    if( can )
