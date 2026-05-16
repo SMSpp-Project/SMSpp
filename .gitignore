@@ -3,7 +3,7 @@
 # ============================================================
 
 # --- Project-specific ---------------------------------------
-test/ClassFactory/test
+test/ClassFactory/CF_test
 
 # Doxygen output
 doc/
