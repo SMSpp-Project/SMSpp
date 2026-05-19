@@ -1936,6 +1936,28 @@ bool BendersBFunction::is_concave( void ) {
 
 /*--------------------------------------------------------------------------*/
 
+bool BendersBFunction::has_inverted_row( void ) {
+ retrieve_constraints();
+ for( auto * c : v_constraints )
+  if( c && ( c->get_lhs() > c->get_rhs() ) )
+   return( true );
+ return( false );
+}  // end ( BendersBFunction::has_inverted_row )
+
+/*--------------------------------------------------------------------------*/
+
+Function::FunctionValue BendersBFunction::effective_dual_for_cut
+( RowConstraint * c , Block::Index j , int obj_sign ) {
+ if( c && ( c->get_lhs() > c->get_rhs() ) ) {
+  if( v_sides[ j ] == eLHS ) return(  FunctionValue( obj_sign ) );
+  if( v_sides[ j ] == eRHS ) return( -FunctionValue( obj_sign ) );
+  return( 0 );  // eBoth cannot be inverted (set_both implies lhs == rhs)
+  }
+ return( c ? c->get_dual() : 0 );
+}  // end ( BendersBFunction::effective_dual_for_cut )
+
+/*--------------------------------------------------------------------------*/
+
 bool BendersBFunction::has_linearization( const bool diagonal ) {
 
  auto solver = get_solver< CDASolver >();
@@ -1949,7 +1971,17 @@ bool BendersBFunction::has_linearization( const bool diagonal ) {
  }
  else {
   f_diagonal_linearization_required = false;
-  return( solver->has_dual_direction() );
+  if( solver->has_dual_direction() )
+   return( true );
+  // Fallback: when the inner solver detects infeasibility via a row with
+  // lhs > rhs and cannot or will not synthesize a Farkas certificate
+  // (typical when the infeasibility is exposed by presolve before the
+  // simplex / barrier iterations that would produce a dual basis), we can
+  // still produce a vertical linearization on the spot from the row data.
+  // The cut is computed directly in get_linearization_coefficients() and
+  // compute_linearization_constant() by giving each side of an inverted
+  // row a synthetic, side-aware dual value.
+  return( has_inverted_row() );
  }
 
 }  // end( BendersBFunction::has_linearization )
@@ -1962,8 +1994,11 @@ bool BendersBFunction::compute_new_linearization( const bool diagonal ) {
   return( false );
  if( diagonal )
   return( solver->new_dual_solution() );
- else
-  return( solver->new_dual_direction() );
+ if( solver->new_dual_direction() )
+  return( true );
+ // Fallback: synthesize a vertical linearization from inverted-bound rows.
+ // See has_linearization() for the rationale.
+ return( has_inverted_row() );
 }  // end ( BendersBFunction::compute_new_linearization )
 
 /*--------------------------------------------------------------------------*/
@@ -2008,10 +2043,18 @@ void BendersBFunction::store_linearization( Index name , ModParam issueMod ) {
 
  // TODO check whether the solution has already been written into the Block
 
- if( f_diagonal_linearization_required )
-  solver->get_dual_solution( f_get_dual_solution_config );
- else
-  solver->get_dual_direction( f_get_dual_direction_config );
+ // Guard: skip the dual-info getter if the Solver does not have it (typical
+ // when infeasibility is detected without producing a dual basis). The
+ // synthetic side-aware accumulation in compute_linearization_constant() /
+ // get_linearization_coefficients() takes care of the inverted-row case.
+ if( f_diagonal_linearization_required ) {
+  if( solver->has_dual_solution() )
+   solver->get_dual_solution( f_get_dual_solution_config );
+  }
+ else {
+  if( solver->has_dual_direction() )
+   solver->get_dual_direction( f_get_dual_direction_config );
+  }
 
  Solution * solution = nullptr;
 
@@ -2107,10 +2150,18 @@ void BendersBFunction::write_dual_solution( Index name ) {
 
   // TODO check whether the solution has already been written into the Block
 
-  if( f_diagonal_linearization_required )
-   solver->get_dual_solution( f_get_dual_solution_partial_config );
-  else
-   solver->get_dual_direction( f_get_dual_direction_partial_config );
+  // Guard each call: if the Solver cannot provide the requested dual info
+  // (typical when infeasibility was detected without producing a dual
+  // basis), do not call the corresponding getter -- it would throw. The
+  // caller falls back to synthesizing the cut from inverted-bound rows.
+  if( f_diagonal_linearization_required ) {
+   if( solver->has_dual_solution() )
+    solver->get_dual_solution( f_get_dual_solution_partial_config );
+   }
+  else {
+   if( solver->has_dual_direction() )
+    solver->get_dual_direction( f_get_dual_direction_partial_config );
+   }
  }
  else
   // Linearization stored in the global pool
@@ -2150,7 +2201,7 @@ void BendersBFunction::get_linearization_coefficients
   if( ignore_constraint( constraint ) )
    continue;
 
-  const auto dual_value = constraint->get_dual();
+  const auto dual_value = effective_dual_for_cut( constraint , j , obj_sign );
 
   if( dual_value == 0 )
    continue;
@@ -2202,7 +2253,7 @@ void BendersBFunction::get_linearization_coefficients
   if( ignore_constraint( constraint ) )
    continue;
 
-  const auto dual_value = constraint->get_dual();
+  const auto dual_value = effective_dual_for_cut( constraint , j , obj_sign );
 
   if( dual_value == 0 )
    continue;
@@ -2243,7 +2294,7 @@ void BendersBFunction::get_linearization_coefficients
   if( ignore_constraint( constraint ) )
    continue;
 
-  const auto dual_value = constraint->get_dual();
+  const auto dual_value = effective_dual_for_cut( constraint , j , obj_sign );
 
   if( dual_value == 0 )
    continue;
@@ -2301,7 +2352,7 @@ void BendersBFunction::get_linearization_coefficients
   if( ignore_constraint( constraint ) )
    continue;
 
-  const auto dual_value = constraint->get_dual();
+  const auto dual_value = effective_dual_for_cut( constraint , j , obj_sign );
 
   if( dual_value == 0 )
    continue;
@@ -2366,6 +2417,23 @@ Function::FunctionValue BendersBFunction::compute_linearization_constant() {
 
    if( ignore_constraint( & c ) )
     return;
+
+   // Inverted row (lhs > rhs): synthesize the Farkas-equivalent cut term
+   // directly, using both LHS and RHS handled by this BendersBFunction
+   // with side-aware synthetic duals (see has_inverted_row()).
+   if( c.get_lhs() > c.get_rhs() ) {
+    auto idx_lhs = get_constraint_index( &c , eLHS );
+    if( idx_lhs < Inf< Index >() ) {
+     // synthetic dual = obj_sign on LHS side
+     alpha += - FunctionValue( obj_sign ) * v_b[ idx_lhs ];
+    }
+    auto idx_rhs = get_constraint_index( &c , eRHS );
+    if( idx_rhs < Inf< Index >() ) {
+     // synthetic dual = -obj_sign on RHS side
+     alpha += FunctionValue( obj_sign ) * v_b[ idx_rhs ];
+    }
+    return;
+   }
 
    const auto dual_value = c.get_dual();
 
@@ -2520,7 +2588,8 @@ Function::FunctionValue BendersBFunction::get_linearization_constant(
   }
   else {
    // "vertical" linearization
-   solver->get_dual_direction( f_get_dual_direction_config );
+   if( solver->has_dual_direction() )
+    solver->get_dual_direction( f_get_dual_direction_config );
    return( compute_linearization_constant() );
   }
  }
