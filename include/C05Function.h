@@ -1399,90 +1399,10 @@ class C05Function : public Function {
   }
 
 /** @} ---------------------------------------------------------------------*/
-/*-------- METHODS FOR MANAGING THE LOCAL-TO-GLOBAL VARIABLE INDEX MAP -----*/
-/*--------------------------------------------------------------------------*/
-/** @name Local-to-global Variable index map
- *
- * A C05Function may be defined on a subset of some larger "global" Variable
- * space owned by an outer entity (typically the Solver attached to the
- * Block to which this Function is "active"). Each "active" Variable of
- * this Function corresponds to one global Variable; the i-th active
- * Variable (the one returned by get_active_var( i )) has a "global index"
- * that the outer entity assigns at setup time.
- *
- * The Function carries this map only as an annotation provided by the
- * outer entity: it does not interpret or maintain it on its own. The
- * outer entity sets the map via set_global_index_map() at the time it
- * builds its "global" Variable space (e.g. the union of the active sets
- * of all attached Functions), and reads it back via get_global_index_map()
- * whenever it needs to translate the Function's local subgradient /
- * coefficient indices into its global Variable space (e.g. to pass them
- * to a master problem in a sparse format).
- *
- * The map is a std::vector< Index > of size n + 1 where n is the number
- * of active Variables of this Function: positions [ 0 , n ) hold the
- * global indices in the order get_linearization_coefficients() writes
- * them; position n holds an Inf< Index >() sentinel useful for callers
- * that need a terminated array (e.g. MPSolver::SetItemBse). An empty map
- * is the conventional "identity" — i.e. the local index of the i-th
- * active Variable IS the global index. Default constructed Functions
- * start with an empty map.
- *
- * Only the outer entity owning a given global numbering should call
- * set_global_index_map(): the Function can be attached to multiple outer
- * entities at the same time, in which case the "last writer wins" — the
- * map reflects the latest setter's numbering, and earlier setters are
- * responsible for not relying on stale state. (This is the same
- * convention SMS++ already uses for other outer-Solver-specific state
- * stored in the Function, e.g. the linearization global pool.)
- *
- * @{ */
-
- /// set the local-to-global Variable index map for this Function
- /** Replace the current map with the given one, taking ownership. The
-  * \p map argument is expected to have either size 0 (= identity, no
-  * outer mapping) or size n + 1 where n == get_num_active_var(): the
-  * first n entries are the global indices of the active Variables in
-  * the order get_linearization_coefficients() writes them, the last is
-  * an Inf< Index >() sentinel. */
-
- void set_global_index_map( std::vector< Index > && map ) {
-  v_global_index_map = std::move( map );
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// read-only access to the local-to-global Variable index map
- /** Returns the current map. Empty iff the outer entity has not set one
-  * (treated as identity by callers). */
-
- [[nodiscard]] const std::vector< Index > & get_global_index_map() const {
-  return( v_global_index_map );
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// mutable access to the local-to-global Variable index map
- /** Returns a mutable reference to the current map. Intended for the
-  * outer entity to do in-place updates (extend on FunctionModVarsAddd,
-  * shrink on FunctionModVarsRngd / Sbst, translate on compaction) more
-  * efficiently than the set/get pair. The caller is responsible for
-  * keeping the Inf< Index >() sentinel at the end. */
-
- std::vector< Index > & get_mutable_global_index_map() {
-  return( v_global_index_map );
-  }
-
-/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
  protected:
-
-/*--------------------------------------------------------------------------*/
-/*-------------------------- PROTECTED FIELDS ------------------------------*/
-/*--------------------------------------------------------------------------*/
-
- std::vector< Index > v_global_index_map;
- ///< local-to-global Variable index map; see set_global_index_map() doc
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PROTECTED METHODS -----------------------------*/
