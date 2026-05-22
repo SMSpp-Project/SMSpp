@@ -710,6 +710,118 @@ void ComputeConfig::load( std::istream & input )
  }  // end( ComputeConfig::load )
 
 /*--------------------------------------------------------------------------*/
+
+void ComputeConfig::merge_overrides( std::istream & input )
+{
+ // body format is identical to ComputeConfig::load — same diff/relax
+ // header, same six count+pairs blocks, same trailing extra slot — but
+ // each name/value pair is fed through set_par so that entries already
+ // present in this ComputeConfig (loaded from the included base file)
+ // are replaced and new entries are appended, instead of the whole
+ // vectors being resized and overwritten.
+
+ static const std::string sre(
+                  "ComputeConfig::merge_overrides: stream read error" );
+ if( advance( input , sre ) )
+  return;
+
+ unsigned int k;
+ input >> k;
+ f_diff = k & 1;
+ f_relax = k & 2;
+ if( advance( input , sre ) )
+  return;
+
+ input >> k;
+ checkfail( input , sre );
+ for( unsigned int i = 0 ; i < k ; ++i ) {
+  std::string name;
+  int value;
+  input >> eatcomments >> name >> eatcomments >> value;
+  checkfail( input , sre );
+  set_par( std::move( name ) , value );
+  }
+
+ if( advance( input ) )
+  return;
+
+ input >> k;
+ checkfail( input , sre );
+ for( unsigned int i = 0 ; i < k ; ++i ) {
+  std::string name;
+  double value;
+  input >> eatcomments >> name >> eatcomments >> value;
+  checkfail( input , sre );
+  set_par( std::move( name ) , value );
+  }
+
+ if( advance( input ) )
+  return;
+
+ input >> k;
+ checkfail( input , sre );
+ for( unsigned int i = 0 ; i < k ; ++i ) {
+  std::string name , value;
+  input >> eatcomments >> name >> eatcomments >> value;
+  checkfail( input , sre );
+  set_par( std::move( name ) , std::move( value ) );
+  }
+
+ if( advance( input ) )
+  return;
+
+ input >> k;
+ checkfail( input , sre );
+ for( unsigned int i = 0 ; i < k ; ++i ) {
+  std::string name;
+  std::vector< int > value;
+  input >> eatcomments >> name >> eatcomments >> value;
+  checkfail( input , sre );
+  set_par( std::move( name ) , std::move( value ) );
+  }
+
+ if( advance( input ) )
+  return;
+
+ input >> k;
+ checkfail( input , sre );
+ for( unsigned int i = 0 ; i < k ; ++i ) {
+  std::string name;
+  std::vector< double > value;
+  input >> eatcomments >> name >> eatcomments >> value;
+  checkfail( input , sre );
+  set_par( std::move( name ) , std::move( value ) );
+  }
+
+ if( advance( input ) )
+  return;
+
+ input >> k;
+ checkfail( input , sre );
+ for( unsigned int i = 0 ; i < k ; ++i ) {
+  std::string name;
+  std::vector< std::string > value;
+  input >> eatcomments >> name >> eatcomments >> value;
+  checkfail( input , sre );
+  set_par( std::move( name ) , std::move( value ) );
+  }
+
+ // extra Configuration slot is optional in an override block: if the
+ // stream is exhausted (or the next non-whitespace token belongs to the
+ // enclosing container), the base's extra is preserved. Otherwise the
+ // override's extra wholesale replaces it.
+ if( advance( input ) )
+  return;
+
+ if( f_extra_Configuration ) {
+  delete f_extra_Configuration;
+  f_extra_Configuration = nullptr;
+  }
+ f_extra_Configuration = Configuration::deserialize( input );
+
+ }  // end( ComputeConfig::merge_overrides )
+
+/*--------------------------------------------------------------------------*/
 /*---------------------------- METHODS of State ----------------------------*/
 /*--------------------------------------------------------------------------*/
 

@@ -425,6 +425,28 @@ class Configuration
 
  virtual void clear( void ) {}
 
+/*--------------------------------------------------------------------------*/
+ /// merge inline override values from the stream onto this Configuration
+ /** Used by the `* file.txt + <body>` cascade-override syntax in
+  * Configuration::deserialize(std::istream &). The base Configuration was
+  * just loaded from the included file; this method reads the inline
+  * override body that follows the `+` marker and applies it on top.
+  *
+  * The default implementation throws — only Configurations that carry
+  * named parameters (e.g. ComputeConfig) sensibly support a partial
+  * override. Concrete subclasses that opt in must:
+  *   - consume from \p input *exactly* the same number of tokens that a
+  *     full inline body of that Configuration would consume;
+  *   - apply each entry as an insert-or-replace (not as a wholesale
+  *     reset), so that values already loaded from the base file are
+  *     preserved unless explicitly overridden. */
+
+ virtual void merge_overrides( std::istream & input ) {
+  throw( std::invalid_argument(
+   "Configuration::merge_overrides: this Configuration type does not "
+   "support inline override (used by the `* file.txt + body' syntax)" ) );
+  }
+
 /** @} ---------------------------------------------------------------------*/
 /*-------- METHODS FOR LOADING, PRINTING & SAVING THE Configuration --------*/
 /*--------------------------------------------------------------------------*/

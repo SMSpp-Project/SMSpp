@@ -219,7 +219,7 @@ Configuration * Configuration::deserialize( std::istream & input )
  input >> eatcomments;
  if( input.eof() )
   return( nullptr );
- 
+
  static std::string sre( "Configuration::deserialize: stream read error" );
 
  if( input.fail() )
@@ -231,18 +231,36 @@ Configuration * Configuration::deserialize( std::istream & input )
 
   if( input.eof() )
    return( nullptr );
-  
+
   if( input.fail() )
    throw( std::invalid_argument( sre ) );
 
   if( std::isspace( input.peek() ) )
    return( nullptr );
- 
+
   input >> tmp;
   if( input.fail() )
     throw( std::invalid_argument( sre ) );
 
-  return( Configuration::deserialize( tmp ) );
+  auto cfg = Configuration::deserialize( tmp );
+
+  // peek for the cascade-override marker `+`. If present, the file
+  // include was just the *base* and the inline body that follows
+  // contains overrides to merge on top via merge_overrides(). This
+  // lets a single config compose external files and only restate
+  // the values that diverge.
+  input >> eatcomments;
+  if( ( ! input.eof() ) && ( ! input.fail() ) &&
+      ( input.peek() == input.widen( '+' ) ) ) {
+   input.get();  // consume '+'
+   if( ! cfg )
+    throw( std::invalid_argument(
+     "Configuration::deserialize: cascade override `+` after a `*` that "
+     "did not produce a Configuration" ) );
+   cfg->merge_overrides( input );
+   }
+
+  return( cfg );
   }
  else {
   input >> tmp;

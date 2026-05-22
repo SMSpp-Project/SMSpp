@@ -2365,6 +2365,20 @@ class ComputeConfig : public Configuration
  void serialize( netCDF::NcGroup & group ) const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// merge inline override values onto a ComputeConfig already filled
+ /** Reads the same body format used by ComputeConfig::load — diff/relax
+  * header, the six count-of-entries blocks (int / dbl / str / vint / vdbl
+  * / vstr), and the trailing extra-Configuration slot — but applies each
+  * entry via set_par instead of resizing the vectors. Entries already
+  * present in the ComputeConfig are replaced; new ones are appended;
+  * the rest is preserved.
+  *
+  * Used by Configuration::deserialize(std::istream &) to implement the
+  * `* base.txt + <body>` cascade-override syntax. */
+
+ void merge_overrides( std::istream & input ) override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// clears the vectors of parameters and the extra Configuration
  /** This method clears the vectors holding the integer, double, and string
   * parameters (#int_pars, #dbl_pars, and #str_pars). If
