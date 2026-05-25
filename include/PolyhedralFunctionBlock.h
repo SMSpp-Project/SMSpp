@@ -711,6 +711,22 @@ class PolyhedralFunctionBlock : public AbstractBlock
  PolyhedralFunction & get_PolyhedralFunction( void ) { return( f_polyf ); }
 
 /*--------------------------------------------------------------------------*/
+ /// returns a pointer to the internal v variable (linearized primal rep)
+ /** Returns &f_v, the auxiliary ColVariable that in the linearized
+  * primal representation (is_linearized() == true) plays the role of
+  * the epigraph variable, with f_v >= a_i x + b_i for every row of the
+  * underlying PolyhedralFunction (convex case; concave case dually).
+  * Meaningful only in the linearized primal representation; in the
+  * natural / linearized dual representation f_v is unused but the
+  * pointer is still returned (the caller is responsible for not wiring
+  * it into LinearFunction objects of an outer Block in those cases).
+  * Designed for use by outer Block objects that want to "expose" f_v
+  * as a master-side epigraph variable (cf. MasterProblemBlock primal
+  * form), avoiding the need for a coupling row v_master = f_v. */
+
+ [[nodiscard]] ColVariable * get_v( void ) { return( & f_v ); }
+
+/*--------------------------------------------------------------------------*/
 
  double get_valid_upper_bound( bool conditional = false ) override
  {

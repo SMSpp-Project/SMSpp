@@ -18,6 +18,7 @@
 
 #include "PolyhedralFunctionBlock.h"
 
+#include <cstdio>
 #include <unordered_set>
 
 /*--------------------------------------------------------------------------*/
@@ -1016,7 +1017,6 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF(
   auto cit = newc.begin();
   for( Index i = nr - tmod->addedrows() ; i < nr ; )
    ConstructLPConstraint( i++ , *(cit++) );
-
   add_dynamic_constraints( f_const , newc , make_par( eNoBlck , chnl ) );
   return( false );
   }
@@ -1490,7 +1490,15 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
   const Index nr_total = f_polyf.get_A().size();
   const Index nr_old = nr_total - nadd;
 
-  // use the caller's channel directly (don't open a nested one)
+  // use the caller's channel directly (don't open a nested one);
+  // eNoBlck means concerns_Block() = false on the self-generated structural
+  // Modifications below (new dynamic theta ColVariables, augmented
+  // LinearFunction coefficients on obj_lf / normcns_lf / coupling[j]);
+  // PFB::add_Modification recognises these by !concerns_Block() and
+  // routes them through the pass-up branch (PolyhedralFunctionBlock.h),
+  // so they are forwarded to a father Solver without re-entering the
+  // dispatcher and tripping the "unsupported Modification" guard at the
+  // bottom of guts_of_add_Modification_LR_dual()
   auto par = make_par( eNoBlck , chnl );
 
   // 1) create the new theta ColVariables in a temporary list and splice
@@ -1555,6 +1563,9 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
  if( rng_mod ) {
   const Index strt = rng_mod->range().first;
   const Index stop = rng_mod->range().second;
+  // see comment in the PolyhedralFunctionModAddd branch above: eModBlck
+  // is required for the structural removes / modifies emitted below to
+  // reach an attached Solver across a father Block boundary
   auto par = make_par( eNoBlck , chnl );
   auto nrm_lf = static_cast< LinearFunction * >( f_normcns.get_function() );
 
@@ -1682,6 +1693,9 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
  // PolyhedralFunctionModSbst with DeleteRows / ModifyRows
  if( sbst_mod ) {
   const auto & rows = sbst_mod->rows();
+  // see comment in the PolyhedralFunctionModAddd branch above: eModBlck
+  // is required for the structural removes / modifies emitted below to
+  // reach an attached Solver across a father Block boundary
   auto par = make_par( eNoBlck , chnl );
   auto nrm_lf = static_cast< LinearFunction * >( f_normcns.get_function() );
 

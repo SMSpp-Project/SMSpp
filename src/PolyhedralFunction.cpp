@@ -34,6 +34,8 @@
 
 #include "PolyhedralFunction.h"
 
+#include "PolyhedralFunctionBlock.h"
+
 #include <math.h>
 
 /*--------------------------------------------------------------------------*/
@@ -2888,6 +2890,53 @@ void PolyhedralFunctionState::serialize( netCDF::NcGroup & group ) const
    }
   }
  }  // end( PolyhedralFunctionState::serialize )
+
+/*--------------------------------------------------------------------------*/
+
+Block * PolyhedralFunction::build_easy_Block( bool primal )
+{
+ // package this PolyhedralFunction inside a freshly-allocated
+ // PolyhedralFunctionBlock. The new sub-Block wraps a copy of (A, b)
+ // and shares the same active ColVariable pointers, so any change to
+ // those Variable propagates to both representations. The convexity
+ // flag and the global bound of this PolyhedralFunction are mirrored
+ // into the wrapped function as well
+
+ auto * pfb = new PolyhedralFunctionBlock;
+
+ // forward the convex/concave flag, the (per-row) "is_vertical"
+ // bitmask, and the global bound. set_PolyhedralFunction also takes
+ // the (A, b) by move, but we want this PolyhedralFunction to remain
+ // usable on its own after the call so we feed it a copy
+ auto & inner = pfb->get_PolyhedralFunction();
+ PolyhedralFunction::MultiVector A_copy = v_A;
+ PolyhedralFunction::RealVector b_copy = v_b;
+ PolyhedralFunction::BoolVector iv_copy = v_is_vert;
+ inner.set_PolyhedralFunction( std::move( A_copy ) , std::move( b_copy ) ,
+                               f_bound , f_is_convex , eNoMod ,
+                               std::move( iv_copy ) );
+
+ // share the same ColVariable pointers: the caller of build_easy_Block
+ // typically grafts the returned Block under its own tree and expects
+ // the inner f_polyf to react to changes on this PolyhedralFunction's
+ // active Variable. set_variables takes the pointer vector by move
+ PolyhedralFunction::VarVector vars_copy;
+ vars_copy.reserve( v_x.size() );
+ for( auto * v : v_x )
+  vars_copy.push_back( v );
+ inner.set_variables( std::move( vars_copy ) );
+
+ // generate the requested abstract representation. The SimpleConfiguration
+ // is treated bit-wise by PolyhedralFunctionBlock::generate_abstract_variables:
+ //   1 = bit 0 only           -> linearized primal (epigraph rep)
+ //   3 = bit 0 and bit 1 set  -> linearized dual (simplex-on-rows rep)
+ SimpleConfiguration< int > rep( primal ? 1 : 3 );
+ pfb->generate_abstract_variables( & rep );
+ pfb->generate_abstract_constraints();
+ pfb->generate_objective();
+
+ return( pfb );
+ }
 
 /*--------------------------------------------------------------------------*/
 /*------------------- End File PolyhedralFunction.cpp ----------------------*/
