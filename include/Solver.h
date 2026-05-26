@@ -725,7 +725,14 @@ class Solver : public ThinComputeInterface
   *     (IF IT IS CALLED FIRST, AND THEN Block::register_Solver() IS CALLED
   *     TO MAKE block AWARE OF THIS), WHICH MEANS THAT ANY :Solver SHOULD
   *     CHECK IF THE block BEING SET IS THE SAME ONE ALREADY SET AND DO
-  *     NOTHING IN CASE (which is easy, cheap and very reasonable). */
+  *     NOTHING IN CASE (which is easy, cheap and very reasonable).
+  *
+  * NOTE: it is a usage error to attach the Solver to a Block which has
+  * been previously declared as excluded via set_excluded_blocks(): such a
+  * Solver would have nothing to load_problem() on. The base class
+  * implementation detects this and throws; the prune-this-subtree
+  * semantics of the excluded set apply to *descendants* of the attached
+  * Block, not to the attached Block itself. */
 
  virtual void set_Block( Block * block );
 

@@ -65,6 +65,18 @@ void Solver::set_Block( Block * block )
  if( f_Block == block )  // registering to the same Block
   return;                // cowardly and silently return
 
+ // refuse to be attached to a Block that the caller has just told us
+ // to ignore: this catches the obvious misuse where the very root of
+ // the tree to be solved is included in the exclusion list, leaving
+ // the Solver with nothing to do. Note that descendants of an
+ // excluded ancestor are still allowed, since the exclusion semantics
+ // is "prune that subtree from the model"; only the root of the
+ // attach matters here
+ if( block && f_excluded.count( block ) > 0 )
+  throw( std::logic_error(
+       "Solver::set_Block: the Block being attached is in the "
+       "excluded set; the Solver would have nothing to do" ) );
+
  if( f_Block )           // was attached to some Block
   v_mod.clear();         // any pending Modification was about the old
                          // Block, so it is now irrelevant
