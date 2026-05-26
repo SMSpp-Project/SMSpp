@@ -35,6 +35,8 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <unordered_set>
+
 #include "Block.h"
 
 /*--------------------------------------------------------------------------*/
@@ -505,9 +507,18 @@ class BlockSolverConfig : public Configuration {
   *     Block::unregister_Solvers() AND Block::replace_Solver(), IS CLEARLY
   *     TRICKY AND CAUTION SHOULD BE EXERCISED.
   *
-  * @param block A pointer to the Block that must be configured. */
+  * @param block A pointer to the Block that must be configured.
+  * @param ignored Optional pointer to an unordered_set of Block * that
+  *        the freshly-created Solver(s) must IGNORE when scanning the
+  *        Block tree rooted at \p block; forwarded verbatim to
+  *        Solver::set_excluded_blocks() BEFORE the Solver is attached
+  *        via Block::register_Solver() / Block::replace_Solver(), so
+  *        load_problem() sees the exclusion list already in place. The
+  *        default nullptr means "exclude nothing", which preserves the
+  *        legacy semantics. */
 
- virtual void apply( Block * block ) const;
+ virtual void apply( Block * block ,
+                     const std::unordered_set< Block * > * ignored = nullptr ) const;
 
 /*--------------------------------------------------------------------------*/
  /// delete all the ComputeConfig and empty the names of the Solver
@@ -1070,9 +1081,14 @@ class RBlockSolverConfig : public BlockSolverConfig {
   * that sub-Block are unregistered and deleted, but nothing is done for its
   * further sub-sub-Block (recursively).
   *
-  * @param block A pointer to the Block that must be configured. */
+  * @param block A pointer to the Block that must be configured.
+  * @param ignored Forwarded verbatim to BlockSolverConfig::apply() for
+  *        every nested Block sub-config (and to the root-level
+  *        BlockSolverConfig::apply() of this very RBlockSolverConfig).
+  *        Default nullptr preserves the legacy semantics. */
 
- void apply( Block * block ) const override;
+ void apply( Block * block ,
+             const std::unordered_set< Block * > * ignored = nullptr ) const override;
 
 /*--------------------------------------------------------------------------*/
  /// clear this RBlockSolverConfig

@@ -31,6 +31,8 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <unordered_set>
+
 #include "Modification.h"
 
 #include "ThinComputeInterface.h"
@@ -726,6 +728,70 @@ class Solver : public ThinComputeInterface
   *     NOTHING IN CASE (which is easy, cheap and very reasonable). */
 
  virtual void set_Block( Block * block );
+
+/*--------------------------------------------------------------------------*/
+ /// declare sub-Block(s) of f_Block that the Solver must IGNORE
+ /** Installs a set of sub-Block(s) of the Block (to be) attached via
+  * set_Block() that the Solver will skip when scanning the Block tree:
+  * their Variable / Constraint / Objective are NOT loaded into the
+  * Solver's back-end model, and Modification originating in them are
+  * filtered out at the boundary. The intended use is the "steal" pattern
+  * (cf. MasterProblemBlock in BundleSolver) where a Solver-attached
+  * Block contains sub-Block(s) that belong, semantically, to a different
+  * problem and must not contribute to the Solver's model.
+  *
+  * @param ignored a pointer to an unordered_set of Block * to ignore;
+  *        passing nullptr (the default) is equivalent to passing an
+  *        empty set and clears any previously-installed exclusion list.
+  *        The pointed-to set is stored *verbatim* (minimal user-supplied
+  *        set, no eager expansion of descendants): membership of any
+  *        Block in the excluded sub-tree is decided at query time by
+  *        is_excluded(), which walks the get_f_Block() chain. This keeps
+  *        the set forwardable as-is (const) to sub-Solvers without copy
+  *        and avoids the cost / staleness of an eager pre-expansion.
+  *
+  * MUST be called BEFORE set_Block() (or before the Block is attached
+  * via Block::register_Solver()), so that load_problem() and any
+  * subsequent walk of the Block tree sees the exclusion list already in
+  * place. Calling it after set_Block() is permitted, but the Solver may
+  * need a clear_problem()/load_problem() cycle to re-sync, which is
+  * Solver-specific and is NOT automatically performed by this method.
+  *
+  * Base implementation: maintains the f_excluded set; :Solver derivates
+  * may override to react (e.g. fire a back-end resync) but should call
+  * Solver::set_excluded_blocks() to keep the base set up-to-date. */
+
+ virtual void set_excluded_blocks(
+                       const std::unordered_set< Block * > * ignored = nullptr );
+
+/*--------------------------------------------------------------------------*/
+ /// returns the set of sub-Blocks the Solver was told to ignore
+ /** Returns a const reference to f_excluded, populated by
+  * set_excluded_blocks() with the user-supplied *minimal* set (no eager
+  * descendant expansion). :Solver derivates that need to test whether a
+  * specific Block (possibly a deep descendant) is excluded should use
+  * is_excluded() rather than `get_excluded_blocks().count(b)`. The
+  * minimal set is also suitable to be forwarded as-is to nested
+  * sub-Solvers via set_excluded_blocks( &get_excluded_blocks() ). */
+
+ [[nodiscard]] const std::unordered_set< Block * > &
+                                    get_excluded_blocks( void ) const
+  { return( f_excluded ); }
+
+/*--------------------------------------------------------------------------*/
+ /// true iff a Block (or any of its ancestors) is in f_excluded
+ /** Returns true iff @p b is in f_excluded *or* any of its ancestors in
+  * the get_f_Block() chain is in f_excluded. This is the canonical
+  * filtering primitive for :Solver derivates that need to skip
+  * Modification originating in any descendant of an excluded sub-Block;
+  * since the user-supplied set is stored verbatim (cf.
+  * set_excluded_blocks()), a literal `.count(b)` would miss the case
+  * where b is a deep descendant of an excluded ancestor.
+  *
+  * Cost: O(depth of b in the Block tree), with depth typically <= 5 in
+  * practice. Returns false for nullptr. */
+
+ [[nodiscard]] bool is_excluded( Block * b ) const;
 
 /*--------------------------------------------------------------------------*/
 
@@ -2044,6 +2110,26 @@ class Solver : public ThinComputeInterface
  std::string LogFileName;  ///< filename for the inner Solver log
 
  std::fstream f_log_file;  ///< file stream for the inner Solver log file
+
+ std::unordered_set< Block * > f_excluded;
+ ///< sub-Blocks (user-supplied, *minimal* set: descendants are NOT
+ ///< eagerly enumerated) that the Solver must IGNORE when scanning the
+ ///< Block tree rooted at f_Block: their Variable / Constraint /
+ ///< Objective do NOT enter the model loaded by the Solver, and
+ ///< Modification originating in them (or in any of their descendants)
+ ///< are filtered out at the boundary. Populated by
+ ///< set_excluded_blocks() (see below) BEFORE set_Block() is called.
+ ///<
+ ///< :Solver derivates that walk the Block tree (typically in their
+ ///< set_Block() / load_problem() override) should test b via
+ ///< is_excluded(b), which walks the get_f_Block() chain and returns
+ ///< true iff b or any ancestor of b is in f_excluded. The user-facing
+ ///< set is kept minimal so that it is suitable to be forwarded as-is
+ ///< (const ref / pointer) to nested sub-Solvers without copy.
+ ///<
+ ///< The base class maintains the set but does NOT use it: it is the
+ ///< :Solver author's responsibility to consult it (via is_excluded())
+ ///< where the Block tree is walked.
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
