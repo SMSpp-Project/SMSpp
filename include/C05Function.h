@@ -1399,48 +1399,6 @@ class C05Function : public Function {
   }
 
 /** @} ---------------------------------------------------------------------*/
-/** @name Closed-form Block representation of the function
- *  @{ */
-
- /// build a Block describing this function in closed form
- /** Allocates a new Block that encodes the optimization problem
-  * underlying this C05Function in the requested form (its primal, i.e.
-  * the original inner optimization problem; or its dual, i.e. the
-  * conjugate / dualized version), and transfers ownership of the Block
-  * to the caller.
-  *
-  * The caller is expected to attach the returned Block somewhere in
-  * its own tree (typically via Block::transfer_ownership_to()). The
-  * Modification propagation chain is preserved: changes to the
-  * underlying problem data observed by this C05Function are still
-  * seen on the returned Block, because the latter is constructed on
-  * top of the same physical data.
-  *
-  * The default implementation returns nullptr, signalling that this
-  * C05Function has no closed-form Block representation: the caller is
-  * then expected to fall back to whatever approximation scheme it
-  * uses (e.g., a cutting-plane Block built incrementally from the
-  * linearizations returned by get_linearization_coefficients() /
-  * get_linearization_constant()).
-  *
-  * Derived C05Function classes that admit a compact closed form (e.g.
-  * LagBFunction, BendersBFunction) override this method to expose
-  * their function-specific dualization in a way that is transparent
-  * to any caller, decoupling the caller from the function's
-  * specialisation: the caller never has to dynamic_cast or otherwise
-  * peek inside the C05Function, it just asks for the closed-form
-  * Block and plugs it into its own structure.
-  *
-  * @param primal  if true, the returned Block describes the primal
-  *                form (the original inner optimization problem); if
-  *                false, it describes the dual form.
-  * @return  a freshly-allocated Block owned by the caller, or nullptr
-  *          if no closed-form representation is available. */
-
- [[nodiscard]] virtual Block * build_easy_Block( bool primal )
-  { return( nullptr ); }
-
-/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 

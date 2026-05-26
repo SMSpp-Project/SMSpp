@@ -2975,9 +2975,14 @@ class Block : public Observer {
   * sub-tree.
   *
   * This helper is the building block for moves of the kind "steal a
-  * Block from its original tree and graft it into another tree" used,
-  * e.g., by MasterProblemBlock to absorb the variables/constraints of
-  * the model into the master.
+  * Block from its original tree and graft it into another tree".
+  *
+  * @note  SMS++ assumes that the list of sub-Block of a Block is static.
+  *        transfer_ownership_to() breaks that invariant. It is therefore
+  *        a *low-level escape hatch* whose use must be carefully reviewed
+  *        on a case-by-case basis: no Modification is emitted to signal
+  *        the structural change to listening Solver. Callers must ensure
+  *        that nothing is currently observing the involved sub-trees.
   *
   * @param new_parent  the new parent Block, or nullptr to detach.
   * @return  the previous parent (nullptr if \p this was already orphan).

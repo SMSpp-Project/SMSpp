@@ -451,8 +451,10 @@ void BlockSolverConfig::load( std::istream & input )
   return;
   }
 
+ const unsigned int declared_names = k;
  v_SolverNames.resize( k );
  v_SolverConfigs.resize( k , nullptr );
+ std::string last_name = "<none>";
  for( unsigned int i = 0 ; i < k ; ++i ) {
   input >> eatcomments;
   if( input.peek() == input.widen( '*' ) )
@@ -460,7 +462,15 @@ void BlockSolverConfig::load( std::istream & input )
   else
    input >> v_SolverNames[ i ];
 
-  checkfail( input , sre );
+  if( input.fail() )
+   throw( std::logic_error(
+        "BlockSolverConfig::load: declared " +
+        std::to_string( declared_names ) +
+        " Solver names but failed to read entry #" +
+        std::to_string( i ) + " (last successfully parsed: '" +
+        last_name + "'); check the count above the Solver-name "
+        "block matches the names actually present in the file" ) );
+  last_name = v_SolverNames[ i ];
   }
 
  if( advance( input ) )
@@ -468,7 +478,8 @@ void BlockSolverConfig::load( std::istream & input )
 
  input >> k;
  checkfail( input , sre );
- 
+
+ const unsigned int declared_configs = k;
  if( k > v_SolverNames.size() )
   v_SolverNames.resize( k );
  v_SolverConfigs.resize( std::max( k , Index( v_SolverNames.size() ) ) ,
@@ -476,14 +487,23 @@ void BlockSolverConfig::load( std::istream & input )
 
  for( unsigned int i = 0 ; i < k ; ++i ) {
   auto cfg = Configuration::deserialize( input );
+  if( input.fail() )
+   throw( std::logic_error(
+        "BlockSolverConfig::load: declared " +
+        std::to_string( declared_configs ) +
+        " ComputeConfig but failed to read entry #" +
+        std::to_string( i ) + "; check the count above the "
+        "ComputeConfig block matches the number of Configuration "
+        "objects actually present in the file" ) );
   if( ! cfg )  // empty Configuration
    continue;   // that's OK, but a nonempty one must be a ComputeConfig
   v_SolverConfigs[ i ] = dynamic_cast< ComputeConfig * >( cfg );
   if( ! v_SolverConfigs[ i ] ) {
    delete cfg;
    throw( std::invalid_argument(
-		         "BlockSolverConfig::load: not a ComputeConfig "
-			 + std::to_string( i ) ) );
+		         "BlockSolverConfig::load: entry #" +
+                         std::to_string( i ) +
+                         " is not a ComputeConfig" ) );
    }
   }
  }  // end( BlockSolverConfig::load )

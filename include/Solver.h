@@ -737,6 +737,65 @@ class Solver : public ThinComputeInterface
  virtual void set_Block( Block * block );
 
 /*--------------------------------------------------------------------------*/
+
+ using ThinComputeInterface::set_par;  // restore the hidden overloaded methods
+
+ /// move the string parameters of Solver
+ /** Move in the string parameters specific of Solver, together with
+  * the parameters of ThinComputeInterface that Solver actually "listens to":
+  *
+  * - strLogFileName [empty]: filename for the inner Solver log. */
+
+ void set_par( idx_type par , std::string && value ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// set the ostream for the Solver log
+ /** Set the (pointer to) the ostream upon which the Solver is supposed to
+  * log all its algorithmic developments. Passing nullptr instructs the 
+  * Solver to stay mum. The "verbosity" of such log is specified by
+  * intLogVerb [see set_par( int )], and setting intLogVerb = 0 should be
+  * equivalent to setting f_log = nullptr.
+  *
+  * The method is virtual because derived classes may need to do something to
+  * react to changes of the output log other than storing the new log
+  * stream. */
+
+ virtual void set_log( std::ostream * log_stream = nullptr ) {
+  f_log = log_stream;
+  }
+
+/** @} ---------------------------------------------------------------------*/
+/** @name Handling ignored sub-Block
+ *
+ * It is always easy in SMS++ to *add* something (Variable, Constraint,
+ * ...) to a Block: it is enough to embed the Block inside a larger one,
+ * which (in practice) any Block lets one do. Conversely, *removing*
+ * something from a Block is much harder, because each Block (other than
+ * AbstractBlock) is the jealous guardian of what lives inside it.
+ *
+ * The mechanism of excluding sub-Block(s) is a coarse but adequate way
+ * to address this, while staying faithful to the SMS++ assumption "every
+ * relevant piece of the model is a Block": rather than physically
+ * removing sub-Block(s) from a Block, one *instructs the Solver to
+ * ignore them*, which has the same practical effect. Not every Solver
+ * may be willing to do so, because dropping certain sub-Block(s) could
+ * destroy the structure the Solver expects: in that case the Solver
+ * throws an exception. An obvious case, implemented in the base class:
+ * if the "root" Block (the one attached via set_Block()) is itself
+ * declared excluded, the Solver has nothing to solve and must throw;
+ * hence the excluded set must be empty for "leaf" Block (no descendants).
+ *
+ * Note however that a Solver is *not* expected to police the contents
+ * of the excluded set: the set may contain pointers to Block which are
+ * not sub-Block(s) of the Solver's attached Block at all. This is
+ * irrelevant for the Solver and shall *not* trigger an exception: the
+ * set is just a "blacklist of forbidden subtrees", looked up at scan
+ * time. The pointed-to set is owned by the caller, which retains
+ * responsibility for its lifetime and deallocation; the Solver stores
+ * a verbatim shallow copy of its contents (no eager expansion of
+ * descendants).
+ *  @{ */
+
  /// declare sub-Block(s) of f_Block that the Solver must IGNORE
  /** Installs a set of sub-Block(s) of the Block (to be) attached via
   * set_Block() that the Solver will skip when scanning the Block tree:
@@ -799,34 +858,6 @@ class Solver : public ThinComputeInterface
   * practice. Returns false for nullptr. */
 
  [[nodiscard]] bool is_excluded( Block * b ) const;
-
-/*--------------------------------------------------------------------------*/
-
- using ThinComputeInterface::set_par;  // restore the hidden overloaded methods
-
- /// move the string parameters of Solver
- /** Move in the string parameters specific of Solver, together with
-  * the parameters of ThinComputeInterface that Solver actually "listens to":
-  *
-  * - strLogFileName [empty]: filename for the inner Solver log. */
-
- void set_par( idx_type par , std::string && value ) override;
-
-/*--------------------------------------------------------------------------*/
- /// set the ostream for the Solver log
- /** Set the (pointer to) the ostream upon which the Solver is supposed to
-  * log all its algorithmic developments. Passing nullptr instructs the 
-  * Solver to stay mum. The "verbosity" of such log is specified by
-  * intLogVerb [see set_par( int )], and setting intLogVerb = 0 should be
-  * equivalent to setting f_log = nullptr.
-  *
-  * The method is virtual because derived classes may need to do something to
-  * react to changes of the output log other than storing the new log
-  * stream. */
-
- virtual void set_log( std::ostream * log_stream = nullptr ) {
-  f_log = log_stream;
-  }
 
 /** @} ---------------------------------------------------------------------*/
 /*----------------- METHODS FOR MANAGING THE "IDENTITY" --------------------*/

@@ -628,79 +628,87 @@ void ComputeConfig::load( std::istream & input )
  if( advance( input , sre ) )
   return;
 
- input >> k;
- checkfail( input , sre );
+ // helper: read `count` (name, value) pairs into `pairs`; on failure
+ // throw a message that pinpoints the parameter block, the declared
+ // count, the index of the failing entry and the last name successfully
+ // parsed - so the user sees *which* count was wrong without having to
+ // recount the file by hand
+ auto read_pair_block = [ & input ]( const char * block ,
+                                     unsigned int count ,
+                                     auto & pairs ,
+                                     const std::string & last_name ) {
+  pairs.resize( count );
+  std::string prev_name = last_name;
+  for( unsigned int i = 0 ; i < count ; ++i ) {
+   input >> eatcomments >> pairs[ i ].first
+         >> eatcomments >> pairs[ i ].second;
+   if( input.fail() )
+    throw( std::logic_error(
+         "ComputeConfig::load: " + std::string( block ) +
+         ": declared " + std::to_string( count ) + " entries but "
+         "failed to read entry #" + std::to_string( i ) +
+         " (last successfully parsed name: '" + prev_name + "'); "
+         "check that the count matches the number of name/value pairs "
+         "in the file" ) );
+   prev_name = pairs[ i ].first;
+   }
+  };
 
- int_pars.resize( k );
- for( unsigned int i = 0 ; i < k ; ++i ) {
-  input >> eatcomments >> int_pars[ i ].first
-        >> eatcomments >> int_pars[ i ].second;
-  checkfail( input , sre );
-  }
+ // helper: read the count of the next parameter block; if the next
+ // token in the stream is not an integer, this typically means that the
+ // *previous* block declared fewer entries than were actually written
+ // in the file, and the remainder of that block spilled over into the
+ // count position - so blame the previous block in the error message
+ auto read_count = [ & input ]( const char * block ,
+                                const char * previous_block ,
+                                unsigned int & out ) {
+  input >> eatcomments;
+  if( ! ( input >> out ) ) {
+   input.clear();
+   std::string stray;
+   input >> stray;
+   throw( std::logic_error(
+        "ComputeConfig::load: expected the count of " +
+        std::string( block ) + " but found '" + stray + "'; the "
+        "most likely cause is an off-by-one in the count of " +
+        std::string( previous_block ) + " (declared fewer entries "
+        "than were actually written, so the leftover ones spilled "
+        "into this block's count position)" ) );
+   }
+  };
 
- if( advance( input ) )
-  return;
-
- input >> k;
- checkfail( input , sre );
-
- dbl_pars.resize( k );
- for( unsigned int i = 0 ; i < k ; ++i ) {
-  input >> eatcomments >> dbl_pars[ i ].first
-        >> eatcomments >> dbl_pars[ i ].second;
-  checkfail( input , sre );
-  }
-
- if( advance( input ) )
-  return;
-
- input >> k;
- checkfail( input , sre );
-
- str_pars.resize( k );
- for( unsigned int i = 0 ; i < k ; ++i ) {
-  input >> eatcomments >> str_pars[ i ].first
-        >> eatcomments >> str_pars[ i ].second;
-  checkfail( input , sre );
-  }
-
- if( advance( input ) )
-  return;
-
- input >> k;
- checkfail( input , sre );
-
- vint_pars.resize( k );
- for( unsigned int i = 0 ; i < k ; ++i ) {
-  input >> eatcomments >> vint_pars[ i ].first
-        >> eatcomments >> vint_pars[ i ].second;
-  checkfail( input , sre );
-  }
-
- if( advance( input ) )
-  return;
-
- input >> k;
- checkfail( input , sre );
-
- vdbl_pars.resize( k );
- for( unsigned int i = 0 ; i < k ; ++i ) {
-  input >> eatcomments >> vdbl_pars[ i ].first
-        >> eatcomments >> vdbl_pars[ i ].second;
-  checkfail( input , sre );
-  }
+ read_count( "int_pars" , "<header>" , k );
+ read_pair_block( "int_pars" , k , int_pars , "<none>" );
 
  if( advance( input ) )
   return;
 
- input >> k;
- checkfail( input , sre );
+ read_count( "dbl_pars" , "int_pars" , k );
+ read_pair_block( "dbl_pars" , k , dbl_pars , "<none>" );
 
- vstr_pars.resize( k );
- for( unsigned int i = 0 ; i < k ; ++i ) {
-  input >> eatcomments >> vstr_pars[ i ].first
-        >> eatcomments >> vstr_pars[ i ].second;
-  }
+ if( advance( input ) )
+  return;
+
+ read_count( "str_pars" , "dbl_pars" , k );
+ read_pair_block( "str_pars" , k , str_pars , "<none>" );
+
+ if( advance( input ) )
+  return;
+
+ read_count( "vint_pars" , "str_pars" , k );
+ read_pair_block( "vint_pars" , k , vint_pars , "<none>" );
+
+ if( advance( input ) )
+  return;
+
+ read_count( "vdbl_pars" , "vint_pars" , k );
+ read_pair_block( "vdbl_pars" , k , vdbl_pars , "<none>" );
+
+ if( advance( input ) )
+  return;
+
+ read_count( "vstr_pars" , "vdbl_pars" , k );
+ read_pair_block( "vstr_pars" , k , vstr_pars , "<none>" );
 
  if( advance( input ) )
   return;
