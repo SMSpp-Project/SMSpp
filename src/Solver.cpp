@@ -127,7 +127,7 @@ void Solver::set_par( idx_type par , std::string && value )
   return;
   }
  ThinComputeInterface::set_par( par , std::move( value ) );
- }  // end( BundleSolver::set_par( std::string && ) )
+ }  // end( Solver::set_par( std::string && ) )
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- METHODS FOR EVENTS HANDLING -----------------------*/

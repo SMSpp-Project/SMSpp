@@ -2088,6 +2088,31 @@ void print( std::ostream & output ) override {
  const RealVector & get_b( void ) const { return( v_b ); }
 
 /*--------------------------------------------------------------------------*/
+ /// returns a (const reference) to the constraint vector of the mapping
+ /** Returns a const reference to the vector of pointers
+  *     [ C_i ]_{i in I}
+  * to RowConstraint(s) of the inner Block that the mapping
+  *     M_i( x ) = ( A x + b )_i
+  * is associated with. The i-th element is the RowConstraint pointed by
+  * C_i, whose left- and/or right-hand side is set to M_i( x ) according
+  * to the corresponding entry of get_sides(). The vector has the same
+  * size as get_A() and get_b(). */
+
+ const ConstraintVector & get_constraints( void ) const
+  { return( v_constraints ); }
+
+/*--------------------------------------------------------------------------*/
+ /// returns a (const reference) to the side vector of the mapping
+ /** Returns a const reference to the vector of #ConstraintSide(s)
+  *     [ S_i ]_{i in I}
+  * specifying, for every mapping row i, which side(s) of the RowConstraint
+  * pointed by get_constraints()[ i ] is/are set to M_i( x ) = ( A x + b )_i.
+  * The vector has the same size as get_A() and get_b(). */
+
+ const ConstraintSideVector & get_sides( void ) const
+  { return( v_sides ); }
+
+/*--------------------------------------------------------------------------*/
  /// returns a pointer to the Solver attached to the sub-Block (if any)
  /** This method returns a pointer to the Solver attached to the sub-Block of
   * this BendersBFunction. The template parameter \p T indicates the type of
