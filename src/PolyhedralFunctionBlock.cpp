@@ -268,23 +268,24 @@ void PolyhedralFunctionBlock::set_lambda( ColVariable * lambda )
  if( ! lambda )
   throw( std::invalid_argument( "set_lambda(): nullptr lambda" ) );
 
- // the normalization constraint built by generate_abstract_constraints
- // is "sum_{i in B_D} theta_i + gamma_local = 1", where gamma_local is the
- // per-PFB f_gamma whose objective coefficient is the per-PFB LB on f_polyf
- // (fixed at 0 when there is no per-PFB LB). When the *father* Block also
- // imposes a *global* LB (on the sum of all the v_k contributed by the
- // PFBs sharing the father), it owns a single shared dual variable lambda
- // whose objective coefficient (in the father's objective) is the global
- // LB, and lambda appears with coefficient +1 in every nested PFB's
- // simplex (= normalization) constraint. This is the LP-correct
- // statement of dual feasibility for the v-equality at level k:
+ // The normalization constraint built by generate_abstract_constraints
+ // is the stand-alone simplex
  //
- //     sum_{i in B_D} theta_i^k + gamma_local^k + lambda = 1
+ //     sum_{i in B_D} theta_i + gamma_local = 1
  //
- // (both gamma_local^k and lambda are coefficient-1 contributors to v_k's
- // column, the former from the per-PFB LB row and the latter from the
- // global LB row). set_lambda() therefore ADDS lambda to f_normcns
- // without altering f_gamma or the RHS (=1).
+ // where gamma_local is the per-PFB f_gamma. When this PFB is embedded
+ // as one sub-Block of a larger dual master, the master owns a single
+ // shared non-negative dual variable lambda (the multiplier of the
+ // model-value equation of the lower model); the per-PFB row that
+ // consistently states stationarity at v_k is then
+ //
+ //     sum_{i in B_D} theta_i^k + gamma_local^k - lambda = 0
+ //
+ // and ties the per-component theta + gamma mass to the global lambda.
+ // set_lambda() therefore appends lambda with coefficient -1 to
+ // f_normcns and pulls LHS / RHS to 0; gamma_local is left untouched
+ // (its coefficient stays +1 in the normalization row and its sign in
+ // the Objective is the per-PFB lower bound).
 
  auto lf = static_cast< LinearFunction * >( f_normcns.get_function() );
  if( ! lf )
@@ -303,11 +304,14 @@ void PolyhedralFunctionBlock::set_lambda( ColVariable * lambda )
   new_vp.emplace_back( p );
   }
  if( ! already_present )
-  new_vp.emplace_back( lambda , 1.0 );
+  new_vp.emplace_back( lambda , -1.0 );
 
  f_normcns.set_function( new LinearFunction( std::move( new_vp ) ) , eNoMod );
 
- // the LHS / RHS stays at 1 (set by generate_abstract_constraints)
+ // lift the RHS = 1 set by generate_abstract_constraints to RHS = 0,
+ // since lambda now plays the role of "shifted normalization mass"
+ f_normcns.set_lhs( 0.0 , eNoMod );
+ f_normcns.set_rhs( 0.0 , eNoMod );
 
  }  // end( set_lambda )
 
