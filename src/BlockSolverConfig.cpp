@@ -270,8 +270,7 @@ void BlockSolverConfig::get( const Block * block , bool clear )
 /*---------- METHODS DESCRIBING THE BEHAVIOR OF BlockSolverConfig ----------*/
 /*--------------------------------------------------------------------------*/
 
-void BlockSolverConfig::apply( Block * block ,
-                               const std::unordered_set< Block * > * ignored ) const
+void BlockSolverConfig::apply( Block * block ) const
 {
  if( ! block )
   return;
@@ -282,16 +281,6 @@ void BlockSolverConfig::apply( Block * block ,
   block->unregister_Solvers( true );  // do it with one call
   return;                             // all done
   }
-
- // small helper to install the exclusion list on a freshly-created Solver
- // BEFORE it is attached to the Block: set_excluded_blocks() walks the
- // sub-tree of every Block in *ignored and eagerly expands the set, so
- // load_problem() (called inside Block::register_Solver / replace_Solver
- // via Solver::set_Block) already sees the right exclusion set
- const auto install_excluded = [ ignored ]( Solver * slvr ) {
-  if( slvr && ignored && ! ignored->empty() )
-   slvr->set_excluded_blocks( ignored );
-  };
 
  auto & solvers = block->get_registered_solvers();
  auto sit = solvers.begin();
@@ -310,7 +299,7 @@ void BlockSolverConfig::apply( Block * block ,
 
    if( ( nit->empty() ) || ( *nit == slvr->classname() ) ) {
     // if no new Solver (name) is specified, or the name is actually the same
-    // as the current one, keep using the current one: note that, in the
+    // as the current one, keep using the current one: note that, in the 
     // latter case, this does not 100% match the semantic since parameters set
     // in the old Solver will not automatically be reset to their default as
     // it would happen by creating a new one, but it is always possible to
@@ -318,7 +307,6 @@ void BlockSolverConfig::apply( Block * block ,
 
     if( *cit )                         // if the ComputeConfig is there
      slvr->set_ComputeConfig( *cit );  // ComputeConfig-ure it
-    install_excluded( slvr );          // refresh the exclusion list, if any
     }
    else {                // a new and different Solver (name) is specified
     slvr = Solver::new_Solver( *nit );
@@ -326,7 +314,6 @@ void BlockSolverConfig::apply( Block * block ,
     if( *cit )                             // if the ComputeConfig is there
      slvr->set_ComputeConfig( *cit );      // ComputeConfig-ure it
 
-    install_excluded( slvr );  // pre-load exclusion list before attachment
     block->replace_Solver( slvr , sit , true );  // replace the existing one
     }
    }
@@ -351,8 +338,6 @@ void BlockSolverConfig::apply( Block * block ,
    if( *cit )                                // if the ComputeConfig is there
     slvr->set_ComputeConfig( *cit );         // ComputeConfig-ure it
 
-   install_excluded( slvr );  // pre-load exclusion list before attachment
-
    // only then replace the existing one
    block->replace_Solver( slvr, sit, true );
    }
@@ -368,8 +353,6 @@ void BlockSolverConfig::apply( Block * block ,
 
   if( *cit )                               // if the ComputeConfig is there
    slvr->set_ComputeConfig( *cit );        // ComputeConfig-ure it
-
-  install_excluded( slvr );  // pre-load exclusion list before attachment
 
   block->register_Solver( slvr );          // only then pass it to the Block
   }
@@ -630,15 +613,14 @@ void RBlockSolverConfig::get( const Block * block , bool clear )
 /*-------- METHODS DESCRIBING THE BEHAVIOR OF THE RBlockSolverConfig -------*/
 /*--------------------------------------------------------------------------*/
 
-void RBlockSolverConfig::apply( Block * block ,
-                                const std::unordered_set< Block * > * ignored ) const
+void RBlockSolverConfig::apply( Block * block ) const
 {
  if( ! block )
   return;
 
  // set the configurations for the Solver of the "root" Block - - - - - - - -
 
- BlockSolverConfig::apply( block , ignored );
+ BlockSolverConfig::apply( block );
 
  // set the configurations for the sub-Block- - - - - - - - - - - - - - - - -
  // note: the following code is inefficient when block ids are numbers, in
@@ -673,7 +655,7 @@ void RBlockSolverConfig::apply( Block * block ,
 				 " neither a sub-Block name nor a valid index"
 				 ) );
   if( *it )
-   ( *it )->apply( sub_Block , ignored );
+   ( *it )->apply( sub_Block );
   else
    if( ! f_diff )
     sub_Block->unregister_Solvers( true );

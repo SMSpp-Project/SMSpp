@@ -74,37 +74,6 @@ void Solver::set_Block( Block * block )
 
 /*--------------------------------------------------------------------------*/
 
-void Solver::set_excluded_blocks(
-                          const std::unordered_set< Block * > * ignored )
-{
- f_excluded.clear();
- if( ignored && ! ignored->empty() )
-  f_excluded = *ignored;  // store the user-supplied minimal set verbatim;
-                          // is_excluded() walks the father chain to test
-                          // whether a Block is a descendant of any excluded
-                          // ancestor, so we do NOT eagerly enumerate every
-                          // descendant here
- }
-
-/*--------------------------------------------------------------------------*/
-
-bool Solver::is_excluded( Block * b ) const
-{
- if( f_excluded.empty() || ! b )
-  return( false );
- // walk b -> b->get_f_Block() -> ... until either some ancestor is in the
- // excluded set (return true) or the root is reached (return false). Note
- // that the f_Block boundary itself is not relevant here: a Solver is
- // attached to a specific Block, and the excluded set is a subset of the
- // descendants of that Block; walking past it returns false naturally
- for( Block * cur = b ; cur ; cur = cur->get_f_Block() )
-  if( f_excluded.count( cur ) > 0 )
-   return( true );
- return( false );
- }
-
-/*--------------------------------------------------------------------------*/
-
 void Solver::set_par( idx_type par , std::string && value )
 {
  if( par == strLogFileName ) {

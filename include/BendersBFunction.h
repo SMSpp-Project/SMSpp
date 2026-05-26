@@ -2078,52 +2078,6 @@ void print( std::ostream & output ) override {
   }
 
 /*--------------------------------------------------------------------------*/
- /// build a closed-form Block representation of this BendersBFunction
- /** Concrete override of C05Function::build_easy_Block(): exposes the
-  * inner Benders sub-problem
-  *
-  *     phi( x ) = min { c.y : A y [<=, =, >=] b - E x ,  y in Y }
-  *
-  * underlying this BendersBFunction in a form ready to be grafted under
-  * the abstract Block tree of any caller (a Bundle Solver,
-  * a Lagrangian relaxation, ...).
-  *
-  * The override behaves as follows:
-  *
-  * - if \p primal is true, returns nullptr: BendersBFunction does not
-  *   expose a "primal form" master representation. The value phi(x) of
-  *   the inner sub-problem is naturally accessed via the abstract
-  *   linearizations returned by get_linearization_coefficients() /
-  *   get_linearization_constant(), and any caller after a primal-side
-  *   model should keep using that cutting-plane approximation;
-  *
-  * - if \p primal is false, returns the inner Block (the same pointer
-  *   returned by get_inner_block()). Ownership is transferred to the
-  *   caller, which is expected to immediately call
-  *   Block::transfer_ownership_to() to graft the inner Block under
-  *   its own tree. After the transfer this BendersBFunction's
-  *   get_inner_block() returns nullptr and the BendersBFunction can no
-  *   longer auto-evaluate itself (it is being managed as an "easy"
-  *   component by the caller).
-  *
-  * The coupling between the inner Block's variables and the (now active)
-  * ColVariable of this BendersBFunction (i.e. the linear x -> b - E x
-  * substitution carried by v_A and v_b) is preserved through the
-  * standard SMS++ Modification propagation.
-  *
-  * @param primal  if true, primal master representation (nullptr for
-  *                BendersBFunction); if false, the inner Block ready to
-  *                be stolen by the caller.
-  * @return  a pointer to the inner Block when \p primal == false,
-  *          nullptr otherwise. */
-
- [[nodiscard]] Block * build_easy_Block( bool primal ) override {
-  if( primal )
-   return( nullptr );
-  return( get_inner_block() );
-  }
-
-/*--------------------------------------------------------------------------*/
  /// returns a (const reference) to the current A matrix in the mapping
 
  const MultiVector & get_A( void ) const { return( v_A ); }

@@ -94,7 +94,7 @@ class QuadFunction : public DQuadFunction {
   * It will be assumed throughout that a ColVariable corresponding to Index 
   * actually exists in DQuadFunction
   * This will not be explicitly checked, in principle
-  */
+  * */
  using off_diag_term = std::tuple< Index , Index , Coefficient >;
 
  using c_off_diag_term = const off_diag_term;  ///< a const off_diag_term
@@ -252,7 +252,7 @@ class QuadFunction : public DQuadFunction {
   *  Both indexes must be between 0 and get_num_active_var() - 1.
   *  @param i Index of the first Variable 
   *  @param j Index of the second Variable 
-  */
+  * */
  Coefficient get_quadratic_coefficient( Index i, Index j ) const {
     #ifndef NDEBUG
       if( ( std::min( i , j ) < 0 ) ||
@@ -447,7 +447,7 @@ class QuadFunction : public DQuadFunction {
   * 
   * In our case this will delete all non-diagonal terms involving this index i;
   * 
-  */
+  * */
 
  void remove_variable( Index i , ModParam issueMod = eModBlck )
   override final;
@@ -466,7 +466,7 @@ class QuadFunction : public DQuadFunction {
   * 
   * In our case this will delete all non-diagonal terms involving this index Range;
   *
-  */
+  * */
 
  void remove_variables( Range range , ModParam issueMod = eModBlck )
   override final;

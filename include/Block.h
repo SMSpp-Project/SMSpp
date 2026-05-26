@@ -2943,48 +2943,6 @@ class Block : public Observer {
   return( std::distance( v_Block.begin(), bit ) );
   }
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// resolve a slash-separated path of sub-Block indices
- /** Walks \p path interpreted as "i/j/k/...", with each segment a decimal
-  * index into get_nested_Blocks(). An empty path returns \p this.
-  *
-  * Used to identify a sub-Block by structural position rather than by
-  * classname or pointer; useful e.g. for Configuration-driven features
-  * that need to address a specific sub-Block (such as MILPSolver's
-  * ignore-sub-Blocks list, see vstrMILPIgnSBlks).
-  *
-  * @param path  slash-separated decimal indices, or empty for \p this.
-  * @return  a pointer to the addressed sub-Block.
-  * @throws  std::invalid_argument if a segment is non-numeric;
-  *          std::out_of_range if an index exceeds get_number_nested_Blocks(). */
-
- Block * resolve_sub_Block_path( const std::string & path );
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// transfer ownership of \p this from its current parent to \p new_parent
- /** Detaches \p this from its current parent Block (if any), removing it
-  * from the parent's get_nested_Blocks() vector, and registers it as a
-  * sub-Block of \p new_parent via add_nested_Block( this ). If
-  * \p new_parent is nullptr the Block becomes orphan and the caller
-  * takes ownership.
-  *
-  * The "is anyone listening" chain is recomputed: if the old parent had
-  * Solver listening (anyone_there() == true) the corresponding chain
-  * is dropped on \p this and its sub-tree; symmetrically, if the new
-  * parent has Solver listening, the chain is re-established on the
-  * sub-tree.
-  *
-  * This helper is the building block for moves of the kind "steal a
-  * Block from its original tree and graft it into another tree" used,
-  * e.g., by MasterProblemBlock to absorb the variables/constraints of
-  * the model into the master.
-  *
-  * @param new_parent  the new parent Block, or nullptr to detach.
-  * @return  the previous parent (nullptr if \p this was already orphan).
-  */
-
- Block * transfer_ownership_to( Block * new_parent );
-
 /** @} ---------------------------------------------------------------------*/
 /** @name Methods for reading the Block's Variables and Constraints
  *  @{ */
@@ -6743,17 +6701,6 @@ class Block : public Observer {
    v_Block.insert( v_Block.begin(), newb );
   else
    v_Block.push_back( newb );
-
-  // if this Block already has a Solver attached (directly or via f_at),
-  // the newly nested sub-Block must inherit anyone_there() = true, or
-  // else any Modification it issues will be silently dropped by
-  // Block::add_Modification because the early-return !anyone_there()
-  // guard fires before the mod reaches the father / attached Solver.
-  // register_Solver() only walks v_Block once at registration time, so
-  // sub-Blocks added later (e.g. by MasterProblemBlock::CreatePrimalMP
-  // after MasterPB->register_Solver has run) get stranded otherwise
-  if( anyone_there() )
-   newb->anyone_there( true );
   }
 
 /*--------------------------------------------------------------------------*/

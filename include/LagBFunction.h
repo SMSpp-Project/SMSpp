@@ -1651,61 +1651,10 @@ class LagBFunction : public C05Function , public Block {
   }
 
 /*--------------------------------------------------------------------------*/
- /// build a closed-form Block representation of this LagBFunction
- /** Concrete override of C05Function::build_easy_Block(): exposes the
-  * inner optimization problem
-  *
-  *      min   c.y                                                       (1)
-  *      s.t.  Ay [<=, =, >=] b ,
-  *            y in Y
-  *
-  * underlying this LagBFunction in a form ready to be plugged into the
-  * abstract Block tree of any caller (a Bundle / Benders Solver,
-  * a partial relaxation, ...).
-  *
-  * The override behaves as follows:
-  *
-  * - if \p primal is true, returns nullptr: LagBFunction does not
-  *   expose a "primal form" master representation since the original
-  *   problem (1) is itself an optimization that the caller would need
-  *   to *fully* drop into its own model. Callers that want the primal
-  *   are expected to fall back to the cutting-plane approximation
-  *   built from the linearizations returned by
-  *   get_linearization_coefficients() / get_linearization_constant();
-  *
-  * - if \p primal is false, returns the inner Block (the same pointer
-  *   returned by get_inner_block()). Ownership is transferred to the
-  *   caller, which is expected to immediately call
-  *   Block::transfer_ownership_to() to graft the inner Block under
-  *   its own tree. After the transfer this LagBFunction's
-  *   get_inner_block() returns nullptr and the LagBFunction can no
-  *   longer auto-evaluate itself (it is being managed as an "easy"
-  *   component by the caller).
-  *
-  * The Lagrangian coupling between the inner Block's variables and
-  * the (now active) ColVariable of this LagBFunction is preserved
-  * through the standard SMS++ Modification propagation: changes to
-  * the Lagrangian terms of this LagBFunction are forwarded to the
-  * Objective of the inner Block (now under the caller's tree) via
-  * the usual GroupModification chain.
-  *
-  * @param primal  if true, primal master representation (nullptr for
-  *                LagBFunction); if false, the inner Block ready to
-  *                be stolen by the caller.
-  * @return  a pointer to the inner Block when \p primal == false,
-  *          nullptr otherwise. */
-
- [[nodiscard]] Block * build_easy_Block( bool primal ) override {
-  if( primal )
-   return( nullptr );
-  return( get_inner_block() );
-  }
-
-/*--------------------------------------------------------------------------*/
  /// returns a pointer to the i-th Lagrangian term
  /** Returns a pointer to the Function defining the Lagrangian term g_i(x)
   * associated with the i-th ColVariable y_i of the LagBFunction (that
-  * returned by get_active_var( i )). Currently, this can only be a
+  * returned by get_active_var( i )). Currently this can only be a
   * LinearFunction, hence the return value can be safely static_cast-ed to
   * a LinearFunction *. */
 
@@ -2892,7 +2841,7 @@ class LagBFunctionMod : public C05FunctionMod {
 /*--------------------------------------------------------------------------*/
 /// class to describe the "internal state" of a LagBFunction
 /** Derived class from State to describe the "internal state" of a
- * LagBFunction, i.e., its global pool. This means saving the stored Solution
+ * LagBFunction, i.e., its global pool. This means savng the stored Solution
  * (and their type). */
 
 class LagBFunctionState : public State {
