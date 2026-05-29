@@ -311,6 +311,13 @@ public:
   * it. The format is specified in the comments of the static serialize()
   * method.
   *
+  * Any DataMapping whose caller is a Block and whose AbstractPath selects K
+  * > 1 nested Blocks (a Block range or an explicit Block subset, see
+  * AbstractPath) is transparently expanded into K single-Block
+  * SimpleDataMappingBase, one per selected Block, with SetFrom sliced into K
+  * consecutive SetTo-sized chunks (see split_over_blocks()). Therefore
+  * \p data_mappings may end up with more entries than "NumberDataMappings".
+  *
   * @param group The NcGroup that contains the description of the vector of
   *              SimpleDataMappingBase to be deserialized.
   *
@@ -393,6 +400,38 @@ public:
 /*--------------------------------------------------------------------------*/
 
  virtual void set_caller_from_reference( Block * block_reference ) = 0;
+
+/*--------------------------------------------------------------------------*/
+
+ /// expands a multi-Block DataMapping into single-Block ones
+ /** When the caller of this SimpleDataMappingBase is a Block whose AbstractPath
+  * selects more than one nested Block (a contiguous Block range or an explicit
+  * Block subset, see AbstractPath), this function returns the equivalent list
+  * of "plain" single-Block SimpleDataMappingBase: one for each selected Block.
+  * This allows a vector of DataMappings to list a function and its mapping
+  * only once even when it has to be applied to many sibling Blocks, while
+  * keeping set_data() (and all its consumers) completely unaware of the
+  * multi-Block case.
+  *
+  * Each returned SimpleDataMappingBase targets a single Block (with a single-
+  * Block AbstractPath, so that set_caller_from_reference() keeps working on
+  * duplicated Blocks) and receives the appropriate share of the original
+  * SetFrom set: if the cardinality of SetFrom is an exact multiple of the
+  * number of selected Blocks, the j-th Block gets the j-th consecutive chunk
+  * of SetFrom; otherwise, every Block receives the whole SetFrom. The SetTo
+  * set is the same for every Block.
+  *
+  * If the caller is not a Block, or its AbstractPath selects at most one Block,
+  * an empty vector is returned (meaning "no expansion needed").
+  *
+  * @param block_reference The reference Block against which this DataMapping's
+  *        AbstractPath is resolved.
+  *
+  * @return The list of single-Block SimpleDataMappingBase equivalent to this
+  *         one, or an empty vector if no expansion is needed. */
+
+ virtual std::vector< std::unique_ptr< SimpleDataMappingBase > >
+  split_over_blocks( Block * block_reference ) = 0;
 
 /*--------------------------------------------------------------------------*/
 
@@ -682,12 +721,28 @@ constexpr char SimpleDataMappingBase::get_id< int >() { return( 'I' ); }
  *
  * Usually, the SetFrom and the SetTo sets will have the same cardinality, so
  * that the i-th element of the SetFrom set will be associated with the i-th
- * element of the SetTo set. However, the SetFrom set is also allowed to be
- * smaller than the SetTo set. In this case, the cardinality of the SetTo set
- * must be a positive multiple of the cardinality of the SetFrom set and the
- * i-th element of the SetTo set will be associated with the element of the
- * SetFrom set located at position floor(i/r), where r is the ratio of the
- * cardinalities of the SetTo and SetFrom sets.
+ * element of the SetTo set. However, the two sets are allowed to have
+ * different cardinalities, as long as one is a positive multiple of the
+ * other:
+ *
+ * - if SetFrom is smaller than SetTo, the i-th element of SetTo is associated
+ *   with the element of SetFrom located at position floor(i/r), where r is
+ *   the ratio of the cardinalities of SetTo and SetFrom (set_data() broadcasts
+ *   each SetFrom entry over the corresponding SetTo chunk);
+ *
+ * - if SetFrom is *larger* than SetTo, the SimpleDataMapping is in its
+ *   compact, multi-Block form: the caller is then required to be a Block
+ *   whose AbstractPath selects K = card(SetFrom) / card(SetTo) nested Blocks
+ *   (via a contiguous Block range or an explicit Block subset; see
+ *   AbstractPath). SMS++ expands this compact description at deserialize time
+ *   into K single-Block SimpleDataMappings, one per selected Block, whose
+ *   SetFrom is the j-th consecutive SetTo-sized chunk of the original
+ *   SetFrom and whose SetTo is unchanged (see
+ *   SimpleDataMappingBase::split_over_blocks()). This allows the netCDF
+ *   description of a DataMapping vector to list a function name and its set
+ *   layout once even when the same operation has to be applied to many
+ *   sibling Blocks, while keeping set_data() (and all its consumers)
+ *   completely unaware of the multi-Block case.
  *
  * Besides the SetFrom and SetTo sets, the SimpleDataMapping also has a
  * pointer to a function, which is invoked within the set_data() method. This
@@ -901,12 +956,24 @@ public:
   }
 
   if( cardinality( set_from ) != 0 ) {
-   if( cardinality( set_to ) < cardinality( set_from ) ||
-       cardinality( set_to ) % cardinality( set_from ) != 0 ) {
-    throw( std::logic_error( "SimpleDataMapping::deserialize: the cardinality "
-                             "of 'SetTo' must be a positive multiple of the "
-                             "cardinality of 'SetFrom'." ) );
-   }
+   const auto from_card = cardinality( set_from );
+   const auto to_card   = cardinality( set_to   );
+   // Two layouts are accepted here, both requiring SetTo to be non-empty:
+   //   * SetTo >= SetFrom and SetTo is a multiple of SetFrom: set_data() may
+   //     broadcast each SetFrom entry over the corresponding SetTo chunk
+   //     (the classic single-Block case);
+   //   * SetFrom > SetTo and SetFrom is a multiple of SetTo: this is the
+   //     compact, multi-Block form, where the AbstractPath selects K Blocks
+   //     and SetFrom is sliced into K consecutive SetTo-sized chunks at
+   //     deserialize time (see SimpleDataMapping::split_over_blocks()). For
+   //     K = 1, this reduces to SetFrom == SetTo, which is fine under both
+   //     interpretations.
+   if( ( to_card == 0 ) ||
+       ( to_card >= from_card && to_card   % from_card != 0 ) ||
+       ( to_card <  from_card && from_card % to_card   != 0 ) )
+    throw( std::logic_error( "SimpleDataMapping::deserialize: the cardinalities "
+                             "of 'SetFrom' and 'SetTo' must be one a positive "
+                             "multiple of the other." ) );
   }
  }
 
@@ -998,12 +1065,24 @@ public:
   }
 
   if( cardinality( set_from ) != 0 ) {
-   if( cardinality( set_to ) < cardinality( set_from ) ||
-       cardinality( set_to ) % cardinality( set_from ) != 0 ) {
-    throw( std::logic_error( "SimpleDataMapping::deserialize: the cardinality "
-                             "of 'SetTo' must be a positive multiple of the "
-                             "cardinality of 'SetFrom'." ) );
-   }
+   const auto from_card = cardinality( set_from );
+   const auto to_card   = cardinality( set_to   );
+   // Two layouts are accepted here, both requiring SetTo to be non-empty:
+   //   * SetTo >= SetFrom and SetTo is a multiple of SetFrom: set_data() may
+   //     broadcast each SetFrom entry over the corresponding SetTo chunk
+   //     (the classic single-Block case);
+   //   * SetFrom > SetTo and SetFrom is a multiple of SetTo: this is the
+   //     compact, multi-Block form, where the AbstractPath selects K Blocks
+   //     and SetFrom is sliced into K consecutive SetTo-sized chunks at
+   //     deserialize time (see SimpleDataMapping::split_over_blocks()). For
+   //     K = 1, this reduces to SetFrom == SetTo, which is fine under both
+   //     interpretations.
+   if( ( to_card == 0 ) ||
+       ( to_card >= from_card && to_card   % from_card != 0 ) ||
+       ( to_card <  from_card && from_card % to_card   != 0 ) )
+    throw( std::logic_error( "SimpleDataMapping::deserialize: the cardinalities "
+                             "of 'SetFrom' and 'SetTo' must be one a positive "
+                             "multiple of the other." ) );
   }
 
   set_elements_start_index = next_index;
@@ -1060,6 +1139,76 @@ public:
    caller = static_cast< Caller * >( block_reference );
   else
    caller = caller_path.get_element< Caller >( block_reference );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ std::vector< std::unique_ptr< SimpleDataMappingBase > >
+  split_over_blocks( Block * block_reference ) override {
+
+  std::vector< std::unique_ptr< SimpleDataMappingBase > > result;
+
+  // Only Block callers can select more than one Block: a Function caller is
+  // always a single object.
+  if constexpr( std::is_base_of_v< Function , Caller > )
+   return( result );
+  else {
+   if( caller_path.empty() )
+    return( result );
+
+   const Index nblocks =
+    caller_path.template get_number_elements< Caller >( block_reference );
+
+   if( ( nblocks == Inf< Index >() ) || ( nblocks <= 1 ) )
+    return( result );  // single Block: no expansion needed
+
+   const Index from_card = cardinality( set_from );
+
+   // If SetFrom is an exact multiple of the number of Blocks, each Block gets
+   // its own consecutive chunk; otherwise every Block receives the whole
+   // SetFrom (set_data() will broadcast it over SetTo).
+   const bool slice = ( from_card > 0 ) && ( from_card % nblocks == 0 );
+   const Index chunk = slice ? ( from_card / nblocks ) : from_card;
+
+   result.reserve( nblocks );
+   for( Index j = 0 ; j < nblocks ; ++j ) {
+
+    auto block_j = caller_path.template get_element< Caller >( block_reference ,
+                                                              j );
+    if( ! block_j )
+     throw( std::logic_error( "SimpleDataMapping::split_over_blocks: could not "
+                              "resolve Block number " + std::to_string( j ) +
+                              " of the multi-Block caller." ) );
+
+    auto dm = std::make_unique<
+     SimpleDataMapping< SetFrom , SetTo , DataType , Caller > >();
+
+    dm->function = function;
+    dm->caller = block_j;
+    dm->caller_path = AbstractPath( block_j , block_reference );
+    dm->set_to = set_to;
+    dm->ordered = ordered;
+
+    if constexpr( std::is_same_v< SetFrom , Range > ) {
+     if( slice )
+      dm->set_from = Range( set_from.first + j * chunk ,
+                            set_from.first + ( j + 1 ) * chunk );
+     else
+      dm->set_from = set_from;
+     }
+    else {
+     if( slice )
+      dm->set_from = SetFrom( set_from.begin() + j * chunk ,
+                              set_from.begin() + ( j + 1 ) * chunk );
+     else
+      dm->set_from = set_from;
+     }
+
+    result.push_back( std::move( dm ) );
+    }
+
+   return( result );
+   }
  }
 
 /*--------------------------------------------------------------------------*/

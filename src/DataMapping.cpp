@@ -58,13 +58,24 @@ void SimpleDataMappingBase::deserialize( const netCDF::NcGroup & group ,
   if( ! sdmb_netCDF.Caller.isNull() )
    sdmb_netCDF.Caller.getVar( { i } , { 1 } , & caller_type );
 
-  auto data_mapping = SimpleDataMappingFactory::new_SimpleDataMapping
-   ( { set_from_type , set_to_type , data_type , caller_type } );
+  std::unique_ptr< SimpleDataMappingBase > data_mapping(
+   SimpleDataMappingFactory::new_SimpleDataMapping
+    ( { set_from_type , set_to_type , data_type , caller_type } ) );
 
   data_mapping->deserialize( sdmb_netCDF , i , set_elements_start_index ,
                              block_reference );
 
-  data_mappings.emplace_back( data_mapping );
+  // If the caller of this DataMapping is a Block whose AbstractPath selects
+  // more than one nested Block (a Block range or subset), expand it into the
+  // equivalent single-Block DataMappings, so that this compact description is
+  // transparent to set_data() and all its consumers.
+  auto expanded = data_mapping->split_over_blocks( block_reference );
+
+  if( expanded.empty() )
+   data_mappings.emplace_back( std::move( data_mapping ) );
+  else
+   for( auto & dm : expanded )
+    data_mappings.emplace_back( std::move( dm ) );
   }
  }
 
