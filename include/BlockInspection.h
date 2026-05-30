@@ -423,7 +423,12 @@ namespace SMSpp_di_unipi_it::inspection
  template< typename T , std::size_t K >
  static Index get_static_element_size_(
      const boost::multi_array< T , K > & multi_array ) {
-  return( multi_array.size() );
+  // The number of elements addressable by a flat row-major index, consistent
+  // with get_static_index_()/get_static_element_() which use the contiguous
+  // multi_array::data() storage. Returning multi_array.size() (the size of
+  // the FIRST dimension only) would systematically undersize multi-dim
+  // groups.
+  return( multi_array.num_elements() );
   }
 
 /*--------------------------------------------------------------------------*/

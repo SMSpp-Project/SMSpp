@@ -233,6 +233,16 @@ namespace SMSpp_di_unipi_it
  * elements/Blocks and get_element( reference , offset ) returns the
  * offset-th one. Setters set_last_node_range() and set_last_node_subset()
  * make authoring these selections from C++ straightforward.
+ *
+ * For multi-dimensional 'V'/'v' or 'C'/'c' groups (e.g. a
+ * boost::multi_array of Variables), all indices - whether stored as a
+ * single element_index, the bounds of a contiguous range, or the elements
+ * of an explicit subset - are flat row-major indices in the same
+ * convention used everywhere else in SMS++ (see the deserialize() comments
+ * for the formula). A contiguous range therefore spans elements in
+ * row-major order, which is the natural choice for full-array or single-
+ * row selections; to express a non-row-major slice (e.g. one column of a
+ * 2D array, or an arbitrary sub-set), use the explicit subset form.
  */
 
 class AbstractPath
@@ -1489,6 +1499,15 @@ public:
   *   contiguous range that may also be present on node i. When both
   *   PathSubsetSizes and PathSubset are absent (or all PathSubsetSizes are 0)
   *   no node selects an explicit subset and the path behaves as before.
+  *
+  * For a 'V'/'v' or 'C'/'c' node whose group is a multi-dimensional array
+  * of Variables/Constraints, every index involved in any of the three
+  * notations above (single element_index, range bounds, and subset
+  * entries) is the SAME flat row-major index already used in the single-
+  * element case (see the formula in the static-group description above).
+  * A contiguous range therefore spans elements in row-major order; non-
+  * row-major selections (e.g. one column of a 2D array) must be expressed
+  * as an explicit subset.
   *
   * @param group The netCDF::NcGroup containing the path.
   *
