@@ -702,6 +702,73 @@ class PolyhedralFunctionBlock : public AbstractBlock
 
  void set_conjugate_constraint( std::list< FRowConstraint > & constraints );
 
+/*--------------------------------------------------------------------------*/
+ /// abstract-representation scaling modes ( see set_scaling() )
+ enum scaling_mode {
+  kNoScaling     = 0 ,  ///< no scaling: every m_i == 1 ( default )
+  kLocalScaling  = 1 ,  ///< per-row m_i from the row's own ( A_i , b_i )
+  kGlobalScaling = 2    ///< component-wide v^k scaling ( reserved, see below )
+  };
+
+/*--------------------------------------------------------------------------*/
+ /// select how the abstract ( dual ) representation is numerically scaled
+ /** Switches an internal, application-agnostic scaling of the abstract dual
+  * representation, analogous to the physical/abstract and primal/dual
+  * representation switches. The per-row multiplier m_i is computed by the
+  * PolyhedralFunctionBlock ITSELF from the row data passed to add_row(), so
+  * no external caller has to decide it:
+  *
+  * - kNoScaling ( default ): m_i == 1, fully backward-compatible;
+  * - kLocalScaling: each row is scaled by
+  *     m_i = sqrt( 1 / max{ 1 , || A_i ||_inf } ) ,
+  *   clamped to [ smin , smax ]. The sqrt splits the imbalance symmetrically
+  *   between the row's v^k coefficient ( which becomes m_i ) and its data
+  *   ( m_i A_i , m_i b_i ) instead of dumping it all on v^k ( as a plain
+  *   1/max would ), keeping the LHS coefficients of the same order for a
+  *   fixed x. The constant b_i is deliberately NOT in the denominator: it can
+  *   be a reference-dependent linearization error, which would make m_i
+  *   depend on the insertion-time centre; || A_i || is reference-invariant.
+  *   The scaling is fixed at insertion and never refreshed;
+  * - kGlobalScaling: reserved for a component-wide scaling of v^k itself
+  *   ( the only thing that can actually remove orders of magnitude, as
+  *   row scaling merely rebalances them ); NOT yet implemented, behaves as
+  *   kLocalScaling for the per-row part.
+  *
+  * Either way it is a purely numerical conditioning device: the master
+  * optimum, the aggregated linearization error and the aggregated
+  * subgradient are all invariant ( the true multiplier of row i is
+  * m_i theta_i, and the m_i cancels in every read-back ). */
+
+ void set_scaling( int mode , double smin = 1.0e-06 ,
+                   double smax = 1.0e+06 , bool use_sqrt = true ) {
+  f_scaling    = mode;
+  f_scale_min  = smin;
+  f_scale_max  = smax;
+  f_scale_sqrt = use_sqrt;
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// add one row ( Ai , bi ), self-scaled according to the scaling mode
+ /** Wrapper around PolyhedralFunction::add_row() for the dual representation
+  * that, when a scaling mode is active ( see set_scaling() ), computes the
+  * per-row multiplier m_i from ( Ai , bi ) itself, scales the row data by it
+  * ( so the coupling / objective coefficients become m_i Ai and m_i bi ) and
+  * records m_i so the row's theta enters the normalization constraint with
+  * coefficient m_i instead of 1. With kNoScaling this is exactly a plain
+  * PolyhedralFunction::add_row() ( m_i == 1 ). Vertical rows are never
+  * scaled. */
+
+ void add_row( PolyhedralFunction::RealVector && Ai ,
+               Function::FunctionValue bi ,
+               ModParam issueMod = eModBlck , bool is_vert = false );
+
+/*--------------------------------------------------------------------------*/
+ /// the per-row dual scaling multiplier m_i ( 1 if none / out of range )
+
+ [[nodiscard]] double get_mult( PolyhedralFunction::Index i ) const {
+  return( i < f_mult.size() ? f_mult[ i ] : 1.0 );
+  }
+
 /** @} ---------------------------------------------------------------------*/
 /*------- Methods for reading the data of the PolyhedralFunctionBlock ------*/
 /*--------------------------------------------------------------------------*/
@@ -1225,6 +1292,34 @@ class PolyhedralFunctionBlock : public AbstractBlock
                          /// of f_polyf in the dual representation.
                          /// nullptr until set_conjugate_constraint() is
                          /// called (and remains nullptr if it never is).
+
+ std::vector< double > f_mult;
+                         ///< OPTIONAL per-row dual scaling multiplier m_i,
+                         /// one entry per row of f_polyf, parallel to it.
+                         /// In the dual representation the row's theta_i
+                         /// enters the normalization constraint with
+                         /// coefficient m_i ( instead of 1 ): this realises
+                         /// the row-scaling  m_i v^k >= m_i( g_i x - a_i )
+                         /// when the caller has also scaled ( g_i , a_i ) by
+                         /// m_i ( so the coupling / objective coefficients
+                         /// are m_i g_i / m_i a_i automatically ). It is a
+                         /// purely numerical conditioning device: the
+                         /// "true" multiplier of row i is m_i theta_i.
+                         /// Empty / entries == 1 means no scaling ( the
+                         /// default, fully backward-compatible ).
+
+ int f_scaling = kNoScaling;
+                         ///< abstract-representation scaling mode ( see the
+                         /// scaling_mode enum and set_scaling() ): decides how
+                         /// add_row() picks the per-row multiplier m_i. Default
+                         /// kNoScaling ( m_i == 1, fully backward-compatible )
+
+ double f_scale_min = 1.0e-06;  ///< lower clamp on the per-row multiplier m_i
+ double f_scale_max = 1.0e+06;  ///< upper clamp on the per-row multiplier m_i
+ bool f_scale_sqrt = true;
+                         ///< local-scaling formula variant: true =
+                         /// sqrt( 1 / den ) ( balanced ), false = 1 / den
+                         /// ( plain ); den = max{1,||A_i||_inf,|b_i|}
 
  SMSpp_insert_in_factory_h;
 
