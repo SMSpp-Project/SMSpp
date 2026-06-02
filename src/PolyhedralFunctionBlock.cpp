@@ -168,12 +168,11 @@ void PolyhedralFunctionBlock::generate_abstract_constraints(
    // gamma always appears with coefficient 1, even when it is fixed to 0
    vp.emplace_back( & f_gamma , 1.0 );
 
-   // each non-vertical theta_i appears with coefficient m_i ( = 1 unless a
-   // per-row scaling multiplier was set via add_row(), see f_mult )
+   // each non-vertical theta_i appears with coefficient 1
    auto thit = f_theta.begin();
    for( Index i = 0 ; i < f_polyf.get_A().size() ; ++i , ++thit )
     if( ! f_polyf.is_row_vertical( i ) )
-     vp.emplace_back( & *thit , i < f_mult.size() ? f_mult[ i ] : 1.0 );
+     vp.emplace_back( & *thit , 1.0 );
 
    f_normcns.set_lhs( 1.0 , eNoMod );
    f_normcns.set_rhs( 1.0 , eNoMod );
@@ -392,61 +391,6 @@ void PolyhedralFunctionBlock::set_conjugate_constraint(
   }
 
  }  // end( set_conjugate_constraint )
-
-/*--------------------------------------------------------------------------*/
-
-void PolyhedralFunctionBlock::add_row(
-                            PolyhedralFunction::RealVector && Ai ,
-                            Function::FunctionValue bi ,
-                            ModParam issueMod , bool is_vert )
-{
- // pick the per-row multiplier m_i according to the scaling mode. It is
- // computed HERE, from the row's own ( Ai , bi ), so no external caller has
- // to decide it; it is fixed once, at insertion, and never refreshed.
- // Vertical rows ( feasibility cuts ) are reference- and scale-invariant and
- // are left untouched. kGlobalScaling reuses the local per-row part for now
- // ( the component-wide v^k scaling is not yet implemented )
- double mult = 1.0;
- if( ( f_scaling != kNoScaling ) && ! is_vert ) {
-  double ainf = 0.0;
-  for( const auto a : Ai )
-   ainf = std::max( ainf , std::abs( a ) );
-  // denominator uses ONLY the subgradient norm, NOT |bi|: the constant bi can
-  // be a reference-dependent linearization error ( large for cuts inserted
-  // far from the optimum, ~0 once the centre catches up ), so folding it in
-  // would make m_i depend on WHEN the row was inserted -- exactly the
-  // bar x-dependence we must avoid, since m_i is fixed at insertion. ||A_i||
-  // is reference-invariant, hence a stable x-independent scale
-  const double den = std::max( 1.0 , ainf );
-  // sqrt splits the imbalance symmetrically between the v^k coefficient
-  // ( = m_i ) and the scaled row data ( m_i Ai , m_i bi ), instead of a
-  // plain 1/den that would dump it all on v^k; the variant is selectable
-  // ( set_scaling( ..., use_sqrt ) ) so both can be benchmarked
-  mult = f_scale_sqrt ? std::sqrt( 1.0 / den ) : ( 1.0 / den );
-  mult = std::min( f_scale_max , std::max( f_scale_min , mult ) );
-  }
-
- // record the per-row multiplier, keeping f_mult parallel to the rows;
- // pad any rows added behind our back ( direct PolyhedralFunction::add_row )
- // with the neutral 1, then append this row's multiplier *before* the
- // PolyhedralFunction emits its Add Modification, so the dual-update
- // handler ( guts_of_add_Modification_LR_dual ) finds it in place
- f_mult.resize( f_polyf.get_A().size() , 1.0 );
- f_mult.push_back( mult );
-
- // scale the row data by mult so that the coupling and objective
- // coefficients become mult * Ai and mult * bi automatically; the
- // matching mult coefficient on theta_i in the normalization constraint
- // is applied by the dual builders that read f_mult
- if( mult != 1.0 ) {
-  for( auto & a : Ai )
-   a *= mult;
-  bi *= mult;
-  }
-
- f_polyf.add_row( std::move( Ai ) , bi , issueMod , is_vert );
-
- }  // end( add_row )
 
 /*--------------------------------------------------------------------------*/
 /*------- Methods for reading the data of the PolyhedralFunctionBlock ------*/
@@ -1591,11 +1535,8 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
                                             f_normcns.get_function() );
    LinearFunction::v_coeff_pair to_nrm;
    for( Index i = 0 ; i < nadd ; ++i )
-    if( ! f_polyf.is_row_vertical( nr_old + i ) ) {
-     const double m = ( nr_old + i < f_mult.size() )
-                      ? f_mult[ nr_old + i ] : 1.0;
-     to_nrm.emplace_back( new_ptrs[ i ] , m );
-     }
+    if( ! f_polyf.is_row_vertical( nr_old + i ) )
+     to_nrm.emplace_back( new_ptrs[ i ] , 1.0 );
    if( ! to_nrm.empty() )
     nrm_lf->add_variables( std::move( to_nrm ) , par );
    }
@@ -1680,11 +1621,6 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
    // 4) finally remove the theta variables themselves from the dynamic
    //    list (this delivers a BlockModRmv<ColVariable> to the Solver)
    remove_dynamic_variables( f_theta , Range( strt , stop ) , par );
-
-   // keep the per-row scaling vector parallel to the rows
-   if( strt < f_mult.size() )
-    f_mult.erase( f_mult.begin() + strt ,
-                  f_mult.begin() + std::min( stop , Index( f_mult.size() ) ) );
 
    return( false );
    }
@@ -1824,12 +1760,6 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
 
    // 4) finally remove from f_theta
    remove_dynamic_variables( f_theta , Subset( rows ) , true , par );
-
-   // keep the per-row scaling vector parallel to the rows ( rows is
-   // sorted ascending; erase back-to-front to keep indices valid )
-   for( Index k = rows.size() ; k-- ; )
-    if( rows[ k ] < f_mult.size() )
-     f_mult.erase( f_mult.begin() + rows[ k ] );
 
    return( false );
    }
