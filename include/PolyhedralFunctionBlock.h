@@ -747,6 +747,9 @@ class PolyhedralFunctionBlock : public AbstractBlock
 
  PolyhedralFunction & get_PolyhedralFunction( void ) { return( f_polyf ); }
 
+ const PolyhedralFunction & get_PolyhedralFunction( void ) const
+ { return( f_polyf ); }
+
 /*--------------------------------------------------------------------------*/
  /// returns a pointer to the physical v variable (linearized primal rep)
  /** Returns &f_v, the auxiliary ColVariable that in the linearized
