@@ -401,23 +401,49 @@ void PolyhedralFunctionBlock::add_row(
                             ModParam issueMod , bool is_vert )
 {
  // pick the per-row multiplier m_i according to the scaling mode. It is
- // computed HERE, from the row's own ( Ai , bi ), so no external caller has
- // to decide it; it is fixed once, at insertion, and never refreshed.
- // Vertical rows ( feasibility cuts ) are reference- and scale-invariant and
- // are left untouched. kGlobalScaling reuses the local per-row part for now
- // ( the component-wide v^k scaling is not yet implemented )
+ // computed HERE, from the row data, so no external caller has to decide it;
+ // it is fixed once, at insertion, and never refreshed. Vertical rows
+ // ( feasibility cuts ) are reference- and scale-invariant and left untouched.
  double mult = 1.0;
  if( ( f_scaling != kNoScaling ) && ! is_vert ) {
   double ainf = 0.0;
   for( const auto a : Ai )
    ainf = std::max( ainf , std::abs( a ) );
-  // denominator uses ONLY the subgradient norm, NOT |bi|: the constant bi can
-  // be a reference-dependent linearization error ( large for cuts inserted
-  // far from the optimum, ~0 once the centre catches up ), so folding it in
-  // would make m_i depend on WHEN the row was inserted -- exactly the
-  // bar x-dependence we must avoid, since m_i is fixed at insertion. ||A_i||
-  // is reference-invariant, hence a stable x-independent scale
-  const double den = std::max( 1.0 , ainf );
+  // the denominator uses ONLY the subgradient norm, NOT |bi|: the constant
+  // bi can be a reference-dependent linearization error ( large for cuts
+  // inserted far from the optimum, ~0 once the centre catches up ), so
+  // folding it in would make m_i depend on WHEN the row was inserted --
+  // exactly the bar x-dependence we must avoid. || A_i || is reference-
+  // invariant, hence a stable x-independent scale.
+  double den;
+  if( f_scaling == kGlobalScaling ) {
+   // global: a UNIFORM per-component scale from the MEAN of the raw
+   // || A_j ||_inf over the current diagonal rows ( plus this one ). Being
+   // shared across rows it rescales the whole component uniformly, so in the
+   // dual it inflates every theta_i by the same factor -- a benign global
+   // scale, with no relative imbalance ( unlike the per-row kLocalScaling,
+   // whose row-dependent m_i skews the theta's against each other ). The
+   // stored rows are already m_j-scaled, so divide them back out to recover
+   // the raw norm. ( Rows already in place keep their insertion-time scale;
+   // a true rescale-on-drift of the whole component is a future refinement. )
+   double sum = std::max( 1.0 , ainf );
+   PolyhedralFunction::Index cnt = 1;
+   const auto & A = f_polyf.get_A();
+   for( PolyhedralFunction::Index j = 0 ; j < A.size() ; ++j ) {
+    if( f_polyf.is_row_vertical( j ) )
+     continue;
+    double aj = 0.0;
+    for( const auto a : A[ j ] )
+     aj = std::max( aj , std::abs( a ) );
+    const double mj = ( j < f_mult.size() && f_mult[ j ] > 0.0 )
+                      ? f_mult[ j ] : 1.0;
+    sum += std::max( 1.0 , aj / mj );   // unscale to the raw norm
+    ++cnt;
+    }
+   den = sum / double( cnt );
+   }
+  else  // kLocalScaling: per-row norm
+   den = std::max( 1.0 , ainf );
   // sqrt splits the imbalance symmetrically between the v^k coefficient
   // ( = m_i ) and the scaled row data ( m_i Ai , m_i bi ), instead of a
   // plain 1/den that would dump it all on v^k; the variant is selectable

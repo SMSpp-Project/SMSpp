@@ -729,10 +729,16 @@ class PolyhedralFunctionBlock : public AbstractBlock
   *   be a reference-dependent linearization error, which would make m_i
   *   depend on the insertion-time centre; || A_i || is reference-invariant.
   *   The scaling is fixed at insertion and never refreshed;
-  * - kGlobalScaling: reserved for a component-wide scaling of v^k itself
-  *   ( the only thing that can actually remove orders of magnitude, as
-  *   row scaling merely rebalances them ); NOT yet implemented, behaves as
-  *   kLocalScaling for the per-row part.
+  * - kGlobalScaling: a UNIFORM per-component multiplier, m_i = the same
+  *   sqrt( 1 / mean ) for every row, where mean is the average raw
+  *   || A_j ||_inf over the component's diagonal rows. Being shared, it
+  *   rescales the whole component uniformly: in the dual it inflates every
+  *   theta_i by the same factor ( a benign global scale ), avoiding the
+  *   relative theta imbalance that the row-dependent kLocalScaling can
+  *   create. It is the dual image of the v^k change of variable
+  *   w^k = v^k / mean ( min (1/mean) v^k, v^k >= mean ( g_i x + a_i ) ).
+  *   Rows keep their insertion-time scale; a true rescale-on-drift of the
+  *   whole component is a future refinement.
   *
   * Either way it is a purely numerical conditioning device: the master
   * optimum, the aggregated linearization error and the aggregated
