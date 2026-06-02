@@ -332,7 +332,8 @@ class PolyhedralFunctionBlock : public AbstractBlock
   * an "empty" PolyhedralFunction to start with. */
 
  PolyhedralFunctionBlock( Block * father = nullptr )
-  : AbstractBlock( father ) , f_rep( 0 ) ,
+  : AbstractBlock( father ) , f_rep( 0 ) , f_scaling( 0 ) ,
+    f_global_scale( 1.0 ) , f_global_reference( 1.0 ) ,
     f_polyf( {} , {} , {} , -Inf< Function::FunctionValue >() , true , this
 	     ) ,
     f_v() , f_const() { }
@@ -372,6 +373,12 @@ class PolyhedralFunctionBlock : public AbstractBlock
 
   // the PolyhedralFunctionBlock is "naked": no abstract representaton
   f_rep = 0;
+  f_scaling = 0;
+  f_global_scale = 1.0;
+  f_global_reference = 1.0;
+  f_row_scale.clear();
+  f_row_measure.clear();
+  f_lambda = nullptr;
   f_const.clear();
 
   // call the (guts_of version of the) base class method
@@ -448,8 +455,7 @@ class PolyhedralFunctionBlock : public AbstractBlock
   *    THE CHOICE OF THE REPRESENTATION IS DONE PRECISELY IN THIS METHOD
   *
   * by means of the stvv parameter, which is interpreted as a
-  * SimpleConfiguration< int > whose value is treated bit-wise (only the
-  * lowest two bits are read):
+  * SimpleConfiguration< int > whose value is treated bit-wise:
   *
   * - bit 0 = 0 : the "natural representation" is used (the only abstract
   *               representation is the PolyhedralFunction itself, wrapped
@@ -463,6 +469,31 @@ class PolyhedralFunctionBlock : public AbstractBlock
   * - bit 0 = 1, bit 1 = 1 : the "linearized dual representation"
   *               (the abstract form of the Fenchel conjugate / pin
   *               function) is used: see the notes below.
+  *
+  * The following two bits control optional numerical scaling of either
+  * linearized representation:
+  *
+  * - bit 2 = 1 : local row scaling is enabled. Each row i receives the
+  *               factor
+  *               1 / sqrt( max( 1 , || A_i ||_inf , | b_i | ) );
+  *
+  * - bit 3 = 1 : global epigraph scaling is enabled. One shared factor is
+  *               computed with the same formula, using the maximum over
+  *               all rows. In the primal representation an extra internal
+  *               ColVariable stores the scaled epigraph value. It is linked
+  *               to the physical epigraph variable by an equality, so the
+  *               scaling remains invisible outside this Block.
+  *
+  * The two scaling modes can be enabled independently or together. Local
+  * factors are fixed when each row enters the representation. The global
+  * factor is monitored in batches: PFB caches each row measure
+  * max( 1 , || A_i ||_inf , | b_i | ), keeps their maximum, and changes the
+  * shared factor to the inverse square root of this measure only when it
+  * drifts by more than two orders of magnitude from the value used for the
+  * previous scaling. When the factor changes, PFB preserves the existing
+  * abstract Variable and Constraint objects and modifies only the affected
+  * coefficients and row sides in place. Small fluctuations require no
+  * abstract update at all.
   *
   * The chosen representation is then stored in the f_rep field (lowest
   * two bits) and never changed afterwards; this means that the parameters
@@ -485,8 +516,10 @@ class PolyhedralFunctionBlock : public AbstractBlock
   * Linearized primal representation (the "01" choice)
   * --------------------------------------------------------------------------
   *
-  * The first group of static Variable contains a single ColVariable (v),
-  * and there are no extra dynamic Variable. Note that "v" is added "in
+  * The first group of static Variable contains a single physical
+  * ColVariable (v), and there are no extra dynamic Variable. With global
+  * scaling enabled, a second static ColVariable contains the scaled
+  * epigraph value used internally by the cuts. Note that "v" is added "in
   * front", so that even if the AbstractBlock has constructed some
   * "abstract" representation already (say, in deserialize()), "v" is still
   * the first group of static ColVariable. Classes derived from
@@ -551,6 +584,10 @@ class PolyhedralFunctionBlock : public AbstractBlock
   *    PolyhedralFunction->is_convex(); if it is true, than the LHS is the
   *    global lower bound and the RHS is INF, otherwise the LHS is - INF and
   *    the RHS is the global upper bound.
+  *
+  *  - With global scaling enabled, the second group of static Constraint
+  *    contains the internal equality scaled_v = global_scale * v. This
+  *    keeps the scaling invisible to users of the physical v variable.
   *
   * Note that both groups of Constraint are added "in front" of their 
   * corresponding vector, so that even if the AbstractBlock has constructed
@@ -711,12 +748,15 @@ class PolyhedralFunctionBlock : public AbstractBlock
  PolyhedralFunction & get_PolyhedralFunction( void ) { return( f_polyf ); }
 
 /*--------------------------------------------------------------------------*/
- /// returns a pointer to the internal v variable (linearized primal rep)
+ /// returns a pointer to the physical v variable (linearized primal rep)
  /** Returns &f_v, the auxiliary ColVariable that in the linearized
   * primal representation (is_linearized() == true) plays the role of
   * the epigraph variable, with f_v >= a_i x + b_i for every row of the
   * underlying PolyhedralFunction (convex case; concave case dually).
-  * Meaningful only in the linearized primal representation; in the
+  * With global scaling enabled, cuts use an additional internal scaled
+  * variable linked to f_v; the variable returned here always remains in the
+  * physical units of the PolyhedralFunction. Meaningful only in the
+  * linearized primal representation; in the
   * natural / linearized dual representation f_v is unused but the
   * pointer is still returned (the caller is responsible for not wiring
   * it into LinearFunction objects of an outer Block in those cases).
@@ -725,6 +765,28 @@ class PolyhedralFunctionBlock : public AbstractBlock
   * form), avoiding the need for a coupling row v_master = f_v. */
 
  [[nodiscard]] ColVariable * get_v( void ) { return( & f_v ); }
+
+ /// returns the internal scale applied to the epigraph variable in the cuts
+ /** This accessor is primarily useful for inspecting or directly modifying
+  * the abstract representation. Code using get_v() does not need it:
+  * get_v() always exposes the physical epigraph value. */
+
+ [[nodiscard]] Function::FunctionValue get_v_scale( void ) const
+ { return( f_global_scale ); }
+
+ /// returns the local scale applied to the i-th row
+ [[nodiscard]] Function::FunctionValue get_row_scale( Index i ) const
+ { return( RowScale( i ) ); }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the physical multiplier of the i-th row
+ /** The multiplier stored by the abstract LP changes units when local or
+  * global row scaling is active. This method maps it back to the multiplier
+  * of the original PolyhedralFunction row, keeping callers independent from
+  * the internal representation. It is meaningful in either linearized
+  * representation. */
+
+ [[nodiscard]] Function::FunctionValue get_row_multiplier( Index i ) const;
 
 /*--------------------------------------------------------------------------*/
 
@@ -976,7 +1038,8 @@ class PolyhedralFunctionBlock : public AbstractBlock
    if( is_dual() )
     guts_of_add_Modification_LR_dual( mod.get() , chnl );
    else
-    guts_of_add_Modification_LR( mod.get() , chnl );
+    if( guts_of_add_Modification_LR( mod.get() , chnl ) )
+     return;
    }
 
   // finally, pass iT up, but only if there really is someone "listening",
@@ -1107,7 +1170,7 @@ class PolyhedralFunctionBlock : public AbstractBlock
   * This assumption drastically simplifies some of the logic here. Hence,
   * derived classes must ensure they do not mess up with this property. */
 
- void guts_of_add_Modification_LR( c_p_Mod mod , ChnlName chnl );
+ bool guts_of_add_Modification_LR( c_p_Mod mod , ChnlName chnl );
 
 /*--------------------------------------------------------------------------*/
  /// PF -> dual abstract: counterpart of guts_of_add_Modification_PF
@@ -1155,6 +1218,35 @@ class PolyhedralFunctionBlock : public AbstractBlock
  // constructs the i-th constraint of the linearized representation
  void ConstructLPConstraint( Index i , FRowConstraint & ci );
 
+ // initialise scaling for all rows already present in f_polyf
+ void InitialiseScaling( void );
+
+ // append per-row metadata for rows [ first , f_polyf.get_A().size() )
+ void AppendRowScaling( Index first );
+ void AppendRowMeasure( Index first );
+
+ // remove per-row metadata corresponding to deleted rows
+ void DeleteRowScaling( Range range );
+ void DeleteRowScaling( const Subset & rows );
+
+ // numerical scaling helpers
+ Function::FunctionValue ComputeRowMeasure( Index i ) const;
+ Function::FunctionValue ComputeRowScale( Index i ) const;
+ void RefreshRowMeasure( Index i );
+ void RefreshRowMeasure( Range range );
+ void RefreshRowMeasure( const Subset & rows );
+ Function::FunctionValue RowScale( Index i ) const;
+ Function::FunctionValue ScaledRowFactor( Index i ) const;
+ Function::FunctionValue ScaledBound( Function::FunctionValue value ) const;
+ ColVariable * LinearizedV( void );
+ Function::FunctionValue ComputeGlobalMeasure( void ) const;
+ bool UpdateGlobalScaleIfNeeded( bool force = false );
+ bool RescaleGlobalIfNeeded( ChnlName chnl );
+ void UpdateLinearizedPrimalScale( ChnlName chnl );
+ void UpdateLinearizedDualScale( ChnlName chnl );
+ void RebuildLinearizedPrimal( void );
+ void RebuildLinearizedDual( void );
+
 /*--------------------------------------------------------------------------*/
 /*---------------------------- PRIVATE FIELDS ------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -1189,14 +1281,37 @@ class PolyhedralFunctionBlock : public AbstractBlock
  bool is_dual( void ) const  // dual linearized representation
  { return( ( f_rep & 3 ) == 3 ); }
 
+ char f_scaling;  ///< optional scaling modes selected through stvv
+                  /**< bit 0: local row scaling; bit 1: global scaling. */
+
+ bool has_local_scaling( void ) const { return( f_scaling & 1 ); }
+ bool has_global_scaling( void ) const { return( f_scaling & 2 ); }
+
+ Function::FunctionValue f_global_scale;
+                         ///< shared epigraph scale, updated only in batches
+
+ Function::FunctionValue f_global_reference;
+                         ///< row measure at the last global rescaling
+
+ RealVector f_row_scale;
+                         ///< positive local factor for each row of f_polyf
+
+ RealVector f_row_measure;
+                         ///< max( 1, || A_i ||_inf, | b_i | ) for each row
+
  PolyhedralFunction f_polyf;  ///< the PolyhedralFunction
 
- ColVariable f_v;        ///< the v variable in the linearized representation
+ ColVariable f_v;        ///< physical v exposed by the linearized representation
+
+ ColVariable f_scaled_v; ///< internal globally-scaled v used by primal cuts
 
  std::list< FRowConstraint > f_const;
                          ///< the constraints in the linearized representation
 
  BoxConstraint f_bcv;    ///< the box constraint on v
+
+ FRowConstraint f_scale_cns;
+                         ///< internal equality f_scaled_v = scale * f_v
 
  std::list< ColVariable > f_theta;
                          ///< the dynamic variables theta in the dual
@@ -1225,6 +1340,9 @@ class PolyhedralFunctionBlock : public AbstractBlock
                          /// of f_polyf in the dual representation.
                          /// nullptr until set_conjugate_constraint() is
                          /// called (and remains nullptr if it never is).
+
+ ColVariable * f_lambda = nullptr;
+                         ///< shared normalization variable set by set_lambda
 
  SMSpp_insert_in_factory_h;
 
