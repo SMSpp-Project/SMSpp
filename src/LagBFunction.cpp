@@ -1874,13 +1874,21 @@ int LagBFunction::compute( bool changedvars )
 
    f_play_dumb = true;         // ignore any ensuing Modification
 
-   // modify the coefficients in the Objective (only the first m entries)
+   // modify the coefficients in the Objective (only the first m entries).
+   // Issue the Modification with eNoBlck so that it carries concerns_Block()
+   // == false: this transient Lagrangian recompute does *not* change the
+   // original costs, and an *enclosing* LagBFunction that has adopted this
+   // same (shared) sub-Block Objective must not mistake it for a real cost
+   // change -- which would make it issue a spurious AlphaChanged and keep
+   // invalidating its bundle model (-> kLowPrecision). See the
+   // concerns_Block() guard in guts_of_guts_of_add_Modification().
    if( ! v_ObjIsQuad[ h ] )
     static_cast< p_LF >( v_Obj[ h ]->get_function() )
-      ->modify_coefficients( std::move( NCoef ) , Range( 0 , m ) );
+      ->modify_coefficients( std::move( NCoef ) , Range( 0 , m ) , eNoBlck );
    else
     static_cast< p_QF >( v_Obj[ h ]->get_function() )
-      ->modify_linear_coefficients( std::move( NCoef ) , Range( 0 , m ) );
+      ->modify_linear_coefficients( std::move( NCoef ) , Range( 0 , m ) ,
+				    eNoBlck );
 
    f_play_dumb = false;        // back to normal operations
 
@@ -2825,6 +2833,24 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 
  auto & CMh = CostMatrix[ h ];
  auto * CMh_f = v_Obj[ h ]->get_function();
+
+ // transient Lagrangian recompute by a *nested* LagBFunction- - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // When the same sub-Block Objective is adopted in CostMatrix by more than
+ // one LagBFunction (the LagBFunction-inside-LagBFunction case), each of them
+ // rewrites the Lagrangian costs c + yA of the Variable it couples directly
+ // on that shared Objective [see compute()]. Such writes are issued with
+ // eNoBlck, hence carry concerns_Block() == false. They must be ignored here:
+ // they do *not* change the original costs c -- which are the ones kept in
+ // CostMatrix and used by get_linearization_constant() -- they are just
+ // another LagBFunction shifting the costs by its own multipliers. Processing
+ // them would (a) fold the shifted cost into CostMatrix as if it were the new
+ // original c and (b) issue a spurious AlphaChanged that keeps invalidating
+ // the enclosing bundle's model, eventually triggering kLowPrecision.
+ if( ! mod->concerns_Block() )
+  if( const auto lmod = dynamic_cast< const C05FunctionModLin * >( mod ) )
+   if( lmod->function() == CMh_f )
+    return( 0 );
 
  // C05FunctionModLinRngd- - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
