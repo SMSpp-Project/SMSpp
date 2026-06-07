@@ -76,6 +76,71 @@ FetchContent_Declare(
 
 FetchContent_Populate(fastflow)
 
+# ----- FastFlow Windows/MSVC compatibility patch --------------------------- #
+# FastFlow's bundled Windows port (ff/platforms/pthread_minport_windows.h) is
+# incomplete under MSVC: it provides pthread_cond_wait() but not the timed
+# variant pthread_cond_timedwait(), nor clock_gettime()/CLOCK_REALTIME, all of
+# which the FastFlow core (ff/node.hpp, lb.hpp, gt.hpp, farm.hpp, pipeline.hpp
+# and ff/utils.hpp) relies on for its blocking-mode timed waits. On Linux these
+# come from <pthread.h>/<time.h>; on Windows we inject a minimal implementation
+# into the fetched header at configure time. The edit is idempotent (guarded by
+# the FF_SMSPP_WIN_COMPAT marker) and mirrors the configure-time header shimming
+# we already do for LEMON in LEMONSolver/CMakeLists.txt. Note: NOMINMAX and
+# /Zc:__cplusplus (set in the top-level CMakeSettings.txt) are also required to
+# build FastFlow with MSVC.
+if (MSVC)
+    set(_ff_winport "${fastflow_SOURCE_DIR}/ff/platforms/pthread_minport_windows.h")
+    if (EXISTS "${_ff_winport}")
+        file(READ "${_ff_winport}" _ff_winport_src)
+        if (NOT _ff_winport_src MATCHES "FF_SMSPP_WIN_COMPAT")
+            # Injected right after the `typedef CONDITION_VARIABLE pthread_cond_t;`
+            # line, where INLINE/RESTRICT, <time.h> (struct timespec), <errno.h>
+            # (ETIMEDOUT) and <Windows.h> are already in scope. pthread_mutex_t is
+            # CRITICAL_SECTION and pthread_cond_t is CONDITION_VARIABLE here.
+            set(_ff_shim [=[typedef CONDITION_VARIABLE pthread_cond_t;
+/* ---- FF_SMSPP_WIN_COMPAT: MSVC compatibility shim injected by SMS++ ------- */
+#ifndef FF_SMSPP_WIN_COMPAT
+#define FF_SMSPP_WIN_COMPAT
+#ifndef CLOCK_REALTIME
+#define CLOCK_REALTIME 0
+#endif
+/* clock_gettime(): map CLOCK_REALTIME onto the Windows system clock. FILETIME
+   counts 100 ns ticks since 1601-01-01; 116444736000000000 is the offset (in
+   ticks) from that epoch to the Unix epoch 1970-01-01. */
+INLINE int clock_gettime(int, struct timespec *tp) {
+    FILETIME ft; ULARGE_INTEGER u;
+    GetSystemTimePreciseAsFileTime(&ft);
+    u.LowPart = ft.dwLowDateTime; u.HighPart = ft.dwHighDateTime;
+    unsigned long long t = u.QuadPart - 116444736000000000ULL;
+    tp->tv_sec  = (long)(t / 10000000ULL);
+    tp->tv_nsec = (long)((t % 10000000ULL) * 100ULL);
+    return 0;
+}
+/* pthread_cond_timedwait(): turn the absolute POSIX deadline into a relative
+   millisecond timeout for SleepConditionVariableCS(); return ETIMEDOUT on
+   expiry, as POSIX requires. */
+INLINE int pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
+                                  const struct timespec *abstime) {
+    struct timespec now;
+    clock_gettime(CLOCK_REALTIME, &now);
+    long long ms = (long long)(abstime->tv_sec - now.tv_sec) * 1000LL
+                 + (long long)(abstime->tv_nsec - now.tv_nsec) / 1000000LL;
+    if (ms < 0) ms = 0;
+    if (!SleepConditionVariableCS(cond, mutex, (DWORD)ms))
+        if (GetLastError() == ERROR_TIMEOUT) return ETIMEDOUT;
+    return 0;
+}
+#endif
+/* ---- end FF_SMSPP_WIN_COMPAT --------------------------------------------- */]=])
+            string(REPLACE "typedef CONDITION_VARIABLE pthread_cond_t;"
+                    "${_ff_shim}" _ff_winport_src "${_ff_winport_src}")
+            file(WRITE "${_ff_winport}" "${_ff_winport_src}")
+            message(STATUS
+                    "FastFlow: injected MSVC pthread_cond_timedwait/clock_gettime shim")
+        endif ()
+    endif ()
+endif ()
+
 # ----- Configuration header ------------------------------------------------ #
 # This will generate a *Config.h header in the build directory.
 configure_file(cmake/${modName}Config.h.in ${modName}Config.h)
