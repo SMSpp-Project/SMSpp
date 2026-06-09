@@ -447,7 +447,7 @@ PolyhedralFunctionBlock::get_row_multiplier( Index i ) const
            "get_row_multiplier() requires generated abstract constraints" ) );
   auto cit = f_const.cbegin();
   std::advance( cit , i );
-  return( ScaledRowFactor( i ) * cit->get_dual() );
+  return( - ScaledRowFactor( i ) * cit->get_dual() );
   }
 
  if( is_dual() ) {
