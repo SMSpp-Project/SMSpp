@@ -2847,10 +2847,29 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
  // them would (a) fold the shifted cost into CostMatrix as if it were the new
  // original c and (b) issue a spurious AlphaChanged that keeps invalidating
  // the enclosing bundle's model, eventually triggering kLowPrecision.
+ //
+ // concerns_Block() == false alone is NOT enough to recognise such a write,
+ // because the standard "change abstract and physical representation together"
+ // idiom (e.g. Block::chg_*() -> Function::modify_coefficient( un_ModBlock ))
+ // also issues a C05FunctionModLin with concerns_Block() == false on the very
+ // same Objective, and *that* one is a genuine cost change that MUST be folded
+ // into CostMatrix. The structural discriminator is *who* is changing the
+ // Objective: a transient recompute is always performed by *a* LagBFunction
+ // enclosing mod's Block (this very level, or any nested level adopting the
+ // same shared Objective), while holding the Block lock with its own f_id [see
+ // compute()/flush]; a genuine external change is instead applied by some other
+ // agent (a Solver, an UpdateSolver, the user) and reaches a Block that no
+ // enclosing LagBFunction currently locks. Hence, walk the chain of Block that
+ // own mod's Objective up to the root and skip iff *any* enclosing
+ // LagBFunction currently holds its lock (i.e. it is the one doing the write).
  if( ! mod->concerns_Block() )
   if( const auto lmod = dynamic_cast< const C05FunctionModLin * >( mod ) )
    if( lmod->function() == CMh_f )
-    return( 0 );
+    if( Block * mb = mod->get_Block() )
+     for( Block * b = mb ; b ; b = b->get_f_Block() )
+      if( const auto lbf = dynamic_cast< LagBFunction * >( b ) )
+       if( mb->is_owned_by( lbf->f_id ) )
+        return( 0 );  // transient recompute write by an enclosing LagBFunction
 
  // C05FunctionModLinRngd- - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
