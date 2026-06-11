@@ -160,6 +160,7 @@ include(ClangPatch) # TODO: Remove this when it's not needed anymore
 # Note: do not GLOB files here.
 target_sources(${modName} PRIVATE
         src/AbstractBlock.cpp
+        src/GroupChange.cpp
         src/BoxSolver.cpp
         src/Block.cpp
         src/BlockSolverConfig.cpp

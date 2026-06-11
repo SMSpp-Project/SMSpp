@@ -277,10 +277,38 @@ void BlockSolverConfig::apply( Block * block ) const
 
  if( ( ! f_diff ) && v_SolverNames.empty() ) {
   // applying a BlockSolverConfig without Solver in setting mode means
-  // unregistering and deleting all existing Solver
-  block->unregister_Solvers( true );  // do it with one call
-  return;                             // all done
+  // unregistering and deleting all existing Solver; in additive mode only
+  // the Solver that this BlockSolverConfig had registered (see vp_Solvers)
+  if( f_add )
+   for( auto slvr : vp_Solvers )
+    block->unregister_Solver( slvr , true );  // do it one by one
+  else
+   block->unregister_Solvers( true );         // do it with one call
+  vp_Solvers.clear();
+  return;                                     // all done
   }
+
+ if( f_add ) {  // additive mode - - - - - - - - - - - - - - - - - - - - - - -
+  // do not touch the Solver already registered to the Block: create,
+  // ComputeConfig-ure and register all the Solver of the BlockSolverConfig
+  // in addition to them, recording them in vp_Solvers
+
+  auto cit = v_SolverConfigs.begin();
+  for( auto nit = v_SolverNames.begin() ; nit != v_SolverNames.end() ;
+       ++nit , ++cit ) {
+   auto slvr = Solver::new_Solver( *nit );  // first create the Solver
+
+   if( *cit )                               // if the ComputeConfig is there
+    slvr->set_ComputeConfig( *cit );        // ComputeConfig-ure it
+
+   block->register_Solver( slvr );          // only then pass it to the Block
+   vp_Solvers.push_back( slvr );
+   }
+
+  return;       // end additive mode - - - - - - - - - - - - - - - - - - - - -
+  }
+
+ vp_Solvers.clear();   // out of additive mode, only the latest apply() counts
 
  auto & solvers = block->get_registered_solvers();
  auto sit = solvers.begin();
@@ -315,6 +343,7 @@ void BlockSolverConfig::apply( Block * block ) const
      slvr->set_ComputeConfig( *cit );      // ComputeConfig-ure it
 
     block->replace_Solver( slvr , sit , true );  // replace the existing one
+    vp_Solvers.push_back( slvr );
     }
    }
 
@@ -340,6 +369,7 @@ void BlockSolverConfig::apply( Block * block ) const
 
    // only then replace the existing one
    block->replace_Solver( slvr, sit, true );
+   vp_Solvers.push_back( slvr );
    }
   }              // end setting mode - - - - - - - - - - - - - - - - - - - - -
 
@@ -355,6 +385,7 @@ void BlockSolverConfig::apply( Block * block ) const
    slvr->set_ComputeConfig( *cit );        // ComputeConfig-ure it
 
   block->register_Solver( slvr );          // only then pass it to the Block
+  vp_Solvers.push_back( slvr );
   }
 
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
