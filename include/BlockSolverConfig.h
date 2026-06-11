@@ -196,15 +196,19 @@ class BlockSolverConfig : public Configuration {
  /// constructor: creates an empty BlockSolverConfig
  /** It constructs an empty BlockSolverConfig, which can then be initialized
   * by calling the methods deserialize(), load() or get(), or by calls to
-  * set_SolverNames(), set_SolverConfigs(), and set_diff(). The \p diff
-  * parameter indicates whether this BlockSolverConfig must be considered as a
-  * "differential" one. This parameter has true as default value, so that this
-  * can be used as the void constructor.
+  * set_SolverNames(), set_SolverConfigs(), set_diff() and set_add(). The
+  * \p diff parameter indicates whether this BlockSolverConfig must be
+  * considered as a "differential" one. This parameter has true as default
+  * value, so that this can be used as the void constructor. The \p add
+  * parameter indicates whether this BlockSolverConfig must be interpreted
+  * in "additive sense" [see set_add()].
   *
-  * @param diff indicates if this configuration is a "differential" one. */
+  * @param diff indicates if this configuration is a "differential" one.
+  *
+  * @param add indicates if this configuration is an "additive" one. */
 
- explicit BlockSolverConfig( bool diff = true ) : Configuration() ,
-  f_diff( diff ) {}
+ explicit BlockSolverConfig( bool diff = true , bool add = false )
+  : Configuration() , f_diff( diff ) , f_add( add ) {}
 
 /*--------------------------------------------------------------------------*/
  /// constructs a BlockSolverConfig out of the given netCDF \p group
@@ -216,7 +220,7 @@ class BlockSolverConfig : public Configuration {
   *        BlockSolverConfig. */
 
  explicit BlockSolverConfig( netCDF::NcGroup & group ) : Configuration() ,
-  f_diff( true ) { BlockSolverConfig::deserialize( group ); }
+  f_diff( true ) , f_add( false ) { BlockSolverConfig::deserialize( group ); }
 
 /*--------------------------------------------------------------------------*/
  /// constructs a BlockSolverConfig out of an istream
@@ -227,7 +231,7 @@ class BlockSolverConfig : public Configuration {
   *        BlockSolverConfig. */
 
  explicit BlockSolverConfig( std::istream & input ) : Configuration() ,
-  f_diff( true ) { BlockSolverConfig::load( input ); }
+  f_diff( true ) , f_add( false ) { BlockSolverConfig::load( input ); }
 
 /*--------------------------------------------------------------------------*/
  /// constructs a BlockSolverConfig for the given Block
@@ -566,6 +570,21 @@ class BlockSolverConfig : public Configuration {
  void set_diff( bool diff = true ) { f_diff = diff; }
 
 /*--------------------------------------------------------------------------*/
+ /// tells if this configuration has to be interpreted in "additive sense"
+ /** This function changes the "additive" mode of this BlockSolverConfig. If
+  * \p add is true, then apply()-ing this BlockSolverConfig does not touch
+  * the Solver already registered to the Block: all the Solver it describes
+  * are created, ComputeConfig-ured and registered *in addition* to the
+  * existing ones, and recorded so that they can be individually retrieved
+  * [see get_Solvers()] and unregistered (apply()-ing in additive sense a
+  * BlockSolverConfig with no Solver in setting mode un-registers and deletes
+  * exactly the Solver it had registered, rather than all of them). Note that
+  * the "additive" mode is a programmatic-only property: it is not (de)serialized.
+  */
+
+ void set_add( bool add = true ) { f_add = add; }
+
+/*--------------------------------------------------------------------------*/
  /// adds a new pair < Solver (name) , ComputeConfig (pointer) >
  /** This method adds at the back of the current list a new pair
   * < Solver (name) , ComputeConfig (pointer) >.
@@ -651,6 +670,25 @@ class BlockSolverConfig : public Configuration {
  /// tells if the configuration is a "differential" one (reads #f_diff)
 
  [[nodiscard]] bool is_diff( void ) const { return( f_diff ); }
+
+/*--------------------------------------------------------------------------*/
+ /// tells if the configuration is an "additive" one (reads #f_add)
+
+ [[nodiscard]] bool is_add( void ) const { return( f_add ); }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the Solver created and registered by apply()
+ /** Returns the (pointers to the) Solver that apply() created and
+  * registered to the Block. In "additive" mode [see set_add()] the vector
+  * accumulates over multiple calls to apply(), and it is emptied when they
+  * are unregistered (by apply()-ing the BlockSolverConfig with no Solver in
+  * setting mode); otherwise it only refers to the latest call to apply().
+  * The pointers are owned by the Block registration mechanism, NOT by the
+  * BlockSolverConfig. */
+
+ [[nodiscard]] const std::vector< Solver * > & get_Solvers( void ) const {
+  return( vp_Solvers );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the current number of ComputeConfig in this BlockSolverConfig
@@ -763,6 +801,14 @@ class BlockSolverConfig : public Configuration {
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
  bool f_diff;  ///< tells if the configuration is a "differential" one
+
+ bool f_add;   ///< tells if the configuration is an "additive" one
+
+ /// the Solver created and registered by apply()
+ /** The (pointers to the) Solver that apply() created and registered to the
+  * Block; mutable because apply() is const and this is only observational
+  * bookkeeping. */
+ mutable std::vector< Solver * > vp_Solvers;
 
  /// the names of the Solver of the BlockSolverConfig
  std::vector< std::string > v_SolverNames;
