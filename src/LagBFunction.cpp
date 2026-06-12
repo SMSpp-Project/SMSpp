@@ -1875,20 +1875,24 @@ int LagBFunction::compute( bool changedvars )
    f_play_dumb = true;         // ignore any ensuing Modification
 
    // modify the coefficients in the Objective (only the first m entries).
-   // Issue the Modification with eNoBlck so that it carries concerns_Block()
-   // == false: this transient Lagrangian recompute does *not* change the
-   // original costs, and an *enclosing* LagBFunction that has adopted this
-   // same (shared) sub-Block Objective must not mistake it for a real cost
-   // change -- which would make it issue a spurious AlphaChanged and keep
-   // invalidating its bundle model (-> kLowPrecision). See the
-   // concerns_Block() guard in guts_of_guts_of_add_Modification().
+   // The Modification is issued on the standard channel, and therefore with
+   // concerns_Block() == true: the inner Block must see it as any other
+   // Objective change, so that it can fold it into its physical
+   // representation and re-issue it in its own physical language to the
+   // Solver registered on it (e.g. ThermalUnitBlock translating the new
+   // Lagrangian costs for its DP solvers, which never look at the abstract
+   // representation). An *enclosing* LagBFunction that has adopted this
+   // same (shared) sub-Block Objective must still not mistake the write
+   // for a real cost change [it would issue a spurious AlphaChanged that
+   // keeps invalidating its bundle model -> kLowPrecision]: it recognises
+   // it structurally, because the writer (this LagBFunction) holds the
+   // Block lock, see the guard in guts_of_guts_of_add_Modification().
    if( ! v_ObjIsQuad[ h ] )
     static_cast< p_LF >( v_Obj[ h ]->get_function() )
-      ->modify_coefficients( std::move( NCoef ) , Range( 0 , m ) , eNoBlck );
+      ->modify_coefficients( std::move( NCoef ) , Range( 0 , m ) );
    else
     static_cast< p_QF >( v_Obj[ h ]->get_function() )
-      ->modify_linear_coefficients( std::move( NCoef ) , Range( 0 , m ) ,
-				    eNoBlck );
+      ->modify_linear_coefficients( std::move( NCoef ) , Range( 0 , m ) );
 
    f_play_dumb = false;        // back to normal operations
 
@@ -2839,21 +2843,23 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
  // When the same sub-Block Objective is adopted in CostMatrix by more than
  // one LagBFunction (the LagBFunction-inside-LagBFunction case), each of them
  // rewrites the Lagrangian costs c + yA of the Variable it couples directly
- // on that shared Objective [see compute()]. Such writes are issued with
- // eNoBlck, hence carry concerns_Block() == false. They must be ignored here:
- // they do *not* change the original costs c -- which are the ones kept in
- // CostMatrix and used by get_linearization_constant() -- they are just
- // another LagBFunction shifting the costs by its own multipliers. Processing
- // them would (a) fold the shifted cost into CostMatrix as if it were the new
- // original c and (b) issue a spurious AlphaChanged that keeps invalidating
- // the enclosing bundle's model, eventually triggering kLowPrecision.
+ // on that shared Objective [see compute()]. Such writes must be ignored
+ // here: they do *not* change the original costs c -- which are the ones
+ // kept in CostMatrix and used by get_linearization_constant() -- they are
+ // just another LagBFunction shifting the costs by its own multipliers.
+ // Processing them would (a) fold the shifted cost into CostMatrix as if it
+ // were the new original c and (b) issue a spurious AlphaChanged that keeps
+ // invalidating the enclosing bundle's model, eventually triggering
+ // kLowPrecision.
  //
- // concerns_Block() == false alone is NOT enough to recognise such a write,
- // because the standard "change abstract and physical representation together"
- // idiom (e.g. Block::chg_*() -> Function::modify_coefficient( un_ModBlock ))
- // also issues a C05FunctionModLin with concerns_Block() == false on the very
- // same Objective, and *that* one is a genuine cost change that MUST be folded
- // into CostMatrix. The structural discriminator is *who* is changing the
+ // concerns_Block() cannot be used to recognise such a write: the recompute
+ // is issued on the standard channel (concerns_Block() == true, so that the
+ // inner Block folds it into its physical representation for the Solver
+ // that only read that one, e.g. the ThermalUnitBlock DPs), and the inner
+ // Block may then flip the flag to false while processing it -- so by the
+ // time the Modification reaches this enclosing LagBFunction the flag value
+ // only tells whether some intermediate Block already folded it, not *who*
+ // wrote it. The structural discriminator is *who* is changing the
  // Objective: a transient recompute is always performed by *a* LagBFunction
  // enclosing mod's Block (this very level, or any nested level adopting the
  // same shared Objective), while holding the Block lock with its own f_id [see
@@ -2862,14 +2868,13 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
  // enclosing LagBFunction currently locks. Hence, walk the chain of Block that
  // own mod's Objective up to the root and skip iff *any* enclosing
  // LagBFunction currently holds its lock (i.e. it is the one doing the write).
- if( ! mod->concerns_Block() )
-  if( const auto lmod = dynamic_cast< const C05FunctionModLin * >( mod ) )
-   if( lmod->function() == CMh_f )
-    if( Block * mb = mod->get_Block() )
-     for( Block * b = mb ; b ; b = b->get_f_Block() )
-      if( const auto lbf = dynamic_cast< LagBFunction * >( b ) )
-       if( mb->is_owned_by( lbf->f_id ) )
-        return( 0 );  // transient recompute write by an enclosing LagBFunction
+ if( const auto lmod = dynamic_cast< const C05FunctionModLin * >( mod ) )
+  if( lmod->function() == CMh_f )
+   if( Block * mb = mod->get_Block() )
+    for( Block * b = mb ; b ; b = b->get_f_Block() )
+     if( const auto lbf = dynamic_cast< LagBFunction * >( b ) )
+      if( mb->is_owned_by( lbf->f_id ) )
+       return( 0 );  // transient recompute write by an enclosing LagBFunction
 
  // C05FunctionModLinRngd- - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
