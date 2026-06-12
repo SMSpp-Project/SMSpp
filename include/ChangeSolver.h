@@ -198,36 +198,6 @@ class RelaxationSolver : public virtual ChangeSolver {
  virtual std::vector< Change * > branch() = 0;
 
 /*--------------------------------------------------------------------------*/
- /// possible effects of a Modification on an enumeration tree
- /** Classification of how a Modification impacts the validity of the
-  * fencing certificates of an enumeration tree built on this
-  * RelaxationSolver [see classify()]: the values are bitwise-composable
-  * (eModObjective | eModFeasibility == eModBoth). */
-
- enum mod_effect {
-  eModNothing = 0 ,     ///< the Modification does not touch the model
-  eModObjective = 1 ,   ///< only the objective function changed
-  eModFeasibility = 2 , ///< only the feasible region changed
-  eModBoth = 3 ,        ///< both the objective and the feasible region
-  eModEverything = 4    ///< anything else: the tree is invalid
-  };
-
-/*--------------------------------------------------------------------------*/
- /// classify the effect of a Modification on an enumeration tree
- /** Tells how the given Modification impacts the validity of an
-  * enumeration tree built on this RelaxationSolver [see mod_effect]: e.g.,
-  * an eModObjective change leaves every infeasibility certificate valid,
-  * so a reoptimizing enumeration only needs to re-evaluate the part of the
-  * fenced frontier that was pruned by bound. This is problem-specific
-  * knowledge, which is why it lives here and NOT in the enumerative Solver
-  * driving this one: the default implementation conservatively claims that
-  * the Modification invalidates everything. */
-
- [[nodiscard]] virtual int classify( const sp_Mod & mod ) {
-  return( eModEverything );
-  }
-
-/*--------------------------------------------------------------------------*/
 /*---------------------- METHODS FOR READING RESULTS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
