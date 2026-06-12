@@ -102,6 +102,9 @@ class GroupChange : public Change {
 
  void add( Change * chg ) { v_sub_Changes.push_back( chg ); }
 
+ /// add a sub-Change at the front (e.g., when composing undos in reverse)
+ void add_front( Change * chg ) { v_sub_Changes.push_front( chg ); }
+
 /*--------------------------------------------------------------------------*/
 /*---------------------- METHODS FOR READING RESULTS -----------------------*/
 /*--------------------------------------------------------------------------*/
