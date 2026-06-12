@@ -228,6 +228,29 @@ class RelaxationSolver : public virtual ChangeSolver {
   }
 
 /*--------------------------------------------------------------------------*/
+ /// separate: produce Changes that tighten the relaxation
+ /** The cutting half of Branch-and-X. Called after compute(), the method
+  * returns Changes that tighten this relaxation while provably not cutting
+  * off any solution of the TRUE problem that improves upon \p cutoff (the
+  * value of the incumbent, in the natural sense of the original problem):
+  * typical examples are violated valid inequalities of the true problem
+  * or, for relaxations with no explicit row machinery, reduced-cost
+  * fixings of the variables. The caller (the enumerative Solver) applies
+  * them like any other Change [see apply()], composing the undos so that
+  * locally-valid tightenings are removed when leaving the subtree; cuts
+  * separated at the root are de-facto global. The default implementation
+  * separates nothing.
+  *
+  * The pricing half of Branch-and-X is the exact symmetric of this
+  * protocol - Changes that EXTEND a restricted formulation with improving
+  * columns - and will join it as a price() method when a column-structured
+  * :Block provides the first concrete implementation. */
+
+ [[nodiscard]] virtual std::vector< Change * > separate( double cutoff ) {
+  return( std::vector< Change * >() );
+  }
+
+/*--------------------------------------------------------------------------*/
 /*---------------------- METHODS FOR READING RESULTS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
