@@ -3998,7 +3998,7 @@ class Block : public Observer {
   * if subset.empty(), which means that all the elements in the list are
   * removed. The ordered parameter tells if subset is ordered by increasing
   * Index: if not, then it is ordered inside (unless of course if
-  * subset.empty()). Not that this matters for the caller since, as the
+  * subset.empty()). Not that this matters for the caller since, as the the
   * && tells, subset[] "becomes property" of Block, possibly to be shipped to
   * the issued BlockModRmvSbst if issueMod so instructs. */
 
@@ -4139,7 +4139,7 @@ class Block : public Observer {
   * if subset.empty(), which means that all the elements in the list are
   * removed. The ordered parameter tells if subset is ordered by increasing
   * Index: if not, then it is ordered inside (unless of course if
-  * subset.empty()). Not that this matters for the caller since, as the
+  * subset.empty()). Not that this matters for the caller since, as the the
   * && tells, subset[] "becomes property" of Block, possibly to be shipped to
   * the issued BlockModRmvSbst if issueMod so instructs. */
 
