@@ -115,6 +115,7 @@ BlockSolverConfig::BlockSolverConfig( const BlockSolverConfig & old )
  // note: the per-Block registry is not copied, since the copy has not
  // registered anything to anybody yet [see the class comment]
  f_diff = old.f_diff;
+ f_add = old.f_add;
  v_SolverNames = old.v_SolverNames;
 
  v_SolverConfigs.resize( old.v_SolverConfigs.size() );
@@ -131,6 +132,7 @@ BlockSolverConfig::BlockSolverConfig( BlockSolverConfig && old ) noexcept
  : Configuration()
 {
  f_diff = old.f_diff;
+ f_add = old.f_add;
  v_SolverNames = std::move( old.v_SolverNames );
  v_SolverConfigs = std::move( old.v_SolverConfigs );
  v_Registered = std::move( old.v_Registered );  // the moved-into object
