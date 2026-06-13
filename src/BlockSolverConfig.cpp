@@ -109,6 +109,7 @@ BlockSolverConfig::BlockSolverConfig( const BlockSolverConfig & old )
  : Configuration()
 {
  f_diff = old.f_diff;
+ f_add = old.f_add;
  v_SolverNames = old.v_SolverNames;
 
  v_SolverConfigs.resize( old.v_SolverConfigs.size() );
@@ -125,6 +126,7 @@ BlockSolverConfig::BlockSolverConfig( BlockSolverConfig && old ) noexcept
  : Configuration()
 {
  f_diff = old.f_diff;
+ f_add = old.f_add;
  v_SolverNames = std::move( old.v_SolverNames );
  v_SolverConfigs = std::move( old.v_SolverConfigs );
  }
