@@ -600,6 +600,76 @@ namespace SMSpp_di_unipi_it::inspection
   }
 
 /*--------------------------------------------------------------------------*/
+ /// returns a breadcrumb of the ancestry of \p block, root first
+ /** Walks the chain of enclosing Blocks via Block::get_f_Block() and returns a
+  * human-readable "root > ... > block" string, where each Block is rendered as
+  * its classname() optionally followed by its name() in quotes. Meant for
+  * diagnostics so that an error can point at *which* Block in the tree it
+  * refers to. */
+
+ inline static std::string block_breadcrumb( const Block * block )
+ {
+  std::vector< std::string > chain;
+  for( const Block * b = block ; b ; b = b->get_f_Block() ) {
+   std::string s = b->classname();
+   if( ! b->name().empty() )
+    s += " \"" + b->name() + "\"";
+   chain.push_back( std::move( s ) );
+   }
+  std::string out;
+  for( auto it = chain.rbegin() ; it != chain.rend() ; ++it ) {
+   if( ! out.empty() )
+    out += " > ";
+   out += *it;
+   }
+  return( out );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// describes the groups of a given kind defined in \p block
+ /** Returns a string listing how many groups of the given kind (static/dynamic
+  * Variable/Constraint) \p block has, together with their indices and names,
+  * so that a failed lookup can show what *is* actually available. */
+
+ inline static std::string describe_groups( const Block * block ,
+                                            bool is_static , bool is_variable )
+ {
+  Index n;
+  std::string names;
+  auto append = [ & ]( const std::string & nm , Index k ) {
+   if( ! names.empty() )
+    names += ", ";
+   names += "[" + std::to_string( k ) + "] '" +
+            ( nm.empty() ? std::string( "<unnamed>" ) : nm ) + "'";
+   };
+
+  if( is_variable )
+   if( is_static ) {
+    n = block->get_number_static_variables();
+    for( Index k = 0 ; k < n ; ++k ) append( block->get_s_var_name( k ) , k );
+    }
+   else {
+    n = block->get_number_dynamic_variables();
+    for( Index k = 0 ; k < n ; ++k ) append( block->get_d_var_name( k ) , k );
+    }
+  else
+   if( is_static ) {
+    n = block->get_number_static_constraints();
+    for( Index k = 0 ; k < n ; ++k ) append( block->get_s_const_name( k ) , k );
+    }
+   else {
+    n = block->get_number_dynamic_constraints();
+    for( Index k = 0 ; k < n ; ++k ) append( block->get_d_const_name( k ) , k );
+    }
+
+  return( std::string( is_static ? "static " : "dynamic " ) +
+          ( is_variable ? "Variable" : "Constraint" ) + " groups of the Block ["
+          + block_breadcrumb( block ) + "] (" + std::to_string( n ) +
+          " group" + ( n == 1 ? "" : "s" ) +
+          ( n ? ": " + names : std::string() ) + ")" );
+ }
+
+/*--------------------------------------------------------------------------*/
 
  template< class T >
  static const boost::any & get_group( const Block * block , Index group_index ,
@@ -609,31 +679,36 @@ namespace SMSpp_di_unipi_it::inspection
    if( is_static ) {
     const auto & group = block->get_static_constraints();
     if( group_index >= group.size() )
-     throw( std::invalid_argument( "get_group: invalid group index: " +
-                                   std::to_string( group_index ) ) );
+     throw( std::invalid_argument( "get_group: invalid group index " +
+       std::to_string( group_index ) + " for the " +
+       describe_groups( block , true , false ) ) );
     return( group[ group_index ] );
     }
    const auto & group = block->get_dynamic_constraints();
    if( group_index >= group.size() )
-    throw( std::invalid_argument( "get_group: invalid group index: " +
-                                  std::to_string( group_index ) ) );
+    throw( std::invalid_argument( "get_group: invalid group index " +
+      std::to_string( group_index ) + " for the " +
+      describe_groups( block , false , false ) ) );
    return( group[ group_index ] );
    }
   if( std::is_base_of_v< Variable , T > ) {
    if( is_static ) {
     const auto & group = block->get_static_variables();
     if( group_index >= group.size() )
-     throw( std::invalid_argument( "get_group: invalid group index: " +
-                                   std::to_string( group_index ) ) );
+     throw( std::invalid_argument( "get_group: invalid group index " +
+       std::to_string( group_index ) + " for the " +
+       describe_groups( block , true , true ) ) );
     return( group[ group_index ] );
     }
    const auto & group = block->get_dynamic_variables();
    if( group_index >= group.size() )
-    throw( std::invalid_argument( "get_group: invalid group index: " +
-                                  std::to_string( group_index ) ) );
+    throw( std::invalid_argument( "get_group: invalid group index " +
+      std::to_string( group_index ) + " for the " +
+      describe_groups( block , false , true ) ) );
    return( group[ group_index ] );
    }
-  throw( std::invalid_argument( "get_group: group not found: " ) );
+  throw( std::invalid_argument( "get_group: group not found in Block [" +
+                                block_breadcrumb( block ) + "]" ) );
   }
 
 /*--------------------------------------------------------------------------*/

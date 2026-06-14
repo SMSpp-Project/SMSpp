@@ -655,14 +655,16 @@ public:
       ( ! group_index_names[ i ].empty() ) ) {
 
    const bool is_static = Node::is_static( node_types[ i ] );
+   const bool is_variable = Node::is_variable( node_types[ i ] );
+   const bool is_constraint = Node::is_constraint( node_types[ i ] );
 
-   if( Node::is_variable( node_types[ i ] ) )
+   if( is_variable )
     if( is_static )
     group_index = block->get_s_var_index( group_index_names[ i ] );
     else
      group_index = block->get_d_var_index( group_index_names[ i ] );
 
-   else if( Node::is_constraint( node_types[ i ] ) )
+   else if( is_constraint )
     if( is_static )
      group_index = block->get_s_const_index( group_index_names[ i ] );
     else
@@ -670,6 +672,26 @@ public:
 
    else
     group_index = static_cast< Index >( std::stoul( group_index_names[ i ] ) );
+
+   // a named Variable/Constraint group lookup returns an index >= the number
+   // of groups when the name is not found: report it here, where the netCDF
+   // quantity name ("PathGroupIndices" entry) is still known, rather than
+   // failing deep inside inspection::get_group() with only a bare index
+   if( ( is_variable || is_constraint ) &&
+       ( group_index >= ( is_variable
+                          ? ( is_static ? block->get_number_static_variables()
+                                        : block->get_number_dynamic_variables() )
+                          : ( is_static ? block->get_number_static_constraints()
+                                        : block->get_number_dynamic_constraints()
+                            ) ) ) )
+    throw( std::invalid_argument(
+     "AbstractPath::get_node: node [" + std::to_string( i ) + "] of type '" +
+     std::string( 1 , node_types[ i ] ) + "' references the " +
+     std::string( is_static ? "static " : "dynamic " ) +
+     ( is_variable ? "Variable" : "Constraint" ) + " group named '" +
+     group_index_names[ i ] + "', but no such group exists among the " +
+     inspection::describe_groups( block , is_static , is_variable ) +
+     ". The path likely points to a quantity that this Block does not define." ) );
   }
   else
    group_index = group_indices[ i ];
