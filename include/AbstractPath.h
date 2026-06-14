@@ -742,38 +742,29 @@ public:
     group_index = Index( std::distance( nested.begin() , it ) );
     }
 
-   else
-    group_index = static_cast< Index >( std::stoul( name ) );
+  else
+    group_index = static_cast< Index >( std::stoul( group_index_names[ i ] ) );
 
-   if( is_variable || is_constraint ) {
-    const Index num_groups = is_variable
-     ? ( is_static ? block->get_number_static_variables()
-                   : block->get_number_dynamic_variables() )
-     : ( is_static ? block->get_number_static_constraints()
-                   : block->get_number_dynamic_constraints() );
-
-    // no group has that name: a decimal name is the index itself, which is
-    // how serialize() writes the unnamed nodes of a path with names
-    if( ( group_index >= num_groups ) && is_decimal( name ) )
-     group_index = static_cast< Index >( std::stoul( name ) );
-
-    // a named Variable/Constraint group lookup returns an index >= the
-    // number of groups when the name is not found: report it here, where
-    // the netCDF quantity name ("PathGroupIndices" entry) is still known,
-    // rather than failing deep inside inspection::get_group() with only a
-    // bare index
-    if( group_index >= num_groups )
-     throw( std::invalid_argument(
-      "AbstractPath::get_node: node [" + std::to_string( i ) + "] of type '"
-      + std::string( 1 , node_types[ i ] ) + "' references the " +
-      std::string( is_static ? "static " : "dynamic " ) +
-      ( is_variable ? "Variable" : "Constraint" ) + " group named '" + name +
-      "', but no such group exists among the " +
-      inspection::describe_groups( block , is_static , is_variable ) +
-      ". The path likely points to a quantity that this Block does not "
-      "define." ) );
-    }
-   }
+   // a named Variable/Constraint group lookup returns an index >= the number
+   // of groups when the name is not found: report it here, where the netCDF
+   // quantity name ("PathGroupIndices" entry) is still known, rather than
+   // failing deep inside inspection::get_group() with only a bare index
+   if( ( is_variable || is_constraint ) &&
+       ( group_index >= ( is_variable
+                          ? ( is_static ? block->get_number_static_variables()
+                                        : block->get_number_dynamic_variables() )
+                          : ( is_static ? block->get_number_static_constraints()
+                                        : block->get_number_dynamic_constraints()
+                            ) ) ) )
+    throw( std::invalid_argument(
+     "AbstractPath::get_node: node [" + std::to_string( i ) + "] of type '" +
+     std::string( 1 , node_types[ i ] ) + "' references the " +
+     std::string( is_static ? "static " : "dynamic " ) +
+     ( is_variable ? "Variable" : "Constraint" ) + " group named '" +
+     group_index_names[ i ] + "', but no such group exists among the " +
+     inspection::describe_groups( block , is_static , is_variable ) +
+     ". The path likely points to a quantity that this Block does not define." ) );
+  }
   else
    group_index = group_indices[ i ];
 
