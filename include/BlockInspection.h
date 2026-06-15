@@ -603,8 +603,12 @@ namespace SMSpp_di_unipi_it::inspection
  /// returns a breadcrumb of the ancestry of \p block, root first
  /** Walks the chain of enclosing Blocks via Block::get_f_Block() and returns a
   * human-readable "root > ... > block" string, where each Block is rendered as
-  * its classname() optionally followed by its name() in quotes. Meant for
-  * diagnostics so that an error can point at *which* Block in the tree it
+  * its classname(), then its index among the nested Blocks of its parent in
+  * square brackets, and finally its name() in quotes (the last two only when
+  * available). The bracketed index is the position used as the suffix of the
+  * netCDF sub-group that stores the Block (e.g. "UnitBlock_3"), so it lets a
+  * diagnostic be matched back to the corresponding group in the file. Meant
+  * for diagnostics so that an error can point at *which* Block in the tree it
   * refers to. */
 
  inline static std::string block_breadcrumb( const Block * block )
@@ -612,6 +616,16 @@ namespace SMSpp_di_unipi_it::inspection
   std::vector< std::string > chain;
   for( const Block * b = block ; b ; b = b->get_f_Block() ) {
    std::string s = b->classname();
+   // index of b among the nested Blocks of its parent, mirroring the suffix
+   // of the netCDF sub-group that stores it (root Block has no parent)
+   if( const Block * p = b->get_f_Block() ) {
+    const auto & siblings = p->get_nested_Blocks();
+    for( Index i = 0 ; i < siblings.size() ; ++i )
+     if( siblings[ i ] == b ) {
+      s += " [" + std::to_string( i ) + "]";
+      break;
+      }
+    }
    if( ! b->name().empty() )
     s += " \"" + b->name() + "\"";
    chain.push_back( std::move( s ) );
