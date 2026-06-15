@@ -603,28 +603,39 @@ namespace SMSpp_di_unipi_it::inspection
  /// returns a breadcrumb of the ancestry of \p block, root first
  /** Walks the chain of enclosing Blocks via Block::get_f_Block() and returns a
   * human-readable "root > ... > block" string, where each Block is rendered as
-  * its classname(), then its index among the nested Blocks of its parent in
-  * square brackets, and finally its name() in quotes (the last two only when
-  * available). The bracketed index is the position used as the suffix of the
-  * netCDF sub-group that stores the Block (e.g. "UnitBlock_3"), so it lets a
-  * diagnostic be matched back to the corresponding group in the file. Meant
-  * for diagnostics so that an error can point at *which* Block in the tree it
-  * refers to. */
+  * its classname(), then its index among the nested Blocks of the Block that
+  * owns it in square brackets, and finally its name() in quotes (the last two
+  * only when available). The bracketed index is the position used as the
+  * suffix of the netCDF sub-group that stores the Block (e.g. "UnitBlock_3"),
+  * so it lets a diagnostic be matched back to the corresponding group in the
+  * file. The owner is normally get_f_Block(), but some Blocks rearrange their
+  * sub-tree at solve time (e.g. TwoStageStochasticBlock uses a StochasticBlock
+  * as a transient "applicator" and holds the per-scenario sub-Blocks itself),
+  * so that the f_Block parent need not be the Block that actually lists b among
+  * its nested Blocks; the index is therefore looked up by walking up the
+  * ancestry until the owning Block is found. Meant for diagnostics so that an
+  * error can point at *which* Block in the tree it refers to. */
 
  inline static std::string block_breadcrumb( const Block * block )
  {
   std::vector< std::string > chain;
   for( const Block * b = block ; b ; b = b->get_f_Block() ) {
    std::string s = b->classname();
-   // index of b among the nested Blocks of its parent, mirroring the suffix
-   // of the netCDF sub-group that stores it (root Block has no parent)
-   if( const Block * p = b->get_f_Block() ) {
-    const auto & siblings = p->get_nested_Blocks();
-    for( Index i = 0 ; i < siblings.size() ; ++i )
-     if( siblings[ i ] == b ) {
+   // index of b among the nested Blocks of the Block that owns it, mirroring
+   // the suffix of the netCDF sub-group that stores it; walk up the ancestry
+   // because under transient applicator states the immediate f_Block parent
+   // may not be the Block that actually holds b (root Block has no parent)
+   for( const Block * a = b->get_f_Block() ; a ; a = a->get_f_Block() ) {
+    const auto & nested = a->get_nested_Blocks();
+    bool found = false;
+    for( Index i = 0 ; i < nested.size() ; ++i )
+     if( nested[ i ] == b ) {
       s += " [" + std::to_string( i ) + "]";
+      found = true;
       break;
       }
+    if( found )
+     break;
     }
    if( ! b->name().empty() )
     s += " \"" + b->name() + "\"";
