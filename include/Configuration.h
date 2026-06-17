@@ -1242,6 +1242,16 @@ template<>
 void SimpleConfiguration< std::pair< Configuration * , Configuration * >
                           >::clear( void );
 
+// the value type is associated with namespace std, so an unqualified
+// operator<< is found by ADL there too; qualify the call to the SMS++ one
+// to stay unambiguous when a std-namespace operator<< for std::pair is in
+// scope (as injected, e.g., by some external libraries' logging headers)
+template<>
+inline void SimpleConfiguration< std::pair< Configuration * , Configuration * >
+ >::print( std::ostream & output ) const {
+ SMSpp_di_unipi_it::operator<<( output , f_value );
+ }
+
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 // std::vector< Configuration * >
 
