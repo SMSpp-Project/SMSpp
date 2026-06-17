@@ -799,6 +799,17 @@ class Configuration
  *
  * thanks to a specific feature of SMSpp_insert_in_factory_cpp. */
 
+// trait used by SimpleConfiguration::print() to detect a std::pair value
+template< typename T >
+struct SimpleConfiguration_is_pair { static constexpr bool value = false; };
+
+template< typename T1 , typename T2 >
+struct SimpleConfiguration_is_pair< std::pair< T1 , T2 > > {
+ static constexpr bool value = true;
+ };
+
+/*--------------------------------------------------------------------------*/
+
 template< class SimpleConfiguration_value_type >
 class SimpleConfiguration : public Configuration
 {
@@ -929,8 +940,19 @@ class SimpleConfiguration : public Configuration
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 
  /// printing out the value of this SimpleConfiguration
+ /** For a std::pair value the call is explicitly qualified to the SMS++
+  * operator<<: the value type is associated with namespace std, so an
+  * unqualified operator<< is also found there by ADL, which is ambiguous
+  * when a std-namespace operator<< for std::pair is in scope (as injected,
+  * e.g., by some external libraries' logging headers). */
 
- void print( std::ostream & output ) const override { output << f_value; }
+ void print( std::ostream & output ) const override {
+  if constexpr( SimpleConfiguration_is_pair<
+                            SimpleConfiguration_value_type >::value )
+   SMSpp_di_unipi_it::operator<<( output , f_value );
+  else
+   output << f_value;
+  }
 
 /*--------------------------------------------------------------------------*/
  /// hook for implementing nonstandard destruction
@@ -1241,16 +1263,6 @@ void SimpleConfiguration< std::pair< Configuration * , Configuration * >
 template<>
 void SimpleConfiguration< std::pair< Configuration * , Configuration * >
                           >::clear( void );
-
-// the value type is associated with namespace std, so an unqualified
-// operator<< is found by ADL there too; qualify the call to the SMS++ one
-// to stay unambiguous when a std-namespace operator<< for std::pair is in
-// scope (as injected, e.g., by some external libraries' logging headers)
-template<>
-inline void SimpleConfiguration< std::pair< Configuration * , Configuration * >
- >::print( std::ostream & output ) const {
- SMSpp_di_unipi_it::operator<<( output , f_value );
- }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 // std::vector< Configuration * >
