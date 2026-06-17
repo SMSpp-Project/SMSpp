@@ -144,6 +144,92 @@ class ChangeSolver : public virtual Solver {
  };  // end( class( ChangeSolver ) )
 
 /*--------------------------------------------------------------------------*/
+/*----------------------- CLASS GlobalInformation --------------------------*/
+/*--------------------------------------------------------------------------*/
+/// the search-global information an enumerative Solver shares with relaxations
+/** The information that is global to a whole Branch-and-X search and that the
+ * enumerative Solver makes available to each :RelaxationSolver it drives [see
+ * RelaxationSolver::set_global_information()], so that the latter can do
+ * preprocessing, reduced-cost fixing or cut / column management on its own
+ * terms inside compute() / branch() rather than through an externally driven
+ * protocol. It carries the incumbent - the value of the best feasible
+ * solution found so far, the natural cutoff for reduced-cost arguments - and,
+ * optionally, the globally-valid cuts (and, in perspective, columns).
+ * Information local to a node, i.e. fixings valid only in a subtree, travels
+ * in the branching Change instead, not here. */
+
+class GlobalInformation {
+
+ public:
+
+ GlobalInformation( void ) : f_incumbent( nullptr ) ,
+                             f_local_fixing_allowed( true ) {}
+
+ /// destructor: deletes the owned global cuts
+ virtual ~GlobalInformation() {
+  for( auto cut : f_global_cuts )
+   delete cut;
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// bind the incumbent to the enumerative Solver's live best-bound cell
+ /** The enumerative Solver calls this once, passing (the address of) the cell
+  * where it keeps the value of its best feasible solution: the incumbent is
+  * then read live through it, with no need to push every update here. */
+
+ void bind_incumbent( const Solver::OFValue * cell ) { f_incumbent = cell; }
+
+ /// whether a feasible incumbent is available
+ [[nodiscard]] bool has_incumbent( void ) const {
+  return( f_incumbent && ( *f_incumbent != Inf< Solver::OFValue >() ) &&
+                         ( *f_incumbent != - Inf< Solver::OFValue >() ) );
+  }
+
+ /// the value of the incumbent, in the natural sense of the original problem
+ /** Only meaningful if has_incumbent() is true. It may be read out of any
+  * lock by a :RelaxationSolver - a slightly stale value only makes a
+  * reduced-cost fixing marginally less aggressive, never wrong - as the
+  * enumerative Solver updates the bound cell under its own incumbent lock. */
+ [[nodiscard]] Solver::OFValue incumbent( void ) const {
+  return( *f_incumbent );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// whether incumbent-dependent local fixing is currently allowed
+ /** Reduced-cost fixing folded into the branching Change is valid only for
+  * the incumbent in force when the Change is generated: it is sound within a
+  * single solve, where the incumbent only improves, but not when the
+  * enumerative Solver retains the tree across re-solves with different
+  * incumbents [see intReoptimize]. The Solver clears this flag in that case,
+  * and a :RelaxationSolver must then skip such fixings; it is set by default. */
+
+ [[nodiscard]] bool local_fixing_allowed( void ) const {
+  return( f_local_fixing_allowed );
+  }
+
+ /// allow or forbid incumbent-dependent local fixing [see local_fixing_allowed]
+ void set_local_fixing_allowed( bool a ) { f_local_fixing_allowed = a; }
+
+/*--------------------------------------------------------------------------*/
+ /// the globally-valid cuts known so far (valid in every node of the tree)
+ [[nodiscard]] const std::vector< Change * > & global_cuts( void ) const {
+  return( f_global_cuts );
+  }
+
+ /// contribute a globally-valid cut (ownership is taken by this object)
+ void add_global_cut( Change * cut ) { f_global_cuts.push_back( cut ); }
+
+/*--------------------------------------------------------------------------*/
+
+ protected:
+
+ const Solver::OFValue * f_incumbent;    ///< the live incumbent cell, or null
+ bool f_local_fixing_allowed;            ///< incumbent-dependent fixing OK?
+ std::vector< Change * > f_global_cuts;  ///< the globally-valid cuts, owned
+
+ };  // end( class( GlobalInformation ) )
+
+/*--------------------------------------------------------------------------*/
 /*----------------------- CLASS RelaxationSolver ---------------------------*/
 /*--------------------------------------------------------------------------*/
 /// a ChangeSolver solving a relaxation, able to branch()
@@ -228,26 +314,20 @@ class RelaxationSolver : public virtual ChangeSolver {
   }
 
 /*--------------------------------------------------------------------------*/
- /// separate: produce Changes that tighten the relaxation
- /** The cutting half of Branch-and-X. Called after compute(), the method
-  * returns Changes that tighten this relaxation while provably not cutting
-  * off any solution of the TRUE problem that improves upon \p cutoff (the
-  * value of the incumbent, in the natural sense of the original problem):
-  * typical examples are violated valid inequalities of the true problem
-  * or, for relaxations with no explicit row machinery, reduced-cost
-  * fixings of the variables. The caller (the enumerative Solver) applies
-  * them like any other Change [see apply()], composing the undos so that
-  * locally-valid tightenings are removed when leaving the subtree; cuts
-  * separated at the root are de-facto global. The default implementation
-  * separates nothing.
-  *
-  * The pricing half of Branch-and-X is the exact symmetric of this
-  * protocol - Changes that EXTEND a restricted formulation with improving
-  * columns - and will join it as a price() method when a column-structured
-  * :Block provides the first concrete implementation. */
+ /// give the Solver access to the search-global information
+ /** Called by the enumerative Solver before driving this one: it hands a
+  * (non-owned) GlobalInformation [see], through which the Solver can read the
+  * incumbent and consult or contribute the global cuts and columns. This is
+  * how a relaxation gets the global data it needs for the tightenings it may
+  * choose to do on its own terms inside compute() / branch() - preprocessing,
+  * reduced-cost fixing, cut and column management - without any externally
+  * driven protocol: those are internal details of the Solver, and the ones
+  * local to a node are folded into the branching Change [see branch()], while
+  * the global ones live in the GlobalInformation. nullptr means none is
+  * available. */
 
- [[nodiscard]] virtual std::vector< Change * > separate( double cutoff ) {
-  return( std::vector< Change * >() );
+ virtual void set_global_information( GlobalInformation * gi ) {
+  f_global_information = gi;
   }
 
 /*--------------------------------------------------------------------------*/
@@ -340,6 +420,15 @@ class RelaxationSolver : public virtual ChangeSolver {
   f_Block->unlock( this );
   return( sol );
   }
+
+/*--------------------------------------------------------------------------*/
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ protected:
+
+ /// the search-global information, nullptr if none [see set_global_information]
+ GlobalInformation * f_global_information = nullptr;
 
 /*--------------------------------------------------------------------------*/
 
