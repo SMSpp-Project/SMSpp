@@ -85,7 +85,7 @@ FetchContent_Populate(fastflow)
 # come from <pthread.h>/<time.h>; on Windows we inject a minimal implementation
 # into the fetched header at configure time. The edit is idempotent (guarded by
 # the FF_SMSPP_WIN_COMPAT marker) and mirrors the configure-time header shimming
-# we already do for LEMON in LEMONSolver/CMakeLists.txt. Note: NOMINMAX and
+# we already do for LEMON in MCFLemonSolver/CMakeLists.txt. Note: NOMINMAX and
 # /Zc:__cplusplus (set in the top-level CMakeSettings.txt) are also required to
 # build FastFlow with MSVC.
 if (MSVC)
