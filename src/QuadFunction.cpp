@@ -23,6 +23,8 @@
 
 #include "QuadFunction.h"
 
+#include <algorithm>
+
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -48,6 +50,134 @@ int QuadFunction::compute( bool changedvars ) {
  }
  return( kOK );
 }
+
+/*--------------------------------------------------------------------------*/
+
+std::vector< Function::FunctionValue > QuadFunction::offdiagonal_gradient(
+								       void )
+{
+ // og[ i ] = sum_{j != i} q_ij x_j = ( ( mat_nd + mat_nd^T ) x )_i, with
+ // mat_nd holding the (off-diagonal) lower half; each stored entry ( r , c )
+ // contributes symmetrically to both row r and row c
+
+ std::vector< FunctionValue > og( DQuadFunction::get_num_active_var() , 0 );
+
+ for( int k = 0 ; k < mat_nd.outerSize() ; ++k )
+  for( Qmat::InnerIterator it( mat_nd , k ) ; it ; ++it ) {
+   auto r = it.row() , c = it.col();
+   auto q = it.value();
+   auto xr = std::get< 0 >( v_triples[ r ] )->get_value();
+   auto xc = std::get< 0 >( v_triples[ c ] )->get_value();
+   og[ r ] += q * xc;
+   if( r != c )
+    og[ c ] += q * xr;
+   }
+
+ return( og );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void QuadFunction::get_linearization_coefficients( FunctionValue * g ,
+						   Range range , Index name )
+{
+ range.second = std::min( range.second , DQuadFunction::get_num_active_var() );
+ if( range.second <= range.first )
+  return;
+
+ // diagonal + linear part, then add the off-diagonal contribution
+ DQuadFunction::get_linearization_coefficients( g , range , name );
+
+ auto og = offdiagonal_gradient();
+ for( Index i = range.first ; i < range.second ; ++i )
+  *(g++) += og[ i ];
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void QuadFunction::get_linearization_coefficients( SparseVector & g ,
+						   Range range , Index name )
+{
+ Index nav = DQuadFunction::get_num_active_var();
+ range.second = std::min( range.second , nav );
+ if( range.second <= range.first )
+  return;
+
+ auto og = offdiagonal_gradient();
+
+ if( g.nonZeros() == 0 ) {
+  if( g.size() < nav )
+   g.resize( nav );
+  g.reserve( range.second - range.first );
+  for( Index i = range.first ; i < range.second ; ++i ) {
+   FunctionValue gi = get_linearization_coefficient( i ) + og[ i ];
+   if( gi )
+    g.insert( i ) = gi;
+   }
+  }
+ else {
+  if( g.size() != nav )
+   throw( std::invalid_argument( "QuadFunction::get_linearization_"
+				 "coefficients: wrong size of nonempty "
+				 "SparseVector g" ) );
+  for( Index i = range.first ; i < range.second ; ++i )
+   g.coeffRef( i ) = get_linearization_coefficient( i ) + og[ i ];
+  g.prune( 0 , 0 );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void QuadFunction::get_linearization_coefficients( FunctionValue * g ,
+						   c_Subset & subset ,
+						   const bool ordered ,
+						   Index name )
+{
+ // diagonal + linear part (also validates the indices), then off-diagonal
+ DQuadFunction::get_linearization_coefficients( g , subset , ordered , name );
+
+ auto og = offdiagonal_gradient();
+ for( const auto & i : subset )
+  *(g++) += og[ i ];
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void QuadFunction::get_linearization_coefficients( SparseVector & g ,
+						   c_Subset & subset ,
+						   const bool ordered ,
+						   Index name )
+{
+ Index nav = DQuadFunction::get_num_active_var();
+ auto og = offdiagonal_gradient();
+
+ if( g.nonZeros() == 0 ) {
+  if( g.size() < nav )
+   g.resize( nav );
+  g.reserve( subset.size() );
+  for( const auto & i : subset ) {
+   if( i >= nav )
+    throw( std::invalid_argument( "QuadFunction::get_linearization_"
+				  "coefficients: wrong index in subset" ) );
+   FunctionValue gi = get_linearization_coefficient( i ) + og[ i ];
+   if( gi )
+    g.insert( i ) = gi;
+   }
+  }
+ else {
+  if( g.size() != nav )
+   throw( std::invalid_argument( "QuadFunction::get_linearization_"
+				 "coefficients: wrong size of nonempty "
+				 "SparseVector g" ) );
+  for( const auto & i : subset ) {
+   if( i >= nav )
+    throw( std::invalid_argument( "QuadFunction::get_linearization_"
+				  "coefficients: wrong index in subset" ) );
+   g.coeffRef( i ) = get_linearization_coefficient( i ) + og[ i ];
+   }
+  g.prune( 0 , 0 );
+  }
+ }
 
 /*--------------------------------------------------------------------------*/
 
