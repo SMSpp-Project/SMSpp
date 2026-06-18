@@ -725,7 +725,17 @@ void RBlockSolverConfig::serialize( netCDF::NcGroup & group ) const
  auto sub_Block_id_var = group.addVar( "sub-Block-id" , netCDF::NcString(),
                                        { sub_Block_id_dim } );
 
- sub_Block_id_var.putVar( v_sub_Block_id.data() );
+ // a netCDF NcString variable is backed by variable-length strings, so
+ // putVar() expects an array of C-strings (char **): passing the std::string
+ // objects directly (v_sub_Block_id.data()) would make the netCDF/HDF5 layer
+ // read their internal representation as char * and crash. Build the array of
+ // C-string pointers explicitly, mirroring the deserialize() side that reads
+ // into a std::vector< char * >.
+ std::vector< const char * > sub_Block_id_cstr( v_sub_Block_id.size() );
+ for( size_t i = 0 ; i < v_sub_Block_id.size() ; ++i )
+  sub_Block_id_cstr[ i ] = v_sub_Block_id[ i ].c_str();
+
+ sub_Block_id_var.putVar( sub_Block_id_cstr.data() );
 
  }  // end( RBlockSolverConfig::serialize( group ) )
 

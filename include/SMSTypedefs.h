@@ -2462,6 +2462,26 @@ serialize( netCDF::NcGroup & group , const std::string & name ,
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// serialize a single (scalar) std::string into a netCDF NcGroup
+/** Specialization of the scalar serialize() for std::string. A netCDF
+ * NcString variable is backed by a variable-length string, so putVar()
+ * expects (the address of) an array of C-strings, i.e. a char ** : the
+ * netCDF/HDF5 layer dereferences the buffer as a char * and then calls
+ * strlen() on it. The generic template above would instead pass the address
+ * of the std::string object itself, so HDF5 would read the first bytes of the
+ * std::string's internal representation as a char * and crash. This overload
+ * (preferred over the template for std::string arguments) passes the address
+ * of the C-string pointer, mirroring the deserialize( group , std::string & )
+ * overload that reads via a char ** as well. */
+
+inline void
+serialize( netCDF::NcGroup & group , const std::string & name ,
+           const netCDF::NcType & ncType , const std::string & data ) {
+ const char * c_str = data.c_str();
+ ( group.addVar( name , ncType ) ).putVar( &c_str );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// serialize a single (scalar) variable into a netCDF NcGroup
 /** Serialize a "simple" value, one for which NcGroup::putVar() is defined,
  * out of \p data and into of the variable with name \p name of the given
