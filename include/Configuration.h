@@ -938,7 +938,7 @@ class SimpleConfiguration : public Configuration
   * e.g., by some external libraries' logging headers). */
 
  void print( std::ostream & output ) const override {
-  if constexpr( is_pair< SimpleConfiguration_value_type >::value )
+  if constexpr( is_std_pair< SimpleConfiguration_value_type >::value )
    SMSpp_di_unipi_it::operator<<( output , f_value );
   else
    output << f_value;
