@@ -2044,6 +2044,31 @@ operator<<( std::ostream & os , const std::pair< T1 , T2 > & p ) {
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+/* Trait detecting a std::pair, used to disambiguate its printing below and by
+ * SimpleConfiguration::print(). */
+
+template< typename T >
+struct is_pair { static constexpr bool value = false; };
+
+template< typename T1 , typename T2 >
+struct is_pair< std::pair< T1 , T2 > > { static constexpr bool value = true; };
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+/* Output a single element of a container. A std::pair value is associated with
+ * namespace std, so an unqualified operator<< is found there by ADL too; for a
+ * std::pair the call is qualified to the SMS++ operator<< above to stay
+ * unambiguous when a std-namespace operator<< for std::pair is in scope (as
+ * injected, e.g., by some external libraries' logging headers). */
+
+template< typename T >
+std::ostream & out_el( std::ostream & os , const T & x ) {
+ if constexpr( is_pair< T >::value )
+  return( SMSpp_di_unipi_it::operator<<( os , x ) );
+ else
+  return( os << x );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 template< typename T , std::size_t K >
 std::ostream & operator<<( std::ostream & os ,
@@ -2057,7 +2082,7 @@ std::ostream & operator<<( std::ostream & os ,
    if( ++k < K )
     os << ", ";
    }
-  os << " ] = " << *p << std::endl;
+  out_el( os << " ] = " , *p ) << std::endl;
  }
 
  return( os );
@@ -2089,7 +2114,7 @@ std::ostream & operator<<( std::ostream & os ,
 template< typename T >
 std::ostream & operator<<( std::ostream & os , const std::vector< T > & l ) {
  for( unsigned int i = 0 ; i < l.size() ; ++i )
-  os << "[ " << i << " ] = " << l[ i ] << std::endl;
+  out_el( os << "[ " << i << " ] = " , l[ i ] ) << std::endl;
 
  return( os );
  }
@@ -2110,7 +2135,7 @@ template< typename T >
 std::ostream & operator<<( std::ostream & os , const std::list< T > & l ) {
  auto it = l.begin();
  for( unsigned int i = 0 ; i < l.size() ; ++i , ++it )
-  os << i << " ) = " << *it;
+  out_el( os << i << " ) = " , *it );
 
  return( os );
  }
