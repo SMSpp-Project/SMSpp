@@ -732,10 +732,19 @@ void SimpleConfiguration< std::map< std::string , Configuration * >
    }
   }
 
+ // a netCDF NcString variable is backed by variable-length strings, so
+ // putVar() expects an array of C-strings (char **): passing the std::string
+ // objects directly (tmp.data()) would make the netCDF/HDF5 layer read their
+ // internal representation as char * and crash. Build the array of C-string
+ // pointers explicitly.
+ std::vector< const char * > tmp_cstr( tmp.size() );
+ for( size_t k = 0 ; k < tmp.size() ; ++k )
+  tmp_cstr[ k ] = tmp[ k ].c_str();
+
  std::vector< size_t > startp = { 0 };
  std::vector< size_t > countp = { f_value.size() };
  ( group.addVar( "keys" , netCDF::NcString() , sz )
-   ).putVar( startp , countp , tmp.data() );
+   ).putVar( startp , countp , tmp_cstr.data() );
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */

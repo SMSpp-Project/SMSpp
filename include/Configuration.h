@@ -799,15 +799,6 @@ class Configuration
  *
  * thanks to a specific feature of SMSpp_insert_in_factory_cpp. */
 
-// trait used by SimpleConfiguration::print() to detect a std::pair value
-template< typename T >
-struct SimpleConfiguration_is_pair { static constexpr bool value = false; };
-
-template< typename T1 , typename T2 >
-struct SimpleConfiguration_is_pair< std::pair< T1 , T2 > > {
- static constexpr bool value = true;
- };
-
 /*--------------------------------------------------------------------------*/
 
 template< class SimpleConfiguration_value_type >
@@ -947,8 +938,7 @@ class SimpleConfiguration : public Configuration
   * e.g., by some external libraries' logging headers). */
 
  void print( std::ostream & output ) const override {
-  if constexpr( SimpleConfiguration_is_pair<
-                            SimpleConfiguration_value_type >::value )
+  if constexpr( is_std_pair< SimpleConfiguration_value_type >::value )
    SMSpp_di_unipi_it::operator<<( output , f_value );
   else
    output << f_value;

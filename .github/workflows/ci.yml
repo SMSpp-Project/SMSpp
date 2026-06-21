@@ -1,0 +1,33 @@
+# CI for the SMS++ core library on GitHub, mirroring its .gitlab-ci.yml.
+#
+# Unlike the other modules (whose CI clones the umbrella and selects tests by
+# label), the core is self-contained: it is configured, built and tested
+# standalone, exactly as on GitLab. It runs inside the prebuilt image
+# ghcr.io/smspp-project/smspp-project (the same dependencies as the GitLab CI,
+# produced by .github/workflows/docker-image.yml in the umbrella).
+
+name: CI
+
+on:
+  push:
+    branches: [develop, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/smspp-project/smspp-project:latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+
+      - name: Build
+        run: cmake --build build -- -j$(nproc)
+
+      - name: Test
+        run: ctest --test-dir build -V -C Release --no-tests=error
