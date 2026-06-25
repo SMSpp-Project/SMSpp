@@ -45,6 +45,8 @@
 
 #include "Solution.h"
 
+#include <limits>      // for std::numeric_limits, used by gpool_el::value
+
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -430,9 +432,35 @@ class LagBFunction : public C05Function , public Block {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// an element of the global pool
- /** An element of the global pool ia a Solution equipped with a boolean
-  * which defines the type of linearization (diagonal, vertical) */
- using gpool_el = std::pair< p_Solution , bool >;
+ /** An element of the global pool: the Solution, plus
+  * - varsol     : the type of linearization it yields (true = a point /
+  *                "diagonal" linearization, false = a direction / "vertical"
+  *                one); this is the boolean that used to be the pair's
+  *                .second;
+  * - convexified: true iff the entry is an epigraphic convex-combination
+  *                point (the materialised "important"/aggregated
+  *                linearization) rather than a genuine subproblem solution;
+  * - value      : a CORRECTION to be ADDED to the linearization constant that
+  *                get_linearization_constant() obtains by re-evaluating the
+  *                objective at the stored point. For an original entry this is
+  *                0 (re-evaluating gives the exact f( x* )). For a convexified
+  *                entry, re-evaluating gives f( conv ) -- the DOMAIN value --
+  *                which is WRONG (see "THE VALUE OF A LINEARIZATION ..." in
+  *                the .cpp); value then holds the fixed EPIGRAPHIC correction
+  *                  delta_na := sum_k lambda_k f( x_k ) - f( conv )
+  *                so that f( conv ) + value = sum_k lambda_k f( x_k ), the
+  *                correct epigraphic constant. delta_na is cost-INDEPENDENT
+  *                (it is the non-affine gap), so it survives affine cost
+  *                changes; a non-affine change invalidates it and the entry is
+  *                deleted. (Future option: store the epigraphic value itself
+  *                and maintain it eagerly to avoid re-evaluating f( conv ).)
+  * The field order keeps  gpool_el{ sol , varsol }  working as before. */
+ struct gpool_el {
+  p_Solution sol         = nullptr;
+  bool       varsol      = false;
+  bool       convexified = false;
+  double     value       = 0;
+  };
 
  /// a global pool (a vector of gpool_el)
  using v_gpool_el = std::vector< gpool_el >;
@@ -1335,11 +1363,11 @@ class LagBFunction : public C05Function , public Block {
  void global_pool_to_block( Index i ) {
   if( NoSol )
    throw( std::invalid_argument( "LagBFunction: Solution not stored" ) );
-  if( ( i >= f_max_glob ) || ( !  g_pool[ i ].first ) )
+  if( ( i >= f_max_glob ) || ( !  g_pool[ i ].sol ) )
    throw( std::invalid_argument( "global_pool_to_block: invalid index" ) );
   if( i == LastSolution )  // already there
    return;                 // nothing to do
-  g_pool[ i ].first->write( v_Block.front() );
+  g_pool[ i ].sol->write( v_Block.front() );
   LastSolution = i;  // and recall what's there
   }
 
@@ -1422,6 +1450,29 @@ class LagBFunction : public C05Function , public Block {
 
  void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override;
 
+/*--------------------------------------------------------------------------*/
+ /// the LagBFunction "is always listening"
+ /** In principle, a Block "is listening" only if some Solver is registered to
+  * it or to one of its ancestors (cf. Block::anyone_there()). However, a
+  * LagBFunction uses the Modification issued by its inner Block to keep its own
+  * data structures up to date (the CostMatrix that stores the original costs,
+  * and the global pool of linearizations), *independently* of whether some
+  * Observer is "listening" to the LagBFunction. For this to happen, those
+  * Modification must be issued by the inner Block (and its Function) even when
+  * no Solver is (yet) registered to the LagBFunction: a typical case is the
+  * cost of the inner Block being changed (by whatever external agent owns it)
+  * while the LagBFunction is still being constructed, before any Solver is
+  * attached to it. To force this, the LagBFunction "is always listening", much
+  * like FRealObjective and FRowConstraint do for the Function they contain.
+  * This may cause some Modification to be issued even if no-one external is
+  * listening, but that is a (minor) price for correctness. Note that this only
+  * concerns the Modification produced by the inner Block: the Modification that
+  * the LagBFunction itself produces (as a Function) still depend on the
+  * anyone_there() of its own Observer, so that the day a finer mechanism
+  * replaces this one, that case will still behave correctly. */
+
+ [[nodiscard]] bool anyone_there( void ) const override { return( true ); }
+
 /** @} ---------------------------------------------------------------------*/
 /*---------- METHODS FOR PRINING/SAVING THE DATA OF THE LagBFunction -------*/
 /*--------------------------------------------------------------------------*/
@@ -1468,7 +1519,7 @@ class LagBFunction : public C05Function , public Block {
   if( name >= g_pool.size() )
    throw( std::invalid_argument(
        "LagBFunction::is_linearization_there: invalid linearization name" ) );
-  return( g_pool[ name ].first );
+  return( g_pool[ name ].sol );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1477,7 +1528,7 @@ class LagBFunction : public C05Function , public Block {
   if( name >= g_pool.size() )
    throw( std::invalid_argument(
      "LagBFunction::is_linearization_vertical:invalid linearization name" ) );
-  return( ! g_pool[ name ].second );
+  return( ! g_pool[ name ].varsol );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -2491,7 +2542,7 @@ class LagBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 
  void update_f_max_glob( void ) {
-  while( f_max_glob && ( ! g_pool[ f_max_glob - 1 ].first ) )
+  while( f_max_glob && ( ! g_pool[ f_max_glob - 1 ].sol ) )
    --f_max_glob;
   }
 
@@ -2561,17 +2612,17 @@ class LagBFunction : public C05Function , public Block {
 
  v_gpool_el g_pool;     ///< the global pool
                         /**< g_pool has the size of the global pool;
-			 * g_pool[ i ].first is (a pointer to) the Solution
+			 * g_pool[ i ].sol is (a pointer to) the Solution
  * corresponding to the i-th linearization of the global pool, or nullptr
- * if there is no such linearization, while g_pool[ i ].second is a bool
+ * if there is no such linearization, while g_pool[ i ].varsol is a bool
  * telling if the linearization is diagonal. If NoSol == true,
- * g_pool[ i ].first contains "any" non-nullptr when the linearization is
+ * g_pool[ i ].sol contains "any" non-nullptr when the linearization is
  * there. */
 
  Index f_max_glob;      ///< 1 + maximum active name in the global pool
                         /**< f_max_glob is strictly larger than the maximum
-			 * index h such that g_pool[ h ].first != nullptr,
-  * i.e., g_pool[ f_max_glob ].first == nullptr while
+			 * index h such that g_pool[ h ].sol != nullptr,
+  * i.e., g_pool[ f_max_glob ].sol == nullptr while
   * g_pool[ f_max_glob - 1 ] != nullptr. Note that one should never check
   * g_pool[ f_max_glob ], as f_max_glob == g_pool.size() may happen (in
   * particular when g_pool.empty() and f_max_glob == 0). */
@@ -2872,11 +2923,11 @@ class LagBFunctionState : public State {
    g_pool.resize( f_max_glob );
    auto gpit = lbf->g_pool.begin();
    for( auto & el : g_pool ) {
-    if( gpit->first )
-     el.first = gpit->first->clone();
+    if( gpit->sol )
+     el.sol = gpit->sol->clone();
     else
-     el.first = nullptr;
-    el.second = gpit->second;
+     el.sol = nullptr;
+    el.varsol = gpit->varsol;
     ++gpit;
     }
    }
@@ -2895,7 +2946,7 @@ class LagBFunctionState : public State {
 
  virtual ~LagBFunctionState() {
   for( auto el : g_pool )
-   delete el.first;
+   delete el.sol;
   }
 
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF A LagBFunctionState ---------*/
