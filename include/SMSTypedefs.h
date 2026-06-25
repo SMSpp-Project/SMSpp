@@ -2044,6 +2044,31 @@ operator<<( std::ostream & os , const std::pair< T1 , T2 > & p ) {
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+/* Trait detecting a std::pair, used to disambiguate its printing below and by
+ * SimpleConfiguration::print(). */
+
+template< typename T >
+struct is_std_pair { static constexpr bool value = false; };
+
+template< typename T1 , typename T2 >
+struct is_std_pair< std::pair< T1 , T2 > > { static constexpr bool value = true; };
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+/* Output a single element of a container. A std::pair value is associated with
+ * namespace std, so an unqualified operator<< is found there by ADL too; for a
+ * std::pair the call is qualified to the SMS++ operator<< above to stay
+ * unambiguous when a std-namespace operator<< for std::pair is in scope (as
+ * injected, e.g., by some external libraries' logging headers). */
+
+template< typename T >
+std::ostream & out_el( std::ostream & os , const T & x ) {
+ if constexpr( is_std_pair< T >::value )
+  return( SMSpp_di_unipi_it::operator<<( os , x ) );
+ else
+  return( os << x );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 template< typename T , std::size_t K >
 std::ostream & operator<<( std::ostream & os ,
@@ -2057,7 +2082,7 @@ std::ostream & operator<<( std::ostream & os ,
    if( ++k < K )
     os << ", ";
    }
-  os << " ] = " << *p << std::endl;
+  out_el( os << " ] = " , *p ) << std::endl;
  }
 
  return( os );
@@ -2078,7 +2103,7 @@ std::ostream & operator<<( std::ostream & os ,
    if( ++k < K )
     os << ", ";
    }
-  os << " ] = " << **p << std::endl;
+  out_el( os << " ] = " , **p ) << std::endl;
   }
 
  return( os );
@@ -2089,7 +2114,7 @@ std::ostream & operator<<( std::ostream & os ,
 template< typename T >
 std::ostream & operator<<( std::ostream & os , const std::vector< T > & l ) {
  for( unsigned int i = 0 ; i < l.size() ; ++i )
-  os << "[ " << i << " ] = " << l[ i ] << std::endl;
+  out_el( os << "[ " << i << " ] = " , l[ i ] ) << std::endl;
 
  return( os );
  }
@@ -2099,7 +2124,7 @@ std::ostream & operator<<( std::ostream & os , const std::vector< T > & l ) {
 template< typename T >
 std::ostream & operator<<( std::ostream & os , const std::vector< T * > & l ) {
  for( unsigned int i = 0 ; i < l.size() ; ++i )
-  os << "[ " << i << " ] = " << *l[ i ] << std::endl;
+  out_el( os << "[ " << i << " ] = " , *l[ i ] ) << std::endl;
 
  return( os );
  }
@@ -2110,7 +2135,7 @@ template< typename T >
 std::ostream & operator<<( std::ostream & os , const std::list< T > & l ) {
  auto it = l.begin();
  for( unsigned int i = 0 ; i < l.size() ; ++i , ++it )
-  os << i << " ) = " << *it;
+  out_el( os << i << " ) = " , *it );
 
  return( os );
  }
@@ -2121,7 +2146,7 @@ template< typename T >
 std::ostream & operator<<( std::ostream & os , const std::list< T * > & l ) {
  auto it = l.begin();
  for( unsigned int i = 0 ; i < l.size() ; ++i , ++it )
-  os << i << " ) = " << **it;
+  out_el( os << i << " ) = " , **it );
 
  return( os );
  }
@@ -2459,6 +2484,26 @@ std::enable_if_t< is_netCDF_type_v< T > , void >
 serialize( netCDF::NcGroup & group , const std::string & name ,
            const netCDF::NcType & ncType , const T & data ) {
  ( group.addVar( name , ncType ) ).putVar( &data );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// serialize a single (scalar) std::string into a netCDF NcGroup
+/** Specialization of the scalar serialize() for std::string. A netCDF
+ * NcString variable is backed by a variable-length string, so putVar()
+ * expects (the address of) an array of C-strings, i.e. a char ** : the
+ * netCDF/HDF5 layer dereferences the buffer as a char * and then calls
+ * strlen() on it. The generic template above would instead pass the address
+ * of the std::string object itself, so HDF5 would read the first bytes of the
+ * std::string's internal representation as a char * and crash. This overload
+ * (preferred over the template for std::string arguments) passes the address
+ * of the C-string pointer, mirroring the deserialize( group , std::string & )
+ * overload that reads via a char ** as well. */
+
+inline void
+serialize( netCDF::NcGroup & group , const std::string & name ,
+           const netCDF::NcType & ncType , const std::string & data ) {
+ const char * c_str = data.c_str();
+ ( group.addVar( name , ncType ) ).putVar( &c_str );
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/

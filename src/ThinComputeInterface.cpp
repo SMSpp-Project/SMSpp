@@ -488,8 +488,17 @@ void ComputeConfig::serialize( netCDF::NcGroup & group ) const
   for( auto & el : vstr_pars )
    tit = std::copy( el.second.begin() , el.second.end() , tit );
 
+  // a netCDF NcString variable is backed by variable-length strings, so
+  // putVar() expects an array of C-strings (char **): passing the std::string
+  // objects directly (tmp.data()) would make the netCDF/HDF5 layer read their
+  // internal representation as char * and crash. Build the array of C-string
+  // pointers explicitly.
+  std::vector< const char * > tmp_cstr( tmp.size() );
+  for( size_t i = 0 ; i < tmp.size() ; ++i )
+   tmp_cstr[ i ] = tmp[ i ].c_str();
+
   ( group.addVar( "v_str_par_vals" , netCDF::NcString() , tot ) ).putVar(
-							       tmp.data() ); 
+							       tmp_cstr.data() );
   }
 
  // "extra" Configuration - - - - - - - - - - - - - - - - - - - - - - - - - -

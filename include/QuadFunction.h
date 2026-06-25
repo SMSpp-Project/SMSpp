@@ -310,6 +310,37 @@ class QuadFunction : public DQuadFunction {
  void get_hessian_approximation( SparseHessian & hessian ) const override;
 
 /*--------------------------------------------------------------------------*/
+ /// the gradient of the QuadFunction at the current point
+ /** QuadFunction must override the get_linearization_coefficients() inherited
+  * from DQuadFunction, which only account for the diagonal + linear part of
+  * the gradient ( 2 a_i x_i + b_i ), to add the off-diagonal contribution: the
+  * gradient of f( x ) = c + sum_i ( a_i x_i^2 + b_i x_i ) + sum_{i>j} q_ij x_i
+  * x_j has i-th entry 2 a_i x_i + b_i + sum_{j != i} q_ij x_j, the last term
+  * being ( mat_nd + mat_nd^T ) x. Without this override the gradient (the
+  * "diagonal linearization") of a QuadFunction with off-diagonal terms would
+  * be wrong, breaking any C05Function user relying on it. */
+
+ void get_linearization_coefficients( FunctionValue * g ,
+				      Range range = INFRange ,
+				      Index name = Inf< Index >() ) override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ void get_linearization_coefficients( SparseVector & g ,
+				      Range range = INFRange ,
+				      Index name = Inf< Index >() ) override;
+
+/*--------------------------------------------------------------------------*/
+
+ void get_linearization_coefficients( FunctionValue * g , c_Subset & subset ,
+				      const bool ordered = false ,
+				      Index name = Inf< Index >() ) override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ void get_linearization_coefficients( SparseVector & g , c_Subset & subset ,
+				      const bool ordered = false ,
+				      Index name = Inf< Index >() ) override;
 
 /*--------------------------------------------------------------------------*/
  /// returns the linearization constant of the current point
@@ -504,6 +535,13 @@ class QuadFunction : public DQuadFunction {
 /*--------------------------------------------------------------------------*/
 
  private:
+
+ /// the off-diagonal contribution ( mat_nd + mat_nd^T ) x to the gradient
+ /** Returns a dense vector of size get_num_active_var() whose i-th entry is
+  * sum_{j != i} q_ij x_j, i.e. the off-diagonal part of the gradient at the
+  * current point; used by the get_linearization_coefficients() overrides. */
+
+ std::vector< FunctionValue > offdiagonal_gradient( void );
 
   /**
   * The following are internal flags to remember what kind of function we are dealing
