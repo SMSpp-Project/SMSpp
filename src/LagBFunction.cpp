@@ -189,7 +189,7 @@ void LagBFunction::clear( void )
  // Solver attached to it should have been done with long ago
  if( ! NoSol )  // ... if there is anything to delete
   for( Index i = 0 ; i < f_max_glob ; ++i )
-   delete g_pool[ i ].first;
+   delete g_pool[ i ].sol;
  g_pool.clear();
  f_max_glob = 0;
  f_yb = -INF;  // since b is empty, there are no nonzeros
@@ -496,7 +496,7 @@ void LagBFunction::set_par( idx_type par , int value )
    if( g_pool.size() > Index( value ) ) {
     if( ! NoSol )  // ... if there are Solution a all
      for( auto it = g_pool.begin() + value ; it != g_pool.end() ; ++it  )
-      delete it->first;
+      delete it->sol;
 
     if( f_max_glob > Index( value ) ) {
      f_max_glob = value;
@@ -522,10 +522,10 @@ void LagBFunction::set_par( idx_type par , int value )
     // setting NoSol == true when it was false: throw away all Solution
     // currently stored in the global pool
     for( Index i = 0 ; i < f_max_glob ; ++i )
-     if( g_pool[ i ].first ) {
-      delete g_pool[ i ].first;
+     if( g_pool[ i ].sol ) {
+      delete g_pool[ i ].sol;
       // any surely nonzero address
-      g_pool[ i ].first = reinterpret_cast < Solution * >( this );
+      g_pool[ i ].sol = reinterpret_cast < Solution * >( this );
       }
     break;
     }
@@ -535,7 +535,7 @@ void LagBFunction::set_par( idx_type par , int value )
     // global pool since the information there is not reliable (no
     // Solution is a real Solution)
     for( Index i = 0 ; i < f_max_glob ; ++i )
-     g_pool[ i ].first = nullptr;
+     g_pool[ i ].sol = nullptr;
     f_max_glob = 0;
 
     // if somebody is listening (assuming issueMod == eModBlck) 
@@ -1089,24 +1089,24 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
   // the worst and remove everything
   if( NoSol ) {
    for( Index i = 0 ; i < f_max_glob ; ++i )
-    g_pool[ i ].first = nullptr;
+    g_pool[ i ].sol = nullptr;
    f_max_glob = 0;
    }
   else {
    for( Index i = 0 ; i < f_max_glob ; ++i ) {
-    if( g_pool[ i ].first ) {  // a Solution is there
+    if( g_pool[ i ].sol ) {  // a Solution is there
      ++cnt;
 
      // write it in the Variable of the inner Block
-     g_pool[ i ].first->write( v_Block.front() );
+     g_pool[ i ].sol->write( v_Block.front() );
      LastSolution = i;  // and recall what's there
 
      // check it's still a feasible solution/direction
-     bool feas = g_pool[ i ].second ? v_Block.front()->is_feasible()
+     bool feas = g_pool[ i ].varsol ? v_Block.front()->is_feasible()
                                     : v_Block.front()->is_unbounded();
      if( ! feas ) {              // if not
-      delete g_pool[ i ].first;  // eliminate it
-      g_pool[ i ].first = nullptr;
+      delete g_pool[ i ].sol;  // eliminate it
+      g_pool[ i ].sol = nullptr;
       which.push_back( i );      // recall its name
       LastSolution = g_pool.size();
       // say that no Solution is saved in the Block, since the name is now
@@ -1311,7 +1311,7 @@ void LagBFunction::put_State( const State & state )
 
  // ensure g_pool is large enough
  if( s.f_max_glob > g_pool.size() )
-  g_pool.resize( s.f_max_glob , std::make_pair( nullptr , true ) );
+  g_pool.resize( s.f_max_glob , gpool_el{ nullptr , true } );
 
  // copy the important linearization information
  zLC = s.zLC;
@@ -1322,14 +1322,14 @@ void LagBFunction::put_State( const State & state )
  // first void the current global pool
  if( NoSol ) {
   std::fill( g_pool.begin() , g_pool.end() ,
-	     std::make_pair( nullptr , true ) );
+	     gpool_el{ nullptr , true } );
   f_max_glob = 0;
   }
  else {
   for( auto & el : g_pool ) {
-   delete el.first;
-   el.first = nullptr;
-   el.second = true;
+   delete el.sol;
+   el.sol = nullptr;
+   el.varsol = true;
    }
 
   // now add back all the Solution in the State (possibly after a check)
@@ -1337,15 +1337,15 @@ void LagBFunction::put_State( const State & state )
 
   if( ChkState )  // if Solutions are checked
    for( Index i = 0 ; i < s.g_pool.size() ; ++i ) {
-    if( s.g_pool[ i ].first ) {
+    if( s.g_pool[ i ].sol ) {
      // write the Solution to the inner Block
-     s.g_pool[ i ].first->write( v_Block.front() );
+     s.g_pool[ i ].sol->write( v_Block.front() );
 
      // if it's still a feasible solution/direction, copy it
-     if( ( s.g_pool[ i ].second ? v_Block.front()->is_feasible()
+     if( ( s.g_pool[ i ].varsol ? v_Block.front()->is_feasible()
 	                        : v_Block.front()->is_unbounded() ) ) {
-      gpit->first = s.g_pool[ i ].first->clone();  // clone() the Solution in
-      gpit->second = s.g_pool[ i ].second;
+      gpit->sol = s.g_pool[ i ].sol->clone();  // clone() the Solution in
+      gpit->varsol = s.g_pool[ i ].varsol;
       Addd.push_back( i );
       f_max_glob = i + 1;
       }
@@ -1354,9 +1354,9 @@ void LagBFunction::put_State( const State & state )
     }
   else {        // it is trusted that Solution are correct
    for( Index i = 0 ; i < s.g_pool.size() ; ++i ) {
-    if( s.g_pool[ i ].first ) {
-     gpit->first = s.g_pool[ i ].first->clone();  // clone() the Solution in
-     gpit->second = s.g_pool[ i ].second;
+    if( s.g_pool[ i ].sol ) {
+     gpit->sol = s.g_pool[ i ].sol->clone();  // clone() the Solution in
+     gpit->varsol = s.g_pool[ i ].varsol;
      Addd.push_back( i );
      }
     ++gpit;
@@ -1396,7 +1396,7 @@ void LagBFunction::put_State( State && state )
 
  // ensure g_pool is large enough
  if( s.f_max_glob > g_pool.size() )
-  g_pool.resize( s.f_max_glob , std::make_pair( nullptr , true ) );
+  g_pool.resize( s.f_max_glob , gpool_el{ nullptr , true } );
 
  // move the important linearization information
  zLC = std::move( s.zLC );
@@ -1407,14 +1407,14 @@ void LagBFunction::put_State( State && state )
  // first void the current global pool
  if( NoSol ) {
   std::fill( g_pool.begin() , g_pool.end() ,
-	     std::make_pair( nullptr , true ) );
+	     gpool_el{ nullptr , true } );
   f_max_glob = 0;
   }
  else {
   for( auto & el : g_pool ) {
-   delete el.first;
-   el.first = nullptr;
-   el.second = true;
+   delete el.sol;
+   el.sol = nullptr;
+   el.varsol = true;
    }
 
   // now add back all the Solution in the State (possibly after a check)
@@ -1422,16 +1422,16 @@ void LagBFunction::put_State( State && state )
 
   if( ChkState )  // if Solutions are checked
    for( Index i = 0 ; i < s.g_pool.size() ; ++i ) {
-    if( s.g_pool[ i ].first ) {
+    if( s.g_pool[ i ].sol ) {
      // write the Solution to the inner Block
-     s.g_pool[ i ].first->write( v_Block.front() );
+     s.g_pool[ i ].sol->write( v_Block.front() );
 
      // if it's still a feasible solution/direction, copy it
-     if( ( s.g_pool[ i ].second ? v_Block.front()->is_feasible()
+     if( ( s.g_pool[ i ].varsol ? v_Block.front()->is_feasible()
 	                        : v_Block.front()->is_unbounded() ) ) {
-      gpit->first = s.g_pool[ i ].first;  // move the Solution in
-      s.g_pool[ i ].first = nullptr;      // delete it from the State
-      gpit->second = s.g_pool[ i ].second;
+      gpit->sol = s.g_pool[ i ].sol;  // move the Solution in
+      s.g_pool[ i ].sol = nullptr;      // delete it from the State
+      gpit->varsol = s.g_pool[ i ].varsol;
       Addd.push_back( i );
       f_max_glob = i + 1;
       }
@@ -1440,10 +1440,10 @@ void LagBFunction::put_State( State && state )
     }
   else {        // it is trusted that Solution are correct
    for( Index i = 0 ; i < s.g_pool.size() ; ++i ) {
-    if( s.g_pool[ i ].first ) {
-     gpit->first = s.g_pool[ i ].first;  // move the Solution in
-     s.g_pool[ i ].first = nullptr;      // delete it from the State
-     gpit->second = s.g_pool[ i ].second;
+    if( s.g_pool[ i ].sol ) {
+     gpit->sol = s.g_pool[ i ].sol;  // move the Solution in
+     s.g_pool[ i ].sol = nullptr;      // delete it from the State
+     gpit->varsol = s.g_pool[ i ].varsol;
      Addd.push_back( i );
      }
     ++gpit;
@@ -1494,17 +1494,17 @@ void LagBFunction::serialize_State( netCDF::NcGroup & group ,
 
   std::vector< int > typ( f_max_glob );
   for( Index i = 0 ; i < f_max_glob ; ++i )
-   typ[ i ] = g_pool[ i ].second ? 1 : 0;
+   typ[ i ] = g_pool[ i ].varsol ? 1 : 0;
  
     ( group.addVar( "LagBFunction_Type" , netCDF::NcByte() , gs ) ).putVar(
 			          { 0 } , {  f_max_glob } , typ.data() );
 
   for( Index i = 0 ; i < f_max_glob ; ++i ) {
-   if( ! g_pool[ i ].first )
+   if( ! g_pool[ i ].sol )
     continue;
 
    auto gi = group.addGroup( "LagBFunction_Sol_" + std::to_string( i ) );
-   g_pool[ i ].first->serialize( gi );
+   g_pool[ i ].sol->serialize( gi );
    }
   }
 
@@ -1583,18 +1583,23 @@ void LagBFunction::store_linearization( Index name , ModParam issueMod )
 
  if( NoSol )
   // put there any non-nullptr to mark the slot as taken
-  g_pool[ name ].first = reinterpret_cast< Solution * >( this );
+  g_pool[ name ].sol = reinterpret_cast< Solution * >( this );
  else {
-  delete g_pool[ name ].first;  // delete the Solution already there (if any)
+  delete g_pool[ name ].sol;  // delete the Solution already there (if any)
 
   // get a "fully loaded" Solution out of the inner Block, using the default
   // f_solution_Configuration in the BlockConfig of the inner Block
-  g_pool[ name ].first = v_Block.front()->get_Solution( nullptr , false );
-  if( ! g_pool[ name ].first )
+  g_pool[ name ].sol = v_Block.front()->get_Solution( nullptr , false );
+  if( ! g_pool[ name ].sol )
    throw( std::logic_error( "LagBFunction: no Solution provided by Block" ) );
   }
 
- g_pool[ name ].second = VarSol;  // record the Solution type
+ g_pool[ name ].varsol = VarSol;  // record the Solution type
+ // an original (genuine subproblem) solution: re-evaluating the objective at
+ // x* gives the exact constant, so no epigraphic correction is needed; reset
+ // the slot in case it previously held a convexified linearization
+ g_pool[ name ].convexified = false;
+ g_pool[ name ].value = 0;
  LastSolution = name;             // record that the Solution has been stored
 
  if( name >= f_max_glob )         // update f_max_glob
@@ -1628,8 +1633,8 @@ void LagBFunction::store_combination_of_linearizations(
   f_max_glob = name + 1;
 
  if( NoSol ) {  // only pretend you are doing it
-  g_pool[ name ].first = reinterpret_cast< Solution * >( this );
-  g_pool[ name ].second = true;
+  g_pool[ name ].sol = reinterpret_cast< Solution * >( this );
+  g_pool[ name ].varsol = true;
   return;
   }
 
@@ -1641,9 +1646,9 @@ void LagBFunction::store_combination_of_linearizations(
 
  // get a scaled version of the first Solution
  auto first = coefficients[ 0 ].first;
- auto convex_combination = ( g_pool[ first ].first
+ auto convex_combination = ( g_pool[ first ].sol
         )->scale( coefficients[ 0 ].second );
- bool type = g_pool[ first ].second;  // diagonal unless already vertical
+ bool type = g_pool[ first ].varsol;  // diagonal unless already vertical
 
  // for all other Solutions in the pool
  for( Index i = 1 ; i < coefficients.size() ; ++i ) {
@@ -1654,24 +1659,41 @@ void LagBFunction::store_combination_of_linearizations(
 
   #if CHECK_SOLUTIONS & 4
    std::cout << "pos = " << pos << ", mult = " << mult << ", sol = "
-             << * g_pool[ pos ].first;
+             << * g_pool[ pos ].sol;
   #endif
 
   // add the new term to the convex combination
-  convex_combination->sum( g_pool[ pos ].first , mult );
+  convex_combination->sum( g_pool[ pos ].sol , mult );
 
   // if the convex combination even contains a single direction
-  if( ! g_pool[ pos ].second )
+  if( ! g_pool[ pos ].varsol )
    type = false;  // then it is a direction
   }
 
- delete g_pool[ name ].first;  // delete the current Solution (if any)
+ // BEFORE overwriting slot 'name' (it may itself be one of the constituents),
+ // compute the EPIGRAPHIC value of the combination from the constituents: each
+ // get_linearization_constant() returns f( x_k ) plus the constituent's own
+ // correction, i.e. its epigraphic value, so this sum is sum_k lambda_k f(x_k)
+ double agg = 0;
+ for( const auto & cf : coefficients )
+  agg += cf.second * get_linearization_constant( cf.first );
 
- g_pool[ name ].first = convex_combination;  // store the Solution
- g_pool[ name ].second = type;               // store the type
+ delete g_pool[ name ].sol;  // delete the current Solution (if any)
+
+ g_pool[ name ].sol = convex_combination;  // store the Solution
+ g_pool[ name ].varsol = type;               // store the type
 
  if( name == LastSolution )    // if this was the Solution in the inner Block
   LastSolution = g_pool.size();  // it is no longer valid
+
+ // store the epigraphic correction  delta_na = sum_k lambda_k f(x_k) - f(conv)
+ // (see the "THE VALUE OF A LINEARIZATION ..." comment). With value == 0 and
+ // convexified == false, get_linearization_constant( name ) returns the bare
+ // f( conv ); afterwards f( conv ) + value == agg, the correct constant.
+ g_pool[ name ].convexified = false;
+ g_pool[ name ].value = 0;
+ g_pool[ name ].value = agg - get_linearization_constant( name );
+ g_pool[ name ].convexified = true;
 
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
@@ -1688,13 +1710,13 @@ void LagBFunction::store_combination_of_linearizations(
 
 void LagBFunction::delete_linearization( Index name , ModParam issueMod )
 {
- if( ( name >= g_pool.size() ) || ( ! g_pool[ name ].first ) )
+ if( ( name >= g_pool.size() ) || ( ! g_pool[ name ].sol ) )
   throw( std::invalid_argument(
 	 "LagBFunction::delete_linearization: invalid linearization name" ) );
 
  if( ! NoSol )                    // if the Solution is there
-  delete g_pool[ name ].first;    // delete it
- g_pool[ name ].first = nullptr;  // mark that the position is empty
+  delete g_pool[ name ].sol;    // delete it
+ g_pool[ name ].sol = nullptr;  // mark that the position is empty
 
  if( name == LastSolution )    // if this was the Solution in the inner Block
   LastSolution = g_pool.size();  // it is no longer valid
@@ -1720,12 +1742,12 @@ void LagBFunction::delete_linearizations( Subset && which , bool ordered ,
  if( which.empty() ) {  // delete them all
   if( NoSol )
    for( Index i = 0 ; i < f_max_glob ; ++i )
-    g_pool[ i ].first = nullptr;
+    g_pool[ i ].sol = nullptr;
   else
    for( Index i = 0 ; i < f_max_glob ; ++i )
-    if( g_pool[ i ].first ) {
-     delete g_pool[ i ].first;
-     g_pool[ i ].first = nullptr;
+    if( g_pool[ i ].sol ) {
+     delete g_pool[ i ].sol;
+     g_pool[ i ].sol = nullptr;
      }
 
   f_max_glob = 0;
@@ -1750,7 +1772,7 @@ void LagBFunction::delete_linearizations( Subset && which , bool ordered ,
        "LagBFunction::delete_linearizations: invalid linearization name" ) );
 
  for( auto i : which ) {
-  if( ! g_pool[ i ].first )
+  if( ! g_pool[ i ].sol )
    throw( std::invalid_argument(
        "LagBFunction::delete_linearizations: invalid linearization name" ) );
 
@@ -1758,8 +1780,8 @@ void LagBFunction::delete_linearizations( Subset && which , bool ordered ,
    LastSolution = g_pool.size();  // it is no longer valid
 
   if( ! NoSol )               // if a Solution really is there
-   delete g_pool[ i ].first;  // delete it
-  g_pool[ i ].first = nullptr;
+   delete g_pool[ i ].sol;  // delete it
+  g_pool[ i ].sol = nullptr;
   }
 
  update_f_max_glob();
@@ -2036,13 +2058,13 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
   // assign Solution to the sub-Block in such a way the linearization
   // associated with the given name will be retrieved from the global pool
 
-  if( ! g_pool[ name ].first )
+  if( ! g_pool[ name ].sol )
    throw( std::logic_error(
    "LagBFunction::get_linearization_coefficients: invalid linearization name"
 			   ) );
 
   if( LastSolution != name ) {
-   g_pool[ name ].first->write( v_Block.front() );
+   g_pool[ name ].sol->write( v_Block.front() );
    LastSolution = name;
    }
   }  // end else - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -2105,13 +2127,13 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
   // assign Solution to the sub-Block in such a way the linearization
   // associated with the given name will be retrieved from the global pool
 
-  if( ! g_pool[ name ].first )
+  if( ! g_pool[ name ].sol )
    throw( std::logic_error(
    "LagBFunction::get_linearization_coefficients: invalid linearization name"
 			   ) );
 
   if( LastSolution != name ) {
-   g_pool[ name ].first->write( v_Block.front() );
+   g_pool[ name ].sol->write( v_Block.front() );
    LastSolution = name;
    }
   }  // end else - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -2172,14 +2194,14 @@ Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
   if( NoSol )
    throw( std::logic_error( "LagBFunction: Solutions are not stored" ) );
 
-  if( ! g_pool[ name ].first )  // if no such linearization
+  if( ! g_pool[ name ].sol )  // if no such linearization
    return( NaN );               // return NaN
 
   // assign Solution to the sub-Block in such a way the linearization
   // associated with the given name will be recovered from the global pool
 
   if( name != LastSolution ) {
-   g_pool[ name ].first->write( v_Block.front() );
+   g_pool[ name ].sol->write( v_Block.front() );
    LastSolution = name;
    }
   }  // end else - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -2252,6 +2274,14 @@ Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
    }
   }
  }
+
+ // add the epigraphic correction: 0 for an original linearization (re-evaluating
+ // the objective gives the exact constant), delta_na for a convexified one (so
+ // that f( conv ) + value is the correct epigraphic constant). The last
+ // computed linearization (name == Inf) is always an original (the freshly
+ // optimised solution), and has no global-pool entry, so it gets no correction.
+ if( name < Inf< Index >() )
+  alpha += g_pool[ name ].value;
 
  return( alpha );
 
@@ -2837,44 +2867,6 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 
  auto & CMh = CostMatrix[ h ];
  auto * CMh_f = v_Obj[ h ]->get_function();
-
- // transient Lagrangian recompute by a *nested* LagBFunction- - - - - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- // When the same sub-Block Objective is adopted in CostMatrix by more than
- // one LagBFunction (the LagBFunction-inside-LagBFunction case), each of them
- // rewrites the Lagrangian costs c + yA of the Variable it couples directly
- // on that shared Objective [see compute()]. Such writes must be ignored
- // here: they do *not* change the original costs c -- which are the ones
- // kept in CostMatrix and used by get_linearization_constant() -- they are
- // just another LagBFunction shifting the costs by its own multipliers.
- // Processing them would (a) fold the shifted cost into CostMatrix as if it
- // were the new original c and (b) issue a spurious AlphaChanged that keeps
- // invalidating the enclosing bundle's model, eventually triggering
- // kLowPrecision.
- //
- // concerns_Block() cannot be used to recognise such a write: the recompute
- // is issued on the standard channel (concerns_Block() == true, so that the
- // inner Block folds it into its physical representation for the Solver
- // that only read that one, e.g. the ThermalUnitBlock DPs), and the inner
- // Block may then flip the flag to false while processing it -- so by the
- // time the Modification reaches this enclosing LagBFunction the flag value
- // only tells whether some intermediate Block already folded it, not *who*
- // wrote it. The structural discriminator is *who* is changing the
- // Objective: a transient recompute is always performed by *a* LagBFunction
- // enclosing mod's Block (this very level, or any nested level adopting the
- // same shared Objective), while holding the Block lock with its own f_id [see
- // compute()/flush]; a genuine external change is instead applied by some other
- // agent (a Solver, an UpdateSolver, the user) and reaches a Block that no
- // enclosing LagBFunction currently locks. Hence, walk the chain of Block that
- // own mod's Objective up to the root and skip iff *any* enclosing
- // LagBFunction currently holds its lock (i.e. it is the one doing the write).
- if( const auto lmod = dynamic_cast< const C05FunctionModLin * >( mod ) )
-  if( lmod->function() == CMh_f )
-   if( Block * mb = mod->get_Block() )
-    for( Block * b = mb ; b ; b = b->get_f_Block() )
-     if( const auto lbf = dynamic_cast< LagBFunction * >( b ) )
-      if( mb->is_owned_by( lbf->f_id ) )
-       return( 0 );  // transient recompute write by an enclosing LagBFunction
 
  // C05FunctionModLinRngd- - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -4341,13 +4333,13 @@ void LagBFunctionState::deserialize( const netCDF::NcGroup & group )
   for( Index i = 0 ; i < f_max_glob ; ++i ) {
    int ti;
    nct.getVar( { i } , &ti );
-   g_pool[ i ].second = ( ti != 0 );
+   g_pool[ i ].varsol = ( ti != 0 );
 
    auto gi = group.getGroup( "LagBFunction_Sol_" + std::to_string( i ) );
    if( gi.isNull() )
-    g_pool[ i ].first = nullptr;
+    g_pool[ i ].sol = nullptr;
    else
-    g_pool[ i ].first = Solution::new_Solution( gi );
+    g_pool[ i ].sol = Solution::new_Solution( gi );
    }
   }
 
@@ -4385,17 +4377,17 @@ void LagBFunctionState::serialize( netCDF::NcGroup & group ) const
 
   std::vector< int > typ( f_max_glob );
   for( Index i = 0 ; i < f_max_glob ; ++i )
-   typ[ i ] = g_pool[ i ].second ? 1 : 0;
+   typ[ i ] = g_pool[ i ].varsol ? 1 : 0;
  
   ( group.addVar( "LagBFunction_Type" , netCDF::NcByte() , gs ) ).putVar(
 				      { 0 } , {  f_max_glob } , typ.data() );
 
   for( Index i = 0 ; i < f_max_glob ; ++i ) {
-   if( ! g_pool[ i ].first )
+   if( ! g_pool[ i ].sol )
     continue;
 
    auto gi = group.addGroup( "LagBFunction_Sol_" + std::to_string( i ) );
-   g_pool[ i ].first->serialize( gi );
+   g_pool[ i ].sol->serialize( gi );
    }
   }
 
