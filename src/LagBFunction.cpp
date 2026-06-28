@@ -147,7 +147,8 @@ SMSpp_insert_in_factory_cpp_1( LagBFunction );
 
 LagBFunction::LagBFunction( Block * innerblock , Observer * observer )
  : C05Function() , IsConvex( true ) , InnrSlvr( 0 ) , NoSol( false ) ,
-   ChkState( false ) , PushCostToOwner( true ) , f_max_glob( 0 ) ,
+   ChkState( false ) , PushCostToOwner( true ) , f_lazy_eval( false ) ,
+   f_max_glob( 0 ) ,
    LastSolution( 0 ) , VarSol( true ) , f_yb( -INF ) ,
    f_play_dumb( false ) , f_dirty_Lc( false ) , f_c_changed( false ) ,
    f_Lc( -1 ) , LPMaxSz( 0 ) , f_BSC( nullptr ) , f_CC( nullptr ) ,
@@ -551,6 +552,9 @@ void LagBFunction::set_par( idx_type par , int value )
    break;
   case( intChkState ):  // intChkState - - - - - - - - - - - - - - - - - - -
    ChkState = ( value > 0 );
+   break;
+  case( intLazyEval ):  // intLazyEval - - - - - - - - - - - - - - - - - - - -
+   f_lazy_eval = ( value != 0 );
    break;
   case( intPushCostToOwner ): // intPushCostToOwner - - - - - - - - - - - - -
    bool new_val = ( value != 0 );
@@ -1595,12 +1599,41 @@ void LagBFunction::store_linearization( Index name , ModParam issueMod )
   }
 
  g_pool[ name ].varsol = VarSol;  // record the Solution type
- // an original (genuine subproblem) solution: re-evaluating the objective at
- // x* gives the exact constant, so no epigraphic correction is needed; reset
- // the slot in case it previously held a convexified linearization
+ // reset the slot in case it previously held a convexified linearization; the
+ // epigraphic correction (if any) is computed right below
  g_pool[ name ].convexified = false;
  g_pool[ name ].value = 0;
  LastSolution = name;             // record that the Solution has been stored
+
+ // the stored x* need not be a genuine subproblem solution: when the inner
+ // Solver is itself a Lagrangian dual it returns a *convex combination* of
+ // subproblem solutions. Re-evaluating the objective then gives the value at
+ // the (fractional) combination point, f(conv), rather than the value the dual
+ // actually attains, Sum_k mult_k f(x_k); the two coincide only when the
+ // objective is affine. The latter (epigraphic) value is the exact constant of
+ // the linearization and equals  value - <lambda,G> , where the right "value" is
+ // get_value(): the best *bound* on Fi consistent with the recovered primal --
+ // lower bound for a minimisation, upper bound for a maximisation (see the twin
+ // comment in get_linearization_constant()). Store the difference
+ // delta_na = epigraphic - f(conv)  as the (cost-independent) correction, so
+ // that later re-evaluations f(conv) + value reconstruct the exact constant. For
+ // a genuine extreme point delta_na is ~0.
+ if( ( ! NoSol ) && VarSol && inner_Solver() && ( ! std::isnan( f_yb ) ) ) {
+  double fv = get_value();                          // = (lb|ub) + f_yb
+  if( ( fv > - Inf< FunctionValue >() ) && ( fv < Inf< FunctionValue >() ) ) {
+   double cx = get_linearization_constant( name );  // = f(conv) (value is 0)
+   double lG = 0;                                   // = <lambda,G>
+   for( auto & lp : LagPairs ) {
+    lp.second->compute();
+    lG += lp.first->get_value() * lp.second->get_value();
+    }
+   double epigraphic = fv - lG;
+   g_pool[ name ].value = epigraphic - cx;
+   g_pool[ name ].convexified =
+    ( std::abs( g_pool[ name ].value ) >
+      1e-9 * std::max( double( 1 ) , std::abs( epigraphic ) ) );
+   }
+  }
 
  if( name >= f_max_glob )         // update f_max_glob
   f_max_glob = name + 1;
@@ -2275,13 +2308,49 @@ Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
   }
  }
 
- // add the epigraphic correction: 0 for an original linearization (re-evaluating
- // the objective gives the exact constant), delta_na for a convexified one (so
- // that f( conv ) + value is the correct epigraphic constant). The last
- // computed linearization (name == Inf) is always an original (the freshly
- // optimised solution), and has no global-pool entry, so it gets no correction.
+ // add the epigraphic correction for a stored linearization: 0 for an original
+ // one (re-evaluating the objective gives the exact constant), delta_na for a
+ // convexified one (so that f( conv ) + value is the correct epigraphic
+ // constant, see store_linearization()).
  if( name < Inf< Index >() )
   alpha += g_pool[ name ].value;
+ else {
+  // the last computed linearization (name == Inf) has no global-pool entry, so
+  // its correction (if any) is computed here. When the inner Solver is itself a
+  // Lagrangian dual, x* is a convex combination of subproblem solutions, and
+  // the alpha = f( conv ) computed above is the value at the (fractional)
+  // combination point rather than the epigraphic value Sum_k mult_k f( x_k )
+  // the dual attains; the two coincide only when the objective is affine. The
+  // exact constant equals  value - <lambda,G> , where the right "value" to use
+  // is get_value(): the best *bound* on Fi consistent with the recovered
+  // (possibly convexified) primal -- the lower bound for a minimisation, the
+  // upper bound for a maximisation (this is exactly what get_value() returns via
+  // is_convex()). Using instead the value attained at the incumbent would be on
+  // the wrong side of the inner gap and produce an over-estimated constant,
+  // i.e. a linearization above Fi (negative error). Correct alpha by the gap
+  // when it is significant (for a genuine extreme point the inner Solver is
+  // exact, get_value() == c x*, and the stable c x* computed above is kept).
+  if( VarSol && inner_Solver() && ( ! std::isnan( f_yb ) ) ) {
+   double fv = get_value();                          // = (lb|ub) + f_yb
+   if( ( fv > - Inf< FunctionValue >() ) && ( fv < Inf< FunctionValue >() ) ) {
+    double lG = 0;                                   // = <lambda,G>
+    for( auto & lp : LagPairs ) {
+     lp.second->compute();
+     lG += lp.first->get_value() * lp.second->get_value();
+     }
+    double epigraphic = fv - lG;
+    if( std::getenv( "LBF_BRK" ) &&
+        ( std::abs( epigraphic - alpha ) > 1.0 ) )
+     std::cerr << "LBF_BRK get_value=" << fv << " cx=" << alpha << " lG=" << lG
+               << " f_yb=" << f_yb << " epi(=fv-lG)=" << epigraphic
+               << " gap(epi-cx)=" << ( epigraphic - alpha )
+               << " nLP=" << LagPairs.size() << std::endl;
+    if( std::abs( epigraphic - alpha ) >
+        1e-9 * std::max( double( 1 ) , std::abs( epigraphic ) ) )
+     alpha = epigraphic;
+    }
+   }
+  }
 
  return( alpha );
 
