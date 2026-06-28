@@ -606,6 +606,8 @@ class LagBFunction : public C05Function , public Block {
 
  intPushCostToOwner,  ///< whether sub-Block Objective are changed
 
+ intLazyEval,      ///< how the value of a *convexified* linearization is kept
+
  intLastLagBFPar   ///< first allowed new int parameter for derived classes
                    /**< Convenience value for easily allow derived classes
 		    * to extend the set of int algorithmic parameters. */
@@ -1869,6 +1871,9 @@ class LagBFunction : public C05Function , public Block {
   if( par == intPushCostToOwner )
    return( 1 );
 
+  if( par == intLazyEval )    // default: eager (0)
+   return( 0 );
+
   if( par < intLastLagBFPar )
    return( C05Function::get_dflt_int_par( par ) );
 
@@ -1968,6 +1973,7 @@ class LagBFunction : public C05Function , public Block {
    case( intNoSol ):           return( NoSol ? 1 : 0 );
    case( intChkState ):        return( ChkState ? 1 : 0 );
    case( intPushCostToOwner ): return( PushCostToOwner ? 1 : 0 );
+   case( intLazyEval ):        return( f_lazy_eval ? 1 : 0 );
    }
 
   return( C05Function::get_dflt_int_par( par ) );
@@ -2048,6 +2054,8 @@ class LagBFunction : public C05Function , public Block {
    return( intChkState );
   if( name == "intPushCostToOwner" )
    return( intPushCostToOwner );
+  if( name == "intLazyEval" )
+   return( intLazyEval );
 
   if( auto is = inner_Solver() )
    return( int_par_lbf( is->int_par_str2idx( name ) ) );
@@ -2109,10 +2117,11 @@ class LagBFunction : public C05Function , public Block {
 
  [[nodiscard]] const std::string & int_par_idx2str( idx_type idx )
   const override {
-  static const std::array< std::string , 4 > pars =
-   { "intInnrSlvr", "intNoSol" , "intChkState" , "intPushCostToOwner" };
+  static const std::array< std::string , 5 > pars =
+   { "intInnrSlvr", "intNoSol" , "intChkState" , "intPushCostToOwner" ,
+     "intLazyEval" };
 
-  if( ( idx >= intInnrSlvr ) && ( idx <= intPushCostToOwner ) )
+  if( ( idx >= intInnrSlvr ) && ( idx <= intLazyEval ) )
    return( pars[ idx - intInnrSlvr ] );
 
   if( auto is = inner_Solver() )
@@ -2599,6 +2608,40 @@ class LagBFunction : public C05Function , public Block {
  bool ChkState;         ///< true if the State is checked for correctness
 
  bool PushCostToOwner;  ///< true if sub-Block objectives are changed
+
+ bool f_lazy_eval;      /**< how the value of a *convexified* linearization is
+   * kept up to date as the (Lagrangian) costs change.
+   *
+   * A convexified linearization is the convex combination, with multipliers
+   * mult_k, of a set of subproblem solutions x_k. The value (constant) of the
+   * linearization the dual actually sees is the *epigraphic* value
+   *
+   *     agg = sum_k mult_k f( x_k )
+   *
+   * which is NOT the value f( conv ) obtained by re-evaluating the objective at
+   * the (fractional) combination point conv = sum_k mult_k x_k, unless f is
+   * affine [ Lemarechal ]. The two ways of keeping agg up to date:
+   *
+   * - EAGER (f_lazy_eval == false, the DEFAULT): agg is stored explicitly and,
+   *   on a *linear* (affine) cost change Delta_c, updated in place by
+   *   agg += <Delta_c , conv>. This is exact for the only changes a Lagrangian
+   *   relaxation ever makes (which are linear in the variables), never
+   *   re-evaluates f at the fractional point, and so does not depend on the
+   *   Block being able to write/read its Solution consistently at a fractional
+   *   point (e.g. threshold-derived auxiliary variables). It is the robust,
+   *   self-contained choice and the reason it is the default.
+   *
+   * - LAZY (f_lazy_eval == true): only the cost-independent correction
+   *   delta_na = agg - f( conv ) is stored, and on each query agg is
+   *   reconstructed as f( conv ) + delta_na, re-evaluating f at the fractional
+   *   point. This is correct ONLY if the cost is purely affine (no non-linear
+   *   f, so f( conv ) == agg and delta_na == 0) OR if the Block guarantees that
+   *   re-evaluating the objective at a fractional Solution yields the true
+   *   value of f at conv -- which requires it to convex-combine *every*
+   *   non-linear auxiliary variable in its Solution, work that cannot be
+   *   presumed of every Block. Kept as an option for the purely-linear case
+   *   and for backward compatibility; do NOT use it with non-linear costs
+   *   unless the Block is known to satisfy the above. */
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
