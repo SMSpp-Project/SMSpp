@@ -612,7 +612,17 @@ class LagBFunction : public C05Function , public Block {
 
  intPushCostToOwner,  ///< whether sub-Block Objective are changed
 
- intLazyEval,      ///< how the value of a *convexified* linearization is kept
+ intPoolExtMem,    ///< how the global-pool linearizations are kept up to date
+                   /**< Selects how the global pool is maintained as the costs /
+		    * multipliers change: 0 = EXTERNAL (default) keeps the
+		    * epigraphic constant in gpool_el::value and the subgradient
+		    * point in gpool_el::conv_active, so neither the constant
+		    * (get_linearization_constant()) nor the subgradient
+		    * (get_linearization_coefficients()) needs to write the
+		    * pooled Solution into the inner Block; 1 = re-reads via
+		    * g_pool[name].sol->write() (no extra memory). Drives the
+		    * internal flag f_lazy_eval (1 <-> lazy/write). Was named
+		    * intLazyEval (same 0/1 values). */
 
  intLastLagBFPar   ///< first allowed new int parameter for derived classes
                    /**< Convenience value for easily allow derived classes
@@ -1885,7 +1895,7 @@ class LagBFunction : public C05Function , public Block {
   if( par == intPushCostToOwner )
    return( 1 );
 
-  if( par == intLazyEval )    // default: eager (0)
+  if( par == intPoolExtMem )    // default: external / no-write (0)
    return( 0 );
 
   if( par < intLastLagBFPar )
@@ -1990,7 +2000,7 @@ class LagBFunction : public C05Function , public Block {
    case( intNoSol ):           return( NoSol ? 1 : 0 );
    case( intChkState ):        return( ChkState ? 1 : 0 );
    case( intPushCostToOwner ): return( PushCostToOwner ? 1 : 0 );
-   case( intLazyEval ):        return( f_lazy_eval ? 1 : 0 );
+   case( intPoolExtMem ):      return( f_lazy_eval ? 1 : 0 );
    }
 
   return( C05Function::get_dflt_int_par( par ) );
@@ -2074,8 +2084,8 @@ class LagBFunction : public C05Function , public Block {
    return( intChkState );
   if( name == "intPushCostToOwner" )
    return( intPushCostToOwner );
-  if( name == "intLazyEval" )
-   return( intLazyEval );
+  if( name == "intPoolExtMem" )
+   return( intPoolExtMem );
 
   if( auto is = inner_Solver() )
    return( int_par_lbf( is->int_par_str2idx( name ) ) );
@@ -2141,9 +2151,9 @@ class LagBFunction : public C05Function , public Block {
   const override {
   static const std::array< std::string , 5 > pars =
    { "intInnrSlvr", "intNoSol" , "intChkState" , "intPushCostToOwner" ,
-     "intLazyEval" };
+     "intPoolExtMem" };
 
-  if( ( idx >= intInnrSlvr ) && ( idx <= intLazyEval ) )
+  if( ( idx >= intInnrSlvr ) && ( idx <= intPoolExtMem ) )
    return( pars[ idx - intInnrSlvr ] );
 
   if( auto is = inner_Solver() )
@@ -2546,7 +2556,7 @@ class LagBFunction : public C05Function , public Block {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  /// EAGER: propagate an original-cost change to the stored pool constants
- /** Under intLazyEval == 0 the full epigraphic constant of each global-pool
+ /** Under intPoolExtMem == 0 the full epigraphic constant of each global-pool
   * linearization is kept in gpool_el::value. When the *original* costs change
   * (only place where the actual per-Variable delta is known, see
   * update_CostMatrix_ModLin*()), each stored constant c x* + delta_na must be
