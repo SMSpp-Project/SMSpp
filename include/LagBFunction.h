@@ -460,6 +460,12 @@ class LagBFunction : public C05Function , public Block {
   bool       varsol      = false;
   bool       convexified = false;
   double     value       = 0;
+  /// EAGER subgradient cache (phase 2): conv_active[h][idx] = x*_k at the
+  /// position v_active[h][idx] (the dual-pair coords). Lets
+  /// get_linearization_coefficients() rebuild g_k = A x*_k - b without
+  /// writing the Solution into the inner Block. Empty until populated (then a
+  /// sol->write fallback is used). NOT persisted by LagBFunctionState (TODO).
+  std::vector< Vec_FunctionValue > conv_active;
   };
 
  /// a global pool (a vector of gpool_el)
@@ -622,7 +628,15 @@ class LagBFunction : public C05Function , public Block {
   * easily further extended by derived classes. */
 
  enum dbl_par_type_LagBF {
-  dblLastLagBFPar = dblLastParC05F
+
+  dblCostTol = dblLastParC05F ,  ///< rel. tol. for a Lagrangian-cost change
+  /**< Relative tolerance below which a change in a Lagrangian cost c^y_j is
+   * treated as numerical noise and not re-written into the inner Objective
+   * (see compute()). It is compared against the currently loaded value, so
+   * sub-tolerance changes accumulate and eventually cross it; keep it well
+   * below the oracle relative accuracy. Default 1e-12. */
+
+  dblLastLagBFPar
   ///< first allowed new double parameter for derived classes
   /**< Convenience value for easily allow derived classes to extend the set
    * of double algorithmic parameters. */
@@ -1886,6 +1900,9 @@ class LagBFunction : public C05Function , public Block {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  [[nodiscard]] double get_dflt_dbl_par( idx_type par ) const override {
+  if( par == dblCostTol )
+   return( 1e-12 );
+
   if( par < dblLastLagBFPar )
    return( C05Function::get_dflt_dbl_par( par ) );
 
@@ -1982,6 +1999,9 @@ class LagBFunction : public C05Function , public Block {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  [[nodiscard]] double get_dbl_par( idx_type par ) const override {
+  if( par == dblCostTol )
+   return( f_cost_tol );
+
   if( ( par < dblLastAlgParTCI ) || ( par >= dblLastLagBFPar ) ) {
    if( auto is = inner_Solver() )
     return( is->get_dbl_par( dbl_par_is( par ) ) );
@@ -2067,6 +2087,8 @@ class LagBFunction : public C05Function , public Block {
 
  [[nodiscard]] idx_type dbl_par_str2idx( const std::string & name )
   const override {
+  if( name == "dblCostTol" )
+   return( dblCostTol );
   if( auto is = inner_Solver() )
    return( dbl_par_lbf( is->dbl_par_str2idx( name ) ) );
   else
@@ -2134,6 +2156,11 @@ class LagBFunction : public C05Function , public Block {
 
  [[nodiscard]] const std::string & dbl_par_idx2str( idx_type idx )
   const override {
+  static const std::array< std::string , 1 > pars = { "dblCostTol" };
+
+  if( idx == dblCostTol )
+   return( pars[ idx - dblCostTol ] );
+
   if( auto is = inner_Solver() )
    return( is->dbl_par_idx2str( dbl_par_is( idx ) ) );
   else
@@ -2516,6 +2543,45 @@ class LagBFunction : public C05Function , public Block {
  void update_CostMatrix_ModLinSbst( const v_coeff_pair & rc ,
 				    c_Vec_p_Var & vars , c_Subset & sbst );
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ /// EAGER: propagate an original-cost change to the stored pool constants
+ /** Under intLazyEval == 0 the full epigraphic constant of each global-pool
+  * linearization is kept in gpool_el::value. When the *original* costs change
+  * (only place where the actual per-Variable delta is known, see
+  * update_CostMatrix_ModLin*()), each stored constant c x* + delta_na must be
+  * updated by < Delta_c , x* >; delta_na is cost-independent and untouched.
+  * jdeltas holds ( j , Delta_c_j ) for the changed CM columns of objective rc;
+  * the j-th Variable value of each stored Solution is read by writing it into
+  * the inner Block (the only practical way, as the Solution mirrors the Block
+  * structure). Does nothing under lazy or NoSol. */
+ void eager_pool_cost_delta( const v_coeff_pair & rc ,
+			     const std::vector< std::pair< Index , double > >
+			       & jdeltas );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ /// EAGER subgradient: fill g from conv_active without writing the Solution
+ /** Phase 2.3 (see sparse_costs_design.md §4.4). Rebuilds the subgradient of a
+  * global-pool linearization `name` -- g_i = const_i + sum_j a_{ij} x*_j, the
+  * relaxed-constraint value at the stored point x* -- directly from the cached
+  * conv_active, WITHOUT g_pool[name].sol->write() into the inner Block. const_i
+  * is the constant term of the relaxed-constraint LinearFunction LagPairs[i]
+  * .second (exactly what get_value() adds), the a_{ij} are read from CostMatrix
+  * (the transpose of the dual pairs), x*_j from conv_active (aligned with
+  * v_active). Returns false, filling nothing, when the external mode is off
+  * (f_lazy_eval) or conv_active is missing/inconsistent with the current
+  * v_active, so the caller falls back to writing the Solution and evaluating.
+  * Two overloads, one per requested-index form (Range / Subset). */
+ /// true iff g_pool[name].conv_active can rebuild the subgradient (external
+ /// mode on, and conv_active stored against the current v_active shape)
+ bool conv_active_usable( Index name ) const;
+
+ bool coeff_from_conv_active( FunctionValue * g , Range range , Index name );
+
+ bool coeff_from_conv_active( FunctionValue * g , c_Subset & subset ,
+			      Index name );
+
 /*--------------------------------------------------------------------------*/
 
  void update_CostMatrix_ModVarsAddd( c_Vec_p_Var & vars , Index first );
@@ -2608,6 +2674,18 @@ class LagBFunction : public C05Function , public Block {
  bool ChkState;         ///< true if the State is checked for correctness
 
  bool PushCostToOwner;  ///< true if sub-Block objectives are changed
+
+ double f_cost_tol;     ///< rel. tol. for a Lagrangian-cost change (dblCostTol)
+
+ std::vector< Subset > v_active;  ///< per objective, the sorted positions j with
+                        /**< CostMatrix[h][j].second non-empty, i.e. the
+                         * variables coupled to a multiplier (the dual-pair
+                         * coords). Used to iterate only the coords whose c^y
+                         * can change (compute()) and, in phase 2, to index
+                         * conv_active for the subgradient. Rebuilt lazily when
+                         * f_active_dirty (set on dual-pair / variable
+                         * structural changes). */
+ bool f_active_dirty;   ///< true if v_active must be rebuilt from CostMatrix
 
  bool f_lazy_eval;      /**< how the value of a *convexified* linearization is
    * kept up to date as the (Lagrangian) costs change.
@@ -2976,6 +3054,18 @@ class LagBFunctionState : public State {
    }
   zLC = lbf->zLC;
   }
+  // ===================================================================== //
+  // BIG TODO (State vs eager/sparse-cost gpool_el): this State preserves   //
+  // ONLY gpool_el::sol and ::varsol. The eager/lazy refactor added         //
+  // ::value (the full epigraphic constant under eager, delta_na under      //
+  // lazy) and ::convexified, and phase 2 will add ::conv_active; NONE of    //
+  // these is copied here, nor (de)serialized, nor restored by put_State()  //
+  // -- so a State round-trip silently drops them (value/convexified -> 0/  //
+  // false). Latent today because the State is not exercised within a       //
+  // single solve, but it MUST be fixed before relying on State save/       //
+  // restore or serialization. Update: this ctor, both put_State()          //
+  // overloads, serialize() and deserialize(). See sparse_costs_design.md.  //
+  // ===================================================================== //
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize a LagBFunctionState out of netCDF::NcGroup
