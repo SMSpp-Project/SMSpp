@@ -1315,9 +1315,9 @@ State * LagBFunction::get_State( void ) const {
 
 void LagBFunction::put_State( const State & state )
 {
- // BIG TODO: this only restores gpool_el::sol/::varsol; it does NOT restore
- // ::value/::convexified (eager/lazy) nor the future ::conv_active. See the
- // big note at the LagBFunctionState constructor in LagBFunction.h.
+ // restores gpool_el::sol/::varsol AND ::value/::convexified (eager/lazy);
+ // ::conv_active is a rebuildable cache and is reset to empty (the restored
+ // entries fall back to sol->write until re-stored).
 
  // if state is not a LagBFunctionState &, exception will be thrown
  const auto & s = dynamic_cast< const LagBFunctionState & >( state );
@@ -1343,6 +1343,9 @@ void LagBFunction::put_State( const State & state )
    delete el.sol;
    el.sol = nullptr;
    el.varsol = true;
+   el.value = 0;               // clear stale eager/lazy data on voided slots
+   el.convexified = false;
+   el.conv_active.clear();
    }
 
   // now add back all the Solution in the State (possibly after a check)
@@ -1359,6 +1362,9 @@ void LagBFunction::put_State( const State & state )
 	                        : v_Block.front()->is_unbounded() ) ) {
       gpit->sol = s.g_pool[ i ].sol->clone();  // clone() the Solution in
       gpit->varsol = s.g_pool[ i ].varsol;
+      gpit->value = s.g_pool[ i ].value;            // eager/lazy constant
+      gpit->convexified = s.g_pool[ i ].convexified;
+      gpit->conv_active.clear();                    // cache: rebuilt lazily
       Addd.push_back( i );
       f_max_glob = i + 1;
       }
@@ -1370,6 +1376,9 @@ void LagBFunction::put_State( const State & state )
     if( s.g_pool[ i ].sol ) {
      gpit->sol = s.g_pool[ i ].sol->clone();  // clone() the Solution in
      gpit->varsol = s.g_pool[ i ].varsol;
+     gpit->value = s.g_pool[ i ].value;            // eager/lazy constant
+     gpit->convexified = s.g_pool[ i ].convexified;
+     gpit->conv_active.clear();                    // cache: rebuilt lazily
      Addd.push_back( i );
      }
     ++gpit;
@@ -1428,6 +1437,9 @@ void LagBFunction::put_State( State && state )
    delete el.sol;
    el.sol = nullptr;
    el.varsol = true;
+   el.value = 0;               // clear stale eager/lazy data on voided slots
+   el.convexified = false;
+   el.conv_active.clear();
    }
 
   // now add back all the Solution in the State (possibly after a check)
@@ -1445,6 +1457,9 @@ void LagBFunction::put_State( State && state )
       gpit->sol = s.g_pool[ i ].sol;  // move the Solution in
       s.g_pool[ i ].sol = nullptr;      // delete it from the State
       gpit->varsol = s.g_pool[ i ].varsol;
+      gpit->value = s.g_pool[ i ].value;            // eager/lazy constant
+      gpit->convexified = s.g_pool[ i ].convexified;
+      gpit->conv_active.clear();                    // cache: rebuilt lazily
       Addd.push_back( i );
       f_max_glob = i + 1;
       }
@@ -1457,6 +1472,9 @@ void LagBFunction::put_State( State && state )
      gpit->sol = s.g_pool[ i ].sol;  // move the Solution in
      s.g_pool[ i ].sol = nullptr;      // delete it from the State
      gpit->varsol = s.g_pool[ i ].varsol;
+     gpit->value = s.g_pool[ i ].value;            // eager/lazy constant
+     gpit->convexified = s.g_pool[ i ].convexified;
+     gpit->conv_active.clear();                    // cache: rebuilt lazily
      Addd.push_back( i );
      }
     ++gpit;
@@ -4721,10 +4739,31 @@ void LagBFunctionState::deserialize( const netCDF::NcGroup & group )
   if( nct.isNull() )
    throw( std::logic_error( "LagBFunction_Type not found" ) );
 
+  // eager/lazy constant and convexified flag; both optional for backward
+  // compatibility with States written before they were serialized (default
+  // value = 0, convexified = false, matching the old behaviour)
+  auto ncv = group.getVar( "LagBFunction_Value" );
+  auto ncc = group.getVar( "LagBFunction_Convexified" );
+
   for( Index i = 0 ; i < f_max_glob ; ++i ) {
    int ti;
    nct.getVar( { i } , &ti );
    g_pool[ i ].varsol = ( ti != 0 );
+
+   if( ! ncv.isNull() )
+    ncv.getVar( { i } , &( g_pool[ i ].value ) );
+   else
+    g_pool[ i ].value = 0;
+
+   if( ! ncc.isNull() ) {
+    int ci;
+    ncc.getVar( { i } , &ci );
+    g_pool[ i ].convexified = ( ci != 0 );
+    }
+   else
+    g_pool[ i ].convexified = false;
+
+   g_pool[ i ].conv_active.clear();  // cache, not serialized -> rebuilt lazily
 
    auto gi = group.getGroup( "LagBFunction_Sol_" + std::to_string( i ) );
    if( gi.isNull() )
@@ -4772,6 +4811,23 @@ void LagBFunctionState::serialize( netCDF::NcGroup & group ) const
  
   ( group.addVar( "LagBFunction_Type" , netCDF::NcByte() , gs ) ).putVar(
 				      { 0 } , {  f_max_glob } , typ.data() );
+
+  // the eager/lazy linearization constant (gpool_el::value) and the convexified
+  // flag, indexed over LagBFunction_MaxGlob (conv_active is a cache, not saved).
+  // Empty slots (no Solution) are written as 0/false: their value/convexified
+  // are meaningless (never read while sol == nullptr) and may carry stale data
+  // left by delete_linearization, so canonicalising them keeps the round-trip
+  // exact.
+  std::vector< double > val( f_max_glob );
+  std::vector< int > cvx( f_max_glob );
+  for( Index i = 0 ; i < f_max_glob ; ++i ) {
+   val[ i ] = g_pool[ i ].sol ? g_pool[ i ].value : 0;
+   cvx[ i ] = ( g_pool[ i ].sol && g_pool[ i ].convexified ) ? 1 : 0;
+   }
+  ( group.addVar( "LagBFunction_Value" , netCDF::NcDouble() , gs ) ).putVar(
+				      { 0 } , { f_max_glob } , val.data() );
+  ( group.addVar( "LagBFunction_Convexified" , netCDF::NcByte() , gs ) ).putVar(
+				      { 0 } , { f_max_glob } , cvx.data() );
 
   for( Index i = 0 ; i < f_max_glob ; ++i ) {
    if( ! g_pool[ i ].sol )
