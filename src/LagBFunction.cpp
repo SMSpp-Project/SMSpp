@@ -553,8 +553,8 @@ void LagBFunction::set_par( idx_type par , int value )
   case( intChkState ):  // intChkState - - - - - - - - - - - - - - - - - - -
    ChkState = ( value > 0 );
    break;
-  case( intLazyEval ):  // intLazyEval - - - - - - - - - - - - - - - - - - - -
-   f_lazy_eval = ( value != 0 );
+  case( intPoolExtMem ):  // intPoolExtMem - - - - - - - - - - - - - - - - - -
+   f_lazy_eval = ( value != 0 );  // 1 = re-read via sol->write (lazy)
    break;
   case( intPushCostToOwner ): // intPushCostToOwner - - - - - - - - - - - - -
    bool new_val = ( value != 0 );
@@ -1765,9 +1765,52 @@ void LagBFunction::store_combination_of_linearizations(
  delete g_pool[ name ].sol;  // delete the current Solution (if any)
 
  g_pool[ name ].sol = convex_combination;  // store the Solution
- g_pool[ name ].varsol = type;               // store the type
- g_pool[ name ].conv_active.clear();  // combinations: empty -> sol->write fallback
-                                      // (TODO phase 2: combine constituents' caches)
+
+ // EAGER subgradient (phase 2.3) for the combination: the coupled-coord values
+ // of the combined Solution are the same linear combination of the constituents'
+ // values, so conv_active combines element-wise exactly like the Solution does
+ // (scale the first, then sum the rest, skipping a repeated 'first' index as the
+ // Solution loop above). This gives the aggregate a write-free subgradient too.
+ // Needs external mode, a current v_active and every constituent to carry a
+ // shape-matching conv_active; otherwise leave empty -> sol->write fallback.
+ // NB: read the constituents from the OLD pool state (name itself may be one of
+ // them); g_pool[ name ].conv_active is not overwritten until the assignment
+ // below, mirroring how agg and the Solution sum read the old constituents.
+ std::vector< Vec_FunctionValue > comb_ca;
+ if( ( ! f_lazy_eval ) && ( ! f_active_dirty ) &&
+     ( v_active.size() == CostMatrix.size() ) ) {
+  bool ok = true;
+  for( const auto & cf : coefficients ) {
+   const auto & cca = g_pool[ cf.first ].conv_active;
+   if( cca.size() != v_active.size() ) { ok = false; break; }
+   for( Index h = 0 ; ok && ( h < cca.size() ) ; ++h )
+    if( cca[ h ].size() != v_active[ h ].size() ) { ok = false; break; }
+   if( ! ok ) break;
+   }
+  if( ok ) {
+   comb_ca.assign( v_active.size() , Vec_FunctionValue() );
+   const auto & c0 = g_pool[ first ].conv_active;
+   const double m0 = coefficients[ 0 ].second;
+   for( Index h = 0 ; h < v_active.size() ; ++h ) {
+    comb_ca[ h ].resize( v_active[ h ].size() );
+    for( Index t = 0 ; t < comb_ca[ h ].size() ; ++t )
+     comb_ca[ h ][ t ] = m0 * c0[ h ][ t ];
+    }
+   for( Index i = 1 ; i < coefficients.size() ; ++i ) {
+    const auto pos = coefficients[ i ].first;
+    if( pos == first )
+     continue;
+    const double mult = coefficients[ i ].second;
+    const auto & cc = g_pool[ pos ].conv_active;
+    for( Index h = 0 ; h < v_active.size() ; ++h )
+     for( Index t = 0 ; t < comb_ca[ h ].size() ; ++t )
+      comb_ca[ h ][ t ] += mult * cc[ h ][ t ];
+    }
+   }
+  }
+
+ g_pool[ name ].varsol = type;             // store the type
+ g_pool[ name ].conv_active = std::move( comb_ca );  // empty if not combinable
 
  if( name == LastSolution )    // if this was the Solution in the inner Block
   LastSolution = g_pool.size();  // it is no longer valid
@@ -2440,7 +2483,7 @@ Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
   if( ! g_pool[ name ].sol )  // if no such linearization
    return( NaN );               // return NaN
 
-  // EAGER (intLazyEval == 0, default): the full epigraphic constant is kept
+  // EAGER (intPoolExtMem == 0, default): the full epigraphic constant is kept
   // up-to-date in g_pool[ name ].value (set at store time, maintained on cost
   // changes). Return it directly WITHOUT writing the stored Solution into the
   // inner Block: the lazy write below disturbs the inner Block state and the
