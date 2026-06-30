@@ -464,7 +464,10 @@ class LagBFunction : public C05Function , public Block {
   /// position v_active[h][idx] (the dual-pair coords). Lets
   /// get_linearization_coefficients() rebuild g_k = A x*_k - b without
   /// writing the Solution into the inner Block. Empty until populated (then a
-  /// sol->write fallback is used). NOT persisted by LagBFunctionState (TODO).
+  /// sol->write fallback is used). Deliberately NOT persisted by
+  /// LagBFunctionState: it is a cache derived from sol + v_active, so a restored
+  /// entry simply rebuilds it (falls back to sol->write until re-stored), while
+  /// ::value and ::convexified ARE persisted.
   std::vector< Vec_FunctionValue > conv_active;
   };
 
@@ -3059,23 +3062,16 @@ class LagBFunctionState : public State {
     else
      el.sol = nullptr;
     el.varsol = gpit->varsol;
+    // preserve the eager/lazy constant and the convexified flag; conv_active
+    // is a rebuildable cache and is intentionally NOT copied (a restored entry
+    // falls back to sol->write until it is re-stored, see put_State())
+    el.value = gpit->value;
+    el.convexified = gpit->convexified;
     ++gpit;
     }
    }
   zLC = lbf->zLC;
   }
-  // ===================================================================== //
-  // BIG TODO (State vs eager/sparse-cost gpool_el): this State preserves   //
-  // ONLY gpool_el::sol and ::varsol. The eager/lazy refactor added         //
-  // ::value (the full epigraphic constant under eager, delta_na under      //
-  // lazy) and ::convexified, and phase 2 will add ::conv_active; NONE of    //
-  // these is copied here, nor (de)serialized, nor restored by put_State()  //
-  // -- so a State round-trip silently drops them (value/convexified -> 0/  //
-  // false). Latent today because the State is not exercised within a       //
-  // single solve, but it MUST be fixed before relying on State save/       //
-  // restore or serialization. Update: this ctor, both put_State()          //
-  // overloads, serialize() and deserialize(). See sparse_costs_design.md.  //
-  // ===================================================================== //
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize a LagBFunctionState out of netCDF::NcGroup
@@ -3111,6 +3107,18 @@ class LagBFunctionState : public State {
   *   over the dimension LagBFunction_MaxGlob, which contains the vector of
   *   booleans specifying the type (solution/direction) of each element in
   *   the global pool. The variable is optional if LagBFunction_MaxGlob == 0.
+  *
+  * - The variable "LagBFunction_Value", of type netCDF::NcDouble and indexed
+  *   over the dimension LagBFunction_MaxGlob, with the linearization constant
+  *   (gpool_el::value: the full epigraphic constant under eager, delta_na
+  *   under lazy) of each pool element. Optional for backward compatibility
+  *   (assumed 0 if absent); optional anyway if LagBFunction_MaxGlob == 0.
+  *
+  * - The variable "LagBFunction_Convexified", of type netCDF::NcByte and
+  *   indexed over the dimension LagBFunction_MaxGlob, with the convexified
+  *   flag of each pool element. Optional for backward compatibility (assumed
+  *   false if absent); optional anyway if LagBFunction_MaxGlob == 0. The
+  *   subgradient cache gpool_el::conv_active is NOT serialized (it is rebuilt).
   *
   * - At most LagBFunction_MaxGlob netCDF::NcGroup with name
   *   "LagBFunction_Sol_X", with X an integer between 0 and
