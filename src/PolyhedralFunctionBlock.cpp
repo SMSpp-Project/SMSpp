@@ -60,11 +60,13 @@ static constexpr char k_built_cnst   = 0x8;   // bit 3
 static constexpr char k_built_obj    = 0x10;  // bit 4
 
 /* The SimpleConfiguration< int > passed to generate_abstract_variables()
- * uses the next two bits for scaling. They are stored separately from f_rep
+ * uses the next two bits for scaling and the third one for disabling the 
+ * objective function. They are stored separately from f_rep
  * because bits 2 and above of f_rep are construction-state flags. */
 
 static constexpr int k_cfg_scale_local  = 0x4;  // bit 2
 static constexpr int k_cfg_scale_global = 0x8;  // bit 3
+static constexpr int k_cfg_no_objective = 0x10; // bit 4
 
 // A global rescaling rebuilds the abstract representation. Keep a wide
 // hysteresis band so that this remains an occasional batch operation.
@@ -96,6 +98,7 @@ void PolyhedralFunctionBlock::generate_abstract_variables(
  f_rep |= ( wsol & k_rep_type_mask );
  f_scaling = ( ( wsol & k_cfg_scale_local ) ? 1 : 0 ) |
              ( ( wsol & k_cfg_scale_global ) ? 2 : 0 );
+ f_no_objective = (wsol & k_cfg_no_objective) != 0;
  InitialiseScaling();
 
  if( is_linearized() ) {
@@ -223,6 +226,12 @@ void PolyhedralFunctionBlock::generate_objective( Configuration * objc )
 {
  if( f_rep & k_built_obj )  // done already
   return;                   // nothing else to do
+ 
+  // configuration specified that no objective should be set
+ if( f_no_objective ) { 
+  f_rep |= k_built_obj;
+  return;
+ }
 
  if( ! ( f_rep & k_built_var ) )  // variables not constructed
   throw( std::logic_error( "Variable must be generated before Objective" ) );
@@ -1141,7 +1150,8 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF(
 
   if( f_polyf.is_convex() ) {
    // change the "verse" of the objective accordingly
-   get_objective()->set_sense( Objective::eMin , par );
+   if( auto obj = get_objective() )
+     obj->set_sense( Objective::eMin , par );
 
    // set upper/lower bound on v
    f_bcv.set_lhs( f_polyf.get_global_lower_bound() , par );
@@ -1155,7 +1165,8 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF(
    }
   else {
    // change the "verse" of the objective accordingly
-   get_objective()->set_sense( Objective::eMax , par );
+   if( auto obj = get_objective() )
+     obj->set_sense( Objective::eMax , par );
 
    // properly set upper/lower bound on v
    f_bcv.set_lhs( -Inf< Function::FunctionValue >() , par );

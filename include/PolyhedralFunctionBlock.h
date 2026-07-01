@@ -332,8 +332,8 @@ class PolyhedralFunctionBlock : public AbstractBlock
   * an "empty" PolyhedralFunction to start with. */
 
  PolyhedralFunctionBlock( Block * father = nullptr )
-  : AbstractBlock( father ) , f_rep( 0 ) , f_scaling( 0 ) ,
-    f_global_scale( 1.0 ) , f_global_reference( 1.0 ) ,
+  : AbstractBlock( father ) , f_rep( 0 ) , f_scaling( 0 ) , 
+    f_no_objective( false ) , f_global_scale( 1.0 ) , f_global_reference( 1.0 ) ,
     f_polyf( {} , {} , {} , -Inf< Function::FunctionValue >() , true , this
 	     ) ,
     f_v() , f_const() { }
@@ -374,6 +374,7 @@ class PolyhedralFunctionBlock : public AbstractBlock
   // the PolyhedralFunctionBlock is "naked": no abstract representaton
   f_rep = 0;
   f_scaling = 0;
+  f_no_objective = false;
   f_global_scale = 1.0;
   f_global_reference = 1.0;
   f_row_scale.clear();
@@ -494,6 +495,11 @@ class PolyhedralFunctionBlock : public AbstractBlock
   * abstract Variable and Constraint objects and modifies only the affected
   * coefficients and row sides in place. Small fluctuations require no
   * abstract update at all.
+  * 
+  * - bit 4 = 1 : the PFB should be initialized without any objective 
+  *               funtion. This could be required by some particular
+  *               classes that would like to handle directly the 
+  *               objective part.
   *
   * The chosen representation is then stored in the f_rep field (lowest
   * two bits) and never changed afterwards; this means that the parameters
@@ -1301,6 +1307,8 @@ class PolyhedralFunctionBlock : public AbstractBlock
 
  RealVector f_row_measure;
                          ///< max( 1, || A_i ||_inf, | b_i | ) for each row
+
+ bool f_no_objective; ///< wheter objective should be excluded from the representation
 
  PolyhedralFunction f_polyf;  ///< the PolyhedralFunction
 
