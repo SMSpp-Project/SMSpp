@@ -2216,6 +2216,16 @@ bool LagBFunction::conv_active_usable( Index name ) const
 {
  if( f_lazy_eval )
   return( false );
+ // v_active is rebuilt lazily in compute() when f_active_dirty; between a
+ // structural Modification (variable/dual-pair add/remove, which updates
+ // CostMatrix and sets f_active_dirty) and that rebuild, v_active and the
+ // stored conv_active still hold the OLD positions while CostMatrix is already
+ // the new one. Their sizes may even still match, so the shape check below is
+ // not enough: using conv_active here would index the new CostMatrix with stale
+ // positions and produce a wrong subgradient. Fall back to sol->write until the
+ // rebuild (which also clears conv_active) has run and the entries are re-stored.
+ if( f_active_dirty )
+  return( false );
  const auto & CA = g_pool[ name ].conv_active;
  if( ( CA.size() != v_active.size() ) || ( CA.size() != CostMatrix.size() ) )
   return( false );
