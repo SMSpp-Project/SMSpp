@@ -45,8 +45,6 @@
 
 #include "Solution.h"
 
-#include <limits>      // for std::numeric_limits, used by gpool_el::value
-
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -173,10 +171,11 @@ namespace SMSpp_di_unipi_it
  *   the modified FRealObjective of (B) to compute the cost of each Solution
  *   (this is not really needed for the Lagrangian cost, since this is
  *   supposedly done by the solver, but rather for the original cost of a
- *   solution which is necessary to compute the linearization_constant;
- *   note that only the "root" (B) Objective is modified, so that for all the
- *   Objective of the sub-Block of (B) the Lagrangian cost and the original
- *   cost are the same).
+ *   solution which is necessary to compute the linearization_constant.
+ *   Note that, if intPushCostToOwner == 0 [see] only the "root" (B)
+ *   Objective is modified, so that for all the Objective of the sub-Block of
+ *   (B) the Lagrangian cost and the original cost are the same); however,
+ *   this is not true if intPushCostToOwner == 1.
  *
  * Under these assumptions, LagBFunction can implement the required machinery
  * to use the inner Block (B), with any attached Solver, to implement the
@@ -228,20 +227,21 @@ namespace SMSpp_di_unipi_it
  *   Block/Solver to ignore them since THE ORIGINAL ONES WILL STILL BE IN
  *   THEIR ORIGINAL POSITION.
  *
- * - ALL THE INDIVIDUAL TERMS c'_j x_j OF THE LAGRANGIAN TERM (WITH c_'j THE
- *   LAGRANGIAN COST FOR FIXED y) ARE ADDED TO/MODIFIED INTO THE OBJECTIVE
- *   OF (B), EVEN THOUGH THE Variable MAY IN FACT BE DEFINED IN A SUB-Block
- *   OF (B)
- *
- *   This is consistent with the assumption that a Variable in a sub-Block is
- *   still owned by the father Block, but it also means that the same Variable
- *   may end up in more than one Objective; say, that of the sub-Block
+ * - If intPushCostToOwner == 0, all the individual terms c'_j x_j of the
+ *   Lagrangian cost (for fixed y) are added to / modified into the Objective
+ *   of (B), even for those [Col]Variable defined in aub-Block of (B). This is
+ *   consistent with the assumption that a Variable in a sub-Block is still
+ *   owned by the father Block, but it also means that the same Variable may
+ *   end up in more than one Objective; say, that of the sub-Block
  *   defining it as well as that of (B). This should in general be supported,
- *   but there may be :Solver that do not allow such an arrangement. On the
- *   plus side, however, note that in such a case THE Objective OF THE
- *   sub-Block IN NEVER MODIFIED, and therefore it CAN IN PRINCIPLE BE ANY
- *   KIND OF Function, NOT NECESSARILY A LinearFunction OR A DQuadFunction
- *   (provided that the Solver attached to (B) can deal with it).
+ *   but there may be :Solver that do not allow such an arrangement. This is
+ *   why intPushCostToOwner == 1 is supported (and it is actually the default)
+ *   where instead the Objective that is modified is that of the sub-Block
+ *   originarily defining x_j (which may be (B)). Note that in the
+ *   intPushCostToOwner == 0 case THE Objective OF THE sub-Block IN NEVER
+ *   MODIFIED, and therefore it CAN IN PRINCIPLE BE ANY KIND OF Function, NOT
+ *   NECESSARILY A LinearFunction OR A DQuadFunction (provided that the Solver
+ *   attached to (B) can deal with it).
  *
  * - THE LAGRANGIAN TERM MAY HAVE A DIFFERENT "SHAPE" THAN THE ORIGINAL
  *   LinearFunction c( x ) (i.e., more ColVariable may have a nonzero
@@ -264,12 +264,12 @@ namespace SMSpp_di_unipi_it
  *   i.e., x_j was *not* in c( x ). Later, the Lagrangian term(s) g_i(x )
  *   may be changed and x_j may no longer have a nonzero coefficient in the
  *   Lagrangian term for any value of y. YET, x_j IS KEPT IN THE
- *   LinearFunction / DQuadFunction IN THE Objective OF (B) WITH 0
+ *   LinearFunction / DQuadFunction IN THE Objective OF the Block WITH 0
  *   COEFFICIENT(S): no attempt is made to "optimize away" such Variable. The
  *   rationale is that it is hard to distinguish whether or not the 0
  *   coefficient(s) was there in the original c( x ) or x_j was not in c( x ).
  *   While the two things are mathematically equivalent, they may not be so
- *   for a Block/Solver assuming that some Variable *are* in the Objective
+ *   for a Block / Solver assuming that some Variable *are* in the Objective
  *   even if their coefficient(s) is 0. Optimizing away these Variable would
  *   not allow such a Block/Solver to be used, so it is just not done. In the
  *   odd case where this is not appropriate, the external process changing the
@@ -280,9 +280,10 @@ namespace SMSpp_di_unipi_it
  *
  * - Similarly, A TERM < x_j , a_{ij} > IN g_i( x ) WILL GIVE RISE TO AN
  *   EXPLICIT TERM < y_i , a_{ij} > IN THE (LINEAR) EXPRESSION FOR THE
- *   LAGRANGIAN COST OF x_j EVEN IF a_{ij} == 0; no attempt is done to optimize
- *   away zero coefficients from g_i( x ), in case the entity producing them
- *   relies on their position in the LinearFunction to handle them.
+ *   LAGRANGIAN COST OF x_j EVEN IF a_{ij} == 0; no attempt is done to
+ *   optimize away zero coefficients from g_i( x ), in case the entity
+ *   producing them relies on their position in the LinearFunction to handle
+ *   them.
  *
  * We finish with a LARGELY THEORETICAL, BUT STILL POSSIBLY INTERESTING NOTE.
  * The LagBFunction is both a C05Function and a Block. This is done in order
@@ -314,7 +315,7 @@ namespace SMSpp_di_unipi_it
  *
  *      c^y = c + yA
  *
- * and change the Objective of (B) accordingly. Note, however, the g(x) may
+ * and change the Objective of (B) accordingly. Note, however, the g( x ) may
  * have constant terms: for instance, it could be an affine function
  * ( g( x ) = Ax + b ) rather than a linear function. In this case, which is
  * actually supported by LagBFunction, the value of the LagBFunction has the
@@ -327,7 +328,7 @@ namespace SMSpp_di_unipi_it
  * optimal value c^y x^* directly produced by the Solver of (B).
  *
  * This is not mathematically required; in principle, one could define a
- * BilinearFunction l( x , y ) = cx + yAx, and insist that the objective
+ * BilinearFunction l( x , y ) = c x + y A x, and insist that the objective
  * of (B) be that. This would work, since y are not variables of (B), and
  * therefore are fixed when it is solved. However, it would require (B) and
  * its Solver to specifically cater for this case. The choice has been to
@@ -368,8 +369,8 @@ namespace SMSpp_di_unipi_it
  *
  * - keep the Objective of (B) to c^\bar{y} x.
  *
- * Since the Objective of the son is (implicitly) summed to that of the father,
- * this would work being the f_sense of Objective of both LagBFunction
+ * Since the Objective of the son is (implicitly) summed to that of the
+ * father, this would work being the f_sense of Objective of both LagBFunction
  * and its sub-block B is eMax. By contrast, the "outer" block defining
  * LagBFunction has to minimize (L_y) in the Variable y, so f_sense of the
  * Objective of the "outer" block must be eMin. In fact, the Lagrangian dual
@@ -382,8 +383,8 @@ namespace SMSpp_di_unipi_it
  * use to solve this kind of problem, and therefore there does not appear to
  * be any compelling reason to implement this kludge. */
 
-class LagBFunction : public C05Function , public Block {
-
+class LagBFunction : public C05Function , public Block
+{
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -430,44 +431,85 @@ class LagBFunction : public C05Function , public Block {
  using coeff_triple = DQuadFunction::coeff_triple;
  using v_coeff_triple = DQuadFunction::v_coeff_triple;
 
+/*--------------------------------------------------------------------------*/
+/*----------------------------- THE GLOBAL POOL ----------------------------*/
+/*--------------------------------------------------------------------------*/
+ /** The global pool (g_pool) stores the linearizations that the enclosing
+  * Solver may want to keep across iterations. It is a vector of gpool_el
+  * indexed by a "name" in [ 0 , f_max_glob ): g_pool[ name ].sol points to
+  * the primal point/direction the linearization came from (nullptr for an
+  * empty slot), and f_max_glob is 1 + the largest active name.
+  *
+  * ORIGINAL vs CONVEXIFIED. Most entries are ORIGINAL: a genuine solution
+  * (or unbounded direction) x* of the inner subproblem, stored by
+  * store_linearization(). Its linearization has subgradient
+  * g[ i ] = A_i x* - b_i (the i-th relaxed constraint at x*) and constant
+  * c x* (the original objective at x*). A CONVEXIFIED entry
+  * (gpool_el::convexified) is instead an aggregated point
+  * conv = sum_k mult_k x*_k built by store_combination_of_linearizations()
+  * (the "important" / master cut).
+  *
+  * THE VALUE OF A CONVEXIFIED LINEARIZATION. Re-evaluating the objective at
+  * the fractional point conv gives f( conv ) -- the DOMAIN value -- whereas
+  * the dual sees the EPIGRAPHIC value agg = sum_k mult_k f( x*_k ). These
+  * coincide only when f is affine [ Lemarechal ]; in general
+  * agg >= f( conv ) (the non-affine "Jensen" gap). gpool_el::value carries
+  * the constant so that this gap is handled, in one of two ways chosen by
+  * the intPoolExtMem parameter (internally the flag f_lazy_eval; see its
+  * field comment):
+  *  - EXTERNAL / eager (intPoolExtMem == 0, the DEFAULT): value holds the
+  *    full epigraphic constant directly (c x* for an original entry, agg
+  *    for a convexified one). get_linearization_constant() returns it
+  *    as-is; affine cost changes update it in place by < Delta_c , x* >.
+  *    Nothing is ever re-evaluated at a fractional point.
+  *  - INTERNAL / lazy (intPoolExtMem == 1): value holds only the cost-
+  *    independent correction delta_na = agg - f( conv ) (0 for an original
+  *    entry); the constant is reconstructed on demand as f( conv ) + value
+  *    by re-evaluating the objective at the stored point. Correct only for
+  *    affine f (or Blocks that convex-combine every non-linear auxiliary in
+  *    their Solution); kept for backward compatibility.
+  *
+  * THE SUBGRADIENT CACHE (conv_active). The subgradient A_i x* - b_i needs
+  * the point x*. Under the default EXTERNAL mode it is rebuilt from
+  * gpool_el::conv_active -- x* restricted to the dual-pair coordinates
+  * (v_active) -- WITHOUT writing the Solution into the inner Block (that
+  * write is costly and perturbs the Block state and cost propagation).
+  * conv_active is filled from the Block when the entry is stored, and again
+  * "on miss" right after a fallback write. It is USABLE only in external
+  * mode and while it is consistent with the CURRENT v_active: a structural
+  * change (variable / dual-pair add/remove) makes compute() rebuild
+  * v_active and drop every conv_active, and while that rebuild is pending
+  * (f_active_dirty) conv_active is treated as stale. When it is NOT usable
+  * the code FALLS BACK to sol->write() plus reading the relaxed constraints
+  * (always correct), then re-fills conv_active from the just-written Block
+  * so later queries are write-free again. Under INTERNAL mode conv_active is
+  * unused and every query writes the Solution.
+  *
+  * PERSISTENCE. LagBFunctionState saves sol, varsol, value and convexified;
+  * conv_active is a pure cache (derived from sol + v_active) and is NOT
+  * saved -- a restored entry rebuilds it on the first query (via fallback).
+  */
+
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// an element of the global pool
- /** An element of the global pool: the Solution, plus
-  * - varsol     : the type of linearization it yields (true = a point /
-  *                "diagonal" linearization, false = a direction / "vertical"
-  *                one); this is the boolean that used to be the pair's
-  *                .second;
-  * - convexified: true iff the entry is an epigraphic convex-combination
-  *                point (the materialised "important"/aggregated
-  *                linearization) rather than a genuine subproblem solution;
-  * - value      : a CORRECTION to be ADDED to the linearization constant that
-  *                get_linearization_constant() obtains by re-evaluating the
-  *                objective at the stored point. For an original entry this is
-  *                0 (re-evaluating gives the exact f( x* )). For a convexified
-  *                entry, re-evaluating gives f( conv ) -- the DOMAIN value --
-  *                which is WRONG (see "THE VALUE OF A LINEARIZATION ..." in
-  *                the .cpp); value then holds the fixed EPIGRAPHIC correction
-  *                  delta_na := sum_k lambda_k f( x_k ) - f( conv )
-  *                so that f( conv ) + value = sum_k lambda_k f( x_k ), the
-  *                correct epigraphic constant. delta_na is cost-INDEPENDENT
-  *                (it is the non-affine gap), so it survives affine cost
-  *                changes; a non-affine change invalidates it and the entry is
-  *                deleted. (Future option: store the epigraphic value itself
-  *                and maintain it eagerly to avoid re-evaluating f( conv ).)
+ /** An element of the global pool (see the "THE GLOBAL POOL" note above for
+  * the full picture):
+  * - sol        : the stored primal point/direction x* (nullptr if empty);
+  * - varsol     : the type of linearization (true = a point / "diagonal"
+  *                one, false = a direction / "vertical" one);
+  * - convexified: true iff the entry is an aggregated convex-combination
+  *                point rather than a genuine subproblem solution;
+  * - value      : the linearization constant -- under EXTERNAL/eager mode
+  *                the full epigraphic constant, under INTERNAL/lazy mode the
+  *                cost-independent correction delta_na (see above);
+  * - conv_active: the subgradient cache, x* on the dual-pair coords
+  *                (v_active), to rebuild the subgradient without sol->write.
   * The field order keeps  gpool_el{ sol , varsol }  working as before. */
  struct gpool_el {
   p_Solution sol         = nullptr;
   bool       varsol      = false;
   bool       convexified = false;
   double     value       = 0;
-  /// EAGER subgradient cache (phase 2): conv_active[h][idx] = x*_k at the
-  /// position v_active[h][idx] (the dual-pair coords). Lets
-  /// get_linearization_coefficients() rebuild g_k = A x*_k - b without
-  /// writing the Solution into the inner Block. Empty until populated (then a
-  /// sol->write fallback is used). Deliberately NOT persisted by
-  /// LagBFunctionState: it is a cache derived from sol + v_active, so a restored
-  /// entry simply rebuilds it (falls back to sol->write until re-stored), while
-  /// ::value and ::convexified ARE persisted.
   std::vector< Vec_FunctionValue > conv_active;
   };
 
@@ -616,16 +658,14 @@ class LagBFunction : public C05Function , public Block {
  intPushCostToOwner,  ///< whether sub-Block Objective are changed
 
  intPoolExtMem,    ///< how the global-pool linearizations are kept up to date
-                   /**< Selects how the global pool is maintained as the costs /
-		    * multipliers change: 0 = EXTERNAL (default) keeps the
-		    * epigraphic constant in gpool_el::value and the subgradient
-		    * point in gpool_el::conv_active, so neither the constant
-		    * (get_linearization_constant()) nor the subgradient
-		    * (get_linearization_coefficients()) needs to write the
-		    * pooled Solution into the inner Block; 1 = re-reads via
-		    * g_pool[name].sol->write() (no extra memory). Drives the
-		    * internal flag f_lazy_eval (1 <-> lazy/write). Was named
-		    * intLazyEval (same 0/1 values). */
+                   /**< Selects how the global pool is maintained as the costs
+		    * / multipliers change: 0 = EXTERNAL (default) keeps the
+ * epigraphic constant in gpool_el::value and the subgradient point in
+ * gpool_el::conv_active, so neither the constant
+ * (get_linearization_constant()) nor the subgradient
+ * (get_linearization_coefficients()) needs to write the pooled Solution into
+ * the inner Block; 1 = re-reads via g_pool[name].sol->write() (no extra
+ * memory). Drives the internal flag f_lazy_eval (1 <-> lazy/write). */
 
  intLastLagBFPar   ///< first allowed new int parameter for derived classes
                    /**< Convenience value for easily allow derived classes
@@ -835,6 +875,16 @@ class LagBFunction : public C05Function , public Block {
   *   [Linear/DQuad]Function inside the FRealObjective of the Block where the
   *   ColVariable is defined. Otherwise all of them are added to the [...]
   *   FRealObjective to the "root" inner Block.
+  *
+  * - intPoolExtMem [default 0]: selects how each global-pool linearization is
+  *                             kept up to date as the costs / multipliers
+  *   change (see the "GLOBAL POOL" note before the gpool_el struct, and the
+  *   f_lazy_eval field). 0 (EXTERNAL, the default) keeps the epigraphic
+  *   constant of each entry in gpool_el::value and the subgradient point in
+  *   gpool_el::conv_active, so that neither get_linearization_constant() nor
+  *   get_linearization_coefficients() has to write the stored Solution into
+  *   the inner Block; 1 re-reads the Solution via sol->write() each time (no
+  *   extra memory, but disturbs the inner Block).
   *
   * The second group comprises:
   *
@@ -1483,19 +1533,19 @@ class LagBFunction : public C05Function , public Block {
  /// the LagBFunction "is always listening"
  /** In principle, a Block "is listening" only if some Solver is registered to
   * it or to one of its ancestors (cf. Block::anyone_there()). However, a
-  * LagBFunction uses the Modification issued by its inner Block to keep its own
+  * LagBFunction uses the Modification from its inner Block to keep its own
   * data structures up to date (the CostMatrix that stores the original costs,
   * and the global pool of linearizations), *independently* of whether some
   * Observer is "listening" to the LagBFunction. For this to happen, those
-  * Modification must be issued by the inner Block (and its Function) even when
+  * Modification must be issued by the inner Block (and Function) even when
   * no Solver is (yet) registered to the LagBFunction: a typical case is the
   * cost of the inner Block being changed (by whatever external agent owns it)
   * while the LagBFunction is still being constructed, before any Solver is
-  * attached to it. To force this, the LagBFunction "is always listening", much
+  * attached to it. To force this, LagBFunction "is always listening", much
   * like FRealObjective and FRowConstraint do for the Function they contain.
   * This may cause some Modification to be issued even if no-one external is
-  * listening, but that is a (minor) price for correctness. Note that this only
-  * concerns the Modification produced by the inner Block: the Modification that
+  * listening, but that is a (minor) price for correctness. Note this only
+  * concerns the Modification produced by the inner Block; the one that
   * the LagBFunction itself produces (as a Function) still depend on the
   * anyone_there() of its own Observer, so that the day a finer mechanism
   * replaces this one, that case will still behave correctly. */
@@ -1754,7 +1804,7 @@ class LagBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
  /// get the by-columns representation of g(x)
  /** Since LagBFunction currently only deals with linear [affine] functions
-  * g(x) = A x [+ b], g(x) can be represented in matrix form. The by-row
+  * g( x ) = A x [+ b], g(x) can be represented in matrix form. The by-row
   * representation of the term (for each variable y_i, the linear function
   * g_i(x) = A_i x [+ b_i]) can be easily accessed via get_Lagrangian_term().
   * However, the by-column representation (for each variable x_j in the
@@ -1783,9 +1833,8 @@ class LagBFunction : public C05Function , public Block {
   // == 1) the coupling is distributed across blocks and we resolve via
   // Block2Idx using the variable's owning Block.
   Index h;
-  if( v_Obj.size() == 1 ) {
+  if( v_Obj.size() == 1 )
    h = 0;
-   }
   else {
    Block * bj = xj->get_Block();
    auto it = Block2Idx.find( bj );
@@ -1795,8 +1844,8 @@ class LagBFunction : public C05Function , public Block {
    }
 
   if( v_ObjIsQuad[ h ] )
-   throw( std::logic_error( "get_A_by_col: matrix representation not available "
-                            "for quadratic objective" ) );
+   throw( std::logic_error( "get_A_by_col: matrix representation not"
+                            " available for quadratic objective" ) );
 
   auto * linf = dynamic_cast< LinearFunction * >( v_Obj[ h ]->get_function() );
   if( ! linf )
@@ -1807,7 +1856,7 @@ class LagBFunction : public C05Function , public Block {
    return( nullptr );
 
   return( &CostMatrix[ h ][ j ] );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// get the matrix representation of g(x) TO BE DELETED
@@ -2557,35 +2606,34 @@ class LagBFunction : public C05Function , public Block {
 				    c_Vec_p_Var & vars , c_Subset & sbst );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
  /// EAGER: propagate an original-cost change to the stored pool constants
  /** Under intPoolExtMem == 0 the full epigraphic constant of each global-pool
   * linearization is kept in gpool_el::value. When the *original* costs change
-  * (only place where the actual per-Variable delta is known, see
-  * update_CostMatrix_ModLin*()), each stored constant c x* + delta_na must be
-  * updated by < Delta_c , x* >; delta_na is cost-independent and untouched.
-  * jdeltas holds ( j , Delta_c_j ) for the changed CM columns of objective rc;
+  * (the only place where the actual per-Variable delta is known, see
+  * update_CostMatrix_ModLin*()), each stored constant must be updated by
+  * < Delta_c , x* >; the cost-independent part (delta_na) is untouched.
+  * jdeltas holds ( j , Delta_c_j ) for the changed CM columns of obj rc;
   * the j-th Variable value of each stored Solution is read by writing it into
-  * the inner Block (the only practical way, as the Solution mirrors the Block
-  * structure). Does nothing under lazy or NoSol. */
+  * the inner Block (the only general way, since reading inside a Solution is
+  * not possible without a write). Does nothing under lazy or NoSol. */
+
  void eager_pool_cost_delta( const v_coeff_pair & rc ,
-			     const std::vector< std::pair< Index , double > >
-			       & jdeltas );
+	       const std::vector< std::pair< Index , double > > & jdeltas );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
  /// EAGER subgradient: fill g from conv_active without writing the Solution
- /** Phase 2.3 (see sparse_costs_design.md §4.4). Rebuilds the subgradient of a
-  * global-pool linearization `name` -- g_i = const_i + sum_j a_{ij} x*_j, the
-  * relaxed-constraint value at the stored point x* -- directly from the cached
-  * conv_active, WITHOUT g_pool[name].sol->write() into the inner Block. const_i
-  * is the constant term of the relaxed-constraint LinearFunction LagPairs[i]
-  * .second (exactly what get_value() adds), the a_{ij} are read from CostMatrix
-  * (the transpose of the dual pairs), x*_j from conv_active (aligned with
-  * v_active). Returns false, filling nothing, when the external mode is off
-  * (f_lazy_eval) or conv_active is missing/inconsistent with the current
-  * v_active, so the caller falls back to writing the Solution and evaluating.
+ /** Rebuilds the subgradient of a global-pool linearization `name` --
+  * g_i = const_i + sum_j a_{ij} x*_j, the relaxed-constraint value at the
+  * stored point x* -- directly from the cached conv_active, WITHOUT
+  * g_pool[name].sol->write() into the Block. const_i is the constant term of
+  * the relaxed-constraint LinearFunction LagPairs[i].second (exactly what
+  * get_value() adds), the a_{ij} come from CostMatrix (transpose of the dual
+  * pairs), x*_j from conv_active (aligned with v_active). Returns false,
+  * filling nothing, when the external mode is off (f_lazy_eval) or
+  * conv_active is missing/inconsistent with the current v_active, so the
+  * caller falls back to writing the Solution and evaluating.
   * Two overloads, one per requested-index form (Range / Subset). */
+
  /// true iff g_pool[name].conv_active can rebuild the subgradient (external
  /// mode on, and conv_active stored against the current v_active shape)
  bool conv_active_usable( Index name ) const;
@@ -2594,6 +2642,20 @@ class LagBFunction : public C05Function , public Block {
 
  bool coeff_from_conv_active( FunctionValue * g , c_Subset & subset ,
 			      Index name );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// (re)fill g_pool[name].conv_active from the current inner-Block state
+ /** Reads x*_name at the dual-pair coords (v_active) straight from the inner
+  * Block's Variables into g_pool[name].conv_active, so the subgradient can
+  * later be rebuilt without a sol->write. PRECONDITION: the Block currently
+  * holds x*_name (just solved in store_linearization, or just written back in
+  * the get_linearization_coefficients fallback -- "populate on miss", #4). A
+  * no-op leaving conv_active EMPTY (sol->write fallback) under lazy / NoSol,
+  * or while v_active is not current (f_active_dirty), or if a stored position
+  * is out of range. Idempotent: safe to call whether or not conv_active was
+  * already populated. */
+
+ void populate_conv_active( Index name );
 
 /*--------------------------------------------------------------------------*/
 
@@ -2688,51 +2750,36 @@ class LagBFunction : public C05Function , public Block {
 
  bool PushCostToOwner;  ///< true if sub-Block objectives are changed
 
- double f_cost_tol;     ///< rel. tol. for a Lagrangian-cost change (dblCostTol)
+ double f_cost_tol;     ///< rel. cost-change tolerance (dblCostTol)
 
- std::vector< Subset > v_active;  ///< per objective, the sorted positions j with
-                        /**< CostMatrix[h][j].second non-empty, i.e. the
-                         * variables coupled to a multiplier (the dual-pair
-                         * coords). Used to iterate only the coords whose c^y
-                         * can change (compute()) and, in phase 2, to index
-                         * conv_active for the subgradient. Rebuilt lazily when
-                         * f_active_dirty (set on dual-pair / variable
-                         * structural changes). */
+ std::vector< Subset > v_active;  ///< per objective, the sorted positions j
+                                  /**< with CostMatrix[ h ][ j ].second
+				   * non-empty, i.e. the variables coupled
+ * to a multiplier (the dual-pair coords). Used to iterate only the coords
+ * whose c^y can change (compute()) and to index conv_active for the
+ * subgradient. Rebuilt lazily when f_active_dirty (on dual-pair / variable
+ * structural change). */
+
  bool f_active_dirty;   ///< true if v_active must be rebuilt from CostMatrix
 
- bool f_lazy_eval;      /**< how the value of a *convexified* linearization is
-   * kept up to date as the (Lagrangian) costs change.
-   *
-   * A convexified linearization is the convex combination, with multipliers
-   * mult_k, of a set of subproblem solutions x_k. The value (constant) of the
-   * linearization the dual actually sees is the *epigraphic* value
-   *
-   *     agg = sum_k mult_k f( x_k )
-   *
-   * which is NOT the value f( conv ) obtained by re-evaluating the objective at
-   * the (fractional) combination point conv = sum_k mult_k x_k, unless f is
-   * affine [ Lemarechal ]. The two ways of keeping agg up to date:
-   *
-   * - EAGER (f_lazy_eval == false, the DEFAULT): agg is stored explicitly and,
-   *   on a *linear* (affine) cost change Delta_c, updated in place by
-   *   agg += <Delta_c , conv>. This is exact for the only changes a Lagrangian
-   *   relaxation ever makes (which are linear in the variables), never
-   *   re-evaluates f at the fractional point, and so does not depend on the
-   *   Block being able to write/read its Solution consistently at a fractional
-   *   point (e.g. threshold-derived auxiliary variables). It is the robust,
-   *   self-contained choice and the reason it is the default.
-   *
-   * - LAZY (f_lazy_eval == true): only the cost-independent correction
-   *   delta_na = agg - f( conv ) is stored, and on each query agg is
-   *   reconstructed as f( conv ) + delta_na, re-evaluating f at the fractional
-   *   point. This is correct ONLY if the cost is purely affine (no non-linear
-   *   f, so f( conv ) == agg and delta_na == 0) OR if the Block guarantees that
-   *   re-evaluating the objective at a fractional Solution yields the true
-   *   value of f at conv -- which requires it to convex-combine *every*
-   *   non-linear auxiliary variable in its Solution, work that cannot be
-   *   presumed of every Block. Kept as an option for the purely-linear case
-   *   and for backward compatibility; do NOT use it with non-linear costs
-   *   unless the Block is known to satisfy the above. */
+ bool f_lazy_eval;      /**< selects how a convexified linearization's value
+			 * is kept up to date as the costs change; it is the
+			 * internal form of the intPoolExtMem parameter
+   * (false == 0 == EXTERNAL/eager, the default; true == 1 == INTERNAL/lazy).
+   * See the "THE GLOBAL POOL" note (before the gpool_el struct) for the full
+   * rationale. In short:
+   * - EAGER (false, the DEFAULT): gpool_el::value holds the full epigraphic
+   *   constant agg = sum_k mult_k f( x_k ); an affine cost change updates it
+   *   in place by agg += < Delta_c , conv >. Never re-evaluates f at the
+   *   fractional combination point conv = sum_k mult_k x_k, so it does not
+   *   need the Block to write/read a Solution consistently at a fractional
+   *   point (e.g. threshold-derived auxiliaries). Robust; hence the default.
+   * - LAZY (true): value holds only the cost-independent correction
+   *   delta_na = agg - f( conv ), and agg is reconstructed on demand as
+   *   f( conv ) + delta_na by re-evaluating f at the stored point. Correct
+   *   only for affine f (then delta_na == 0), or Blocks that convex-combine
+   *   every non-linear auxiliary in their Solution. Kept for backward
+   *   compatibility; do NOT use with non-linear costs otherwise. */
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -3063,7 +3110,7 @@ class LagBFunctionState : public State {
      el.sol = nullptr;
     el.varsol = gpit->varsol;
     // preserve the eager/lazy constant and the convexified flag; conv_active
-    // is a rebuildable cache and is intentionally NOT copied (a restored entry
+    // is a rebuildable cache, intentionally NOT copied (a restored entry
     // falls back to sol->write until it is re-stored, see put_State())
     el.value = gpit->value;
     el.convexified = gpit->convexified;
@@ -3118,7 +3165,7 @@ class LagBFunctionState : public State {
   *   indexed over the dimension LagBFunction_MaxGlob, with the convexified
   *   flag of each pool element. Optional for backward compatibility (assumed
   *   false if absent); optional anyway if LagBFunction_MaxGlob == 0. The
-  *   subgradient cache gpool_el::conv_active is NOT serialized (it is rebuilt).
+  *   subgradient cache gpool_el::conv_active is NOT serialized (rebuilt).
   *
   * - At most LagBFunction_MaxGlob netCDF::NcGroup with name
   *   "LagBFunction_Sol_X", with X an integer between 0 and
