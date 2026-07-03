@@ -2463,6 +2463,33 @@ inline bool deserialize( const netCDF::NcGroup & group ,
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// serialize a std::vector< std::string > into a netCDF NcGroup
+/** This function writes a std::vector of std::string into a netCDF variable
+ * with name \p name within the given netCDF NcGroup \p group, as the
+ * one-dimensional variable of type netCDF::NcString over the dimension \p
+ * ncDim that deserialize( group , name , size , std::vector< std::string > )
+ * reads back. An empty \p data is not serialized.
+ *
+ * @param[in, out] group The netCDF NcGroup in which the variable is added.
+ *
+ * @param[in] name  The name of the variable that will be added.
+ *
+ * @param[in] ncDim The netCDF dimension of the variable.
+ *
+ * @param[in] data  The vector of strings to be stored in the variable. */
+inline void serialize( netCDF::NcGroup & group ,
+                       const std::string & name ,
+                       const netCDF::NcDim & ncDim ,
+                       const std::vector< std::string > & data ) {
+ if( data.empty() )
+  return;  // nothing to be serialized
+
+ auto ncVar = group.addVar( name , netCDF::NcString() , ncDim );
+ for( std::size_t i = 0 ; i < data.size() ; ++i )
+  ncVar.putVar( { i } , data[ i ] );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// serialize a single (scalar) variable into a netCDF NcGroup
 /** Serialize a "simple" value, one for which NcGroup::putVar() is defined,
  * out of \p data and into of the variable with name \p name of the given
