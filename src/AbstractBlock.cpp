@@ -941,12 +941,39 @@ void AbstractBlock::read_mps( std::istream & file )
   file.ignore( max, '\n' );
  }
 
- // Read NAME
+ auto trim = []( std::string & s ) {
+  s.erase( 0 , s.find_first_not_of( " \t\r" ) );
+  s.erase( s.find_last_not_of( " \t\r" ) + 1 );
+  };
+
+ // Read NAME; the problem name, which may well be empty, is whatever
+ // remains on the same line
  file >> word;
  if( word != "NAME" ) {
   throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
  }
+ std::getline( file , problem_name );
+ trim( problem_name );
+
  file >> word;
+
+ // Read the optional OBJSENSE section; the sense is found either on the
+ // same line (as Gurobi and HiGHS write it) or on the following one, and
+ // it defaults to minimization
+ int of_sense = Objective::eMin;
+ if( word == "OBJSENSE" ) {
+  std::string sense;
+  std::getline( file , sense );
+  trim( sense );
+  if( sense.empty() )
+   file >> sense;
+  if( ( sense == "MAX" ) || ( sense == "MAXIMIZE" ) )
+   of_sense = Objective::eMax;
+  else
+   if( ( sense != "MIN" ) && ( sense != "MINIMIZE" ) )
+    throw( std::invalid_argument( "Invalid OBJSENSE in MPS file" ) );
+  file >> word;
+ }
 
  /*
   * First pass: get rows and columns number
@@ -1330,6 +1357,8 @@ void AbstractBlock::read_mps( std::istream & file )
 
  if( word != "ENDATA" )
   throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
+
+ of->set_sense( of_sense , eNoMod );
 
  // Reset and set abstract representation
  reset_static_constraints();
