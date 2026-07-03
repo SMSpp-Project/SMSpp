@@ -880,7 +880,7 @@ void AbstractBlock::serialize( netCDF::NcGroup & group ) const
      ( dc.size() > get_first_dynamic_Constraint() ) ||
      ( sv.size() > get_first_static_Variable() ) ||
      ( dv.size() > get_first_dynamic_Variable() ) ||
-     ( ! is_Objective_reserved() ) )
+     ( get_objective() && ( ! is_Objective_reserved() ) ) )
   throw( std::logic_error(
                     "AbstractBlock::serialize not fully implemented yet" ) );
 
