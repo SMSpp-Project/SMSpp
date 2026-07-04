@@ -1827,7 +1827,7 @@ void BendersBFunction::serialize( netCDF::NcGroup & group ) const {
 
   ::serialize( group , "b" , netCDF::NcDouble() , NcDim_NumRow , v_b );
 
-  ::serialize( group , "ConstraintSide" , netCDF::NcByte() ,
+  ::serialize( group , "ConstraintSide" , netCDF::NcChar() ,
                NcDim_NumRow , v_sides );
  }
 
