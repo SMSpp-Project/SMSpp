@@ -1513,6 +1513,108 @@ class Solver : public ThinComputeInterface
 
  [[nodiscard]] virtual bool new_var_direction( void ) { return( false ); }
 
+/*--------------------------------------------------------------------------*/
+ /// directly get a Solution object for the "current" solution / direction
+ /** After a call to has_var_[solution/direction]() and/or
+  * new_var_[solution/direction]() that returned true, this method can be
+  * used to retrieve a Solution object that represents it.
+  *
+  * This method could be taken as "just a convenience", and in fact it is given
+  * a simple default implementation that:
+  *
+  * - lock()s the Block;
+  *
+  * - calls either get_var_solution() or get_var_direction() depending on which
+  *   among has_var_solution() and has_var_direction() is true (if none it
+  *   returns nullptr, if both it check and returns solutions first) to have
+  *   the solution / direction written in the Variable of the Block;
+  *
+  * - calls Block::get_Solution() to retrieve the Solution object;
+  *
+  * - unlock()s the Block;
+  *
+  * - returns the thusly computed Solution object.
+  *
+  * Note that here, unlike in get_var_solution(), the Block *does* get
+  * lock()-ed in the process: this is because the process is finished when the
+  * method ends and can be unlock()-ed right away (which also shows one very
+  * good reason why it is *not* lock()-ed in get_var_solution()). Because of
+  * this intended semantic, get_Solution() shares most of the contract of
+  * get_var_solution(), which we briefly summarise here:
+  *
+  * - any previous solution / direction is lost for good (but of course it
+  *   could have been saved in a Solution);
+  *
+  * - it is an error to call this method if has_var_[solution/direction]() or
+  *   new_var_[solution/direction]() have not been called and returned true
+  *   (which means, in particular, if no Block is attached to this Solver).
+  *
+  * - writing solution information (of either type) inside a Block is not
+  *   counted as a change of the Block and therefore no Modification is issued;
+  *
+  * - retrieving a "partial" solution / direction is supported by the same
+  *   Configuration mechanism, with a specific twist:
+  *
+  *     THE SAME Configuration OBJECT IS PASSED TO
+  *     get_var_[solution/direction]() AND get_Solution() (ALTHOUGH THIS PART
+  *     OF THE DESIGN MAY NOT BE 100% FIRM)
+  *
+  *   One rationale is that, as discussed for get_var_solution(), the two
+  *   Configuration are expected (although not strictly required) to be
+  *   "compatible". However, the real rationale is the real reason why this
+  *   method exists in the first place:
+  *
+  *    THIS METHOD IS SUPPOSED TO BE RE-IMPLEMENTED BY "PHISICAL" Solver
+  *    WITHOUT WRITING THE SOLUTION INFORMATION IN THE Variable OF THE Block
+  *
+  * This is the fundamental mechanism that allows a Block to "live without any
+  * Variable", and therefore any part of the abstract representation: without
+  * this, the Variable would necessarily have to be defined just to hold the
+  * solution information (and the Constraint to hold dual information, if any).
+  * By "routing away" from the Block, the need for the Variable is eliminated.
+  * This makes full sense, since
+  *
+  *     "PHISICAL" Solver ARE EXPECTED TO FULLY KNOW THE :Block AND THEREFORE
+  *     THE FORMAT Of ITS :Solution. "MIXED" Solver THAT RELY PARTLY ON THE
+  *     ABSTRACT AND PARTLY ON THE PHISICAL REPRESENTATION WOULD HAVE THE
+  *     (RELEVANT PART OF) Variable BUILT ANYWAY, BUT THEY MIGHT NONETHELESS
+  *     BE ABLE TO STORE THE (RELEVANT PART OF) THE SOLUTION / DIRECTION
+  *     INFORMATION IN THEIR DATA STRUCTURES WITHOUT write()-ING TO THE Block
+  *
+  * Furthermore, the "physical implementation" of this method has a relevant
+  * performance implication:
+  *
+  *     THE Solution CAN BE PROVIDED WITHOUT lock()-ING THE Block, AND
+  *     THEREFORE MULTIPLE Solution CAN BE GENERATED IN PARALLEL BY MULTIPLE
+  *     Solver ATTACHED TO THE SAME Block WITHOUT CONTENTION
+  *
+  * It could also be expected that generating "physical Solution" directly be
+  * more efficient than writing them to the Variable and then recovering the
+  * Solution from there, especially if the :Solution can store information in
+  * some problem-specific "compressed format" (a path, a set, ...).
+  *
+  * Importantly,
+  *
+  *     OWNERSHIP OF THE RETURNED Solution OBJECT IS TRANSFERRED TO THE CALLER,
+  *     WHO THEREFORE HAS THE BURDEN OF DE-ALLOCATING IT
+  *
+  * Note that a "physical Solver" may well decide to store its solution
+  * information directly into a Solution object in the "hot loops" of the
+  * algorithmic solution: this is not an issue, in that this method can
+  * simply clone() it and return the thusly generated copy.
+  *
+  * Finally, let us explicitly remark that
+  *
+  *     THERE IS NO NEED OF A SEPARATE get_Direction() METHOD BECAUSE Solution
+  *     OBJECTS ARE ASSUMED TO BE ABLE TO PROPERLY REPRESENT DIRECTIONS AS WELL
+  *     AS SOLUTIONS (IF THE PROBLEM ALLOWS FOR THEM). ANALOGOUSLY, THERE WILL
+  *     BE NO NEED FOR A SEPARATE MECHAMISM TO RETRIEVE DUAL SOLUTIONS (IF THE
+  *     PROBLEM ALLOWS FOR THEM) BECAUSE AAGIN Solution OBJECTS ARE ASSUMED TO
+  *     BE ABLE TO PROPERLY REPRESENT IT. */
+
+ [[nodiscard]] virtual Solution * get_Solution(
+					     Configuration * solc = nullptr );
+
 /** @} ---------------------------------------------------------------------*/
 /*-------------- METHODS FOR READING THE DATA OF THE Solver ----------------*/
 /*--------------------------------------------------------------------------*/
