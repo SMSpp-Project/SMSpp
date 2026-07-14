@@ -18,6 +18,15 @@
 
 #include "PolyhedralFunctionBlock.h"
 
+#include "AbstractBlock.h"
+#include "BlockSolverConfig.h"
+#include "ColVariable.h"
+#include "FRealObjective.h"
+#include "LinearFunction.h"
+
+#include <algorithm>
+#include <cmath>
+#include <list>
 #include <unordered_set>
 
 /*--------------------------------------------------------------------------*/
@@ -2050,6 +2059,140 @@ void PolyhedralFunctionBlock::ConstructLPConstraint( Index i ,
  ci.set_function( new LinearFunction( std::move( vars ) ) , eNoMod );
 
  }  // end( PolyhedralFunctionBlock::ConstructLPConstraint )
+
+/*--------------------------------------------------------------------------*/
+/*------------ remove_redundant_rows() and its local helpers --------------*/
+/*--------------------------------------------------------------------------*/
+
+namespace {
+
+using Index = Block::Index;
+using Subset = Block::Subset;
+
+double pf_sign( PolyhedralFunction * function ) {
+ return( function->is_convex() ? - 1.0 : 1.0 );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+// build the epigraph LP of the PolyhedralFunction (an AbstractBlock):
+//   max s ( y - a_0 x ) : s ( y - a_i x ) <= s b_i , i = 1 .. m-1
+AbstractBlock * pf_build_lp( PolyhedralFunction * function ) {
+ const auto & A = function->get_A();
+ if( A.empty() )
+  return( nullptr );
+ const auto & b = function->get_b();
+ assert( A.size() == b.size() );
+
+ auto lp = new AbstractBlock;
+ const auto num_var = A.front().size();
+
+ auto x = new std::vector< ColVariable >( num_var );
+ lp->add_static_variable( * x , "x" );
+ auto y = new ColVariable;
+ lp->add_static_variable( * y , "y" );
+
+ const auto sign = pf_sign( function );
+
+ auto of = new LinearFunction;
+ for( Index j = 0 ; j < x->size() ; ++j )
+  of->add_variable( & ( * x )[ j ] , - sign * A[ 0 ][ j ] );
+ of->add_variable( y , sign );
+ auto objective = new FRealObjective( lp , of );
+ objective->set_sense( Objective::eMax );
+ lp->set_objective( objective );
+
+ auto constraints = new std::list< FRowConstraint >( A.size() - 1 );
+ auto cit = constraints->begin();
+ for( Index i = 1 ; i < A.size() ; ++i , ++cit ) {
+  auto f = new LinearFunction;
+  for( Index j = 0 ; j < x->size() ; ++j )
+   f->add_variable( & ( * x )[ j ] , - sign * A[ i ][ j ] );
+  f->add_variable( y , sign );
+  ( * cit ).set_lhs( - Inf< double >() );
+  ( * cit ).set_rhs( sign * b[ i ] );
+  ( * cit ).set_function( f );
+  }
+ lp->add_dynamic_constraint( * constraints , "c" );
+ return( lp );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+// move the cut currently in the objective into the constraints (if
+// move_to_constraint) and bring the first constraint into the objective
+void pf_update_lp( AbstractBlock * lp , PolyhedralFunction * function ,
+		   Index i , bool move_to_constraint ) {
+ auto constraints = lp->get_dynamic_constraint< FRowConstraint >( 0 );
+ assert( ! ( * constraints ).empty() );
+
+ auto objective = static_cast< FRealObjective * >( lp->get_objective() );
+ auto of = static_cast< LinearFunction * >( objective->get_function() );
+
+ if( move_to_constraint && i > 0 ) {
+  const auto sign = pf_sign( function );
+  const auto & b = function->get_b();
+  std::list< FRowConstraint > nc( 1 );
+  nc.front().set_lhs( - Inf< double >() );
+  nc.front().set_rhs( sign * b[ i ] );
+  auto v_var = of->get_v_var();
+  nc.front().set_function( new LinearFunction( std::move( v_var ) ) );
+  lp->add_dynamic_constraints( * constraints , nc );
+  }
+
+ auto & first = ( * constraints ).front();
+ auto cf = static_cast< LinearFunction * >( first.get_function() );
+ for( Index j = 0 ; j < cf->get_num_active_var() ; ++j )
+  of->modify_coefficient( j , cf->get_coefficient( j ) );
+
+ lp->remove_dynamic_constraint( * constraints , ( * constraints ).begin() );
+ }
+
+}  // end( anonymous namespace )
+
+/*--------------------------------------------------------------------------*/
+
+void PolyhedralFunctionBlock::remove_redundant_rows(
+				 PolyhedralFunction * function ,
+				 BlockSolverConfig * solver_config ,
+				 Function::FunctionValue abs_error ,
+				 Function::FunctionValue rel_error )
+{
+ auto num_rows = function->get_nrows();
+ if( num_rows <= 1 )
+  return;
+
+ auto lp = pf_build_lp( function );
+ solver_config->apply( lp );
+ auto solver = lp->get_registered_solvers().front();
+
+ num_rows = function->get_nrows();
+ Subset rows_to_remove;
+ rows_to_remove.reserve( num_rows - 1 );
+
+ const auto sign = pf_sign( function );
+ const auto & b = function->get_b();
+
+ for( Index i = 0 ; i < function->get_nrows() ; ++i ) {
+  bool remove = false;
+  if( solver->compute() == Solver::kOK ) {
+   const auto val = solver->get_var_value();
+   if( ( val < sign * b[ i ] + abs_error ) &&
+       ( val < sign * b[ i ] + rel_error *
+	 std::max( std::abs( val ) , std::abs( b[ i ] ) ) ) ) {
+    remove = true;
+    rows_to_remove.push_back( i );
+    }
+   }
+  if( i < num_rows - 1 )
+   pf_update_lp( lp , function , i , ! remove );
+  }
+
+ function->delete_rows( std::move( rows_to_remove ) );
+
+ delete( solver );
+ delete( lp );
+ }
 
 /*--------------------------------------------------------------------------*/
 /*--------------- End File PolyhedralFunctionBlock.cpp ---------------------*/

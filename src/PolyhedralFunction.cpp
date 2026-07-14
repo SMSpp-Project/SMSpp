@@ -2638,6 +2638,58 @@ void PolyhedralFunction::delete_rows( ModParam issueMod )
  }  // end( PolyhedralFunction::delete_rows( all ) )
 
 /*--------------------------------------------------------------------------*/
+
+void PolyhedralFunction::remove_parallel_rows( FunctionValue abs_error ,
+					       FunctionValue rel_error ,
+					       ModParam issueMod )
+{
+ if( v_A.empty() )
+  return;
+
+ assert( v_A.size() == v_b.size() );
+
+ const double sign = f_is_convex ? - 1.0 : 1.0;
+
+ Subset rows_to_remove;
+ std::vector< bool > removed( v_A.size() , false );
+
+ for( Index i = 0 ; i < v_A.size() ; ++i ) {
+  if( removed[ i ] )
+   continue;
+
+  for( Index k = i + 1 ; k < v_A.size() ; ++k ) {
+   if( removed[ k ] )
+    continue;
+
+   assert( v_A[ i ].size() == v_A[ k ].size() );
+
+   bool parallel = true;
+   for( Index j = 0 ; j < v_A[ i ].size() ; ++j )
+    if( ( std::abs( v_A[ i ][ j ] - v_A[ k ][ j ] ) > abs_error ) ||
+	( std::abs( v_A[ i ][ j ] - v_A[ k ][ j ] ) > rel_error *
+	  std::max( std::abs( v_A[ i ][ j ] ) ,
+		    std::abs( v_A[ k ][ j ] ) ) ) ) {
+     parallel = false;
+     break;
+     }
+
+   if( parallel ) {
+    // keep the dominating row ( the one with the better constant )
+    if( sign * v_b[ i ] > sign * v_b[ k ] ) {
+     removed[ i ] = true;
+     rows_to_remove.push_back( i );
+     break;
+     }
+    removed[ k ] = true;
+    rows_to_remove.push_back( k );
+    }
+   }
+  }
+
+ delete_rows( std::move( rows_to_remove ) , false , issueMod );
+ }
+
+/*--------------------------------------------------------------------------*/
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 

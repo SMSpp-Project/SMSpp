@@ -48,6 +48,8 @@
 namespace SMSpp_di_unipi_it
 {
 
+class BlockSolverConfig;  // forward declaration
+
 /*--------------------------------------------------------------------------*/
 /*-------------------- CLASS PolyhedralFunctionBlock -----------------------*/
 /*--------------------------------------------------------------------------*/
@@ -709,6 +711,28 @@ class PolyhedralFunctionBlock : public AbstractBlock
  *  @{ */
 
  PolyhedralFunction & get_PolyhedralFunction( void ) { return( f_polyf ); }
+
+/*--------------------------------------------------------------------------*/
+ /// remove the redundant ( inactive ) rows of the given PolyhedralFunction
+ /** Removes from \p function the rows that are inactive, i.e., that do not
+  * contribute to its value at any point of its domain. A row k is inactive if
+  * the LP ( the epigraph of the PolyhedralFunction, which is exactly what a
+  * PolyhedralFunctionBlock represents )
+  *
+  *     max  s ( y - a_k x ) : s ( y - a_i x ) <= s b_i , i != k
+  *
+  * ( s = -1 convex, +1 concave ) has a finite optimum that is strictly less
+  * than s b_k ( within the given tolerances ). The LP is solved by the Solver
+  * configured by \p solver_config. Unlike the geometric
+  * PolyhedralFunction::remove_parallel_rows(), this needs to solve LPs, hence
+  * it lives on the (epigraph) Block rather than on the Function; it is static
+  * because the PolyhedralFunction to be pruned is typically owned elsewhere
+  * (e.g. as the Objective of some Block, as in SDDPBlock). */
+
+ static void remove_redundant_rows( PolyhedralFunction * function ,
+				    BlockSolverConfig * solver_config ,
+				    Function::FunctionValue abs_error = 0 ,
+				    Function::FunctionValue rel_error = 0 );
 
 /*--------------------------------------------------------------------------*/
 
