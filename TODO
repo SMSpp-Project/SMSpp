@@ -138,8 +138,7 @@
         imagined.
 
 
-2020-02-17 [high] LagrangianDualBlock, BendersDecompositionBlock
-2020-08-20 [updated] LagrangianDualSolver, BendersDecompositionSolver
+2026-07-17 [updated] BendersDecompositionSolver
 
 	SMS++ is motivated by decomposition, and it offers LagBFunction and
 	BendersBFunction to handle a large part of the complications about
@@ -152,7 +151,7 @@
 	case, no variables in the father and no other links between the sons but
 	the linear constraints in the father) and construct an appropriate :Block
 	(say, an AbstractBlock) representing the Lagrangian Dual / Benders'
-	Reformulation of the original Block. This is done by either "hyjacking"
+	Reformulation of the original Block. This is done by either "hijacking"
 	or copying (R3B) its sons, storing them into appropriate LagBFunction or
 	BendersBFunction that are then stuffed into newly constructed
 	AbstractBlock and put as its sons. The original :Block will *not*
@@ -165,6 +164,7 @@
 	This is a great alternative to having the :Block to manually produce
 	an appropriately structured R3Block of its, because it is all done
 	transparently inside a Solver that is attached to the original Block.
+	LagrangianDualBlock is done, BendersDecompositionBlock next.
 
 
 2019-11-01 [medium-high] Block and Solver specify which kinds of Modification
