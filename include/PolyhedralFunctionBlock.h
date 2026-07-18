@@ -48,6 +48,8 @@
 namespace SMSpp_di_unipi_it
 {
 
+class BlockSolverConfig;  // forward declaration
+
 /*--------------------------------------------------------------------------*/
 /*-------------------- CLASS PolyhedralFunctionBlock -----------------------*/
 /*--------------------------------------------------------------------------*/
@@ -333,9 +335,23 @@ class PolyhedralFunctionBlock : public AbstractBlock
 
  PolyhedralFunctionBlock( Block * father = nullptr )
   : AbstractBlock( father ) , f_rep( 0 ) ,
-    f_polyf( {} , {} , {} , -Inf< Function::FunctionValue >() , true , this
-	     ) ,
+    f_own_polyf( {} , {} , {} , -Inf< Function::FunctionValue >() , true , this
+		 ) ,
     f_v() , f_const() { }
+
+/*--------------------------------------------------------------------------*/
+ /// constructor wrapping an *external* PolyhedralFunction
+ /** Constructs a PolyhedralFunctionBlock that does not own its
+  * PolyhedralFunction but operates on the given external \p polyf ( which
+  * keeps its own Observer and is neither serialized nor destroyed by this
+  * Block ). This is used to build a transient epigraph LP over an existing
+  * PolyhedralFunction, e.g. in remove_redundant_rows(). */
+
+ PolyhedralFunctionBlock( Block * father , PolyhedralFunction * polyf )
+  : AbstractBlock( father ) , f_rep( 0 ) ,
+    f_own_polyf( {} , {} , {} , -Inf< Function::FunctionValue >() , true ,
+		 nullptr ) ,
+    f_v() , f_const() { if( polyf ) f_polyf_p = polyf; }
 
 /*--------------------------------------------------------------------------*/
  /// load the PolyhedralFunctionBlock out of an istream
@@ -368,7 +384,7 @@ class PolyhedralFunctionBlock : public AbstractBlock
   // have the PolyhedralFunction do all the dirty work for us
   // don't bother issuing individual Modification, since a NBModification will
   // anyway be issued soon (if anybody is listening)
-  f_polyf.deserialize( group , eNoMod );
+  PF().deserialize( group , eNoMod );
 
   // the PolyhedralFunctionBlock is "naked": no abstract representaton
   f_rep = 0;
@@ -390,7 +406,7 @@ class PolyhedralFunctionBlock : public AbstractBlock
 
  std::vector< std::string > expected_dims( void ) const override {
   auto ret = AbstractBlock::expected_dims();
-  auto pfev = f_polyf.expected_dims();
+  auto pfev = PF().expected_dims();
   ret.insert( ret.end() , pfev.begin() , pfev.end() );
   return( ret );
   }
@@ -400,7 +416,7 @@ class PolyhedralFunctionBlock : public AbstractBlock
 
  std::vector< std::string > expected_vars( void ) const override {
   auto ret = AbstractBlock::expected_vars();
-  auto pfev = f_polyf.expected_vars();
+  auto pfev = PF().expected_vars();
   ret.insert( ret.end() , pfev.begin() , pfev.end() );
   return( ret );
   }
@@ -502,14 +518,14 @@ class PolyhedralFunctionBlock : public AbstractBlock
   *
   * The variable v is NOT generated. In its place we generate
   *
-  * - one *non-negative* ColVariable \f$\theta_i\f$ per row of f_polyf
-  *   (both diagonal and vertical, in the same order as in f_polyf), as
+  * - one *non-negative* ColVariable \f$\theta_i\f$ per row of PF()
+  *   (both diagonal and vertical, in the same order as in PF()), as
   *   the first group of *dynamic* Variable (f_theta);
   *
   * - one *non-negative* static ColVariable \f$\gamma\f$ as the first
   *   group of static Variable (f_gamma), playing the role of the dual
-  *   multiplier of the global bound of f_polyf. If
-  *   f_polyf.is_bound_set() is false, then \f$\gamma\f$ is is_fixed-ed to
+  *   multiplier of the global bound of PF(). If
+  *   PF().is_bound_set() is false, then \f$\gamma\f$ is is_fixed-ed to
   *   0 to make sure it has no effect (the contribution to the
   *   normalization constraint is null and the contribution to the
   *   objective is null too, regardless of how the "ineffective" bound
@@ -617,7 +633,7 @@ class PolyhedralFunctionBlock : public AbstractBlock
   * \f]
   * where the internal \f$\gamma\f$ (this PolyhedralFunctionBlock's own
   * static ColVariable f_gamma, fixed to 0 if no bound is set) plays the
-  * role of the dual multiplier of the global lower/upper bound of f_polyf.
+  * role of the dual multiplier of the global lower/upper bound of PF().
   *
   * When the PolyhedralFunctionBlock is used as one component of a larger
   * "inf-convolution" structure (typically: the father AbstractBlock packs
@@ -664,7 +680,7 @@ class PolyhedralFunctionBlock : public AbstractBlock
   * \f[
   *   \sum_{i \in B} \theta_i a_i = z
   * \f]
-  * (where the \f$a_i\f$'s are the rows of f_polyf and z is the "main"
+  * (where the \f$a_i\f$'s are the rows of PF() and z is the "main"
   * coordinate w.r.t. which the conjugate is computed) is *not*
   * implemented internally. This design choice reflects the fact that
   * multiple PolyhedralFunctionBlock may coexist within the same parent
@@ -675,13 +691,13 @@ class PolyhedralFunctionBlock : public AbstractBlock
   *
   * The list passed as input is assumed to already exist (i.e. it contains
   * one FRowConstraint per coordinate of z) and to be in 1:1
-  * correspondence with the active Variable of f_polyf, that is:
-  * \p constraints.size() must equal f_polyf.get_num_active_var(), and the
+  * correspondence with the active Variable of PF(), that is:
+  * \p constraints.size() must equal PF().get_num_active_var(), and the
   * j-th constraint (0-based) is the one corresponding to the j-th active
-  * Variable of f_polyf.
+  * Variable of PF().
   *
   * The method augments each constraint by adding to its LinearFunction
-  * the term \f$\theta_i \, a_{i,j}\f$ for every row i of f_polyf for
+  * the term \f$\theta_i \, a_{i,j}\f$ for every row i of PF() for
   * which \f$a_{i,j} \ne 0\f$.
   *
   * The variables \f$\theta_i\f$ involved in these terms are the dynamic
@@ -708,7 +724,66 @@ class PolyhedralFunctionBlock : public AbstractBlock
 /** @name Methods for reading the data of the PolyhedralFunctionBlock
  *  @{ */
 
- PolyhedralFunction & get_PolyhedralFunction( void ) { return( f_polyf ); }
+ PolyhedralFunction & get_PolyhedralFunction( void ) { return( PF() ); }
+
+/*--------------------------------------------------------------------------*/
+ /// inhibit ( or restore ) the mirroring of the abstract representation
+ /** Inhibits ( \p dumb == true ) or restores ( \p dumb == false, the default )
+  * the mirroring of the abstract representation back onto the
+  * PolyhedralFunction in add_Modification(). While "playing dumb", changes to
+  * the Constraint / Objective of the abstract representation still reach any
+  * attached Solver, but they are not reflected onto PF(). See f_play_dumb. */
+
+ void set_play_dumb( bool dumb = true ) { f_play_dumb = dumb; }
+
+/*--------------------------------------------------------------------------*/
+ /// remove the redundant rows of the PolyhedralFunction
+ /** Removes from the PolyhedralFunction all the rows that are redundant, i.e.,
+  * that do not contribute to its value at any point of its domain. Letting
+  * s = -1 if the PolyhedralFunction is convex and s = +1 if it is concave,
+  * there are two kinds of redundant rows:
+  *
+  * - *parallel* ( dominated ) rows: if a_i == a_k and s b_k >= s b_i for some
+  *   i != k, then row k is dominated by row i. These are removed geometrically
+  *   by PolyhedralFunction::remove_parallel_rows(), which needs no Solver.
+  *
+  * - *inactive* rows: a row k that, although parallel to no other, never
+  *   attains the pointwise maximum ( convex ) / minimum ( concave ). Deciding
+  *   this needs an LP. Writing the convex PolyhedralFunction as the epigraph
+  *   \f[
+  *     \min \{ v : v \ge a_i x + b_i , \; i \in I \}
+  *   \f]
+  *   row k is useless exactly when
+  *   \f[
+  *     \min \{ v - ( a_k x + b_k ) : v \ge a_i x + b_i , \;
+  *             i \in I \setminus \{ k \} \} \ge 0 ,
+  *   \f]
+  *   a negative ( possibly -INF ) optimum meaning that at some point row k
+  *   lies strictly above all the others, so it cannot be removed; the concave
+  *   case is symmetric.
+  *
+  * The LP is solved by the Solver configured by \p solver_config. Since the
+  * "active" x of the PolyhedralFunction are not Variable of this Block ( they
+  * belong to the parent model ), the LP is assembled in a transient
+  * AbstractBlock holding fresh free x, inside which an inner
+  * PolyhedralFunctionBlock shares this' PolyhedralFunction ( via the pointer
+  * constructor ), so that its own linearized representation ( v and the
+  * v >= a_i x + b_i rows ) is reused as the epigraph LP. Cycling over the
+  * rows, the objective is aimed at row h and its own constraint is temporarily
+  * relaxed; a redundant row is recorded and, at the end, delete_rows()-ed from
+  * the PolyhedralFunction, so that the removal Modification reaches the parent
+  * model. The inner Block "plays dumb" ( see set_play_dumb() ) so that the
+  * relaxations are not mirrored back onto the shared PolyhedralFunction; the
+  * inner Block and the AbstractBlock are built and torn down on each call.
+  *
+  * The four tolerances ( absolute and relative, for the parallel and for the
+  * inactive test ) are read, like the other parameters of a
+  * PolyhedralFunctionBlock, from this Block's BlockConfig: its "extra"
+  * Configuration, a SimpleConfiguration< std::vector< double > > with up to
+  * four entries [ parallel_abs, parallel_rel, optimization_abs,
+  * optimization_rel ]; missing entries default to 0. */
+
+ void remove_redundant_rows( BlockSolverConfig * solver_config );
 
 /*--------------------------------------------------------------------------*/
 
@@ -718,7 +793,7 @@ class PolyhedralFunctionBlock : public AbstractBlock
    return( AbstractBlock::get_valid_upper_bound( true ) );
   else
    return( std::min( AbstractBlock::get_valid_upper_bound( false ) ,
-		     f_polyf.get_global_upper_bound() ) );
+		     PF().get_global_upper_bound() ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -729,7 +804,7 @@ class PolyhedralFunctionBlock : public AbstractBlock
    return( AbstractBlock::get_valid_lower_bound( true ) );
   else
    return( std::max( AbstractBlock::get_valid_lower_bound( false ) ,
-		     f_polyf.get_global_lower_bound() ) );
+		     PF().get_global_lower_bound() ) );
   }
 
 /** @} ---------------------------------------------------------------------*/
@@ -926,13 +1001,13 @@ class PolyhedralFunctionBlock : public AbstractBlock
  {
   //!! std::cout << *mod << std::endl;
 
-  // if the "natural" representation is used (bit 0 of f_rep is 0), or
-  // the Modification comes from a sub-Block, or it does not concern the
-  // Block any longer, just pass it up. With the "linearized primal"
-  // ("01") and "linearized dual" ("11") encodings this method intercepts
-  // Modifications and mirrors them between f_polyf and the (primal or
-  // dual) abstract representation.
-  if( is_natural() || ( mod->get_Block() != this ) ||
+  // if the "natural" representation is used (bit 0 of f_rep is 0), or this
+  // Block is "playing dumb" (see set_play_dumb()), or the Modification comes
+  // from a sub-Block, or it does not concern the Block any longer, just pass
+  // it up. With the "linearized primal" ("01") and "linearized dual" ("11")
+  // encodings this method intercepts Modifications and mirrors them between
+  // PF() and the (primal or dual) abstract representation.
+  if( is_natural() || f_play_dumb || ( mod->get_Block() != this ) ||
       ( ! mod->concerns_Block() ) ) {
    AbstractBlock::add_Modification( mod , chnl );  // just pass it up
    return;
@@ -941,7 +1016,7 @@ class PolyhedralFunctionBlock : public AbstractBlock
   mod->concerns_Block( false );  // recall it's been checked already
 
   auto tmod = std::dynamic_pointer_cast< const FunctionMod >( mod );
-  if( tmod && ( tmod->function() == & f_polyf ) ) {
+  if( tmod && ( tmod->function() == & PF() ) ) {
    // if the Modification comes from the PolyhedralFunction; it will
    // generate a (bunch of) Modification(s) in the abstract
    // representation, and this Modification itself will also remain to
@@ -1003,7 +1078,7 @@ class PolyhedralFunctionBlock : public AbstractBlock
   AbstractBlock::serialize( group );
 
   // have the PolyhedralFunction do all the dirty work for us
-  f_polyf.serialize( group );
+  PF().serialize( group );
   }
 
 /** @} ---------------------------------------------------------------------*/
@@ -1095,7 +1170,7 @@ class PolyhedralFunctionBlock : public AbstractBlock
 
 /*--------------------------------------------------------------------------*/
  /// PF -> dual abstract: counterpart of guts_of_add_Modification_PF
- /** Mirrors a Modification coming from f_polyf into the *dual* abstract
+ /** Mirrors a Modification coming from PF() into the *dual* abstract
   * representation (f_theta dynamic variables, f_normcns normalization
   * constraint, the FRealObjective LinearFunction and, when registered, the
   * f_coupling external coupling constraints).
@@ -1110,11 +1185,11 @@ class PolyhedralFunctionBlock : public AbstractBlock
 /*--------------------------------------------------------------------------*/
  /// dual abstract -> PF: counterpart of guts_of_add_Modification_LR
  /** Mirrors a Modification coming from the *dual* abstract representation
-  * back into f_polyf. Most direct modifications of the dual abstract
+  * back into PF(). Most direct modifications of the dual abstract
   * structures (theta variables, normalization, objective LinearFunction,
-  * coupling constraints) would leave f_polyf in an inconsistent state and
+  * coupling constraints) would leave PF() in an inconsistent state and
   * are rejected. The few "internal" Modifications produced by this class
-  * itself while processing a PolyhedralFunctionMod from f_polyf are
+  * itself while processing a PolyhedralFunctionMod from PF() are
   * recognised and silently absorbed. */
 
  void guts_of_add_Modification_LR_dual( c_p_Mod mod , ChnlName chnl );
@@ -1133,7 +1208,7 @@ class PolyhedralFunctionBlock : public AbstractBlock
 /*--------------------------- PRIVATE METHODS ------------------------------*/
 /*--------------------------------------------------------------------------*/
 
- // clears all the abstract representaton, but not f_polyf
+ // clears all the abstract representaton, but not PF()
  void guts_of_destructor( void );
 
  // constructs the i-th constraint of the linearized representation
@@ -1173,7 +1248,22 @@ class PolyhedralFunctionBlock : public AbstractBlock
  bool is_dual( void ) const  // dual linearized representation
  { return( ( f_rep & 3 ) == 3 ); }
 
- PolyhedralFunction f_polyf;  ///< the PolyhedralFunction
+ PolyhedralFunction f_own_polyf;  ///< the owned PolyhedralFunction ( default )
+
+ /// pointer to the *active* PolyhedralFunction: the owned one by default, or
+ /// an external one when this Block wraps it ( see the second constructor )
+ PolyhedralFunction * f_polyf_p{ & f_own_polyf };
+
+ /// the active PolyhedralFunction ( owned or external ), used everywhere
+ PolyhedralFunction & PF( void ) { return( * f_polyf_p ); }
+ const PolyhedralFunction & PF( void ) const { return( * f_polyf_p ); }
+
+ /// when true, add_Modification() does not mirror the abstract representation
+ /// ( Constraint / Objective ) back onto PF(): the Modification are still
+ /// passed on to any attached Solver, but PF() is left untouched. Set via
+ /// set_play_dumb(); used by remove_redundant_rows() on a transient inner
+ /// Block sharing an external PolyhedralFunction
+ bool f_play_dumb = false;
 
  ColVariable f_v;        ///< the v variable in the linearized representation
 
@@ -1184,13 +1274,13 @@ class PolyhedralFunctionBlock : public AbstractBlock
 
  std::list< ColVariable > f_theta;
                          ///< the dynamic variables theta in the dual
-                         /// representation, one per row of f_polyf (both
+                         /// representation, one per row of PF() (both
                          /// diagonal and vertical, in the same order)
 
  ColVariable f_gamma;    ///< the static ColVariable gamma in the dual
                          /// representation, playing the role of the dual
                          /// multiplier of the global lower/upper bound of
-                         /// f_polyf (is_fixed-ed to 0 when no bound is set)
+                         /// PF() (is_fixed-ed to 0 when no bound is set)
 
  FRowConstraint f_normcns;
                          ///< the static "normalization" constraint of the
@@ -1206,7 +1296,7 @@ class PolyhedralFunctionBlock : public AbstractBlock
                          /// set_conjugate_constraint(). Used by the
                          /// add_Modification machinery to keep the
                          /// coupling LinearFunctions in sync with the rows
-                         /// of f_polyf in the dual representation.
+                         /// of PF() in the dual representation.
                          /// nullptr until set_conjugate_constraint() is
                          /// called (and remains nullptr if it never is).
 
