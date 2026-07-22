@@ -1578,6 +1578,21 @@ class PolyhedralFunction : public C05Function {
  void delete_rows( ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
+ /// remove the parallel ( dominated ) rows of the PolyhedralFunction
+ /** Removes the rows that are parallel to ( and dominated by ) another one:
+  * two rows i and k are parallel if, for every component j,
+  * | a_{ij} - a_{kj} | <= abs_error and
+  * | a_{ij} - a_{kj} | <= rel_error * max( | a_{ij} | , | a_{kj} | ); among
+  * two parallel rows the dominated one ( the one with the worse constant ) is
+  * deleted. This is a purely geometric operation on ( A , b ), requiring no
+  * Solver. See also PolyhedralFunctionBlock::remove_redundant_rows() for the
+  * removal of the inactive rows, which needs to solve an LP. */
+
+ void remove_parallel_rows( FunctionValue abs_error = 0 ,
+			    FunctionValue rel_error = 0 ,
+			    ModParam issueMod = eModBlck );
+
+/*--------------------------------------------------------------------------*/
 /*-------------------------------- FRIENDS ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 

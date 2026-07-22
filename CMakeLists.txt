@@ -17,8 +17,13 @@
 # --------------------------------------------------------------------------- #
 cmake_minimum_required(VERSION 3.21)
 cmake_policy(VERSION 3.15)
+# Derive the version from the most recent git tag (fallback for tarballs), so
+# a release is just `git tag x.y.z`. Must be done before project().
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/DeriveVersion.cmake)
+smspp_derive_version(SMSpp_VERSION)
+
 project(SMS++
-        VERSION 0.6.0
+        VERSION ${SMSpp_VERSION}
         DESCRIPTION "SMS++ core library"
         HOMEPAGE_URL https://gitlab.com/smspp/smspp
         LANGUAGES C CXX)
@@ -26,6 +31,12 @@ project(SMS++
 # These variables make the code harder to read but easier to change.
 set(modName ${PROJECT_NAME})
 set(modNamespace "SMS++")
+
+# A C-safe form of modName for the preprocessor macros in <modName>Config.h:
+# modName ("SMS++") contains '+', which is not valid in an identifier. We use
+# "SMSpp", matching the SMSpp_di_unipi_it namespace. Modules generated from the
+# ModuleTemplate whose name is already a valid identifier use modName as-is.
+set(modMacro "SMSpp")
 
 # Find out if it's being called by the umbrella.
 get_directory_property(hasParent PARENT_DIRECTORY)
@@ -203,6 +214,10 @@ target_sources(${modName} PRIVATE
 target_include_directories(
         ${modName} PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        # the build directory holds the generated ${modName}Config.h, so that
+        # dependents built in-tree can #include it (installed builds get it from
+        # the INSTALL_INTERFACE include dir, where it is installed)
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
         $<INSTALL_INTERFACE:include/${modNamespace}>
         $<BUILD_INTERFACE:${fastflow_SOURCE_DIR}>)
 

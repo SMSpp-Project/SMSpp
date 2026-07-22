@@ -57,6 +57,7 @@
 #include "PolyhedralFunctionBlock.h"
 #include "SMSTypedefs.h"
 
+#include <algorithm>
 #include <iterator>
 #include <vector>
 #include <netcdf>
@@ -485,6 +486,23 @@ private:
   if( path )
    return( path->length() );
   return( 0 );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// tells if the given AbstractPath addresses some group by name
+ static bool uses_names( const AbstractPath & path ) {
+  return( std::any_of( path.group_index_names.begin() ,
+		       path.group_index_names.end() ,
+		       []( const std::string & n ) { return( ! n.empty() ); }
+		       ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// tells if the given AbstractPath addresses some group by name
+ static bool uses_names( const std::unique_ptr< AbstractPath > & path ) {
+  return( path && uses_names( *path ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1882,9 +1900,21 @@ public:
   netCDFvars.PathNodeTypes = group.addVar( node_type_name , netCDF::NcChar() ,
                                            netCDFvars.PathTotalLength );
 
-  netCDFvars.PathGroupIndices = group.addVar( group_index_name ,
-                                              netCDF::NcUint() ,
-                                              netCDFvars.PathTotalLength );
+  // the group indices are string-typed as soon as some path addresses a
+  // group by name, since the two forms cannot coexist in a single typed
+  // netCDF variable; see serialize( Index , APnetCDF ) for how the numeric
+  // indices of the other paths are represented in that case
+  const bool names = std::any_of( paths.begin() , paths.end() ,
+				  []( const auto & p ) {
+				   return( uses_names( p ) ); } );
+  if( names )
+   netCDFvars.PathGroupIndices = group.addVar( group_index_name ,
+					       netCDF::NcString() ,
+					       netCDFvars.PathTotalLength );
+  else
+   netCDFvars.PathGroupIndices = group.addVar( group_index_name ,
+					       netCDF::NcUint() ,
+					       netCDFvars.PathTotalLength );
 
   netCDFvars.PathElementIndices = group.addVar( element_index_name ,
                                                 netCDF::NcUint() ,
@@ -1946,8 +1976,30 @@ public:
 
   netCDFvars.PathNodeTypes.putVar( { path_start } , { num_nodes } ,
                                    node_types.data() );
-  netCDFvars.PathGroupIndices.putVar( { path_start } , { num_nodes } ,
-                                      group_indices.data() );
+
+  if( netCDFvars.PathGroupIndices.getType().getTypeClass() ==
+      netCDF::NcType::nc_STRING ) {
+   // string-typed group indices (see pre_serialize()): write the group
+   // names; a node without a name gets the decimal form of its numeric
+   // index, which deserialize() resolves back via the std::stoul() fallback
+   std::vector< std::string > names( num_nodes );
+   std::vector< const char * > cnames( num_nodes );
+   for( Index i = 0 ; i < num_nodes ; ++i ) {
+    if( ( i < group_index_names.size() ) &&
+	( ! group_index_names[ i ].empty() ) )
+     names[ i ] = group_index_names[ i ];
+    else
+     names[ i ] = std::to_string( i < group_indices.size() ?
+				  group_indices[ i ] : 0 );
+    cnames[ i ] = names[ i ].c_str();
+    }
+   netCDFvars.PathGroupIndices.putVar( { path_start } , { num_nodes } ,
+				       cnames.data() );
+   }
+  else
+   netCDFvars.PathGroupIndices.putVar( { path_start } , { num_nodes } ,
+                                       group_indices.data() );
+
   netCDFvars.PathElementIndices.putVar( { path_start } , { num_nodes } ,
                                         element_indices.data() );
   netCDFvars.PathRangeIndices.putVar( { path_start } , { num_nodes } ,
