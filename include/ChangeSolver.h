@@ -63,6 +63,8 @@
 namespace SMSpp_di_unipi_it
 {
 
+    class GlobalInformation; ///< forward declaration of GlobalInformation
+
     /*--------------------------------------------------------------------------*/
     /*------------------------------- CLASSES ----------------------------------*/
     /*--------------------------------------------------------------------------*/
@@ -140,6 +142,35 @@ namespace SMSpp_di_unipi_it
             f_Block->unlock(this);
             return (sol);
         }
+
+        /*--------------------------------------------------------------------------*/
+        /*--------------------- METHODS FOR SOLVING THE MODEL ----------------------*/
+        /*--------------------------------------------------------------------------*/
+        // TODO cambiare descrizione e capire se è giusto che sia in changeSolver e non solo in relaxationSolver
+        /// give the Solver access to the search-global information
+        /** Called by the enumerative Solver before driving this one: it hands a
+         * (non-owned) GlobalInformation [see], through which the Solver can read the
+         * incumbent and consult or contribute the global cuts and columns. This is
+         * how a relaxation gets the global data it needs for the tightenings it may
+         * choose to do on its own terms inside compute() / branch() - preprocessing,
+         * reduced-cost fixing, cut and column management - without any externally
+         * driven protocol: those are internal details of the Solver, and the ones
+         * local to a node are folded into the branching Change [see branch()], while
+         * the global ones live in the GlobalInformation. nullptr means none is
+         * available. */
+
+        virtual void set_global_information(GlobalInformation *gi)
+        {
+            f_global_information = gi;
+        }
+
+        /*--------------------------------------------------------------------------*/
+        /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+        /*--------------------------------------------------------------------------*/
+
+    protected:
+        /// the search-global information, nullptr if none [see set_global_information]
+        GlobalInformation *f_global_information = nullptr;
 
         /*--------------------------------------------------------------------------*/
 
@@ -303,8 +334,96 @@ namespace SMSpp_di_unipi_it
 
     }; // end( class( RelaxationSolver ) )
 
-    /** @} end( group( ChangeSolver_CLASSES ) ) --------------------------------*/
+    /*--------------------------------------------------------------------------*/
+    /*--------------------------- CollectionBase -------------------------------*/
+    /*--------------------------------------------------------------------------*/
+    class CollectionBase
+    {
+    public:
+        virtual ~CollectionBase() = default;
+    };
 
+    /*--------------------------------------------------------------------------*/
+    /*------------------------------ Collection -------------------------------*/
+    /*--------------------------------------------------------------------------*/
+
+    template <typename T>
+    class Collection : public CollectionBase,
+                       public std::unordered_map<std::string, T>
+    {
+    public:
+        using std::unordered_map<std::string, T>::unordered_map;
+
+        virtual ~Collection() = default;
+    };
+
+    /*--------------------------------------------------------------------------*/
+    /*-------------------------- GlobalInformation -----------------------------*/
+    /*--------------------------------------------------------------------------*/
+
+    class GlobalInformation
+    {
+    public:
+        GlobalInformation() = default;
+
+        virtual ~GlobalInformation() = default;
+
+        /// Creates a new collection of type T.
+        /// Throws a exception if a collection with the same name already exists.
+        template <typename T>
+        Collection<T> *add_to_Universe(const std::string &name)
+        {
+            auto res = f_Universe.emplace(
+                name,
+                std::make_unique<Collection<T>>());
+
+            if (!res.second)
+                throw std::runtime_error(
+                    "Collection \"" + name + "\" already exists.");
+            return res.first->second.get();
+        }
+
+        /// Returns the collection if it exists and has the correct type.
+        template <typename T>
+        Collection<T> *get_from_Universe(const std::string &name)
+        {
+            auto it = f_Universe.find(name);
+
+            if (it == f_Universe.end())
+                return nullptr;
+
+            return dynamic_cast<Collection<T> *>(it->second.get());
+        }
+
+        /// Const version.
+        template <typename T>
+        const Collection<T> *get_from_Universe(
+            const std::string &name) const
+        {
+            auto it = f_Universe.find(name);
+
+            if (it == f_Universe.end())
+                return nullptr;
+
+            return dynamic_cast<const Collection<T> *>(it->second.get());
+        }
+
+        bool exists(const std::string &name) const
+        {
+            return f_Universe.find(name) != f_Universe.end();
+        }
+
+        void remove_from_Universe(const std::string &name)
+        {
+            f_Universe.erase(name);
+        }
+
+    private:
+        std::unordered_map<
+            std::string,
+            std::unique_ptr<CollectionBase>>
+            f_Universe;
+    }; // end of class GlobalInformation
 } // end( namespace SMSpp_di_unipi_it )
 
 /*--------------------------------------------------------------------------*/
