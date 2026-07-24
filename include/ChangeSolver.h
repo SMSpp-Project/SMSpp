@@ -347,14 +347,103 @@ namespace SMSpp_di_unipi_it
     /*------------------------------ Collection -------------------------------*/
     /*--------------------------------------------------------------------------*/
 
+    /*--------------------------------------------------------------------------*/
+    /*------------------------------ Collection -------------------------------*/
+    /*--------------------------------------------------------------------------*/
+
     template <typename T>
-    class Collection : public CollectionBase,
-                       public std::unordered_map<std::string, T>
+    class Collection : public CollectionBase
     {
     public:
-        using std::unordered_map<std::string, T>::unordered_map;
-
+        Collection() = default;
         virtual ~Collection() = default;
+
+        /// Reads a value. Returns false if the key does not exist.
+        bool read(const std::string &key, T &out) const
+        {
+            std::shared_lock lock(f_mutex);
+            auto it = f_data.find(key);
+            if (it == f_data.end())
+                return false;
+            out = it->second;
+            return true;
+        }
+
+        /// Writes (inserts or overwrites) a value.
+        void write(const std::string &key, T value)
+        {
+            std::unique_lock lock(f_mutex);
+            f_data[key] = std::move(value);
+        }
+
+        /// Applies a read-only function to the value, under a read lock.
+        template <typename Func>
+        bool read_with(const std::string &key, Func &&func) const
+        {
+            std::shared_lock lock(f_mutex);
+            auto it = f_data.find(key);
+            if (it == f_data.end())
+                return false;
+            func(it->second);
+            return true;
+        }
+
+        /// Modifies the value in-place, under a write lock.
+        template <typename Func>
+        bool write_with(const std::string &key, Func &&func)
+        {
+            std::unique_lock lock(f_mutex);
+            auto it = f_data.find(key);
+            if (it == f_data.end())
+                return false;
+            func(it->second);
+            return true;
+        }
+
+        bool erase(const std::string &key)
+        {
+            std::unique_lock lock(f_mutex);
+            return f_data.erase(key) > 0;
+        }
+
+        bool contains(const std::string &key) const
+        {
+            std::shared_lock lock(f_mutex);
+            return f_data.find(key) != f_data.end();
+        }
+
+        size_t size() const
+        {
+            std::shared_lock lock(f_mutex);
+            return f_data.size();
+        }
+
+        /// Returns a copy of the current keys (avoids exposing "live"
+        /// iterators without a lock).
+        std::vector<std::string> keys() const
+        {
+            std::shared_lock lock(f_mutex);
+            std::vector<std::string> result;
+            result.reserve(f_data.size());
+            for (const auto &pair : f_data)
+                result.push_back(pair.first);
+            return result;
+        }
+
+        /// Iterates over all elements under a read lock.
+        /// WARNING: do not call other methods of this Collection inside func,
+        /// or you will deadlock (shared_mutex is not reentrant).
+        template <typename Func>
+        void for_each(Func &&func) const
+        {
+            std::shared_lock lock(f_mutex);
+            for (const auto &pair : f_data)
+                func(pair.first, pair.second);
+        }
+
+    private:
+        mutable std::shared_mutex f_mutex;
+        std::unordered_map<std::string, T> f_data;
     };
 
     /*--------------------------------------------------------------------------*/
@@ -369,61 +458,70 @@ namespace SMSpp_di_unipi_it
         virtual ~GlobalInformation() = default;
 
         /// Creates a new collection of type T.
-        /// Throws a exception if a collection with the same name already exists.
+        /// Throws an exception if a collection with the same name already exists.
         template <typename T>
-        Collection<T> *add_to_Universe(const std::string &name)
+        void add_to_Universe(const std::string &name)
         {
+            std::unique_lock lock(f_mutex);
+
             auto res = f_Universe.emplace(
                 name,
-                std::make_unique<Collection<T>>());
+                std::make_shared<Collection<T>>());
 
             if (!res.second)
                 throw std::runtime_error(
                     "Collection \"" + name + "\" already exists.");
-            return res.first->second.get();
         }
 
         /// Returns the collection if it exists and has the correct type.
+        /// The shared_ptr keeps the collection alive even if it gets removed
+        /// from f_Universe while the caller is still using it.
         template <typename T>
-        Collection<T> *get_from_Universe(const std::string &name)
+        std::shared_ptr<Collection<T>> get_from_Universe(const std::string &name)
         {
-            auto it = f_Universe.find(name);
+            std::shared_lock lock(f_mutex);
 
+            auto it = f_Universe.find(name);
             if (it == f_Universe.end())
                 return nullptr;
 
-            return dynamic_cast<Collection<T> *>(it->second.get());
+            return std::dynamic_pointer_cast<Collection<T>>(it->second);
         }
 
         /// Const version.
         template <typename T>
-        const Collection<T> *get_from_Universe(
+        std::shared_ptr<const Collection<T>> get_from_Universe(
             const std::string &name) const
         {
-            auto it = f_Universe.find(name);
+            std::shared_lock lock(f_mutex);
 
+            auto it = f_Universe.find(name);
             if (it == f_Universe.end())
                 return nullptr;
 
-            return dynamic_cast<const Collection<T> *>(it->second.get());
+            return std::dynamic_pointer_cast<const Collection<T>>(it->second);
         }
 
         bool exists(const std::string &name) const
         {
+            std::shared_lock lock(f_mutex);
             return f_Universe.find(name) != f_Universe.end();
         }
 
         void remove_from_Universe(const std::string &name)
         {
+            std::unique_lock lock(f_mutex);
             f_Universe.erase(name);
         }
 
     private:
+        mutable std::shared_mutex f_mutex;
+
         std::unordered_map<
             std::string,
-            std::unique_ptr<CollectionBase>>
+            std::shared_ptr<CollectionBase>>
             f_Universe;
-    }; // end of class GlobalInformation
+    };
 } // end( namespace SMSpp_di_unipi_it )
 
 /*--------------------------------------------------------------------------*/
