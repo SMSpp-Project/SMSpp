@@ -3,13 +3,13 @@
 /*--------------------------------------------------------------------------*/
 /** @file
  * Header file for the *abstract* classes ChangeSolver and RelaxationSolver,
- * which extend the Solver concept [see Solver.h] with the notions needed by
- * an enumerative (Branch-and-Bound) algorithm:
+ *  with the notions needed by * an enumerative (Branch-and-Bound) algorithm:
  *
- * - a ChangeSolver is a Solver that can apply() a Change [see Change.h] to
- *   the Block it is attached to - and, symmetrically, the undo Change that
- *   apply() returns - so that the same Solver object can be efficiently
- *   moved between the nodes of an enumeration tree;
+ * - a ChangeSolvercan apply() a Change [see Change.h] to the Block it is
+ *   attached to - and, symmetrically, the undo Change that apply() returns
+ *   so that the same Solver object can be efficiently moved between the
+ *   nodes of an enumeration tree, it's possible that the Change is
+ *   applied *internally* to the Solver, without touching the Block;
  *
  * - a RelaxationSolver is a ChangeSolver that solves a *relaxation* of the
  *   problem encoded by the Block: besides the relaxation value (a valid
@@ -30,12 +30,12 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \author Donato Meoli \n
+ *\author  Donato Meoli \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Federica Di Pasquale, Filippo Magi,
- *                    Donato Meoli
+ * Copyright &copy by   Antonio Frangioni, Federica Di Pasquale, Filippo Magi,
+ *                      Donato Meoli
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -55,6 +55,8 @@
 
 #include "Solver.h"
 
+#include "GlobalInformation.h"
+
 #include <shared_mutex>
 
 /*--------------------------------------------------------------------------*/
@@ -64,8 +66,6 @@
 /// namespace for the Structured Modeling System++ (SMS++)
 namespace SMSpp_di_unipi_it
 {
-
-    class GlobalInformation; ///< forward declaration of GlobalInformation
 
     /*--------------------------------------------------------------------------*/
     /*------------------------------- CLASSES ----------------------------------*/
@@ -98,7 +98,7 @@ namespace SMSpp_di_unipi_it
         /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
         /*--------------------------------------------------------------------------*/
 
-        ChangeSolver(void) : Solver() {} ///< constructor: does nothing
+        ChangeSolver(void) {} ///< constructor: does nothing
 
         ~ChangeSolver() override = default; ///< destructor: does nothing
 
@@ -148,7 +148,6 @@ namespace SMSpp_di_unipi_it
         /*--------------------------------------------------------------------------*/
         /*--------------------- METHODS FOR SOLVING THE MODEL ----------------------*/
         /*--------------------------------------------------------------------------*/
-        // TODO cambiare descrizione e capire se è giusto che sia in changeSolver e non solo in relaxationSolver
         /// give the Solver access to the search-global information
         /** Called by the enumerative Solver before driving this one: it hands a
          * (non-owned) GlobalInformation [see], through which the Solver can read the
@@ -196,7 +195,7 @@ namespace SMSpp_di_unipi_it
      * branch(): produce the Changes generating the children of the current
      * node of the enumeration tree. */
 
-    class RelaxationSolver : public virtual ChangeSolver
+    class RelaxationSolver : public ChangeSolver
     {
 
         /*--------------------------------------------------------------------------*/
@@ -336,190 +335,6 @@ namespace SMSpp_di_unipi_it
 
     }; // end( class( RelaxationSolver ) )
 
-    /*--------------------------------------------------------------------------*/
-    /*--------------------------- CollectionBase -------------------------------*/
-    /*--------------------------------------------------------------------------*/
-    class CollectionBase
-    {
-    public:
-        virtual ~CollectionBase() = default;
-    };
-
-    /*--------------------------------------------------------------------------*/
-    /*------------------------------ Collection -------------------------------*/
-    /*--------------------------------------------------------------------------*/
-
-    template <typename T>
-    class Collection : public CollectionBase
-    {
-    public:
-        Collection() = default;
-        virtual ~Collection() = default;
-
-        /// Reads a value. Returns false if the key does not exist.
-        bool read(const std::string &key, T &out) const
-        {
-            std::shared_lock lock(f_mutex);
-            auto it = f_data.find(key);
-            if (it == f_data.end())
-                return false;
-            out = it->second;
-            return true;
-        }
-
-        /// Writes (inserts or overwrites) a value.
-        void write(const std::string &key, T value)
-        {
-            std::unique_lock lock(f_mutex);
-            f_data[key] = std::move(value);
-        }
-
-        /// Applies a read-only function to the value, under a read lock.
-        template <typename Func>
-        bool read_with(const std::string &key, Func &&func) const
-        {
-            std::shared_lock lock(f_mutex);
-            auto it = f_data.find(key);
-            if (it == f_data.end())
-                return false;
-            func(it->second);
-            return true;
-        }
-
-        /// Modifies the value in-place, under a write lock.
-        template <typename Func>
-        bool write_with(const std::string &key, Func &&func)
-        {
-            std::unique_lock lock(f_mutex);
-            auto it = f_data.find(key);
-            if (it == f_data.end())
-                return false;
-            func(it->second);
-            return true;
-        }
-
-        bool erase(const std::string &key)
-        {
-            std::unique_lock lock(f_mutex);
-            return f_data.erase(key) > 0;
-        }
-
-        bool contains(const std::string &key) const
-        {
-            std::shared_lock lock(f_mutex);
-            return f_data.find(key) != f_data.end();
-        }
-
-        size_t size() const
-        {
-            std::shared_lock lock(f_mutex);
-            return f_data.size();
-        }
-
-        /// Returns a copy of the current keys (avoids exposing "live"
-        /// iterators without a lock).
-        std::vector<std::string> keys() const
-        {
-            std::shared_lock lock(f_mutex);
-            std::vector<std::string> result;
-            result.reserve(f_data.size());
-            for (const auto &pair : f_data)
-                result.push_back(pair.first);
-            return result;
-        }
-
-        /// Iterates over all elements under a read lock.
-        /// WARNING: do not call other methods of this Collection inside func,
-        /// or you will deadlock (shared_mutex is not reentrant).
-        template <typename Func>
-        void for_each(Func &&func) const
-        {
-            std::shared_lock lock(f_mutex);
-            for (const auto &pair : f_data)
-                func(pair.first, pair.second);
-        }
-
-    private:
-        mutable std::shared_mutex f_mutex;
-        std::unordered_map<std::string, T> f_data;
-    };
-
-    /*--------------------------------------------------------------------------*/
-    /*-------------------------- GlobalInformation -----------------------------*/
-    /*--------------------------------------------------------------------------*/
-
-    class GlobalInformation
-    {
-    public:
-        GlobalInformation() = default;
-
-        virtual ~GlobalInformation() = default;
-
-        /// Creates a new collection of type T.
-        /// Throws an exception if a collection with the same name already exists.
-        template <typename T>
-        void add_to_Universe(const std::string &name)
-        {
-            std::unique_lock lock(f_mutex);
-
-            auto res = f_Universe.emplace(
-                name,
-                std::make_shared<Collection<T>>());
-
-            if (!res.second)
-                throw std::runtime_error(
-                    "Collection \"" + name + "\" already exists.");
-        }
-
-        /// Returns the collection if it exists and has the correct type.
-        /// The shared_ptr keeps the collection alive even if it gets removed
-        /// from f_Universe while the caller is still using it.
-        template <typename T>
-        std::shared_ptr<Collection<T>> get_from_Universe(const std::string &name)
-        {
-            std::shared_lock lock(f_mutex);
-
-            auto it = f_Universe.find(name);
-            if (it == f_Universe.end())
-                return nullptr;
-
-            return std::dynamic_pointer_cast<Collection<T>>(it->second);
-        }
-
-        /// Const version.
-        template <typename T>
-        std::shared_ptr<const Collection<T>> get_from_Universe(
-            const std::string &name) const
-        {
-            std::shared_lock lock(f_mutex);
-
-            auto it = f_Universe.find(name);
-            if (it == f_Universe.end())
-                return nullptr;
-
-            return std::dynamic_pointer_cast<const Collection<T>>(it->second);
-        }
-
-        bool exists(const std::string &name) const
-        {
-            std::shared_lock lock(f_mutex);
-            return f_Universe.find(name) != f_Universe.end();
-        }
-
-        void remove_from_Universe(const std::string &name)
-        {
-            std::unique_lock lock(f_mutex);
-            f_Universe.erase(name);
-        }
-
-    private:
-        mutable std::shared_mutex f_mutex;
-
-        std::unordered_map<
-            std::string,
-            std::shared_ptr<CollectionBase>>
-            f_Universe;
-    };
 } // end( namespace SMSpp_di_unipi_it )
 
 /*--------------------------------------------------------------------------*/
