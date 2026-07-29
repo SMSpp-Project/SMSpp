@@ -86,7 +86,7 @@ namespace SMSpp_di_unipi_it
      * derive both from a problem-specific :Solver and from (Change)Solver-
      * extending interfaces with a single Solver sub-object. */
 
-    class ChangeSolver : public virtual Solver
+    class ChangeSolver
     {
 
         /*--------------------------------------------------------------------------*/
@@ -100,7 +100,7 @@ namespace SMSpp_di_unipi_it
 
         ChangeSolver(void) {} ///< constructor: does nothing
 
-        ~ChangeSolver() override = default; ///< destructor: does nothing
+        ~ChangeSolver() = default; ///< destructor: does nothing
 
         /*--------------------------------------------------------------------------*/
         /*------------- METHODS FOR ADDING / REMOVING / CHANGING DATA --------------*/
@@ -119,10 +119,11 @@ namespace SMSpp_di_unipi_it
          * apply them *internally* (i.e., to their own state, without touching the
          * Block), which is the key for an efficient enumeration. */
 
-        virtual Change *apply(Change *chg, bool doUndo = false)
-        {
-            return (chg->apply(f_Block, doUndo));
-        }
+        virtual Change *apply(Change *chg, bool doUndo = false) = 0;
+        /*         {
+                    return (chg->apply(f_Block, doUndo));
+                }
+        */
 
         /*--------------------------------------------------------------------------*/
         /*---------------------- METHODS FOR READING RESULTS -----------------------*/
@@ -135,15 +136,15 @@ namespace SMSpp_di_unipi_it
          * Solution directly out of their internal state can (and should) bypass
          * the Block entirely. */
 
-        virtual Solution *get_Solution(Configuration *solc = nullptr)
-        {
-            // TODO: check that lock()-ing / unlock()-ing here is appropriate
-            f_Block->lock(this);
-            get_var_solution(solc);
-            auto sol = f_Block->get_Solution(solc);
-            f_Block->unlock(this);
-            return (sol);
-        }
+        virtual Solution *get_Solution(Configuration *solc = nullptr) = 0;
+        /*         {
+                    // TODO: check that lock()-ing / unlock()-ing here is appropriate
+                    f_Block->lock(this);
+                    get_var_solution(solc);
+                    auto sol = f_Block->get_Solution(solc);
+                    f_Block->unlock(this);
+                    return (sol);
+                } */
 
         /*--------------------------------------------------------------------------*/
         /*--------------------- METHODS FOR SOLVING THE MODEL ----------------------*/
@@ -209,7 +210,7 @@ namespace SMSpp_di_unipi_it
 
         RelaxationSolver(void) : ChangeSolver() {} ///< constructor: nothing
 
-        ~RelaxationSolver() override = default; ///< destructor: nothing
+        ~RelaxationSolver() = default; ///< destructor: nothing
 
         /*--------------------------------------------------------------------------*/
         /*--------------------- METHODS FOR SOLVING THE MODEL ----------------------*/
@@ -241,9 +242,9 @@ namespace SMSpp_di_unipi_it
          * solution produced alongside the relaxation. The default implementation
          * returns -infinity, i.e., no bound. */
 
-        [[nodiscard]] virtual OFValue get_true_lb(void)
+        [[nodiscard]] virtual Solver::OFValue get_true_lb(void)
         {
-            return (-Inf<OFValue>());
+            return (-Inf<Solver::OFValue>());
         }
 
         /*--------------------------------------------------------------------------*/
@@ -252,9 +253,9 @@ namespace SMSpp_di_unipi_it
          * the *original* (not relaxed) problem. The default implementation
          * returns +infinity, i.e., no bound. */
 
-        [[nodiscard]] virtual OFValue get_true_ub(void)
+        [[nodiscard]] virtual Solver::OFValue get_true_ub(void)
         {
-            return (Inf<OFValue>());
+            return (Inf<Solver::OFValue>());
         }
 
         /*--------------------------------------------------------------------------*/
@@ -317,15 +318,15 @@ namespace SMSpp_di_unipi_it
          * construct the Solution directly out of their internal state can (and
          * should) bypass the Block entirely. */
 
-        virtual Solution *get_true_solution(Configuration *solc = nullptr)
-        {
-            // TODO: check that lock()-ing / unlock()-ing here is appropriate
-            f_Block->lock(this);
-            get_true_var_solution(solc);
-            Solution *sol = f_Block->get_Solution(solc);
-            f_Block->unlock(this);
-            return (sol);
-        }
+        virtual Solution *get_true_solution(Configuration *solc = nullptr) = 0;
+        /*         {
+                    // TODO: check that lock()-ing / unlock()-ing here is appropriate
+                    f_Block->lock(this);
+                    get_true_var_solution(solc);
+                    Solution *sol = f_Block->get_Solution(solc);
+                    f_Block->unlock(this);
+                    return (sol);
+                } */
 
         /*--------------------------------------------------------------------------*/
         /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
