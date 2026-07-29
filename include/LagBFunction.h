@@ -2597,12 +2597,12 @@ class LagBFunction : public C05Function , public Block
 
 /*--------------------------------------------------------------------------*/
 
- void update_CostMatrix_ModLinRngd( const v_coeff_pair & rc ,
+ void update_CostMatrix_ModLinRngd( Index h , const v_coeff_pair & rc ,
 				    c_Vec_p_Var & vars , c_Range & rng );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- void update_CostMatrix_ModLinSbst( const v_coeff_pair & rc ,
+ void update_CostMatrix_ModLinSbst( Index h , const v_coeff_pair & rc ,
 				    c_Vec_p_Var & vars , c_Subset & sbst );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -2659,15 +2659,18 @@ class LagBFunction : public C05Function , public Block
 
 /*--------------------------------------------------------------------------*/
 
- void update_CostMatrix_ModVarsAddd( c_Vec_p_Var & vars , Index first );
+ void update_CostMatrix_ModVarsAddd( Index h , c_Vec_p_Var & vars ,
+				     Index first );
 
 /*--------------------------------------------------------------------------*/
 
- void update_CostMatrix_ModVarsRngd( c_Vec_p_Var & vars , c_Range & rng );
+ void update_CostMatrix_ModVarsRngd( Index h , c_Vec_p_Var & vars ,
+				     c_Range & rng );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- void update_CostMatrix_ModVarsSbst( c_Vec_p_Var & vars , c_Subset & sbst );
+ void update_CostMatrix_ModVarsSbst( Index h , c_Vec_p_Var & vars ,
+				     c_Subset & sbst );
 
 /*--------------------------------------------------------------------------*/
  /// reset the BlockConfig of the inner Block to the default one
