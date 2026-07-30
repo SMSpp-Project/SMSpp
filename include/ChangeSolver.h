@@ -3,13 +3,14 @@
 /*--------------------------------------------------------------------------*/
 /** @file
  * Header file for the *abstract* classes ChangeSolver and RelaxationSolver,
- * which extend the Solver concept [see Solver.h] with the notions needed by
- * an enumerative (Branch-and-Bound) algorithm:
+ * the "traits" that complement the Solver concept [see Solver.h] with the
+ * notions needed by an enumerative (Branch-and-Bound) algorithm:
  *
- * - a ChangeSolver is a Solver that can apply() a Change [see Change.h] to
- *   the Block it is attached to - and, symmetrically, the undo Change that
- *   apply() returns - so that the same Solver object can be efficiently
- *   moved between the nodes of an enumeration tree;
+ * - a ChangeSolver can apply() a Change [see Change.h] to the Block it
+ *   works on - and, symmetrically, the undo Change that apply() returns -
+ *   so that the same object can be efficiently moved between the nodes of
+ *   an enumeration tree, possibly applying the Change *internally* to its
+ *   own state without touching the Block;
  *
  * - a RelaxationSolver is a ChangeSolver that solves a *relaxation* of the
  *   problem encoded by the Block: besides the relaxation value (a valid
@@ -17,6 +18,12 @@
  *   (valid primal bounds, see get_true_lb() / get_true_ub()) and, foremost,
  *   it can branch(): produce the set of Changes that generate the children
  *   of the current node.
+ *
+ * Neither class derives from Solver: they are traits that a concrete class
+ * derives from *alongside* its problem-specific :Solver base, with plain
+ * (non-virtual) inheritance and therefore no diamond on Solver. The driver
+ * of the enumeration discovers the traits on a registered Solver by a
+ * dynamic_cast cross-cast [see the ChangeSolver class comment].
  *
  * \author Antonio Frangioni \n
  *         Dipartimento di Informatica \n
@@ -53,6 +60,8 @@
 
 #include "Configuration.h"
 
+#include "GlobalInformation.h"
+
 #include "Solver.h"
 
 /*--------------------------------------------------------------------------*/
@@ -72,17 +81,52 @@ namespace SMSpp_di_unipi_it
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS ChangeSolver -----------------------------*/
 /*--------------------------------------------------------------------------*/
-/// a Solver that can apply a Change to the Block it is attached to
-/** The class ChangeSolver extends Solver with the ability of applying a
- * Change to the Block it is attached to (and of un-doing it, see apply()).
- * This is the basic capability that an enumerative algorithm requires of
- * the Solver it drives: moving between two nodes of the enumeration tree
- * amounts to applying the Changes found along the path joining them. The
- * inheritance from Solver is virtual so that a concrete :ChangeSolver can
- * derive both from a problem-specific :Solver and from (Change)Solver-
- * extending interfaces with a single Solver sub-object. */
+/// the trait of being able to apply a Change to a Block
+/** The class ChangeSolver captures the ability of applying a Change to the
+ * Block it works on (and of un-doing it, see apply()). This is the basic
+ * capability that an enumerative algorithm requires of the objects it
+ * drives: moving between two nodes of the enumeration tree amounts to
+ * applying the Changes found along the path joining them.
+ *
+ * ChangeSolver deliberately does *not* derive from Solver: it is a trait
+ * that a concrete class derives from *alongside* its problem-specific
+ * :Solver base,
+ *
+ *     class MySolver : public SomeSolver , public ChangeSolver { ... };
+ *
+ * with plain inheritance on both sides. This avoids any virtual-inheritance
+ * diamond on Solver when a concrete class combines several such traits (or
+ * traits with heuristic bases), and makes the trait equally applicable to
+ * Solver and CDASolver hierarchies. Whoever drives the enumeration holds
+ * plain Solver pointers (say, those registered to a Block) and discovers
+ * the trait with a dynamic_cast cross-cast, which succeeds precisely on
+ * objects whose concrete class derives from both:
+ *
+ *     auto cs = dynamic_cast< ChangeSolver * >( some_solver );
+ *
+ * (and symmetrically dynamic_cast< Solver * >( some_change_solver ) to go
+ * back).
+ *
+ * Not being a Solver, the trait cannot see Solver::f_Block: it keeps its
+ * *own* pointer to the Block it works on (in its f_ChgBlock field, whose
+ * name differs from Solver::f_Block on purpose, so that a concrete class
+ * deriving from both can still use the latter unqualified), set via
+ * set_Block(). Since both
+ * Solver and ChangeSolver declare a virtual set_Block() with the same
+ * signature, the single override that a concrete class provides overrides
+ * *both*, and it is expected to forward to both bases:
+ *
+ *     void set_Block( Block * block ) override {
+ *      SomeSolver::set_Block( block );
+ *      ChangeSolver::set_Block( block );
+ *      ...
+ *      }
+ *
+ * so that registering the object to a Block through the usual Solver
+ * machinery keeps the two copies of the information in sync. */
 
-class ChangeSolver : public virtual Solver {
+class ChangeSolver
+{
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
@@ -94,19 +138,29 @@ class ChangeSolver : public virtual Solver {
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 
- ChangeSolver( void ) : Solver() {}    ///< constructor: does nothing
+ ChangeSolver( void ) = default;   ///< constructor: does nothing
 
- ~ChangeSolver() override = default;   ///< destructor: does nothing
+ virtual ~ChangeSolver() = default;  ///< destructor: does nothing
 
 /*--------------------------------------------------------------------------*/
 /*------------- METHODS FOR ADDING / REMOVING / CHANGING DATA --------------*/
 /*--------------------------------------------------------------------------*/
 
- /// apply the given Change to the Block managed by this Solver
- /** Apply the given Change to the Block managed by this Solver. If
+ /// set the Block this ChangeSolver works on
+ /** Sets the (trait's own copy of the) pointer to the Block this
+  * ChangeSolver works on. A concrete class deriving from both a :Solver
+  * and this trait overrides set_Block() once - the single override
+  * overrides both bases' virtual - and forwards to both [see the class
+  * comment]. */
+
+ virtual void set_Block( Block * block ) { f_ChgBlock = block; }
+
+/*--------------------------------------------------------------------------*/
+ /// apply the given Change to the Block managed by this ChangeSolver
+ /** Apply the given Change to the Block managed by this ChangeSolver. If
   * \p doUndo is true, the returned (pointer to a newly minted) Change is
   * the one that un-does \p chg, i.e., applying it brings the Block (and
-  * the internal state of the Solver) back to the state prior to the call;
+  * the internal state of the solver) back to the state prior to the call;
   * ownership of the returned Change is transferred to the caller. With
   * \p doUndo false, nullptr is returned.
   *
@@ -116,7 +170,26 @@ class ChangeSolver : public virtual Solver {
   * Block), which is the key for an efficient enumeration. */
 
  virtual Change * apply( Change * chg , bool doUndo = false ) {
-  return( chg->apply( f_Block , doUndo ) );
+  return( chg->apply( f_ChgBlock , doUndo ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// give the ChangeSolver access to the global information
+ /** Called by whoever drives this ChangeSolver: it hands a (non-owned)
+  * GlobalInformation [see GlobalInformation.h], through which the solver
+  * can read and contribute the information shared by all the cooperating
+  * solvers - say, the incumbent, or the globally valid cuts and columns.
+  * This is how it gets the global data it needs for the tightenings it may
+  * choose to do on its own terms inside compute() / branch() -
+  * preprocessing, reduced-cost fixing, cut and column management - without
+  * any externally driven protocol: those are internal details of the
+  * solver, and the ones local to a node are folded into the branching
+  * Change [see RelaxationSolver::branch()], while the global ones live in
+  * the GlobalInformation. nullptr means none is available, in which case
+  * the solver must work exactly as if the information did not exist. */
+
+ virtual void set_global_information( GlobalInformation * gi ) {
+  f_global_information = gi;
   }
 
 /*--------------------------------------------------------------------------*/
@@ -126,128 +199,65 @@ class ChangeSolver : public virtual Solver {
  /// return the Solution of the Block corresponding to the current solution
  /** Writes the current solution into the Block (under lock) and returns the
   * corresponding newly minted Solution object, whose ownership is
-  * transferred to the caller. Derived classes able to construct the
+  * transferred to the caller. The default implementation reaches the
+  * Solver personality of this same object by cross-cast to call
+  * Solver::get_var_solution(); derived classes able to construct the
   * Solution directly out of their internal state can (and should) bypass
   * the Block entirely. */
 
  virtual Solution * get_Solution( Configuration * solc = nullptr ) {
+  auto slvr = dynamic_cast< Solver * >( this );
+  if( ! slvr )
+   throw( std::logic_error( "ChangeSolver::get_Solution: the concrete "
+			    "class does not derive from Solver" ) );
   // TODO: check that lock()-ing / unlock()-ing here is appropriate
-  f_Block->lock( this );
-  get_var_solution( solc );
-  auto sol = f_Block->get_Solution( solc );
-  f_Block->unlock( this );
+  f_ChgBlock->lock( this );
+  slvr->get_var_solution( solc );
+  auto sol = f_ChgBlock->get_Solution( solc );
+  f_ChgBlock->unlock( this );
   return( sol );
   }
+
+/*--------------------------------------------------------------------------*/
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ protected:
+
+ /// the Block this ChangeSolver works on (the trait's own copy)
+ Block * f_ChgBlock = nullptr;
+
+ /// the global information, nullptr if none [see set_global_information]
+ GlobalInformation * f_global_information = nullptr;
 
 /*--------------------------------------------------------------------------*/
 
  };  // end( class( ChangeSolver ) )
 
 /*--------------------------------------------------------------------------*/
-/*----------------------- CLASS GlobalInformation --------------------------*/
-/*--------------------------------------------------------------------------*/
-/// the search-global information an enumerative Solver shares with relaxations
-/** The information that is global to a whole Branch-and-X search and that the
- * enumerative Solver makes available to each :RelaxationSolver it drives [see
- * RelaxationSolver::set_global_information()], so that the latter can do
- * preprocessing, reduced-cost fixing or cut / column management on its own
- * terms inside compute() / branch() rather than through an externally driven
- * protocol. It carries the incumbent - the value of the best feasible
- * solution found so far, the natural cutoff for reduced-cost arguments - and,
- * optionally, the globally-valid cuts (and, in perspective, columns).
- * Information local to a node, i.e. fixings valid only in a subtree, travels
- * in the branching Change instead, not here. */
-
-class GlobalInformation {
-
- public:
-
- GlobalInformation( void ) : f_incumbent( nullptr ) ,
-                             f_local_fixing_allowed( true ) {}
-
- /// destructor: deletes the owned global cuts
- virtual ~GlobalInformation() {
-  for( auto cut : f_global_cuts )
-   delete cut;
-  }
-
-/*--------------------------------------------------------------------------*/
- /// bind the incumbent to the enumerative Solver's live best-bound cell
- /** The enumerative Solver calls this once, passing (the address of) the cell
-  * where it keeps the value of its best feasible solution: the incumbent is
-  * then read live through it, with no need to push every update here. */
-
- void bind_incumbent( const Solver::OFValue * cell ) { f_incumbent = cell; }
-
- /// whether a feasible incumbent is available
- [[nodiscard]] bool has_incumbent( void ) const {
-  return( f_incumbent && ( *f_incumbent != Inf< Solver::OFValue >() ) &&
-                         ( *f_incumbent != - Inf< Solver::OFValue >() ) );
-  }
-
- /// the value of the incumbent, in the natural sense of the original problem
- /** Only meaningful if has_incumbent() is true. It may be read out of any
-  * lock by a :RelaxationSolver - a slightly stale value only makes a
-  * reduced-cost fixing marginally less aggressive, never wrong - as the
-  * enumerative Solver updates the bound cell under its own incumbent lock. */
- [[nodiscard]] Solver::OFValue incumbent( void ) const {
-  return( *f_incumbent );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// whether incumbent-dependent local fixing is currently allowed
- /** Reduced-cost fixing folded into the branching Change is valid only for
-  * the incumbent in force when the Change is generated: it is sound within a
-  * single solve, where the incumbent only improves, but not when the
-  * enumerative Solver retains the tree across re-solves with different
-  * incumbents [see intReoptimize]. The Solver clears this flag in that case,
-  * and a :RelaxationSolver must then skip such fixings; it is set by default. */
-
- [[nodiscard]] bool local_fixing_allowed( void ) const {
-  return( f_local_fixing_allowed );
-  }
-
- /// allow or forbid incumbent-dependent local fixing [see local_fixing_allowed]
- void set_local_fixing_allowed( bool a ) { f_local_fixing_allowed = a; }
-
-/*--------------------------------------------------------------------------*/
- /// the globally-valid cuts known so far (valid in every node of the tree)
- [[nodiscard]] const std::vector< Change * > & global_cuts( void ) const {
-  return( f_global_cuts );
-  }
-
- /// contribute a globally-valid cut (ownership is taken by this object)
- void add_global_cut( Change * cut ) { f_global_cuts.push_back( cut ); }
-
-/*--------------------------------------------------------------------------*/
-
- protected:
-
- const Solver::OFValue * f_incumbent;    ///< the live incumbent cell, or null
- bool f_local_fixing_allowed;            ///< incumbent-dependent fixing OK?
- std::vector< Change * > f_global_cuts;  ///< the globally-valid cuts, owned
-
- };  // end( class( GlobalInformation ) )
-
-/*--------------------------------------------------------------------------*/
 /*----------------------- CLASS RelaxationSolver ---------------------------*/
 /*--------------------------------------------------------------------------*/
 /// a ChangeSolver solving a relaxation, able to branch()
-/** The class RelaxationSolver extends ChangeSolver for the Solver of a
- * *relaxation* of the problem encoded by the Block. The inheritance is
- * virtual: a concrete Solver typically derives both from a problem-specific
- * :ChangeSolver and from RelaxationSolver (a diamond on ChangeSolver), and
- * there must be a single ChangeSolver (hence Solver) sub-object.
+/** The class RelaxationSolver extends ChangeSolver for the solver of a
+ * *relaxation* of the problem encoded by the Block. Like ChangeSolver it
+ * is a trait [see the ChangeSolver class comment]: a concrete class
+ * derives both from a problem-specific :Solver and from RelaxationSolver,
+ *
+ *     class MyRelaxation : public SomeSolver , public RelaxationSolver
+ *
+ * (the inheritance on ChangeSolver is virtual, so that a concrete class
+ * reaching the trait through several paths still has a single ChangeSolver
+ * sub-object).
  *
  * Besides the value of the relaxation (a valid dual bound for the original
- * problem, available through the standard get_lb() / get_ub()), it may
- * produce *true* solutions of the original problem - see
- * has_true_var_solution(),
- * get_true_lb() / get_true_ub() and get_true_[var_]solution() - and it can
- * branch(): produce the Changes generating the children of the current
- * node of the enumeration tree. */
+ * problem, available through the standard Solver get_lb() / get_ub() of
+ * the concrete class), it may produce *true* solutions of the original
+ * problem - see has_true_var_solution(), get_true_lb() / get_true_ub() and
+ * get_true_[var_]solution() - and it can branch(): produce the Changes
+ * generating the children of the current node of the enumeration tree. */
 
-class RelaxationSolver : public virtual ChangeSolver {
+class RelaxationSolver : public virtual ChangeSolver
+{
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
@@ -259,9 +269,9 @@ class RelaxationSolver : public virtual ChangeSolver {
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 
- RelaxationSolver( void ) : ChangeSolver() {}   ///< constructor: nothing
+ RelaxationSolver( void ) = default;    ///< constructor: does nothing
 
- ~RelaxationSolver() override = default;        ///< destructor: nothing
+ ~RelaxationSolver() override = default;  ///< destructor: does nothing
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SOLVING THE MODEL ----------------------*/
@@ -314,23 +324,6 @@ class RelaxationSolver : public virtual ChangeSolver {
   }
 
 /*--------------------------------------------------------------------------*/
- /// give the Solver access to the search-global information
- /** Called by the enumerative Solver before driving this one: it hands a
-  * (non-owned) GlobalInformation [see], through which the Solver can read the
-  * incumbent and consult or contribute the global cuts and columns. This is
-  * how a relaxation gets the global data it needs for the tightenings it may
-  * choose to do on its own terms inside compute() / branch() - preprocessing,
-  * reduced-cost fixing, cut and column management - without any externally
-  * driven protocol: those are internal details of the Solver, and the ones
-  * local to a node are folded into the branching Change [see branch()], while
-  * the global ones live in the GlobalInformation. nullptr means none is
-  * available. */
-
- virtual void set_global_information( GlobalInformation * gi ) {
-  f_global_information = gi;
-  }
-
-/*--------------------------------------------------------------------------*/
 /*---------------------- METHODS FOR READING RESULTS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -340,8 +333,8 @@ class RelaxationSolver : public virtual ChangeSolver {
   * solution produced alongside the relaxation. The default implementation
   * returns -infinity, i.e., no bound. */
 
- [[nodiscard]] virtual OFValue get_true_lb( void ) {
-  return( - Inf< OFValue >() );
+ [[nodiscard]] virtual Solver::OFValue get_true_lb( void ) {
+  return( - Inf< Solver::OFValue >() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -350,8 +343,8 @@ class RelaxationSolver : public virtual ChangeSolver {
   * the *original* (not relaxed) problem. The default implementation
   * returns +infinity, i.e., no bound. */
 
- [[nodiscard]] virtual OFValue get_true_ub( void ) {
-  return( Inf< OFValue >() );
+ [[nodiscard]] virtual Solver::OFValue get_true_ub( void ) {
+  return( Inf< Solver::OFValue >() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -414,21 +407,12 @@ class RelaxationSolver : public virtual ChangeSolver {
 
  virtual Solution * get_true_solution( Configuration * solc = nullptr ) {
   // TODO: check that lock()-ing / unlock()-ing here is appropriate
-  f_Block->lock( this );
+  f_ChgBlock->lock( this );
   get_true_var_solution( solc );
-  Solution * sol = f_Block->get_Solution( solc );
-  f_Block->unlock( this );
+  Solution * sol = f_ChgBlock->get_Solution( solc );
+  f_ChgBlock->unlock( this );
   return( sol );
   }
-
-/*--------------------------------------------------------------------------*/
-/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
-/*--------------------------------------------------------------------------*/
-
- protected:
-
- /// the search-global information, nullptr if none [see set_global_information]
- GlobalInformation * f_global_information = nullptr;
 
 /*--------------------------------------------------------------------------*/
 

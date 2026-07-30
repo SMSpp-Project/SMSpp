@@ -91,6 +91,7 @@ SMS++H = $(SMS++SDR)/include/AbstractBlock.h \
 	$(SMS++SDR)/include/FRealObjective.h \
 	$(SMS++SDR)/include/FRowConstraint.h \
 	$(SMS++SDR)/include/Function.h \
+	$(SMS++SDR)/include/GlobalInformation.h \
 	$(SMS++SDR)/include/LagBFunction.h \
 	$(SMS++SDR)/include/LinearFunction.h \
 	$(SMS++SDR)/include/Modification.h \

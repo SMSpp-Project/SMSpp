@@ -437,9 +437,13 @@ void LagBFunction::set_ComputeConfig( const ComputeConfig * scfg )
      delete f_BSC;                     // delete the old one
      }
 
-    BSC->apply( inner_block );         // apply the new BlockSolverConfig
-    f_BSC = BSC->clone();                // keep a copy of the new one
-    f_BSC->clear();                      // but clear it
+    // apply the new BlockSolverConfig through a private copy, which then
+    // remains, clear()-ed, as the cleanup object: having done the apply()
+    // itself, it records the registered Solver and its cleared apply()
+    // removes exactly them [see BlockSolverConfig::apply()]
+    f_BSC = BSC->clone();
+    f_BSC->apply( inner_block );
+    f_BSC->clear();
     }
    }
   else {  // scfg->f_extra_Configuration is nullptr
@@ -4707,9 +4711,15 @@ void LagBFunction::set_default_inner_BlockConfig( void )
 void LagBFunction::set_default_inner_BlockSolverConfig( void )
 {
  if( auto ib = get_inner_block() ) {
-  auto solver_config = new RBlockSolverConfig( ib );
-  solver_config->clear();
-  solver_config->apply( ib );
+  // a cleared BlockSolverConfig only removes the Solver it registered
+  // itself [see BlockSolverConfig::apply()]: resetting to "no Solver at
+  // all", whoever registered them, is done directly on the Block tree
+  std::function< void( Block * ) > wipe = [ & wipe ]( Block * b ) {
+   b->unregister_Solvers( true );
+   for( Block::Index i = 0 ; i < b->get_number_nested_Blocks() ; ++i )
+    wipe( b->get_nested_Block( i ) );
+   };
+  wipe( ib );
   }
  }
 
