@@ -196,7 +196,7 @@ namespace SMSpp_di_unipi_it
      * branch(): produce the Changes generating the children of the current
      * node of the enumeration tree. */
 
-    class RelaxationSolver : public ChangeSolver
+    class RelaxationSolver : public virtual ChangeSolver
     {
 
         /*--------------------------------------------------------------------------*/
