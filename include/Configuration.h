@@ -167,7 +167,9 @@ class Configuration
   *     BEING THE MEMBER STATIC, THE PREFIX IS APPLIED TO ALL LOADING 
   *     OPERATIONS OF ANY Configuration IN THE EXECUTABLE
   *
-  * Use of this feature therefore requires care. */
+  * Use of this feature therefore requires care. Note that the prefix is
+  * only applied to relative filenames: an absolute filename identifies the
+  * file on its own, and it is therefore used unchanged. */
 
  static void set_filename_prefix( std::string && prefix );
 
@@ -214,7 +216,8 @@ class Configuration
   * Note that if a filename prefix has been defined (for all Configuration)
   * by means of set_filename_prefix(), then \p filename has to be intended
   * as relative to that prefix (in the sense that the prefix is prefix to
-  * \p filename).
+  * \p filename), unless \p filename is an absolute path, in which case the
+  * prefix is ignored.
   *
   * Note that the method is static, hence it is to be called as
   *
