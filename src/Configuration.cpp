@@ -16,6 +16,8 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <filesystem>
+
 #include "Configuration.h"
 
 /*--------------------------------------------------------------------------*/
@@ -79,6 +81,19 @@ SMSpp_insert_in_factory_cpp_0_t(
 /*------------------------------- FUNCTIONS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+// prepend the executable-wide filename prefix to the given filename; an
+// absolute filename identifies the file on its own, hence it is returned
+// unchanged
+
+static std::string apply_prefix( const std::string & filename )
+{
+ if( Configuration::get_filename_prefix().empty() ||
+     std::filesystem::path( filename ).is_absolute() )
+  return( filename );
+
+ return( Configuration::get_filename_prefix() + filename );
+ }
+
 /*--------------------------------------------------------------------------*/
 /*------------------------- METHODS of Configuration -----------------------*/
 /*--------------------------------------------------------------------------*/
@@ -88,18 +103,17 @@ Configuration * Configuration::deserialize( const std::string & filename )
  try {
   if( ( filename.size() > 4 ) &&
       ( ! filename.compare( filename.size() - 4 , 4 , ".txt" ) ) ) {
-   std::ifstream f( get_filename_prefix().empty() ? filename :
-      get_filename_prefix() + filename , std::fstream::in );
+   auto fn = apply_prefix( filename );
+   std::ifstream f( fn , std::fstream::in );
    if( ! f.is_open() ) {
-    std::cerr << "Error: cannot open text file " <<
-       get_filename_prefix() + filename << std::endl;
+    std::cerr << "Error: cannot open text file " << fn << std::endl;
     return( nullptr );
     }
    return( Configuration::deserialize( f ) );
    }
   else {
    int idx = 0;
-   std::string fn = get_filename_prefix() + filename;
+   std::string fn = apply_prefix( filename );
    if( fn.back() == ']' ) {
     auto pos = fn.find_last_of( '[' );
     if( pos != std::string::npos ) {
