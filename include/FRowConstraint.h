@@ -32,6 +32,8 @@
 
 #include "Function.h"
 
+#include "DualBoxTrait.h"
+
 #include "RowConstraint.h"
 
 #include "Variable.h"
@@ -83,7 +85,8 @@ namespace SMSpp_di_unipi_it
  * mechanism allowing a finer control on which Modification are "listened to".
  */
 
-class FRowConstraint : public RowConstraint, public Observer {
+class FRowConstraint : public RowConstraint , public Observer ,
+                       public DualBoxTrait {
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
