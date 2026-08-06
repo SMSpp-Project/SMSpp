@@ -345,7 +345,7 @@ namespace SMSpp_di_unipi_it
         bool exists(const std::string &name) const
         {
             std::shared_lock lock(f_mutex);
-            return f_Universe.find(name) != f_Universe.end();
+            return f_Universe.contains(name);
         }
         /// remove the Collection registered under \p name, if any
         /** Does not invalidate shared_ptr already held by other users of that
