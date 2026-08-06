@@ -907,7 +907,7 @@ class LagBFunction : public C05Function , public Block {
   if constexpr( Solver::intLastAlgPar < intLastLagBFPar ) {
    if( par == Inf< idx_type >() )
     return( par );
-   if( par >= intLastLagBFPar )
+   if( par >= Solver::intLastAlgPar )
     par += intLastLagBFPar - Solver::intLastAlgPar;
    }
   return( par );
@@ -924,7 +924,7 @@ class LagBFunction : public C05Function , public Block {
   if constexpr( Solver::dblLastAlgPar < dblLastLagBFPar ) {
    if( par == Inf< idx_type >() )
     return( par );
-   if( par >= dblLastLagBFPar )
+   if( par >= Solver::dblLastAlgPar )
     par += dblLastLagBFPar - Solver::dblLastAlgPar;
    }
   return( par );
@@ -941,7 +941,7 @@ class LagBFunction : public C05Function , public Block {
   if constexpr( Solver::strLastAlgPar < strLastLagBFPar ) {
    if( par == Inf< idx_type >() )
     return( par );
-   if( par >= strLastLagBFPar )
+   if( par >= Solver::strLastAlgPar )
     par += strLastLagBFPar - Solver::strLastAlgPar;
    }
   return( par );
@@ -958,7 +958,7 @@ class LagBFunction : public C05Function , public Block {
   if constexpr( Solver::vintLastAlgPar < vintLastLagBFPar ) {
    if( par == Inf< idx_type >() )
     return( par );
-   if( par >= vintLastLagBFPar )
+   if( par >= Solver::vintLastAlgPar )
     par += vintLastLagBFPar - Solver::vintLastAlgPar;
    }
   return( par );
@@ -975,7 +975,7 @@ class LagBFunction : public C05Function , public Block {
   if constexpr( Solver::vdblLastAlgPar < vdblLastLagBFPar ) {
    if( par == Inf< idx_type >() )
     return( par );
-   if( par >= vdblLastLagBFPar )
+   if( par >= Solver::vdblLastAlgPar )
     par += vdblLastLagBFPar - Solver::vdblLastAlgPar;
    }
   return( par );
@@ -992,7 +992,7 @@ class LagBFunction : public C05Function , public Block {
   if constexpr( Solver::vstrLastAlgPar < vstrLastLagBFPar ) {
    if( par == Inf< idx_type >() )
     return( par );
-   if( par >= vstrLastLagBFPar )
+   if( par >= Solver::vstrLastAlgPar )
     par += vstrLastLagBFPar - Solver::vstrLastAlgPar;
    }
   return( par );
