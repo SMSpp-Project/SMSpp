@@ -2,8 +2,8 @@
 /*----------------------- File GlobalInformation.h -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
- * Header file for the classes CollectionBase, Collection (and its
- * specialization for std::atomic types) and GlobalInformation, which
+ * Header file for the classes CollectionBase, CollectionMap, Collection (and
+ * its specialization for std::atomic types) and GlobalInformation, which
  * together provide a thread-safe, typed, named "blackboard" for the
  * information that a set of cooperating Solver working on the same problem
  * needs to share. Nothing in it is specific to any one algorithm: an
@@ -84,61 +84,18 @@ class CollectionBase
  };  // end( class( CollectionBase ) )
 
 /*--------------------------------------------------------------------------*/
-/*-------------------------- CLASS Collection ------------------------------*/
+/*------------------------- CLASS CollectionMap ----------------------------*/
 /*--------------------------------------------------------------------------*/
-/// a thread-safe, named repository of values of a single type T
-/** Collection< T > is a std::unordered_map< std::string , T > guarded by a
- * std::shared_mutex, i.e., many concurrent readers or a single writer at
- * any time: this is the concurrency pattern expected of a piece of global
- * information accessed by many cooperating Solver, possibly running in
- * different threads, which read it far more often than they write it (say,
- * every node of an enumeration tree checks the incumbent, comparatively few
- * improve it).
- *
- * The class exists as a stand-alone template, rather than being folded
- * directly into GlobalInformation, so that each named piece of global
- * information (an incumbent, a cut pool, a column pool, ...) can have its
- * own T and its own map, without forcing a single one-size-fits-all value
- * type on every use.
- *
- * Two forms of the template serve two different access patterns, and
- * declaring one or the other documents the intended use:
- *
- * - Collection< T > (this primary form) keeps plain T values, and every
- *   access goes through the Collection lock: the right choice for data
- *   accessed "once in a while", where the cost of the lock is irrelevant
- *   and T can be arbitrary (a whole pool, a std::vector, ...);
- *
- * - Collection< std::atomic< T > > (the specialization below) keeps atomic
- *   values meant to be read and written lock-free through a reference
- *   cached once [see operator[]()]: the right choice for "hot" scalars
- *   read at every step by everybody, the incumbent being the prototypical
- *   example.
- *
- * There deliberately is *no* erase(): entries are created once and never
- * removed. Since std::unordered_map is node-based, this means that
- * references and pointers to the mapped values are *never* invalidated
- * (rehashing only invalidates iterators), so a user can look a value up
- * once, cache the reference, and use it from then on; an erase() would
- * silently break that contract. Removal is also at odds with the
- * append-only discipline that makes sharing sound in the first place [see
- * GlobalInformation]. If a whole Collection is no longer needed it can be
- * dropped via GlobalInformation::remove_from_Universe(), which does not
- * disturb whoever is still holding it.
- *
- * The read_with() / write_with() member templates are the preferred way to
- * operate on a value found by key: they run the supplied functor under the
- * appropriate lock without copying T in and out, which matters whenever T
- * is not cheap to copy (e.g., a whole cut pool). read() / write() remain
- * for the common case where T is small enough that a copy is not a
- * concern.
- *
- * WARNING: std::shared_mutex is not reentrant, hence none of the methods
- * of this same Collection may be called from inside the functor passed to
- * read_with(), write_with() or for_each(), or the call will deadlock. */
+/// the storage of a Collection< T >, independent from how a value is accessed
+/** CollectionMap< T > holds what every form of Collection< T > has in common
+ * [see Collection]: the ( key , value ) map, the std::shared_mutex guarding
+ * it, and the operations that only concern the *structure* of the map and
+ * are therefore written once and for all here. What each form of Collection
+ * has to provide on its own is only how an individual value is read and
+ * written, which is what the specializations of Collection differ in. */
 
 template< typename T >
-class Collection : public CollectionBase
+class CollectionMap : public CollectionBase
 {
 
 /*--------------------------------------------------------------------------*/
@@ -151,63 +108,9 @@ class Collection : public CollectionBase
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 
- Collection() = default;           ///< constructor: does nothing
+ CollectionMap() = default;           ///< constructor: does nothing
 
- ~Collection() override = default; ///< destructor: does nothing
-
-/*--------------------------------------------------------------------------*/
-/*------------------- METHODS FOR READING / WRITING ------------------------*/
-/*--------------------------------------------------------------------------*/
-
- /// read the value stored under \p key into \p out
- /** Returns false, leaving \p out untouched, if \p key is not present. */
-
- bool read( const std::string & key , T & out ) const {
-  std::shared_lock lock( f_mutex );
-  auto it = f_data.find( key );
-  if( it == f_data.end() )
-   return( false );
-  out = it->second;
-  return( true );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// insert or overwrite the value stored under \p key
-
- void write( const std::string & key , T value ) {
-  std::unique_lock lock( f_mutex );
-  f_data[ key ] = std::move( value );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// apply a read-only functor to the value under \p key, under a read lock
- /** Returns false if \p key is not present, in which case \p func is not
-  * invoked [see the WARNING in the class comment about reentrancy]. */
-
- template< typename Func >
- bool read_with( const std::string & key , Func && func ) const {
-  std::shared_lock lock( f_mutex );
-  auto it = f_data.find( key );
-  if( it == f_data.end() )
-   return( false );
-  func( it->second );
-  return( true );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// apply a mutating functor to the value under \p key, under a write lock
- /** Returns false if \p key is not present, in which case \p func is not
-  * invoked [see the WARNING in the class comment about reentrancy]. */
-
- template< typename Func >
- bool write_with( const std::string & key , Func && func ) {
-  std::unique_lock lock( f_mutex );
-  auto it = f_data.find( key );
-  if( it == f_data.end() )
-   return( false );
-  func( it->second );
-  return( true );
-  }
+ ~CollectionMap() override = default; ///< destructor: does nothing
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- METHODS FOR READING STATE -------------------------*/
@@ -245,8 +148,8 @@ class Collection : public CollectionBase
 /*--------------------------------------------------------------------------*/
  /// apply a read-only functor to every ( key , value ) pair, one read lock
  /** The functor is invoked as func( key , value ) on every pair, all under
-  * a single read lock [see the WARNING in the class comment about
-  * reentrancy]. */
+  * a single read lock [see the WARNING in the Collection class comment
+  * about reentrancy]. */
 
  template< typename Func >
  void for_each( Func && func ) const {
@@ -256,14 +159,151 @@ class Collection : public CollectionBase
   }
 
 /*--------------------------------------------------------------------------*/
-/*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
+/*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
- private:
+ protected:
 
  mutable std::shared_mutex f_mutex;         ///< guards f_data
 
  std::unordered_map< std::string , T > f_data;  ///< the ( key , value ) map
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( CollectionMap ) )
+
+/*--------------------------------------------------------------------------*/
+/*-------------------------- CLASS Collection ------------------------------*/
+/*--------------------------------------------------------------------------*/
+/// a thread-safe, named repository of values of a single type T
+/** Collection< T > is a std::unordered_map< std::string , T > guarded by a
+ * std::shared_mutex, i.e., many concurrent readers or a single writer at
+ * any time: this is the concurrency pattern expected of a piece of global
+ * information accessed by many cooperating Solver, possibly running in
+ * different threads, which read it far more often than they write it (say,
+ * every node of an enumeration tree checks the incumbent, comparatively few
+ * improve it).
+ *
+ * The class exists as a stand-alone template, rather than being folded
+ * directly into GlobalInformation, so that each named piece of global
+ * information (an incumbent, a cut pool, a column pool, ...) can have its
+ * own T and its own map, without forcing a single one-size-fits-all value
+ * type on every use.
+ *
+ * Two forms of the template serve two different access patterns, and
+ * declaring one or the other documents the intended use:
+ *
+ * - Collection< T > (this primary form) keeps plain T values, and every
+ *   access goes through the Collection lock: the right choice for data
+ *   accessed "once in a while", where the cost of the lock is irrelevant
+ *   and T can be arbitrary (a whole pool, a std::vector, ...);
+ *
+ * - Collection< std::atomic< T > > (the specialization below) keeps atomic
+ *   values meant to be read and written lock-free through a reference
+ *   cached once [see operator[]()]: the right choice for "hot" scalars
+ *   read at every step by everybody, the incumbent being the prototypical
+ *   example.
+ *
+ * The two forms only differ in how an individual value is read and written;
+ * everything that concerns the *structure* of the map (contains(), size(),
+ * keys(), for_each(), the map itself and the mutex guarding it) is written
+ * once in the common base CollectionMap< T >.
+ *
+ * There deliberately is *no* erase(): entries are created once and never
+ * removed. Since std::unordered_map is node-based, this means that
+ * references and pointers to the mapped values are *never* invalidated
+ * (rehashing only invalidates iterators), so a user can look a value up
+ * once, cache the reference, and use it from then on; an erase() would
+ * silently break that contract. Removal is also at odds with the
+ * append-only discipline that makes sharing sound in the first place [see
+ * GlobalInformation]. If a whole Collection is no longer needed it can be
+ * dropped via GlobalInformation::remove_from_Universe(), which does not
+ * disturb whoever is still holding it.
+ *
+ * The read_with() / write_with() member templates are the preferred way to
+ * operate on a value found by key: they run the supplied functor under the
+ * appropriate lock without copying T in and out, which matters whenever T
+ * is not cheap to copy (e.g., a whole cut pool). read() / write() remain
+ * for the common case where T is small enough that a copy is not a
+ * concern.
+ *
+ * WARNING: std::shared_mutex is not reentrant, hence none of the methods
+ * of this same Collection may be called from inside the functor passed to
+ * read_with(), write_with() or for_each(), or the call will deadlock. */
+
+template< typename T >
+class Collection : public CollectionMap< T >
+{
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ public:
+
+/*--------------------------------------------------------------------------*/
+/*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ Collection() = default;           ///< constructor: does nothing
+
+ ~Collection() override = default; ///< destructor: does nothing
+
+/*--------------------------------------------------------------------------*/
+/*------------------- METHODS FOR READING / WRITING ------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ /// read the value stored under \p key into \p out
+ /** Returns false, leaving \p out untouched, if \p key is not present. */
+
+ bool read( const std::string & key , T & out ) const {
+  std::shared_lock lock( this->f_mutex );
+  auto it = this->f_data.find( key );
+  if( it == this->f_data.end() )
+   return( false );
+  out = it->second;
+  return( true );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// insert or overwrite the value stored under \p key
+
+ void write( const std::string & key , T value ) {
+  std::unique_lock lock( this->f_mutex );
+  this->f_data[ key ] = std::move( value );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// apply a read-only functor to the value under \p key, under a read lock
+ /** Returns false if \p key is not present, in which case \p func is not
+  * invoked [see the WARNING in the class comment about reentrancy]. */
+
+ template< typename Func >
+ bool read_with( const std::string & key , Func && func ) const {
+  std::shared_lock lock( this->f_mutex );
+  auto it = this->f_data.find( key );
+  if( it == this->f_data.end() )
+   return( false );
+  func( it->second );
+  return( true );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// apply a mutating functor to the value under \p key, under a write lock
+ /** Returns false if \p key is not present, in which case \p func is not
+  * invoked [see the WARNING in the class comment about reentrancy]. */
+
+ template< typename Func >
+ bool write_with( const std::string & key , Func && func ) {
+  std::unique_lock lock( this->f_mutex );
+  auto it = this->f_data.find( key );
+  if( it == this->f_data.end() )
+   return( false );
+  func( it->second );
+  return( true );
+  }
+
+/*--------------------------------------------------------------------------*/
 
  };  // end( class( Collection ) )
 
@@ -274,10 +314,14 @@ class Collection : public CollectionBase
 /** Specialization of Collection for std::atomic< T > values. It exists
  * because the primary template does not compile with a std::atomic mapped
  * type (std::atomic is neither copyable nor movable, so reading out and
- * writing in by value is impossible), and it only does differently the
- * pieces that require it: read() loads, write() stores (creating the entry
- * if needed), and operator[]() hands out a *reference* to the atomic
- * itself.
+ * writing in by value is impossible). It shares all the storage and the
+ * structural operations with the primary form [see CollectionMap], and only
+ * provides the three things that have to be done differently: read() loads,
+ * write() stores (creating the entry if needed), and operator[]() hands out
+ * a *reference* to the atomic itself. read_with() / write_with() have no
+ * counterpart here: running a functor under the Collection lock is what one
+ * does when the value cannot be accessed atomically, which is precisely not
+ * the case here.
  *
  * The reference is the whole point of this form: since entries are created
  * once and never removed [see the primary template about the absence of
@@ -294,7 +338,7 @@ class Collection : public CollectionBase
  * delegated to std::atomic. */
 
 template< typename T >
-class Collection< std::atomic< T > > : public CollectionBase
+class Collection< std::atomic< T > > : public CollectionMap< std::atomic< T > >
 {
 
 /*--------------------------------------------------------------------------*/
@@ -319,9 +363,9 @@ class Collection< std::atomic< T > > : public CollectionBase
  /** Returns false, leaving \p out untouched, if \p key is not present. */
 
  bool read( const std::string & key , T & out ) const {
-  std::shared_lock lock( f_mutex );
-  auto it = f_data.find( key );
-  if( it == f_data.end() )
+  std::shared_lock lock( this->f_mutex );
+  auto it = this->f_data.find( key );
+  if( it == this->f_data.end() )
    return( false );
   out = it->second.load();
   return( true );
@@ -336,15 +380,15 @@ class Collection< std::atomic< T > > : public CollectionBase
 
  void write( const std::string & key , T value ) {
   {
-   std::shared_lock lock( f_mutex );
-   auto it = f_data.find( key );
-   if( it != f_data.end() ) {
+   std::shared_lock lock( this->f_mutex );
+   auto it = this->f_data.find( key );
+   if( it != this->f_data.end() ) {
     it->second.store( value );
     return;
     }
    }
-  std::unique_lock lock( f_mutex );
-  auto res = f_data.try_emplace( key , value );
+  std::unique_lock lock( this->f_mutex );
+  auto res = this->f_data.try_emplace( key , value );
   if( ! res.second )       // someone else created it in the meantime
    res.first->second.store( value );
   }
@@ -359,69 +403,16 @@ class Collection< std::atomic< T > > : public CollectionBase
 
  std::atomic< T > & operator[]( const std::string & key ) {
   {
-   std::shared_lock lock( f_mutex );
-   auto it = f_data.find( key );
-   if( it != f_data.end() )
+   std::shared_lock lock( this->f_mutex );
+   auto it = this->f_data.find( key );
+   if( it != this->f_data.end() )
     return( it->second );
    }
-  std::unique_lock lock( f_mutex );
-  return( f_data.try_emplace( key , T{} ).first->second );
+  std::unique_lock lock( this->f_mutex );
+  return( this->f_data.try_emplace( key , T{} ).first->second );
   }
 
 /*--------------------------------------------------------------------------*/
-/*---------------------- METHODS FOR READING STATE -------------------------*/
-/*--------------------------------------------------------------------------*/
-
- /// tells whether \p key is currently present
-
- [[nodiscard]] bool contains( const std::string & key ) const {
-  std::shared_lock lock( f_mutex );
-  return( f_data.find( key ) != f_data.end() );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// the current number of ( key , value ) pairs
-
- [[nodiscard]] size_t size() const {
-  std::shared_lock lock( f_mutex );
-  return( f_data.size() );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// a snapshot of the current keys [see the primary template]
-
- [[nodiscard]] std::vector< std::string > keys() const {
-  std::shared_lock lock( f_mutex );
-  std::vector< std::string > result;
-  result.reserve( f_data.size() );
-  for( const auto & pair : f_data )
-   result.push_back( pair.first );
-  return( result );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// apply a read-only functor to every ( key , atomic ) pair, one read lock
- /** The functor is invoked as func( key , atomic ) on every pair (read the
-  * value with .load()), all under a single read lock [see the WARNING in
-  * the primary template about reentrancy]. */
-
- template< typename Func >
- void for_each( Func && func ) const {
-  std::shared_lock lock( f_mutex );
-  for( const auto & pair : f_data )
-   func( pair.first , pair.second );
-  }
-
-/*--------------------------------------------------------------------------*/
-/*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
-/*--------------------------------------------------------------------------*/
-
- private:
-
- mutable std::shared_mutex f_mutex;   ///< guards the structure of f_data
-
- std::unordered_map< std::string , std::atomic< T > > f_data;
-                                      ///< the ( key , atomic value ) map
 
  };  // end( class( Collection< std::atomic< T > > ) )
 
