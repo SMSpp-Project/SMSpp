@@ -4,13 +4,13 @@
 /** @file
  * Header file for the *abstract* classes ChangeSolver and RelaxationSolver,
  * the "traits" that complement the Solver concept [see Solver.h] with the
- * notions needed by an enumerative (Branch-and-Bound) algorithm:
+ * notions needed by an algorithm that solves a whole *sequence* of related
+ * problems, each obtained from the previous one by a Change [see Change.h]:
  *
- * - a ChangeSolver can apply() a Change [see Change.h] to the Block it
- *   works on - and, symmetrically, the undo Change that apply() returns -
- *   so that the same object can be efficiently moved between the nodes of
- *   an enumeration tree, possibly applying the Change *internally* to its
- *   own state without touching the Block;
+ * - a ChangeSolver can apply() a Change to the Block it works on - and,
+ *   symmetrically, the undo Change that apply() returns - so that the same
+ *   object can be efficiently moved along the sequence, possibly applying
+ *   the Change *internally* to its own state without touching the Block;
  *
  * - a RelaxationSolver is a ChangeSolver that solves a *relaxation* of the
  *   problem encoded by the Block: besides the relaxation value (a valid
@@ -21,9 +21,9 @@
  *
  * Neither class derives from Solver: they are traits that a concrete class
  * derives from *alongside* its problem-specific :Solver base, with plain
- * (non-virtual) inheritance and therefore no diamond on Solver. The driver
- * of the enumeration discovers the traits on a registered Solver by a
- * dynamic_cast cross-cast [see the ChangeSolver class comment].
+ * (non-virtual) inheritance and therefore no diamond on Solver. Whoever
+ * drives them discovers the traits on a registered Solver by a dynamic_cast
+ * cross-cast [see the ChangeSolver class comment].
  *
  * \author Antonio Frangioni \n
  *         Dipartimento di Informatica \n
@@ -84,9 +84,11 @@ namespace SMSpp_di_unipi_it
 /// the trait of being able to apply a Change to a Block
 /** The class ChangeSolver captures the ability of applying a Change to the
  * Block it works on (and of un-doing it, see apply()). This is the basic
- * capability that an enumerative algorithm requires of the objects it
- * drives: moving between two nodes of the enumeration tree amounts to
- * applying the Changes found along the path joining them.
+ * capability that any algorithm exploring a discrete set of related problems
+ * requires of the objects it drives: an enumerative one moves between two
+ * nodes of the enumeration tree by applying the Changes found along the path
+ * joining them, but a greedy or a local search algorithm equally moves
+ * between two solutions by applying the Change encoding the move.
  *
  * ChangeSolver deliberately does *not* derive from Solver: it is a trait
  * that a concrete class derives from *alongside* its problem-specific
@@ -97,7 +99,7 @@ namespace SMSpp_di_unipi_it
  * with plain inheritance on both sides. This avoids any virtual-inheritance
  * diamond on Solver when a concrete class combines several such traits (or
  * traits with heuristic bases), and makes the trait equally applicable to
- * Solver and CDASolver hierarchies. Whoever drives the enumeration holds
+ * Solver and CDASolver hierarchies. Whoever drives such an object holds
  * plain Solver pointers (say, those registered to a Block) and discovers
  * the trait with a dynamic_cast cross-cast, which succeeds precisely on
  * objects whose concrete class derives from both:
@@ -107,23 +109,19 @@ namespace SMSpp_di_unipi_it
  * (and symmetrically dynamic_cast< Solver * >( some_change_solver ) to go
  * back).
  *
- * Not being a Solver, the trait cannot see Solver::f_Block: it keeps its
- * *own* pointer to the Block it works on (in its f_ChgBlock field, whose
- * name differs from Solver::f_Block on purpose, so that a concrete class
- * deriving from both can still use the latter unqualified), set via
- * set_Block(). Since both
- * Solver and ChangeSolver declare a virtual set_Block() with the same
- * signature, the single override that a concrete class provides overrides
- * *both*, and it is expected to forward to both bases:
+ * The trait is a pure interface: it declares what the driver needs and
+ * implements nothing, so that no piece of information that the :Solver base
+ * of the concrete class already has (the Block, in the first place) is
+ * duplicated here. In particular apply() is pure virtual, and the concrete
+ * class implements it out of its own Solver state, which for a solver that
+ * has nothing to do internally is just
  *
- *     void set_Block( Block * block ) override {
- *      SomeSolver::set_Block( block );
- *      ChangeSolver::set_Block( block );
- *      ...
+ *     Change * apply( Change * chg , bool doUndo ) override {
+ *      return( chg->apply( f_Block , doUndo ) );
  *      }
  *
- * so that registering the object to a Block through the usual Solver
- * machinery keeps the two copies of the information in sync. */
+ * The only state of the trait is the (non-owned) GlobalInformation, which
+ * is a notion of its own [see set_global_information()]. */
 
 class ChangeSolver
 {
@@ -146,16 +144,6 @@ class ChangeSolver
 /*------------- METHODS FOR ADDING / REMOVING / CHANGING DATA --------------*/
 /*--------------------------------------------------------------------------*/
 
- /// set the Block this ChangeSolver works on
- /** Sets the (trait's own copy of the) pointer to the Block this
-  * ChangeSolver works on. A concrete class deriving from both a :Solver
-  * and this trait overrides set_Block() once - the single override
-  * overrides both bases' virtual - and forwards to both [see the class
-  * comment]. */
-
- virtual void set_Block( Block * block ) { f_ChgBlock = block; }
-
-/*--------------------------------------------------------------------------*/
  /// apply the given Change to the Block managed by this ChangeSolver
  /** Apply the given Change to the Block managed by this ChangeSolver. If
   * \p doUndo is true, the returned (pointer to a newly minted) Change is
@@ -164,14 +152,13 @@ class ChangeSolver
   * ownership of the returned Change is transferred to the caller. With
   * \p doUndo false, nullptr is returned.
   *
-  * The default implementation just forwards to Change::apply() on the
-  * Block; derived classes can intercept the Changes they understand and
-  * apply them *internally* (i.e., to their own state, without touching the
-  * Block), which is the key for an efficient enumeration. */
+  * The simplest implementation forwards to Change::apply() on the Block of
+  * the concrete class [see the class comment], but a solver can rather
+  * intercept the Changes it understands and apply them *internally*, i.e.,
+  * to its own state and without touching the Block, which is the key for an
+  * efficient exploration of a sequence of related problems. */
 
- virtual Change * apply( Change * chg , bool doUndo = false ) {
-  return( chg->apply( f_ChgBlock , doUndo ) );
-  }
+ virtual Change * apply( Change * chg , bool doUndo = false ) = 0;
 
 /*--------------------------------------------------------------------------*/
  /// give the ChangeSolver access to the global information
@@ -193,39 +180,10 @@ class ChangeSolver
   }
 
 /*--------------------------------------------------------------------------*/
-/*---------------------- METHODS FOR READING RESULTS -----------------------*/
-/*--------------------------------------------------------------------------*/
-
- /// return the Solution of the Block corresponding to the current solution
- /** Writes the current solution into the Block (under lock) and returns the
-  * corresponding newly minted Solution object, whose ownership is
-  * transferred to the caller. The default implementation reaches the
-  * Solver personality of this same object by cross-cast to call
-  * Solver::get_var_solution(); derived classes able to construct the
-  * Solution directly out of their internal state can (and should) bypass
-  * the Block entirely. */
-
- virtual Solution * get_Solution( Configuration * solc = nullptr ) {
-  auto slvr = dynamic_cast< Solver * >( this );
-  if( ! slvr )
-   throw( std::logic_error( "ChangeSolver::get_Solution: the concrete "
-			    "class does not derive from Solver" ) );
-  // TODO: check that lock()-ing / unlock()-ing here is appropriate
-  f_ChgBlock->lock( this );
-  slvr->get_var_solution( solc );
-  auto sol = f_ChgBlock->get_Solution( solc );
-  f_ChgBlock->unlock( this );
-  return( sol );
-  }
-
-/*--------------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
 
  protected:
-
- /// the Block this ChangeSolver works on (the trait's own copy)
- Block * f_ChgBlock = nullptr;
 
  /// the global information, nullptr if none [see set_global_information]
  GlobalInformation * f_global_information = nullptr;
@@ -400,19 +358,12 @@ class RelaxationSolver : public virtual ChangeSolver
  /** After a call to has_true_var_solution() and/or
   * new_true_var_solution() that returned true, this method returns the
   * (newly minted, caller-owned) Solution object corresponding to the
-  * current true solution. The default implementation writes the solution
-  * into the Block (under lock) and reads it back; derived classes able to
-  * construct the Solution directly out of their internal state can (and
-  * should) bypass the Block entirely. */
+  * current true solution. The obvious implementation writes the solution
+  * into the Block (under lock) and reads it back with Block::get_Solution(),
+  * but a solver able to construct the Solution directly out of its internal
+  * state can (and should) bypass the Block entirely. */
 
- virtual Solution * get_true_solution( Configuration * solc = nullptr ) {
-  // TODO: check that lock()-ing / unlock()-ing here is appropriate
-  f_ChgBlock->lock( this );
-  get_true_var_solution( solc );
-  Solution * sol = f_ChgBlock->get_Solution( solc );
-  f_ChgBlock->unlock( this );
-  return( sol );
-  }
+ virtual Solution * get_true_solution( Configuration * solc = nullptr ) = 0;
 
 /*--------------------------------------------------------------------------*/
 
