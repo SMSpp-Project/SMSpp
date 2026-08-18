@@ -49,6 +49,8 @@ namespace SMSpp_di_unipi_it
 
  class Solution;           // forward declaration of Solution
 
+ class BlockSolverConfig;  // forward definition of BlockSolverConfig
+
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -591,6 +593,11 @@ class BendersBFunction : public C05Function , public Block {
   if( ( ! v_Block.empty() ) && block == v_Block.front() &&
       ( ! destroy_previous_block ) )
    return; // the given Block is already here; silently return
+
+  if( ! v_Block.empty() )
+   // un-do the BlockSolverConfig-uration of the outgoing inner Block, i.e.,
+   // remove the Solver that this BendersBFunction has registered there
+   unconfigure_inner_Block_Solver();
 
   if( destroy_previous_block && ( ! v_Block.empty() ) )
    delete v_Block.front();
@@ -2209,6 +2216,17 @@ void print( std::ostream & output ) override {
 
  int f_inner_solver_index = 0; ///< the index of the Solver of the inner Block
 
+ BlockSolverConfig * f_BSC = nullptr;
+ ///< the clear()-ed BlockSolverConfig that configured the inner Block
+ /**< The clone of the BlockSolverConfig that has actually been apply()-ed to
+  * the inner Block, kept clear()-ed: apply()-ing it removes all and only the
+  * Solver that it has registered there [see BlockSolverConfig::apply()],
+  * which is how the configuration is un-done when the inner Block is
+  * released, replaced or destroyed. A clone is necessary because the same
+  * BlockSolverConfig is typically apply()-ed to many Block, while the record
+  * of the registered Solver that its cleared apply() uses is per-Block.
+  * nullptr if the inner Block has not been BlockSolverConfig-ured. */
+
  Configuration * f_get_dual_solution_config = nullptr;
  ///< Configuration to be passed to Solver::get_dual_solution()
  /**< Configuration to be passed to the method Solver::get_dual_solution() of
@@ -2988,6 +3006,15 @@ void print( std::ostream & output ) override {
  /// reset the BlockSolverConfig of the inner Block to the default one
 
  void set_default_inner_Block_BlockSolverConfig();
+
+/*--------------------------------------------------------------------------*/
+ /// remove the Solver that this BendersBFunction registered in the inner Block
+ /** Applies the clear()-ed BlockSolverConfig that configured the inner Block
+  * [see f_BSC], i.e., un-registers and deletes all and only the Solver that
+  * this BendersBFunction has registered there, leaving any other one alone;
+  * does nothing if the inner Block has not been BlockSolverConfig-ured. */
+
+ void unconfigure_inner_Block_Solver();
 
 /*--------------------------------------------------------------------------*/
  /// reset the configuration of the inner Block to the default one
