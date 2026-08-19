@@ -32,7 +32,7 @@
 # macros to be exported - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 SMS++OBJ = $(SMS++SDR)/obj/AbstractBlock.o \
-    $(SMS++SDR)/obj/GroupChange.o \
+    $(SMS++SDR)/obj/Change.o \
 	$(SMS++SDR)/obj/BendersBFunction.o \
 	$(SMS++SDR)/obj/BendersBlock.o \
 	$(SMS++SDR)/obj/Block.o \
@@ -78,7 +78,6 @@ SMS++H = $(SMS++SDR)/include/AbstractBlock.h \
 	$(SMS++SDR)/include/CDASolver.h \
 	$(SMS++SDR)/include/Change.h \
 	$(SMS++SDR)/include/ChangeSolver.h \
-	$(SMS++SDR)/include/GroupChange.h \
 	$(SMS++SDR)/include/ColRowSolution.h \
 	$(SMS++SDR)/include/ColVariable.h \
 	$(SMS++SDR)/include/ColVariableSolution.h \
@@ -124,9 +123,9 @@ intBlockINC = $(SMS++SDR)/include/Block.h $(SMS++SDR)/include/Configuration.h \
 	$(SMS++SDR)/include/Observer.h $(SMS++SDR)/include/SMSTypedefs.h \
 	$(SMS++SDR)/include/ThinComputeInterface.h
 
-$(SMS++SDR)/obj/GroupChange.o: $(SMS++SDR)/src/GroupChange.cpp \
-	$(SMS++SDR)/include/GroupChange.h $(SMS++SDR)/include/Change.h
-	$(CC) -c $(SMS++SDR)/src/GroupChange.cpp -o $@ $(SMS++INC) $(SW)
+$(SMS++SDR)/obj/Change.o: $(SMS++SDR)/src/Change.cpp \
+	$(SMS++SDR)/include/Change.h
+	$(CC) -c $(SMS++SDR)/src/Change.cpp -o $@ $(SMS++INC) $(SW)
 
 $(SMS++SDR)/obj/AbstractBlock.o: $(SMS++SDR)/src/AbstractBlock.cpp \
 	$(SMS++SDR)/include/AbstractBlock.h $(intBlockINC) \

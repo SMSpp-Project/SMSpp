@@ -1,9 +1,10 @@
 /*--------------------------------------------------------------------------*/
-/*-------------------------- File GroupChange.cpp --------------------------*/
+/*--------------------------- File Change.cpp ------------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
- * Implementation of the *concrete* class GroupChange: everything is
- * defined in the header, only the factory registration lives here.
+ * Implementation of the classes defined in Change.h: everything is defined
+ * in the header, only the factory registration of the concrete GroupChange
+ * lives here.
  *
  * \author Antonio Frangioni \n
  *         Dipartimento di Informatica \n
@@ -25,7 +26,7 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#include "GroupChange.h"
+#include "Change.h"
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -42,5 +43,5 @@ using namespace SMSpp_di_unipi_it;
 SMSpp_insert_in_factory_cpp_0( GroupChange );
 
 /*--------------------------------------------------------------------------*/
-/*----------------------- End File GroupChange.cpp -------------------------*/
+/*-------------------------- End File Change.cpp ---------------------------*/
 /*--------------------------------------------------------------------------*/
