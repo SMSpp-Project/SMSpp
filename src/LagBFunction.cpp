@@ -4521,7 +4521,8 @@ void LagBFunction::eager_pool_cost_delta( const v_coeff_pair & rc ,
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::update_CostMatrix_ModVarsAddd( c_Vec_p_Var & vars ,
+void LagBFunction::update_CostMatrix_ModVarsAddd( Index h ,
+                                                  c_Vec_p_Var & vars ,
                                                   Index first )
 {
  f_active_dirty = true;  // variable structure changes -> v_active must rebuild
