@@ -3305,7 +3305,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
    // only deal with C05FunctionModLinRngd coming from LinearFunction ...
    if( lf == CMh_f ) {  // ... inside the Objective of the inner Block - - - -
 
-    update_CostMatrix_ModLinRngd( lf->get_v_var() , tmod->vars() ,
+    update_CostMatrix_ModLinRngd( h , lf->get_v_var() , tmod->vars() ,
 				  tmod->range() );
 
     // issue a LagBFunctionMod modification of the type AlphaChanged and
@@ -3328,7 +3328,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
    if( qf == CMh_f ) {  // ... inside the Objective of the inner Block- - - -
     v_coeff_pair rc;
     triple_to_pair( qf->get_v_var() , rc );
-    update_CostMatrix_ModLinRngd( rc , tmod->vars() , tmod->range() );
+    update_CostMatrix_ModLinRngd( h , rc , tmod->vars() , tmod->range() );
 
     // issue a LagBFunctionMod modification of the type AlphaChanged and
     // with what() == 1: the Lagrangian function unpredictably changes
@@ -3359,7 +3359,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
   if( const auto lf = dynamic_cast< p_LF >( tmod->function() ) ) {
    // only deal with C05FunctionModLinSbst coming from LinearFunction ...
    if( lf == CMh_f ) {  // ... inside the Objective of the inner Block - - - -
-    update_CostMatrix_ModLinSbst( lf->get_v_var() , tmod->vars() ,
+    update_CostMatrix_ModLinSbst( h , lf->get_v_var() , tmod->vars() ,
 				  tmod->subset() );
 
     // issue a LagBFunctionMod modification of the type AlphaChanged and
@@ -3382,7 +3382,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
    if( qf == CMh_f ) {  // ... inside the Objective of the inner Block- - - -
     v_coeff_pair rc;
     triple_to_pair( qf->get_v_var() , rc );
-    update_CostMatrix_ModLinSbst( rc , tmod->vars() , tmod->subset() );
+    update_CostMatrix_ModLinSbst( h , rc , tmod->vars() , tmod->subset() );
 
     // issue a LagBFunctionMod modification of the type AlphaChanged and
     // with what() == 1: the Lagrangian function unpredictably changes
@@ -3410,7 +3410,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
    if( qf == CMh_f ) {
     v_coeff_pair rc;
     triple_to_pair( qf->get_v_var() , rc );
-    update_CostMatrix_ModLinRngd( rc , tmod->vars() , tmod->range() );
+    update_CostMatrix_ModLinRngd( h , rc , tmod->vars() , tmod->range() );
 
     // issue a LagBFunctionMod modification of the type AlphaChanged and
     // with what() == 1: the Lagrangian function unpredictably changes
@@ -3435,7 +3435,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
    if( qf == CMh_f ) {
     v_coeff_pair rc;
     triple_to_pair( qf->get_v_var() , rc );
-    update_CostMatrix_ModLinSbst( rc , tmod->vars() , tmod->subset() );
+    update_CostMatrix_ModLinSbst( h , rc , tmod->vars() , tmod->subset() );
 
     // issue a LagBFunctionMod modification of the type AlphaChanged and
     // with what() == 1: the Lagrangian function unpredictably changes
@@ -3572,7 +3572,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
    // only deal with C05FunctionModVarsAddd coming from LinearFunction ...
    if( lf == CMh_f ) {  // ... inside the Objective of the inner Block - - - -
     // update CostMatrix accordingly
-    update_CostMatrix_ModVarsAddd( tmod->vars() , tmod->first() );
+    update_CostMatrix_ModVarsAddd( h , tmod->vars() , tmod->first() );
 
     // issue a LagBFunctionMod modification of the type AlphaChanged and
     // with what() == 1: the Lagrangian function unpredictably changes
@@ -3593,7 +3593,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
    // only deal with C05FunctionModVarsAddd coming from DQuadFunction ...
    if( qf == CMh_f ) {  // ... inside the Objective of the inner Block- - - -
     // update CostMatrix accordingly
-    update_CostMatrix_ModVarsAddd( tmod->vars() , tmod->first() );
+    update_CostMatrix_ModVarsAddd( h , tmod->vars() , tmod->first() );
 
     // issue a LagBFunctionMod modification of the type AlphaChanged and
     // with what() == 1: the Lagrangian function unpredictably changes
@@ -3624,7 +3624,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
    // only deal with C05FunctionModVarsRngd coming from LinearFunction ...
    if( lf == CMh_f ) {  // ... inside the Objective of the inner Block - - - -
     // remove the range of rows from CostMatrix accordingly
-    update_CostMatrix_ModVarsRngd( tmod->vars() , tmod->range() );
+    update_CostMatrix_ModVarsRngd( h , tmod->vars() , tmod->range() );
 
     // issue a LagBFunctionMod modification of the type AlphaChanged and
     // with what() == 1: the Lagrangian function unpredictably changes
@@ -3645,7 +3645,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
    // only deal with C05FunctionModVarsRngd coming from DQuadFunction ...
    if( qf == CMh_f ) {  // ... inside the Objective of the inner Block- - - -
     // remove the range of rows from CostMatrix accordingly
-    update_CostMatrix_ModVarsRngd( tmod->vars() , tmod->range() );
+    update_CostMatrix_ModVarsRngd( h , tmod->vars() , tmod->range() );
 
     // issue a LagBFunctionMod modification of the type AlphaChanged and
     // with what() == 1: the Lagrangian function unpredictably changes
@@ -3674,7 +3674,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
    // only deal with C05FunctionModVarsSbst coming from LinearFunction ...
    if( lf == CMh_f ) {  // ... inside the Objective of the inner Block - - - -
     // remove the range of subset from CostMatrix accordingly
-    update_CostMatrix_ModVarsSbst( tmod->vars() , tmod->subset() );
+    update_CostMatrix_ModVarsSbst( h , tmod->vars() , tmod->subset() );
 
     // issue a LagBFunctionMod modification of the type AlphaChanged and
     // with what() == 1: the Lagrangian function unpredictably changes
@@ -3695,7 +3695,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
    // only deal with C05FunctionModVarsSbst coming from DQuadFunction ...
    if( qf == CMh_f ) {  // ... inside the Objective of the inner Block- - - -
     // remove the range of subset from CostMatrix accordingly
-    update_CostMatrix_ModVarsSbst( tmod->vars() , tmod->subset() );
+    update_CostMatrix_ModVarsSbst( h , tmod->vars() , tmod->subset() );
 
     // issue a LagBFunctionMod modification of the type AlphaChanged and
     // with what() == 1: the Lagrangian function unpredictably changes
@@ -4321,7 +4321,8 @@ char LagBFunction::guts_of_this_add_Modification( p_Mod mod , ChnlName chnl )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::update_CostMatrix_ModLinRngd( const v_coeff_pair & rc ,
+void LagBFunction::update_CostMatrix_ModLinRngd( Index h ,
+                                                 const v_coeff_pair & rc ,
                                                  c_Vec_p_Var & vars ,
                                                  c_Range & rng )
 {
@@ -4342,17 +4343,11 @@ void LagBFunction::update_CostMatrix_ModLinRngd( const v_coeff_pair & rc ,
  if( vars.empty() || ( rng.second <= rng.first ) )
   return;
 
- Index b;
- if( v_Obj.size() == 1 )
-  b = 0;
- else {
-  auto it = Block2Idx.find( vars.front()->get_Block() );
-  if( ( it == Block2Idx.end() ) || ( it->second >= v_Obj.size() ) )
-   throw( std::logic_error( "Variable not found in any objective" ) );
-  b = it->second;
-  }
+ // the index of the modified Objective is provided by the caller: it cannot
+ // be recovered here from the Variable in the Modification, since an inner
+ // Objective may well reference Variable owned by other nested sub-Block
 
- m_column & CM = CostMatrix[ b ];
+ m_column & CM = CostMatrix[ h ];
 
  // first check if by chance the Range is still current
  bool current = true;
@@ -4411,7 +4406,8 @@ void LagBFunction::update_CostMatrix_ModLinRngd( const v_coeff_pair & rc ,
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::update_CostMatrix_ModLinSbst( const v_coeff_pair & rc ,
+void LagBFunction::update_CostMatrix_ModLinSbst( Index h ,
+                                                 const v_coeff_pair & rc ,
                                                  c_Vec_p_Var & vars ,
                                                  c_Subset & sbst )
 {
@@ -4432,17 +4428,11 @@ void LagBFunction::update_CostMatrix_ModLinSbst( const v_coeff_pair & rc ,
  if( vars.empty() || sbst.empty() )
   return;
 
- Index b;
- if( v_Obj.size() == 1 )
-  b = 0;
- else {
-  auto it = Block2Idx.find( vars.front()->get_Block() );
-  if( ( it == Block2Idx.end() ) || ( it->second >= v_Obj.size() ) )
-   throw( std::logic_error( "Variable not found in any objective" ) );
-  b = it->second;
-  }
+ // the index of the modified Objective is provided by the caller: it cannot
+ // be recovered here from the Variable in the Modification, since an inner
+ // Objective may well reference Variable owned by other nested sub-Block
 
- m_column & CM = CostMatrix[ b ];
+ m_column & CM = CostMatrix[ h ];
 
  // first check if by chance the Subset is still current
  bool current = true;
@@ -4545,26 +4535,20 @@ void LagBFunction::update_CostMatrix_ModVarsAddd( c_Vec_p_Var & vars ,
  if( vars.empty() )
   return;
 
- Index b;
- if( v_Obj.size() == 1 )
-  b = 0;
- else {
-  auto it = Block2Idx.find( vars.front()->get_Block() );
-  if( ( it == Block2Idx.end() ) || ( it->second >= v_Obj.size() ) )
-   throw( std::logic_error( "Variable not found in any objective" ) );
-  b = it->second;
-  }
+ // the index of the modified Objective is provided by the caller: it cannot
+ // be recovered here from the Variable in the Modification, since an inner
+ // Objective may well reference Variable owned by other nested sub-Block
 
- m_column & CM = CostMatrix[ b ];
+ m_column & CM = CostMatrix[ h ];
 
- if( v_tmpCP.empty() || v_tmpCP[ b ].empty() ) {
+ if( v_tmpCP.empty() || v_tmpCP[ h ].empty() ) {
   // there are no variables to be "stealthily" added to obj, hence
   // CostMatrix.size() == [q]obj->gen_num_active_var()
 
   #ifndef NDEBUG
    if( first != CM.size() )
     throw( std::logic_error( "inconsistent CostMatrix[" +
-			     std::to_string( b ) + "]" ) );
+			     std::to_string( h ) + "]" ) );
   #endif
 
   CM.resize( CM.size() + vars.size() );
@@ -4579,7 +4563,7 @@ void LagBFunction::update_CostMatrix_ModVarsAddd( c_Vec_p_Var & vars ,
   c_Index nv = vars.size();
   CM.insert( CM.begin() + first , nv , col_pair() );
 
-  auto & tmpCP = v_tmpCP[ b ];
+  auto & tmpCP = v_tmpCP[ h ];
   for( Index i = 0 ; i < tmpCP.size() ; ++i )
    for( Index j = 0 ; j < nv ; ++j )
     if( vars[ j ] == tmpCP[ i ].first ) {
@@ -4593,7 +4577,8 @@ void LagBFunction::update_CostMatrix_ModVarsAddd( c_Vec_p_Var & vars ,
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::update_CostMatrix_ModVarsRngd( c_Vec_p_Var & vars ,
+void LagBFunction::update_CostMatrix_ModVarsRngd( Index h ,
+                                                  c_Vec_p_Var & vars ,
                                                   c_Range & rng )
 {
  f_active_dirty = true;  // variable structure changes -> v_active must rebuild
@@ -4613,17 +4598,11 @@ void LagBFunction::update_CostMatrix_ModVarsRngd( c_Vec_p_Var & vars ,
  if( vars.empty() || ( rng.second <= rng.first ) )
   return;
 
- Index b;
- if( v_Obj.size() == 1 )
-  b = 0;
- else {
-  auto it = Block2Idx.find( vars.front()->get_Block() );
-  if( ( it == Block2Idx.end() ) || ( it->second >= v_Obj.size() ) )
-   throw( std::logic_error( "Variable not found in any objective" ) );
-  b = it->second;
- }
+ // the index of the modified Objective is provided by the caller: it cannot
+ // be recovered here from the Variable in the Modification, since an inner
+ // Objective may well reference Variable owned by other nested sub-Block
 
- m_column & CM = CostMatrix[ b ];
+ m_column & CM = CostMatrix[ h ];
 
  #ifndef NDEBUG
   if( rng.second > CM.size() )
@@ -4640,7 +4619,7 @@ void LagBFunction::update_CostMatrix_ModVarsRngd( c_Vec_p_Var & vars ,
   if( ! it->second.empty() ) {
    tempCM.push_back( std::move( *it ) );
    tempCM.back().first = 0;
-   v_tmpCP[ b ].push_back( coeff_pair(
+   v_tmpCP[ h ].push_back( coeff_pair(
      static_cast< ColVariable * >( vars[ std::distance( strtit , it ) ] ) ,
      Coefficient( 0 ) ) );
   }
@@ -4657,7 +4636,8 @@ void LagBFunction::update_CostMatrix_ModVarsRngd( c_Vec_p_Var & vars ,
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::update_CostMatrix_ModVarsSbst( c_Vec_p_Var & vars ,
+void LagBFunction::update_CostMatrix_ModVarsSbst( Index h ,
+                                                  c_Vec_p_Var & vars ,
                                                   c_Subset & sbst )
 {
  f_active_dirty = true;  // variable structure changes -> v_active must rebuild
@@ -4677,17 +4657,11 @@ void LagBFunction::update_CostMatrix_ModVarsSbst( c_Vec_p_Var & vars ,
  if( vars.empty() || sbst.empty() )
   return;
 
- Index b;
- if( v_Obj.size() == 1 )
-  b = 0;
- else {
-  auto it = Block2Idx.find( vars.front()->get_Block() );
-  if( ( it == Block2Idx.end() ) || ( it->second >= v_Obj.size() ) )
-   throw( std::logic_error( "Variable not found in any objective" ) );
-  b = it->second;
- }
+ // the index of the modified Objective is provided by the caller: it cannot
+ // be recovered here from the Variable in the Modification, since an inner
+ // Objective may well reference Variable owned by other nested sub-Block
 
- m_column & CM = CostMatrix[ b ];
+ m_column & CM = CostMatrix[ h ];
 
  #ifndef NDEBUG
   if( sbst.back() >= CM.size() )
@@ -4702,7 +4676,7 @@ void LagBFunction::update_CostMatrix_ModVarsSbst( c_Vec_p_Var & vars ,
   if( ! CM[ sbst[ i ] ].second.empty() ) {
    tempCM.push_back( std::move( CM[ sbst[ i ] ] ) );
    tempCM.back().first = 0;
-   v_tmpCP[ b ].push_back( coeff_pair(
+   v_tmpCP[ h ].push_back( coeff_pair(
      static_cast< ColVariable * >( vars[ i ] ) , Coefficient( 0 ) ) );
   }
 
