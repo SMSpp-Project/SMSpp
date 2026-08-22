@@ -5873,68 +5873,134 @@ class Block : public Observer {
  * possibility is always left open that some registration may happen outside
  * it.
  *
- * SCALING A :Block THROUGH ITS OWN DATA
+ * ## Scaling a :Block through its own data
  *
- * In the (re)sizing case of the design and scaling group a parameter k sizes
- * the :Block, for instance turning A_i x <= b_i into A_i x <= k b_i. The
- * effect of k stays inside the :Block, and which parts of the :Block carry k
- * is private business of the :Block. The case declares nothing on Block and
- * travels entirely through here. k arrives as a change of the "physical
- * representation", and the abstract one is updated with it.
+ * A further use of the methods factory is that of *sizing* a :Block: some
+ * parameter k of the :Block is taken as a size and written in through the
+ * factory, say turning one or more rows A_i x <= b_i into A_i x <= k b_i, or
+ * multiplying by k a cost of its own Objective. The effect of k stays inside
+ * the :Block, and which data carry k is private business of the :Block;
+ * nothing has to be declared on Block for the parameter, because what a
+ * :Block sizes and how is its own and the shape of what it gives back does
+ * not change, so nothing outside has to be told.
+ * This is the case that the group laying out how a Block can be scaled calls
+ * (re)sizing [see Design and scaling of this Block].
  *
  * A :Block supporting it registers one or more setters with one of the
  * standard "vector of double" signatures ( MS_dbl_rngd or MS_dbl_sbst )
- * writing the parameters in, which is what set_kappa() already does in three
- * :Block. The same factory carries whatever has to be read back, under names
- * of the :Block's own choosing.
+ * writing the parameters in. More than one setter because nothing limits a
+ * :Block to one parameter or to one design decision, the factory being keyed
+ * by an arbitrary string: two sizes that move independently, say a capacity
+ * and a rate, are either two components of one setter or two setters under
+ * different names.
  *
- * Whoever chooses the parameters solves a problem in them, and no Solver of
- * this Block helps: the parameters are data of this Block, and the model
- * being solved has no column for them. What such a consumer wants read back
- * is, for instance:
+ * Several writers act on the same datum: a sizing parameter, a value that
+ * something else rewrites between solves, whatever further factor the
+ * :Block keeps; no order is imposed among them. Because of this
  *
- * - bounds on the parameters, to know where it may move them;
+ *     A SETTER RECOMPUTES THE DATA IT OWNS WHOLE, OUT OF THE FIELDS THE
+ *     :Block HOLDS, AND NEVER INCREMENTS WHAT IT FINDS THERE
  *
- * - a sensitivity of the value of this Block to them, to know what moving
- *   them costs.
+ * the point being that an increment must read what is there before writing
+ * it, hence its outcome is a function of the history of that datum, i.e., of
+ * which writer happened to act last, whereas a whole recomputation is a
+ * function of the fields alone, which therefore have to keep the base
+ * datum: the derivative of a row A x - k b <= 0 with respect to k is -b,
+ * i.e., the sensitivity is that datum, which an implementation overwriting
+ * it with its scaled value can no longer produce.
  *
- * More than one setter because nothing limits a :Block to one parameter or to
- * one design decision, the factory being keyed by an arbitrary string: the
- * energy and the power of a BatteryUnitBlock are either two components of one
- * setter or two setters under different names.
+ * Note that k arrives as a change of the "physical representation" of the
+ * :Block, the "abstract" one, if it has been constructed, having to be
+ * updated with it.
  *
- * A sensitivity is the delicate one to expose. It is a subgradient of the
- * value function only if that function is convex, which it need not be even
- * on a convex Block: with k multiplying a coefficient rather than a known
- * term it need be neither convex nor concave in k. Where it is not, what a
- * :Block can offer is the local sensitivity, and its consumer must not take
- * it for a global cut.
+ * Whatever has to be read back can be registered in the same methods factory,
+ * under names of the :Block's own choosing, though not yet under a standard
+ * signature, as discussed below. The parameters being data of this Block and
+ * not columns of the model being solved, no Solver of this Block can be
+ * asked about them, whoever chooses them solving a problem of its own in
+ * which they are the unknowns. What such a consumer wants read back is, for
+ * instance:
  *
- * The getters need a signature family that does not exist yet, the six
- * existing ones being shaped for setters: FunctionType takes a non-const
- * Block * and two ModParam at the end, and MemberFunctionType is a non-const
- * member pointer, while a getter is const on both counts.
+ * - bounds on the parameters: the values the :Block can represent, not the
+ *   range a consumer may search;
  *
+ * - a sensitivity of the value of this Block to them.
+ *
+ * The meaning of the parameters, and every property of them other than the
+ * bounds above (say, a requirement that one of them be integral), remains
+ * with the :Block, and a consumer needing it has to know it from elsewhere.
+ *
+ * A sensitivity is the delicate one to expose: what the factory carries is
+ * a number, while what may be relied on it (whether it describes only the
+ * neighbourhood of the current point, or bounds the value function as a
+ * whole) is nowhere in the signature, nor does it follow from the :Block
+ * being convex. Which of the two holds is for the :Block to say.
+ *
+ * Preconditions come with it as well, and must be declared by the :Block
+ * that registers the getter, a getter reading state having a state it
+ * requires. Say a sensitivity built out of the multipliers of the rows
+ * carrying the parameter: it needs the sub-tree solved, and by a Solver
+ * that makes those multipliers available; read anywhere else it gives back
+ * what the previous solve left, well formed and meaningless. How the value
+ * is assembled is its own business, and nothing here describes it.
+ *
+ * Reading needs a shape of its own, the six existing families being all
+ * shaped for writing, and it is had by mirroring the setter structure. For
+ * the ( double , range ) case,
+ *
+ *     // the mutable twin of MF_dbl_it, to write the answer out through
  *     using MF_dbl_oit = std::vector< double >::iterator;
  *
+ *     // FunctionType with a const Block * and no ModParam to announce
  *     template< typename ... Args >
  *     using QueryType = std::function< void ( const Block * , Args ... ) >;
  *
- * with QueryType< MF_dbl_oit , Range > and
- * QueryType< MF_dbl_oit , Subset && , bool >, mirroring MS_dbl_rngd and
- * MS_dbl_sbst; MF_dbl_oit ( output iterator ) is the mutable twin of
- * MF_dbl_it, which is a const_iterator. The void return is kept because all
- * six existing families have it, so the machinery is reused as it stands.
+ *     // MemberFunctionType const on both counts, what the wrapper adapts
+ *     template< class dBlock , typename ... Args >
+ *     using ConstMemberFunctionType = void ( dBlock::* )( Args ... ) const;
  *
- * Setter and getters must refer to the same parameters, in the same number
- * and order. Position is the only correspondence there is: the factory is
- * one map per signature, keyed by whatever string a register_method() call
- * chooses, and nothing in it describes the components. That the entries
- * belong to the same class is a convention of the name as well, and nothing
- * checks either: load time resolves the names, but the number of parameters
- * is a call-time quantity, which the signature does not carry. Tying them, by
- * one name exposing all of them or by registering them together, would be
- * better than a convention.
+ *     // the parameter list of this family, mirroring MS_dbl_rngd
+ *     using MQ_dbl_rngd = arg_packer< MF_dbl_oit , Range >;
+ *
+ *     // the map holding this family's entries
+ *     using MQ_dbl_rngd_map =
+ *      MethodsFactoryMap< QueryType< MF_dbl_oit , Range > >;
+ *
+ *     // the single copy of that map owned by the core, defined once
+ *     static MQ_dbl_rngd_map & queries_dbl_rngd_factory( void );
+ *
+ *     // what makes the signature standard; without it nothing compiles
+ *     template<>
+ *     struct Block::methods_factory_accessor<
+ *      Block::QueryType< Block::MF_dbl_oit , Block::Range > > {
+ *      static Block::MQ_dbl_rngd_map & get( void ) {
+ *       return( Block::queries_dbl_rngd_factory() );
+ *       }
+ *      };
+ *
+ * The ( double , subset ) family is obtained the same way from MS_dbl_sbst,
+ * and is proposed together with the first because a :Block may have to
+ * answer two consumers about disjoint subsets of its parameters; any further
+ * one comes from the setter family it mirrors, though the integer twins are
+ * deliberately not proposed, MS_int_rngd and MS_int_sbst having been there
+ * all along and a family being added when a consumer asks for it and not
+ * before. Only one wrapper has to be written, the one adapting a
+ * ConstMemberFunctionType to a QueryType: register_method< F > and
+ * get_method< F > are generic enough to be reused as they stand.
+ *
+ * That a setter and the getter mirroring it address the same parameters, in
+ * the same number and order, is a convention like the naming one: position
+ * is the only correspondence there is, the factory being one map per
+ * signature, keyed by whatever string a register_method() call chooses, with
+ * nothing in it describing the components. Nothing checks either: load time
+ * resolves the names, but the number of parameters is a call-time quantity,
+ * which the signature does not carry.
+ *
+ * TODO: this subsection mixes two subjects and should be split once the
+ * section settles: what concerns the factory itself stays here, what
+ * describes the (re)sizing case belongs with the (Re)sizing section of the
+ * group laying out how a Block can be scaled [see Design and scaling of this
+ * Block], which now has one.
  *  @{ */
 
  /// register a new function in the methods factory
@@ -6210,213 +6276,220 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
 /** @name Design and scaling of this Block
  *
- * A problem sometimes has to be sized, such as
+ * A problem sometimes has to be sized, in three ways, named here for the
+ * rest of the group:
  *
- * - "make this Block, or part of it, larger by a factor k";
+ * - (re)sizing, "make this Block, or part of it, larger by a factor k";
  *
- * - "take k copies of this Block";
+ * - copies, "take k copies of this Block";
  *
- * - "count this Block with weight k in the sum it belongs to".
+ * - weighting, "count this Block with weight k in the sum it belongs to".
  *
- * Two axes say what is needed.
+ * A :Block may be asked more than one of them at once, size and number being
+ * two distinct questions, and the three compose by multiplying. Two axes say
+ * what is needed.
  *
- * 1. WHAT IS k. The three cases exclude each other, one k being in one of
- *    them at a time, and which one is a matter of regime rather than of
- *    model: the same two Blocks give a datum when solved apart and a foreign
- *    Variable when solved as one.
+ * 1. WHAT IS k. The three cases below exclude each other, and which one a k
+ *    falls in is a matter of regime: the same two Blocks make k a datum when
+ *    solved apart and a foreign Variable when solved as one.
  *
- *    - datum: no column of the model being solved at all. A number arrives
- *      from outside and this Block writes it into its own rows; the Block is
- *      then solved as a subproblem with k already in, and whoever chose k
- *      fixes a value, has it solved, and repeats. No Solver optimizes over k,
- *      which is what the methods factory convention is for;
+ *    - datum: not a column of the model being solved. A number arrives from
+ *      outside and this Block writes it into its own data; whoever chose it
+ *      fixes a value, has the Block solved as a subproblem with k already in,
+ *      and repeats. No Solver optimizes over k, that being what the methods
+ *      factory convention is for;
  *
- *    - own Variable: a column of this Block. The Solver optimizes over it
- *      like over anything else, and the derivative comes out of the solve;
+ *    - own Variable: a column of this Block. The Solver optimizes over it as
+ *      over any other column, the derivative coming out of the solve;
  *
  *    - foreign Variable: a column of another Block flattened into the same
- *      model. It arrives from outside, as the number does, and this Block
- *      writes it into its own rows; the Solver optimizes over it all the
- *      same.
+ *      model. It arrives from outside as a datum does, and this Block writes
+ *      it into its own data, yet the Solver optimizes over it.
  *
- * 2. WHERE THE EFFECT LANDS, one place for each of the three requests
- *    above.
+ *    Which of the three holds follows from how the problem was assembled, and
+ *    whoever assembles it configures the consumer accordingly. This Block
+ *    declares the channels it supports, each of them by itself: a name found
+ *    in the methods factory, a true from set_copies(), a Variable from
+ *    get_size_variable().
  *
- *    - (re)sizing, or internal scaling, for the first: k goes inside this
- *      Block, into whichever parts of it the :Block chooses, and from
- *      outside nothing changes;
+ * 2. HOW k IS APPLIED, by writing or by reading.
  *
- *    - copies, or external scaling, for the second: no Constraint of this
- *      Block changes, its Variable keep describing one copy, and the
- *      couplings above get k times that;
+ *    - by writing, into the data of this Block: k goes into whichever parts
+ *      of this Block the :Block chooses, and the data carrying it are
+ *      recomputed, so the feasible set becomes the one k describes where k
+ *      is in a Constraint, and what this Block contributes changes by itself
+ *      either way, while whoever holds a coupling reads the same Variable
+ *      with the same coefficients. Its own Objective is one of those parts,
+ *      a cost that k multiplies being sized like any other datum; what must
+ *      not be written there is a factor that a consumer applies by reading,
+ *      which would then be counted twice. It declares nothing here and
+ *      travels on the methods factory convention [see Methods for handling
+ *      the methods factory]: a :Block registers the setters that write k
+ *      into its own data;
  *
- *    - weighting, or objective scaling, for the third: the Objective of
- *      this Block is multiplied in the sum the larger problem builds, while
- *      the Block itself is untouched.
+ *    - by reading, as a consumer takes value and coefficients out of this
+ *      Block: this Block is left untouched, all of it, while the
+ *      coefficients in which its Variable appear outside, and the weight its
+ *      Objective carries into the sum above, are multiplied outside it. Here
+ *      the declaration is on this interface, get_copies() and set_copies(),
+ *      get_objective_weight() and set_objective_weight(), and the products
+ *      to form are stated below.
  *
- * COPIES
+ *    (Re)sizing is applied by writing and weighting by reading; copies goes
+ *    either way, at the price stated under Copies below.
  *
- * For k > 0, with X the feasible set of this Block, k *identical* copies
- * aggregate to exactly k X. k *different* copies would be the Minkowski sum
- * X + ... + X,
- * which contains k X and equals it only where X is convex. What this group
- * declares is k X, the restriction; convexifying makes the two coincide, so a
- * bundle that relaxes the coupling above sees no difference.
+ * ## Reading the two factors
  *
- * (Re)sizing can reach the same k copies from inside, by multiplying by k
- * whatever data of this Block carries its size. Multiplying every known term,
- * with every Constraint linear and no integer Variable, gives exactly k X,
- * because A x <= k b holds for the points k x with A x <= b and for no
- * others. Anywhere else what comes out is up to the :Block. Scaling the bound
- * of an integer Variable turns 0 <= x <= 1 into an integer 0 <= x <= 2, the
- * Minkowski sum, while a Constraint that has the size among its coefficients
- * gives k X back, the k copies sharing the Variable that size multiplies.
+ * A consumer assembling the problem rooted at B, the Block its Solver is
+ * attached to, accumulates two products along the path from a nested Block
+ * up to B excluded: the coefficients in which the Variable of that Block
+ * appear take the product of get_copies(), its Objective the product of
+ * get_copies() * get_objective_weight(). What the first multiplies are the
+ * coefficients and never the values, k copies of a state at 1 being k
+ * states at 1 and not one state at k. The weight is absent from the first
+ * because a Block counted with weight w is still one copy, whose Variable
+ * enter a coupling once. It is the path that matters and not the
+ * depth: a Constraint may reference the Variable of a Block deeper than a
+ * child of the one holding it, and the copies of every Block in between
+ * multiply.
  *
- * k is a "datum": were it a column, a coupling would have to multiply it by
- * Variable of this Block, and no LinearFunction expresses a product of two
- * columns. Optimizing over the number of copies then means iterating, as over
- * a (re)sizing parameter: this group declares the domain, get_min_scale() to
- * get_max_scale() with scale_is_integer(), and no sensitivity. A :Block that
- * wants to offer one registers it as the methods factory convention
- * describes, under the same caveat on the value function.
+ * The product stops before B because the factors of B and of its ancestors
+ * weight B inside its father's problem, one level above the one being
+ * solved: they belong to the consumer there, and applying them here would
+ * count them twice. The Objective of B itself is therefore left unweighted.
  *
- * WEIGHTING
+ * A consumer that treats a nested Block as a component multiplies the value
+ * and every linearization of it, the constant included; the feasibility
+ * ones describe the domain { x : l <= A x <= u }, invariant under a
+ * positive scaling, and stay as they are. The factor is applied once, at
+ * build time, and the dual values then returned carry it, so whoever
+ * assembles a subgradient out of those duals finds it there already.
+ *
+ * TODO: this group declares two factors, but it does not apply either of
+ * them. Every Solver that sums the Objective of nested Block has to learn
+ * that rule, and to react when either factor changes; none does today.
+ *
+ * ## (Re)sizing
+ *
+ * A size is a parameter of this Block: writing k in recomputes the data that
+ * carry it, one or more rows A_i x <= b_i becoming A_i x <= k b_i, a cost
+ * of the Objective becoming k times itself. Which data those are, and how
+ * many, is the :Block's own business: the interface does not distinguish
+ * scaling all of this Block from scaling part of it, and the total case
+ * meets Copies below.
+ *
+ * A size that is a datum is not declared here: a :Block registers the
+ * setters writing k in, and whatever has to be read back, with the methods
+ * factory [see Methods for handling the methods factory], and what they
+ * change is data of this Block, so the Modification are the ordinary ones
+ * and no message has to be invented for them.
+ *
+ * A size that is a column is declared here instead, get_size_variable() for
+ * one this Block owns and set_size_variable() for one it is given: the
+ * :Block writes that column into its own data and a Solver optimizes over it
+ * like any other, so there is nothing to read back.
+ *
+ * ## Copies
+ *
+ * k copies of this Block, all behaving exactly alike: with X the feasible
+ * set of one of them, the k together give k X. Copies of the same Block
+ * behaving differently are something else, and are had by putting k Block
+ * in the tree. What decides the road is where k takes effect:
+ *
+ * - applied from outside: this Block is left untouched, no Constraint of it
+ *   rewritten and its Variable still describing one copy, and whoever reads
+ *   it multiplies by k, in the two products stated above. Only a number
+ *   travels this road; the methods below take it and give it back, within
+ *   the domain they declare. The sensitivity of the value to k is the
+ *   consumer's own to compute, k living in what it holds itself, the
+ *   coefficients it multiplies and the weight it applies;
+ *
+ * - written inside: this Block recomputes every datum that carries its
+ *   size, which is the (re)sizing above. A number goes in through the
+ *   methods factory [see Methods for handling the methods factory],
+ *   together with the getter reading the sensitivity back; a column goes in
+ *   through what (Re)sizing declares for one, and that is the only road a
+ *   column takes, a consumer applying it from outside having to multiply
+ *   one unknown by another. This gives exactly k X where every Constraint
+ *   is linear, no Variable is integer and k > 0, and what comes out
+ *   anywhere else is up to the :Block. The price is that this Block is
+ *   modified, get_copies() stays 1, the domain is the :Block's own, and its
+ *   Variable, hence its Solution, describe the aggregate instead of one
+ *   copy.
+ *
+ * ## Weighting
  *
  * An Objective is defined up to a positive scaling only as long as the
  * problem is solved in isolation; as a subproblem it is one term of a sum,
- * and the factor says with what weight it enters. Declaring the weight makes
- * it a property of the component rather than of whoever computes its cost,
- * and it is what leaves copies purely external: the Objective of a replicated
- * Block stays unscaled too, and the factor to apply to it is the product of
- * the two. A "datum", for the same reason as k.
+ * and the weight says with what factor it enters. Declaring it makes the
+ * weight a property of the component rather than of whoever computes its
+ * cost, and it is what leaves the copies factor to be applied by reading as
+ * well: the Objective of a replicated Block stays unscaled too, and what
+ * applies to it is the product of the two.
  *
- * The two numbers are set by different owners, k by whoever replicates and
- * the weight by whoever sums, and nothing links the setters. What links them
- * is the rule for reading, in get_total_objective_scale(). That rule covers
- * the Objective alone: the coefficients in which the Variable of this Block
- * appear take k alone, a Block counted with weight w still being one copy
- * whose Variable enter a coupling once.
- *
- * TODO: this group declares two factors, but it does not apply either of
- * them. No Solver knows that rule today. There is an alternative, described
- * below, and the choice between the two is still open.
- *
- * The design above has a price: both sides have to change at the same time,
- * and for both factors, because today the copies factor and the objective
- * scale are both written into the Objective. If a :Block stops writing its
- * factor into its own Objective before the code that assembles applies the
- * product, that Block gives f(x) where it used to give k f(x). If the code
- * that assembles applies the product first, the factor is counted twice,
- * because the Objective already carries it. Nothing reports either mistake,
- * and every instance with a factor different from 1 goes through this path.
- *
- * In the alternative each Block applies its own factors. set_scale_factor()
- * and set_objective_scale() do the same thing: each one updates its number
- * and multiplies its own Objective by the product of the two. If that
- * Objective is explicit, the Block rewrites its coefficients; if it is a
- * Function, the Block multiplies the value and the linearizations at the end
- * of compute(). Both numbers are still declared, so a reader knows that the
- * value is already weighted and does not weight it again. Setting the weight
- * goes down the tree, but each Block does its own work, and a Block that
- * cannot do it says so. Code that rewrites the Objective of other Block from
- * above cannot say it: it can only skip them in silence.
- *
- * The alternative gives three things:
- *
- * - no Solver has to learn anything: it receives ordinary coefficient
- *   Modification, or nothing at all when the factor stays inside a Function;
- *
- * - nothing has to change on two sides at once, so the price described above
- *   is not paid;
- *
- * - get_total_objective_scale() is no longer needed, and neither is the
- *   question of where the product stops, because each Block composes the
- *   factors as it applies them.
- *
- * It would have costs of its own, of a different kind: the price above is
- * silent and touches every existing instance, while these would show up at
- * once:
- *
- * - scale() would still change the Objective of its Block, which is what this
- *   group wanted to stop;
- *
- * - set_scale_factor() would need a second ModParam again, because rewriting
- *   an Objective is an abstract change, and set_objective_scale() would need
- *   a bool;
- *
- * - a Block whose Objective is neither explicit nor computed by the Block
- *   itself, for example an FRealObjective over a Function that belongs to
- *   somebody else, would have no way to apply the factor, and
- *   set_objective_scale() would have to refuse instead of being the simple
- *   field it is here.
+ * The weight is a datum, and it travels the reading road alone: a consumer
+ * multiplies the value and the linearizations as it reads them, acting on
+ * the number and not on the representation, while writing the weight into
+ * this Block would ask whoever does it to recognise the type of the
+ * Function under the Objective, over a set of types that is open.
  *
  *  @{ */
 
 /*--------------------------------------------------------------------------*/
  /// the smallest and largest number of copies this Block supports
- /** The default [ 1 , 1 ] is how a Block says it cannot be replicated. */
+ /** The default [ 1 , 1 ] is how a Block says it cannot be replicated.
+  * (Re)sizing answers the same question through the methods factory, its
+  * parameters being private to the :Block. */
 
- virtual double get_min_scale( void ) const { return( 1 ); }
+ virtual double get_min_copies( void ) const { return( 1 ); }
 
- virtual double get_max_scale( void ) const { return( 1 ); }
+ virtual double get_max_copies( void ) const { return( 1 ); }
 
 /*--------------------------------------------------------------------------*/
  /// true if the number of copies has to be integer
  /** (Re)sizing has the same question and no channel for it: bounds give a
   * range and leave open which values inside it are admissible. */
 
- virtual bool scale_is_integer( void ) const { return( false ); }
+ virtual bool copies_are_integer( void ) const { return( false ); }
 
 /*--------------------------------------------------------------------------*/
  /// the current factor of this Block
  /** The factor by which the contribution of this Block to the problem it
-  * belongs to has to be multiplied. It changes nothing inside this Block. It
-  * is a declaration for two readers: the first owns a coupling in which its
-  * Variable appear, the second sums its Objective into a larger one and
-  * multiplies by it together with get_objective_scale(). Its Solution
-  * therefore describes *one* copy, and Solution::scale() [see Solution.h]
-  * does not give the aggregate, because it multiplies states like commitment
-  * along with quantities. */
+  * belongs to has to be multiplied. It changes nothing inside this Block;
+  * how a consumer applies it is stated under Reading the two factors, in
+  * the description of this group. Its Solution therefore describes *one*
+  * copy, and Solution::scale() [see Solution.h] does not give the
+  * aggregate, because it multiplies the states along with the quantities,
+  * and only the quantities scale.
+  *
+  * A :Block answering here with anything but 1 holds the number itself and
+  * writes it in its own format: Block has no field behind this and cannot
+  * supply one, so exposing the factor and serializing it are one obligation
+  * and not two. */
 
- virtual double get_scale_factor( void ) const { return( 1 ); }
+ virtual double get_copies( void ) const { return( 1 ); }
 
 /*--------------------------------------------------------------------------*/
  /// sets the factor of this Block
- /** Sets the factor described in get_scale_factor(); after a false return
-  * nothing has changed and no Modification has been issued. It returns false
-  * if \p scale_factor is outside [ get_min_scale() , get_max_scale() ], or
-  * if scale_is_integer() and it is not integral. If the Block really changes
-  * a physical Modification is issued. One ModParam, because nothing abstract
-  * changes inside the Block.
+ /** Sets the factor described in get_copies(); after a false return
+  * nothing has changed and no Modification has been issued. It returns
+  * false if \p copies is outside [ get_min_copies() , get_max_copies() ],
+  * or if copies_are_integer() and it is not integral. If the Block really
+  * changes a physical Modification is issued. One ModParam, because
+  * nothing abstract changes inside the Block.
   *
-  * The name avoids a collision. UnitBlock has a virtual get_scale() whose
-  * contract has the Objective already scaled, so a getter called get_scale()
-  * here would silently override it, and a reader following this group would
-  * count k twice.
+  * Nothing checks that a consumer applies the factor. One that ignores it
+  * reads a Block worth k as one, silently, and that Modification is the
+  * only thing telling it there is anything to read.
   *
-  * It rewrites nothing itself: whoever owns a coupling in which its Variable
-  * appear, normally the father, rewrites its own coefficients,
-  * and what reaches a Solver from that is ordinary coefficient Modification.
-  * Multiplying the value of those Variable instead would be wrong, k copies
-  * of a unit that is on being k units on and not a unit k times on; which
-  * quantities are extensive and which are states is semantic, and the father
-  * knows it because it chose the coefficients.
-  *
-  * The father reacts inside this call, synchronously, and must rewrite on
-  * the channel of the Modification it is reacting to, or the two halves of
-  * one change travel apart. Whoever calls this is modifying the father, so
-  * it is the father that has to be locked, as Block::lock() already advises.
-  * None of this is checked: a father that does not react leaves the
-  * coefficients stale, with no error.
-  *
-  * TODO: this returns bool, while the scale() registered in the methods
-  * factory returns void, and the factory type hardwires that. If a caller
-  * coming from a Configuration has to know whether the operation succeeded,
-  * a signature family with a bool return is needed. */
+  * TODO: this returns bool, while a setter registered in the methods
+  * factory returns void, the family type hardwiring that. If a caller
+  * coming from a Configuration has to know whether the operation
+  * succeeded, a signature family with a bool return is needed. */
 
- virtual bool set_scale_factor( double scale_factor = 1 ,
+ virtual bool set_copies( double copies = 1 ,
                                 c_ModParam issuePMod = eNoBlck ) {
-  return( scale_factor == 1 );
+  return( copies == 1 );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -6427,119 +6500,84 @@ class Block : public Observer {
   *
   * Not virtual, and holding a field of Block, because there is no such
   * thing as a Block that cannot be weighted: weighting asks nothing of the
-  * Block itself. That is what separates it from set_scale_factor(), which
+  * Block itself. That is what separates it from set_copies(), which
   * keeps a bool because there a domain exists, and [ 1 , 1 ] is how a
-  * Block refuses. */
+  * Block refuses.
+  *
+  * Reading the two factors, in the description of this group, states how a
+  * consumer accumulates it together with get_copies(). */
 
- double get_objective_scale( void ) const { return( f_objective_scale ); }
-
-/*--------------------------------------------------------------------------*/
- /// the factor accumulated from this Block up to \p upto
- /** The segment from this Block up to \p upto is what weights its Objective
-  * inside the problem rooted there.
-  *
-  * There is a read-side rule at all because nobody owns the sum of the
-  * Objective of a tree except the Solver that flattens it. There is no
-  * father to push the factor into, as there is for the couplings, and no
-  * coefficient anywhere that already contains it.
-  *
-  * This is written for a Solver attached to a Block B. As it builds the sum
-  * it multiplies the Objective coefficients of each nested Block by its own
-  * get_total_objective_scale( B ).
-  *
-  * It stops before \p upto because the factors of \p upto and of its
-  * ancestors weight that Block inside its father's problem, one level above
-  * the problem being solved: they belong to the consumer there, and applying
-  * them here would count them twice. \p upto == this therefore leaves the
-  * Objective of the Block a Solver is attached to unweighted.
-  *
-  * What has to be multiplied is the value and every linearization of it, the
-  * constant included. The feasibility ones describe the domain
-  * { x : l <= A x <= u }, invariant under a positive scaling, and stay as
-  * they are.
-  *
-  * A Solver applies it once, at build time, and the dual values it then
-  * returns carry it, so whoever assembles a subgradient out of those duals
-  * finds it there already. The factors are data that change between solves,
-  * which is why a Modification is issued at all: on receiving one a Solver
-  * has to rescale the Objective coefficients of that sub-tree. Neither is
-  * checked, and a Solver that skips one weights the Objective wrongly, with
-  * no error.
-  *
-  * Not virtual, because the tree defines it. What it writes down is where
-  * the product stops, and a consumer that walks the path itself has to stop
-  * in the same place, and this method is the only place that says where. */
-
- double get_total_objective_scale( const Block * upto = nullptr ) const {
-  double s = 1;
-  for( auto b = this ; b && ( b != upto ) ; b = b->get_f_Block() )
-   s *= b->get_scale_factor() * b->get_objective_scale();
-  return( s );
-  }
+ double get_objective_weight( void ) const { return( f_objective_weight ); }
 
 /*--------------------------------------------------------------------------*/
  /// sets the weight of the Objective of this Block
- /** Sets the factor described in get_objective_scale(). Throws if \p scale is
-  * not strictly positive, which is the only way this can fail; if the factor
-  * really changes a Modification is issued. Only one ModParam, since nothing
-  * abstract changes anywhere.
+ /** Sets the factor described in get_objective_weight(). Throws if \p weight
+  * is not strictly positive, which is the only way this can fail; if the
+  * factor really changes a Modification is issued. Only one ModParam, since
+  * nothing abstract changes anywhere.
   *
-  * On serialization it is an optional scalar defaulting to 1, written out
-  * only when different: the shape "Scale" already has, under the name
-  * ObjectiveScale, "Scale" being taken by the copies factor.
-  * Block::serialize() and deserialize() touch neither today. An existing
-  * file keeps its meaning, its absence being 1, and the field stays a
-  * default that the file only initialises, so the same Block can be summed
-  * by different problems with different weights.
+  * On serialization it is an optional attribute named ObjectiveWeight,
+  * defaulting to 1 and written out only when different; an attribute and
+  * not a variable, so that no :Block declaring the variables it knows has
+  * to be told about this one. Block::serialize() and deserialize() do not
+  * handle it today. An existing file keeps its meaning, its absence being
+  * 1, and the field stays a default that the file only initialises, so the
+  * same Block can be summed by different problems with different weights.
   *
-  * TODO, shared with set_scale_factor(): one Modification each, or a single
-  * one carrying a type. Either way it says something new, that the
-  * contribution of this Block to the rest has changed by a factor. BlockMod
-  * and what derives from it are out, BundleSolver throwing on them, and what
-  * derives from AModification alone is silently discarded by BundleSolver
-  * and MILPSolver alike. That open question is the body of this method,
-  * which is why this is the one member here declared and defined nowhere. */
+  * TODO: shared with set_copies(). The message announces that the
+  * contribution of this Block to the rest has changed by a factor, and
+  * carries:
+  *
+  * - which of the two factors moved;
+  *
+  * - that this is not one coefficient among others, everything a consumer
+  *   has read from this Block being off by the same factor at once.
+  *
+  * What derives from AModification alone would not do, a Solver that does
+  * not recognise such a message ending its dispatch by dropping it, so the
+  * answer would come back wrong by the factor with nobody told; and
+  * BlockMod as it stands says that the Objective has changed, which here it
+  * has not. That line either widens or a sister class is needed, and that
+  * class is the body of this method, which is why this is the one member
+  * here declared and defined nowhere. */
 
- void set_objective_scale( double scale = 1 ,
+ void set_objective_weight( double weight = 1 ,
                            c_ModParam issueMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
- /// the Variable of this Block standing for its \p i-th scale parameter
- /** The Variable of this Block carrying its \p i-th scale parameter, and
-  * nullptr if this Block has none or if \p i is past the last one; the first
-  * nullptr ends the sequence, so no separate count is needed.
-  *
-  * This is the own Variable case of the first axis: get_scale_factor() stays
-  * 1, and what the caller receives is the column itself, to bound it, to
-  * read its value, or to write it into a coupling of its own. */
+ /// the Variable of this Block standing for its size parameter
+ /** The Variable of this Block carrying its size parameter, and nullptr if
+  * this Block has none. This Block owns that column and writes it into its
+  * own data; get_copies() stays 1, and what the caller receives is the
+  * column itself, to bound it, to read its value, or to write it into a
+  * coupling of its own. */
 
- virtual Variable * get_scale_variable( Index i = 0 ) const {
+ virtual Variable * get_size_variable( void ) const {
   return( nullptr );
   }
 
 /*--------------------------------------------------------------------------*/
- /// gives this Block the Variable of its \p i-th scale parameter
- /** The foreign Variable case of the first axis: \p scale_var belongs to
-  * another Block, normally the father, and this Block writes it into its own
-  * rows. Returns false if this Block takes no Variable at index \p i.
+ /// gives this Block the Variable of its size parameter
+ /** \p size_var belongs to another Block, normally the father, and this
+  * Block writes it into its own data. Returns false if this Block takes no
+  * such Variable.
   *
-  * It excludes get_scale_variable() at that index: a Block that answers
-  * non-nullptr there owns that column already. The single ModParam is the
-  * abstract one, for the regime in which the Constraint of this Block exist
-  * already and this call rewrites them; a :Block that instead stores the
-  * pointer and generates its Constraint afterwards changes a datum and no
-  * Constraint, and this signature gives it no channel.
+  * It excludes get_size_variable(): a Block that answers non-nullptr there
+  * owns that column already. The single ModParam is the abstract one, for
+  * the regime in which the Constraint of this Block exist already and this
+  * call rewrites them; a :Block that instead stores the pointer and
+  * generates its Constraint afterwards changes a datum that nobody but it
+  * reads, the column having a meaning only once it is in a row.
   *
-  * TODO: nothing here says when this may be called, and the two :Block that
-  * take a Variable today disagree: DCNetworkBlock::set_design_variables()
-  * throws if the Constraint are already generated,
-  * PolyhedralFunctionBlock::set_lambda() throws if they are not. The second
-  * rewrites the normalization Constraint of a live Block with eNoMod
-  * hardwired, so nothing is issued at all, and it is not quite an instance
-  * of this case yet, adding lambda to that Constraint with coefficient 1
-  * instead of multiplying by it. */
+  * When it may be called is for the :Block to say, with a floor that every
+  * :Block meets: at construction, before generate_abstract_variables() has
+  * been called, where nothing abstract exists yet and the ModParam carries
+  * nothing. Later is allowed and is what the ModParam is for, the rows that
+  * exist being rewritten and the abstract Modification issued; it is not a
+  * guarantee a caller has, so a :Block meant to be usable in both regimes on
+  * the same live instance is one that takes the call late. */
 
- virtual bool set_scale_variable( Variable * scale_var , Index i = 0 ,
+ virtual bool set_size_variable( Variable * size_var ,
                                   c_ModParam issueAMod = eNoBlck ) {
   return( false );
   }
@@ -8042,7 +8080,7 @@ class Block : public Observer {
 
  unsigned int f_channel;   ///< the "default GroupModification channel"
 
- double f_objective_scale = 1;  ///< weight of the Objective as a subproblem
+ double f_objective_weight = 1;  ///< weight of the Objective as a subproblem
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
