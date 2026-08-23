@@ -437,13 +437,9 @@ void LagBFunction::set_ComputeConfig( const ComputeConfig * scfg )
      delete f_BSC;                     // delete the old one
      }
 
-    // apply the new BlockSolverConfig through a private copy, which then
-    // remains, clear()-ed, as the cleanup object: having done the apply()
-    // itself, it records the registered Solver and its cleared apply()
-    // removes exactly them [see BlockSolverConfig::apply()]
-    f_BSC = BSC->clone();
-    f_BSC->apply( inner_block );
-    f_BSC->clear();
+    BSC->apply( inner_block );         // apply the new BlockSolverConfig
+    f_BSC = BSC->clone();                // keep a copy of the new one
+    f_BSC->clear();                      // but clear it
     }
    }
   else {  // scfg->f_extra_Configuration is nullptr
@@ -508,7 +504,7 @@ void LagBFunction::set_par( idx_type par , int value )
      update_f_max_glob();
      }    
     }
-   g_pool.resize( value );
+   g_pool.resize( value , gpool_el( nullptr , true ) );
    break;
   case( intInnrSlvr ):  // intInnrSlvr - - - - - - - - - - - - - - - - - - -
    if( InnrSlvr != Index( value ) ) {
@@ -1053,51 +1049,19 @@ void LagBFunction::cleanup_inner_objective( void )
  // for each Block's objective
  for( Index h = 0 ; h < CostMatrix.size() ; ++h ) {
   const auto & CMh = CostMatrix[ h ];
-  auto fn = v_Obj[ h ]->get_function();
-  auto lf = v_ObjIsQuad[ h ] ? nullptr : static_cast< p_LF >( fn );
-  auto qf = v_ObjIsQuad[ h ] ? static_cast< p_QF >( fn ) : nullptr;
 
-  // collect the coefficients that are not the original ones already: writing
-  // the whole vector would be a Range spanning every variable of the inner
-  // Block, and a :Block is entitled to refuse a change on some of its own
-  // [see e.g. ThermalUnitBlock and the schedule-deviation variables, whose
-  // coefficient is fixed], which it does on the range and not on the value,
-  // so restoring what is already there would be refused. This mirrors what
-  // the Lagrangian costs are written with, which is sparse as well
-  Subset chgidx;
-  Vec_FunctionValue chgval;
-  for( Index i = 0 ; i < CMh.size() ; ++i ) {
-   const auto orig = CMh[ i ].first;
-   if( ( lf ? lf->get_coefficient( i ) : qf->get_linear_coefficient( i ) )
-       != orig ) {
-    chgidx.push_back( i );
-    chgval.push_back( orig );
-    }
-   }
+  // construct the vector of original coefficients
+  Vec_FunctionValue NC( CMh.size() );
+  for( Index i = 0 ; i < CMh.size() ; ++i )
+   NC[ i ] = CMh[ i ].first;
 
-  if( chgidx.empty() )  // nothing of this objective was changed
-   continue;
-
-  // a contiguous set is written as a Range, which spares the index vector
-  const bool is_range =
-   ( chgidx.back() - chgidx.front() + 1 == Index( chgidx.size() ) );
-
-  if( lf ) {
-   if( is_range )
-    lf->modify_coefficients( std::move( chgval ) ,
-			     Range( chgidx.front() , chgidx.back() + 1 ) );
-   else
-    lf->modify_coefficients( std::move( chgval ) , std::move( chgidx ) );
-   }
-  else {
-   if( is_range )
-    qf->modify_linear_coefficients( std::move( chgval ) ,
-				    Range( chgidx.front() ,
-					   chgidx.back() + 1 ) );
-   else
-    qf->modify_linear_coefficients( std::move( chgval ) ,
-				    std::move( chgidx ) );
-   }
+  // modify the objective (linear or quadratic)
+  if( ! v_ObjIsQuad[ h ] )
+   static_cast< p_LF >( v_Obj[ h ]->get_function()
+			)->modify_coefficients( std::move( NC ) );
+  else
+   static_cast< p_QF >( v_Obj[ h ]->get_function()
+			)->modify_linear_coefficients( std::move( NC ) );
   }
 
  f_play_dumb = false;  // back to normal operations
@@ -1144,17 +1108,33 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
     if( g_pool[ i ].sol ) {  // a Solution is there
      ++cnt;
 
-     // check it's still a feasible solution/direction: the Block is told
-     // which of the two it is being handed and answers with one method
-     const bool feas = check_Solution( g_pool[ i ].sol ,
-                                       g_pool[ i ].varsol );
-     if( ! feas ) {              // if not
-      delete g_pool[ i ].sol;  // eliminate it
-      g_pool[ i ].sol = nullptr;
-      which.push_back( i );      // recall its name
-      LastSolution = g_pool.size();
-      // say that no Solution is saved in the Block, since the name is now
-      // available again for a different Solution
+     // write it in the Variable of the inner Block
+     g_pool[ i ].sol->write( v_Block.front() );
+     LastSolution = i;  // and recall what's there
+
+     // check it's still a feasible solution/direction
+     bool feas = g_pool[ i ].varsol ? v_Block.front()->is_feasible()
+                                    : v_Block.front()->is_unbounded();
+     if (!feas) // if not
+     {
+       f_current_purged_solution = std::exchange(g_pool[i].sol, nullptr);
+       for (auto &handler : v_column_purged_handlers)
+       {
+         if (!handler)
+           continue;
+         static_cast<void>(handler());
+       }
+     }
+    }
+    //else
+    //delete g_pool[i].sol; 
+    delete f_current_purged_solution; // eliminate it
+    f_current_purged_solution = nullptr;
+    //g_pool[i].sol = nullptr;
+    which.push_back(i); // recall its name
+    LastSolution = g_pool.size();
+    // say that no Solution is saved in the Block, since the name is now
+    // available again for a different Solution
       }
      }
     }
@@ -1360,7 +1340,7 @@ void LagBFunction::put_State( const State & state )
 
  // ensure g_pool is large enough
  if( s.f_max_glob > g_pool.size() )
-  g_pool.resize( s.f_max_glob );
+  g_pool.resize( s.f_max_glob , gpool_el{ nullptr , true } );
 
  // copy the important linearization information
  zLC = s.zLC;
@@ -1370,7 +1350,8 @@ void LagBFunction::put_State( const State & state )
 
  // first void the current global pool
  if( NoSol ) {
-  std::fill( g_pool.begin() , g_pool.end() , gpool_el() );
+  std::fill( g_pool.begin() , g_pool.end() ,
+	     gpool_el{ nullptr , true } );
   f_max_glob = 0;
   }
  else {
@@ -1389,9 +1370,12 @@ void LagBFunction::put_State( const State & state )
   if( ChkState )  // if Solutions are checked
    for( Index i = 0 ; i < s.g_pool.size() ; ++i ) {
     if( s.g_pool[ i ].sol ) {
-     // if it's still a feasible solution/direction, copy it: the Block is
-     // told which of the two it is being handed and answers with one method
-     if( check_Solution( s.g_pool[ i ].sol , s.g_pool[ i ].varsol ) ) {
+     // write the Solution to the inner Block
+     s.g_pool[ i ].sol->write( v_Block.front() );
+
+     // if it's still a feasible solution/direction, copy it
+     if( ( s.g_pool[ i ].varsol ? v_Block.front()->is_feasible()
+	                        : v_Block.front()->is_unbounded() ) ) {
       gpit->sol = s.g_pool[ i ].sol->clone();  // clone() the Solution in
       gpit->varsol = s.g_pool[ i ].varsol;
       gpit->value = s.g_pool[ i ].value;            // eager/lazy constant
@@ -1451,7 +1435,7 @@ void LagBFunction::put_State( State && state )
 
  // ensure g_pool is large enough
  if( s.f_max_glob > g_pool.size() )
-  g_pool.resize( s.f_max_glob );
+  g_pool.resize( s.f_max_glob , gpool_el{ nullptr , true } );
 
  // move the important linearization information
  zLC = std::move( s.zLC );
@@ -1461,7 +1445,8 @@ void LagBFunction::put_State( State && state )
 
  // first void the current global pool
  if( NoSol ) {
-  std::fill( g_pool.begin() , g_pool.end() , gpool_el() );
+  std::fill( g_pool.begin() , g_pool.end() ,
+	     gpool_el{ nullptr , true } );
   f_max_glob = 0;
   }
  else {
@@ -1480,9 +1465,12 @@ void LagBFunction::put_State( State && state )
   if( ChkState )  // if Solutions are checked
    for( Index i = 0 ; i < s.g_pool.size() ; ++i ) {
     if( s.g_pool[ i ].sol ) {
-     // if it's still a feasible solution/direction, copy it: the Block is
-     // told which of the two it is being handed and answers with one method
-     if( check_Solution( s.g_pool[ i ].sol , s.g_pool[ i ].varsol ) ) {
+     // write the Solution to the inner Block
+     s.g_pool[ i ].sol->write( v_Block.front() );
+
+     // if it's still a feasible solution/direction, copy it
+     if( ( s.g_pool[ i ].varsol ? v_Block.front()->is_feasible()
+	                        : v_Block.front()->is_unbounded() ) ) {
       gpit->sol = s.g_pool[ i ].sol;  // move the Solution in
       s.g_pool[ i ].sol = nullptr;      // delete it from the State
       gpit->varsol = s.g_pool[ i ].varsol;
@@ -2108,11 +2096,12 @@ int LagBFunction::compute( bool changedvars )
     // representation and re-issue it in its own physical language to the
     // Solver registered on it (e.g. ThermalUnitBlock translating the new
     // Lagrangian costs for its DP solvers, which never look at the abstract
-    // representation). On its way up it then reaches this LagBFunction,
-    // which is the f_Block of the inner Block and, f_play_dumb being set,
-    // drops it without forwarding it [see add_Modification()]: hence no
-    // enclosing LagBFunction ever sees the write, and none can take it for a
-    // change of the original costs.
+    // representation). An *enclosing* LagBFunction that has adopted this
+    // same (shared) sub-Block Objective must still not mistake the write
+    // for a real cost change [it would issue a spurious AlphaChanged that
+    // keeps invalidating its bundle model -> kLowPrecision]: it recognises
+    // it structurally, because the writer (this LagBFunction) holds the
+    // Block lock, see the guard in guts_of_guts_of_add_Modification().
     //
     // chgidx is sorted with distinct entries (it is a subset of the sorted
     // v_active[h] pushed in order), so it represents a contiguous run iff
@@ -3329,7 +3318,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
    // only deal with C05FunctionModLinRngd coming from LinearFunction ...
    if( lf == CMh_f ) {  // ... inside the Objective of the inner Block - - - -
 
-    update_CostMatrix_ModLinRngd( h , lf->get_v_var() , tmod->vars() ,
+    update_CostMatrix_ModLinRngd( lf->get_v_var() , tmod->vars() ,
 				  tmod->range() );
 
     // issue a LagBFunctionMod modification of the type AlphaChanged and
@@ -3352,7 +3341,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
    if( qf == CMh_f ) {  // ... inside the Objective of the inner Block- - - -
     v_coeff_pair rc;
     triple_to_pair( qf->get_v_var() , rc );
-    update_CostMatrix_ModLinRngd( h , rc , tmod->vars() , tmod->range() );
+    update_CostMatrix_ModLinRngd( rc , tmod->vars() , tmod->range() );
 
     // issue a LagBFunctionMod modification of the type AlphaChanged and
     // with what() == 1: the Lagrangian function unpredictably changes
@@ -3383,7 +3372,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
   if( const auto lf = dynamic_cast< p_LF >( tmod->function() ) ) {
    // only deal with C05FunctionModLinSbst coming from LinearFunction ...
    if( lf == CMh_f ) {  // ... inside the Objective of the inner Block - - - -
-    update_CostMatrix_ModLinSbst( h , lf->get_v_var() , tmod->vars() ,
+    update_CostMatrix_ModLinSbst( lf->get_v_var() , tmod->vars() ,
 				  tmod->subset() );
 
     // issue a LagBFunctionMod modification of the type AlphaChanged and
@@ -3406,7 +3395,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
    if( qf == CMh_f ) {  // ... inside the Objective of the inner Block- - - -
     v_coeff_pair rc;
     triple_to_pair( qf->get_v_var() , rc );
-    update_CostMatrix_ModLinSbst( h , rc , tmod->vars() , tmod->subset() );
+    update_CostMatrix_ModLinSbst( rc , tmod->vars() , tmod->subset() );
 
     // issue a LagBFunctionMod modification of the type AlphaChanged and
     // with what() == 1: the Lagrangian function unpredictably changes
@@ -3434,7 +3423,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
    if( qf == CMh_f ) {
     v_coeff_pair rc;
     triple_to_pair( qf->get_v_var() , rc );
-    update_CostMatrix_ModLinRngd( h , rc , tmod->vars() , tmod->range() );
+    update_CostMatrix_ModLinRngd( rc , tmod->vars() , tmod->range() );
 
     // issue a LagBFunctionMod modification of the type AlphaChanged and
     // with what() == 1: the Lagrangian function unpredictably changes
@@ -3459,7 +3448,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
    if( qf == CMh_f ) {
     v_coeff_pair rc;
     triple_to_pair( qf->get_v_var() , rc );
-    update_CostMatrix_ModLinSbst( h , rc , tmod->vars() , tmod->subset() );
+    update_CostMatrix_ModLinSbst( rc , tmod->vars() , tmod->subset() );
 
     // issue a LagBFunctionMod modification of the type AlphaChanged and
     // with what() == 1: the Lagrangian function unpredictably changes
@@ -3596,7 +3585,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
    // only deal with C05FunctionModVarsAddd coming from LinearFunction ...
    if( lf == CMh_f ) {  // ... inside the Objective of the inner Block - - - -
     // update CostMatrix accordingly
-    update_CostMatrix_ModVarsAddd( h , tmod->vars() , tmod->first() );
+    update_CostMatrix_ModVarsAddd( tmod->vars() , tmod->first() );
 
     // issue a LagBFunctionMod modification of the type AlphaChanged and
     // with what() == 1: the Lagrangian function unpredictably changes
@@ -3617,7 +3606,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
    // only deal with C05FunctionModVarsAddd coming from DQuadFunction ...
    if( qf == CMh_f ) {  // ... inside the Objective of the inner Block- - - -
     // update CostMatrix accordingly
-    update_CostMatrix_ModVarsAddd( h , tmod->vars() , tmod->first() );
+    update_CostMatrix_ModVarsAddd( tmod->vars() , tmod->first() );
 
     // issue a LagBFunctionMod modification of the type AlphaChanged and
     // with what() == 1: the Lagrangian function unpredictably changes
@@ -3648,7 +3637,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
    // only deal with C05FunctionModVarsRngd coming from LinearFunction ...
    if( lf == CMh_f ) {  // ... inside the Objective of the inner Block - - - -
     // remove the range of rows from CostMatrix accordingly
-    update_CostMatrix_ModVarsRngd( h , tmod->vars() , tmod->range() );
+    update_CostMatrix_ModVarsRngd( tmod->vars() , tmod->range() );
 
     // issue a LagBFunctionMod modification of the type AlphaChanged and
     // with what() == 1: the Lagrangian function unpredictably changes
@@ -3669,7 +3658,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
    // only deal with C05FunctionModVarsRngd coming from DQuadFunction ...
    if( qf == CMh_f ) {  // ... inside the Objective of the inner Block- - - -
     // remove the range of rows from CostMatrix accordingly
-    update_CostMatrix_ModVarsRngd( h , tmod->vars() , tmod->range() );
+    update_CostMatrix_ModVarsRngd( tmod->vars() , tmod->range() );
 
     // issue a LagBFunctionMod modification of the type AlphaChanged and
     // with what() == 1: the Lagrangian function unpredictably changes
@@ -3698,7 +3687,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
    // only deal with C05FunctionModVarsSbst coming from LinearFunction ...
    if( lf == CMh_f ) {  // ... inside the Objective of the inner Block - - - -
     // remove the range of subset from CostMatrix accordingly
-    update_CostMatrix_ModVarsSbst( h , tmod->vars() , tmod->subset() );
+    update_CostMatrix_ModVarsSbst( tmod->vars() , tmod->subset() );
 
     // issue a LagBFunctionMod modification of the type AlphaChanged and
     // with what() == 1: the Lagrangian function unpredictably changes
@@ -3719,7 +3708,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
    // only deal with C05FunctionModVarsSbst coming from DQuadFunction ...
    if( qf == CMh_f ) {  // ... inside the Objective of the inner Block- - - -
     // remove the range of subset from CostMatrix accordingly
-    update_CostMatrix_ModVarsSbst( h , tmod->vars() , tmod->subset() );
+    update_CostMatrix_ModVarsSbst( tmod->vars() , tmod->subset() );
 
     // issue a LagBFunctionMod modification of the type AlphaChanged and
     // with what() == 1: the Lagrangian function unpredictably changes
@@ -4345,8 +4334,7 @@ char LagBFunction::guts_of_this_add_Modification( p_Mod mod , ChnlName chnl )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::update_CostMatrix_ModLinRngd( Index h ,
-                                                 const v_coeff_pair & rc ,
+void LagBFunction::update_CostMatrix_ModLinRngd( const v_coeff_pair & rc ,
                                                  c_Vec_p_Var & vars ,
                                                  c_Range & rng )
 {
@@ -4367,11 +4355,17 @@ void LagBFunction::update_CostMatrix_ModLinRngd( Index h ,
  if( vars.empty() || ( rng.second <= rng.first ) )
   return;
 
- // the index of the modified Objective is provided by the caller: it cannot
- // be recovered here from the Variable in the Modification, since an inner
- // Objective may well reference Variable owned by other nested sub-Block
+ Index b;
+ if( v_Obj.size() == 1 )
+  b = 0;
+ else {
+  auto it = Block2Idx.find( vars.front()->get_Block() );
+  if( ( it == Block2Idx.end() ) || ( it->second >= v_Obj.size() ) )
+   throw( std::logic_error( "Variable not found in any objective" ) );
+  b = it->second;
+  }
 
- m_column & CM = CostMatrix[ h ];
+ m_column & CM = CostMatrix[ b ];
 
  // first check if by chance the Range is still current
  bool current = true;
@@ -4430,8 +4424,7 @@ void LagBFunction::update_CostMatrix_ModLinRngd( Index h ,
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::update_CostMatrix_ModLinSbst( Index h ,
-                                                 const v_coeff_pair & rc ,
+void LagBFunction::update_CostMatrix_ModLinSbst( const v_coeff_pair & rc ,
                                                  c_Vec_p_Var & vars ,
                                                  c_Subset & sbst )
 {
@@ -4452,11 +4445,17 @@ void LagBFunction::update_CostMatrix_ModLinSbst( Index h ,
  if( vars.empty() || sbst.empty() )
   return;
 
- // the index of the modified Objective is provided by the caller: it cannot
- // be recovered here from the Variable in the Modification, since an inner
- // Objective may well reference Variable owned by other nested sub-Block
+ Index b;
+ if( v_Obj.size() == 1 )
+  b = 0;
+ else {
+  auto it = Block2Idx.find( vars.front()->get_Block() );
+  if( ( it == Block2Idx.end() ) || ( it->second >= v_Obj.size() ) )
+   throw( std::logic_error( "Variable not found in any objective" ) );
+  b = it->second;
+  }
 
- m_column & CM = CostMatrix[ h ];
+ m_column & CM = CostMatrix[ b ];
 
  // first check if by chance the Subset is still current
  bool current = true;
@@ -4545,38 +4544,7 @@ void LagBFunction::eager_pool_cost_delta( const v_coeff_pair & rc ,
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::eager_pool_cost_removal(
-                                    c_Vec_p_Var & vars ,
-                                    c_Vec_FunctionValue & costs )
-{
- if( f_lazy_eval || NoSol || vars.empty() )
-  return;
-
- if( vars.size() != costs.size() )
-  throw( std::logic_error(
-             "LagBFunction::eager_pool_cost_removal: inconsistent sizes" ) );
-
- for( Index k = 0 ; k < f_max_glob ; ++k ) {
-  if( ! g_pool[ k ].sol )
-   continue;
-  g_pool[ k ].sol->write( v_Block.front() );
-  double dv = 0;
-  for( Index j = 0 ; j < vars.size() ; ++j )
-   dv -= costs[ j ] * static_cast< ColVariable * >( vars[ j ] )->get_value();
-  g_pool[ k ].value += dv;
-  }
-
- // As in eager_pool_cost_delta(), the Block contains the last pool Solution,
- // but no entry must be treated as current: subsequent queries should use the
- // eager values just updated above.
- LastSolution = g_pool.size();
-
- }  // end( LagBFunction::eager_pool_cost_removal )
-
-/*--------------------------------------------------------------------------*/
-
-void LagBFunction::update_CostMatrix_ModVarsAddd( Index h ,
-                                                  c_Vec_p_Var & vars ,
+void LagBFunction::update_CostMatrix_ModVarsAddd( c_Vec_p_Var & vars ,
                                                   Index first )
 {
  f_active_dirty = true;  // variable structure changes -> v_active must rebuild
@@ -4590,20 +4558,26 @@ void LagBFunction::update_CostMatrix_ModVarsAddd( Index h ,
  if( vars.empty() )
   return;
 
- // the index of the modified Objective is provided by the caller: it cannot
- // be recovered here from the Variable in the Modification, since an inner
- // Objective may well reference Variable owned by other nested sub-Block
+ Index b;
+ if( v_Obj.size() == 1 )
+  b = 0;
+ else {
+  auto it = Block2Idx.find( vars.front()->get_Block() );
+  if( ( it == Block2Idx.end() ) || ( it->second >= v_Obj.size() ) )
+   throw( std::logic_error( "Variable not found in any objective" ) );
+  b = it->second;
+  }
 
- m_column & CM = CostMatrix[ h ];
+ m_column & CM = CostMatrix[ b ];
 
- if( v_tmpCP.empty() || v_tmpCP[ h ].empty() ) {
+ if( v_tmpCP.empty() || v_tmpCP[ b ].empty() ) {
   // there are no variables to be "stealthily" added to obj, hence
   // CostMatrix.size() == [q]obj->gen_num_active_var()
 
   #ifndef NDEBUG
    if( first != CM.size() )
     throw( std::logic_error( "inconsistent CostMatrix[" +
-			     std::to_string( h ) + "]" ) );
+			     std::to_string( b ) + "]" ) );
   #endif
 
   CM.resize( CM.size() + vars.size() );
@@ -4618,7 +4592,7 @@ void LagBFunction::update_CostMatrix_ModVarsAddd( Index h ,
   c_Index nv = vars.size();
   CM.insert( CM.begin() + first , nv , col_pair() );
 
-  auto & tmpCP = v_tmpCP[ h ];
+  auto & tmpCP = v_tmpCP[ b ];
   for( Index i = 0 ; i < tmpCP.size() ; ++i )
    for( Index j = 0 ; j < nv ; ++j )
     if( vars[ j ] == tmpCP[ i ].first ) {
@@ -4632,8 +4606,7 @@ void LagBFunction::update_CostMatrix_ModVarsAddd( Index h ,
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::update_CostMatrix_ModVarsRngd( Index h ,
-                                                  c_Vec_p_Var & vars ,
+void LagBFunction::update_CostMatrix_ModVarsRngd( c_Vec_p_Var & vars ,
                                                   c_Range & rng )
 {
  f_active_dirty = true;  // variable structure changes -> v_active must rebuild
@@ -4653,28 +4626,23 @@ void LagBFunction::update_CostMatrix_ModVarsRngd( Index h ,
  if( vars.empty() || ( rng.second <= rng.first ) )
   return;
 
- // the index of the modified Objective is provided by the caller: it cannot
- // be recovered here from the Variable in the Modification, since an inner
- // Objective may well reference Variable owned by other nested sub-Block
+ Index b;
+ if( v_Obj.size() == 1 )
+  b = 0;
+ else {
+  auto it = Block2Idx.find( vars.front()->get_Block() );
+  if( ( it == Block2Idx.end() ) || ( it->second >= v_Obj.size() ) )
+   throw( std::logic_error( "Variable not found in any objective" ) );
+  b = it->second;
+ }
 
- m_column & CM = CostMatrix[ h ];
+ m_column & CM = CostMatrix[ b ];
 
  #ifndef NDEBUG
   if( rng.second > CM.size() )
    throw( std::logic_error( "inconsistent CostMatrix" ) );
  #endif
 
- // The Variable are already absent from obj, but CostMatrix still carries
- // their old original costs. Keep eager pool constants aligned before those
- // columns are erased/moved. For a DQuadFunction the removed quadratic term
- // is not available in the Modification, so this exact affine update is only
- // performed for LinearFunction Objectives.
- if( ! v_ObjIsQuad[ h ] ) {
-  Vec_FunctionValue costs( vars.size() );
-  for( Index i = 0 ; i < vars.size() ; ++i )
-   costs[ i ] = CM[ rng.first + i ].first;
-  eager_pool_cost_removal( vars , costs );
-  }
  m_column tempCM;     // CostMatrix elements to be re-added
 
  // check if are nonempty elements of CostMatrix are being deleted, if so
@@ -4685,7 +4653,7 @@ void LagBFunction::update_CostMatrix_ModVarsRngd( Index h ,
   if( ! it->second.empty() ) {
    tempCM.push_back( std::move( *it ) );
    tempCM.back().first = 0;
-   v_tmpCP[ h ].push_back( coeff_pair(
+   v_tmpCP[ b ].push_back( coeff_pair(
      static_cast< ColVariable * >( vars[ std::distance( strtit , it ) ] ) ,
      Coefficient( 0 ) ) );
   }
@@ -4702,8 +4670,7 @@ void LagBFunction::update_CostMatrix_ModVarsRngd( Index h ,
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::update_CostMatrix_ModVarsSbst( Index h ,
-                                                  c_Vec_p_Var & vars ,
+void LagBFunction::update_CostMatrix_ModVarsSbst( c_Vec_p_Var & vars ,
                                                   c_Subset & sbst )
 {
  f_active_dirty = true;  // variable structure changes -> v_active must rebuild
@@ -4723,25 +4690,23 @@ void LagBFunction::update_CostMatrix_ModVarsSbst( Index h ,
  if( vars.empty() || sbst.empty() )
   return;
 
- // the index of the modified Objective is provided by the caller: it cannot
- // be recovered here from the Variable in the Modification, since an inner
- // Objective may well reference Variable owned by other nested sub-Block
+ Index b;
+ if( v_Obj.size() == 1 )
+  b = 0;
+ else {
+  auto it = Block2Idx.find( vars.front()->get_Block() );
+  if( ( it == Block2Idx.end() ) || ( it->second >= v_Obj.size() ) )
+   throw( std::logic_error( "Variable not found in any objective" ) );
+  b = it->second;
+ }
 
- m_column & CM = CostMatrix[ h ];
+ m_column & CM = CostMatrix[ b ];
 
  #ifndef NDEBUG
   if( sbst.back() >= CM.size() )
    throw( std::logic_error( "inconsistent CostMatrix" ) );
  #endif
 
- // See the range version above. subset() and vars() have positional
- // correspondence, so retain that order while collecting the old costs.
- if( ! v_ObjIsQuad[ h ] ) {
-  Vec_FunctionValue costs( vars.size() );
-  for( Index i = 0 ; i < vars.size() ; ++i )
-   costs[ i ] = CM[ sbst[ i ] ].first;
-  eager_pool_cost_removal( vars , costs );
-  }
  m_column tempCM;     // CostMatrix elements to be re-added
 
  // check if are nonempty elements of CostMatrix are being deleted, if so
@@ -4750,7 +4715,7 @@ void LagBFunction::update_CostMatrix_ModVarsSbst( Index h ,
   if( ! CM[ sbst[ i ] ].second.empty() ) {
    tempCM.push_back( std::move( CM[ sbst[ i ] ] ) );
    tempCM.back().first = 0;
-   v_tmpCP[ h ].push_back( coeff_pair(
+   v_tmpCP[ b ].push_back( coeff_pair(
      static_cast< ColVariable * >( vars[ i ] ) , Coefficient( 0 ) ) );
   }
 
@@ -4783,7 +4748,6 @@ void LagBFunction::set_default_inner_BlockSolverConfig( void )
   auto solver_config = new RBlockSolverConfig( ib );
   solver_config->clear();
   solver_config->apply( ib );
-  delete solver_config;
   }
  }
 
