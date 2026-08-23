@@ -4521,6 +4521,35 @@ void LagBFunction::eager_pool_cost_delta( const v_coeff_pair & rc ,
 
 /*--------------------------------------------------------------------------*/
 
+void LagBFunction::eager_pool_cost_removal(
+                                    c_Vec_p_Var & vars ,
+                                    c_Vec_FunctionValue & costs )
+{
+ if( f_lazy_eval || NoSol || vars.empty() )
+  return;
+
+ if( vars.size() != costs.size() )
+  throw( std::logic_error(
+             "LagBFunction::eager_pool_cost_removal: inconsistent sizes" ) );
+
+ for( Index k = 0 ; k < f_max_glob ; ++k ) {
+  if( ! g_pool[ k ].sol )
+   continue;
+  g_pool[ k ].sol->write( v_Block.front() );
+  double dv = 0;
+  for( Index j = 0 ; j < vars.size() ; ++j )
+   dv -= costs[ j ] * static_cast< ColVariable * >( vars[ j ] )->get_value();
+  g_pool[ k ].value += dv;
+  }
+
+ // As in eager_pool_cost_delta(), the Block contains the last pool Solution,
+ // but no entry must be treated as current: subsequent queries should use the
+ // eager values just updated above.
+ LastSolution = g_pool.size();
+
+ }  // end( LagBFunction::eager_pool_cost_removal )
+
+/*--------------------------------------------------------------------------*/
 void LagBFunction::update_CostMatrix_ModVarsAddd( Index h ,
                                                   c_Vec_p_Var & vars ,
                                                   Index first )
@@ -4610,6 +4639,17 @@ void LagBFunction::update_CostMatrix_ModVarsRngd( Index h ,
    throw( std::logic_error( "inconsistent CostMatrix" ) );
  #endif
 
+ // The Variable are already absent from obj, but CostMatrix still carries
+ // their old original costs. Keep eager pool constants aligned before those
+ // columns are erased/moved. For a DQuadFunction the removed quadratic term
+ // is not available in the Modification, so this exact affine update is only
+ // performed for LinearFunction Objectives.
+ if( ! v_ObjIsQuad[ h ] ) {
+  Vec_FunctionValue costs( vars.size() );
+  for( Index i = 0 ; i < vars.size() ; ++i )
+   costs[ i ] = CM[ rng.first + i ].first;
+  eager_pool_cost_removal( vars , costs );
+  }
  m_column tempCM;     // CostMatrix elements to be re-added
 
  // check if are nonempty elements of CostMatrix are being deleted, if so
@@ -4669,6 +4709,14 @@ void LagBFunction::update_CostMatrix_ModVarsSbst( Index h ,
    throw( std::logic_error( "inconsistent CostMatrix" ) );
  #endif
 
+ // See the range version above. subset() and vars() have positional
+ // correspondence, so retain that order while collecting the old costs.
+ if( ! v_ObjIsQuad[ h ] ) {
+  Vec_FunctionValue costs( vars.size() );
+  for( Index i = 0 ; i < vars.size() ; ++i )
+   costs[ i ] = CM[ sbst[ i ] ].first;
+  eager_pool_cost_removal( vars , costs );
+  }
  m_column tempCM;     // CostMatrix elements to be re-added
 
  // check if are nonempty elements of CostMatrix are being deleted, if so

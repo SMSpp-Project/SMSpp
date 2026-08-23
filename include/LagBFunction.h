@@ -2620,6 +2620,18 @@ class LagBFunction : public C05Function , public Block
  void eager_pool_cost_delta( const v_coeff_pair & rc ,
 	       const std::vector< std::pair< Index , double > > & jdeltas );
 
+ /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// EAGER: remove original linear-cost terms from stored pool constants
+ /** A C05FunctionModVarsRngd/Sbst reaches LagBFunction after the Variable have
+  * already been removed from the Objective, while CostMatrix still contains
+  * their old original costs. Before changing CostMatrix, subtract
+  * sum_j c_j x*_j from every eager full epigraphic constant. This is exact for
+  * a LinearFunction Objective, including convexified pool entries, because the
+  * removed objective term is affine. Does nothing under lazy or NoSol. */
+
+ void eager_pool_cost_removal( c_Vec_p_Var & vars ,
+                               c_Vec_FunctionValue & costs );
+
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// EAGER subgradient: fill g from conv_active without writing the Solution
  /** Rebuilds the subgradient of a global-pool linearization `name` --
