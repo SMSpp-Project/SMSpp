@@ -1115,13 +1115,26 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
      // check it's still a feasible solution/direction
      bool feas = g_pool[ i ].varsol ? v_Block.front()->is_feasible()
                                     : v_Block.front()->is_unbounded();
-     if( ! feas ) {              // if not
-      delete g_pool[ i ].sol;  // eliminate it
-      g_pool[ i ].sol = nullptr;
-      which.push_back( i );      // recall its name
-      LastSolution = g_pool.size();
-      // say that no Solution is saved in the Block, since the name is now
-      // available again for a different Solution
+     if (!feas) // if not
+     {
+       f_current_purged_solution = std::exchange(g_pool[i].sol, nullptr);
+       for (auto &handler : v_column_purged_handlers)
+       {
+         if (!handler)
+           continue;
+         static_cast<void>(handler());
+       }
+     }
+    }
+    //else
+    //delete g_pool[i].sol; 
+    delete f_current_purged_solution; // eliminate it
+    f_current_purged_solution = nullptr;
+    //g_pool[i].sol = nullptr;
+    which.push_back(i); // recall its name
+    LastSolution = g_pool.size();
+    // say that no Solution is saved in the Block, since the name is now
+    // available again for a different Solution
       }
      }
     }
