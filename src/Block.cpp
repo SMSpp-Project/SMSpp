@@ -456,46 +456,6 @@ void Block::anyone_there( bool isthere )
 
 /*--------------------------------------------------------------------------*/
 
-Block * Block::transfer_ownership_to( Block * new_parent )
-{
- if( new_parent == f_Block )      // already where it should be
-  return( f_Block );
-
- Block * const old_parent = f_Block;
-
- // - - - detach from old parent (if any) - - - - - - - - - - - - - - - - - -
- if( old_parent ) {
-  auto & ov = old_parent->v_Block;
-  auto it = std::find( ov.begin() , ov.end() , this );
-  if( it != ov.end() )
-   ov.erase( it );
-
-  // if the old chain was "listening", inform the (now detached) sub-tree
-  // that the chain from above is gone; if this Block has its own Solver
-  // attached, anyone_there() stays true via v_Solver and the recursion
-  // bottoms out naturally
-  if( old_parent->anyone_there() )
-   this->anyone_there( false );
-
-  f_Block = nullptr;
-  }
-
- // - - - attach to new parent (if any) - - - - - - - - - - - - - - - - - - -
- if( new_parent ) {
-  new_parent->add_nested_Block( this );  // also sets f_Block to new_parent
-
-  // if the new chain is "listening", propagate the chain down into the
-  // freshly-grafted sub-tree
-  if( new_parent->anyone_there() )
-   this->anyone_there( true );
-  }
-
- return( old_parent );
-
- }  // end( Block::transfer_ownership_to )
-
-/*--------------------------------------------------------------------------*/
-
 Block * Block::resolve_sub_Block_path( const std::string & path )
 {
  if( path.empty() )
