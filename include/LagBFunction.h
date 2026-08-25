@@ -507,7 +507,7 @@ class LagBFunction : public C05Function , public Block
   * The field order keeps  gpool_el{ sol , varsol }  working as before. */
  struct gpool_el {
   p_Solution sol         = nullptr;
-  bool       varsol      = false;
+  bool       varsol      = true;
   bool       convexified = false;
   double     value       = 0;
   std::vector< Vec_FunctionValue > conv_active;

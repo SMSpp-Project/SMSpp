@@ -508,7 +508,7 @@ void LagBFunction::set_par( idx_type par , int value )
      update_f_max_glob();
      }    
     }
-   g_pool.resize( value , gpool_el( nullptr , true ) );
+   g_pool.resize( value );
    break;
   case( intInnrSlvr ):  // intInnrSlvr - - - - - - - - - - - - - - - - - - -
    if( InnrSlvr != Index( value ) ) {
@@ -1331,7 +1331,7 @@ void LagBFunction::put_State( const State & state )
 
  // ensure g_pool is large enough
  if( s.f_max_glob > g_pool.size() )
-  g_pool.resize( s.f_max_glob , gpool_el{ nullptr , true } );
+  g_pool.resize( s.f_max_glob );
 
  // copy the important linearization information
  zLC = s.zLC;
@@ -1341,8 +1341,7 @@ void LagBFunction::put_State( const State & state )
 
  // first void the current global pool
  if( NoSol ) {
-  std::fill( g_pool.begin() , g_pool.end() ,
-	     gpool_el{ nullptr , true } );
+  std::fill( g_pool.begin() , g_pool.end() , gpool_el() );
   f_max_glob = 0;
   }
  else {
@@ -1426,7 +1425,7 @@ void LagBFunction::put_State( State && state )
 
  // ensure g_pool is large enough
  if( s.f_max_glob > g_pool.size() )
-  g_pool.resize( s.f_max_glob , gpool_el{ nullptr , true } );
+  g_pool.resize( s.f_max_glob );
 
  // move the important linearization information
  zLC = std::move( s.zLC );
@@ -1436,8 +1435,7 @@ void LagBFunction::put_State( State && state )
 
  // first void the current global pool
  if( NoSol ) {
-  std::fill( g_pool.begin() , g_pool.end() ,
-	     gpool_el{ nullptr , true } );
+  std::fill( g_pool.begin() , g_pool.end() , gpool_el() );
   f_max_glob = 0;
   }
  else {
