@@ -2082,6 +2082,45 @@ class Block : public Observer {
                                bool deleteold = true );
 
 /*--------------------------------------------------------------------------*/
+ /// sets the structure of the Block, i.e., its tree of sub-Block
+ /** Sets the *structure* of the Block, i.e., the tree of sub-Block it is made
+  * of, as opposed to its *formulation*, i.e., which Variable, Constraint and
+  * Objective its abstract representation encodes. The structure is physical
+  * and comes first, the formulation is abstract and comes after, if at all:
+  * ever since Solver::get_Solution() [see Solver.h] a Block can be solved
+  * without any abstract representation, which is what makes the two
+  * genuinely different things rather than one.
+  *
+  * Not every :Block has a structure to choose. For many of them the tree is a
+  * *datum*, i.e., it is what the instance says it is and there is nothing to
+  * decide; for others it is a *modelling choice*, one and the same problem
+  * being written as different trees of sub-Block, and this is the method that
+  * makes the choice. Which Configuration says what is entirely a matter of
+  * the :Block, exactly as for generate_abstract_variables().
+  *
+  * The Configuration is resolved as usual: if \p strc is not nullptr it is
+  * used, otherwise the f_structure_Configuration of the BlockConfig is, if
+  * there is one [see BlockConfig]. This is why set_BlockConfig() calls this
+  * method as soon as it has digested the BlockConfig, which is also
+  *
+  *     THE MOMENT AT WHICH THIS METHOD IS MEANT TO BE CALLED, I.E., BEFORE
+  *     ANY PART OF THE ABSTRACT REPRESENTATION IS GENERATED AND BEFORE ANY
+  *     Solver IS ATTACHED, WHICH IS WHAT APPLYING A BlockSolverConfig DOES
+  *
+  * Calling it later is not forbidden, but changing the tree of sub-Block of a
+  * Block that anyone is attached to is the "nuclear option": whatever
+  * abstract representation is constructed has to be rebuilt and a
+  * NBModification has to be issued, since nothing of what a Solver knows
+  * about the Block is worth keeping.
+  *
+  * The implementation of the base class does nothing if the resolved
+  * Configuration is nullptr, and throws exception otherwise, since a :Block
+  * that has no structure to choose being told to choose one is an error in
+  * the Configuration rather than something to be silently ignored. */
+
+ virtual void set_structure( Configuration * strc = nullptr );
+
+/*--------------------------------------------------------------------------*/
  /// generate the "abstract representation" of the Variable of the Block
  /** This method serves is to ensure that the "abstract representation" of
   * the Variable, be they static or dynamic, of the Block is initialized,
@@ -8514,6 +8553,7 @@ class BlockConfig : public Configuration {
   * @param diff indicates if this configuration is a "differential" one. */
 
  BlockConfig( bool diff = true ) : Configuration() ,
+  f_structure_Configuration( nullptr ) ,
   f_static_constraints_Configuration( nullptr ) ,
   f_dynamic_constraints_Configuration( nullptr ) ,
   f_static_variables_Configuration( nullptr ) ,
@@ -8717,6 +8757,7 @@ class BlockConfig : public Configuration {
     }
    };
 
+  move( f_structure_Configuration , bc->f_structure_Configuration );
   move( f_static_constraints_Configuration ,
         bc->f_static_constraints_Configuration );
   move( f_dynamic_constraints_Configuration ,
@@ -8787,7 +8828,8 @@ class BlockConfig : public Configuration {
   * sub-Configuration are nullptr. */
 
  virtual bool empty( void ) const {
-  return( ( ! f_static_constraints_Configuration ) &&
+  return( ( ! f_structure_Configuration ) &&
+          ( ! f_static_constraints_Configuration ) &&
           ( ! f_dynamic_constraints_Configuration ) &&
 	  ( ! f_static_variables_Configuration ) &&
 	  ( ! f_dynamic_variables_Configuration ) &&
@@ -8803,6 +8845,23 @@ class BlockConfig : public Configuration {
 /*--------------------------------------------------------------------------*/
 /** @name Public fields of the class
  *  @{ */
+
+ /// the version of the text format of a BlockConfig
+ /** The version of the format that load() reads and print() writes, which is
+  * written right after the differential flag so that a file in an older
+  * format is refused with a message rather than being read shifted by one
+  * slot [see load()]. */
+
+ static constexpr unsigned int f_txt_version = 2;
+
+/*--------------------------------------------------------------------------*/
+
+ /// the Configuration for Block::set_structure()
+ /** The Configuration that says which structure, i.e., which tree of
+  * sub-Block, the Block has to have; it is the first one that is applied,
+  * before any other, since the structure comes before everything else [see
+  * Block::set_structure()]. */
+ Configuration * f_structure_Configuration;
 
  /// the Configuration for generate_abstract_constraints()
  Configuration * f_static_constraints_Configuration;
@@ -8885,6 +8944,9 @@ class BlockConfig : public Configuration {
 
  void delete_sub_Configuration( void )
  {
+  delete f_structure_Configuration;
+  f_structure_Configuration = nullptr;
+
   delete f_static_constraints_Configuration;
   f_static_constraints_Configuration = nullptr;
 
@@ -8918,6 +8980,9 @@ class BlockConfig : public Configuration {
 
  void clone_sub_Configuration( const BlockConfig & bc )
  {
+  if( bc.f_structure_Configuration )
+   f_structure_Configuration = bc.f_structure_Configuration->clone();
+
   if( bc.f_static_constraints_Configuration )
    f_static_constraints_Configuration =
     bc.f_static_constraints_Configuration->clone();
