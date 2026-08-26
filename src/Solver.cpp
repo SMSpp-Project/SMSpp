@@ -171,6 +171,27 @@ Solver::OFValue Solver::get_var_value( void ) {
 
 /*--------------------------------------------------------------------------*/
 
+Solution * Solver::get_Solution( Configuration * solc )
+{
+ if( this->has_var_solution() ) {
+  f_Block->lock( f_id );
+  this->get_var_solution( solc );
+  }
+ else
+  if( this->has_var_direction() ) {
+   f_Block->lock( f_id );
+   this->get_var_direction( solc );
+   }
+  else
+   return( nullptr );
+
+ auto sol = f_Block->get_Solution( solc , false );
+ f_Block->unlock( f_id );
+ return( sol );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 const std::string & Solver::get_str_par( idx_type par ) const {
  switch( par ) {
   case( strLogFileName ):   return( LogFileName );

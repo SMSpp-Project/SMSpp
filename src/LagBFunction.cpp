@@ -504,7 +504,7 @@ void LagBFunction::set_par( idx_type par , int value )
      update_f_max_glob();
      }    
     }
-   g_pool.resize( value , gpool_el( nullptr , true ) );
+   g_pool.resize( value );
    break;
   case( intInnrSlvr ):  // intInnrSlvr - - - - - - - - - - - - - - - - - - -
    if( InnrSlvr != Index( value ) ) {
