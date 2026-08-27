@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `ThinComputeInterface::print_parameters()`, which prints the name, the
+  current value and the default one of every parameter, walking the six
+  index spaces; for a class whose index space extends over that of a
+  wrapped ThinComputeInterface it shows what the wrapped one has been
+  given, which is what one needs to see when a parameter is suspected of
+  not arriving where it was meant to
+
 - `Block::set_structure()`, which decides the *structure* of a Block, i.e.,
   its tree of sub-Block, as opposed to its *formulation*, i.e., what its
   abstract representation encodes; `set_BlockConfig()` calls it as soon as it
