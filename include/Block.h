@@ -4261,8 +4261,15 @@ class Block : public Observer {
  * - they can be used to verify if some solution information (say, obtained
  *   "a long time ago" and stored into a Solution object) still has the
  *   required properties (say, feasibility) even after all the Modification
- *   that may have occurred in the Meantime (note that for this to happen the
- *   Solution has to be read back into the Block).
+ *   that may have occurred in the Meantime.
+ *
+ * For the latter use, is_feasible() and is_optimal() also come in a version
+ * taking the Solution to be checked, rather than reading the solution out of
+ * the Variable of the Block; that version does not require the Solution to
+ * be read back into the Block, and it does not require the Block to have an
+ * "abstract representation" at all, which is precisely the case of a
+ * "physical" Solver that only ever produces a Solution [see
+ * Solver::get_Solution()].
  *
  * Note that these checks may be either "easy" or "hard". For instance,
  * feasibility and ray-ness should be "easy" for an NP-hard problem, while
@@ -4417,6 +4424,52 @@ class Block : public Observer {
   }
 
 /*--------------------------------------------------------------------------*/
+ /// returns true if the solution in the Solution is (approximately) feasible
+ /** Returns true if the solution encoded in the Solution object sol is
+  * approximately feasible within the given tolerances. The state of the
+  * Block, in particular the value of its Variable, is irrelevant here and
+  * it is left untouched.
+  *
+  * This is the "physical" counterpart of is_feasible( bool , Configuration *
+  * ): that one reads the solution out of the Variable of the Block, hence
+  * it needs the Variable to exist in the first place, while this one reads
+  * it out of sol. This is what makes it possible to check the solution that
+  * a "physical" Solver produces [see Solver::get_Solution()] when it is
+  * attached to a Block with no "abstract representation" at all. Note that
+  * the two versions may legitimately return different values, and for the
+  * very same reasons discussed in is_feasible( bool , Configuration * ).
+  *
+  * Since a Solution is allowed to hold only "a part" of the solution
+  * information, it may only be possible to check a part of the Constraint;
+  * what exactly is checked is therefore a matter between the :Block and its
+  * :Solution, but the general contract is that the method must not return
+  * true unless sol carries enough information to prove that the solution is
+  * feasible.
+  *
+  * The parameter fsbc has exactly the same meaning as in is_feasible( bool ,
+  * Configuration * ), the fact that it overrides the corresponding field of
+  * the BlockConfig included.
+  *
+  * No default implementation is given: only the :Block knows what its
+  * :Solution carries and how to check it, hence a :Block that does not
+  * implement this method throws.
+  *
+  * IMPORTANT: a :Block that overrides is_feasible( bool , Configuration * )
+  * without also overriding this one *hides* it, and since a pointer
+  * silently converts to bool, is_feasible( sol ) called on that :Block
+  * would quietly become is_feasible( true ). Any :Block overriding only one
+  * of the two must therefore have a
+  *
+  *     using Block::is_feasible;
+  *
+  * declaration, exactly as AbstractBlock does. */
+
+ virtual bool is_feasible( Solution * sol , Configuration * fsbc = nullptr ) {
+  throw( std::logic_error( "Block::is_feasible: checking a Solution is not "
+			   "implemented for this :Block" ) );
+  }
+
+/*--------------------------------------------------------------------------*/
  ///< returns true if the current solution is (approximately) optimal
  /**< Returns true if the solution encoded in the current value of the
   * Variable of the Block can be proven to be approximately optimal within
@@ -4499,6 +4552,41 @@ class Block : public Observer {
     return( false );
 
   return( true );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns true if the solution in the Solution is (approximately) optimal
+ /** Returns true if the solution encoded in the Solution object sol can be
+  * proven to be approximately optimal within the given tolerances. The
+  * state of the Block, in particular the value of its Variable, is
+  * irrelevant here and it is left untouched.
+  *
+  * This is to is_optimal( bool , Configuration * ) exactly what
+  * is_feasible( Solution * , Configuration * ) is to is_feasible( bool ,
+  * Configuration * ): the values are read out of sol rather than out of the
+  * Variable of the Block, so that the solution a "physical" Solver produces
+  * [see Solver::get_Solution()] can be checked even if the Block has no
+  * "abstract representation". Note that proving optimality typically
+  * requires a dual solution, hence sol has to carry one; if it does not,
+  * the method must not return true.
+  *
+  * The parameter optc has exactly the same meaning as in is_optimal( bool ,
+  * Configuration * ), the fact that it overrides the corresponding field of
+  * the BlockConfig included.
+  *
+  * No default implementation is given, for the same reason as in
+  * is_feasible( Solution * , Configuration * ). The same warning about
+  * hiding applies: a :Block overriding only is_optimal( bool ,
+  * Configuration * ) must have a
+  *
+  *     using Block::is_optimal;
+  *
+  * declaration, otherwise is_optimal( sol ) called on it quietly becomes
+  * is_optimal( true ). */
+
+ virtual bool is_optimal( Solution * sol , Configuration * optc = nullptr ) {
+  throw( std::logic_error( "Block::is_optimal: checking a Solution is not "
+			   "implemented for this :Block" ) );
   }
 
 /*--------------------------------------------------------------------------*/
