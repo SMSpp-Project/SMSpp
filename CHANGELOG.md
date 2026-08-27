@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `ThinComputeInterface::print_parameters()`, which prints the name, the
+  current value and the default one of every parameter, walking the six
+  index spaces; for a class whose index space extends over that of a
+  wrapped ThinComputeInterface it shows what the wrapped one has been
+  given, which is what one needs to see when a parameter is suspected of
+  not arriving where it was meant to
+
+- `Block::set_structure()`, which decides the *structure* of a Block, i.e.,
+  its tree of sub-Block, as opposed to its *formulation*, i.e., what its
+  abstract representation encodes; `set_BlockConfig()` calls it as soon as it
+  has digested the BlockConfig, hence before anything is generated and before
+  any Solver is attached
+
+- `BlockConfig::f_structure_Configuration`, the Configuration that
+  `set_structure()` reads, which is the first one of a BlockConfig, since the
+  structure comes before everything else
+
+### Changed
+
+- the text format of a BlockConfig carries a version number right after the
+  differential flag, so that a file in the previous format is refused with a
+  message rather than being read with all its Configuration shifted by one
+  slot; every BlockConfig file has to be converted
+
 ### Added 
 
 ### Changed 
