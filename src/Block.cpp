@@ -637,7 +637,28 @@ void Block::set_BlockConfig( BlockConfig * newBC, bool deleteold )
    delete f_BlockConfig;
   f_BlockConfig = newBC;
   }
+
+ /* The structure comes before everything else, and this is the moment at
+  * which it is decided: the BlockConfig has just been digested, nothing of
+  * the abstract representation has been generated out of it yet and no
+  * Solver has been attached, which is what applying a BlockSolverConfig
+  * does. A :Block with no structure to choose does nothing here. */
+ set_structure();
+
  }  // end( set_BlockConfig )
+
+/*--------------------------------------------------------------------------*/
+
+void Block::set_structure( Configuration * strc )
+{
+ if( ( ! strc ) && f_BlockConfig )
+  strc = f_BlockConfig->f_structure_Configuration;
+
+ if( strc )
+  throw( std::invalid_argument( "Block::set_structure: this :Block has no "
+                                "structure to choose" ) );
+
+ }  // end( Block::set_structure )
 
 /*--------------------------------------------------------------------------*/
 
@@ -893,6 +914,8 @@ void BlockConfig::print( std::ostream & output ) const
  output << private_name();
  if( f_diff ) output << "[diff]";
  output << ": " << std::endl;
+ if( f_structure_Configuration )
+  output << *f_structure_Configuration;
  if( f_static_constraints_Configuration )
   output << *f_static_constraints_Configuration;
  if( f_dynamic_constraints_Configuration )
@@ -929,6 +952,33 @@ void BlockConfig::load( std::istream & input )
  input >> f_diff;
  if( input.fail() )
   throw( std::invalid_argument( "BlockConfig::load: stream read error" ) );
+
+ /* The version of the format, which a file written for the previous one does
+  * not have: there the next token is the first Configuration, hence a name or
+  * a '*' and never a number, so the failure to read one is what tells the two
+  * apart. The check is here, and not left to the slots being read shifted by
+  * one, because a silently misread BlockConfig is a nightmare to debug. */
+ unsigned int version = 0;
+ input >> eatcomments >> version;
+ if( input.fail() )
+  throw( std::invalid_argument( "BlockConfig::load: this is a BlockConfig in "
+                                "the old format, which had no version number "
+                                "after the differential flag; the structure "
+                                "Configuration is now the first one, see "
+                                "BlockConfig" ) );
+
+ if( version != f_txt_version )
+  throw( std::invalid_argument( "BlockConfig::load: unsupported format "
+                                "version " + std::to_string( version ) ) );
+
+ input >> eatcomments;
+ if( input.eof() )
+  return;
+
+ f_structure_Configuration = Configuration::deserialize( input );
+ input >> eatcomments;
+ if( input.eof() )
+  return;
 
  f_static_constraints_Configuration = Configuration::deserialize( input );
  input >> eatcomments;
@@ -981,6 +1031,11 @@ void BlockConfig::serialize( netCDF::NcGroup & group ) const
  Configuration::serialize( group );
 
  group.putAtt( "diff", netCDF::NcInt() , int( f_diff ) );
+
+ if( f_structure_Configuration ) {
+  auto cg = group.addGroup( "structure" );
+  f_structure_Configuration->serialize( cg );
+  }
 
  if( f_static_constraints_Configuration ) {
   auto cg = group.addGroup( "static_constraints" );
@@ -1044,7 +1099,10 @@ void BlockConfig::deserialize( const netCDF::NcGroup & group )
   f_diff = ( diffint > 0 );
  }
 
- auto cg = group.getGroup( "static_constraints" );
+ auto cg = group.getGroup( "structure" );
+ f_structure_Configuration = new_Configuration( cg );
+
+ cg = group.getGroup( "static_constraints" );
  f_static_constraints_Configuration = new_Configuration( cg );
 
  cg = group.getGroup( "dynamic_constraints" );
