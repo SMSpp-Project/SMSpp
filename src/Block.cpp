@@ -788,6 +788,42 @@ Block::MF_int_sbst_map & Block::methods_int_sbst_factory( void )
  return( f );
  }
 
+Block::MF_sp_dbl_rngd_map & Block::methods_sp_dbl_rngd_factory( void )
+{
+ static MF_sp_dbl_rngd_map f;
+ return( f );
+ }
+
+Block::MF_sp_int_rngd_map & Block::methods_sp_int_rngd_factory( void )
+{
+ static MF_sp_int_rngd_map f;
+ return( f );
+ }
+
+Block::MF_sp_dbl_sbst_map & Block::methods_sp_dbl_sbst_factory( void )
+{
+ static MF_sp_dbl_sbst_map f;
+ return( f );
+ }
+
+Block::MF_sp_int_sbst_map & Block::methods_sp_int_sbst_factory( void )
+{
+ static MF_sp_int_sbst_map f;
+ return( f );
+ }
+
+Block::MF_qry_dbl_rngd_map & Block::queries_dbl_rngd_factory( void )
+{
+ static MF_qry_dbl_rngd_map f;
+ return( f );
+ }
+
+Block::MF_qry_dbl_sbst_map & Block::queries_dbl_sbst_factory( void )
+{
+ static MF_qry_dbl_sbst_map f;
+ return( f );
+ }
+
 /*--------------------------------------------------------------------------*/
 
 std::string & block_filename_prefix( void )
