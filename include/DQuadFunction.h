@@ -921,8 +921,11 @@ class DQuadFunction : public C15Function {
   * is additive, and therefore strongly quasi-additive, which is why a
   * C05FunctionModVarSbst is issued as opposed to a FunctionModVarSbst one. */
 
+ /* Not final, unlike it used to be: QuadFunction derives from this and has
+  * the non-diagonal terms of the removed Variable to take away as well. */
+
  void remove_variables( Subset && nms , bool ordered = false ,
-                        ModParam issueMod = eModBlck ) override final;
+                        ModParam issueMod = eModBlck ) override;
 
 /*--------------------------------------------------------------------------*/
  ///< sets the value of the constant term of this function.
