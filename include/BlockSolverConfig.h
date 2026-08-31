@@ -39,6 +39,8 @@
 
 #include "Block.h"
 
+#include <map>
+
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -78,15 +80,14 @@ using Index = Block::Index;
  * needs, *BlockSolverConfig provides a convenient way to accomplish this
  * particular (and probably frequent) task.
  *
- * If an appropriate BlockSolverConfig for a Block is available, then it can
- * be used to perform this task by simply invoking clear() and then apply(),
- * passing a pointer to the Block as argument. This will unregister and
- * delete all the Solver attached to the Block and those attached to the
- * sub-Block (recursively). By appropriate BlockSolverConfig, we mean one that
- * covers all Solver attached to the Block and to its sub-Block, recursively.
- * If all the Solver of the Block have been created by means of a single
- * BlockSolverConfig, then that specific BlockSolverConfig is clearly
- * appropriate.
+ * A BlockSolverConfig remembers, in an internal per-Block registry [see
+ * get_Solvers()], exactly which Solver it has created and registered to
+ * which Block. This makes the cleanup task above simple and *safe under
+ * composition*: applying a clear()-ed BlockSolverConfig un-registers and
+ * deletes all and only the Solver that this very object had registered to
+ * that Block (and that are still registered to it), leaving anything put
+ * there by anybody else untouched; on a Block this object never configured
+ * it does nothing at all.
  *
  * Indeed, consider the most obvious use case: a Block is created, Solver
  * are attached exclusively by means of a single BlockSolverConfig, the Block
@@ -106,42 +107,22 @@ using Index = Block::Index;
  * to be of class RBlockSolverConfig (this is not difficult to do via the
  * factory).
  *
- * More complex use cases will require adapting, but still BlockSolverConfig
- * can be useful. For instance, if one needs to solve many Block with the same
- * structure (different instances of the same problem) sequentially with the
- * same Solver configuration, then it can define myBSC only once and use it
- * for all the Block; only, in this case it must not be clear()-ed. Also, if
- * some Solver have to be added/deleted during the solution process, it is
- * possible to use myBSC to do that; by keeping myBSC "up to date" with the
- * position of all Solver in the Block, it is possible to clear them all with
- * a call to clear() and then to apply().
+ * The registry is what makes the same pattern compose: several
+ * BlockSolverConfig can be applied to the same Block (say, each attaching
+ * its own group of Solver, possibly in "additive" mode, see apply()), and
+ * each clear()-ed one removes its own group and nothing else, in whatever
+ * order. Symmetrically, the same BlockSolverConfig can be applied to many
+ * different Block (different instances of the same problem, the "twin"
+ * sub-Block of a decomposition, ...): the registry is per-Block, so the
+ * cleanup of each Block removes exactly what was registered to *it*.
  *
- * If an appropriate, up-to-date BlockSolverConfig is not available, one can
- * be constructed as follows:
- *
- *     RBlockSolverConfig myBSC( myBlock );
- *
- * This constructs a "full" RBlockSolverConfig of myBlock; then,
- *
- *     myBSC.clear();
- *     myBSC.apply( myBlock );
- *
- * does the trick. It requires, however, scanning all the sub-Block of
- * myBlock, recursively. If only deleting everything is needed, then the
- * alternative
- *
- *     RBlockSolverConfig myBSC( myBlock , false , true );
- *     myBSC.apply( myBlock );
- *
- * which directly construct a cleared-out RBlockSolverConfig, works as well
- * and it is more efficient (but it still requires scanning all the sub-Block
- * of myBlock, recursively). If one knows that myBlock does not have Solver
- * registered to any sub-Block, then
- *
- *     BlockSolverConfig myBSC( myBlock , false , true );
- *     myBSC.apply( myBlock );
- *
- * works (but then, myBlock->unregister_Solvers( true ) does the same).
+ * The flip side of "removes all and only what it registered" is that a
+ * BlockSolverConfig can only clean up after *itself*: a freshly constructed
+ * (or deserialized) cleared BlockSolverConfig has an empty registry, and
+ * therefore apply()-ing it deletes nothing. To delete Solver that were not
+ * registered by any BlockSolverConfig at hand, one directly uses
+ * Block::unregister_Solvers( true ) (on each Block of the tree that needs
+ * it).
  *
  * If myBlock is of a specific type that have "hidden" sub-Block, i.e., that
  * "cannot be reached going to sub-Block, recursively", then the user may
@@ -164,22 +145,34 @@ using Index = Block::Index;
  *
  * - a vector of ComputeConfig* for these same Solver.
  *
- * Crucially, a BlockSolverConfig can be used in two different ways:
- * "setting mode" and "differential mode". How the current object has to be
- * interpreted is specified by the field #f_diff. A full description of the
- * difference between the two modes is provided in the comments to the
- * apply() method; however, the general gist is that in "setting mode"
- * (#f_diff == false) the Solver previously registered with the Block are
- * un-registered and destroyed and substituted with those specified by the
- * BlockSolverConfig. In "differential mode" (#f_diff == true), instead, all
- * Solver whose name is not specified (empty string) are left registered to
- * the Block, and all nullptr ComputeConfig correspond to not changing the
- * configuration of the corresponding Solver. Note that ComputeConfig objects
- * themselves have a #f_diff field with the same meaning, which means that a
- * BlockSolverConfig in "differential mode" coupled with ComputeConfig objects
- * themselves in "differential mode" can change any specific subset of the
- * algorithmic parameters of the Solver registered with the Block without
- * affecting any of the other ones. */
+ * Crucially, a BlockSolverConfig can be used in three different ways:
+ * "setting mode", "differential mode" and "additive mode". How the current
+ * object has to be interpreted is specified by the field #f_diff [see
+ * bsc_mode]. A full description of the difference between the modes is
+ * provided in the comments to the apply() method; however, the general gist
+ * is that in "setting mode" (#f_diff == eSetMode) the Solver previously
+ * registered with the Block are un-registered and destroyed and substituted
+ * with those specified by the BlockSolverConfig. In "differential mode"
+ * (#f_diff == eDiffMode), instead, all Solver whose name is not specified
+ * (empty string) are left registered to the Block, and all nullptr
+ * ComputeConfig correspond to not changing the configuration of the
+ * corresponding Solver. In "additive mode" (#f_diff == eAddMode), finally,
+ * the Solver already registered to the Block are never touched, whatever
+ * they are: all the Solver of the BlockSolverConfig are created and
+ * registered *in addition* to them. Note that ComputeConfig objects
+ * themselves have a #f_diff field with a meaning analogous to the first two
+ * modes, which means that a BlockSolverConfig in "differential mode" coupled
+ * with ComputeConfig objects themselves in "differential mode" can change
+ * any specific subset of the algorithmic parameters of the Solver registered
+ * with the Block without affecting any of the other ones.
+ *
+ * Besides its configuration proper, a BlockSolverConfig also keeps a purely
+ * runtime piece of state: the per-Block registry of the Solver it has
+ * created and registered [see get_Solvers()], which is what allows apply()
+ * of a clear()-ed BlockSolverConfig to remove all and only "its own" Solver.
+ * The registry is not part of the Configuration: it is not (de)serialized,
+ * not copied by the copy constructor and clone(), and deliberately *not*
+ * emptied by clear(). */
 
 class BlockSolverConfig : public Configuration {
 
@@ -190,6 +183,25 @@ class BlockSolverConfig : public Configuration {
 /*--------------------------------------------------------------------------*/
 /*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
+/*--------------------------- PUBLIC TYPES ---------------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Public types
+ *  @{ */
+
+ /// the possible modes of a BlockSolverConfig, i.e., values of #f_diff
+ /** The three ways in which the information of a BlockSolverConfig can be
+  * interpreted by apply() [see]. The values are what the "diff" attribute /
+  * field contains in the serialized formats; the historical bool values
+  * false / true convert to eSetMode / eDiffMode, keeping the original
+  * two-mode semantic unchanged. */
+
+ enum bsc_mode {
+  eSetMode  = 0 ,  ///< "setting": the final state is exactly this one
+  eDiffMode = 1 ,  ///< "differential": unmentioned Solver are kept
+  eAddMode  = 2    ///< "additive": existing Solver are never touched
+  };
+
+/** @} ---------------------------------------------------------------------*/
 /*------------ CONSTRUCTING AND DESTRUCTING BlockSolverConfig --------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructing and destructing BlockSolverConfig
@@ -198,15 +210,15 @@ class BlockSolverConfig : public Configuration {
  /// constructor: creates an empty BlockSolverConfig
  /** It constructs an empty BlockSolverConfig, which can then be initialized
   * by calling the methods deserialize(), load() or get(), or by calls to
-  * set_SolverNames(), set_SolverConfigs(), and set_diff(). The \p diff
-  * parameter indicates whether this BlockSolverConfig must be considered as a
-  * "differential" one. This parameter has true as default value, so that this
-  * can be used as the void constructor.
+  * set_SolverNames(), set_SolverConfigs() and set_diff(). The \p diff
+  * parameter sets the mode of this BlockSolverConfig [see bsc_mode]. This
+  * parameter has eDiffMode as default value, so that this can be used as
+  * the void constructor.
   *
-  * @param diff indicates if this configuration is a "differential" one. */
+  * @param diff the mode of this configuration [see bsc_mode]. */
 
- explicit BlockSolverConfig( bool diff = true ) : Configuration() ,
-  f_diff( diff ) {}
+ explicit BlockSolverConfig( int diff = eDiffMode )
+  : Configuration() , f_diff( diff ) {}
 
 /*--------------------------------------------------------------------------*/
  /// constructs a BlockSolverConfig out of the given netCDF \p group
@@ -218,7 +230,7 @@ class BlockSolverConfig : public Configuration {
   *        BlockSolverConfig. */
 
  explicit BlockSolverConfig( netCDF::NcGroup & group ) : Configuration() ,
-  f_diff( true ) { BlockSolverConfig::deserialize( group ); }
+  f_diff( eDiffMode ) { BlockSolverConfig::deserialize( group ); }
 
 /*--------------------------------------------------------------------------*/
  /// constructs a BlockSolverConfig out of an istream
@@ -229,7 +241,7 @@ class BlockSolverConfig : public Configuration {
   *        BlockSolverConfig. */
 
  explicit BlockSolverConfig( std::istream & input ) : Configuration() ,
-  f_diff( true ) { BlockSolverConfig::load( input ); }
+  f_diff( eDiffMode ) { BlockSolverConfig::load( input ); }
 
 /*--------------------------------------------------------------------------*/
  /// constructs a BlockSolverConfig for the given Block
@@ -239,13 +251,13 @@ class BlockSolverConfig : public Configuration {
   * @param block A pointer to the Block for which a BlockSolverConfig will be
   *        constructed.
   *
-  * @param diff It indicates if this configuration is a "differential" one.
+  * @param diff the mode of this configuration [see bsc_mode].
   *
   * @param clear It indicates whether a "cleared" BlockSolverConfig is
   *        desired. See BlockSolverConfig::get() for details. */
 
  explicit BlockSolverConfig( Block * block ,
-			     bool diff = false , bool clear = false )
+			     int diff = eSetMode , bool clear = false )
   : Configuration() , f_diff( diff ) {
   BlockSolverConfig::get( block, clear );
   }
@@ -305,10 +317,9 @@ class BlockSolverConfig : public Configuration {
   * any :Configuration, the group should contain the following:
   *
   * - the attribute "diff" of netCDF::NcInt type containing the value for the
-  *   #f_diff field (basically, a bool telling if the information in it has to
-  *   be taken as "the configuration to be set" or as "the changes to be made
-  *   from the current configuration"); this attribute is optional, if it is
-  *   not provided, then diff = false is assumed;
+  *   #f_diff field, i.e., the mode of the BlockSolverConfig [see bsc_mode]:
+  *   0 = "setting", 1 = "differential", 2 = "additive"; this attribute is
+  *   optional, if it is not provided, then diff = eSetMode is assumed;
   *
   * - the dimension "n_SolverConfig" containing the number of Solver that are
   *   to be attached to the Block, and therefore the number of their
@@ -349,41 +360,42 @@ class BlockSolverConfig : public Configuration {
   * the given Block and stores in this BlockSolverConfig. This information
   * consists, in principle, of the (class)names of the Solver attached to the
   * given Block and the ComputeConfig of these Solver. However, the details
-  * of what is stored depend on the f_diff field of the BlockSolverConfig,
-  * depending if it is in "setting" or "differential" mode:
+  * of what is stored depend on the f_diff field of the BlockSolverConfig
+  * [see bsc_mode]:
   *
-  * - If #f_diff == true, then the (class)names of the Solver are not
+  * - If #f_diff == eDiffMode, then the (class)names of the Solver are not
   *   stored, each string being empty;
   *
-  * - If #f_diff == false, then the (class)names of the Solver are
-  *   actually stored.
+  * - If #f_diff == eSetMode or eAddMode, then the (class)names of the
+  *   Solver are actually stored.
   *
   * In both cases, the ComputeConfig() are obtained by a call to
   * get_ComputeConfig( false ), which means that only the parameters that
   * differ from the default are recorded; note that the result can in fact
   * be nullptr if all the parameters are at the default.
   *
-  * The difference is justified by doing apply() [see] with the two
-  * different values of f_diff. If #f_diff == true, by apply()-ing the thusly
+  * The difference is justified by doing apply() [see] with the different
+  * values of f_diff. If #f_diff == eDiffMode, by apply()-ing the thusly
   * gotten BlockSolverConfig one would not change the registered Solver but
-  * only their ComputeConfig; if #f_diff == false one would rather
+  * only their ComputeConfig; if #f_diff == eSetMode one would rather
   * unregister and delete all the registered Solver, substitute them with
   * newly created ones of the given type, and set their ComputeConfig (which
   * is why get_ComputeConfig( false ) can be called in this case also: since
   * the Solver will be newly minted, all parameters will be at default
-  * anyway). If the names would be read even when #f_diff == true there would
-  * not be any difference in the two cases, and the Solver would be
-  * destroyed and re-created even with #f_diff == true, which is not the
-  * reasonable semantic for the operation.
+  * anyway), and if #f_diff == eAddMode one would register newly created
+  * copies of them in addition to whatever is registered. If the names would
+  * be read even when #f_diff == eDiffMode there would not be any difference
+  * between the first two cases, and the Solver would be destroyed and
+  * re-created even in "differential" mode, which is not the reasonable
+  * semantic for the operation.
   *
-  * The \p clear parameter indicates whether this BlockSolverConfig must be a
-  * "cleared" one, i.e., one whose vectors of Solver names and ComputeConfig
-  * are empty. A "cleared" BlockSolverConfig is useful to delete all the
-  * Solver registered to the Block. Passing \p clear = true is usually done
-  * when the sole purpose of using this BlockSolverConfig is to reset the
-  * Solver of the given Block; directly constructing a cleared object is
-  * cheaper than constructing a "full" one and then clear()-ing it. The
-  * default value of this parameter is false, in which case a "full"
+  * The \p clear parameter indicates whether this BlockSolverConfig must be
+  * a "cleared" one, i.e., one whose vectors of Solver names and
+  * ComputeConfig are empty. Note that apply()-ing a cleared
+  * BlockSolverConfig removes all and only the Solver that this very object
+  * had previously registered [see apply()]: a freshly gotten cleared one
+  * has an empty registry, so apply()-ing it removes nothing. The default
+  * value of this parameter is false, in which case a "full"
   * BlockSolverConfig is constructed.
   *
   * Note that BlockSolverConfig::get() is a reasonably cheap operation,
@@ -406,24 +418,58 @@ class BlockSolverConfig : public Configuration {
 
  /// create/delete and un/register Solver to \p block
  /** Method for creating, configuring and registering some Solver to the
-  * given \p block. The way this happens depends on the field #f_diff, which
-  * indicates whether the BlockSolverConfig has to be interpreted in
-  * "differential mode" (whatever is not mentioned remains as it is) rather
-  * than in "setting mode" (the final state is going to be precisely the one
-  * that the BlockSolverConfig represents).
+  * given \p block. The way this happens depends on the field #f_diff, i.e.,
+  * the mode of the BlockSolverConfig [see bsc_mode]: "differential mode"
+  * (whatever is not mentioned remains as it is), "setting mode" (the final
+  * state is going to be precisely the one that the BlockSolverConfig
+  * represents), or "additive mode" (whatever is registered, by whomever, is
+  * never touched, and everything here is registered in addition).
   *
   * Note that the main "driver" of the configuration is the list of Solver
   * names. The list of corresponding SolverConfig * may be shorter than that,
   * in which case all the missing elements are treated as nullptr, or longer,
   * in which case the extra elements are just ignored.
   *
-  * The behaviour of this method is the following:
+  * Along the way, apply() maintains the per-Block *registry* of this
+  * BlockSolverConfig [see get_Solvers()]: every Solver it creates and
+  * registers to \p block is recorded, and every Solver it un-registers and
+  * deletes is dropped from the record. This is what makes the "cleared"
+  * case below able to remove all and only "its own" Solver, and is also the
+  * reason why apply() is not const.
   *
-  * - First, the list of Solver registered to the given Block is scanned,
-  *   and for each of them the corresponding elements in this
+  * The special case first: if this BlockSolverConfig is *cleared* (it is in
+  * setting mode and its list of Solver names is empty, which is the state
+  * that clear() leaves behind), then apply() un-registers and deletes all
+  * and only the Solver that this very object had previously registered to
+  * \p block and that are *still* registered to it; a recorded Solver that
+  * is no longer registered has been removed (and deleted) by someone else
+  * in the meantime, and is silently ignored. If \p block is not in the
+  * registry at all - this object never registered anything to it, or its
+  * registration was already consumed - nothing whatsoever is done. The
+  * registration is *consumed* by this operation: apply()-ing the same
+  * cleared BlockSolverConfig to the same Block twice correctly removes
+  * "its" Solver the first time and does nothing the second. Note the
+  * consequence: a cleared BlockSolverConfig is a cleanup tool for what
+  * *it* did, not a general "wipe all Solver" tool; for the latter one
+  * directly uses Block::unregister_Solvers( true ).
+  *
+  * Otherwise, the behaviour of this method is the following:
+  *
+  * - If #f_diff == eAddMode, the Solver currently registered to the Block
+  *   are not even looked at: for each (necessarily nonempty) name in this
+  *   BlockSolverConfig a new Solver is created, ComputeConfig-ured (unless
+  *   the ComputeConfig is nullptr) and registered after all the existing
+  *   ones, and recorded in the registry. This is the mode of choice for a
+  *   component that needs to attach "its own" Solver to a Block it does
+  *   not own without disturbing (nor having to know) anything of what is
+  *   already there, relying on the cleared apply() above to detach exactly
+  *   them afterwards.
+  *
+  * - Otherwise, first the list of Solver registered to the given Block is
+  *   scanned, and for each of them the corresponding elements in this
   *   BlockSolverConfig are examined. Then:
   *
-  *   = If #f_diff == true
+  *   = If #f_diff == eDiffMode
   *
   *     * if the name of the Solver in this BlockSolverConfig is empty then
   *       the Solver is left there, otherwise the existing Solver is
@@ -434,7 +480,7 @@ class BlockSolverConfig : public Configuration {
   *       otherwise the ComputeConfig * is set_() to the Solver (be it the
   *       old or the new one)
   *
-  *   = If #f_diff == false, the existing Solver is un-registered and
+  *   = If #f_diff == eSetMode, the existing Solver is un-registered and
   *     deleted, then new Solver is created and registered in that position,
   *     and the corresponding ComputeConfig is passed to it (unless it is
   *     nullptr, because setting a nullptr ComputeConfig to a newly minted
@@ -449,23 +495,23 @@ class BlockSolverConfig : public Configuration {
   *   == false [see ThinComputeInterface::set_ComputeConfig()].
   *
   * - After the end of the list of currently registered Solver is reached (if
-  *   ever), the behaviour is instead independent on the value of #f_diff
-  *   (adding to nothing is setting): a new Solver is created and registered
-  *   after the current ones (which means that the name must *not* be empty),
-  *   and the corresponding ComputeConfig is set_*() to it (unless it is
-  *   nullptr, because setting a nullptr ComputeConfig to a newly minted
-  *   Solver is useless).
+  *   ever), the behaviour is instead independent on the mode (adding to
+  *   nothing is setting): a new Solver is created and registered after the
+  *   current ones (which means that the name must *not* be empty), and the
+  *   corresponding ComputeConfig is set_*() to it (unless it is nullptr,
+  *   because setting a nullptr ComputeConfig to a newly minted Solver is
+  *   useless).
   *
   * - However, after the end of the Solver names the behaviour is again
-  *   dependent on the value of #f_diff:
+  *   dependent on the mode:
   *
-  *   = If #f_diff == true, any existing Solver after the end of the Solver
-  *     names is left completely untouched;
+  *   = If #f_diff == eDiffMode, any existing Solver after the end of the
+  *     Solver names is left completely untouched;
   *
-  *   = If #f_diff == false, any existing Solver after the end of the Solver
-  *     names is un-registered from the Block and deleted.
+  *   = If #f_diff == eSetMode, any existing Solver after the end of the
+  *     Solver names is un-registered from the Block and deleted.
   *
-  * In other words, apply()-ing a BlockSolverConfig with #f_diff == false
+  * In other words, apply()-ing a BlockSolverConfig with #f_diff == eSetMode
   * ensures that the resulting list of Solver registered to the Block is
   * precisely the one specified in the BlockSolverConfig (no more, no less)
   * with precisely the given SolverConfig.
@@ -518,15 +564,19 @@ class BlockSolverConfig : public Configuration {
   *        legacy semantics. */
 
  virtual void apply( Block * block ,
-                     const std::unordered_set< Block * > * ignored = nullptr ) const;
+                     const std::unordered_set< Block * > * ignored = nullptr );
 
 /*--------------------------------------------------------------------------*/
  /// delete all the ComputeConfig and empty the names of the Solver
  /** This method clears the vectors of (pointers to) ComputeConfig and names;
-  * morever, #f_diff is set to false. */
+  * morever, #f_diff is set to eSetMode, so that the resulting object is a
+  * "cleared" one whose apply() removes all and only the Solver this object
+  * had registered [see apply()]. For this to work the per-Block registry is
+  * deliberately *not* touched: clear() empties the configuration, not the
+  * record of what this object has done. */
 
  void clear( void ) override {
-  set_diff( false );
+  set_diff( eSetMode );
   for( auto config : v_SolverConfigs )
    delete config;
   v_SolverConfigs.clear();
@@ -570,11 +620,12 @@ class BlockSolverConfig : public Configuration {
  *  @{ */
 
  /// change the mode of this configuration
-/** This function changes the mode of this BlockSolverConfig. If \p diff is
-  * true, then this BlockSolverConfig is to be "interpreted in a
-  * differential sense". */
+ /** This function changes the mode of this BlockSolverConfig [see
+  * bsc_mode]: eSetMode = "setting", eDiffMode = "differential", eAddMode =
+  * "additive". The historical bool values false / true convert to
+  * eSetMode / eDiffMode. */
 
- void set_diff( bool diff = true ) { f_diff = diff; }
+ void set_diff( int diff = eDiffMode ) { f_diff = diff; }
 
 /*--------------------------------------------------------------------------*/
  /// adds a new pair < Solver (name) , ComputeConfig (pointer) >
@@ -659,9 +710,35 @@ class BlockSolverConfig : public Configuration {
 /** @name Methods for reading the data of the BlockSolverConfig
  *  @{ */
 
- /// tells if the configuration is a "differential" one (reads #f_diff)
+ /// returns the mode of the configuration (reads #f_diff)
+ /** Returns the mode of this BlockSolverConfig [see bsc_mode]. Note that
+  * using the returned value as a bool preserves the historical semantic
+  * "is it a differential one?" only for the first two modes. */
 
- [[nodiscard]] bool is_diff( void ) const { return( f_diff ); }
+ [[nodiscard]] int is_diff( void ) const { return( f_diff ); }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the Solver this BlockSolverConfig has registered to \p block
+ /** Returns the (pointers to the) Solver that apply() has created and
+  * registered to the given \p block and has not (yet) un-registered from
+  * it: this is the per-Block *registry* that a cleared apply() consumes to
+  * remove all and only "its own" Solver [see apply()], exposed so that
+  * whoever drives the solution process can iterate over exactly the Solver
+  * this BlockSolverConfig is responsible for (rather than over all the
+  * Solver of the Block, which may well include somebody else's). The
+  * returned reference is empty if this object never registered anything to
+  * \p block, or its registration has been consumed. The pointers are owned
+  * by the Block registration mechanism, NOT by the BlockSolverConfig; note
+  * that a recorded Solver may have been un-registered (and deleted) by
+  * someone else in the meantime, in which case the corresponding pointer
+  * is dangling, exactly as any other Solver pointer would be. */
+
+ [[nodiscard]] const std::vector< Solver * > & get_Solvers( Block * block )
+  const {
+  static const std::vector< Solver * > _empty;
+  auto bit = v_Registered.find( block );
+  return( bit == v_Registered.end() ? _empty : bit->second );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the current number of ComputeConfig in this BlockSolverConfig
@@ -725,9 +802,10 @@ class BlockSolverConfig : public Configuration {
  /// returns true if the BlockSolverConfig is "empty"
  /** Returns true if the BlockSolverConfig is "empty", i.e., the list of
   * Solver names is empty. Such a BlockSolverConfig "contains no relevant
-  * information" save for f_diff. Indeed, if apply()-ed with f_diff == true
-  * it does nothing, if apply()-ed with f_diff == false it is equivalent to
-  * a call to Block::unregister_Solvers( true ). */
+  * information" save for f_diff. Indeed, if apply()-ed in differential or
+  * additive mode it does nothing, while if apply()-ed in setting mode it is
+  * "cleared", and it removes all and only the Solver it had registered
+  * [see apply()]. */
 
  [[nodiscard]] virtual bool empty( void ) const {
   return( v_SolverNames.empty() );
@@ -749,8 +827,9 @@ class BlockSolverConfig : public Configuration {
  /// load this BlockSolverConfig out of an istream
  /** Load this BlockSolverConfig out of an istream, with the format:
   *
-  * - a binary number b to determine the value of #f_diff. If b == 0 then
-  *   #f_diff = false, otherwise, #f_diff = true.
+  * - a number b to determine the value of #f_diff, i.e., the mode of the
+  *   BlockSolverConfig [see bsc_mode]: 0 = "setting", 1 = "differential",
+  *   2 = "additive".
   *
   * - the number k of the names of Solver for the Block; if k == 0 then an
   *   empty BlockSolverConfig (no names or ComputeConfig in it)
@@ -773,7 +852,16 @@ class BlockSolverConfig : public Configuration {
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
- bool f_diff;  ///< tells if the configuration is a "differential" one
+ int f_diff;   ///< the mode of the configuration [see bsc_mode]
+
+ /// the per-Block registry of the Solver registered by apply()
+ /** For each Block this BlockSolverConfig has been apply()-ed to, the
+  * (pointers to the) Solver that apply() created and registered to it and
+  * has not un-registered since. This is runtime state, not configuration:
+  * it is not (de)serialized, not copied by the copy constructor and
+  * clone(), moved by the move constructor, and deliberately *not* emptied
+  * by clear() [see apply() for how it is maintained and consumed]. */
+ std::map< Block * , std::vector< Solver * > > v_Registered;
 
  /// the names of the Solver of the BlockSolverConfig
  std::vector< std::string > v_SolverNames;
@@ -813,29 +901,22 @@ class BlockSolverConfig : public Configuration {
  * store a BlockSolverConfig for each sub-Block of the Block, but only those
  * that are needed.
  *
- * The meaning of the field #f_diff, inherited from BlockSolverConfig, is also
- * extended to the sub-Block: if #f_diff is true, then all nullptr
- * BlockSolverConfig * correspond to not changing any of the configurations of
- * any of the Solver attached to the corresponding sub-Block. Conversely,
- * if #f_diff is false, then a nullptr BlockSolverConfig * corresponds to
- * deleting all the Solver (and their ComputeConfig) for that sub-Block.
+ * The meaning of the field #f_diff, inherited from BlockSolverConfig, is
+ * also extended to the sub-Block, but a nullptr BlockSolverConfig * always
+ * corresponds to leaving the corresponding sub-Block completely alone,
+ * whatever the mode: removal of Solver only ever happens through the
+ * apply() of an actual (sub-)BlockSolverConfig, which removes all and only
+ * the Solver *it* had registered [see BlockSolverConfig::apply()].
  *
- *     NOTE THAT A SUB-Block NOT APPEARING IN THE SET OF Block IS *NOT*
- *     EQUIVALENT TO APPEARING THERE BUT HAVING A nullptr BlockSolverConfig,
- *     IN PARTICULAR IF f_diff == false
- *
- * Indeed, even if f_diff == false the sub-Block *not* appearing in the list
- * are not modified when the RBlockSolverConfig is apply()-ed.
- *
- * The rationale is that a RBlockSolverConfig contains information about
- * which sub-Block have had Solver attached to them, which is kept even if
- * the RBlockSolverConfig is clear()-ed. In this way, it is possible to
- * unregister the Solver only from the Block that have them (assuming they
- * have all been registered by the RBlockSolverConfig). Note that, if a
- * sub-Block does not directly have a registered Solver but one of its
- * sub-Block (recursively) does, then the sub-Block must appear in the
- * set with a RBlockSolverConfig that is "empty" for the base Block but
- * have a non-empty list of sub-Block. */
+ * The rationale for handling a subset of the sub-Block is that a
+ * RBlockSolverConfig contains information about which sub-Block have had
+ * Solver attached to them, which is kept even if the RBlockSolverConfig is
+ * clear()-ed: each sub-BlockSolverConfig, clear()-ed in place, cleans its
+ * own sub-Block up through its own registry. Note that, if a sub-Block
+ * does not directly have a registered Solver but one of its sub-Block
+ * (recursively) does, then the sub-Block must appear in the set with a
+ * RBlockSolverConfig that is "empty" for the base Block but have a
+ * non-empty list of sub-Block. */
 
 class RBlockSolverConfig : public BlockSolverConfig {
 
@@ -893,12 +974,12 @@ class RBlockSolverConfig : public BlockSolverConfig {
   * @param block A pointer to the Block for which an RBlockSolverConfig will
   *        be constructed.
   *
-  * @param diff indicates if this configuration is a "differential" one.
+  * @param diff the mode of this configuration [see bsc_mode].
   *
   * @param clear indicates whether a "cleared" RBlockSolverConfig is desired;
   *        see RBlockSolverConfig::get() for details. */
 
- explicit RBlockSolverConfig( const Block * block , bool diff = false ,
+ explicit RBlockSolverConfig( const Block * block , int diff = eSetMode ,
 			      bool clear = false )
   : BlockSolverConfig( diff ) { RBlockSolverConfig::get( block , clear ); }
 
@@ -921,8 +1002,8 @@ class RBlockSolverConfig : public BlockSolverConfig {
   * sub-Block, or even to nullptr remains the Block has exactly no Solver
   * configuration.
   *
-  * The parameter \diff tells if the required [R]BlockSolverConfig need be
-  * in "diff mode" or in "setting mode".
+  * The parameter \diff tells the mode of the required [R]BlockSolverConfig
+  * [see bsc_mode].
   *
   * The parameter clear tells is a clear()-ed BlockSolverConfig is wanted.
   *
@@ -934,7 +1015,8 @@ class RBlockSolverConfig : public BlockSolverConfig {
   * in fact of other BlockSolverConfig. */
 
  static BlockSolverConfig * get_right_BlockSolverConfig(
-	      const Block * block , bool diff = true , bool clear = false ) {
+	      const Block * block , int diff = eDiffMode ,
+	      bool clear = false ) {
   auto RBSC = new RBlockSolverConfig( block , diff , clear );
   if( ! RBSC->num_BlockSolverConfig() ) {
    auto BSC = new BlockSolverConfig( std::move( *RBSC ) );
@@ -1075,11 +1157,11 @@ class RBlockSolverConfig : public BlockSolverConfig {
   * itself a RBlockSolverConfig, recursively does the job for further
   * sub-sub-Block).
   *
-  * A sub-Block may have a nullptr BlockSolverConfig (*). In this case, the
-  * behaviour of the method depends on f_diff. If f_diff == true, then
-  * nothing is done. If f_diff == false, then all the Solver registered on
-  * that sub-Block are unregistered and deleted, but nothing is done for its
-  * further sub-sub-Block (recursively).
+  * A sub-Block may have a nullptr BlockSolverConfig (*). In this case
+  * nothing is done to it, whatever the mode: removal of Solver only ever
+  * happens through the apply() of an actual (sub-)BlockSolverConfig, which
+  * removes all and only the Solver *it* had registered [see
+  * BlockSolverConfig::apply()].
   *
   * @param block A pointer to the Block that must be configured.
   * @param ignored Forwarded verbatim to BlockSolverConfig::apply() for
@@ -1088,7 +1170,8 @@ class RBlockSolverConfig : public BlockSolverConfig {
   *        Default nullptr preserves the legacy semantics. */
 
  void apply( Block * block ,
-             const std::unordered_set< Block * > * ignored = nullptr ) const override;
+             const std::unordered_set< Block * > * ignored = nullptr )
+  override;
 
 /*--------------------------------------------------------------------------*/
  /// clear this RBlockSolverConfig

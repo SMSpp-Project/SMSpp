@@ -437,9 +437,13 @@ void LagBFunction::set_ComputeConfig( const ComputeConfig * scfg )
      delete f_BSC;                     // delete the old one
      }
 
-    BSC->apply( inner_block );         // apply the new BlockSolverConfig
-    f_BSC = BSC->clone();                // keep a copy of the new one
-    f_BSC->clear();                      // but clear it
+    // apply the new BlockSolverConfig through a private copy, which then
+    // remains, clear()-ed, as the cleanup object: having done the apply()
+    // itself, it records the registered Solver and its cleared apply()
+    // removes exactly them [see BlockSolverConfig::apply()]
+    f_BSC = BSC->clone();
+    f_BSC->apply( inner_block );
+    f_BSC->clear();
     }
    }
   else {  // scfg->f_extra_Configuration is nullptr
@@ -1049,19 +1053,51 @@ void LagBFunction::cleanup_inner_objective( void )
  // for each Block's objective
  for( Index h = 0 ; h < CostMatrix.size() ; ++h ) {
   const auto & CMh = CostMatrix[ h ];
+  auto fn = v_Obj[ h ]->get_function();
+  auto lf = v_ObjIsQuad[ h ] ? nullptr : static_cast< p_LF >( fn );
+  auto qf = v_ObjIsQuad[ h ] ? static_cast< p_QF >( fn ) : nullptr;
 
-  // construct the vector of original coefficients
-  Vec_FunctionValue NC( CMh.size() );
-  for( Index i = 0 ; i < CMh.size() ; ++i )
-   NC[ i ] = CMh[ i ].first;
+  // collect the coefficients that are not the original ones already: writing
+  // the whole vector would be a Range spanning every variable of the inner
+  // Block, and a :Block is entitled to refuse a change on some of its own
+  // [see e.g. ThermalUnitBlock and the schedule-deviation variables, whose
+  // coefficient is fixed], which it does on the range and not on the value,
+  // so restoring what is already there would be refused. This mirrors what
+  // the Lagrangian costs are written with, which is sparse as well
+  Subset chgidx;
+  Vec_FunctionValue chgval;
+  for( Index i = 0 ; i < CMh.size() ; ++i ) {
+   const auto orig = CMh[ i ].first;
+   if( ( lf ? lf->get_coefficient( i ) : qf->get_linear_coefficient( i ) )
+       != orig ) {
+    chgidx.push_back( i );
+    chgval.push_back( orig );
+    }
+   }
 
-  // modify the objective (linear or quadratic)
-  if( ! v_ObjIsQuad[ h ] )
-   static_cast< p_LF >( v_Obj[ h ]->get_function()
-			)->modify_coefficients( std::move( NC ) );
-  else
-   static_cast< p_QF >( v_Obj[ h ]->get_function()
-			)->modify_linear_coefficients( std::move( NC ) );
+  if( chgidx.empty() )  // nothing of this objective was changed
+   continue;
+
+  // a contiguous set is written as a Range, which spares the index vector
+  const bool is_range =
+   ( chgidx.back() - chgidx.front() + 1 == Index( chgidx.size() ) );
+
+  if( lf ) {
+   if( is_range )
+    lf->modify_coefficients( std::move( chgval ) ,
+			     Range( chgidx.front() , chgidx.back() + 1 ) );
+   else
+    lf->modify_coefficients( std::move( chgval ) , std::move( chgidx ) );
+   }
+  else {
+   if( is_range )
+    qf->modify_linear_coefficients( std::move( chgval ) ,
+				    Range( chgidx.front() ,
+					   chgidx.back() + 1 ) );
+   else
+    qf->modify_linear_coefficients( std::move( chgval ) ,
+				    std::move( chgidx ) );
+   }
   }
 
  f_play_dumb = false;  // back to normal operations
@@ -1327,7 +1363,7 @@ void LagBFunction::put_State( const State & state )
 
  // ensure g_pool is large enough
  if( s.f_max_glob > g_pool.size() )
-  g_pool.resize( s.f_max_glob , gpool_el{ nullptr , true } );
+  g_pool.resize( s.f_max_glob );
 
  // copy the important linearization information
  zLC = s.zLC;
@@ -1337,8 +1373,7 @@ void LagBFunction::put_State( const State & state )
 
  // first void the current global pool
  if( NoSol ) {
-  std::fill( g_pool.begin() , g_pool.end() ,
-	     gpool_el{ nullptr , true } );
+  std::fill( g_pool.begin() , g_pool.end() , gpool_el() );
   f_max_glob = 0;
   }
  else {
@@ -1422,7 +1457,7 @@ void LagBFunction::put_State( State && state )
 
  // ensure g_pool is large enough
  if( s.f_max_glob > g_pool.size() )
-  g_pool.resize( s.f_max_glob , gpool_el{ nullptr , true } );
+  g_pool.resize( s.f_max_glob );
 
  // move the important linearization information
  zLC = std::move( s.zLC );
@@ -1432,8 +1467,7 @@ void LagBFunction::put_State( State && state )
 
  // first void the current global pool
  if( NoSol ) {
-  std::fill( g_pool.begin() , g_pool.end() ,
-	     gpool_el{ nullptr , true } );
+  std::fill( g_pool.begin() , g_pool.end() , gpool_el() );
   f_max_glob = 0;
   }
  else {
@@ -4550,6 +4584,7 @@ void LagBFunction::eager_pool_cost_removal(
  }  // end( LagBFunction::eager_pool_cost_removal )
 
 /*--------------------------------------------------------------------------*/
+
 void LagBFunction::update_CostMatrix_ModVarsAddd( Index h ,
                                                   c_Vec_p_Var & vars ,
                                                   Index first )
@@ -4758,6 +4793,7 @@ void LagBFunction::set_default_inner_BlockSolverConfig( void )
   auto solver_config = new RBlockSolverConfig( ib );
   solver_config->clear();
   solver_config->apply( ib );
+  delete solver_config;
   }
  }
 

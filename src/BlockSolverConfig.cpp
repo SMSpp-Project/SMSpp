@@ -20,9 +20,13 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <algorithm>
+
 #include "BlockInspection.h"
 
 #include "BlockSolverConfig.h"
+
+#include <unordered_set>
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -108,6 +112,8 @@ static void checkfail( std::istream & input , const std::string & msg )
 BlockSolverConfig::BlockSolverConfig( const BlockSolverConfig & old )
  : Configuration()
 {
+ // note: the per-Block registry is not copied, since the copy has not
+ // registered anything to anybody yet [see the class comment]
  f_diff = old.f_diff;
  v_SolverNames = old.v_SolverNames;
 
@@ -127,6 +133,8 @@ BlockSolverConfig::BlockSolverConfig( BlockSolverConfig && old ) noexcept
  f_diff = old.f_diff;
  v_SolverNames = std::move( old.v_SolverNames );
  v_SolverConfigs = std::move( old.v_SolverConfigs );
+ v_Registered = std::move( old.v_Registered );  // the moved-into object
+                       // takes over the identity, registrations included
  }
 
 /*--------------------------------------------------------------------------*/
@@ -191,11 +199,15 @@ void BlockSolverConfig::deserialize( const netCDF::NcGroup & group )
 
  netCDF::NcGroupAtt diff = group.getAtt( "diff" );
  if( diff.isNull() )
-  f_diff = false;
+  f_diff = eSetMode;
  else {
   int diffint;
   diff.getValues( &diffint );
-  f_diff = diffint > 0;
+  if( ( diffint < eSetMode ) || ( diffint > eAddMode ) )
+   throw( std::invalid_argument( "BlockSolverConfig::deserialize: invalid "
+				 "diff attribute " +
+				 std::to_string( diffint ) ) );
+  f_diff = diffint;
   }
 
  size_t num_solvers = 0;
@@ -255,7 +267,7 @@ void BlockSolverConfig::get( const Block * block , bool clear )
 
  auto it = registered_Solvers.begin();
 
- if( f_diff )
+ if( f_diff == eDiffMode )
   for( auto & el : v_SolverConfigs )
    el = (*(it++))->get_ComputeConfig();
  else
@@ -271,26 +283,74 @@ void BlockSolverConfig::get( const Block * block , bool clear )
 /*--------------------------------------------------------------------------*/
 
 void BlockSolverConfig::apply( Block * block ,
-                               const std::unordered_set< Block * > * ignored ) const
+                               const std::unordered_set< Block * > * ignored )
 {
  if( ! block )
   return;
 
- if( ( ! f_diff ) && v_SolverNames.empty() ) {
-  // applying a BlockSolverConfig without Solver in setting mode means
-  // unregistering and deleting all existing Solver
-  block->unregister_Solvers( true );  // do it with one call
-  return;                             // all done
+ if( ( f_diff == eSetMode ) && v_SolverNames.empty() ) {
+  // applying a cleared BlockSolverConfig: un-register and delete all and
+  // only the Solver that this very object had registered to this Block and
+  // that are still registered to it; a Block this object never configured
+  // (or whose registration was already consumed) is not touched at all
+
+  auto bit = v_Registered.find( block );
+  if( bit == v_Registered.end() )
+   return;                        // nothing ever registered here: no-op
+
+  auto & solvers = block->get_registered_solvers();
+  for( auto slvr : bit->second )
+   if( std::find( solvers.begin() , solvers.end() , slvr )
+       != solvers.end() )                        // if it is still there
+    block->unregister_Solver( slvr , true );     // un-register and delete
+   // else it has been un-registered by someone else in the meantime and
+   // the pointer may well be dangling: just ignore it
+
+  v_Registered.erase( bit );  // the registration is consumed: apply()-ing
+                              // this again to the same Block does nothing
+  return;                                        // all done
   }
 
- // small helper to install the exclusion list on a freshly-created Solver
- // BEFORE it is attached to the Block: set_excluded_blocks() walks the
- // sub-tree of every Block in *ignored and eagerly expands the set, so
- // load_problem() (called inside Block::register_Solver / replace_Solver
- // via Solver::set_Block) already sees the right exclusion set
+ /* A Solver that has to ignore part of the Block tree must be told before it
+  * is attached: set_excluded_blocks() eagerly expands the set over the
+  * sub-tree of each Block in it, and load_problem(), which register_Solver()
+  * and replace_Solver() trigger, has to already see the right one. */
+
  const auto install_excluded = [ ignored ]( Solver * slvr ) {
-  if( slvr && ignored && ! ignored->empty() )
+  if( slvr && ignored && ( ! ignored->empty() ) )
    slvr->set_excluded_blocks( ignored );
+  };
+
+ auto & recorded = v_Registered[ block ];  // the record for this Block
+
+ if( f_diff == eAddMode ) {  // additive mode- - - - - - - - - - - - - - - - -
+  // do not touch the Solver already registered to the Block, whoever
+  // created them: create, ComputeConfig-ure, register and record all the
+  // Solver of the BlockSolverConfig in addition to them
+
+  auto cit = v_SolverConfigs.begin();
+  for( auto nit = v_SolverNames.begin() ; nit != v_SolverNames.end() ;
+       ++nit , ++cit ) {
+   auto slvr = Solver::new_Solver( *nit );  // first create the Solver
+
+   if( *cit )                               // if the ComputeConfig is there
+    slvr->set_ComputeConfig( *cit );        // ComputeConfig-ure it
+
+   install_excluded( slvr );                // and tell it what to ignore
+
+   block->register_Solver( slvr );          // only then pass it to the Block
+   recorded.push_back( slvr );              // and record it
+   }
+
+  return;       // end additive mode - - - - - - - - - - - - - - - - - - - - -
+  }
+
+ // a Solver that this object had registered and that is deleted now must
+ // disappear from the record
+ auto forget = [ & recorded ]( Solver * slvr ) {
+  auto rit = std::find( recorded.begin() , recorded.end() , slvr );
+  if( rit != recorded.end() )
+   recorded.erase( rit );
   };
 
  auto & solvers = block->get_registered_solvers();
@@ -301,7 +361,7 @@ void BlockSolverConfig::apply( Block * block ,
  // process existing Solvers - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( f_diff ) {  // differential mode- - - - - - - - - - - - - - - - - - - - -
+ if( f_diff == eDiffMode ) {  // differential mode- - - - - - - - - - - - - - -
   // process existing Solvers
 
   for( ; ( sit != solvers.end() ) && ( nit != v_SolverNames.end() ) ;
@@ -318,7 +378,6 @@ void BlockSolverConfig::apply( Block * block ,
 
     if( *cit )                         // if the ComputeConfig is there
      slvr->set_ComputeConfig( *cit );  // ComputeConfig-ure it
-    install_excluded( slvr );          // refresh the exclusion list, if any
     }
    else {                // a new and different Solver (name) is specified
     slvr = Solver::new_Solver( *nit );
@@ -326,8 +385,11 @@ void BlockSolverConfig::apply( Block * block ,
     if( *cit )                             // if the ComputeConfig is there
      slvr->set_ComputeConfig( *cit );      // ComputeConfig-ure it
 
-    install_excluded( slvr );  // pre-load exclusion list before attachment
+    install_excluded( slvr );              // and tell it what to ignore
+
+    forget( *sit );                        // the replaced one is deleted
     block->replace_Solver( slvr , sit , true );  // replace the existing one
+    recorded.push_back( slvr );
     }
    }
 
@@ -337,8 +399,10 @@ void BlockSolverConfig::apply( Block * block ,
  else {          // setting mode - - - - - - - - - - - - - - - - - - - - - - -
   // delete extra Solvers
 
-  while( solvers.size() > v_SolverNames.size() )
+  while( solvers.size() > v_SolverNames.size() ) {
+   forget( *( --solvers.end() ) );
    block->unregister_Solver( --solvers.end(), true );
+   }
 
   // process existing Solvers
 
@@ -351,10 +415,12 @@ void BlockSolverConfig::apply( Block * block ,
    if( *cit )                                // if the ComputeConfig is there
     slvr->set_ComputeConfig( *cit );         // ComputeConfig-ure it
 
-   install_excluded( slvr );  // pre-load exclusion list before attachment
+   install_excluded( slvr );                 // and tell it what to ignore
 
    // only then replace the existing one
+   forget( *sit );                           // the replaced one is deleted
    block->replace_Solver( slvr, sit, true );
+   recorded.push_back( slvr );
    }
   }              // end setting mode - - - - - - - - - - - - - - - - - - - - -
 
@@ -369,12 +435,16 @@ void BlockSolverConfig::apply( Block * block ,
   if( *cit )                               // if the ComputeConfig is there
    slvr->set_ComputeConfig( *cit );        // ComputeConfig-ure it
 
-  install_excluded( slvr );  // pre-load exclusion list before attachment
+  install_excluded( slvr );                // and tell it what to ignore
 
   block->register_Solver( slvr );          // only then pass it to the Block
+  recorded.push_back( slvr );
   }
 
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ if( recorded.empty() )        // this apply() ended up recording nothing
+  v_Registered.erase( block ); // don't keep an empty entry around
 
  }  // end( BlockSolverConfig::apply )
 
@@ -421,7 +491,8 @@ void BlockSolverConfig::serialize( netCDF::NcGroup & group ) const
 void BlockSolverConfig::print( std::ostream & output ) const
 {
  output << private_name();
- if( f_diff ) output << "[diff]";
+ if( f_diff == eDiffMode ) output << "[diff]";
+ else if( f_diff == eAddMode ) output << "[add]";
  output << ": " << std::endl;
  for( std::size_t i = 0 ; i < v_SolverNames.size() ; ++i )
   output << v_SolverNames[ i ] << ": " << v_SolverConfigs[ i ];
@@ -438,6 +509,9 @@ void BlockSolverConfig::load( std::istream & input )
  if( ! advance( input ) ) {
   input >> f_diff;
   checkfail( input , sre );
+  if( ( f_diff < eSetMode ) || ( f_diff > eAddMode ) )
+   throw( std::invalid_argument( "BlockSolverConfig::load: invalid mode " +
+				 std::to_string( f_diff ) ) );
 
   if( ! advance( input ) ) {
    input >> k;
@@ -451,10 +525,8 @@ void BlockSolverConfig::load( std::istream & input )
   return;
   }
 
- const unsigned int declared_names = k;
  v_SolverNames.resize( k );
  v_SolverConfigs.resize( k , nullptr );
- std::string last_name = "<none>";
  for( unsigned int i = 0 ; i < k ; ++i ) {
   input >> eatcomments;
   if( input.peek() == input.widen( '*' ) )
@@ -462,15 +534,7 @@ void BlockSolverConfig::load( std::istream & input )
   else
    input >> v_SolverNames[ i ];
 
-  if( input.fail() )
-   throw( std::logic_error(
-        "BlockSolverConfig::load: declared " +
-        std::to_string( declared_names ) +
-        " Solver names but failed to read entry #" +
-        std::to_string( i ) + " (last successfully parsed: '" +
-        last_name + "'); check the count above the Solver-name "
-        "block matches the names actually present in the file" ) );
-  last_name = v_SolverNames[ i ];
+  checkfail( input , sre );
   }
 
  if( advance( input ) )
@@ -478,8 +542,7 @@ void BlockSolverConfig::load( std::istream & input )
 
  input >> k;
  checkfail( input , sre );
-
- const unsigned int declared_configs = k;
+ 
  if( k > v_SolverNames.size() )
   v_SolverNames.resize( k );
  v_SolverConfigs.resize( std::max( k , Index( v_SolverNames.size() ) ) ,
@@ -487,23 +550,14 @@ void BlockSolverConfig::load( std::istream & input )
 
  for( unsigned int i = 0 ; i < k ; ++i ) {
   auto cfg = Configuration::deserialize( input );
-  if( input.fail() )
-   throw( std::logic_error(
-        "BlockSolverConfig::load: declared " +
-        std::to_string( declared_configs ) +
-        " ComputeConfig but failed to read entry #" +
-        std::to_string( i ) + "; check the count above the "
-        "ComputeConfig block matches the number of Configuration "
-        "objects actually present in the file" ) );
   if( ! cfg )  // empty Configuration
    continue;   // that's OK, but a nonempty one must be a ComputeConfig
   v_SolverConfigs[ i ] = dynamic_cast< ComputeConfig * >( cfg );
   if( ! v_SolverConfigs[ i ] ) {
    delete cfg;
    throw( std::invalid_argument(
-		         "BlockSolverConfig::load: entry #" +
-                         std::to_string( i ) +
-                         " is not a ComputeConfig" ) );
+		         "BlockSolverConfig::load: not a ComputeConfig "
+			 + std::to_string( i ) ) );
    }
   }
  }  // end( BlockSolverConfig::load )
@@ -651,14 +705,14 @@ void RBlockSolverConfig::get( const Block * block , bool clear )
 /*--------------------------------------------------------------------------*/
 
 void RBlockSolverConfig::apply( Block * block ,
-                                const std::unordered_set< Block * > * ignored ) const
+                                const std::unordered_set< Block * > * ignored )
 {
  if( ! block )
   return;
 
  // set the configurations for the Solver of the "root" Block - - - - - - - -
 
- BlockSolverConfig::apply( block , ignored );
+ BlockSolverConfig::apply( block );
 
  // set the configurations for the sub-Block- - - - - - - - - - - - - - - - -
  // note: the following code is inefficient when block ids are numbers, in
@@ -694,9 +748,8 @@ void RBlockSolverConfig::apply( Block * block ,
 				 ) );
   if( *it )
    ( *it )->apply( sub_Block , ignored );
-  else
-   if( ! f_diff )
-    sub_Block->unregister_Solvers( true );
+  // else: a nullptr sub-BlockSolverConfig leaves the sub-Block alone,
+  // whatever the mode [see the class comment]
   ++it;
   }
  }  // end( RBlockSolverConfig::apply )

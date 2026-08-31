@@ -1706,7 +1706,16 @@ class Solver : public ThinComputeInterface
   * Note that a "physical Solver" may well decide to store its solution
   * information directly into a Solution object in the "hot loops" of the
   * algorithmic solution: this is not an issue, in that this method can
-  * simply clone() it and return the thusly generated copy.
+  * simply clone() it and return the thusly generated copy. When it does,
+  * however,
+  *
+  *    THE Solution OBJECT SHOULD BE ASKED TO THE Block WITH new_Solution(),
+  *    RATHER THAN BE CONSTRUCTED BY NAME
+  *
+  * because the :Solution a :Block wants is the :Block's business, and a
+  * :Block derived from the one the Solver was written for may well want a
+  * derived :Solution: a Solver that constructs one by name keeps working,
+  * but it silently produces the wrong kind of object.
   *
   * Finally, let us explicitly remark that
   *

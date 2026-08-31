@@ -1404,6 +1404,22 @@ class ThinComputeInterface
   return( idx_type( 0 ) );
   }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// print all the parameters of this ThinComputeInterface on \p os
+ /** Print, one per line, the "string name" of each parameter of this
+  * ThinComputeInterface, its current value and its default one, walking the
+  * six index spaces in the order int, double, string, vector-of-int,
+  * vector-of-double and vector-of-string. Since the index space of a class
+  * that "wraps" another ThinComputeInterface extends over that of the
+  * wrapped one, and get_num_*_par() accounts for it [see e.g.
+  * LagrangianDualSolver], this also shows what the wrapped one has been
+  * given, which is what one needs to see when a parameter is suspected of
+  * not arriving where it was meant to. A parameter that the class does not
+  * name, or whose value it does not give, is printed with its index and a
+  * "?" in place of what is missing. */
+
+ virtual void print_parameters( std::ostream & os ) const;
+
 /*--------------------------------------------------------------------------*/
  /// get the default value of an int parameter
  /** Get the default value of the int parameter with index \p par, which must
@@ -2422,7 +2438,7 @@ class ComputeConfig : public Configuration
  /** Returns the "relax value" of the ComputeConfig, i.e., a bool with the
   * following meaning:
   *
-  *   = true if the the ComputeConfig is allowed to contain names of
+  *   = true if the ComputeConfig is allowed to contain names of
   *     parameters that are not recognised by the :ThinComputeInterface is
   *     will be set_*() to;
   *

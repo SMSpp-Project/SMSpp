@@ -203,6 +203,69 @@ ComputeConfig * ThinComputeInterface::get_ComputeConfig( bool all ,
 
 /*--------------------------------------------------------------------------*/
 
+void ThinComputeInterface::print_parameters( std::ostream & os ) const
+{
+ // the name of a parameter, or its index when the class does not name it
+ auto nm = [ this ]( const std::string & ( ThinComputeInterface::*idx2str )
+                     ( idx_type ) const , idx_type i ) -> std::string {
+  try { return( ( this->*idx2str )( i ) ); }
+  catch( ... ) { return( "[ " + std::to_string( i ) + " ]" ); }
+  };
+
+ // a vector printed as its elements between brackets
+ auto vec = []( std::ostream & o , const auto & v ) -> std::ostream & {
+  o << "[";
+  for( const auto & el : v )
+   o << " " << el;
+  return( o << " ]" );
+  };
+
+ for( idx_type i = 0 ; i < get_num_int_par() ; ++i ) {
+  os << nm( &ThinComputeInterface::int_par_idx2str , i ) << " = ";
+  try { os << get_int_par( i ) << " (" << get_dflt_int_par( i ) << ")"; }
+  catch( ... ) { os << "?"; }
+  os << std::endl;
+  }
+
+ for( idx_type i = 0 ; i < get_num_dbl_par() ; ++i ) {
+  os << nm( &ThinComputeInterface::dbl_par_idx2str , i ) << " = ";
+  try { os << get_dbl_par( i ) << " (" << get_dflt_dbl_par( i ) << ")"; }
+  catch( ... ) { os << "?"; }
+  os << std::endl;
+  }
+
+ for( idx_type i = 0 ; i < get_num_str_par() ; ++i ) {
+  os << nm( &ThinComputeInterface::str_par_idx2str , i ) << " = ";
+  try { os << "\"" << get_str_par( i ) << "\" (\""
+             << get_dflt_str_par( i ) << "\")"; }
+  catch( ... ) { os << "?"; }
+  os << std::endl;
+  }
+
+ for( idx_type i = 0 ; i < get_num_vint_par() ; ++i ) {
+  os << nm( &ThinComputeInterface::vint_par_idx2str , i ) << " = ";
+  try { vec( os , get_vint_par( i ) ); }
+  catch( ... ) { os << "?"; }
+  os << std::endl;
+  }
+
+ for( idx_type i = 0 ; i < get_num_vdbl_par() ; ++i ) {
+  os << nm( &ThinComputeInterface::vdbl_par_idx2str , i ) << " = ";
+  try { vec( os , get_vdbl_par( i ) ); }
+  catch( ... ) { os << "?"; }
+  os << std::endl;
+  }
+
+ for( idx_type i = 0 ; i < get_num_vstr_par() ; ++i ) {
+  os << nm( &ThinComputeInterface::vstr_par_idx2str , i ) << " = ";
+  try { vec( os , get_vstr_par( i ) ); }
+  catch( ... ) { os << "?"; }
+  os << std::endl;
+  }
+ }  // end( ThinComputeInterface::print_parameters )
+
+/*--------------------------------------------------------------------------*/
+
 void ThinComputeInterface::serialize_State( netCDF::NcGroup & group ,
                                 const std::string & sub_group_name ) const
 {

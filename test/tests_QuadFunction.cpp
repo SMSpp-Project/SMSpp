@@ -93,6 +93,69 @@ void runAllTests()
     assert( nw_quad.compute( true ) == QuadFunction::kOK );   
     assert( nw_quad.get_value() == 14.0 );
     assert( nw_quad.is_convex() ) ;
+    /* Removing a Range and removing a Subset have to leave the very same
+     * function that would have been built on the Variable that stay: the
+     * non-diagonal terms of a removed Variable go with it, and those of the
+     * ones that stay follow them to their new index. */
+
+    ColVariable y[ 5 ];
+    for( QuadFunction::Index i = 0 ; i < 5 ; ++i )
+        y[ i ].set_value( 1.0 + i );
+
+    // the function on the Variable whose index is in "keep", with the same
+    // coefficients whichever those are
+    auto build = [ &y ]( const std::vector< QuadFunction::Index > & keep ) {
+        DQuadFunction::v_coeff_triple tr( keep.size() );
+        for( QuadFunction::Index t = 0 ; t < keep.size() ; ++t )
+            tr[ t ] = std::make_tuple( &y[ keep[ t ] ] ,
+                                       Coefficient( keep[ t ] + 1 ) ,
+                                       Coefficient( 2 ) );
+
+        QuadFunction::v_off_diag_term od;
+        for( QuadFunction::Index t = 1 ; t < keep.size() ; ++t )
+            for( QuadFunction::Index l = 0 ; l < t ; ++l )
+                od.emplace_back( t , l ,
+                                 Coefficient( 1 + keep[ t ] * keep[ l ] ) );
+
+        return( new QuadFunction( std::move( tr ) , std::move( od ) ) );
+        };
+
+    {   // the Range [ 1 , 3 )
+        auto f = build( { 0 , 1 , 2 , 3 , 4 } );
+        f->remove_variables( QuadFunction::Range( 1 , 3 ) , eNoMod );
+        auto g = build( { 0 , 3 , 4 } );
+
+        assert( f->get_num_active_var() == g->get_num_active_var() );
+        assert( f->compute( true ) == QuadFunction::kOK );
+        assert( g->compute( true ) == QuadFunction::kOK );
+        assert( f->get_value() == g->get_value() );
+
+        delete f;
+        delete g;
+        }
+
+    {   // the Subset { 0 , 2 , 4 }
+        auto f = build( { 0 , 1 , 2 , 3 , 4 } );
+        f->remove_variables( QuadFunction::Subset( { 0 , 2 , 4 } ) , true ,
+                             eNoMod );
+        auto g = build( { 1 , 3 } );
+
+        assert( f->get_num_active_var() == g->get_num_active_var() );
+        assert( f->compute( true ) == QuadFunction::kOK );
+        assert( g->compute( true ) == QuadFunction::kOK );
+        assert( f->get_value() == g->get_value() );
+
+        delete f;
+        delete g;
+        }
+
+    {   // an empty Subset is "all of them"
+        auto f = build( { 0 , 1 , 2 , 3 , 4 } );
+        f->remove_variables( QuadFunction::Subset() , true , eNoMod );
+        assert( f->get_num_active_var() == 0 );
+        delete f;
+        }
+
 }
 
 /*--------------------------------------------------------------------------*/
