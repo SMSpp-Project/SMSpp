@@ -38,6 +38,7 @@ SMS++OBJ = $(SMS++SDR)/obj/AbstractBlock.o \
 	$(SMS++SDR)/obj/Block.o \
 	$(SMS++SDR)/obj/BlockSolverConfig.o \
 	$(SMS++SDR)/obj/BoxSolver.o \
+	$(SMS++SDR)/obj/CDASolver.o \
 	$(SMS++SDR)/obj/C05Function.o \
 	$(SMS++SDR)/obj/ColRowSolution.o \
 	$(SMS++SDR)/obj/ColVariable.o \
@@ -362,6 +363,10 @@ $(SMS++SDR)/obj/RowConstraintSolution.o: \
 	$(SMS++SDR)/include/ThinVarDepInterface.h $(SMS++SDR)/include/Variable.h
 	$(CC) -c $(SMS++SDR)/src/RowConstraintSolution.cpp \
 	-o $@ $(SMS++INC) $(SW)
+
+$(SMS++SDR)/obj/CDASolver.o: $(SMS++SDR)/src/CDASolver.cpp $(intBlockINC) \
+	$(SMS++SDR)/include/CDASolver.h
+	$(CC) -c $(SMS++SDR)/src/CDASolver.cpp -o $@ $(SMS++INC) $(SW)
 
 $(SMS++SDR)/obj/Solver.o: $(SMS++SDR)/src/Solver.cpp $(intBlockINC) \
 	$(SMS++SDR)/include/FakeSolver.h $(SMS++SDR)/include/UpdateSolver.h

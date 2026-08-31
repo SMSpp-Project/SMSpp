@@ -173,6 +173,7 @@ target_sources(${modName} PRIVATE
         src/AbstractBlock.cpp
         src/Change.cpp
         src/BoxSolver.cpp
+        src/CDASolver.cpp
         src/Block.cpp
         src/BlockSolverConfig.cpp
         src/C05Function.cpp
