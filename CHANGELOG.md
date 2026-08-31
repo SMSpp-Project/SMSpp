@@ -42,6 +42,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed 
 
+- `LagBFunction::cleanup_inner_objective()` restored the original costs by
+  rewriting the whole vector of coefficients, i.e. a Range spanning every
+  variable of the inner Block. A :Block is entitled to refuse a change on
+  some of its own, and ThermalUnitBlock does so for the schedule-deviation
+  variables on the range rather than on the value: it therefore refused a
+  restore that left those coefficients exactly where they were, which is
+  what the AC instances of the test battery died on. Only the coefficients
+  that actually differ are written now, as a Range when they are contiguous
+  and as a Subset otherwise, mirroring how the Lagrangian costs are written
+
 - `QuadFunction::remove_variables( Range )` computed the shift of the
   non-diagonal terms out of one Variable more than it was removing, kept the
   terms of the last removed one and, whenever an Observer was listening, spun
