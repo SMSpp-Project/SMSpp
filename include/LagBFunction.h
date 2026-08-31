@@ -18,12 +18,12 @@
  * \author Donato Meoli \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
- * 
+ *
  * \author Filippo Magi
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Enrico Gorgone, Donato Meoli, 
+ * \copyright &copy; by Antonio Frangioni, Enrico Gorgone, Donato Meoli,
  *                      Filippo Magi
  */
 /*--------------------------------------------------------------------------*/
@@ -661,7 +661,7 @@ namespace SMSpp_di_unipi_it
      * manage. */
     enum event_type_lagBFunction
     {
-      eColumnPurged  = e_last_event_type,
+      eColumnPurged = e_last_event_type,
       /// Intead of deleting no more valid column, move them in globalInformaion
       /**
        * event to be called in add_Modification,
@@ -2001,10 +2001,8 @@ namespace SMSpp_di_unipi_it
     void get_MatDesc(int *Abeg, int *Aind, double *Aval, int strt,
                      int stp);
 
-
-
     /// return the pointer to globalInformation
-    GlobalInformation * get_GlobalInformation (void) const {return (f_GI);}
+    GlobalInformation *get_GlobalInformation(void) const { return (f_GI); }
 
     /** @} ---------------------------------------------------------------------*/
     /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
@@ -2698,7 +2696,45 @@ namespace SMSpp_di_unipi_it
 
     Solution *release_current_purged_solution() noexcept
     {
-        return std::exchange(f_current_purged_solution, nullptr);
+      return std::exchange(f_current_purged_solution, nullptr);
+    }
+
+    void restore_purged_solution(std::vector<Solution *> solutions)
+    {
+      Index start = 0;
+      for (Solution *sol : solutions)
+      {
+        if (!sol)
+          continue;
+
+        Index pos = Inf<Index>();
+        for (Index i = start; i < f_max_glob; ++i)
+        {
+          if (!g_pool[i].sol)
+          {
+            start = i + 1;
+            pos = i;
+            break;
+          }
+        }
+
+        if (pos == Inf<Index>())
+        {
+          g_pool.push_back(gpool_el{});
+          pos = static_cast<Index>(g_pool.size() - 1);
+          start = pos + 1;
+        }
+
+        g_pool[pos].sol = sol;
+        g_pool[pos].varsol = true;
+        g_pool[pos].convexified = false;
+        g_pool[pos].value = 0;
+
+        if (pos + 1 > f_max_glob)
+          f_max_glob = pos + 1;
+
+        LastSolution = pos;
+      }
     }
 
     /*--------------------------------------------------------------------------*/
@@ -2901,7 +2937,7 @@ namespace SMSpp_di_unipi_it
       set_default_inner_BlockConfig();
     }
     /// set the GlobalInformation
-    void set_GlobalInformation (GlobalInformation* gi) {f_GI = gi;}
+    void set_GlobalInformation(GlobalInformation *gi) { f_GI = gi; }
 
     /*--------------------------------------------------------------------------*/
 
@@ -3132,9 +3168,9 @@ namespace SMSpp_di_unipi_it
 
     /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
-    GlobalInformation * f_GI = nullptr; ///< pointer to the GlobalInformation object
+    GlobalInformation *f_GI = nullptr; ///< pointer to the GlobalInformation object
 
-    std::vector< EventHandler > v_column_purged_handlers; /// registered handlers for the column-purged event
+    std::vector<EventHandler> v_column_purged_handlers; /// registered handlers for the column-purged event
     Solution *f_current_purged_solution = nullptr;
 
     /*--------------------------------------------------------------------------*/
