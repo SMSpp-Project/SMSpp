@@ -1204,20 +1204,20 @@ void LagBFunction::add_Modification(sp_Mod mod, ChnlName chnl)
                 continue;
               static_cast<void>(handler());
             }
+            // else
+            // delete g_pool[i].sol;
+            delete f_current_purged_solution; // eliminate it
+            f_current_purged_solution = nullptr;
+            // g_pool[i].sol = nullptr;
+            which.push_back(i); // recall its name
+            LastSolution = g_pool.size();
+            // say that no Solution is saved in the Block, since the name is now
+            // available again for a different Solution
           }
-          // else
-          // delete g_pool[i].sol;
-          delete f_current_purged_solution; // eliminate it
-          f_current_purged_solution = nullptr;
-          // g_pool[i].sol = nullptr;
-          which.push_back(i); // recall its name
-          LastSolution = g_pool.size();
-          // say that no Solution is saved in the Block, since the name is now
-          // available again for a different Solution
         }
       }
+      update_f_max_glob();
     }
-    update_f_max_glob();
 
     // if nobody is listening (assuming issueMod == eModBlck)
     if ((!f_Observer) || (!f_Observer->issue_mod(eModBlck)))
