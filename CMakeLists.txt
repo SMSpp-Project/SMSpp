@@ -172,6 +172,7 @@ include(ClangPatch) # TODO: Remove this when it's not needed anymore
 target_sources(${modName} PRIVATE
         src/AbstractBlock.cpp
         src/BoxSolver.cpp
+        src/CDASolver.cpp
         src/Block.cpp
         src/BlockSolverConfig.cpp
         src/C05Function.cpp
