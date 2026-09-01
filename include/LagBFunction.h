@@ -2699,7 +2699,7 @@ namespace SMSpp_di_unipi_it
       return std::exchange(f_current_purged_solution, nullptr);
     }
 
-    void restore_purged_solution(std::vector<Solution *> solutions)
+    void restore_purged_solutions(std::vector<Solution *> solutions)
     {
       Index start = 0;
       for (Solution *sol : solutions)
@@ -2712,8 +2712,8 @@ namespace SMSpp_di_unipi_it
         {
           if (!g_pool[i].sol)
           {
-            start = i + 1;
             pos = i;
+            start = i + 1;
             break;
           }
         }
@@ -2725,10 +2725,12 @@ namespace SMSpp_di_unipi_it
           start = pos + 1;
         }
 
-        g_pool[pos].sol = sol;
-        g_pool[pos].varsol = true;
-        g_pool[pos].convexified = false;
-        g_pool[pos].value = 0;
+        auto &slot = g_pool[pos];
+        slot.sol = sol;
+        slot.varsol = true;
+        slot.convexified = false;
+        slot.value = 0; // value is the linearization constant, not a pointer
+        slot.conv_active.clear();
 
         if (pos + 1 > f_max_glob)
           f_max_glob = pos + 1;
