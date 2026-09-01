@@ -4280,9 +4280,9 @@ class Block : public Observer {
  *   required properties (say, feasibility) even after all the Modification
  *   that may have occurred in the Meantime.
  *
- * For the latter use, is_feasible() and is_optimal() also come in a version
- * taking the Solution to be checked, rather than reading the solution out of
- * the Variable of the Block; that version does not require the Solution to
+ * For the latter use, is_sol_feasible() and is_sol_optimal() take the
+ * Solution to be checked, rather than reading the solution out of the
+ * Variable of the Block; that version does not require the Solution to
  * be read back into the Block, and it does not require the Block to have an
  * "abstract representation" at all, which is precisely the case of a
  * "physical" Solver that only ever produces a Solution [see
@@ -4471,19 +4471,16 @@ class Block : public Observer {
   * :Solution carries and how to check it, hence a :Block that does not
   * implement this method throws.
   *
-  * IMPORTANT: a :Block that overrides is_feasible( bool , Configuration * )
-  * without also overriding this one *hides* it, and since a pointer
-  * silently converts to bool, is_feasible( sol ) called on that :Block
-  * would quietly become is_feasible( true ). Any :Block overriding only one
-  * of the two must therefore have a
-  *
-  *     using Block::is_feasible;
-  *
-  * declaration, exactly as AbstractBlock does. */
+  * The name differs from that of is_feasible( bool , Configuration * ) on
+  * purpose: were the two overloads of one name, a :Block overriding the
+  * first one alone would *hide* this one, and since a pointer silently
+  * converts to bool the call is_sol_feasible( sol ) would quietly become
+  * is_feasible( true ), i.e., a check of something else entirely. */
 
- virtual bool is_feasible( Solution * sol , Configuration * fsbc = nullptr ) {
-  throw( std::logic_error( "Block::is_feasible: checking a Solution is not "
-			   "implemented for this :Block" ) );
+ virtual bool is_sol_feasible( Solution * sol ,
+			       Configuration * fsbc = nullptr ) {
+  throw( std::logic_error( "Block::is_sol_feasible: checking a Solution is "
+			   "not implemented for this :Block" ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -4579,8 +4576,8 @@ class Block : public Observer {
   * irrelevant here and it is left untouched.
   *
   * This is to is_optimal( bool , Configuration * ) exactly what
-  * is_feasible( Solution * , Configuration * ) is to is_feasible( bool ,
-  * Configuration * ): the values are read out of sol rather than out of the
+  * is_sol_feasible( Solution * , Configuration * ) is to is_feasible(
+  * bool , Configuration * ): the values are read out of sol rather than out of the
   * Variable of the Block, so that the solution a "physical" Solver produces
   * [see Solver::get_Solution()] can be checked even if the Block has no
   * "abstract representation". Note that proving optimality typically
@@ -4592,18 +4589,14 @@ class Block : public Observer {
   * the BlockConfig included.
   *
   * No default implementation is given, for the same reason as in
-  * is_feasible( Solution * , Configuration * ). The same warning about
-  * hiding applies: a :Block overriding only is_optimal( bool ,
-  * Configuration * ) must have a
-  *
-  *     using Block::is_optimal;
-  *
-  * declaration, otherwise is_optimal( sol ) called on it quietly becomes
-  * is_optimal( true ). */
+  * is_sol_feasible( Solution * , Configuration * ), and the name differs
+  * from that of is_optimal( bool , Configuration * ) for the same reason as
+  * well. */
 
- virtual bool is_optimal( Solution * sol , Configuration * optc = nullptr ) {
-  throw( std::logic_error( "Block::is_optimal: checking a Solution is not "
-			   "implemented for this :Block" ) );
+ virtual bool is_sol_optimal( Solution * sol ,
+			      Configuration * optc = nullptr ) {
+  throw( std::logic_error( "Block::is_sol_optimal: checking a Solution is "
+			   "not implemented for this :Block" ) );
   }
 
 /*--------------------------------------------------------------------------*/
