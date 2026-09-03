@@ -20,6 +20,8 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <algorithm>
+
 #include "BlockInspection.h"
 
 #include "BlockSolverConfig.h"
@@ -122,8 +124,9 @@ static void checkfail(std::istream &input, const std::string &msg)
 BlockSolverConfig::BlockSolverConfig(const BlockSolverConfig &old)
     : Configuration()
 {
+  // note: the per-Block registry is not copied, since the copy has not
+  // registered anything to anybody yet [see the class comment]
   f_diff = old.f_diff;
-  f_add = old.f_add;
   v_SolverNames = old.v_SolverNames;
 
   v_SolverConfigs.resize(old.v_SolverConfigs.size());
@@ -141,9 +144,10 @@ BlockSolverConfig::BlockSolverConfig(BlockSolverConfig &&old) noexcept
     : Configuration()
 {
   f_diff = old.f_diff;
-  f_add = old.f_add;
   v_SolverNames = std::move(old.v_SolverNames);
   v_SolverConfigs = std::move(old.v_SolverConfigs);
+  v_Registered = std::move(old.v_Registered); // the moved-into object
+                                              // takes over the identity, registrations included
 }
 
 /*--------------------------------------------------------------------------*/
@@ -214,12 +218,16 @@ void BlockSolverConfig::deserialize(const netCDF::NcGroup &group)
 
   netCDF::NcGroupAtt diff = group.getAtt("diff");
   if (diff.isNull())
-    f_diff = false;
+    f_diff = eSetMode;
   else
   {
     int diffint;
     diff.getValues(&diffint);
-    f_diff = diffint > 0;
+    if ((diffint < eSetMode) || (diffint > eAddMode))
+      throw(std::invalid_argument("BlockSolverConfig::deserialize: invalid "
+                                  "diff attribute " +
+                                  std::to_string(diffint)));
+    f_diff = diffint;
   }
 
   size_t num_solvers = 0;
@@ -229,7 +237,6 @@ void BlockSolverConfig::deserialize(const netCDF::NcGroup &group)
 
   v_SolverNames.resize(num_solvers);
   v_SolverConfigs.resize(num_solvers, nullptr);
-  vp_Solvers.resize(num_solvers, nullptr);
 
   netCDF::NcVar solver_names_var = group.getVar("SolverNames");
 
@@ -284,7 +291,7 @@ void BlockSolverConfig::get(const Block *block, bool clear)
 
   auto it = registered_Solvers.begin();
 
-  if (f_diff)
+  if (f_diff == eDiffMode)
     for (auto &el : v_SolverConfigs)
       el = (*(it++))->get_ComputeConfig();
   else
@@ -300,30 +307,41 @@ void BlockSolverConfig::get(const Block *block, bool clear)
 /*---------- METHODS DESCRIBING THE BEHAVIOR OF BlockSolverConfig ----------*/
 /*--------------------------------------------------------------------------*/
 
-void BlockSolverConfig::apply(Block *block, bool adding)
+void BlockSolverConfig::apply(Block *block)
 {
   if (!block)
     return;
 
-  if ((!f_diff) && v_SolverNames.empty())
+  if ((f_diff == eSetMode) && v_SolverNames.empty())
   {
-    // applying a BlockSolverConfig without Solver in setting mode means
-    // unregistering and deleting all existing Solver; in additive mode only
-    // the Solver that this BlockSolverConfig had registered (see vp_Solvers)
-    if (f_add)
-      for (auto slvr : vp_Solvers)
-        block->unregister_Solver(slvr, true); // do it one by one
-    else
-      block->unregister_Solvers(true); // do it with one call
-    vp_Solvers.clear();
-    return; // all done
+    // applying a cleared BlockSolverConfig: un-register and delete all and
+    // only the Solver that this very object had registered to this Block and
+    // that are still registered to it; a Block this object never configured
+    // (or whose registration was already consumed) is not touched at all
+
+    auto bit = v_Registered.find(block);
+    if (bit == v_Registered.end())
+      return; // nothing ever registered here: no-op
+
+    auto &solvers = block->get_registered_solvers();
+    for (auto slvr : bit->second)
+      if (std::find(solvers.begin(), solvers.end(), slvr) != solvers.end()) // if it is still there
+        block->unregister_Solver(slvr, true);                               // un-register and delete
+                                                                            // else it has been un-registered by someone else in the meantime and
+                                                                            // the pointer may well be dangling: just ignore it
+
+    v_Registered.erase(bit); // the registration is consumed: apply()-ing
+                             // this again to the same Block does nothing
+    return;                  // all done
   }
 
-  if (f_add)
-  { // additive mode - - - - - - - - - - - - - - - - - - - - - - -
-    // do not touch the Solver already registered to the Block: create,
-    // ComputeConfig-ure and register all the Solver of the BlockSolverConfig
-    // in addition to them, recording them in vp_Solvers
+  auto &recorded = v_Registered[block]; // the record for this Block
+
+  if (f_diff == eAddMode)
+  { // additive mode- - - - - - - - - - - - - - - - -
+    // do not touch the Solver already registered to the Block, whoever
+    // created them: create, ComputeConfig-ure, register and record all the
+    // Solver of the BlockSolverConfig in addition to them
 
     auto cit = v_SolverConfigs.begin();
     for (auto nit = v_SolverNames.begin(); nit != v_SolverNames.end();
@@ -335,13 +353,20 @@ void BlockSolverConfig::apply(Block *block, bool adding)
         slvr->set_ComputeConfig(*cit); // ComputeConfig-ure it
 
       block->register_Solver(slvr); // only then pass it to the Block
-      vp_Solvers.push_back(slvr);
+      recorded.push_back(slvr);     // and record it
     }
 
     return; // end additive mode - - - - - - - - - - - - - - - - - - - - -
   }
 
-  vp_Solvers.clear(); // out of additive mode, only the latest apply() counts
+  // a Solver that this object had registered and that is deleted now must
+  // disappear from the record
+  auto forget = [&recorded](Solver *slvr)
+  {
+    auto rit = std::find(recorded.begin(), recorded.end(), slvr);
+    if (rit != recorded.end())
+      recorded.erase(rit);
+  };
 
   auto &solvers = block->get_registered_solvers();
   auto sit = solvers.begin();
@@ -351,8 +376,8 @@ void BlockSolverConfig::apply(Block *block, bool adding)
   // process existing Solvers - - - - - - - - - - - - - - - - - - - - - - - - -
   //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-  if (f_diff)
-  { // differential mode- - - - - - - - - - - - - - - - - - - - -
+  if (f_diff == eDiffMode)
+  { // differential mode- - - - - - - - - - - - - - -
     // process existing Solvers
 
     for (; (sit != solvers.end()) && (nit != v_SolverNames.end());
@@ -379,8 +404,9 @@ void BlockSolverConfig::apply(Block *block, bool adding)
         if (*cit)                        // if the ComputeConfig is there
           slvr->set_ComputeConfig(*cit); // ComputeConfig-ure it
 
+        forget(*sit);                           // the replaced one is deleted
         block->replace_Solver(slvr, sit, true); // replace the existing one
-        vp_Solvers.push_back(slvr);
+        recorded.push_back(slvr);
       }
     }
 
@@ -392,7 +418,10 @@ void BlockSolverConfig::apply(Block *block, bool adding)
     // delete extra Solvers
 
     while (solvers.size() > v_SolverNames.size())
+    {
+      forget(*(--solvers.end()));
       block->unregister_Solver(--solvers.end(), true);
+    }
 
     // process existing Solvers
 
@@ -407,8 +436,9 @@ void BlockSolverConfig::apply(Block *block, bool adding)
         slvr->set_ComputeConfig(*cit); // ComputeConfig-ure it
 
       // only then replace the existing one
+      forget(*sit); // the replaced one is deleted
       block->replace_Solver(slvr, sit, true);
-      vp_Solvers.push_back(slvr);
+      recorded.push_back(slvr);
     }
   } // end setting mode - - - - - - - - - - - - - - - - - - - - -
 
@@ -425,12 +455,13 @@ void BlockSolverConfig::apply(Block *block, bool adding)
       slvr->set_ComputeConfig(*cit); // ComputeConfig-ure it
 
     block->register_Solver(slvr); // only then pass it to the Block
-
-    block->register_Solver(slvr); // only then pass it to the Block
-    vp_Solvers.push_back(slvr);
+    recorded.push_back(slvr);
   }
 
   //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+  if (recorded.empty())        // this apply() ended up recording nothing
+    v_Registered.erase(block); // don't keep an empty entry around
 
 } // end( BlockSolverConfig::apply )
 
@@ -479,8 +510,10 @@ void BlockSolverConfig::serialize(netCDF::NcGroup &group) const
 void BlockSolverConfig::print(std::ostream &output) const
 {
   output << private_name();
-  if (f_diff)
+  if (f_diff == eDiffMode)
     output << "[diff]";
+  else if (f_diff == eAddMode)
+    output << "[add]";
   output << ": " << std::endl;
   for (std::size_t i = 0; i < v_SolverNames.size(); ++i)
     output << v_SolverNames[i] << ": " << v_SolverConfigs[i];
@@ -498,6 +531,9 @@ void BlockSolverConfig::load(std::istream &input)
   {
     input >> f_diff;
     checkfail(input, sre);
+    if ((f_diff < eSetMode) || (f_diff > eAddMode))
+      throw(std::invalid_argument("BlockSolverConfig::load: invalid mode " +
+                                  std::to_string(f_diff)));
 
     if (!advance(input))
     {
@@ -704,7 +740,7 @@ void RBlockSolverConfig::get(const Block *block, bool clear)
 /*-------- METHODS DESCRIBING THE BEHAVIOR OF THE RBlockSolverConfig -------*/
 /*--------------------------------------------------------------------------*/
 
-void RBlockSolverConfig::apply(Block *block, bool adding)
+void RBlockSolverConfig::apply(Block *block)
 {
   if (!block)
     return;
@@ -747,8 +783,8 @@ void RBlockSolverConfig::apply(Block *block, bool adding)
                                   " neither a sub-Block name nor a valid index"));
     if (*it)
       (*it)->apply(sub_Block);
-    else if (!f_diff)
-      sub_Block->unregister_Solvers(true);
+    // else: a nullptr sub-BlockSolverConfig leaves the sub-Block alone,
+    // whatever the mode [see the class comment]
     ++it;
   }
 } // end( RBlockSolverConfig::apply )
