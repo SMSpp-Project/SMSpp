@@ -603,10 +603,15 @@ class BendersBFunction : public C05Function , public Block {
    delete v_Block.front();
 
   v_Block.clear();
-  v_Block.push_back( block );
 
-  if( block )
+  /* Detaching the inner Block, which is what a nullptr means here, leaves
+   * the sub-Block vector *empty*: a null entry in it would be found by
+   * whoever walks the Block tree. */
+
+  if( block ) {
+   v_Block.push_back( block );
    block->set_f_Block( this );
+   }
 
   send_nuclear_modification();
   }
