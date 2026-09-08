@@ -2438,7 +2438,7 @@ class ComputeConfig : public Configuration
  /** Returns the "relax value" of the ComputeConfig, i.e., a bool with the
   * following meaning:
   *
-  *   = true if the the ComputeConfig is allowed to contain names of
+  *   = true if the ComputeConfig is allowed to contain names of
   *     parameters that are not recognised by the :ThinComputeInterface is
   *     will be set_*() to;
   *

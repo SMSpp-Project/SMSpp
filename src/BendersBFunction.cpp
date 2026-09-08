@@ -80,6 +80,9 @@ BendersBFunction::BendersBFunction( Block * inner_block , VarVector && x ,
 
 BendersBFunction::~BendersBFunction()
 {
+ // remove the Solver that this BendersBFunction registered in the inner Block
+ unconfigure_inner_Block_Solver();
+
  if( ! v_Block.empty() ) {
   assert( v_Block.size() == 1 );
   delete v_Block.front();
@@ -1425,12 +1428,19 @@ void BendersBFunction::set_default_inner_Block_BlockConfig() {
 /*--------------------------------------------------------------------------*/
 
 void BendersBFunction::set_default_inner_Block_BlockSolverConfig() {
- if( auto inner_block = get_inner_block() ) {
-  auto solver_config = new RBlockSolverConfig( inner_block );
-  solver_config->clear();
-  solver_config->apply( inner_block );
-  delete solver_config;
+ unconfigure_inner_Block_Solver();
  }
+
+/*--------------------------------------------------------------------------*/
+
+void BendersBFunction::unconfigure_inner_Block_Solver() {
+ if( auto inner_block = get_inner_block() ) {
+  if( f_BSC )
+   f_BSC->apply( inner_block );
+  }
+
+ delete f_BSC;
+ f_BSC = nullptr;
 }
 
 /*--------------------------------------------------------------------------*/
@@ -1490,9 +1500,17 @@ void BendersBFunction::set_ComputeConfig( const ComputeConfig * scfg )
      // and deleted.
      set_default_inner_Block_BlockSolverConfig();
    }
-   else if( auto bsc = dynamic_cast< BlockSolverConfig * >( config ) )
-    // A BlockSolverConfig for the inner Block has been provided. Apply it.
-    bsc->apply( inner_block );
+   else if( auto bsc = dynamic_cast< BlockSolverConfig * >( config ) ) {
+    // A BlockSolverConfig for the inner Block has been provided. Apply it
+    // through a private clone, which then remains, clear()-ed, as the
+    // cleanup object: having done the apply() itself, it records the
+    // registered Solver and its cleared apply() removes exactly them
+    // [see BlockSolverConfig::apply()]
+    unconfigure_inner_Block_Solver();   // clean up for the new arrival
+    f_BSC = bsc->clone();
+    f_BSC->apply( inner_block );
+    f_BSC->clear();
+    }
    else
     // An invalid Configuration has been provided.
     throw( std::invalid_argument

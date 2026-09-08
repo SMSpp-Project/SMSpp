@@ -26,8 +26,8 @@
  * - Function that appears in the Constraint and Objective, i.e.,
  *   FRealObjective and FRowConstraint;
  *
- * - Function that have a Block (are a Block), i.e., BendersBFunction and
- *   LagBFunction.
+ * - Function that are also a Block, and therefore carry an inner Block of
+ *   their own.
  *
  * - PolyhedralFunction, if it is part of a PolyhedralFunctionBlock.
  *
@@ -118,8 +118,8 @@ namespace SMSpp_di_unipi_it
  * - Function that appear in the Constraint and Objective, i.e.,
  *   FRealObjective and FRowConstraint;
  *
- * - Function that have a Block (are a Block), i.e., BendersBFunction and
- *   LagBFunction.
+ * - Function that are also a Block, and therefore carry an inner Block of
+ *   their own.
  *
  * - PolyhedralFunction, if it is part of a PolyhedralFunctionBlock.
  *
@@ -189,9 +189,9 @@ namespace SMSpp_di_unipi_it
  * (in which case that Objective is an FRealObjective). The type of the target
  * element must be known from the context. If this is not the last node in the
  * path, then the type of the next node in the path is 'B' and it is
- * associated with the inner Block of either a BendersBFunction or a
- * LagBFunction which is the Function of that Objective (and thus that
- * Objective is actually an FRealObjective).
+ * associated with the inner Block of the Function of that Objective, which
+ * is then a Function that is also a Block (and thus that Objective is
+ * actually an FRealObjective).
  *
  * Finally, a 'C' or 'c' node, which is associated with a Constraint, has
  * characteristics pertaining both the 'V' (and 'v') and the 'O' nodes. Like
@@ -205,8 +205,8 @@ namespace SMSpp_di_unipi_it
  * that Constraint is an FRowConstraint). The type of the target element must
  * be known from the context. If this is not the last node in the path, then
  * the type of the next node in the path is 'B' and it is associated with the
- * inner Block of either a BendersBFunction or a LagBFunction which is the
- * Function of that Constraint (and thus that Constraint is actually an
+ * inner Block of the Function of that Constraint, which is then a Function
+ * that is also a Block (and thus that Constraint is actually an
  * FRowConstraint).
  *
  * Multi-element selection on the LAST node
@@ -880,6 +880,12 @@ public:
 
   while( block != reference_block ) {
 
+   /* the reference Block is not an ancestor of the target: say so, rather
+    * than walking off the end of the tree */
+
+   if( ! block )
+    throw( std::logic_error( "AbstractPath::build: Path not found." ) );
+
    auto index = inspection::get_block_index( block );
 
    if( index < Inf< Index >() ) {
@@ -889,17 +895,15 @@ public:
    }
 
    else {
-    // block has no father. So, block must be either a BendersBFunction or a
-    // LagBFunction.
+    /* block has no father, hence the only way up is that it is a Block
+     * which is also a Function: what holds it is the Observer of the
+     * latter. */
 
-    Observer * observer;
-
-    if( const auto benders = dynamic_cast< BendersBFunction * >( block ) )
-     observer = benders->get_Observer();
-    else if( const auto lag = dynamic_cast< LagBFunction * >( block ) )
-     observer = lag->get_Observer();
-    else
+    const auto function = dynamic_cast< Function * >( block );
+    if( ! function )
      throw( std::logic_error( "AbstractPath::build: Path not found." ) );
+
+    auto observer = function->get_Observer();
 
     if( const auto frc = dynamic_cast< FRowConstraint * >( observer ) ) {
      add_node( frc , Node::eConstraint );
@@ -955,13 +959,13 @@ public:
         dynamic_cast< const FRowConstraint * >( constraint ) ) {
      auto function = frowc->get_function();
 
-     if( const auto benders =
-         dynamic_cast< const BendersBFunction * >( function ) )
-      block = benders->get_inner_block();
-     else if( const auto lag =
-              dynamic_cast< const LagBFunction * >( function ) )
-      block = lag->get_inner_block();
-     else // not found
+     /* the Function is also a Block, and the path goes on in it, exactly
+      * as it does for the Function of an Objective: the inner Block that
+      * Function holds is reached by the 'B' node that follows, which
+      * build() has emitted for it */
+
+     block = dynamic_cast< Block * >( function );
+     if( ! block )
       return( Inf< Index >() );
         }
     else // not found
@@ -1066,13 +1070,13 @@ public:
         dynamic_cast< const FRowConstraint * >( constraint ) ) {
      auto function = frowc->get_function();
 
-     if( const auto benders =
-         dynamic_cast< const BendersBFunction * >( function ) )
-      block = benders->get_inner_block();
-     else if( const auto lag =
-              dynamic_cast< const LagBFunction * >( function ) )
-      block = lag->get_inner_block();
-     else // not found
+     /* the Function is also a Block, and the path goes on in it, exactly
+      * as it does for the Function of an Objective: the inner Block that
+      * Function holds is reached by the 'B' node that follows, which
+      * build() has emitted for it */
+
+     block = dynamic_cast< Block * >( function );
+     if( ! block )
       return( nullptr );
     }
     else // not found
@@ -1083,10 +1087,11 @@ public:
 
     if( const auto fro = dynamic_cast< const FRealObjective * >( objective ) ) {
      auto function = fro->get_function();
-     if( dynamic_cast< BendersBFunction * >( function ) ||
-         dynamic_cast< LagBFunction * >( function ) )
-      block = dynamic_cast< Block * >( function );
-     else // not found
+
+     /* the Function is also a Block, and the path goes on in it */
+
+     block = dynamic_cast< Block * >( function );
+     if( ! block )
       return( nullptr );
     }
     else // not found
@@ -1242,13 +1247,13 @@ public:
     if( const auto frowc =
         dynamic_cast< const FRowConstraint * >( constraint ) ) {
      auto function = frowc->get_function();
-     if( const auto benders =
-         dynamic_cast< const BendersBFunction * >( function ) )
-      block = benders->get_inner_block();
-     else if( const auto lag =
-              dynamic_cast< const LagBFunction * >( function ) )
-      block = lag->get_inner_block();
-     else
+     /* the Function is also a Block, and the path goes on in it, exactly
+      * as it does for the Function of an Objective: the inner Block that
+      * Function holds is reached by the 'B' node that follows, which
+      * build() has emitted for it */
+
+     block = dynamic_cast< Block * >( function );
+     if( ! block )
       return( result );
      }
     else
@@ -1258,10 +1263,11 @@ public:
     auto objective = block->get_objective();
     if( const auto fro = dynamic_cast< const FRealObjective * >( objective ) ) {
      auto function = fro->get_function();
-     if( dynamic_cast< BendersBFunction * >( function ) ||
-         dynamic_cast< LagBFunction * >( function ) )
-      block = dynamic_cast< Block * >( function );
-     else
+
+     /* the Function is also a Block, and the path goes on in it */
+
+     block = dynamic_cast< Block * >( function );
+     if( ! block )
       return( result );
      }
     else

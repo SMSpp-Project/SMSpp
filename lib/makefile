@@ -32,11 +32,13 @@
 # macros to be exported - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 SMS++OBJ = $(SMS++SDR)/obj/AbstractBlock.o \
+    $(SMS++SDR)/obj/Change.o \
 	$(SMS++SDR)/obj/BendersBFunction.o \
 	$(SMS++SDR)/obj/BendersBlock.o \
 	$(SMS++SDR)/obj/Block.o \
 	$(SMS++SDR)/obj/BlockSolverConfig.o \
 	$(SMS++SDR)/obj/BoxSolver.o \
+	$(SMS++SDR)/obj/CDASolver.o \
 	$(SMS++SDR)/obj/C05Function.o \
 	$(SMS++SDR)/obj/ColRowSolution.o \
 	$(SMS++SDR)/obj/ColVariable.o \
@@ -76,6 +78,7 @@ SMS++H = $(SMS++SDR)/include/AbstractBlock.h \
 	$(SMS++SDR)/include/C15Function.h \
 	$(SMS++SDR)/include/CDASolver.h \
 	$(SMS++SDR)/include/Change.h \
+	$(SMS++SDR)/include/ChangeSolver.h \
 	$(SMS++SDR)/include/ColRowSolution.h \
 	$(SMS++SDR)/include/ColVariable.h \
 	$(SMS++SDR)/include/ColVariableSolution.h \
@@ -88,6 +91,7 @@ SMS++H = $(SMS++SDR)/include/AbstractBlock.h \
 	$(SMS++SDR)/include/FRealObjective.h \
 	$(SMS++SDR)/include/FRowConstraint.h \
 	$(SMS++SDR)/include/Function.h \
+	$(SMS++SDR)/include/GlobalInformation.h \
 	$(SMS++SDR)/include/LagBFunction.h \
 	$(SMS++SDR)/include/LinearFunction.h \
 	$(SMS++SDR)/include/Modification.h \
@@ -119,6 +123,10 @@ intBlockINC = $(SMS++SDR)/include/Block.h $(SMS++SDR)/include/Configuration.h \
 	$(SMS++SDR)/include/Modification.h $(SMS++SDR)/include/Solver.h \
 	$(SMS++SDR)/include/Observer.h $(SMS++SDR)/include/SMSTypedefs.h \
 	$(SMS++SDR)/include/ThinComputeInterface.h
+
+$(SMS++SDR)/obj/Change.o: $(SMS++SDR)/src/Change.cpp \
+	$(SMS++SDR)/include/Change.h
+	$(CC) -c $(SMS++SDR)/src/Change.cpp -o $@ $(SMS++INC) $(SW)
 
 $(SMS++SDR)/obj/AbstractBlock.o: $(SMS++SDR)/src/AbstractBlock.cpp \
 	$(SMS++SDR)/include/AbstractBlock.h $(intBlockINC) \
@@ -355,6 +363,10 @@ $(SMS++SDR)/obj/RowConstraintSolution.o: \
 	$(SMS++SDR)/include/ThinVarDepInterface.h $(SMS++SDR)/include/Variable.h
 	$(CC) -c $(SMS++SDR)/src/RowConstraintSolution.cpp \
 	-o $@ $(SMS++INC) $(SW)
+
+$(SMS++SDR)/obj/CDASolver.o: $(SMS++SDR)/src/CDASolver.cpp $(intBlockINC) \
+	$(SMS++SDR)/include/CDASolver.h
+	$(CC) -c $(SMS++SDR)/src/CDASolver.cpp -o $@ $(SMS++INC) $(SW)
 
 $(SMS++SDR)/obj/Solver.o: $(SMS++SDR)/src/Solver.cpp $(intBlockINC) \
 	$(SMS++SDR)/include/FakeSolver.h $(SMS++SDR)/include/UpdateSolver.h

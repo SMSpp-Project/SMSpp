@@ -501,7 +501,26 @@ class QuadFunction : public DQuadFunction {
 
  void remove_variables( Range range , ModParam issueMod = eModBlck )
   override final;
-  
+
+/*--------------------------------------------------------------------------*/
+ /// remove a subset of "active" Variable
+ /** Remove all the "active" Variable whose index is in \p nms, which is
+  * ordered by increasing Index if \p ordered is true and is "consumed" by
+  * the method as the && tells, from this QuadFunction; if \p nms is empty
+  * then *all* the Variable are removed.
+  *
+  * The parameter issueMod decides if and how the C05FunctionModVarsSbst is
+  * issued, as described in Observer::make_par(). Note that a quadratic
+  * function is additive, and therefore strongly quasi-additive, which is why
+  * a C05FunctionModVarsSbst is issued as opposed to a FunctionModVarsSbst
+  * one.
+  *
+  * As in remove_variable(), all the non-diagonal terms involving any of the
+  * removed indices go with them, and the ones that stay are re-indexed. */
+
+ void remove_variables( Subset && nms , bool ordered = false ,
+                        ModParam issueMod = eModBlck ) override;
+
 
 /** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -513,6 +532,40 @@ class QuadFunction : public DQuadFunction {
 /*--------------------------- PROTECTED METHODS ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
+ /// rebuilds the non-diagonal terms after some Variable have been removed
+ /** Rebuilds the sparse matrix of the non-diagonal terms out of \p where,
+  * which gives the new index of each of the current Variable, Inf< Index >()
+  * for one that is being removed: a term survives only if both its Variable
+  * do, and lands at their new indices. \p nsz is how many Variable are left,
+  * i.e., the size of the new matrix. */
+
+ template< class F >
+ void compact_nd( F && where , Index nsz ) {
+  Qmat tmp( nsz , nsz );
+  tmp.reserve( mat_nd.nonZeros() );
+
+  for( int k = 0 ; k < mat_nd.outerSize() ; ++k )
+   for( Qmat::InnerIterator it( mat_nd , k ) ; it ; ++it ) {
+    // only the lower triangle is stored, hence col() < row() always
+    const Index nr = where( Index( it.row() ) );
+    if( nr == Inf< Index >() )
+     continue;
+    const Index nc = where( Index( it.col() ) );
+    if( nc == Inf< Index >() )
+     continue;
+    tmp.insert( nr , nc ) = it.value();
+    }
+
+  // squeeze every bit of memory out of the beast before reallocating it
+  mat_nd.setZero();
+  mat_nd.data().squeeze();
+
+  mat_nd.resize( nsz , nsz );
+  mat_nd.reserve( tmp.nonZeros() );
+  mat_nd = tmp;
+  }
+
+/*--------------------------------------------------------------------------*/
  /// printing the QuadFunction
  void print( std::ostream & output ) override {
   output << "QuadFunction [" << this << "] observed by ["

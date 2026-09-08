@@ -720,6 +720,32 @@ class CDASolver : public Solver {
 
  [[nodiscard]] virtual bool new_dual_direction( void ) { return( false ); }
 
+/*--------------------------------------------------------------------------*/
+ /// produces a Solution of the Block, dual information included
+ /** Produces a Solution of the Block out of what the last call to compute()
+  * found, exactly as Solver::get_Solution() does, save that the *dual*
+  * information is written into the Block as well before the Solution is
+  * asked for it: get_dual_solution() is called if has_dual_solution() says
+  * there is one, and failing that get_dual_direction() if
+  * has_dual_direction() does.
+  *
+  * The base implementation of Solver only writes the primal information,
+  * which for a Block whose :Solution stores the dual one as well means
+  * getting whatever happened to be in the Constraint, i.e., typically zero:
+  * a Solver of a Block with a dual is therefore the natural place for this,
+  * which is why it is done here.
+  *
+  * Note, however, that *whether* the dual information is wanted is a
+  * property of the Solution the Block is asked for, i.e., of the
+  * Configuration, and not of the Solver: this implementation computes it
+  * anyway, which is right if the Block always wants it and wasted work if it
+  * does not. A :Solver whose dual information is expensive, or a Block that
+  * only sometimes wants it, is therefore expected to say so by overriding
+  * this. */
+
+ [[nodiscard]] Solution * get_Solution( Configuration * solc = nullptr )
+  override;
+
 /** @} ---------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE DATA OF THE CDASolver ---------------*/
 /*--------------------------------------------------------------------------*/
