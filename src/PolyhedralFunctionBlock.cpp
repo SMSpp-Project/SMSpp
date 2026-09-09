@@ -456,12 +456,14 @@ Function::FunctionValue
 PolyhedralFunctionBlock::get_row_multiplier( Index i ) const
 {
  if( i >= PF().get_A().size() )
-  throw( std::out_of_range( "row index out of range" ) );
+  throw( std::out_of_range(
+   "PolyhedralFunctionBlock::get_row_multiplier: row index out of range" ) );
 
  if( is_linearized() ) {
   if( ! ( f_rep & k_built_cnst ) )
    throw( std::logic_error(
-           "get_row_multiplier() requires generated abstract constraints" ) );
+           "PolyhedralFunctionBlock::get_row_multiplier: requires generated "
+           "abstract constraints" ) );
   auto cit = f_const.cbegin();
   std::advance( cit , i );
   return( - ScaledRowFactor( i ) * cit->get_dual() );
@@ -1267,7 +1269,9 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_LR( c_p_Mod mod ,
    if( has_local_scaling() ) {
     if( ! is_vert ) {
      if( coeff[ 0 ].second <= 0 )
-      throw( std::logic_error( "non-positive local row scale" ) );
+      throw( std::logic_error(
+      "PolyhedralFunctionBlock::guts_of_add_Modification_LR: "
+      "non-positive local row scale" ) );
      row_scale[ i ] = coeff[ 0 ].second;
      }
     else {
@@ -1351,7 +1355,8 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_LR( c_p_Mod mod ,
  if( const auto tmod = dynamic_cast< RowConstraintMod * const >( mod ) ) {
   if( & f_scale_cns == tmod->constraint() )
    throw( std::logic_error(
-             "cannot modify the internal v scaling constraint" ) );
+             "PolyhedralFunctionBlock::guts_of_add_Modification_LR: cannot "
+             "modify the internal v scaling constraint" ) );
 
   // first check if it's about the box constraint on v
   if( & f_bcv == tmod->constraint() ) {
@@ -1442,7 +1447,9 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_LR( c_p_Mod mod ,
    is_vert = vp[ 0 ].second == 0.0;
    if( has_local_scaling() && ( ! is_vert ) ) {
     if( vp[ 0 ].second <= 0 )
-     throw( std::logic_error( "non-positive local row scale" ) );
+     throw( std::logic_error(
+      "PolyhedralFunctionBlock::guts_of_add_Modification_LR: "
+      "non-positive local row scale" ) );
     f_row_scale[ i ] = vp[ 0 ].second;
     const auto new_scale = ScaledRowFactor( i );
     for( Index j = 1 ; j < vp.size() ; ++j )
@@ -1486,7 +1493,9 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_LR( c_p_Mod mod ,
    is_vert = vp[ 0 ].second == 0.0;
    if( has_local_scaling() && ( ! is_vert ) ) {
     if( vp[ 0 ].second <= 0 )
-     throw( std::logic_error( "non-positive local row scale" ) );
+     throw( std::logic_error(
+      "PolyhedralFunctionBlock::guts_of_add_Modification_LR: "
+      "non-positive local row scale" ) );
     f_row_scale[ i ] = vp[ 0 ].second;
     const auto new_scale = ScaledRowFactor( i );
     for( Index j = 1 ; j < vp.size() ; ++j )
@@ -2399,7 +2408,9 @@ void PolyhedralFunctionBlock::UpdateLinearizedDualScale( ChnlName chnl )
  if( f_lambda ) {
   const auto k = nrm_lf->is_active( f_lambda );
   if( k >= nrm_lf->get_num_active_var() )
-   throw( std::logic_error( "normalization lambda is not active" ) );
+   throw( std::logic_error(
+    "PolyhedralFunctionBlock::UpdateLinearizedDualScale: the "
+    "normalization lambda is not active" ) );
   nrm_lf->modify_coefficient( k , -1.0 / f_global_scale , par );
   }
  else {

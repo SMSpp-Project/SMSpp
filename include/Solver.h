@@ -801,10 +801,10 @@ class Solver : public ThinComputeInterface
   * set_Block() that the Solver will skip when scanning the Block tree:
   * their Variable / Constraint / Objective are NOT loaded into the
   * Solver's back-end model, and Modification originating in them are
-  * filtered out at the boundary. The intended use is the "steal" pattern
-  * (cf. MasterProblemBlock in BundleSolver) where a Solver-attached
-  * Block contains sub-Block(s) that belong, semantically, to a different
-  * problem and must not contribute to the Solver's model.
+  * filtered out at the boundary. The intended use is the "steal" pattern,
+  * where a Solver-attached Block contains sub-Block(s) that belong,
+  * semantically, to a different problem and must not contribute to the
+  * Solver's model.
   *
   * @param ignored a pointer to an unordered_set of Block * to ignore;
   *        passing nullptr (the default) is equivalent to passing an
@@ -828,7 +828,8 @@ class Solver : public ThinComputeInterface
   * Solver::set_excluded_blocks() to keep the base set up-to-date. */
 
  virtual void set_excluded_blocks(
-                       const std::unordered_set< Block * > * ignored = nullptr );
+                       const std::unordered_set< Block * > * ignored
+                                                              = nullptr );
 
 /*--------------------------------------------------------------------------*/
  /// returns the set of sub-Blocks the Solver was told to ignore

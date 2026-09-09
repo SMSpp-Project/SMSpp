@@ -564,7 +564,8 @@ class BlockSolverConfig : public Configuration {
   *        legacy semantics. */
 
  virtual void apply( Block * block ,
-                     const std::unordered_set< Block * > * ignored = nullptr );
+                     const std::unordered_set< Block * > * ignored
+                                                            = nullptr );
 
 /*--------------------------------------------------------------------------*/
  /// delete all the ComputeConfig and empty the names of the Solver

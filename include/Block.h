@@ -2988,14 +2988,14 @@ class Block : public Observer {
   * index into get_nested_Blocks(). An empty path returns \p this.
   *
   * Used to identify a sub-Block by structural position rather than by
-  * classname or pointer; useful e.g. for Configuration-driven features
-  * that need to address a specific sub-Block (such as MILPSolver's
-  * ignore-sub-Blocks list, see vstrMILPIgnSBlks).
+  * classname or pointer, which is what a Configuration needs whenever it
+  * has to name one specific sub-Block of the tree.
   *
   * @param path  slash-separated decimal indices, or empty for \p this.
   * @return  a pointer to the addressed sub-Block.
   * @throws  std::invalid_argument if a segment is non-numeric;
-  *          std::out_of_range if an index exceeds get_number_nested_Blocks(). */
+  *          std::out_of_range if an index exceeds the number of
+  *          nested Block. */
 
  Block * resolve_sub_Block_path( const std::string & path );
 
@@ -6844,9 +6844,8 @@ class Block : public Observer {
   // else any Modification it issues will be silently dropped by
   // Block::add_Modification because the early-return !anyone_there()
   // guard fires before the mod reaches the father / attached Solver.
-  // register_Solver() only walks v_Block once at registration time, so
-  // sub-Blocks added later (e.g. by MasterProblemBlock::CreatePrimalMP
-  // after MasterPB->register_Solver has run) get stranded otherwise
+  // register_Solver() only walks v_Block once at registration time, so a
+  // sub-Block added after a Solver has been registered would be stranded
   if( anyone_there() )
    newb->anyone_there( true );
   }
