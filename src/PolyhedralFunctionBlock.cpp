@@ -472,14 +472,16 @@ PolyhedralFunctionBlock::get_row_multiplier( Index i ) const
  if( is_dual() ) {
   if( ! ( f_rep & k_built_var ) )
    throw( std::logic_error(
-             "get_row_multiplier() requires generated abstract variables" ) );
+             "PolyhedralFunctionBlock::get_row_multiplier: requires generated "
+             "abstract variables" ) );
   auto vit = f_theta.cbegin();
   std::advance( vit , i );
   return( ScaledRowFactor( i ) * vit->get_value() );
   }
 
  throw( std::logic_error(
-            "get_row_multiplier() requires a linearized representation" ) );
+            "PolyhedralFunctionBlock::get_row_multiplier: requires a "
+            "linearized representation" ) );
 
  }  // end( PolyhedralFunctionBlock::get_row_multiplier )
 
