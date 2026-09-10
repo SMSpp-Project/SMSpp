@@ -684,6 +684,48 @@ class CDASolver : public Solver {
  virtual void get_dual_direction( Configuration * dirc = nullptr ) {}
 
 /*--------------------------------------------------------------------------*/
+ /// returns true if the value of the unbounded dual direction is available
+ /** An unbounded dual direction \f$ \omega \f$ comes with the value
+ * \f$ \omega d \f$ that the dual objective takes along it, which is the
+ * scalar certifying that the primal is empty. A consumer writing the
+ * corresponding cut \f$ \alpha + g x \leq 0 \f$ needs that scalar as
+ * \f$ \alpha \f$, the direction alone only giving \f$ g \f$. Some solvers
+ * compute the scalar while producing the direction and can hand it over,
+ * others only produce the direction: this method says which is the case, so
+ * that a consumer getting false can fall back to computing the value on its
+ * own [see get_dual_direction_value()].
+ *
+ * This method can only be called after get_dual_direction() has been called.
+ *
+ * The method is given a default implementation in the base CDASolver class
+ * always returning false, for solvers that cannot provide the value. */
+
+ [[nodiscard]] virtual bool has_dual_direction_value( void ) {
+  return( false );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// the value the dual objective takes along the unbounded dual direction
+ /** Returns \f$ \omega d \f$ for the unbounded dual direction
+ * \f$ \omega \f$ that the last call to get_dual_direction() wrote in the
+ * Block: the scalar that, with the coefficients \f$ g \f$ a consumer reads
+ * out of that direction, completes the cut
+ * \f$ \alpha + g x \leq 0 \f$ certifying that the primal is empty. The
+ * sign is that of the direction as the CDASolver holds it, which is the one
+ * making the cut read that way.
+ *
+ * It is an error to call this method if has_dual_direction_value() has not
+ * been called and returned true.
+ *
+ * The method is given a default implementation in the base CDASolver class
+ * returning NaN, consistently with the default of
+ * has_dual_direction_value(). */
+
+ [[nodiscard]] virtual OFValue get_dual_direction_value( void ) {
+  return( std::numeric_limits< OFValue >::quiet_NaN() );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// returns true if is possible to generate a new dual unbounded direction
  /** This method must be called each time the user of the CDASolver wants
   * that it produces a *new* dual unbounded direction.
