@@ -685,15 +685,11 @@ class CDASolver : public Solver {
 
 /*--------------------------------------------------------------------------*/
  /// returns true if the value of the unbounded dual direction is available
- /** An unbounded dual direction \f$ \omega \f$ comes with the value
- * \f$ \omega d \f$ that the dual objective takes along it, which is the
- * scalar certifying that the primal is empty. A consumer writing the
- * corresponding cut \f$ \alpha + g x \leq 0 \f$ needs that scalar as
- * \f$ \alpha \f$, the direction alone only giving \f$ g \f$. Some solvers
- * compute the scalar while producing the direction and can hand it over,
- * others only produce the direction: this method says which is the case, so
- * that a consumer getting false can fall back to computing the value on its
- * own [see get_dual_direction_value()].
+ /** While producing an unbounded dual direction some solvers also compute the
+ * value the dual objective takes along it, and can hand it over; others only
+ * produce the direction. This method says which is the case [see
+ * get_dual_direction_value() for what that value is and, above all, for what
+ * it is not].
  *
  * This method can only be called after get_dual_direction() has been called.
  *
@@ -706,13 +702,21 @@ class CDASolver : public Solver {
 
 /*--------------------------------------------------------------------------*/
  /// the value the dual objective takes along the unbounded dual direction
- /** Returns \f$ \omega d \f$ for the unbounded dual direction
- * \f$ \omega \f$ that the last call to get_dual_direction() wrote in the
- * Block: the scalar that, with the coefficients \f$ g \f$ a consumer reads
- * out of that direction, completes the cut
- * \f$ \alpha + g x \leq 0 \f$ certifying that the primal is empty. The
- * sign is that of the direction as the CDASolver holds it, which is the one
- * making the cut read that way.
+ /** Returns the value the solver attaches to the unbounded dual direction the
+ * last call to get_dual_direction() has produced, in the sign convention of
+ * the direction as the CDASolver holds it.
+ *
+ * THIS IS WHAT THE SOLVER STATES ABOUT ITS OWN CERTIFICATE ON ITS OWN MODEL,
+ * AND IT NEED NOT BE THE CONSTANT \f$ \alpha \f$ OF THE CUT
+ * \f$ \alpha + g x \leq 0 \f$ that a consumer builds out of the multipliers
+ * get_dual_direction() writes in the Block. The two agree only if the solver
+ * aggregates the same multipliers against the same sides of the same bounds,
+ * which nothing here requires it to do. Whoever needs \f$ \alpha \f$ has to
+ * compute it from the Block, walking rows and bounds and taking each of them
+ * on the side its multiplier points to; this value is then worth having as a
+ * cross-check, and as the statement of infeasibility the solver is willing to
+ * make, not as the constant of the cut [see the :MILPSolver for a measured
+ * case where the two differ].
  *
  * It is an error to call this method if has_dual_direction_value() has not
  * been called and returned true.
