@@ -2117,12 +2117,11 @@ int LagBFunction::compute( bool changedvars )
     // representation and re-issue it in its own physical language to the
     // Solver registered on it (e.g. ThermalUnitBlock translating the new
     // Lagrangian costs for its DP solvers, which never look at the abstract
-    // representation). An *enclosing* LagBFunction that has adopted this
-    // same (shared) sub-Block Objective must still not mistake the write
-    // for a real cost change [it would issue a spurious AlphaChanged that
-    // keeps invalidating its bundle model -> kLowPrecision]: it recognises
-    // it structurally, because the writer (this LagBFunction) holds the
-    // Block lock, see the guard in guts_of_guts_of_add_Modification().
+    // representation). On its way up it then reaches this LagBFunction,
+    // which is the f_Block of the inner Block and, f_play_dumb being set,
+    // drops it without forwarding it [see add_Modification()]: hence no
+    // enclosing LagBFunction ever sees the write, and none can take it for a
+    // change of the original costs.
     //
     // chgidx is sorted with distinct entries (it is a subset of the sorted
     // v_active[h] pushed in order), so it represents a contiguous run iff
