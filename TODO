@@ -165,6 +165,10 @@
 	an appropriately structured R3Block of its, because it is all done
 	transparently inside a Solver that is attached to the original Block.
 	LagrangianDualBlock is done, BendersDecompositionBlock next.
+	BendersDecompositionSolver exists, but it has no such Block yet: the
+	terms of the complicating Variable are moved out of the coupling
+	Constraint into the BendersBFunction and never given back, so the
+	original :Block is consumed as far as those Constraint are concerned.
 
 
 2019-11-01 [medium-high] Block and Solver specify which kinds of Modification
@@ -315,19 +319,6 @@
 	the Modification has been constructed, unlike most other ones.
 
 
-2020-02-17 [medium-high] Using "names" in AbstractPath
-
-	Allow to specify names (= strings) in AbstractPath rather than
-	indices to indicate specific Block or groups of Constraint/Variable.
-	This may require to move the f_name field of BlockConfiguration into
-	Block and define appropriate get_string_name() and set_string_name()
-	methods. Then, in the vector form of AbstractPath one could have
-	*both* a vector of indices and one of names, with the assumption
-	that if either one is complete the other can be avoided, and that if
-	both are present then string names (if not "") take precedence over
-	indices.
-
-
 2019-08-26 [medium-high] implement [de]serialize() in ColVariableSolution
 
 	the name says it all
@@ -339,21 +330,6 @@
 	"true" models, this is needed. It is not simple, but it makes
 	AbstractBlock a lot more valuable since you don't always have to
 	build it up programmatically.
-
-
-2019-08-26 [medium-high] the Solver can return a Solution without the Block
-
-	We could have a
-
-           Solution * get_solution( Configuration * )
-
-        in the Solver. The default implementation will be to lock the Block,
-	call the standard get_solution() to write solution information in
-	the Block, ask the Block to produce a Solution, unlock the Block,
-	give the Solution back. However, a Solver that knows how the
-	specific :Solution is done can skip the Block and directly
-	produce an appropriate :Solution without having to lock the Block,
-	which avoids potential synchronization bottlenecks.
 
 
 2019-08-26 [medium] use the methods factory to work with "physical solution"
@@ -399,12 +375,6 @@
 
 	The obvious disadvantage is that of having to jump through a virtual
 	layer each time one is iterating on some of these objects.
-
-
-2018-08-17 [medium] UnitTest
-
-	We should definitely start putting down the UnitTest of the core
-	SMS++. SimpleMILPBlock/test could be a nice starting point.
 
 
 2019-04-01 [medium] boost::stable_vector for dynamic stuff
@@ -593,6 +563,41 @@
 #---------------------------------- DONE --------------------------------------#
 ################################################################################
 ################################################################################
+
+2020-02-17 2026-09-11 [medium-high] Using "names" in AbstractPath
+
+	Allow to specify names (= strings) in AbstractPath rather than
+	indices to indicate specific Block or groups of Constraint/Variable.
+	This may require to move the f_name field of BlockConfiguration into
+	Block and define appropriate get_string_name() and set_string_name()
+	methods. Then, in the vector form of AbstractPath one could have
+	*both* a vector of indices and one of names, with the assumption
+	that if either one is complete the other can be avoided, and that if
+	both are present then string names (if not "") take precedence over
+	indices.
+
+
+2019-08-26 2026-07-08 [medium-high] the Solver can return a Solution
+	   without the Block
+
+	We could have a
+
+           Solution * get_solution( Configuration * )
+
+        in the Solver. The default implementation will be to lock the Block,
+	call the standard get_solution() to write solution information in
+	the Block, ask the Block to produce a Solution, unlock the Block,
+	give the Solution back. However, a Solver that knows how the
+	specific :Solution is done can skip the Block and directly
+	produce an appropriate :Solution without having to lock the Block,
+	which avoids potential synchronization bottlenecks.
+
+
+2018-08-17 2018-11-14 [medium] UnitTest
+
+	We should definitely start putting down the UnitTest of the core
+	SMS++. SimpleMILPBlock/test could be a nice starting point.
+
 
 2019-02-22 2019-02-27 [very high] State and constraints inside (Col)Variable
 

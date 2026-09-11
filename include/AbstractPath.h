@@ -58,7 +58,9 @@
 #include "SMSTypedefs.h"
 
 #include <algorithm>
+#include <cctype>
 #include <iterator>
+#include <string>
 #include <vector>
 #include <netcdf>
 
@@ -512,6 +514,32 @@ private:
 protected:
 
 /*--------------------------------------------------------------------------*/
+/*--------------------------- PROTECTED METHODS ----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ /// tells if the given name is made of decimal digits only
+ static bool is_decimal( const std::string & name ) {
+  return( ( ! name.empty() ) &&
+          std::all_of( name.begin() , name.end() ,
+                       []( unsigned char c ) { return( std::isdigit( c ) ); }
+                       ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// the group index of each node as a string: its name, or the index
+ std::vector< std::string > get_group_index_strings( void ) const {
+  std::vector< std::string > names( length() );
+  for( Index i = 0 ; i < length() ; ++i )
+   if( ( i < group_index_names.size() ) &&
+       ( ! group_index_names[ i ].empty() ) )
+    names[ i ] = group_index_names[ i ];
+   else
+    names[ i ] = std::to_string( i < group_indices.size() ?
+                                 group_indices[ i ] : 0 );
+  return( names );
+  }
+
+/*--------------------------------------------------------------------------*/
 /*---------------------------- PROTECTED FIELDS  ---------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -520,6 +548,10 @@ protected:
 
  /// group_indices[i] is the group index of the i-th node in the path
  std::vector< Index > group_indices;
+
+ /// group_index_names[i], if not empty, is the name standing for the group
+ /// index of the i-th node, which takes precedence over group_indices[i]
+ /// (see get_node())
  std::vector< std::string > group_index_names;
 
  /// element_indices[i] is the first element index of the i-th node in the path
@@ -657,7 +689,14 @@ public:
  /** This function returns the Node representation of the i-th node in this
   * AbstractPath.
   *
-  * @param block The pointer to the reference Block.
+  * If the node carries a string name rather than a numeric group index, the
+  * name is resolved in \p block: for a 'V'/'v'/'C'/'c' node it is the name
+  * of a group of Variable/Constraint of \p block, and for a 'B' node the
+  * name() of one of its nested Blocks (the first one with that name). A
+  * name made of decimal digits only that matches no such name is taken as
+  * the numeric index itself.
+  *
+  * @param block The pointer to the Block the i-th node refers to.
   *
   * @param i The index of the node of this AbstractPath whose Node
   *        representation is required.
@@ -672,45 +711,69 @@ public:
   if( ( ! group_index_names.empty() ) &&
       ( ! group_index_names[ i ].empty() ) ) {
 
+   const auto & name = group_index_names[ i ];
    const bool is_static = Node::is_static( node_types[ i ] );
    const bool is_variable = Node::is_variable( node_types[ i ] );
    const bool is_constraint = Node::is_constraint( node_types[ i ] );
 
    if( is_variable )
     if( is_static )
-    group_index = block->get_s_var_index( group_index_names[ i ] );
+     group_index = block->get_s_var_index( name );
     else
-     group_index = block->get_d_var_index( group_index_names[ i ] );
+     group_index = block->get_d_var_index( name );
 
    else if( is_constraint )
     if( is_static )
-     group_index = block->get_s_const_index( group_index_names[ i ] );
+     group_index = block->get_s_const_index( name );
     else
-     group_index = block->get_d_const_index( group_index_names[ i ] );
+     group_index = block->get_d_const_index( name );
+
+   else if( Node::is_block( node_types[ i ] ) && ( ! is_decimal( name ) ) ) {
+    const auto & nested = block->get_nested_Blocks();
+    auto it = std::find_if( nested.begin() , nested.end() ,
+                            [ & name ]( const Block * b ) {
+                             return( b && ( b->name() == name ) ); } );
+    if( it == nested.end() )
+     throw( std::invalid_argument(
+      "AbstractPath::get_node: node [" + std::to_string( i ) +
+      "] of type 'B' references the nested Block named '" + name +
+      "', but no nested Block of the " + block->classname() +
+      " has that name." ) );
+    group_index = Index( std::distance( nested.begin() , it ) );
+    }
 
    else
-    group_index = static_cast< Index >( std::stoul( group_index_names[ i ] ) );
+    group_index = static_cast< Index >( std::stoul( name ) );
 
-   // a named Variable/Constraint group lookup returns an index >= the number
-   // of groups when the name is not found: report it here, where the netCDF
-   // quantity name ("PathGroupIndices" entry) is still known, rather than
-   // failing deep inside inspection::get_group() with only a bare index
-   if( ( is_variable || is_constraint ) &&
-       ( group_index >= ( is_variable
-                          ? ( is_static ? block->get_number_static_variables()
-                                        : block->get_number_dynamic_variables() )
-                          : ( is_static ? block->get_number_static_constraints()
-                                        : block->get_number_dynamic_constraints()
-                            ) ) ) )
-    throw( std::invalid_argument(
-     "AbstractPath::get_node: node [" + std::to_string( i ) + "] of type '" +
-     std::string( 1 , node_types[ i ] ) + "' references the " +
-     std::string( is_static ? "static " : "dynamic " ) +
-     ( is_variable ? "Variable" : "Constraint" ) + " group named '" +
-     group_index_names[ i ] + "', but no such group exists among the " +
-     inspection::describe_groups( block , is_static , is_variable ) +
-     ". The path likely points to a quantity that this Block does not define." ) );
-  }
+   if( is_variable || is_constraint ) {
+    const Index num_groups = is_variable
+     ? ( is_static ? block->get_number_static_variables()
+                   : block->get_number_dynamic_variables() )
+     : ( is_static ? block->get_number_static_constraints()
+                   : block->get_number_dynamic_constraints() );
+
+    // no group has that name: a decimal name is the index itself, which is
+    // how serialize() writes the unnamed nodes of a path with names
+    if( ( group_index >= num_groups ) && is_decimal( name ) )
+     group_index = static_cast< Index >( std::stoul( name ) );
+
+    // a named Variable/Constraint group lookup returns an index >= the
+    // number of groups when the name is not found: report it here, where
+    // the netCDF quantity name ("PathGroupIndices" entry) is still known,
+    // rather than failing deep inside inspection::get_group() with only a
+    // bare index
+    if( group_index >= num_groups )
+     throw( std::invalid_argument(
+      "AbstractPath::get_node: node [" + std::to_string( i ) + "] of type '"
+      + std::string( 1 , node_types[ i ] ) + "' references the " +
+      std::string( is_static ? "static " : "dynamic " ) +
+      ( is_variable ? "Variable" : "Constraint" ) + " group named '" + name +
+      "', but no such group exists among the " +
+      inspection::describe_groups( block , is_static , is_variable ) +
+      ". The path likely points to a quantity that this Block does not "
+      "define." ) );
+    }
+   }
   else
    group_index = group_indices[ i ];
 
@@ -1333,8 +1396,18 @@ public:
   using ::SMSpp_di_unipi_it::serialize;
   serialize( group , node_type_name , netCDF::NcChar() ,
              dim , node_types );
-  serialize( group , group_index_name , netCDF::NcUint() ,
-             dim , group_indices );
+  if( uses_names( *this ) ) {
+   // string-typed group indices, see serialize( Index , APnetCDF & )
+   const auto names = get_group_index_strings();
+   std::vector< const char * > cnames( names.size() );
+   for( Index i = 0 ; i < names.size() ; ++i )
+    cnames[ i ] = names[ i ].c_str();
+   group.addVar( group_index_name , netCDF::NcString() , dim ).putVar(
+                                                             cnames.data() );
+   }
+  else
+   serialize( group , group_index_name , netCDF::NcUint() ,
+              dim , group_indices );
   serialize( group , element_index_name , netCDF::NcUint() ,
              dim , element_indices );
   serialize( group , element_range_name , netCDF::NcUint() ,
@@ -1554,6 +1627,13 @@ public:
   * A contiguous range therefore spans elements in row-major order; non-
   * row-major selections (e.g. one column of a 2D array) must be expressed
   * as an explicit subset.
+  *
+  * The array "PathGroupIndices" may also be of type netCDF::NcString, in
+  * which case each entry is a name rather than an index: for a 'V'/'v' or
+  * 'C'/'c' node the name of the group of Variable/Constraint, and for a 'B'
+  * node the name() of the nested Block (the first one with that name, see
+  * get_node()). An entry made of decimal digits only that matches no name
+  * is the index itself, so names and indices can be mixed in the same path.
   *
   * @param group The netCDF::NcGroup containing the path.
   *
@@ -1987,18 +2067,11 @@ public:
       netCDF::NcType::nc_STRING ) {
    // string-typed group indices (see pre_serialize()): write the group
    // names; a node without a name gets the decimal form of its numeric
-   // index, which deserialize() resolves back via the std::stoul() fallback
-   std::vector< std::string > names( num_nodes );
+   // index, which get_node() resolves back to the index
+   const auto names = get_group_index_strings();
    std::vector< const char * > cnames( num_nodes );
-   for( Index i = 0 ; i < num_nodes ; ++i ) {
-    if( ( i < group_index_names.size() ) &&
-	( ! group_index_names[ i ].empty() ) )
-     names[ i ] = group_index_names[ i ];
-    else
-     names[ i ] = std::to_string( i < group_indices.size() ?
-				  group_indices[ i ] : 0 );
+   for( Index i = 0 ; i < num_nodes ; ++i )
     cnames[ i ] = names[ i ].c_str();
-    }
    netCDFvars.PathGroupIndices.putVar( { path_start } , { num_nodes } ,
 				       cnames.data() );
    }
