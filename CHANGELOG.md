@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+## [0.7.0] - 2026-09-12
+
+### Added
+
 - `AbstractBlock::mirror()`, which builds the AbstractBlock as a copy of the
   abstract representation of any other Block: one ColVariable per
   ColVariable, one Constraint per Constraint and an Objective, the groups
@@ -64,11 +72,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   message rather than being read with all its Configuration shifted by one
   slot; every BlockConfig file has to be converted
 
-### Added 
+- the version of the module is the git tag of its repository, or the
+  VERSION.txt of a release tarball, and the shared library carries it: its
+  SONAME is major.minor while the major is 0, and it is installed with an
+  RPATH relative to itself, so that an installed tree keeps working wherever
+  it is moved
 
-### Changed 
-
-### Fixed 
+### Fixed
 
 - `LagBFunction::cleanup_inner_objective()` restored the original costs by
   rewriting the whole vector of coefficients, i.e. a Range spanning every
@@ -397,8 +407,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - First test release.
 
-[Unreleased]: https://gitlab.com/smspp/smspp/-/compare/0.6.0...develop
-[Unreleased]: https://gitlab.com/smspp/smspp/-/compare/0.5.3...0.6.0
+[Unreleased]: https://gitlab.com/smspp/smspp/-/compare/0.7.0...develop
+[0.7.0]: https://gitlab.com/smspp/smspp/-/compare/0.6.0...0.7.0
+[0.6.0]: https://gitlab.com/smspp/smspp/-/compare/0.5.3...0.6.0
 [0.5.3]: https://gitlab.com/smspp/smspp/-/compare/0.5.2...0.5.3
 [0.5.2]: https://gitlab.com/smspp/smspp/-/compare/0.5.1...0.5.2
 [0.5.1]: https://gitlab.com/smspp/smspp/-/compare/0.5.0...0.5.1
