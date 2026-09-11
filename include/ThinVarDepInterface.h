@@ -680,27 +680,41 @@ class ThinVarDepInterface {
   while( varsit != vars.end() ) {
    auto var = *(varsit++);  // next variable
    auto oi = *(nmsit++);    // its original index
-   // if var has not been deleted (and, possibly, re-added), its index
-   // must be <= oi: search backward from oi to find it
-   auto avoi = get_active_var( oi );
-   Index i = oi;
+
+   if( nav == 0 ) {
+    *(mapit++) = Inf< Index >();
+    continue;
+    }
+
+   // Phase 1: search backward from the original index oi down to 0.
+   // If oi is no longer a valid index (because Variable(s) have been
+   // deleted since the Modification was issued), the search starts at
+   // the last valid index instead --- which means Phase 1 already
+   // covers the entire set of active Variables and Phase 2 below is
+   // unneeded.
+   Index i = std::min( oi , Index( nav - 1 ) );
+   auto avoi = get_active_var( i );
    while( var != avoi ) {
     if( ! i )
      break;
     avoi = get_active_var( --i );
     }
-   if( var == avoi )  // the Variable was found
-    *(mapit++) = i;   // this is its index
-   else {             // the Variable was not found
-    // restart the search from the last variable to oi (excluded), for the
-    // case where var has been deleted and re-added, and therefore its
-    // index can now be arbitrary (but it is more likely to be "close to
-    // the end" than "at the beginning")
+   if( var == avoi ) {  // the Variable was found
+    *(mapit++) = i;     // this is its index
+    continue;           // all done for this variable
+    }
+
+   // Phase 2: var was not found in [0, min(oi, nav-1)]. Search the
+   // remaining range (oi, nav-1], which is non-empty only when
+   // oi + 1 < nav.
+   if( oi + 1 < nav ) {
     for( i = nav , avoi = get_active_var( --i ) ;
 	 ( var != avoi ) && ( i > oi ) ; )
      avoi = get_active_var( --i );
     *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
     }
+   else
+    *(mapit++) = Inf< Index >();
    }  // end( for all Variable )
 
   return( map );
@@ -756,27 +770,41 @@ class ThinVarDepInterface {
   // for all Variable in the set
   for( auto oi = rng.first ; oi < rng.second ; ++oi ) {
    auto var = *(varsit++);  // next variable
-   // if var has not been deleted (and, possibly, re-added), its index
-   // must be <= oi: search backward from oi to find it
-   auto avoi = get_active_var( oi );
-   Index i = oi;
+
+   if( nav == 0 ) {
+    *(mapit++) = Inf< Index >();
+    continue;
+    }
+
+   // Phase 1: search backward from the original index oi down to 0.
+   // If oi is no longer a valid index (because Variable(s) have been
+   // deleted since the Modification was issued), the search starts at
+   // the last valid index instead --- which means Phase 1 already
+   // covers the entire set of active Variables and Phase 2 below is
+   // unneeded.
+   Index i = std::min( oi , Index( nav - 1 ) );
+   auto avoi = get_active_var( i );
    while( var != avoi ) {
     if( ! i )
      break;
     avoi = get_active_var( --i );
     }
-   if( var == avoi )  // the Variable was found
-    *(mapit++) = i;   // this is its index
-   else {             // the Variable was not found
-    // restart the search from the last variable to oi (excluded), for the
-    // case where var has been deleted and re-added, and therefore its
-    // index can now be arbitrary (but it is more likely to be "close to
-    // the end" than "at the beginning")
+   if( var == avoi ) {  // the Variable was found
+    *(mapit++) = i;     // this is its index
+    continue;           // all done for this variable
+    }
+
+   // Phase 2: var was not found in [0, min(oi, nav-1)]. Search the
+   // remaining range (oi, nav-1], which is non-empty only when
+   // oi + 1 < nav.
+   if( oi + 1 < nav ) {
     for( i = nav , avoi = get_active_var( --i ) ;
 	 ( var != avoi ) && ( i > oi ) ; )
      avoi = get_active_var( --i );
     *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
     }
+   else
+    *(mapit++) = Inf< Index >();
    }  // end( for all Variable )
 
   return( map );

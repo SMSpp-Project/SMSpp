@@ -156,8 +156,9 @@ class ColVariable : public Variable
   kZeroRealU   = 14 ,  ///< any real value between -1 and 1 provided it is 0
   kZeroIntU    = 15 ,  ///< any int value between -1 and 1 provided it is 0
   ColVarLastType       ///< first allowed parameter value for derived classes
-                       /**< Convenience value for easily allows derived classes
-                        * to extend the set of types of real subsets. */
+                       /**< Convenience value for easily allowing derived
+			* classes to extend the set of types of real subsets.
+			*/
   };
 
 /*--------------------------------------------------------------------------*/

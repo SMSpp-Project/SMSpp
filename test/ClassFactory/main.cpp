@@ -284,7 +284,8 @@ void test_Solver( void ) {
 
 /*--------------------------------------------------------------------------*/
 
-int main() {
+int main( int argc , char ** argv )
+{
  test_Block();
  test_Configuration();
  test_Solver();

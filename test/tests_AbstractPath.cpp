@@ -147,6 +147,151 @@ void test_paths( Block * block , Block * reference_block ) {
 
 /*--------------------------------------------------------------------------*/
 
+void test_variable_multi_selection( Block * reference ) {
+ using Index = Block::Index;
+
+ // Find a static ColVariable group of size >= 2 in the reference Block;
+ // skip the test if no such group is available.
+ const auto & static_vars = reference->get_static_variables();
+ for( Index g = 0 ; g < static_vars.size() ; ++g ) {
+  const auto group_size = inspection::get_static_element_size<
+   ColVariable , ColVariable >( static_vars[ g ] );
+  if( ( group_size == Inf< Index >() ) || ( group_size < 2 ) )
+   continue;
+
+  auto * first = inspection::get_element< ColVariable >(
+   reference , /*is_static*/ true , g , /*element_index*/ 0 );
+  if( ! first )
+   continue;
+
+  AbstractPath path( first , reference );
+
+  // ---- contiguous element range [ 0 , group_size ) ------------------------
+  {
+   AbstractPath rpath = path;
+   rpath.set_last_node_range( 0 , group_size );
+   assert( rpath.get_number_elements< ColVariable >( reference ) == group_size );
+   for( Index j = 0 ; j < group_size ; ++j )
+    assert( rpath.get_element< ColVariable >( reference , j ) ==
+            inspection::get_element< ColVariable >( reference , true , g , j ) );
+
+   const auto indices = rpath.get_resolved_indices< ColVariable >( reference );
+   assert( indices.size() == group_size );
+   for( Index j = 0 ; j < group_size ; ++j )
+    assert( indices[ j ] == j );
+
+   netCDF::NcFile ncFile( "ncfile_path_test.txt" , netCDF::NcFile::replace );
+   auto ncgroup = ncFile.addGroup( "Path" );
+   rpath.serialize( ncgroup );
+   AbstractPath round_trip( ncgroup );
+   assert( round_trip == rpath );
+   assert( round_trip.get_number_elements< ColVariable >( reference ) ==
+           group_size );
+  }
+
+  // ---- explicit, possibly non-contiguous, element subset -------------------
+  {
+   // pick a subset with at least one "gap": { 0 , group_size - 1 }
+   std::vector< Index > subset = { 0 , group_size - 1 };
+   AbstractPath spath = path;
+   spath.set_last_node_subset( subset );
+
+   assert( spath.get_number_elements< ColVariable >( reference ) ==
+           subset.size() );
+   assert( spath.get_element< ColVariable >( reference , 0 ) == first );
+   assert( spath.get_element< ColVariable >( reference , 1 ) ==
+           inspection::get_element< ColVariable >( reference , true , g ,
+                                                  group_size - 1 ) );
+
+   const auto indices = spath.get_resolved_indices< ColVariable >( reference );
+   assert( indices == subset );
+
+   netCDF::NcFile ncFile( "ncfile_path_test.txt" , netCDF::NcFile::replace );
+   auto ncgroup = ncFile.addGroup( "Path" );
+   spath.serialize( ncgroup );
+   AbstractPath round_trip( ncgroup );
+   assert( round_trip == spath );
+   assert( round_trip.get_number_elements< ColVariable >( reference ) ==
+           subset.size() );
+   assert( round_trip.get_resolved_indices< ColVariable >( reference ) ==
+           subset );
+  }
+
+  return;  // at least one group exercised
+  }
+}
+
+/*--------------------------------------------------------------------------*/
+
+void test_block_multi_selection( Block * reference ) {
+ using Index = Block::Index;
+
+ const auto & nested = reference->get_nested_Blocks();
+ if( nested.size() < 2 )
+  return;
+
+ // ---- contiguous Block range [ 0 , nested.size() ) on the last 'B' node ----
+ {
+  AbstractPath path( nested[ 0 ] , reference );
+  path.set_last_node_range( 0 , nested.size() );
+
+  assert( path.get_number_elements< Block >( reference ) == nested.size() );
+  for( Index j = 0 ; j < nested.size() ; ++j )
+   assert( path.get_element< Block >( reference , j ) == nested[ j ] );
+
+  const auto indices = path.get_resolved_indices< Block >( reference );
+  assert( indices.size() == nested.size() );
+  for( Index j = 0 ; j < nested.size() ; ++j )
+   assert( indices[ j ] == j );
+
+  test_serialization( path );
+  AbstractPath round_trip;
+  {
+   netCDF::NcFile ncFile( "ncfile_path_test.txt" , netCDF::NcFile::replace );
+   auto group = ncFile.addGroup( "Path" );
+   path.serialize( group );
+   round_trip = AbstractPath( group );
+  }
+  assert( round_trip == path );
+  assert( round_trip.get_number_elements< Block >( reference ) ==
+          nested.size() );
+  for( Index j = 0 ; j < nested.size() ; ++j )
+   assert( round_trip.get_element< Block >( reference , j ) == nested[ j ] );
+ }
+
+ // ---- explicit, possibly non-contiguous, Block subset on the last node -----
+ {
+  std::vector< Index > subset;
+  for( Index k = 0 ; k < nested.size() ; k += 2 )
+   subset.push_back( k );
+
+  AbstractPath path( nested[ 0 ] , reference );
+  path.set_last_node_subset( subset );
+
+  assert( path.get_number_elements< Block >( reference ) == subset.size() );
+  for( Index j = 0 ; j < subset.size() ; ++j )
+   assert( path.get_element< Block >( reference , j ) == nested[ subset[ j ] ] );
+
+  assert( path.get_resolved_indices< Block >( reference ) == subset );
+
+  AbstractPath round_trip;
+  {
+   netCDF::NcFile ncFile( "ncfile_path_test.txt" , netCDF::NcFile::replace );
+   auto group = ncFile.addGroup( "Path" );
+   path.serialize( group );
+   round_trip = AbstractPath( group );
+  }
+  assert( round_trip == path );
+  assert( round_trip.get_number_elements< Block >( reference ) ==
+          subset.size() );
+  for( Index j = 0 ; j < subset.size() ; ++j )
+   assert( round_trip.get_element< Block >( reference , j ) ==
+           nested[ subset[ j ] ] );
+ }
+}
+
+/*--------------------------------------------------------------------------*/
+
 std::set< std::pair< Block * , Block * > > visited_blocks;
 
 bool visited( Block * block , Block * reference_block ) {
@@ -296,12 +441,139 @@ void simple_full_test() {
 
  test( block , block );
 
+ test_block_multi_selection( block );
+ test_variable_multi_selection( block );
+
  delete block;
 }
 
 /*--------------------------------------------------------------------------*/
 
-int main() {
+// writes into group the path with the given node types, element and range
+// indices, and the given (string) group indices
+
+void write_named_path( netCDF::NcGroup group ,
+                       const std::vector< char > & types ,
+                       const std::vector< std::string > & names ,
+                       const std::vector< unsigned int > & elements ,
+                       const std::vector< unsigned int > & ranges ) {
+ auto dim = group.addDim( "PathTotalLength" , types.size() );
+ group.addVar( "PathNodeTypes" , netCDF::NcChar() , dim ).putVar(
+                                                               types.data() );
+ std::vector< const char * > cnames( names.size() );
+ for( std::size_t i = 0 ; i < names.size() ; ++i )
+  cnames[ i ] = names[ i ].c_str();
+ group.addVar( "PathGroupIndices" , netCDF::NcString() , dim ).putVar(
+                                                              cnames.data() );
+ group.addVar( "PathElementIndices" , netCDF::NcUint() , dim ).putVar(
+                                                            elements.data() );
+ group.addVar( "PathRangeIndices" , netCDF::NcUint() , dim ).putVar(
+                                                              ranges.data() );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+// paths addressing nested Blocks and groups of Variable by name, by index,
+// or by a mix of the two
+
+void test_names( void ) {
+
+ auto root = new AbstractBlock();
+ std::vector< ColVariable > * target_group = nullptr;
+ for( const std::string name : { "alpha" , "beta" } ) {
+  auto son = new AbstractBlock( root );
+  son->set_name( std::string( name ) );
+  son->add_static_variable( * new std::vector< ColVariable >( 2 ) , "x" );
+  target_group = new std::vector< ColVariable >( 3 );
+  son->add_static_variable( * target_group , "y" );
+  root->add_nested_Block( son );
+  }
+ // the target is the last element of group "y" of the nested Block "beta"
+ const Variable * target = & target_group->back();
+
+ netCDF::NcFile ncFile( "ncfile_path_names_test.txt" ,
+                        netCDF::NcFile::replace );
+
+ // the numeric path, whose node types and element indices are reused
+ AbstractPath numeric( target , root );
+ assert( numeric.get_element< Variable >( root ) == target );
+ auto ng = ncFile.addGroup( "Numeric" );
+ numeric.serialize( ng );
+
+ const auto n = ng.getDim( "PathTotalLength" ).getSize();
+ std::vector< char > types( n );
+ std::vector< unsigned int > elements( n ) , ranges( n );
+ ng.getVar( "PathNodeTypes" ).getVar( types.data() );
+ ng.getVar( "PathElementIndices" ).getVar( elements.data() );
+ ng.getVar( "PathRangeIndices" ).getVar( ranges.data() );
+
+ // the string group indices: bname for the 'B' node, vname for the 'V' one
+ auto names = [ & types ]( const std::string & bname ,
+                           const std::string & vname ) {
+  std::vector< std::string > result;
+  for( auto t : types ) {
+   assert( ( t == 'B' ) || ( t == 'V' ) );
+   result.push_back( t == 'B' ? bname : vname );
+   }
+  return( result );
+  };
+
+ const std::vector< std::pair< std::string , std::string > > cases = {
+  { "beta" , "y" } , { "1" , "y" } , { "beta" , "1" } , { "1" , "1" } };
+
+ std::vector< AbstractPath > paths;
+ for( std::size_t k = 0 ; k < cases.size() ; ++k ) {
+  auto g = ncFile.addGroup( "Named" + std::to_string( k ) );
+  write_named_path( g , types , names( cases[ k ].first , cases[ k ].second ) ,
+                    elements , ranges );
+  paths.emplace_back( g );
+  assert( paths.back().get_element< Variable >( root ) == target );
+  }
+
+ // a name that no nested Block has
+ {
+  auto g = ncFile.addGroup( "Unknown" );
+  write_named_path( g , types , names( "gamma" , "y" ) , elements , ranges );
+  AbstractPath path( g );
+  bool thrown = false;
+  try {
+   path.get_element< Variable >( root );
+   }
+  catch( const std::invalid_argument & ) {
+   thrown = true;
+   }
+  assert( thrown );
+  }
+
+ // a path with names keeps them through serialize() and deserialize()
+ {
+  auto g = ncFile.addGroup( "RoundTrip" );
+  paths.front().serialize( g );
+  AbstractPath path( g );
+  assert( path == paths.front() );
+  assert( path.get_element< Variable >( root ) == target );
+  }
+
+ // a vector mixing a path with names and a numeric one: the unnamed nodes
+ // are written as the decimal form of their index
+ {
+  auto g = ncFile.addGroup( "Vector" );
+  AbstractPath::serialize( std::vector< AbstractPath >{ paths.front() ,
+                                                        numeric } , g );
+  const auto read = AbstractPath::vector_deserialize( g );
+  assert( read.size() == 2 );
+  for( const auto & path : read )
+   assert( path.get_element< Variable >( root ) == target );
+  }
+
+ delete root;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+int main( int argc , char ** argv )
+{
+ test_names();
  simple_full_test();
  return( 0 );
 }

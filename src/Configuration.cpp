@@ -16,6 +16,8 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <filesystem>
+
 #include "Configuration.h"
 
 /*--------------------------------------------------------------------------*/
@@ -79,6 +81,19 @@ SMSpp_insert_in_factory_cpp_0_t(
 /*------------------------------- FUNCTIONS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+// prepend the executable-wide filename prefix to the given filename; an
+// absolute filename identifies the file on its own, hence it is returned
+// unchanged
+
+static std::string apply_prefix( const std::string & filename )
+{
+ if( Configuration::get_filename_prefix().empty() ||
+     std::filesystem::path( filename ).is_absolute() )
+  return( filename );
+
+ return( Configuration::get_filename_prefix() + filename );
+ }
+
 /*--------------------------------------------------------------------------*/
 /*------------------------- METHODS of Configuration -----------------------*/
 /*--------------------------------------------------------------------------*/
@@ -88,18 +103,17 @@ Configuration * Configuration::deserialize( const std::string & filename )
  try {
   if( ( filename.size() > 4 ) &&
       ( ! filename.compare( filename.size() - 4 , 4 , ".txt" ) ) ) {
-   std::ifstream f( f_prefix.empty() ? filename : f_prefix + filename ,
-		    std::fstream::in );
+   auto fn = apply_prefix( filename );
+   std::ifstream f( fn , std::fstream::in );
    if( ! f.is_open() ) {
-    std::cerr << "Error: cannot open text file " <<  f_prefix + filename
-	      << std::endl;
+    std::cerr << "Error: cannot open text file " << fn << std::endl;
     return( nullptr );
     }
    return( Configuration::deserialize( f ) );
    }
   else {
    int idx = 0;
-   std::string fn = f_prefix + filename;
+   std::string fn = apply_prefix( filename );
    if( fn.back() == ']' ) {
     auto pos = fn.find_last_of( '[' );
     if( pos != std::string::npos ) {
@@ -219,7 +233,7 @@ Configuration * Configuration::deserialize( std::istream & input )
  input >> eatcomments;
  if( input.eof() )
   return( nullptr );
- 
+
  static std::string sre( "Configuration::deserialize: stream read error" );
 
  if( input.fail() )
@@ -231,18 +245,36 @@ Configuration * Configuration::deserialize( std::istream & input )
 
   if( input.eof() )
    return( nullptr );
-  
+
   if( input.fail() )
    throw( std::invalid_argument( sre ) );
 
   if( std::isspace( input.peek() ) )
    return( nullptr );
- 
+
   input >> tmp;
   if( input.fail() )
     throw( std::invalid_argument( sre ) );
 
-  return( Configuration::deserialize( tmp ) );
+  auto cfg = Configuration::deserialize( tmp );
+
+  // peek for the cascade-override marker `+`. If present, the file
+  // include was just the *base* and the inline body that follows
+  // contains overrides to merge on top via merge_overrides(). This
+  // lets a single config compose external files and only restate
+  // the values that diverge.
+  input >> eatcomments;
+  if( ( ! input.eof() ) && ( ! input.fail() ) &&
+      ( input.peek() == input.widen( '+' ) ) ) {
+   input.get();  // consume '+'
+   if( ! cfg )
+    throw( std::invalid_argument(
+     "Configuration::deserialize: cascade override `+` after a `*` that "
+     "did not produce a Configuration" ) );
+   cfg->merge_overrides( input );
+   }
+
+  return( cfg );
   }
  else {
   input >> tmp;
@@ -714,10 +746,19 @@ void SimpleConfiguration< std::map< std::string , Configuration * >
    }
   }
 
+ // a netCDF NcString variable is backed by variable-length strings, so
+ // putVar() expects an array of C-strings (char **): passing the std::string
+ // objects directly (tmp.data()) would make the netCDF/HDF5 layer read their
+ // internal representation as char * and crash. Build the array of C-string
+ // pointers explicitly.
+ std::vector< const char * > tmp_cstr( tmp.size() );
+ for( size_t k = 0 ; k < tmp.size() ; ++k )
+  tmp_cstr[ k ] = tmp[ k ].c_str();
+
  std::vector< size_t > startp = { 0 };
  std::vector< size_t > countp = { f_value.size() };
  ( group.addVar( "keys" , netCDF::NcString() , sz )
-   ).putVar( startp , countp , tmp.data() );
+   ).putVar( startp , countp , tmp_cstr.data() );
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -803,6 +844,24 @@ void SimpleConfiguration< std::map< std::string , Configuration * >
    output << "*";
   output << " )" << std::endl;
   }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+std::string & config_filename_prefix( void )
+{
+ static std::string prefix;
+ return( prefix );
+ }
+
+void Configuration::set_filename_prefix( std::string && prefix )
+{
+ config_filename_prefix() = std::move( prefix );
+ }
+
+const std::string & Configuration::get_filename_prefix( void )
+{
+ return( config_filename_prefix() );
  }
 
 /*--------------------------------------------------------------------------*/

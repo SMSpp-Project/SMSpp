@@ -90,7 +90,7 @@ directory tree constructed in the build/ folder) and therefore it is more
 convenient when having to recompile often, such as when developing/debugging
 a new module, as opposed to the compile-and-forget usage envisioned by CMake.
 
-A makefile for building the "core" SMS++ library in available in
+A makefile for building the "core" SMS++ library is available in
 
 ```sh
 SMS++/lib/makefile-lib
@@ -128,6 +128,13 @@ bits (commenting out all the rest).
 
 Check the [SMS++ installation wiki](https://gitlab.com/smspp/smspp-project/-/wikis/Customize-the-configuration#location-of-required-libraries)
 for further details.
+
+
+## Tests
+
+The [test](test) folder contains unit testers for several core components, such
+as `AbstractBlock`, `AbstractPath`, `ColVariable`, `Function`, `LinearFunction`
+and `QuadFunction`.
 
 
 ## Getting help

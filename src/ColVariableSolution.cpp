@@ -67,11 +67,18 @@ void ColVariableSolution::delete_vectors() {
                       "invalid static variable group: " ) +
          static_variable_values[ i ].type().name() ) );
 
+  // the saved values of a dynamic variable group are stored flat, as a
+  // std::vector< double > * (one entry per Variable in the group), i.e. with
+  // the same shape as a static "vector" group; hence they are matched by
+  // un_any_thing_static( double , ... ) (which handles double * / vector< double
+  // > * / multi_array< double > *), NOT by un_any_thing_dynamic( vector< double
+  // > , ... ) (which only matches list< vector< double > > * and the like)
+
   for( Vec_any::size_type i = 0 ; i < dynamic_variable_values.size() ; ++i )
 
-    if( ! un_any_thing_dynamic( std::vector< double > ,
-                                dynamic_variable_values[ i ] ,
-                                [ & var ]() { delete & var; }() ) )
+    if( ! un_any_thing_static( double ,
+                               dynamic_variable_values[ i ] ,
+                               [ & var ]() { delete & var; }() ) )
 
       throw( std::logic_error
        ( std::string( "ColVariableSolution::~ColVariableSolution() "

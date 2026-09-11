@@ -7,11 +7,93 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added 
+### Added
 
-### Changed 
+### Changed
 
-### Fixed 
+### Fixed
+
+## [0.7.0] - 2026-09-12
+
+### Added
+
+- `AbstractBlock::mirror()`, which builds the AbstractBlock as a copy of the
+  abstract representation of any other Block: one ColVariable per
+  ColVariable, one Constraint per Constraint and an Objective, the groups
+  keeping their shape and their order and the inner Block being copied
+  recursively, with a Constraint of the copy written in the Variable of the
+  copy and a Variable living outside the mirrored subtree shared with the
+  original. The copy knows which object of the original each of its own
+  corresponds to, hence it moves solution information in both directions
+  [see `mirror_read()` and `mirror_write()`] and applies to itself a
+  Modification the original issues [see `mirror_forward_Modification()`],
+  which is what an `UpdateSolver` attached to the original does by itself.
+  What cannot be written on other Variable, which is any Function but a
+  LinearFunction and a DQuadFunction, is left out and recorded [see
+  `get_mirror_issues()`], so that the copy is then a relaxation and whoever
+  asked for it can see that it is; the objects of each group are counted on
+  both sides, so that a group of a shape the copy does not reproduce is
+  recorded as well rather than quietly holding fewer objects
+
+- the default implementation of `Block::map_back_solution()`,
+  `Block::map_forward_solution()` and `Block::map_forward_Modification()`
+  serves the AbstractBlock that has mirrored the Block, so that every Block
+  has a R3 Block of itself without having had to write a line for it
+
+- `Block::access_static_variable()` and its three companions, which give the
+  group of Variable or Constraint as the boost::any holding it, so that code
+  building a Block out of another one can install a group whose type it only
+  knows at run time
+
+- `ThinComputeInterface::print_parameters()`, which prints the name, the
+  current value and the default one of every parameter, walking the six
+  index spaces; for a class whose index space extends over that of a
+  wrapped ThinComputeInterface it shows what the wrapped one has been
+  given, which is what one needs to see when a parameter is suspected of
+  not arriving where it was meant to
+
+- `QuadFunction::remove_variables( Subset )`, so that a bunch of Variable can
+  be removed in one call rather than one at a time
+
+- `Block::set_structure()`, which decides the *structure* of a Block, i.e.,
+  its tree of sub-Block, as opposed to its *formulation*, i.e., what its
+  abstract representation encodes; `set_BlockConfig()` calls it as soon as it
+  has digested the BlockConfig, hence before anything is generated and before
+  any Solver is attached
+
+- `BlockConfig::f_structure_Configuration`, the Configuration that
+  `set_structure()` reads, which is the first one of a BlockConfig, since the
+  structure comes before everything else
+
+### Changed
+
+- the text format of a BlockConfig carries a version number right after the
+  differential flag, so that a file in the previous format is refused with a
+  message rather than being read with all its Configuration shifted by one
+  slot; every BlockConfig file has to be converted
+
+- the version of the module is the git tag of its repository, or the
+  VERSION.txt of a release tarball, and the shared library carries it: its
+  SONAME is major.minor while the major is 0, and it is installed with an
+  RPATH relative to itself, so that an installed tree keeps working wherever
+  it is moved
+
+### Fixed
+
+- `LagBFunction::cleanup_inner_objective()` restored the original costs by
+  rewriting the whole vector of coefficients, i.e. a Range spanning every
+  variable of the inner Block. A :Block is entitled to refuse a change on
+  some of its own, and ThermalUnitBlock does so for the schedule-deviation
+  variables on the range rather than on the value: it therefore refused a
+  restore that left those coefficients exactly where they were, which is
+  what the AC instances of the test battery died on. Only the coefficients
+  that actually differ are written now, as a Range when they are contiguous
+  and as a Subset otherwise, mirroring how the Lagrangian costs are written
+
+- `QuadFunction::remove_variables( Range )` computed the shift of the
+  non-diagonal terms out of one Variable more than it was removing, kept the
+  terms of the last removed one and, whenever an Observer was listening, spun
+  in an infinite loop while collecting the names of the removed Variable
 
 ## [0.6.0] - 2025-12-12
 
@@ -325,8 +407,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - First test release.
 
-[Unreleased]: https://gitlab.com/smspp/smspp/-/compare/0.6.0...develop
-[Unreleased]: https://gitlab.com/smspp/smspp/-/compare/0.5.3...0.6.0
+[Unreleased]: https://gitlab.com/smspp/smspp/-/compare/0.7.0...develop
+[0.7.0]: https://gitlab.com/smspp/smspp/-/compare/0.6.0...0.7.0
+[0.6.0]: https://gitlab.com/smspp/smspp/-/compare/0.5.3...0.6.0
 [0.5.3]: https://gitlab.com/smspp/smspp/-/compare/0.5.2...0.5.3
 [0.5.2]: https://gitlab.com/smspp/smspp/-/compare/0.5.1...0.5.2
 [0.5.1]: https://gitlab.com/smspp/smspp/-/compare/0.5.0...0.5.1

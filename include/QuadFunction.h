@@ -94,7 +94,7 @@ class QuadFunction : public DQuadFunction {
   * It will be assumed throughout that a ColVariable corresponding to Index 
   * actually exists in DQuadFunction
   * This will not be explicitly checked, in principle
-  * */
+  */
  using off_diag_term = std::tuple< Index , Index , Coefficient >;
 
  using c_off_diag_term = const off_diag_term;  ///< a const off_diag_term
@@ -252,7 +252,7 @@ class QuadFunction : public DQuadFunction {
   *  Both indexes must be between 0 and get_num_active_var() - 1.
   *  @param i Index of the first Variable 
   *  @param j Index of the second Variable 
-  * */
+  */
  Coefficient get_quadratic_coefficient( Index i, Index j ) const {
     #ifndef NDEBUG
       if( ( std::min( i , j ) < 0 ) ||
@@ -310,6 +310,37 @@ class QuadFunction : public DQuadFunction {
  void get_hessian_approximation( SparseHessian & hessian ) const override;
 
 /*--------------------------------------------------------------------------*/
+ /// the gradient of the QuadFunction at the current point
+ /** QuadFunction must override the get_linearization_coefficients() inherited
+  * from DQuadFunction, which only account for the diagonal + linear part of
+  * the gradient ( 2 a_i x_i + b_i ), to add the off-diagonal contribution: the
+  * gradient of f( x ) = c + sum_i ( a_i x_i^2 + b_i x_i ) + sum_{i>j} q_ij x_i
+  * x_j has i-th entry 2 a_i x_i + b_i + sum_{j != i} q_ij x_j, the last term
+  * being ( mat_nd + mat_nd^T ) x. Without this override the gradient (the
+  * "diagonal linearization") of a QuadFunction with off-diagonal terms would
+  * be wrong, breaking any C05Function user relying on it. */
+
+ void get_linearization_coefficients( FunctionValue * g ,
+				      Range range = INFRange ,
+				      Index name = Inf< Index >() ) override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ void get_linearization_coefficients( SparseVector & g ,
+				      Range range = INFRange ,
+				      Index name = Inf< Index >() ) override;
+
+/*--------------------------------------------------------------------------*/
+
+ void get_linearization_coefficients( FunctionValue * g , c_Subset & subset ,
+				      const bool ordered = false ,
+				      Index name = Inf< Index >() ) override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ void get_linearization_coefficients( SparseVector & g , c_Subset & subset ,
+				      const bool ordered = false ,
+				      Index name = Inf< Index >() ) override;
 
 /*--------------------------------------------------------------------------*/
  /// returns the linearization constant of the current point
@@ -447,7 +478,7 @@ class QuadFunction : public DQuadFunction {
   * 
   * In our case this will delete all non-diagonal terms involving this index i;
   * 
-  * */
+  */
 
  void remove_variable( Index i , ModParam issueMod = eModBlck )
   override final;
@@ -466,11 +497,30 @@ class QuadFunction : public DQuadFunction {
   * 
   * In our case this will delete all non-diagonal terms involving this index Range;
   *
-  * */
+  */
 
  void remove_variables( Range range , ModParam issueMod = eModBlck )
   override final;
-  
+
+/*--------------------------------------------------------------------------*/
+ /// remove a subset of "active" Variable
+ /** Remove all the "active" Variable whose index is in \p nms, which is
+  * ordered by increasing Index if \p ordered is true and is "consumed" by
+  * the method as the && tells, from this QuadFunction; if \p nms is empty
+  * then *all* the Variable are removed.
+  *
+  * The parameter issueMod decides if and how the C05FunctionModVarsSbst is
+  * issued, as described in Observer::make_par(). Note that a quadratic
+  * function is additive, and therefore strongly quasi-additive, which is why
+  * a C05FunctionModVarsSbst is issued as opposed to a FunctionModVarsSbst
+  * one.
+  *
+  * As in remove_variable(), all the non-diagonal terms involving any of the
+  * removed indices go with them, and the ones that stay are re-indexed. */
+
+ void remove_variables( Subset && nms , bool ordered = false ,
+                        ModParam issueMod = eModBlck ) override;
+
 
 /** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -482,6 +532,40 @@ class QuadFunction : public DQuadFunction {
 /*--------------------------- PROTECTED METHODS ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
+ /// rebuilds the non-diagonal terms after some Variable have been removed
+ /** Rebuilds the sparse matrix of the non-diagonal terms out of \p where,
+  * which gives the new index of each of the current Variable, Inf< Index >()
+  * for one that is being removed: a term survives only if both its Variable
+  * do, and lands at their new indices. \p nsz is how many Variable are left,
+  * i.e., the size of the new matrix. */
+
+ template< class F >
+ void compact_nd( F && where , Index nsz ) {
+  Qmat tmp( nsz , nsz );
+  tmp.reserve( mat_nd.nonZeros() );
+
+  for( int k = 0 ; k < mat_nd.outerSize() ; ++k )
+   for( Qmat::InnerIterator it( mat_nd , k ) ; it ; ++it ) {
+    // only the lower triangle is stored, hence col() < row() always
+    const Index nr = where( Index( it.row() ) );
+    if( nr == Inf< Index >() )
+     continue;
+    const Index nc = where( Index( it.col() ) );
+    if( nc == Inf< Index >() )
+     continue;
+    tmp.insert( nr , nc ) = it.value();
+    }
+
+  // squeeze every bit of memory out of the beast before reallocating it
+  mat_nd.setZero();
+  mat_nd.data().squeeze();
+
+  mat_nd.resize( nsz , nsz );
+  mat_nd.reserve( tmp.nonZeros() );
+  mat_nd = tmp;
+  }
+
+/*--------------------------------------------------------------------------*/
  /// printing the QuadFunction
  void print( std::ostream & output ) override {
   output << "QuadFunction [" << this << "] observed by ["
@@ -504,6 +588,13 @@ class QuadFunction : public DQuadFunction {
 /*--------------------------------------------------------------------------*/
 
  private:
+
+ /// the off-diagonal contribution ( mat_nd + mat_nd^T ) x to the gradient
+ /** Returns a dense vector of size get_num_active_var() whose i-th entry is
+  * sum_{j != i} q_ij x_j, i.e. the off-diagonal part of the gradient at the
+  * current point; used by the get_linearization_coefficients() overrides. */
+
+ std::vector< FunctionValue > offdiagonal_gradient( void );
 
   /**
   * The following are internal flags to remember what kind of function we are dealing

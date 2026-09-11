@@ -26,8 +26,8 @@
  * - Function that appears in the Constraint and Objective, i.e.,
  *   FRealObjective and FRowConstraint;
  *
- * - Function that have a Block (are a Block), i.e., BendersBFunction and
- *   LagBFunction.
+ * - Function that are also a Block, and therefore carry an inner Block of
+ *   their own.
  *
  * - PolyhedralFunction, if it is part of a PolyhedralFunctionBlock.
  *
@@ -57,7 +57,10 @@
 #include "PolyhedralFunctionBlock.h"
 #include "SMSTypedefs.h"
 
+#include <algorithm>
+#include <cctype>
 #include <iterator>
+#include <string>
 #include <vector>
 #include <netcdf>
 
@@ -117,8 +120,8 @@ namespace SMSpp_di_unipi_it
  * - Function that appear in the Constraint and Objective, i.e.,
  *   FRealObjective and FRowConstraint;
  *
- * - Function that have a Block (are a Block), i.e., BendersBFunction and
- *   LagBFunction.
+ * - Function that are also a Block, and therefore carry an inner Block of
+ *   their own.
  *
  * - PolyhedralFunction, if it is part of a PolyhedralFunctionBlock.
  *
@@ -181,10 +184,6 @@ namespace SMSpp_di_unipi_it
  * preceded by another `B' node, which is associated with the father of that
  * Block.
  *
- * If the index of a 'B' node is not +Inf, then this node is necessarily
- * preceded by another 'B' node, which is associated with the father of that
- * Block.
- *
  * An 'O' node, which is associated with an Objective, is either preceded by
  * a 'B' node (which is associated with the Block that owns that Objective) or
  * is the only node in the path. If it is the last node in the path, then the
@@ -192,9 +191,9 @@ namespace SMSpp_di_unipi_it
  * (in which case that Objective is an FRealObjective). The type of the target
  * element must be known from the context. If this is not the last node in the
  * path, then the type of the next node in the path is 'B' and it is
- * associated with the inner Block of either a BendersBFunction or a
- * LagBFunction which is the Function of that Objective (and thus that
- * Objective is actually an FRealObjective).
+ * associated with the inner Block of the Function of that Objective, which
+ * is then a Function that is also a Block (and thus that Objective is
+ * actually an FRealObjective).
  *
  * Finally, a 'C' or 'c' node, which is associated with a Constraint, has
  * characteristics pertaining both the 'V' (and 'v') and the 'O' nodes. Like
@@ -208,15 +207,49 @@ namespace SMSpp_di_unipi_it
  * that Constraint is an FRowConstraint). The type of the target element must
  * be known from the context. If this is not the last node in the path, then
  * the type of the next node in the path is 'B' and it is associated with the
- * inner Block of either a BendersBFunction or a LagBFunction which is the
- * Function of that Constraint (and thus that Constraint is actually an
+ * inner Block of the Function of that Constraint, which is then a Function
+ * that is also a Block (and thus that Constraint is actually an
  * FRowConstraint).
  *
- * To help understand how a path is defined, we present some examples. TODO
+ * Multi-element selection on the LAST node
+ * -----------------------------------------
+ *
+ * The last node of a path can optionally select more than one element of the
+ * same kind, instead of a single one. This is supported in two equivalent
+ * forms:
+ *
+ * - a contiguous range. On a 'V'/'v' or 'C'/'c' node the range is
+ *   [ element_index , range_index ) over the element indices within the
+ *   group; on a 'B' node it is [ group_index , range_index ) over the
+ *   nested-Block indices of the Block that owns them. The legacy convention
+ *   range_index == +Inf still means "a single element" for 'B' nodes (so that
+ *   existing paths keep their meaning), while for 'V'/'v' or 'C'/'c' nodes
+ *   range_index == +Inf means "to the end of the group".
+ *
+ * - an explicit, possibly non-contiguous, subset of element/Block indices.
+ *   The subset is stored in the optional netCDF variables PathSubset and
+ *   PathSubsetSizes (see deserialize()); when present on a node it takes
+ *   precedence over the contiguous range. This is useful e.g. to drive a
+ *   data mapping over a non-contiguous set of sibling Blocks.
+ *
+ * In both forms, get_number_elements() returns the number of selected
+ * elements/Blocks and get_element( reference , offset ) returns the
+ * offset-th one. Setters set_last_node_range() and set_last_node_subset()
+ * make authoring these selections from C++ straightforward.
+ *
+ * For multi-dimensional 'V'/'v' or 'C'/'c' groups (e.g. a
+ * boost::multi_array of Variables), all indices - whether stored as a
+ * single element_index, the bounds of a contiguous range, or the elements
+ * of an explicit subset - are flat row-major indices in the same
+ * convention used everywhere else in SMS++ (see the deserialize() comments
+ * for the formula). A contiguous range therefore spans elements in
+ * row-major order, which is the natural choice for full-array or single-
+ * row selections; to express a non-row-major slice (e.g. one column of a
+ * 2D array, or an arbitrary sub-set), use the explicit subset form.
  */
 
-class AbstractPath {
-
+class AbstractPath
+{
 /*--------------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -258,6 +291,19 @@ private:
  /// Name of the netCDF variable that stores the array of last element indices
  inline static const std::string element_range_name = "PathRangeIndices";
 
+ /// Name of the netCDF variable that stores, for each node, the size of the
+ /// (optional) explicit subset of nested-Block indices selected by that node
+ inline static const std::string subset_size_name = "PathSubsetSizes";
+
+ /// Name of the netCDF dimension that stores the total number of elements in
+ /// the (optional) explicit Block subsets of all nodes
+ inline static const std::string subset_total_length_dim_name =
+                                                       "PathSubsetTotalLength";
+
+ /// Name of the netCDF variable that stores the concatenation of the
+ /// (optional) explicit subsets of nested-Block indices of all nodes
+ inline static const std::string subset_name = "PathSubset";
+
 /** @} ---------------------------------------------------------------------*/
 /*-------------------------- PRIVATE CLASSES -------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -276,8 +322,8 @@ private:
   * A 'C' node is associated with a static Constraint, while a 'c' node is
   * associated with a dynamic Constraint. Likewise, a 'V' node is associated
   * with a static Variable, while a 'v' node is associated with a dynamic
-  * Variable.
-  */
+  * Variable. */
+
  class Node {
 
  public:
@@ -298,7 +344,8 @@ private:
 
 /*--------------------------------------------------------------------------*/
 
-  Node( NodeType type , Index group_index , Index element_index , Index range_index )
+  Node( NodeType type , Index group_index , Index element_index ,
+	Index range_index )
    : type( type ) , group_index( group_index ) ,
      element_index( element_index ) , range_index( range_index ) {}
 
@@ -308,13 +355,13 @@ private:
    if( type == 'c' || type == 'v' )
     return( false );
    return( true );
-  }
+   }
 
 /*--------------------------------------------------------------------------*/
 
   static NodeType to_static( NodeType type ) {
    return( std::toupper( type ) );
-  }
+   }
 
 /*--------------------------------------------------------------------------*/
 
@@ -322,7 +369,7 @@ private:
    if( type == 'C' || type == 'V' )
     return( std::tolower( type ) );
    return( type );
-  }
+   }
 
 /*--------------------------------------------------------------------------*/
 
@@ -330,7 +377,7 @@ private:
    if( type == 'c' || type == 'v' )
     return( false );
    return( true );
-  }
+   }
 
 /*--------------------------------------------------------------------------*/
 
@@ -338,7 +385,7 @@ private:
    if( type == 'c' || type == 'C' )
     return( true );
    return( false );
-  }
+   }
 
 /*--------------------------------------------------------------------------*/
 
@@ -346,13 +393,19 @@ private:
    if( type == 'v' || type == 'V' )
     return( true );
    return( false );
-  }
+   }
+
+/*--------------------------------------------------------------------------*/
+
+  static bool is_block( NodeType type ) {
+   return( type == eBlock );
+   }
 
 /*--------------------------------------------------------------------------*/
 
   static bool has_range( NodeType type ) {
    return( is_variable( type ) || is_constraint( type ) );
-  }
+   }
 
 /*--------------------------------------------------------------------------*/
 
@@ -384,8 +437,11 @@ private:
     type = Node::to_dynamic( type );
    node_types.push_back( type );
 
+   // For nodes that support a range, range_index is the absolute one-past-last
+   // element index, so a single element at position k has range_index = k + 1
+   // (see get_number_elements()). For nodes that do not, range_index is +Inf.
    if( Node::has_range( type ) )
-    range_indices.push_back( 1 );
+    range_indices.push_back( element_index + 1 );
    else
     range_indices.push_back( Inf< Index >() );
   }
@@ -415,6 +471,7 @@ private:
   std::reverse( std::begin( group_index_names ) , std::end( group_index_names ) );
   std::reverse( std::begin( element_indices ), std::end( element_indices ) );
   std::reverse( std::begin( range_indices ), std::end( range_indices) );
+  std::reverse( std::begin( node_subsets ), std::end( node_subsets ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -434,10 +491,53 @@ private:
  }
 
 /*--------------------------------------------------------------------------*/
+
+ /// tells if the given AbstractPath addresses some group by name
+ static bool uses_names( const AbstractPath & path ) {
+  return( std::any_of( path.group_index_names.begin() ,
+		       path.group_index_names.end() ,
+		       []( const std::string & n ) { return( ! n.empty() ); }
+		       ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// tells if the given AbstractPath addresses some group by name
+ static bool uses_names( const std::unique_ptr< AbstractPath > & path ) {
+  return( path && uses_names( *path ) );
+ }
+
+/*--------------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
 
 protected:
+
+/*--------------------------------------------------------------------------*/
+/*--------------------------- PROTECTED METHODS ----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ /// tells if the given name is made of decimal digits only
+ static bool is_decimal( const std::string & name ) {
+  return( ( ! name.empty() ) &&
+          std::all_of( name.begin() , name.end() ,
+                       []( unsigned char c ) { return( std::isdigit( c ) ); }
+                       ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// the group index of each node as a string: its name, or the index
+ std::vector< std::string > get_group_index_strings( void ) const {
+  std::vector< std::string > names( length() );
+  for( Index i = 0 ; i < length() ; ++i )
+   if( ( i < group_index_names.size() ) &&
+       ( ! group_index_names[ i ].empty() ) )
+    names[ i ] = group_index_names[ i ];
+   else
+    names[ i ] = std::to_string( i < group_indices.size() ?
+                                 group_indices[ i ] : 0 );
+  return( names );
+  }
 
 /*--------------------------------------------------------------------------*/
 /*---------------------------- PROTECTED FIELDS  ---------------------------*/
@@ -448,6 +548,10 @@ protected:
 
  /// group_indices[i] is the group index of the i-th node in the path
  std::vector< Index > group_indices;
+
+ /// group_index_names[i], if not empty, is the name standing for the group
+ /// index of the i-th node, which takes precedence over group_indices[i]
+ /// (see get_node())
  std::vector< std::string > group_index_names;
 
  /// element_indices[i] is the first element index of the i-th node in the path
@@ -455,6 +559,14 @@ protected:
 
  /// range_indices[i] is the last element index of the i-th node in the path
  std::vector< Index > range_indices;
+
+ /// node_subsets[i] is the (possibly empty) explicit subset of nested-Block
+ /// indices selected by the i-th node, when it is a 'B' node that targets a
+ /// non-contiguous set of sub-Blocks. When node_subsets[i] is non-empty, it
+ /// takes precedence over the [ group_indices[ i ] , range_indices[ i ] )
+ /// contiguous Block range. It is empty for every node that selects a single
+ /// element or a contiguous range.
+ std::vector< std::vector< Index > > node_subsets;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
@@ -470,8 +582,8 @@ public:
 
  /// APnetCDF is a struct to store netCDF dimensions and variables of paths
  /** This struct is used simply to store the netCDF dimensions and variables
-  * used to represent an AbstractPath or a vector of AbstractPath.
-  */
+  * used to represent an AbstractPath or a vector of AbstractPath. */
+
  struct APnetCDF {
 
   /// Number of paths
@@ -497,7 +609,17 @@ public:
 
   /// Variable storing the last element indices
   netCDF::NcVar PathRangeIndices;
- };
+
+  /// Variable storing, per node, the size of the explicit Block subset (0 if
+  /// the node does not select an explicit subset of nested Blocks)
+  netCDF::NcVar PathSubsetSizes;
+
+  /// Sum of the sizes of the explicit Block subsets of all nodes
+  netCDF::NcDim PathSubsetTotalLength;
+
+  /// Variable storing the concatenation of the explicit Block subsets
+  netCDF::NcVar PathSubset;
+  };
 
 /** @} ---------------------------------------------------------------------*/
 /*--------------- CONSTRUCTING AND DESTRUCTING AbstractPath ----------------*/
@@ -512,19 +634,19 @@ public:
  template< class T >
  AbstractPath( const T * t , const Block * reference_block ) {
   build( t , reference_block );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 
  AbstractPath( const netCDF::NcGroup & group ) {
   deserialize( group );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 
  AbstractPath( Index path_index , const APnetCDF & netCDFvars ) {
   deserialize( path_index , netCDFvars );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 
@@ -538,48 +660,50 @@ public:
 
  /// returns the length of this AbstractPath
  /** This function returns the length of this AbstractPath, i.e., the number
-  * of nodes in the path.
-  */
- Index length( void ) const {
-  return( node_types.size() );
- }
+  * of nodes in the path. */
+
+ Index length( void ) const { return( node_types.size() ); }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns true if and only if this AbstractPath is empty
  /** This function returns true if and only if this AbstractPath is empty,
-  * i.e., it does not represent a path to any object.
-  */
- bool empty( void ) const {
-  return( length() == 0 );
- }
+  * i.e., it does not represent a path to any object. */
+
+ bool empty( void ) const { return( length() == 0 ); }
 
 /*--------------------------------------------------------------------------*/
-
  /// clears this AbstractPath
- /** This function clears this AbstractPath making it an empty path.
-  */
+ /** This function clears this AbstractPath making it an empty path. */
+
  void clear( void ) {
   node_types.clear();
   group_indices.clear();
   group_index_names.clear();
   element_indices.clear();
   range_indices.clear();
- }
+  node_subsets.clear();
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the Node representation of the i-th node in this AbstractPath
  /** This function returns the Node representation of the i-th node in this
   * AbstractPath.
   *
-  * @param block The pointer to the reference Block.
+  * If the node carries a string name rather than a numeric group index, the
+  * name is resolved in \p block: for a 'V'/'v'/'C'/'c' node it is the name
+  * of a group of Variable/Constraint of \p block, and for a 'B' node the
+  * name() of one of its nested Blocks (the first one with that name). A
+  * name made of decimal digits only that matches no such name is taken as
+  * the numeric index itself.
+  *
+  * @param block The pointer to the Block the i-th node refers to.
   *
   * @param i The index of the node of this AbstractPath whose Node
   *        representation is required.
   *
   * @return The Node representation of the i-th node in this AbstractPath.
   */
+
  Node get_node( const Block * block , const Index i ) const {
   assert( i < length() );
 
@@ -587,23 +711,69 @@ public:
   if( ( ! group_index_names.empty() ) &&
       ( ! group_index_names[ i ].empty() ) ) {
 
+   const auto & name = group_index_names[ i ];
    const bool is_static = Node::is_static( node_types[ i ] );
+   const bool is_variable = Node::is_variable( node_types[ i ] );
+   const bool is_constraint = Node::is_constraint( node_types[ i ] );
 
-   if( Node::is_variable( node_types[ i ] ) )
+   if( is_variable )
     if( is_static )
-    group_index = block->get_s_var_index( group_index_names[ i ] );
+     group_index = block->get_s_var_index( name );
     else
-     group_index = block->get_d_var_index( group_index_names[ i ] );
+     group_index = block->get_d_var_index( name );
 
-   else if( Node::is_constraint( node_types[ i ] ) )
+   else if( is_constraint )
     if( is_static )
-     group_index = block->get_s_const_index( group_index_names[ i ] );
+     group_index = block->get_s_const_index( name );
     else
-     group_index = block->get_d_const_index( group_index_names[ i ] );
+     group_index = block->get_d_const_index( name );
+
+   else if( Node::is_block( node_types[ i ] ) && ( ! is_decimal( name ) ) ) {
+    const auto & nested = block->get_nested_Blocks();
+    auto it = std::find_if( nested.begin() , nested.end() ,
+                            [ & name ]( const Block * b ) {
+                             return( b && ( b->name() == name ) ); } );
+    if( it == nested.end() )
+     throw( std::invalid_argument(
+      "AbstractPath::get_node: node [" + std::to_string( i ) +
+      "] of type 'B' references the nested Block named '" + name +
+      "', but no nested Block of the " + block->classname() +
+      " has that name." ) );
+    group_index = Index( std::distance( nested.begin() , it ) );
+    }
 
    else
-    group_index = static_cast< Index >( std::stoul( group_index_names[ i ] ) );
-  }
+    group_index = static_cast< Index >( std::stoul( name ) );
+
+   if( is_variable || is_constraint ) {
+    const Index num_groups = is_variable
+     ? ( is_static ? block->get_number_static_variables()
+                   : block->get_number_dynamic_variables() )
+     : ( is_static ? block->get_number_static_constraints()
+                   : block->get_number_dynamic_constraints() );
+
+    // no group has that name: a decimal name is the index itself, which is
+    // how serialize() writes the unnamed nodes of a path with names
+    if( ( group_index >= num_groups ) && is_decimal( name ) )
+     group_index = static_cast< Index >( std::stoul( name ) );
+
+    // a named Variable/Constraint group lookup returns an index >= the
+    // number of groups when the name is not found: report it here, where
+    // the netCDF quantity name ("PathGroupIndices" entry) is still known,
+    // rather than failing deep inside inspection::get_group() with only a
+    // bare index
+    if( group_index >= num_groups )
+     throw( std::invalid_argument(
+      "AbstractPath::get_node: node [" + std::to_string( i ) + "] of type '"
+      + std::string( 1 , node_types[ i ] ) + "' references the " +
+      std::string( is_static ? "static " : "dynamic " ) +
+      ( is_variable ? "Variable" : "Constraint" ) + " group named '" + name +
+      "', but no such group exists among the " +
+      inspection::describe_groups( block , is_static , is_variable ) +
+      ". The path likely points to a quantity that this Block does not "
+      "define." ) );
+    }
+   }
   else
    group_index = group_indices[ i ];
 
@@ -625,6 +795,74 @@ public:
   */
  Node get_last_node( Block * block ) const {
   return( get_node( block , length() - 1 ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// makes the last node of this path select a contiguous range of elements
+ /** Makes the last node of this AbstractPath select the contiguous range
+  * [ \p start , \p end ) of elements. The last node must be a 'B' node (in
+  * which case the range is over the nested-Block indices of the Block that
+  * owns them) or a Variable/Constraint node (in which case the range is over
+  * the element indices within its group). After this call,
+  * get_number_elements< T >() returns ( \p end - \p start ) and
+  * get_element< T >( reference , k ) returns the ( \p start + k )-th element,
+  * for k in { 0, ..., end - start - 1 }. Any explicit subset previously set on
+  * the last node is cleared. */
+ void set_last_node_range( Index start , Index end ) {
+  if( empty() ||
+      ( ! Node::is_block( node_types.back() ) &&
+        ! Node::has_range( node_types.back() ) ) )
+   throw( std::logic_error( "AbstractPath::set_last_node_range: the last node "
+                            "does not support a range." ) );
+  if( end < start )
+   throw( std::logic_error( "AbstractPath::set_last_node_range: end < start." )
+          );
+  if( Node::is_block( node_types.back() ) )
+   group_indices.back() = start;
+  else
+   element_indices.back() = start;
+  range_indices.back() = end;
+  if( ! node_subsets.empty() )
+   node_subsets.back().clear();
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// makes the last node of this path select an explicit subset of elements
+ /** Makes the last node of this AbstractPath select the explicit (possibly
+  * non-contiguous) \p subset of indices. The last node must be a 'B' node (in
+  * which case the indices are nested-Block indices of the Block that owns
+  * them) or a Variable/Constraint node (in which case they are element indices
+  * within its group). After this call, get_number_elements< T >() returns
+  * subset.size() and get_element< T >( reference , k ) returns the element
+  * with index subset[ k ]. An explicit subset takes precedence over any
+  * contiguous range that may have been set on the same node; the first subset
+  * element is also recorded as the node's "start" index so that consumers that
+  * ignore subsets still resolve to the first selected element. */
+ void set_last_node_subset( std::vector< Index > subset ) {
+  if( empty() ||
+      ( ! Node::is_block( node_types.back() ) &&
+        ! Node::has_range( node_types.back() ) ) )
+   throw( std::logic_error( "AbstractPath::set_last_node_subset: the last node "
+                            "does not support a subset." ) );
+  if( node_subsets.size() < length() )
+   node_subsets.resize( length() );
+  if( ! subset.empty() ) {
+   if( Node::is_block( node_types.back() ) )
+    group_indices.back() = subset.front();
+   else
+    element_indices.back() = subset.front();
+  }
+  node_subsets.back() = std::move( subset );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the explicit Block subset of the i-th node (empty if none)
+
+ const std::vector< Index > & get_node_subset( Index i ) const {
+  static const std::vector< Index > empty_subset;
+  if( i < node_subsets.size() )
+   return( node_subsets[ i ] );
+  return( empty_subset );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -705,6 +943,12 @@ public:
 
   while( block != reference_block ) {
 
+   /* the reference Block is not an ancestor of the target: say so, rather
+    * than walking off the end of the tree */
+
+   if( ! block )
+    throw( std::logic_error( "AbstractPath::build: Path not found." ) );
+
    auto index = inspection::get_block_index( block );
 
    if( index < Inf< Index >() ) {
@@ -714,17 +958,15 @@ public:
    }
 
    else {
-    // block has no father. So, block must be either a BendersBFunction or a
-    // LagBFunction.
+    /* block has no father, hence the only way up is that it is a Block
+     * which is also a Function: what holds it is the Observer of the
+     * latter. */
 
-    Observer * observer;
-
-    if( const auto benders = dynamic_cast< BendersBFunction * >( block ) )
-     observer = benders->get_Observer();
-    else if( const auto lag = dynamic_cast< LagBFunction * >( block ) )
-     observer = lag->get_Observer();
-    else
+    const auto function = dynamic_cast< Function * >( block );
+    if( ! function )
      throw( std::logic_error( "AbstractPath::build: Path not found." ) );
+
+    auto observer = function->get_Observer();
 
     if( const auto frc = dynamic_cast< FRowConstraint * >( observer ) ) {
      add_node( frc , Node::eConstraint );
@@ -780,13 +1022,13 @@ public:
         dynamic_cast< const FRowConstraint * >( constraint ) ) {
      auto function = frowc->get_function();
 
-     if( const auto benders =
-         dynamic_cast< const BendersBFunction * >( function ) )
-      block = benders->get_inner_block();
-     else if( const auto lag =
-              dynamic_cast< const LagBFunction * >( function ) )
-      block = lag->get_inner_block();
-     else // not found
+     /* the Function is also a Block, and the path goes on in it, exactly
+      * as it does for the Function of an Objective: the inner Block that
+      * Function holds is reached by the 'B' node that follows, which
+      * build() has emitted for it */
+
+     block = dynamic_cast< Block * >( function );
+     if( ! block )
       return( Inf< Index >() );
         }
     else // not found
@@ -801,8 +1043,35 @@ public:
 
   const auto node = get_last_node( block );
 
+  // A 'B' node may select a single Block (legacy), a contiguous range of
+  // nested Blocks [ group_index , range_index ), or an explicit subset of
+  // nested-Block indices (which takes precedence over the range).
+  if( Node::is_block( node.type ) ) {
+   const auto & subset = get_node_subset( length() - 1 );
+   if( ! subset.empty() )
+    return( subset.size() );
+   if( node.range_index == Inf< Index >() )
+    return( 1 );
+   if( node.range_index < node.group_index )
+    throw( std::logic_error(
+     "AbstractPath::get_number_elements: invalid Block range for node ["
+     + std::to_string( length() - 1 ) + "] since the ending index, i.e., the "
+     "range_indices[" + std::to_string( length() - 1 ) + "], is less than the "
+     "starting one, i.e., the group_indices[" + std::to_string( length() - 1 )
+     + "]." ) );
+   return( node.range_index - node.group_index );
+  }
+
   if( ! Node::has_range( node.type ) )
    return( 1 );
+
+  // A 'V'/'v' or 'C'/'c' node may select a single element, a contiguous range
+  // [ element_index , range_index ) of elements within its group, or an
+  // explicit (possibly non-contiguous) subset of element indices within its
+  // group (which takes precedence over the range).
+  const auto & subset = get_node_subset( length() - 1 );
+  if( ! subset.empty() )
+   return( subset.size() );
 
   Index start = node.element_index;
   Index end = node.range_index;
@@ -864,13 +1133,13 @@ public:
         dynamic_cast< const FRowConstraint * >( constraint ) ) {
      auto function = frowc->get_function();
 
-     if( const auto benders =
-         dynamic_cast< const BendersBFunction * >( function ) )
-      block = benders->get_inner_block();
-     else if( const auto lag =
-              dynamic_cast< const LagBFunction * >( function ) )
-      block = lag->get_inner_block();
-     else // not found
+     /* the Function is also a Block, and the path goes on in it, exactly
+      * as it does for the Function of an Objective: the inner Block that
+      * Function holds is reached by the 'B' node that follows, which
+      * build() has emitted for it */
+
+     block = dynamic_cast< Block * >( function );
+     if( ! block )
       return( nullptr );
     }
     else // not found
@@ -881,10 +1150,11 @@ public:
 
     if( const auto fro = dynamic_cast< const FRealObjective * >( objective ) ) {
      auto function = fro->get_function();
-     if( dynamic_cast< BendersBFunction * >( function ) ||
-         dynamic_cast< LagBFunction * >( function ) )
-      block = dynamic_cast< Block * >( function );
-     else // not found
+
+     /* the Function is also a Block, and the path goes on in it */
+
+     block = dynamic_cast< Block * >( function );
+     if( ! block )
       return( nullptr );
     }
     else // not found
@@ -898,19 +1168,29 @@ public:
 
   const auto node = get_last_node( block );
 
-  if constexpr( std::is_base_of_v< Constraint , T > ) {
-   assert( Node::is_constraint( node.type ) );
+  if constexpr( std::is_base_of_v< Constraint , T > ||
+                std::is_base_of_v< Variable , T > ) {
+   if constexpr( std::is_base_of_v< Constraint , T > )
+    assert( Node::is_constraint( node.type ) );
+   else
+    assert( Node::is_variable( node.type ) );
+
+   // An explicit subset of element indices, when present, takes precedence
+   // over the [ element_index , range_index ) contiguous element range.
+   const auto & subset = get_node_subset( length() - 1 );
+   Index element_index;
+   if( ! subset.empty() ) {
+    if( offset >= subset.size() )
+     return( nullptr );
+    element_index = subset[ offset ];
+   }
+   else
+    element_index = node.element_index + offset;
+
    return( inspection::get_element< T >( block ,
                                          node.is_static() ,
                                          node.group_index ,
-                                         node.element_index + offset ) );
-  }
-  else if constexpr( std::is_base_of_v< Variable , T > ) {
-   assert( Node::is_variable( node.type ) );
-   return( inspection::get_element< T >( block ,
-                                         node.is_static() ,
-                                         node.group_index ,
-                                         node.element_index + offset ) );
+                                         element_index ) );
   }
   else if constexpr( std::is_base_of_v< Objective , T > ) {
    assert( node.type == Node::eObjective );
@@ -949,13 +1229,30 @@ public:
   else if constexpr( std::is_base_of_v< Block , T > ) {
    assert( node.type == Node::eBlock );
 
-   if( node.group_index == Inf< Index >() )
-    return( block );
+   // A 'B' node may select a single nested Block (via group_index), a
+   // contiguous range [ group_index , range_index ) of nested Blocks, or an
+   // explicit subset of nested-Block indices. In the latter two cases, the
+   // offset selects which Block of the range/subset is returned.
+   const auto & subset = get_node_subset( length() - 1 );
+
+   if( subset.empty() && ( node.group_index == Inf< Index >() ) )
+    // the path targets the reference Block itself
+    return( offset == 0 ? block : nullptr );
 
    const auto & nested_blocks = block->get_nested_Blocks();
-   if( node.group_index >= nested_blocks.size() )
+
+   Index block_index;
+   if( ! subset.empty() ) {
+    if( offset >= subset.size() )
+     return( nullptr );
+    block_index = subset[ offset ];
+   }
+   else
+    block_index = node.group_index + offset;
+
+   if( block_index >= nested_blocks.size() )
     return( nullptr );
-   return( nested_blocks[ node.group_index ] );
+   return( nested_blocks[ block_index ] );
   }
   else
    return( nullptr );
@@ -963,6 +1260,128 @@ public:
 
 /*--------------------------------------------------------------------------*/
 
+ /// returns the resolved indices selected by the last node of this path
+ /** Returns the (possibly empty) list of indices that the last node of this
+  * AbstractPath selects on its container, with all three notations - single
+  * element, contiguous range, explicit subset - resolved to the same explicit
+  * list. The returned indices are:
+  *
+  * - nested-Block indices (relative to the Block that owns them) if the last
+  *   node is a 'B' node;
+  *
+  * - element indices within the group (relative to the Block that owns it)
+  *   if the last node is a Variable or Constraint node.
+  *
+  * For any other node type (e.g. an Objective node), or when this path is
+  * empty, or when its last 'B' node targets the reference Block itself
+  * (group_index == +Inf), the empty vector is returned. The template
+  * parameter \p T is used only to size open-ended Variable/Constraint ranges
+  * (range_index == +Inf), in the same way as in get_number_elements< T >().
+  *
+  * This helper makes it easy to consume the multi-element selection from
+  * outside the class (introspection tools, equivalent-form detection, etc.)
+  * without re-implementing the subset / range / single dispatch.
+  *
+  * @param reference The reference Block against which this path is resolved.
+  *
+  * @return The list of indices selected by the last node, or an empty vector
+  *         if no indices apply. */
+
+ template< class T >
+ std::vector< Index > get_resolved_indices( Block * reference ) const {
+
+  std::vector< Index > result;
+
+  if( length() == 0 )
+   return( result );
+
+  // Walk the intermediate nodes exactly as get_element()/get_number_elements
+  // do, to land `block` on the owner of the last node's container.
+  auto block = reference;
+  for( Index i = 0 ; i < length() - 1 ; ++i ) {
+   const auto node = get_node( block , i );
+   if( node.type == Node::eBlock ) {
+    assert( node.group_index < block->get_nested_Blocks().size() );
+    block = block->get_nested_Blocks()[ node.group_index ];
+    }
+   else if( Node::is_constraint( node.type ) ) {
+    auto constraint = inspection::get_element< Constraint >
+     ( block , node.is_static() , node.group_index , node.element_index );
+    if( const auto frowc =
+        dynamic_cast< const FRowConstraint * >( constraint ) ) {
+     auto function = frowc->get_function();
+     /* the Function is also a Block, and the path goes on in it, exactly
+      * as it does for the Function of an Objective: the inner Block that
+      * Function holds is reached by the 'B' node that follows, which
+      * build() has emitted for it */
+
+     block = dynamic_cast< Block * >( function );
+     if( ! block )
+      return( result );
+     }
+    else
+     return( result );
+    }
+   else if( node.type == Node::eObjective ) {
+    auto objective = block->get_objective();
+    if( const auto fro = dynamic_cast< const FRealObjective * >( objective ) ) {
+     auto function = fro->get_function();
+
+     /* the Function is also a Block, and the path goes on in it */
+
+     block = dynamic_cast< Block * >( function );
+     if( ! block )
+      return( result );
+     }
+    else
+     return( result );
+    }
+   else
+    return( result );
+   }
+
+  // Resolve the last node.
+  const auto node = get_last_node( block );
+  const auto & subset = get_node_subset( length() - 1 );
+
+  if( ! subset.empty() )
+   return( subset );
+
+  if( Node::is_block( node.type ) ) {
+   if( node.range_index == Inf< Index >() ) {
+    if( node.group_index == Inf< Index >() )
+     return( result );             // path targets the reference Block itself
+    result.push_back( node.group_index );
+    return( result );
+    }
+   if( node.range_index < node.group_index )
+    throw( std::logic_error( "AbstractPath::get_resolved_indices: invalid Block "
+                             "range, end < start." ) );
+   result.reserve( node.range_index - node.group_index );
+   for( Index k = node.group_index ; k < node.range_index ; ++k )
+    result.push_back( k );
+   return( result );
+   }
+
+  if( ! Node::has_range( node.type ) )
+   return( result );                // Objective: no indices
+
+  // Variable or Constraint.
+  Index start = node.element_index;
+  Index end   = node.range_index;
+  if( end == Inf< Index >() )
+   end = inspection::get_element_size< T >( block , node.is_static() ,
+                                            node.group_index );
+  if( end < start )
+   throw( std::logic_error( "AbstractPath::get_resolved_indices: invalid "
+                            "element range, end < start." ) );
+  result.reserve( end - start );
+  for( Index k = start ; k < end ; ++k )
+   result.push_back( k );
+  return( result );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// serializes the given AbstractPath into the given netCDF::NcGroup
  /** This function serializes the given AbstractPath into the given
   * netCDF::NcGroup. Please refer to the comments to deserialize() for the
@@ -970,24 +1389,54 @@ public:
   *
   * @param path The AbstractPath to be serialized.
   *
-  * @param group The group in which the path will be serialized.
-  */
+  * @param group The group in which the path will be serialized. */
 
  void serialize( netCDF::NcGroup & group ) const {
   auto dim = group.addDim( path_total_length_dim_name , length() );
   using ::SMSpp_di_unipi_it::serialize;
   serialize( group , node_type_name , netCDF::NcChar() ,
              dim , node_types );
-  serialize( group , group_index_name , netCDF::NcUint() ,
-             dim , group_indices );
+  if( uses_names( *this ) ) {
+   // string-typed group indices, see serialize( Index , APnetCDF & )
+   const auto names = get_group_index_strings();
+   std::vector< const char * > cnames( names.size() );
+   for( Index i = 0 ; i < names.size() ; ++i )
+    cnames[ i ] = names[ i ].c_str();
+   group.addVar( group_index_name , netCDF::NcString() , dim ).putVar(
+                                                             cnames.data() );
+   }
+  else
+   serialize( group , group_index_name , netCDF::NcUint() ,
+              dim , group_indices );
   serialize( group , element_index_name , netCDF::NcUint() ,
              dim , element_indices );
   serialize( group , element_range_name , netCDF::NcUint() ,
              dim , range_indices );
- }
+
+  // The explicit per-node subsets of element/Block indices are optional: they
+  // are serialized only when at least one node actually selects a subset, so
+  // that paths without subsets keep exactly the same netCDF representation as
+  // before.
+  std::vector< Index > subset_sizes( length() , 0 );
+  std::vector< Index > subset_elements;
+  for( Index i = 0 ; i < length() ; ++i )
+   if( ( i < node_subsets.size() ) && ( ! node_subsets[ i ].empty() ) ) {
+    subset_sizes[ i ] = node_subsets[ i ].size();
+    subset_elements.insert( subset_elements.end() ,
+                            node_subsets[ i ].begin() ,
+                            node_subsets[ i ].end() );
+    }
+
+  if( ! subset_elements.empty() ) {
+   serialize( group , subset_size_name , netCDF::NcUint() , dim , subset_sizes );
+   auto subset_dim = group.addDim( subset_total_length_dim_name ,
+                                   subset_elements.size() );
+   serialize( group , subset_name , netCDF::NcUint() , subset_dim ,
+              subset_elements );
+   }
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /// serialize a vector of AbstractPath into the given NcGroup
  /** This function serializes a vector of AbstractPath in the given \p
   * group. Please refer to the comments to vector_deserialize() for a
@@ -997,19 +1446,18 @@ public:
   * @param paths The vector of AbstractPath to be serialized.
   *
   * @param group The netCDF::NcGroup in which the vector of AbstractPath will
-  *        be stored.
-  */
- static void serialize
- ( const std::vector< AbstractPath > & paths , netCDF::NcGroup & group ) {
+  *        be stored. */
+
+ static void serialize( const std::vector< AbstractPath > & paths ,
+			netCDF::NcGroup & group ) {
   APnetCDF netCDFvars;
   pre_serialize( paths , netCDFvars , group );
   for( Index i = 0 ; i < paths.size() ; ++i ) {
    paths[ i ].serialize( i , netCDFvars );
+   }
   }
- }
 
 /*--------------------------------------------------------------------------*/
-
  /// serialize a vector of AbstractPath into the given NcGroup
  /** This function serializes a vector of (unique_ptr to) AbstractPath in the
   * given \p group. Please refer to the comments to vector_deserialize() for a
@@ -1020,20 +1468,19 @@ public:
   *              serialized.
   *
   * @param group The netCDF::NcGroup in which the vector of AbstractPath will
-  *        be stored.
-  */
- static void serialize
- ( const std::vector< std::unique_ptr< AbstractPath > > & paths ,
-   netCDF::NcGroup & group ) {
+  *        be stored. */
+
+ static void serialize(
+	      const std::vector< std::unique_ptr< AbstractPath > > & paths ,
+	      netCDF::NcGroup & group ) {
   APnetCDF netCDFvars;
   pre_serialize( paths , netCDFvars , group );
   for( Index i = 0 ; i < paths.size() ; ++i ) {
    paths[ i ]->serialize( i , netCDFvars );
+   }
   }
- }
 
 /*--------------------------------------------------------------------------*/
-
  /// deserializes an AbstractPath from a netCDF::NcGroup and returns it
  /** This function constructs and returns an AbstractPath by deserializing it
   * from the given \p group. This \p group has a dimension called
@@ -1115,7 +1562,6 @@ public:
   * from 0). In general, for a multidimensional array with k dimensions with
   * sizes (n_0, ..., n_{k-1}), the element at position (i_0, ..., i_{k-1})
   * would have an element index equal to
-  *
   * \f[
   *    \sum_{r = 0}^{k-1} ( \prod_{s = r + 1}^{k-1} n_s ) i_r.
   * \f]
@@ -1133,7 +1579,6 @@ public:
   * case, in which the group is a vector of lists of Constraint/Variable, for
   * an element at position j of the k-th list of the vector, element_index[i]
   * is given by
-  *
   * \f[
   *    j + \sum_{t = 0}^{k-1} s_t
   * \f]
@@ -1141,17 +1586,64 @@ public:
   * where s_t is the number of elements in the t-th list of the vector. The
   * last case is analogous.
   *
+  * Multi-element selection on the last node
+  * ----------------------------------------
+  *
+  * The last node of a path can optionally select more than one element of the
+  * same kind. This is supported in two forms, both backward-compatible (every
+  * existing serialized path keeps its previous meaning):
+  *
+  * - a contiguous range. On a 'V'/'v' or 'C'/'c' node the range is given by
+  *   the existing [ element_index[i] , range_index[i] ) interval over the
+  *   element indices within the group; on a 'B' node it is the interval
+  *   [ group_index[i] , range_index[i] ) over the nested-Block indices of the
+  *   Block that owns them. For 'B' nodes, range_index[i] == +Inf still means
+  *   "a single Block" (the legacy semantics).
+  *
+  * - an explicit, possibly non-contiguous, subset of element/Block indices.
+  *   The subset is stored in two optional netCDF variables:
+  *
+  *   * "PathSubsetSizes", of type netCDF::NcUint and indexed over the same
+  *     dimension as PathNodeTypes: PathSubsetSizes[i] is the number K_i of
+  *     elements/Blocks selected by node i, or 0 if node i does not select an
+  *     explicit subset;
+  *
+  *   * "PathSubset", of type netCDF::NcUint and indexed over its own
+  *     dimension "PathSubsetTotalLength" (equal to the sum of PathSubsetSizes):
+  *     it contains the concatenation, in node order, of the explicit subsets
+  *     of all nodes (only the nodes with PathSubsetSizes[i] > 0 contribute,
+  *     in their original order).
+  *
+  *   When PathSubsetSizes[i] > 0, the subset takes precedence over the
+  *   contiguous range that may also be present on node i. When both
+  *   PathSubsetSizes and PathSubset are absent (or all PathSubsetSizes are 0)
+  *   no node selects an explicit subset and the path behaves as before.
+  *
+  * For a 'V'/'v' or 'C'/'c' node whose group is a multi-dimensional array
+  * of Variables/Constraints, every index involved in any of the three
+  * notations above (single element_index, range bounds, and subset
+  * entries) is the SAME flat row-major index already used in the single-
+  * element case (see the formula in the static-group description above).
+  * A contiguous range therefore spans elements in row-major order; non-
+  * row-major selections (e.g. one column of a 2D array) must be expressed
+  * as an explicit subset.
+  *
+  * The array "PathGroupIndices" may also be of type netCDF::NcString, in
+  * which case each entry is a name rather than an index: for a 'V'/'v' or
+  * 'C'/'c' node the name of the group of Variable/Constraint, and for a 'B'
+  * node the name() of the nested Block (the first one with that name, see
+  * get_node()). An entry made of decimal digits only that matches no name
+  * is the index itself, so names and indices can be mixed in the same path.
+  *
   * @param group The netCDF::NcGroup containing the path.
   *
-  * @return The AbstractPath corresponding to the given group.
-  */
+  * @return The AbstractPath corresponding to the given group. */
 
  void deserialize( const netCDF::NcGroup & group ) {
   deserialize( 0 , pre_deserialize( group ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /// deserializes a vector of AbstractPath
  /** This function deserializes a vector of AbstractPath and returns it. The
   * format is similar to that described in the comments to deserialize() with
@@ -1190,11 +1682,10 @@ public:
   * @param group The NcGroup that contains the description of the AbstractPaths
   *              to be deserialized.
   *
-  * @return A vector with the AbstractPaths.
-  */
+  * @return A vector with the AbstractPaths. */
 
- static std::vector< AbstractPath > vector_deserialize
- ( const netCDF::NcGroup & group ) {
+ static std::vector< AbstractPath > vector_deserialize(
+					    const netCDF::NcGroup & group ) {
   std::vector< AbstractPath > paths;
   if( group.isNull() )
    return( paths );
@@ -1203,10 +1694,8 @@ public:
   for( Index i = 0 ; i < netCDFvars.NumPaths ; ++i )
    paths.emplace_back( i , netCDFvars );
   return( paths );
- }
-
+  }
 /*--------------------------------------------------------------------------*/
-
  /// deserializes a vector of AbstractPath
  /** This function deserializes a vector of (unique_ptr) AbstractPath and
   * returns it. The format of the netCDF \p group is specified in
@@ -1215,12 +1704,10 @@ public:
   * @param group The NcGroup that contains the description of the vector of
   *              AbstractPath to be deserialized.
   *
-  * @return A vector with the AbstractPaths.
-  */
- static void vector_deserialize
- ( const netCDF::NcGroup & group ,
-   std::vector< std::unique_ptr< AbstractPath > > & paths ) {
+  * @return A vector with the AbstractPaths. */
 
+ static void vector_deserialize( const netCDF::NcGroup & group ,
+		  std::vector< std::unique_ptr< AbstractPath > > & paths ) {
   paths.clear();
   if( group.isNull() )
    return;
@@ -1228,10 +1715,9 @@ public:
   paths.reserve( netCDFvars.NumPaths );
   for( Index i = 0 ; i < netCDFvars.NumPaths ; ++i )
    paths.emplace_back( std::make_unique< AbstractPath >( i , netCDFvars ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /// pre-deserializes a vector of AbstractPath
  /** This function pre-deserializes a vector of AbstractPath and returns an
   * APnetCDF. The format of the netCDF \p group is specified in
@@ -1242,6 +1728,7 @@ public:
   *
   * @return An APnetCDF for the vector of AbstractPath described in \p group.
   */
+
  static APnetCDF pre_deserialize( const netCDF::NcGroup & group ) {
   APnetCDF netCDFvars;
   netCDFvars.NumPaths = 1;
@@ -1251,13 +1738,14 @@ public:
   netCDFvars.PathGroupIndices = group.getVar( group_index_name );
   netCDFvars.PathElementIndices = group.getVar( element_index_name );
   netCDFvars.PathRangeIndices = group.getVar( element_range_name );
+  netCDFvars.PathSubsetSizes = group.getVar( subset_size_name );
+  netCDFvars.PathSubset = group.getVar( subset_name );
 
   /* The dimension PathDim is optional. If it is not present, then there is
    * only one path and PathStart is ignored. If PathDim is present, then it
    * indicates the number of paths and PathStart must be present and indexed
    * over PathDim. PathStart[i] is the index where the i-th path starts, for i
-   * in {0, ..., PathDim - 1}.
-   */
+   * in {0, ..., PathDim - 1}. */
 
   if( ! netCDFvars.PathDim.isNull() ) {
    netCDFvars.NumPaths = netCDFvars.PathDim.getSize();
@@ -1304,7 +1792,6 @@ public:
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// deserialize the AbstractPath with given index
  /** This function deserializes the AbstractPath whose index is \p path_index
   * from the given netCDF dimensions and variables in \p netCDFvars. The
@@ -1323,8 +1810,7 @@ public:
   * @param netCDFvars The struct containing the netCDF dimensions and
   *        variables describing the vector of AbstractPath.
   *
-  * @return The AbstractPath with index \p path_index.
-  */
+  * @return The AbstractPath with index \p path_index. */
 
  void deserialize( Index path_index , const APnetCDF & netCDFvars ) {
 
@@ -1335,24 +1821,25 @@ public:
    if( path_index >= netCDFvars.PathDim.getSize() )
     throw( std::invalid_argument( "AbstractPath::deserialize: AbstractPath "
                                   "number " + std::to_string( path_index ) +
-                                  " is not present in the given NcGroup." ) );
+                                  " is not present in the given NcGroup" ) );
 
    netCDFvars.PathStart.getVar( { path_index } , & path_start );
 
    if( path_index < netCDFvars.PathDim.getSize() - 1 )
     netCDFvars.PathStart.getVar( { path_index + 1 } , & path_end );
 
-
    if( path_start > path_end )
     throw( std::invalid_argument( "AbstractPath::deserialize: invalid "
-                                  "PathStart index." ) );
-  }
-  else if( path_index != 0 ) {
-   // There is only one path. So the path index must be 0.
-   throw( std::invalid_argument( "AbstractPath::deserialize: invalid path "
-                                 "index " + std::to_string( path_index ) + "."
-                                 "Given NcGroup has a single AbstractPath." ) );
-  }
+                                  "PathStart index" ) );
+   }
+  else
+   if( path_index != 0 ) {
+    // There is only one path. So the path index must be 0.
+    throw( std::invalid_argument( "AbstractPath::deserialize: invalid path "
+				  "index " + std::to_string( path_index ) +
+				  ", the NcGroup has a single AbstractPath" )
+	   );
+    }
 
   const auto num_nodes = path_end - path_start;
 
@@ -1379,38 +1866,43 @@ public:
    netCDFvars.PathGroupIndices.getVar( { path_start } , { num_nodes } ,
                                        group_indices.data() );
   }
-  else {
-   throw( std::logic_error(
-    "AbstractPath::deserialize: unsupported type for PathGroupIndices" ) );
-  }
+  else
+   throw( std::logic_error( "AbstractPath::deserialize: unsupported type "
+			    "for PathGroupIndices" ) );
 
-  if( ! netCDFvars.PathElementIndices.isNull() ) {
+  if( ! netCDFvars.PathElementIndices.isNull() )
    netCDFvars.PathElementIndices.getVar( { path_start } , { num_nodes } ,
                                          element_indices.data() );
-  }
   else {
    element_indices.resize( num_nodes );
    element_indices.assign( element_indices.size() , Inf< Index >() );
-  }
+   }
 
   if( ! netCDFvars.PathRangeIndices.isNull() ) {
    netCDFvars.PathRangeIndices.getVar( { path_start } , { num_nodes } ,
                                        range_indices.data() );
 
-   for( Index i = 0 ; i < num_nodes ; ++i )
-    if( ! Node::has_range( node_types[ i ] ) ) {
+   for( Index i = 0 ; i < num_nodes ; ++i ) {
+    const auto type = node_types[ i ];
+    // A 'B' node may carry a contiguous Block range [ group_index ,
+    // range_index ); the consistency of its bounds is checked at use time
+    // (see get_number_elements() / get_element()).
+    if( Node::is_block( type ) )
+     continue;
+    if( ! Node::has_range( type ) ) {
      if( range_indices[ i ] != Inf< Index >() )
       throw( std::logic_error(
        "AbstractPath::deserialize: range provided for node ["
        + std::to_string( i ) + "]" + " of type " +
-       std::string( 1 , node_types[ i ] ) + " that does not support range" ) );
+       std::string( 1 , type ) + " that does not support range" ) );
     }
     else if( range_indices[ i ] < element_indices[ i ] )
      if( ( range_indices[ i ] != 0 ) && ( range_indices[ i ] != 1 ) )
       throw( std::logic_error(
        "AbstractPath::deserialize: range_indices[" + std::to_string( i )
        + "] < element_indices[" + std::to_string( i ) + "] not allowed, " +
-       "unless element_indices[" + std::to_string( i ) + "] is 0 or 1" ) );
+       "unless range_indices[" + std::to_string( i ) + "] is 0 or 1" ) );
+    }
   }
   else
    for( Index i = 0 ; i < num_nodes ; ++i )
@@ -1418,7 +1910,58 @@ public:
      range_indices[ i ] = 1;
     else
      range_indices[ i ] = Inf< Index >();
- }
+
+  // Optional explicit per-node subsets of element/Block indices. They are
+  // present only in netCDF descriptions that use them; when absent, every node
+  // selects a single element or a contiguous range, as before.
+  node_subsets.assign( num_nodes , {} );
+  if( ( ! netCDFvars.PathSubsetSizes.isNull() ) &&
+      ( ! netCDFvars.PathSubset.isNull() ) ) {
+   const auto total_nodes = netCDFvars.PathSubsetSizes.getDim( 0 ).getSize();
+   std::vector< Index > all_sizes( total_nodes );
+   netCDFvars.PathSubsetSizes.getVar( { 0 } , { total_nodes } ,
+                                      all_sizes.data() );
+
+   // offset into PathSubset where this path's subset elements begin
+   Index subset_offset = 0;
+   for( Index k = 0 ; k < path_start ; ++k )
+    subset_offset += all_sizes[ k ];
+
+   for( Index i = 0 ; i < num_nodes ; ++i ) {
+    const Index sz = all_sizes[ path_start + i ];
+    if( sz > 0 ) {
+     node_subsets[ i ].resize( sz );
+     netCDFvars.PathSubset.getVar( { subset_offset } , { sz } ,
+                                   node_subsets[ i ].data() );
+     }
+    subset_offset += sz;
+    }
+   }
+  }
+
+/*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+ /// mimics Block::expected_dims()
+
+ virtual std::vector< std::string > expected_dims( void ) const {
+  static const std::vector< std::string > ed =
+  { path_dim_name , path_total_length_dim_name , subset_total_length_dim_name };
+
+  return( ed );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// mimics Block::expected_vars()
+
+ virtual std::vector< std::string > expected_vars( void ) const {
+  static const std::vector< std::string > ed =
+  { path_start_name , node_type_name , group_index_name ,
+    element_index_name , element_range_name , subset_size_name , subset_name };
+  return( ed );
+  }
+
+#endif
 
 /*--------------------------------------------------------------------------*/
 
@@ -1435,7 +1978,7 @@ public:
   for( Index i = 0 ; i < paths.size() ; ++i ) {
    netCDFvars.PathStart.putVar( { i } , total_length );
    total_length += length( paths[ i ] );
-  }
+   }
 
   netCDFvars.PathTotalLength = group.addDim( path_total_length_dim_name ,
                                              total_length );
@@ -1443,9 +1986,21 @@ public:
   netCDFvars.PathNodeTypes = group.addVar( node_type_name , netCDF::NcChar() ,
                                            netCDFvars.PathTotalLength );
 
-  netCDFvars.PathGroupIndices = group.addVar( group_index_name ,
-                                              netCDF::NcUint() ,
-                                              netCDFvars.PathTotalLength );
+  // the group indices are string-typed as soon as some path addresses a
+  // group by name, since the two forms cannot coexist in a single typed
+  // netCDF variable; see serialize( Index , APnetCDF ) for how the numeric
+  // indices of the other paths are represented in that case
+  const bool names = std::any_of( paths.begin() , paths.end() ,
+				  []( const auto & p ) {
+				   return( uses_names( p ) ); } );
+  if( names )
+   netCDFvars.PathGroupIndices = group.addVar( group_index_name ,
+					       netCDF::NcString() ,
+					       netCDFvars.PathTotalLength );
+  else
+   netCDFvars.PathGroupIndices = group.addVar( group_index_name ,
+					       netCDF::NcUint() ,
+					       netCDFvars.PathTotalLength );
 
   netCDFvars.PathElementIndices = group.addVar( element_index_name ,
                                                 netCDF::NcUint() ,
@@ -1454,7 +2009,7 @@ public:
   netCDFvars.PathRangeIndices = group.addVar( element_range_name ,
                                               netCDF::NcUint() ,
                                               netCDFvars.PathTotalLength );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 
@@ -1488,6 +2043,18 @@ public:
 
  void serialize( const Index path_index , APnetCDF & netCDFvars ) const {
 
+  // Explicit per-node subsets are not (yet) representable when serializing a
+  // whole vector of AbstractPath in a single shared set of netCDF variables;
+  // fail loudly rather than silently dropping them. In practice, the paths
+  // serialized this way are always built (via build()) and thus select a
+  // single element, so this never triggers.
+  for( const auto & subset : node_subsets )
+   if( ! subset.empty() )
+    throw( std::logic_error(
+     "AbstractPath::serialize: serializing a vector of AbstractPath that "
+     "contains explicit element/Block subsets is not supported; serialize such "
+     "paths individually instead." ) );
+
   const auto num_nodes = length();
 
   Index path_start;
@@ -1495,8 +2062,23 @@ public:
 
   netCDFvars.PathNodeTypes.putVar( { path_start } , { num_nodes } ,
                                    node_types.data() );
-  netCDFvars.PathGroupIndices.putVar( { path_start } , { num_nodes } ,
-                                      group_indices.data() );
+
+  if( netCDFvars.PathGroupIndices.getType().getTypeClass() ==
+      netCDF::NcType::nc_STRING ) {
+   // string-typed group indices (see pre_serialize()): write the group
+   // names; a node without a name gets the decimal form of its numeric
+   // index, which get_node() resolves back to the index
+   const auto names = get_group_index_strings();
+   std::vector< const char * > cnames( num_nodes );
+   for( Index i = 0 ; i < num_nodes ; ++i )
+    cnames[ i ] = names[ i ].c_str();
+   netCDFvars.PathGroupIndices.putVar( { path_start } , { num_nodes } ,
+				       cnames.data() );
+   }
+  else
+   netCDFvars.PathGroupIndices.putVar( { path_start } , { num_nodes } ,
+                                       group_indices.data() );
+
   netCDFvars.PathElementIndices.putVar( { path_start } , { num_nodes } ,
                                         element_indices.data() );
   netCDFvars.PathRangeIndices.putVar( { path_start } , { num_nodes } ,
@@ -1509,28 +2091,58 @@ public:
   if( length() != path.length() )
    return( false );
 
-  for( Index i = 0 ; i < length() ; ++i ) {
+  // group_indices (numeric) and group_index_names (string) are mutually
+  // exclusive per-node: a path that comes from a string-typed
+  // PathGroupIndices netCDF variable populates only group_index_names and
+  // leaves group_indices empty (and vice-versa). Compare both safely, using
+  // an Inf / "" default for the missing slot.
+  auto numeric = []( const std::vector< Index > & v , Index i ) {
+   return( i < v.size() ? v[ i ] : Inf< Index >() );
+   };
+  auto named = []( const std::vector< std::string > & v , Index i ) {
+   return( i < v.size() ? v[ i ] : std::string() );
+   };
+
+  for( Index i = 0 ; i < length() ; ++i )
    if( node_types[ i ] != path.node_types[ i ] ||
-       group_indices[ i ] != path.group_indices[ i ] ||
+       numeric( group_indices , i ) != numeric( path.group_indices , i ) ||
+       named( group_index_names , i ) != named( path.group_index_names , i ) ||
        element_indices[ i ] != path.element_indices[ i ] ||
-       range_indices[ i ] != path.range_indices[ i ] )
+       range_indices[ i ] != path.range_indices[ i ] ||
+       get_node_subset( i ) != path.get_node_subset( i ) )
     return( false );
-  }
 
   return( true );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 
  void print( void ) const {
   for( Index i = 0 ; i < length() ; ++i ) {
-   std::cout << node_types[ i ] << "( " << group_indices[ i ] << " , " <<
-    element_indices[ i ]  << " , " << range_indices[ i ] << " )";
+   std::cout << node_types[ i ] << "( ";
+   // Prefer the string-typed group identifier when present (paths
+   // deserialized from a string-typed PathGroupIndices have an empty
+   // group_indices vector).
+   if( ( i < group_index_names.size() ) && ( ! group_index_names[ i ].empty() ) )
+    std::cout << group_index_names[ i ];
+   else if( i < group_indices.size() )
+    std::cout << group_indices[ i ];
+   else
+    std::cout << "?";
+   std::cout << " , " << element_indices[ i ] << " , " << range_indices[ i ]
+             << " )";
+   const auto & subset = get_node_subset( i );
+   if( ! subset.empty() ) {
+    std::cout << "{ ";
+    for( const auto e : subset )
+     std::cout << e << " ";
+    std::cout << "}";
+    }
    if( i < length() - 1 )
     std::cout << " -> ";
-  }
+   }
   std::cout << std::endl;
- }
+  }
 
 /** @} ---------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/

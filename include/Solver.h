@@ -31,6 +31,8 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <unordered_set>
+
 #include "Modification.h"
 
 #include "ThinComputeInterface.h"
@@ -723,7 +725,14 @@ class Solver : public ThinComputeInterface
   *     (IF IT IS CALLED FIRST, AND THEN Block::register_Solver() IS CALLED
   *     TO MAKE block AWARE OF THIS), WHICH MEANS THAT ANY :Solver SHOULD
   *     CHECK IF THE block BEING SET IS THE SAME ONE ALREADY SET AND DO
-  *     NOTHING IN CASE (which is easy, cheap and very reasonable). */
+  *     NOTHING IN CASE (which is easy, cheap and very reasonable).
+  *
+  * NOTE: it is a usage error to attach the Solver to a Block which has
+  * been previously declared as excluded via set_excluded_blocks(): such a
+  * Solver would have nothing to load_problem() on. The base class
+  * implementation detects this and throws; the prune-this-subtree
+  * semantics of the excluded set apply to *descendants* of the attached
+  * Block, not to the attached Block itself. */
 
  virtual void set_Block( Block * block );
 
@@ -754,6 +763,102 @@ class Solver : public ThinComputeInterface
  virtual void set_log( std::ostream * log_stream = nullptr ) {
   f_log = log_stream;
   }
+
+/** @} ---------------------------------------------------------------------*/
+/** @name Handling ignored sub-Block
+ *
+ * It is always easy in SMS++ to *add* something (Variable, Constraint,
+ * ...) to a Block: it is enough to embed the Block inside a larger one,
+ * which (in practice) any Block lets one do. Conversely, *removing*
+ * something from a Block is much harder, because each Block (other than
+ * AbstractBlock) is the jealous guardian of what lives inside it.
+ *
+ * The mechanism of excluding sub-Block(s) is a coarse but adequate way
+ * to address this, while staying faithful to the SMS++ assumption "every
+ * relevant piece of the model is a Block": rather than physically
+ * removing sub-Block(s) from a Block, one *instructs the Solver to
+ * ignore them*, which has the same practical effect. Not every Solver
+ * may be willing to do so, because dropping certain sub-Block(s) could
+ * destroy the structure the Solver expects: in that case the Solver
+ * throws an exception. An obvious case, implemented in the base class:
+ * if the "root" Block (the one attached via set_Block()) is itself
+ * declared excluded, the Solver has nothing to solve and must throw;
+ * hence the excluded set must be empty for "leaf" Block (no descendants).
+ *
+ * Note however that a Solver is *not* expected to police the contents
+ * of the excluded set: the set may contain pointers to Block which are
+ * not sub-Block(s) of the Solver's attached Block at all. This is
+ * irrelevant for the Solver and shall *not* trigger an exception: the
+ * set is just a "blacklist of forbidden subtrees", looked up at scan
+ * time. The pointed-to set is owned by the caller, which retains
+ * responsibility for its lifetime and deallocation; the Solver stores
+ * a verbatim shallow copy of its contents (no eager expansion of
+ * descendants).
+ *  @{ */
+
+ /// declare sub-Block(s) of f_Block that the Solver must IGNORE
+ /** Installs a set of sub-Block(s) of the Block (to be) attached via
+  * set_Block() that the Solver will skip when scanning the Block tree:
+  * their Variable / Constraint / Objective are NOT loaded into the
+  * Solver's back-end model, and Modification originating in them are
+  * filtered out at the boundary. The intended use is the "steal" pattern,
+  * where a Solver-attached Block contains sub-Block(s) that belong,
+  * semantically, to a different problem and must not contribute to the
+  * Solver's model.
+  *
+  * @param ignored a pointer to an unordered_set of Block * to ignore;
+  *        passing nullptr (the default) is equivalent to passing an
+  *        empty set and clears any previously-installed exclusion list.
+  *        The pointed-to set is stored *verbatim* (minimal user-supplied
+  *        set, no eager expansion of descendants): membership of any
+  *        Block in the excluded sub-tree is decided at query time by
+  *        is_excluded(), which walks the get_f_Block() chain. This keeps
+  *        the set forwardable as-is (const) to sub-Solvers without copy
+  *        and avoids the cost / staleness of an eager pre-expansion.
+  *
+  * MUST be called BEFORE set_Block() (or before the Block is attached
+  * via Block::register_Solver()), so that load_problem() and any
+  * subsequent walk of the Block tree sees the exclusion list already in
+  * place. Calling it after set_Block() is permitted, but the Solver may
+  * need a clear_problem()/load_problem() cycle to re-sync, which is
+  * Solver-specific and is NOT automatically performed by this method.
+  *
+  * Base implementation: maintains the f_excluded set; :Solver derivates
+  * may override to react (e.g. fire a back-end resync) but should call
+  * Solver::set_excluded_blocks() to keep the base set up-to-date. */
+
+ virtual void set_excluded_blocks(
+                       const std::unordered_set< Block * > * ignored
+                                                              = nullptr );
+
+/*--------------------------------------------------------------------------*/
+ /// returns the set of sub-Blocks the Solver was told to ignore
+ /** Returns a const reference to f_excluded, populated by
+  * set_excluded_blocks() with the user-supplied *minimal* set (no eager
+  * descendant expansion). :Solver derivates that need to test whether a
+  * specific Block (possibly a deep descendant) is excluded should use
+  * is_excluded() rather than `get_excluded_blocks().count(b)`. The
+  * minimal set is also suitable to be forwarded as-is to nested
+  * sub-Solvers via set_excluded_blocks( &get_excluded_blocks() ). */
+
+ [[nodiscard]] const std::unordered_set< Block * > &
+                                    get_excluded_blocks( void ) const
+  { return( f_excluded ); }
+
+/*--------------------------------------------------------------------------*/
+ /// true iff a Block (or any of its ancestors) is in f_excluded
+ /** Returns true iff @p b is in f_excluded *or* any of its ancestors in
+  * the get_f_Block() chain is in f_excluded. This is the canonical
+  * filtering primitive for :Solver derivates that need to skip
+  * Modification originating in any descendant of an excluded sub-Block;
+  * since the user-supplied set is stored verbatim (cf.
+  * set_excluded_blocks()), a literal `.count(b)` would miss the case
+  * where b is a deep descendant of an excluded ancestor.
+  *
+  * Cost: O(depth of b in the Block tree), with depth typically <= 5 in
+  * practice. Returns false for nullptr. */
+
+ [[nodiscard]] bool is_excluded( Block * b ) const;
 
 /** @} ---------------------------------------------------------------------*/
 /*----------------- METHODS FOR MANAGING THE "IDENTITY" --------------------*/
@@ -1513,6 +1618,139 @@ class Solver : public ThinComputeInterface
 
  [[nodiscard]] virtual bool new_var_direction( void ) { return( false ); }
 
+/*--------------------------------------------------------------------------*/
+ /// directly get a Solution object for the "current" solution / direction
+ /** After a call to has_var_[solution/direction]() and/or
+  * new_var_[solution/direction]() that returned true, this method can be
+  * used to retrieve a Solution object that represents it.
+  *
+  * This method could be taken as "just a convenience", and in fact it is
+  * given a simple default implementation that:
+  *
+  * - lock()s the Block;
+  *
+  * - calls either get_var_solution() or get_var_direction() depending on
+  *   which among has_var_solution() and has_var_direction() is true (if
+  *   none it returns nullptr, if both it check and returns solutions first)
+  *   to have the solution / direction written in the Variable of the Block;
+  *
+  * - calls Block::get_Solution() to retrieve the Solution object;
+  *
+  * - unlock()s the Block;
+  *
+  * - returns the thusly computed Solution object.
+  *
+  * Note that here, unlike in get_var_solution(), the Block *does* get
+  * lock()-ed in the process: this is because the process is finished when the
+  * method ends and can be unlock()-ed right away (which also shows one very
+  * good reason why it is *not* lock()-ed in get_var_solution()). Because of
+  * this intended semantic, get_Solution() shares most of the contract of
+  * get_var_solution(), which we briefly summarise here:
+  *
+  * - any previous solution / direction is lost for good (but of course it
+  *   could have been saved in a Solution);
+  *
+  * - it is an error to call this method if has_var_[solution/direction]() or
+  *   new_var_[solution/direction]() have not been called and returned true
+  *   (which means, in particular, if no Block is attached to this Solver).
+  *
+  * - writing solution information (of either type) inside a Block is not
+  *   counted as a change of the Block and therefore no Modification is
+  *   issued;
+  *
+  * - retrieving a "partial" solution / direction is supported by the same
+  *   Configuration mechanism, with a specific twist:
+  *
+  *     THE SAME Configuration OBJECT IS PASSED TO
+  *     get_var_[solution/direction]() AND get_Solution() (ALTHOUGH THIS
+  *     PART OF THE DESIGN MAY NOT BE 100% FIRM)
+  *
+  *   One rationale is that, as discussed for get_var_solution(), the two
+  *   Configuration are expected (although not strictly required) to be
+  *   "compatible". However, the real rationale is the real reason why this
+  *   method exists in the first place:
+  *
+  *    THIS METHOD IS SUPPOSED TO BE RE-IMPLEMENTED BY "PHISICAL" Solver
+  *    WITHOUT WRITING THE SOLUTION INFORMATION IN THE Variable OF THE Block
+  *
+  * This is the fundamental mechanism that allows a Block to "live without any
+  * Variable", and therefore any part of the abstract representation: without
+  * this, the Variable would necessarily have to be defined just to hold the
+  * solution information (and the Constraint to hold dual information, if
+  * any). By "routing away" from the Block, the need for the Variable is
+  * eliminated. This makes full sense, since
+  *
+  *    "PHISICAL" Solver ARE EXPECTED TO FULLY KNOW THE :Block AND THEREFORE
+  *    THE FORMAT Of ITS :Solution. "MIXED" Solver THAT RELY PARTLY ON THE
+  *    ABSTRACT AND PARTLY ON THE PHISICAL REPRESENTATION WOULD HAVE THE
+  *    (RELEVANT PART OF) Variable BUILT ANYWAY, BUT THEY MIGHT NONETHELESS
+  *    BE ABLE TO STORE THE (RELEVANT PART OF) THE SOLUTION / DIRECTION
+  *    INFORMATION IN THEIR DATA STRUCTURES WITHOUT write()-ING TO THE Block
+  *
+  * Furthermore, the "physical implementation" of this method has a relevant
+  * performance implication:
+  *
+  *    THE Solution CAN BE PROVIDED WITHOUT lock()-ING THE Block, AND
+  *    THEREFORE MULTIPLE Solution CAN BE GENERATED IN PARALLEL BY MULTIPLE
+  *    Solver ATTACHED TO THE SAME Block WITHOUT CONTENTION
+  *
+  * It could also be expected that generating "physical Solution" directly be
+  * more efficient than writing them to the Variable and then recovering the
+  * Solution from there, especially if the :Solution can store information in
+  * some problem-specific "compressed format" (a path, a set, ...).
+  *
+  * Importantly,
+  *
+  *    OWNERSHIP OF THE RETURNED Solution OBJECT IS TRANSFERRED TO THE
+  *    CALLER, WHO THEREFORE HAS THE BURDEN OF DE-ALLOCATING IT
+  *
+  * Note that a "physical Solver" may well decide to store its solution
+  * information directly into a Solution object in the "hot loops" of the
+  * algorithmic solution: this is not an issue, in that this method can
+  * simply clone() it and return the thusly generated copy. When it does,
+  * however,
+  *
+  *    THE Solution OBJECT SHOULD BE ASKED TO THE Block WITH new_Solution(),
+  *    RATHER THAN BE CONSTRUCTED BY NAME
+  *
+  * because the :Solution a :Block wants is the :Block's business, and a
+  * :Block derived from the one the Solver was written for may well want a
+  * derived :Solution: a Solver that constructs one by name keeps working,
+  * but it silently produces the wrong kind of object.
+  *
+  * Finally, let us explicitly remark that
+  *
+  *    THERE IS NO NEED OF A SEPARATE get_Direction() METHOD BECAUSE Solution
+  *    OBJECTS ARE ASSUMED TO BE ABLE TO PROPERLY REPRESENT DIRECTIONS AS WELL
+  *    AS SOLUTIONS (IF THE PROBLEM ALLOWS FOR THEM). ANALOGOUSLY, THERE WILL
+  *    BE NO NEED FOR A SEPARATE MECHAMISM TO RETRIEVE DUAL SOLUTIONS (IF THE
+  *    PROBLEM ALLOWS FOR THEM) BECAUSE AGAIN Solution OBJECTS ARE ASSUMED TO
+  *    BE ABLE TO PROPERLY REPRESENT IT. */
+
+ [[nodiscard]] virtual Solution * get_Solution(
+					    Configuration * solc = nullptr );
+
+/*--------------------------------------------------------------------------*/
+ /// true if get_Solution() does not write in the Variable of the Block
+ /** Returns true if get_Solution() builds the Solution out of the data
+  * structures of the Solver, leaving the Variable of the Block alone, and
+  * false if it rather goes through them, which is what the default
+  * implementation does; a "physical" Solver re-implementing get_Solution()
+  * is expected to say so here.
+  *
+  * The caller needs the answer *before* the call: it is the one that has to
+  * decide whether the Block is to be lock()-ed and whether what the Variable
+  * hold is worth saving, and a Solution that comes back with the answer
+  * attached would tell it when the damage is done. Hence a Solver that is
+  * only physical for some of the Solution it can be asked for, the
+  * Configuration deciding which, has to answer false: the answer has to
+  * hold for the call that is about to be made, and which one that is is not
+  * known here. */
+
+ [[nodiscard]] virtual bool is_get_Solution_physical( void ) const {
+  return( false );
+  }
+
 /** @} ---------------------------------------------------------------------*/
 /*-------------- METHODS FOR READING THE DATA OF THE Solver ----------------*/
 /*--------------------------------------------------------------------------*/
@@ -1687,7 +1925,7 @@ class Solver : public ThinComputeInterface
    return( strLogFileName );
 
   return( ThinComputeInterface::str_par_str2idx( name ) );
- }
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -1698,7 +1936,7 @@ class Solver : public ThinComputeInterface
    return( _par );
 
   return( ThinComputeInterface::str_par_idx2str( idx ) );
- }
+  }
 
 /** @} ---------------------------------------------------------------------*/
 /*------------- METHODS FOR ADDING / REMOVING / CHANGING DATA --------------*/
@@ -2044,6 +2282,26 @@ class Solver : public ThinComputeInterface
  std::string LogFileName;  ///< filename for the inner Solver log
 
  std::fstream f_log_file;  ///< file stream for the inner Solver log file
+
+ std::unordered_set< Block * > f_excluded;
+ ///< sub-Blocks (user-supplied, *minimal* set: descendants are NOT
+ ///< eagerly enumerated) that the Solver must IGNORE when scanning the
+ ///< Block tree rooted at f_Block: their Variable / Constraint /
+ ///< Objective do NOT enter the model loaded by the Solver, and
+ ///< Modification originating in them (or in any of their descendants)
+ ///< are filtered out at the boundary. Populated by
+ ///< set_excluded_blocks() (see below) BEFORE set_Block() is called.
+ ///<
+ ///< :Solver derivates that walk the Block tree (typically in their
+ ///< set_Block() / load_problem() override) should test b via
+ ///< is_excluded(b), which walks the get_f_Block() chain and returns
+ ///< true iff b or any ancestor of b is in f_excluded. The user-facing
+ ///< set is kept minimal so that it is suitable to be forwarded as-is
+ ///< (const ref / pointer) to nested sub-Solvers without copy.
+ ///<
+ ///< The base class maintains the set but does NOT use it: it is the
+ ///< :Solver author's responsibility to consult it (via is_excluded())
+ ///< where the Block tree is walked.
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/

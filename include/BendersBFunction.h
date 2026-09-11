@@ -49,6 +49,8 @@ namespace SMSpp_di_unipi_it
 
  class Solution;           // forward declaration of Solution
 
+ class BlockSolverConfig;  // forward definition of BlockSolverConfig
+
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -592,14 +594,24 @@ class BendersBFunction : public C05Function , public Block {
       ( ! destroy_previous_block ) )
    return; // the given Block is already here; silently return
 
+  if( ! v_Block.empty() )
+   // un-do the BlockSolverConfig-uration of the outgoing inner Block, i.e.,
+   // remove the Solver that this BendersBFunction has registered there
+   unconfigure_inner_Block_Solver();
+
   if( destroy_previous_block && ( ! v_Block.empty() ) )
    delete v_Block.front();
 
   v_Block.clear();
-  v_Block.push_back( block );
 
-  if( block )
+  /* Detaching the inner Block, which is what a nullptr means here, leaves
+   * the sub-Block vector *empty*: a null entry in it would be found by
+   * whoever walks the Block tree. */
+
+  if( block ) {
+   v_Block.push_back( block );
    block->set_f_Block( this );
+   }
 
   send_nuclear_modification();
   }
@@ -975,34 +987,42 @@ class BendersBFunction : public C05Function , public Block {
   while( varsit != vars.end() ) {
    auto var = *(varsit++);  // next variable
    auto oi = *(nmsit++);    // its original index
-   // if var has not been deleted (and, possibly, re-added), its index
-   // must be <= oi: search backward from oi to find it
-   Index i = oi;
-   if( i < v_x.size() ) {  // if i is still a valid index
-    auto avoi = v_x[ i ];
-    while( var != avoi ) {
-     if( ! i )
-      break;
-     avoi = v_x[ --i ];
-     }
 
-    if( var == avoi ) {  // the Variable was found
-     *(mapit++) = i;     // this is its index
-     continue;           // all done for this variable
-     }
+   if( v_x.empty() ) {
+    *(mapit++) = Inf< Index >();
+    continue;
     }
 
-   // (re)start the search from the last variable to oi (excluded), for
-   // the case where var has been deleted and re-added, and therefore its
-   // index can now be arbitrary (but it is more likely to be "close to
-   // the end" than "at the beginning"), or the original index is no longer
-   // valid
-   i = v_x.size();
-   auto avoi = v_x[ --i ];
-   while( ( var != avoi ) && ( i > oi ) )
+   // Phase 1: search backward from the original index oi down to 0.
+   // If oi is no longer a valid index (because Variable(s) have been
+   // deleted since the Modification was issued), the search starts at
+   // the last valid index instead --- which means Phase 1 already
+   // covers the entire v_x and Phase 2 below is unneeded.
+   Index i = std::min( oi , Index( v_x.size() - 1 ) );
+   auto avoi = v_x[ i ];
+   while( var != avoi ) {
+    if( ! i )
+     break;
     avoi = v_x[ --i ];
+    }
 
-   *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+   if( var == avoi ) {  // the Variable was found
+    *(mapit++) = i;     // this is its index
+    continue;           // all done for this variable
+    }
+
+   // Phase 2: var was not found in [0, min(oi, size-1)]. Search the
+   // remaining range (oi, size-1], which is non-empty only when
+   // oi + 1 < v_x.size().
+   if( oi + 1 < v_x.size() ) {
+    i = v_x.size();
+    avoi = v_x[ --i ];
+    while( ( var != avoi ) && ( i > oi ) )
+     avoi = v_x[ --i ];
+    *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+    }
+   else
+    *(mapit++) = Inf< Index >();
 
    }  // end( for all Variable )
 
@@ -1027,34 +1047,42 @@ class BendersBFunction : public C05Function , public Block {
   // for all Variable in the set
   for( auto oi = rng.first ; oi < rng.second ; ++oi ) {
    auto var = *(varsit++);  // next variable
-   // if var has not been deleted (and, possibly, re-added), its index
-   // must be <= oi: search backward from oi to find it
-   Index i = oi;
-   if( i < v_x.size() ) {  // if i is still a valid index
-    auto avoi = v_x[ i ];
-    while( var != avoi ) {
-     if( ! i )
-      break;
-     avoi = v_x[ --i ];
-     }
 
-    if( var == avoi ) {  // the Variable was found
-     *(mapit++) = i;     // this is its index
-     continue;           // all done for this variable
-     }
+   if( v_x.empty() ) {
+    *(mapit++) = Inf< Index >();
+    continue;
     }
 
-   // (re)start the search from the last variable to oi (excluded), for
-   // the case where var has been deleted and re-added, and therefore its
-   // index can now be arbitrary (but it is more likely to be "close to
-   // the end" than "at the beginning"), or the original index is no longer
-   // valid
-   i = v_x.size();
-   auto avoi = v_x[ --i ];
-   while( ( var != avoi ) && ( i > oi ) )
+   // Phase 1: search backward from the original index oi down to 0.
+   // If oi is no longer a valid index (because Variable(s) have been
+   // deleted since the Modification was issued), the search starts at
+   // the last valid index instead --- which means Phase 1 already
+   // covers the entire v_x and Phase 2 below is unneeded.
+   Index i = std::min( oi , Index( v_x.size() - 1 ) );
+   auto avoi = v_x[ i ];
+   while( var != avoi ) {
+    if( ! i )
+     break;
     avoi = v_x[ --i ];
+    }
 
-   *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+   if( var == avoi ) {  // the Variable was found
+    *(mapit++) = i;     // this is its index
+    continue;           // all done for this variable
+    }
+
+   // Phase 2: var was not found in [0, min(oi, size-1)]. Search the
+   // remaining range (oi, size-1], which is non-empty only when
+   // oi + 1 < v_x.size().
+   if( oi + 1 < v_x.size() ) {
+    i = v_x.size();
+    avoi = v_x[ --i ];
+    while( ( var != avoi ) && ( i > oi ) )
+     avoi = v_x[ --i ];
+    *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+    }
+   else
+    *(mapit++) = Inf< Index >();
 
    }  // end( for all Variable )
 
@@ -2072,6 +2100,31 @@ void print( std::ostream & output ) override {
  const RealVector & get_b( void ) const { return( v_b ); }
 
 /*--------------------------------------------------------------------------*/
+ /// returns a (const reference) to the constraint vector of the mapping
+ /** Returns a const reference to the vector of pointers
+  *     [ C_i ]_{i in I}
+  * to RowConstraint(s) of the inner Block that the mapping
+  *     M_i( x ) = ( A x + b )_i
+  * is associated with. The i-th element is the RowConstraint pointed by
+  * C_i, whose left- and/or right-hand side is set to M_i( x ) according
+  * to the corresponding entry of get_sides(). The vector has the same
+  * size as get_A() and get_b(). */
+
+ const ConstraintVector & get_constraints( void ) const
+  { return( v_constraints ); }
+
+/*--------------------------------------------------------------------------*/
+ /// returns a (const reference) to the side vector of the mapping
+ /** Returns a const reference to the vector of #ConstraintSide(s)
+  *     [ S_i ]_{i in I}
+  * specifying, for every mapping row i, which side(s) of the RowConstraint
+  * pointed by get_constraints()[ i ] is/are set to M_i( x ) = ( A x + b )_i.
+  * The vector has the same size as get_A() and get_b(). */
+
+ const ConstraintSideVector & get_sides( void ) const
+  { return( v_sides ); }
+
+/*--------------------------------------------------------------------------*/
  /// returns a pointer to the Solver attached to the sub-Block (if any)
  /** This method returns a pointer to the Solver attached to the sub-Block of
   * this BendersBFunction. The template parameter \p T indicates the type of
@@ -2192,6 +2245,17 @@ void print( std::ostream & output ) override {
  int LinComp; ///< determines how linearizations are computed
 
  int f_inner_solver_index = 0; ///< the index of the Solver of the inner Block
+
+ BlockSolverConfig * f_BSC = nullptr;
+ ///< the clear()-ed BlockSolverConfig that configured the inner Block
+ /**< The clone of the BlockSolverConfig that has actually been apply()-ed to
+  * the inner Block, kept clear()-ed: apply()-ing it removes all and only the
+  * Solver that it has registered there [see BlockSolverConfig::apply()],
+  * which is how the configuration is un-done when the inner Block is
+  * released, replaced or destroyed. A clone is necessary because the same
+  * BlockSolverConfig is typically apply()-ed to many Block, while the record
+  * of the registered Solver that its cleared apply() uses is per-Block.
+  * nullptr if the inner Block has not been BlockSolverConfig-ured. */
 
  Configuration * f_get_dual_solution_config = nullptr;
  ///< Configuration to be passed to Solver::get_dual_solution()
@@ -2880,6 +2944,34 @@ void print( std::ostream & output ) override {
   }
 
 /*--------------------------------------------------------------------------*/
+ /// true if any handled RowConstraint currently has lhs > rhs
+ /** Returns true iff at least one of the RowConstraints handled by this
+  * BendersBFunction (i.e., in v_constraints) is in an "inverted" state
+  * with lhs > rhs, which makes the inner sub-Block structurally
+  * infeasible. Used as a fallback by has_linearization() /
+  * compute_new_linearization() to synthesize a feasibility (vertical)
+  * linearization when the inner Solver cannot produce a Farkas
+  * certificate (e.g., because infeasibility was detected by presolve
+  * before any simplex/barrier iteration). */
+
+ bool has_inverted_row( void );
+
+ /// effective per-entry dual value used to assemble a vertical cut
+ /** Returns the dual value to be used for the j-th BendersBFunction row
+  * entry when building a linearization. When the underlying RowConstraint
+  * has lhs > rhs (structurally infeasible), the inner Solver may have no
+  * Farkas certificate available; in that case a side-aware synthetic
+  * value is returned, equal to \p obj_sign for an eLHS entry and to
+  * \f$ -\p obj\_sign \f$ for an eRHS entry, so that the standard
+  * (sign-based) accumulation in get_linearization_coefficients() and
+  * compute_linearization_constant() picks up both sides and yields the
+  * cut \f$ (M_1 - M_2)\,y \leq b_2 - b_1 \f$, which is exactly the
+  * Farkas-derived feasibility cut for the inverted row. */
+
+ FunctionValue effective_dual_for_cut( RowConstraint * c , Block::Index j ,
+                                       int obj_sign );
+
+/*--------------------------------------------------------------------------*/
  /// return the index of the given  RowConstraint
 
  Index get_constraint_index( RowConstraint * constraint ) {
@@ -2946,6 +3038,15 @@ void print( std::ostream & output ) override {
  void set_default_inner_Block_BlockSolverConfig();
 
 /*--------------------------------------------------------------------------*/
+ /// remove the Solver that this BendersBFunction registered in the inner Block
+ /** Applies the clear()-ed BlockSolverConfig that configured the inner Block
+  * [see f_BSC], i.e., un-registers and deletes all and only the Solver that
+  * this BendersBFunction has registered there, leaving any other one alone;
+  * does nothing if the inner Block has not been BlockSolverConfig-ured. */
+
+ void unconfigure_inner_Block_Solver();
+
+/*--------------------------------------------------------------------------*/
  /// reset the configuration of the inner Block to the default one
  /** Reset both the BlockConfig and the BlockSolverConfig of the inner Block
   * to the default ones. */
@@ -2957,12 +3058,13 @@ void print( std::ostream & output ) override {
 
 /*--------------------------------------------------------------------------*/
 
- static void static_initialization() {
+ static void static_initialization()
+ {
   /*!!
-   * Not all C++ compilers enjoy the template wizardry behind the three-args
-   * version of register_method<> with the compact MS_*_*::args(), so we just
-   * use the slightly less compact one with the explicit argument and be done
-   * with it.
+   * Warning: Not all C++ compilers enjoy the template wizardry behind the
+   * three-args version of register_method<> with the compact MS_*_*::args(),
+   * so we just use the slightly less compact one with the explicit argument
+   * and be done with it.
 
   register_method< BendersBFunction >( "BendersBFunction::modify_constants" ,
                                        & BendersBFunction::modify_constants ,
@@ -2973,12 +3075,12 @@ void print( std::ostream & output ) override {
                                        MS_dbl_rngd::args() );
 				       !!*/
   register_method< BendersBFunction , MF_dbl_it , Subset && , const bool >(
-				       "BendersBFunction::modify_constants" ,
-                                       & BendersBFunction::modify_constants );
+   "BendersBFunction::modify_constants" ,
+   & BendersBFunction::modify_constants );
 
   register_method< BendersBFunction , MF_dbl_it , Range >(
-				       "BendersBFunction::modify_constants" ,
-                                       & BendersBFunction::modify_constants );
+   "BendersBFunction::modify_constants" ,
+   & BendersBFunction::modify_constants );
   }
 
 /*--------------------------------------------------------------------------*/

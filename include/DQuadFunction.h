@@ -284,7 +284,29 @@ class DQuadFunction : public C15Function {
                          const FunctionValue ct = 0 ,
                          Observer * const observer = nullptr )
   : C15Function( observer ) , v_triples( std::move( v_var ) ) ,
-    f_value( Inf< FunctionValue >() ), f_constant_term( ct ) { }
+    f_value( Inf< FunctionValue >() ), f_constant_term( ct ) {
+ #ifndef NDEBUG
+  // check that all the triples in v_var have distinct variables
+  if( v_triples.size() > 1 ) {
+   std::vector< Index > sorted( v_triples.size() );
+   std::iota( sorted.begin() , sorted.end() , 0 );
+   std::sort( sorted.begin() , sorted.end() ,
+	      [ this ]( Index i , Index j ) {
+	       return( std::less< ColVariable * >{}(
+					 std::get< 0 >( v_triples[ i ] ) ,
+					 std::get< 0 >( v_triples[ j ] ) ) );
+	       } );
+   for( Index i = 0 ; i < v_triples.size() - 1 ; ++i )
+    if( std::get< 0 >( v_triples[ sorted[ i ] ] ) ==
+	std::get< 0 >( v_triples[ sorted[ i + 1 ] ] ) )
+     throw( std::invalid_argument( "DQuadFunction: repeated ColVariable in "
+				   "v_var[ " + std::to_string( sorted[ i ] ) +
+				   " ] and v_var[ "
+				   + std::to_string( sorted[ i + 1 ] ) + " ]"
+				   ) );
+   }
+ #endif
+ }
 
 /*--------------------------------------------------------------------------*/
  /// destructor: it does nothing (explicitly)
@@ -568,34 +590,42 @@ class DQuadFunction : public C15Function {
   while( varsit != vars.end() ) {
    auto var = *(varsit++);  // next variable
    auto oi = *(nmsit++);    // its original index
-   // if var has not been deleted (and, possibly, re-added), its index
-   // must be <= oi: search backward from oi to find it
-   Index i = oi;
-   if( i < v_triples.size() ) {  // if i is still a valid index
-    auto avoi = std::get< 0 >( v_triples[ i ] );
-    while( var != avoi ) {
-     if( ! i )
-      break;
-     avoi = std::get< 0 >( v_triples[ --i ] );
-     }
 
-    if( var == avoi ) {  // the Variable was found
-     *(mapit++) = i;     // this is its index
-     continue;           // all done for this variable
-     }
+   if( v_triples.empty() ) {
+    *(mapit++) = Inf< Index >();
+    continue;
     }
 
-   // (re)restart the search from the last variable to oi (excluded), for
-   // the case where var has been deleted and re-added, and therefore its
-   // index can now be arbitrary (but it is more likely to be "close to
-   // the end" than "at the beginning"), or the original index is no longer
-   // valid
-   i = v_triples.size();
-   auto avoi = std::get< 0 >( v_triples[ --i ] );
-   while( ( var != avoi ) && ( i > oi ) )
-     avoi = std::get< 0 >( v_triples[ --i ] );
+   // Phase 1: search backward from the original index oi down to 0.
+   // If oi is no longer a valid index (because Variable(s) have been
+   // deleted since the Modification was issued), the search starts at
+   // the last valid index instead --- which means Phase 1 already
+   // covers the entire v_triples and Phase 2 below is unneeded.
+   Index i = std::min( oi , Index( v_triples.size() - 1 ) );
+   auto avoi = std::get< 0 >( v_triples[ i ] );
+   while( var != avoi ) {
+    if( ! i )
+     break;
+    avoi = std::get< 0 >( v_triples[ --i ] );
+    }
 
-   *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+   if( var == avoi ) {  // the Variable was found
+    *(mapit++) = i;     // this is its index
+    continue;           // all done for this variable
+    }
+
+   // Phase 2: var was not found in [0, min(oi, size-1)]. Search the
+   // remaining range (oi, size-1], which is non-empty only when
+   // oi + 1 < v_triples.size().
+   if( oi + 1 < v_triples.size() ) {
+    i = v_triples.size();
+    avoi = std::get< 0 >( v_triples[ --i ] );
+    while( ( var != avoi ) && ( i > oi ) )
+     avoi = std::get< 0 >( v_triples[ --i ] );
+    *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+    }
+   else
+    *(mapit++) = Inf< Index >();
 
    }  // end( for all Variable )
 
@@ -620,34 +650,42 @@ class DQuadFunction : public C15Function {
   // for all Variable in the set
   for( auto oi = rng.first ; oi < rng.second ; ++oi ) {
    auto var = *(varsit++);  // next variable
-   // if var has not been deleted (and, possibly, re-added), its index
-   // must be <= oi: search backward from oi to find it
-   Index i = oi;
-   if( i < v_triples.size() ) {  // if i is still a valid index
-    auto avoi = std::get< 0 >( v_triples[ i ] );
-    while( var != avoi ) {
-     if( ! i )
-      break;
-     avoi = std::get< 0 >( v_triples[ --i ] );
-     }
 
-    if( var == avoi ) {  // the Variable was found
-     *(mapit++) = i;     // this is its index
-     continue;           // all done for this variable
-     }
+   if( v_triples.empty() ) {
+    *(mapit++) = Inf< Index >();
+    continue;
     }
 
-   // (re)restart the search from the last variable to oi (excluded), for
-   // the case where var has been deleted and re-added, and therefore its
-   // index can now be arbitrary (but it is more likely to be "close to
-   // the end" than "at the beginning"), or the original index is no longer
-   // valid
-   i = v_triples.size();
-   auto avoi = std::get< 0 >( v_triples[ --i ] );
-   while( ( var != avoi ) && ( i > oi ) )
+   // Phase 1: search backward from the original index oi down to 0.
+   // If oi is no longer a valid index (because Variable(s) have been
+   // deleted since the Modification was issued), the search starts at
+   // the last valid index instead --- which means Phase 1 already
+   // covers the entire v_triples and Phase 2 below is unneeded.
+   Index i = std::min( oi , Index( v_triples.size() - 1 ) );
+   auto avoi = std::get< 0 >( v_triples[ i ] );
+   while( var != avoi ) {
+    if( ! i )
+     break;
     avoi = std::get< 0 >( v_triples[ --i ] );
+    }
 
-   *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+   if( var == avoi ) {  // the Variable was found
+    *(mapit++) = i;     // this is its index
+    continue;           // all done for this variable
+    }
+
+   // Phase 2: var was not found in [0, min(oi, size-1)]. Search the
+   // remaining range (oi, size-1], which is non-empty only when
+   // oi + 1 < v_triples.size().
+   if( oi + 1 < v_triples.size() ) {
+    i = v_triples.size();
+    avoi = std::get< 0 >( v_triples[ --i ] );
+    while( ( var != avoi ) && ( i > oi ) )
+     avoi = std::get< 0 >( v_triples[ --i ] );
+    *(mapit++) = ( var == avoi ) ? i : Inf< Index >();
+    }
+   else
+    *(mapit++) = Inf< Index >();
 
    }  // end( for all Variable )
 
@@ -883,8 +921,11 @@ class DQuadFunction : public C15Function {
   * is additive, and therefore strongly quasi-additive, which is why a
   * C05FunctionModVarSbst is issued as opposed to a FunctionModVarSbst one. */
 
+ /* Not final, unlike it used to be: QuadFunction derives from this and has
+  * the non-diagonal terms of the removed Variable to take away as well. */
+
  void remove_variables( Subset && nms , bool ordered = false ,
-                        ModParam issueMod = eModBlck ) override final;
+                        ModParam issueMod = eModBlck ) override;
 
 /*--------------------------------------------------------------------------*/
  ///< sets the value of the constant term of this function.
@@ -1031,10 +1072,11 @@ class DQuadFunctionModVarsAddd : public C05FunctionModVarsAddd
 /*--------------------------------------------------------------------------*/
 /// class to describe changes to a DQuadFunction involving a range of Variable
 /** Derived class from C05FunctionModRngd to describe modification to a range 
- * of "active" ColVariable of a DQuadFunction. The only difference with the base
- * C05FunctionModRngd is that the DQuadFunctionModRngd stores the difference
- * between the old and the new values of both linear and quadratic coefficients
- * of each modified ColVariable in the DQuadFunction. */
+ * of "active" ColVariable of a DQuadFunction. The only difference with the
+ * base C05FunctionModRngd is that the DQuadFunctionModRngd stores the
+ * difference between the old and the new values of both linear and
+ * quadratic coefficients of each modified ColVariable in the DQuadFunction.
+ */
 
 class DQuadFunctionModRngd : public C05FunctionModRngd
 {

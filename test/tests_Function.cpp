@@ -134,7 +134,8 @@ void runAllTests()
 
 /*--------------------------------------------------------------------------*/
 
-int main() {
+int main( int argc , char ** argv )
+{
  runAllTests();
  return( 0 );
 }

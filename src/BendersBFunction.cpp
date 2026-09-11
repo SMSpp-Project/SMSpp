@@ -80,6 +80,9 @@ BendersBFunction::BendersBFunction( Block * inner_block , VarVector && x ,
 
 BendersBFunction::~BendersBFunction()
 {
+ // remove the Solver that this BendersBFunction registered in the inner Block
+ unconfigure_inner_Block_Solver();
+
  if( ! v_Block.empty() ) {
   assert( v_Block.size() == 1 );
   delete v_Block.front();
@@ -296,18 +299,38 @@ void BendersBFunction::deserialize( const netCDF::NcGroup & group ,
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void BendersBFunction::set_variables( VarVector && x ) {
- if( ! v_A.empty() )
-  if( v_A[ 0 ].size() != x.size() )
-   throw( std::logic_error( "BendersBFunction::set_variables: wrong x.size(). "
-                            "Matrix A has " + std::to_string( v_A[ 0 ].size() ) +
-                            " row(s), but x has size " +
-                            std::to_string( x.size() ) ) );
+void BendersBFunction::set_variables( VarVector && x )
+{
+ if( ( ! v_A.empty() ) && ( v_A[ 0 ].size() != x.size() ) )
+  throw( std::logic_error( "BendersBFunction::set_variables: matrix A has "
+			   + std::to_string( v_A[ 0 ].size() ) +
+			   " row(s), but x has size " +
+			   std::to_string( x.size() ) ) );
+ #ifndef NDEBUG
+  // check that all the variables are distinct 
+  if( x.size() > 1 ) {
+   std::vector< Index > sorted( x.size() );
+   std::iota( sorted.begin() , sorted.end() , 0 );
+   std::sort( sorted.begin() , sorted.end() ,
+	      [ & x ]( Index i , Index j ) {
+	       return( std::less< ColVariable * >{}( x[ i ] , x[ j ] ) );
+	       } );
+   for( Index i = 0 ; i < x.size() - 1 ; ++i )
+    if( x[ sorted[ i ] ] == x[ sorted[ i + 1 ] ] )
+     throw( std::invalid_argument( "BendersBFunction::set_variables: "
+				   "repeated ColVariable in x[ "
+				   + std::to_string( sorted[ i ] ) +
+				   " ] and x[ "
+				   + std::to_string( sorted[ i + 1 ] ) + " ]"
+				   ) );
+   }
+ #endif
 
  v_x = std::move( x );
 
  f_constraints_are_updated = false;
-}  // end( BendersBFunction::set_variables )
+
+ }  // end( BendersBFunction::set_variables )
 
 /*--------------------------------------------------------------------------*/
 
@@ -1405,12 +1428,19 @@ void BendersBFunction::set_default_inner_Block_BlockConfig() {
 /*--------------------------------------------------------------------------*/
 
 void BendersBFunction::set_default_inner_Block_BlockSolverConfig() {
- if( auto inner_block = get_inner_block() ) {
-  auto solver_config = new RBlockSolverConfig( inner_block );
-  solver_config->clear();
-  solver_config->apply( inner_block );
-  delete solver_config;
+ unconfigure_inner_Block_Solver();
  }
+
+/*--------------------------------------------------------------------------*/
+
+void BendersBFunction::unconfigure_inner_Block_Solver() {
+ if( auto inner_block = get_inner_block() ) {
+  if( f_BSC )
+   f_BSC->apply( inner_block );
+  }
+
+ delete f_BSC;
+ f_BSC = nullptr;
 }
 
 /*--------------------------------------------------------------------------*/
@@ -1430,7 +1460,7 @@ void BendersBFunction::set_ComputeConfig( const ComputeConfig * scfg )
  }
  else if( ! scfg->f_extra_Configuration ) {
   // scfg->f_extra_Configuration is nullptr
-  if( ! scfg->f_diff )
+  if( ! scfg->diff() )
    set_default_inner_Block_configuration();
   return;
  }
@@ -1448,7 +1478,7 @@ void BendersBFunction::set_ComputeConfig( const ComputeConfig * scfg )
 
   if( key == "BlockConfig" ) {
    if( ! config ) {
-    if( ! scfg->f_diff )
+    if( ! scfg->diff() )
      // A BlockConfig for the inner Block was not provided. The inner Block is
      // configured to its default configuration.
      set_default_inner_Block_BlockConfig();
@@ -1464,15 +1494,23 @@ void BendersBFunction::set_ComputeConfig( const ComputeConfig * scfg )
   }
   else if( key == "BlockSolverConfig" ) {
    if( ! config ) {
-    if( ! scfg->f_diff )
+    if( ! scfg->diff() )
      // A BlockSolverConfig for the inner Block was not provided. The Solver
      // of the inner Block (and their sub-Block, recursively) are unregistered
      // and deleted.
      set_default_inner_Block_BlockSolverConfig();
    }
-   else if( auto bsc = dynamic_cast< BlockSolverConfig * >( config ) )
-    // A BlockSolverConfig for the inner Block has been provided. Apply it.
-    bsc->apply( inner_block );
+   else if( auto bsc = dynamic_cast< BlockSolverConfig * >( config ) ) {
+    // A BlockSolverConfig for the inner Block has been provided. Apply it
+    // through a private clone, which then remains, clear()-ed, as the
+    // cleanup object: having done the apply() itself, it records the
+    // registered Solver and its cleared apply() removes exactly them
+    // [see BlockSolverConfig::apply()]
+    unconfigure_inner_Block_Solver();   // clean up for the new arrival
+    f_BSC = bsc->clone();
+    f_BSC->apply( inner_block );
+    f_BSC->clear();
+    }
    else
     // An invalid Configuration has been provided.
     throw( std::invalid_argument
@@ -1807,7 +1845,7 @@ void BendersBFunction::serialize( netCDF::NcGroup & group ) const {
 
   ::serialize( group , "b" , netCDF::NcDouble() , NcDim_NumRow , v_b );
 
-  ::serialize( group , "ConstraintSide" , netCDF::NcByte() ,
+  ::serialize( group , "ConstraintSide" , netCDF::NcChar() ,
                NcDim_NumRow , v_sides );
  }
 
@@ -1916,6 +1954,28 @@ bool BendersBFunction::is_concave( void ) {
 
 /*--------------------------------------------------------------------------*/
 
+bool BendersBFunction::has_inverted_row( void ) {
+ retrieve_constraints();
+ for( auto * c : v_constraints )
+  if( c && ( c->get_lhs() > c->get_rhs() ) )
+   return( true );
+ return( false );
+}  // end ( BendersBFunction::has_inverted_row )
+
+/*--------------------------------------------------------------------------*/
+
+Function::FunctionValue BendersBFunction::effective_dual_for_cut
+( RowConstraint * c , Block::Index j , int obj_sign ) {
+ if( c && ( c->get_lhs() > c->get_rhs() ) ) {
+  if( v_sides[ j ] == eLHS ) return(  FunctionValue( obj_sign ) );
+  if( v_sides[ j ] == eRHS ) return( -FunctionValue( obj_sign ) );
+  return( 0 );  // eBoth cannot be inverted (set_both implies lhs == rhs)
+  }
+ return( c ? c->get_dual() : 0 );
+}  // end ( BendersBFunction::effective_dual_for_cut )
+
+/*--------------------------------------------------------------------------*/
+
 bool BendersBFunction::has_linearization( const bool diagonal ) {
 
  auto solver = get_solver< CDASolver >();
@@ -1929,7 +1989,17 @@ bool BendersBFunction::has_linearization( const bool diagonal ) {
  }
  else {
   f_diagonal_linearization_required = false;
-  return( solver->has_dual_direction() );
+  if( solver->has_dual_direction() )
+   return( true );
+  // Fallback: when the inner solver detects infeasibility via a row with
+  // lhs > rhs and cannot or will not synthesize a Farkas certificate
+  // (typical when the infeasibility is exposed by presolve before the
+  // simplex / barrier iterations that would produce a dual basis), we can
+  // still produce a vertical linearization on the spot from the row data.
+  // The cut is computed directly in get_linearization_coefficients() and
+  // compute_linearization_constant() by giving each side of an inverted
+  // row a synthetic, side-aware dual value.
+  return( has_inverted_row() );
  }
 
 }  // end( BendersBFunction::has_linearization )
@@ -1942,8 +2012,11 @@ bool BendersBFunction::compute_new_linearization( const bool diagonal ) {
   return( false );
  if( diagonal )
   return( solver->new_dual_solution() );
- else
-  return( solver->new_dual_direction() );
+ if( solver->new_dual_direction() )
+  return( true );
+ // Fallback: synthesize a vertical linearization from inverted-bound rows.
+ // See has_linearization() for the rationale.
+ return( has_inverted_row() );
 }  // end ( BendersBFunction::compute_new_linearization )
 
 /*--------------------------------------------------------------------------*/
@@ -1988,10 +2061,18 @@ void BendersBFunction::store_linearization( Index name , ModParam issueMod ) {
 
  // TODO check whether the solution has already been written into the Block
 
- if( f_diagonal_linearization_required )
-  solver->get_dual_solution( f_get_dual_solution_config );
- else
-  solver->get_dual_direction( f_get_dual_direction_config );
+ // Guard: skip the dual-info getter if the Solver does not have it (typical
+ // when infeasibility is detected without producing a dual basis). The
+ // synthetic side-aware accumulation in compute_linearization_constant() /
+ // get_linearization_coefficients() takes care of the inverted-row case.
+ if( f_diagonal_linearization_required ) {
+  if( solver->has_dual_solution() )
+   solver->get_dual_solution( f_get_dual_solution_config );
+  }
+ else {
+  if( solver->has_dual_direction() )
+   solver->get_dual_direction( f_get_dual_direction_config );
+  }
 
  Solution * solution = nullptr;
 
@@ -2087,10 +2168,18 @@ void BendersBFunction::write_dual_solution( Index name ) {
 
   // TODO check whether the solution has already been written into the Block
 
-  if( f_diagonal_linearization_required )
-   solver->get_dual_solution( f_get_dual_solution_partial_config );
-  else
-   solver->get_dual_direction( f_get_dual_direction_partial_config );
+  // Guard each call: if the Solver cannot provide the requested dual info
+  // (typical when infeasibility was detected without producing a dual
+  // basis), do not call the corresponding getter -- it would throw. The
+  // caller falls back to synthesizing the cut from inverted-bound rows.
+  if( f_diagonal_linearization_required ) {
+   if( solver->has_dual_solution() )
+    solver->get_dual_solution( f_get_dual_solution_partial_config );
+   }
+  else {
+   if( solver->has_dual_direction() )
+    solver->get_dual_direction( f_get_dual_direction_partial_config );
+   }
  }
  else
   // Linearization stored in the global pool
@@ -2130,7 +2219,7 @@ void BendersBFunction::get_linearization_coefficients
   if( ignore_constraint( constraint ) )
    continue;
 
-  const auto dual_value = constraint->get_dual();
+  const auto dual_value = effective_dual_for_cut( constraint , j , obj_sign );
 
   if( dual_value == 0 )
    continue;
@@ -2182,7 +2271,7 @@ void BendersBFunction::get_linearization_coefficients
   if( ignore_constraint( constraint ) )
    continue;
 
-  const auto dual_value = constraint->get_dual();
+  const auto dual_value = effective_dual_for_cut( constraint , j , obj_sign );
 
   if( dual_value == 0 )
    continue;
@@ -2223,7 +2312,7 @@ void BendersBFunction::get_linearization_coefficients
   if( ignore_constraint( constraint ) )
    continue;
 
-  const auto dual_value = constraint->get_dual();
+  const auto dual_value = effective_dual_for_cut( constraint , j , obj_sign );
 
   if( dual_value == 0 )
    continue;
@@ -2281,7 +2370,7 @@ void BendersBFunction::get_linearization_coefficients
   if( ignore_constraint( constraint ) )
    continue;
 
-  const auto dual_value = constraint->get_dual();
+  const auto dual_value = effective_dual_for_cut( constraint , j , obj_sign );
 
   if( dual_value == 0 )
    continue;
@@ -2346,6 +2435,23 @@ Function::FunctionValue BendersBFunction::compute_linearization_constant() {
 
    if( ignore_constraint( & c ) )
     return;
+
+   // Inverted row (lhs > rhs): synthesize the Farkas-equivalent cut term
+   // directly, using both LHS and RHS handled by this BendersBFunction
+   // with side-aware synthetic duals (see has_inverted_row()).
+   if( c.get_lhs() > c.get_rhs() ) {
+    auto idx_lhs = get_constraint_index( &c , eLHS );
+    if( idx_lhs < Inf< Index >() ) {
+     // synthetic dual = obj_sign on LHS side
+     alpha += - FunctionValue( obj_sign ) * v_b[ idx_lhs ];
+    }
+    auto idx_rhs = get_constraint_index( &c , eRHS );
+    if( idx_rhs < Inf< Index >() ) {
+     // synthetic dual = -obj_sign on RHS side
+     alpha += FunctionValue( obj_sign ) * v_b[ idx_rhs ];
+    }
+    return;
+   }
 
    const auto dual_value = c.get_dual();
 
@@ -2500,7 +2606,8 @@ Function::FunctionValue BendersBFunction::get_linearization_constant(
   }
   else {
    // "vertical" linearization
-   solver->get_dual_direction( f_get_dual_direction_config );
+   if( solver->has_dual_direction() )
+    solver->get_dual_direction( f_get_dual_direction_config );
    return( compute_linearization_constant() );
   }
  }
@@ -2528,7 +2635,7 @@ ComputeConfig * BendersBFunction::get_ComputeConfig
  if( ! ccfg ) {
   default_config = true;
   ccfg = new ComputeConfig();
-  ccfg->f_diff = ! all;
+  ccfg->set_diff( ! all );
  }
 
  auto extra_config = dynamic_cast< SimpleConfiguration<

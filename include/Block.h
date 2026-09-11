@@ -679,6 +679,21 @@ class Block : public Observer {
  /// type for ( int , subset ) functions
  using MS_int_sbst = arg_packer< MF_int_it , Subset && , bool >;
 
+ /// typedef for the bimap used by one methods factory
+ template< class F >
+ using MethodsFactoryMap = boost::bimap< std::string , F * >;
+
+ /// canonical factory types for the six standard method signatures
+ using MF_rngd_map = MethodsFactoryMap< FunctionType< Range > >;
+ using MF_dbl_rngd_map = MethodsFactoryMap< FunctionType< MF_dbl_it , Range > >;
+ using MF_int_rngd_map = MethodsFactoryMap< FunctionType< MF_int_it , Range > >;
+
+ using MF_sbst_map = MethodsFactoryMap< FunctionType< Subset && , bool > >;
+ using MF_dbl_sbst_map = MethodsFactoryMap< FunctionType<
+  MF_dbl_it , Subset && , bool > >;
+ using MF_int_sbst_map = MethodsFactoryMap< FunctionType<
+  MF_int_it , Subset && , bool > >;
+
 /** @} ---------------------------------------------------------------------*/
 
  /// ConstraintID identifies a Constraint within a Block
@@ -785,6 +800,18 @@ class Block : public Observer {
  Block( const Block & ) = delete;
 
 /*--------------------------------------------------------------------------*/
+ /// destructor of Block: it is virtual
+ /** Destructor of Block: it invokes set_BlockConfig() to clean up the
+  * BlockConfig of the Block. It also cleans up any currently open
+  * GroupModification. */
+
+ virtual ~Block() {
+  set_BlockConfig();
+  for( auto &el : v_GroupMod )
+   delete el.second;
+  }
+
+/*--------------------------------------------------------------------------*/
  /// construct a :Block of specific type using the Block factory
  /** Use the Block factory to construct a :Block object of type specified by
   * classname (a std::string with the name of the class inside). If there is
@@ -860,14 +887,17 @@ class Block : public Observer {
   * filesystem. Block provides a *static* member for this purpose, that can
   * be set with this (static) method. Note that
   *
-  *     BEING THE MEMBER STATIC, THE PREFIX IS APPLIED TO ALL LOADING 
+  *     BEING THE MEMBER STATIC, THE PREFIX IS APPLIED TO ALL LOADING
   *     OPERATIONS OF ANY Block IN THE EXECUTABLE
   *
   * Use of this feature therefore requires care. */
 
- static void set_filename_prefix( std::string && prefix ) {
-  f_prefix = prefix;
-  }
+ static void set_filename_prefix( std::string && prefix );
+
+/*--------------------------------------------------------------------------*/
+ /// get the executable-wide prefix for all Block filenames
+
+ static const std::string & get_filename_prefix();
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize a :Block out of a file
@@ -981,7 +1011,7 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
  /// de-serialize a :Block out of an open netCDF SMS++ file at given position
  /** Second-level de-serialization method: takes an open netCDF file, the
-  * index \pos of a Block into the file, and possibly a \p father, and 
+  * index \pos of a Block into the file, and possibly a \p father, and
   * returns the corresponding complete :Block object with the prescribed
   * father (if any).
   *
@@ -1266,6 +1296,20 @@ class Block : public Observer {
 
  virtual void deserialize( const netCDF::NcGroup & group )
  {
+  #ifndef NDEBUG
+   // in debug mode, complain if unexpected dimensions are there; however,
+   // only do it if anything is declared as expected
+   auto ed = expected_dims();
+   if( ! ed.empty() )
+    check_dimensions( group , ed , std::cerr );
+
+   // in debug mode, complain if unexpected variables are there; however,
+   // only do it if anything is declared as expected
+   auto ev = expected_vars();
+   if( ! ev.empty() )
+   check_variables( group , ev , std::cerr );
+  #endif
+
   netCDF::NcGroupAtt gname = group.getAtt( "name" );
   if( gname.isNull() )
    f_name.clear();
@@ -1342,17 +1386,57 @@ class Block : public Observer {
                              Block * father = nullptr ,
                              std::function< void( Block * ) > * f = nullptr );
 
-/*--------------------------------------------------------------------------*/
- /// destructor of Block: it is virtual
- /** Destructor of Block: it invokes set_BlockConfig() to clean up the
-  * configuration of the Block. It also cleans up any currently open
-  * GroupModification. */
+/** @} ---------------------------------------------------------------------*/
+/** @name Public methods for handling the list of expected variables and
+ *  dimensions in deserialize().
+ *
+ *  The two virtual methods
+ *
+ *   std::vector< std::string > expected_dims( void )
+ *
+ *   std::vector< std::string > expected_vars( void )
+ *
+ * are only declared if NDEBUG is defined. They are invoked, under the same
+ * condition, inside Block::deserialize( const netCDF::NcGroup & ) to check
+ * the list of dimensions and variables that are expected to be found in
+ * the netCDF::NcGroup, and complain if *un*expected ones are found in there.
+ * This may (but not necessarily is) be a warning for some error.
+ *
+ * While this check can be useful, the issue is that derived classes
+ * typically handle more dimensions and/or variables than base ones. That
+ * is, if one has Block_one : Block and Block_two : Block_one, it can be
+ * expected that Block_two::deserialize() will need more  dimensions and/or
+ * variables than Block_one::deserialize(). However, Block_one is not
+ * supposed to be aware of the existence of Block_two, hence if the check
+ * is done in Block_one::deserialize() it would complain for the stuff that
+ * Block_two::deserialize() actually needs. However, Block_two::expected_*()
+ * can "extend" Block_one::expected_*() by returning whatever that one did
+ * plus its own expected stuff; all this is automatically checked when
+ * Block::deserialize( const netCDF::NcGroup & ) is called, and every
+ * deserialize() of every :Block should eventually end up calling this.
+ *
+ * Both methods are given a default implementation returning an empty
+ * std::vector so that :Block not bothering to implement the check can just
+ * ignore the issue and do nothing.
+ *
+ * These methods are public for the odd chance that a :Block uses a different
+ * :Block without deriving from it and therefore it may want to know its list
+ * of expected variables / dimensions. */
 
- virtual ~Block() {
-  set_BlockConfig();
-  for( auto &el : v_GroupMod )
-   delete el.second;
+#ifndef NDEBUG
+
+ virtual std::vector< std::string > expected_dims( void ) const {
+  static const std::vector< std::string > _empty;
+  return( _empty );
   }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ virtual std::vector< std::string > expected_vars( void ) const {
+  static const std::vector< std::string > _empty;
+  return( _empty );
+  }
+
+#endif
 
 /** @} ---------------------------------------------------------------------*/
 /*----------------- Methods for acquiring/releasing the Block --------------*/
@@ -1619,7 +1703,7 @@ class Block : public Observer {
   * operations naturally travel "downward" on a tree, the lock attempts must
   * always proceed top-down. Obviously, if an entity is trying to own two
   * different Block, say B1 and B2 in this order, any other entity trying to
-  * own B2 and B1 (in this order) may deadlock. If this can happen, an 
+  * own B2 and B1 (in this order) may deadlock. If this can happen, an
   * additional ad-hoc synchronization layer will be needed. Yet, note that
   *
   *     NO ADDITIONAL MECHANISM IS REQUIRED IF B1 AND B2 ARE BOTH DESCENDANTS
@@ -1932,8 +2016,7 @@ class Block : public Observer {
 
  virtual void read_unlock( void ) {
   if( ( f_owner != ReadOnlyLock() ) && ( f_owner != v_ownersLock() ) )
-   throw( std::logic_error( "trying to read-unlock a non-read-locked Block"
-			    ) );
+   throw( std::logic_error( "trying to read-unlock a non-read-locked Block" ) );
 
   // read-unlock all the sub-Block
   for( auto sb = v_Block.end() ; sb != v_Block.begin() ; )
@@ -1997,6 +2080,45 @@ class Block : public Observer {
 
  virtual void set_BlockConfig( BlockConfig * newBC = nullptr ,
                                bool deleteold = true );
+
+/*--------------------------------------------------------------------------*/
+ /// sets the structure of the Block, i.e., its tree of sub-Block
+ /** Sets the *structure* of the Block, i.e., the tree of sub-Block it is made
+  * of, as opposed to its *formulation*, i.e., which Variable, Constraint and
+  * Objective its abstract representation encodes. The structure is physical
+  * and comes first, the formulation is abstract and comes after, if at all:
+  * ever since Solver::get_Solution() [see Solver.h] a Block can be solved
+  * without any abstract representation, which is what makes the two
+  * genuinely different things rather than one.
+  *
+  * Not every :Block has a structure to choose. For many of them the tree is a
+  * *datum*, i.e., it is what the instance says it is and there is nothing to
+  * decide; for others it is a *modelling choice*, one and the same problem
+  * being written as different trees of sub-Block, and this is the method that
+  * makes the choice. Which Configuration says what is entirely a matter of
+  * the :Block, exactly as for generate_abstract_variables().
+  *
+  * The Configuration is resolved as usual: if \p strc is not nullptr it is
+  * used, otherwise the f_structure_Configuration of the BlockConfig is, if
+  * there is one [see BlockConfig]. This is why set_BlockConfig() calls this
+  * method as soon as it has digested the BlockConfig, which is also
+  *
+  *     THE MOMENT AT WHICH THIS METHOD IS MEANT TO BE CALLED, I.E., BEFORE
+  *     ANY PART OF THE ABSTRACT REPRESENTATION IS GENERATED AND BEFORE ANY
+  *     Solver IS ATTACHED, WHICH IS WHAT APPLYING A BlockSolverConfig DOES
+  *
+  * Calling it later is not forbidden, but changing the tree of sub-Block of a
+  * Block that anyone is attached to is the "nuclear option": whatever
+  * abstract representation is constructed has to be rebuilt and a
+  * NBModification has to be issued, since nothing of what a Solver knows
+  * about the Block is worth keeping.
+  *
+  * The implementation of the base class does nothing if the resolved
+  * Configuration is nullptr, and throws exception otherwise, since a :Block
+  * that has no structure to choose being told to choose one is an error in
+  * the Configuration rather than something to be silently ignored. */
+
+ virtual void set_structure( Configuration * strc = nullptr );
 
 /*--------------------------------------------------------------------------*/
  /// generate the "abstract representation" of the Variable of the Block
@@ -2859,6 +2981,23 @@ class Block : public Observer {
   auto bit = std::find( v_Block.begin(), v_Block.end(), block );
   return( std::distance( v_Block.begin(), bit ) );
   }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// resolve a slash-separated path of sub-Block indices
+ /** Walks \p path interpreted as "i/j/k/...", with each segment a decimal
+  * index into get_nested_Blocks(). An empty path returns \p this.
+  *
+  * Used to identify a sub-Block by structural position rather than by
+  * classname or pointer, which is what a Configuration needs whenever it
+  * has to name one specific sub-Block of the tree.
+  *
+  * @param path  slash-separated decimal indices, or empty for \p this.
+  * @return  a pointer to the addressed sub-Block.
+  * @throws  std::invalid_argument if a segment is non-numeric;
+  *          std::out_of_range if an index exceeds the number of
+  *          nested Block. */
+
+ Block * resolve_sub_Block_path( const std::string & path );
 
 /** @} ---------------------------------------------------------------------*/
 /** @name Methods for reading the Block's Variables and Constraints
@@ -3915,7 +4054,7 @@ class Block : public Observer {
   * if subset.empty(), which means that all the elements in the list are
   * removed. The ordered parameter tells if subset is ordered by increasing
   * Index: if not, then it is ordered inside (unless of course if
-  * subset.empty()). Not that this matters for the caller since, as the the
+  * subset.empty()). Not that this matters for the caller since, as the
   * && tells, subset[] "becomes property" of Block, possibly to be shipped to
   * the issued BlockModRmvSbst if issueMod so instructs. */
 
@@ -4056,7 +4195,7 @@ class Block : public Observer {
   * if subset.empty(), which means that all the elements in the list are
   * removed. The ordered parameter tells if subset is ordered by increasing
   * Index: if not, then it is ordered inside (unless of course if
-  * subset.empty()). Not that this matters for the caller since, as the the
+  * subset.empty()). Not that this matters for the caller since, as the
   * && tells, subset[] "becomes property" of Block, possibly to be shipped to
   * the issued BlockModRmvSbst if issueMod so instructs. */
 
@@ -4139,8 +4278,15 @@ class Block : public Observer {
  * - they can be used to verify if some solution information (say, obtained
  *   "a long time ago" and stored into a Solution object) still has the
  *   required properties (say, feasibility) even after all the Modification
- *   that may have occurred in the Meantime (note that for this to happen the
- *   Solution has to be read back into the Block).
+ *   that may have occurred in the Meantime.
+ *
+ * For the latter use, is_sol_feasible() and is_sol_optimal() take the
+ * Solution to be checked, rather than reading the solution out of the
+ * Variable of the Block; that version does not require the Solution to
+ * be read back into the Block, and it does not require the Block to have an
+ * "abstract representation" at all, which is precisely the case of a
+ * "physical" Solver that only ever produces a Solution [see
+ * Solver::get_Solution()].
  *
  * Note that these checks may be either "easy" or "hard". For instance,
  * feasibility and ray-ness should be "easy" for an NP-hard problem, while
@@ -4188,10 +4334,61 @@ class Block : public Observer {
  *  @{ */
 
 /*--------------------------------------------------------------------------*/
+ /// tells whether the Variable of the Block hold a solution or a direction
+ /** Returns true if what the Variable of the Block currently hold is not a
+  * solution but a direction, i.e., a ray of the feasible region along which
+  * the Objective is unbounded (below for a minimization problem, above for
+  * a maximization one).
+  *
+  * The distinction matters because a ray is not checked as a solution is: a
+  * solution has to satisfy the Constraint, a ray has to satisfy their
+  * homogeneous version. is_feasible() therefore asks this method what it is
+  * looking at, which is why one method is enough for both.
+  *
+  * The default is false, which is right for the many Block whose feasible
+  * region is compact and that rays therefore do not have at all. */
+
+ [[nodiscard]] virtual bool is_direction( void ) const { return( false ); }
+
+/*--------------------------------------------------------------------------*/
+ /// tells the Block that its Variable hold a direction
+ /** Tells the Block that what its Variable hold is a direction rather than a
+  * solution, which is something the Solver that writes them knows and the
+  * Block has no way of finding out on its own.
+  *
+  * The default implementation only accepts being told "no", a Block with no
+  * rays having nothing to remember; a :Block that has them keeps the flag
+  * and returns it in is_direction(). */
+
+ virtual void is_direction( bool yesno ) {
+  if( yesno )
+   throw( std::invalid_argument( "Block::is_direction: this Block has no "
+                                 "directions" ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// true if this Block can be told that its Variable hold a direction
+ /** Returns true if is_direction( bool ) accepts being told "yes", i.e., if
+  * this Block knows what a direction of its own is. A Block that does not
+  * cannot answer a question about a ray at all, which is a different thing
+  * from answering that the ray is not one: whoever has a ray to check has
+  * to ask this first, and decide what to do with an answer it cannot get.
+  */
+
+ [[nodiscard]] virtual bool has_directions( void ) const { return( false ); }
+
+/*--------------------------------------------------------------------------*/
  /// returns true if the current solution is (approximately) feasible
  /** Returns true if the solution encoded in the current value of the
   * Variable of the Block is approximately feasible within the given
   * tolerances.
+  *
+  * What the Variable hold need not be a solution: if is_direction() says
+  * that it is a direction, the check is the one a ray has to pass, i.e.,
+  * feasibility w.r.t. the homogeneous version of the Constraint, the ray
+  * having to keep the point inside the feasible region however far one
+  * moves along it. This is why there is no separate method for the two: the
+  * Block knows which of the two it is looking at.
   *
   * The useabstract parameter being true dictates that the solution should be
   * checked for feasibility w.r.t. "abstract representation" of the Block,
@@ -4295,6 +4492,68 @@ class Block : public Observer {
   }
 
 /*--------------------------------------------------------------------------*/
+ /// returns true if the solution in the Solution is (approximately) feasible
+ /** Returns true if the solution encoded in the Solution object sol is
+  * approximately feasible within the given tolerances. What the Variable of
+  * the Block currently hold is irrelevant here, the values being read out of
+  * sol; whether they are also left untouched is a different matter, and it
+  * is what is_sol_feasible_physical() answers.
+  *
+  * This is the "physical" counterpart of is_feasible( bool , Configuration *
+  * ): that one reads the solution out of the Variable of the Block, hence
+  * it needs the Variable to exist in the first place, while this one reads
+  * it out of sol. This is what makes it possible to check the solution that
+  * a "physical" Solver produces [see Solver::get_Solution()] when it is
+  * attached to a Block with no "abstract representation" at all. Note that
+  * the two versions may legitimately return different values, and for the
+  * very same reasons discussed in is_feasible( bool , Configuration * ).
+  *
+  * Since a Solution is allowed to hold only "a part" of the solution
+  * information, it may only be possible to check a part of the Constraint;
+  * what exactly is checked is therefore a matter between the :Block and its
+  * :Solution, but the general contract is that the method must not return
+  * true unless sol carries enough information to prove that the solution is
+  * feasible.
+  *
+  * The parameter fsbc has exactly the same meaning as in is_feasible( bool ,
+  * Configuration * ), the fact that it overrides the corresponding field of
+  * the BlockConfig included.
+  *
+  * The method is given a default implementation that goes through the
+  * Variable of the Block: what they hold is saved, sol is written in, the
+  * check is done by is_feasible( true , fsbc ) and what was there is put
+  * back. This makes the method available for any :Block, at the price of
+  * requiring the "abstract representation" to exist and of touching the
+  * Variable while it runs; is_sol_feasible_physical() is what tells the two
+  * cases apart. A :Block that can read its own :Solution directly is
+  * expected to override this method, and to say so there.
+  *
+  * The name differs from that of is_feasible( bool , Configuration * ) on
+  * purpose: were the two overloads of one name, a :Block overriding the
+  * first one alone would *hide* this one, and since a pointer silently
+  * converts to bool the call is_sol_feasible( sol ) would quietly become
+  * is_feasible( true ), i.e., a check of something else entirely. */
+
+ virtual bool is_sol_feasible( Solution * sol ,
+			       Configuration * fsbc = nullptr );
+
+/*--------------------------------------------------------------------------*/
+ /// true if is_sol_feasible() does not touch the Variable of the Block
+ /** Returns true if is_sol_feasible() reads the solution out of the Solution
+  * it is given, leaving the Variable of the Block alone, and false if it
+  * rather goes through them, which is what the default implementation does.
+  *
+  * The caller needs to know this *before* the call, and not after: it is the
+  * one that has to decide whether the Block is to be locked and whether what
+  * the Variable hold is worth saving. Hence the question is answered by a
+  * method of its own rather than by the check returning it alongside its
+  * result. */
+
+ [[nodiscard]] virtual bool is_sol_feasible_physical( void ) const {
+  return( false );
+  }
+
+/*--------------------------------------------------------------------------*/
  ///< returns true if the current solution is (approximately) optimal
  /**< Returns true if the solution encoded in the current value of the
   * Variable of the Block can be proven to be approximately optimal within
@@ -4380,62 +4639,43 @@ class Block : public Observer {
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns true if the current solution is an unbounded ray
- /** Returns true if the values stored in the Variable of the Block are a
-  * certificate that the problem is unbounded (either below, if it is a
-  * minimization problem, or above if it is a maximization one). Often this
-  * means that the values represent a ray of the feasible region along which
-  * the Objective is unbounded (either below or above). Note that the
-  * existence of an unbounded ray is not, strictly speaking, enough to prove
-  * that the problem is unbounded: this also requires the problem to be
-  * non-empty. This method is only required to check that the Variable
-  * encode for a proper ray, with non-emptiness having to be established
-  * in different ways (basically, this is a remit of the Solver).
+ /// returns true if the solution in the Solution is (approximately) optimal
+ /** Returns true if the solution encoded in the Solution object sol can be
+  * proven to be approximately optimal within the given tolerances. The
+  * state of the Block, in particular the value of its Variable, is
+  * irrelevant here and it is left untouched.
   *
-  * The useabstract parameter being true dictates that the check should be
-  * performed using the "abstract representation" of the Block, otherwise
-  * the "physical representation" of the Block should be used. See the
-  * comments to is_feasible() for the cases where the check using the
-  * "abstract representation" may give different results that that using
-  * the "physical" one. Also, as in is_feasible(), this value has to be taken
-  * as a clue rather than as an order, in the sense that if the required
-  * representation is not available then the Block should still do its best
-  * to return a meaningful return value with the information it does possess,
-  * even if not the intended one
+  * This is to is_optimal( bool , Configuration * ) exactly what
+  * is_sol_feasible( Solution * , Configuration * ) is to is_feasible(
+  * bool , Configuration * ): the values are read out of sol rather than out of the
+  * Variable of the Block, so that the solution a "physical" Solver produces
+  * [see Solver::get_Solution()] can be checked even if the Block has no
+  * "abstract representation". Note that proving optimality typically
+  * requires a dual solution, hence sol has to carry one; if it does not,
+  * the method must not return true.
   *
-  * Checking the property is likely to entail some numerical computation, say
-  * to verify that some matrix-vector scalar product is "zero". This may
-  * require numerical accuracy parameters, which is what the parameter fsbc
-  * is designed to provide. If non-null, it is meant to point to an
-  * arbitrarily complex Configuration object (although it can in fact be
-  * as simple as a SimpleConfiguration< double > specifying, say, the maximum
-  * relative accuracy in a "x == 0" computation). Also, the parameter can be
-  * used to specify that only "a part" of the check, say considering only a
-  * subset of the Variable, need be performed.
+  * The parameter optc has exactly the same meaning as in is_optimal( bool ,
+  * Configuration * ), the fact that it overrides the corresponding field of
+  * the BlockConfig included.
   *
-  * Note that the fsbc parameter is meant as an *override* of the default
-  * Configuration for is_feasible() set by means of set_BlockConfig(). That
-  * is, if the method is called with fsbc = nullptr then the corresponding
-  * configuration from the BlockConfig() is used. If the BlockConfig is not
-  * set (nullptr) or the corresponding field is not set (nullptr), some
-  * default value will have to be used. Note that the rationale for re-using
-  * the is_feasible() configuration is mostly to avoid excessive proliferation
-  * of Configuration objects in a Block; however, this also makes sense in at
-  * least some important cases. For instance, in Linear Programming the
-  * numerical tolerances for defining "a solution is feasible" and "a vector
-  * is an unbounded ray" are basically the same. Yet, a Configuration object
-  * can contain arbitrarily many values, so if the is_feasible() Configuration
-  * requires more values to be specified to also cover the use within this
-  * method, this can always be done.
-  *
-  * The method is given a default implementation always returning false, which
-  * is appropriate for Block which cannot ever be unbounded (say, the feasible
-  * region is compact). */
+  * The default implementation is the one of is_sol_feasible( Solution * ,
+  * Configuration * ), i.e., writing sol in the Variable of the Block and
+  * asking is_optimal( true , optc ), and the name differs from that of
+  * is_optimal( bool , Configuration * ) for the same reason as well. */
 
- virtual bool is_unbounded( bool useabstract = false,
-                            Configuration * fsbc = nullptr ) {
-  return( true );
- }
+ virtual bool is_sol_optimal( Solution * sol ,
+			      Configuration * optc = nullptr );
+
+/*--------------------------------------------------------------------------*/
+ /// true if is_sol_optimal() does not touch the Variable of the Block
+ /** Returns true if is_sol_optimal() reads the solution out of the Solution
+  * it is given, leaving the Variable of the Block alone, and false if it
+  * rather goes through them, exactly as is_sol_feasible_physical() does for
+  * is_sol_feasible(). */
+
+ [[nodiscard]] virtual bool is_sol_optimal_physical( void ) const {
+  return( false );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns true if the Block provably has no feasible solutions
@@ -4799,14 +5039,13 @@ class Block : public Observer {
   * methods for accessing all the necessary Variable/Constraint, or to make
   * them public outright.
   *
-  * The method is given an extremely lazy default implementation refusing to
-  * map back solution from any kind of R3 Block, comprised the "copy" one. */
+  * The default implementation serves the one R3 Block that any Block has
+  * without having written a line for it, i.e., the AbstractBlock that has
+  * mirrored it [see AbstractBlock::mirror()], and refuses any other. */
 
  virtual void map_back_solution( Block * R3B ,
 				 Configuration * r3bc = nullptr ,
-                                 Configuration * solc = nullptr ) {
-  throw( std::invalid_argument( "R3 Block type not supported" ) );
-  }
+                                 Configuration * solc = nullptr );
 
 /*--------------------------------------------------------------------------*/
  /// maps forward solution information from the original Block to n R3 Block
@@ -4867,15 +5106,13 @@ class Block : public Observer {
   * methods for accessing all the necessary Variable/Constraint, or to make
   * them public outright.
   *
-  * The method is given an extremely lazy default implementation refusing to
-  * map forward solution from any kind of R3 Block, comprised the "copy" one.
-  */
+  * The default implementation serves the one R3 Block that any Block has
+  * without having written a line for it, i.e., the AbstractBlock that has
+  * mirrored it [see AbstractBlock::mirror()], and refuses any other. */
 
  virtual void map_forward_solution( Block * R3B ,
                                     Configuration * r3bc = nullptr ,
-                                    Configuration * solc = nullptr ) {
-  throw( std::invalid_argument( "R3 Block type not supported" ) );
-  }
+                                    Configuration * solc = nullptr );
 
 /*--------------------------------------------------------------------------*/
  /// maps forward a Modification from the original Block to an R3 Block
@@ -4980,7 +5217,7 @@ class Block : public Observer {
   * map_forward_Modification() corresponding to changing the constraint is
   * called *after* that the Constraint has been deleted, the original Block
   * no longer has any information on the Constraint, and therefore may have
-  * no way to properly implement the change. Each :Block should clearly 
+  * no way to properly implement the change. Each :Block should clearly
   * state if it supports deferred map_forward_Modification() for all the
   * Modification it produces, or which Modification need be mapped
   * "immediately".
@@ -4999,25 +5236,7 @@ class Block : public Observer {
  virtual bool map_forward_Modification( Block * R3B , c_p_Mod mod ,
                                         Configuration * r3bc = nullptr ,
                                         ModParam issuePMod = eNoBlck ,
-                                        ModParam issueAMod = eModBlck ) {
-  if( mod->get_Block() == this )
-   return( false );
-
-  auto i = get_nested_Block_index( mod->get_Block() );
-  if( ( i >= get_number_nested_Blocks() ) ||
-      ( i >= R3B->get_number_nested_Blocks() ) )
-   return( false );
-
-  auto cv =
-   dynamic_cast< SimpleConfiguration< std::vector< Configuration * > > *
-    >( r3bc );
-
-  return( mod->get_Block()->map_forward_Modification(
-		                      R3B->get_nested_Block( i ) , mod ,
-		                      ( cv && ( cv->f_value.size() > i ) ) ?
-				                cv->f_value[ i ] : nullptr ,
-				      issuePMod , issueAMod ) );
-  }
+                                        ModParam issueAMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// maps forward a list of Modification from the original Block to a R3 Block
@@ -5300,7 +5519,7 @@ class Block : public Observer {
   *     VERY Block AND THE Block HAS NO FATHER, BECAUSE IT MEANS THE
   *     Modification HAS NOWHERE TO GO TO; MORE IN GENERAL, IT IS AN ERROR TO
   *     SEND A Modification TO A CHANNEL THAT IS NOT DEFINED IN SOME ANCESTOR
-  *     OF THE Block. 
+  *     OF THE Block.
   *
   * While this mechanism is not thought to be modified by derived classes,
   * these *will* have to redefine add_Modification() to "catch" the
@@ -5446,7 +5665,7 @@ class Block : public Observer {
   * with the Block. If oldSolver is not among the registered solvers, then
   * nothing is done (and no warning is issued); otherwise the vector of
   * registered Solver is shortened by one, and the remaining solvers (if any)
-  * are shifted in the obvious way. If \p deleteold is true, then the 
+  * are shifted in the obvious way. If \p deleteold is true, then the
   * Solver is also deleted. Note that the Block calls
   * Solver::set_Block( nullptr ) to the Solver that is un-registered, which is
   * why the converse is not done (see Solver.h). Note that the method is
@@ -5552,8 +5771,17 @@ class Block : public Observer {
  *      EACH TIME THE (PRIVATE) FUNCTION methods< F >() IS CALLED WITH A
  *      DIFFERENT FUNCTION TYPE F, WHICH IN TURN HAPPENS IF EITHER
  *      register_method( , F * ), OR get_method< F >(), OR
- *      get_method_name< F >() ARE CALLED, A NEW METHODS FACTORY FOR F IS
- *      AUTOMAGICALLY CREATED (AT COMPILE TIME)
+ *      get_method_name< F >() ARE CALLED, THE CORRESPONDING METHODS
+ *      FACTORY FOR F IS SELECTED.
+ *
+ * For the standard function signatures supported by Block (such as the
+ * predefined MS[_D]_S families), methods< F >() returns a reference to a
+ * unique, centralized factory owned by the core Block implementation.
+ * This avoids having separate copies of the same methods factory in
+ * different translation units or shared libraries.
+ *
+ * Additional signatures can still be supported by extending the internal
+ * dispatching machinery used by methods< F >().
  *
  * However, the issue is that
  *
@@ -5819,8 +6047,8 @@ class Block : public Observer {
    auto replaced = methods< F >().left.replace_data( iter, function );
    assert( replaced );
   } else
-   methods< F >().insert( typename bimap< F >::value_type( std::move( name ),
-                                                           function ) );
+   methods< F >().insert( typename MethodsFactoryMap< F >::value_type(
+                           std::move( name ), function ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -5926,7 +6154,7 @@ class Block : public Observer {
   * @param name The name associated with the function. */
 
  template< class F >
- static const F * get_method( const std::string & name ) {
+ static F * get_method( const std::string & name ) {
   auto it = methods< F >().left.find( name );
   return( it != methods< F >().left.end() ? it->second : nullptr );
   }
@@ -6009,7 +6237,7 @@ class Block : public Observer {
   * @param fnct A pointer to the function whose associated name is desired. */
 
  template< class F >
- static const std::string & get_method_name( const F * fnct ) {
+ static const std::string & get_method_name( F * fnct ) {
   static const std::string empty;
   auto it = methods< F >().right.find( fnct );
   return( it != methods< F >().right.end() ? it->second : empty );
@@ -6112,12 +6340,12 @@ class Block : public Observer {
   * case, and a proper override of this method is required instead. */
 
  virtual void print( const std::string & fname , char vlvl = 0 ) const {
-  std::ofstream f( f_prefix + fname , std::ofstream::trunc );
+  std::ofstream f( get_filename_prefix() + fname , std::ofstream::trunc );
   if( f.is_open() )
    print( f , vlvl );
   else
-   std::cerr << "Error: cannot open text file " << f_prefix + fname
-	     << std::endl;
+   std::cerr << "Error: cannot open text file " <<
+      get_filename_prefix() + fname << std::endl;
   }
 
 /*--------------------------------------------------------------------------*/
@@ -6146,7 +6374,7 @@ class Block : public Observer {
   *
   * In case a "complete" format requires more than one file, the
   * corresponding implementation has to be provided by the
-  * print( std::string & ) version of the method, ideally with specific 
+  * print( std::string & ) version of the method, ideally with specific
   * values of \p vlvl (not handled by this version). It might be possible
   * to read back such multi-file outputs using load( std::string & ),
   * possibly with the corresponding value of the \p frmt parameter, but the
@@ -6182,12 +6410,12 @@ class Block : public Observer {
   * for details. */
 
  virtual void load( const std::string & input , char frmt = 0 ) {
-  std::ifstream f( f_prefix + input , std::fstream::in );
+  std::ifstream f( get_filename_prefix() + input , std::fstream::in );
   if( f.is_open() )
    load( f , frmt );
   else
-   std::cerr << "Error: cannot open text file " << f_prefix + input
-	     << std::endl;
+   std::cerr << "Error: cannot open text file " <<
+      get_filename_prefix() + input << std::endl;
   }
 
 /*--------------------------------------------------------------------------*/
@@ -6575,7 +6803,7 @@ class Block : public Observer {
  *   ensure that nothing bad happens (like, erasing the only existing
  *   pointer to some stuff that was previously there before having deleted
  *   the stuff).
- *   
+ *
  * The methods will allow derived classes some flexibility in the order in
  * which the "abstract" representation is constructed, in particular for the
  * case in which this happens in different steps (say, a :Block class does
@@ -6609,6 +6837,16 @@ class Block : public Observer {
    v_Block.insert( v_Block.begin(), newb );
   else
    v_Block.push_back( newb );
+
+  // if this Block already has a Solver attached (directly or via f_at),
+  // the newly nested sub-Block must inherit anyone_there() = true, or
+  // else any Modification it issues will be silently dropped by
+  // Block::add_Modification because the early-return !anyone_there()
+  // guard fires before the mod reaches the father / attached Solver.
+  // register_Solver() only walks v_Block once at registration time, so a
+  // sub-Block added after a Solver has been registered would be stranded
+  if( anyone_there() )
+   newb->anyone_there( true );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -6862,6 +7100,51 @@ class Block : public Observer {
 
   v_s_Constraint[ i ] = &newc;
   v_s_Constraint_names[ i ] = std::move( name );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// the i-th group of static Variable, to be written into
+ /** The i-th group of static Variable as the boost::any holding it, so that
+  * it can be written into. This is what code building a Block out of another
+  * one needs, the type of a group being known there only at run time: a
+  * Block that knows the type of its own groups uses the typed
+  * set_static_variable() instead, which also tells each Variable which Block
+  * it belongs to, as whoever writes here has to do. */
+
+ boost::any & access_static_variable( Index i ) {
+  if( i >= v_s_Variable.size() )
+   throw( std::invalid_argument( "wrong index into v_s_Variable" ) );
+  return( v_s_Variable[ i ] );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the i-th group of dynamic Variable, to be written into
+ /** See access_static_variable(). */
+
+ boost::any & access_dynamic_variable( Index i ) {
+  if( i >= v_d_Variable.size() )
+   throw( std::invalid_argument( "wrong index into v_d_Variable" ) );
+  return( v_d_Variable[ i ] );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the i-th group of static Constraint, to be written into
+ /** See access_static_variable(). */
+
+ boost::any & access_static_constraint( Index i ) {
+  if( i >= v_s_Constraint.size() )
+   throw( std::invalid_argument( "wrong index into v_s_Constraint" ) );
+  return( v_s_Constraint[ i ] );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the i-th group of dynamic Constraint, to be written into
+ /** See access_static_variable(). */
+
+ boost::any & access_dynamic_constraint( Index i ) {
+  if( i >= v_d_Constraint.size() )
+   throw( std::invalid_argument( "wrong index into v_d_Constraint" ) );
+  return( v_d_Constraint[ i ] );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -7401,7 +7684,7 @@ class Block : public Observer {
   newSolver->set_Block( this );
   }
 
-/*--------------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /** @name Protected methods for handling static fields
  *
  * These methods allow derived classes to partake into static initialization
@@ -7443,7 +7726,7 @@ class Block : public Observer {
   * classes to redefine their (empty) static_initialization(). Alternatively
   * (and preferably), X::static_initialization() may contain mechanisms to
   * ensure that it will actually do things only the very first time it is
-  * called. One standard trick is to do everything within the initialisation
+  * called. One standard trick is to do everything within the initialization
   * of a static local variable of X::static_initialization(): this is
   * guaranteed by the compiler to happen only once, regardless of how many
   * times the function is called. Alternatively, an explicit static boolean
@@ -7451,6 +7734,21 @@ class Block : public Observer {
   * the initialization of static variables without telling you). */
 
  static void static_initialization( void ) {}
+
+/*--------------------------------------------------------------------------*/
+ /// out-of-line accessors to the unique methods factories
+
+ static MF_rngd_map & methods_rngd_factory( void );
+
+ static MF_dbl_rngd_map & methods_dbl_rngd_factory( void );
+
+ static MF_int_rngd_map & methods_int_rngd_factory( void );
+
+ static MF_sbst_map & methods_sbst_factory( void );
+
+ static MF_dbl_sbst_map & methods_dbl_sbst_factory( void );
+
+ static MF_int_sbst_map & methods_int_sbst_factory( void );
 
 /** @} ---------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
@@ -7533,21 +7831,11 @@ class Block : public Observer {
 
  unsigned int f_channel;   ///< the "default GroupModification channel"
 
- inline static std::string f_prefix;  ///< the executable-wide filename prefix
-
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
 /*--------------------------------------------------------------------------*/
 
  private:
-
-/*--------------------------------------------------------------------------*/
-/*--------------------------- PRIVATE TYPES --------------------------------*/
-/*--------------------------------------------------------------------------*/
-
- template< class F >
- using bimap = boost::bimap< std::string , const F * >;
- ///< a bidirectional map for the methods factory
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
@@ -7580,9 +7868,11 @@ class Block : public Observer {
  * names) in the methods factory are stored. */
 
  template< class F >
- static inline bimap< F > & methods( void ) {
-  static bimap< F > methods;
-  return( methods );
+ struct methods_factory_accessor;
+
+ template< class F >
+ static MethodsFactoryMap< F > & methods( void ) {
+  return( methods_factory_accessor< F >::get() );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -7615,6 +7905,53 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
 
 };  // end( class( Block ) )
+
+template<>
+struct Block::methods_factory_accessor< Block::FunctionType< Block::Range > > {
+ static Block::MF_rngd_map & get( void ) {
+  return( Block::methods_rngd_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor<
+ Block::FunctionType< Block::MF_dbl_it , Block::Range > > {
+ static Block::MF_dbl_rngd_map & get( void ) {
+  return( Block::methods_dbl_rngd_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor<
+ Block::FunctionType< Block::MF_int_it , Block::Range > > {
+ static Block::MF_int_rngd_map & get( void ) {
+  return( Block::methods_int_rngd_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor<
+ Block::FunctionType< Block::Subset && , bool > > {
+ static Block::MF_sbst_map & get( void ) {
+  return( Block::methods_sbst_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor<
+ Block::FunctionType< Block::MF_dbl_it , Block::Subset && , bool > > {
+ static Block::MF_dbl_sbst_map & get( void ) {
+  return( Block::methods_dbl_sbst_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor<
+ Block::FunctionType< Block::MF_int_it , Block::Subset && , bool > > {
+ static Block::MF_int_sbst_map & get( void ) {
+  return( Block::methods_int_sbst_factory() );
+ }
+};
 
 /*--------------------------------------------------------------------------*/
 /*---------------------------- CLASS BlockMod ------------------------------*/
@@ -7822,10 +8159,10 @@ class BlockModAdd : public BlockModAD
   * other information that the Modification contains, and therefore is not
   * needed. */
 
- BlockModAdd( std::list< ConstOrVar > & whc , 
+ BlockModAdd( std::list< ConstOrVar > & whc ,
               std::vector< ConstOrVar * > && add , Block::Index first ,
               bool cB = false )
-  : BlockModAD( cB ) , whc_list( whc ) , add_vec( std::move( add ) ) , 
+  : BlockModAD( cB ) , whc_list( whc ) , add_vec( std::move( add ) ) ,
     f_first( first ) {
   static_assert( std::is_base_of< Variable , ConstOrVar >::value ||
                  std::is_base_of< Constraint , ConstOrVar >::value ,
@@ -8240,7 +8577,7 @@ class BlockModRmvSbst : public BlockModRmv< ConstOrVar >
   *     subset IS ASSUMED TO BE ORDERED IN INCREASING SENSE AND WITHOUT
   *     REPEATED ELEMENTS, AND THE MAPPING BETWEEN rmvd AND subset IS
   *     POSITIONAL, I.E., rmvd[ 0 ] IS THE Constraint/Variable THAT WAS IN
-  *     whc IN POSITION subset[ 0 ], rmvd[ 1 ] IS THE ONE IN POSITION 
+  *     whc IN POSITION subset[ 0 ], rmvd[ 1 ] IS THE ONE IN POSITION
   *     subset[ 1 ], ...; THIS IMPLIES THAT THE ELEMENTS IN rmvd ARE
   *     ORDERED BETWEEN THEMSELVES EXACTLY AS THEY WERE IN whc
   *
@@ -8368,6 +8705,7 @@ class BlockConfig : public Configuration {
   * @param diff indicates if this configuration is a "differential" one. */
 
  BlockConfig( bool diff = true ) : Configuration() ,
+  f_structure_Configuration( nullptr ) ,
   f_static_constraints_Configuration( nullptr ) ,
   f_dynamic_constraints_Configuration( nullptr ) ,
   f_static_variables_Configuration( nullptr ) ,
@@ -8571,6 +8909,7 @@ class BlockConfig : public Configuration {
     }
    };
 
+  move( f_structure_Configuration , bc->f_structure_Configuration );
   move( f_static_constraints_Configuration ,
         bc->f_static_constraints_Configuration );
   move( f_dynamic_constraints_Configuration ,
@@ -8641,7 +8980,8 @@ class BlockConfig : public Configuration {
   * sub-Configuration are nullptr. */
 
  virtual bool empty( void ) const {
-  return( ( ! f_static_constraints_Configuration ) &&
+  return( ( ! f_structure_Configuration ) &&
+          ( ! f_static_constraints_Configuration ) &&
           ( ! f_dynamic_constraints_Configuration ) &&
 	  ( ! f_static_variables_Configuration ) &&
 	  ( ! f_dynamic_variables_Configuration ) &&
@@ -8657,6 +8997,23 @@ class BlockConfig : public Configuration {
 /*--------------------------------------------------------------------------*/
 /** @name Public fields of the class
  *  @{ */
+
+ /// the version of the text format of a BlockConfig
+ /** The version of the format that load() reads and print() writes, which is
+  * written right after the differential flag so that a file in an older
+  * format is refused with a message rather than being read shifted by one
+  * slot [see load()]. */
+
+ static constexpr unsigned int f_txt_version = 2;
+
+/*--------------------------------------------------------------------------*/
+
+ /// the Configuration for Block::set_structure()
+ /** The Configuration that says which structure, i.e., which tree of
+  * sub-Block, the Block has to have; it is the first one that is applied,
+  * before any other, since the structure comes before everything else [see
+  * Block::set_structure()]. */
+ Configuration * f_structure_Configuration;
 
  /// the Configuration for generate_abstract_constraints()
  Configuration * f_static_constraints_Configuration;
@@ -8739,6 +9096,9 @@ class BlockConfig : public Configuration {
 
  void delete_sub_Configuration( void )
  {
+  delete f_structure_Configuration;
+  f_structure_Configuration = nullptr;
+
   delete f_static_constraints_Configuration;
   f_static_constraints_Configuration = nullptr;
 
@@ -8772,6 +9132,9 @@ class BlockConfig : public Configuration {
 
  void clone_sub_Configuration( const BlockConfig & bc )
  {
+  if( bc.f_structure_Configuration )
+   f_structure_Configuration = bc.f_structure_Configuration->clone();
+
   if( bc.f_static_constraints_Configuration )
    f_static_constraints_Configuration =
     bc.f_static_constraints_Configuration->clone();

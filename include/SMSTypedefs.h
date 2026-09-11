@@ -47,6 +47,7 @@
 // standard C++ libraries (alphabetical order)
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <fstream>
 #include <functional>
 #include <future>
@@ -591,8 +592,18 @@ inline std::string && SMSpp_classname_normalise( std::string && str ) {
  * compile time; as C++-20 arrives most of std::algorithms will be
  * constexpr-able and therefore this will hopefully be possible. */
 
+#define SMSpp_pp_cat_0( x , y ) x ## y
+#define SMSpp_pp_cat( x , y ) SMSpp_pp_cat_0( x , y )
+
+// using ellipsis to take all preprocessor-tokens
+#define SMSpp_define_force_load( ... )                                       \
+extern "C" void SMSpp_pp_cat( SMSpp_force_load_ , __VA_ARGS__ )( void );     \
+extern "C" void SMSpp_pp_cat( SMSpp_force_load_ , __VA_ARGS__ )( void ) {}
+
 // using ellipsis to take all preprocessor-tokens
 #define SMSpp_insert_in_factory_cpp_0( ... )                                 \
+ SMSpp_define_force_load( __VA_ARGS__ )                                      \
+                                                                             \
  const std::string &                                                         \
  SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::_private_name( void ) {  \
   static const std::string _name( SMSpp_classname_normalise(                 \
@@ -619,6 +630,8 @@ inline std::string && SMSpp_classname_normalise( std::string && str ) {
 
 // using ellipsis to take all preprocessor-tokens
 #define SMSpp_insert_in_factory_cpp_1( ... )                                 \
+ SMSpp_define_force_load( __VA_ARGS__ )                                      \
+                                                                             \
  const std::string &                                                         \
  SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::_private_name( void ) {  \
   static const std::string _name( SMSpp_classname_normalise(                 \
@@ -702,35 +715,6 @@ inline std::string && SMSpp_classname_normalise( std::string && str ) {
  template<>                                                                  \
  SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::_init                    \
  SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::_initializer{}
-
-/*--------------------------------------------------------------------------*/
-// definition of auxiliary template variable (don't you just love C++?), which
-// serves to avoid having duplicated names in case SMSpp_ensure_load() is
-// called for multiple classes in the same .cpp
-
-template< class ClassName >
-bool SMSpp_ensure_load_var;
-
-// the SMSpp_ensure_load() creates an empty object of the given class and
-// immediately destroys it; in all our cases, the empty constructor exists
-// and should be relatively cheap. we tried to avoid it by taking the
-// address of some method of the class, but this is not enough in all
-// case to force the linker to include the relevant object, while creating
-// an object of the class damn sure is
-// note that the namespace qualifier in the definition of
-// bool SMSpp_di_unipi_it::SMSpp_ensure_load_var< ... >
-// would not be necessary, as clang++ compiles without it, but g++ does not
-// (apparently a bug/quirk in g++, but adding it is just the simple way out)
-
-#define SMSpp_ensure_load( ClassName )                                      \
- template<>                                                                 \
- bool SMSpp_di_unipi_it::SMSpp_ensure_load_var<                             \
-  SMSpp_type_traits::t< void( ClassName ) >::type > =                       \
-  []( void ) -> bool {                                                      \
-   if( auto p = new SMSpp_type_traits::t< void( ClassName ) >::type() ) {   \
-    delete p; return( true ); }                                             \
-   else       return( false );                                              \
-   }()
 
 /** @} ---------------------------------------------------------------------*/
 /*------------------- HANDLE boost::any SPECIALIZATIONS --------------------*/
@@ -2060,6 +2044,31 @@ operator<<( std::ostream & os , const std::pair< T1 , T2 > & p ) {
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+/* Trait detecting a std::pair, used to disambiguate its printing below and by
+ * SimpleConfiguration::print(). */
+
+template< typename T >
+struct is_std_pair { static constexpr bool value = false; };
+
+template< typename T1 , typename T2 >
+struct is_std_pair< std::pair< T1 , T2 > > { static constexpr bool value = true; };
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+/* Output a single element of a container. A std::pair value is associated with
+ * namespace std, so an unqualified operator<< is found there by ADL too; for a
+ * std::pair the call is qualified to the SMS++ operator<< above to stay
+ * unambiguous when a std-namespace operator<< for std::pair is in scope (as
+ * injected, e.g., by some external libraries' logging headers). */
+
+template< typename T >
+std::ostream & out_el( std::ostream & os , const T & x ) {
+ if constexpr( is_std_pair< T >::value )
+  return( SMSpp_di_unipi_it::operator<<( os , x ) );
+ else
+  return( os << x );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 template< typename T , std::size_t K >
 std::ostream & operator<<( std::ostream & os ,
@@ -2073,7 +2082,7 @@ std::ostream & operator<<( std::ostream & os ,
    if( ++k < K )
     os << ", ";
    }
-  os << " ] = " << *p << std::endl;
+  out_el( os << " ] = " , *p ) << std::endl;
  }
 
  return( os );
@@ -2094,7 +2103,7 @@ std::ostream & operator<<( std::ostream & os ,
    if( ++k < K )
     os << ", ";
    }
-  os << " ] = " << **p << std::endl;
+  out_el( os << " ] = " , **p ) << std::endl;
   }
 
  return( os );
@@ -2105,7 +2114,7 @@ std::ostream & operator<<( std::ostream & os ,
 template< typename T >
 std::ostream & operator<<( std::ostream & os , const std::vector< T > & l ) {
  for( unsigned int i = 0 ; i < l.size() ; ++i )
-  os << "[ " << i << " ] = " << l[ i ] << std::endl;
+  out_el( os << "[ " << i << " ] = " , l[ i ] ) << std::endl;
 
  return( os );
  }
@@ -2115,7 +2124,7 @@ std::ostream & operator<<( std::ostream & os , const std::vector< T > & l ) {
 template< typename T >
 std::ostream & operator<<( std::ostream & os , const std::vector< T * > & l ) {
  for( unsigned int i = 0 ; i < l.size() ; ++i )
-  os << "[ " << i << " ] = " << *l[ i ] << std::endl;
+  out_el( os << "[ " << i << " ] = " , *l[ i ] ) << std::endl;
 
  return( os );
  }
@@ -2126,7 +2135,7 @@ template< typename T >
 std::ostream & operator<<( std::ostream & os , const std::list< T > & l ) {
  auto it = l.begin();
  for( unsigned int i = 0 ; i < l.size() ; ++i , ++it )
-  os << i << " ) = " << *it;
+  out_el( os << i << " ) = " , *it );
 
  return( os );
  }
@@ -2137,7 +2146,7 @@ template< typename T >
 std::ostream & operator<<( std::ostream & os , const std::list< T * > & l ) {
  auto it = l.begin();
  for( unsigned int i = 0 ; i < l.size() ; ++i , ++it )
-  os << i << " ) = " << **it;
+  out_el( os << i << " ) = " , **it );
 
  return( os );
  }
@@ -2454,6 +2463,33 @@ inline bool deserialize( const netCDF::NcGroup & group ,
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// serialize a std::vector< std::string > into a netCDF NcGroup
+/** This function writes a std::vector of std::string into a netCDF variable
+ * with name \p name within the given netCDF NcGroup \p group, as the
+ * one-dimensional variable of type netCDF::NcString over the dimension \p
+ * ncDim that deserialize( group , name , size , std::vector< std::string > )
+ * reads back. An empty \p data is not serialized.
+ *
+ * @param[in, out] group The netCDF NcGroup in which the variable is added.
+ *
+ * @param[in] name  The name of the variable that will be added.
+ *
+ * @param[in] ncDim The netCDF dimension of the variable.
+ *
+ * @param[in] data  The vector of strings to be stored in the variable. */
+inline void serialize( netCDF::NcGroup & group ,
+                       const std::string & name ,
+                       const netCDF::NcDim & ncDim ,
+                       const std::vector< std::string > & data ) {
+ if( data.empty() )
+  return;  // nothing to be serialized
+
+ auto ncVar = group.addVar( name , netCDF::NcString() , ncDim );
+ for( std::size_t i = 0 ; i < data.size() ; ++i )
+  ncVar.putVar( { i } , data[ i ] );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// serialize a single (scalar) variable into a netCDF NcGroup
 /** Serialize a "simple" value, one for which NcGroup::putVar() is defined,
  * out of \p data and into of the variable with name \p name of the given
@@ -2475,6 +2511,26 @@ std::enable_if_t< is_netCDF_type_v< T > , void >
 serialize( netCDF::NcGroup & group , const std::string & name ,
            const netCDF::NcType & ncType , const T & data ) {
  ( group.addVar( name , ncType ) ).putVar( &data );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// serialize a single (scalar) std::string into a netCDF NcGroup
+/** Specialization of the scalar serialize() for std::string. A netCDF
+ * NcString variable is backed by a variable-length string, so putVar()
+ * expects (the address of) an array of C-strings, i.e. a char ** : the
+ * netCDF/HDF5 layer dereferences the buffer as a char * and then calls
+ * strlen() on it. The generic template above would instead pass the address
+ * of the std::string object itself, so HDF5 would read the first bytes of the
+ * std::string's internal representation as a char * and crash. This overload
+ * (preferred over the template for std::string arguments) passes the address
+ * of the C-string pointer, mirroring the deserialize( group , std::string & )
+ * overload that reads via a char ** as well. */
+
+inline void
+serialize( netCDF::NcGroup & group , const std::string & name ,
+           const netCDF::NcType & ncType , const std::string & data ) {
+ const char * c_str = data.c_str();
+ ( group.addVar( name , ncType ) ).putVar( &c_str );
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/

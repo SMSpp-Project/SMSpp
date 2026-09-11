@@ -167,11 +167,16 @@ class Configuration
   *     BEING THE MEMBER STATIC, THE PREFIX IS APPLIED TO ALL LOADING 
   *     OPERATIONS OF ANY Configuration IN THE EXECUTABLE
   *
-  * Use of this feature therefore requires care. */
+  * Use of this feature therefore requires care. Note that the prefix is
+  * only applied to relative filenames: an absolute filename identifies the
+  * file on its own, and it is therefore used unchanged. */
 
- static void set_filename_prefix( std::string && prefix ) {
-  f_prefix = prefix;
-  }
+ static void set_filename_prefix( std::string && prefix );
+
+/*--------------------------------------------------------------------------*/
+ /// get the executable-wide prefix for all Configuration filenames
+
+ static const std::string & get_filename_prefix();
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize a :Configuration out of a file
@@ -211,7 +216,8 @@ class Configuration
   * Note that if a filename prefix has been defined (for all Configuration)
   * by means of set_filename_prefix(), then \p filename has to be intended
   * as relative to that prefix (in the sense that the prefix is prefix to
-  * \p filename).
+  * \p filename), unless \p filename is an absolute path, in which case the
+  * prefix is ignored.
   *
   * Note that the method is static, hence it is to be called as
   *
@@ -421,6 +427,28 @@ class Configuration
   * not have any data to be "cleared". */
 
  virtual void clear( void ) {}
+
+/*--------------------------------------------------------------------------*/
+ /// merge inline override values from the stream onto this Configuration
+ /** Used by the `* file.txt + <body>` cascade-override syntax in
+  * Configuration::deserialize(std::istream &). The base Configuration was
+  * just loaded from the included file; this method reads the inline
+  * override body that follows the `+` marker and applies it on top.
+  *
+  * The default implementation throws — only Configurations that carry
+  * named parameters (e.g. ComputeConfig) sensibly support a partial
+  * override. Concrete subclasses that opt in must:
+  *   - consume from \p input *exactly* the same number of tokens that a
+  *     full inline body of that Configuration would consume;
+  *   - apply each entry as an insert-or-replace (not as a wholesale
+  *     reset), so that values already loaded from the base file are
+  *     preserved unless explicitly overridden. */
+
+ virtual void merge_overrides( std::istream & input ) {
+  throw( std::invalid_argument(
+   "Configuration::merge_overrides: this Configuration type does not "
+   "support inline override (used by the `* file.txt + body' syntax)" ) );
+  }
 
 /** @} ---------------------------------------------------------------------*/
 /*-------- METHODS FOR LOADING, PRINTING & SAVING THE Configuration --------*/
@@ -663,7 +691,7 @@ class Configuration
   * to redefine their (empty) static_initialization(). Alternatively,
   * X::static_initialization() may contain mechanisms to ensure that it will
   * actually do things only the very first time it is called. One standard
-  * trick is to do everything within the initialisation of a static local
+  * trick is to do everything within the initialization of a static local
   * variable of X::static_initialization(): this is guaranteed by the
   * compiler to happen only once, regardless of how many times the function
   * is called. Alternatively, an explicit static boolean could be used (this
@@ -675,8 +703,6 @@ class Configuration
 /** @} ---------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
-
- inline static std::string f_prefix;  ///< the executable-wide filename prefix
 
 /** @} ---------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
@@ -775,6 +801,8 @@ class Configuration
  *                                              std::pair< int , int > > ) );
  *
  * thanks to a specific feature of SMSpp_insert_in_factory_cpp. */
+
+/*--------------------------------------------------------------------------*/
 
 template< class SimpleConfiguration_value_type >
 class SimpleConfiguration : public Configuration
@@ -906,8 +934,18 @@ class SimpleConfiguration : public Configuration
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 
  /// printing out the value of this SimpleConfiguration
+ /** For a std::pair value the call is explicitly qualified to the SMS++
+  * operator<<: the value type is associated with namespace std, so an
+  * unqualified operator<< is also found there by ADL, which is ambiguous
+  * when a std-namespace operator<< for std::pair is in scope (as injected,
+  * e.g., by some external libraries' logging headers). */
 
- void print( std::ostream & output ) const override { output << f_value; }
+ void print( std::ostream & output ) const override {
+  if constexpr( is_std_pair< SimpleConfiguration_value_type >::value )
+   SMSpp_di_unipi_it::operator<<( output , f_value );
+  else
+   output << f_value;
+  }
 
 /*--------------------------------------------------------------------------*/
  /// hook for implementing nonstandard destruction

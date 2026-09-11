@@ -311,6 +311,13 @@ public:
   * it. The format is specified in the comments of the static serialize()
   * method.
   *
+  * Any DataMapping whose caller is a Block and whose AbstractPath selects K
+  * > 1 nested Blocks (a Block range or an explicit Block subset, see
+  * AbstractPath) is transparently expanded into K single-Block
+  * SimpleDataMappingBase, one per selected Block, with SetFrom sliced into K
+  * consecutive SetTo-sized chunks (see split_over_blocks()). Therefore
+  * \p data_mappings may end up with more entries than "NumberDataMappings".
+  *
   * @param group The NcGroup that contains the description of the vector of
   *              SimpleDataMappingBase to be deserialized.
   *
@@ -389,6 +396,44 @@ public:
   */
 
  virtual void set_caller( void * new_caller ) = 0;
+
+/*--------------------------------------------------------------------------*/
+
+ virtual void set_caller_from_reference( Block * block_reference ) = 0;
+
+/*--------------------------------------------------------------------------*/
+
+ /// expands a multi-Block DataMapping into single-Block ones
+ /** When the caller of this SimpleDataMappingBase is a Block whose AbstractPath
+  * selects more than one nested Block (a contiguous Block range or an explicit
+  * Block subset, see AbstractPath), this function returns the equivalent list
+  * of "plain" single-Block SimpleDataMappingBase: one for each selected Block.
+  * This allows a vector of DataMappings to list a function and its mapping
+  * only once even when it has to be applied to many sibling Blocks, while
+  * keeping set_data() (and all its consumers) completely unaware of the
+  * multi-Block case.
+  *
+  * Each returned SimpleDataMappingBase targets a single Block (with a single-
+  * Block AbstractPath, so that set_caller_from_reference() keeps working on
+  * duplicated Blocks) and receives the appropriate share of the original
+  * SetFrom set: if the cardinality of SetFrom is an exact multiple of the
+  * number of selected Blocks, the j-th Block gets the j-th consecutive chunk
+  * of SetFrom; otherwise, every Block receives the whole SetFrom. The SetTo
+  * set is the same for every Block.
+  *
+  * If the caller is not a Block, or its AbstractPath selects at most one Block,
+  * an empty vector is returned (meaning "no expansion needed").
+  *
+  * @param block_reference The reference Block against which this DataMapping's
+  *        AbstractPath is resolved.
+  *
+  * @return The list of single-Block SimpleDataMappingBase equivalent to this
+  *         one, or an empty vector if no expansion is needed. */
+
+ virtual std::vector< std::unique_ptr< SimpleDataMappingBase > >
+  split_over_blocks( Block * block_reference ) = 0;
+
+/*--------------------------------------------------------------------------*/
 
  /// serialize a vector of SimpleDataMappingBase from a netCDF::NcGroup
  /** Serialize a vector of SimpleDataMappingBase from a netCDF::NcGroup. A
@@ -676,12 +721,28 @@ constexpr char SimpleDataMappingBase::get_id< int >() { return( 'I' ); }
  *
  * Usually, the SetFrom and the SetTo sets will have the same cardinality, so
  * that the i-th element of the SetFrom set will be associated with the i-th
- * element of the SetTo set. However, the SetFrom set is also allowed to be
- * smaller than the SetTo set. In this case, the cardinality of the SetTo set
- * must be a positive multiple of the cardinality of the SetFrom set and the
- * i-th element of the SetTo set will be associated with the element of the
- * SetFrom set located at position floor(i/r), where r is the ratio of the
- * cardinalities of the SetTo and SetFrom sets.
+ * element of the SetTo set. However, the two sets are allowed to have
+ * different cardinalities, as long as one is a positive multiple of the
+ * other:
+ *
+ * - if SetFrom is smaller than SetTo, the i-th element of SetTo is associated
+ *   with the element of SetFrom located at position floor(i/r), where r is
+ *   the ratio of the cardinalities of SetTo and SetFrom (set_data() broadcasts
+ *   each SetFrom entry over the corresponding SetTo chunk);
+ *
+ * - if SetFrom is *larger* than SetTo, the SimpleDataMapping is in its
+ *   compact, multi-Block form: the caller is then required to be a Block
+ *   whose AbstractPath selects K = card(SetFrom) / card(SetTo) nested Blocks
+ *   (via a contiguous Block range or an explicit Block subset; see
+ *   AbstractPath). SMS++ expands this compact description at deserialize time
+ *   into K single-Block SimpleDataMappings, one per selected Block, whose
+ *   SetFrom is the j-th consecutive SetTo-sized chunk of the original
+ *   SetFrom and whose SetTo is unchanged (see
+ *   SimpleDataMappingBase::split_over_blocks()). This allows the netCDF
+ *   description of a DataMapping vector to list a function name and its set
+ *   layout once even when the same operation has to be applied to many
+ *   sibling Blocks, while keeping set_data() (and all its consumers)
+ *   completely unaware of the multi-Block case.
  *
  * Besides the SetFrom and SetTo sets, the SimpleDataMapping also has a
  * pointer to a function, which is invoked within the set_data() method. This
@@ -788,7 +849,7 @@ public:
   *
   * @param set_to The set specifying which part of the data that will change.
   */
- SimpleDataMapping( const F * function = nullptr , Caller * caller = nullptr ,
+ SimpleDataMapping( F * function = nullptr , Caller * caller = nullptr ,
                     const SetFrom & set_from = {} , const SetTo & set_to = {} ) :
   function( function ) , caller( caller ) , set_from( set_from ) ,
   set_to( set_to ) {
@@ -822,48 +883,41 @@ public:
 
   // FunctionName
 
-  auto FunctionName_var = group.getVar( FunctionName_name );
-  if( FunctionName_var.isNull() ) {
-   throw( std::logic_error( "SimpleDataMapping::deserialize: variable '" +
-                            FunctionName_name + "' is not present." ) );
-  }
-
-  // TODO The following implementation should change when netCDF provides a
-  // better C++ interface.
-  char * fname = nullptr;
-  FunctionName_var.getVar( & fname );
-  std::string function_name( fname );
-  free( fname );
+  std::string function_name;
+  SMSpp_di_unipi_it::deserialize( group , function_name , FunctionName_name ,
+                                  false );
 
   function = Block::get_method< F >( function_name );
+  if( ! function )
+   throw( std::invalid_argument( function_name +
+                                 " not present in method factory" ) );
 
   // AbstractPath
 
   {
    auto path_group = group.getGroup( AbstractPath_name );
    if( path_group.isNull() )
-    std::logic_error( "SimpleDataMapping::deserialize: group '" +
-                      AbstractPath_name + "' was not found." );
+    throw( std::logic_error( "SimpleDataMapping::deserialize: group '" +
+                             AbstractPath_name + "' was not found." ) );
 
-   AbstractPath path( path_group );
-
-   caller = path.get_element< Caller >( block_reference );
+   caller_path = AbstractPath( path_group );
+   caller = caller_path.get_element< Caller >( block_reference );
   }
 
   // SetFrom and SetTo
 
   {
    std::vector< Index > set_size = { 0 , 0 };
-   if( ::SMSpp_di_unipi_it::deserialize( group , SetSize_name ,
-                                         set_size , true ) ) {
+   if( SMSpp_di_unipi_it::deserialize( group , SetSize_name ,
+                                       set_size , true ) ) {
     if( set_size.size() != 2 )
      throw( std::logic_error( "SimpleDataMapping::deserialize: array '" +
                               SetSize_name + "' must have size 2." ) );
    }
 
    std::vector< Index > set_elements;
-   ::SMSpp_di_unipi_it::deserialize( group , SetElements_name ,
-                                     set_elements , false );
+   SMSpp_di_unipi_it::deserialize( group , SetElements_name ,
+                                   set_elements , false );
 
    Index next_index = 0;
    if constexpr( std::is_same_v< SetFrom , Range > ) {
@@ -902,12 +956,24 @@ public:
   }
 
   if( cardinality( set_from ) != 0 ) {
-   if( cardinality( set_to ) < cardinality( set_from ) ||
-       cardinality( set_to ) % cardinality( set_from ) != 0 ) {
-    throw( std::logic_error( "SimpleDataMapping::deserialize: the cardinality "
-                             "of 'SetTo' must be a positive multiple of the "
-                             "cardinality of 'SetFrom'." ) );
-   }
+   const auto from_card = cardinality( set_from );
+   const auto to_card   = cardinality( set_to   );
+   // Two layouts are accepted here, both requiring SetTo to be non-empty:
+   //   * SetTo >= SetFrom and SetTo is a multiple of SetFrom: set_data() may
+   //     broadcast each SetFrom entry over the corresponding SetTo chunk
+   //     (the classic single-Block case);
+   //   * SetFrom > SetTo and SetFrom is a multiple of SetTo: this is the
+   //     compact, multi-Block form, where the AbstractPath selects K Blocks
+   //     and SetFrom is sliced into K consecutive SetTo-sized chunks at
+   //     deserialize time (see SimpleDataMapping::split_over_blocks()). For
+   //     K = 1, this reduces to SetFrom == SetTo, which is fine under both
+   //     interpretations.
+   if( ( to_card == 0 ) ||
+       ( to_card >= from_card && to_card   % from_card != 0 ) ||
+       ( to_card <  from_card && from_card % to_card   != 0 ) )
+    throw( std::logic_error( "SimpleDataMapping::deserialize: the cardinalities "
+                             "of 'SetFrom' and 'SetTo' must be one a positive "
+                             "multiple of the other." ) );
   }
  }
 
@@ -931,19 +997,20 @@ public:
 
   // FunctionName
 
-  // TODO The following implementation should change when netCDF provides a
-  // better C++ interface.
   char * fname = nullptr;
   sdmb_netCDF.FunctionName.getVar( { index } , { 1 } , & fname );
   std::string function_name( fname );
   free( fname );
 
   function = Block::get_method< F >( function_name );
+  if( ! function )
+   throw( std::invalid_argument( function_name +
+                                 " not present in method factory" ) );
 
   // AbstractPath
 
-  AbstractPath path( index , sdmb_netCDF.ap_netCDF );
-  caller = path.get_element< Caller >( block_reference );
+  caller_path = AbstractPath( index , sdmb_netCDF.ap_netCDF );
+  caller = caller_path.get_element< Caller >( block_reference );
 
   // SetFrom and SetTo
 
@@ -998,12 +1065,24 @@ public:
   }
 
   if( cardinality( set_from ) != 0 ) {
-   if( cardinality( set_to ) < cardinality( set_from ) ||
-       cardinality( set_to ) % cardinality( set_from ) != 0 ) {
-    throw( std::logic_error( "SimpleDataMapping::deserialize: the cardinality "
-                             "of 'SetTo' must be a positive multiple of the "
-                             "cardinality of 'SetFrom'." ) );
-   }
+   const auto from_card = cardinality( set_from );
+   const auto to_card   = cardinality( set_to   );
+   // Two layouts are accepted here, both requiring SetTo to be non-empty:
+   //   * SetTo >= SetFrom and SetTo is a multiple of SetFrom: set_data() may
+   //     broadcast each SetFrom entry over the corresponding SetTo chunk
+   //     (the classic single-Block case);
+   //   * SetFrom > SetTo and SetFrom is a multiple of SetTo: this is the
+   //     compact, multi-Block form, where the AbstractPath selects K Blocks
+   //     and SetFrom is sliced into K consecutive SetTo-sized chunks at
+   //     deserialize time (see SimpleDataMapping::split_over_blocks()). For
+   //     K = 1, this reduces to SetFrom == SetTo, which is fine under both
+   //     interpretations.
+   if( ( to_card == 0 ) ||
+       ( to_card >= from_card && to_card   % from_card != 0 ) ||
+       ( to_card <  from_card && from_card % to_card   != 0 ) )
+    throw( std::logic_error( "SimpleDataMapping::deserialize: the cardinalities "
+                             "of 'SetFrom' and 'SetTo' must be one a positive "
+                             "multiple of the other." ) );
   }
 
   set_elements_start_index = next_index;
@@ -1028,9 +1107,108 @@ public:
   *       case is replacing the caller with a copy of the original Block 
   *       after Block duplication.
   */
- 
+
  void set_caller( void * new_caller ) override {
   caller = static_cast< Caller * >( new_caller );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// sets the caller object using a Block reference and the stored AbstractPath
+ /** This function sets the caller object by navigating from the provided
+  * Block reference using the internally stored AbstractPath.
+  *
+  * The AbstractPath is applied to the given block_reference in order to
+  * retrieve the correct sub-block (or object) that will act as caller
+  * for this DataMapping.
+  *
+  * @param block_reference A pointer to the root Block from which the
+  *        AbstractPath navigation starts.
+  *
+  * @note This method is typically used when working with duplicated Blocks
+  *       (e.g., in stochastic scenarios), where the original caller pointer
+  *       is no longer valid and must be recomputed on the new Block instance.
+  *
+  * @note Unlike set_caller(), this method guarantees consistency with the
+  *       original DataMapping definition by reapplying the AbstractPath,
+  *       rather than relying on a raw pointer assignment.
+  */
+
+ void set_caller_from_reference( Block * block_reference ) override {
+  if( caller_path.empty() )
+   caller = static_cast< Caller * >( block_reference );
+  else
+   caller = caller_path.get_element< Caller >( block_reference );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ std::vector< std::unique_ptr< SimpleDataMappingBase > >
+  split_over_blocks( Block * block_reference ) override {
+
+  std::vector< std::unique_ptr< SimpleDataMappingBase > > result;
+
+  // Only Block callers can select more than one Block: a Function caller is
+  // always a single object.
+  if constexpr( std::is_base_of_v< Function , Caller > )
+   return( result );
+  else {
+   if( caller_path.empty() )
+    return( result );
+
+   const Index nblocks =
+    caller_path.template get_number_elements< Caller >( block_reference );
+
+   if( ( nblocks == Inf< Index >() ) || ( nblocks <= 1 ) )
+    return( result );  // single Block: no expansion needed
+
+   const Index from_card = cardinality( set_from );
+
+   // If SetFrom is an exact multiple of the number of Blocks, each Block gets
+   // its own consecutive chunk; otherwise every Block receives the whole
+   // SetFrom (set_data() will broadcast it over SetTo).
+   const bool slice = ( from_card > 0 ) && ( from_card % nblocks == 0 );
+   const Index chunk = slice ? ( from_card / nblocks ) : from_card;
+
+   result.reserve( nblocks );
+   for( Index j = 0 ; j < nblocks ; ++j ) {
+
+    auto block_j = caller_path.template get_element< Caller >( block_reference ,
+                                                              j );
+    if( ! block_j )
+     throw( std::logic_error( "SimpleDataMapping::split_over_blocks: could not "
+                              "resolve Block number " + std::to_string( j ) +
+                              " of the multi-Block caller." ) );
+
+    auto dm = std::make_unique<
+     SimpleDataMapping< SetFrom , SetTo , DataType , Caller > >();
+
+    dm->function = function;
+    dm->caller = block_j;
+    dm->caller_path = AbstractPath( block_j , block_reference );
+    dm->set_to = set_to;
+    dm->ordered = ordered;
+
+    if constexpr( std::is_same_v< SetFrom , Range > ) {
+     if( slice )
+      dm->set_from = Range( set_from.first + j * chunk ,
+                            set_from.first + ( j + 1 ) * chunk );
+     else
+      dm->set_from = set_from;
+     }
+    else {
+     if( slice )
+      dm->set_from = SetFrom( set_from.begin() + j * chunk ,
+                              set_from.begin() + ( j + 1 ) * chunk );
+     else
+      dm->set_from = set_from;
+     }
+
+    result.push_back( std::move( dm ) );
+    }
+
+   return( result );
+   }
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1221,7 +1399,7 @@ public:
   // FunctionName
 
   auto function_name = Block::get_method_name( function );
-  ::SMSpp_di_unipi_it::serialize< std::string >
+  SMSpp_di_unipi_it::serialize< std::string >
    ( group , FunctionName_name , netCDF::NcString() , function_name );
 
   // AbstractPath
@@ -1263,8 +1441,8 @@ public:
 
   auto SetSize_dim = group.addDim( SetSize_dim_name , set_size.size() );
 
-  ::SMSpp_di_unipi_it::serialize( group , SetSize_name , netCDF::NcUint() ,
-                                  SetSize_dim , set_size , false );
+  SMSpp_di_unipi_it::serialize( group , SetSize_name , netCDF::NcUint() ,
+                                SetSize_dim , set_size , false );
 
   std::vector< Index > set_elements( set_elements_size );
   Index next_index = 0;
@@ -1291,14 +1469,14 @@ public:
   auto SetElements_dim = group.addDim( SetElements_dim_name ,
                                        set_elements.size() );
 
-  ::SMSpp_di_unipi_it::serialize( group , SetElements_name ,
-                                  netCDF::NcUint() , SetElements_dim ,
-                                  set_elements , false );
+  SMSpp_di_unipi_it::serialize( group , SetElements_name ,
+                                netCDF::NcUint() , SetElements_dim ,
+                                set_elements , false );
 
   // DataType
 
-  ::SMSpp_di_unipi_it::serialize( group , DataType_name , netCDF::NcChar() ,
-                                  get_id< DataType >() );
+  SMSpp_di_unipi_it::serialize( group , DataType_name , netCDF::NcChar() ,
+                                get_id< DataType >() );
 
   // Caller type
 
@@ -1306,8 +1484,8 @@ public:
   if constexpr( std::is_base_of_v< Function , Caller > )
    caller_type = 'F';
 
-  ::SMSpp_di_unipi_it::serialize( group , Caller_name , netCDF::NcChar() ,
-                                  caller_type );
+  SMSpp_di_unipi_it::serialize( group , Caller_name , netCDF::NcChar() ,
+                                caller_type );
  }
 
 /** @} ---------------------------------------------------------------------*/
@@ -1419,10 +1597,30 @@ private:
  *  @{ */
 
  /// Pointer to the function that will be invoked
- const F * function;
+ F * function;
 
  /// Pointer to the object that will invoke the function
+ /** This pointer represents the actual caller instance on which the mapped
+  * function will be invoked.
+  *
+  * It is resolved during deserialization using the AbstractPath and may be
+  * updated at runtime (e.g., when operating on duplicated Blocks in
+  * stochastic settings).
+  */
  Caller * caller;
+
+ /// AbstractPath used to resolve the caller from a Block reference
+ /** This object stores the navigation path required to locate the caller
+  * within a Block hierarchy.
+  *
+  * It is initialized during deserialization and later reused to recompute
+  * the caller when a new Block reference is provided (e.g., for scenario-
+  * specific Block copies).
+  *
+  * This ensures that the DataMapping remains consistent and independent
+  * from any specific Block instance.
+  */
+ AbstractPath caller_path;
 
  /// The set specifying which subset of the given data should be considered
  SetFrom set_from;
@@ -1544,7 +1742,7 @@ private:
                             char & set_from_type , char & set_to_type ) {
 
   std::vector< Index > set_size = { 0 , 0 };
-  if( ::SMSpp_di_unipi_it::deserialize( group , "SetSize" , set_size , true ) ) {
+  if( SMSpp_di_unipi_it::deserialize( group , "SetSize" , set_size , true ) ) {
    if( set_size.size() != 2 )
     throw( std::logic_error( "SimpleDataMappingFactory::get_sets_type: array "
                              "'SetSize' must have size 2." ) );

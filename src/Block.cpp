@@ -24,9 +24,11 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include "AbstractBlock.h"
 #include "Block.h"
 #include "Constraint.h"
 #include "Objective.h"
+#include "Solution.h"
 #include "Variable.h"
 
 /*--------------------------------------------------------------------------*/
@@ -69,17 +71,17 @@ Block * Block::deserialize( const std::string & filename , Block * father ,
  try {
   if( ( filename.size() > 4 ) &&
       ( filename.substr( filename.size() - 4 , 4 ) == ".txt" ) ) {
-   std::ifstream file( f_prefix + filename , std::fstream::in );
+   std::ifstream file( get_filename_prefix() + filename , std::fstream::in );
    if( ! file.is_open() ) {
-    std::cerr << "Error: cannot open text file " << f_prefix + filename
-	      << std::endl;
+    std::cerr << "Error: cannot open text file "
+	      << get_filename_prefix() + filename << std::endl;
     return( nullptr );
     }
    return( Block::deserialize( file , father , f ) );
    }
   else {
    int idx = 0;
-   std::string fn = f_prefix + filename;
+   std::string fn = get_filename_prefix() + filename;
    if( fn.back() == ']' ) {
     auto pos = fn.find_last_of( '[' );
     if( pos != std::string::npos ) {
@@ -90,7 +92,7 @@ Block * Block::deserialize( const std::string & filename , Block * father ,
      catch( ... ) { idx = 0; }
      }
     }
-   netCDF::NcFile file( fn.c_str() , netCDF::NcFile::read );
+   netCDF::NcFile file( fn , netCDF::NcFile::read );
    return( Block::deserialize( file , idx , father , f ) );
    }
   }
@@ -121,7 +123,7 @@ Block::almost_deserialize( const std::string & filename , Block * father )
 	 );
  try {
   int idx = 0;
-  std::string fn = f_prefix + filename;
+  std::string fn = get_filename_prefix() + filename;
   if( fn.back() == ']' ) {
    auto pos = fn.find_last_of( '[' );
    if( pos != std::string::npos ) {
@@ -132,7 +134,7 @@ Block::almost_deserialize( const std::string & filename , Block * father )
     catch( ... ) { idx = 0; }
     }
    }
-  netCDF::NcFile f( fn.c_str() , netCDF::NcFile::read );
+  netCDF::NcFile f( fn , netCDF::NcFile::read );
   return( Block::almost_deserialize( f , idx , father ) );
   }
  catch( netCDF::exceptions::NcException & e ) {
@@ -345,13 +347,13 @@ Block * Block::deserialize( std::istream & input , Block * father ,
 
   if( input.eof() )
    return( nullptr );
-  
+
   if( input.fail() )
    throw( std::invalid_argument( sre ) );
 
   if( std::isspace( input.peek() ) )
    return( nullptr );
- 
+
   input >> tmp;
   if( input.fail() )
     throw( std::invalid_argument( sre ) );
@@ -429,6 +431,63 @@ void Block::set_objective( Objective * newOF , c_ModParam issueMod )
 }
 
 /*--------------------------------------------------------------------------*/
+/*------------------ Methods for checking the Block ------------------------*/
+/*--------------------------------------------------------------------------*/
+
+// a Solution can only be checked against the Constraint through the Variable
+// they are written on: the values have to be put there, and what was there
+// has to be put back, so that the state of the Block is left as it was
+
+template< typename Check >
+static bool check_Solution( Block * blck , Solution * sol , Check && check )
+{
+ if( ! sol )
+  return( false );
+
+ auto current = blck->get_Solution( nullptr , false );
+
+ // a Solution that holds a direction has to be checked as one; the Block
+ // may have been told so already by whoever has the two apart, which is why
+ // the flag is only ever raised here and put back as it was found
+ const bool wasdir = blck->is_direction();
+ if( sol->is_direction() && ( ! wasdir ) && blck->has_directions() )
+  blck->is_direction( true );
+
+ sol->write( blck );
+ const bool answer = check();
+
+ if( blck->is_direction() != wasdir )
+  blck->is_direction( wasdir );
+
+ if( current ) {
+  current->write( blck );
+  delete current;
+  }
+
+ return( answer );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool Block::is_sol_feasible( Solution * sol , Configuration * fsbc )
+{
+ return( check_Solution( this , sol ,
+                         [ this , fsbc ]() {
+                          return( is_feasible( true , fsbc ) );
+                          } ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool Block::is_sol_optimal( Solution * sol , Configuration * optc )
+{
+ return( check_Solution( this , sol ,
+                         [ this , optc ]() {
+                          return( is_optimal( true , optc ) );
+                          } ) );
+ }
+
+/*--------------------------------------------------------------------------*/
 /*------------- METHODS DESCRIBING THE BEHAVIOR OF AN Observer -------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -453,6 +512,48 @@ void Block::anyone_there( bool isthere )
    el->anyone_there( false );
   }
  }  // end( Block::anyone_there )
+
+/*--------------------------------------------------------------------------*/
+
+Block * Block::resolve_sub_Block_path( const std::string & path )
+{
+ if( path.empty() )
+  return( this );
+
+ Block * cur = this;
+ std::size_t pos = 0;
+ while( pos < path.size() ) {
+  auto slash = path.find( '/' , pos );
+  if( slash == std::string::npos )
+   slash = path.size();
+
+  const auto seg = path.substr( pos , slash - pos );
+  if( seg.empty() )
+   throw( std::invalid_argument(
+      "Block::resolve_sub_Block_path: empty segment in '" + path + "'" ) );
+
+  Index idx;
+  try {
+   idx = static_cast< Index >( std::stoul( seg ) );
+   }
+  catch( ... ) {
+   throw( std::invalid_argument(
+      "Block::resolve_sub_Block_path: non-numeric segment '" + seg +
+      "' in '" + path + "'" ) );
+   }
+
+  if( idx >= cur->v_Block.size() )
+   throw( std::out_of_range(
+      "Block::resolve_sub_Block_path: index " + seg +
+      " out of range in '" + path + "'" ) );
+
+  cur = cur->v_Block[ idx ];
+  pos = ( slash == path.size() ) ? slash : ( slash + 1 );
+  }
+
+ return( cur );
+
+ }  // end( Block::resolve_sub_Block_path )
 
 /*--------------------------------------------------------------------------*/
 
@@ -637,7 +738,28 @@ void Block::set_BlockConfig( BlockConfig * newBC, bool deleteold )
    delete f_BlockConfig;
   f_BlockConfig = newBC;
   }
+
+ /* The structure comes before everything else, and this is the moment at
+  * which it is decided: the BlockConfig has just been digested, nothing of
+  * the abstract representation has been generated out of it yet and no
+  * Solver has been attached, which is what applying a BlockSolverConfig
+  * does. A :Block with no structure to choose does nothing here. */
+ set_structure();
+
  }  // end( set_BlockConfig )
+
+/*--------------------------------------------------------------------------*/
+
+void Block::set_structure( Configuration * strc )
+{
+ if( ( ! strc ) && f_BlockConfig )
+  strc = f_BlockConfig->f_structure_Configuration;
+
+ if( strc )
+  throw( std::invalid_argument( "Block::set_structure: this :Block has no "
+                                "structure to choose" ) );
+
+ }  // end( Block::set_structure )
 
 /*--------------------------------------------------------------------------*/
 
@@ -727,6 +849,62 @@ Block::BlockFactoryMap & Block::f_factory( void )
 {
  static BlockFactoryMap s_factory;
  return( s_factory );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+Block::MF_rngd_map & Block::methods_rngd_factory( void )
+{
+ static MF_rngd_map f;
+ return( f );
+ }
+
+Block::MF_dbl_rngd_map & Block::methods_dbl_rngd_factory( void )
+{
+ static MF_dbl_rngd_map f;
+ return( f );
+ }
+
+Block::MF_int_rngd_map & Block::methods_int_rngd_factory( void )
+{
+ static MF_int_rngd_map f;
+ return( f );
+ }
+
+Block::MF_sbst_map & Block::methods_sbst_factory( void )
+{
+ static MF_sbst_map f;
+ return( f );
+ }
+
+Block::MF_dbl_sbst_map & Block::methods_dbl_sbst_factory( void )
+{
+ static MF_dbl_sbst_map f;
+ return( f );
+ }
+
+Block::MF_int_sbst_map & Block::methods_int_sbst_factory( void )
+{
+ static MF_int_sbst_map f;
+ return( f );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+std::string & block_filename_prefix( void )
+{
+ static std::string prefix;
+ return( prefix );
+ }
+
+void Block::set_filename_prefix( std::string && prefix )
+{
+ block_filename_prefix() = std::move( prefix );
+ }
+
+const std::string & Block::get_filename_prefix( void )
+{
+ return( block_filename_prefix() );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -837,6 +1015,8 @@ void BlockConfig::print( std::ostream & output ) const
  output << private_name();
  if( f_diff ) output << "[diff]";
  output << ": " << std::endl;
+ if( f_structure_Configuration )
+  output << *f_structure_Configuration;
  if( f_static_constraints_Configuration )
   output << *f_static_constraints_Configuration;
  if( f_dynamic_constraints_Configuration )
@@ -873,6 +1053,33 @@ void BlockConfig::load( std::istream & input )
  input >> f_diff;
  if( input.fail() )
   throw( std::invalid_argument( "BlockConfig::load: stream read error" ) );
+
+ /* The version of the format, which a file written for the previous one does
+  * not have: there the next token is the first Configuration, hence a name or
+  * a '*' and never a number, so the failure to read one is what tells the two
+  * apart. The check is here, and not left to the slots being read shifted by
+  * one, because a silently misread BlockConfig is a nightmare to debug. */
+ unsigned int version = 0;
+ input >> eatcomments >> version;
+ if( input.fail() )
+  throw( std::invalid_argument( "BlockConfig::load: this is a BlockConfig in "
+                                "the old format, which had no version number "
+                                "after the differential flag; the structure "
+                                "Configuration is now the first one, see "
+                                "BlockConfig" ) );
+
+ if( version != f_txt_version )
+  throw( std::invalid_argument( "BlockConfig::load: unsupported format "
+                                "version " + std::to_string( version ) ) );
+
+ input >> eatcomments;
+ if( input.eof() )
+  return;
+
+ f_structure_Configuration = Configuration::deserialize( input );
+ input >> eatcomments;
+ if( input.eof() )
+  return;
 
  f_static_constraints_Configuration = Configuration::deserialize( input );
  input >> eatcomments;
@@ -925,6 +1132,11 @@ void BlockConfig::serialize( netCDF::NcGroup & group ) const
  Configuration::serialize( group );
 
  group.putAtt( "diff", netCDF::NcInt() , int( f_diff ) );
+
+ if( f_structure_Configuration ) {
+  auto cg = group.addGroup( "structure" );
+  f_structure_Configuration->serialize( cg );
+  }
 
  if( f_static_constraints_Configuration ) {
   auto cg = group.addGroup( "static_constraints" );
@@ -988,7 +1200,10 @@ void BlockConfig::deserialize( const netCDF::NcGroup & group )
   f_diff = ( diffint > 0 );
  }
 
- auto cg = group.getGroup( "static_constraints" );
+ auto cg = group.getGroup( "structure" );
+ f_structure_Configuration = new_Configuration( cg );
+
+ cg = group.getGroup( "static_constraints" );
  f_static_constraints_Configuration = new_Configuration( cg );
 
  cg = group.getGroup( "dynamic_constraints" );
@@ -1016,6 +1231,76 @@ void BlockConfig::deserialize( const netCDF::NcGroup & group )
  f_extra_Configuration = new_Configuration( cg );
 
  }  // end( BlockConfig::deserialize( group ) )
+
+/*--------------------------------------------------------------------------*/
+/*-------------------- THE R3 Block EVERY Block HAS ------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/* An AbstractBlock that has mirrored this Block is a R3 Block of it that this
+ * Block has not had to write a line for: the mirror holds the map between the
+ * two, hence it is the mirror that does the mapping, in either direction [see
+ * AbstractBlock::mirror()]. */
+
+static AbstractBlock * as_mirror( Block * blck , Block * R3B )
+{
+ auto ab = dynamic_cast< AbstractBlock * >( R3B );
+ return( ( ab && ( ab->get_mirrored() == blck ) ) ? ab : nullptr );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void Block::map_back_solution( Block * R3B , Configuration * r3bc ,
+                               Configuration * solc )
+{
+ if( auto ab = as_mirror( this , R3B ) ) {
+  ab->mirror_write();
+  return;
+  }
+
+ throw( std::invalid_argument( "R3 Block type not supported" ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void Block::map_forward_solution( Block * R3B , Configuration * r3bc ,
+                                  Configuration * solc )
+{
+ if( auto ab = as_mirror( this , R3B ) ) {
+  ab->mirror_read();
+  return;
+  }
+
+ throw( std::invalid_argument( "R3 Block type not supported" ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool Block::map_forward_Modification( Block * R3B , c_p_Mod mod ,
+                                      Configuration * r3bc ,
+                                      ModParam issuePMod , ModParam issueAMod )
+{
+ /* The mirror is asked first, and whatever Block of the subtree the
+  * Modification comes from: the map it holds covers the whole of it. */
+
+ if( auto ab = as_mirror( this , R3B ) )
+  return( ab->mirror_forward_Modification( mod ) );
+
+ if( mod->get_Block() == this )
+  return( false );
+
+ auto i = get_nested_Block_index( mod->get_Block() );
+ if( ( i >= get_number_nested_Blocks() ) ||
+     ( i >= R3B->get_number_nested_Blocks() ) )
+  return( false );
+
+ auto cv = dynamic_cast< SimpleConfiguration< std::vector< Configuration * > >
+                         * >( r3bc );
+
+ return( mod->get_Block()->map_forward_Modification(
+          R3B->get_nested_Block( i ) , mod ,
+          ( cv && ( cv->f_value.size() > i ) ) ? cv->f_value[ i ] : nullptr ,
+          issuePMod , issueAMod ) );
+ }
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ End File Block.cpp ------------------------------*/

@@ -23,6 +23,8 @@
 
 #include "QuadFunction.h"
 
+#include <algorithm>
+
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -48,6 +50,134 @@ int QuadFunction::compute( bool changedvars ) {
  }
  return( kOK );
 }
+
+/*--------------------------------------------------------------------------*/
+
+std::vector< Function::FunctionValue > QuadFunction::offdiagonal_gradient(
+								       void )
+{
+ // og[ i ] = sum_{j != i} q_ij x_j = ( ( mat_nd + mat_nd^T ) x )_i, with
+ // mat_nd holding the (off-diagonal) lower half; each stored entry ( r , c )
+ // contributes symmetrically to both row r and row c
+
+ std::vector< FunctionValue > og( DQuadFunction::get_num_active_var() , 0 );
+
+ for( int k = 0 ; k < mat_nd.outerSize() ; ++k )
+  for( Qmat::InnerIterator it( mat_nd , k ) ; it ; ++it ) {
+   auto r = it.row() , c = it.col();
+   auto q = it.value();
+   auto xr = std::get< 0 >( v_triples[ r ] )->get_value();
+   auto xc = std::get< 0 >( v_triples[ c ] )->get_value();
+   og[ r ] += q * xc;
+   if( r != c )
+    og[ c ] += q * xr;
+   }
+
+ return( og );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void QuadFunction::get_linearization_coefficients( FunctionValue * g ,
+						   Range range , Index name )
+{
+ range.second = std::min( range.second , DQuadFunction::get_num_active_var() );
+ if( range.second <= range.first )
+  return;
+
+ // diagonal + linear part, then add the off-diagonal contribution
+ DQuadFunction::get_linearization_coefficients( g , range , name );
+
+ auto og = offdiagonal_gradient();
+ for( Index i = range.first ; i < range.second ; ++i )
+  *(g++) += og[ i ];
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void QuadFunction::get_linearization_coefficients( SparseVector & g ,
+						   Range range , Index name )
+{
+ Index nav = DQuadFunction::get_num_active_var();
+ range.second = std::min( range.second , nav );
+ if( range.second <= range.first )
+  return;
+
+ auto og = offdiagonal_gradient();
+
+ if( g.nonZeros() == 0 ) {
+  if( g.size() < nav )
+   g.resize( nav );
+  g.reserve( range.second - range.first );
+  for( Index i = range.first ; i < range.second ; ++i ) {
+   FunctionValue gi = get_linearization_coefficient( i ) + og[ i ];
+   if( gi )
+    g.insert( i ) = gi;
+   }
+  }
+ else {
+  if( g.size() != nav )
+   throw( std::invalid_argument( "QuadFunction::get_linearization_"
+				 "coefficients: wrong size of nonempty "
+				 "SparseVector g" ) );
+  for( Index i = range.first ; i < range.second ; ++i )
+   g.coeffRef( i ) = get_linearization_coefficient( i ) + og[ i ];
+  g.prune( 0 , 0 );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void QuadFunction::get_linearization_coefficients( FunctionValue * g ,
+						   c_Subset & subset ,
+						   const bool ordered ,
+						   Index name )
+{
+ // diagonal + linear part (also validates the indices), then off-diagonal
+ DQuadFunction::get_linearization_coefficients( g , subset , ordered , name );
+
+ auto og = offdiagonal_gradient();
+ for( const auto & i : subset )
+  *(g++) += og[ i ];
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void QuadFunction::get_linearization_coefficients( SparseVector & g ,
+						   c_Subset & subset ,
+						   const bool ordered ,
+						   Index name )
+{
+ Index nav = DQuadFunction::get_num_active_var();
+ auto og = offdiagonal_gradient();
+
+ if( g.nonZeros() == 0 ) {
+  if( g.size() < nav )
+   g.resize( nav );
+  g.reserve( subset.size() );
+  for( const auto & i : subset ) {
+   if( i >= nav )
+    throw( std::invalid_argument( "QuadFunction::get_linearization_"
+				  "coefficients: wrong index in subset" ) );
+   FunctionValue gi = get_linearization_coefficient( i ) + og[ i ];
+   if( gi )
+    g.insert( i ) = gi;
+   }
+  }
+ else {
+  if( g.size() != nav )
+   throw( std::invalid_argument( "QuadFunction::get_linearization_"
+				 "coefficients: wrong size of nonempty "
+				 "SparseVector g" ) );
+  for( const auto & i : subset ) {
+   if( i >= nav )
+    throw( std::invalid_argument( "QuadFunction::get_linearization_"
+				  "coefficients: wrong index in subset" ) );
+   g.coeffRef( i ) = get_linearization_coefficient( i ) + og[ i ];
+   }
+  g.prune( 0 , 0 );
+  }
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -363,96 +493,72 @@ void QuadFunction::remove_variables( Range range , ModParam issueMod ) {
  my_convexity = Unknown;
 
  if( ( range.first == 0 ) && ( range.second >= v_triples.size() ) ) {
-  // removing *all* variable
+  // removing *all* the Variable: the non-diagonal terms all go
   mat_nd.setZero();
   mat_nd.data().squeeze();
-
-  if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
-   // an Observer is there: copy the names of deleted Variable (all of them)
-   Vec_p_Var vars( v_triples.size() );
-
-   for( Index i = 0 ; i < v_triples.size() ; ++i )
-    vars[ i ] = std::get< 0 >( v_triples[ i ] );
-
-   DQuadFunction::clear(); // then clear the DQuadFunction
-
-   // now issue the Modification: note that the subset is empty
-   // a diagonal quadratic function is additive ==> strongly quasi-additive
-   if( f_Observer && f_Observer->issue_mod( issueMod ) )
-    f_Observer->add_Modification(
-     std::make_shared< C05FunctionModVarsSbst >(
-      this , std::move( vars ) , Subset() , true ,
-      0 , Observer::par2concern( issueMod ) ) ,
-     Observer::par2chnl( issueMod ) );
   }
-  else // no-one is listening
-   DQuadFunction::clear(); // just do it
-  return; // all done
- }
+ else
+  /* The non-diagonal terms of the Variable that stay are kept, and
+   * re-indexed by how many removed ones precede them; those involving a
+   * removed one go. */
+  compact_nd( [ & ]( Index i ) -> Index {
+   if( i < range.first )
+    return( i );
+   if( i < range.second )
+    return( Inf< Index >() );
+   return( i - ( range.second - range.first ) );
+   } , v_triples.size() - ( range.second - range.first ) );
 
- // this is not a complete reset
- const auto strtit = v_triples.begin() + range.first;
- const auto stopit = v_triples.begin() + range.second;
+ // the diagonal terms, and the Modification, are the business of the base
+ DQuadFunction::remove_variables( range , issueMod );
 
- // How many are gunned down:
- int remIdx = range.second - range.first + 1;
-
- // As before, but more efficient to some degree, since we avoid too many re-allocs
- Qmat mat_nd_tmp( DQuadFunction::get_num_active_var() - remIdx ,
-                  DQuadFunction::get_num_active_var() - remIdx );
- mat_nd_tmp.reserve( mat_nd.nonZeros() );
-
- for( int k = 0 ; k < mat_nd.outerSize() ; ++k ) {
-  for( Qmat::InnerIterator it( mat_nd , k ) ; it ; ++it ) {
-   if( it.row() < range.first ) {
-    // We are storing the lower diagonal only so always it.col() < it.row() !
-    mat_nd_tmp.insert( it.row() , it.col() ) = it.value();
-   }
-   else if( it.row() > range.second ) {
-    if( it.col() < range.first ) {
-     mat_nd_tmp.insert( it.row() - remIdx , it.col() ) = it.value();
-    }
-    else if( it.col() > range.second ) {
-     mat_nd_tmp.insert( it.row() - remIdx , it.col() - remIdx ) = it.value();
-    }
-   }
-  }
- }
- // We Squeez every bit of memory out of the beast before reallocating the whole deal
- mat_nd.setZero();
- mat_nd.data().squeeze();
-
- //
- mat_nd.resize( DQuadFunction::get_num_active_var() - remIdx ,
-                DQuadFunction::get_num_active_var() - remIdx );
- mat_nd.reserve( mat_nd_tmp.nonZeros() );
-
- // Copy the beast around:
- mat_nd = mat_nd_tmp;
-
- // Now deal with the native variables
-
- if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
-  // somebody is there: meanwhile, prepare data for the Modification
-
-  Vec_p_Var vars( range.second - range.first );
-  auto vpit = vars.begin();
-  for( auto tmpit = strtit ; strtit < stopit ; )
-   *( vpit++ ) = std::get< 0 >( *( tmpit++ ) );
-
-  v_triples.erase( strtit , stopit );
-
-  // now issue the Modification
-  // a diagonal quadratic function is additive ==> strongly quasi-additive
-  f_Observer->add_Modification(
-   std::make_shared< C05FunctionModVarsRngd >(
-    this , std::move( vars ) , range , 0 ,
-    Observer::par2concern( issueMod ) ) ,
-   Observer::par2chnl( issueMod ) );
- }
- else // noone is there: just do it
-  v_triples.erase( strtit , stopit );
 } // end( QuadFunction::remove_variables( range ) )
+
+/*--------------------------------------------------------------------------*/
+
+void QuadFunction::remove_variables( Subset && nms , bool ordered ,
+                                     ModParam issueMod ) {
+ if( nms.empty() ) {   // removing *all* the Variable
+  my_convexity = Unknown;
+  mat_nd.setZero();
+  mat_nd.data().squeeze();
+  DQuadFunction::remove_variables( std::move( nms ) , true , issueMod );
+  return;
+  }
+
+ if( ! ordered )
+  std::sort( nms.begin() , nms.end() );
+
+ if( nms.back() >= v_triples.size() )
+  throw( std::invalid_argument(
+	  "QuadFunction::remove_variables: wrong Variable index in nms" ) );
+
+ my_convexity = Unknown;
+
+ /* Where each Variable ends up: Inf< Index >() for one that is removed, and
+  * its index less the number of removed ones that precede it for one that
+  * stays. */
+
+ Subset where( v_triples.size() );
+ { Index rmvd = 0;
+   auto it = nms.begin();
+   for( Index i = 0 ; i < where.size() ; ++i )
+    if( ( it != nms.end() ) && ( *it == i ) ) {
+     where[ i ] = Inf< Index >();
+     ++rmvd;
+     ++it;
+     }
+    else
+     where[ i ] = i - rmvd;
+   }
+
+ compact_nd( [ & where ]( Index i ) { return( where[ i ] ); } ,
+             v_triples.size() - nms.size() );
+
+ // the diagonal terms, and the Modification, are the business of the base
+ DQuadFunction::remove_variables( std::move( nms ) , true , issueMod );
+
+} // end( QuadFunction::remove_variables( subset ) )
 
 /*--------------------------------------------------------------------------*/
 

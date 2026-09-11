@@ -684,6 +684,52 @@ class CDASolver : public Solver {
  virtual void get_dual_direction( Configuration * dirc = nullptr ) {}
 
 /*--------------------------------------------------------------------------*/
+ /// returns true if the value of the unbounded dual direction is available
+ /** While producing an unbounded dual direction some solvers also compute the
+ * value the dual objective takes along it, and can hand it over; others only
+ * produce the direction. This method says which is the case [see
+ * get_dual_direction_value() for what that value is and, above all, for what
+ * it is not].
+ *
+ * This method can only be called after get_dual_direction() has been called.
+ *
+ * The method is given a default implementation in the base CDASolver class
+ * always returning false, for solvers that cannot provide the value. */
+
+ [[nodiscard]] virtual bool has_dual_direction_value( void ) {
+  return( false );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// the value the dual objective takes along the unbounded dual direction
+ /** Returns the value the solver attaches to the unbounded dual direction the
+ * last call to get_dual_direction() has produced, in the sign convention of
+ * the direction as the CDASolver holds it.
+ *
+ * THIS IS WHAT THE SOLVER STATES ABOUT ITS OWN CERTIFICATE ON ITS OWN MODEL,
+ * AND IT NEED NOT BE THE CONSTANT \f$ \alpha \f$ OF THE CUT
+ * \f$ \alpha + g x \leq 0 \f$ that a consumer builds out of the multipliers
+ * get_dual_direction() writes in the Block. The two agree only if the solver
+ * aggregates the same multipliers against the same sides of the same bounds,
+ * which nothing here requires it to do. Whoever needs \f$ \alpha \f$ has to
+ * compute it from the Block, walking rows and bounds and taking each of them
+ * on the side its multiplier points to; this value is then worth having as a
+ * cross-check, and as the statement of infeasibility the solver is willing to
+ * make, not as the constant of the cut [see the :MILPSolver for a measured
+ * case where the two differ].
+ *
+ * It is an error to call this method if has_dual_direction_value() has not
+ * been called and returned true.
+ *
+ * The method is given a default implementation in the base CDASolver class
+ * returning NaN, consistently with the default of
+ * has_dual_direction_value(). */
+
+ [[nodiscard]] virtual OFValue get_dual_direction_value( void ) {
+  return( std::numeric_limits< OFValue >::quiet_NaN() );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// returns true if is possible to generate a new dual unbounded direction
  /** This method must be called each time the user of the CDASolver wants
   * that it produces a *new* dual unbounded direction.
@@ -719,6 +765,32 @@ class CDASolver : public Solver {
   * unbounded direction */
 
  [[nodiscard]] virtual bool new_dual_direction( void ) { return( false ); }
+
+/*--------------------------------------------------------------------------*/
+ /// produces a Solution of the Block, dual information included
+ /** Produces a Solution of the Block out of what the last call to compute()
+  * found, exactly as Solver::get_Solution() does, save that the *dual*
+  * information is written into the Block as well before the Solution is
+  * asked for it: get_dual_solution() is called if has_dual_solution() says
+  * there is one, and failing that get_dual_direction() if
+  * has_dual_direction() does.
+  *
+  * The base implementation of Solver only writes the primal information,
+  * which for a Block whose :Solution stores the dual one as well means
+  * getting whatever happened to be in the Constraint, i.e., typically zero:
+  * a Solver of a Block with a dual is therefore the natural place for this,
+  * which is why it is done here.
+  *
+  * Note, however, that *whether* the dual information is wanted is a
+  * property of the Solution the Block is asked for, i.e., of the
+  * Configuration, and not of the Solver: this implementation computes it
+  * anyway, which is right if the Block always wants it and wasted work if it
+  * does not. A :Solver whose dual information is expensive, or a Block that
+  * only sometimes wants it, is therefore expected to say so by overriding
+  * this. */
+
+ [[nodiscard]] Solution * get_Solution( Configuration * solc = nullptr )
+  override;
 
 /** @} ---------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE DATA OF THE CDASolver ---------------*/

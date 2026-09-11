@@ -15,10 +15,15 @@
 #                         Dipartimento di Informatica                         #
 #                             Universita' di Pisa                             #
 # --------------------------------------------------------------------------- #
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.21)
 cmake_policy(VERSION 3.15)
+# Derive the version from the most recent git tag (fallback for tarballs), so
+# a release is just `git tag x.y.z`. Must be done before project().
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/DeriveVersion.cmake)
+smspp_derive_version(SMSpp_VERSION)
+
 project(SMS++
-        VERSION 0.6.0
+        VERSION ${SMSpp_VERSION}
         DESCRIPTION "SMS++ core library"
         HOMEPAGE_URL https://gitlab.com/smspp/smspp
         LANGUAGES C CXX)
@@ -26,6 +31,12 @@ project(SMS++
 # These variables make the code harder to read but easier to change.
 set(modName ${PROJECT_NAME})
 set(modNamespace "SMS++")
+
+# A C-safe form of modName for the preprocessor macros in <modName>Config.h:
+# modName ("SMS++") contains '+', which is not valid in an identifier. We use
+# "SMSpp", matching the SMSpp_di_unipi_it namespace. Modules generated from the
+# ModuleTemplate whose name is already a valid identifier use modName as-is.
+set(modMacro "SMSpp")
 
 # Find out if it's being called by the umbrella.
 get_directory_property(hasParent PARENT_DIRECTORY)
@@ -72,19 +83,113 @@ endif ()
 FetchContent_Declare(
         fastflow
         GIT_REPOSITORY https://github.com/fastflow/fastflow.git
-        GIT_TAG        master)
+        GIT_TAG master)
 
 FetchContent_Populate(fastflow)
+
+# ----- FastFlow Windows/MSVC compatibility patch --------------------------- #
+# FastFlow's bundled Windows port (ff/platforms/pthread_minport_windows.h) is
+# incomplete under MSVC: it provides pthread_cond_wait() but not the timed
+# variant pthread_cond_timedwait(), nor clock_gettime()/CLOCK_REALTIME, all of
+# which the FastFlow core (ff/node.hpp, lb.hpp, gt.hpp, farm.hpp, pipeline.hpp
+# and ff/utils.hpp) relies on for its blocking-mode timed waits. On Linux these
+# come from <pthread.h>/<time.h>; on Windows we inject a minimal implementation
+# into the fetched header at configure time. The edit is idempotent (guarded by
+# the FF_SMSPP_WIN_COMPAT marker) and mirrors the configure-time header shimming
+# we already do for LEMON in MCFLemonSolver/CMakeLists.txt. Note: NOMINMAX and
+# /Zc:__cplusplus (set in the top-level CMakeSettings.txt) are also required to
+# build FastFlow with MSVC.
+if (MSVC)
+    set(_ff_winport "${fastflow_SOURCE_DIR}/ff/platforms/pthread_minport_windows.h")
+    if (EXISTS "${_ff_winport}")
+        file(READ "${_ff_winport}" _ff_winport_src)
+        if (NOT _ff_winport_src MATCHES "FF_SMSPP_WIN_COMPAT")
+            # Injected right after the `typedef CONDITION_VARIABLE pthread_cond_t;`
+            # line, where INLINE/RESTRICT, <time.h> (struct timespec), <errno.h>
+            # (ETIMEDOUT) and <Windows.h> are already in scope. pthread_mutex_t is
+            # CRITICAL_SECTION and pthread_cond_t is CONDITION_VARIABLE here.
+            set(_ff_shim [=[typedef CONDITION_VARIABLE pthread_cond_t;
+/* ---- FF_SMSPP_WIN_COMPAT: MSVC compatibility shim injected by SMS++ ------- */
+#ifndef FF_SMSPP_WIN_COMPAT
+#define FF_SMSPP_WIN_COMPAT
+#ifndef CLOCK_REALTIME
+#define CLOCK_REALTIME 0
+#endif
+/* clock_gettime(): map CLOCK_REALTIME onto the Windows system clock. FILETIME
+   counts 100 ns ticks since 1601-01-01; 116444736000000000 is the offset (in
+   ticks) from that epoch to the Unix epoch 1970-01-01. */
+INLINE int clock_gettime(int, struct timespec *tp) {
+    FILETIME ft; ULARGE_INTEGER u;
+    GetSystemTimePreciseAsFileTime(&ft);
+    u.LowPart = ft.dwLowDateTime; u.HighPart = ft.dwHighDateTime;
+    unsigned long long t = u.QuadPart - 116444736000000000ULL;
+    tp->tv_sec  = (long)(t / 10000000ULL);
+    tp->tv_nsec = (long)((t % 10000000ULL) * 100ULL);
+    return 0;
+}
+/* pthread_cond_timedwait(): turn the absolute POSIX deadline into a relative
+   millisecond timeout for SleepConditionVariableCS(); return ETIMEDOUT on
+   expiry, as POSIX requires. */
+INLINE int pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
+                                  const struct timespec *abstime) {
+    struct timespec now;
+    clock_gettime(CLOCK_REALTIME, &now);
+    long long ms = (long long)(abstime->tv_sec - now.tv_sec) * 1000LL
+                 + (long long)(abstime->tv_nsec - now.tv_nsec) / 1000000LL;
+    if (ms < 0) ms = 0;
+    if (!SleepConditionVariableCS(cond, mutex, (DWORD)ms))
+        if (GetLastError() == ERROR_TIMEOUT) return ETIMEDOUT;
+    return 0;
+}
+#endif
+/* ---- end FF_SMSPP_WIN_COMPAT --------------------------------------------- */]=])
+            string(REPLACE "typedef CONDITION_VARIABLE pthread_cond_t;"
+                    "${_ff_shim}" _ff_winport_src "${_ff_winport_src}")
+            file(WRITE "${_ff_winport}" "${_ff_winport_src}")
+            message(STATUS
+                    "FastFlow: injected MSVC pthread_cond_timedwait/clock_gettime shim")
+        endif ()
+    endif ()
+endif ()
 
 # ----- Configuration header ------------------------------------------------ #
 # This will generate a *Config.h header in the build directory.
 configure_file(cmake/${modName}Config.h.in ${modName}Config.h)
+
+# ----- RPATH --------------------------------------------------------------- #
+# The installed libraries and executables look for the libraries of the same
+# installation relative to their own location, so that the installed tree can
+# be moved as a whole; the directories of the external libraries are kept.
+include(GNUInstallDirs)
+if (NOT CMAKE_INSTALL_RPATH)
+    if (APPLE)
+        set(rpathOrigin "@loader_path")
+    else ()
+        set(rpathOrigin "$ORIGIN")
+    endif ()
+    file(RELATIVE_PATH binToLib ${CMAKE_INSTALL_FULL_BINDIR}
+            ${CMAKE_INSTALL_FULL_LIBDIR})
+    set(CMAKE_INSTALL_RPATH "${rpathOrigin}" "${rpathOrigin}/${binToLib}")
+endif ()
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 # ----- Library ------------------------------------------------------------- #
 # With the BUILD_SHARED_LIBS variable we can specify if the library will
 # be STATIC or SHARED, so no reason to do it now.
 add_library(${modName})
 target_compile_features(${modName} PUBLIC cxx_std_20)
+
+# The name of the shared library carries the version of its binary interface,
+# which any minor release may change while the major version is 0, and then
+# any major release.
+if (PROJECT_VERSION_MAJOR EQUAL 0)
+    set(soVersion ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR})
+else ()
+    set(soVersion ${PROJECT_VERSION_MAJOR})
+endif ()
+set_target_properties(${modName} PROPERTIES
+        VERSION ${PROJECT_VERSION}
+        SOVERSION ${soVersion})
 include(ClangPatch) # TODO: Remove this when it's not needed anymore
 
 # When adding source files with target_sources(), PRIVATE means that the files
@@ -94,36 +199,38 @@ include(ClangPatch) # TODO: Remove this when it's not needed anymore
 # but should be added to anything that links to it.
 # Note: do not GLOB files here.
 target_sources(${modName} PRIVATE
-               src/AbstractBlock.cpp
-               src/BoxSolver.cpp
-               src/Block.cpp
-               src/BlockSolverConfig.cpp
-               src/C05Function.cpp
-               src/BendersBFunction.cpp
-               src/BendersBlock.cpp
-               src/ColRowSolution.cpp
-               src/ColVariable.cpp
-               src/ColVariableSolution.cpp
-               src/Configuration.cpp
-               src/Constraint.cpp
-               src/DataMapping.cpp
-               src/DQuadFunction.cpp
-               src/FRealObjective.cpp
-               src/FRowConstraint.cpp
-               src/Function.cpp
-               src/LagBFunction.cpp
-               src/LinearFunction.cpp
-               src/Objective.cpp
-               src/OneVarConstraint.cpp
-               src/PolyhedralFunction.cpp
-               src/RBlockConfig.cpp
-               src/RowConstraintSolution.cpp
-               src/PolyhedralFunctionBlock.cpp
-			   src/QuadFunction.cpp
-               src/Solution.cpp
-               src/Solver.cpp
-               src/ThinComputeInterface.cpp
-               src/Variable.cpp)
+        src/AbstractBlock.cpp
+        src/Change.cpp
+        src/BoxSolver.cpp
+        src/CDASolver.cpp
+        src/Block.cpp
+        src/BlockSolverConfig.cpp
+        src/C05Function.cpp
+        src/BendersBFunction.cpp
+        src/BendersBlock.cpp
+        src/ColRowSolution.cpp
+        src/ColVariable.cpp
+        src/ColVariableSolution.cpp
+        src/Configuration.cpp
+        src/Constraint.cpp
+        src/DataMapping.cpp
+        src/DQuadFunction.cpp
+        src/FRealObjective.cpp
+        src/FRowConstraint.cpp
+        src/Function.cpp
+        src/LagBFunction.cpp
+        src/LinearFunction.cpp
+        src/Objective.cpp
+        src/OneVarConstraint.cpp
+        src/PolyhedralFunction.cpp
+        src/RBlockConfig.cpp
+        src/RowConstraintSolution.cpp
+        src/PolyhedralFunctionBlock.cpp
+        src/QuadFunction.cpp
+        src/Solution.cpp
+        src/Solver.cpp
+        src/ThinComputeInterface.cpp
+        src/Variable.cpp)
 
 # When using target_include_directories(), PUBLIC means that any targets
 # that link to this target also need that include directory.
@@ -138,6 +245,10 @@ target_sources(${modName} PRIVATE
 target_include_directories(
         ${modName} PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        # the build directory holds the generated ${modName}Config.h, so that
+        # dependents built in-tree can #include it (installed builds get it from
+        # the INSTALL_INTERFACE include dir, where it is installed)
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
         $<INSTALL_INTERFACE:include/${modNamespace}>
         $<BUILD_INTERFACE:${fastflow_SOURCE_DIR}>)
 
@@ -147,9 +258,9 @@ target_include_directories(
 # library, INTERFACE means they will be linked only to the targets that depend
 # on this library.
 target_link_libraries(${modName} PUBLIC
-                      Boost::boost
-                      Eigen3::Eigen
-                      netCDF::netCDFCxx)
+        Boost::boost
+        Eigen3::Eigen
+        netCDF::netCDFCxx)
 
 if (MSVC)
     target_link_libraries(${modName} PUBLIC ${GETOPT_LIBRARY})
@@ -230,8 +341,8 @@ install(FILES
 # dynamic loading will look into it.
 if (hasParent)
     set(SMSPP_BUILD_RPATH
-        "${SMSPP_BUILD_RPATH};${CMAKE_CURRENT_BINARY_DIR}"
-        PARENT_SCOPE)
+            "${SMSPP_BUILD_RPATH};${CMAKE_CURRENT_BINARY_DIR}"
+            PARENT_SCOPE)
 endif ()
 
 # ----- Packaging support --------------------------------------------------- #
@@ -246,9 +357,9 @@ if (NOT hasParent)
     set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_LIST_DIR}/LICENSE")
     set(CPACK_RESOURCE_FILE_README "${CMAKE_CURRENT_LIST_DIR}/README.md")
     set(CPACK_SOURCE_IGNORE_FILES
-        \\\\.git/
-        \\\\.gitignore$
-        \\\\.gitattributes$)
+            \\\\.git/
+            \\\\.gitignore$
+            \\\\.gitattributes$)
     include(CPack)
 endif ()
 

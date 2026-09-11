@@ -16,14 +16,17 @@
 #   "outer" project (say, the SMS++ umbrella one), i.e., in                  #
 #   $(SMS++SDR)/../extlib/ (one level above the core SMS++ directory).       #
 #                                                                            #
-#   Input:  $(CC)       = compiler command                                   #
-#           $(SW)       = compiler options                                   #
-#           $(SMS++SDR) = the directory where the core SMS++ source is       #
+#   Input:  $(CC)            = compiler command                              #
+#           $(SW)            = compiler options                              #
+#           $(SMS++SDR)      = the directory where the core SMS++ source is  #
+#           $(FastFlow_ROOT) = the directory where FastFlow is installed,    #
+#                              i.e., the one containing its include/         #
+#                              subdirectory (see extlib/makefile-paths)      #
 #                                                                            #
-#   Output: $(SMS++OBJ) = the final objects                                  #
-#           $(SMS++H)   = the .h files to include for the core SMS++         #
-#           $(SMS++INC) = all the -I$( include dirs ) of the core SMS++      #
-#           $(SMS++LIB) = the external libraries + -L< libdirs >             #
+#   Output: $(SMS++OBJ)      = the final objects                             #
+#           $(SMS++H)        = the .h files to include for the core SMS++    #
+#           $(SMS++INC)      = all the -I$( include dirs ) of the core SMS++ #
+#           $(SMS++LIB)      = the external libraries + -L< libdirs >        #
 #                                                                            #
 #                              Antonio Frangioni                             #
 #                         Dipartimento di Informatica                        #
