@@ -5019,14 +5019,13 @@ class Block : public Observer {
   * methods for accessing all the necessary Variable/Constraint, or to make
   * them public outright.
   *
-  * The method is given an extremely lazy default implementation refusing to
-  * map back solution from any kind of R3 Block, comprised the "copy" one. */
+  * The default implementation serves the one R3 Block that any Block has
+  * without having written a line for it, i.e., the AbstractBlock that has
+  * mirrored it [see AbstractBlock::mirror()], and refuses any other. */
 
  virtual void map_back_solution( Block * R3B ,
 				 Configuration * r3bc = nullptr ,
-                                 Configuration * solc = nullptr ) {
-  throw( std::invalid_argument( "R3 Block type not supported" ) );
-  }
+                                 Configuration * solc = nullptr );
 
 /*--------------------------------------------------------------------------*/
  /// maps forward solution information from the original Block to n R3 Block
@@ -5087,15 +5086,13 @@ class Block : public Observer {
   * methods for accessing all the necessary Variable/Constraint, or to make
   * them public outright.
   *
-  * The method is given an extremely lazy default implementation refusing to
-  * map forward solution from any kind of R3 Block, comprised the "copy" one.
-  */
+  * The default implementation serves the one R3 Block that any Block has
+  * without having written a line for it, i.e., the AbstractBlock that has
+  * mirrored it [see AbstractBlock::mirror()], and refuses any other. */
 
  virtual void map_forward_solution( Block * R3B ,
                                     Configuration * r3bc = nullptr ,
-                                    Configuration * solc = nullptr ) {
-  throw( std::invalid_argument( "R3 Block type not supported" ) );
-  }
+                                    Configuration * solc = nullptr );
 
 /*--------------------------------------------------------------------------*/
  /// maps forward a Modification from the original Block to an R3 Block
@@ -5219,25 +5216,7 @@ class Block : public Observer {
  virtual bool map_forward_Modification( Block * R3B , c_p_Mod mod ,
                                         Configuration * r3bc = nullptr ,
                                         ModParam issuePMod = eNoBlck ,
-                                        ModParam issueAMod = eModBlck ) {
-  if( mod->get_Block() == this )
-   return( false );
-
-  auto i = get_nested_Block_index( mod->get_Block() );
-  if( ( i >= get_number_nested_Blocks() ) ||
-      ( i >= R3B->get_number_nested_Blocks() ) )
-   return( false );
-
-  auto cv =
-   dynamic_cast< SimpleConfiguration< std::vector< Configuration * > > *
-    >( r3bc );
-
-  return( mod->get_Block()->map_forward_Modification(
-		                      R3B->get_nested_Block( i ) , mod ,
-		                      ( cv && ( cv->f_value.size() > i ) ) ?
-				                cv->f_value[ i ] : nullptr ,
-				      issuePMod , issueAMod ) );
-  }
+                                        ModParam issueAMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// maps forward a list of Modification from the original Block to a R3 Block
@@ -7101,6 +7080,51 @@ class Block : public Observer {
 
   v_s_Constraint[ i ] = &newc;
   v_s_Constraint_names[ i ] = std::move( name );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// the i-th group of static Variable, to be written into
+ /** The i-th group of static Variable as the boost::any holding it, so that
+  * it can be written into. This is what code building a Block out of another
+  * one needs, the type of a group being known there only at run time: a
+  * Block that knows the type of its own groups uses the typed
+  * set_static_variable() instead, which also tells each Variable which Block
+  * it belongs to, as whoever writes here has to do. */
+
+ boost::any & access_static_variable( Index i ) {
+  if( i >= v_s_Variable.size() )
+   throw( std::invalid_argument( "wrong index into v_s_Variable" ) );
+  return( v_s_Variable[ i ] );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the i-th group of dynamic Variable, to be written into
+ /** See access_static_variable(). */
+
+ boost::any & access_dynamic_variable( Index i ) {
+  if( i >= v_d_Variable.size() )
+   throw( std::invalid_argument( "wrong index into v_d_Variable" ) );
+  return( v_d_Variable[ i ] );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the i-th group of static Constraint, to be written into
+ /** See access_static_variable(). */
+
+ boost::any & access_static_constraint( Index i ) {
+  if( i >= v_s_Constraint.size() )
+   throw( std::invalid_argument( "wrong index into v_s_Constraint" ) );
+  return( v_s_Constraint[ i ] );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the i-th group of dynamic Constraint, to be written into
+ /** See access_static_variable(). */
+
+ boost::any & access_dynamic_constraint( Index i ) {
+  if( i >= v_d_Constraint.size() )
+   throw( std::invalid_argument( "wrong index into v_d_Constraint" ) );
+  return( v_d_Constraint[ i ] );
   }
 
 /*--------------------------------------------------------------------------*/

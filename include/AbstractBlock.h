@@ -45,6 +45,8 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <map>
+
 #include "Block.h"
 
 /*--------------------------------------------------------------------------*/
@@ -54,6 +56,12 @@
 /// namespace for the Structured Modeling System++ (SMS++)
 namespace SMSpp_di_unipi_it
 {
+ class ColVariable;     // forward declaration, only pointers are needed here
+
+ class RowConstraint;   // forward declaration, only pointers are needed here
+
+ class Function;        // forward declaration, only pointers are needed here
+
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS AbstractBlock ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -222,7 +230,7 @@ class AbstractBlock : public Block
   f_ub( Inf< double >() ) , f_lb( - Inf< double >() ) , f_ub_cond( false ) ,
   f_lb_cond( false ) , f_1st_stat_var( 0 ) , f_1st_dyn_var( 0 ) ,
   f_1st_stat_cnst( 0 ) , f_1st_dyn_cnst( 0 ) , f_res_obj( false ) ,
-  f_1st_sub_block( 0 ) {}
+  f_1st_sub_block( 0 ) , f_mirrored( nullptr ) {}
 
 /*--------------------------------------------------------------------------*/
  /// load the AbstractBlock out of an istream
@@ -513,6 +521,133 @@ class AbstractBlock : public Block
 
  using Block::remove_dynamic_constraint;
 
+ using Block::access_static_variable;
+
+ using Block::access_dynamic_variable;
+
+ using Block::access_static_constraint;
+
+ using Block::access_dynamic_constraint;
+
+/** @} ---------------------------------------------------------------------*/
+/*-------------------- Mirroring the abstract representation ---------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Mirroring the abstract representation of another Block
+ *
+ * An AbstractBlock can build itself as a copy of the abstract representation
+ * of any other Block, which is what makes a copy of a Block available to
+ * whoever needs one without that Block having to provide it: see mirror().
+ * Since the copy is an AbstractBlock, whatever is done to it is done to the
+ * abstract representation alone and the original Block is not touched.
+ *
+ * The copy knows which object of the original each of its own corresponds
+ * to [see mirror_of()], which is what makes it possible to move solution
+ * information in both directions [see mirror_read() and mirror_write()] and
+ * to keep the copy in sync with the original [see
+ * mirror_forward_Modification()]. The base Block class dispatches
+ * map_back_solution(), map_forward_solution() and map_forward_Modification()
+ * to these whenever the R3 Block it is given is a mirror of itself, so that
+ * a mirror is a R3 Block of the original Block without the latter having to
+ * implement anything.
+ *  @{ */
+
+ /// builds this AbstractBlock as a copy of the abstract representation of B
+ /** Builds this AbstractBlock as a copy of the abstract representation of
+  * \p blck: one ColVariable per ColVariable, one Constraint per Constraint,
+  * an Objective if \p blck has one, and one inner AbstractBlock per inner
+  * Block of \p blck, recursively. The groups keep their shape and their
+  * order, hence the i-th group of the copy is the copy of the i-th group of
+  * the original and the position of an object inside its group is the same,
+  * which is what allows the two to be told apart by position rather than by
+  * name.
+  *
+  * A Constraint of the copy is expressed in the Variable of the copy. A
+  * Variable that lives outside the mirrored subtree, which is what a
+  * Constraint coupling \p blck to something else is written in, has no copy
+  * and is therefore used as it is: the copy then shares that Variable with
+  * the original, which is the only thing that keeps the two Constraint the
+  * same constraint.
+  *
+  * What can be copied is what the abstract representation is made of, i.e.,
+  * ColVariable, the OneVarConstraint family, FRowConstraint whose Function
+  * is a LinearFunction or a DQuadFunction, and FRealObjective over the same
+  * two Function. Anything else cannot be reproduced, since a Function cannot
+  * be copied onto different Variable in general: the object is skipped and
+  * recorded, so that the copy is a *relaxation* of the original and the
+  * caller can see what is missing [see get_mirror_issues()]. Note that a
+  * relaxation is not always an acceptable answer, which is why the list is
+  * there rather than silently empty.
+  *
+  * The AbstractBlock must be empty, and it is an error to mirror twice. */
+
+ void mirror( Block * blck );
+
+/*--------------------------------------------------------------------------*/
+ /// the Block this AbstractBlock is a copy of, nullptr if it is a copy of none
+
+ [[nodiscard]] Block * get_mirrored( void ) const { return( f_mirrored ); }
+
+/*--------------------------------------------------------------------------*/
+ /// the copy of \p var, nullptr if \p var has none
+
+ [[nodiscard]] ColVariable * mirror_of( const ColVariable * var ) const {
+  auto it = f_v_map.find( var );
+  return( it == f_v_map.end() ? nullptr : it->second );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the copy of \p cns, nullptr if \p cns has none
+
+ [[nodiscard]] RowConstraint * mirror_of( const RowConstraint * cns ) const {
+  auto it = f_c_map.find( cns );
+  return( it == f_c_map.end() ? nullptr : it->second );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the object of the mirrored Block \p var is the copy of, nullptr if none
+
+ [[nodiscard]] const ColVariable * mirrored_of( const ColVariable * var )
+  const {
+  auto it = f_v_rmap.find( var );
+  return( it == f_v_rmap.end() ? nullptr : it->second );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// what mirror() could not reproduce
+ /** The objects of the mirrored Block that mirror() could not reproduce, one
+  * string each saying which object and why. An empty vector means that the
+  * copy is faithful; a nonempty one means that it is a relaxation, and the
+  * caller decides whether that is of any use. */
+
+ [[nodiscard]] const std::vector< std::string > & get_mirror_issues( void )
+  const { return( v_issues ); }
+
+/*--------------------------------------------------------------------------*/
+ /// copies the value of the Variable of the mirrored Block into the copy
+
+ void mirror_read( void );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// copies the value of the Variable of the copy into the mirrored Block
+
+ void mirror_write( void );
+
+/*--------------------------------------------------------------------------*/
+ /// applies to the copy a Modification issued by the mirrored Block
+ /** Applies to the copy the change that \p mod describes, so that the two
+  * stay the same problem, and returns true if it could. Returns false if it
+  * could not, which the caller has to take as "the copy is stale", the
+  * alternative being a copy that is silently a different problem.
+  *
+  * What is handled is what changes the abstract representation without
+  * changing its shape, i.e., the coefficients of a LinearFunction or of a
+  * DQuadFunction, the sides of a RowConstraint, the type and the fixing of a
+  * ColVariable, and the sense of an Objective. A change of the shape, i.e.,
+  * a dynamic Variable or Constraint added or removed, is not: mirror() has
+  * to be called again. */
+
+ bool mirror_forward_Modification( c_p_Mod mod );
+
 /** @} ---------------------------------------------------------------------*/
 /*----------------- Methods for checking the AbstractBlock -----------------*/
 /*--------------------------------------------------------------------------*/
@@ -679,6 +814,38 @@ class AbstractBlock : public Block
  void check_Objective( Objective * obj );
 
 /*--------------------------------------------------------------------------*/
+ /// the copy of \p fnct written on the Variable of the copy, nullptr if none
+ /** The copy of \p fnct written on the Variable of the mirror, and nullptr
+  * if \p fnct is of a kind that cannot be written on other Variable. A
+  * Variable that has no copy, i.e., one living outside the mirrored subtree,
+  * is used as it is. */
+
+ Function * mirror_Function( const Function * fnct );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// records an issue if the copy of a group holds fewer objects than it does
+ /** Always returns true, the group having been of the type that was tried:
+  * what it says is only whether the copy of it is complete. */
+
+ bool check_count( std::size_t src , std::size_t dst ,
+                   const std::string & what );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the first pass of mirror(): the Variable of the subtree of \p src
+
+ void mirror_variables( Block * src , AbstractBlock * dst );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the second pass of mirror(): the Constraint and the Objective
+
+ void mirror_constraints( Block * src , AbstractBlock * dst );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// rebuilds in the copy the Function that \p fnct is in the original
+
+ bool mirror_Function_changed( const Function * fnct );
+
+/*--------------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -696,6 +863,17 @@ class AbstractBlock : public Block
  bool f_res_obj;          ///< if the Objective is not available
 
  Index f_1st_sub_block;   ///< the first available inner Block;
+
+ Block * f_mirrored;      ///< the Block this one is a copy of, if any
+
+ /// the copy of each ColVariable of the mirrored Block, and the way back
+ std::map< const ColVariable * , ColVariable * > f_v_map;
+ std::map< const ColVariable * , const ColVariable * > f_v_rmap;
+
+ /// the copy of each RowConstraint of the mirrored Block
+ std::map< const RowConstraint * , RowConstraint * > f_c_map;
+
+ std::vector< std::string > v_issues;  ///< what mirror() could not reproduce
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/

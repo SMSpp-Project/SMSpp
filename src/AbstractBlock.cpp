@@ -23,6 +23,7 @@
 #include "ColVariable.h"
 
 #include "LinearFunction.h"
+#include "DQuadFunction.h"
 #include "QuadFunction.h"
 #include "FRowConstraint.h"
 #include "OneVarConstraint.h"
@@ -2503,6 +2504,552 @@ std::vector< std::string > AbstractBlock::expected_vars( void ) const {
 
 #endif
 
+
+/*--------------------------------------------------------------------------*/
+/*--------------------- MIRRORING ANOTHER Block ----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/* A group of the copy is created with the shape of the group it copies, and
+ * f is applied to each pair of corresponding objects; a dynamic group is a
+ * list, whose copy is grown one element at a time since the objects are not
+ * copyable. Returns false if the group is not made of C, which is how the
+ * caller finds out which concrete type it is looking at. */
+
+/* A static group whose cells are *vectors* of objects, which is the shape a
+ * Block gives a family with one entry per cell and a different number of
+ * them in each: the creation above would give the copy one object per cell
+ * and lose the others, hence it is done here. A dynamic group needs none of
+ * this, its cells being lists and the list the very type that is created. */
+
+template< class C , std::size_t K , class F >
+static bool mirror_irregular_array( const boost::any & src , boost::any & dst ,
+                                    F f )
+{
+ using MA = boost::multi_array< std::vector< C > , K >;
+
+ if( src.type() != typeid( MA * ) )
+  return( false );
+
+ auto & s = * boost::any_cast< MA * >( src );
+ std::vector< std::size_t > shape( s.shape() ,
+                                   s.shape() + s.num_dimensions() );
+ auto d = new MA( shape );
+
+ auto p1 = s.data();
+ auto p2 = d->data();
+ for( std::size_t i = s.num_elements() ; i-- ; ++p1 , ++p2 ) {
+  p2->resize( p1->size() );
+  for( std::size_t j = 0 ; j < p1->size() ; ++j )
+   f( (*p1)[ j ] , (*p2)[ j ] );
+  }
+
+ dst = d;
+ return( true );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+template< class C , class F >
+static bool mirror_irregular( const boost::any & src , boost::any & dst , F f )
+{
+ if( src.type() == typeid( std::vector< std::vector< C > > * ) ) {
+  auto & s = * boost::any_cast< std::vector< std::vector< C > > * >( src );
+  auto d = new std::vector< std::vector< C > >( s.size() );
+  for( std::size_t i = 0 ; i < s.size() ; ++i ) {
+   (*d)[ i ].resize( s[ i ].size() );
+   for( std::size_t j = 0 ; j < s[ i ].size() ; ++j )
+    f( s[ i ][ j ] , (*d)[ i ][ j ] );
+   }
+  dst = d;
+  return( true );
+  }
+
+ return( mirror_irregular_array< C , 1 >( src , dst , f ) ||
+         mirror_irregular_array< C , 2 >( src , dst , f ) ||
+         mirror_irregular_array< C , 3 >( src , dst , f ) ||
+         mirror_irregular_array< C , 4 >( src , dst , f ) );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+template< class C , class F >
+static bool mirror_static_group( const boost::any & src , boost::any & dst ,
+                                 F f )
+{
+ // the irregular shapes first, the creation below claiming them as well
+ if( mirror_irregular< C >( src , dst , f ) )
+  return( true );
+
+ return( un_any_static_2_create( src , dst , un_any_type< C >() ,
+                                 un_any_type< C >() , f ) );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+template< class C , class F >
+static bool mirror_dynamic_group( const boost::any & src , boost::any & dst ,
+                                  F f )
+{
+ return( un_any_dynamic_2_create(
+          src , dst , un_any_type< C >() , un_any_type< std::list< C > >() ,
+          [ & f ]( std::list< C > & s , std::list< C > & d ) {
+           for( auto & el : s ) {
+            d.emplace_back();
+            f( el , d.back() );
+            }
+           } , true ) );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+/* How many objects of type C a group holds, which is what says whether the
+ * copy of it holds as many: a group whose shape the creation above does not
+ * reproduce would otherwise lose objects in silence, which is the one thing
+ * a copy must not do. */
+
+template< class C >
+static std::size_t count_static( const boost::any & any )
+{
+ std::size_t n = 0;
+ un_any_const_static( any , [ & n ]( C & ) { ++n; } , un_any_type< C >() );
+ return( n );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+template< class C >
+static std::size_t count_dynamic( const boost::any & any )
+{
+ std::size_t n = 0;
+ un_any_const_dynamic( any , [ & n ]( C & ) { ++n; } , un_any_type< C >() );
+ return( n );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool AbstractBlock::check_count( std::size_t src , std::size_t dst ,
+                                 const std::string & what )
+{
+ if( src == dst )
+  return( true );
+
+ v_issues.push_back( what + " holds " + std::to_string( src ) +
+                     " objects and its copy " + std::to_string( dst ) +
+                     ": the shape of the group is one the copy does not "
+                     "reproduce" );
+ return( true );   // the group was of that type all the same
+ }
+
+/*--------------------------------------------------------------------------*/
+
+Function * AbstractBlock::mirror_Function( const Function * fnct )
+{
+ if( ! fnct )
+  return( nullptr );
+
+ auto var_of = [ this ]( ColVariable * v ) -> ColVariable * {
+  auto it = f_v_map.find( v );
+  return( it != f_v_map.end() ? it->second : v );
+  };
+
+ if( auto lf = dynamic_cast< const LinearFunction * >( fnct ) ) {
+  LinearFunction::v_coeff_pair cp;
+  cp.reserve( lf->get_v_var().size() );
+  for( auto & p : lf->get_v_var() )
+   cp.emplace_back( var_of( p.first ) , p.second );
+  return( new LinearFunction( std::move( cp ) , lf->get_constant_term() ) );
+  }
+
+ if( auto qf = dynamic_cast< const DQuadFunction * >( fnct ) ) {
+  DQuadFunction::v_coeff_triple ct;
+  ct.reserve( qf->get_v_var().size() );
+  for( auto & tr : qf->get_v_var() )
+   ct.emplace_back( var_of( std::get< 0 >( tr ) ) , std::get< 1 >( tr ) ,
+                    std::get< 2 >( tr ) );
+  return( new DQuadFunction( std::move( ct ) , qf->get_constant_term() ) );
+  }
+
+ return( nullptr );   // a Function that cannot be written on other Variable
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void AbstractBlock::mirror_variables( Block * src , AbstractBlock * dst )
+{
+ /* The type of a ColVariable carries everything about it but the fixing,
+  * which is a state of its own and goes with the value it fixes it at. */
+
+ auto take = [ this , dst ]( ColVariable & s , ColVariable & d ) {
+  d.set_Block( dst );
+  d.set_type( s.get_type() , eNoMod );
+  d.set_value( s.get_value() );
+  if( s.is_fixed() )
+   d.is_fixed( true , eNoMod );
+  f_v_map[ & s ] = & d;
+  f_v_rmap[ & d ] = & s;
+  };
+
+ auto & sv = src->get_static_variables();
+ for( Index i = 0 ; i < sv.size() ; ++i ) {
+  dst->add_static_variable( std::string( src->get_s_var_name( i ) ) );
+  if( ! mirror_static_group< ColVariable >(
+         sv[ i ] , dst->access_static_variable( i ) , take ) )
+   v_issues.push_back( "static Variable group " + std::to_string( i ) +
+                       " of " + src->name() +
+                       " is not made of ColVariable" );
+  else
+   check_count( count_static< ColVariable >( sv[ i ] ) ,
+                count_static< ColVariable >(
+                                     dst->access_static_variable( i ) ) ,
+                "static Variable group " + std::to_string( i ) + " of " +
+                src->name() );
+  }
+
+ auto & dv = src->get_dynamic_variables();
+ for( Index i = 0 ; i < dv.size() ; ++i ) {
+  dst->add_dynamic_variable( std::string( src->get_d_var_name( i ) ) );
+  if( ! mirror_dynamic_group< ColVariable >(
+         dv[ i ] , dst->access_dynamic_variable( i ) , take ) )
+   v_issues.push_back( "dynamic Variable group " + std::to_string( i ) +
+                       " of " + src->name() +
+                       " is not made of ColVariable" );
+  else
+   check_count( count_dynamic< ColVariable >( dv[ i ] ) ,
+                count_dynamic< ColVariable >(
+                                     dst->access_dynamic_variable( i ) ) ,
+                "dynamic Variable group " + std::to_string( i ) + " of " +
+                src->name() );
+  }
+
+ // the inner Block: a Constraint of any of them may use their Variable
+ for( Index i = 0 ; i < src->get_number_nested_Blocks() ; ++i ) {
+  auto inner = new AbstractBlock( dst );
+  inner->set_name( std::string( src->get_nested_Block( i )->name() ) );
+  dst->add_nested_Block( inner );
+  mirror_variables( src->get_nested_Block( i ) , inner );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void AbstractBlock::mirror_constraints( Block * src , AbstractBlock * dst )
+{
+ auto var_of = [ this ]( ColVariable * v ) -> ColVariable * {
+  auto it = f_v_map.find( v );
+  return( it != f_v_map.end() ? it->second : v );
+  };
+
+ /* A FRowConstraint whose Function cannot be written on the Variable of the
+  * copy is left there with an empty Function and free sides, i.e., as the
+  * row that says nothing: the copy is then a relaxation of the original, and
+  * the issue says which row made it one. */
+
+ auto take_frow = [ & ]( FRowConstraint & s , FRowConstraint & d ) {
+  d.set_Block( dst );
+  auto nf = mirror_Function( s.get_function() );
+  if( ! nf ) {
+   v_issues.push_back( "the Function of a FRowConstraint of " + src->name() +
+                       " cannot be written on other Variable, the row is "
+                       "relaxed" );
+   d.set_function( new LinearFunction() , eNoMod );
+   d.set_lhs( -Inf< RowConstraint::RHSValue >() , eNoMod );
+   d.set_rhs( Inf< RowConstraint::RHSValue >() , eNoMod );
+   return;
+   }
+  d.set_function( nf , eNoMod );
+  d.set_lhs( s.get_lhs() , eNoMod );
+  d.set_rhs( s.get_rhs() , eNoMod );
+  f_c_map[ & s ] = & d;
+  };
+
+ /* The OneVarConstraint family: the concrete type is what says which sides
+  * the constraint has, so the copy is of the very same type and only the
+  * sides that the type does not fix are set. */
+
+ auto take_one = [ & ]( OneVarConstraint & s , OneVarConstraint & d ) {
+  d.set_Block( dst );
+  d.set_variable( var_of( static_cast< ColVariable * >(
+                                         s.get_active_var( 0 ) ) ) , eNoMod );
+  f_c_map[ & s ] = & d;
+  };
+
+ auto box = [ & ]( BoxConstraint & s , BoxConstraint & d ) {
+  take_one( s , d );
+  d.set_lhs( s.get_lhs() , eNoMod );
+  d.set_rhs( s.get_rhs() , eNoMod );
+  };
+ auto lb0 = [ & ]( LB0Constraint & s , LB0Constraint & d ) {
+  take_one( s , d ); d.set_rhs( s.get_rhs() , eNoMod ); };
+ auto ub0 = [ & ]( UB0Constraint & s , UB0Constraint & d ) {
+  take_one( s , d ); d.set_lhs( s.get_lhs() , eNoMod ); };
+ auto lbc = [ & ]( LBConstraint & s , LBConstraint & d ) {
+  take_one( s , d ); d.set_lhs( s.get_lhs() , eNoMod ); };
+ auto ubc = [ & ]( UBConstraint & s , UBConstraint & d ) {
+  take_one( s , d ); d.set_rhs( s.get_rhs() , eNoMod ); };
+ auto nnc = [ & ]( NNConstraint & s , NNConstraint & d ) { take_one( s , d ); };
+ auto npc = [ & ]( NPConstraint & s , NPConstraint & d ) { take_one( s , d ); };
+ auto zoc = [ & ]( ZOConstraint & s , ZOConstraint & d ) { take_one( s , d ); };
+
+ auto & sc = src->get_static_constraints();
+ for( Index i = 0 ; i < sc.size() ; ++i ) {
+  dst->add_static_constraint( std::string( src->get_s_const_name( i ) ) );
+  auto & any = dst->access_static_constraint( i );
+
+  const std::string what = "static Constraint group " +
+                           std::to_string( i ) + " of " + src->name();
+
+  const bool done =
+   ( mirror_static_group< FRowConstraint >( sc[ i ] , any , take_frow ) &&
+     check_count( count_static< FRowConstraint >( sc[ i ] ) ,
+                  count_static< FRowConstraint >( any ) , what ) ) ||
+   ( mirror_static_group< BoxConstraint >( sc[ i ] , any , box ) &&
+     check_count( count_static< BoxConstraint >( sc[ i ] ) ,
+                  count_static< BoxConstraint >( any ) , what ) ) ||
+   ( mirror_static_group< LB0Constraint >( sc[ i ] , any , lb0 ) &&
+     check_count( count_static< LB0Constraint >( sc[ i ] ) ,
+                  count_static< LB0Constraint >( any ) , what ) ) ||
+   ( mirror_static_group< UB0Constraint >( sc[ i ] , any , ub0 ) &&
+     check_count( count_static< UB0Constraint >( sc[ i ] ) ,
+                  count_static< UB0Constraint >( any ) , what ) ) ||
+   ( mirror_static_group< LBConstraint >( sc[ i ] , any , lbc ) &&
+     check_count( count_static< LBConstraint >( sc[ i ] ) ,
+                  count_static< LBConstraint >( any ) , what ) ) ||
+   ( mirror_static_group< UBConstraint >( sc[ i ] , any , ubc ) &&
+     check_count( count_static< UBConstraint >( sc[ i ] ) ,
+                  count_static< UBConstraint >( any ) , what ) ) ||
+   ( mirror_static_group< NNConstraint >( sc[ i ] , any , nnc ) &&
+     check_count( count_static< NNConstraint >( sc[ i ] ) ,
+                  count_static< NNConstraint >( any ) , what ) ) ||
+   ( mirror_static_group< NPConstraint >( sc[ i ] , any , npc ) &&
+     check_count( count_static< NPConstraint >( sc[ i ] ) ,
+                  count_static< NPConstraint >( any ) , what ) ) ||
+   ( mirror_static_group< ZOConstraint >( sc[ i ] , any , zoc ) &&
+     check_count( count_static< ZOConstraint >( sc[ i ] ) ,
+                  count_static< ZOConstraint >( any ) , what ) );
+
+  if( ! done )
+   v_issues.push_back( "static Constraint group " + std::to_string( i ) +
+                       " of " + src->name() + " is of a type the mirror "
+                       "does not know, the group is empty in the copy" );
+  }
+
+ auto & dc = src->get_dynamic_constraints();
+ for( Index i = 0 ; i < dc.size() ; ++i ) {
+  dst->add_dynamic_constraint( std::string( src->get_d_const_name( i ) ) );
+  auto & any = dst->access_dynamic_constraint( i );
+
+  const std::string what = "dynamic Constraint group " +
+                           std::to_string( i ) + " of " + src->name();
+
+  const bool done =
+   ( mirror_dynamic_group< FRowConstraint >( dc[ i ] , any , take_frow ) &&
+     check_count( count_dynamic< FRowConstraint >( dc[ i ] ) ,
+                  count_dynamic< FRowConstraint >( any ) , what ) ) ||
+   ( mirror_dynamic_group< BoxConstraint >( dc[ i ] , any , box ) &&
+     check_count( count_dynamic< BoxConstraint >( dc[ i ] ) ,
+                  count_dynamic< BoxConstraint >( any ) , what ) ) ||
+   ( mirror_dynamic_group< LB0Constraint >( dc[ i ] , any , lb0 ) &&
+     check_count( count_dynamic< LB0Constraint >( dc[ i ] ) ,
+                  count_dynamic< LB0Constraint >( any ) , what ) ) ||
+   ( mirror_dynamic_group< UB0Constraint >( dc[ i ] , any , ub0 ) &&
+     check_count( count_dynamic< UB0Constraint >( dc[ i ] ) ,
+                  count_dynamic< UB0Constraint >( any ) , what ) ) ||
+   ( mirror_dynamic_group< LBConstraint >( dc[ i ] , any , lbc ) &&
+     check_count( count_dynamic< LBConstraint >( dc[ i ] ) ,
+                  count_dynamic< LBConstraint >( any ) , what ) ) ||
+   ( mirror_dynamic_group< UBConstraint >( dc[ i ] , any , ubc ) &&
+     check_count( count_dynamic< UBConstraint >( dc[ i ] ) ,
+                  count_dynamic< UBConstraint >( any ) , what ) ) ||
+   ( mirror_dynamic_group< NNConstraint >( dc[ i ] , any , nnc ) &&
+     check_count( count_dynamic< NNConstraint >( dc[ i ] ) ,
+                  count_dynamic< NNConstraint >( any ) , what ) ) ||
+   ( mirror_dynamic_group< NPConstraint >( dc[ i ] , any , npc ) &&
+     check_count( count_dynamic< NPConstraint >( dc[ i ] ) ,
+                  count_dynamic< NPConstraint >( any ) , what ) ) ||
+   ( mirror_dynamic_group< ZOConstraint >( dc[ i ] , any , zoc ) &&
+     check_count( count_dynamic< ZOConstraint >( dc[ i ] ) ,
+                  count_dynamic< ZOConstraint >( any ) , what ) );
+
+  if( ! done )
+   v_issues.push_back( "dynamic Constraint group " + std::to_string( i ) +
+                       " of " + src->name() + " is of a type the mirror "
+                       "does not know, the group is empty in the copy" );
+  }
+
+ // the Objective, which the copy has only if the original has one
+ if( auto obj = src->get_objective() ) {
+  auto fobj = dynamic_cast< FRealObjective * >( obj );
+  Function * nf = fobj ? mirror_Function( fobj->get_function() ) : nullptr;
+  if( nf ) {
+   auto nobj = new FRealObjective( dst , nf );
+   nobj->set_sense( obj->get_sense() , eNoMod );
+   dst->set_objective( nobj , eNoMod );
+   }
+  else
+   v_issues.push_back( "the Objective of " + src->name() + " cannot be "
+                       "written on other Variable, the copy has none" );
+  }
+
+ for( Index i = 0 ; i < src->get_number_nested_Blocks() ; ++i )
+  mirror_constraints( src->get_nested_Block( i ) ,
+                      static_cast< AbstractBlock * >(
+                                              dst->get_nested_Block( i ) ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void AbstractBlock::mirror( Block * blck )
+{
+ static const std::string _prfx = "AbstractBlock::mirror: ";
+
+ if( ! blck )
+  throw( std::invalid_argument( _prfx + "no Block to mirror" ) );
+
+ if( f_mirrored )
+  throw( std::logic_error( _prfx + "this AbstractBlock mirrors one already" ) );
+
+ if( get_number_static_variables() || get_number_dynamic_variables() ||
+     get_number_static_constraints() || get_number_dynamic_constraints() ||
+     get_number_nested_Blocks() || get_objective() )
+  throw( std::logic_error( _prfx + "the AbstractBlock is not empty" ) );
+
+ f_mirrored = blck;
+
+ /* Two passes over the subtree: a Constraint of any of its Block can be
+  * written in the Variable of any other, hence every Variable has to have
+  * its copy before the first Constraint is copied. */
+
+ mirror_variables( blck , this );
+ mirror_constraints( blck , this );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void AbstractBlock::mirror_read( void )
+{
+ for( auto & el : f_v_map )
+  el.second->set_value( el.first->get_value() );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void AbstractBlock::mirror_write( void )
+{
+ for( auto & el : f_v_map )
+  const_cast< ColVariable * >( el.first )->set_value( el.second->get_value() );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool AbstractBlock::mirror_Function_changed( const Function * fnct )
+{
+ /* Which Constraint, or Objective, the Function belongs to is not said by
+  * the Modification: it is the Observer of the Function. The copy of the
+  * Function is rebuilt whole, which costs the length of the row and spares
+  * the reading of which coefficients the Modification carries, there being
+  * one such Modification per change and not per coefficient. */
+
+ if( ! fnct )
+  return( false );
+
+ auto obs = fnct->get_Observer();
+
+ if( auto cns = dynamic_cast< const FRowConstraint * >( obs ) ) {
+  auto dst = dynamic_cast< FRowConstraint * >( mirror_of( cns ) );
+  if( ! dst )
+   return( false );
+  auto nf = mirror_Function( fnct );
+  if( ! nf )
+   return( false );
+  dst->set_function( nf , eNoMod , true );
+  return( true );
+  }
+
+ if( dynamic_cast< const FRealObjective * >( obs ) ) {
+  auto dst = dynamic_cast< FRealObjective * >( get_objective() );
+  if( ! dst )
+   return( false );
+  auto nf = mirror_Function( fnct );
+  if( ! nf )
+   return( false );
+  dst->set_function( nf , eNoMod , true );
+  return( true );
+  }
+
+ return( false );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool AbstractBlock::mirror_forward_Modification( c_p_Mod mod )
+{
+ if( ( ! f_mirrored ) || ( ! mod ) )
+  return( false );
+
+ if( auto gm = dynamic_cast< const GroupModification * >( mod ) ) {
+  for( auto & sm : gm->sub_Modifications() )
+   if( ! mirror_forward_Modification( sm.get() ) )
+    return( false );
+  return( true );
+  }
+
+ // the coefficients of a Function, whatever kind of change it is
+ if( auto fm = dynamic_cast< const FunctionMod * >( mod ) )
+  return( mirror_Function_changed( fm->function() ) );
+
+ // a side of a RowConstraint
+ if( auto cm = dynamic_cast< const RowConstraintMod * >( mod ) ) {
+  auto src = dynamic_cast< RowConstraint * >( cm->constraint() );
+  if( ! src )
+   return( false );
+  auto dst = mirror_of( src );
+  if( ! dst )
+   return( false );
+
+  switch( cm->type() ) {
+   case( RowConstraintMod::eChgLHS ):
+    dst->set_lhs( src->get_lhs() , eNoMod );
+    break;
+   case( RowConstraintMod::eChgRHS ):
+    dst->set_rhs( src->get_rhs() , eNoMod );
+    break;
+   case( RowConstraintMod::eChgBTS ):
+    dst->set_lhs( src->get_lhs() , eNoMod );
+    dst->set_rhs( src->get_rhs() , eNoMod );
+    break;
+   default:
+    return( false );
+   }
+
+  return( true );
+  }
+
+ // the type or the fixing of a ColVariable
+ if( auto vm = dynamic_cast< const VariableMod * >( mod ) ) {
+  auto src = dynamic_cast< const ColVariable * >( vm->variable() );
+  if( ! src )
+   return( false );
+  auto dst = mirror_of( src );
+  if( ! dst )
+   return( false );
+  dst->set_type( src->get_type() , eNoMod );
+  dst->is_fixed( src->is_fixed() , eNoMod );
+  if( src->is_fixed() )
+   dst->set_value( src->get_value() );
+  return( true );
+  }
+
+ // the sense of the Objective
+ if( auto om = dynamic_cast< const ObjectiveMod * >( mod ) ) {
+  auto dst = get_objective();
+  if( ( ! dst ) || ( ! om->of() ) )
+   return( false );
+  dst->set_sense( om->of()->get_sense() , eNoMod );
+  return( true );
+  }
+
+ return( false );   // a change of the shape, or one this does not know
+ }
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- End File AbstractBlock.cpp --------------------------*/

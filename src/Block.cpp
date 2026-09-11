@@ -24,6 +24,7 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include "AbstractBlock.h"
 #include "Block.h"
 #include "Constraint.h"
 #include "Objective.h"
@@ -1172,6 +1173,76 @@ void BlockConfig::deserialize( const netCDF::NcGroup & group )
  f_extra_Configuration = new_Configuration( cg );
 
  }  // end( BlockConfig::deserialize( group ) )
+
+/*--------------------------------------------------------------------------*/
+/*-------------------- THE R3 Block EVERY Block HAS ------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/* An AbstractBlock that has mirrored this Block is a R3 Block of it that this
+ * Block has not had to write a line for: the mirror holds the map between the
+ * two, hence it is the mirror that does the mapping, in either direction [see
+ * AbstractBlock::mirror()]. */
+
+static AbstractBlock * as_mirror( Block * blck , Block * R3B )
+{
+ auto ab = dynamic_cast< AbstractBlock * >( R3B );
+ return( ( ab && ( ab->get_mirrored() == blck ) ) ? ab : nullptr );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void Block::map_back_solution( Block * R3B , Configuration * r3bc ,
+                               Configuration * solc )
+{
+ if( auto ab = as_mirror( this , R3B ) ) {
+  ab->mirror_write();
+  return;
+  }
+
+ throw( std::invalid_argument( "R3 Block type not supported" ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void Block::map_forward_solution( Block * R3B , Configuration * r3bc ,
+                                  Configuration * solc )
+{
+ if( auto ab = as_mirror( this , R3B ) ) {
+  ab->mirror_read();
+  return;
+  }
+
+ throw( std::invalid_argument( "R3 Block type not supported" ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool Block::map_forward_Modification( Block * R3B , c_p_Mod mod ,
+                                      Configuration * r3bc ,
+                                      ModParam issuePMod , ModParam issueAMod )
+{
+ /* The mirror is asked first, and whatever Block of the subtree the
+  * Modification comes from: the map it holds covers the whole of it. */
+
+ if( auto ab = as_mirror( this , R3B ) )
+  return( ab->mirror_forward_Modification( mod ) );
+
+ if( mod->get_Block() == this )
+  return( false );
+
+ auto i = get_nested_Block_index( mod->get_Block() );
+ if( ( i >= get_number_nested_Blocks() ) ||
+     ( i >= R3B->get_number_nested_Blocks() ) )
+  return( false );
+
+ auto cv = dynamic_cast< SimpleConfiguration< std::vector< Configuration * > >
+                         * >( r3bc );
+
+ return( mod->get_Block()->map_forward_Modification(
+          R3B->get_nested_Block( i ) , mod ,
+          ( cv && ( cv->f_value.size() > i ) ) ? cv->f_value[ i ] : nullptr ,
+          issuePMod , issueAMod ) );
+ }
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ End File Block.cpp ------------------------------*/
