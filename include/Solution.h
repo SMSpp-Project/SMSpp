@@ -381,6 +381,19 @@ class Solution
  virtual void write( Block * const block ) {};
 
 /*--------------------------------------------------------------------------*/
+ /// tells whether this Solution holds a solution or a direction
+ /** Returns true if what this Solution holds is not a solution but a
+  * direction, i.e., a ray of the feasible region of the Block along which
+  * its Objective is unbounded; the same distinction Block::is_direction()
+  * makes for what the Variable hold, and made here so that whoever receives
+  * a Solution knows which of the two it has in hand.
+  *
+  * The default is false, a Solution being a solution unless the :Solution of
+  * a Block that has rays says otherwise. */
+
+ [[nodiscard]] virtual bool is_direction( void ) const { return( false ); }
+
+/*--------------------------------------------------------------------------*/
  /// returns a scaled version of this Solution
  /** This method constructs and returns a scaled version of this Solution,
   * where each of the solution information is scaled by the given double

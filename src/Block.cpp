@@ -28,6 +28,7 @@
 #include "Block.h"
 #include "Constraint.h"
 #include "Objective.h"
+#include "Solution.h"
 #include "Variable.h"
 
 /*--------------------------------------------------------------------------*/
@@ -428,6 +429,63 @@ void Block::set_objective( Objective * newOF , c_ModParam issueMod )
   add_Modification( std::make_shared< BlockMod >(
    this , Observer::par2concern( issueMod ) ) );
 }
+
+/*--------------------------------------------------------------------------*/
+/*------------------ Methods for checking the Block ------------------------*/
+/*--------------------------------------------------------------------------*/
+
+// a Solution can only be checked against the Constraint through the Variable
+// they are written on: the values have to be put there, and what was there
+// has to be put back, so that the state of the Block is left as it was
+
+template< typename Check >
+static bool check_Solution( Block * blck , Solution * sol , Check && check )
+{
+ if( ! sol )
+  return( false );
+
+ auto current = blck->get_Solution( nullptr , false );
+
+ // a Solution that holds a direction has to be checked as one; the Block
+ // may have been told so already by whoever has the two apart, which is why
+ // the flag is only ever raised here and put back as it was found
+ const bool wasdir = blck->is_direction();
+ if( sol->is_direction() && ( ! wasdir ) && blck->has_directions() )
+  blck->is_direction( true );
+
+ sol->write( blck );
+ const bool answer = check();
+
+ if( blck->is_direction() != wasdir )
+  blck->is_direction( wasdir );
+
+ if( current ) {
+  current->write( blck );
+  delete current;
+  }
+
+ return( answer );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool Block::is_sol_feasible( Solution * sol , Configuration * fsbc )
+{
+ return( check_Solution( this , sol ,
+                         [ this , fsbc ]() {
+                          return( is_feasible( true , fsbc ) );
+                          } ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool Block::is_sol_optimal( Solution * sol , Configuration * optc )
+{
+ return( check_Solution( this , sol ,
+                         [ this , optc ]() {
+                          return( is_optimal( true , optc ) );
+                          } ) );
+ }
 
 /*--------------------------------------------------------------------------*/
 /*------------- METHODS DESCRIBING THE BEHAVIOR OF AN Observer -------------*/

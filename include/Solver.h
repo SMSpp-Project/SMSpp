@@ -1730,6 +1730,27 @@ class Solver : public ThinComputeInterface
  [[nodiscard]] virtual Solution * get_Solution(
 					    Configuration * solc = nullptr );
 
+/*--------------------------------------------------------------------------*/
+ /// true if get_Solution() does not write in the Variable of the Block
+ /** Returns true if get_Solution() builds the Solution out of the data
+  * structures of the Solver, leaving the Variable of the Block alone, and
+  * false if it rather goes through them, which is what the default
+  * implementation does; a "physical" Solver re-implementing get_Solution()
+  * is expected to say so here.
+  *
+  * The caller needs the answer *before* the call: it is the one that has to
+  * decide whether the Block is to be lock()-ed and whether what the Variable
+  * hold is worth saving, and a Solution that comes back with the answer
+  * attached would tell it when the damage is done. Hence a Solver that is
+  * only physical for some of the Solution it can be asked for, the
+  * Configuration deciding which, has to answer false: the answer has to
+  * hold for the call that is about to be made, and which one that is is not
+  * known here. */
+
+ [[nodiscard]] virtual bool is_get_Solution_physical( void ) const {
+  return( false );
+  }
+
 /** @} ---------------------------------------------------------------------*/
 /*-------------- METHODS FOR READING THE DATA OF THE Solver ----------------*/
 /*--------------------------------------------------------------------------*/

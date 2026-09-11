@@ -1144,13 +1144,10 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
     if( g_pool[ i ].sol ) {  // a Solution is there
      ++cnt;
 
-     // write it in the Variable of the inner Block
-     g_pool[ i ].sol->write( v_Block.front() );
-     LastSolution = i;  // and recall what's there
-
-     // check it's still a feasible solution/direction
-     bool feas = g_pool[ i ].varsol ? v_Block.front()->is_feasible()
-                                    : v_Block.front()->is_unbounded();
+     // check it's still a feasible solution/direction: the Block is told
+     // which of the two it is being handed and answers with one method
+     const bool feas = check_Solution( g_pool[ i ].sol ,
+                                       g_pool[ i ].varsol );
      if( ! feas ) {              // if not
       delete g_pool[ i ].sol;  // eliminate it
       g_pool[ i ].sol = nullptr;
@@ -1392,12 +1389,9 @@ void LagBFunction::put_State( const State & state )
   if( ChkState )  // if Solutions are checked
    for( Index i = 0 ; i < s.g_pool.size() ; ++i ) {
     if( s.g_pool[ i ].sol ) {
-     // write the Solution to the inner Block
-     s.g_pool[ i ].sol->write( v_Block.front() );
-
-     // if it's still a feasible solution/direction, copy it
-     if( ( s.g_pool[ i ].varsol ? v_Block.front()->is_feasible()
-	                        : v_Block.front()->is_unbounded() ) ) {
+     // if it's still a feasible solution/direction, copy it: the Block is
+     // told which of the two it is being handed and answers with one method
+     if( check_Solution( s.g_pool[ i ].sol , s.g_pool[ i ].varsol ) ) {
       gpit->sol = s.g_pool[ i ].sol->clone();  // clone() the Solution in
       gpit->varsol = s.g_pool[ i ].varsol;
       gpit->value = s.g_pool[ i ].value;            // eager/lazy constant
@@ -1486,12 +1480,9 @@ void LagBFunction::put_State( State && state )
   if( ChkState )  // if Solutions are checked
    for( Index i = 0 ; i < s.g_pool.size() ; ++i ) {
     if( s.g_pool[ i ].sol ) {
-     // write the Solution to the inner Block
-     s.g_pool[ i ].sol->write( v_Block.front() );
-
-     // if it's still a feasible solution/direction, copy it
-     if( ( s.g_pool[ i ].varsol ? v_Block.front()->is_feasible()
-	                        : v_Block.front()->is_unbounded() ) ) {
+     // if it's still a feasible solution/direction, copy it: the Block is
+     // told which of the two it is being handed and answers with one method
+     if( check_Solution( s.g_pool[ i ].sol , s.g_pool[ i ].varsol ) ) {
       gpit->sol = s.g_pool[ i ].sol;  // move the Solution in
       s.g_pool[ i ].sol = nullptr;      // delete it from the State
       gpit->varsol = s.g_pool[ i ].varsol;

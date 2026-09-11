@@ -692,6 +692,26 @@ class AbstractBlock : public Block
                    Configuration * fsbc = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
+ /// tells whether the Variable hold a solution or a direction
+
+ [[nodiscard]] bool is_direction( void ) const override {
+  return( f_is_direction );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// tells the AbstractBlock that its Variable hold a direction
+ /** An AbstractBlock can be given a direction: what its Variable hold is
+  * then checked against the homogeneous version of the Constraint, which
+  * is why is_feasible() only accepts linear ones while the flag is up. */
+
+ void is_direction( bool yesno ) override { f_is_direction = yesno; }
+
+/*--------------------------------------------------------------------------*/
+ /// an AbstractBlock can be given a direction, so it can be asked about one
+
+ [[nodiscard]] bool has_directions( void ) const override { return( true ); }
+
+/*--------------------------------------------------------------------------*/
  /// several sanity checks
  /** This debug method implements a bunch of sanity checks on the "abstract"
   * (which is the only) representation of the AbstractBlock, such as:
@@ -861,6 +881,8 @@ class AbstractBlock : public Block
  Index f_1st_dyn_cnst;    ///< the first available group of dynamic Constraint
 
  bool f_res_obj;          ///< if the Objective is not available
+
+ bool f_is_direction = false;  ///< if the Variable hold a direction
 
  Index f_1st_sub_block;   ///< the first available inner Block;
 

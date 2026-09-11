@@ -4334,10 +4334,61 @@ class Block : public Observer {
  *  @{ */
 
 /*--------------------------------------------------------------------------*/
+ /// tells whether the Variable of the Block hold a solution or a direction
+ /** Returns true if what the Variable of the Block currently hold is not a
+  * solution but a direction, i.e., a ray of the feasible region along which
+  * the Objective is unbounded (below for a minimization problem, above for
+  * a maximization one).
+  *
+  * The distinction matters because a ray is not checked as a solution is: a
+  * solution has to satisfy the Constraint, a ray has to satisfy their
+  * homogeneous version. is_feasible() therefore asks this method what it is
+  * looking at, which is why one method is enough for both.
+  *
+  * The default is false, which is right for the many Block whose feasible
+  * region is compact and that rays therefore do not have at all. */
+
+ [[nodiscard]] virtual bool is_direction( void ) const { return( false ); }
+
+/*--------------------------------------------------------------------------*/
+ /// tells the Block that its Variable hold a direction
+ /** Tells the Block that what its Variable hold is a direction rather than a
+  * solution, which is something the Solver that writes them knows and the
+  * Block has no way of finding out on its own.
+  *
+  * The default implementation only accepts being told "no", a Block with no
+  * rays having nothing to remember; a :Block that has them keeps the flag
+  * and returns it in is_direction(). */
+
+ virtual void is_direction( bool yesno ) {
+  if( yesno )
+   throw( std::invalid_argument( "Block::is_direction: this Block has no "
+                                 "directions" ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// true if this Block can be told that its Variable hold a direction
+ /** Returns true if is_direction( bool ) accepts being told "yes", i.e., if
+  * this Block knows what a direction of its own is. A Block that does not
+  * cannot answer a question about a ray at all, which is a different thing
+  * from answering that the ray is not one: whoever has a ray to check has
+  * to ask this first, and decide what to do with an answer it cannot get.
+  */
+
+ [[nodiscard]] virtual bool has_directions( void ) const { return( false ); }
+
+/*--------------------------------------------------------------------------*/
  /// returns true if the current solution is (approximately) feasible
  /** Returns true if the solution encoded in the current value of the
   * Variable of the Block is approximately feasible within the given
   * tolerances.
+  *
+  * What the Variable hold need not be a solution: if is_direction() says
+  * that it is a direction, the check is the one a ray has to pass, i.e.,
+  * feasibility w.r.t. the homogeneous version of the Constraint, the ray
+  * having to keep the point inside the feasible region however far one
+  * moves along it. This is why there is no separate method for the two: the
+  * Block knows which of the two it is looking at.
   *
   * The useabstract parameter being true dictates that the solution should be
   * checked for feasibility w.r.t. "abstract representation" of the Block,
@@ -4443,9 +4494,10 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
  /// returns true if the solution in the Solution is (approximately) feasible
  /** Returns true if the solution encoded in the Solution object sol is
-  * approximately feasible within the given tolerances. The state of the
-  * Block, in particular the value of its Variable, is irrelevant here and
-  * it is left untouched.
+  * approximately feasible within the given tolerances. What the Variable of
+  * the Block currently hold is irrelevant here, the values being read out of
+  * sol; whether they are also left untouched is a different matter, and it
+  * is what is_sol_feasible_physical() answers.
   *
   * This is the "physical" counterpart of is_feasible( bool , Configuration *
   * ): that one reads the solution out of the Variable of the Block, hence
@@ -4467,9 +4519,14 @@ class Block : public Observer {
   * Configuration * ), the fact that it overrides the corresponding field of
   * the BlockConfig included.
   *
-  * No default implementation is given: only the :Block knows what its
-  * :Solution carries and how to check it, hence a :Block that does not
-  * implement this method throws.
+  * The method is given a default implementation that goes through the
+  * Variable of the Block: what they hold is saved, sol is written in, the
+  * check is done by is_feasible( true , fsbc ) and what was there is put
+  * back. This makes the method available for any :Block, at the price of
+  * requiring the "abstract representation" to exist and of touching the
+  * Variable while it runs; is_sol_feasible_physical() is what tells the two
+  * cases apart. A :Block that can read its own :Solution directly is
+  * expected to override this method, and to say so there.
   *
   * The name differs from that of is_feasible( bool , Configuration * ) on
   * purpose: were the two overloads of one name, a :Block overriding the
@@ -4478,9 +4535,22 @@ class Block : public Observer {
   * is_feasible( true ), i.e., a check of something else entirely. */
 
  virtual bool is_sol_feasible( Solution * sol ,
-			       Configuration * fsbc = nullptr ) {
-  throw( std::logic_error( "Block::is_sol_feasible: checking a Solution is "
-			   "not implemented for this :Block" ) );
+			       Configuration * fsbc = nullptr );
+
+/*--------------------------------------------------------------------------*/
+ /// true if is_sol_feasible() does not touch the Variable of the Block
+ /** Returns true if is_sol_feasible() reads the solution out of the Solution
+  * it is given, leaving the Variable of the Block alone, and false if it
+  * rather goes through them, which is what the default implementation does.
+  *
+  * The caller needs to know this *before* the call, and not after: it is the
+  * one that has to decide whether the Block is to be locked and whether what
+  * the Variable hold is worth saving. Hence the question is answered by a
+  * method of its own rather than by the check returning it alongside its
+  * result. */
+
+ [[nodiscard]] virtual bool is_sol_feasible_physical( void ) const {
+  return( false );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -4588,74 +4658,24 @@ class Block : public Observer {
   * Configuration * ), the fact that it overrides the corresponding field of
   * the BlockConfig included.
   *
-  * No default implementation is given, for the same reason as in
-  * is_sol_feasible( Solution * , Configuration * ), and the name differs
-  * from that of is_optimal( bool , Configuration * ) for the same reason as
-  * well. */
+  * The default implementation is the one of is_sol_feasible( Solution * ,
+  * Configuration * ), i.e., writing sol in the Variable of the Block and
+  * asking is_optimal( true , optc ), and the name differs from that of
+  * is_optimal( bool , Configuration * ) for the same reason as well. */
 
  virtual bool is_sol_optimal( Solution * sol ,
-			      Configuration * optc = nullptr ) {
-  throw( std::logic_error( "Block::is_sol_optimal: checking a Solution is "
-			   "not implemented for this :Block" ) );
-  }
+			      Configuration * optc = nullptr );
 
 /*--------------------------------------------------------------------------*/
- /// returns true if the current solution is an unbounded ray
- /** Returns true if the values stored in the Variable of the Block are a
-  * certificate that the problem is unbounded (either below, if it is a
-  * minimization problem, or above if it is a maximization one). Often this
-  * means that the values represent a ray of the feasible region along which
-  * the Objective is unbounded (either below or above). Note that the
-  * existence of an unbounded ray is not, strictly speaking, enough to prove
-  * that the problem is unbounded: this also requires the problem to be
-  * non-empty. This method is only required to check that the Variable
-  * encode for a proper ray, with non-emptiness having to be established
-  * in different ways (basically, this is a remit of the Solver).
-  *
-  * The useabstract parameter being true dictates that the check should be
-  * performed using the "abstract representation" of the Block, otherwise
-  * the "physical representation" of the Block should be used. See the
-  * comments to is_feasible() for the cases where the check using the
-  * "abstract representation" may give different results that that using
-  * the "physical" one. Also, as in is_feasible(), this value has to be taken
-  * as a clue rather than as an order, in the sense that if the required
-  * representation is not available then the Block should still do its best
-  * to return a meaningful return value with the information it does possess,
-  * even if not the intended one
-  *
-  * Checking the property is likely to entail some numerical computation, say
-  * to verify that some matrix-vector scalar product is "zero". This may
-  * require numerical accuracy parameters, which is what the parameter fsbc
-  * is designed to provide. If non-null, it is meant to point to an
-  * arbitrarily complex Configuration object (although it can in fact be
-  * as simple as a SimpleConfiguration< double > specifying, say, the maximum
-  * relative accuracy in a "x == 0" computation). Also, the parameter can be
-  * used to specify that only "a part" of the check, say considering only a
-  * subset of the Variable, need be performed.
-  *
-  * Note that the fsbc parameter is meant as an *override* of the default
-  * Configuration for is_feasible() set by means of set_BlockConfig(). That
-  * is, if the method is called with fsbc = nullptr then the corresponding
-  * configuration from the BlockConfig() is used. If the BlockConfig is not
-  * set (nullptr) or the corresponding field is not set (nullptr), some
-  * default value will have to be used. Note that the rationale for re-using
-  * the is_feasible() configuration is mostly to avoid excessive proliferation
-  * of Configuration objects in a Block; however, this also makes sense in at
-  * least some important cases. For instance, in Linear Programming the
-  * numerical tolerances for defining "a solution is feasible" and "a vector
-  * is an unbounded ray" are basically the same. Yet, a Configuration object
-  * can contain arbitrarily many values, so if the is_feasible() Configuration
-  * requires more values to be specified to also cover the use within this
-  * method, this can always be done.
-  *
-  * The method is given a default implementation always returning false, which
-  * is appropriate for Block which cannot ever be unbounded (say, the feasible
-  * region is compact). */
+ /// true if is_sol_optimal() does not touch the Variable of the Block
+ /** Returns true if is_sol_optimal() reads the solution out of the Solution
+  * it is given, leaving the Variable of the Block alone, and false if it
+  * rather goes through them, exactly as is_sol_feasible_physical() does for
+  * is_sol_feasible(). */
 
- virtual bool is_unbounded( bool useabstract = false,
-                            Configuration * fsbc = nullptr ) {
-  return( true );
- }
+ [[nodiscard]] virtual bool is_sol_optimal_physical( void ) const {
+  return( false );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns true if the Block provably has no feasible solutions

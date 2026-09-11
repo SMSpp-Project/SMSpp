@@ -227,12 +227,60 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
 
  bool feas = true;
 
- // check if a RowConstraint is satisfied, but without computing it
- auto check_feasibility = [ & feas , eps , rel_viol ]( auto & cnst ) {
+ // a direction is feasible if it satisfies the homogeneous version of the
+ // Constraint: with a finite right-hand side the row must not grow along the
+ // ray, with a finite left-hand side it must not shrink, and an infinite
+ // side asks nothing at all
+ auto check_direction = [ & feas , eps ]( const RowConstraint & cnst ,
+                                          double value ) {
+                         double viol = 0;
+                         if( cnst.get_rhs() < RowConstraint::RHSINF )
+                          viol = value;
+                         if( cnst.get_lhs() > - RowConstraint::RHSINF )
+                          viol = std::max( viol , - value );
+                         feas = ( viol <= eps ); };
+
+ // check if a OneVarConstraint is satisfied, but without computing it; the
+ // row of a OneVarConstraint is the Variable itself, hence its homogeneous
+ // version is the value of the Variable
+ auto check_feasibility = [ & feas , eps , rel_viol , this ,
+                            & check_direction ]( auto & cnst ) {
                            if( ( ! feas ) || cnst.is_relaxed() )
                             return;
+                           if( f_is_direction ) {
+                            check_direction( cnst , static_cast< ColVariable * >(
+                             cnst.get_active_var( 0 ) )->get_value() );
+                            return;
+                            }
                            feas = ( ( rel_viol ? cnst.rel_viol() :
                                       cnst.abs_viol() ) <= eps ); };
+
+ // check if a FRowConstraint is satisfied; a direction is only checked
+ // against a linear row, a Function of any other kind having no homogeneous
+ // version to check it against
+ auto check_frow = [ & feas , eps , rel_viol , this , & check_direction ]
+                   ( FRowConstraint & cnst ) {
+                    if( ( ! feas ) || cnst.is_relaxed() )
+                     return;
+                    if( auto ret = cnst.compute() ;
+                        ( ret <= FRowConstraint::kUnEval ) ||
+                        ( ret > FRowConstraint::kOK ) ) {
+                     feas = false;
+                     return;
+                     }
+                    if( f_is_direction ) {
+                     auto lf = dynamic_cast< LinearFunction * >(
+                                                       cnst.get_function() );
+                     if( ! lf )
+                      throw( std::logic_error(
+                       "AbstractBlock::is_feasible: a direction is only "
+                       "checked against linear Constraint" ) );
+                     check_direction( cnst , lf->get_value() -
+                                             lf->get_constant_term() );
+                     return;
+                     }
+                    feas = ( ( rel_viol ? cnst.rel_viol() :
+                               cnst.abs_viol() ) <= eps ); };
 
  // the static Constraints of the Block - - - - - - - - - - - - - - - - - - -
  // note: AbstractBlock::is_feasible() is now checking *all* the abstract
@@ -245,19 +293,7 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
  // auto & sc = get_static_constraints();
  //!! for( Index i = get_first_static_Constraint() ; i < sc.size() ; ++i ) {
  for( auto & sci : get_static_constraints() ) {
-  if( un_any_const_static( sci ,
-                           [ & feas , eps , rel_viol ]
-                           ( FRowConstraint & cnst ) {
-                            if( ( ! feas ) || cnst.is_relaxed() )
-                             return;
-                            if( auto ret = cnst.compute() ;
-                                ( ret <= FRowConstraint::kUnEval ) ||
-                                ( ret > FRowConstraint::kOK ) )
-                             feas = false;
-                            else
-                             feas = ( ( rel_viol ? cnst.rel_viol() :
-                                        cnst.abs_viol() ) <= eps );
-                            } ,
+  if( un_any_const_static( sci , check_frow ,
                            un_any_type< FRowConstraint >() ) ) {
    if( ! feas )
     return( false );
@@ -337,19 +373,7 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
  //!! for( Index i = get_first_dynamic_Constraint() ; i < dc.size() ; ++i ) {
  // see above for comments
  for( auto & dci : get_dynamic_constraints() ) {
-  if( un_any_const_dynamic( dci ,
-                            [ & feas , eps , rel_viol ]
-                            ( FRowConstraint & cnst ) {
-                             if( ( ! feas ) || cnst.is_relaxed() )
-                              return;
-                             if( auto ret = cnst.compute() ;
-                                 ( ret <= FRowConstraint::kUnEval ) ||
-                                 ( ret > FRowConstraint::kOK ) )
-                              feas = false;
-                             else
-                              feas = ( ( rel_viol ? cnst.rel_viol() :
-                                         cnst.abs_viol() ) <= eps );
-                             } ,
+  if( un_any_const_dynamic( dci , check_frow ,
                             un_any_type< FRowConstraint >() ) ) {
    if( ! feas )
     return( false );
