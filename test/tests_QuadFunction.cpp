@@ -93,7 +93,6 @@ void runAllTests()
     assert( nw_quad.compute( true ) == QuadFunction::kOK );   
     assert( nw_quad.get_value() == 14.0 );
     assert( nw_quad.is_convex() ) ;
-
     /* Removing a Range and removing a Subset have to leave the very same
      * function that would have been built on the Variable that stay: the
      * non-diagonal terms of a removed Variable go with it, and those of the
@@ -156,6 +155,7 @@ void runAllTests()
         assert( f->get_num_active_var() == 0 );
         delete f;
         }
+
 }
 
 /*--------------------------------------------------------------------------*/

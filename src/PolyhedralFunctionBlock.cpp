@@ -66,6 +66,20 @@ static constexpr char k_built_var    = 0x4;   // bit 2
 static constexpr char k_built_cnst   = 0x8;   // bit 3
 static constexpr char k_built_obj    = 0x10;  // bit 4
 
+/* The SimpleConfiguration< int > passed to generate_abstract_variables()
+ * uses the next two bits for scaling and the third one for disabling the
+ * objective function. They are stored separately from f_rep because bits
+ * 2 and above of f_rep are construction-state flags. */
+
+static constexpr int k_cfg_scale_local  = 0x4;  // bit 2
+static constexpr int k_cfg_scale_global = 0x8;  // bit 3
+static constexpr int k_cfg_no_objective = 0x10; // bit 4
+
+// A global rescaling updates every scale-dependent coefficient of the
+// abstract representation. Keep a wide hysteresis band so that this
+// remains an occasional batch operation.
+static constexpr double k_global_rescale_ratio = 100.0;
+
 /*--------------------------------------------------------------------------*/
 /*----------------- METHODS of PolyhedralFunctionBlock ---------------------*/
 /*--------------------------------------------------------------------------*/
@@ -90,13 +104,18 @@ void PolyhedralFunctionBlock::generate_abstract_variables(
 
  // record only the representation bits, not the build-status ones
  f_rep |= ( wsol & k_rep_type_mask );
+ f_scaling = ( ( wsol & k_cfg_scale_local ) ? 1 : 0 ) |
+             ( ( wsol & k_cfg_scale_global ) ? 2 : 0 );
+ f_no_objective = ( wsol & k_cfg_no_objective ) != 0;
+ InitialiseScaling();
 
  if( is_linearized() ) {
-  // linearized primal: the static ColVariable "v" is added "in front" of
-  // any pre-existing group, so that even if the AbstractBlock has
-  // constructed some abstract representation already (say, in
-  // deserialize()), "v" is still the first group of static ColVariable
-  f_1st_stat_var = 1;
+  // The physical epigraph variable "v" is always exposed as the first
+  // static ColVariable. With global scaling, cuts use a second internal
+  // variable linked to it by generate_abstract_constraints().
+  f_1st_stat_var = has_global_scaling() ? 2 : 1;
+  if( has_global_scaling() )
+   add_static_variable( f_scaled_v , "PolyF_scaled_v" , true );
   add_static_variable( f_v , "PolyF_v" , true );
   }
  else
@@ -144,14 +163,26 @@ void PolyhedralFunctionBlock::generate_abstract_constraints(
   throw( std::logic_error( "Variable must be generated before Constraint" ) );
 
  if( is_linearized() ) {
-  // linearized primal: bounds on v + linear cuts
-  // add the bounds on v
+  // linearized primal: bounds on physical v + optional scale link + cuts
+  if( has_global_scaling() ) {
+   f_scale_cns.set_lhs( 0.0 , eNoMod );
+   f_scale_cns.set_rhs( 0.0 , eNoMod );
+   f_scale_cns.set_function( new LinearFunction(
+                 { std::make_pair( & f_scaled_v , 1.0 ) ,
+                   std::make_pair( & f_v , - f_global_scale ) } ) , eNoMod );
+
+   // Add the link first: f_bcv is added in front immediately afterwards,
+   // preserving the historical convention that the box is group 0.
+   add_static_constraint( f_scale_cns , "PolyF_v_scale" , true );
+   }
+
+  // add the bounds on the physical epigraph variable
   f_bcv.set_variable( &f_v );
   f_bcv.set_rhs( PF().get_global_upper_bound() , eNoMod );
   f_bcv.set_lhs( PF().get_global_lower_bound() , eNoMod );
 
   // note: the bounds on v are added "in front"
-  f_1st_stat_cnst = 1;
+  f_1st_stat_cnst = has_global_scaling() ? 2 : 1;
   add_static_constraint( f_bcv , "" , true );
 
   // add the linear constraints
@@ -167,23 +198,24 @@ void PolyhedralFunctionBlock::generate_abstract_constraints(
  else
   if( is_dual() ) {
    // linearized dual: the single static normalization constraint
-   //   sum_{i in B_D} theta_i + gamma = 1
-   // (after set_lambda(lambda), lambda is appended with coefficient +1
-   // to the LHS LinearFunction, leaving the RHS at 1; cf. set_lambda())
+   //   sum_{i in B_D} local_scale_i theta_i + gamma = 1 / global_scale
+   // (after set_lambda(lambda), lambda is appended with coefficient
+   // -1 / global_scale to the LHS LinearFunction and the RHS is set to 0;
+   // cf. set_lambda())
    LinearFunction::v_coeff_pair vp;
    vp.reserve( 1 + PF().get_A().size() );
 
    // gamma always appears with coefficient 1, even when it is fixed to 0
    vp.emplace_back( & f_gamma , 1.0 );
 
-   // each non-vertical theta_i appears with coefficient 1
+   // each non-vertical theta_i appears with its local row scale
    auto thit = f_theta.begin();
    for( Index i = 0 ; i < PF().get_A().size() ; ++i , ++thit )
     if( ! PF().is_row_vertical( i ) )
-     vp.emplace_back( & *thit , 1.0 );
+     vp.emplace_back( & *thit , RowScale( i ) );
 
-   f_normcns.set_lhs( 1.0 , eNoMod );
-   f_normcns.set_rhs( 1.0 , eNoMod );
+   f_normcns.set_lhs( 1.0 / f_global_scale , eNoMod );
+   f_normcns.set_rhs( 1.0 / f_global_scale , eNoMod );
    f_normcns.set_function( new LinearFunction( std::move( vp ) ) , eNoMod );
 
    // the normalization is added as the first static constraint
@@ -202,6 +234,12 @@ void PolyhedralFunctionBlock::generate_objective( Configuration * objc )
 {
  if( f_rep & k_built_obj )  // done already
   return;                   // nothing else to do
+
+ // the configuration specified that no objective is to be constructed
+ if( f_no_objective ) {
+  f_rep |= k_built_obj;
+  return;
+  }
 
  if( ! ( f_rep & k_built_var ) )  // variables not constructed
   throw( std::logic_error( "Variable must be generated before Objective" ) );
@@ -224,7 +262,8 @@ void PolyhedralFunctionBlock::generate_objective( Configuration * objc )
                  ? FRealObjective::eMin : FRealObjective::eMax , eNoMod );
 
  if( is_linearized() )
-  obj->set_function( new LinearFunction( { std::make_pair( & f_v , 1 ) } ) );
+  obj->set_function( new LinearFunction(
+                     { std::make_pair( & f_v , 1.0 ) } ) );
  else
   if( is_dual() ) {
    // Build the dual objective. By LP duality (cf. ConstructLPConstraint
@@ -244,12 +283,12 @@ void PolyhedralFunctionBlock::generate_objective( Configuration * objc )
    const double bnd = PF().is_bound_set()
                       ? PF().get_global_bound()
                       : 0.0;
-   vp.emplace_back( & f_gamma , bnd );
+   vp.emplace_back( & f_gamma , f_global_scale * bnd );
 
    // + theta_i b_i for every row of PF() (diagonal AND vertical)
    auto thit = f_theta.begin();
    for( Index i = 0 ; i < nr ; ++i , ++thit )
-    vp.emplace_back( & *thit , PF().get_b()[ i ] );
+    vp.emplace_back( & *thit , ScaledRowFactor( i ) * PF().get_b()[ i ] );
 
    obj->set_function( new LinearFunction( std::move( vp ) ) );
    }
@@ -276,23 +315,29 @@ void PolyhedralFunctionBlock::set_lambda( ColVariable * lambda )
  if( ! lambda )
   throw( std::invalid_argument( "set_lambda(): nullptr lambda" ) );
 
- // the normalization constraint built by generate_abstract_constraints
- // is "sum_{i in B_D} theta_i + gamma_local = 1", where gamma_local is the
- // per-PFB f_gamma whose objective coefficient is the per-PFB LB on PF()
- // (fixed at 0 when there is no per-PFB LB). When the *father* Block also
- // imposes a *global* LB (on the sum of all the v_k contributed by the
- // PFBs sharing the father), it owns a single shared dual variable lambda
- // whose objective coefficient (in the father's objective) is the global
- // LB, and lambda appears with coefficient +1 in every nested PFB's
- // simplex (= normalization) constraint. This is the LP-correct
- // statement of dual feasibility for the v-equality at level k:
+ f_lambda = lambda;
+
+ // The normalization constraint built by generate_abstract_constraints
+ // is the stand-alone scaled simplex
  //
- //     sum_{i in B_D} theta_i^k + gamma_local^k + lambda = 1
+ //     sum_{i in B_D} local_scale_i theta_i + gamma_local
+ //       = 1 / global_scale
  //
- // (both gamma_local^k and lambda are coefficient-1 contributors to v_k's
- // column, the former from the per-PFB LB row and the latter from the
- // global LB row). set_lambda() therefore ADDS lambda to f_normcns
- // without altering f_gamma or the RHS (=1).
+ // where gamma_local is the per-PFB f_gamma. When this PFB is embedded
+ // as one sub-Block of a larger dual master, the master owns a single
+ // shared non-negative dual variable lambda (the multiplier of the
+ // model-value equation of the lower model); the per-PFB row that
+ // consistently states stationarity at v_k is then
+ //
+ //     sum_{i in B_D} local_scale_i theta_i^k + gamma_local^k
+ //       - lambda / global_scale = 0
+ //
+ // and ties the per-component theta + gamma mass to the global lambda.
+ // set_lambda() therefore appends lambda with coefficient
+ // -1 / global_scale to
+ // f_normcns and pulls LHS / RHS to 0; gamma_local is left untouched
+ // (its coefficient stays +1 in the normalization row and its sign in
+ // the Objective is the per-PFB lower bound).
 
  auto lf = static_cast< LinearFunction * >( f_normcns.get_function() );
  if( ! lf )
@@ -311,11 +356,15 @@ void PolyhedralFunctionBlock::set_lambda( ColVariable * lambda )
   new_vp.emplace_back( p );
   }
  if( ! already_present )
-  new_vp.emplace_back( lambda , 1.0 );
+  new_vp.emplace_back( lambda , -1.0 / f_global_scale );
 
  f_normcns.set_function( new LinearFunction( std::move( new_vp ) ) , eNoMod );
 
- // the LHS / RHS stays at 1 (set by generate_abstract_constraints)
+ // lift the RHS = 1 / global_scale set by
+ // generate_abstract_constraints to RHS = 0,
+ // since lambda now plays the role of "shifted normalization mass"
+ f_normcns.set_lhs( 0.0 , eNoMod );
+ f_normcns.set_rhs( 0.0 , eNoMod );
 
  }  // end( set_lambda )
 
@@ -353,7 +402,8 @@ void PolyhedralFunctionBlock::set_conjugate_constraint(
  for( Index i = 0 ; i < nr ; ++i , ++thit )
   for( Index j = 0 ; j < nv ; ++j )
    if( A[ i ][ j ] != 0 )
-    contribs[ j ].emplace_back( & *thit , A[ i ][ j ] );
+    contribs[ j ].emplace_back( & *thit ,
+                                ScaledRowFactor( i ) * A[ i ][ j ] );
 
  // attach the contributions to each external constraint. The
  // constraint may already have an empty LinearFunction (which the
@@ -399,6 +449,41 @@ void PolyhedralFunctionBlock::set_conjugate_constraint(
 /*--------------------------------------------------------------------------*/
 /*------- Methods for reading the data of the PolyhedralFunctionBlock ------*/
 /*--------------------------------------------------------------------------*/
+
+/*--------------------------------------------------------------------------*/
+
+Function::FunctionValue
+PolyhedralFunctionBlock::get_row_multiplier( Index i ) const
+{
+ if( i >= PF().get_A().size() )
+  throw( std::out_of_range(
+   "PolyhedralFunctionBlock::get_row_multiplier: row index out of range" ) );
+
+ if( is_linearized() ) {
+  if( ! ( f_rep & k_built_cnst ) )
+   throw( std::logic_error(
+           "PolyhedralFunctionBlock::get_row_multiplier: requires generated "
+           "abstract constraints" ) );
+  auto cit = f_const.cbegin();
+  std::advance( cit , i );
+  return( - ScaledRowFactor( i ) * cit->get_dual() );
+  }
+
+ if( is_dual() ) {
+  if( ! ( f_rep & k_built_var ) )
+   throw( std::logic_error(
+             "PolyhedralFunctionBlock::get_row_multiplier: requires generated "
+             "abstract variables" ) );
+  auto vit = f_theta.cbegin();
+  std::advance( vit , i );
+  return( ScaledRowFactor( i ) * vit->get_value() );
+  }
+
+ throw( std::logic_error(
+            "PolyhedralFunctionBlock::get_row_multiplier: requires a "
+            "linearized representation" ) );
+
+ }  // end( PolyhedralFunctionBlock::get_row_multiplier )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- Methods for R3 Blocks --------------------------*/
@@ -796,6 +881,7 @@ void PolyhedralFunctionBlock::guts_of_destructor( void )
   // first clear() all the constraints
   Constraint::clear( f_const );
   f_bcv.clear();
+  f_scale_cns.clear();
 
   // then nothing, they will be deleted when f_const/f_bcv are
 
@@ -853,13 +939,14 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF(
 
   Index i = 0;
   for( auto & ci : f_const ) {
+   const auto scale = ScaledRowFactor( i );
    LinearFunction::v_coeff_pair vars( nav - frst );
    auto vit = vars.begin();
    auto Aiit = PF().get_A()[ i++ ].begin(); 
    for( Index j = frst ; j < nav ; ++j )
     *(vit++) = std::make_pair( static_cast< ColVariable * >(
 					     PF().get_active_var( j ) ) ,
-			       - *(Aiit++) );
+			       - scale * *(Aiit++) );
    static_cast< LinearFunction * >( ci.get_function() )->
                                    add_variables( std::move( vars ) , par );
    }
@@ -911,9 +998,11 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF(
 
   if( strt == stop ) {  // special case: the lower/upper bound
    if( PF().is_convex() )  // convex ==> lower bound
-    f_bcv.set_lhs( PF().get_global_bound() , make_par( eNoBlck , chnl ) );
+    f_bcv.set_lhs( PF().get_global_bound() ,
+                   make_par( eNoBlck , chnl ) );
    else                       // concave ==> upper bound
-    f_bcv.set_rhs( PF().get_global_bound() , make_par( eNoBlck , chnl ) );
+    f_bcv.set_rhs( PF().get_global_bound() ,
+                   make_par( eNoBlck , chnl ) );
    return( false );
    }
 
@@ -922,13 +1011,24 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF(
   Index nc = tmod->PFtype() == PolyhedralFunctionMod::DeleteRows ? 0 :
              ( tmod->PFtype() == PolyhedralFunctionMod::ModifyCnst ? 2 :
 	       stop - strt );
+  if( tmod->PFtype() == PolyhedralFunctionMod::DeleteRows ) {
+   // delete rows
+   DeleteRowScaling( tmod->range() );
+   }
+  else {
+   RefreshRowMeasure( tmod->range() );
+   if( RescaleGlobalIfNeeded( chnl ) )
+    return( false );
+   }
+
   auto par = open_if_needed( make_par( eNoBlck , chnl ) , nc );
 
   if( tmod->PFtype() == PolyhedralFunctionMod::DeleteRows ) {
-   // delete rows
    remove_dynamic_constraints( f_const , tmod->range() , par );
+   RescaleGlobalIfNeeded( chnl );
    }
   else {
+
    auto cit = f_const.size() - strt < strt ?
 	      std::prev( f_const.end() , f_const.size() - strt ) :
               std::next( f_const.begin() , strt );
@@ -939,25 +1039,29 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF(
     Range rng = Range( 0 , PF().get_num_active_var() + 1 );
     const auto nv = PF().get_num_active_var();
     for( Index i = strt ; i < stop ; ) {
+     const auto local_scale = RowScale( i );
+     const auto scale = ScaledRowFactor( i );
      LinearFunction::Vec_FunctionValue Ai( nv + 1 );
-     Ai[ 0 ] = PF().is_row_vertical( i ) ? 0.0 : 1.0;
+     Ai[ 0 ] = PF().is_row_vertical( i ) ? 0.0 : local_scale;
      for( Index j = 0 ; j < nv ; ++j )
-      Ai[ j + 1 ] = - PF().get_A()[ i ][ j ];
+      Ai[ j + 1 ] = - scale * PF().get_A()[ i ][ j ];
      static_cast< LinearFunction * >( cit->get_function() )->
                           modify_coefficients( std::move( Ai ) , rng , par );
      if( PF().is_convex() )
-      (cit++)->set_lhs( PF().get_b()[ i++ ] , par );
+      (cit++)->set_lhs( scale * PF().get_b()[ i++ ] , par );
      else
-      (cit++)->set_rhs( PF().get_b()[ i++ ] , par );
+      (cit++)->set_rhs( scale * PF().get_b()[ i++ ] , par );
      }
     }
    else  // modify constants only
     if( PF().is_convex() )
      for( Index i = strt ; i < stop ; )
-      (cit++)->set_lhs( PF().get_b()[ i++ ] , par );
+      (cit++)->set_lhs( ScaledRowFactor( i ) * PF().get_b()[ i++ ] ,
+                        par );
     else
      for( Index i = strt ; i < stop ; )
-      (cit++)->set_rhs( PF().get_b()[ i++ ] , par );
+      (cit++)->set_rhs( ScaledRowFactor( i ) * PF().get_b()[ i++ ] ,
+                        par );
    }
 
   close_if_needed( par , nc );
@@ -972,15 +1076,25 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF(
   Index nc = tmod->PFtype() == PolyhedralFunctionMod::DeleteRows ? 0 :
              ( tmod->PFtype() == PolyhedralFunctionMod::ModifyCnst ? 2 :
 	       tmod->rows().size() );
+  if( tmod->PFtype() == PolyhedralFunctionMod::DeleteRows ) {
+   // delete rows
+   DeleteRowScaling( tmod->rows() );
+   }
+  else {
+   RefreshRowMeasure( tmod->rows() );
+   if( RescaleGlobalIfNeeded( chnl ) )
+    return( false );
+   }
+
   auto par = open_if_needed( make_par( eNoBlck , chnl ) , nc );
 
   Index prev = 0;
   auto cit = f_const.begin();
   auto rit = tmod->rows().begin();
   if( tmod->PFtype() == PolyhedralFunctionMod::DeleteRows ) {
-   // delete rows
    remove_dynamic_constraints( f_const , Subset( tmod->rows() ) , true ,
 			       par );
+   RescaleGlobalIfNeeded( chnl );
    }
   else
    if( tmod->PFtype() == PolyhedralFunctionMod::ModifyRows ) {
@@ -990,16 +1104,18 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF(
     const auto nv = PF().get_num_active_var();
     for( ; rit != tmod->rows().end() ; ) {
      cit = std::next( cit , *rit - prev );
+     const auto local_scale = RowScale( *rit );
+     const auto scale = ScaledRowFactor( *rit );
      LinearFunction::Vec_FunctionValue Ai( nv + 1 );
-     Ai[ 0 ] = PF().is_row_vertical( *rit ) ? 0.0 : 1.0;
+     Ai[ 0 ] = PF().is_row_vertical( *rit ) ? 0.0 : local_scale;
      for( Index j = 0 ; j < nv ; ++j )
-      Ai[ j + 1 ] = - PF().get_A()[ *rit ][ j ];
+      Ai[ j + 1 ] = - scale * PF().get_A()[ *rit ][ j ];
      static_cast< LinearFunction * >( cit->get_function() )->
                           modify_coefficients( std::move( Ai ) , rng , par );
      if( PF().is_convex() )
-      cit->set_lhs( PF().get_b()[ *rit ] , par );
+      cit->set_lhs( scale * PF().get_b()[ *rit ] , par );
      else
-      cit->set_rhs( PF().get_b()[ *rit ] , par );
+      cit->set_rhs( scale * PF().get_b()[ *rit ] , par );
      prev = *(rit++);
      }
     }
@@ -1007,9 +1123,11 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF(
     for( ; rit != tmod->rows().end() ; ) {
      cit = std::next( cit , *rit - prev );
      if( PF().is_convex() )
-      cit->set_lhs( PF().get_b()[ *rit ] , par );
+      cit->set_lhs( ScaledRowFactor( *rit ) * PF().get_b()[ *rit ] ,
+                    par );
      else
-      cit->set_rhs( PF().get_b()[ *rit ] , par );
+      cit->set_rhs( ScaledRowFactor( *rit ) * PF().get_b()[ *rit ] ,
+                    par );
      prev = *(rit++);
      }
  
@@ -1021,11 +1139,13 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF(
  if( auto tmod = dynamic_cast< const PolyhedralFunctionModAddd * >( mod ) ) {
   // this is "add new rows"
   Index nr = PF().get_A().size();
+  AppendRowScaling( nr - tmod->addedrows() );
+  AppendRowMeasure( nr - tmod->addedrows() );
+  RescaleGlobalIfNeeded( chnl );
   std::list< FRowConstraint > newc( tmod->addedrows() );
   auto cit = newc.begin();
   for( Index i = nr - tmod->addedrows() ; i < nr ; )
    ConstructLPConstraint( i++ , *(cit++) );
-
   add_dynamic_constraints( f_const , newc , make_par( eNoBlck , chnl ) );
   return( false );
   }
@@ -1042,7 +1162,8 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF(
 
   if( PF().is_convex() ) {
    // change the "verse" of the objective accordingly
-   get_objective()->set_sense( Objective::eMin , par );
+   if( auto obj = get_objective() )
+    obj->set_sense( Objective::eMin , par );
 
    // set upper/lower bound on v
    f_bcv.set_lhs( PF().get_global_lower_bound() , par );
@@ -1050,13 +1171,14 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF(
 
    // properly set the lhs/rhs of the constraints
    for( auto & ci : f_const ) {
-    ci.set_lhs( PF().get_b()[ i++ ] , par );
+    ci.set_lhs( ScaledRowFactor( i ) * PF().get_b()[ i++ ] , par );
     ci.set_rhs( Inf< Function::FunctionValue >() , par );
     }
    }
   else {
    // change the "verse" of the objective accordingly
-   get_objective()->set_sense( Objective::eMax , par );
+   if( auto obj = get_objective() )
+    obj->set_sense( Objective::eMax , par );
 
    // properly set upper/lower bound on v
    f_bcv.set_lhs( -Inf< Function::FunctionValue >() , par );
@@ -1065,7 +1187,7 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF(
    // properly set the lhs/rhs of the constraints
    for( auto & ci : f_const ) {
     ci.set_lhs( -Inf< Function::FunctionValue >() , par );
-    ci.set_rhs( PF().get_b()[ i++ ] , par );
+    ci.set_rhs( ScaledRowFactor( i ) * PF().get_b()[ i++ ] , par );
     }
    }
 
@@ -1080,30 +1202,23 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF(
  assert( std::isnan( mod->shift() ) );
 
  // set upper/lower bound on v
+ f_row_scale.clear();
+ f_row_scale.reserve( PF().get_A().size() );
+ f_row_measure.clear();
+ f_row_measure.reserve( PF().get_A().size() );
+ AppendRowScaling( 0 );
+ AppendRowMeasure( 0 );
+ UpdateGlobalScaleIfNeeded();
  f_bcv.set_lhs( PF().get_global_lower_bound() , eNoMod );
  f_bcv.set_rhs( PF().get_global_upper_bound() , eNoMod );
-
- // clear out the linear constraints
- f_const.clear();
-
- // now add the linear constraints back again
- f_const.resize( PF().get_A().size() );
- auto cit = f_const.begin();
- for( Index i = 0 ; i < PF().get_A().size() ; ) {
-  cit->set_Block( this );
-  ConstructLPConstraint( i++ , *(cit++) );
-  }
- 
- // finally issue a NBModification
- AbstractBlock::add_Modification( std::make_shared< NBModification >( this )
-				  );
+ RebuildLinearizedPrimal();
  return( true );
 
  }  // end( PolyhedralFunctionBlock::guts_of_add_Modification_PF )
 
 /*--------------------------------------------------------------------------*/
 
-void PolyhedralFunctionBlock::guts_of_add_Modification_LR( c_p_Mod mod ,
+bool PolyhedralFunctionBlock::guts_of_add_Modification_LR( c_p_Mod mod ,
 							   ChnlName chnl )
 {
  // process a Modification produced by the "linearized" representation - - - -
@@ -1121,24 +1236,22 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR( c_p_Mod mod ,
  if( auto tmod = dynamic_cast< const BlockModAdd< FRowConstraint > * >( mod )
      ) {
   if( & tmod->whc() != & f_const )   // if it's not about f_const
-   return;                           // none of my business
+   return( false );                  // none of my business
 
   const auto & arr = tmod->added();
 
   if( arr.empty() )  // should not happen, but in case
-   return;           // nothing to do
+   return( false );  // nothing to do
   MultiVector A( arr.size() );
   RealVector b( arr.size() );
+  RealVector row_scale( arr.size() , 1.0 );
   // recover the per-row vertical flag from the coefficient of v (which is
-  // 1 for diagonal rows and 0 for vertical rows; see ConstructLPConstraint
-  // and the GENERAL NOTES of PolyhedralFunction)
+  // positive for diagonal rows and 0 for vertical rows; see
+  // ConstructLPConstraint and the GENERAL NOTES of PolyhedralFunction)
   PolyhedralFunction::BoolVector iV;
 
   Index i = 0;
   for( auto ci : arr ) {
-   // recover the constant = RHS (easy)
-   b[ i ] = PF().is_convex() ? ci->get_lhs() : ci->get_rhs();
-
    // now the though part: recover the linearization
    auto lf = dynamic_cast< LinearFunction * >( ci->get_function() );
    if( ! lf )
@@ -1154,15 +1267,43 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR( c_p_Mod mod ,
    #ifndef NDEBUG
    // TODO: check that the Variables actually are the same
    #endif
+   const bool is_vert = coeff[ 0 ].second == 0.0;
+   if( has_local_scaling() ) {
+    if( ! is_vert ) {
+     if( coeff[ 0 ].second <= 0 )
+      throw( std::logic_error(
+      "PolyhedralFunctionBlock::guts_of_add_Modification_LR: "
+      "non-positive local row scale" ) );
+     row_scale[ i ] = coeff[ 0 ].second;
+     }
+    else {
+     // Vertical rows have no v coefficient carrying the local factor.
+     // Recover it from the already-scaled row. If R is the largest
+     // unscaled coefficient and local_scale = 1 / sqrt( R ), then the
+     // largest coefficient after removing the global scale is sqrt( R ).
+     auto mx = std::abs( PF().is_convex() ? ci->get_lhs()
+                                             : ci->get_rhs() ) /
+               f_global_scale;
+     for( Index j = 1 ; j < coeff.size() ; ++j )
+      mx = std::max( mx , std::abs( coeff[ j ].second ) / f_global_scale );
+     row_scale[ i ] = 1.0 / std::max( 1.0 , mx );
+     }
+    }
+
+   const auto scale = f_global_scale * row_scale[ i ];
+
+   // recover the unscaled constant and linearization
+   b[ i ] = ( PF().is_convex() ? ci->get_lhs() : ci->get_rhs() ) /
+            scale;
    A[ i ].resize( PF().get_num_active_var() );
 
    for( Index j = 1 ; j < coeff.size() ; ++j )
-    A[ i ][ j - 1 ] = - coeff[ j ].second;
+    A[ i ][ j - 1 ] = - coeff[ j ].second / scale;
 
-   // a vertical row has coef of v == 0; we use a small tolerance because
-   // floating-point arithmetic upstream might leave coef[ 0 ] not exactly
-   // 0 or 1
-   if( std::abs( coeff[ 0 ].second ) < 0.5 ) {
+   // A vertical row has coef of v == 0. Diagonal rows can have an
+   // arbitrarily small positive coefficient when local scaling is active,
+   // so zero must be tested exactly here.
+   if( is_vert ) {
     if( iV.empty() )
      iV.assign( arr.size() , false );
     iV[ i ] = true;
@@ -1173,7 +1314,11 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR( c_p_Mod mod ,
 
   PF().add_rows( std::move( A ) , b , make_par( eNoBlck , chnl ) ,
 		    std::move( iV ) );
-  return;
+  f_row_scale.insert( f_row_scale.end() , row_scale.begin() ,
+                      row_scale.end() );
+  AppendRowMeasure( PF().get_A().size() - row_scale.size() );
+  RescaleGlobalIfNeeded( chnl );
+  return( false );
   }
 
  // BlockModRmvRngd< FRowConstraint > - - - - - - - - - - - - - - - - - - - -
@@ -1181,10 +1326,12 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR( c_p_Mod mod ,
  if( auto tmod = dynamic_cast< const BlockModRmvRngd< FRowConstraint > *
                                >( mod ) ) {
   if( & tmod->whc() != & f_const )   // if it's not about f_const
-   return;                           // none of my business
+   return( false );                  // none of my business
 
   PF().delete_rows( tmod->range() , make_par( eNoBlck , chnl ) );
-  return;
+  DeleteRowScaling( tmod->range() );
+  RescaleGlobalIfNeeded( chnl );
+  return( false );
   }
 
  // BlockModRmvSbst< FRowConstraint > - - - - - - - - - - - - - - - - - - - -
@@ -1192,11 +1339,13 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR( c_p_Mod mod ,
  if( const auto tmod =
      dynamic_cast< BlockModRmvSbst< FRowConstraint > * const >( mod ) ) {
   if( & tmod->whc() != & f_const )   // if it's not about f_const
-   return;                           // none of my business
+   return( false );                  // none of my business
 
   PF().delete_rows( Subset( tmod->subset() ) , true ,
 		       make_par( eNoBlck , chnl ) );
-  return;
+  DeleteRowScaling( tmod->subset() );
+  RescaleGlobalIfNeeded( chnl );
+  return( false );
   }
 
  // ObjectiveMod- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1206,6 +1355,11 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR( c_p_Mod mod ,
 
  // RowConstraintMod- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  if( const auto tmod = dynamic_cast< RowConstraintMod * const >( mod ) ) {
+  if( & f_scale_cns == tmod->constraint() )
+   throw( std::logic_error(
+             "PolyhedralFunctionBlock::guts_of_add_Modification_LR: cannot "
+             "modify the internal v scaling constraint" ) );
+
   // first check if it's about the box constraint on v
   if( & f_bcv == tmod->constraint() ) {
    if( ( tmod->type() == RowConstraintMod::eChgBTS ) ||
@@ -1219,7 +1373,7 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR( c_p_Mod mod ,
    PF().modify_bound( PF().is_convex() ? f_bcv.get_lhs()
 			                     : f_bcv.get_rhs() ,
 			 make_par( eNoBlck , chnl ) );
-   return;
+   return( false );
    }
 
   // now check if it's about one linear constraint
@@ -1230,7 +1384,7 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR( c_p_Mod mod ,
     break;
 
   if( ci == f_const.end() )  // that's not in the linearized representation
-   return;                   // none of my business
+   return( false );          // none of my business
 
   if( ( tmod->type() == RowConstraintMod::eChgBTS ) ||
       ( ( tmod->type() == RowConstraintMod::eChgRHS ) &&
@@ -1240,18 +1394,22 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR( c_p_Mod mod ,
    throw( std::logic_error(
 		    "wrong RowConstraintMod in PolyhedralFunctionBlock" ) );
 
-  PF().modify_constant( i , PF().is_convex() ? ci->get_lhs()
-		                                   : ci->get_rhs() ,
+  PF().modify_constant( i , ( PF().is_convex() ? ci->get_lhs()
+		                                     : ci->get_rhs() ) /
+                                ScaledRowFactor( i ) ,
 			   make_par( eNoBlck , chnl ) );
-  return;
+  RefreshRowMeasure( i );
+  RescaleGlobalIfNeeded( chnl );
+  return( false );
   }
 
  // VariableMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  if( auto tmod = dynamic_cast< const VariableMod * >( mod ) ) {
-  if( tmod->variable() == & f_v )
+  if( ( tmod->variable() == & f_v ) ||
+      ( tmod->variable() == & f_scaled_v ) )
    throw( std::logic_error(
 		          "wrong VariableMod in PolyhedralFunctionBlock" ) );
-  return;  // if it's not about v, none of my business
+  return( false );  // if it's not about v, none of my business
   }
 
  // C05FunctionModLinRngd - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1263,7 +1421,7 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR( c_p_Mod mod ,
     break;
 
   if( ci == f_const.end() )  // that's not in the linearized representation
-   return;                   // none of my business
+   return( false );          // none of my business
 
   // note that the LinearFunction has exactly one active Variable more than
   // the PolyhedralFunction, the first one being "v", whence the "- 1"
@@ -1271,9 +1429,10 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR( c_p_Mod mod ,
   // are the opposite of the entries in A; hence, if the coefficients are
   // changed by adding tmod->delta(), the entries of A change by
   // subtracting tmod->delta(). Index 0 in the LinearFunction is v
-  // itself: if its coefficient ends up non-1 (typically 0), the row is
+  // itself: if its coefficient ends up 0, the row is
   // a *vertical* linearization of the PolyhedralFunction
   RealVector ai( PF().get_A()[ i ] );
+  const auto scale = ScaledRowFactor( i );
   bool is_vert = PF().is_row_vertical( i );
   bool v_changed = false;
   for( Index j = 0 ; j < tmod->delta().size() ; ++j ) {
@@ -1281,18 +1440,30 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR( c_p_Mod mod ,
    if( pos == 0 )
     v_changed = true;       // delta on v's coefficient: type may change
    else
-    ai[ pos - 1 ] -= tmod->delta()[ j ];
+    ai[ pos - 1 ] -= tmod->delta()[ j ] / scale;
    }
   if( v_changed ) {
    // re-derive the row's vertical/diagonal status from the *new* v coef
    const auto & vp = static_cast< LinearFunction * >( ci->get_function() )
 		     ->get_v_var();
-   is_vert = std::abs( vp[ 0 ].second ) < 0.5;
+   is_vert = vp[ 0 ].second == 0.0;
+   if( has_local_scaling() && ( ! is_vert ) ) {
+    if( vp[ 0 ].second <= 0 )
+     throw( std::logic_error(
+      "PolyhedralFunctionBlock::guts_of_add_Modification_LR: "
+      "non-positive local row scale" ) );
+    f_row_scale[ i ] = vp[ 0 ].second;
+    const auto new_scale = ScaledRowFactor( i );
+    for( Index j = 1 ; j < vp.size() ; ++j )
+     ai[ j - 1 ] = - vp[ j ].second / new_scale;
+    }
    }
 
   PF().modify_row( i , std::move( ai ) , PF().get_b()[ i ] ,
 		      make_par( eNoBlck , chnl ) , is_vert );
-  return;
+  RefreshRowMeasure( i );
+  RescaleGlobalIfNeeded( chnl );
+  return( false );
   }
 
  // C05FunctionModLinSbst - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1304,10 +1475,11 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR( c_p_Mod mod ,
     break;
 
   if( ci == f_const.end() )  // that's not in the linearized representation
-   return;                   // none of my business
+   return( false );          // none of my business
 
   // see comment for C05FunctionModLinRngd above for the index translation
   RealVector ai( PF().get_A()[ i ] );
+  const auto scale = ScaledRowFactor( i );
   bool is_vert = PF().is_row_vertical( i );
   bool v_changed = false;
   for( Index j = 0 ; j < tmod->subset().size() ; ++j ) {
@@ -1315,17 +1487,29 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR( c_p_Mod mod ,
    if( pos == 0 )
     v_changed = true;
    else
-    ai[ pos - 1 ] -= tmod->delta()[ j ];
+    ai[ pos - 1 ] -= tmod->delta()[ j ] / scale;
    }
   if( v_changed ) {
    const auto & vp = static_cast< LinearFunction * >( ci->get_function() )
 		     ->get_v_var();
-   is_vert = std::abs( vp[ 0 ].second ) < 0.5;
+   is_vert = vp[ 0 ].second == 0.0;
+   if( has_local_scaling() && ( ! is_vert ) ) {
+    if( vp[ 0 ].second <= 0 )
+     throw( std::logic_error(
+      "PolyhedralFunctionBlock::guts_of_add_Modification_LR: "
+      "non-positive local row scale" ) );
+    f_row_scale[ i ] = vp[ 0 ].second;
+    const auto new_scale = ScaledRowFactor( i );
+    for( Index j = 1 ; j < vp.size() ; ++j )
+     ai[ j - 1 ] = - vp[ j ].second / new_scale;
+    }
    }
 
   PF().modify_row( i , std::move( ai ) , PF().get_b()[ i ] ,
 		      make_par( eNoBlck , chnl ) , is_vert );
-  return;
+  RefreshRowMeasure( i );
+  RescaleGlobalIfNeeded( chnl );
+  return( false );
   }
 
  // FunctionModVars - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1340,7 +1524,7 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR( c_p_Mod mod ,
    throw( std::logic_error(
 	             "wrong FunctionModVars in PolyhedralFunctionBlock" ) );
  
-  return;  // else, none of my business
+  return( false );  // else, none of my business
   }
 
  // C05FunctionMod- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1355,8 +1539,9 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR( c_p_Mod mod ,
    throw( std::logic_error(
 		       "wrong C05FunctionMod in PolyhedralFunctionBlock" ) );
  
-  return;  // else, none of my business
+  return( false );  // else, none of my business
   }
+ return( false );
  }  // end( PolyhedralFunctionBlock::guts_of_add_Modification_LR )
 
 /*--------------------------------------------------------------------------*/
@@ -1422,7 +1607,8 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
   // recompute the new bound (possibly +/-INF if the bound is unset)
   const bool was_fixed = f_gamma.is_fixed();
   const bool now_set = PF().is_bound_set();
-  const double nbnd = now_set ? PF().get_global_bound() : 0.0;
+  const double nbnd = now_set ? ScaledBound( PF().get_global_bound() )
+                              : 0.0;
 
   auto par = make_par( eNoBlck , chnl );
   if( was_fixed != ( ! now_set ) ) {
@@ -1442,22 +1628,29 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
 
  // ModifyCnst (range / subset): only b coefficients change in obj LF
  if( rng_mod && rng_mod->PFtype() == PolyhedralFunctionMod::ModifyCnst ) {
+  RefreshRowMeasure( rng_mod->range() );
+  if( RescaleGlobalIfNeeded( chnl ) )
+   return( false );
   const Index strt = rng_mod->range().first;
   const Index stop = rng_mod->range().second;
   LinearFunction::Vec_FunctionValue nb( stop - strt );
   for( Index i = strt ; i < stop ; ++i )
-   nb[ i - strt ] = PF().get_b()[ i ];
+   nb[ i - strt ] = ScaledRowFactor( i ) * PF().get_b()[ i ];
   obj_lf->modify_coefficients( std::move( nb ) ,
                                Range( strt + 1 , stop + 1 ) ,
                                make_par( eNoBlck , chnl ) );
   return( false );
   }
  if( sbst_mod && sbst_mod->PFtype() == PolyhedralFunctionMod::ModifyCnst ) {
+  RefreshRowMeasure( sbst_mod->rows() );
+  if( RescaleGlobalIfNeeded( chnl ) )
+   return( false );
   const auto & rows = sbst_mod->rows();
   LinearFunction::Vec_FunctionValue nb( rows.size() );
   Subset nms( rows.size() );
   for( Index i = 0 ; i < rows.size() ; ++i ) {
-   nb[ i ] = PF().get_b()[ rows[ i ] ];
+   nb[ i ] = ScaledRowFactor( rows[ i ] ) *
+             PF().get_b()[ rows[ i ] ];
    nms[ i ] = rows[ i ] + 1;
    }
   obj_lf->modify_coefficients( std::move( nb ) , std::move( nms ) , true ,
@@ -1499,8 +1692,19 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
 
   const Index nr_total = PF().get_A().size();
   const Index nr_old = nr_total - nadd;
+  AppendRowScaling( nr_old );
+  AppendRowMeasure( nr_old );
+  RescaleGlobalIfNeeded( chnl );
 
-  // use the caller's channel directly (don't open a nested one)
+  // use the caller's channel directly (don't open a nested one);
+  // eNoBlck means concerns_Block() = false on the self-generated structural
+  // Modifications below (new dynamic theta ColVariables, augmented
+  // LinearFunction coefficients on obj_lf / normcns_lf / coupling[j]);
+  // PFB::add_Modification recognises these by !concerns_Block() and
+  // routes them through the pass-up branch (PolyhedralFunctionBlock.h),
+  // so they are forwarded to a father Solver without re-entering the
+  // dispatcher and tripping the "unsupported Modification" guard at the
+  // bottom of guts_of_add_Modification_LR_dual()
   auto par = make_par( eNoBlck , chnl );
 
   // 1) create the new theta ColVariables in a temporary list and splice
@@ -1521,8 +1725,10 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
   {
    LinearFunction::v_coeff_pair to_obj( nadd );
    for( Index i = 0 ; i < nadd ; ++i )
-    to_obj[ i ] = std::make_pair( new_ptrs[ i ] ,
-                                  PF().get_b()[ nr_old + i ] );
+    to_obj[ i ] = std::make_pair(
+                             new_ptrs[ i ] ,
+                             ScaledRowFactor( nr_old + i ) *
+                             PF().get_b()[ nr_old + i ] );
    obj_lf->add_variables( std::move( to_obj ) , par );
    }
 
@@ -1534,7 +1740,7 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
    LinearFunction::v_coeff_pair to_nrm;
    for( Index i = 0 ; i < nadd ; ++i )
     if( ! PF().is_row_vertical( nr_old + i ) )
-     to_nrm.emplace_back( new_ptrs[ i ] , 1.0 );
+     to_nrm.emplace_back( new_ptrs[ i ] , RowScale( nr_old + i ) );
    if( ! to_nrm.empty() )
     nrm_lf->add_variables( std::move( to_nrm ) , par );
    }
@@ -1548,7 +1754,8 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
     LinearFunction::v_coeff_pair to_cp;
     to_cp.reserve( nadd );
     for( Index i = 0 ; i < nadd ; ++i ) {
-     const double a = PF().get_A()[ nr_old + i ][ j ];
+     const double a = ScaledRowFactor( nr_old + i ) *
+                      PF().get_A()[ nr_old + i ][ j ];
      if( a != 0 )
       to_cp.emplace_back( new_ptrs[ i ] , a );
      }
@@ -1565,10 +1772,15 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
  if( rng_mod ) {
   const Index strt = rng_mod->range().first;
   const Index stop = rng_mod->range().second;
+  // see comment in the PolyhedralFunctionModAddd branch above: eModBlck
+  // is required for the structural removes / modifies emitted below to
+  // reach an attached Solver across a father Block boundary
   auto par = make_par( eNoBlck , chnl );
   auto nrm_lf = static_cast< LinearFunction * >( f_normcns.get_function() );
 
   if( rng_mod->PFtype() == PolyhedralFunctionMod::DeleteRows ) {
+   DeleteRowScaling( Range( strt , stop ) );
+
    // collect pointers of the theta variables being removed
    std::vector< ColVariable * > rem_ptrs;
    rem_ptrs.reserve( stop - strt );
@@ -1616,18 +1828,22 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
    // 4) finally remove the theta variables themselves from the dynamic
    //    list (this delivers a BlockModRmv<ColVariable> to the Solver)
    remove_dynamic_variables( f_theta , Range( strt , stop ) , par );
+   RescaleGlobalIfNeeded( chnl );
 
    return( false );
    }
 
   if( rng_mod->PFtype() == PolyhedralFunctionMod::ModifyRows ) {
+   RefreshRowMeasure( Range( strt , stop ) );
+   RescaleGlobalIfNeeded( chnl );
+
    const auto & A = PF().get_A();
 
    // 1) obj_lf: update b for rows [strt, stop) at positions [strt+1, stop+1)
    {
     LinearFunction::Vec_FunctionValue nb( stop - strt );
     for( Index i = strt ; i < stop ; ++i )
-     nb[ i - strt ] = PF().get_b()[ i ];
+     nb[ i - strt ] = ScaledRowFactor( i ) * PF().get_b()[ i ];
     obj_lf->modify_coefficients( std::move( nb ) ,
                                  Range( strt + 1 , stop + 1 ) , par );
     }
@@ -1647,7 +1863,7 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
      if( in_nrm && ! should_in )
       to_rm.push_back( k );
      else if( should_in && ! in_nrm )
-      to_add.emplace_back( p , 1.0 );
+      to_add.emplace_back( p , RowScale( i ) );
      }
     if( ! to_rm.empty() ) {
      std::sort( to_rm.begin() , to_rm.end() );
@@ -1670,10 +1886,10 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
       const Index k = cf->is_active( p );
       if( k < cf->get_num_active_var() ) {
        nms.push_back( k );
-       ncoef.push_back( A[ i ][ j ] );
+       ncoef.push_back( ScaledRowFactor( i ) * A[ i ][ j ] );
        }
       else if( A[ i ][ j ] != 0 )
-       cf->add_variable( p , A[ i ][ j ] , par );
+       cf->add_variable( p , ScaledRowFactor( i ) * A[ i ][ j ] , par );
       }
      if( ! nms.empty() )
       cf->modify_coefficients( std::move( ncoef ) , std::move( nms ) ,
@@ -1692,8 +1908,19 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
  // PolyhedralFunctionModSbst with DeleteRows / ModifyRows
  if( sbst_mod ) {
   const auto & rows = sbst_mod->rows();
+  // see comment in the PolyhedralFunctionModAddd branch above: eModBlck
+  // is required for the structural removes / modifies emitted below to
+  // reach an attached Solver across a father Block boundary
   auto par = make_par( eNoBlck , chnl );
   auto nrm_lf = static_cast< LinearFunction * >( f_normcns.get_function() );
+
+  if( sbst_mod->PFtype() == PolyhedralFunctionMod::DeleteRows ) {
+   DeleteRowScaling( rows );
+   }
+  else if( sbst_mod->PFtype() == PolyhedralFunctionMod::ModifyRows ) {
+   RefreshRowMeasure( rows );
+   RescaleGlobalIfNeeded( chnl );
+   }
 
   // PolyhedralFunctionModSbst always has rows sorted by Subst contract;
   // resolve them once into iterators / pointers into f_theta
@@ -1752,6 +1979,7 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
 
    // 4) finally remove from f_theta
    remove_dynamic_variables( f_theta , Subset( rows ) , true , par );
+   RescaleGlobalIfNeeded( chnl );
 
    return( false );
    }
@@ -1764,7 +1992,8 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
     LinearFunction::Vec_FunctionValue nb( rows.size() );
     Subset nms( rows.size() );
     for( Index i = 0 ; i < rows.size() ; ++i ) {
-     nb[ i ] = PF().get_b()[ rows[ i ] ];
+     nb[ i ] = ScaledRowFactor( rows[ i ] ) *
+               PF().get_b()[ rows[ i ] ];
      nms[ i ] = rows[ i ] + 1;
      }
     obj_lf->modify_coefficients( std::move( nb ) , std::move( nms ) ,
@@ -1783,7 +2012,7 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
      if( in_nrm && ! should_in )
       to_rm.push_back( k );
      else if( should_in && ! in_nrm )
-      to_add.emplace_back( p , 1.0 );
+      to_add.emplace_back( p , RowScale( rows[ i ] ) );
      }
     if( ! to_rm.empty() ) {
      std::sort( to_rm.begin() , to_rm.end() );
@@ -1805,10 +2034,12 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
       const Index k = cf->is_active( p );
       if( k < cf->get_num_active_var() ) {
        nms.push_back( k );
-       ncoef.push_back( A[ rows[ i ] ][ j ] );
+       ncoef.push_back( ScaledRowFactor( rows[ i ] ) *
+                        A[ rows[ i ] ][ j ] );
        }
       else if( A[ rows[ i ] ][ j ] != 0 )
-       cf->add_variable( p , A[ rows[ i ] ][ j ] , par );
+       cf->add_variable( p , ScaledRowFactor( rows[ i ] ) *
+                              A[ rows[ i ] ][ j ] , par );
       }
      if( ! nms.empty() )
       cf->modify_coefficients( std::move( ncoef ) , std::move( nms ) ,
@@ -1833,103 +2064,15 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
 
  assert( std::isnan( mod->shift() ) );
 
- // Snapshot foreign entries (entries in coupling/normcns LFs that
- // belong to other PFBs or to set_lambda-installed lambdas)
- std::unordered_set< const Variable * > old_theta;
- old_theta.reserve( f_theta.size() );
- for( const auto & t : f_theta )
-  old_theta.insert( & t );
-
- std::vector< LinearFunction::v_coeff_pair > cpl_kept;
- if( f_coupling ) {
-  cpl_kept.resize( f_coupling->size() );
-  Index j = 0;
-  for( auto & c : *f_coupling ) {
-   auto cf = static_cast< LinearFunction * >( c.get_function() );
-   if( cf )
-    for( const auto & p : cf->get_v_var() )
-     if( ! old_theta.count( p.first ) )
-      cpl_kept[ j ].push_back( p );
-   ++j;
-   }
-  }
-
- LinearFunction::v_coeff_pair nrm_kept;
- if( auto nrm_lf = static_cast< LinearFunction * >( f_normcns.get_function() ) )
-  for( const auto & p : nrm_lf->get_v_var() )
-   if( ! old_theta.count( p.first ) && ( p.first != & f_gamma ) )
-    nrm_kept.push_back( p );
-
- // Build new theta in a temporary, replace LFs via set_function()
- // (which properly deregisters old thetas from v_active), swap with
- // f_theta, then issue NBModification.
- const Index nr = PF().get_A().size();
- std::list< ColVariable > new_theta;
- std::vector< ColVariable * > new_ptrs;
- new_ptrs.reserve( nr );
- for( Index i = 0 ; i < nr ; ++i ) {
-  new_theta.emplace_back();
-  auto & v = new_theta.back();
-  v.is_positive( true , eNoMod );
-  v.set_Block( this );
-  new_ptrs.push_back( & v );
-  }
-
- if( PF().is_bound_set() ) {
-  if( f_gamma.is_fixed() )
-   f_gamma.is_fixed( false , eNoMod );
-  }
- else {
-  f_gamma.set_value( 0 );
-  if( ! f_gamma.is_fixed() )
-   f_gamma.is_fixed( true , eNoMod );
-  }
-
- {
-  LinearFunction::v_coeff_pair obj_vp;
-  obj_vp.reserve( 1 + nr );
-  const double bnd = PF().is_bound_set()
-                     ? PF().get_global_bound()
-                     : 0.0;
-  obj_vp.emplace_back( & f_gamma , bnd );
-  for( Index i = 0 ; i < nr ; ++i )
-   obj_vp.emplace_back( new_ptrs[ i ] , PF().get_b()[ i ] );
-  frobj->set_function( new LinearFunction( std::move( obj_vp ) ) , eNoMod );
-  }
-
- {
-  LinearFunction::v_coeff_pair nrm_vp;
-  nrm_vp.reserve( 1 + nr + nrm_kept.size() );
-  nrm_vp.emplace_back( & f_gamma , 1.0 );
-  for( Index i = 0 ; i < nr ; ++i )
-   if( ! PF().is_row_vertical( i ) )
-    nrm_vp.emplace_back( new_ptrs[ i ] , 1.0 );
-  for( auto & p : nrm_kept )
-   nrm_vp.push_back( p );
-  f_normcns.set_function( new LinearFunction( std::move( nrm_vp ) ) ,
-                          eNoMod );
-  }
-
- if( f_coupling ) {
-  const Index nv = PF().get_num_active_var();
-  Index j = 0;
-  auto cit = f_coupling->begin();
-  for( ; cit != f_coupling->end() && j < nv ; ++cit , ++j ) {
-   LinearFunction::v_coeff_pair vp = std::move( cpl_kept[ j ] );
-   for( Index i = 0 ; i < nr ; ++i ) {
-    const double a = PF().get_A()[ i ][ j ];
-    if( a != 0 )
-     vp.emplace_back( new_ptrs[ i ] , a );
-    }
-   cit->set_function( new LinearFunction( std::move( vp ) ) , eNoMod );
-   }
-  }
-
- f_theta.swap( new_theta );
-
- AbstractBlock::add_Modification( std::make_shared< NBModification >( this )
-                                  );
- return( false );
+ f_row_scale.clear();
+ f_row_scale.reserve( PF().get_A().size() );
+ f_row_measure.clear();
+ f_row_measure.reserve( PF().get_A().size() );
+ AppendRowScaling( 0 );
+ AppendRowMeasure( 0 );
+ UpdateGlobalScaleIfNeeded();
+ RebuildLinearizedDual();
+ return( true );
 
  }  // end( PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual )
 
@@ -2033,11 +2176,14 @@ void PolyhedralFunctionBlock::ConstructLPConstraint( Index i ,
  // of v is zero, so the LP constraint becomes a "domain" constraint on x:
  //   convex  vertical:  b_i <= - A_i x <= INF   (i.e. A_i x + b_i <= 0)
  //   concave vertical:  -INF <= - A_i x <= b_i  (i.e. A_i x + b_i >= 0)
- ci.set_lhs( PF().is_convex() ? PF().get_b()[ i ]
+ const auto local_scale = RowScale( i );
+ const auto scale = ScaledRowFactor( i );
+
+ ci.set_lhs( PF().is_convex() ? scale * PF().get_b()[ i ]
 	                         : -Inf< Function::FunctionValue >() ,
 	     eNoMod );
  ci.set_rhs( PF().is_convex() ? Inf< Function::FunctionValue >()
-	                         : PF().get_b()[ i ] ,
+	                         : scale * PF().get_b()[ i ] ,
 	     eNoMod );
 
  const auto nv = PF().get_num_active_var();
@@ -2046,20 +2192,448 @@ void PolyhedralFunctionBlock::ConstructLPConstraint( Index i ,
 
  // v is the *first* Variable of the LinearFunction, since it is the only
  // one that "never moves"; as a consequence, x[ i ] is the (i+1)-th active
- // Variable in each constraint. Its coefficient is 1 for diagonal rows
- // and 0 for vertical rows
- *(vit++) = std::make_pair( & f_v ,
-			    PF().is_row_vertical( i ) ? 0.0 : 1.0 );
+ // Variable in each constraint. Its coefficient is the local row scale for
+ // diagonal rows and 0 for vertical rows.
+ *(vit++) = std::make_pair( LinearizedV() ,
+			    PF().is_row_vertical( i ) ? 0.0 : local_scale );
 
  auto Aiit = PF().get_A()[ i ].begin();
  for( Index j = 0 ; j < nv ; ++j )
   *(vit++) = std::make_pair( static_cast< ColVariable * >(
 					      PF().get_active_var( j ) ) ,
-			     - *(Aiit++) );
+			     - scale * *(Aiit++) );
 
  ci.set_function( new LinearFunction( std::move( vars ) ) , eNoMod );
 
  }  // end( PolyhedralFunctionBlock::ConstructLPConstraint )
+
+/*--------------------------------------------------------------------------*/
+
+Function::FunctionValue
+PolyhedralFunctionBlock::ComputeRowMeasure( Index i ) const
+{
+ Function::FunctionValue mx = std::max( 1.0 ,
+                                        std::abs( PF().get_b()[ i ] ) );
+ for( const auto a : PF().get_A()[ i ] )
+  mx = std::max( mx , std::abs( a ) );
+
+ return( std::isfinite( mx ) ? mx : 1.0 );
+
+ }  // end( PolyhedralFunctionBlock::ComputeRowMeasure )
+
+/*--------------------------------------------------------------------------*/
+
+Function::FunctionValue
+PolyhedralFunctionBlock::ComputeRowScale( Index i ) const
+{
+ if( ! has_local_scaling() )
+  return( 1.0 );
+
+ return( 1.0 / std::sqrt( ComputeRowMeasure( i ) ) );
+
+ }  // end( PolyhedralFunctionBlock::ComputeRowScale )
+
+/*--------------------------------------------------------------------------*/
+
+void PolyhedralFunctionBlock::RefreshRowMeasure( Index i )
+{
+ f_row_measure[ i ] = ComputeRowMeasure( i );
+
+ }  // end( PolyhedralFunctionBlock::RefreshRowMeasure )
+
+/*--------------------------------------------------------------------------*/
+
+void PolyhedralFunctionBlock::RefreshRowMeasure( Range range )
+{
+ for( Index i = range.first ; i < range.second ; ++i )
+  RefreshRowMeasure( i );
+
+ }  // end( PolyhedralFunctionBlock::RefreshRowMeasure )
+
+/*--------------------------------------------------------------------------*/
+
+void PolyhedralFunctionBlock::RefreshRowMeasure( const Subset & rows )
+{
+ for( const auto i : rows )
+  RefreshRowMeasure( i );
+
+ }  // end( PolyhedralFunctionBlock::RefreshRowMeasure )
+
+/*--------------------------------------------------------------------------*/
+
+Function::FunctionValue PolyhedralFunctionBlock::RowScale( Index i ) const
+{
+ return( f_row_scale[ i ] );
+
+ }  // end( PolyhedralFunctionBlock::RowScale )
+
+/*--------------------------------------------------------------------------*/
+
+Function::FunctionValue
+PolyhedralFunctionBlock::ScaledRowFactor( Index i ) const
+{
+ return( f_global_scale * RowScale( i ) );
+
+ }  // end( PolyhedralFunctionBlock::ScaledRowFactor )
+
+/*--------------------------------------------------------------------------*/
+
+Function::FunctionValue
+PolyhedralFunctionBlock::ScaledBound( Function::FunctionValue value ) const
+{
+ return( f_global_scale * value );
+
+ }  // end( PolyhedralFunctionBlock::ScaledBound )
+
+/*--------------------------------------------------------------------------*/
+
+ColVariable * PolyhedralFunctionBlock::LinearizedV( void )
+{
+ return( has_global_scaling() ? & f_scaled_v : & f_v );
+
+ }  // end( PolyhedralFunctionBlock::LinearizedV )
+
+/*--------------------------------------------------------------------------*/
+
+Function::FunctionValue
+PolyhedralFunctionBlock::ComputeGlobalMeasure( void ) const
+{
+ assert( f_row_measure.size() == PF().get_A().size() );
+
+ Function::FunctionValue mx = 1.0;
+ for( const auto measure : f_row_measure )
+  mx = std::max( mx , measure );
+
+ return( std::isfinite( mx ) ? mx : 1.0 );
+
+ }  // end( PolyhedralFunctionBlock::ComputeGlobalMeasure )
+
+/*--------------------------------------------------------------------------*/
+
+bool PolyhedralFunctionBlock::UpdateGlobalScaleIfNeeded( bool force )
+{
+ if( ! has_global_scaling() )
+  return( false );
+
+ const auto measure = ComputeGlobalMeasure();
+ if( ! force ) {
+  const auto ratio = measure / f_global_reference;
+  if( ( ratio >= 1.0 / k_global_rescale_ratio ) &&
+      ( ratio <= k_global_rescale_ratio ) )
+   return( false );
+  }
+
+ const auto new_scale = 1.0 / std::sqrt( measure );
+ f_global_reference = measure;
+ if( new_scale == f_global_scale )
+  return( false );
+
+ f_global_scale = new_scale;
+ return( true );
+
+ }  // end( PolyhedralFunctionBlock::UpdateGlobalScaleIfNeeded )
+
+/*--------------------------------------------------------------------------*/
+
+bool PolyhedralFunctionBlock::RescaleGlobalIfNeeded( ChnlName chnl )
+{
+ if( ! UpdateGlobalScaleIfNeeded() )
+  return( false );
+
+ if( is_linearized() && ( f_rep & k_built_cnst ) ) {
+  UpdateLinearizedPrimalScale( chnl );
+  return( true );
+  }
+
+ if( is_dual() && ( f_rep & k_built_cnst ) && ( f_rep & k_built_obj ) ) {
+  UpdateLinearizedDualScale( chnl );
+  return( true );
+  }
+
+ return( false );
+
+ }  // end( PolyhedralFunctionBlock::RescaleGlobalIfNeeded )
+
+/*--------------------------------------------------------------------------*/
+
+void PolyhedralFunctionBlock::UpdateLinearizedPrimalScale( ChnlName chnl )
+{
+ // A global rescaling does not change the identity or sparsity pattern of
+ // any cut. Keep every existing Constraint and LinearFunction in place and
+ // only update the coefficients that depend on f_global_scale.
+ auto par = make_par( eNoBlck , chnl );
+ auto scale_lf = static_cast< LinearFunction * >(
+                                             f_scale_cns.get_function() );
+ scale_lf->modify_coefficient( 1 , - f_global_scale , par );
+
+ const auto nv = PF().get_num_active_var();
+ auto cit = f_const.begin();
+ for( Index i = 0 ; cit != f_const.end() ; ++i , ++cit ) {
+  const auto scale = ScaledRowFactor( i );
+  LinearFunction::Vec_FunctionValue coeff( nv );
+  for( Index j = 0 ; j < nv ; ++j )
+   coeff[ j ] = - scale * PF().get_A()[ i ][ j ];
+  static_cast< LinearFunction * >( cit->get_function() )->
+          modify_coefficients( std::move( coeff ) , Range( 1 , nv + 1 ) ,
+                               par );
+  if( PF().is_convex() )
+   cit->set_lhs( scale * PF().get_b()[ i ] , par );
+  else
+   cit->set_rhs( scale * PF().get_b()[ i ] , par );
+  }
+
+ }  // end( PolyhedralFunctionBlock::UpdateLinearizedPrimalScale )
+
+/*--------------------------------------------------------------------------*/
+
+void PolyhedralFunctionBlock::UpdateLinearizedDualScale( ChnlName chnl )
+{
+ // Preserve the theta Variables and every LinearFunction. A global
+ // rescaling only changes numerical coefficients and, in the stand-alone
+ // dual form, the normalization RHS.
+ auto par = make_par( eNoBlck , chnl );
+ auto frobj = static_cast< FRealObjective * >( get_objective() );
+ auto obj_lf = static_cast< LinearFunction * >( frobj->get_function() );
+
+ LinearFunction::Vec_FunctionValue obj_coeff( 1 + f_theta.size() );
+ obj_coeff[ 0 ] = PF().is_bound_set()
+                  ? ScaledBound( PF().get_global_bound() ) : 0.0;
+ Index i = 0;
+ for( const auto & theta : f_theta ) {
+  obj_coeff[ i + 1 ] = ScaledRowFactor( i ) * PF().get_b()[ i ];
+  ++i;
+  }
+ obj_lf->modify_coefficients( std::move( obj_coeff ) ,
+                              Range( 0 , 1 + f_theta.size() ) , par );
+
+ auto nrm_lf = static_cast< LinearFunction * >( f_normcns.get_function() );
+ if( f_lambda ) {
+  const auto k = nrm_lf->is_active( f_lambda );
+  if( k >= nrm_lf->get_num_active_var() )
+   throw( std::logic_error(
+    "PolyhedralFunctionBlock::UpdateLinearizedDualScale: the "
+    "normalization lambda is not active" ) );
+  nrm_lf->modify_coefficient( k , -1.0 / f_global_scale , par );
+  }
+ else {
+  f_normcns.set_lhs( 1.0 / f_global_scale , par );
+  f_normcns.set_rhs( 1.0 / f_global_scale , par );
+  }
+
+ if( f_coupling ) {
+  Index j = 0;
+  for( auto & c : *f_coupling ) {
+   auto cf = static_cast< LinearFunction * >( c.get_function() );
+   Subset nms;
+   LinearFunction::Vec_FunctionValue coeff;
+   i = 0;
+   for( auto & theta : f_theta ) {
+    const auto k = cf->is_active( & theta );
+    if( k < cf->get_num_active_var() ) {
+     nms.push_back( k );
+     coeff.push_back( ScaledRowFactor( i ) * PF().get_A()[ i ][ j ] );
+     }
+    ++i;
+    }
+   if( ! nms.empty() )
+    cf->modify_coefficients( std::move( coeff ) , std::move( nms ) , false ,
+                             par );
+   ++j;
+   }
+  }
+
+ }  // end( PolyhedralFunctionBlock::UpdateLinearizedDualScale )
+
+/*--------------------------------------------------------------------------*/
+
+void PolyhedralFunctionBlock::RebuildLinearizedPrimal( void )
+{
+ if( has_global_scaling() )
+  f_scale_cns.set_function( new LinearFunction(
+                { std::make_pair( & f_scaled_v , 1.0 ) ,
+                  std::make_pair( & f_v , - f_global_scale ) } ) , eNoMod );
+
+ f_const.resize( PF().get_A().size() );
+ auto cit = f_const.begin();
+ for( Index i = 0 ; i < PF().get_A().size() ; ++i , ++cit ) {
+  cit->set_Block( this );
+  ConstructLPConstraint( i , *cit );
+  }
+
+ AbstractBlock::add_Modification( std::make_shared< NBModification >( this ) );
+
+ }  // end( PolyhedralFunctionBlock::RebuildLinearizedPrimal )
+
+/*--------------------------------------------------------------------------*/
+
+void PolyhedralFunctionBlock::RebuildLinearizedDual( void )
+{
+ auto frobj = static_cast< FRealObjective * >( get_objective() );
+
+ // Preserve entries owned by the parent Block, such as the lambda installed
+ // by set_lambda(), while replacing every theta-dependent coefficient.
+ std::unordered_set< const Variable * > old_theta;
+ old_theta.reserve( f_theta.size() );
+ for( const auto & t : f_theta )
+  old_theta.insert( & t );
+
+ std::vector< LinearFunction::v_coeff_pair > cpl_kept;
+ if( f_coupling ) {
+  cpl_kept.resize( f_coupling->size() );
+  Index j = 0;
+  for( auto & c : *f_coupling ) {
+   auto cf = static_cast< LinearFunction * >( c.get_function() );
+   if( cf )
+    for( const auto & p : cf->get_v_var() )
+     if( ! old_theta.count( p.first ) )
+      cpl_kept[ j ].push_back( p );
+   ++j;
+   }
+  }
+
+ LinearFunction::v_coeff_pair nrm_kept;
+ if( auto nrm_lf = static_cast< LinearFunction * >(
+                                             f_normcns.get_function() ) )
+  for( auto p : nrm_lf->get_v_var() )
+   if( ! old_theta.count( p.first ) && ( p.first != & f_gamma ) ) {
+    if( p.first == f_lambda )
+     p.second = -1.0 / f_global_scale;
+    nrm_kept.push_back( p );
+    }
+
+ const Index nr = PF().get_A().size();
+ std::list< ColVariable > new_theta;
+ std::vector< ColVariable * > new_ptrs;
+ new_ptrs.reserve( nr );
+ for( Index i = 0 ; i < nr ; ++i ) {
+  new_theta.emplace_back();
+  auto & v = new_theta.back();
+  v.is_positive( true , eNoMod );
+  v.set_Block( this );
+  new_ptrs.push_back( & v );
+  }
+
+ if( PF().is_bound_set() ) {
+  if( f_gamma.is_fixed() )
+   f_gamma.is_fixed( false , eNoMod );
+  }
+ else {
+  f_gamma.set_value( 0 );
+  if( ! f_gamma.is_fixed() )
+   f_gamma.is_fixed( true , eNoMod );
+  }
+
+ {
+  LinearFunction::v_coeff_pair obj_vp;
+  obj_vp.reserve( 1 + nr );
+  const double bnd = PF().is_bound_set()
+                     ? ScaledBound( PF().get_global_bound() )
+                     : 0.0;
+  obj_vp.emplace_back( & f_gamma , bnd );
+  for( Index i = 0 ; i < nr ; ++i )
+   obj_vp.emplace_back( new_ptrs[ i ] ,
+                        ScaledRowFactor( i ) * PF().get_b()[ i ] );
+  frobj->set_function( new LinearFunction( std::move( obj_vp ) ) , eNoMod );
+  }
+
+ {
+  LinearFunction::v_coeff_pair nrm_vp;
+  nrm_vp.reserve( 1 + nr + nrm_kept.size() );
+  nrm_vp.emplace_back( & f_gamma , 1.0 );
+  for( Index i = 0 ; i < nr ; ++i )
+   if( ! PF().is_row_vertical( i ) )
+    nrm_vp.emplace_back( new_ptrs[ i ] , RowScale( i ) );
+  for( auto & p : nrm_kept )
+   nrm_vp.push_back( p );
+  f_normcns.set_function( new LinearFunction( std::move( nrm_vp ) ) ,
+                          eNoMod );
+  if( f_lambda ) {
+   f_normcns.set_lhs( 0.0 , eNoMod );
+   f_normcns.set_rhs( 0.0 , eNoMod );
+   }
+  else {
+   f_normcns.set_lhs( 1.0 / f_global_scale , eNoMod );
+   f_normcns.set_rhs( 1.0 / f_global_scale , eNoMod );
+   }
+  }
+
+ if( f_coupling ) {
+  const Index nv = PF().get_num_active_var();
+  Index j = 0;
+  auto cit = f_coupling->begin();
+  for( ; cit != f_coupling->end() && j < nv ; ++cit , ++j ) {
+   LinearFunction::v_coeff_pair vp = std::move( cpl_kept[ j ] );
+   for( Index i = 0 ; i < nr ; ++i ) {
+    const double a = ScaledRowFactor( i ) * PF().get_A()[ i ][ j ];
+    if( a != 0 )
+     vp.emplace_back( new_ptrs[ i ] , a );
+    }
+   cit->set_function( new LinearFunction( std::move( vp ) ) , eNoMod );
+   }
+  }
+
+ f_theta.swap( new_theta );
+
+ AbstractBlock::add_Modification( std::make_shared< NBModification >( this ) );
+
+ }  // end( PolyhedralFunctionBlock::RebuildLinearizedDual )
+
+/*--------------------------------------------------------------------------*/
+
+void PolyhedralFunctionBlock::InitialiseScaling( void )
+{
+ f_global_scale = 1.0;
+ f_global_reference = 1.0;
+
+ f_row_scale.clear();
+ f_row_scale.reserve( PF().get_A().size() );
+ f_row_measure.clear();
+ f_row_measure.reserve( PF().get_A().size() );
+ AppendRowScaling( 0 );
+ AppendRowMeasure( 0 );
+ UpdateGlobalScaleIfNeeded( true );
+
+ }  // end( PolyhedralFunctionBlock::InitialiseScaling )
+
+/*--------------------------------------------------------------------------*/
+
+void PolyhedralFunctionBlock::AppendRowScaling( Index first )
+{
+ for( Index i = first ; i < PF().get_A().size() ; ++i )
+  f_row_scale.push_back( ComputeRowScale( i ) );
+
+ }  // end( PolyhedralFunctionBlock::AppendRowScaling )
+
+/*--------------------------------------------------------------------------*/
+
+void PolyhedralFunctionBlock::AppendRowMeasure( Index first )
+{
+ for( Index i = first ; i < PF().get_A().size() ; ++i )
+  f_row_measure.push_back( ComputeRowMeasure( i ) );
+
+ }  // end( PolyhedralFunctionBlock::AppendRowMeasure )
+
+/*--------------------------------------------------------------------------*/
+
+void PolyhedralFunctionBlock::DeleteRowScaling( Range range )
+{
+ f_row_scale.erase( f_row_scale.begin() + range.first ,
+                    f_row_scale.begin() + range.second );
+ f_row_measure.erase( f_row_measure.begin() + range.first ,
+                      f_row_measure.begin() + range.second );
+
+ }  // end( PolyhedralFunctionBlock::DeleteRowScaling )
+
+/*--------------------------------------------------------------------------*/
+
+void PolyhedralFunctionBlock::DeleteRowScaling( const Subset & rows )
+{
+ for( auto rit = rows.rbegin() ; rit != rows.rend() ; ++rit )
+  f_row_scale.erase( f_row_scale.begin() + *rit );
+ for( auto rit = rows.rbegin() ; rit != rows.rend() ; ++rit )
+  f_row_measure.erase( f_row_measure.begin() + *rit );
+
+ }  // end( PolyhedralFunctionBlock::DeleteRowScaling )
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- remove_redundant_rows() --------------------------*/

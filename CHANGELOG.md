@@ -9,6 +9,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Fixed
+
+## [0.7.0] - 2026-09-12
+
+### Added
+
+- `AbstractBlock::mirror()`, which builds the AbstractBlock as a copy of the
+  abstract representation of any other Block: one ColVariable per
+  ColVariable, one Constraint per Constraint and an Objective, the groups
+  keeping their shape and their order and the inner Block being copied
+  recursively, with a Constraint of the copy written in the Variable of the
+  copy and a Variable living outside the mirrored subtree shared with the
+  original. The copy knows which object of the original each of its own
+  corresponds to, hence it moves solution information in both directions
+  [see `mirror_read()` and `mirror_write()`] and applies to itself a
+  Modification the original issues [see `mirror_forward_Modification()`],
+  which is what an `UpdateSolver` attached to the original does by itself.
+  What cannot be written on other Variable, which is any Function but a
+  LinearFunction and a DQuadFunction, is left out and recorded [see
+  `get_mirror_issues()`], so that the copy is then a relaxation and whoever
+  asked for it can see that it is; the objects of each group are counted on
+  both sides, so that a group of a shape the copy does not reproduce is
+  recorded as well rather than quietly holding fewer objects
+
+- the default implementation of `Block::map_back_solution()`,
+  `Block::map_forward_solution()` and `Block::map_forward_Modification()`
+  serves the AbstractBlock that has mirrored the Block, so that every Block
+  has a R3 Block of itself without having had to write a line for it
+
+- `Block::access_static_variable()` and its three companions, which give the
+  group of Variable or Constraint as the boost::any holding it, so that code
+  building a Block out of another one can install a group whose type it only
+  knows at run time
+
 - `ThinComputeInterface::print_parameters()`, which prints the name, the
   current value and the default one of every parameter, walking the six
   index spaces; for a class whose index space extends over that of a
@@ -36,11 +72,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   message rather than being read with all its Configuration shifted by one
   slot; every BlockConfig file has to be converted
 
-### Added 
+- the version of the module is the git tag of its repository, or the
+  VERSION.txt of a release tarball, and the shared library carries it: its
+  SONAME is major.minor while the major is 0, and it is installed with an
+  RPATH relative to itself, so that an installed tree keeps working wherever
+  it is moved
 
-### Changed 
-
-### Fixed 
+### Fixed
 
 - `LagBFunction::cleanup_inner_objective()` restored the original costs by
   rewriting the whole vector of coefficients, i.e. a Range spanning every
@@ -369,8 +407,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - First test release.
 
-[Unreleased]: https://gitlab.com/smspp/smspp/-/compare/0.6.0...develop
-[Unreleased]: https://gitlab.com/smspp/smspp/-/compare/0.5.3...0.6.0
+[Unreleased]: https://gitlab.com/smspp/smspp/-/compare/0.7.0...develop
+[0.7.0]: https://gitlab.com/smspp/smspp/-/compare/0.6.0...0.7.0
+[0.6.0]: https://gitlab.com/smspp/smspp/-/compare/0.5.3...0.6.0
 [0.5.3]: https://gitlab.com/smspp/smspp/-/compare/0.5.2...0.5.3
 [0.5.2]: https://gitlab.com/smspp/smspp/-/compare/0.5.1...0.5.2
 [0.5.1]: https://gitlab.com/smspp/smspp/-/compare/0.5.0...0.5.1

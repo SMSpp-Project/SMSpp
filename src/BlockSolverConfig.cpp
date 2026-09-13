@@ -26,6 +26,8 @@
 
 #include "BlockSolverConfig.h"
 
+#include <unordered_set>
+
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -280,7 +282,8 @@ void BlockSolverConfig::get( const Block * block , bool clear )
 /*---------- METHODS DESCRIBING THE BEHAVIOR OF BlockSolverConfig ----------*/
 /*--------------------------------------------------------------------------*/
 
-void BlockSolverConfig::apply( Block * block )
+void BlockSolverConfig::apply( Block * block ,
+                               const std::unordered_set< Block * > * ignored )
 {
  if( ! block )
   return;
@@ -308,6 +311,16 @@ void BlockSolverConfig::apply( Block * block )
   return;                                        // all done
   }
 
+ /* A Solver that has to ignore part of the Block tree must be told before it
+  * is attached: set_excluded_blocks() eagerly expands the set over the
+  * sub-tree of each Block in it, and load_problem(), which register_Solver()
+  * and replace_Solver() trigger, has to already see the right one. */
+
+ const auto install_excluded = [ ignored ]( Solver * slvr ) {
+  if( slvr && ignored && ( ! ignored->empty() ) )
+   slvr->set_excluded_blocks( ignored );
+  };
+
  auto & recorded = v_Registered[ block ];  // the record for this Block
 
  if( f_diff == eAddMode ) {  // additive mode- - - - - - - - - - - - - - - - -
@@ -322,6 +335,8 @@ void BlockSolverConfig::apply( Block * block )
 
    if( *cit )                               // if the ComputeConfig is there
     slvr->set_ComputeConfig( *cit );        // ComputeConfig-ure it
+
+   install_excluded( slvr );                // and tell it what to ignore
 
    block->register_Solver( slvr );          // only then pass it to the Block
    recorded.push_back( slvr );              // and record it
@@ -370,6 +385,8 @@ void BlockSolverConfig::apply( Block * block )
     if( *cit )                             // if the ComputeConfig is there
      slvr->set_ComputeConfig( *cit );      // ComputeConfig-ure it
 
+    install_excluded( slvr );              // and tell it what to ignore
+
     forget( *sit );                        // the replaced one is deleted
     block->replace_Solver( slvr , sit , true );  // replace the existing one
     recorded.push_back( slvr );
@@ -398,6 +415,8 @@ void BlockSolverConfig::apply( Block * block )
    if( *cit )                                // if the ComputeConfig is there
     slvr->set_ComputeConfig( *cit );         // ComputeConfig-ure it
 
+   install_excluded( slvr );                 // and tell it what to ignore
+
    // only then replace the existing one
    forget( *sit );                           // the replaced one is deleted
    block->replace_Solver( slvr, sit, true );
@@ -415,6 +434,8 @@ void BlockSolverConfig::apply( Block * block )
 
   if( *cit )                               // if the ComputeConfig is there
    slvr->set_ComputeConfig( *cit );        // ComputeConfig-ure it
+
+  install_excluded( slvr );                // and tell it what to ignore
 
   block->register_Solver( slvr );          // only then pass it to the Block
   recorded.push_back( slvr );
@@ -683,7 +704,8 @@ void RBlockSolverConfig::get( const Block * block , bool clear )
 /*-------- METHODS DESCRIBING THE BEHAVIOR OF THE RBlockSolverConfig -------*/
 /*--------------------------------------------------------------------------*/
 
-void RBlockSolverConfig::apply( Block * block )
+void RBlockSolverConfig::apply( Block * block ,
+                                const std::unordered_set< Block * > * ignored )
 {
  if( ! block )
   return;
@@ -725,7 +747,7 @@ void RBlockSolverConfig::apply( Block * block )
 				 " neither a sub-Block name nor a valid index"
 				 ) );
   if( *it )
-   ( *it )->apply( sub_Block );
+   ( *it )->apply( sub_Block , ignored );
   // else: a nullptr sub-BlockSolverConfig leaves the sub-Block alone,
   // whatever the mode [see the class comment]
   ++it;

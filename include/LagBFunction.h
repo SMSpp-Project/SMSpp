@@ -1451,6 +1451,29 @@ class LagBFunction : public C05Function , public Block
   }
 
 /*--------------------------------------------------------------------------*/
+ /// checks a Solution of the global pool against the inner Block
+ /** Asks the inner Block if what sol holds is still feasible for it. The
+  * parameter varsol tells whether that is a solution or a direction, which
+  * the Block has to be told before it is asked, one method answering for
+  * both cases; note that the Solution need not be written in the Block,
+  * whether it is being the Block's business [see Block::is_sol_feasible()
+  * and Block::is_sol_feasible_physical()]. */
+
+ bool check_Solution( Solution * sol , bool varsol ) {
+  auto blck = v_Block.front();
+  if( ( ! varsol ) && ( ! blck->has_directions() ) )
+   // the entry is a direction and the Block does not know what one of its
+   // own is: it is not saying that the direction is no longer one, it is
+   // saying that it cannot tell, and an entry that cannot be checked is
+   // kept rather than thrown away
+   return( true );
+  blck->is_direction( ! varsol );
+  const bool feas = blck->is_sol_feasible( sol );
+  blck->is_direction( false );
+  return( feas );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// returns the objective of the inner Block to its "pristine" state
  /** This method removes the effect of all the Lagrangian terms from the
   * Objective of the inner Block, which is basically equivalent to forcing
@@ -1784,7 +1807,7 @@ class LagBFunction : public C05Function , public Block
  /// returns a pointer to the i-th Lagrangian term
  /** Returns a pointer to the Function defining the Lagrangian term g_i(x)
   * associated with the i-th ColVariable y_i of the LagBFunction (that
-  * returned by get_active_var( i )). Currently this can only be a
+  * returned by get_active_var( i )). Currently, this can only be a
   * LinearFunction, hence the return value can be safely static_cast-ed to
   * a LinearFunction *. */
 
@@ -2620,6 +2643,19 @@ class LagBFunction : public C05Function , public Block
  void eager_pool_cost_delta( const v_coeff_pair & rc ,
 	       const std::vector< std::pair< Index , double > > & jdeltas );
 
+ /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// EAGER: remove original linear-cost terms from stored pool constants
+ /** A C05FunctionModVarsRngd/Sbst reaches LagBFunction after the Variable have
+  * already been removed from the Objective, while CostMatrix still contains
+  * their old original costs. Before changing CostMatrix, subtract
+  * sum_j c_j x*_j from every eager full epigraphic constant. This is exact for
+  * a LinearFunction Objective, including convexified pool entries, because the
+  * removed objective term is affine. Does nothing under lazy or NoSol. */
+
+ void eager_pool_cost_removal( c_Vec_p_Var & vars ,
+                               c_Vec_FunctionValue & costs );
+
+
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// EAGER subgradient: fill g from conv_active without writing the Solution
  /** Rebuilds the subgradient of a global-pool linearization `name` --
@@ -3076,7 +3112,7 @@ class LagBFunctionMod : public C05FunctionMod {
 /*--------------------------------------------------------------------------*/
 /// class to describe the "internal state" of a LagBFunction
 /** Derived class from State to describe the "internal state" of a
- * LagBFunction, i.e., its global pool. This means savng the stored Solution
+ * LagBFunction, i.e., its global pool. This means saving the stored Solution
  * (and their type). */
 
 class LagBFunctionState : public State {

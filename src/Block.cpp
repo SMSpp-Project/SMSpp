@@ -24,9 +24,11 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include "AbstractBlock.h"
 #include "Block.h"
 #include "Constraint.h"
 #include "Objective.h"
+#include "Solution.h"
 #include "Variable.h"
 
 /*--------------------------------------------------------------------------*/
@@ -429,6 +431,63 @@ void Block::set_objective( Objective * newOF , c_ModParam issueMod )
 }
 
 /*--------------------------------------------------------------------------*/
+/*------------------ Methods for checking the Block ------------------------*/
+/*--------------------------------------------------------------------------*/
+
+// a Solution can only be checked against the Constraint through the Variable
+// they are written on: the values have to be put there, and what was there
+// has to be put back, so that the state of the Block is left as it was
+
+template< typename Check >
+static bool check_Solution( Block * blck , Solution * sol , Check && check )
+{
+ if( ! sol )
+  return( false );
+
+ auto current = blck->get_Solution( nullptr , false );
+
+ // a Solution that holds a direction has to be checked as one; the Block
+ // may have been told so already by whoever has the two apart, which is why
+ // the flag is only ever raised here and put back as it was found
+ const bool wasdir = blck->is_direction();
+ if( sol->is_direction() && ( ! wasdir ) && blck->has_directions() )
+  blck->is_direction( true );
+
+ sol->write( blck );
+ const bool answer = check();
+
+ if( blck->is_direction() != wasdir )
+  blck->is_direction( wasdir );
+
+ if( current ) {
+  current->write( blck );
+  delete current;
+  }
+
+ return( answer );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool Block::is_sol_feasible( Solution * sol , Configuration * fsbc )
+{
+ return( check_Solution( this , sol ,
+                         [ this , fsbc ]() {
+                          return( is_feasible( true , fsbc ) );
+                          } ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool Block::is_sol_optimal( Solution * sol , Configuration * optc )
+{
+ return( check_Solution( this , sol ,
+                         [ this , optc ]() {
+                          return( is_optimal( true , optc ) );
+                          } ) );
+ }
+
+/*--------------------------------------------------------------------------*/
 /*------------- METHODS DESCRIBING THE BEHAVIOR OF AN Observer -------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -453,6 +512,48 @@ void Block::anyone_there( bool isthere )
    el->anyone_there( false );
   }
  }  // end( Block::anyone_there )
+
+/*--------------------------------------------------------------------------*/
+
+Block * Block::resolve_sub_Block_path( const std::string & path )
+{
+ if( path.empty() )
+  return( this );
+
+ Block * cur = this;
+ std::size_t pos = 0;
+ while( pos < path.size() ) {
+  auto slash = path.find( '/' , pos );
+  if( slash == std::string::npos )
+   slash = path.size();
+
+  const auto seg = path.substr( pos , slash - pos );
+  if( seg.empty() )
+   throw( std::invalid_argument(
+      "Block::resolve_sub_Block_path: empty segment in '" + path + "'" ) );
+
+  Index idx;
+  try {
+   idx = static_cast< Index >( std::stoul( seg ) );
+   }
+  catch( ... ) {
+   throw( std::invalid_argument(
+      "Block::resolve_sub_Block_path: non-numeric segment '" + seg +
+      "' in '" + path + "'" ) );
+   }
+
+  if( idx >= cur->v_Block.size() )
+   throw( std::out_of_range(
+      "Block::resolve_sub_Block_path: index " + seg +
+      " out of range in '" + path + "'" ) );
+
+  cur = cur->v_Block[ idx ];
+  pos = ( slash == path.size() ) ? slash : ( slash + 1 );
+  }
+
+ return( cur );
+
+ }  // end( Block::resolve_sub_Block_path )
 
 /*--------------------------------------------------------------------------*/
 
@@ -1178,6 +1279,76 @@ void BlockConfig::deserialize( const netCDF::NcGroup & group )
  f_extra_Configuration = new_Configuration( cg );
 
  }  // end( BlockConfig::deserialize( group ) )
+
+/*--------------------------------------------------------------------------*/
+/*-------------------- THE R3 Block EVERY Block HAS ------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/* An AbstractBlock that has mirrored this Block is a R3 Block of it that this
+ * Block has not had to write a line for: the mirror holds the map between the
+ * two, hence it is the mirror that does the mapping, in either direction [see
+ * AbstractBlock::mirror()]. */
+
+static AbstractBlock * as_mirror( Block * blck , Block * R3B )
+{
+ auto ab = dynamic_cast< AbstractBlock * >( R3B );
+ return( ( ab && ( ab->get_mirrored() == blck ) ) ? ab : nullptr );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void Block::map_back_solution( Block * R3B , Configuration * r3bc ,
+                               Configuration * solc )
+{
+ if( auto ab = as_mirror( this , R3B ) ) {
+  ab->mirror_write();
+  return;
+  }
+
+ throw( std::invalid_argument( "R3 Block type not supported" ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void Block::map_forward_solution( Block * R3B , Configuration * r3bc ,
+                                  Configuration * solc )
+{
+ if( auto ab = as_mirror( this , R3B ) ) {
+  ab->mirror_read();
+  return;
+  }
+
+ throw( std::invalid_argument( "R3 Block type not supported" ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool Block::map_forward_Modification( Block * R3B , c_p_Mod mod ,
+                                      Configuration * r3bc ,
+                                      ModParam issuePMod , ModParam issueAMod )
+{
+ /* The mirror is asked first, and whatever Block of the subtree the
+  * Modification comes from: the map it holds covers the whole of it. */
+
+ if( auto ab = as_mirror( this , R3B ) )
+  return( ab->mirror_forward_Modification( mod ) );
+
+ if( mod->get_Block() == this )
+  return( false );
+
+ auto i = get_nested_Block_index( mod->get_Block() );
+ if( ( i >= get_number_nested_Blocks() ) ||
+     ( i >= R3B->get_number_nested_Blocks() ) )
+  return( false );
+
+ auto cv = dynamic_cast< SimpleConfiguration< std::vector< Configuration * > >
+                         * >( r3bc );
+
+ return( mod->get_Block()->map_forward_Modification(
+          R3B->get_nested_Block( i ) , mod ,
+          ( cv && ( cv->f_value.size() > i ) ) ? cv->f_value[ i ] : nullptr ,
+          issuePMod , issueAMod ) );
+ }
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ End File Block.cpp ------------------------------*/

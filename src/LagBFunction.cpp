@@ -1144,13 +1144,10 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
     if( g_pool[ i ].sol ) {  // a Solution is there
      ++cnt;
 
-     // write it in the Variable of the inner Block
-     g_pool[ i ].sol->write( v_Block.front() );
-     LastSolution = i;  // and recall what's there
-
-     // check it's still a feasible solution/direction
-     bool feas = g_pool[ i ].varsol ? v_Block.front()->is_feasible()
-                                    : v_Block.front()->is_unbounded();
+     // check it's still a feasible solution/direction: the Block is told
+     // which of the two it is being handed and answers with one method
+     const bool feas = check_Solution( g_pool[ i ].sol ,
+                                       g_pool[ i ].varsol );
      if( ! feas ) {              // if not
       delete g_pool[ i ].sol;  // eliminate it
       g_pool[ i ].sol = nullptr;
@@ -1392,12 +1389,9 @@ void LagBFunction::put_State( const State & state )
   if( ChkState )  // if Solutions are checked
    for( Index i = 0 ; i < s.g_pool.size() ; ++i ) {
     if( s.g_pool[ i ].sol ) {
-     // write the Solution to the inner Block
-     s.g_pool[ i ].sol->write( v_Block.front() );
-
-     // if it's still a feasible solution/direction, copy it
-     if( ( s.g_pool[ i ].varsol ? v_Block.front()->is_feasible()
-	                        : v_Block.front()->is_unbounded() ) ) {
+     // if it's still a feasible solution/direction, copy it: the Block is
+     // told which of the two it is being handed and answers with one method
+     if( check_Solution( s.g_pool[ i ].sol , s.g_pool[ i ].varsol ) ) {
       gpit->sol = s.g_pool[ i ].sol->clone();  // clone() the Solution in
       gpit->varsol = s.g_pool[ i ].varsol;
       gpit->value = s.g_pool[ i ].value;            // eager/lazy constant
@@ -1486,12 +1480,9 @@ void LagBFunction::put_State( State && state )
   if( ChkState )  // if Solutions are checked
    for( Index i = 0 ; i < s.g_pool.size() ; ++i ) {
     if( s.g_pool[ i ].sol ) {
-     // write the Solution to the inner Block
-     s.g_pool[ i ].sol->write( v_Block.front() );
-
-     // if it's still a feasible solution/direction, copy it
-     if( ( s.g_pool[ i ].varsol ? v_Block.front()->is_feasible()
-	                        : v_Block.front()->is_unbounded() ) ) {
+     // if it's still a feasible solution/direction, copy it: the Block is
+     // told which of the two it is being handed and answers with one method
+     if( check_Solution( s.g_pool[ i ].sol , s.g_pool[ i ].varsol ) ) {
       gpit->sol = s.g_pool[ i ].sol;  // move the Solution in
       s.g_pool[ i ].sol = nullptr;      // delete it from the State
       gpit->varsol = s.g_pool[ i ].varsol;
@@ -2117,12 +2108,11 @@ int LagBFunction::compute( bool changedvars )
     // representation and re-issue it in its own physical language to the
     // Solver registered on it (e.g. ThermalUnitBlock translating the new
     // Lagrangian costs for its DP solvers, which never look at the abstract
-    // representation). An *enclosing* LagBFunction that has adopted this
-    // same (shared) sub-Block Objective must still not mistake the write
-    // for a real cost change [it would issue a spurious AlphaChanged that
-    // keeps invalidating its bundle model -> kLowPrecision]: it recognises
-    // it structurally, because the writer (this LagBFunction) holds the
-    // Block lock, see the guard in guts_of_guts_of_add_Modification().
+    // representation). On its way up it then reaches this LagBFunction,
+    // which is the f_Block of the inner Block and, f_play_dumb being set,
+    // drops it without forwarding it [see add_Modification()]: hence no
+    // enclosing LagBFunction ever sees the write, and none can take it for a
+    // change of the original costs.
     //
     // chgidx is sorted with distinct entries (it is a subset of the sorted
     // v_active[h] pushed in order), so it represents a contiguous run iff
@@ -4555,6 +4545,36 @@ void LagBFunction::eager_pool_cost_delta( const v_coeff_pair & rc ,
 
 /*--------------------------------------------------------------------------*/
 
+void LagBFunction::eager_pool_cost_removal(
+                                    c_Vec_p_Var & vars ,
+                                    c_Vec_FunctionValue & costs )
+{
+ if( f_lazy_eval || NoSol || vars.empty() )
+  return;
+
+ if( vars.size() != costs.size() )
+  throw( std::logic_error(
+             "LagBFunction::eager_pool_cost_removal: inconsistent sizes" ) );
+
+ for( Index k = 0 ; k < f_max_glob ; ++k ) {
+  if( ! g_pool[ k ].sol )
+   continue;
+  g_pool[ k ].sol->write( v_Block.front() );
+  double dv = 0;
+  for( Index j = 0 ; j < vars.size() ; ++j )
+   dv -= costs[ j ] * static_cast< ColVariable * >( vars[ j ] )->get_value();
+  g_pool[ k ].value += dv;
+  }
+
+ // As in eager_pool_cost_delta(), the Block contains the last pool Solution,
+ // but no entry must be treated as current: subsequent queries should use the
+ // eager values just updated above.
+ LastSolution = g_pool.size();
+
+ }  // end( LagBFunction::eager_pool_cost_removal )
+
+/*--------------------------------------------------------------------------*/
+
 void LagBFunction::update_CostMatrix_ModVarsAddd( Index h ,
                                                   c_Vec_p_Var & vars ,
                                                   Index first )
@@ -4644,6 +4664,17 @@ void LagBFunction::update_CostMatrix_ModVarsRngd( Index h ,
    throw( std::logic_error( "inconsistent CostMatrix" ) );
  #endif
 
+ // The Variable are already absent from obj, but CostMatrix still carries
+ // their old original costs. Keep eager pool constants aligned before those
+ // columns are erased/moved. For a DQuadFunction the removed quadratic term
+ // is not available in the Modification, so this exact affine update is only
+ // performed for LinearFunction Objectives.
+ if( ! v_ObjIsQuad[ h ] ) {
+  Vec_FunctionValue costs( vars.size() );
+  for( Index i = 0 ; i < vars.size() ; ++i )
+   costs[ i ] = CM[ rng.first + i ].first;
+  eager_pool_cost_removal( vars , costs );
+  }
  m_column tempCM;     // CostMatrix elements to be re-added
 
  // check if are nonempty elements of CostMatrix are being deleted, if so
@@ -4703,6 +4734,14 @@ void LagBFunction::update_CostMatrix_ModVarsSbst( Index h ,
    throw( std::logic_error( "inconsistent CostMatrix" ) );
  #endif
 
+ // See the range version above. subset() and vars() have positional
+ // correspondence, so retain that order while collecting the old costs.
+ if( ! v_ObjIsQuad[ h ] ) {
+  Vec_FunctionValue costs( vars.size() );
+  for( Index i = 0 ; i < vars.size() ; ++i )
+   costs[ i ] = CM[ sbst[ i ] ].first;
+  eager_pool_cost_removal( vars , costs );
+  }
  m_column tempCM;     // CostMatrix elements to be re-added
 
  // check if are nonempty elements of CostMatrix are being deleted, if so
