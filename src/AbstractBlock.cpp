@@ -255,10 +255,54 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
                            feas = ( ( rel_viol ? cnst.rel_viol() :
                                       cnst.abs_viol() ) <= eps ); };
 
- // check if a FRowConstraint is satisfied; a direction is only checked
- // against a linear row, a Function of any other kind having no homogeneous
- // version to check it against
- auto check_frow = [ & feas , eps , rel_viol , this , & check_direction ]
+ // a direction is checked against the homogeneous version of the row. For a
+ // linear one that is the row without its constant term. For a quadratic one
+ // the row is worth ( q . d ) alpha + ( d^T Q d ) alpha^2 along the ray, hence
+ // the sign of d^T Q d decides: negative, the row goes to minus infinity and
+ // only an infinite left-hand side survives it; positive, it goes to plus
+ // infinity and only an infinite right-hand side does; zero, what is left is
+ // the linear term and the rule is the linear one. Anything else has no
+ // homogeneous version to be checked against
+ auto check_direction_frow = [ & feas , eps , & check_direction ]
+                             ( FRowConstraint & cnst ) {
+  auto f = cnst.get_function();
+
+  if( auto lf = dynamic_cast< LinearFunction * >( f ) ) {
+   check_direction( cnst , lf->get_value() - lf->get_constant_term() );
+   return;
+   }
+
+  if( auto qf = dynamic_cast< DQuadFunction * >( f ) ) {
+   double quad = 0;
+   double lin = 0;
+   for( Index i = 0 ; i < qf->get_num_active_var() ; ++i ) {
+    const double di = static_cast< const ColVariable * >(
+                                    qf->get_active_var( i ) )->get_value();
+    quad += qf->get_quadratic_coefficient( i ) * di * di;
+    lin += qf->get_linear_coefficient( i ) * di;
+    }
+
+   if( quad < - eps ) {
+    feas = ( cnst.get_lhs() <= - RowConstraint::RHSINF );
+    return;
+    }
+   if( quad > eps ) {
+    feas = ( cnst.get_rhs() >= RowConstraint::RHSINF );
+    return;
+    }
+
+   check_direction( cnst , lin );
+   return;
+   }
+
+  throw( std::logic_error( "AbstractBlock::is_feasible: a direction is only "
+                           "checked against linear or diagonal quadratic "
+                           "Constraint" ) );
+  };
+
+ // check if a FRowConstraint is satisfied
+ auto check_frow = [ & feas , eps , rel_viol , this ,
+                     & check_direction_frow ]
                    ( FRowConstraint & cnst ) {
                     if( ( ! feas ) || cnst.is_relaxed() )
                      return;
@@ -269,14 +313,7 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
                      return;
                      }
                     if( f_is_direction ) {
-                     auto lf = dynamic_cast< LinearFunction * >(
-                                                       cnst.get_function() );
-                     if( ! lf )
-                      throw( std::logic_error(
-                       "AbstractBlock::is_feasible: a direction is only "
-                       "checked against linear Constraint" ) );
-                     check_direction( cnst , lf->get_value() -
-                                             lf->get_constant_term() );
+                     check_direction_frow( cnst );
                      return;
                      }
                     feas = ( ( rel_viol ? cnst.rel_viol() :
@@ -797,7 +834,7 @@ void AbstractBlock::print( std::ostream & output , char vlvl ) const
    throw( std::logic_error( "some static Variable not ColVariable" ) );
    }
 
-  // the dynamic Constraints of the Block- - - - - - - - - - - - - - - - - -
+ // the dynamic Constraints of the Block- - - - - - - - - - - - - - - - - -
   output << "Dynamic Constraints:" << std::endl;
   auto & dc = get_dynamic_constraints();
   for( auto i = get_first_dynamic_Constraint() ; i < dc.size() ; ++i ) {

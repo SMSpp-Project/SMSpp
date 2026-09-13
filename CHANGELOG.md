@@ -13,6 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+## [0.7.1] - 2026-09-13
+
+### Fixed
+
+- a direction is checked against a quadratic row too, the sign of d^T Q d
+  deciding whether the row bounds it
+
 ## [0.7.0] - 2026-09-12
 
 ### Added
