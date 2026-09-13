@@ -116,6 +116,7 @@
 
 #include <boost/bimap.hpp>
 #include <netcdf>
+#include <type_traits>
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
@@ -396,7 +397,8 @@ typedef Vec_Block::iterator Vec_Block_it;
  * "total" objective of the problem represented by the whole Block (the father
  * one plus the sub-Block, recursively). The principle is simple: the total
  * objective of a Block is given by the *sum* of its Objective and of all the
- * Objective of the sub-Block (recursively).
+ * Objective of the sub-Block (recursively), each of the latter possibly
+ * weighted by a factor of its own [see Design and scaling of this Block].
  *
  * This principle need some commenting. First of all, it says that whatever
  * is the return value of the Objective, it must admit a sum operation
@@ -595,8 +597,10 @@ class Block : public Observer {
  *
  * - MF_int_sp, a std::span< const int >;
  *
- * - MF_dbl_msp, a std::span< double >, the mutable counterpart through which
- *   a function writes data out rather than receiving it;
+ * - MF_dbl_msp, a std::span< double >, through which a function writes data
+ *   out;
+ *
+ * - MF_int_msp, a std::span< int >, the same for int;
  *
  * Also defined here are types useful for the registration process itself:
  *
@@ -613,29 +617,18 @@ class Block : public Observer {
  * - ConstMemberFunctionType (variadic template), the type of the class member
  *   functions corresponding to the type dictated by QueryType;
  *
- * - BoolFunctionType (variadic template), the same as FunctionType with a
- *   bool return;
- *
- * - BoolMemberFunctionType (variadic template), the type of the class member
- *   functions corresponding to the type dictated by BoolFunctionType;
- *
- * - BoolQueryType (variadic template), the same as QueryType with a bool
- *   return;
- *
- * - BoolConstMemberFunctionType (variadic template), the type of the class
- *   member functions corresponding to the type dictated by BoolQueryType;
- *
  * - arg_packer_helper and arg_packer (variadic template), helper types for
  *   template shenanigans for methods factory;
  *
- * - The six types MS[_D]_S with D in { dbl , int } (or not there) and S in
- *   { rngd , sbst } representing six standard parameter type lists for
+ * - the types MS[_D]_S with D in { dbl , int } (or not there) and S in
+ *   { rngd , sbst } representing the standard parameter type lists for
  *   functions to be inserted in the methods factory;
  *
- * - the four MS_sp_D_S, the same lists with the data as a span;
+ * - the MS_sp_D_S with D in { dbl , int }, the same lists with the data as
+ *   a span;
  *
- * - MS_qry_dbl_rngd and MS_qry_dbl_sbst, the two lists for a getter writing
- *   its answer out through a mutable span.
+ * - the MS_qry_D_S with D in { dbl , int } and S in { rngd , sbst }, the
+ *   lists for a getter writing its answer through a mutable span.
  *  @{ */
 
  /// an index in any internal data structure of the Block
@@ -670,6 +663,9 @@ class Block : public Observer {
 
  /// span through which the functions in the methods factory write data out
  using MF_dbl_msp = std::span< double >;
+
+ /// span through which the methods factory functions write int data out
+ using MF_int_msp = std::span< int >;
 
  /// typedef for functions to be added to the methods factory
  /** Items added to the methods factory should typically be (pointers to)
@@ -715,40 +711,6 @@ class Block : public Observer {
  using ConstMemberFunctionType =
   void ( dBlock::* )( Args ... ) const;
 
- /// typedef for functions reporting whether they succeeded
- /** The bool-returning counterpart of FunctionType; everything else is as
-  * in FunctionType. */
-
- template< typename ... Args >
- using BoolFunctionType =
-  std::function< bool( Block * , Args ... , ModParam , ModParam ) >;
-
- /// typedef for class member functions reporting whether they succeeded
- /** The bool-returning counterpart of MemberFunctionType, matching
-  * BoolFunctionType< Args > the way MemberFunctionType matches
-  * FunctionType< Args >. */
-
- template< class dBlock , typename ... Args >
- using BoolMemberFunctionType =
-  bool ( dBlock::* )( Args ... , ModParam , ModParam );
-
- /// typedef for queries reporting whether they could answer
- /** The bool-returning counterpart of QueryType; everything else is as in
-  * QueryType. */
-
- template< typename ... Args >
- using BoolQueryType =
-  std::function< bool( const Block * , Args ... ) >;
-
- /// typedef for const class member functions reporting whether they answered
- /** The bool-returning counterpart of ConstMemberFunctionType, matching
-  * BoolQueryType< Args > the way ConstMemberFunctionType matches
-  * QueryType< Args >. */
-
- template< class dBlock , typename ... Args >
- using BoolConstMemberFunctionType =
-  bool ( dBlock::* )( Args ... ) const;
-
  /// helper type for template shenanigans for methods factory
  template< typename ... >
  struct arg_packer_helper {};
@@ -793,11 +755,17 @@ class Block : public Observer {
  /// type for ( double , subset ) queries
  using MS_qry_dbl_sbst = arg_packer< MF_dbl_msp , c_Subset & , bool >;
 
+ /// type for ( int , range ) queries
+ using MS_qry_int_rngd = arg_packer< MF_int_msp , Range >;
+
+ /// type for ( int , subset ) queries
+ using MS_qry_int_sbst = arg_packer< MF_int_msp , c_Subset & , bool >;
+
  /// typedef for the bimap used by one methods factory
  template< class F >
  using MethodsFactoryMap = boost::bimap< std::string , F * >;
 
- /// canonical factory types for the six standard method signatures
+ /// canonical factory types for the standard method signatures
  using MF_rngd_map = MethodsFactoryMap< FunctionType< Range > >;
  using MF_dbl_rngd_map = MethodsFactoryMap< FunctionType< MF_dbl_it , Range > >;
  using MF_int_rngd_map = MethodsFactoryMap< FunctionType< MF_int_it , Range > >;
@@ -808,7 +776,7 @@ class Block : public Observer {
  using MF_int_sbst_map = MethodsFactoryMap< FunctionType<
   MF_int_it , Subset && , bool > >;
 
- /// the same four data-carrying signatures in their span form
+ /// the same data-carrying signatures in their span form
  using MF_sp_dbl_rngd_map = MethodsFactoryMap< FunctionType<
   MF_dbl_sp , Range > >;
  using MF_sp_int_rngd_map = MethodsFactoryMap< FunctionType<
@@ -818,11 +786,15 @@ class Block : public Observer {
  using MF_sp_int_sbst_map = MethodsFactoryMap< FunctionType<
   MF_int_sp , Subset && , bool > >;
 
- /// canonical factory types for the two standard query signatures
+ /// canonical factory types for the standard query signatures
  using MF_qry_dbl_rngd_map = MethodsFactoryMap< QueryType<
   MF_dbl_msp , Range > >;
  using MF_qry_dbl_sbst_map = MethodsFactoryMap< QueryType<
   MF_dbl_msp , c_Subset & , bool > >;
+ using MF_qry_int_rngd_map = MethodsFactoryMap< QueryType<
+  MF_int_msp , Range > >;
+ using MF_qry_int_sbst_map = MethodsFactoryMap< QueryType<
+  MF_int_msp , c_Subset & , bool > >;
 
 /** @} ---------------------------------------------------------------------*/
 
@@ -5936,9 +5908,9 @@ class Block : public Observer {
  *
  * is called. The adapter function simply static_cast< dBlock >()-s the
  * Block * and invokes the given function. Similarly,
- * get_method_fs< dBlock , Args >() and
- * get_method_name_fs< dBlock , Args >() are provided to search into the
- * corresponding FunctionType< Args > methods factories.
+ * get_method_fs< Args >() and get_method_name_fs< Args >() are provided to
+ * search into the corresponding FunctionType< Args > methods factories, and
+ * get_query_fs< Args >() into the QueryType< Args > ones.
  *
  * A further level of support comes by defining some "general parameter type
  * lists" that functions in the methods factory should have. These should be
@@ -5960,13 +5932,13 @@ class Block : public Observer {
  *
  * - MF_int_it, a const_iterator into a std::vector< int >;
  *
- * - MF_dbl_sp and MF_int_sp, the same data as spans, and MF_dbl_msp, the
- *   mutable span a getter writes its answer through;
+ * - MF_dbl_sp and MF_int_sp, the same data as spans, and MF_dbl_msp and
+ *   MF_int_msp, the mutable spans a getter writes its answer through;
  *
  * These are thought to form the basis of "most" data-changing and
- * data-reading member functions in any :Block class. In particular, twelve
- * parameter type lists are defined based on these; ten of them have the
- * form (clearly compatible with the above types)
+ * data-reading member functions in any :Block class. In particular,
+ * parameter type lists are defined based on these; those of a setter have
+ * the form (clearly compatible with the above types)
  *
  *     my_method_name( [ < data > , ] < slice > , ModParam , ModParam )
  *
@@ -5990,7 +5962,7 @@ class Block : public Observer {
  *     by increasing index on call (if not it can be ordered inside: anyway
  *     the Subset is &&, meaning that it is expected to be "consumed" by the
  *     function, e.g. to be shipped to some appropriate form of Modification).
- *     A getter has nothing to consume it into, and takes a c_Subset &
+ *     A getter does not consume the Subset, and takes a c_Subset &
  *     instead.
  *
  *   Note that, if present, the provided  MF_X_it (call it "iter") must
@@ -5999,22 +5971,21 @@ class Block : public Observer {
  *   the X value *( iter + h ) has to be taken as the new value for the
  *   data structure in the :Block corresponding to the h-th Index in slice.
  *
- *   Where the data travels in a span, the count is still the slice's: the
- *   span is the same "at least as long" buffer, so a span shorter than the
- *   slice is an error the called function can report instead of reading
- *   past the end. A getter writing through a mutable span answers the same
- *   way, the h-th value written belonging to the h-th Index in slice.
+ *   If the data travels in a span, the span is the same "at least as long"
+ *   buffer, and one shorter than the slice is an error the function can
+ *   report instead of reading past the end. A getter writing through a
+ *   mutable span writes the h-th value for the h-th Index in slice.
  *
- *   The two remaining lists are those of a getter: the same form with
- *   MF_dbl_msp as data and no ModParam at the end.
+ *   Those of a getter have the same form, with a mutable span as data,
+ *   MF_dbl_msp or MF_int_msp, and no ModParam.
  *
- * These parameter type lists are "encoded" in the predefined six types
+ * These parameter type lists are "encoded" in the predefined types
  * MS[_D]_S with D in { dbl , int } (or not there) and S in { rngd , sbst },
- * representing (in obvious ways) the six possible interfaces; the four
- * MS_sp_D_S are the same ones with the data as a span, and the two
- * MS_qry_dbl_S those of a getter writing out through a mutable span.
- * Specific versions of register_method(), get_method() and get_method_name()
- * are provided which take a final
+ * representing (in obvious ways) the possible interfaces; the MS_sp_D_S,
+ * with D in { dbl , int }, are the same ones with the data as a span, and
+ * the MS_qry_D_S, with the same D, those of a getter writing through a
+ * mutable span. Specific versions of register_method(), get_method_fs(),
+ * get_method_name_fs() and get_query_fs() are provided which take a final
  *
  *     MS[_D]_S::args()
  *
@@ -6140,80 +6111,54 @@ class Block : public Observer {
  * possibility is always left open that some registration may happen outside
  * it.
  *
- * ## Scaling a :Block through its own data
+ * A further use of the factory is *sizing* a :Block, a parameter k of it
+ * being written in through a setter; this is called (re)sizing and is
+ * described elsewhere [see Design and scaling of this Block]. What follows
+ * holds for any method registered here, that one included.
  *
- * A further use of the methods factory is that of *sizing* a :Block: some
- * parameter k of the :Block is taken as a size and written in through the
- * factory, say turning one or more rows A_i x <= b_i into A_i x <= k b_i, or
- * multiplying by k a cost of its own Objective. The effect of k stays inside
- * the :Block, and which data carry k is private business of the :Block;
- * nothing has to be declared on Block for the parameter, because what a
- * :Block sizes and how is its own and the shape of what it gives back does
- * not change, so nothing outside has to be told.
- * This is the case that the group laying out how a Block can be scaled calls
- * (re)sizing [see Design and scaling of this Block].
- *
- * A :Block supporting it registers one or more setters with one of the
- * standard "vector of double" signatures ( MS_dbl_rngd or MS_dbl_sbst )
- * writing the parameters in. More than one setter because nothing limits a
- * :Block to one parameter or to one design decision, the factory being keyed
- * by an arbitrary string: two sizes that move independently, say a capacity
- * and a rate, are either two components of one setter or two setters under
- * different names.
- *
- * Several writers act on the same datum: a sizing parameter, a value that
- * something else rewrites between solves, whatever further factor the
- * :Block keeps; no order is imposed among them. Because of this
+ * Several writers may act on the same datum, in no fixed order. Because of
+ * this
  *
  *     A SETTER RECOMPUTES THE DATA IT OWNS WHOLE, OUT OF THE FIELDS THE
  *     :Block HOLDS, AND NEVER INCREMENTS WHAT IT FINDS THERE
  *
- * the point being that an increment must read what is there before writing
- * it, hence its outcome is a function of the history of that datum, i.e., of
- * which writer happened to act last, whereas a whole recomputation is a
- * function of the fields alone, which therefore have to keep the base
- * datum: the derivative of a row A x - k b <= 0 with respect to k is -b,
- * i.e., the sensitivity is that datum, which an implementation overwriting
- * it with its scaled value can no longer produce.
+ * the point being that an increment reads what is there before writing, so
+ * its outcome depends on which writer acted last, whereas a recomputation
+ * depends on the fields alone. Those fields therefore have to keep the base
+ * datum: what a consumer reads back is the derivative of the value of this
+ * Block with respect to k, assembled out of the solve and out of what k
+ * multiplies, never out of k times it. An implementation that had written
+ * the scaled values over the base ones would give that derivative back k
+ * times too large.
  *
- * Note that k arrives as a change of the "physical representation" of the
- * :Block, the "abstract" one, if it has been constructed, having to be
- * updated with it.
+ * Note that what a setter writes arrives as a change of the "physical
+ * representation" of the :Block, the "abstract" one, if it has been
+ * constructed, having to be updated with it.
  *
- * Whatever has to be read back can be registered in the same methods factory,
- * under names of the :Block's own choosing, though not yet under a standard
- * signature, as discussed below. The parameters being data of this Block and
- * not columns of the model being solved, no Solver of this Block can be
- * asked about them, whoever chooses them solving a problem of its own in
- * which they are the unknowns. What such a consumer wants read back is, for
- * instance:
+ * A :Block registers here what has to be read back as well, under names of
+ * its own choosing. A getter that reads state requires that state, and the
+ * :Block registering it must declare which. Say a sensitivity built out of
+ * the multipliers of the rows carrying a parameter, and out of the primal
+ * solution as well wherever the parameter multiplies the coefficient of a
+ * Variable rather than a constant term: it needs the sub-tree solved, and
+ * by a Solver that makes those values available; read anywhere else it
+ * gives back what the previous solve left, with nothing marking it as
+ * wrong.
  *
- * - bounds on the parameters: the values the :Block can represent, not the
- *   range a consumer may search;
+ * Such a getter requires not only that the sub-tree be solved, but that the
+ * solve ended where the answer assumes it did. Where it ended infeasible a
+ * Solver giving dual information has an unbounded dual direction to offer,
+ * not the multipliers of an optimum, and out of that comes no derivative --
+ * the value of this Block is not finite there -- but the coefficients of a
+ * condition that any feasible choice of the parameters has to satisfy.
+ * Whether a getter answers at all there, and with which of the two, is for
+ * the :Block registering it to declare.
  *
- * - a sensitivity of the value of this Block to them.
+ * How the value is assembled is the :Block's own business.
  *
- * The meaning of the parameters, and every property of them other than the
- * bounds above (say, a requirement that one of them be integral), remains
- * with the :Block, and a consumer needing it has to know it from elsewhere.
- *
- * A sensitivity is the delicate one to expose: what the factory carries is
- * a number, while what may be relied on it (whether it describes only the
- * neighbourhood of the current point, or bounds the value function as a
- * whole) is nowhere in the signature, nor does it follow from the :Block
- * being convex. Which of the two holds is for the :Block to say.
- *
- * Preconditions come with it as well, and must be declared by the :Block
- * that registers the getter, a getter reading state having a state it
- * requires. Say a sensitivity built out of the multipliers of the rows
- * carrying the parameter: it needs the sub-tree solved, and by a Solver
- * that makes those multipliers available; read anywhere else it gives back
- * what the previous solve left, well formed and meaningless. How the value
- * is assembled is its own business, and nothing here describes it.
- *
- * Reading needs a shape of its own, the ten existing families being all
- * shaped for writing, and it is had by mirroring the setter structure. For
- * the ( double , range ) case that is, in the Types group above,
+ * The setter families are all shaped for writing, so reading needs a shape
+ * of its own, obtained by mirroring them. For the ( double , range ) case
+ * that is, in the Types group above,
  *
  *     MF_dbl_msp        the mutable span to write the answer out through
  *     QueryType         FunctionType with a const Block * and no ModParam
@@ -6225,29 +6170,33 @@ class Block : public Observer {
  * queries_dbl_rngd_factory() and defined once in Block.cpp, and the
  * specialization of methods_factory_accessor on
  * QueryType< MF_dbl_msp , Range > that makes the signature standard;
- * without that last one nothing compiles.
+ * without it nothing compiles.
  *
  * The ( double , subset ) family is obtained the same way from MS_dbl_sbst,
- * and is there together with the first because a :Block may have to
- * answer two consumers about disjoint subsets of its parameters; any further
- * one comes from the setter family it mirrors, though the integer twins are
- * deliberately not proposed, MS_int_rngd and MS_int_sbst having been there
- * all along and a family being added when a consumer asks for it and not
- * before.
+ * and is there together with the first because a :Block may have to answer
+ * two consumers about disjoint subsets of its parameters. The integer
+ * twins, MS_qry_int_rngd and MS_qry_int_sbst, mirror MS_int_rngd and
+ * MS_int_sbst on MF_int_msp, for a :Block whose parameter is a count and
+ * answers with the count rather than with a double that happens to be
+ * integral. Any further family comes from the setter family it mirrors.
+ *
+ * A consumer that has to know whether a :Block supports an operation asks
+ * this factory, and the name either resolves or it does not: a :Block
+ * registers a name exactly when it supports what that name promises. The
+ * No method is run to obtain the answer.
+ *
+ * A call can still be refused: a value outside what the :Block can
+ * represent, a state a getter requires and does not find. That is reported
+ * by throwing, as everywhere else here. The two cases do not overlap: a
+ * name that is not there says the operation is not supported, an exception
+ * out of a name that is there says that this one call is wrong.
  *
  * That a setter and the getter mirroring it address the same parameters, in
- * the same number and order, is a convention like the naming one: position
- * is the only correspondence there is, the factory being one map per
- * signature, keyed by whatever string a register_method() call chooses, with
- * nothing in it describing the components. Nothing checks either: load time
- * resolves the names, but the number of parameters is a call-time quantity,
- * which the signature does not carry.
- *
- * TODO: this subsection mixes two subjects and should be split once the
- * section settles: what concerns the factory itself stays here, what
- * describes the (re)sizing case belongs with the (Re)sizing section of the
- * group laying out how a Block can be scaled [see Design and scaling of this
- * Block], which now has one.
+ * the same number and order, is a convention like the naming one: the
+ * factory is one map per signature, keyed by an arbitrary string, and
+ * nothing in it describes the components, so position is the only
+ * correspondence. Nothing checks it either, the number of parameters being
+ * known only when the function is called.
  *  @{ */
 
  /// register a new function in the methods factory
@@ -6397,67 +6346,6 @@ class Block : public Observer {
   }
 
 /*--------------------------------------------------------------------------*/
- /// register a new bool-returning function in the methods factory
- /** As the register_method() taking a MemberFunctionType, but the adapter
-  * returns what \p fnct returns [see the TODO on set_copies()]. */
-
- template< class dBlock , typename ... Args >
- static std::enable_if_t< std::is_base_of_v< Block , dBlock > , void >
- register_method( std::string && name ,
-                  BoolMemberFunctionType< dBlock , Args... > fnct ) {
-  register_method( std::move( name ),
-                   new BoolFunctionType< Args... >(
-                    [ fnct ]( Block * blck , Args && ... args ,
-                              ModParam issuePMod , ModParam issueAMod ) {
-                     return( std::invoke( fnct,
-                                          static_cast< dBlock * >( blck ),
-                                          std::forward< Args >( args )...,
-                                          issuePMod , issueAMod ) );
-                    } ) );
- }
-
-/*--------------------------------------------------------------------------*/
- /// as the above, with the parameter type list given by an arg_packer_helper
-
- template< class dBlock , typename ... Args >
- static void register_method(
-                  std::string && name ,
-                  BoolMemberFunctionType< dBlock , Args... > fnct ,
-                  arg_packer_helper< Args... > ) {
-  register_method< dBlock, Args... >( std::move( name ) , fnct );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// register a new bool-returning query in the methods factory
- /** As the register_method() taking a ConstMemberFunctionType, but the
-  * adapter returns what \p fnct returns. */
-
- template< class dBlock , typename ... Args >
- static std::enable_if_t< std::is_base_of_v< Block , dBlock > , void >
- register_method( std::string && name ,
-                  BoolConstMemberFunctionType< dBlock , Args... > fnct ) {
-  register_method( std::move( name ),
-                   new BoolQueryType< Args... >(
-                    [ fnct ]( const Block * blck , Args && ... args ) {
-                     return( std::invoke(
-                              fnct,
-                              static_cast< const dBlock * >( blck ),
-                              std::forward< Args >( args )... ) );
-                    } ) );
- }
-
-/*--------------------------------------------------------------------------*/
- /// as the above, with the parameter type list given by an arg_packer_helper
-
- template< class dBlock , typename ... Args >
- static void register_method(
-                  std::string && name ,
-                  BoolConstMemberFunctionType< dBlock , Args... > fnct ,
-                  arg_packer_helper< Args... > ) {
-  register_method< dBlock, Args... >( std::move( name ) , fnct );
-  }
-
-/*--------------------------------------------------------------------------*/
  /// returns the function with the given name in the methods factory
  /** This function returns a pointer to the function associated with the given
   * \p name in the methods factory specified by the template function type F.
@@ -6495,8 +6383,9 @@ class Block : public Observer {
   * the given \p name in the methods factory corresponding to the function
   * type F implied by the variadic template parameter Args. Basically, this
   * function is equivalent to get_method< F > with
-  * F == FunctionType< Args... >. For any other function type, QueryType
-  * and the bool ones included, get_method< F > has to be used directly.
+  * F == FunctionType< Args... >. A query has one of its own,
+  * get_query_fs(); for any other function type get_method< F > has to be
+  * used directly.
   *
   * Suppose, for example, that the methods factory has a function associated
   * with the name "NetworkBlock::set_arc_weight" that has the typical "double,
@@ -6518,7 +6407,7 @@ class Block : public Observer {
   * @param name The name associated with the function. */
 
  template< typename... Args >
- static const FunctionType< Args... > *
+ static FunctionType< Args... > *
  get_method_fs( const std::string & name ) {
   return( get_method< FunctionType< Args... > >( name ) );
   }
@@ -6552,9 +6441,65 @@ class Block : public Observer {
   *             parameter type list of the function to be retrieved. */
 
  template< typename... Args >
- static const FunctionType< Args... > *
+ static FunctionType< Args... > *
  get_method_fs( const std::string & name , arg_packer_helper< Args... > ) {
   return( get_method< FunctionType< Args... > >( name ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the query with the given name in the methods factory
+ /** This template function returns a pointer to the adapter function with
+  * the given \p name in the methods factory corresponding to the query type
+  * implied by the variadic template parameter Args. It is to a getter what
+  * get_method_fs() is to a setter: basically, this function is equivalent
+  * to get_method< F > with F == QueryType< Args... >.
+  *
+  * Suppose, for example, that the methods factory has a query associated
+  * with the name "NetworkBlock::get_arc_weight" that has the typical
+  * "double, Range" reading interface, i.e., a #MF_dbl_msp parameter and a
+  * #Range parameter, and no ModParam. This has been inserted in the
+  * interface under the guise of a QueryType< MF_dbl_msp , Range > pointer.
+  * Thus, to invoke such a function one should do
+  *
+  *     auto qry = get_query_fs< MF_dbl_msp , Range >(
+  *                                        "NetworkBlock::get_arc_weight" );
+  *     std::invoke( *qry , NB , answer , range );
+  *
+  * where NB is a pointer to a NetworkBlock object, answer is a #MF_dbl_msp
+  * spanning a buffer at least as long as how many elements there are in
+  * range, and range is a #Range.
+  *
+  * The pointer comes back non-const, as get_method< F >() gives it, so that
+  * get_method_name() can give the name back from it.
+  *
+  * @param name The name associated with the function. */
+
+ template< typename... Args >
+ static QueryType< Args... > *
+ get_query_fs( const std::string & name ) {
+  return( get_method< QueryType< Args... > >( name ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the query with the given name in the methods factory
+ /** This function returns a pointer to the adapter function associated with
+  * the given \p name in the methods factory implied by the second dummy
+  * parameter, which for a query is one of the MS_qry_D_S parameter type
+  * lists. With the query of get_query_fs() above,
+  *
+  *     auto qry = get_query_fs( "NetworkBlock::get_arc_weight" ,
+  *                              MS_qry_dbl_rngd::args() );
+  *     std::invoke( *qry , NB , answer , range );
+  *
+  * @param name The name associated with the function.
+  *
+  * @param void Dummy arg_packer_helper< Args... > parameter to specify the
+  *             parameter type list of the query to be retrieved. */
+
+ template< typename... Args >
+ static QueryType< Args... > *
+ get_query_fs( const std::string & name , arg_packer_helper< Args... > ) {
+  return( get_method< QueryType< Args... > >( name ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -6586,7 +6531,7 @@ class Block : public Observer {
 
  template< typename... Args >
  static const std::string & get_method_name_fs(
-				     const FunctionType< Args... > * fnct ) {
+		std::type_identity_t< FunctionType< Args... > > * fnct ) {
   return( get_method_name< FunctionType< Args... > >( fnct ) );
   }
 
@@ -6604,7 +6549,7 @@ class Block : public Observer {
 
  template< typename... Args >
  static const std::string & get_method_name_fs(
-				       const FunctionType< Args... > * fnct ,
+		std::type_identity_t< FunctionType< Args... > > * fnct ,
 				       arg_packer_helper< Args... > ) {
   return( get_method_name< FunctionType< Args... > >( fnct ) );
   }
@@ -6614,8 +6559,7 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
 /** @name Design and scaling of this Block
  *
- * A problem sometimes has to be sized, in three ways, named here for the
- * rest of the group:
+ * A problem sometimes has to be sized, in three ways:
  *
  * - (re)sizing, "make this Block, or part of it, larger by a factor k";
  *
@@ -6624,17 +6568,17 @@ class Block : public Observer {
  * - weighting, "count this Block with weight k in the sum it belongs to".
  *
  * A :Block may be asked more than one of them at once, size and number being
- * two distinct questions, and the three compose by multiplying. Two axes say
- * what is needed.
+ * two distinct questions, and the three compose by multiplying. They are
+ * told apart along two axes.
  *
- * 1. WHAT IS k. The three cases below exclude each other, and which one a k
- *    falls in is a matter of regime: the same two Blocks make k a datum when
+ * 1. WHAT IS k. The three cases below exclude each other, and which one
+ *    holds is a matter of regime: the same two Blocks make k a datum when
  *    solved apart and a foreign Variable when solved as one.
  *
  *    - datum: not a column of the model being solved. A number arrives from
  *      outside and this Block writes it into its own data; whoever chose it
  *      fixes a value, has the Block solved as a subproblem with k already in,
- *      and repeats. No Solver optimizes over k, that being what the methods
+ *      and repeats. No Solver optimizes over k, which is what the methods
  *      factory convention is for;
  *
  *    - own Variable: a column of this Block. The Solver optimizes over it as
@@ -6645,25 +6589,25 @@ class Block : public Observer {
  *      it into its own data, yet the Solver optimizes over it.
  *
  *    Which of the three holds follows from how the problem was assembled, and
- *    whoever assembles it configures the consumer accordingly. This Block
- *    declares the channels it supports, each of them by itself: a name found
- *    in the methods factory, a true from set_copies(), a Variable from
- *    get_size_variable().
+ *    whoever assembles it configures the consumer accordingly. Nothing here
+ *    answers "which of the three are you": a consumer asks for what it wants
+ *    and each channel refuses by itself, a name that is not in the methods
+ *    factory, a false from set_copies() or set_size_variable(), a nullptr
+ *    from get_size_variable().
  *
  * 2. HOW k IS APPLIED, by writing or by reading.
  *
- *    - by writing, into the data of this Block: k goes into whichever parts
- *      of this Block the :Block chooses, and the data carrying it are
- *      recomputed, so the feasible set becomes the one k describes where k
- *      is in a Constraint, and what this Block contributes changes by itself
- *      either way, while whoever holds a coupling reads the same Variable
- *      with the same coefficients. Its own Objective is one of those parts,
- *      a cost that k multiplies being sized like any other datum; what must
- *      not be written there is a factor that a consumer applies by reading,
- *      which would then be counted twice. It declares nothing here and
- *      travels on the methods factory convention [see Methods for handling
- *      the methods factory]: a :Block registers the setters that write k
- *      into its own data;
+ *    - by writing, into the data of this Block: the :Block chooses which of
+ *      its data carry k and recomputes them. Where k is in a Constraint the
+ *      feasible set becomes the one k describes; either way what this Block
+ *      contributes changes by itself, while whoever holds a coupling reads
+ *      the same Variable with the same coefficients. Its own Objective is
+ *      one of those parts, a cost that k multiplies being sized like any
+ *      other datum; what must not be written there is a factor that a
+ *      consumer applies by reading, which would then be counted twice. It
+ *      declares nothing here and travels on the methods factory convention
+ *      [see Methods for handling the methods factory]: a :Block registers
+ *      the setters that write k into its own data;
  *
  *    - by reading, as a consumer takes value and coefficients out of this
  *      Block: this Block is left untouched, all of it, while the
@@ -6682,14 +6626,13 @@ class Block : public Observer {
  * attached to, accumulates two products along the path from a nested Block
  * up to B excluded: the coefficients in which the Variable of that Block
  * appear take the product of get_copies(), its Objective the product of
- * get_copies() * get_objective_weight(). What the first multiplies are the
- * coefficients and never the values, k copies of a state at 1 being k
- * states at 1 and not one state at k. The weight is absent from the first
+ * get_copies() * get_objective_weight(). The first multiplies the
+ * coefficients and never the values: k copies of a state at 1 are k states
+ * at 1, not one state at k. The weight is absent from the first
  * because a Block counted with weight w is still one copy, whose Variable
- * enter a coupling once. It is the path that matters and not the
- * depth: a Constraint may reference the Variable of a Block deeper than a
- * child of the one holding it, and the copies of every Block in between
- * multiply.
+ * enter a coupling once. The path matters, not the depth: a Constraint may
+ * reference the Variable of a Block deeper than a child of the one holding
+ * it, and the copies of every Block in between multiply.
  *
  * The product stops before B because the factors of B and of its ancestors
  * weight B inside its father's problem, one level above the one being
@@ -6697,15 +6640,24 @@ class Block : public Observer {
  * count them twice. The Objective of B itself is therefore left unweighted.
  *
  * A consumer that treats a nested Block as a component multiplies the value
- * and every linearization of it, the constant included; the feasibility
- * ones describe the domain { x : l <= A x <= u }, invariant under a
- * positive scaling, and stay as they are. The factor is applied once, at
- * build time, and the dual values then returned carry it, so whoever
- * assembles a subgradient out of those duals finds it there already.
+ * and every linearization of it, the constant included; a vertical
+ * linearization [see C05Function.h] carries no coefficient on the value, so
+ * a positive factor leaves it as it is. Applying the factor once, at build
+ * time, would leave it in the dual values a Solver then returns, and
+ * whoever assembles a subgradient out of those would find it there already.
  *
  * TODO: this group declares two factors, but it does not apply either of
  * them. Every Solver that sums the Objective of nested Block has to learn
  * that rule, and to react when either factor changes; none does today.
+ *
+ * TODO: the first product is uniform, every coefficient in which those
+ * Variable appear taking it. That is right where the rows it touches add
+ * the copies up, and wrong where one of them is a statement about a single
+ * copy: with x <= u y, y belonging outside, the product scales the left
+ * side and leaves u alone, so k copies are held to what one of them could
+ * do. Whether the answer is a condition on what may declare itself
+ * replicable, or a way for a :Block to say which of its Variable take the
+ * factor, is not settled here.
  *
  * ## (Re)sizing
  *
@@ -6713,14 +6665,42 @@ class Block : public Observer {
  * carry it, one or more rows A_i x <= b_i becoming A_i x <= k b_i, a cost
  * of the Objective becoming k times itself. Which data those are, and how
  * many, is the :Block's own business: the interface does not distinguish
- * scaling all of this Block from scaling part of it, and the total case
- * meets Copies below.
+ * scaling all of this Block from scaling part of it; scaling all of it is
+ * the case Copies below deals with.
  *
- * A size that is a datum is not declared here: a :Block registers the
- * setters writing k in, and whatever has to be read back, with the methods
- * factory [see Methods for handling the methods factory], and what they
- * change is data of this Block, so the Modification are the ordinary ones
- * and no message has to be invented for them.
+ * A size that is a datum is not declared here, and nothing about it has to
+ * be: what a :Block sizes and how is its own business, and the shape of
+ * what it gives back does not change, so nothing outside has to be told. It
+ * travels on the methods factory convention instead [see Methods for
+ * handling the methods factory]: a :Block registers one or more setters,
+ * with one of the standard signatures that take double data, writing the
+ * parameters in, and whatever has to be read back together with them. More
+ * than one setter, because nothing limits a :Block to one parameter or to
+ * one design decision: two sizes that move independently, say a capacity
+ * and a rate, are either two components of one setter or two setters under
+ * different names. What they change is data of this Block, so the
+ * Modification are the ordinary ones and no message has to be invented for
+ * them.
+ *
+ * The parameters are data of this Block and not columns of the model being
+ * solved, so no Solver of this Block can be asked about them: whoever
+ * chooses them solves a problem of its own in which they are the unknowns.
+ * Such a consumer may want read back, for instance:
+ *
+ * - bounds on the parameters: the values the :Block can represent, not the
+ *   range a consumer may search;
+ *
+ * - a sensitivity of the value of this Block to them.
+ *
+ * The meaning of the parameters, and every property of them other than the
+ * bounds above (say, a requirement that one of them be integral), remains
+ * with the :Block, and a consumer needing it has to know it from elsewhere.
+ *
+ * A sensitivity is the delicate one: the factory carries the numbers, but
+ * what they may be relied on for -- whether they describe only the
+ * neighbourhood of the current point, or bound the value function as a
+ * whole -- is nowhere in the signature, and does not follow from the :Block
+ * being convex. Which of the two holds is for the :Block to say.
  *
  * A size that is a column is declared here instead, get_size_variable() for
  * one this Block owns and set_size_variable() for one it is given: the
@@ -6730,30 +6710,39 @@ class Block : public Observer {
  * ## Copies
  *
  * k copies of this Block, all behaving exactly alike: with X the feasible
- * set of one of them, the k together give k X. Copies of the same Block
- * behaving differently are something else, and are had by putting k Block
- * in the tree. What decides the road is where k takes effect:
+ * set of one of them, the k together give k X. Copies that behave
+ * differently are something else, and are obtained by putting k Block in
+ * the tree. Where k takes effect decides which of two roads is taken:
  *
  * - applied from outside: this Block is left untouched, no Constraint of it
  *   rewritten and its Variable still describing one copy, and whoever reads
  *   it multiplies by k, in the two products stated above. Only a number
- *   travels this road; the methods below take it and give it back, within
- *   the domain they declare. The sensitivity of the value to k is the
- *   consumer's own to compute, k living in what it holds itself, the
- *   coefficients it multiplies and the weight it applies;
+ *   goes this way, through the methods below, within the domain they
+ *   declare. The sensitivity of the value to k is the consumer's own to
+ *   compute, k living in what the consumer holds: the coefficients it
+ *   multiplies and the weight it applies;
  *
  * - written inside: this Block recomputes every datum that carries its
  *   size, which is the (re)sizing above. A number goes in through the
  *   methods factory [see Methods for handling the methods factory],
  *   together with the getter reading the sensitivity back; a column goes in
- *   through what (Re)sizing declares for one, and that is the only road a
- *   column takes, a consumer applying it from outside having to multiply
- *   one unknown by another. This gives exactly k X where every Constraint
- *   is linear, no Variable is integer and k > 0, and what comes out
- *   anywhere else is up to the :Block. The price is that this Block is
- *   modified, get_copies() stays 1, the domain is the :Block's own, and its
- *   Variable, hence its Solution, describe the aggregate instead of one
- *   copy.
+ *   through what (Re)sizing declares for one, and that is the only way a
+ *   column goes in, a consumer applying it from outside having to multiply
+ *   one unknown by another. The price is that this Block is modified,
+ *   get_copies() stays 1, the domain is the :Block's own, and its Variable,
+ *   hence its Solution, describe the aggregate instead of one copy.
+ *
+ * Scaling every Constraint by k, each right-hand side and each bound
+ * multiplied by it, is the same thing as k copies:
+ *
+ *     A x <= k b IS EXACTLY k X WHERE EVERY Constraint IS LINEAR, NO
+ *     Variable IS INTEGER, AND k > 0
+ *
+ * Outside those three it is not. Take x_1 + x_2 <= 1 with x_1 and x_2
+ * binary: X is { (0,0) , (1,0) , (0,1) }, and k X for k = 2 is
+ * { (0,0) , (2,0) , (0,2) }. Scaling gives x_1 + x_2 <= 2, which admits
+ * (1,1), twice no point of X, and no longer reaches (2,0), which is twice
+ * one.
  *
  * ## Weighting
  *
@@ -6761,11 +6750,11 @@ class Block : public Observer {
  * problem is solved in isolation; as a subproblem it is one term of a sum,
  * and the weight says with what factor it enters. Declaring it makes the
  * weight a property of the component rather than of whoever computes its
- * cost, and it is what leaves the copies factor to be applied by reading as
- * well: the Objective of a replicated Block stays unscaled too, and what
- * applies to it is the product of the two.
+ * cost, and lets the copies factor be applied by reading as well: the
+ * Objective of a replicated Block stays unscaled, and what applies to it is
+ * the product of the two.
  *
- * The weight is a datum, and it travels the reading road alone: a consumer
+ * The weight is a datum, and it is applied by reading only: a consumer
  * multiplies the value and the linearizations as it reads them, acting on
  * the number and not on the representation, while writing the weight into
  * this Block would ask whoever does it to recognise the type of the
@@ -6776,8 +6765,8 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
  /// the smallest and largest number of copies this Block supports
  /** The default [ 1 , 1 ] is how a Block says it cannot be replicated.
-  * (Re)sizing answers the same question through the methods factory, its
-  * parameters being private to the :Block. */
+  * (Re)sizing answers the same question through the methods factory, and
+  * its parameters are private to the :Block. */
 
  virtual double get_min_copies( void ) const { return( 1 ); }
 
@@ -6796,14 +6785,14 @@ class Block : public Observer {
   * belongs to has to be multiplied. It changes nothing inside this Block;
   * how a consumer applies it is stated under Reading the two factors, in
   * the description of this group. Its Solution therefore describes *one*
-  * copy, and Solution::scale() [see Solution.h] does not give the
-  * aggregate, because it multiplies the states along with the quantities,
-  * and only the quantities scale.
+  * copy, and Solution::scale() does not give the aggregate: it is
+  * documented to scale every piece of solution information [see
+  * Solution.h], so the states would be multiplied along with the
+  * quantities, and only the quantities scale.
   *
   * A :Block answering here with anything but 1 holds the number itself and
-  * writes it in its own format: Block has no field behind this and cannot
-  * supply one, so exposing the factor and serializing it are one obligation
-  * and not two. */
+  * serializes it in its own format: Block has no field behind this method
+  * and cannot supply one. */
 
  virtual double get_copies( void ) const { return( 1 ); }
 
@@ -6816,14 +6805,9 @@ class Block : public Observer {
   * changes a physical Modification is issued. One ModParam, because
   * nothing abstract changes inside the Block.
   *
-  * Nothing checks that a consumer applies the factor. One that ignores it
-  * reads a Block worth k as one, silently, and that Modification is the
-  * only thing telling it there is anything to read.
-  *
-  * TODO: this returns bool, while a setter registered in the methods
-  * factory returns void, the family type hardwiring that. If a caller
-  * coming from a Configuration has to know whether the operation
-  * succeeded, a signature family with a bool return is needed. */
+  * Nothing checks that a consumer applies the factor: one that ignores it
+  * reads a Block worth k as one, and the Modification is the only warning
+  * it gets. */
 
  virtual bool set_copies( double copies = 1 ,
                                 c_ModParam issuePMod = eNoBlck ) {
@@ -6836,11 +6820,10 @@ class Block : public Observer {
   * multiplied when it is a subproblem of a larger one. It does not scale
   * that Objective. It tells whoever uses it how to weight it.
   *
-  * Not virtual, and holding a field of Block, because there is no such
-  * thing as a Block that cannot be weighted: weighting asks nothing of the
-  * Block itself. That is what separates it from set_copies(), which
-  * keeps a bool because there a domain exists, and [ 1 , 1 ] is how a
-  * Block refuses.
+  * Not virtual, and backed by a field of Block, because weighting asks
+  * nothing of the Block itself: there is no such thing as a Block that
+  * cannot be weighted. set_copies() keeps a bool instead, because there a
+  * domain exists and [ 1 , 1 ] is how a Block refuses.
   *
   * Reading the two factors, in the description of this group, states how a
   * consumer accumulates it together with get_copies(). */
@@ -6858,9 +6841,9 @@ class Block : public Observer {
   * defaulting to 1 and written out only when different; an attribute and
   * not a variable, so that no :Block declaring the variables it knows has
   * to be told about this one. Block::serialize() and deserialize() do not
-  * handle it today. An existing file keeps its meaning, its absence being
-  * 1, and the field stays a default that the file only initialises, so the
-  * same Block can be summed by different problems with different weights.
+  * handle it today. An existing file keeps its meaning, the absence of the
+  * attribute being 1; the file only initialises the field, so the same
+  * Block can be summed by different problems with different weights.
   *
   * TODO: shared with set_copies(). The message announces that the
   * contribution of this Block to the rest has changed by a factor, and
@@ -6871,13 +6854,12 @@ class Block : public Observer {
   * - that this is not one coefficient among others, everything a consumer
   *   has read from this Block being off by the same factor at once.
   *
-  * What derives from AModification alone would not do, a Solver that does
-  * not recognise such a message ending its dispatch by dropping it, so the
-  * answer would come back wrong by the factor with nobody told; and
-  * BlockMod as it stands says that the Objective has changed, which here it
-  * has not. That line either widens or a sister class is needed, and that
-  * class is the body of this method, which is why this is the one member
-  * here declared and defined nowhere. */
+  * Deriving from AModification alone would not do: a Solver that does not
+  * recognise the message ends its dispatch by dropping it, and the answer
+  * comes back wrong by the factor with nobody told. BlockMod as it stands
+  * says that the Objective has changed, which here it has not. That line
+  * has to widen, or a sister class is needed, and that class is the body of
+  * this method: this is why it is declared here and defined nowhere. */
 
  void set_objective_weight( double weight = 1 ,
                            c_ModParam issueMod = eNoBlck );
@@ -6910,10 +6892,10 @@ class Block : public Observer {
   * When it may be called is for the :Block to say, with a floor that every
   * :Block meets: at construction, before generate_abstract_variables() has
   * been called, where nothing abstract exists yet and the ModParam carries
-  * nothing. Later is allowed and is what the ModParam is for, the rows that
-  * exist being rewritten and the abstract Modification issued; it is not a
-  * guarantee a caller has, so a :Block meant to be usable in both regimes on
-  * the same live instance is one that takes the call late. */
+  * nothing. A later call is allowed, and is what the ModParam is for: the
+  * rows that exist are rewritten and the abstract Modification is issued. A
+  * caller has no guarantee of that, so a :Block meant to be usable on a
+  * live instance has to take the call late. */
 
  virtual bool set_size_variable( Variable * size_var ,
                                   c_ModParam issueAMod = eNoBlck ) {
@@ -8349,6 +8331,10 @@ class Block : public Observer {
 
  static MF_qry_dbl_sbst_map & queries_dbl_sbst_factory( void );
 
+ static MF_qry_int_rngd_map & queries_int_rngd_factory( void );
+
+ static MF_qry_int_sbst_map & queries_int_sbst_factory( void );
+
 /** @} ---------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -8466,7 +8452,23 @@ class Block : public Observer {
 /// returns the bimap associated with the methods of type F
 /** This method returns the bimap implementing the "methods factory" for the
  * methods of type F. This is where the pointer to the methods (and their
- * names) in the methods factory are stored. */
+ * names) in the methods factory are stored.
+ *
+ * The detour taken here has two halves, and both matter. That
+ * methods_factory_accessor is only declared here, and defined nowhere but
+ * in its specializations, makes a type F that is none of the standard
+ * families a compile error rather than a factory of its own: a primary
+ * template with a body would give any F an empty map, and a lookup in it
+ * would answer nullptr with nothing said.
+ *
+ * Each specialization defers to a function whose body is in Block.cpp,
+ * rather than holding the map itself, so that the map is one per family for
+ * the whole program. A function-local static inside a template in this
+ * header would be one only insofar as the linker collapses the copies the
+ * modules instantiate, which holds within one program but not necessarily
+ * across shared libraries; and the two ends of this factory are in
+ * different modules by construction, one :Block registering a name and
+ * another one looking it up. */
 
  template< class F >
  struct methods_factory_accessor;
@@ -8599,6 +8601,22 @@ struct Block::methods_factory_accessor<
  Block::QueryType< Block::MF_dbl_msp , Block::c_Subset & , bool > > {
  static Block::MF_qry_dbl_sbst_map & get( void ) {
   return( Block::queries_dbl_sbst_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor<
+ Block::QueryType< Block::MF_int_msp , Block::Range > > {
+ static Block::MF_qry_int_rngd_map & get( void ) {
+  return( Block::queries_int_rngd_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor<
+ Block::QueryType< Block::MF_int_msp , Block::c_Subset & , bool > > {
+ static Block::MF_qry_int_sbst_map & get( void ) {
+  return( Block::queries_int_sbst_factory() );
  }
 };
 
