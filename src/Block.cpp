@@ -445,6 +445,10 @@ static bool check_Solution( Block * blck , Solution * sol , Check && check )
   return( false );
 
  auto current = blck->get_Solution( nullptr , false );
+ if( ! current )
+  throw( std::logic_error( "Block::check_Solution: the state of the Block "
+                           "cannot be saved, and writing the Solution in it "
+                           "to check it would lose what it holds" ) );
 
  // a Solution that holds a direction has to be checked as one; the Block
  // may have been told so already by whoever has the two apart, which is why
@@ -459,10 +463,8 @@ static bool check_Solution( Block * blck , Solution * sol , Check && check )
  if( blck->is_direction() != wasdir )
   blck->is_direction( wasdir );
 
- if( current ) {
-  current->write( blck );
-  delete current;
-  }
+ current->write( blck );
+ delete current;
 
  return( answer );
  }

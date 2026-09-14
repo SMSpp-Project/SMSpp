@@ -1470,6 +1470,14 @@ class LagBFunction : public C05Function , public Block
   blck->is_direction( ! varsol );
   const bool feas = blck->is_sol_feasible( sol );
   blck->is_direction( false );
+
+  // a Block that is not physical answers by writing sol in its Variable and
+  // putting back what was there, which is only as complete as the Solution
+  // it hands out: what the Block holds is no longer known to be the entry
+  // that was written in it
+  if( ! blck->is_sol_feasible_physical() )
+   LastSolution = g_pool.size();
+
   return( feas );
   }
 
