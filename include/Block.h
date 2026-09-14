@@ -4554,6 +4554,17 @@ class Block : public Observer {
   }
 
 /*--------------------------------------------------------------------------*/
+ /// returns whether the current solution is an unbounded direction
+ /** Blocks that support unbounded directions should override this method.
+  * The default is conservative for callers that use it to validate a
+  * direction stored in a Solution. */
+
+ virtual bool is_unbounded( bool useabstract = false ,
+                            Configuration * fsbc = nullptr ) {
+  return( true );
+  }
+
+/*--------------------------------------------------------------------------*/
  ///< returns true if the current solution is (approximately) optimal
  /**< Returns true if the solution encoded in the current value of the
   * Variable of the Block can be proven to be approximately optimal within
