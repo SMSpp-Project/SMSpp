@@ -1885,6 +1885,15 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
    RefreshRowMeasure( Range( strt , stop ) );
    RescaleGlobalIfNeeded( chnl );
 
+   // changing a row of PF() changes one coefficient in each of the rows the
+   // corresponding column appears in, and the Objective: they all go into
+   // one group, so that a Solver that can write them together does, while
+   // one that cannot sees exactly the Modification it sees today [see
+   // MILPSolver::process_group_modification()]
+   auto gowner = group_owner( this , chnl );
+   auto gchnl = gowner->open_channel( chnl );
+   par = make_par( eNoBlck , gchnl );
+
    const auto & A = PF().get_A();
 
    // 1) obj_lf: update b for rows [strt, stop) at positions [strt+1, stop+1)
@@ -1945,6 +1954,9 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
      ++j;
      }
     }
+
+   gowner->close_channel( gchnl );
+   par = make_par( eNoBlck , chnl );
 
    return( false );
    }
