@@ -11,6 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `PolyhedralFunctionBlock`, in the "linearized dual" representation, issues
+  the Modification of a row being added or removed inside a
+  `VariableGroupMod`: a row of the PolyhedralFunction is a column of the
+  abstract representation, i.e., one Variable plus one coefficient in each row
+  it appears in, and the group lets a Solver having a column operation of its
+  own use it instead of reading the change one row at a time, while a Solver
+  that does not recognise the group takes it apart and sees exactly the
+  Modification it saw before
+
 ### Fixed
 
 ## [0.7.1] - 2026-09-13
