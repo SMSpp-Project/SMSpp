@@ -22,6 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `RowConstraint::is_feasible()` on a collection of collections of
+  RowConstraint, and on a `boost::multi_array` of collections, took them as
+  const while each RowConstraint has to be computed, so that it did not
+  compile as soon as it was used
+
 - `BendersBFunction` kept the dual solutions of its global pool when the
   Constraint of the sub-Block changed, adding and removing alike: a removal
   takes a dual variable away, and what is left satisfies the dual constraints
