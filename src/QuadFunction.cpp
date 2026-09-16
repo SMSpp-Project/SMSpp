@@ -416,14 +416,17 @@ void QuadFunction::modify_term( Index i , Index j ,
    std::to_string( j ) ) );
  }
  // Observe that this insertion is highly inefficient if done one coeff at a time
- mat_nd.coeffRef( std::max( i , j ) , std::min( i , j ) ) = quad_nd_coeff;
+ auto & coeff = mat_nd.coeffRef( std::max( i , j ) , std::min( i , j ) );
+ const Coefficient old_coeff = coeff;
+ coeff = quad_nd_coeff;
 
  my_convexity = Unknown;
 
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return; // noone is there: all done
 
- Coefficient od_term = quad_nd_coeff;
+ // the Modification carries the difference, which is what its readers add
+ Coefficient od_term = quad_nd_coeff - old_coeff;
  Subset var_idxs = { std::max( i , j ) , std::min( i , j ) };
  Vec_p_Var vars = {
   std::get< 0 >( v_triples[ std::max( i , j ) ] ) ,
