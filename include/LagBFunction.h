@@ -1554,17 +1554,47 @@ namespace SMSpp_di_unipi_it
     /** Given a position \p i into the global pool, writes back the corresponding
      * Solution into the Block. */
 
-    void global_pool_to_block(Index i)
-    {
-      if (NoSol)
-        throw(std::invalid_argument("LagBFunction: Solution not stored"));
-      if ((i >= f_max_glob) || (!g_pool[i].sol))
-        throw(std::invalid_argument("global_pool_to_block: invalid index"));
-      if (i == LastSolution) // already there
-        return;              // nothing to do
-      g_pool[i].sol->write(v_Block.front());
-      LastSolution = i; // and recall what's there
-    }
+ void global_pool_to_block( Index i ) {
+  if( NoSol )
+   throw( std::invalid_argument( "LagBFunction: Solution not stored" ) );
+  if( ( i >= f_max_glob ) || ( !  g_pool[ i ].sol ) )
+   throw( std::invalid_argument( "global_pool_to_block: invalid index" ) );
+  if( i == LastSolution )  // already there
+   return;                 // nothing to do
+  g_pool[ i ].sol->write( v_Block.front() );
+  LastSolution = i;  // and recall what's there
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// checks a Solution of the global pool against the inner Block
+ /** Asks the inner Block if what sol holds is still feasible for it. The
+  * parameter varsol tells whether that is a solution or a direction, which
+  * the Block has to be told before it is asked, one method answering for
+  * both cases; note that the Solution need not be written in the Block,
+  * whether it is being the Block's business [see Block::is_sol_feasible()
+  * and Block::is_sol_feasible_physical()]. */
+
+ bool check_Solution( Solution * sol , bool varsol ) {
+  auto blck = v_Block.front();
+  if( ( ! varsol ) && ( ! blck->has_directions() ) )
+   // the entry is a direction and the Block does not know what one of its
+   // own is: it is not saying that the direction is no longer one, it is
+   // saying that it cannot tell, and an entry that cannot be checked is
+   // kept rather than thrown away
+   return( true );
+  blck->is_direction( ! varsol );
+  const bool feas = blck->is_sol_feasible( sol );
+  blck->is_direction( false );
+
+  // a Block that is not physical answers by writing sol in its Variable and
+  // putting back what was there, which is only as complete as the Solution
+  // it hands out: what the Block holds is no longer known to be the entry
+  // that was written in it
+  if( ! blck->is_sol_feasible_physical() )
+   LastSolution = g_pool.size();
+
+  return( feas );
+  }
 
     /*--------------------------------------------------------------------------*/
     /// returns the objective of the inner Block to its "pristine" state

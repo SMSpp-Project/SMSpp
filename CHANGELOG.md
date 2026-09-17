@@ -22,6 +22,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `RowConstraint::is_feasible()` on a collection of collections of
+  RowConstraint, and on a `boost::multi_array` of collections, took them as
+  const while each RowConstraint has to be computed, so that it did not
+  compile as soon as it was used
+
+- `BendersBFunction` kept the dual solutions of its global pool when the
+  Constraint of the sub-Block changed, adding and removing alike: a removal
+  takes a dual variable away, and what is left satisfies the dual constraints
+  only if that variable was zero, so the pool is now invalidated there, while
+  an addition keeps it, the new dual variable being feasible at zero
+
+- `LagBFunction` marked no Solution as written in the inner Block after
+  checking one of the global pool against a Block that is not
+  `is_sol_feasible_physical()`: the check goes through the Variable there,
+  and what is put back is only as complete as the Solution the Block hands
+  out
+
+- the check of a Solution against a Block, which is what the default
+  `is_sol_feasible()` and `is_sol_optimal()` do, silently skipped putting
+  back what the Variable held when the Block could not hand out its current
+  Solution, leaving it with the checked Solution written in it; it now
+  throws instead
+
 ## [0.7.1] - 2026-09-13
 
 ### Fixed

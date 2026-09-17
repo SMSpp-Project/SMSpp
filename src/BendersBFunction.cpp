@@ -1765,12 +1765,21 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
                                    chnl );
    }
   else {
-   /* Constraints were added or removed. Since these Constraints must not be
-    * any of those handled by this BendersBFunction, dual solutions are still
-    * feasible. We now check how the behaviour of this BendersBFunction
-    * changes. */
+   /* Constraints were added to or removed from the sub-Block, and they are
+    * none of those this BendersBFunction handles. Adding one adds a dual
+    * variable, which is dual feasible at zero, hence the dual solutions in
+    * the global pool survive it. Removing one takes a dual variable away,
+    * and what is left of the dual solution satisfies the dual constraints
+    * only if that variable was zero: which of the two it is is not known
+    * here, and cannot be checked either, the row being gone by now, so the
+    * pool goes. The value of the Function changes as get_behaviour() says
+    * in either case. */
 
    auto behaviour = get_behaviour( tmod );
+
+   if( ! tmod->is_added() )
+    global_pool.invalidate();
+
    if( behaviour == function_value_behaviour::unknown )
     send_nuclear_modification( chnl );
    else
