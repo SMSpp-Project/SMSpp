@@ -631,9 +631,14 @@ class Observer {
    retval = f_next_chnl++;
    }
   else {
-   auto rit = v_free_chnl.rend();
+   // the highest free name, which is the one release_channel_name() below
+   // reabsorbs first: rend() is the past-the-end of the reverse range, so
+   // dereferencing it read outside the set and .base() erased the first
+   // element rather than the last one. The idiom is the one already used
+   // below: rbegin(), and std::next( rit ).base() to erase what it points at
+   auto rit = v_free_chnl.rbegin();
    retval = *rit;
-   v_free_chnl.erase( rit.base() );
+   v_free_chnl.erase( std::next( rit ).base() );
    }
   
   f_ch_lock.clear( std::memory_order_release );  // release lock
