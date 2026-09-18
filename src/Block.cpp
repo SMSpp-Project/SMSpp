@@ -27,6 +27,7 @@
 #include "AbstractBlock.h"
 #include "Block.h"
 #include "Constraint.h"
+#include "GroupAdapter.h"
 #include "Objective.h"
 #include "Solution.h"
 #include "Variable.h"
@@ -907,6 +908,89 @@ void Block::set_filename_prefix( std::string && prefix )
 const std::string & Block::get_filename_prefix( void )
 {
  return( block_filename_prefix() );
+ }
+
+/*--------------------------------------------------------------------------*/
+/*------------------- METHODS FOR KEEPING THE GROUPS -----------------------*/
+/*--------------------------------------------------------------------------*/
+
+namespace {
+
+/// a sink of GroupAdapter.h that keeps the group, owning nothing of it
+
+struct keep_view {
+ std::unique_ptr< BaseGroup > & group;
+
+ template< class G , class P >
+ void operator()( G && g , P * ) const {
+  group = std::make_unique< std::decay_t< G > >( std::forward< G >( g ) );
+  }
+ };
+
+/// the group of what an any holds, nullptr if it is nothing known
+
+template< bool variable >
+std::unique_ptr< BaseGroup > group_of( const boost::any & any , bool dynamic ,
+				       Block * block , Block::Index i ,
+				       const std::string & name ) {
+ std::unique_ptr< BaseGroup > group;
+ if( variable )
+  group_adapter_detail::fits_variable( dynamic , any , block , i , name ,
+				       keep_view{ group } );
+ else
+  group_adapter_detail::fits_constraint( dynamic , any , block , i , name ,
+					 keep_view{ group } );
+ return( group );
+ }
+
+}  // end( unnamed namespace )
+
+/*--------------------------------------------------------------------------*/
+
+void Block::refresh_static_variable_group( Index i )
+{
+ if( i >= v_s_Variable.size() )
+  throw( std::invalid_argument( "Block::refresh_static_variable_group: "
+				"wrong index into v_s_Variable" ) );
+ set_group( v_s_Variable_groups , i ,
+	    group_of< true >( v_s_Variable[ i ] , false , this , i ,
+			      v_s_Variable_names[ i ] ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void Block::refresh_dynamic_variable_group( Index i )
+{
+ if( i >= v_d_Variable.size() )
+  throw( std::invalid_argument( "Block::refresh_dynamic_variable_group: "
+				"wrong index into v_d_Variable" ) );
+ set_group( v_d_Variable_groups , i ,
+	    group_of< true >( v_d_Variable[ i ] , true , this , i ,
+			      v_d_Variable_names[ i ] ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void Block::refresh_static_constraint_group( Index i )
+{
+ if( i >= v_s_Constraint.size() )
+  throw( std::invalid_argument( "Block::refresh_static_constraint_group: "
+				"wrong index into v_s_Constraint" ) );
+ set_group( v_s_Constraint_groups , i ,
+	    group_of< false >( v_s_Constraint[ i ] , false , this , i ,
+			       v_s_Constraint_names[ i ] ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void Block::refresh_dynamic_constraint_group( Index i )
+{
+ if( i >= v_d_Constraint.size() )
+  throw( std::invalid_argument( "Block::refresh_dynamic_constraint_group: "
+				"wrong index into v_d_Constraint" ) );
+ set_group( v_d_Constraint_groups , i ,
+	    group_of< false >( v_d_Constraint[ i ] , true , this , i ,
+			       v_d_Constraint_names[ i ] ) );
  }
 
 /*--------------------------------------------------------------------------*/
