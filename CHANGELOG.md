@@ -9,6 +9,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `Block` holds a group of its own for each of the four vectors of
+  `boost::any` in which it keeps its Variable and its Constraint: a group
+  says the type of its elements, its shape and its name, and hands them over
+  without the caller having to know the type of the container they sit in,
+  which is what the `un_any_*` machinery was for. `BaseGroup::for_each_as()`
+  walks them with one switch per group and a loop typed on the element,
+  `for_each_run_as()` gives them one run of contiguous ones at a time, which
+  is what a caller mapping an element back to its position from its address
+  needs, `elements_are()` answers the question on the type once for the whole
+  group, and `Block::for_each_variable_group()` and
+  `for_each_constraint_group()` walk the static groups and then the dynamic
+  ones. THE ORDER IN WHICH THE ELEMENTS COME OUT IS THE STORAGE ORDER, and it
+  is part of the contract: `tests_Group.cpp` fixes it
+
+- A group says how to build a container of its own type and shape in another
+  Block, which is what `AbstractBlock::mirror()` needed the `boost::any` for,
+  and whoever allocates a container says how it goes, so that a Block
+  disposes of what it owns through its own groups
+
+- `std::vector< std::vector< Var > >` can be registered as a group of
+  Variable, as it already could be as a group of Constraint: the two sides
+  now have the same list of shapes
+
+### Changed
+
+- ⚠️ THE LAYOUT OF `Block` HAS CHANGED, and `add_static_variable()` and the
+  other 35 registration methods are templates, hence they live in the
+  translation unit of whoever calls them: after updating, EVERYTHING has to
+  be rebuilt, not only `libSMS++`, and a stale object file is not a
+  compilation error but a group without the means to copy itself, or a
+  library that is a hybrid of two layouts
+
+- `GroupAdapter.h` is gone, having been the scaffolding that read the
+  `boost::any` while the consumers of them were converted one at a time, and
+  so are `Block::refresh_*_group()`, which existed to rebuild a group after
+  writing into `access_*()` and which nobody calls
+
 ### Changed
 
 - `PolyhedralFunctionBlock`, in the "linearized dual" representation, issues
