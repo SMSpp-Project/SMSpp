@@ -3690,6 +3690,33 @@ class Block : public Observer {
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// calls f() on each group of Variable of the Block, static ones first
+ /** Calls f( group ) on each group of Variable of the Block, the static ones
+  * first and then the dynamic ones, skipping the empty slots, so that a
+  * caller that treats the two alike does not have to walk the two vectors
+  * itself. */
+
+ template< class F >
+ void for_each_variable_group( F f ) const {
+  for( auto groups : { & v_s_Variable_groups , & v_d_Variable_groups } )
+   for( const auto & group : *groups )
+    if( group )
+     f( std::as_const( *group ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// calls f() on each group of Constraint of the Block, static ones first
+ /** The Constraint counterpart of the previous method. */
+
+ template< class F >
+ void for_each_constraint_group( F f ) const {
+  for( auto groups : { & v_s_Constraint_groups , & v_d_Constraint_groups } )
+   for( const auto & group : *groups )
+    if( group )
+     f( std::as_const( *group ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the number of groups of dynamic Variable
 
  Index get_number_dynamic_variables( void ) const {

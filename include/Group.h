@@ -383,6 +383,20 @@ class BaseGroup {
  template< class T , class F >
  bool for_each_cell_as( F f ) const;
 
+/*--------------------------------------------------------------------------*/
+ /// calls f() on each run of contiguous elements of the group
+ /** Calls f( first , n ) on each maximal run of n elements of the group that
+  * are contiguous in memory, in storage order, and returns true, if the
+  * elements are T; does nothing and returns false otherwise. A group that is
+  * a single array is one run, a group made of many arrays is one run per
+  * array, and a group that holds pointers, or whose cells are collections,
+  * can be one run per element. This is what a caller needs to map an element
+  * back to its position from its address alone, which is a subtraction
+  * inside a run and says nothing across two of them. */
+
+ template< class T , class F >
+ bool for_each_run_as( F f ) const;
+
 /** @} ---------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -940,6 +954,32 @@ bool BaseGroup::for_each_cell_as( F f ) const
   else
    walk( static_cast< std::vector< T > * >( s.first ) );
   }
+
+ return( true );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+template< class T , class F >
+bool BaseGroup::for_each_run_as( F f ) const
+{
+ T * first = nullptr;
+ Index n = 0;
+
+ if( ! for_each_as< T >( [ & first , & n , & f ]( T & element ) {
+      if( first && ( & element == first + n ) ) {
+       ++n;        // the run goes on
+       return;
+       }
+      if( first )  // a run has just ended
+       f( first , n );
+      first = & element;
+      n = 1;
+      } ) )
+  return( false );
+
+ if( first )
+  f( first , n );
 
  return( true );
  }
