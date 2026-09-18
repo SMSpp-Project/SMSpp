@@ -51,36 +51,6 @@ static constexpr auto INF = Inf< BoxSolver::OFValue >();
 
 namespace {
 
-/// calls g() on each group of Variable of the Block, static ones first
-/** Calls g( group ) on each non-empty group of Variable of the Block, the
- * static ones first and then the dynamic ones, and stops as soon as g()
- * returns false, in which case it returns false too. */
-
-template< class G >
-bool for_each_variable_group( const Block * bk , G g )
-{
- for( auto groups : { & bk->get_static_variable_groups() ,
-		      & bk->get_dynamic_variable_groups() } )
-  for( const auto & group : *groups )
-   if( group && ( ! g( *group ) ) )
-    return( false );
-
- return( true );
- }
-
-/*--------------------------------------------------------------------------*/
-/// calls g() on each group of Constraint of the Block, static ones first
-
-template< class G >
-void for_each_constraint_group( const Block * bk , G g )
-{
- for( auto groups : { & bk->get_static_constraint_groups() ,
-		      & bk->get_dynamic_constraint_groups() } )
-  for( const auto & group : *groups )
-   if( group )
-    g( *group );
- }
-
 /*--------------------------------------------------------------------------*/
 /// throws for a group of Variable that are not ColVariable
 
@@ -89,34 +59,6 @@ void for_each_constraint_group( const Block * bk , G g )
  throw( std::invalid_argument( std::string( "BoxSolver: " ) +
 			       ( group.is_dynamic() ? "dynamic" : "static" ) +
 			       " variable not a ColVariable" ) );
- }
-
-/*--------------------------------------------------------------------------*/
-/// calls f() on each element of a group of OneVarConstraint, typed on it
-/** Calls f() on each element of the group if its elements are one of the
- * concrete :OneVarConstraint of the core, the type being matched exactly so
- * that the loop runs on it; does nothing otherwise. */
-
-template< class F >
-void for_each_OneVarConstraint( const BaseGroup & group , F f )
-{
- auto type = group.get_element_type();
- if( type == typeid( BoxConstraint ) )
-  group.for_each_as< BoxConstraint >( f );
- else if( type == typeid( LB0Constraint ) )
-  group.for_each_as< LB0Constraint >( f );
- else if( type == typeid( UB0Constraint ) )
-  group.for_each_as< UB0Constraint >( f );
- else if( type == typeid( LBConstraint ) )
-  group.for_each_as< LBConstraint >( f );
- else if( type == typeid( UBConstraint ) )
-  group.for_each_as< UBConstraint >( f );
- else if( type == typeid( NNConstraint ) )
-  group.for_each_as< NNConstraint >( f );
- else if( type == typeid( NPConstraint ) )
-  group.for_each_as< NPConstraint >( f );
- else if( type == typeid( ZOConstraint ) )
-  group.for_each_as< ZOConstraint >( f );
  }
 
 }  // end( unnamed namespace )
@@ -194,12 +136,13 @@ int BoxSolver::compute( bool changedvars )
     process_variable_bnds( var ); };
 
    for( auto bk : f_desc )
-    if( ! for_each_variable_group( bk , [ this , & f ]( const BaseGroup & g ) {
-	 if( ! g.for_each_as< ColVariable >( f ) )
-	  throw_not_ColVariable( g );
-	 return( f_state == kUnEval );  // stop if infeasible
-	 } ) )
-     goto endgame;
+    bk->for_each_variable_group( [ this , & f ]( const BaseGroup & g ) {
+      if( ! g.for_each_as< ColVariable >( f ) )
+       throw_not_ColVariable( g );
+      } );
+
+   if( f_state != kUnEval )  // infeasible
+    goto endgame;
    }  // end( ! f_feas )
 
   // second phase: look at only the ColVariable active in the alternative
@@ -281,11 +224,12 @@ int BoxSolver::compute( bool changedvars )
     f_min_val += ct;
     }
 
-   if( ! for_each_variable_group( bk , [ this , & f ]( const BaseGroup & g ) {
-	if( ! g.for_each_as< ColVariable >( f ) )
-	 throw_not_ColVariable( g );
-	return( f_state == kUnEval );  // stop if infeasible
-	} ) )
+   bk->for_each_variable_group( [ this , & f ]( const BaseGroup & g ) {
+     if( ! g.for_each_as< ColVariable >( f ) )
+      throw_not_ColVariable( g );
+     } );
+
+   if( f_state != kUnEval )  // infeasible
     goto endgame;
    }  // end( for( all involved Block ) )
   }  // end( else( do it for the standard Objective )- - - - - - - - - - - - -
@@ -340,10 +284,8 @@ void BoxSolver::get_var_solution( Configuration *solc )
     process_variable_bnds( var ); };
 
    for( auto bk : f_desc ) {
-    for_each_variable_group( bk , [ & f ]( const BaseGroup & g ) {
-     g.for_each_as< ColVariable >( f );
-     return( true );
-     } );
+    bk->for_each_variable_group( [ & f ]( const BaseGroup & g ) {
+      g.for_each_as< ColVariable >( f ); } );
     }  // end( for( all involved Block ) )
 
    f_feas = true;  // now this is done
@@ -393,10 +335,8 @@ void BoxSolver::get_var_solution( Configuration *solc )
    process_variable_sol( var ); };
 
   for( auto bk : f_desc ) {
-   for_each_variable_group( bk , [ & f ]( const BaseGroup & g ) {
-    g.for_each_as< ColVariable >( f );
-    return( true );
-    } );
+   bk->for_each_variable_group( [ & f ]( const BaseGroup & g ) {
+     g.for_each_as< ColVariable >( f ); } );
    }  // end( for( all involved Block ) )
 
   f_feas = true;  // a feasible solution is there
@@ -423,8 +363,10 @@ void BoxSolver::get_dual_solution( Configuration *solc )
    // first phase: zero-out all reduced costs
 
    for( auto bk : f_desc )
-    for_each_constraint_group( bk , [ & f ]( const BaseGroup & g ) {
-      for_each_OneVarConstraint( g , f ); } );
+    bk->for_each_constraint_group( [ & f ]( const BaseGroup & g ) {
+      for_each_as_any_of< BoxConstraint , LB0Constraint , UB0Constraint ,
+			  LBConstraint , UBConstraint , NNConstraint ,
+			  NPConstraint , ZOConstraint >( g , f ); } );
 
    // second phase: look at only the ColVariable active in the alternative
    // Objective Function and do the actual reduced cost computation
@@ -474,10 +416,8 @@ void BoxSolver::get_dual_solution( Configuration *solc )
     process_variable_dual( var ); };
 
    for( auto bk : f_desc ) {
-    for_each_variable_group( bk , [ & f ]( const BaseGroup & g ) {
-     g.for_each_as< ColVariable >( f );
-     return( true );
-     } );
+    bk->for_each_variable_group( [ & f ]( const BaseGroup & g ) {
+      g.for_each_as< ColVariable >( f ); } );
     }  // end( for( all involved Block ) )
    }  // end( else( do it for the standard Objective )- - - - - - - - - - - -
 
@@ -490,7 +430,7 @@ void BoxSolver::get_dual_solution( Configuration *solc )
   const auto f = []( FRowConstraint & c ) { c.set_dual( 0 ); };
 
   for( auto bk : f_desc )
-   for_each_constraint_group( bk , [ & f ]( const BaseGroup & g ) {
+   bk->for_each_constraint_group( [ & f ]( const BaseGroup & g ) {
      g.for_each_as< FRowConstraint >( f ); } );
 
   f_sol_comp |= 4;
@@ -514,10 +454,8 @@ void BoxSolver::get_var_direction( Configuration * dirc )
   const auto f = []( ColVariable & var ) { var.set_value( 0 ); };
 
   for( auto bk : f_desc ) {
-   for_each_variable_group( bk , [ & f ]( const BaseGroup & g ) {
-    g.for_each_as< ColVariable >( f );
-    return( true );
-    } );
+   bk->for_each_variable_group( [ & f ]( const BaseGroup & g ) {
+     g.for_each_as< ColVariable >( f ); } );
    }  // end( for( all involved Block ) )
 
   // second phase: look at only the ColVariable active in the alternative
@@ -565,10 +503,8 @@ void BoxSolver::get_var_direction( Configuration * dirc )
    process_variable_dir( var ); };
 
   for( auto bk : f_desc ) {
-   for_each_variable_group( bk , [ & f ]( const BaseGroup & g ) {
-    g.for_each_as< ColVariable >( f );
-    return( true );
-    } );
+   bk->for_each_variable_group( [ & f ]( const BaseGroup & g ) {
+     g.for_each_as< ColVariable >( f ); } );
    }  // end( for( all involved Block ) )
   }  // end( else( do it for the standard Objective )- - - - - - - - - - - - -
 

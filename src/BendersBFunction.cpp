@@ -2567,27 +2567,12 @@ Function::FunctionValue BendersBFunction::compute_linearization_constant() {
   for( auto * sub_block : block->get_nested_Blocks() )
    Q.push( sub_block );
 
-  for( const auto & i : block->get_static_constraints() )
-   un_any_const_static( i , update_alpha , un_any_type< FRowConstraint >() )
-    || un_any_const_static( i , update_alpha , un_any_type< BoxConstraint >() )
-    || un_any_const_static( i , update_alpha , un_any_type< ZOConstraint >() )
-    || un_any_const_static( i , update_alpha , un_any_type< LB0Constraint >() )
-    || un_any_const_static( i , update_alpha , un_any_type< UB0Constraint >() )
-    || un_any_const_static( i , update_alpha , un_any_type< LBConstraint >() )
-    || un_any_const_static( i , update_alpha , un_any_type< UBConstraint >() )
-    || un_any_const_static( i , update_alpha , un_any_type< NNConstraint >() )
-    || un_any_const_static( i , update_alpha , un_any_type< NPConstraint >() );
-
-  for( const auto & i : block->get_dynamic_constraints() )
-   un_any_const_dynamic( i , update_alpha , un_any_type< FRowConstraint >() )
-    || un_any_const_dynamic( i , update_alpha , un_any_type< BoxConstraint >() )
-    || un_any_const_dynamic( i , update_alpha , un_any_type< ZOConstraint >() )
-    || un_any_const_dynamic( i , update_alpha , un_any_type< LB0Constraint >() )
-    || un_any_const_dynamic( i , update_alpha , un_any_type< UB0Constraint >() )
-    || un_any_const_dynamic( i , update_alpha , un_any_type< LBConstraint >() )
-    || un_any_const_dynamic( i , update_alpha , un_any_type< UBConstraint >() )
-    || un_any_const_dynamic( i , update_alpha , un_any_type< NNConstraint >() )
-    || un_any_const_dynamic( i , update_alpha , un_any_type< NPConstraint >() );
+  block->for_each_constraint_group( [ & update_alpha ]
+				   ( const BaseGroup & group ) {
+    for_each_as_any_of< FRowConstraint , BoxConstraint , ZOConstraint ,
+			LB0Constraint , UB0Constraint , LBConstraint ,
+			UBConstraint , NNConstraint , NPConstraint >(
+						   group , update_alpha ); } );
  }
 
  return( alpha );

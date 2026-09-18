@@ -53,34 +53,17 @@ namespace {
 
 /// calls the right function on each element of a group of :RowConstraint
 /** Calls frow() on each element of the group if these are FRowConstraint, and
- * onevar() on each of them if these are one of the concrete :OneVarConstraint
- * of the core; the type is matched exactly, so the loop runs on it. Returns
- * false, having done nothing, if the elements are of none of those types. */
+ * onevar() on each of them if these are one of the concrete
+ * :OneVarConstraint of the core; returns false, having done nothing, if the
+ * elements are of none of those types. */
 
 template< class FR , class FO >
 bool for_each_RowConstraint( const BaseGroup & group , FR frow , FO onevar )
 {
- auto type = group.get_element_type();
- if( type == typeid( FRowConstraint ) )
-  return( group.for_each_as< FRowConstraint >( frow ) );
- if( type == typeid( BoxConstraint ) )
-  return( group.for_each_as< BoxConstraint >( onevar ) );
- if( type == typeid( LB0Constraint ) )
-  return( group.for_each_as< LB0Constraint >( onevar ) );
- if( type == typeid( UB0Constraint ) )
-  return( group.for_each_as< UB0Constraint >( onevar ) );
- if( type == typeid( LBConstraint ) )
-  return( group.for_each_as< LBConstraint >( onevar ) );
- if( type == typeid( UBConstraint ) )
-  return( group.for_each_as< UBConstraint >( onevar ) );
- if( type == typeid( NNConstraint ) )
-  return( group.for_each_as< NNConstraint >( onevar ) );
- if( type == typeid( NPConstraint ) )
-  return( group.for_each_as< NPConstraint >( onevar ) );
- if( type == typeid( ZOConstraint ) )
-  return( group.for_each_as< ZOConstraint >( onevar ) );
-
- return( false );
+ return( group.for_each_as< FRowConstraint >( frow ) ||
+	 for_each_as_any_of< BoxConstraint , LB0Constraint , UB0Constraint ,
+			     LBConstraint , UBConstraint , NNConstraint ,
+			     NPConstraint , ZOConstraint >( group , onevar ) );
  }
 
 }  // end( unnamed namespace )
@@ -435,24 +418,21 @@ void AbstractBlock::is_correct( void )
  auto check_cnst = [ this ]( auto & cnst ) { check_Constraint( & cnst ); };
 
  // the Variables of the Block- - - - - - - - - - - - - - - - - - - - - - - -
- for( auto groups : { & get_static_variable_groups() ,
-		      & get_dynamic_variable_groups() } )
-  for( const auto & group : *groups )
-   if( group && ( ! group->for_each_as< ColVariable >( check_var ) ) )
+ for_each_variable_group( [ & check_var ]( const BaseGroup & group ) {
+   if( ! group.for_each_as< ColVariable >( check_var ) )
     throw( std::logic_error( std::string( "some " ) +
-			     ( group->is_dynamic() ? "dynamic" : "static" ) +
+			     ( group.is_dynamic() ? "dynamic" : "static" ) +
 			     " Variable not ColVariable" ) );
+   } );
 
  // the Constraints of the Block- - - - - - - - - - - - - - - - - - - - - - -
- for( auto groups : { & get_static_constraint_groups() ,
-		      & get_dynamic_constraint_groups() } )
-  for( const auto & group : *groups )
-   if( group && ( ! for_each_RowConstraint( *group , check_cnst ,
-					    check_cnst ) ) )
+ for_each_constraint_group( [ & check_cnst ]( const BaseGroup & group ) {
+   if( ! for_each_RowConstraint( group , check_cnst , check_cnst ) )
     throw( std::logic_error( std::string( "some " ) +
-			     ( group->is_dynamic() ? "dynamic" : "static" ) +
+			     ( group.is_dynamic() ? "dynamic" : "static" ) +
 			     " Constraint not FRowConstraint or"
 			     " :OneVarConstraint" ) );
+   } );
 
  // the Objective of the Block- - - - - - - - - - - - - - - - - - - - - - - -
  if( auto obj = get_objective() )
