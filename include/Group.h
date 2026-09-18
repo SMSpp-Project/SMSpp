@@ -850,6 +850,27 @@ std::unique_ptr< BaseGroup > make_group( C & container ,
  }
 
 /*--------------------------------------------------------------------------*/
+/*---------------------------- FREE FUNCTIONS ------------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Reading a group whose elements are one of a set of types
+ *  @{ */
+
+/// calls f() on the elements of the group if these are any of T...
+/** Calls f() on each element of the group, in storage order, and returns
+ * true, if the elements of the group are of any of the types T..., which are
+ * tried in the order in which they are given; does nothing and returns false
+ * otherwise. This is the pattern of a caller that can treat a handful of
+ * concrete types, say the :RowConstraint of the core, and leaves the other
+ * groups of a Block alone. */
+
+template< class... T , class F >
+bool for_each_as_any_of( const BaseGroup & group , F f )
+{
+ return( ( group.template for_each_as< T >( f ) || ... ) );
+ }
+
+/** @} ---------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 /*------------------- METHODS OF BaseGroup NEEDING THE LEAVES --------------*/
 /*--------------------------------------------------------------------------*/
 
