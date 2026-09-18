@@ -19,12 +19,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \author Filippo Magi
- *         Dipartimento di Informatica \n
- *         Universita' di Pisa \n
- *
- * \copyright &copy; by Antonio Frangioni, Enrico Gorgone, Donato Meoli,
- *                      Filippo Magi
+ * \copyright &copy; by Antonio Frangioni, Enrico Gorgone, Donato Meoli
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -2724,17 +2719,17 @@ namespace SMSpp_di_unipi_it
       return (new LagBFunction::v_const_iterator(LagPairs.end()));
     }
 
-    Solution *release_current_purged_solution() noexcept
+    gpool_el release_current_purged_solution() noexcept
     {
-      return std::exchange(f_current_purged_solution, nullptr);
+      return std::exchange(f_current_purged_solution, gpool_el{});
     }
 
-    void restore_purged_solutions(std::vector<Solution *> solutions)
+    void restore_purged_solutions(std::vector<gpool_el> solutions)
     {
       Index start = 0;
-      for (Solution *sol : solutions)
+      for (auto &el : solutions)
       {
-        if (!sol)
+        if (!el.sol)
           continue;
 
         Index pos = Inf<Index>();
@@ -2755,12 +2750,7 @@ namespace SMSpp_di_unipi_it
           start = pos + 1;
         }
 
-        auto &slot = g_pool[pos];
-        slot.sol = sol;
-        slot.varsol = true;
-        slot.convexified = false;
-        slot.value = 0; // value is the linearization constant, not a pointer
-        slot.conv_active.clear();
+        g_pool[pos] = std::move(el);
 
         if (pos + 1 > f_max_glob)
           f_max_glob = pos + 1;
@@ -3203,7 +3193,7 @@ namespace SMSpp_di_unipi_it
     GlobalInformation *f_GI = nullptr; ///< pointer to the GlobalInformation object
 
     std::vector<EventHandler> v_column_purged_handlers; /// registered handlers for the column-purged event
-    Solution *f_current_purged_solution = nullptr;
+    gpool_el f_current_purged_solution;
 
     /*--------------------------------------------------------------------------*/
     /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
