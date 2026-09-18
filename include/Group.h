@@ -254,16 +254,39 @@ class BaseGroup {
   * ( 1 , 3 ). For a group of rank 0 there is nothing to write. */
 
  void get_multi_index( Index c , Index * index ) const {
-  if( ! f_rank )
-   return;
+  get_grid().get_multi_index( c , index );
+  }
 
-  std::array< Index , max_rank > size;
-  f_view( f_container , size.data() );
+/*--------------------------------------------------------------------------*/
+ /// the shape of the grid of cells, read once
+ /** The rank and the extents of the grid, read out of the container once, so
+  * that a caller that has to name many cells does not pay a read for each of
+  * them: get_grid() is the shape as it is now, get_multi_index() is the
+  * indices of one cell in it. */
 
-  for( unsigned char d = f_rank ; d-- ; ) {
-   index[ d ] = size[ d ] ? c % size[ d ] : 0;
-   c = size[ d ] ? c / size[ d ] : 0;
+ struct grid {
+  unsigned char rank;                 ///< the number of dimensions
+  std::array< Index , max_rank > size; ///< the extent along each of them
+
+  /// writes the indices of the c-th cell of this grid into \p index
+  void get_multi_index( Index c , Index * index ) const {
+   for( unsigned char d = rank ; d-- ; ) {
+    index[ d ] = size[ d ] ? c % size[ d ] : 0;
+    c = size[ d ] ? c / size[ d ] : 0;
+    }
    }
+  };
+
+/*--------------------------------------------------------------------------*/
+ /// returns the shape of the grid of cells
+
+ [[nodiscard]] grid get_grid( void ) const {
+  grid g;
+  g.rank = f_rank;
+  g.size.fill( 1 );
+  if( f_rank )
+   f_view( f_container , g.size.data() );
+  return( g );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1000,25 +1023,29 @@ bool BaseGroup::for_each_cell_as( F f ) const
 template< class T , class F >
 bool BaseGroup::for_each_run_as( F f ) const
 {
- T * first = nullptr;
- Index n = 0;
+ if( f_type != typeid( T ) )
+  return( for_each_as< T >( [ & f ]( T & element ) { f( & element , 1 ); } ) );
 
- if( ! for_each_as< T >( [ & first , & n , & f ]( T & element ) {
-      if( first && ( & element == first + n ) ) {
-       ++n;        // the run goes on
-       return;
-       }
-      if( first )  // a run has just ended
-       f( first , n );
-      first = & element;
-      n = 1;
-      } ) )
-  return( false );
+ // where the runs are is known from the shape alone, and the elements are
+ // not looked at one by one: an array is one run, a collection of arrays is
+ // one run per array, and elements reached through pointers, or sitting in
+ // the nodes of a list, are one run each
+ if( f_indirect || ( f_layout == eDynamic ) )
+  return( for_each_as< T >( [ & f ]( T & element ) { f( & element , 1 ); } ) );
 
- if( first )
-  f( first , n );
+ if( f_layout == eContiguous ) {
+  auto s = get_storage();
+  if( s.num_cells )
+   f( static_cast< T * >( s.first ) , s.num_cells );
+  return( true );
+  }
 
- return( true );
+ return( for_each_cell_as< T >( [ & f ]( Index , auto & cell ) {
+   if constexpr( std::is_same_v< std::decay_t< decltype( cell ) > ,
+				 std::vector< T > > )
+    if( ! cell.empty() )
+     f( cell.data() , Index( cell.size() ) );
+   } ) );
  }
 
 /*--------------------------------------------------------------------------*/
