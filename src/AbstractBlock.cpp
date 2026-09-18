@@ -2220,121 +2220,34 @@ std::vector< std::string > AbstractBlock::expected_vars( void ) const {
 /*--------------------- MIRRORING ANOTHER Block ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
-/* A group of the copy is created with the shape of the group it copies, and
- * f is applied to each pair of corresponding objects; a dynamic group is a
- * list, whose copy is grown one element at a time since the objects are not
- * copyable. Returns false if the group is not made of C, which is how the
- * caller finds out which concrete type it is looking at. */
+/* The copy of a group is made by the group itself, which knows the type of
+ * the container it views and can therefore say how to build another one of
+ * the same shape in the copy; what is left to do here is to pair the objects
+ * of the two, which come in the same order, the storage order being what a
+ * group promises [see BaseGroup]. */
 
-/* A static group whose cells are *vectors* of objects, which is the shape a
- * Block gives a family with one entry per cell and a different number of
- * them in each: the creation above would give the copy one object per cell
- * and lose the others, hence it is done here. A dynamic group needs none of
- * this, its cells being lists and the list the very type that is created. */
-
-template< class C , std::size_t K , class F >
-static bool mirror_irregular_array( const boost::any & src , boost::any & dst ,
-                                    F f )
+template< class C , class F >
+static bool mirror_elements( const BaseGroup & src , const BaseGroup & dst ,
+                             F f )
 {
- using MA = boost::multi_array< std::vector< C > , K >;
+ if( ! src.elements_are< C >() )
+  return( false );  // the group is of another type, the caller tries on
 
- if( src.type() != typeid( MA * ) )
-  return( false );
+ std::vector< C * > copy;
+ copy.reserve( dst.get_num_elements() );
+ dst.for_each_as< C >( [ & copy ]( C & d ) { copy.push_back( & d ); } );
 
- auto & s = * boost::any_cast< MA * >( src );
- std::vector< std::size_t > shape( s.shape() ,
-                                   s.shape() + s.num_dimensions() );
- auto d = new MA( shape );
+ Block::Index i = 0;
+ src.for_each_as< C >( [ & f , & copy , & i ]( C & o ) {
+   if( i < copy.size() )
+    f( o , * copy[ i ] );
+   ++i;
+   } );
 
- auto p1 = s.data();
- auto p2 = d->data();
- for( std::size_t i = s.num_elements() ; i-- ; ++p1 , ++p2 ) {
-  p2->resize( p1->size() );
-  for( std::size_t j = 0 ; j < p1->size() ; ++j )
-   f( (*p1)[ j ] , (*p2)[ j ] );
-  }
-
- dst = d;
  return( true );
  }
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
-template< class C , class F >
-static bool mirror_irregular( const boost::any & src , boost::any & dst , F f )
-{
- if( src.type() == typeid( std::vector< std::vector< C > > * ) ) {
-  auto & s = * boost::any_cast< std::vector< std::vector< C > > * >( src );
-  auto d = new std::vector< std::vector< C > >( s.size() );
-  for( std::size_t i = 0 ; i < s.size() ; ++i ) {
-   (*d)[ i ].resize( s[ i ].size() );
-   for( std::size_t j = 0 ; j < s[ i ].size() ; ++j )
-    f( s[ i ][ j ] , (*d)[ i ][ j ] );
-   }
-  dst = d;
-  return( true );
-  }
-
- return( mirror_irregular_array< C , 1 >( src , dst , f ) ||
-         mirror_irregular_array< C , 2 >( src , dst , f ) ||
-         mirror_irregular_array< C , 3 >( src , dst , f ) ||
-         mirror_irregular_array< C , 4 >( src , dst , f ) );
- }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
-template< class C , class F >
-static bool mirror_static_group( const boost::any & src , boost::any & dst ,
-                                 F f )
-{
- // the irregular shapes first, the creation below claiming them as well
- if( mirror_irregular< C >( src , dst , f ) )
-  return( true );
-
- return( un_any_static_2_create( src , dst , un_any_type< C >() ,
-                                 un_any_type< C >() , f ) );
- }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
-template< class C , class F >
-static bool mirror_dynamic_group( const boost::any & src , boost::any & dst ,
-                                  F f )
-{
- return( un_any_dynamic_2_create(
-          src , dst , un_any_type< C >() , un_any_type< std::list< C > >() ,
-          [ & f ]( std::list< C > & s , std::list< C > & d ) {
-           for( auto & el : s ) {
-            d.emplace_back();
-            f( el , d.back() );
-            }
-           } , true ) );
- }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
-/* How many objects of type C a group holds, which is what says whether the
- * copy of it holds as many: a group whose shape the creation above does not
- * reproduce would otherwise lose objects in silence, which is the one thing
- * a copy must not do. */
-
-template< class C >
-static std::size_t count_static( const boost::any & any )
-{
- std::size_t n = 0;
- un_any_const_static( any , [ & n ]( C & ) { ++n; } , un_any_type< C >() );
- return( n );
- }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
-template< class C >
-static std::size_t count_dynamic( const boost::any & any )
-{
- std::size_t n = 0;
- un_any_const_dynamic( any , [ & n ]( C & ) { ++n; } , un_any_type< C >() );
- return( n );
- }
+/*--------------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------------------*/
 
@@ -2400,41 +2313,41 @@ void AbstractBlock::mirror_variables( Block * src , AbstractBlock * dst )
   f_v_rmap[ & d ] = & s;
   };
 
- auto & sv = src->get_static_variables();
- for( Index i = 0 ; i < sv.size() ; ++i ) {
-  dst->add_static_variable( std::string( src->get_s_var_name( i ) ) );
-  const bool made = mirror_static_group< ColVariable >(
-                     sv[ i ] , dst->access_static_variable( i ) , take );
-  dst->refresh_static_variable_group( i );
-  if( ! made )
-   v_issues.push_back( "static Variable group " + std::to_string( i ) +
-                       " of " + src->name() +
-                       " is not made of ColVariable" );
-  else
-   check_count( count_static< ColVariable >( sv[ i ] ) ,
-                count_static< ColVariable >(
-                                     dst->access_static_variable( i ) ) ,
-                "static Variable group " + std::to_string( i ) + " of " +
-                src->name() );
-  }
+ // each group of the original makes a group of the copy, of the same type
+ // and shape, and the objects are paired in storage order
+ auto mirror_group = [ & ]( const BaseGroup & group , bool dynamic ) {
+  const std::string what = std::string( dynamic ? "dynamic" : "static" ) +
+                           " Variable group " +
+                           std::to_string( group.get_index() ) + " of " +
+                           src->name();
 
- auto & dv = src->get_dynamic_variables();
- for( Index i = 0 ; i < dv.size() ; ++i ) {
-  dst->add_dynamic_variable( std::string( src->get_d_var_name( i ) ) );
-  const bool made = mirror_dynamic_group< ColVariable >(
-                     dv[ i ] , dst->access_dynamic_variable( i ) , take );
-  dst->refresh_dynamic_variable_group( i );
-  if( ! made )
-   v_issues.push_back( "dynamic Variable group " + std::to_string( i ) +
-                       " of " + src->name() +
-                       " is not made of ColVariable" );
+  if( ! group.clone_into( dst , std::string( group.get_name() ) ) ) {
+   v_issues.push_back( what + " is one the copy cannot make, it is empty "
+                       "in the copy" );
+   dynamic ? dst->add_dynamic_variable() : dst->add_static_variable();
+   return;
+   }
+
+  const auto & copy = dynamic ? dst->get_dynamic_variable_groups().back()
+                              : dst->get_static_variable_groups().back();
+
+  if( ! mirror_elements< ColVariable >( group , *copy , take ) )
+   v_issues.push_back( what + " is not made of ColVariable" );
   else
-   check_count( count_dynamic< ColVariable >( dv[ i ] ) ,
-                count_dynamic< ColVariable >(
-                                     dst->access_dynamic_variable( i ) ) ,
-                "dynamic Variable group " + std::to_string( i ) + " of " +
-                src->name() );
-  }
+   check_count( group.get_num_elements() , copy->get_num_elements() , what );
+  };
+
+ for( const auto & group : src->get_static_variable_groups() )
+  if( group )
+   mirror_group( *group , false );
+  else
+   dst->add_static_variable();
+
+ for( const auto & group : src->get_dynamic_variable_groups() )
+  if( group )
+   mirror_group( *group , true );
+  else
+   dst->add_dynamic_variable();
 
  // the inner Block: a Constraint of any of them may use their Variable
  for( Index i = 0 ; i < src->get_number_nested_Blocks() ; ++i ) {
@@ -2505,95 +2418,54 @@ void AbstractBlock::mirror_constraints( Block * src , AbstractBlock * dst )
  auto npc = [ & ]( NPConstraint & s , NPConstraint & d ) { take_one( s , d ); };
  auto zoc = [ & ]( ZOConstraint & s , ZOConstraint & d ) { take_one( s , d ); };
 
- auto & sc = src->get_static_constraints();
- for( Index i = 0 ; i < sc.size() ; ++i ) {
-  dst->add_static_constraint( std::string( src->get_s_const_name( i ) ) );
-  auto & any = dst->access_static_constraint( i );
+ // the concrete type of a group says which of the lambdas above applies to
+ // it; the first that claims it is the one, as the group is homogeneous
+ auto copy_rows = [ & ]( const BaseGroup & s , const BaseGroup & d ) {
+  return( mirror_elements< FRowConstraint >( s , d , take_frow ) ||
+	  mirror_elements< BoxConstraint >( s , d , box ) ||
+	  mirror_elements< LB0Constraint >( s , d , lb0 ) ||
+	  mirror_elements< UB0Constraint >( s , d , ub0 ) ||
+	  mirror_elements< LBConstraint >( s , d , lbc ) ||
+	  mirror_elements< UBConstraint >( s , d , ubc ) ||
+	  mirror_elements< NNConstraint >( s , d , nnc ) ||
+	  mirror_elements< NPConstraint >( s , d , npc ) ||
+	  mirror_elements< ZOConstraint >( s , d , zoc ) );
+  };
 
-  const std::string what = "static Constraint group " +
-                           std::to_string( i ) + " of " + src->name();
+ auto mirror_group = [ & ]( const BaseGroup & group , bool dynamic ) {
+  const std::string what = std::string( dynamic ? "dynamic" : "static" ) +
+                           " Constraint group " +
+                           std::to_string( group.get_index() ) + " of " +
+                           src->name();
 
-  const bool done =
-   ( mirror_static_group< FRowConstraint >( sc[ i ] , any , take_frow ) &&
-     check_count( count_static< FRowConstraint >( sc[ i ] ) ,
-                  count_static< FRowConstraint >( any ) , what ) ) ||
-   ( mirror_static_group< BoxConstraint >( sc[ i ] , any , box ) &&
-     check_count( count_static< BoxConstraint >( sc[ i ] ) ,
-                  count_static< BoxConstraint >( any ) , what ) ) ||
-   ( mirror_static_group< LB0Constraint >( sc[ i ] , any , lb0 ) &&
-     check_count( count_static< LB0Constraint >( sc[ i ] ) ,
-                  count_static< LB0Constraint >( any ) , what ) ) ||
-   ( mirror_static_group< UB0Constraint >( sc[ i ] , any , ub0 ) &&
-     check_count( count_static< UB0Constraint >( sc[ i ] ) ,
-                  count_static< UB0Constraint >( any ) , what ) ) ||
-   ( mirror_static_group< LBConstraint >( sc[ i ] , any , lbc ) &&
-     check_count( count_static< LBConstraint >( sc[ i ] ) ,
-                  count_static< LBConstraint >( any ) , what ) ) ||
-   ( mirror_static_group< UBConstraint >( sc[ i ] , any , ubc ) &&
-     check_count( count_static< UBConstraint >( sc[ i ] ) ,
-                  count_static< UBConstraint >( any ) , what ) ) ||
-   ( mirror_static_group< NNConstraint >( sc[ i ] , any , nnc ) &&
-     check_count( count_static< NNConstraint >( sc[ i ] ) ,
-                  count_static< NNConstraint >( any ) , what ) ) ||
-   ( mirror_static_group< NPConstraint >( sc[ i ] , any , npc ) &&
-     check_count( count_static< NPConstraint >( sc[ i ] ) ,
-                  count_static< NPConstraint >( any ) , what ) ) ||
-   ( mirror_static_group< ZOConstraint >( sc[ i ] , any , zoc ) &&
-     check_count( count_static< ZOConstraint >( sc[ i ] ) ,
-                  count_static< ZOConstraint >( any ) , what ) );
+  if( ! group.clone_into( dst , std::string( group.get_name() ) ) ) {
+   v_issues.push_back( what + " is one the copy cannot make, it is empty "
+                       "in the copy" );
+   dynamic ? dst->add_dynamic_constraint() : dst->add_static_constraint();
+   return;
+   }
 
-  dst->refresh_static_constraint_group( i );
+  const auto & copy = dynamic ? dst->get_dynamic_constraint_groups().back()
+                              : dst->get_static_constraint_groups().back();
 
-  if( ! done )
-   v_issues.push_back( "static Constraint group " + std::to_string( i ) +
-                       " of " + src->name() + " is of a type the mirror "
-                       "does not know, the group is empty in the copy" );
-  }
+  if( ! copy_rows( group , *copy ) )
+   v_issues.push_back( what + " is of a type the mirror does not know, the "
+                       "group is empty in the copy" );
+  else
+   check_count( group.get_num_elements() , copy->get_num_elements() , what );
+  };
 
- auto & dc = src->get_dynamic_constraints();
- for( Index i = 0 ; i < dc.size() ; ++i ) {
-  dst->add_dynamic_constraint( std::string( src->get_d_const_name( i ) ) );
-  auto & any = dst->access_dynamic_constraint( i );
+ for( const auto & group : src->get_static_constraint_groups() )
+  if( group )
+   mirror_group( *group , false );
+  else
+   dst->add_static_constraint();
 
-  const std::string what = "dynamic Constraint group " +
-                           std::to_string( i ) + " of " + src->name();
-
-  const bool done =
-   ( mirror_dynamic_group< FRowConstraint >( dc[ i ] , any , take_frow ) &&
-     check_count( count_dynamic< FRowConstraint >( dc[ i ] ) ,
-                  count_dynamic< FRowConstraint >( any ) , what ) ) ||
-   ( mirror_dynamic_group< BoxConstraint >( dc[ i ] , any , box ) &&
-     check_count( count_dynamic< BoxConstraint >( dc[ i ] ) ,
-                  count_dynamic< BoxConstraint >( any ) , what ) ) ||
-   ( mirror_dynamic_group< LB0Constraint >( dc[ i ] , any , lb0 ) &&
-     check_count( count_dynamic< LB0Constraint >( dc[ i ] ) ,
-                  count_dynamic< LB0Constraint >( any ) , what ) ) ||
-   ( mirror_dynamic_group< UB0Constraint >( dc[ i ] , any , ub0 ) &&
-     check_count( count_dynamic< UB0Constraint >( dc[ i ] ) ,
-                  count_dynamic< UB0Constraint >( any ) , what ) ) ||
-   ( mirror_dynamic_group< LBConstraint >( dc[ i ] , any , lbc ) &&
-     check_count( count_dynamic< LBConstraint >( dc[ i ] ) ,
-                  count_dynamic< LBConstraint >( any ) , what ) ) ||
-   ( mirror_dynamic_group< UBConstraint >( dc[ i ] , any , ubc ) &&
-     check_count( count_dynamic< UBConstraint >( dc[ i ] ) ,
-                  count_dynamic< UBConstraint >( any ) , what ) ) ||
-   ( mirror_dynamic_group< NNConstraint >( dc[ i ] , any , nnc ) &&
-     check_count( count_dynamic< NNConstraint >( dc[ i ] ) ,
-                  count_dynamic< NNConstraint >( any ) , what ) ) ||
-   ( mirror_dynamic_group< NPConstraint >( dc[ i ] , any , npc ) &&
-     check_count( count_dynamic< NPConstraint >( dc[ i ] ) ,
-                  count_dynamic< NPConstraint >( any ) , what ) ) ||
-   ( mirror_dynamic_group< ZOConstraint >( dc[ i ] , any , zoc ) &&
-     check_count( count_dynamic< ZOConstraint >( dc[ i ] ) ,
-                  count_dynamic< ZOConstraint >( any ) , what ) );
-
-  dst->refresh_dynamic_constraint_group( i );
-
-  if( ! done )
-   v_issues.push_back( "dynamic Constraint group " + std::to_string( i ) +
-                       " of " + src->name() + " is of a type the mirror "
-                       "does not know, the group is empty in the copy" );
-  }
+ for( const auto & group : src->get_dynamic_constraint_groups() )
+  if( group )
+   mirror_group( *group , true );
+  else
+   dst->add_dynamic_constraint();
 
  // the Objective, which the copy has only if the original has one
  if( auto obj = src->get_objective() ) {

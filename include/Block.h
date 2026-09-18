@@ -6991,7 +6991,7 @@ class Block : public Observer {
                         bool front = false ) {
   newc.set_Block( this );
   Const * cnewc = &newc;
-  add_group( v_s_Constraint_groups , make_group( newc , this , 0 , name ) ,
+  add_group( v_s_Constraint_groups , make_own_group( newc , this , 0 , name ) ,
              front );
   if( front ) {
    v_s_Constraint.insert( v_s_Constraint.begin() , cnewc );
@@ -7018,7 +7018,7 @@ class Block : public Observer {
   Const * cnewc = &newc;
   v_s_Constraint[ i ] = cnewc;
   set_group( v_s_Constraint_groups , i ,
-             make_group( newc , this , i , name ) );
+             make_own_group( newc , this , i , name ) );
   v_s_Constraint_names[ i ] = std::move( name );
   }
 
@@ -7033,7 +7033,7 @@ class Block : public Observer {
    c.set_Block( this );
 
   std::vector< Const > * cnewc = &newc;
-  add_group( v_s_Constraint_groups , make_group( newc , this , 0 , name ) ,
+  add_group( v_s_Constraint_groups , make_own_group( newc , this , 0 , name ) ,
              front );
   if( front ) {
    v_s_Constraint.insert( v_s_Constraint.begin() , cnewc );
@@ -7062,7 +7062,7 @@ class Block : public Observer {
   std::vector< Const > * cnewc = &newc;
   v_s_Constraint[ i ] = cnewc;
   set_group( v_s_Constraint_groups , i ,
-             make_group( newc , this , i , name ) );
+             make_own_group( newc , this , i , name ) );
   v_s_Constraint_names[ i ] = std::move( name );
   }
 
@@ -7078,7 +7078,7 @@ class Block : public Observer {
     j.set_Block( this );
 
   std::vector< std::vector< Const > > * cnewc = &newc;
-  add_group( v_s_Constraint_groups , make_group( newc , this , 0 , name ) ,
+  add_group( v_s_Constraint_groups , make_own_group( newc , this , 0 , name ) ,
              front );
   if( front ) {
    v_s_Constraint.insert( v_s_Constraint.begin(), cnewc );
@@ -7109,7 +7109,7 @@ class Block : public Observer {
   std::vector< std::vector< Const > > * cnewc = &newc;
   v_s_Constraint[ i ] = cnewc;
   set_group( v_s_Constraint_groups , i ,
-             make_group( newc , this , i , name ) );
+             make_own_group( newc , this , i , name ) );
   v_s_Constraint_names[ i ] = std::move( name );
  }
 
@@ -7124,7 +7124,7 @@ class Block : public Observer {
    ( i++ )->set_Block( this );
 
   boost::multi_array< Const, K > * cnewc = &newc;
-  add_group( v_s_Constraint_groups , make_group( newc , this , 0 , name ) ,
+  add_group( v_s_Constraint_groups , make_own_group( newc , this , 0 , name ) ,
              front );
   if( front ) {
    v_s_Constraint.insert( v_s_Constraint.begin(), cnewc );
@@ -7153,7 +7153,7 @@ class Block : public Observer {
   boost::multi_array< Const, K > * cnewc = &newc;
   v_s_Constraint[ i ] = cnewc;
   set_group( v_s_Constraint_groups , i ,
-             make_group( newc , this , i , name ) );
+             make_own_group( newc , this , i , name ) );
   v_s_Constraint_names[ i ] = std::move( name );
   }
 
@@ -7169,7 +7169,7 @@ class Block : public Observer {
     c.set_Block( this );
 
   boost::multi_array< std::vector< Const > , K > * cnewc = &newc;
-  add_group( v_s_Constraint_groups , make_group( newc , this , 0 , name ) ,
+  add_group( v_s_Constraint_groups , make_own_group( newc , this , 0 , name ) ,
              front );
   if( front ) {
    v_s_Constraint.insert( v_s_Constraint.begin(), cnewc );
@@ -7199,7 +7199,7 @@ class Block : public Observer {
 
   v_s_Constraint[ i ] = &newc;
   set_group( v_s_Constraint_groups , i ,
-             make_group( newc , this , i , name ) );
+             make_own_group( newc , this , i , name ) );
   v_s_Constraint_names[ i ] = std::move( name );
   }
 
@@ -7301,7 +7301,7 @@ class Block : public Observer {
                       bool front = false ) {
   newv.set_Block( this );
   Var * cnewv = &newv;
-  add_group( v_s_Variable_groups , make_group( newv , this , 0 , name ) ,
+  add_group( v_s_Variable_groups , make_own_group( newv , this , 0 , name ) ,
              front );
   if( front ) {
    v_s_Variable.insert( v_s_Variable.begin() , cnewv );
@@ -7327,7 +7327,7 @@ class Block : public Observer {
   Var * cnewv = &newv;
   v_s_Variable[ i ] = cnewv;
   set_group( v_s_Variable_groups , i ,
-             make_group( newv , this , i , name ) );
+             make_own_group( newv , this , i , name ) );
   v_s_Variable_names[ i ] = std::move( name );
   }
 
@@ -7342,7 +7342,7 @@ class Block : public Observer {
    v.set_Block( this );
 
   std::vector< Var > * cnewv = &newv;
-  add_group( v_s_Variable_groups , make_group( newv , this , 0 , name ) ,
+  add_group( v_s_Variable_groups , make_own_group( newv , this , 0 , name ) ,
              front );
   if( front ) {
    v_s_Variable.insert( v_s_Variable.begin(), cnewv );
@@ -7371,7 +7371,7 @@ class Block : public Observer {
   std::vector< Var > * cnewv = &newv;
   v_s_Variable[ i ] = cnewv;
   set_group( v_s_Variable_groups , i ,
-             make_group( newv , this , i , name ) );
+             make_own_group( newv , this , i , name ) );
   v_s_Variable_names[ i ] = std::move( name );
   }
 
@@ -7387,7 +7387,7 @@ class Block : public Observer {
     j.set_Block( this );
 
   std::vector< std::vector< Var > > * cnewv = &newv;
-  add_group( v_s_Variable_groups , make_group( newv , this , 0 , name ) ,
+  add_group( v_s_Variable_groups , make_own_group( newv , this , 0 , name ) ,
              front );
   if( front ) {
    v_s_Variable.insert( v_s_Variable.begin(), cnewv );
@@ -7418,7 +7418,7 @@ class Block : public Observer {
   std::vector< std::vector< Var > > * cnewv = &newv;
   v_s_Variable[ i ] = cnewv;
   set_group( v_s_Variable_groups , i ,
-             make_group( newv , this , i , name ) );
+             make_own_group( newv , this , i , name ) );
   v_s_Variable_names[ i ] = std::move( name );
   }
 
@@ -7434,7 +7434,7 @@ class Block : public Observer {
     j.set_Block( this );
 
   std::vector< std::vector< Var > > * cnewv = &newv;
-  add_group( v_s_Variable_groups , make_group( newv , this , 0 , name ) ,
+  add_group( v_s_Variable_groups , make_own_group( newv , this , 0 , name ) ,
              front );
   if( front ) {
    v_s_Variable.insert( v_s_Variable.begin() , cnewv );
@@ -7458,7 +7458,7 @@ class Block : public Observer {
    ( i++ )->set_Block( this );
 
   boost::multi_array< Var, K > * cnewv = &newv;
-  add_group( v_s_Variable_groups , make_group( newv , this , 0 , name ) ,
+  add_group( v_s_Variable_groups , make_own_group( newv , this , 0 , name ) ,
              front );
   if( front ) {
    v_s_Variable.insert( v_s_Variable.begin() , cnewv );
@@ -7487,7 +7487,7 @@ class Block : public Observer {
   boost::multi_array< Var , K > * cnewv = &newv;
   v_s_Variable[ i ] = cnewv;
   set_group( v_s_Variable_groups , i ,
-             make_group( newv , this , i , name ) );
+             make_own_group( newv , this , i , name ) );
   v_s_Variable_names[ i ] = std::move( name );
   }
 
@@ -7503,7 +7503,7 @@ class Block : public Observer {
     v.set_Block( this );
 
   boost::multi_array< std::vector< Var > , K > * cnewv = &newv;
-  add_group( v_s_Variable_groups , make_group( newv , this , 0 , name ) ,
+  add_group( v_s_Variable_groups , make_own_group( newv , this , 0 , name ) ,
              front );
   if( front ) {
    v_s_Variable.insert( v_s_Variable.begin(), cnewv );
@@ -7533,7 +7533,7 @@ class Block : public Observer {
 
   v_s_Variable[ i ] = &newv;
   set_group( v_s_Variable_groups , i ,
-             make_group( newv , this , i , name ) );
+             make_own_group( newv , this , i , name ) );
   v_s_Variable_names[ i ] = std::move( name );
   }
 
@@ -7564,7 +7564,7 @@ class Block : public Observer {
    c.set_Block( this );
 
   std::list< Const > * cnewc = &newc;
-  add_group( v_d_Constraint_groups , make_group( newc , this , 0 , name ) ,
+  add_group( v_d_Constraint_groups , make_own_group( newc , this , 0 , name ) ,
              front );
   if( front ) {
    v_d_Constraint.insert( v_d_Constraint.begin(), cnewc );
@@ -7593,7 +7593,7 @@ class Block : public Observer {
   std::list< Const > * cnewc = &newc;
   v_d_Constraint[ i ] = cnewc;
   set_group( v_d_Constraint_groups , i ,
-             make_group( newc , this , i , name ) );
+             make_own_group( newc , this , i , name ) );
   v_d_Constraint_names[ i ] = std::move( name );
   }
 
@@ -7609,7 +7609,7 @@ class Block : public Observer {
     j.set_Block( this );
 
   std::vector< std::list< Const > > * cnewc = &newc;
-  add_group( v_d_Constraint_groups , make_group( newc , this , 0 , name ) ,
+  add_group( v_d_Constraint_groups , make_own_group( newc , this , 0 , name ) ,
              front );
   if( front ) {
    v_d_Constraint.insert( v_d_Constraint.begin(), cnewc );
@@ -7640,7 +7640,7 @@ class Block : public Observer {
   std::vector< std::list< Const > > * cnewc = &newc;
   v_d_Constraint[ i ] = cnewc;
   set_group( v_d_Constraint_groups , i ,
-             make_group( newc , this , i , name ) );
+             make_own_group( newc , this , i , name ) );
   v_d_Constraint_names[ i ] = std::move( name );
   }
 
@@ -7656,7 +7656,7 @@ class Block : public Observer {
     c.set_Block( this );
 
   boost::multi_array< std::list< Const > , K > * cnewc = &newc;
-  add_group( v_d_Constraint_groups , make_group( newc , this , 0 , name ) ,
+  add_group( v_d_Constraint_groups , make_own_group( newc , this , 0 , name ) ,
              front );
   if( front ) {
    v_d_Constraint.insert( v_d_Constraint.begin() , cnewc );
@@ -7687,7 +7687,7 @@ class Block : public Observer {
   boost::multi_array< std::list< Const >, K > * cnewc = &newc;
   v_d_Constraint[ i ] = cnewc;
   set_group( v_d_Constraint_groups , i ,
-             make_group( newc , this , i , name ) );
+             make_own_group( newc , this , i , name ) );
   v_d_Constraint_names[ i ] = std::move( name );
   }
 
@@ -7718,7 +7718,7 @@ class Block : public Observer {
    v.set_Block( this );
 
   std::list< Var > * cnewv = &newv;
-  add_group( v_d_Variable_groups , make_group( newv , this , 0 , name ) ,
+  add_group( v_d_Variable_groups , make_own_group( newv , this , 0 , name ) ,
              front );
   if( front ) {
    v_d_Variable.insert( v_d_Variable.begin() , cnewv );
@@ -7747,7 +7747,7 @@ class Block : public Observer {
   std::list< Var > * cnewv = &newv;
   v_d_Variable[ i ] = cnewv;
   set_group( v_d_Variable_groups , i ,
-             make_group( newv , this , i , name ) );
+             make_own_group( newv , this , i , name ) );
   v_d_Variable_names[ i ] = std::move( name );
   }
 
@@ -7763,7 +7763,7 @@ class Block : public Observer {
     j.set_Block( this );
 
   std::vector< std::list< Var > > * cnewv = &newv;
-  add_group( v_d_Variable_groups , make_group( newv , this , 0 , name ) ,
+  add_group( v_d_Variable_groups , make_own_group( newv , this , 0 , name ) ,
              front );
   if( front ) {
    v_d_Variable.insert( v_d_Variable.begin() , cnewv );
@@ -7794,7 +7794,7 @@ class Block : public Observer {
   std::vector< std::list< Var > > * cnewv = &newv;
   v_d_Variable[ i ] = cnewv;
   set_group( v_d_Variable_groups , i ,
-             make_group( newv , this , i , name ) );
+             make_own_group( newv , this , i , name ) );
   v_d_Variable_names[ i ] = std::move( name );
   }
 
@@ -7810,7 +7810,7 @@ class Block : public Observer {
     v.set_Block( this );
 
   boost::multi_array< std::list< Var > , K > * cnewv = &newv;
-  add_group( v_d_Variable_groups , make_group( newv , this , 0 , name ) ,
+  add_group( v_d_Variable_groups , make_own_group( newv , this , 0 , name ) ,
              front );
   if( front ) {
    v_d_Variable.insert( v_d_Variable.begin(), cnewv );
@@ -7841,7 +7841,7 @@ class Block : public Observer {
   boost::multi_array< std::list< Var >, K > * cnewv = &newv;
   v_d_Variable[ i ] = cnewv;
   set_group( v_d_Variable_groups , i ,
-             make_group( newv , this , i , name ) );
+             make_own_group( newv , this , i , name ) );
   v_d_Variable_names[ i ] = std::move( name );
   }
 
@@ -8040,6 +8040,49 @@ class Block : public Observer {
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
+/*--------------------------------------------------------------------------*/
+ /// builds the group of a container, and says how to make another one of it
+ /** The group of \p container, which also carries the way to build a
+  * container of the same type and shape in another Block: this is where the
+  * type of the container is known, and therefore the only place that can say
+  * it. A container of pointers is left without one, its elements belonging to
+  * somebody else. */
+
+ template< class C >
+ std::unique_ptr< BaseGroup > make_own_group( C & container , Block * block ,
+					      Index index ,
+					      const std::string & name ) {
+  auto group = make_group( container , block , index , name );
+  if constexpr( ! std::is_pointer_v< typename group_form< C >::item_type > )
+   group->set_cloner( & Block::clone_group_into< C > );
+  return( group );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// registers in \p dst a container of the same type and shape as \p container
+
+ template< class C >
+ static void clone_group_into( void * container , Block * dst ,
+			       std::string name ) {
+  using form = group_form< C >;
+  using T = std::remove_pointer_t< typename form::item_type >;
+
+  auto copy = form::clone( * static_cast< C * >( container ) );
+
+  if constexpr( std::is_base_of_v< Variable , T > ) {
+   if constexpr( form::layout == BaseGroup::eDynamic )
+    dst->add_dynamic_variable( *copy , std::move( name ) );
+   else
+    dst->add_static_variable( *copy , std::move( name ) );
+   }
+  else {
+   if constexpr( form::layout == BaseGroup::eDynamic )
+    dst->add_dynamic_constraint( *copy , std::move( name ) );
+   else
+    dst->add_static_constraint( *copy , std::move( name ) );
+   }
+  }
+
 /*--------------------------------------------------------------------------*/
  /// registers a group in front of or after those of its kind
  /** The groups after it change index, and are told so. */

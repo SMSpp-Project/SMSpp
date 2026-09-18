@@ -133,6 +133,18 @@ class BaseGroup {
 
  using c_Index = const Index;  ///< a const Index
 
+/*--------------------------------------------------------------------------*/
+ /// the function building a copy of the container in another Block
+ /** Given the container of the group, a Block and a name, allocates a
+  * container of the same type and of the same shape, with its elements built
+  * anew, and registers it in that Block under that name, as the group is
+  * registered in its own. Whoever registered the group knows the type of the
+  * container, and is therefore the one that can say how to make another one
+  * of it. */
+
+ using clone_function = void (*)( void * container , Block * dst ,
+				  std::string name );
+
  static constexpr unsigned char max_rank = 8;  ///< the largest rank
 
  /// what the elements of a group are
@@ -190,6 +202,29 @@ class BaseGroup {
  void set_Block( Block * block , Index index ) {
   f_Block = block;
   f_index = index;
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// says how a copy of the container of the group is made
+ /** Only whoever registered the group, which knows the type of the
+  * container, calls this. */
+
+ void set_cloner( clone_function clone ) { f_clone = clone; }
+
+/*--------------------------------------------------------------------------*/
+ /// registers a copy of the container of the group in \p dst
+ /** Allocates a container of the same type and shape of the one this group
+  * views, with its elements built anew, and registers it in \p dst under \p
+  * name; returns false, having done nothing, if nobody said how to make one,
+  * which is the case of a group that holds pointers to elements owned by
+  * somebody else. The elements of the copy are not the elements of this
+  * group: they come in the same order, and the caller pairs them. */
+
+ bool clone_into( Block * dst , std::string name ) const {
+  if( ! f_clone )
+   return( false );
+  f_clone( f_container , dst , std::move( name ) );
+  return( true );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -471,6 +506,7 @@ class BaseGroup {
 
  using view_function = void * (*)( void * container , Index * size );
 
+
  /// where the storage of the group is now, and how many cells it has
 
  struct storage {
@@ -540,6 +576,8 @@ class BaseGroup {
 
  view_function f_view;     ///< how the storage is read out of the container
 
+ clone_function f_clone = nullptr;  ///< how a copy of the container is made
+
 /*--------------------------------------------------------------------------*/
 
  };  // end( class( BaseGroup ) )
@@ -563,6 +601,8 @@ struct group_form {
  static constexpr BaseGroup::layout_type layout = BaseGroup::eContiguous;
  static constexpr unsigned char rank = 0;
  static void * view( void * c , BaseGroup::Index * ) { return( c ); }
+ /// a container of the same shape, with its elements built anew
+ static C * clone( const C & ) { return( new C ); }
  };
 
 template< class S >
@@ -575,6 +615,9 @@ struct group_form< std::vector< S > > {
   auto v = static_cast< std::vector< S > * >( c );
   size[ 0 ] = v->size();
   return( v->data() );
+  }
+ static std::vector< S > * clone( const std::vector< S > & src ) {
+  return( new std::vector< S >( src.size() ) );
   }
  };
 
@@ -589,6 +632,13 @@ struct group_form< std::vector< std::vector< S > > > {
   size[ 0 ] = v->size();
   return( v->data() );
   }
+ static std::vector< cell_type > * clone(
+			     const std::vector< cell_type > & src ) {
+  auto copy = new std::vector< cell_type >( src.size() );
+  for( std::size_t i = 0 ; i < src.size() ; ++i )
+   ( *copy )[ i ].resize( src[ i ].size() );
+  return( copy );
+  }
  };
 
 template< class S >
@@ -598,6 +648,9 @@ struct group_form< std::list< S > > {
  static constexpr BaseGroup::layout_type layout = BaseGroup::eDynamic;
  static constexpr unsigned char rank = 0;
  static void * view( void * c , BaseGroup::Index * ) { return( c ); }
+ static std::list< S > * clone( const std::list< S > & src ) {
+  return( new std::list< S >( src.size() ) );
+  }
  };
 
 template< class S >
@@ -610,6 +663,13 @@ struct group_form< std::vector< std::list< S > > > {
   auto v = static_cast< std::vector< cell_type > * >( c );
   size[ 0 ] = v->size();
   return( v->data() );
+  }
+ static std::vector< cell_type > * clone(
+			     const std::vector< cell_type > & src ) {
+  auto copy = new std::vector< cell_type >( src.size() );
+  for( std::size_t i = 0 ; i < src.size() ; ++i )
+   ( *copy )[ i ].resize( src[ i ].size() );
+  return( copy );
   }
  };
 
@@ -625,6 +685,16 @@ struct group_form_multi_array {
   for( std::size_t d = 0 ; d < K ; ++d )
    size[ d ] = a->shape()[ d ];
   return( a->data() );
+  }
+ /// a grid of the same extents, its cells as long as those of \p src
+ static boost::multi_array< X , K > * clone(
+			    const boost::multi_array< X , K > & src ) {
+  std::vector< std::size_t > extents( src.shape() , src.shape() + K );
+  auto copy = new boost::multi_array< X , K >( extents );
+  if constexpr( ! std::is_void_v< Cell > )
+   for( std::size_t i = 0 ; i < src.num_elements() ; ++i )
+    ( copy->data() )[ i ].resize( ( src.data() )[ i ].size() );
+  return( copy );
   }
  };
 
