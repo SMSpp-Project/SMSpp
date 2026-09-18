@@ -1756,7 +1756,10 @@ void LagBFunction::store_combination_of_linearizations(
  auto first = coefficients[ 0 ].first;
  auto convex_combination = ( g_pool[ first ].sol
 			     )->scale( coefficients[ 0 ].second );
- bool type = g_pool[ first ].varsol;  // diagonal unless already vertical
+ // the combination is diagonal as soon as one of its constituents is, the
+ // vertical ones entering it with conic multipliers; it is vertical only if
+ // all of them are
+ bool type = g_pool[ first ].varsol;
 
  // for all other Solutions in the pool
  for( Index i = 1 ; i < coefficients.size() ; ++i ) {
@@ -1773,9 +1776,8 @@ void LagBFunction::store_combination_of_linearizations(
   // add the new term to the convex combination
   convex_combination->sum( g_pool[ pos ].sol , mult );
 
-  // if the convex combination even contains a single direction
-  if( ! g_pool[ pos ].varsol )
-   type = false;  // then it is a direction
+  if( g_pool[ pos ].varsol )
+   type = true;
   }
 
  // BEFORE overwriting slot 'name' (it may itself be one of the constituents),
