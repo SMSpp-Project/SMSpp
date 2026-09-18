@@ -73,6 +73,12 @@ smspp_install(ColVariable_test)
 add_test(NAME ColVariable_test
          COMMAND ColVariable_test)
 
+add_executable(Group_test tests_Group.cpp)
+target_link_libraries(Group_test PRIVATE SMS++::SMS++)
+smspp_install(Group_test)
+add_test(NAME Group_test
+         COMMAND Group_test)
+
 add_executable(Function_test tests_Function.cpp)
 target_link_libraries(Function_test PRIVATE SMS++::SMS++)
 smspp_install(Function_test)

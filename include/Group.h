@@ -101,7 +101,23 @@ T & group_element( T * element ) { return( *element ); }
  * storage with one indirect call and one switch per group and then run a loop
  * typed on the element, which the compiler can inline: this is the access to
  * use on hot paths. for_each() goes through a std::function per element and
- * is meant for the cold ones. */
+ * is meant for the cold ones.
+ *
+ * THE ORDER IN WHICH THE ELEMENTS COME OUT IS PART OF THE CONTRACT. It is the
+ * storage order: cell by cell along the grid, the last index running fastest,
+ * and inside a cell the order of the collection. Callers pair the i-th
+ * element of a group with the i-th entry of a vector of their own, and the
+ * pairing has to hold between one walk and the next: the columns of a
+ * :MILPSolver, the Lagrangian multipliers of a LagrangianDualSolver and the
+ * re-synchronisation of a PrimalProximalHeur all rest on it. Whoever changes
+ * the order of any of the forms breaks them, and tests_Group.cpp is there to
+ * say so.
+ *
+ * A const group hands out modifiable elements, and this is meant: the group
+ * is a view, and its own constness is that of the view, not that of the
+ * elements, which belong to the :Block. Reading a Block and writing in its
+ * Variable, as a Solver does when it writes a solution, is one const group
+ * and elements that change. */
 
 class BaseGroup {
 
