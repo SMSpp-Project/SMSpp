@@ -1218,22 +1218,6 @@ void LagBFunction::add_Modification(sp_Mod mod, ChnlName chnl)
       }
       update_f_max_glob();
     }
-     // check it's still a feasible solution/direction: the Solution says
-     // which of the two it is and the Block answers with one method
-     const bool feas = check_Solution( g_pool[ i ].sol );
-     if( ! feas ) {              // if not
-      delete g_pool[ i ].sol;  // eliminate it
-      g_pool[ i ].sol = nullptr;
-      which.push_back( i );      // recall its name
-      LastSolution = g_pool.size();
-      // say that no Solution is saved in the Block, since the name is now
-      // available again for a different Solution
-      }
-     }
-    }
-   update_f_max_glob();
-   }
-
     // if nobody is listening (assuming issueMod == eModBlck)
     if ((!f_Observer) || (!f_Observer->issue_mod(eModBlck)))
       return; // all done
