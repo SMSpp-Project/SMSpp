@@ -3094,6 +3094,17 @@ void print( std::ostream & output ) override {
  /// global pool of linearizations
  GlobalPool global_pool;
 
+ /// the linearization of the global pool the sub-Block holds
+ /** The "name" of the linearization of the global pool whose dual solution
+  * is currently written in the sub-Block, or Inf< Index >() if what the
+  * sub-Block holds is not one of them, which is the case when a Solver has
+  * just written its own dual solution there, when the sub-Block has changed,
+  * and when the entry that was there is no longer in the pool. It spares the
+  * writing of a dual solution that is in the sub-Block already, the same
+  * LagBFunction::LastSolution does for the primal ones. */
+
+ Index f_last_solution = Inf< Index >();
+
  /// Names of the netCDF sub-groups
  inline static const std::string BLOCK_NAME = "Block";
 
