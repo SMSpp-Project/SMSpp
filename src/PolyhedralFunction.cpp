@@ -568,8 +568,8 @@ void PolyhedralFunction::delete_linearizations( Subset && which ,
 						bool ordered ,
 						ModParam issueMod )
 {
- if( which.empty() ) {  // delete them all
-  v_glob.assign( f_max_glob , Inf< int >() );
+ if( which.empty() ) {  // delete them all, the global pool keeps its size
+  v_glob.assign( v_glob.size() , Inf< int >() );
   v_aA.clear();
   v_ab.clear();
   v_avert.clear();
