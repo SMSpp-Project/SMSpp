@@ -333,6 +333,10 @@ void RowConstraintSolution::apply_dynamic
 
 void RowConstraintSolution::read( const Block * const block ) {
 
+ // what the Block holds, a solution or a direction, is what this Solution
+ // holds from now on
+ f_direction = block->is_direction();
+
  if( ( static_constraint_dual_values.size() !=
        block->get_static_constraints().size() ) ||
      ( dynamic_constraint_dual_values.size() !=
@@ -424,6 +428,9 @@ void RowConstraintSolution::sum( const Solution * solution,
  if( ! other_solution )
   throw( std::invalid_argument( "RowConstraintSolution::sum: given Solution "
                                 "must be a RowConstraintSolution" ) );
+
+ // the sum is a direction only if every Solution in it is one
+ f_direction = f_direction && other_solution->f_direction;
 
  if( empty() ) {
   scale( other_solution , multiplier );
@@ -533,6 +540,9 @@ RowConstraintSolution * RowConstraintSolution::clone( bool empty ) const {
 
 void RowConstraintSolution::scale( const RowConstraintSolution * const solution ,
                                    const double factor ) {
+
+ f_direction = solution->f_direction;  // scaling a direction gives one
+
 
  this->delete_vectors();
 

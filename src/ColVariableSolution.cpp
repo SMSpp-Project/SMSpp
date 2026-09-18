@@ -259,6 +259,10 @@ void ColVariableSolution::apply_dynamic( const Block * const block ,
 
 void ColVariableSolution::read( const Block * const block ) {
 
+  // what the Variable hold, a solution or a direction, is what this
+  // Solution holds from now on
+  f_direction = block->is_direction();
+
   if( static_variable_values.size() != block->get_static_variables().size() ||
       dynamic_variable_values.size() != block->get_dynamic_variables().size() ||
       nested_solutions.size() != block->get_nested_Blocks().size() ) {
@@ -346,6 +350,9 @@ void ColVariableSolution::sum( const Solution * solution, double multiplier ) {
     throw( std::invalid_argument
      ( "ColVariableSolution::sum: "
        "given Solution must be a ColVariableSolution" ) );
+
+  // the sum is a direction only if every Solution in it is one
+  f_direction = f_direction && other_solution->f_direction;
 
   if( empty() ) {
    scale( other_solution , multiplier );
@@ -448,6 +455,8 @@ void ColVariableSolution::scale( const ColVariableSolution * const solution ,
                                  const double factor ) {
 
  this->delete_vectors();
+
+ f_direction = solution->f_direction;  // scaling a direction gives one
 
  static_variable_values = solution->static_variable_values;
  for( auto & values : static_variable_values )
