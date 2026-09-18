@@ -20,7 +20,6 @@
 
 #include "AbstractBlock.h"
 
-#include "GroupAdapter.h"
 
 #include "ColVariable.h"
 
@@ -51,6 +50,16 @@ using v_off_diag_term = QuadFunction::v_off_diag_term;
 
 namespace {
 
+/// says that the container a group views belongs to the Block, and how it goes
+
+template< class C >
+static void own_storage( const std::unique_ptr< BaseGroup > & group , C * c )
+{
+ if( group )
+  group->set_storage_deleter( [ c ]( void ) { delete c; } );
+ }
+
+/*--------------------------------------------------------------------------*/
 /// calls the right function on each element of a group of :RowConstraint
 /** Calls frow() on each element of the group if these are FRowConstraint, and
  * onevar() on each of them if these are one of the concrete
@@ -84,17 +93,16 @@ AbstractBlock::~AbstractBlock()
 {
  // first, clear() all Constraint: each group says what it holds, hence no
  // type has to be enumerated here
- auto & sc = get_static_constraints();
- for( auto & group : make_constraint_groups( this , sc , {} , false ) )
-  if( group && ( ! group->is_indirect() ) &&
-      ( group->get_index() >= get_first_static_Constraint() ) )
-   group->for_each( []( Constraint & cnst ) { cnst.clear(); } );
+ auto clear_them = [ this ]( const Vec_Group & groups , Index first ) {
+  for( auto & group : groups )
+   if( group && ( ! group->is_indirect() ) &&
+       ( group->get_index() >= first ) )
+    group->for_each( []( Constraint & cnst ) { cnst.clear(); } );
+  };
 
- auto & dc = get_dynamic_constraints();
- for( auto & group : make_constraint_groups( this , dc , {} , true ) )
-  if( group && ( ! group->is_indirect() ) &&
-      ( group->get_index() >= get_first_dynamic_Constraint() ) )
-   group->for_each( []( Constraint & cnst ) { cnst.clear(); } );
+ clear_them( get_static_constraint_groups() , get_first_static_Constraint() );
+ clear_them( get_dynamic_constraint_groups() ,
+	     get_first_dynamic_Constraint() );
 
  // then clear the Objective
  if( ( ! is_Objective_reserved() ) && get_objective() )
@@ -106,44 +114,23 @@ AbstractBlock::~AbstractBlock()
 
  v_Block.clear();
 
- // now delete the storage of all the Constraint: the container of a group
- // is of a type that only the group knows, and it is the group that disposes
- // of it. An irregular static group, i.e. one whose cells are vectors of
- // different lengths, and a group of pointers are left alone: nothing ever
- // deleted those containers here, and an AbstractBlock given one is not the
- // owner of it
- auto disposable = []( const std::unique_ptr< BaseGroup > & group ) {
-  return( group && ( ! group->is_indirect() ) &&
-	  ( group->is_dynamic() || ( ! group->cells_are_collections() ) ) );
+ // now delete the containers this Block owns: each of them was registered
+ // here, and its group was told then how to dispose of it, so nothing has to
+ // be said here about their types. A container somebody else owns has no
+ // deleter and is left alone
+ auto dispose_of = []( const Vec_Group & groups , Index first ) {
+  for( auto & group : groups )
+   if( group && ( group->get_index() >= first ) )
+    group->delete_storage();
   };
- for( auto & group : make_constraint_groups( this , sc , {} , false ) )
-  if( disposable( group ) &&
-      ( group->get_index() >= get_first_static_Constraint() ) )
-   group->delete_storage();
 
- for( auto & group : make_constraint_groups( this , dc , {} , true ) )
-  if( disposable( group ) &&
-      ( group->get_index() >= get_first_dynamic_Constraint() ) )
-   group->delete_storage();
+ dispose_of( get_static_constraint_groups() , get_first_static_Constraint() );
+ dispose_of( get_dynamic_constraint_groups() ,
+	     get_first_dynamic_Constraint() );
+ dispose_of( get_static_variable_groups() , get_first_static_Variable() );
+ dispose_of( get_dynamic_variable_groups() , get_first_dynamic_Variable() );
 
- // now delete the storage of all the Variable
- auto & sv = get_static_variables();
- for( auto & group : make_variable_groups( this , sv , {} , false ) )
-  if( disposable( group ) &&
-      ( group->get_index() >= get_first_static_Variable() ) )
-   group->delete_storage();
-
- auto & dv = get_dynamic_variables();
- for( auto & group : make_variable_groups( this , dv , {} , true ) )
-  if( disposable( group ) &&
-      ( group->get_index() >= get_first_dynamic_Variable() ) )
-   group->delete_storage();
-
- // now delete the Objective
- if( ( ! is_Objective_reserved() ) && get_objective() )
-  delete get_objective();
-
- }  // end( ~AbstractBlock )
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -1081,6 +1068,13 @@ void AbstractBlock::read_mps( std::istream & file )
  add_static_variable( *cols );
  add_static_constraint( *rows );
  add_static_constraint( *bounds );
+
+ // these three containers are ours, and the groups are told how to dispose
+ // of them, so that the destructor does not have to know their type
+ own_storage( get_static_variable_groups().back() , cols );
+ own_storage( get_static_constraint_groups()[
+			  get_static_constraint_groups().size() - 2 ] , rows );
+ own_storage( get_static_constraint_groups().back() , bounds );
 
  // Issue the NBModification
  if( anyone_there() )
@@ -2023,6 +2017,13 @@ void AbstractBlock::read_lp( std::istream & file )
  add_static_variable( *cols );
  add_static_constraint( *rows );
  add_static_constraint( *bounds );
+
+ // these three containers are ours, and the groups are told how to dispose
+ // of them, so that the destructor does not have to know their type
+ own_storage( get_static_variable_groups().back() , cols );
+ own_storage( get_static_constraint_groups()[
+			  get_static_constraint_groups().size() - 2 ] , rows );
+ own_storage( get_static_constraint_groups().back() , bounds );
 
  // Issue the NBModification
  if( anyone_there() )

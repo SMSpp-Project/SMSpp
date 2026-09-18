@@ -3370,6 +3370,16 @@ class Block : public Observer {
    v_s_Variable[ std::distance( v_s_Variable_names.begin(), it ) ] ) );
   }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the i-th group of dynamic Constraint, to be written into
+ /** See access_static_variable(). */
+
+ boost::any & access_dynamic_constraint( Index i ) {
+  if( i >= v_d_Constraint.size() )
+   throw( std::invalid_argument( "wrong index into v_d_Constraint" ) );
+  return( v_d_Constraint[ i ] );
+  }
+
 /*--------------------------------------------------------------------------*/
  /// reading the *dynamic* Constraint of the Block
  /** Method for reading the *dynamic* Constraint of the Block. It returns a
@@ -7240,41 +7250,9 @@ class Block : public Observer {
   return( v_s_Constraint[ i ] );
   }
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// the i-th group of dynamic Constraint, to be written into
- /** See access_static_variable(). */
 
- boost::any & access_dynamic_constraint( Index i ) {
-  if( i >= v_d_Constraint.size() )
-   throw( std::invalid_argument( "wrong index into v_d_Constraint" ) );
-  return( v_d_Constraint[ i ] );
-  }
 
-/*--------------------------------------------------------------------------*/
- /// rebuilds the i-th group of static Variable out of its boost::any
- /** To be called after writing into access_static_variable( i ): the
-  * group becomes the one viewing the container that the boost::any holds,
-  * or nullptr if its content is of no known type or shape. */
 
- void refresh_static_variable_group( Index i );
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// rebuilds the i-th group of dynamic Variable out of its boost::any
- /** See refresh_static_variable_group(). */
-
- void refresh_dynamic_variable_group( Index i );
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// rebuilds the i-th group of static Constraint out of its boost::any
- /** See refresh_static_variable_group(). */
-
- void refresh_static_constraint_group( Index i );
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// rebuilds the i-th group of dynamic Constraint out of its boost::any
- /** See refresh_static_variable_group(). */
-
- void refresh_dynamic_constraint_group( Index i );
 
 /*--------------------------------------------------------------------------*/
  /// empty slot
@@ -8069,17 +8047,31 @@ class Block : public Observer {
 
   auto copy = form::clone( * static_cast< C * >( container ) );
 
+  // the copy belongs to the Block it is registered in, which is told how to
+  // dispose of it: nobody else knows the type of that container
+  auto own = []( const Vec_Group & groups , C * c ) {
+   groups.back()->set_storage_deleter( [ c ]( void ) { delete c; } );
+   };
+
   if constexpr( std::is_base_of_v< Variable , T > ) {
-   if constexpr( form::layout == BaseGroup::eDynamic )
+   if constexpr( form::layout == BaseGroup::eDynamic ) {
     dst->add_dynamic_variable( *copy , std::move( name ) );
-   else
+    own( dst->get_dynamic_variable_groups() , copy );
+    }
+   else {
     dst->add_static_variable( *copy , std::move( name ) );
+    own( dst->get_static_variable_groups() , copy );
+    }
    }
   else {
-   if constexpr( form::layout == BaseGroup::eDynamic )
+   if constexpr( form::layout == BaseGroup::eDynamic ) {
     dst->add_dynamic_constraint( *copy , std::move( name ) );
-   else
+    own( dst->get_dynamic_constraint_groups() , copy );
+    }
+   else {
     dst->add_static_constraint( *copy , std::move( name ) );
+    own( dst->get_static_constraint_groups() , copy );
+    }
    }
   }
 
