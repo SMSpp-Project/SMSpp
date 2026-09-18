@@ -12,7 +12,12 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni
+ * \author Donato Meoli \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \copyright &copy; by Antonio Frangioni,
+ *                      Donato Meoli
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -1064,9 +1069,12 @@ class PolyhedralFunctionBlock : public AbstractBlock
   * guts_of_add_Modification_PF(), while the latter by the protected method
   * guts_of_add_Modification_LR(); see their comments for details.
   *
-  * TODO: define and handle an appropriate GroupModification to manage
-  *       addition and removal of Variables from the LinearFunction inside
-  *       the FRowConstraint
+  * In the "linearized dual" representation a row of PF() is a column of the
+  * abstract representation, i.e., one new Variable plus one coefficient in
+  * each row the Variable appears in; all the Modification of such a change
+  * are issued inside a VariableGroupMod, so that a Solver having a column
+  * operation of its own can use it rather than reading the change one row
+  * at a time [see MILPSolver::process_group_modification()].
   *
   * Note that while PolyhedralFunctionBlock regards itself as "leaf" Block,
   * i.e., it does not handle any sub-Block, these may actually can be there;

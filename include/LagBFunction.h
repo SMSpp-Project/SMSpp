@@ -1452,24 +1452,30 @@ class LagBFunction : public C05Function , public Block
 
 /*--------------------------------------------------------------------------*/
  /// checks a Solution of the global pool against the inner Block
- /** Asks the inner Block if what sol holds is still feasible for it. The
-  * parameter varsol tells whether that is a solution or a direction, which
-  * the Block has to be told before it is asked, one method answering for
-  * both cases; note that the Solution need not be written in the Block,
-  * whether it is being the Block's business [see Block::is_sol_feasible()
-  * and Block::is_sol_feasible_physical()]. */
+ /** Asks the inner Block if what sol holds is still feasible for it. Whether
+  * that is a solution or a direction sol says itself [see
+  * Solution::is_direction()], one method answering for both cases; note that
+  * the Solution need not be written in the Block, whether it is being the
+  * Block's business [see Block::is_sol_feasible() and
+  * Block::is_sol_feasible_physical()]. */
 
- bool check_Solution( Solution * sol , bool varsol ) {
+ bool check_Solution( Solution * sol ) {
   auto blck = v_Block.front();
-  if( ( ! varsol ) && ( ! blck->has_directions() ) )
+  if( sol->is_direction() && ( ! blck->has_directions() ) )
    // the entry is a direction and the Block does not know what one of its
    // own is: it is not saying that the direction is no longer one, it is
    // saying that it cannot tell, and an entry that cannot be checked is
    // kept rather than thrown away
    return( true );
-  blck->is_direction( ! varsol );
   const bool feas = blck->is_sol_feasible( sol );
-  blck->is_direction( false );
+
+  // a Block that is not physical answers by writing sol in its Variable and
+  // putting back what was there, which is only as complete as the Solution
+  // it hands out: what the Block holds is no longer known to be the entry
+  // that was written in it
+  if( ! blck->is_sol_feasible_physical() )
+   LastSolution = g_pool.size();
+
   return( feas );
   }
 

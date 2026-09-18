@@ -398,6 +398,8 @@ void BendersBFunction::put_State( const State & state ) {
 
  global_pool.clone( s.global_pool );
 
+ f_last_solution = Inf< Index >();  // the pool is not the one it was
+
  if( ! f_Observer )
   return;
 
@@ -432,6 +434,8 @@ void BendersBFunction::put_State( State && state ) {
  const bool global_pool_was_empty = global_pool.empty();
 
  global_pool.clone( std::move( s.global_pool ) );
+
+ f_last_solution = Inf< Index >();  // the pool is not the one it was
 
  if( ! f_Observer )
   return;
@@ -1565,6 +1569,10 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
  if( f_ignore_modifications )
   return;
 
+ // whatever changes, what the sub-Block holds is no longer known to be the
+ // linearization of the global pool that was written in it
+ f_last_solution = Inf< Index >();
+
  // GroupModification - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  if( const auto tmod = std::dynamic_pointer_cast< GroupModification >( mod ) ) {
@@ -1765,12 +1773,21 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
                                    chnl );
    }
   else {
-   /* Constraints were added or removed. Since these Constraints must not be
-    * any of those handled by this BendersBFunction, dual solutions are still
-    * feasible. We now check how the behaviour of this BendersBFunction
-    * changes. */
+   /* Constraints were added to or removed from the sub-Block, and they are
+    * none of those this BendersBFunction handles. Adding one adds a dual
+    * variable, which is dual feasible at zero, hence the dual solutions in
+    * the global pool survive it. Removing one takes a dual variable away,
+    * and what is left of the dual solution satisfies the dual constraints
+    * only if that variable was zero: which of the two it is is not known
+    * here, and cannot be checked either, the row being gone by now, so the
+    * pool goes. The value of the Function changes as get_behaviour() says
+    * in either case. */
 
    auto behaviour = get_behaviour( tmod );
+
+   if( ! tmod->is_added() )
+    global_pool.invalidate();
+
    if( behaviour == function_value_behaviour::unknown )
     send_nuclear_modification( chnl );
    else
@@ -1876,6 +1893,11 @@ void BendersBFunction::serialize( netCDF::NcGroup & group ) const {
 /*--------------------------------------------------------------------------*/
 
 int BendersBFunction::compute( bool changedvars ) {
+
+ // solving the sub-Block changes what it holds without any Modification
+ // being issued, hence whatever linearization of the global pool was written
+ // in it is no longer what it holds
+ f_last_solution = Inf< Index >();
 
  if( ( ! changedvars ) && f_constraints_are_updated )
   // TODO We need another flag telling whether the sub-Block has changed since
@@ -2088,6 +2110,9 @@ void BendersBFunction::store_linearization( Index name , ModParam issueMod ) {
  global_pool.store( Inf< FunctionValue >() , solution , name ,
                     f_diagonal_linearization_required );
 
+ // the sub-Block holds what has just been stored under this name
+ f_last_solution = name;
+
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
 
@@ -2108,6 +2133,9 @@ void BendersBFunction::store_combination_of_linearizations(
  global_pool.store_combination_of_linearizations( coefficients , name ,
                                                   AAccMlt );
 
+ if( name == f_last_solution )    // the entry the sub-Block held is gone
+  f_last_solution = Inf< Index >();
+
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
 
@@ -2125,6 +2153,9 @@ void BendersBFunction::delete_linearization( const Index name ,
                                              ModParam issueMod ) {
  global_pool.delete_linearization( name );
 
+ if( name == f_last_solution )    // the entry the sub-Block held is gone
+  f_last_solution = Inf< Index >();
+
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
 
@@ -2140,6 +2171,12 @@ void BendersBFunction::delete_linearization( const Index name ,
 void BendersBFunction::delete_linearizations( Subset && which , bool ordered ,
                                               ModParam issueMod ) {
  global_pool.delete_linearizations( which , ordered );
+
+ // the entry the sub-Block held may be among those gone
+ if( which.empty() ||
+     ( std::find( which.begin() , which.end() , f_last_solution ) !=
+       which.end() ) )
+  f_last_solution = Inf< Index >();
 
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
@@ -2166,7 +2203,9 @@ void BendersBFunction::write_dual_solution( Index name ) {
   // associated with the Constraint handled by this BendersBFunction are being
   // required.
 
-  // TODO check whether the solution has already been written into the Block
+  // what the Solver writes in the sub-Block is its own dual solution, hence
+  // no linearization of the global pool is there any longer
+  f_last_solution = Inf< Index >();
 
   // Guard each call: if the Solver cannot provide the requested dual info
   // (typical when infeasibility was detected without producing a dual
@@ -2528,27 +2567,12 @@ Function::FunctionValue BendersBFunction::compute_linearization_constant() {
   for( auto * sub_block : block->get_nested_Blocks() )
    Q.push( sub_block );
 
-  for( const auto & i : block->get_static_constraints() )
-   un_any_const_static( i , update_alpha , un_any_type< FRowConstraint >() )
-    || un_any_const_static( i , update_alpha , un_any_type< BoxConstraint >() )
-    || un_any_const_static( i , update_alpha , un_any_type< ZOConstraint >() )
-    || un_any_const_static( i , update_alpha , un_any_type< LB0Constraint >() )
-    || un_any_const_static( i , update_alpha , un_any_type< UB0Constraint >() )
-    || un_any_const_static( i , update_alpha , un_any_type< LBConstraint >() )
-    || un_any_const_static( i , update_alpha , un_any_type< UBConstraint >() )
-    || un_any_const_static( i , update_alpha , un_any_type< NNConstraint >() )
-    || un_any_const_static( i , update_alpha , un_any_type< NPConstraint >() );
-
-  for( const auto & i : block->get_dynamic_constraints() )
-   un_any_const_dynamic( i , update_alpha , un_any_type< FRowConstraint >() )
-    || un_any_const_dynamic( i , update_alpha , un_any_type< BoxConstraint >() )
-    || un_any_const_dynamic( i , update_alpha , un_any_type< ZOConstraint >() )
-    || un_any_const_dynamic( i , update_alpha , un_any_type< LB0Constraint >() )
-    || un_any_const_dynamic( i , update_alpha , un_any_type< UB0Constraint >() )
-    || un_any_const_dynamic( i , update_alpha , un_any_type< LBConstraint >() )
-    || un_any_const_dynamic( i , update_alpha , un_any_type< UBConstraint >() )
-    || un_any_const_dynamic( i , update_alpha , un_any_type< NNConstraint >() )
-    || un_any_const_dynamic( i , update_alpha , un_any_type< NPConstraint >() );
+  block->for_each_constraint_group( [ & update_alpha ]
+				   ( const BaseGroup & group ) {
+    for_each_as_any_of< FRowConstraint , BoxConstraint , ZOConstraint ,
+			LB0Constraint , UB0Constraint , LBConstraint ,
+			UBConstraint , NNConstraint , NPConstraint >(
+						   group , update_alpha ); } );
  }
 
  return( alpha );
@@ -2567,9 +2591,11 @@ void BendersBFunction::write_dual_solution_from_global_pool( Index name ) {
                                 "global_pool: linearization with name " +
                                 std::to_string( name ) + " was not found." ) );
 
- // TODO check whether the solution has already been written into the Block
+ if( name == f_last_solution )  // the sub-Block holds it already
+  return;                       // nothing to do
 
  solution->write( v_Block.front() );
+ f_last_solution = name;        // and recall what it holds
 }  // end( BendersBFunction::write_dual_solution_from_global_pool )
 
 /*--------------------------------------------------------------------------*/
@@ -3127,10 +3153,9 @@ void BendersBFunction::GlobalPool::store_combination_of_linearizations(
  auto constant = coeff * linearization_constants[ linearization_name ];
 
  FunctionValue coeff_sum_diagonal = 0;
- if( is_diagonal[ linearization_name ] )
+ bool diagonal_linearization = is_diagonal[ linearization_name ];
+ if( diagonal_linearization )
   coeff_sum_diagonal = coeff;
-
- bool diagonal_linearization = false;
 
  for( ++it ; it != coefficients.end() ; ++it ) {
   linearization_name = it->first;

@@ -741,8 +741,10 @@ class PolyhedralFunction : public C05Function {
   if( name >= v_glob.size() )
    return( false );
   int gn = v_glob[ name ];
-  if( ( gn == Inf< int >() ) || ( gn <= 0 ) )
-   return( false );           // empty / bound / aggregated: never vertical
+  if( ( gn == Inf< int >() ) || ( ! gn ) )
+   return( false );           // empty / bound: never vertical
+  if( gn < 0 )                // aggregated: vertical if all its pieces were
+   return( ( Index( - gn - 1 ) < v_avert.size() ) && v_avert[ - gn - 1 ] );
   return( is_row_vertical( Index( gn - 1 ) ) );
   }
 
@@ -1719,6 +1721,10 @@ class PolyhedralFunction : public C05Function {
  
  RealVector v_ab;     ///< the b vector for aggregated linearizations
 
+ std::vector< bool > v_avert;
+ ///< which aggregated linearizations are vertical, i.e., combine vertical
+ ///  ones only [see store_combination_of_linearizations()]
+
  FunctionValue f_value;   ///< the value of the function
 
  FunctionValue f_Lipschitz_constant;  ///< the Lipschitz constant
@@ -2150,6 +2156,7 @@ class PolyhedralFunctionState : public State
   v_glob = pf->v_glob;
   v_aA = pf->v_aA;
   v_ab = pf->v_ab;
+  v_avert = pf->v_avert;
   f_imp_coeff = pf->f_imp_coeff;
   }
 
@@ -2243,6 +2250,9 @@ class PolyhedralFunctionState : public State
  
  PolyhedralFunction::RealVector v_ab;
  ///< the b vector for aggregated linearizations
+
+ std::vector< bool > v_avert;
+ ///< which aggregated linearizations are vertical
 
  PolyhedralFunction::LinearCombination f_imp_coeff;
  ///< coefficients of the important lineariration

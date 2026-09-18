@@ -111,6 +111,7 @@
 
 #include "SMSTypedefs.h"
 #include "Configuration.h"
+#include "Group.h"
 #include "Observer.h"
 #include "Solver.h"
 
@@ -3168,6 +3169,18 @@ class Block : public Observer {
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns the groups of static Constraint
+ /** Returns one group for each entry of get_static_constraints(), in the same
+  * order: the i-th group views the container that the i-th boost::any
+  * holds, and is nullptr for an empty slot. Each group says the type of
+  * its elements, its shape and its name, and gives access to the elements
+  * without knowing the type of the container; see BaseGroup. */
+
+ const Vec_Group & get_static_constraint_groups( void ) const {
+  return( v_s_Constraint_groups );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the number of groups of static Constraint
 
  Index get_number_static_constraints( void ) const {
@@ -3337,6 +3350,18 @@ class Block : public Observer {
   * that are handled by the appropriate Modification). */
 
  c_Vec_any & get_static_variables( void ) const { return( v_s_Variable ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns the groups of static Variable
+ /** Returns one group for each entry of get_static_variables(), in the same
+  * order: the i-th group views the container that the i-th boost::any
+  * holds, and is nullptr for an empty slot. Each group says the type of
+  * its elements, its shape and its name, and gives access to the elements
+  * without knowing the type of the container; see BaseGroup. */
+
+ const Vec_Group & get_static_variable_groups( void ) const {
+  return( v_s_Variable_groups );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the number of groups of static Variable
@@ -3536,6 +3561,18 @@ class Block : public Observer {
 
  c_Vec_any & get_dynamic_constraints( void ) const {
   return( v_d_Constraint );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns the groups of dynamic Constraint
+ /** Returns one group for each entry of get_dynamic_constraints(), in the same
+  * order: the i-th group views the container that the i-th boost::any
+  * holds, and is nullptr for an empty slot. Each group says the type of
+  * its elements, its shape and its name, and gives access to the elements
+  * without knowing the type of the container; see BaseGroup. */
+
+ const Vec_Group & get_dynamic_constraint_groups( void ) const {
+  return( v_d_Constraint_groups );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3741,6 +3778,45 @@ class Block : public Observer {
   * order to "incorporate" this new information. */
 
  c_Vec_any & get_dynamic_variables( void ) const { return( v_d_Variable ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns the groups of dynamic Variable
+ /** Returns one group for each entry of get_dynamic_variables(), in the same
+  * order: the i-th group views the container that the i-th boost::any
+  * holds, and is nullptr for an empty slot. Each group says the type of
+  * its elements, its shape and its name, and gives access to the elements
+  * without knowing the type of the container; see BaseGroup. */
+
+ const Vec_Group & get_dynamic_variable_groups( void ) const {
+  return( v_d_Variable_groups );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// calls f() on each group of Variable of the Block, static ones first
+ /** Calls f( group ) on each group of Variable of the Block, the static ones
+  * first and then the dynamic ones, skipping the empty slots, so that a
+  * caller that treats the two alike does not have to walk the two vectors
+  * itself. */
+
+ template< class F >
+ void for_each_variable_group( F f ) const {
+  for( auto groups : { & v_s_Variable_groups , & v_d_Variable_groups } )
+   for( const auto & group : *groups )
+    if( group )
+     f( std::as_const( *group ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// calls f() on each group of Constraint of the Block, static ones first
+ /** The Constraint counterpart of the previous method. */
+
+ template< class F >
+ void for_each_constraint_group( F f ) const {
+  for( auto groups : { & v_s_Constraint_groups , & v_d_Constraint_groups } )
+   for( const auto & group : *groups )
+    if( group )
+     f( std::as_const( *group ) );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the number of groups of dynamic Variable
@@ -7495,6 +7571,7 @@ class Block : public Observer {
  void reset_static_constraints( void ) {
   v_s_Constraint.clear();
   v_s_Constraint_names.clear();
+  v_s_Constraint_groups.clear();
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -7503,6 +7580,7 @@ class Block : public Observer {
  void reset_static_variables( void ) {
   v_s_Variable.clear();
   v_s_Variable_names.clear();
+  v_s_Variable_groups.clear();
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -7511,6 +7589,7 @@ class Block : public Observer {
  void reset_dynamic_constraints( void ) {
   v_d_Constraint.clear();
   v_d_Constraint_names.clear();
+  v_d_Constraint_groups.clear();
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -7519,6 +7598,7 @@ class Block : public Observer {
  void reset_dynamic_variables( void ) {
   v_d_Variable.clear();
   v_d_Variable_names.clear();
+  v_d_Variable_groups.clear();
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -7530,6 +7610,7 @@ class Block : public Observer {
  /// empty slot
 
  void add_static_constraint( std::string && name = "" , bool front = false ) {
+  add_group( v_s_Constraint_groups , nullptr , front );
   if( front ) {
    v_s_Constraint.insert( v_s_Constraint.begin(), boost::any() );
    v_s_Constraint_names.insert( v_s_Constraint_names.begin() ,
@@ -7550,6 +7631,8 @@ class Block : public Observer {
                         bool front = false ) {
   newc.set_Block( this );
   Const * cnewc = &newc;
+  add_group( v_s_Constraint_groups , make_group( newc , this , 0 , name ) ,
+             front );
   if( front ) {
    v_s_Constraint.insert( v_s_Constraint.begin() , cnewc );
    v_s_Constraint_names.insert( v_s_Constraint_names.begin() ,
@@ -7574,6 +7657,8 @@ class Block : public Observer {
   newc.set_Block( this );
   Const * cnewc = &newc;
   v_s_Constraint[ i ] = cnewc;
+  set_group( v_s_Constraint_groups , i ,
+             make_group( newc , this , i , name ) );
   v_s_Constraint_names[ i ] = std::move( name );
   }
 
@@ -7588,6 +7673,8 @@ class Block : public Observer {
    c.set_Block( this );
 
   std::vector< Const > * cnewc = &newc;
+  add_group( v_s_Constraint_groups , make_group( newc , this , 0 , name ) ,
+             front );
   if( front ) {
    v_s_Constraint.insert( v_s_Constraint.begin() , cnewc );
    v_s_Constraint_names.insert( v_s_Constraint_names.begin(),
@@ -7614,6 +7701,8 @@ class Block : public Observer {
 
   std::vector< Const > * cnewc = &newc;
   v_s_Constraint[ i ] = cnewc;
+  set_group( v_s_Constraint_groups , i ,
+             make_group( newc , this , i , name ) );
   v_s_Constraint_names[ i ] = std::move( name );
   }
 
@@ -7629,6 +7718,8 @@ class Block : public Observer {
     j.set_Block( this );
 
   std::vector< std::vector< Const > > * cnewc = &newc;
+  add_group( v_s_Constraint_groups , make_group( newc , this , 0 , name ) ,
+             front );
   if( front ) {
    v_s_Constraint.insert( v_s_Constraint.begin(), cnewc );
    v_s_Constraint_names.insert( v_s_Constraint_names.begin() ,
@@ -7657,6 +7748,8 @@ class Block : public Observer {
 
   std::vector< std::vector< Const > > * cnewc = &newc;
   v_s_Constraint[ i ] = cnewc;
+  set_group( v_s_Constraint_groups , i ,
+             make_group( newc , this , i , name ) );
   v_s_Constraint_names[ i ] = std::move( name );
  }
 
@@ -7671,6 +7764,8 @@ class Block : public Observer {
    ( i++ )->set_Block( this );
 
   boost::multi_array< Const, K > * cnewc = &newc;
+  add_group( v_s_Constraint_groups , make_group( newc , this , 0 , name ) ,
+             front );
   if( front ) {
    v_s_Constraint.insert( v_s_Constraint.begin(), cnewc );
    v_s_Constraint_names.insert( v_s_Constraint_names.begin() ,
@@ -7697,6 +7792,8 @@ class Block : public Observer {
 
   boost::multi_array< Const, K > * cnewc = &newc;
   v_s_Constraint[ i ] = cnewc;
+  set_group( v_s_Constraint_groups , i ,
+             make_group( newc , this , i , name ) );
   v_s_Constraint_names[ i ] = std::move( name );
   }
 
@@ -7712,6 +7809,8 @@ class Block : public Observer {
     c.set_Block( this );
 
   boost::multi_array< std::vector< Const > , K > * cnewc = &newc;
+  add_group( v_s_Constraint_groups , make_group( newc , this , 0 , name ) ,
+             front );
   if( front ) {
    v_s_Constraint.insert( v_s_Constraint.begin(), cnewc );
    v_s_Constraint_names.insert( v_s_Constraint_names.begin(),
@@ -7739,6 +7838,8 @@ class Block : public Observer {
     j.set_Block( this );
 
   v_s_Constraint[ i ] = &newc;
+  set_group( v_s_Constraint_groups , i ,
+             make_group( newc , this , i , name ) );
   v_s_Constraint_names[ i ] = std::move( name );
   }
 
@@ -7749,7 +7850,9 @@ class Block : public Observer {
   * one needs, the type of a group being known there only at run time: a
   * Block that knows the type of its own groups uses the typed
   * set_static_variable() instead, which also tells each Variable which Block
-  * it belongs to, as whoever writes here has to do. */
+  * it belongs to, as whoever writes here has to do. Whoever writes here must
+  * then call refresh_static_variable_group( i ), so that the i-th group
+  * views what the boost::any now holds. */
 
  boost::any & access_static_variable( Index i ) {
   if( i >= v_s_Variable.size() )
@@ -7788,9 +7891,36 @@ class Block : public Observer {
   }
 
 /*--------------------------------------------------------------------------*/
+ /// rebuilds the i-th group of static Variable out of its boost::any
+ /** To be called after writing into access_static_variable( i ): the
+  * group becomes the one viewing the container that the boost::any holds,
+  * or nullptr if its content is of no known type or shape. */
+
+ void refresh_static_variable_group( Index i );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// rebuilds the i-th group of dynamic Variable out of its boost::any
+ /** See refresh_static_variable_group(). */
+
+ void refresh_dynamic_variable_group( Index i );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// rebuilds the i-th group of static Constraint out of its boost::any
+ /** See refresh_static_variable_group(). */
+
+ void refresh_static_constraint_group( Index i );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// rebuilds the i-th group of dynamic Constraint out of its boost::any
+ /** See refresh_static_variable_group(). */
+
+ void refresh_dynamic_constraint_group( Index i );
+
+/*--------------------------------------------------------------------------*/
  /// empty slot
 
  void add_static_variable( std::string && name = "" , bool front = false ) {
+  add_group( v_s_Variable_groups , nullptr , front );
   if( front ) {
    v_s_Variable.insert( v_s_Variable.begin() , boost::any() );
    v_s_Variable_names.insert( v_s_Variable_names.begin(),
@@ -7811,6 +7941,8 @@ class Block : public Observer {
                       bool front = false ) {
   newv.set_Block( this );
   Var * cnewv = &newv;
+  add_group( v_s_Variable_groups , make_group( newv , this , 0 , name ) ,
+             front );
   if( front ) {
    v_s_Variable.insert( v_s_Variable.begin() , cnewv );
    v_s_Variable_names.insert( v_s_Variable_names.begin() ,
@@ -7834,6 +7966,8 @@ class Block : public Observer {
   newv.set_Block( this );
   Var * cnewv = &newv;
   v_s_Variable[ i ] = cnewv;
+  set_group( v_s_Variable_groups , i ,
+             make_group( newv , this , i , name ) );
   v_s_Variable_names[ i ] = std::move( name );
   }
 
@@ -7848,6 +7982,8 @@ class Block : public Observer {
    v.set_Block( this );
 
   std::vector< Var > * cnewv = &newv;
+  add_group( v_s_Variable_groups , make_group( newv , this , 0 , name ) ,
+             front );
   if( front ) {
    v_s_Variable.insert( v_s_Variable.begin(), cnewv );
    v_s_Variable_names.insert( v_s_Variable_names.begin() ,
@@ -7874,6 +8010,8 @@ class Block : public Observer {
 
   std::vector< Var > * cnewv = &newv;
   v_s_Variable[ i ] = cnewv;
+  set_group( v_s_Variable_groups , i ,
+             make_group( newv , this , i , name ) );
   v_s_Variable_names[ i ] = std::move( name );
   }
 
@@ -7889,6 +8027,8 @@ class Block : public Observer {
     j.set_Block( this );
 
   std::vector< std::vector< Var > > * cnewv = &newv;
+  add_group( v_s_Variable_groups , make_group( newv , this , 0 , name ) ,
+             front );
   if( front ) {
    v_s_Variable.insert( v_s_Variable.begin(), cnewv );
    v_s_Variable_names.insert( v_s_Variable_names.begin() ,
@@ -7917,7 +8057,34 @@ class Block : public Observer {
 
   std::vector< std::vector< Var > > * cnewv = &newv;
   v_s_Variable[ i ] = cnewv;
+  set_group( v_s_Variable_groups , i ,
+             make_group( newv , this , i , name ) );
   v_s_Variable_names[ i ] = std::move( name );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// std::vector of std::vector of (...) Variable
+
+ template< class Var >
+ std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
+ add_static_variable( std::vector< std::vector< Var > > & newv ,
+                      std::string && name = "" , bool front = false ) {
+  for( auto & v : newv )
+   for( auto & j : v )
+    j.set_Block( this );
+
+  std::vector< std::vector< Var > > * cnewv = &newv;
+  add_group( v_s_Variable_groups , make_group( newv , this , 0 , name ) ,
+             front );
+  if( front ) {
+   v_s_Variable.insert( v_s_Variable.begin() , cnewv );
+   v_s_Variable_names.insert( v_s_Variable_names.begin() ,
+                              std::move( name ) );
+   }
+  else {
+   v_s_Variable.push_back( cnewv );
+   v_s_Variable_names.emplace_back( std::move( name ) );
+   }
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -7931,6 +8098,8 @@ class Block : public Observer {
    ( i++ )->set_Block( this );
 
   boost::multi_array< Var, K > * cnewv = &newv;
+  add_group( v_s_Variable_groups , make_group( newv , this , 0 , name ) ,
+             front );
   if( front ) {
    v_s_Variable.insert( v_s_Variable.begin() , cnewv );
    v_s_Variable_names.insert( v_s_Variable_names.begin() ,
@@ -7957,6 +8126,8 @@ class Block : public Observer {
 
   boost::multi_array< Var , K > * cnewv = &newv;
   v_s_Variable[ i ] = cnewv;
+  set_group( v_s_Variable_groups , i ,
+             make_group( newv , this , i , name ) );
   v_s_Variable_names[ i ] = std::move( name );
   }
 
@@ -7972,6 +8143,8 @@ class Block : public Observer {
     v.set_Block( this );
 
   boost::multi_array< std::vector< Var > , K > * cnewv = &newv;
+  add_group( v_s_Variable_groups , make_group( newv , this , 0 , name ) ,
+             front );
   if( front ) {
    v_s_Variable.insert( v_s_Variable.begin(), cnewv );
    v_s_Variable_names.insert( v_s_Variable_names.begin(),
@@ -7999,6 +8172,8 @@ class Block : public Observer {
     j.set_Block( this );
 
   v_s_Variable[ i ] = &newv;
+  set_group( v_s_Variable_groups , i ,
+             make_group( newv , this , i , name ) );
   v_s_Variable_names[ i ] = std::move( name );
   }
 
@@ -8006,6 +8181,7 @@ class Block : public Observer {
  /// empty slot
 
  void add_dynamic_constraint( std::string && name = "", bool front = false ) {
+  add_group( v_d_Constraint_groups , nullptr , front );
   if( front ) {
    v_d_Constraint.insert( v_d_Constraint.begin(), boost::any() );
    v_d_Constraint_names.insert( v_d_Constraint_names.begin(),
@@ -8028,6 +8204,8 @@ class Block : public Observer {
    c.set_Block( this );
 
   std::list< Const > * cnewc = &newc;
+  add_group( v_d_Constraint_groups , make_group( newc , this , 0 , name ) ,
+             front );
   if( front ) {
    v_d_Constraint.insert( v_d_Constraint.begin(), cnewc );
    v_d_Constraint_names.insert( v_d_Constraint_names.begin(),
@@ -8054,6 +8232,8 @@ class Block : public Observer {
 
   std::list< Const > * cnewc = &newc;
   v_d_Constraint[ i ] = cnewc;
+  set_group( v_d_Constraint_groups , i ,
+             make_group( newc , this , i , name ) );
   v_d_Constraint_names[ i ] = std::move( name );
   }
 
@@ -8069,6 +8249,8 @@ class Block : public Observer {
     j.set_Block( this );
 
   std::vector< std::list< Const > > * cnewc = &newc;
+  add_group( v_d_Constraint_groups , make_group( newc , this , 0 , name ) ,
+             front );
   if( front ) {
    v_d_Constraint.insert( v_d_Constraint.begin(), cnewc );
    v_d_Constraint_names.insert( v_d_Constraint_names.begin() ,
@@ -8097,6 +8279,8 @@ class Block : public Observer {
 
   std::vector< std::list< Const > > * cnewc = &newc;
   v_d_Constraint[ i ] = cnewc;
+  set_group( v_d_Constraint_groups , i ,
+             make_group( newc , this , i , name ) );
   v_d_Constraint_names[ i ] = std::move( name );
   }
 
@@ -8112,6 +8296,8 @@ class Block : public Observer {
     c.set_Block( this );
 
   boost::multi_array< std::list< Const > , K > * cnewc = &newc;
+  add_group( v_d_Constraint_groups , make_group( newc , this , 0 , name ) ,
+             front );
   if( front ) {
    v_d_Constraint.insert( v_d_Constraint.begin() , cnewc );
    v_d_Constraint_names.insert( v_d_Constraint_names.begin(),
@@ -8140,6 +8326,8 @@ class Block : public Observer {
 
   boost::multi_array< std::list< Const >, K > * cnewc = &newc;
   v_d_Constraint[ i ] = cnewc;
+  set_group( v_d_Constraint_groups , i ,
+             make_group( newc , this , i , name ) );
   v_d_Constraint_names[ i ] = std::move( name );
   }
 
@@ -8147,6 +8335,7 @@ class Block : public Observer {
  /// empty slot
 
  void add_dynamic_variable( std::string && name = "" , bool front = false ) {
+  add_group( v_d_Variable_groups , nullptr , front );
   if( front ) {
    v_d_Variable.insert( v_d_Variable.begin() , boost::any() );
    v_d_Variable_names.insert( v_d_Variable_names.begin() ,
@@ -8169,6 +8358,8 @@ class Block : public Observer {
    v.set_Block( this );
 
   std::list< Var > * cnewv = &newv;
+  add_group( v_d_Variable_groups , make_group( newv , this , 0 , name ) ,
+             front );
   if( front ) {
    v_d_Variable.insert( v_d_Variable.begin() , cnewv );
    v_d_Variable_names.insert( v_d_Variable_names.begin() ,
@@ -8195,6 +8386,8 @@ class Block : public Observer {
 
   std::list< Var > * cnewv = &newv;
   v_d_Variable[ i ] = cnewv;
+  set_group( v_d_Variable_groups , i ,
+             make_group( newv , this , i , name ) );
   v_d_Variable_names[ i ] = std::move( name );
   }
 
@@ -8210,6 +8403,8 @@ class Block : public Observer {
     j.set_Block( this );
 
   std::vector< std::list< Var > > * cnewv = &newv;
+  add_group( v_d_Variable_groups , make_group( newv , this , 0 , name ) ,
+             front );
   if( front ) {
    v_d_Variable.insert( v_d_Variable.begin() , cnewv );
    v_d_Variable_names.insert( v_d_Variable_names.begin() ,
@@ -8238,6 +8433,8 @@ class Block : public Observer {
 
   std::vector< std::list< Var > > * cnewv = &newv;
   v_d_Variable[ i ] = cnewv;
+  set_group( v_d_Variable_groups , i ,
+             make_group( newv , this , i , name ) );
   v_d_Variable_names[ i ] = std::move( name );
   }
 
@@ -8253,6 +8450,8 @@ class Block : public Observer {
     v.set_Block( this );
 
   boost::multi_array< std::list< Var > , K > * cnewv = &newv;
+  add_group( v_d_Variable_groups , make_group( newv , this , 0 , name ) ,
+             front );
   if( front ) {
    v_d_Variable.insert( v_d_Variable.begin(), cnewv );
    v_d_Variable_names.insert( v_d_Variable_names.begin() ,
@@ -8281,6 +8480,8 @@ class Block : public Observer {
 
   boost::multi_array< std::list< Var >, K > * cnewv = &newv;
   v_d_Variable[ i ] = cnewv;
+  set_group( v_d_Variable_groups , i ,
+             make_group( newv , this , i , name ) );
   v_d_Variable_names[ i ] = std::move( name );
   }
 
@@ -8498,6 +8699,34 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
+ /// registers a group in front of or after those of its kind
+ /** The groups after it change index, and are told so. */
+
+ void add_group( Vec_Group & groups , std::unique_ptr< BaseGroup > group ,
+		 bool front ) {
+  Index k = groups.size();
+  if( front ) {
+   groups.insert( groups.begin() , std::move( group ) );
+   k = 0;
+   }
+  else
+   groups.push_back( std::move( group ) );
+  for( ; k < groups.size() ; ++k )
+   if( groups[ k ] )
+    groups[ k ]->set_Block( this , k );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// replaces the i-th group of its kind
+
+ void set_group( Vec_Group & groups , Index i ,
+		 std::unique_ptr< BaseGroup > group ) {
+  groups[ i ] = std::move( group );
+  if( groups[ i ] )
+   groups[ i ]->set_Block( this , i );
+  }
+
+/*--------------------------------------------------------------------------*/
  // Definition of Block::private_name() (pure virtual)
 
  virtual const std::string & private_name( void ) const = 0;
@@ -8574,6 +8803,19 @@ class Block : public Observer {
  Vec_any v_d_Variable;          ///< the dynamic Variables of the Block
  /**< vector of pointers to [multi/single dimensional arrays of]
   * [pointers to] lists of [classes derived from] Variable */
+
+ Vec_Group v_s_Constraint_groups;  ///< the groups of static Constraint
+ /**< v_s_Constraint_groups[ i ] views the same container as
+  * v_s_Constraint[ i ], and is nullptr for an empty slot */
+
+ Vec_Group v_s_Variable_groups;    ///< the groups of static Variable
+ /**< as v_s_Constraint_groups, for v_s_Variable */
+
+ Vec_Group v_d_Constraint_groups;  ///< the groups of dynamic Constraint
+ /**< as v_s_Constraint_groups, for v_d_Constraint */
+
+ Vec_Group v_d_Variable_groups;    ///< the groups of dynamic Variable
+ /**< as v_s_Constraint_groups, for v_d_Variable */
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/

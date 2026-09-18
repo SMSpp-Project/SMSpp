@@ -131,6 +131,16 @@ Solution * Solution::new_Solution( const netCDF::NcGroup & group )
   gtype.getValues( tmp );
   auto result = new_Solution( tmp );
   result->deserialize( group );
+
+  // whether it holds a direction is written by Solution::serialize(), hence
+  // it is read here rather than in each :Solution [see is_direction()]
+  auto gdir = group.getAtt( "direction" );
+  if( ! gdir.isNull() ) {
+   int dir = 0;
+   gdir.getValues( & dir );
+   result->is_direction( dir != 0 );
+   }
+
   return( result );
   }
  catch( netCDF::exceptions::NcException & e ) {

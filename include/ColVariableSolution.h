@@ -215,76 +215,30 @@ public:
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the values of the *static* Variables
  /** Method for reading the values of the *static* Variables of the Block
-  * associated with this Solution. It returns a vector of boost::any, each
-  * element of which is supposed to contain only one among:
-  *
-  * - a pointer to a single double;
-  *
-  * - a pointer to a std::vector of double;
-  *
-  * - a pointer to a boost::multi_array< double , K >;
-  *
-  * This vector of boost::any is structured in the same way the vector
-  * v_s_Variable of static Variables is structured in the associated
-  * Block. This means that the i-th element of this vector is associated
-  * with the i-th element of v_s_Variable. If the i-th element of
-  * v_s_Variable is
-  *
-  * - a pointer to a single ColVariable, then the i-th element of this
-  *   vector is a pointer to a single double which is the value of the
-  *   ColVariable;
-  *
-  * - a pointer to a std::vector of any class derived from ColVariable or a
-  *   pointer to a std::vector of pointers to ColVariable, then the i-th
-  *   element of this vector is a pointer to a std::vector of double which
-  *   are the values of those ColVariables;
-  *
-  * - a pointer to a boost::multi_array< V , K > or a pointer to a
-  *   boost::multi_array< V * , K >, where V is any class derived from
-  *   ColVariable, then the i-th element of this vector is a pointer to a
-  *   boost::multi_array< double , K >, which stores the values of those
-  *   ColVariables. */
+  * associated with this Solution. The i-th entry of the returned vector
+  * corresponds to the i-th group of static Variables of the Block, and holds
+  * the values of its ColVariable in storage order: for a
+  * boost::multi_array this is the order of its data(), and for a group whose
+  * cells are std::vector it is cell by cell. The group may hold the
+  * ColVariable or pointers to them. */
 
- c_Vec_any & get_static_variable_values( void ) const {
+ const std::vector< std::vector< double > > &
+ get_static_variable_values( void ) const {
   return( static_variable_values );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the values of the *dynamic* Variables
  /** Method for reading the values of the *dynamic* Variables of the Block
-  * associated with this Solution. It returns a vector of boost::any, each
-  * element of which is supposed to contain only one among:
-  *
-  * - a pointer to a std::vector< double >;
-  *
-  * - a pointer to a std::vector< std::vector< double > >;
-  *
-  * - a pointer to a boost::multi_array< std::vector< double > , K >;
-  *
-  * This vector of boost::any is structured in the same way the vector
-  * v_d_Variable of dynamic Variables is structured in the associated
-  * Block. This means that the i-th element of this vector is associated
-  * with the i-th element of v_d_Variable. If the i-th element of
-  * v_d_Variable is
-  *
-  * - a pointer to a std::list of any class derived from ColVariable or a
-  *   pointer to a std::list of pointers to ColVariable, then the i-th
-  *   element of this vector is a pointer to a std::vector of double which
-  *   are the values of those ColVariables;
-  *
-  * - a pointer to a std::vector of std::list< V > or a pointer to a
-  *   std::vector of std::list< V * >, where V is any class derived from
-  *   ColVariable, then the i-th element of this vector is a pointer to a
-  *   std::vector of std::vector< double > which are the values of those
-  *   ColVariables;
-  *
-  * - a pointer to a boost::multi_array< std::list< V > , K > or a pointer to a
-  *   boost::multi_array< std::list< V * > , K >, where V is any class derived
-  *   from ColVariable, then the i-th element of this vector is a pointer to
-  *   a boost::multi_array< std::vector< double > , K >, which stores the values
-  *   of those ColVariables. */
+  * associated with this Solution. The i-th entry of the returned vector
+  * corresponds to the i-th group of dynamic Variables of the Block, and has
+  * one std::vector of double per cell of its grid, in storage order, holding
+  * the values of the ColVariable of the std::list of that cell in list
+  * order. The vector of a cell may be longer than the list, if the list was
+  * longer when the values were read. */
 
- c_Vec_any & get_dynamic_variable_values( void ) const {
+ const std::vector< std::vector< std::vector< double > > > &
+ get_dynamic_variable_values( void ) const {
   return( dynamic_variable_values );
   }
 
@@ -325,13 +279,14 @@ public:
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
- template< class F1 , class F2 >
- void apply_static( const Block * const block , F1 f1 , F2 f2 );
+ /// reads (if read) or writes the values of the static Variables of block
+
+ void apply_static( const Block * const block , bool read );
 
 /*--------------------------------------------------------------------------*/
+ /// reads (if read) or writes the values of the dynamic Variables of block
 
- template< class F1 , class F2 >
- void apply_dynamic( const Block * const block , F1 f1 , F2 f2 );
+ void apply_dynamic( const Block * const block , bool read );
 
 /*--------------------------------------------------------------------------*/
 
@@ -355,11 +310,9 @@ public:
 
 /*--------------------------------------------------------------------------*/
 
- /// delete all vectors created for this Solution
- /** This method deletes every object currently "stored" in the vectors
-  * static_variable_values and dynamic_variable_values. Moreover, these two
-  * vectors and the vector nested_solutions of nested Solutions are resized
-  * to 0. */
+ /// empties the structure of this Solution
+ /** This method resizes to 0 the vectors static_variable_values,
+  * dynamic_variable_values and nested_solutions. */
 
  void delete_vectors();
 
@@ -395,13 +348,11 @@ public:
 /*---------------------------- PRIVATE FIELDS ------------------------------*/
 /*--------------------------------------------------------------------------*/
 
- Vec_any static_variable_values; ///< the values of the static Variables
- /**< vector of pointers to [multi/single dimensional arrays of]
-  * [pointers to] [classes derived from] Variable */
+ std::vector< std::vector< double > > static_variable_values;
+ ///< the values of the static Variables, one vector per group
 
- Vec_any dynamic_variable_values; ///< the values of the dynamic Variables
- /**< vector of pointers to [multi/single dimensional arrays of]
-  * [pointers to] [classes derived from] Variable */
+ std::vector< std::vector< std::vector< double > > > dynamic_variable_values;
+ ///< the values of the dynamic Variables, one vector per cell per group
 
  Vec_ColVariableSolution nested_solutions;
  ///< vector of ColVariableSolutions of the nested Blocks

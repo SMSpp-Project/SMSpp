@@ -144,6 +144,15 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
  ~Constraint() override = default;
 
 /*--------------------------------------------------------------------------*/
+ /// the Constraint is cleared by the method of the base class
+ /** The static clear() below, which clear a whole collection of Constraint,
+  * would otherwise hide the virtual clear() of ThinVarDepInterface: a
+  * Constraint & would then have no clear() taking no argument, which is what
+  * code working in terms of the base classes needs. */
+
+ using ThinVarDepInterface::clear;
+
+/*--------------------------------------------------------------------------*/
  /// clear a std::vector of Constraint
  template< typename T >
  static std::enable_if_t< std::is_base_of_v< Constraint , T > , void >

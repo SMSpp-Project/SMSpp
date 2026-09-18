@@ -8,7 +8,12 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni
+ * \author Donato Meoli \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \copyright &copy; by Antonio Frangioni,
+ *                      Donato Meoli
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
@@ -1548,6 +1553,25 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_LR( c_p_Mod mod ,
 /*--------------------------------------------------------------------------*/
 /*------------------ MODIFICATION HANDLERS FOR DUAL REPRESENTATION ---------*/
 /*--------------------------------------------------------------------------*/
+/* The Block the channel of a VariableGroupMod has to be opened on. A channel
+ * is looked for up the tree and never down it, so the Modification of a
+ * cascade that also touches Constraint of an ancestor, as the coupling rows
+ * are, can only be collected by a channel that lives at the top; when the
+ * caller has a channel open of its own the group just nests into that one,
+ * the caller having already seen to it that everybody can reach it. */
+
+static Block * group_owner( Block * blck , Block::ChnlName chnl )
+{
+ if( chnl )
+  return( blck );
+
+ while( auto father = blck->get_f_Block() )
+  blck = father;
+
+ return( blck );
+ }
+
+/*--------------------------------------------------------------------------*/
 
 bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
                                     const FunctionMod * mod , ChnlName chnl )
@@ -1705,8 +1729,6 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
   // so they are forwarded to a father Solver without re-entering the
   // dispatcher and tripping the "unsupported Modification" guard at the
   // bottom of guts_of_add_Modification_LR_dual()
-  auto par = make_par( eNoBlck , chnl );
-
   // 1) create the new theta ColVariables in a temporary list and splice
   //    them into f_theta via add_dynamic_variables(). splice keeps the
   //    node addresses we collected here valid afterwards
@@ -1719,6 +1741,21 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
     new_ptrs[ k++ ] = & v;
     }
    }
+
+  // the new column is one Variable plus one coefficient in each row it
+  // appears in, which is as many Modification as there are rows: they are
+  // all issued inside a VariableGroupMod, so that a Solver that has a
+  // column operation of its own can use it and read the coefficients from
+  // the Function directly, while one that has not takes the group apart
+  // and sees exactly the Modification it sees today [see
+  // MILPSolver::process_group_modification()]
+  auto gowner = group_owner( this , chnl );
+  auto gchnl = gowner->open_channel( chnl , new VariableGroupMod(
+                std::vector< Variable * >( new_ptrs.begin() ,
+                                           new_ptrs.end() ) ,
+                VariableGroupMod::VariableAdded ) );
+  auto par = make_par( eNoBlck , gchnl );
+
   add_dynamic_variables( f_theta , newt , par );
 
   // 2) append (theta_new , b_new) to the FRealObjective LinearFunction
@@ -1765,6 +1802,8 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
     }
    }
 
+  gowner->close_channel( gchnl );
+
   return( false );
   }
 
@@ -1787,6 +1826,16 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
    auto thit = std::next( f_theta.begin() , strt );
    for( Index i = strt ; i < stop ; ++i , ++thit )
     rem_ptrs.push_back( & *thit );
+
+   // as in the addition, the whole cascade is issued inside a
+   // VariableGroupMod: deleting the column takes its coefficients with it,
+   // so a Solver that recognises the group has nothing to do row by row
+   auto gowner = group_owner( this , chnl );
+   auto gchnl = gowner->open_channel( chnl , new VariableGroupMod(
+                 std::vector< Variable * >( rem_ptrs.begin() ,
+                                            rem_ptrs.end() ) ,
+                 VariableGroupMod::VariableDeleted ) );
+   par = make_par( eNoBlck , gchnl );
 
    // 1) obj_lf: the theta variables sit at positions [strt+1, stop+1)
    //    (gamma is at position 0)
@@ -1828,6 +1877,10 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
    // 4) finally remove the theta variables themselves from the dynamic
    //    list (this delivers a BlockModRmv<ColVariable> to the Solver)
    remove_dynamic_variables( f_theta , Range( strt , stop ) , par );
+
+   gowner->close_channel( gchnl );
+   par = make_par( eNoBlck , chnl );
+
    RescaleGlobalIfNeeded( chnl );
 
    return( false );
@@ -1836,6 +1889,15 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
   if( rng_mod->PFtype() == PolyhedralFunctionMod::ModifyRows ) {
    RefreshRowMeasure( Range( strt , stop ) );
    RescaleGlobalIfNeeded( chnl );
+
+   // changing a row of PF() changes one coefficient in each of the rows the
+   // corresponding column appears in, and the Objective: they all go into
+   // one group, so that a Solver that can write them together does, while
+   // one that cannot sees exactly the Modification it sees today [see
+   // MILPSolver::process_group_modification()]
+   auto gowner = group_owner( this , chnl );
+   auto gchnl = gowner->open_channel( chnl );
+   par = make_par( eNoBlck , gchnl );
 
    const auto & A = PF().get_A();
 
@@ -1897,6 +1959,9 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
      ++j;
      }
     }
+
+   gowner->close_channel( gchnl );
+   par = make_par( eNoBlck , chnl );
 
    return( false );
    }
@@ -2075,6 +2140,7 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
  return( true );
 
  }  // end( PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual )
+
 
 /*--------------------------------------------------------------------------*/
 

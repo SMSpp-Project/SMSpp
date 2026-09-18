@@ -323,7 +323,10 @@ class Solution
   *
   *      THIS IS THE METHOD TO BE IMPLEMENTED BY DERIVED CLASSES
   *
-  * and in fact it does nothing in the base class. */
+  * and in fact it does nothing in the base class: what the base class has to
+  * read, i.e., whether this Solution holds a direction, new_Solution() reads
+  * out of the group itself [see is_direction()], so that a :Solution need not
+  * know it is there. */
 
  virtual void deserialize( const netCDF::NcGroup & group ) {};
 
@@ -388,10 +391,28 @@ class Solution
   * makes for what the Variable hold, and made here so that whoever receives
   * a Solution knows which of the two it has in hand.
   *
+  * What a Solution holds is decided when it is read out of a Block, or by
+  * whoever produces it without passing from one [see Solver::get_Solution()],
+  * and it travels with it: clone(), scale() and the (de)serialization keep
+  * it as it is, while a sum() is a direction only if every Solution in it is
+  * one, a solution plus a ray being a solution [see sum()].
+  *
   * The default is false, a Solution being a solution unless the :Solution of
   * a Block that has rays says otherwise. */
 
- [[nodiscard]] virtual bool is_direction( void ) const { return( false ); }
+ [[nodiscard]] virtual bool is_direction( void ) const {
+  return( f_direction );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// tells this Solution that it holds a direction, or that it does not
+ /** Tells this Solution that what it holds is a direction if yesno is true,
+  * and a solution if it is false; this is what is_direction() reports from
+  * then on. Whoever fills a Solution has to say so: read() takes it from
+  * Block::is_direction(), and a Solver that writes a Solution of its own
+  * has to say it here. */
+
+ virtual void is_direction( bool yesno ) { f_direction = yesno; }
 
 /*--------------------------------------------------------------------------*/
  /// returns a scaled version of this Solution
@@ -604,6 +625,12 @@ class Solution
 
  virtual void serialize( netCDF::NcGroup & group ) const {
   group.putAtt( "type" , classname() );
+
+  // what this Solution holds travels with it: the attribute is only written
+  // for a direction, so that a Solution says nothing more than it used to
+  // and whoever reads an older one finds a solution, as it was
+  if( f_direction )
+   group.putAtt( "direction" , netCDF::NcInt() , 1 );
   }
 
 /** @} ---------------------------------------------------------------------*/
@@ -691,6 +718,11 @@ class Solution
 /** @} ---------------------------------------------------------------------*/
 /*-------------------------- PROTECTED FIELDS ------------------------------*/
 /*--------------------------------------------------------------------------*/
+
+ protected:
+
+ bool f_direction = false;
+ ///< true if what this Solution holds is a direction [see is_direction()]
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
