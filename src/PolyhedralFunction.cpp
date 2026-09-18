@@ -419,7 +419,8 @@ void PolyhedralFunction::store_combination_of_linearizations(
  RealVector a( v_x.size() , 0 );
  FunctionValue b = 0;
 
- FunctionValue sum = 0;
+ FunctionValue sum = 0;       // the sum of the multipliers of the diagonal ones
+ bool diagonal = false;      // true if any of them is diagonal
 
  for( const auto & coef : coefficients ) {
   auto pos = v_glob[ coef.first ];
@@ -435,7 +436,12 @@ void PolyhedralFunction::store_combination_of_linearizations(
   if( mult < 0 )  // a small mult < 0 is mult == 0
    continue;      // which contributes nothing to the combination
 
-  sum += mult;
+  // a vertical linearization enters with a conic multiplier, and only the
+  // diagonal ones make up the convex combination
+  if( ! is_linearization_vertical( coef.first ) ) {
+   sum += mult;
+   diagonal = true;
+   }
 
   #if( EXPLICIT_BOUND )
    // this is only necessary when PolyhedralFunction explicitly produces
@@ -468,7 +474,10 @@ void PolyhedralFunction::store_combination_of_linearizations(
   throw( std::invalid_argument( "multipliers sum to > 1" ) );
   !!*/
 
- if( sum < 1 - AAccMlt * coefficients.size() ) {
+ // the combination is diagonal as soon as one of its pieces is, and then the
+ // bound fills what the diagonal multipliers leave; if all the pieces are
+ // vertical it is vertical, and no bound enters it
+ if( diagonal && ( sum < 1 - AAccMlt * coefficients.size() ) ) {
   /*!!
   if( ! is_bound_set() )
    throw( std::invalid_argument( "multipliers sum to < 1, and no bound" ) );
@@ -504,6 +513,9 @@ void PolyhedralFunction::store_combination_of_linearizations(
  // move the stuff in place
  v_aA[ pos ] = std::move( a );
  v_ab[ pos ] = b;
+ if( v_avert.size() < v_aA.size() )
+  v_avert.resize( v_aA.size() , false );
+ v_avert[ pos ] = ! diagonal;
 
  if( name >= f_max_glob )  // update f_max_glob
   f_max_glob = name + 1;
@@ -556,10 +568,11 @@ void PolyhedralFunction::delete_linearizations( Subset && which ,
 						bool ordered ,
 						ModParam issueMod )
 {
- if( which.empty() ) {  // delete them all
-  v_glob.assign( f_max_glob , Inf< int >() );
+ if( which.empty() ) {  // delete them all, the global pool keeps its size
+  v_glob.assign( v_glob.size() , Inf< int >() );
   v_aA.clear();
   v_ab.clear();
+  v_avert.clear();
   f_max_glob = 0;
 
   if( f_Observer && f_Observer->issue_mod( issueMod ) )
@@ -834,6 +847,7 @@ void PolyhedralFunction::put_State( const State & state )
   v_glob = s.v_glob;
  v_aA = s.v_aA;
  v_ab = s.v_ab;
+ v_avert = s.v_avert;
  f_imp_coeff = s.f_imp_coeff;
 
  // if there is no Observer, no-one is looking at what just happened
@@ -872,6 +886,7 @@ void PolyhedralFunction::put_State( State && state )
   v_glob = std::move( s.v_glob );
  v_aA = std::move( s.v_aA );
  v_ab = std::move( s.v_ab );
+ v_avert = std::move( s.v_avert );
  f_imp_coeff = std::move( s.f_imp_coeff );
  
  // if there is no Observer, no-one is looking at what just happened
@@ -929,6 +944,15 @@ void PolyhedralFunction::serialize_State( netCDF::NcGroup & group ,
 
   ( group.addVar( "PolyFunction_ab" , netCDF::NcDouble() , nr ) ).putVar(
 				    { 0 } , {  v_ab.size() } , v_ab.data() );
+
+  // which of them are vertical, only written if any is
+  if( std::find( v_avert.begin() , v_avert.end() , true ) != v_avert.end() ) {
+   std::vector< unsigned char > vert( v_aA.size() , 0 );
+   for( Index i = 0 ; ( i < v_aA.size() ) && ( i < v_avert.size() ) ; ++i )
+    vert[ i ] = v_avert[ i ];
+   ( group.addVar( "PolyFunction_aVert" , netCDF::NcUbyte() , nr ) ).putVar(
+				    { 0 } , { vert.size() } , vert.data() );
+   }
   }
 
  if( ! f_imp_coeff.empty() ) {
@@ -1044,6 +1068,7 @@ void PolyhedralFunction::set_PolyhedralFunction( MultiVector && A ,
  v_glob.assign( v_glob.size() , Inf< int >() );
  v_aA.clear();
  v_ab.clear();
+ v_avert.clear();
 
  set_f_uncomputed();  // the function value has changed
  f_Lipschitz_constant = -Inf< FunctionValue >();
@@ -1433,6 +1458,7 @@ void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
 
   v_aA.clear();
   v_ab.clear();
+  v_avert.clear();
 
   for( Index i = 0 ; i < f_max_glob ; ++i )
    if( v_glob[ i ] < 0 ) {
@@ -1575,6 +1601,7 @@ void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
 
   v_aA.clear();
   v_ab.clear();
+  v_avert.clear();
 
   // now search if some of the changed rows are in the global pool
   for( Index i = 0 ; i < f_max_glob ; ++i )
@@ -1694,6 +1721,7 @@ void PolyhedralFunction::modify_row( Index i , RealVector && Ai ,
 
   v_aA.clear();
   v_ab.clear();
+  v_avert.clear();
 
   // now search if the changed row is in the global pool
   for( Index j = 0 ; j < f_max_glob ; ++j )
@@ -1804,6 +1832,7 @@ void PolyhedralFunction::modify_constants( c_RealVector & nb , Range range ,
 
   v_aA.clear();
   v_ab.clear();
+  v_avert.clear();
 
   // now search if some of the changed constants are in the global pool
   for( Index i = 0 ; i < f_max_glob ; ++i )
@@ -1921,6 +1950,7 @@ void PolyhedralFunction::modify_constants( c_RealVector & nb ,
 
   v_aA.clear();
   v_ab.clear();
+  v_avert.clear();
 
   // now search if some of the changed constants are in the global pool
   for( Index i = 0 ; i < f_max_glob ; ++i )
@@ -2017,6 +2047,7 @@ void PolyhedralFunction::modify_constant( Index i , FunctionValue bi ,
 
   v_aA.clear();
   v_ab.clear();
+  v_avert.clear();
 
   // now search the changed constant is in the global pool
   for( Index j = 0 ; j < f_max_glob ; ++j )
@@ -2115,6 +2146,7 @@ void PolyhedralFunction::modify_bound( FunctionValue newbound ,
    if( ! v_aA.empty() ) {  // meanwhile, reset aggregate linearizations
     v_aA.clear();
     v_ab.clear();
+    v_avert.clear();
 
     if( is_bound_set() ) {  // the bound has been changed
      // now search if the changed bound is in the global pool
@@ -2183,6 +2215,7 @@ void PolyhedralFunction::modify_bound( FunctionValue newbound ,
 
    v_aA.clear();
    v_ab.clear();
+   v_avert.clear();
 
    for( Index i = 0 ; i < f_max_glob ; ++i )
     if( v_glob[ i ] < 0 ) {     // an aggregated one
@@ -2351,6 +2384,7 @@ void PolyhedralFunction::delete_rows( Range range , ModParam issueMod )
  // they are still valid
  v_aA.clear();
  v_ab.clear();
+ v_avert.clear();
 
  Subset which;
 
@@ -2460,6 +2494,7 @@ void PolyhedralFunction::delete_rows( Subset && rows , bool ordered ,
  // they are still valid
  v_aA.clear();
  v_ab.clear();
+ v_avert.clear();
 
  Subset which;
 
@@ -2549,6 +2584,7 @@ void PolyhedralFunction::delete_row( Index i , ModParam issueMod )
  // they are still valid
  v_aA.clear();
  v_ab.clear();
+ v_avert.clear();
 
  Subset which;
 
@@ -2617,6 +2653,7 @@ void PolyhedralFunction::delete_rows( ModParam issueMod )
  f_bound = get_default_bound();
  v_aA.clear();  // delete aggregated linearizations
  v_ab.clear();
+ v_avert.clear();
 
  v_glob.assign( v_glob.size() , Inf< int >() );
  f_max_glob = 0;
@@ -2789,6 +2826,7 @@ void PolyhedralFunction::reset_aggregate_linearizations( void )
 
  v_aA.clear();
  v_ab.clear();
+ v_avert.clear();
 
  for( Index i = 0 ; i < f_max_glob ; ++i )
   if( v_glob[ i ] < 0 )
@@ -2807,6 +2845,7 @@ void PolyhedralFunction::reset_aggregate_linearizations( ModParam issueMod )
 
  v_aA.clear();
  v_ab.clear();
+ v_avert.clear();
 
  Subset which;
 
@@ -2869,10 +2908,20 @@ void PolyhedralFunctionState::deserialize( const netCDF::NcGroup & group )
 
   v_ab.resize( nr.getSize() );
   ncdb.getVar( v_ab.data() );
+
+  v_avert.assign( nr.getSize() , false );
+  auto ncdv = group.getVar( "PolyFunction_aVert" );
+  if( ! ncdv.isNull() ) {
+   std::vector< unsigned char > vert( nr.getSize() );
+   ncdv.getVar( vert.data() );
+   for( PolyhedralFunction::Index i = 0 ; i < vert.size() ; ++i )
+    v_avert[ i ] = vert[ i ];
+   }
   }
  else {
   v_aA.clear();
   v_ab.clear();
+  v_avert.clear();
   }
 
  auto nic = group.getDim( "PolyFunction_ImpCoeffNum" );
@@ -2922,6 +2971,15 @@ void PolyhedralFunctionState::serialize( netCDF::NcGroup & group ) const
 
   ( group.addVar( "PolyFunction_ab" , netCDF::NcDouble() , nr ) ).putVar(
 				    { 0 } , {  v_ab.size() } , v_ab.data() );
+
+  // which of them are vertical, only written if any is
+  if( std::find( v_avert.begin() , v_avert.end() , true ) != v_avert.end() ) {
+   std::vector< unsigned char > vert( v_aA.size() , 0 );
+   for( PolyhedralFunction::Index i = 0 ; ( i < v_aA.size() ) && ( i < v_avert.size() ) ; ++i )
+    vert[ i ] = v_avert[ i ];
+   ( group.addVar( "PolyFunction_aVert" , netCDF::NcUbyte() , nr ) ).putVar(
+				    { 0 } , { vert.size() } , vert.data() );
+   }
   }
 
  if( ! f_imp_coeff.empty() ) {

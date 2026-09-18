@@ -1218,6 +1218,21 @@ void LagBFunction::add_Modification(sp_Mod mod, ChnlName chnl)
       }
       update_f_max_glob();
     }
+     // check it's still a feasible solution/direction: the Solution says
+     // which of the two it is and the Block answers with one method
+     const bool feas = check_Solution( g_pool[ i ].sol );
+     if( ! feas ) {              // if not
+      delete g_pool[ i ].sol;  // eliminate it
+      g_pool[ i ].sol = nullptr;
+      which.push_back( i );      // recall its name
+      LastSolution = g_pool.size();
+      // say that no Solution is saved in the Block, since the name is now
+      // available again for a different Solution
+      }
+     }
+    }
+   update_f_max_glob();
+   }
 
     // if nobody is listening (assuming issueMod == eModBlck)
     if ((!f_Observer) || (!f_Observer->issue_mod(eModBlck)))
@@ -1456,44 +1471,37 @@ void LagBFunction::put_State(const State &state)
     // now add back all the Solution in the State (possibly after a check)
     auto gpit = g_pool.begin();
 
-    if (ChkState) // if Solutions are checked
-      for (Index i = 0; i < s.g_pool.size(); ++i)
-      {
-        if (s.g_pool[i].sol)
-        {
-          // write the Solution to the inner Block
-          s.g_pool[i].sol->write(v_Block.front());
-
-          // if it's still a feasible solution/direction, copy it
-          if ((s.g_pool[i].varsol ? v_Block.front()->is_feasible()
-                                  : v_Block.front()->is_unbounded()))
-          {
-            gpit->sol = s.g_pool[i].sol->clone(); // clone() the Solution in
-            gpit->varsol = s.g_pool[i].varsol;
-            gpit->value = s.g_pool[i].value; // eager/lazy constant
-            gpit->convexified = s.g_pool[i].convexified;
-            gpit->conv_active.clear(); // cache: rebuilt lazily
-            Addd.push_back(i);
-            f_max_glob = i + 1;
-          }
-        }
-        ++gpit;
+  if( ChkState )  // if Solutions are checked
+   for( Index i = 0 ; i < s.g_pool.size() ; ++i ) {
+    if( s.g_pool[ i ].sol ) {
+     // if it's still a feasible solution/direction, copy it: the Block is
+     // told which of the two it is being handed and answers with one method
+     if( check_Solution( s.g_pool[ i ].sol ) ) {
+      gpit->sol = s.g_pool[ i ].sol->clone();  // clone() the Solution in
+      gpit->varsol = s.g_pool[ i ].varsol;
+      gpit->sol->is_direction( ! gpit->varsol );
+      gpit->value = s.g_pool[ i ].value;            // eager/lazy constant
+      gpit->convexified = s.g_pool[ i ].convexified;
+      gpit->conv_active.clear();                    // cache: rebuilt lazily
+      Addd.push_back( i );
+      f_max_glob = i + 1;
       }
-    else
-    { // it is trusted that Solution are correct
-      for (Index i = 0; i < s.g_pool.size(); ++i)
-      {
-        if (s.g_pool[i].sol)
-        {
-          gpit->sol = s.g_pool[i].sol->clone(); // clone() the Solution in
-          gpit->varsol = s.g_pool[i].varsol;
-          gpit->value = s.g_pool[i].value; // eager/lazy constant
-          gpit->convexified = s.g_pool[i].convexified;
-          gpit->conv_active.clear(); // cache: rebuilt lazily
-          Addd.push_back(i);
-        }
-        ++gpit;
-      }
+     }
+    ++gpit;
+    }
+  else {        // it is trusted that Solution are correct
+   for( Index i = 0 ; i < s.g_pool.size() ; ++i ) {
+    if( s.g_pool[ i ].sol ) {
+     gpit->sol = s.g_pool[ i ].sol->clone();  // clone() the Solution in
+     gpit->varsol = s.g_pool[ i ].varsol;
+     gpit->sol->is_direction( ! gpit->varsol );
+     gpit->value = s.g_pool[ i ].value;            // eager/lazy constant
+     gpit->convexified = s.g_pool[ i ].convexified;
+     gpit->conv_active.clear();                    // cache: rebuilt lazily
+     Addd.push_back( i );
+     }
+    ++gpit;
+    }
 
       f_max_glob = s.f_max_glob;
     }
@@ -1559,46 +1567,39 @@ void LagBFunction::put_State(State &&state)
     // now add back all the Solution in the State (possibly after a check)
     auto gpit = g_pool.begin();
 
-    if (ChkState) // if Solutions are checked
-      for (Index i = 0; i < s.g_pool.size(); ++i)
-      {
-        if (s.g_pool[i].sol)
-        {
-          // write the Solution to the inner Block
-          s.g_pool[i].sol->write(v_Block.front());
-
-          // if it's still a feasible solution/direction, copy it
-          if ((s.g_pool[i].varsol ? v_Block.front()->is_feasible()
-                                  : v_Block.front()->is_unbounded()))
-          {
-            gpit->sol = s.g_pool[i].sol; // move the Solution in
-            s.g_pool[i].sol = nullptr;   // delete it from the State
-            gpit->varsol = s.g_pool[i].varsol;
-            gpit->value = s.g_pool[i].value; // eager/lazy constant
-            gpit->convexified = s.g_pool[i].convexified;
-            gpit->conv_active.clear(); // cache: rebuilt lazily
-            Addd.push_back(i);
-            f_max_glob = i + 1;
-          }
-        }
-        ++gpit;
+  if( ChkState )  // if Solutions are checked
+   for( Index i = 0 ; i < s.g_pool.size() ; ++i ) {
+    if( s.g_pool[ i ].sol ) {
+     // if it's still a feasible solution/direction, copy it: the Block is
+     // told which of the two it is being handed and answers with one method
+     if( check_Solution( s.g_pool[ i ].sol ) ) {
+      gpit->sol = s.g_pool[ i ].sol;  // move the Solution in
+      s.g_pool[ i ].sol = nullptr;      // delete it from the State
+      gpit->varsol = s.g_pool[ i ].varsol;
+      gpit->sol->is_direction( ! gpit->varsol );
+      gpit->value = s.g_pool[ i ].value;            // eager/lazy constant
+      gpit->convexified = s.g_pool[ i ].convexified;
+      gpit->conv_active.clear();                    // cache: rebuilt lazily
+      Addd.push_back( i );
+      f_max_glob = i + 1;
       }
-    else
-    { // it is trusted that Solution are correct
-      for (Index i = 0; i < s.g_pool.size(); ++i)
-      {
-        if (s.g_pool[i].sol)
-        {
-          gpit->sol = s.g_pool[i].sol; // move the Solution in
-          s.g_pool[i].sol = nullptr;   // delete it from the State
-          gpit->varsol = s.g_pool[i].varsol;
-          gpit->value = s.g_pool[i].value; // eager/lazy constant
-          gpit->convexified = s.g_pool[i].convexified;
-          gpit->conv_active.clear(); // cache: rebuilt lazily
-          Addd.push_back(i);
-        }
-        ++gpit;
-      }
+     }
+    ++gpit;
+    }
+  else {        // it is trusted that Solution are correct
+   for( Index i = 0 ; i < s.g_pool.size() ; ++i ) {
+    if( s.g_pool[ i ].sol ) {
+     gpit->sol = s.g_pool[ i ].sol;  // move the Solution in
+     s.g_pool[ i ].sol = nullptr;      // delete it from the State
+     gpit->varsol = s.g_pool[ i ].varsol;
+     gpit->sol->is_direction( ! gpit->varsol );
+     gpit->value = s.g_pool[ i ].value;            // eager/lazy constant
+     gpit->convexified = s.g_pool[ i ].convexified;
+     gpit->conv_active.clear();                    // cache: rebuilt lazily
+     Addd.push_back( i );
+     }
+    ++gpit;
+    }
 
       f_max_glob = s.f_max_glob;
     }
@@ -1752,14 +1753,16 @@ void LagBFunction::store_linearization(Index name, ModParam issueMod)
       throw(std::logic_error("LagBFunction: no Solution provided by Block"));
   }
 
-  g_pool[name].varsol = VarSol; // record the Solution type
-  // reset the slot in case it previously held a convexified linearization; the
-  // epigraphic correction (if any) is computed right below
-  g_pool[name].convexified = false;
-  g_pool[name].value = 0;
-  g_pool[name].conv_active.clear();
-  // stale subgradient cache (repopulated below)
-  LastSolution = name; // record that the Solution has been stored
+ g_pool[ name ].varsol = VarSol;  // record the Solution type
+ if( ! NoSol )                    // and the Solution is told what it holds
+  g_pool[ name ].sol->is_direction( ! VarSol );
+ // reset the slot in case it previously held a convexified linearization; the
+ // epigraphic correction (if any) is computed right below
+ g_pool[ name ].convexified = false;
+ g_pool[ name ].value = 0;
+ g_pool[ name ].conv_active.clear();
+ // stale subgradient cache (repopulated below)
+ LastSolution = name;             // record that the Solution has been stored
 
   // the stored x* need not be a genuine subproblem solution: when it is a
   // *convex combination* of subproblem solutions, re-evaluating the objective
@@ -1851,10 +1854,14 @@ void LagBFunction::store_combination_of_linearizations(
             << name << std::endl;
 #endif
 
-  // get a scaled version of the first Solution
-  auto first = coefficients[0].first;
-  auto convex_combination = (g_pool[first].sol)->scale(coefficients[0].second);
-  bool type = g_pool[first].varsol; // diagonal unless already vertical
+ // get a scaled version of the first Solution
+ auto first = coefficients[ 0 ].first;
+ auto convex_combination = ( g_pool[ first ].sol
+			     )->scale( coefficients[ 0 ].second );
+ // the combination is diagonal as soon as one of its constituents is, the
+ // vertical ones entering it with conic multipliers; it is vertical only if
+ // all of them are
+ bool type = g_pool[ first ].varsol;
 
   // for all other Solutions in the pool
   for (Index i = 1; i < coefficients.size(); ++i)
@@ -1872,9 +1879,8 @@ void LagBFunction::store_combination_of_linearizations(
     // add the new term to the convex combination
     convex_combination->sum(g_pool[pos].sol, mult);
 
-    // if the convex combination even contains a single direction
-    if (!g_pool[pos].varsol)
-      type = false; // then it is a direction
+  if( g_pool[ pos ].varsol )
+   type = true;
   }
 
   // BEFORE overwriting slot 'name' (it may itself be one of the constituents),
@@ -1948,8 +1954,10 @@ void LagBFunction::store_combination_of_linearizations(
     }
   }
 
-  g_pool[name].varsol = type;                    // store the type
-  g_pool[name].conv_active = std::move(comb_ca); // empty if not combinable
+ g_pool[ name ].varsol = type;             // store the type
+ if( g_pool[ name ].sol )                  // and the Solution is told it
+  g_pool[ name ].sol->is_direction( ! type );
+ g_pool[ name ].conv_active = std::move( comb_ca );  // empty if not combinable
 
   if (name == LastSolution)       // if this was the Solution in the inner Block
     LastSolution = g_pool.size(); // it is no longer valid
@@ -5156,11 +5164,12 @@ void LagBFunctionState::deserialize(const netCDF::NcGroup &group)
     auto ncv = group.getVar("LagBFunction_Value");
     auto ncc = group.getVar("LagBFunction_Convexified");
 
-    for (Index i = 0; i < f_max_glob; ++i)
-    {
-      int ti;
-      nct.getVar({i}, &ti);
-      g_pool[i].varsol = (ti != 0);
+  for( Index i = 0 ; i < f_max_glob ; ++i ) {
+   int ti;
+   nct.getVar( { i } , &ti );
+   g_pool[ i ].varsol = ( ti != 0 );
+   if( g_pool[ i ].sol )  // a State written before the Solution carried it
+    g_pool[ i ].sol->is_direction( ti == 0 );
 
       if (!ncv.isNull())
         ncv.getVar({i}, &(g_pool[i].value));

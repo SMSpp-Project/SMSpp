@@ -20,7 +20,6 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#include "SMSTypedefs.h"
 #include "ColVariable.h"
 #include "ColVariableSolution.h"
 
@@ -37,6 +36,25 @@ using namespace SMSpp_di_unipi_it;
 // register ColVariableSolution to the Solution factory
 
 SMSpp_insert_in_factory_cpp_0( ColVariableSolution );
+
+/*--------------------------------------------------------------------------*/
+/*-------------------------------- FUNCTIONS -------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+namespace {
+
+/// calls f() on a group, returning false if it is not one of ColVariable
+
+template< class F >
+bool on_group( const std::unique_ptr< BaseGroup > & group , F f )
+{
+ if( ( ! group ) || ( group->get_element_type() != typeid( ColVariable ) ) )
+  return( false );
+ f( std::as_const( *group ) );
+ return( true );
+ }
+
+}  // end( unnamed namespace )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------- METHODS --------------------------------*/
@@ -56,39 +74,10 @@ ColVariableSolution::~ColVariableSolution() {
 /*--------------------------------------------------------------------------*/
 
 void ColVariableSolution::delete_vectors() {
-
-  for( Vec_any::size_type i = 0 ; i < static_variable_values.size() ; ++i )
-
-    if( ! un_any_thing_static( double , static_variable_values[ i ] ,
-                               [ & var ]() { delete & var; }() ) )
-
-      throw( std::logic_error
-       ( std::string( "ColVariableSolution::~ColVariableSolution() "
-                      "invalid static variable group: " ) +
-         static_variable_values[ i ].type().name() ) );
-
-  // the saved values of a dynamic variable group are stored flat, as a
-  // std::vector< double > * (one entry per Variable in the group), i.e. with
-  // the same shape as a static "vector" group; hence they are matched by
-  // un_any_thing_static( double , ... ) (which handles double * / vector< double
-  // > * / multi_array< double > *), NOT by un_any_thing_dynamic( vector< double
-  // > , ... ) (which only matches list< vector< double > > * and the like)
-
-  for( Vec_any::size_type i = 0 ; i < dynamic_variable_values.size() ; ++i )
-
-    if( ! un_any_thing_static( double ,
-                               dynamic_variable_values[ i ] ,
-                               [ & var ]() { delete & var; }() ) )
-
-      throw( std::logic_error
-       ( std::string( "ColVariableSolution::~ColVariableSolution() "
-                      "invalid dynamic variable group: " ) +
-         dynamic_variable_values[ i ].type().name() ) );
-
-  static_variable_values.resize( 0 );
-  dynamic_variable_values.resize( 0 );
-  nested_solutions.resize( 0 );
-}
+ static_variable_values.resize( 0 );
+ dynamic_variable_values.resize( 0 );
+ nested_solutions.resize( 0 );
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -113,104 +102,64 @@ void ColVariableSolution::initialize( const Block * const block , bool read ) {
 void ColVariableSolution::initialize_static_variable_values
 ( const Block * const block , bool read ) {
 
-  // Initialize static variable values
+ const auto & variable_groups = block->get_static_variables();
+ const auto & groups = block->get_static_variable_groups();
+ static_variable_values.resize( variable_groups.size() );
 
-  const auto & variable_groups = block->get_static_variables();
-  static_variable_values.resize( variable_groups.size() );
-
-  for( Vec_any::size_type i = 0; i < static_variable_values.size(); ++i ) {
-
-    if( ! (
-           un_any_static_2_create
-           ( variable_groups[ i ] , static_variable_values[ i ] ,
-             un_any_type< ColVariable >() , un_any_type< double >() ,
-             []( ColVariable & variable , double & value ) {
-             value = variable.get_value(); } , read )
-           ||
-           un_any_static_2_create
-           ( variable_groups[ i ] , static_variable_values[ i ] ,
-             un_any_type< ColVariable * >() , un_any_type< double >() ,
-             []( ColVariable * variable , double & value ) {
-             value = variable->get_value(); } , read ) ) )
-
-      throw( std::logic_error( std::string( "ColVariableSolution::initialize: "
-                                            "invalid variable group: " ) +
-                               variable_groups[ i ].type().name() ) );
+ for( Vec_any::size_type i = 0 ; i < static_variable_values.size() ; ++i ) {
+  auto & values = static_variable_values[ i ];
+  if( ! on_group( groups[ i ] ,
+                 [ & values , read ]( const BaseGroup & group ) {
+       values.assign( group.get_num_elements() , 0 );
+       if( read ) {
+	auto value = values.data();
+	group.for_each_as< ColVariable >( [ & value ]( ColVariable & var ) {
+	  *(value++) = var.get_value(); } );
+	}
+       } ) )
+   throw( std::logic_error( std::string( "ColVariableSolution::initialize: "
+					 "invalid variable group: " ) +
+			    variable_groups[ i ].type().name() ) );
   }
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 
 void ColVariableSolution::initialize_dynamic_variable_values
 ( const Block * const block , bool read ) {
 
-  // Initialize dynamic variable values
+ const auto & variable_groups = block->get_dynamic_variables();
+ const auto & groups = block->get_dynamic_variable_groups();
+ dynamic_variable_values.resize( variable_groups.size() );
 
-  const auto & variable_groups = block->get_dynamic_variables();
-  dynamic_variable_values.resize( variable_groups.size() );
-
-  for( Vec_any::size_type i = 0; i < dynamic_variable_values.size(); ++i ) {
-
-    if( ! (
-           un_any_dynamic_2_create
-           ( variable_groups[ i ] , dynamic_variable_values[ i ] ,
-             un_any_type< ColVariable >() ,
-             un_any_type< std::vector< double > >() ,
-
-             []( std::list< ColVariable > & list_variables ,
-                 std::vector< double > & list_values ) {
-
-             // Resize the vector of values so that it can accommodate
-             // the values of all variables
-             if( list_values.size() < list_variables.size() )
-               list_values.resize( list_variables.size() );
-
-             auto i1 = list_variables.begin();
-             auto i2 = list_values.begin();
-
-             for( ; i1 != list_variables.end() &&
-                    i2 != list_values.end() ; ++i1 , ++i2 )
-               *i2 = ( *i1 ).get_value();
-           } , read )
-
-           ||
-
-           un_any_dynamic_2_create
-           ( variable_groups[ i ] , dynamic_variable_values[ i ] ,
-             un_any_type< ColVariable * >() ,
-             un_any_type< std::vector< double > >() ,
-
-             []( std::list< ColVariable * > & list_variables ,
-                 std::vector< double > & list_values ) {
-
-             // Resize the vector of values so that it can accommodate
-             // the values of all variables
-             if( list_values.size() < list_variables.size() )
-               list_values.resize( list_variables.size() );
-
-             auto i1 = list_variables.begin();
-             auto i2 = list_values.begin();
-
-             for( ; i1 != list_variables.end() &&
-                    i2 != list_values.end() ; ++i1 , ++i2 )
-               *i2 = ( *i1 )->get_value();
-           } , read ) ) )
-
-      throw( std::logic_error
-       ( std::string( "ColVariableSolution::"
-                      "initialize_dynamic_variable_values: "
-                      "invalid variable group: " ) +
-         variable_groups[ i ].type().name() ) );
+ for( Vec_any::size_type i = 0 ; i < dynamic_variable_values.size() ; ++i ) {
+  auto & values = dynamic_variable_values[ i ];
+  if( ! on_group( groups[ i ] ,
+                 [ & values , read ]( const BaseGroup & group ) {
+       values.assign( group.get_num_cells() , {} );
+       if( read )
+	group.for_each_cell_as< ColVariable >(
+	 [ & values ]( BaseGroup::Index c , auto & cell ) {
+	  values[ c ].resize( cell.size() );
+	  auto value = values[ c ].data();
+	  for( auto & item : cell )
+	   *(value++) = group_element( item ).get_value();
+	  } );
+       } ) )
+   throw( std::logic_error( std::string( "ColVariableSolution::"
+					 "initialize_dynamic_variable_values: "
+					 "invalid variable group: " ) +
+			    variable_groups[ i ].type().name() ) );
   }
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 
-template< class F1 , class F2 >
 void ColVariableSolution::apply_static( const Block * const block ,
-                                        F1 f1 , F2 f2 ) {
+                                        bool read ) {
 
   auto & variable_groups = block->get_static_variables();
+ const auto & groups = block->get_static_variable_groups();
 
   if( variable_groups.size() != static_variable_values.size() )
     throw( std::logic_error
@@ -221,33 +170,39 @@ void ColVariableSolution::apply_static( const Block * const block ,
        std::string( ") is different from that of the Block (" ) +
        std::to_string( variable_groups.size() ) + std::string( ")" ) ) );
 
-  for( Vec_any::size_type i = 0; i < static_variable_values.size(); ++i ) {
-
-    if( ! (
-           un_any_static_2( variable_groups[ i ] , static_variable_values[ i ] ,
-                            f1 ,
-                            un_any_type< ColVariable >() ,
-                            un_any_type< double >() )
-           ||
-           un_any_static_2( variable_groups[ i ] ,
-                            static_variable_values[ i ] ,
-                            f2 ,
-                            un_any_type< ColVariable * >() ,
-                            un_any_type< double >() )
-           ) )
-
-      throw( std::logic_error( std::string(
-       "ColVariableSolution::apply_static: invalid types" ) ) );
+ for( Vec_any::size_type i = 0 ; i < static_variable_values.size() ; ++i ) {
+  auto & values = static_variable_values[ i ];
+  bool conforming = true;
+  if( ! on_group( groups[ i ] ,
+                 [ & ]( const BaseGroup & group ) {
+       if( group.get_num_elements() != values.size() ) {
+	conforming = false;
+	return;
+	}
+       auto value = values.data();
+       if( read )
+	group.for_each_as< ColVariable >( [ & value ]( ColVariable & var ) {
+	  *(value++) = var.get_value(); } );
+       else
+	group.for_each_as< ColVariable >( [ & value ]( ColVariable & var ) {
+	  var.set_value( *(value++) ); } );
+       } ) )
+   throw( std::logic_error( "ColVariableSolution::apply_static: "
+			    "invalid types" ) );
+  if( ! conforming )
+   throw( std::logic_error( "ColVariableSolution::apply_static: the size of "
+			    "static Variable group " + std::to_string( i ) +
+			    " is different from that of the Block" ) );
   }
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 
-template< class F1 , class F2 >
 void ColVariableSolution::apply_dynamic( const Block * const block ,
-                                         F1 f1 , F2 f2 ) {
+                                         bool read ) {
 
   auto & variable_groups = block->get_dynamic_variables();
+ const auto & groups = block->get_dynamic_variable_groups();
 
   if( variable_groups.size() != dynamic_variable_values.size() )
     throw( std::logic_error
@@ -258,31 +213,55 @@ void ColVariableSolution::apply_dynamic( const Block * const block ,
        std::string( ") is different from that of the Block (" ) +
        std::to_string( variable_groups.size() ) + std::string( ")" ) ) );
 
-  for( Vec_any::size_type i = 0; i < dynamic_variable_values.size(); ++i ) {
-
-    if( ! (
-           un_any_dynamic_2( variable_groups[ i ] ,
-                             dynamic_variable_values[ i ] ,
-                             f1 ,
-                             un_any_type< ColVariable >() ,
-                             un_any_type< std::vector< double > >() )
-           ||
-           un_any_dynamic_2( variable_groups[ i ] ,
-                             dynamic_variable_values[ i ] ,
-                             f2 ,
-                             un_any_type< ColVariable * >() ,
-                             un_any_type< std::vector< double > >() )
-           ) )
-
-      throw( std::logic_error
-       ( std::string( "ColVariableSolution::apply_dynamic: "
-                      "invalid types" ) ) );
+ for( Vec_any::size_type i = 0 ; i < dynamic_variable_values.size() ; ++i ) {
+  auto & values = dynamic_variable_values[ i ];
+  bool conforming = true;
+  if( ! on_group( groups[ i ] ,
+                 [ & ]( const BaseGroup & group ) {
+       if( group.get_num_cells() != values.size() ) {
+	conforming = false;
+	return;
+	}
+       group.for_each_cell_as< ColVariable >(
+	[ & values , read ]( BaseGroup::Index c , auto & cell ) {
+	 auto & cell_values = values[ c ];
+	 if( read ) {
+	  // the values of a cell may outlive the Variables they were read
+	  // from, hence the vector only grows
+	  if( cell_values.size() < cell.size() )
+	   cell_values.resize( cell.size() );
+	  auto value = cell_values.data();
+	  for( auto & item : cell )
+	   *(value++) = group_element( item ).get_value();
+	  }
+	 else {
+	  // Variables beyond the stored values get their default value
+	  auto value = cell_values.begin();
+	  for( auto & item : cell )
+	   if( value != cell_values.end() )
+	    group_element( item ).set_value( *(value++) );
+	   else
+	    group_element( item ).set_to_default_value();
+	  }
+	 } );
+       } ) )
+   throw( std::logic_error( "ColVariableSolution::apply_dynamic: "
+			    "invalid types" ) );
+  if( ! conforming )
+   throw( std::logic_error( "ColVariableSolution::apply_dynamic: the number "
+			    "of cells of dynamic Variable group " +
+			    std::to_string( i ) +
+			    " is different from that of the Block" ) );
   }
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 
 void ColVariableSolution::read( const Block * const block ) {
+
+  // what the Variable hold, a solution or a direction, is what this
+  // Solution holds from now on
+  f_direction = block->is_direction();
 
   if( static_variable_values.size() != block->get_static_variables().size() ||
       dynamic_variable_values.size() != block->get_dynamic_variables().size() ||
@@ -295,46 +274,8 @@ void ColVariableSolution::read( const Block * const block ) {
   }
 
   try {
-
-    apply_static( block ,
-                  []( ColVariable & variable , double & value ) {
-                    value = variable.get_value(); } ,
-                  []( ColVariable * variable , double & value ) {
-                    value = variable->get_value(); } );
-
-    apply_dynamic( block ,
-                   []( std::list< ColVariable > & list_variables ,
-                       std::vector< double > & list_values ) {
-
-                     // Resize the vector of values so that it can accommodate
-                     // the values of all variables
-                     if( list_values.size() < list_variables.size() )
-                       list_values.resize( list_variables.size() );
-
-                     auto i1 = list_variables.begin();
-                     auto i2 = list_values.begin();
-
-                     for( ; i1 != list_variables.end() &&
-                            i2 != list_values.end() ; ++i1 , ++i2 )
-                       *i2 = ( *i1 ).get_value();
-                   } ,
-
-                   []( std::list< ColVariable * > & list_variables ,
-                       std::vector< double > & list_values ) {
-
-                     // Resize the vector of values so that it can accommodate
-                     // the values of all variables
-                     if( list_values.size() < list_variables.size() )
-                       list_values.resize( list_variables.size() );
-
-                     auto i1 = list_variables.begin();
-                     auto i2 = list_values.begin();
-
-                     for( ; i1 != list_variables.end() &&
-                            i2 != list_values.end() ; ++i1 , ++i2 )
-                       *i2 = ( *i1 )->get_value();
-                   }
-                   );
+    apply_static( block , true );
+    apply_dynamic( block , true );
   }
   catch( std::exception & e ) {
     // The given Block and this ColVariableSolution do not have the
@@ -368,48 +309,8 @@ void ColVariableSolution::read( const Block * const block ) {
 
 void ColVariableSolution::write( Block * const block ) {
 
-  apply_static( block ,
-                []( ColVariable & variable , double value ) {
-                  variable.set_value(value); } ,
-                []( ColVariable * variable , double value ) {
-                  variable->set_value(value); } );
-
-  apply_dynamic( block ,
-                 []( std::list< ColVariable > & list_variables ,
-                     std::vector< double > & list_values ) {
-
-                   auto i1 = list_variables.begin();
-                   auto i2 = list_values.begin();
-
-                   for( ; i1 != list_variables.end() &&
-                          i2 != list_values.end() ; ++i1 , ++i2 )
-                     ( *i1 ).set_value( *i2 );
-
-                   // If the number of Variables is greater than the number of
-                   // values in the Solution, set the value of the remaining
-                   // Variables to their default value.
-                   for( ; i1 != list_variables.end() ; ++i1 )
-                     ( *i1 ).set_to_default_value();
-
-                 } ,
-
-                 []( std::list< ColVariable * > & list_variables ,
-                     std::vector< double > & list_values ) {
-
-                   auto i1 = list_variables.begin();
-                   auto i2 = list_values.begin();
-
-                   for( ; i1 != list_variables.end() &&
-                          i2 != list_values.end() ; ++i1 , ++i2 )
-                     ( *i1 )->set_value( *i2 );
-
-                   // If the number of Variables is greater than the number of
-                   // values in the Solution, set the value of the remaining
-                   // Variables to their default value.
-                   for( ; i1 != list_variables.end() ; ++i1 )
-                     ( *i1 )->set_to_default_value();
-
-                 } );
+  apply_static( block , false );
+  apply_dynamic( block , false );
 
   // Write the solutions of the nested Blocks
 
@@ -450,75 +351,64 @@ void ColVariableSolution::sum( const Solution * solution, double multiplier ) {
      ( "ColVariableSolution::sum: "
        "given Solution must be a ColVariableSolution" ) );
 
+  // the sum is a direction only if every Solution in it is one
+  f_direction = f_direction && other_solution->f_direction;
+
   if( empty() ) {
    scale( other_solution , multiplier );
    return;
    }
 
-  if( this->static_variable_values.size() !=
-      other_solution->static_variable_values.size() )
+  if( ( static_variable_values.size() !=
+	other_solution->static_variable_values.size() ) ||
+      ( dynamic_variable_values.size() !=
+	other_solution->dynamic_variable_values.size() ) )
 
     throw( std::logic_error
      ( std::string( "ColVariableSolution::sum: "
                     "number of variable groups of this Solution (" ) +
-       std::to_string( this->static_variable_values.size() ) +
+       std::to_string( static_variable_values.size() ) + "+" +
+       std::to_string( dynamic_variable_values.size() ) +
        std::string( ") is different from the "
                     "number of variable groups (" ) +
-       std::to_string( other_solution->static_variable_values.size() ) +
+       std::to_string( other_solution->static_variable_values.size() ) + "+" +
+       std::to_string( other_solution->dynamic_variable_values.size() ) +
        std::string( ") of the given Solution" ) ) );
 
   // Sum the values of the static Variables
 
-  for( Vec_any::size_type i = 0; i < static_variable_values.size(); ++i )
+ for( Vec_any::size_type i = 0 ; i < static_variable_values.size() ; ++i ) {
+  auto & values = static_variable_values[ i ];
+  const auto & other_values = other_solution->static_variable_values[ i ];
+  if( values.size() != other_values.size() )
+   throw( std::logic_error( "ColVariableSolution::sum: static variable group "
+			    + std::to_string( i ) + " has " +
+			    std::to_string( values.size() ) + " values here "
+			    "and " + std::to_string( other_values.size() ) +
+			    " in the given Solution" ) );
+  for( std::size_t k = 0 ; k < values.size() ; ++k )
+   values[ k ] += multiplier * other_values[ k ];
+  }
 
-    if( ! un_any_static_2
-        ( this->static_variable_values[ i ] ,
-          other_solution->static_variable_values[ i ] ,
-          [ multiplier ]( double & this_value , double & other_value ) {
-          this_value += multiplier * other_value;
-        } ,
-          un_any_type< double >() , un_any_type< double >() ) )
+  // Sum the values of the dynamic Variables: a value missing on either side
+  // counts as zero
 
-      throw( std::logic_error
-       ( std::string( "ColVariableSolution::sum: invalid or non-conforming "
-                      "static variable group types: " ) +
-         static_variable_values[ i ].type().name() + std::string( " and " ) +
-         other_solution->static_variable_values[ i ].type().name() ) );
-
-  // Sum the values of the dynamic Variables
-
-  for( Vec_any::size_type i = 0; i < dynamic_variable_values.size(); ++i )
-
-    if( ! un_any_static_2
-        ( this->dynamic_variable_values[ i ] ,
-          other_solution->dynamic_variable_values[ i ] ,
-          [ multiplier ]( std::vector< double > & this_values ,
-                        std::vector< double > & other_values ) {
-
-          // Reserve space in case the other solution has more dynamic
-          // Variable values
-          this_values.reserve( other_values.size() );
-
-          auto i1 = this_values.begin();
-          auto i2 = other_values.begin();
-
-          for( ; i1 != this_values.end() &&
-                 i2 != other_values.end() ; ++i1 , ++i2 )
-            *i1 += multiplier * ( *i2 );
-
-          // Copy the values of the extra Variables
-          for( ; i2 != other_values.end() ; ++i2 )
-            *i1 = multiplier * ( *i2 );
-        } ,
-          un_any_type< std::vector< double > >() ,
-          un_any_type< std::vector< double > >() ) )
-
-      throw( std::logic_error
-       ( std::string( "ColVariableSolution::sum: invalid or non-conforming "
-                      "dynamic variable group types: " ) +
-         this->dynamic_variable_values[ i ].type().name() +
-         std::string( " and " ) +
-         other_solution->dynamic_variable_values[ i ].type().name() ) );
+ for( Vec_any::size_type i = 0 ; i < dynamic_variable_values.size() ; ++i ) {
+  auto & cells = dynamic_variable_values[ i ];
+  const auto & other_cells = other_solution->dynamic_variable_values[ i ];
+  if( cells.size() != other_cells.size() )
+   throw( std::logic_error( "ColVariableSolution::sum: dynamic variable group "
+			    + std::to_string( i ) + " has " +
+			    std::to_string( cells.size() ) + " cells here "
+			    "and " + std::to_string( other_cells.size() ) +
+			    " in the given Solution" ) );
+  for( std::size_t c = 0 ; c < cells.size() ; ++c ) {
+   if( cells[ c ].size() < other_cells[ c ].size() )
+    cells[ c ].resize( other_cells[ c ].size() , 0 );
+   for( std::size_t k = 0 ; k < other_cells[ c ].size() ; ++k )
+    cells[ c ][ k ] += multiplier * other_cells[ c ][ k ];
+   }
+  }
 
   // Sum the solutions of the nested Blocks
 
@@ -564,68 +454,31 @@ ColVariableSolution * ColVariableSolution::clone( bool empty ) const {
 void ColVariableSolution::scale( const ColVariableSolution * const solution ,
                                  const double factor ) {
 
-  this->delete_vectors();
+ this->delete_vectors();
 
-  // Scale static variable values
+ f_direction = solution->f_direction;  // scaling a direction gives one
 
-  this->static_variable_values.resize
-    ( solution->static_variable_values.size() );
+ static_variable_values = solution->static_variable_values;
+ for( auto & values : static_variable_values )
+  for( auto & value : values )
+   value *= factor;
 
-  for( Vec_any::size_type i = 0; i < static_variable_values.size(); ++i )
+ dynamic_variable_values = solution->dynamic_variable_values;
+ for( auto & cells : dynamic_variable_values )
+  for( auto & values : cells )
+   for( auto & value : values )
+    value *= factor;
 
-    if( ! un_any_static_2_create
-        ( solution->static_variable_values[ i ] ,
-          this->static_variable_values[ i ] ,
-          un_any_type< double >() , un_any_type< double >() ,
-          [ factor ]( double & given_solution_value , double & scaled_value ) {
-          scaled_value = factor * given_solution_value;
-        } ,
-          true ) )
+ this->nested_solutions.resize( solution->nested_solutions.size() );
 
-      throw( std::logic_error
-       ( std::string( "ColVariableSolution::scale: invalid or non-conforming "
-                      "static variable group types: " ) +
-         solution->static_variable_values[ i ].type().name() +
-         std::string( " and " ) +
-         this->static_variable_values[ i ].type().name() ) );
+ // Scale the solutions of the nested Blocks
 
-  // Scale dynamic variable values
+ auto i1 = this->nested_solutions.begin();
+ auto i2 = solution->nested_solutions.begin();
 
-  this->dynamic_variable_values.resize
-    ( solution->dynamic_variable_values.size() );
-
-  for( Vec_any::size_type i = 0; i < dynamic_variable_values.size(); ++i )
-
-    if( ! un_any_static_2_create
-        ( solution->dynamic_variable_values[ i ] ,
-          this->dynamic_variable_values[ i ] ,
-          un_any_type< std::vector< double > >() ,
-          un_any_type< std::vector< double > >() ,
-          [ factor ]( std::vector< double > & given_solution_values ,
-                      std::vector< double > & scaled_values ) {
-          scaled_values.resize(0);
-          scaled_values.reserve(given_solution_values.size());
-          for( auto & value : given_solution_values )
-            scaled_values.push_back( factor * value );
-        } ) )
-
-      throw( std::logic_error
-       ( std::string( "ColVariableSolution::scale: invalid or non-conforming "
-                      "dynamic variable group types: " ) +
-         solution->dynamic_variable_values[ i ].type().name() +
-         std::string( " and " ) +
-         this->dynamic_variable_values[ i ].type().name() ) );
-
-  // Scale the solutions of the nested Blocks
-
-  this->nested_solutions.resize( solution->nested_solutions.size() );
-
-  auto i1 = this->nested_solutions.begin();
-  auto i2 = solution->nested_solutions.begin();
-
-  for( ; i1 != this->nested_solutions.end() ; ++i1 , ++i2 )
-    ( *i1 ).scale( &( *i2 ) , factor );
-}
+ for( ; i1 != this->nested_solutions.end() ; ++i1 , ++i2 )
+  ( *i1 ).scale( &( *i2 ) , factor );
+ }
 
 /*--------------------------------------------------------------------------*/
 /*----------------- End File ColVariableSolution.cpp -----------------------*/

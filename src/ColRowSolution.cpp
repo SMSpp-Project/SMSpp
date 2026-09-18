@@ -45,6 +45,7 @@ void ColRowSolution::deserialize( const netCDF::NcGroup & group ) {
 /*--------------------------------------------------------------------------*/
 
 void ColRowSolution::read( const Block * const block ) {
+ f_direction = block->is_direction();
  f_variable_solution.read( block );
  f_constraint_solution.read( block );
 }
@@ -75,6 +76,9 @@ void ColRowSolution::sum( const Solution * solution, double multiplier ) {
   throw( std::invalid_argument( "ColRowSolution::sum: given Solution "
                                 "must be a ColRowSolution" ) );
 
+ // the sum is a direction only if every Solution in it is one
+ f_direction = f_direction && other_solution->f_direction;
+
  f_variable_solution.sum( & other_solution->get_variable_solution() ,
                           multiplier );
  f_constraint_solution.sum( & other_solution->get_constraint_solution() ,
@@ -104,6 +108,7 @@ ColRowSolution * ColRowSolution::clone( bool empty ) const {
 
 void ColRowSolution::scale( const ColRowSolution * const solution ,
                             const double factor ) {
+ f_direction = solution->f_direction;  // scaling a direction gives one
  f_variable_solution.scale( & solution->get_variable_solution() , factor );
  f_constraint_solution.scale( & solution->get_constraint_solution() , factor );
 }
