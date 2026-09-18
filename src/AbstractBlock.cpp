@@ -20,10 +20,11 @@
 
 #include "AbstractBlock.h"
 
+#include "GroupAdapter.h"
+
 #include "ColVariable.h"
 
 #include "LinearFunction.h"
-#include "DQuadFunction.h"
 #include "QuadFunction.h"
 #include "FRowConstraint.h"
 #include "OneVarConstraint.h"
@@ -45,6 +46,46 @@ using v_coeff_triple = DQuadFunction::v_coeff_triple;
 using v_off_diag_term = QuadFunction::v_off_diag_term;
 
 /*--------------------------------------------------------------------------*/
+/*------------------------------- FUNCTIONS --------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+namespace {
+
+/// calls the right function on each element of a group of :RowConstraint
+/** Calls frow() on each element of the group if these are FRowConstraint, and
+ * onevar() on each of them if these are one of the concrete :OneVarConstraint
+ * of the core; the type is matched exactly, so the loop runs on it. Returns
+ * false, having done nothing, if the elements are of none of those types. */
+
+template< class FR , class FO >
+bool for_each_RowConstraint( const BaseGroup & group , FR frow , FO onevar )
+{
+ auto type = group.get_element_type();
+ if( type == typeid( FRowConstraint ) )
+  return( group.for_each_as< FRowConstraint >( frow ) );
+ if( type == typeid( BoxConstraint ) )
+  return( group.for_each_as< BoxConstraint >( onevar ) );
+ if( type == typeid( LB0Constraint ) )
+  return( group.for_each_as< LB0Constraint >( onevar ) );
+ if( type == typeid( UB0Constraint ) )
+  return( group.for_each_as< UB0Constraint >( onevar ) );
+ if( type == typeid( LBConstraint ) )
+  return( group.for_each_as< LBConstraint >( onevar ) );
+ if( type == typeid( UBConstraint ) )
+  return( group.for_each_as< UBConstraint >( onevar ) );
+ if( type == typeid( NNConstraint ) )
+  return( group.for_each_as< NNConstraint >( onevar ) );
+ if( type == typeid( NPConstraint ) )
+  return( group.for_each_as< NPConstraint >( onevar ) );
+ if( type == typeid( ZOConstraint ) )
+  return( group.for_each_as< ZOConstraint >( onevar ) );
+
+ return( false );
+ }
+
+}  // end( unnamed namespace )
+
+/*--------------------------------------------------------------------------*/
 /*----------------------------- STATIC MEMBERS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -58,83 +99,19 @@ SMSpp_insert_in_factory_cpp_1( AbstractBlock );
 
 AbstractBlock::~AbstractBlock()
 {
- // first, clear() all Constraint
+ // first, clear() all Constraint: each group says what it holds, hence no
+ // type has to be enumerated here
  auto & sc = get_static_constraints();
- for( Index i = get_first_static_Constraint(); i < sc.size(); ++i ) {
-  if( un_any_const_static( sc[ i ],
-                           []( FRowConstraint & cnst ) { cnst.clear(); },
-                           un_any_type< FRowConstraint >() ) )
-   continue;
-  if( un_any_const_static( sc[ i ],
-                           []( BoxConstraint & cnst ) { cnst.clear(); },
-                           un_any_type< BoxConstraint >() ) )
-   continue;
-  if( un_any_const_static( sc[ i ],
-                           []( LB0Constraint & cnst ) { cnst.clear(); },
-                           un_any_type< LB0Constraint >() ) )
-   continue;
-  if( un_any_const_static( sc[ i ],
-                           []( UB0Constraint & cnst ) { cnst.clear(); },
-                           un_any_type< UB0Constraint >() ) )
-   continue;
-  if( un_any_const_static( sc[ i ],
-                           []( LBConstraint & cnst ) { cnst.clear(); },
-                           un_any_type< LBConstraint >() ) )
-   continue;
-  if( un_any_const_static( sc[ i ],
-                           []( UBConstraint & cnst ) { cnst.clear(); },
-                           un_any_type< UBConstraint >() ) )
-   continue;
-  if( un_any_const_static( sc[ i ],
-                           []( NNConstraint & cnst ) { cnst.clear(); },
-                           un_any_type< NNConstraint >() ) )
-   continue;
-  if( un_any_const_static( sc[ i ],
-                           []( NPConstraint & cnst ) { cnst.clear(); },
-                           un_any_type< NPConstraint >() ) )
-   continue;
-  un_any_const_static( sc[ i ], []( ZOConstraint & cnst ) { cnst.clear(); },
-                       un_any_type< ZOConstraint >() );
-  }
+ for( auto & group : make_constraint_groups( this , sc , {} , false ) )
+  if( group && ( ! group->is_indirect() ) &&
+      ( group->get_index() >= get_first_static_Constraint() ) )
+   group->for_each( []( Constraint & cnst ) { cnst.clear(); } );
 
  auto & dc = get_dynamic_constraints();
- for( Index i = get_first_dynamic_Constraint() ; i < dc.size() ; ++i ) {
-  if( un_any_const_dynamic( dc[ i ] ,
-                            []( FRowConstraint & cnst ) { cnst.clear(); } ,
-                            un_any_type< FRowConstraint >() ) )
-   continue;
-  if( un_any_const_dynamic( dc[ i ] ,
-                            []( BoxConstraint & cnst ) { cnst.clear(); } ,
-                            un_any_type< BoxConstraint >() ) )
-   continue;
-  if( un_any_const_dynamic( dc[ i ] ,
-                            []( LB0Constraint & cnst ) { cnst.clear(); } ,
-                            un_any_type< LB0Constraint >() ) )
-   continue;
-  if( un_any_const_dynamic( dc[ i ] ,
-                            []( UB0Constraint & cnst ) { cnst.clear(); } ,
-                            un_any_type< UB0Constraint >() ) )
-   continue;
-  if( un_any_const_dynamic( dc[ i ] ,
-                            []( LBConstraint & cnst ) { cnst.clear(); } ,
-                            un_any_type< LBConstraint >() ) )
-   continue;
-  if( un_any_const_dynamic( dc[ i ] ,
-                            []( UBConstraint & cnst ) { cnst.clear(); } ,
-                            un_any_type< UBConstraint >() ) )
-   continue;
-  if( un_any_const_dynamic( dc[ i ] ,
-                            []( NNConstraint & cnst ) { cnst.clear(); } ,
-                            un_any_type< NNConstraint >() ) )
-   continue;
-  if( un_any_const_dynamic( dc[ i ] ,
-                            []( NPConstraint & cnst ) { cnst.clear(); } ,
-                            un_any_type< NPConstraint >() ) )
-   continue;
-  un_any_const_dynamic( dc[ i ] ,
-                        []( ZOConstraint & cnst ) { cnst.clear(); } ,
-                        un_any_type< ZOConstraint >() );
-  }
+ for( auto & group : make_constraint_groups( this , dc , {} , true ) )
+  if( group && ( ! group->is_indirect() ) &&
+      ( group->get_index() >= get_first_dynamic_Constraint() ) )
+   group->for_each( []( Constraint & cnst ) { cnst.clear(); } );
 
  // then clear the Objective
  if( ( ! is_Objective_reserved() ) && get_objective() )
@@ -146,30 +123,38 @@ AbstractBlock::~AbstractBlock()
 
  v_Block.clear();
 
- // now delete all the static Constraint
- for( Index i = get_first_static_Constraint() ; i < sc.size() ; ++i ) {
-  if( un_any_thing_static( FRowConstraint , sc[ i ] , { delete &var; } ) )
-   continue;
-  if( un_any_thing_OneVarConstraint_static( sc[ i ] , { delete &var; } ) )
-   continue;
- }
+ // now delete the storage of all the Constraint: the container of a group
+ // is of a type that only the group knows, and it is the group that disposes
+ // of it. An irregular static group, i.e. one whose cells are vectors of
+ // different lengths, and a group of pointers are left alone: nothing ever
+ // deleted those containers here, and an AbstractBlock given one is not the
+ // owner of it
+ auto disposable = []( const std::unique_ptr< BaseGroup > & group ) {
+  return( group && ( ! group->is_indirect() ) &&
+	  ( group->is_dynamic() || ( ! group->cells_are_collections() ) ) );
+  };
+ for( auto & group : make_constraint_groups( this , sc , {} , false ) )
+  if( disposable( group ) &&
+      ( group->get_index() >= get_first_static_Constraint() ) )
+   group->delete_storage();
 
- // now delete all the dynamic Constraint
- for( Index i = get_first_dynamic_Constraint() ; i < dc.size() ; ++i ) {
-  if( un_any_thing_dynamic( FRowConstraint , dc[ i ] , { delete &var; } ) )
-   continue;
-  if( un_any_thing_OneVarConstraint_dynamic( dc[ i ] , { delete &var; } ) )
-   continue;
- }
+ for( auto & group : make_constraint_groups( this , dc , {} , true ) )
+  if( disposable( group ) &&
+      ( group->get_index() >= get_first_dynamic_Constraint() ) )
+   group->delete_storage();
 
- // now delete all the Variable
+ // now delete the storage of all the Variable
  auto & sv = get_static_variables();
- for( Index i = get_first_static_Variable() ; i < sv.size() ; ++i )
-  un_any_thing_static( ColVariable , sv[ i ] , { delete &var; } );
+ for( auto & group : make_variable_groups( this , sv , {} , false ) )
+  if( disposable( group ) &&
+      ( group->get_index() >= get_first_static_Variable() ) )
+   group->delete_storage();
 
  auto & dv = get_dynamic_variables();
- for( Index i = get_first_dynamic_Variable() ; i < dv.size() ; ++i )
-  un_any_thing_dynamic( ColVariable , dv[ i ] , { delete &var; } );
+ for( auto & group : make_variable_groups( this , dv , {} , true ) )
+  if( disposable( group ) &&
+      ( group->get_index() >= get_first_dynamic_Variable() ) )
+   group->delete_storage();
 
  // now delete the Objective
  if( ( ! is_Objective_reserved() ) && get_objective() )
@@ -329,160 +314,57 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
  //       even if possibly slower solution
  // auto & sc = get_static_constraints();
  //!! for( Index i = get_first_static_Constraint() ; i < sc.size() ; ++i ) {
- for( auto & sci : get_static_constraints() ) {
-  if( un_any_const_static( sci , check_frow ,
-                           un_any_type< FRowConstraint >() ) ) {
-   if( ! feas )
-    return( false );
+ for( const auto & group : get_static_constraint_groups() ) {
+  if( ! group )
    continue;
-   }
-  if( un_any_const_static( sci , check_feasibility ,
-                           un_any_type< BoxConstraint >() ) ) {
-   if( ! feas )
-    return( false );
-   continue;
-   }
-  if( un_any_const_static( sci , check_feasibility ,
-                           un_any_type< LB0Constraint >() ) ) {
-   if( ! feas )
-    return( false );
-   continue;
-   }
-  if( un_any_const_static( sci , check_feasibility ,
-                           un_any_type< UB0Constraint >() ) ) {
-   if( ! feas )
-    return( false );
-   continue;
-   }
-  if( un_any_const_static( sci , check_feasibility ,
-                           un_any_type< LBConstraint >() ) ) {
-   if( ! feas )
-    return( false );
-   continue;
-   }
-  if( un_any_const_static( sci , check_feasibility ,
-                           un_any_type< UBConstraint >() ) ) {
-   if( ! feas )
-    return( false );
-   continue;
-   }
-  if( un_any_const_static( sci , check_feasibility ,
-                           un_any_type< NNConstraint >() ) ) {
-   if( ! feas )
-    return( false );
-   continue;
-   }
-  if( un_any_const_static( sci , check_feasibility ,
-                           un_any_type< NPConstraint >() ) ) {
-   if( ! feas )
-    return( false );
-   continue;
-   }
-  if( un_any_const_static( sci , check_feasibility ,
-                           un_any_type< ZOConstraint >() ) ) {
-   if( ! feas )
-    return( false );
-   continue;
-   }
-  throw( std::logic_error(
+  if( ! for_each_RowConstraint( *group , check_frow , check_feasibility ) )
+   throw( std::logic_error(
        "some static Constraint not FRowConstraint or :OneVarConstraint" ) );
+  if( ! feas )
+   return( false );
   }
 
  // the static Variables of the Block - - - - - - - - - - - - - - - - - - - -
  // auto & sv = get_static_variables();
  //!! for( Index i = get_first_static_Variable() ; i < sv.size() ; ++i ) {
  // see above for comments
- for( auto & svi : get_static_variables() ) {
-  if( un_any_const_static( svi ,
-                           [ & feas , eps ]( ColVariable & var ) {
-                            feas = feas && var.is_feasible( eps );
-                            } ,
-                           un_any_type< ColVariable >() ) ) {
-   if( ! feas )
-    return( false );
+ auto check_variable = [ & feas , eps ]( ColVariable & var ) {
+  feas = feas && var.is_feasible( eps ); };
+
+ for( const auto & group : get_static_variable_groups() ) {
+  if( ! group )
    continue;
-   }
-  throw( std::logic_error( "some static Variable not ColVariable" ) );
+  if( ! group->for_each_as< ColVariable >( check_variable ) )
+   throw( std::logic_error( "some static Variable not ColVariable" ) );
+  if( ! feas )
+   return( false );
   }
 
  // the dynamic Constraints of the Block-  - - - - - - - - - - - - - - - - - -
  // auto & dc = get_dynamic_constraints();
  //!! for( Index i = get_first_dynamic_Constraint() ; i < dc.size() ; ++i ) {
  // see above for comments
- for( auto & dci : get_dynamic_constraints() ) {
-  if( un_any_const_dynamic( dci , check_frow ,
-                            un_any_type< FRowConstraint >() ) ) {
-   if( ! feas )
-    return( false );
+ for( const auto & group : get_dynamic_constraint_groups() ) {
+  if( ! group )
    continue;
-   }
-  if( un_any_const_dynamic( dci , check_feasibility ,
-                            un_any_type< BoxConstraint >() ) ) {
-   if( ! feas )
-    return( false );
-   continue;
-   }
-  if( un_any_const_dynamic( dci , check_feasibility ,
-                            un_any_type< LB0Constraint >() ) ) {
-   if( ! feas )
-    return( false );
-   continue;
-   }
-  if( un_any_const_dynamic( dci , check_feasibility ,
-                            un_any_type< UB0Constraint >() ) ) {
-   if( ! feas )
-    return( false );
-   continue;
-   }
-  if( un_any_const_dynamic( dci , check_feasibility ,
-                            un_any_type< LBConstraint >() ) ) {
-   if( ! feas )
-    return( false );
-   continue;
-   }
-  if( un_any_const_dynamic( dci , check_feasibility ,
-                            un_any_type< UBConstraint >() ) ) {
-   if( ! feas )
-    return( false );
-   continue;
-   }
-  if( un_any_const_dynamic( dci , check_feasibility ,
-                            un_any_type< NNConstraint >() ) ) {
-   if( ! feas )
-    return( false );
-   continue;
-   }
-  if( un_any_const_dynamic( dci , check_feasibility ,
-                            un_any_type< NPConstraint >() ) ) {
-   if( ! feas )
-    return( false );
-   continue;
-   }
-  if( un_any_const_dynamic( dci , check_feasibility ,
-                            un_any_type< ZOConstraint >() ) ) {
-   if( ! feas )
-    return( false );
-   continue;
-   }
-  throw( std::logic_error(
-   "some dynamic Constraint not FRowConstraint or :OneVarConstraint" ) );
+  if( ! for_each_RowConstraint( *group , check_frow , check_feasibility ) )
+   throw( std::logic_error(
+    "some dynamic Constraint not FRowConstraint or :OneVarConstraint" ) );
+  if( ! feas )
+   return( false );
   }
 
  // the dynamic Variables of the Block- - - - - - - - - - - - - - - - - - - -
  // auto & dv = get_dynamic_variables();
  //!! for( Index i = get_first_dynamic_Variable() ; i < dv.size() ; ++i ) {
  // see above for comments
- for( auto & dvi : get_dynamic_variables() ) {
-  if( un_any_const_dynamic( dvi ,
-                            [ & feas , eps ]( ColVariable & var ) {
-                             feas = feas && var.is_feasible( eps );
-                             } ,
-                            un_any_type< ColVariable >() ) ) {
-   if( ! feas )
-    return( false );
+ for( const auto & group : get_dynamic_variable_groups() ) {
+  if( ! group )
    continue;
-   }
-  throw( std::logic_error( "some dynamic Variable not ColVariable" ) );
+  if( ! group->for_each_as< ColVariable >( check_variable ) )
+   throw( std::logic_error( "some dynamic Variable not ColVariable" ) );
+  if( ! feas )
+   return( false );
   }
 
  // the inner Blocks - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -548,152 +430,29 @@ void AbstractBlock::check_Objective( Objective * obj )
 
 void AbstractBlock::is_correct( void )
 {
- // the static Variables of the Block - - - - - - - - - - - - - - - - - - - -
- auto & sv = get_static_variables();
- for( Index i = 0 ; i < sv.size() ; ++i ) {
-  if( un_any_const_static( sv[ i ] ,
-                           [ this ]( ColVariable & var ) {
-                            check_Variable( &var );
-                            } , un_any_type< ColVariable >() ) ) {
-   continue;
-   }
-  throw( std::logic_error( "some static Variable not ColVariable" ) );
-  }
+ auto check_var = [ this ]( ColVariable & var ) { check_Variable( & var ); };
 
- // the dynamic Variables of the Block- - - - - - - - - - - - - - - - - - - -
- auto & dv = get_dynamic_variables();
- for( Index i = 0 ; i < dv.size() ; ++i ) {
-  if( un_any_const_dynamic( dv[ i ] ,
-                            [ this ]( ColVariable & var ) {
-                             check_Variable( &var );
-                             } , un_any_type< ColVariable >() ) ) {
+ auto check_cnst = [ this ]( auto & cnst ) { check_Constraint( & cnst ); };
 
-   continue;
-   }
-  throw( std::logic_error( "some dynamic Variable not ColVariable" ) );
-  }
+ // the Variables of the Block- - - - - - - - - - - - - - - - - - - - - - - -
+ for( auto groups : { & get_static_variable_groups() ,
+		      & get_dynamic_variable_groups() } )
+  for( const auto & group : *groups )
+   if( group && ( ! group->for_each_as< ColVariable >( check_var ) ) )
+    throw( std::logic_error( std::string( "some " ) +
+			     ( group->is_dynamic() ? "dynamic" : "static" ) +
+			     " Variable not ColVariable" ) );
 
- // the static Constraints of the Block - - - - - - - - - - - - - - - - - - -
- auto & sc = get_static_constraints();
- for( Index i = 0 ; i < sc.size() ; ++i ) {
-  if( un_any_const_static( sc[ i ] ,
-                           [ this ]( FRowConstraint & cnst ) {
-                            check_Constraint( &cnst );
-                            } , un_any_type< FRowConstraint >() ) )
-   continue;
-
-  if( un_any_const_static( sc[ i ] ,
-                           [ this ]( BoxConstraint & cnst ) {
-                            check_Constraint( &cnst );
-                            } , un_any_type< BoxConstraint >() ) )
-   continue;
-
-  if( un_any_const_static( sc[ i ] ,
-                           [ this ]( LB0Constraint & cnst ) {
-                            check_Constraint( &cnst );
-                            } , un_any_type< LB0Constraint >() ) )
-   continue;
-
-  if( un_any_const_static( sc[ i ] ,
-                           [ this ]( UB0Constraint & cnst ) {
-                            check_Constraint( &cnst );
-                            } , un_any_type< UB0Constraint >() ) )
-   continue;
-
-  if( un_any_const_static( sc[ i ] ,
-                           [ this ]( LBConstraint & cnst ) {
-                            check_Constraint( &cnst );
-                            } , un_any_type< LBConstraint >() ) )
-   continue;
-
-  if( un_any_const_static( sc[ i ] ,
-                           [ this ]( UBConstraint & cnst ) {
-                            check_Constraint( &cnst );
-                            } , un_any_type< UBConstraint >() ) )
-   continue;
-
-  if( un_any_const_static( sc[ i ] ,
-                           [ this ]( NNConstraint & cnst ) {
-                            check_Constraint( &cnst );
-                            } , un_any_type< NNConstraint >() ) )
-   continue;
-
-  if( un_any_const_static( sc[ i ] ,
-                           [ this ]( NPConstraint & cnst ) {
-                            check_Constraint( &cnst );
-                            } , un_any_type< NPConstraint >() ) )
-   continue;
-
-  if( un_any_const_static( sc[ i ] ,
-                           [ this ]( ZOConstraint & cnst ) {
-                            check_Constraint( &cnst );
-                            } , un_any_type< ZOConstraint >() ) )
-   continue;
-
-  throw( std::logic_error(
-   "some static Constraint not FRowConstraint or :OneVarConstraint" ) );
-  }
-
- // the dynamic Constraints of the Block- - - - - - - - - - - - - - - - - - -
- auto & dc = get_dynamic_constraints();
- for( Index i = 0 ; i < dc.size() ; ++i ) {
-  if( un_any_const_dynamic( dc[ i ] ,
-                            [ this ]( FRowConstraint & cnst ) {
-                             check_Constraint( &cnst );
-                             } , un_any_type< FRowConstraint >() ) )
-   continue;
-
-  if( un_any_const_dynamic( dc[ i ] ,
-                            [ this ]( BoxConstraint & cnst ) {
-                             check_Constraint( &cnst );
-                             } , un_any_type< BoxConstraint >() ) )
-   continue;
-
-  if( un_any_const_dynamic( dc[ i ] ,
-                            [ this ]( LB0Constraint & cnst ) {
-                             check_Constraint( &cnst );
-                             } , un_any_type< LB0Constraint >() ) )
-   continue;
-
-  if( un_any_const_dynamic( dc[ i ] ,
-                            [ this ]( UB0Constraint & cnst ) {
-                             check_Constraint( &cnst );
-                             } , un_any_type< UB0Constraint >() ) )
-   continue;
-
-  if( un_any_const_dynamic( dc[ i ] ,
-                            [ this ]( LBConstraint & cnst ) {
-                             check_Constraint( &cnst );
-                             } , un_any_type< LBConstraint >() ) )
-   continue;
-
-  if( un_any_const_dynamic( dc[ i ] ,
-                            [ this ]( UBConstraint & cnst ) {
-                             check_Constraint( &cnst );
-                             } , un_any_type< UBConstraint >() ) )
-   continue;
-
-  if( un_any_const_dynamic( dc[ i ] ,
-                            [ this ]( NNConstraint & cnst ) {
-                             check_Constraint( &cnst );
-                             } , un_any_type< NNConstraint >() ) )
-   continue;
-
-  if( un_any_const_dynamic( dc[ i ] ,
-                            [ this ]( NPConstraint & cnst ) {
-                             check_Constraint( &cnst );
-                             } , un_any_type< NPConstraint >() ) )
-   continue;
-
-  if( un_any_const_dynamic( dc[ i ] ,
-                            [ this ]( ZOConstraint & cnst ) {
-                             check_Constraint( &cnst );
-                             } , un_any_type< ZOConstraint >() ) )
-   continue;
-
-  throw( std::logic_error(
-   "some static Constraint not FRowConstraint or :OneVarConstraint" ) );
-  }
+ // the Constraints of the Block- - - - - - - - - - - - - - - - - - - - - - -
+ for( auto groups : { & get_static_constraint_groups() ,
+		      & get_dynamic_constraint_groups() } )
+  for( const auto & group : *groups )
+   if( group && ( ! for_each_RowConstraint( *group , check_cnst ,
+					    check_cnst ) ) )
+    throw( std::logic_error( std::string( "some " ) +
+			     ( group->is_dynamic() ? "dynamic" : "static" ) +
+			     " Constraint not FRowConstraint or"
+			     " :OneVarConstraint" ) );
 
  // the Objective of the Block- - - - - - - - - - - - - - - - - - - - - - - -
  if( auto obj = get_objective() )
@@ -765,152 +524,63 @@ void AbstractBlock::print( std::ostream & output , char vlvl ) const
         << std::endl << v_Block.size() << " inner Blocks" << std::endl;
 
  if( vlvl ) {
+  auto header = [ & output ]( const BaseGroup & group ) {
+   output << group.get_index();
+   if( group.get_name().empty() )
+    output << ": ";
+   else
+    output << " (" << group.get_name() << "): ";
+   };
+
+  auto print_it = [ & output ]( auto & element ) {
+   output << element << std::endl; };
+
+  auto print_constraints = [ & output , & header , & print_it ]
+			   ( const Vec_Group & groups , Index first ) {
+   for( const auto & group : groups ) {
+    if( ( ! group ) || ( group->get_index() < first ) )
+     continue;
+    header( *group );
+    if( ! for_each_RowConstraint( *group , print_it , print_it ) )
+     throw( std::logic_error( std::string( "some " ) +
+			      ( group->is_dynamic() ? "dynamic" : "static" ) +
+			      " Constraint not FRowConstraint or"
+			      " :OneVarConstraint" ) );
+    }
+   };
+
+  auto print_variables = [ & output , & header , & print_it ]
+			 ( const Vec_Group & groups , Index first ) {
+   for( const auto & group : groups ) {
+    if( ( ! group ) || ( group->get_index() < first ) )
+     continue;
+    header( *group );
+    if( ! group->for_each_as< ColVariable >( print_it ) )
+     throw( std::logic_error( std::string( "some " ) +
+			      ( group->is_dynamic() ? "dynamic" : "static" ) +
+			      " Variable not ColVariable" ) );
+    }
+   };
+
   // the static Constraints of the Block- - - - - - - - - - - - - - - - - - -
   output << "Static Constraints:" << std::endl;
-  auto & sc = get_static_constraints();
-  for( auto i = get_first_static_Constraint() ; i < sc.size() ; ++i ) {
-   output << i;
-   if( ( ! get_s_const_name().empty() ) &&
-       ( ! get_s_const_name()[ i ].empty() ) )
-    output << " (" << get_s_const_name()[ i ] << "): ";
-   else
-    output << ": ";
-
-   if( un_any_const_static( sc[ i ] , [ & output ]( FRowConstraint & cnst ) {
-                             output << cnst << std::endl;
-                             } , un_any_type< FRowConstraint >() ) )
-    continue;
-   if( un_any_const_static( sc[ i ] , [ & output ]( BoxConstraint & cnst ) {
-                             output << cnst << std::endl;
-                             } , un_any_type< BoxConstraint >() ) )
-    continue;
-   if( un_any_const_static( sc[ i ] , [ & output ]( LB0Constraint & cnst ) {
-                             output << cnst << std::endl;
-                             } , un_any_type< LB0Constraint >() ) )
-    continue;
-   if( un_any_const_static( sc[ i ] , [ & output ]( UB0Constraint & cnst ) {
-                             output << cnst << std::endl;
-                             } , un_any_type< UB0Constraint >() ) )
-    continue;
-   if( un_any_const_static( sc[ i ] , [ & output ]( LBConstraint & cnst ) {
-                             output << cnst << std::endl;
-                             } , un_any_type< LBConstraint >() ) )
-    continue;
-   if( un_any_const_static( sc[ i ] , [ & output ]( UBConstraint & cnst ) {
-                             output << cnst << std::endl;
-                             } , un_any_type< UBConstraint >() ) )
-    continue;
-   if( un_any_const_static( sc[ i ] , [ & output ]( NNConstraint & cnst ) {
-                             output << cnst << std::endl;
-                             } , un_any_type< NNConstraint >() ) )
-    continue;
-   if( un_any_const_static( sc[ i ] , [ & output ]( NPConstraint & cnst ) {
-                             output << cnst << std::endl;
-                             } , un_any_type< NPConstraint >() ) )
-    continue;
-   if( un_any_const_static( sc[ i ] , [ & output ]( ZOConstraint & cnst ) {
-                             output << cnst << std::endl;
-                             } , un_any_type< ZOConstraint >() ) )
-    continue;
-   throw( std::logic_error(
-    "some static Constraint not FRowConstraint or :OneVarConstraint" ) );
-   }
+  print_constraints( get_static_constraint_groups() ,
+		     get_first_static_Constraint() );
 
   // the static Variables of the Block- - - - - - - - - - - - - - - - - - - -
   output << "Static Variables:" << std::endl;
-  auto & sv = get_static_variables();
-  for( auto i = get_first_static_Variable() ; i < sv.size() ; ++i ) {
-   output << i;
-   if( ( ! get_s_var_name().empty() ) &&
-       ( ! get_s_var_name()[ i ].empty() ) )
-    output << " (" << get_s_var_name()[ i ] << "): ";
-   else
-    output << ": ";
+  print_variables( get_static_variable_groups() ,
+		   get_first_static_Variable() );
 
-   if( un_any_const_static( sv[ i ] , [ & output ]( ColVariable & var ) {
-                             output << var << std::endl;
-                             } , un_any_type< ColVariable >() ) )
-    continue;
-   throw( std::logic_error( "some static Variable not ColVariable" ) );
-   }
-
- // the dynamic Constraints of the Block- - - - - - - - - - - - - - - - - -
+  // the dynamic Constraints of the Block- - - - - - - - - - - - - - - - - -
   output << "Dynamic Constraints:" << std::endl;
-  auto & dc = get_dynamic_constraints();
-  for( auto i = get_first_dynamic_Constraint() ; i < dc.size() ; ++i ) {
-   output << i;
-   if( ( ! get_d_const_name().empty() ) &&
-       ( ! get_d_const_name()[ i ].empty() ) )
-    output << " (" << get_d_const_name()[ i ] << "): ";
-   else
-    output << ": ";
-
-   if( un_any_const_dynamic( dc[ i ] ,
-                             [ & output ]( FRowConstraint & cnst ) {
-                              output << cnst << std::endl;
-                              } , un_any_type< FRowConstraint >() ) )
-    continue;
-   if( un_any_const_dynamic( dc[ i ] ,
-                             [ & output ]( BoxConstraint & cnst ) {
-                              output << cnst << std::endl;
-                              } , un_any_type< BoxConstraint >() ) )
-    continue;
-   if( un_any_const_dynamic( dc[ i ] ,
-                             [ & output ]( LB0Constraint & cnst ) {
-                              output << cnst << std::endl;
-                              } , un_any_type< LB0Constraint >() ) )
-    continue;
-   if( un_any_const_dynamic( dc[ i ] ,
-                             [ & output ]( UB0Constraint & cnst ) {
-                              output << cnst << std::endl;
-                              } , un_any_type< UB0Constraint >() ) )
-    continue;
-   if( un_any_const_dynamic( dc[ i ] ,
-                             [ & output ]( LBConstraint & cnst ) {
-                              output << cnst << std::endl;
-                              } , un_any_type< LBConstraint >() ) )
-    continue;
-   if( un_any_const_dynamic( dc[ i ] ,
-                             [ & output ]( UBConstraint & cnst ) {
-                              output << cnst << std::endl;
-                              } , un_any_type< UBConstraint >() ) )
-    continue;
-   if( un_any_const_dynamic( dc[ i ] ,
-                             [ & output ]( NNConstraint & cnst ) {
-                              output << cnst << std::endl;
-                              } , un_any_type< NNConstraint >() ) )
-    continue;
-   if( un_any_const_dynamic( dc[ i ] ,
-                             [ & output ]( NPConstraint & cnst ) {
-                              output << cnst << std::endl;
-                              } , un_any_type< NPConstraint >() ) )
-    continue;
-   if( un_any_const_dynamic( dc[ i ] ,
-                             [ & output ]( ZOConstraint & cnst ) {
-                              output << cnst << std::endl;
-                              } , un_any_type< ZOConstraint >() ) )
-    continue;
-   throw( std::logic_error(
-    "some dynamic Constraint not FRowConstraint or :OneVarConstraint" ) );
-   }
+  print_constraints( get_dynamic_constraint_groups() ,
+		     get_first_dynamic_Constraint() );
 
   // the dynamic Variables of the Block - - - - - - - - - - - - - - - - - - -
   output << "Dynamic Variables:" << std::endl;
-  auto & dv = get_dynamic_variables();
-  for( auto i = get_first_dynamic_Variable() ; i < dv.size() ; ++i ) {
-   output << i;
-   if( ( ! get_d_var_name().empty() ) &&
-       ( ! get_d_var_name()[ i ].empty() ) )
-    output << " (" << get_d_var_name()[ i ] << "): ";
-   else
-    output << ": ";
-
-   if( un_any_const_dynamic( dv[ i ] , [ & output ]( ColVariable & var ) {
-                              output << var << std::endl;
-                              } , un_any_type< ColVariable >() ) )
-    continue;
-   throw( std::logic_error( "some dynamic Variable not ColVariable" ) );
-   }
+  print_variables( get_dynamic_variable_groups() ,
+		   get_first_dynamic_Variable() );
 
   // the Objective of the Block - - - - - - - - - - - - - - - - - - - - - - -
   if( ! is_Objective_reserved() )
@@ -2753,8 +2423,10 @@ void AbstractBlock::mirror_variables( Block * src , AbstractBlock * dst )
  auto & sv = src->get_static_variables();
  for( Index i = 0 ; i < sv.size() ; ++i ) {
   dst->add_static_variable( std::string( src->get_s_var_name( i ) ) );
-  if( ! mirror_static_group< ColVariable >(
-         sv[ i ] , dst->access_static_variable( i ) , take ) )
+  const bool made = mirror_static_group< ColVariable >(
+                     sv[ i ] , dst->access_static_variable( i ) , take );
+  dst->refresh_static_variable_group( i );
+  if( ! made )
    v_issues.push_back( "static Variable group " + std::to_string( i ) +
                        " of " + src->name() +
                        " is not made of ColVariable" );
@@ -2769,8 +2441,10 @@ void AbstractBlock::mirror_variables( Block * src , AbstractBlock * dst )
  auto & dv = src->get_dynamic_variables();
  for( Index i = 0 ; i < dv.size() ; ++i ) {
   dst->add_dynamic_variable( std::string( src->get_d_var_name( i ) ) );
-  if( ! mirror_dynamic_group< ColVariable >(
-         dv[ i ] , dst->access_dynamic_variable( i ) , take ) )
+  const bool made = mirror_dynamic_group< ColVariable >(
+                     dv[ i ] , dst->access_dynamic_variable( i ) , take );
+  dst->refresh_dynamic_variable_group( i );
+  if( ! made )
    v_issues.push_back( "dynamic Variable group " + std::to_string( i ) +
                        " of " + src->name() +
                        " is not made of ColVariable" );
@@ -2888,6 +2562,8 @@ void AbstractBlock::mirror_constraints( Block * src , AbstractBlock * dst )
      check_count( count_static< ZOConstraint >( sc[ i ] ) ,
                   count_static< ZOConstraint >( any ) , what ) );
 
+  dst->refresh_static_constraint_group( i );
+
   if( ! done )
    v_issues.push_back( "static Constraint group " + std::to_string( i ) +
                        " of " + src->name() + " is of a type the mirror "
@@ -2930,6 +2606,8 @@ void AbstractBlock::mirror_constraints( Block * src , AbstractBlock * dst )
    ( mirror_dynamic_group< ZOConstraint >( dc[ i ] , any , zoc ) &&
      check_count( count_dynamic< ZOConstraint >( dc[ i ] ) ,
                   count_dynamic< ZOConstraint >( any ) , what ) );
+
+  dst->refresh_dynamic_constraint_group( i );
 
   if( ! done )
    v_issues.push_back( "dynamic Constraint group " + std::to_string( i ) +
