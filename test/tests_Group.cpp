@@ -22,6 +22,7 @@
 #include "FRowConstraint.h"
 #include "OneVarConstraint.h"
 
+#include <array>
 #include <cassert>
 #include <iostream>
 #include <list>
@@ -154,6 +155,18 @@ static void test_shapes( void )
    assert( values[ i ] == first + i );
   first += values.size();
   }
+
+ // the indices of a cell of the grid, which is how an element gets a name
+ // that says where it sits rather than how far along it is
+ std::array< Block::Index , BaseGroup::max_rank > index;
+ statics[ 2 ]->get_multi_index( 0 , index.data() );
+ assert( ( index[ 0 ] == 0 ) && ( index[ 1 ] == 0 ) );
+ statics[ 2 ]->get_multi_index( 4 , index.data() );
+ assert( ( index[ 0 ] == 1 ) && ( index[ 1 ] == 1 ) );
+ statics[ 2 ]->get_multi_index( 5 , index.data() );
+ assert( ( index[ 0 ] == 1 ) && ( index[ 1 ] == 2 ) );
+ statics[ 4 ]->get_multi_index( 3 , index.data() );
+ assert( ( index[ 0 ] == 1 ) && ( index[ 1 ] == 1 ) );
 
  // an element is found back from its address, and a foreigner is not
  assert( statics[ 1 ]->get_Variable( 2 ) == & ( *array )[ 2 ] );

@@ -246,6 +246,27 @@ class BaseGroup {
   }
 
 /*--------------------------------------------------------------------------*/
+ /// writes the indices of the c-th cell of the grid into \p index
+ /** Writes into index[ 0 ] ... index[ get_rank() - 1 ] the position of the
+  * c-th cell of the grid along each dimension, the cells being numbered in
+  * storage order, so that an element can be named after where it sits rather
+  * than after its position in the sequence: the 7-th cell of a 3 x 4 grid is
+  * ( 1 , 3 ). For a group of rank 0 there is nothing to write. */
+
+ void get_multi_index( Index c , Index * index ) const {
+  if( ! f_rank )
+   return;
+
+  std::array< Index , max_rank > size;
+  f_view( f_container , size.data() );
+
+  for( unsigned char d = f_rank ; d-- ; ) {
+   index[ d ] = size[ d ] ? c % size[ d ] : 0;
+   c = size[ d ] ? c / size[ d ] : 0;
+   }
+  }
+
+/*--------------------------------------------------------------------------*/
  /// returns how many elements the group holds now
  /** Returns the number of elements of the group: get_num_cells() for a
   * contiguous group, the sum of the sizes of the cells otherwise, which for a
