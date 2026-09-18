@@ -7423,6 +7423,31 @@ class Block : public Observer {
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// std::vector of std::vector of (...) Variable
+
+ template< class Var >
+ std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
+ add_static_variable( std::vector< std::vector< Var > > & newv ,
+                      std::string && name = "" , bool front = false ) {
+  for( auto & v : newv )
+   for( auto & j : v )
+    j.set_Block( this );
+
+  std::vector< std::vector< Var > > * cnewv = &newv;
+  add_group( v_s_Variable_groups , make_group( newv , this , 0 , name ) ,
+             front );
+  if( front ) {
+   v_s_Variable.insert( v_s_Variable.begin() , cnewv );
+   v_s_Variable_names.insert( v_s_Variable_names.begin() ,
+                              std::move( name ) );
+   }
+  else {
+   v_s_Variable.push_back( cnewv );
+   v_s_Variable_names.emplace_back( std::move( name ) );
+   }
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// boost::multi_array< K > of (...) Variable
 
  template< class Var , std::size_t K >

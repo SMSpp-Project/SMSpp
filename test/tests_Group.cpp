@@ -64,9 +64,10 @@ static void test_shapes( void )
 {
  AbstractBlock block;
 
- // a single element, a vector, a grid, a grid of vectors, a list and a
- // vector of lists: the shapes a :Block can register its Variable in,
- // filled with the numbers 0, 1, 2, ... in storage order
+ // a single element, a vector, a grid, a vector of vectors, a grid of
+ // vectors, a list and a vector of lists: the shapes a :Block can register
+ // its Variable in, the same ones it has for its Constraint, filled with the
+ // numbers 0, 1, 2, ... in storage order
  double next = 0;
  auto fill = [ & next ]( ColVariable & var ) { var.set_value( next++ ); };
 
@@ -74,6 +75,9 @@ static void test_shapes( void )
  auto array = new std::vector< ColVariable >( 4 );
  auto grid = new boost::multi_array< ColVariable , 2 >(
 					       boost::extents[ 2 ][ 3 ] );
+ auto jagged = new std::vector< std::vector< ColVariable > >( 2 );
+ ( *jagged )[ 0 ].resize( 3 );
+ ( *jagged )[ 1 ].resize( 2 );
  auto cells = new boost::multi_array< std::vector< ColVariable > , 2 >(
 					       boost::extents[ 2 ][ 2 ] );
  for( auto cell = cells->data() ; cell != cells->data() + 4 ; ++cell )
@@ -88,6 +92,9 @@ static void test_shapes( void )
   fill( var );
  for( auto var = grid->data() ; var != grid->data() + 6 ; ++var )
   fill( *var );
+ for( auto & cell : *jagged )
+  for( auto & var : cell )
+   fill( var );
  for( auto cell = cells->data() ; cell != cells->data() + 4 ; ++cell )
   for( auto & var : *cell )
    fill( var );
@@ -100,6 +107,7 @@ static void test_shapes( void )
  block.add_static_variable( *single , "single" );
  block.add_static_variable( *array , "array" );
  block.add_static_variable( *grid , "grid" );
+ block.add_static_variable( *jagged , "jagged" );
  block.add_static_variable( *cells , "cells" );
  block.add_dynamic_variable( *list , "list" );
  block.add_dynamic_variable( *lists , "lists" );
@@ -107,7 +115,7 @@ static void test_shapes( void )
  const auto & statics = block.get_static_variable_groups();
  const auto & dynamics = block.get_dynamic_variable_groups();
 
- assert( statics.size() == 4 );
+ assert( statics.size() == 5 );
  assert( dynamics.size() == 2 );
 
  // each group knows its name, its index, the type of its elements, how many
@@ -128,7 +136,8 @@ static void test_shapes( void )
  assert( statics[ 0 ]->get_num_elements() == 1 );
  assert( statics[ 1 ]->get_num_elements() == 4 );
  assert( statics[ 2 ]->get_num_elements() == 6 );
- assert( statics[ 3 ]->get_num_elements() == 8 );
+ assert( statics[ 3 ]->get_num_elements() == 5 );
+ assert( statics[ 4 ]->get_num_elements() == 8 );
  assert( dynamics[ 0 ]->get_num_elements() == 3 );
  assert( dynamics[ 1 ]->get_num_elements() == 3 );
 
@@ -149,7 +158,8 @@ static void test_shapes( void )
  // an element is found back from its address, and a foreigner is not
  assert( statics[ 1 ]->get_Variable( 2 ) == & ( *array )[ 2 ] );
  assert( statics[ 2 ]->get_Variable( 4 ) == & ( *grid )[ 1 ][ 1 ] );
- assert( statics[ 3 ]->get_Variable( 2 ) == & ( *cells )[ 0 ][ 1 ][ 0 ] );
+ assert( statics[ 3 ]->get_Variable( 3 ) == & ( *jagged )[ 1 ][ 0 ] );
+ assert( statics[ 4 ]->get_Variable( 2 ) == & ( *cells )[ 0 ][ 1 ][ 0 ] );
  assert( ! statics[ 1 ]->get_Variable( 4 ) );
 
  // a group of Variable answers nothing when asked for Constraint
@@ -164,6 +174,8 @@ static void test_shapes( void )
  assert( runs_of( *statics[ 1 ] ) == std::vector< Block::Index >( { 4 } ) );
  assert( runs_of( *statics[ 2 ] ) == std::vector< Block::Index >( { 6 } ) );
  assert( runs_of( *statics[ 3 ] ) ==
+	 std::vector< Block::Index >( { 3 , 2 } ) );
+ assert( runs_of( *statics[ 4 ] ) ==
 	 std::vector< Block::Index >( { 2 , 2 , 2 , 2 } ) );
 
  // the group is a view: the :Block may resize its container afterwards, and
