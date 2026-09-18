@@ -20,31 +20,104 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#include "SMSTypedefs.h"
-#include "RowConstraint.h"
-#include "RowConstraintSolution.h"
 #include "FRowConstraint.h"
 #include "OneVarConstraint.h"
-
-/*--------------------------------------------------------------------------*/
-/*----------------- CLASSES DERIVED FROM RowConstraint ---------------------*/
-/*--------------------------------------------------------------------------*/
-
-/* The following is a list of all concrete classes derived from RowConstraint
- * that will be considered in a RowConstraintSolution. This
- * RowConstraintSolution can only be used with a Block that has constraints of
- * these types.
- */
-
-#define RowConstraint_Derived_Classes \
-  FRowConstraint , BoxConstraint, ZOConstraint, NPConstraint, NNConstraint, \
-  UBConstraint, LBConstraint, UB0Constraint, LB0Constraint
+#include "RowConstraintSolution.h"
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
 using namespace SMSpp_di_unipi_it;
+
+/*--------------------------------------------------------------------------*/
+/*-------------------------------- FUNCTIONS -------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+namespace {
+
+/// calls f() on each element of a group of RowConstraint, typed on its class
+/** The elements of the group are all of one of the concrete :RowConstraint
+ * of the core, which on_group() has checked: the type is matched exactly,
+ * and the loop runs on it. */
+
+template< class F >
+void for_each_row( const BaseGroup & group , F f )
+{
+ auto type = group.get_element_type();
+ if( type == typeid( FRowConstraint ) )
+  group.for_each_as< FRowConstraint >( f );
+ else if( type == typeid( BoxConstraint ) )
+  group.for_each_as< BoxConstraint >( f );
+ else if( type == typeid( LB0Constraint ) )
+  group.for_each_as< LB0Constraint >( f );
+ else if( type == typeid( UB0Constraint ) )
+  group.for_each_as< UB0Constraint >( f );
+ else if( type == typeid( LBConstraint ) )
+  group.for_each_as< LBConstraint >( f );
+ else if( type == typeid( UBConstraint ) )
+  group.for_each_as< UBConstraint >( f );
+ else if( type == typeid( NNConstraint ) )
+  group.for_each_as< NNConstraint >( f );
+ else if( type == typeid( NPConstraint ) )
+  group.for_each_as< NPConstraint >( f );
+ else if( type == typeid( ZOConstraint ) )
+  group.for_each_as< ZOConstraint >( f );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// calls f( c , cell ) on each cell of a group of RowConstraint
+/** The counterpart of for_each_row() for the groups whose cells are
+ * collections. */
+
+template< class F >
+void for_each_row_cell( const BaseGroup & group , F f )
+{
+ auto type = group.get_element_type();
+ if( type == typeid( FRowConstraint ) )
+  group.for_each_cell_as< FRowConstraint >( f );
+ else if( type == typeid( BoxConstraint ) )
+  group.for_each_cell_as< BoxConstraint >( f );
+ else if( type == typeid( LB0Constraint ) )
+  group.for_each_cell_as< LB0Constraint >( f );
+ else if( type == typeid( UB0Constraint ) )
+  group.for_each_cell_as< UB0Constraint >( f );
+ else if( type == typeid( LBConstraint ) )
+  group.for_each_cell_as< LBConstraint >( f );
+ else if( type == typeid( UBConstraint ) )
+  group.for_each_cell_as< UBConstraint >( f );
+ else if( type == typeid( NNConstraint ) )
+  group.for_each_cell_as< NNConstraint >( f );
+ else if( type == typeid( NPConstraint ) )
+  group.for_each_cell_as< NPConstraint >( f );
+ else if( type == typeid( ZOConstraint ) )
+  group.for_each_cell_as< ZOConstraint >( f );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// calls f() on a group, returning false if it is not one for_each_row() reads
+
+template< class F >
+bool on_group( const std::unique_ptr< BaseGroup > & group , F f )
+{
+ if( ! group )
+  return( false );
+ auto type = group->get_element_type();
+ if( ( type != typeid( FRowConstraint ) ) &&
+     ( type != typeid( BoxConstraint ) ) &&
+     ( type != typeid( LB0Constraint ) ) &&
+     ( type != typeid( UB0Constraint ) ) &&
+     ( type != typeid( LBConstraint ) ) &&
+     ( type != typeid( UBConstraint ) ) &&
+     ( type != typeid( NNConstraint ) ) &&
+     ( type != typeid( NPConstraint ) ) &&
+     ( type != typeid( ZOConstraint ) ) )
+  return( false );
+ f( std::as_const( *group ) );
+ return( true );
+ }
+
+}  // end( unnamed namespace )
 
 /*--------------------------------------------------------------------------*/
 /*----------------------------- STATIC MEMBERS -----------------------------*/
@@ -71,30 +144,6 @@ RowConstraintSolution::~RowConstraintSolution() {
 /*--------------------------------------------------------------------------*/
 
 void RowConstraintSolution::delete_vectors() {
-
- for( Vec_any::size_type i = 0 ; i < static_constraint_dual_values.size() ;
-      ++i )
-
-  if( ! un_any_thing_static( double , static_constraint_dual_values[ i ] ,
-                             [ & var ]() { delete &var; }() ) )
-
-   throw( std::logic_error
-    ( "RowConstraintSolution::~RowConstraintSolution() "
-      "invalid static constraint group: " +
-      std::string( static_constraint_dual_values[ i ].type().name() ) ) );
-
- for( Vec_any::size_type i = 0 ;
-      i < dynamic_constraint_dual_values.size() ; ++i )
-
-  if( ! un_any_thing_dynamic( std::vector< double > ,
-                              dynamic_constraint_dual_values[ i ] ,
-                              [ & var ]() { delete &var; }() ) )
-
-   throw( std::logic_error
-    ( "RowConstraintSolution::~RowConstraintSolution() "
-      "invalid dynamic constraint group: " +
-      std::string( dynamic_constraint_dual_values[ i ].type().name() ) ) );
-
  static_constraint_dual_values.resize( 0 );
  dynamic_constraint_dual_values.resize( 0 );
  nested_solutions.resize( 0 );
@@ -120,134 +169,30 @@ void RowConstraintSolution::initialize( const Block * const block , bool read ) 
 
 /*--------------------------------------------------------------------------*/
 
-template< class T >
-bool create_static
-( const boost::any & constraint_group ,
-  boost::any & static_constraint_dual_value , const bool read ) {
-
- return
-  un_any_static_2_create
-  ( constraint_group , static_constraint_dual_value ,
-    un_any_type< T >() , un_any_type< double >() ,
-    []( T & constraint , double & value ) {
-     value = constraint.get_dual(); } , read )
-  ||
-  un_any_static_2_create
-  ( constraint_group , static_constraint_dual_value ,
-    un_any_type< T * >() , un_any_type< double >() ,
-    []( T * constraint , double & value ) {
-     value = constraint->get_dual(); } , read );
-}
-
-/*--------------------------------------------------------------------------*/
-
-template< class T , class... Rest >
-bool try_create_static( const boost::any & constraint_group ,
-                        boost::any & static_constraint_dual_value ,
-                        const bool read ) {
-
- bool created = create_static< T >( constraint_group ,
-                                    static_constraint_dual_value ,
-                                    read );
- if( created )
-  return( true );
- else if constexpr( sizeof...(Rest) != 0 )
-  return( try_create_static< Rest... >( constraint_group ,
-                                        static_constraint_dual_value ,
-                                        read ) );
- return( false );
-}
-
-/*--------------------------------------------------------------------------*/
-
 void RowConstraintSolution::initialize_static_constraint_dual_values
 ( const Block * const block , bool read ) {
 
- // Initialize static constraint values
-
  const auto & constraint_groups = block->get_static_constraints();
+ const auto & groups = block->get_static_constraint_groups();
  static_constraint_dual_values.resize( constraint_groups.size() );
 
- for( Vec_any::size_type i = 0; i < static_constraint_dual_values.size();
+ for( Vec_any::size_type i = 0 ; i < static_constraint_dual_values.size() ;
       ++i ) {
-
-  if( ! try_create_static< RowConstraint_Derived_Classes >
-      ( constraint_groups[ i ] , static_constraint_dual_values[ i ] , read ) )
+  auto & values = static_constraint_dual_values[ i ];
+  if( ! on_group( groups[ i ] ,
+                 [ & values , read ]( const BaseGroup & group ) {
+       values.assign( group.get_num_elements() , 0 );
+       if( read ) {
+	auto value = values.data();
+	for_each_row( group , [ & value ]( auto & con ) {
+	  *(value++) = con.get_dual(); } );
+	}
+       } ) )
    throw( std::logic_error
     ( "RowConstraintSolution::initialize_static_constraint_dual_values: "
       "invalid constraint group: " +
       std::string( constraint_groups[ i ].type().name() ) ) );
- }
-}
-
-/*--------------------------------------------------------------------------*/
-
-template< class T >
-bool create_dynamic
-( const boost::any & constraint_group ,
-  boost::any & dynamic_constraint_dual_value , const bool read ) {
-
- return
-  ( un_any_dynamic_2_create
-    ( constraint_group , dynamic_constraint_dual_value ,
-      un_any_type< T >() , un_any_type< std::vector< double > >() ,
-
-      []( std::list< T > & list_constraints ,
-          std::vector< double > & list_values ) {
-
-       // Resize the vector of values so that it can accommodate
-       // the values of all constraints
-       if( list_values.size() < list_constraints.size() )
-        list_values.resize( list_constraints.size() );
-
-       auto i1 = list_constraints.begin();
-       auto i2 = list_values.begin();
-
-       for( ; i1 != list_constraints.end() &&
-             i2 != list_values.end() ; ++i1 , ++i2 )
-        *i2 = ( *i1 ).get_dual();
-      } , read )
-
-    ||
-
-    un_any_dynamic_2_create
-    ( constraint_group , dynamic_constraint_dual_value ,
-      un_any_type< T * >() , un_any_type< std::vector< double > >() ,
-
-      []( std::list< T * > & list_constraints ,
-          std::vector< double > & list_values ) {
-
-       // Resize the vector of values so that it can accommodate
-       // the values of all constraints
-       if( list_values.size() < list_constraints.size() )
-        list_values.resize( list_constraints.size() );
-
-       auto i1 = list_constraints.begin();
-       auto i2 = list_values.begin();
-
-       for( ; i1 != list_constraints.end() &&
-             i2 != list_values.end() ; ++i1 , ++i2 )
-        *i2 = ( *i1 )->get_dual();
-      } , read ) );
-}
-
-/*--------------------------------------------------------------------------*/
-
-template< class T , class... Rest >
-bool try_create_dynamic( const boost::any & constraint_group ,
-                         boost::any & dynamic_constraint_dual_value ,
-                         const bool read ) {
-
- bool created = create_dynamic< T >( constraint_group ,
-                                     dynamic_constraint_dual_value ,
-                                     read );
- if( created )
-  return( true );
- else if constexpr( sizeof...(Rest) != 0 )
-  return( try_create_dynamic< Rest... >( constraint_group ,
-                                         dynamic_constraint_dual_value ,
-                                         read ) );
- return( false );
+  }
 }
 
 /*--------------------------------------------------------------------------*/
@@ -255,78 +200,30 @@ bool try_create_dynamic( const boost::any & constraint_group ,
 void RowConstraintSolution::initialize_dynamic_constraint_dual_values
 ( const Block * const block , bool read ) {
 
- // Initialize dynamic constraint values
-
  const auto & constraint_groups = block->get_dynamic_constraints();
+ const auto & groups = block->get_dynamic_constraint_groups();
  dynamic_constraint_dual_values.resize( constraint_groups.size() );
 
- for( Vec_any::size_type i = 0; i < dynamic_constraint_dual_values.size();
+ for( Vec_any::size_type i = 0 ; i < dynamic_constraint_dual_values.size() ;
       ++i ) {
-
-  if( ! try_create_dynamic< RowConstraint_Derived_Classes >
-      ( constraint_groups[ i ] , dynamic_constraint_dual_values[ i ] , read ) )
+  auto & values = dynamic_constraint_dual_values[ i ];
+  if( ! on_group( groups[ i ] ,
+                 [ & values , read ]( const BaseGroup & group ) {
+       values.assign( group.get_num_cells() , {} );
+       if( read )
+	for_each_row_cell( group ,
+			   [ & values ]( BaseGroup::Index c , auto & cell ) {
+	  values[ c ].resize( cell.size() );
+	  auto value = values[ c ].data();
+	  for( auto & item : cell )
+	   *(value++) = group_element( item ).get_dual();
+	  } );
+       } ) )
    throw( std::logic_error(
     "RowConstraintSolution::initialize_dynamic_constraint_dual_values: "
     "invalid constraint group: " +
     std::string( constraint_groups[ i ].type().name() ) ) );
- }
-}
-
-/*--------------------------------------------------------------------------*/
-
-template< class T , class F1 , class F2 >
-bool un_static( const boost::any & constraint_group ,
-                boost::any & static_constraint_dual_value , F1 f1 , F2 f2 ) {
- return
-  ( un_any_static_2( constraint_group , static_constraint_dual_value ,
-                     f1 , un_any_type< T >() , un_any_type< double >() )
-    ||
-    un_any_static_2( constraint_group , static_constraint_dual_value ,
-                     f2 , un_any_type< T * >() , un_any_type< double >() ) );
-}
-
-/*--------------------------------------------------------------------------*/
-
-template< class T >
-bool un_static( const boost::any & constraint_group ,
-                boost::any & static_constraint_dual_value ,
-                const bool read ) {
- if( read ) {
-  auto f1 = []( T & constraint , double & value ) {
-             value = constraint.get_dual(); };
-  auto f2 = []( T * constraint , double & value ) {
-             value = constraint->get_dual(); };
-  return( un_static< T , decltype( f1 ) , decltype( f2 ) >
-   ( constraint_group , static_constraint_dual_value , f1 , f2 ) );
- }
- else {
-  auto f1 = []( T & constraint , double value ) {
-             constraint.set_dual( value ); };
-  auto f2 = []( T * constraint , double value ) {
-             constraint->set_dual( value ); };
-  return( un_static< T , decltype( f1 ) , decltype( f2 ) >
-   ( constraint_group , static_constraint_dual_value , f1 , f2 ) );
- }
-}
-
-/*--------------------------------------------------------------------------*/
-
-
-template< class T , class... Rest >
-bool try_un_static( const boost::any & constraint_group ,
-                    boost::any & static_constraint_dual_value ,
-                    const bool read ) {
-
- bool created = un_static< T >( constraint_group ,
-                                static_constraint_dual_value ,
-                                read );
- if( created )
-  return( true );
- else if constexpr( sizeof...(Rest) != 0 )
-  return( try_un_static< Rest... >( constraint_group ,
-                                    static_constraint_dual_value ,
-                                    read ) );
- return( false );
+  }
 }
 
 /*--------------------------------------------------------------------------*/
@@ -335,6 +232,7 @@ void RowConstraintSolution::apply_static( const Block * const block ,
                                           const bool read ) {
 
  auto & constraint_groups = block->get_static_constraints();
+ const auto & groups = block->get_static_constraint_groups();
 
  if( constraint_groups.size() != static_constraint_dual_values.size() )
   throw( std::logic_error
@@ -344,139 +242,32 @@ void RowConstraintSolution::apply_static( const Block * const block ,
      + ") is different from that of the Block ("
      + std::to_string( constraint_groups.size() ) + ")" ) );
 
- for( Vec_any::size_type i = 0; i < static_constraint_dual_values.size();
+ for( Vec_any::size_type i = 0 ; i < static_constraint_dual_values.size() ;
       ++i ) {
-
-  if( ! try_un_static< RowConstraint_Derived_Classes >
-      ( constraint_groups[ i ] , static_constraint_dual_values[ i ] , read ) )
+  auto & values = static_constraint_dual_values[ i ];
+  bool conforming = true;
+  if( ! on_group( groups[ i ] ,
+                 [ & ]( const BaseGroup & group ) {
+       if( group.get_num_elements() != values.size() ) {
+	conforming = false;
+	return;
+	}
+       auto value = values.data();
+       if( read )
+	for_each_row( group , [ & value ]( auto & con ) {
+	  *(value++) = con.get_dual(); } );
+       else
+	for_each_row( group , [ & value ]( auto & con ) {
+	  con.set_dual( *(value++) ); } );
+       } ) )
    throw( std::logic_error( "RowConstraintSolution::apply_static: "
                             "invalid types" ) );
- }
-}
-
-/*--------------------------------------------------------------------------*/
-
-template< class T , class F1 , class F2 >
-bool un_dynamic( const boost::any & constraint_group ,
-                 boost::any & dynamic_constraint_dual_value ,
-                 F1 f1 , F2 f2 ) {
- return
-  ( un_any_dynamic_2( constraint_group , dynamic_constraint_dual_value , f1 ,
-                      un_any_type< T >() ,
-                      un_any_type< std::vector< double > >() )
-    ||
-    un_any_dynamic_2( constraint_group , dynamic_constraint_dual_value , f2 ,
-                      un_any_type< T * >() ,
-                      un_any_type< std::vector< double > >() )
-    );
-}
-
-/*--------------------------------------------------------------------------*/
-
-template< class T >
-bool un_dynamic( const boost::any & constraint_group ,
-                 boost::any & dynamic_constraint_dual_value ,
-                 const bool read ,
-                 const RowConstraint::RHSValue default_dual_value = 0 ) {
-
- if( read ) {
-  auto f1 = []( std::list< T > & list_constraints ,
-                std::vector< double > & list_values ) {
-
-             // Resize the vector of values so that it can accommodate
-             // the values of all constraints
-             if( list_values.size() < list_constraints.size() )
-              list_values.resize( list_constraints.size() );
-
-             auto i1 = list_constraints.begin();
-             auto i2 = list_values.begin();
-
-             for( ; i1 != list_constraints.end() &&
-                   i2 != list_values.end() ; ++i1 , ++i2 )
-              *i2 = ( *i1 ).get_dual();
-            };
-
-  auto f2 = []( std::list< T * > & list_constraints ,
-                std::vector< double > & list_values ) {
-
-             // Resize the vector of values so that it can accommodate
-             // the values of all constraints
-             if( list_values.size() < list_constraints.size() )
-              list_values.resize( list_constraints.size() );
-
-             auto i1 = list_constraints.begin();
-             auto i2 = list_values.begin();
-
-             for( ; i1 != list_constraints.end() &&
-                   i2 != list_values.end() ; ++i1 , ++i2 )
-              *i2 = ( *i1 )->get_dual();
-            };
-
-  return( un_dynamic< T , decltype( f1 ) , decltype( f2 ) >
-   ( constraint_group , dynamic_constraint_dual_value , f1 , f2 ) );
- }
-
- else {
-  auto f1 = [ default_dual_value ]
-   ( std::list< T > & list_constraints ,
-     std::vector< double > & list_values ) {
-
-             auto i1 = list_constraints.begin();
-             auto i2 = list_values.begin();
-
-             for( ; i1 != list_constraints.end() &&
-                   i2 != list_values.end() ; ++i1 , ++i2 )
-              ( *i1 ).set_dual( *i2 );
-
-             // If the number of Constraints is greater than the number of
-             // values in the Solution, set the dual value of the
-             // remaining Constraints to their default value.
-             for( ; i1 != list_constraints.end() ; ++i1 )
-              ( *i1 ).set_dual( default_dual_value );
-            };
-
-  auto f2 = [ default_dual_value ]
-   ( std::list< T * > & list_constraints ,
-     std::vector< double > & list_values ) {
-
-             auto i1 = list_constraints.begin();
-             auto i2 = list_values.begin();
-
-             for( ; i1 != list_constraints.end() &&
-                   i2 != list_values.end() ; ++i1 , ++i2 )
-              ( *i1 )->set_dual( *i2 );
-
-             // If the number of Constraints is greater than the number of
-             // values in the Solution, set the dual value of the
-             // remaining Constraints to their default value.
-             for( ; i1 != list_constraints.end() ; ++i1 )
-              ( *i1 )->set_dual( default_dual_value );
-
-            };
-
-  return( un_dynamic< T , decltype( f1 ) , decltype( f2 ) >
-   ( constraint_group , dynamic_constraint_dual_value , f1 , f2 ) );
- }
-}
-
-/*--------------------------------------------------------------------------*/
-
-template< class T , class... Rest >
-bool try_un_dynamic( const boost::any & constraint_group ,
-                     boost::any & dynamic_constraint_dual_value ,
-                     const bool read ,
-                     const RowConstraint::RHSValue default_dual_value ) {
-
- bool created = un_dynamic< T >( constraint_group ,
-                               dynamic_constraint_dual_value ,
-                               read , default_dual_value );
- if( created )
-  return( true );
- else if constexpr( sizeof...(Rest) != 0 )
-  return( try_un_dynamic< Rest... >( constraint_group ,
-                                     dynamic_constraint_dual_value ,
-                                     read , default_dual_value ) );
- return( false );
+  if( ! conforming )
+   throw( std::logic_error( "RowConstraintSolution::apply_static: the size "
+			    "of static Constraint group " +
+			    std::to_string( i ) +
+			    " is different from that of the Block" ) );
+  }
 }
 
 /*--------------------------------------------------------------------------*/
@@ -486,6 +277,7 @@ void RowConstraintSolution::apply_dynamic
   const RowConstraint::RHSValue default_dual_value ) {
 
  auto & constraint_groups = block->get_dynamic_constraints();
+ const auto & groups = block->get_dynamic_constraint_groups();
 
  if( constraint_groups.size() != dynamic_constraint_dual_values.size() )
   throw( std::logic_error
@@ -495,15 +287,46 @@ void RowConstraintSolution::apply_dynamic
      ") is different from that of the Block (" +
      std::to_string( constraint_groups.size() ) + ")" ) );
 
- for( Vec_any::size_type i = 0; i < dynamic_constraint_dual_values.size();
+ for( Vec_any::size_type i = 0 ; i < dynamic_constraint_dual_values.size() ;
       ++i ) {
-
-  if( ! try_un_dynamic< RowConstraint_Derived_Classes >
-      ( constraint_groups[ i ] , dynamic_constraint_dual_values[ i ] ,
-        read , default_dual_value ) )
+  auto & values = dynamic_constraint_dual_values[ i ];
+  bool conforming = true;
+  if( ! on_group( groups[ i ] ,
+                 [ & ]( const BaseGroup & group ) {
+       if( group.get_num_cells() != values.size() ) {
+	conforming = false;
+	return;
+	}
+       for_each_row_cell( group ,
+			  [ & values , read , default_dual_value ]
+			  ( BaseGroup::Index c , auto & cell ) {
+	auto & cell_values = values[ c ];
+	if( read ) {
+	 // the values of a cell may outlive the Constraint they were read
+	 // from, hence the vector only grows
+	 if( cell_values.size() < cell.size() )
+	  cell_values.resize( cell.size() );
+	 auto value = cell_values.data();
+	 for( auto & item : cell )
+	  *(value++) = group_element( item ).get_dual();
+	 }
+	else {
+	 // Constraint beyond the stored values get the default dual value
+	 auto value = cell_values.begin();
+	 for( auto & item : cell )
+	  group_element( item ).set_dual( value != cell_values.end() ?
+					  *(value++) : default_dual_value );
+	 }
+	} );
+       } ) )
    throw( std::logic_error(
     "RowConstraintSolution::apply_dynamic: invalid types" ) );
- }
+  if( ! conforming )
+   throw( std::logic_error( "RowConstraintSolution::apply_dynamic: the "
+			    "number of cells of dynamic Constraint group " +
+			    std::to_string( i ) +
+			    " is different from that of the Block" ) );
+  }
 }
 
 /*--------------------------------------------------------------------------*/
@@ -618,59 +441,54 @@ void RowConstraintSolution::sum( const Solution * solution,
      std::to_string( other_solution->static_constraint_dual_values.size() ) +
      ") of the given Solution" ) );
 
+ if( this->dynamic_constraint_dual_values.size() !=
+     other_solution->dynamic_constraint_dual_values.size() )
+
+  throw( std::logic_error
+   ( "RowConstraintSolution::sum() "
+     "number of dynamic constraint groups of this Solution (" +
+     std::to_string( this->dynamic_constraint_dual_values.size() ) +
+     ") is different from the number of dynamic constraint groups (" +
+     std::to_string( other_solution->dynamic_constraint_dual_values.size() ) +
+     ") of the given Solution" ) );
+
  // Sum the values of the static Constraints
 
- for( Vec_any::size_type i = 0; i < static_constraint_dual_values.size(); ++i )
+ for( Vec_any::size_type i = 0 ; i < static_constraint_dual_values.size() ;
+      ++i ) {
+  auto & values = static_constraint_dual_values[ i ];
+  const auto & other_values = other_solution->static_constraint_dual_values[ i ];
+  if( values.size() != other_values.size() )
+   throw( std::logic_error( "RowConstraintSolution::sum: static constraint "
+			    "group " + std::to_string( i ) + " has " +
+			    std::to_string( values.size() ) + " values here "
+			    "and " + std::to_string( other_values.size() ) +
+			    " in the given Solution" ) );
+  for( std::size_t k = 0 ; k < values.size() ; ++k )
+   values[ k ] += multiplier * other_values[ k ];
+  }
 
-  if( ! un_any_static_2
-      ( this->static_constraint_dual_values[ i ] ,
-        other_solution->static_constraint_dual_values[ i ] ,
-        [ multiplier ]( double & this_value , double & other_value ) {
-       this_value += multiplier * other_value;
-      } ,
-        un_any_type< double >() , un_any_type< double >() ) )
+ // Sum the values of the dynamic Constraints: a value missing on either side
+ // counts as zero
 
-   throw( std::logic_error
-    ( "RowConstraintSolution::sum: invalid or non-conforming "
-      "static constraint group types: " +
-      std::string( static_constraint_dual_values[ i ].type().name() )
-      + " and " +
-      other_solution->static_constraint_dual_values[ i ].type().name() ) );
-
- // Sum the values of the dynamic Constraints
-
- for( Vec_any::size_type i = 0; i < dynamic_constraint_dual_values.size(); ++i )
-
-  if( ! un_any_static_2
-      ( this->dynamic_constraint_dual_values[ i ] ,
-        other_solution->dynamic_constraint_dual_values[ i ] ,
-        [ multiplier ]( std::vector< double > & this_values ,
-                        std::vector< double > & other_values ) {
-
-       // Reserve space in case the other solution has more dynamic
-       // Constraint values
-       this_values.reserve( other_values.size() );
-
-       auto i1 = this_values.begin();
-       auto i2 = other_values.begin();
-
-       for( ; i1 != this_values.end() &&
-             i2 != other_values.end() ; ++i1 , ++i2 )
-        *i1 += multiplier * ( *i2 );
-
-       // Copy the values of the extra Constraints
-       for( ; i2 != other_values.end() ; ++i2 )
-        *i1 = multiplier * ( *i2 );
-      } ,
-        un_any_type< std::vector< double > >() ,
-        un_any_type< std::vector< double > >() ) )
-
-   throw( std::logic_error
-    ( "RowConstraintSolution::sum(): invalid or non-conforming dynamic "
-      "constraint group types: " +
-      std::string( this->dynamic_constraint_dual_values[ i ].type().name() ) +
-      " and " +
-      other_solution->dynamic_constraint_dual_values[ i ].type().name() ) );
+ for( Vec_any::size_type i = 0 ; i < dynamic_constraint_dual_values.size() ;
+      ++i ) {
+  auto & cells = dynamic_constraint_dual_values[ i ];
+  const auto & other_cells =
+   other_solution->dynamic_constraint_dual_values[ i ];
+  if( cells.size() != other_cells.size() )
+   throw( std::logic_error( "RowConstraintSolution::sum: dynamic constraint "
+			    "group " + std::to_string( i ) + " has " +
+			    std::to_string( cells.size() ) + " cells here "
+			    "and " + std::to_string( other_cells.size() ) +
+			    " in the given Solution" ) );
+  for( std::size_t c = 0 ; c < cells.size() ; ++c ) {
+   if( cells[ c ].size() < other_cells[ c ].size() )
+    cells[ c ].resize( other_cells[ c ].size() , 0 );
+   for( std::size_t k = 0 ; k < other_cells[ c ].size() ; ++k )
+    cells[ c ][ k ] += multiplier * other_cells[ c ][ k ];
+   }
+  }
 
  // Sum the solutions of the nested Blocks
 
@@ -718,56 +536,16 @@ void RowConstraintSolution::scale( const RowConstraintSolution * const solution 
 
  this->delete_vectors();
 
- // Scale static constraint values
+ static_constraint_dual_values = solution->static_constraint_dual_values;
+ for( auto & values : static_constraint_dual_values )
+  for( auto & value : values )
+   value *= factor;
 
- this->static_constraint_dual_values.resize
-  ( solution->static_constraint_dual_values.size() );
-
- for( Vec_any::size_type i = 0; i < static_constraint_dual_values.size(); ++i )
-
-  if( ! un_any_static_2_create
-      ( solution->static_constraint_dual_values[ i ] ,
-        this->static_constraint_dual_values[ i ] ,
-        un_any_type< double >() , un_any_type< double >() ,
-        [ factor ]( double & given_solution_value , double & scaled_value ) {
-         scaled_value = factor * given_solution_value;
-        } ,
-        true ) )
-
-   throw( std::logic_error
-    ( "RowConstraintSolution::sum(): invalid or "
-      "non-conforming static constraint group types: " +
-      std::string( solution->static_constraint_dual_values[ i ].type().name() )
-      + " and " +
-      std::string( this->static_constraint_dual_values[ i ].type().name() ) ) );
-
- // Scale dynamic constraint values
-
- this->dynamic_constraint_dual_values.resize
-  ( solution->dynamic_constraint_dual_values.size() );
-
- for( Vec_any::size_type i = 0; i < dynamic_constraint_dual_values.size(); ++i )
-
-  if( ! un_any_static_2_create
-      ( solution->dynamic_constraint_dual_values[ i ] ,
-        this->dynamic_constraint_dual_values[ i ] ,
-        un_any_type< std::vector< double > >() ,
-        un_any_type< std::vector< double > >() ,
-        [ factor ]( std::vector< double > & given_solution_values ,
-                    std::vector< double > & scaled_values ) {
-         scaled_values.resize( 0 );
-         scaled_values.reserve( given_solution_values.size() );
-         for( auto & value : given_solution_values )
-          scaled_values.push_back( factor * value );
-        } ) )
-
-   throw( std::logic_error
-    ( "RowConstraintSolution::sum(): invalid or "
-      "non-conforming dynamic constraint group types: " +
-      std::string( solution->dynamic_constraint_dual_values[ i ].type().name() )
-      + " and " +
-      std::string( this->dynamic_constraint_dual_values[ i ].type().name() )
-    ) );
+ dynamic_constraint_dual_values = solution->dynamic_constraint_dual_values;
+ for( auto & cells : dynamic_constraint_dual_values )
+  for( auto & values : cells )
+   for( auto & value : values )
+    value *= factor;
 
  // Scale the solutions of the nested Blocks
 
