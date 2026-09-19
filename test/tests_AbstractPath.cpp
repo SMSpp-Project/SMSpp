@@ -41,19 +41,16 @@ void test_serialization( const AbstractPath & path ) {
 
 void test_paths( Block * block , Block * reference_block ) {
 
- for( const auto & group : block->get_static_variables() )
-  assert( un_any_const_static
-          ( group ,
-            [ reference_block ]( ColVariable & v ) {
-             AbstractPath path( & v , reference_block );
-             assert( & v == path.get_element< Variable >( reference_block ) );
-             test_serialization( path );
-            } ,
-            un_any_type< ColVariable >() ) );
+ for( const auto & group : block->get_static_variable_groups() )
+  assert( group->for_each_as< ColVariable >(
+           [ reference_block ]( ColVariable & v ) {
+            AbstractPath path( & v , reference_block );
+            assert( & v == path.get_element< Variable >( reference_block ) );
+            test_serialization( path );
+            } ) );
 
- for( const auto & group : block->get_static_constraints() )
-  assert( un_any_const_static
-          ( group ,
+ for( const auto & group : block->get_static_constraint_groups() )
+  assert( group->for_each_as< FRowConstraint >(
             [ reference_block ]( FRowConstraint & v ) {
              {
              AbstractPath path( & v , reference_block );
@@ -68,22 +65,18 @@ void test_paths( Block * block , Block * reference_block ) {
                      ( reference_block ) );
              test_serialization( path );
              }
-            } ,
-            un_any_type< FRowConstraint >() ) );
+            }  ) );
 
- for( const auto & group : block->get_dynamic_variables() )
-  assert( un_any_const_dynamic
-          ( group ,
+ for( const auto & group : block->get_dynamic_variable_groups() )
+  assert( group->for_each_as< ColVariable >(
             [ reference_block ]( ColVariable & v ) {
              AbstractPath path( & v , reference_block );
              assert( & v == path.get_element< Variable >( reference_block ) );
              test_serialization( path );
-            } ,
-            un_any_type< ColVariable >() ) );
+            }  ) );
 
- for( const auto & group : block->get_dynamic_constraints() )
-  assert( un_any_const_dynamic
-          ( group ,
+ for( const auto & group : block->get_dynamic_constraint_groups() )
+  assert( group->for_each_as< FRowConstraint >(
             [ reference_block ]( FRowConstraint & v ) {
              {
              AbstractPath path( & v , reference_block );
@@ -98,8 +91,7 @@ void test_paths( Block * block , Block * reference_block ) {
                      ( reference_block ) );
              test_serialization( path );
              }
-            } ,
-            un_any_type< FRowConstraint >() ) );
+            }  ) );
 
  {
   auto objective = block->get_objective();
@@ -152,10 +144,10 @@ void test_variable_multi_selection( Block * reference ) {
 
  // Find a static ColVariable group of size >= 2 in the reference Block;
  // skip the test if no such group is available.
- const auto & static_vars = reference->get_static_variables();
+ const auto & static_vars = reference->get_static_variable_groups();
  for( Index g = 0 ; g < static_vars.size() ; ++g ) {
-  const auto group_size = inspection::get_static_element_size<
-   ColVariable , ColVariable >( static_vars[ g ] );
+  const auto group_size = inspection::get_element_size< ColVariable >(
+					       reference , true , g );
   if( ( group_size == Inf< Index >() ) || ( group_size < 2 ) )
    continue;
 
@@ -346,21 +338,17 @@ void test( Block * block , Block * reference_block ) {
 
 void test_everyone_has_function( Block * block ) {
 
- for( const auto & group : block->get_static_constraints() )
-  assert( un_any_const_static
-          ( group ,
+ for( const auto & group : block->get_static_constraint_groups() )
+  assert( group->for_each_as< FRowConstraint >(
             []( FRowConstraint & v ) {
              assert( v.get_function() != nullptr );
-            } ,
-            un_any_type< FRowConstraint >() ) );
+            }  ) );
 
- for( const auto & group : block->get_dynamic_constraints() )
-  assert( un_any_const_dynamic
-          ( group ,
+ for( const auto & group : block->get_dynamic_constraint_groups() )
+  assert( group->for_each_as< FRowConstraint >(
             []( FRowConstraint & v ) {
              assert( v.get_function() != nullptr );
-            } ,
-            un_any_type< FRowConstraint >() ) );
+            }  ) );
 
  {
   auto objective = static_cast< FRealObjective * >( block->get_objective() );

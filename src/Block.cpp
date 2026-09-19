@@ -784,59 +784,9 @@ void Block::print( std::ostream & output , char vlvl ) const
         << std::endl;
 
  if( ! vlvl ) {
-  /*
-  // the static Constraints of the Block- - - - - - - - - - - - - - - - - - -
-  output << "Static Constraints:" << std::endl;
-  for( unsigned int i = 0 ; i < v_s_Constraint.size() ; ++i ) {
-   output << i;
-   if( ! v_s_Constraint_names[ i ].empty() )
-    output << " (" << v_s_Constraint_names[ i ] << "): ";
-   else
-    output << ": ";
-
-   un_any_static_constraint( v_s_Constraint[ i ] , { output << *var; } );
-   output << std::endl;
-   }
-
-  // the static Variables of the Block- - - - - - - - - - - - - - - - - - - -
-  output << "Static Variables:" << std::endl;
-  for( unsigned int i = 0 ; i < v_s_Variable.size() ; ++i ) {
-   output << i;
-   if( ! v_s_Variable_names[ i ].empty() )
-    output << " (" << v_s_Variable_names[ i ] << "): ";
-   else
-    output << ": ";
-
-   un_any_static_Variable( v_s_Variable[ i ] , { output << *var; } );
-   output << std::endl;
-   }
-
-  // the dynamic Constraints of the Block- - - - - - - - - - - - - - - - - -
-  output << "Dynamic Constraints:" << std::endl;
-  for( unsigned int i = 0 ; i < v_d_Constraint.size() ; ++i ) {
-   output << i;
-   if( ! v_d_Constraint_names[ i ].empty() )
-    output << " (" << v_d_Constraint_names[ i ] << "): ";
-   else
-    output << ": ";
-
-   un_any_static_Constraint( v_d_Constraint[ i ] , { output << *var; } );
-   output << std::endl;
-   }
-
-  // the dynamic Variables of the Block - - - - - - - - - - - - - - - - - - -
-  output << "Dynamic Variables:" << std::endl;
-  for( unsigned int i = 0 ; i < v_d_Variable.size() ; ++i ) {
-   output << i;
-   if( ! v_d_Variable_names[ i ].empty() )
-    output << " (" << v_d_Variable_names[ i ] << "): ";
-   else
-    output << ": ";
-
-   un_any_static_Variable( v_d_Variable[ i ] , { output << *var; } );
-   output << std::endl;
-   }
-  */
+  // what a Block holds of its own is printed by whoever knows what it is:
+  // the groups say the type and the shape of the Variable and of the
+  // Constraint, and AbstractBlock::print() walks them
 
   // the inner Blocks - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   output << std::endl << "Nested Blocks:" << std::endl;
