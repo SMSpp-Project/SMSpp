@@ -59,6 +59,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- the unit tests check what they assert in every build type: the Release one
+  defines NDEBUG, which turned each of their `assert()` into nothing, so that
+  they passed whatever happened, and `AbstractPath_test` did not even walk
+  the Block, the walk being inside an `assert()`; now that it does, it
+  writes and reads back through netCDF one path in 8, many thousands to a
+  file, rather than every path in a file of its own, which took 9 minutes
+
 - `RowConstraint::is_feasible()` on a collection of collections of
   RowConstraint, and on a `boost::multi_array` of collections, took them as
   const while each RowConstraint has to be computed, so that it did not

@@ -20,6 +20,9 @@
 #include "FRowConstraint.h"
 #include "ColVariable.h"
 
+// last, so that the headers above are read as the library was compiled
+#include "TestAssert.h"
+
 /*--------------------------------------------------------------------------*/
 /*-------------------------------- USING -----------------------------------*/
 /*--------------------------------------------------------------------------*/

@@ -28,10 +28,12 @@
 #include "RowConstraintSolution.h"
 
 #include <array>
-#include <cassert>
 #include <iostream>
 #include <list>
 #include <vector>
+
+// last, so that the headers above are read as the library was compiled
+#include "TestAssert.h"
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------------- USING -----------------------------------*/
