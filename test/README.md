@@ -11,6 +11,9 @@ Unit tests for the core SMS++ library. Each test is registered as a separate
 - `LinearFunction_test` covers `LinearFunction`.
 - `QuadFunction_test` covers `DQuadFunction`.
 - `AbstractPath_test` covers `AbstractPath`.
+- `SizeVariable_test` covers the size variable of a
+  `PolyhedralFunctionBlock`, given before or after its abstract
+  representation exists and kept in step by a change of the global scale.
 - `Group_test` covers the groups of `Variable` and `Constraint` of a `Block`,
   and the two consumers that copy them, the `Solution` and the abstract copy
   of a `Block`.

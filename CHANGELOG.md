@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `Block::get_size_variable()` and `Block::set_size_variable()`, through
+  which a :Block declares a column standing for a size parameter that it
+  writes into its own rows, a column it owns or one it is given, normally by
+  its father, a Solver seeing only ordinary Variable and Constraint; the
+  size parameter that is a datum goes through the methods factory instead.
+  `PolyhedralFunctionBlock` takes one, the multiplier of `set_lambda()`,
+  before or after its abstract representation exists, and keeps its
+  coefficient in step with the global scale, in place
+
 - the methods factory takes the data of a setter as a `std::span` as well
   (`MF_dbl_sp`, `MF_int_sp` and the `MS_sp_*` signatures), which lets the
   setter check the length of what it is given instead of reading past its
@@ -41,6 +50,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   now have the same list of shapes
 
 ### Changed
+
+- `PolyhedralFunctionBlock::set_lambda()` is `set_size_variable()` with the
+  checks it had, and adds the multiplier to the normalization constraint in
+  place instead of giving the constraint a new LinearFunction, so that the
+  constraint and its LinearFunction stay the objects they were
 
 - ⚠️ THE LAYOUT OF `Block` HAS CHANGED, and `add_static_variable()` and the
   other 35 registration methods are templates, hence they live in the
