@@ -5,7 +5,9 @@
  * the caller having to know the shape of the container they sit in, so the
  * tests go over every shape a :Block can register, and over the one thing
  * the consumers of a group rely on, which is the order in which its elements
- * come out and the runs of contiguous ones they form.
+ * come out and the runs of contiguous ones they form. The groups whose cells
+ * are vectors are also taken through the two consumers that copy a group,
+ * the Solution and the abstract copy of a Block.
  *
  * \author Donato Meoli \n
  *         Dipartimento di Informatica \n
@@ -19,8 +21,11 @@
 /*--------------------------------------------------------------------------*/
 
 #include "AbstractBlock.h"
+#include "ColVariableSolution.h"
 #include "FRowConstraint.h"
+#include "LinearFunction.h"
 #include "OneVarConstraint.h"
+#include "RowConstraintSolution.h"
 
 #include <array>
 #include <cassert>
@@ -148,6 +153,7 @@ static void test_shapes( void )
  double first = 0;
  for( const auto & group : { statics[ 0 ].get() , statics[ 1 ].get() ,
 			     statics[ 2 ].get() , statics[ 3 ].get() ,
+			     statics[ 4 ].get() ,
 			     dynamics[ 0 ].get() , dynamics[ 1 ].get() } ) {
   const auto values = values_of( *group );
   assert( values.size() == group->get_num_elements() );
@@ -248,6 +254,148 @@ static void test_constraints( void )
  }
 
 /*--------------------------------------------------------------------------*/
+
+static void test_cells_of_vectors( void )
+{
+ auto block = new AbstractBlock;
+
+ // a grid whose cells are vectors of different lengths, one of them empty,
+ // a vector of vectors with an empty one, and a grid of vectors of rows,
+ // one row per Variable of the first grid, sitting in the same cell
+ const std::array< Block::Index , 4 > length = { 3 , 0 , 1 , 2 };
+
+ auto cells = new boost::multi_array< std::vector< ColVariable > , 2 >(
+						       boost::extents[ 2 ][ 2 ] );
+ auto jagged = new std::vector< std::vector< ColVariable > >( 3 );
+ ( *jagged )[ 0 ].resize( 2 );
+ ( *jagged )[ 2 ].resize( 3 );
+ auto rows = new boost::multi_array< std::vector< FRowConstraint > , 2 >(
+						       boost::extents[ 2 ][ 2 ] );
+
+ double next = 1;
+ for( Block::Index c = 0 ; c < 4 ; ++c ) {
+  cells->data()[ c ].resize( length[ c ] );
+  for( auto & var : cells->data()[ c ] )
+   var.set_value( next++ );
+  }
+ for( auto & cell : *jagged )
+  for( auto & var : cell )
+   var.set_value( next++ );
+
+ double dual = 100;
+ for( Block::Index c = 0 ; c < 4 ; ++c ) {
+  rows->data()[ c ].resize( length[ c ] );
+  for( Block::Index j = 0 ; j < length[ c ] ; ++j ) {
+   auto & row = rows->data()[ c ][ j ];
+   row.set_function( new LinearFunction( { { & cells->data()[ c ][ j ] ,
+					       1.0 } } ) , eNoMod );
+   row.set_lhs( 0 , eNoMod );
+   row.set_rhs( 10 + j , eNoMod );
+   row.set_dual( dual++ );
+   }
+  }
+
+ block->add_static_variable( *cells , "cells" );
+ block->add_static_variable( *jagged , "jagged" );
+ block->add_static_constraint( *rows , "rows" );
+
+ // the two Solution give back what they took, element by element, with the
+ // empty cells in between not shifting anything
+ ColVariableSolution primal;
+ primal.read( block );
+ for( Block::Index c = 0 ; c < 4 ; ++c )
+  for( auto & var : cells->data()[ c ] )
+   var.set_value( -1 );
+ for( auto & cell : *jagged )
+  for( auto & var : cell )
+   var.set_value( -1 );
+ primal.write( block );
+
+ next = 1;
+ for( Block::Index c = 0 ; c < 4 ; ++c )
+  for( auto & var : cells->data()[ c ] )
+   assert( var.get_value() == next++ );
+ for( auto & cell : *jagged )
+  for( auto & var : cell )
+   assert( var.get_value() == next++ );
+
+ RowConstraintSolution duals;
+ duals.read( block );
+ for( Block::Index c = 0 ; c < 4 ; ++c )
+  for( auto & row : rows->data()[ c ] )
+   row.set_dual( 0 );
+ duals.write( block );
+
+ dual = 100;
+ for( Block::Index c = 0 ; c < 4 ; ++c )
+  for( auto & row : rows->data()[ c ] )
+   assert( row.get_dual() == dual++ );
+
+ // the abstract copy keeps the shape: a grid of vectors becomes a grid of
+ // vectors of the same lengths, not a grid of single elements, and each
+ // element of the copy is paired with the one in the same place
+ auto copy = new AbstractBlock;
+ copy->mirror( block );
+ assert( copy->get_mirror_issues().empty() );
+
+ const auto & vars = copy->get_static_variable_groups();
+ const auto & cons = copy->get_static_constraint_groups();
+ assert( ( vars.size() == 2 ) && ( cons.size() == 1 ) );
+
+ assert( vars[ 0 ]->get_layout() == BaseGroup::eJagged );
+ assert( vars[ 0 ]->get_rank() == 2 );
+ assert( cons[ 0 ]->get_layout() == BaseGroup::eJagged );
+ assert( cons[ 0 ]->get_rank() == 2 );
+
+ auto copy_cells = static_cast< boost::multi_array<
+  std::vector< ColVariable > , 2 > * >( vars[ 0 ]->get_container() );
+ auto copy_jagged = static_cast< std::vector< std::vector< ColVariable > > *
+				 >( vars[ 1 ]->get_container() );
+ auto copy_rows = static_cast< boost::multi_array<
+  std::vector< FRowConstraint > , 2 > * >( cons[ 0 ]->get_container() );
+
+ assert( copy_cells->num_elements() == 4 );
+ assert( copy_rows->num_elements() == 4 );
+ assert( copy_jagged->size() == 3 );
+ for( Block::Index c = 0 ; c < 3 ; ++c )
+  assert( ( *copy_jagged )[ c ].size() == ( *jagged )[ c ].size() );
+
+ for( Block::Index c = 0 ; c < 4 ; ++c ) {
+  assert( copy_cells->data()[ c ].size() == length[ c ] );
+  assert( copy_rows->data()[ c ].size() == length[ c ] );
+  for( Block::Index j = 0 ; j < length[ c ] ; ++j ) {
+   const auto & var = cells->data()[ c ][ j ];
+   const auto & copy_var = copy_cells->data()[ c ][ j ];
+   const auto & copy_row = copy_rows->data()[ c ][ j ];
+   assert( copy->mirror_of( & var ) == & copy_var );
+   assert( copy_var.get_value() == var.get_value() );
+   assert( copy->mirror_of( & rows->data()[ c ][ j ] ) == & copy_row );
+   assert( copy_row.get_rhs() == 10 + j );
+
+   // the row of the copy is written in the Variable of the copy
+   auto f = static_cast< LinearFunction * >( copy_row.get_function() );
+   assert( f->get_num_active_var() == 1 );
+   assert( f->get_active_var( 0 ) == & copy_var );
+   }
+  }
+
+ // a Solution works on the copy as it does on the original
+ ColVariableSolution copy_primal;
+ copy_primal.read( copy );
+ copy_primal.write( copy );
+
+ // the copy disposes of the containers it made, those of the original are
+ // of whoever registered them, the rows going before the Variable they use
+ delete copy;
+ delete block;
+ delete rows;
+ delete jagged;
+ delete cells;
+
+ std::cout << "cells of vectors: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
 /*--------------------------------- MAIN -----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -255,6 +403,7 @@ int main( void )
 {
  test_shapes();
  test_constraints();
+ test_cells_of_vectors();
 
  std::cout << "All tests passed!!" << std::endl;
 
