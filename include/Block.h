@@ -117,6 +117,7 @@
 
 #include <boost/bimap.hpp>
 #include <netcdf>
+#include <type_traits>
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
@@ -569,14 +570,15 @@ class Block : public Observer {
  *
  * The "methods factory" (more properly, methods factor*ies*) is a map between
  * strings and pointer to functions that could be used, for example, to modify
- * the data of a given :Block. There are in principle as many factories as
- * there are function types, although a factory only exists if someone
- * registers at least a function in it (cf. register_methods()). However, for
- * the methods factories to be useful, only relatively few different function
- * types should reasonably be used, so that some high degree of modularity is
- * achieved between different :Block. This is why the base Block class defines
- * (and hardly ever uses) a bunch of types that are intended to provide the
- * basis for most of the functions in the interface of derived classes:
+ * or interrogate the data of a given :Block. There are in principle as many
+ * factories as there are function types, although a factory only exists if
+ * someone registers at least a function in it (cf. register_methods()).
+ * However, for the methods factories to be useful, only relatively few
+ * different function types should reasonably be used, so that some high
+ * degree of modularity is achieved between different :Block. This is why the
+ * base Block class defines (and hardly ever uses) a bunch of types that are
+ * intended to provide the basis for most of the functions in the interface of
+ * derived classes:
  *
  * - Index, an index into any internal data structure;
  *
@@ -591,6 +593,15 @@ class Block : public Observer {
  *
  * - MF_int_it, a const_iterator into a std::vector< int >;
  *
+ * - MF_dbl_sp, a std::span< const double >;
+ *
+ * - MF_int_sp, a std::span< const int >;
+ *
+ * - MF_dbl_msp, a std::span< double >, through which a function writes data
+ *   out;
+ *
+ * - MF_int_msp, a std::span< int >, the same for int;
+ *
  * Also defined here are types useful for the registration process itself:
  *
  * - FunctionType (variadic template), a std::function with the function type
@@ -599,12 +610,25 @@ class Block : public Observer {
  * - MemberFunctionType (variadic template), the type of the class member
  *   functions corresponding to the type dictated by FunctionType;
  *
+ * - QueryType (variadic template), the same as FunctionType for a function
+ *   that only interrogates the Block: a const Block * in front and no
+ *   ModParam;
+ *
+ * - ConstMemberFunctionType (variadic template), the type of the class member
+ *   functions corresponding to the type dictated by QueryType;
+ *
  * - arg_packer_helper and arg_packer (variadic template), helper types for
  *   template shenanigans for methods factory;
  *
- * - The six types MS[_D]_S with D in { dbl , int } (or not there) and S in
- *   { rngd , sbst } representing six standard parameter type lists for
- *   functions to be inserted in the methods factory.
+ * - the types MS[_D]_S with D in { dbl , int } (or not there) and S in
+ *   { rngd , sbst } representing the standard parameter type lists for
+ *   functions to be inserted in the methods factory;
+ *
+ * - the MS_sp_D_S with D in { dbl , int }, the same lists with the data as
+ *   a span;
+ *
+ * - the MS_qry_D_S with D in { dbl , int } and S in { rngd , sbst }, the
+ *   lists for a getter writing its answer through a mutable span.
  *  @{ */
 
  /// an index in any internal data structure of the Block
@@ -631,6 +655,18 @@ class Block : public Observer {
  /// iterator for int data received by the functions in the methods factory
  using MF_int_it = std::vector< int >::const_iterator;
 
+ /// span for double data received by the functions in the methods factory
+ using MF_dbl_sp = std::span< const double >;
+
+ /// span for int data received by the functions in the methods factory
+ using MF_int_sp = std::span< const int >;
+
+ /// span through which the functions in the methods factory write data out
+ using MF_dbl_msp = std::span< double >;
+
+ /// span through which the methods factory functions write int data out
+ using MF_int_msp = std::span< int >;
+
  /// typedef for functions to be added to the methods factory
  /** Items added to the methods factory should typically be (pointers to)
   * std::functions (usually adapter functions for some :Block member function)
@@ -653,6 +689,27 @@ class Block : public Observer {
  template< class dBlock , typename ... Args >
  using MemberFunctionType =
   void ( dBlock::* )( Args ... , ModParam , ModParam );
+
+ /// typedef for functions interrogating a Block, for the methods factory
+ /** Items added to a "query" methods factory should typically be (pointers
+  * to) std::functions (usually adapter functions for some :Block const
+  * member function) that take a const Block * first, and after it as many
+  * parameters as they want; unlike in FunctionType there is no ModParam. */
+
+ template< typename ... Args >
+ using QueryType =
+  std::function< void( const Block * , Args ... ) >;
+
+ /// typedef for class member functions interrogating a Block
+ /** The class member functions (whose adapters are to be) added to a "query"
+  * methods factory should be const and take as many parameters as they want,
+  * and be functions of some \p dBlock derived from Block; it is clearly "the
+  * same parameter type list" as QueryType< Args > (with the same Args) for a
+  * function of the given \p dBlock. */
+
+ template< class dBlock , typename ... Args >
+ using ConstMemberFunctionType =
+  void ( dBlock::* )( Args ... ) const;
 
  /// helper type for template shenanigans for methods factory
  template< typename ... >
@@ -680,11 +737,35 @@ class Block : public Observer {
  /// type for ( int , subset ) functions
  using MS_int_sbst = arg_packer< MF_int_it , Subset && , bool >;
 
+ /// type for ( double , range ) functions, span form
+ using MS_sp_dbl_rngd = arg_packer< MF_dbl_sp , Range >;
+
+ /// type for ( int , range ) functions, span form
+ using MS_sp_int_rngd = arg_packer< MF_int_sp , Range >;
+
+ /// type for ( double , subset ) functions, span form
+ using MS_sp_dbl_sbst = arg_packer< MF_dbl_sp , Subset && , bool >;
+
+ /// type for ( int , subset ) functions, span form
+ using MS_sp_int_sbst = arg_packer< MF_int_sp , Subset && , bool >;
+
+ /// type for ( double , range ) queries
+ using MS_qry_dbl_rngd = arg_packer< MF_dbl_msp , Range >;
+
+ /// type for ( double , subset ) queries
+ using MS_qry_dbl_sbst = arg_packer< MF_dbl_msp , c_Subset & , bool >;
+
+ /// type for ( int , range ) queries
+ using MS_qry_int_rngd = arg_packer< MF_int_msp , Range >;
+
+ /// type for ( int , subset ) queries
+ using MS_qry_int_sbst = arg_packer< MF_int_msp , c_Subset & , bool >;
+
  /// typedef for the bimap used by one methods factory
  template< class F >
  using MethodsFactoryMap = boost::bimap< std::string , F * >;
 
- /// canonical factory types for the six standard method signatures
+ /// canonical factory types for the standard method signatures
  using MF_rngd_map = MethodsFactoryMap< FunctionType< Range > >;
  using MF_dbl_rngd_map = MethodsFactoryMap< FunctionType< MF_dbl_it , Range > >;
  using MF_int_rngd_map = MethodsFactoryMap< FunctionType< MF_int_it , Range > >;
@@ -694,6 +775,26 @@ class Block : public Observer {
   MF_dbl_it , Subset && , bool > >;
  using MF_int_sbst_map = MethodsFactoryMap< FunctionType<
   MF_int_it , Subset && , bool > >;
+
+ /// the same data-carrying signatures in their span form
+ using MF_sp_dbl_rngd_map = MethodsFactoryMap< FunctionType<
+  MF_dbl_sp , Range > >;
+ using MF_sp_int_rngd_map = MethodsFactoryMap< FunctionType<
+  MF_int_sp , Range > >;
+ using MF_sp_dbl_sbst_map = MethodsFactoryMap< FunctionType<
+  MF_dbl_sp , Subset && , bool > >;
+ using MF_sp_int_sbst_map = MethodsFactoryMap< FunctionType<
+  MF_int_sp , Subset && , bool > >;
+
+ /// canonical factory types for the standard query signatures
+ using MF_qry_dbl_rngd_map = MethodsFactoryMap< QueryType<
+  MF_dbl_msp , Range > >;
+ using MF_qry_dbl_sbst_map = MethodsFactoryMap< QueryType<
+  MF_dbl_msp , c_Subset & , bool > >;
+ using MF_qry_int_rngd_map = MethodsFactoryMap< QueryType<
+  MF_int_msp , Range > >;
+ using MF_qry_int_sbst_map = MethodsFactoryMap< QueryType<
+  MF_int_msp , c_Subset & , bool > >;
 
 /** @} ---------------------------------------------------------------------*/
 
@@ -5898,9 +5999,9 @@ class Block : public Observer {
  *
  * is called. The adapter function simply static_cast< dBlock >()-s the
  * Block * and invokes the given function. Similarly,
- * get_method_fs< dBlock , Args >() and
- * get_method_name_fs< dBlock , Args >() are provided to search into the
- * corresponding FunctionType< Args > methods factories.
+ * get_method_fs< Args >() and get_method_name_fs< Args >() are provided to
+ * search into the corresponding FunctionType< Args > methods factories, and
+ * get_query_fs< Args >() into the QueryType< Args > ones.
  *
  * A further level of support comes by defining some "general parameter type
  * lists" that functions in the methods factory should have. These should be
@@ -5922,16 +6023,20 @@ class Block : public Observer {
  *
  * - MF_int_it, a const_iterator into a std::vector< int >;
  *
- * These are thought to form the basis of "most" data-changing member
- * functions in any :Block class. In particular, six parameter type lists
- * are defined based on these, which have the form (clearly compatible with
- * the above types)
+ * - MF_dbl_sp and MF_int_sp, the same data as spans, and MF_dbl_msp and
+ *   MF_int_msp, the mutable spans a getter writes its answer through;
+ *
+ * These are thought to form the basis of "most" data-changing and
+ * data-reading member functions in any :Block class. In particular,
+ * parameter type lists are defined based on these; those of a setter have
+ * the form (clearly compatible with the above types)
  *
  *     my_method_name( [ < data > , ] < slice > , ModParam , ModParam )
  *
  * where:
  *
- * - data is either not there, or a MF_dbl_it, or a MF_int_it;
+ * - data is either not there, or one of MF_dbl_it, MF_int_it, MF_dbl_sp
+ *   and MF_int_sp;
  *
  * - slice indicates a subset of the data, in two possible forms:
  *
@@ -5948,6 +6053,8 @@ class Block : public Observer {
  *     by increasing index on call (if not it can be ordered inside: anyway
  *     the Subset is &&, meaning that it is expected to be "consumed" by the
  *     function, e.g. to be shipped to some appropriate form of Modification).
+ *     A getter does not consume the Subset, and takes a c_Subset &
+ *     instead.
  *
  *   Note that, if present, the provided  MF_X_it (call it "iter") must
  *   point to a std::vector< X > at least as long (after the position
@@ -5955,11 +6062,21 @@ class Block : public Observer {
  *   the X value *( iter + h ) has to be taken as the new value for the
  *   data structure in the :Block corresponding to the h-th Index in slice.
  *
- * These parameter type lists are "encoded" in the predefined six types
+ *   If the data travels in a span, the span is the same "at least as long"
+ *   buffer, and one shorter than the slice is an error the function can
+ *   report instead of reading past the end. A getter writing through a
+ *   mutable span writes the h-th value for the h-th Index in slice.
+ *
+ *   Those of a getter have the same form, with a mutable span as data,
+ *   MF_dbl_msp or MF_int_msp, and no ModParam.
+ *
+ * These parameter type lists are "encoded" in the predefined types
  * MS[_D]_S with D in { dbl , int } (or not there) and S in { rngd , sbst },
- * representing (in obvious ways) the six possible interfaces. Specific
- * versions of register_method(), get_method() and get_method_name() are
- * provided which take a final
+ * representing (in obvious ways) the possible interfaces; the MS_sp_D_S,
+ * with D in { dbl , int }, are the same ones with the data as a span, and
+ * the MS_qry_D_S, with the same D, those of a getter writing through a
+ * mutable span. Specific versions of register_method(), get_method_fs(),
+ * get_method_name_fs() and get_query_fs() are provided which take a final
  *
  *     MS[_D]_S::args()
  *
@@ -5972,7 +6089,7 @@ class Block : public Observer {
  *   register_method(), get_method() and get_method_name() are just a tiny
  *   bit easier to use;
  *
- * - gently nudge the user into adopting, as far as possible, these six
+ * - gently nudge the user into adopting, as far as possible, these
  *   parameter type lists for (as many as possible of) the data-changing
  *   functions of her :Block; this makes it straightforward to then register
  *   them in the methods factories, which greatly increases the value of the
@@ -6084,6 +6201,93 @@ class Block : public Observer {
  * the :Block owner in static_initialization() once and for all, the
  * possibility is always left open that some registration may happen outside
  * it.
+ *
+ * A further use of the factory is *sizing* a :Block, a parameter k of it
+ * being written in through a setter; this is called (re)sizing and is
+ * described elsewhere [see Design and scaling of this Block]. What follows
+ * holds for any method registered here, that one included.
+ *
+ * Several writers may act on the same datum, in no fixed order. Because of
+ * this
+ *
+ *     A SETTER RECOMPUTES THE DATA IT OWNS WHOLE, OUT OF THE FIELDS THE
+ *     :Block HOLDS, AND NEVER INCREMENTS WHAT IT FINDS THERE
+ *
+ * the point being that an increment reads what is there before writing, so
+ * its outcome depends on which writer acted last, whereas a recomputation
+ * depends on the fields alone. Those fields therefore have to keep the base
+ * datum: what a consumer reads back is the derivative of the value of this
+ * Block with respect to k, assembled out of the solve and out of what k
+ * multiplies, never out of k times it. An implementation that had written
+ * the scaled values over the base ones would give that derivative back k
+ * times too large.
+ *
+ * Note that what a setter writes arrives as a change of the "physical
+ * representation" of the :Block, the "abstract" one, if it has been
+ * constructed, having to be updated with it.
+ *
+ * A :Block registers here what has to be read back as well, under names of
+ * its own choosing. A getter that reads state requires that state, and the
+ * :Block registering it must declare which. Say a sensitivity built out of
+ * the multipliers of the rows carrying a parameter, and out of the primal
+ * solution as well wherever the parameter multiplies the coefficient of a
+ * Variable rather than a constant term: it needs the sub-tree solved, and
+ * by a Solver that makes those values available; read anywhere else it
+ * gives back what the previous solve left, with nothing marking it as
+ * wrong.
+ *
+ * Such a getter requires not only that the sub-tree be solved, but that the
+ * solve ended where the answer assumes it did. Where it ended infeasible a
+ * Solver giving dual information has an unbounded dual direction to offer,
+ * not the multipliers of an optimum, and out of that comes no derivative --
+ * the value of this Block is not finite there -- but the coefficients of a
+ * condition that any feasible choice of the parameters has to satisfy.
+ * Whether a getter answers at all there, and with which of the two, is for
+ * the :Block registering it to declare.
+ *
+ * How the value is assembled is the :Block's own business.
+ *
+ * The setter families are all shaped for writing, so reading needs a shape
+ * of its own, obtained by mirroring them. For the ( double , range ) case
+ * that is, in the Types group above,
+ *
+ *     MF_dbl_msp        the mutable span to write the answer out through
+ *     QueryType         FunctionType with a const Block * and no ModParam
+ *     ConstMemberFunctionType   what the wrapper adapts to it
+ *     MS_qry_dbl_rngd   the parameter list, mirroring MS_dbl_rngd
+ *     MF_qry_dbl_rngd_map       the map holding this family's entries
+ *
+ * plus the single copy of that map owned by the core, declared as
+ * queries_dbl_rngd_factory() and defined once in Block.cpp, and the
+ * specialization of methods_factory_accessor on
+ * QueryType< MF_dbl_msp , Range > that makes the signature standard;
+ * without it nothing compiles.
+ *
+ * The ( double , subset ) family is obtained the same way from MS_dbl_sbst,
+ * and is there together with the first because a :Block may have to answer
+ * two consumers about disjoint subsets of its parameters. The integer
+ * twins, MS_qry_int_rngd and MS_qry_int_sbst, mirror MS_int_rngd and
+ * MS_int_sbst on MF_int_msp, for a :Block whose parameter is a count and
+ * answers with the count rather than with a double that happens to be
+ * integral. Any further family comes from the setter family it mirrors.
+ *
+ * A consumer that has to know whether a :Block supports an operation asks
+ * this factory, and the name either resolves or it does not: a :Block
+ * registers a name exactly when it supports what that name promises. The
+ * No method is run to obtain the answer.
+ *
+ * A call can still be refused: a value outside what the :Block can
+ * represent, a state a getter requires and does not find. That is reported
+ * by throwing, as everywhere else here. The two cases do not overlap: a
+ * name that is not there says the operation is not supported, an exception
+ * out of a name that is there says that this one call is wrong.
+ *
+ * That a setter and the getter mirroring it address the same parameters, in
+ * the same number and order, is a convention like the naming one: the
+ * factory is one map per signature, keyed by an arbitrary string, and
+ * nothing in it describes the components, so position is the only
+ * correspondence. Nothing checks it either, the number of parameters being
+ * known only when the function is called.
  *  @{ */
 
  /// register a new function in the methods factory
@@ -6204,6 +6408,35 @@ class Block : public Observer {
   }
 
 /*--------------------------------------------------------------------------*/
+ /// register a new query in the methods factory
+ /** As the register_method() taking a MemberFunctionType, but the adapter
+  * static_cast<> to a const dBlock * and there is no ModParam. */
+
+ template< class dBlock , typename ... Args >
+ static std::enable_if_t< std::is_base_of_v< Block , dBlock > , void >
+ register_method( std::string && name ,
+                  ConstMemberFunctionType< dBlock , Args... > fnct ) {
+  register_method( std::move( name ),
+                   new QueryType< Args... >(
+                    [ fnct ]( const Block * blck , Args && ... args ) {
+                     std::invoke( fnct,
+                                  static_cast< const dBlock * >( blck ),
+                                  std::forward< Args >( args )... );
+                    } ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// as the above, with the parameter type list given by an arg_packer_helper
+
+ template< class dBlock , typename ... Args >
+ static void register_method(
+                  std::string && name ,
+                  ConstMemberFunctionType< dBlock , Args... > fnct ,
+                  arg_packer_helper< Args... > ) {
+  register_method< dBlock, Args... >( std::move( name ) , fnct );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// returns the function with the given name in the methods factory
  /** This function returns a pointer to the function associated with the given
   * \p name in the methods factory specified by the template function type F.
@@ -6241,7 +6474,9 @@ class Block : public Observer {
   * the given \p name in the methods factory corresponding to the function
   * type F implied by the variadic template parameter Args. Basically, this
   * function is equivalent to get_method< F > with
-  * F == FunctionType< Args... >.
+  * F == FunctionType< Args... >. A query has one of its own,
+  * get_query_fs(); for any other function type get_method< F > has to be
+  * used directly.
   *
   * Suppose, for example, that the methods factory has a function associated
   * with the name "NetworkBlock::set_arc_weight" that has the typical "double,
@@ -6263,7 +6498,7 @@ class Block : public Observer {
   * @param name The name associated with the function. */
 
  template< typename... Args >
- static const FunctionType< Args... > *
+ static FunctionType< Args... > *
  get_method_fs( const std::string & name ) {
   return( get_method< FunctionType< Args... > >( name ) );
   }
@@ -6297,9 +6532,65 @@ class Block : public Observer {
   *             parameter type list of the function to be retrieved. */
 
  template< typename... Args >
- static const FunctionType< Args... > *
+ static FunctionType< Args... > *
  get_method_fs( const std::string & name , arg_packer_helper< Args... > ) {
   return( get_method< FunctionType< Args... > >( name ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the query with the given name in the methods factory
+ /** This template function returns a pointer to the adapter function with
+  * the given \p name in the methods factory corresponding to the query type
+  * implied by the variadic template parameter Args. It is to a getter what
+  * get_method_fs() is to a setter: basically, this function is equivalent
+  * to get_method< F > with F == QueryType< Args... >.
+  *
+  * Suppose, for example, that the methods factory has a query associated
+  * with the name "NetworkBlock::get_arc_weight" that has the typical
+  * "double, Range" reading interface, i.e., a #MF_dbl_msp parameter and a
+  * #Range parameter, and no ModParam. This has been inserted in the
+  * interface under the guise of a QueryType< MF_dbl_msp , Range > pointer.
+  * Thus, to invoke such a function one should do
+  *
+  *     auto qry = get_query_fs< MF_dbl_msp , Range >(
+  *                                        "NetworkBlock::get_arc_weight" );
+  *     std::invoke( *qry , NB , answer , range );
+  *
+  * where NB is a pointer to a NetworkBlock object, answer is a #MF_dbl_msp
+  * spanning a buffer at least as long as how many elements there are in
+  * range, and range is a #Range.
+  *
+  * The pointer comes back non-const, as get_method< F >() gives it, so that
+  * get_method_name() can give the name back from it.
+  *
+  * @param name The name associated with the function. */
+
+ template< typename... Args >
+ static QueryType< Args... > *
+ get_query_fs( const std::string & name ) {
+  return( get_method< QueryType< Args... > >( name ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the query with the given name in the methods factory
+ /** This function returns a pointer to the adapter function associated with
+  * the given \p name in the methods factory implied by the second dummy
+  * parameter, which for a query is one of the MS_qry_D_S parameter type
+  * lists. With the query of get_query_fs() above,
+  *
+  *     auto qry = get_query_fs( "NetworkBlock::get_arc_weight" ,
+  *                              MS_qry_dbl_rngd::args() );
+  *     std::invoke( *qry , NB , answer , range );
+  *
+  * @param name The name associated with the function.
+  *
+  * @param void Dummy arg_packer_helper< Args... > parameter to specify the
+  *             parameter type list of the query to be retrieved. */
+
+ template< typename... Args >
+ static QueryType< Args... > *
+ get_query_fs( const std::string & name , arg_packer_helper< Args... > ) {
+  return( get_method< QueryType< Args... > >( name ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -6331,7 +6622,7 @@ class Block : public Observer {
 
  template< typename... Args >
  static const std::string & get_method_name_fs(
-				     const FunctionType< Args... > * fnct ) {
+		std::type_identity_t< FunctionType< Args... > > * fnct ) {
   return( get_method_name< FunctionType< Args... > >( fnct ) );
   }
 
@@ -6349,7 +6640,7 @@ class Block : public Observer {
 
  template< typename... Args >
  static const std::string & get_method_name_fs(
-				       const FunctionType< Args... > * fnct ,
+		std::type_identity_t< FunctionType< Args... > > * fnct ,
 				       arg_packer_helper< Args... > ) {
   return( get_method_name< FunctionType< Args... > >( fnct ) );
   }
@@ -7878,6 +8169,22 @@ class Block : public Observer {
 
  static MF_int_sbst_map & methods_int_sbst_factory( void );
 
+ static MF_sp_dbl_rngd_map & methods_sp_dbl_rngd_factory( void );
+
+ static MF_sp_int_rngd_map & methods_sp_int_rngd_factory( void );
+
+ static MF_sp_dbl_sbst_map & methods_sp_dbl_sbst_factory( void );
+
+ static MF_sp_int_sbst_map & methods_sp_int_sbst_factory( void );
+
+ static MF_qry_dbl_rngd_map & queries_dbl_rngd_factory( void );
+
+ static MF_qry_dbl_sbst_map & queries_dbl_sbst_factory( void );
+
+ static MF_qry_int_rngd_map & queries_int_rngd_factory( void );
+
+ static MF_qry_int_sbst_map & queries_int_sbst_factory( void );
+
 /** @} ---------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -8078,7 +8385,23 @@ class Block : public Observer {
 /// returns the bimap associated with the methods of type F
 /** This method returns the bimap implementing the "methods factory" for the
  * methods of type F. This is where the pointer to the methods (and their
- * names) in the methods factory are stored. */
+ * names) in the methods factory are stored.
+ *
+ * The detour taken here has two halves, and both matter. That
+ * methods_factory_accessor is only declared here, and defined nowhere but
+ * in its specializations, makes a type F that is none of the standard
+ * families a compile error rather than a factory of its own: a primary
+ * template with a body would give any F an empty map, and a lookup in it
+ * would answer nullptr with nothing said.
+ *
+ * Each specialization defers to a function whose body is in Block.cpp,
+ * rather than holding the map itself, so that the map is one per family for
+ * the whole program. A function-local static inside a template in this
+ * header would be one only insofar as the linker collapses the copies the
+ * modules instantiate, which holds within one program but not necessarily
+ * across shared libraries; and the two ends of this factory are in
+ * different modules by construction, one :Block registering a name and
+ * another one looking it up. */
 
  template< class F >
  struct methods_factory_accessor;
@@ -8176,6 +8499,70 @@ struct Block::methods_factory_accessor<
  Block::FunctionType< Block::MF_int_it , Block::Subset && , bool > > {
  static Block::MF_int_sbst_map & get( void ) {
   return( Block::methods_int_sbst_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor<
+ Block::FunctionType< Block::MF_dbl_sp , Block::Range > > {
+ static Block::MF_sp_dbl_rngd_map & get( void ) {
+  return( Block::methods_sp_dbl_rngd_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor<
+ Block::FunctionType< Block::MF_int_sp , Block::Range > > {
+ static Block::MF_sp_int_rngd_map & get( void ) {
+  return( Block::methods_sp_int_rngd_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor<
+ Block::FunctionType< Block::MF_dbl_sp , Block::Subset && , bool > > {
+ static Block::MF_sp_dbl_sbst_map & get( void ) {
+  return( Block::methods_sp_dbl_sbst_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor<
+ Block::FunctionType< Block::MF_int_sp , Block::Subset && , bool > > {
+ static Block::MF_sp_int_sbst_map & get( void ) {
+  return( Block::methods_sp_int_sbst_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor<
+ Block::QueryType< Block::MF_dbl_msp , Block::Range > > {
+ static Block::MF_qry_dbl_rngd_map & get( void ) {
+  return( Block::queries_dbl_rngd_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor<
+ Block::QueryType< Block::MF_dbl_msp , Block::c_Subset & , bool > > {
+ static Block::MF_qry_dbl_sbst_map & get( void ) {
+  return( Block::queries_dbl_sbst_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor<
+ Block::QueryType< Block::MF_int_msp , Block::Range > > {
+ static Block::MF_qry_int_rngd_map & get( void ) {
+  return( Block::queries_int_rngd_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor<
+ Block::QueryType< Block::MF_int_msp , Block::c_Subset & , bool > > {
+ static Block::MF_qry_int_sbst_map & get( void ) {
+  return( Block::queries_int_sbst_factory() );
  }
 };
 
