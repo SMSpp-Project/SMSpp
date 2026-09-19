@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- the methods factory takes the data of a setter as a `std::span` as well
+  (`MF_dbl_sp`, `MF_int_sp` and the `MS_sp_*` signatures), which lets the
+  setter check the length of what it is given instead of reading past its
+  end, and has query families, `QueryType` with the `MS_qry_*` signatures
+  and `get_query_fs()`, through which a caller reads data back from a Block
+  it knows by name only; the forms taking an iterator stay, and are meant to
+  go once the setters of every module take a span
+
 - `Block` holds a group of its own for each of the four vectors of
   `boost::any` in which it keeps its Variable and its Constraint: a group
   says the type of its elements, its shape and its name, and hands them over
