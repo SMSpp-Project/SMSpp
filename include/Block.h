@@ -6641,6 +6641,83 @@ class Block : public Observer {
   }
 
 /** @} ---------------------------------------------------------------------*/
+/*-------------------------- Sizing of this Block --------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Sizing of this Block
+ *
+ * A :Block may be sized: a parameter k of it multiplies some of its data,
+ * one or more rows A_i x <= b_i becoming A_i x <= k b_i, or a cost of the
+ * Objective becoming k times itself. Which data carry k, and how many, is
+ * the :Block's own business, and nothing here distinguishes sizing all of
+ * this Block from sizing a part of it. The :Block applies k itself, writing
+ * it into its own data, so that whoever holds a coupling keeps reading the
+ * same Variable with the same coefficients, and a Solver sees ordinary
+ * Variable, Function and Constraint, with nothing to know about k.
+ *
+ * What k is depends on how the problem is assembled, and whoever assembles
+ * it configures the consumer accordingly:
+ *
+ * - a datum, not a column of the model being solved: it arrives from
+ *   outside, and the :Block writes it into its data through the setters it
+ *   registers in the methods factory [see Methods for handling the methods
+ *   factory], the Modification being the ordinary ones. No Solver of this
+ *   Block optimizes over k: whoever chooses it solves a problem of its own
+ *   in which k is the unknown, and may read back through the query
+ *   families, say, the bounds of the values the :Block can represent, or a
+ *   sensitivity of the value of this Block to k. Whether a sensitivity
+ *   describes only the neighbourhood of the current point or bounds the
+ *   value function as a whole is nowhere in the signature, and is for the
+ *   :Block to say;
+ *
+ * - a column, which a Solver optimizes over like any other: one this Block
+ *   owns is declared by get_size_variable(), one it is given, normally by
+ *   its father, is passed by set_size_variable(). In both cases the :Block
+ *   writes the column into its own rows, and there is nothing to read back.
+ *
+ * Nothing here answers "which of the two are you": a consumer asks for what
+ * it wants and each channel refuses by itself, a name that is not in the
+ * methods factory, a false from set_size_variable(), a nullptr from
+ * get_size_variable().
+ *  @{ */
+
+/*--------------------------------------------------------------------------*/
+ /// the Variable of this Block standing for its size parameter
+ /** The Variable of this Block carrying its size parameter, and nullptr if
+  * this Block has none. This Block owns that column and writes it into its
+  * own data; what the caller receives is the column itself, to bound it, to
+  * read its value, or to write it into a coupling of its own. */
+
+ virtual Variable * get_size_variable( void ) const {
+  return( nullptr );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// gives this Block the Variable of its size parameter
+ /** \p size_var belongs to another Block, normally the father, and this
+  * Block writes it into its own data. Returns false if this Block takes no
+  * such Variable, in which case nothing has changed.
+  *
+  * It excludes get_size_variable(): a Block that answers non-nullptr there
+  * owns that column already. The single ModParam is the abstract one, for
+  * the regime in which the Constraint of this Block exist already and this
+  * call rewrites them; a :Block that instead stores the pointer and
+  * generates its Constraint afterwards changes a datum that nobody but it
+  * reads, the column having a meaning only once it is in a row.
+  *
+  * When it may be called is for the :Block to say, with a floor that every
+  * :Block meets: at construction, before generate_abstract_variables() has
+  * been called, where nothing abstract exists yet and the ModParam carries
+  * nothing. A later call is allowed, and is what the ModParam is for: the
+  * rows that exist are rewritten and the abstract Modification is issued. A
+  * caller has no guarantee of that, so a :Block meant to be usable on a
+  * live instance has to take the call late. */
+
+ virtual bool set_size_variable( Variable * size_var ,
+                                 c_ModParam issueAMod = eNoBlck ) {
+  return( false );
+  }
+
+/** @} ---------------------------------------------------------------------*/
 /*------------ METHODS FOR LOADING, PRINTING & SAVING THE Block ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing & saving the Block
