@@ -412,8 +412,10 @@ class BaseGroup {
  /** Returns true if the elements of the group derive from T. If T is the
   * type of the elements this is a comparison of types; otherwise it is asked
   * of one element only, the group being homogeneous, with one dynamic_cast
-  * for the whole group, and an empty group answers false, having no element
-  * to ask. */
+  * for the whole group, and an EMPTY group answers false, having no element
+  * to ask: a caller that has to tell the type of a group which may be empty,
+  * as a dynamic one is until it fills up, asks get_num_elements() first and
+  * treats the empty one as saying nothing. */
 
  template< class T >
  [[nodiscard]] bool elements_are( void ) const {

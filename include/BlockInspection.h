@@ -277,7 +277,15 @@ namespace SMSpp_di_unipi_it::inspection
 				  std::to_string( group_index ) ) );
 
    const auto & group = groups[ group_index ];
-   if( ( ! group ) || ( ! group->template elements_are< T >() ) )
+   if( ! group )
+    return( Inf< Index >() );
+
+   // an empty group holds no element of any type, and says nothing about
+   // the type it will hold: it is of length zero whatever is asked of it
+   if( ! group->get_num_elements() )
+    return( 0 );
+
+   if( ! group->template elements_are< T >() )
     return( Inf< Index >() );
 
    return( group->get_num_elements() );
