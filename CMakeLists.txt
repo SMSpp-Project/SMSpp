@@ -190,7 +190,6 @@ endif ()
 set_target_properties(${modName} PROPERTIES
         VERSION ${PROJECT_VERSION}
         SOVERSION ${soVersion})
-include(ClangPatch) # TODO: Remove this when it's not needed anymore
 
 # When adding source files with target_sources(), PRIVATE means that the files
 # should only be added to this library, whereas PUBLIC means they should be

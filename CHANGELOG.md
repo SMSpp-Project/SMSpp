@@ -9,6 +9,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `Block` holds a group of its own for each of the four vectors of
+  `boost::any` in which it keeps its Variable and its Constraint: a group
+  says the type of its elements, its shape and its name, and hands them over
+  without the caller having to know the type of the container they sit in,
+  which is what the `un_any_*` machinery was for. `BaseGroup::for_each_as()`
+  walks them with one switch per group and a loop typed on the element,
+  `for_each_run_as()` gives them one run of contiguous ones at a time, which
+  is what a caller mapping an element back to its position from its address
+  needs, `elements_are()` answers the question on the type once for the whole
+  group, and `Block::for_each_variable_group()` and
+  `for_each_constraint_group()` walk the static groups and then the dynamic
+  ones. THE ORDER IN WHICH THE ELEMENTS COME OUT IS THE STORAGE ORDER, and it
+  is part of the contract: `tests_Group.cpp` fixes it
+
+- A group says how to build a container of its own type and shape in another
+  Block, which is what `AbstractBlock::mirror()` needed the `boost::any` for,
+  and whoever allocates a container says how it goes, so that a Block
+  disposes of what it owns through its own groups
+
+- `std::vector< std::vector< Var > >` can be registered as a group of
+  Variable, as it already could be as a group of Constraint: the two sides
+  now have the same list of shapes
+
+### Changed
+
+- ⚠️ THE LAYOUT OF `Block` HAS CHANGED, and `add_static_variable()` and the
+  other 35 registration methods are templates, hence they live in the
+  translation unit of whoever calls them: after updating, EVERYTHING has to
+  be rebuilt, not only `libSMS++`, and a stale object file is not a
+  compilation error but a group without the means to copy itself, or a
+  library that is a hybrid of two layouts
+
+- `GroupAdapter.h` is gone, having been the scaffolding that read the
+  `boost::any` while the consumers of them were converted one at a time, and
+  so are `Block::refresh_*_group()`, which existed to rebuild a group after
+  it was written into through its `boost::any`, and which nobody calls
+
 ### Changed
 
 - `PolyhedralFunctionBlock`, in the "linearized dual" representation, issues
@@ -21,6 +58,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Modification it saw before
 
 ### Fixed
+
+- `Observer::new_channel_name()`, when reusing a freed name, dereferenced
+  `rend()` and erased the lowest free name rather than the one it handed
+  out, which only shows when channels are closed out of order, as the
+  grouped Modification of UCBlock do, and made the parallel tests of
+  InvestmentBlock fail now and then with "Observer: wrong channel name"
+
+- a `boost::multi_array` stored in the order of Fortran, or with indices not
+  starting at 0, was accepted as a group and then read as if it were not:
+  its cells were named after the wrong indices and its copy had another
+  shape. Registering one now throws `std::invalid_argument`; no module
+  registers one
+
+- the unit tests check what they assert in every build type: the Release one
+  defines NDEBUG, which turned each of their `assert()` into nothing, so that
+  they passed whatever happened, and `AbstractPath_test` did not even walk
+  the Block, the walk being inside an `assert()`; now that it does, it
+  writes and reads back through netCDF one path in 8, many thousands to a
+  file, rather than every path in a file of its own, which took 9 minutes
 
 - `RowConstraint::is_feasible()` on a collection of collections of
   RowConstraint, and on a `boost::multi_array` of collections, took them as
@@ -78,11 +134,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Block::map_forward_solution()` and `Block::map_forward_Modification()`
   serves the AbstractBlock that has mirrored the Block, so that every Block
   has a R3 Block of itself without having had to write a line for it
-
-- `Block::access_static_variable()` and its three companions, which give the
-  group of Variable or Constraint as the boost::any holding it, so that code
-  building a Block out of another one can install a group whose type it only
-  knows at run time
 
 - `ThinComputeInterface::print_parameters()`, which prints the name, the
   current value and the default one of every parameter, walking the six

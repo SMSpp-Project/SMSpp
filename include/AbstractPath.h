@@ -10,16 +10,12 @@
  * to any of its sub-Block, recursively.
  *
  * Since AbstractPath has to scan the "abstract" representation to work, it
- * has to boost::any_cast<> (in particular, Constraint and Variable), and
- * therefore it has to have a list of the kind of types that they may have.
- * Hence, this class at any point in time works only with a specific subset
- * of those classes, and if new types need to be handled, then the class has to
- * be manually updated. This is made a bit easier by the two macros
- *
- *     Constraint_Derived_Classes
- *     Variable_Derived_Classes
- *
- * defined in this header file (and immediately un-defined at the end).
+ * asks the groups of each Block for their elements [see BlockInspection.h],
+ * and to find out which type the elements of a group really are it tries a
+ * fixed list of concrete types, the one in inspection::for_each_concrete():
+ * ColVariable for the Variable, FRowConstraint and the :OneVarConstraint for
+ * the Constraint. Should a group hold a type that is not there, the list has
+ * to be extended.
  *
  * Also, AbstractPath has a specific management for:
  *
@@ -104,16 +100,12 @@ namespace SMSpp_di_unipi_it
  * "twin" Block can be represented by the same AbstractPath).
  *
  * Since AbstractPath has to scan the "abstract" representation to work, it
- * has to boost::any_cast<> (in particular, Constraint and Variable), and
- * therefore it has to have a list of the kind of types that they may have.
- * Hence, this class at any point in time works only with a specific subset
- * of those classes, and if new types need be handled than the class has to
- * be manually updated. This is made a bit easier by the two macros
- *
- *     Constraint_Derived_Classes
- *     Variable_Derived_Classes
- *
- * defined in this header file (and immediately un-defined at the end).
+ * asks the groups of each Block for their elements [see BlockInspection.h],
+ * and to find out which type the elements of a group really are it tries a
+ * fixed list of concrete types, the one in inspection::for_each_concrete():
+ * ColVariable for the Variable, FRowConstraint and the :OneVarConstraint for
+ * the Constraint. Should a group hold a type that is not there, the list has
+ * to be extended.
  *
  * Also, AbstractPath has a specific management for:
  *

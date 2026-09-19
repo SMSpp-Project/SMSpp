@@ -11,10 +11,18 @@ Unit tests for the core SMS++ library. Each test is registered as a separate
 - `LinearFunction_test` covers `LinearFunction`.
 - `QuadFunction_test` covers `DQuadFunction`.
 - `AbstractPath_test` covers `AbstractPath`.
+- `Group_test` covers the groups of `Variable` and `Constraint` of a `Block`,
+  and the two consumers that copy them, the `Solution` and the abstract copy
+  of a `Block`.
 
 These are built and run through CMake / ctest (there is no makefile here);
 all of them passing is a good sign that no regressions have been introduced
 in the SMS++ core.
+
+The checks of a test are `assert()`, and they hold in every build type, the
+Release one included: each test includes `TestAssert.h` after every header of
+the library, which undefines NDEBUG for the test alone while the library
+headers are read as the library was compiled.
 
 
 ## Authors

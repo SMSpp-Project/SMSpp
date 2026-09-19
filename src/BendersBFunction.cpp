@@ -72,7 +72,7 @@ BendersBFunction::BendersBFunction( Block * inner_block , VarVector && x ,
  // default parameter values
  LinComp = get_dflt_int_par( intLinComp );
  AAccMlt = get_dflt_dbl_par( dblAAccMlt );
- f_inner_solver_index = get_dflt_dbl_par( intSolverIndex );
+ f_inner_solver_index = get_dflt_int_par( intSolverIndex );
  set_par( intGPMaxSz , C05Function::get_dflt_int_par( intGPMaxSz ) );
  }
 
