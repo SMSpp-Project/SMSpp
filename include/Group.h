@@ -1063,6 +1063,12 @@ bool BaseGroup::for_each_as( F f ) const
 template< class T , class F >
 bool BaseGroup::for_each_cell_as( F f ) const
 {
+ // no cell can hold a collection of an abstract type, and asking for one
+ // would mean writing std::list< T > with T abstract, which does not exist
+ if constexpr( std::is_abstract_v< T > )
+  return( false );
+ else {
+
  if( ( f_type != typeid( T ) ) || ( f_layout == eContiguous ) )
   return( false );
 
@@ -1086,6 +1092,7 @@ bool BaseGroup::for_each_cell_as( F f ) const
   }
 
  return( true );
+ }
  }
 
 /*--------------------------------------------------------------------------*/
