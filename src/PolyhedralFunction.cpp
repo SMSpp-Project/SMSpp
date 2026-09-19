@@ -16,13 +16,16 @@
 /*------------------------------- MACROS -----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#define EXPLICIT_BOUND 0
+#define EXPLICIT_BOUND 1
 
 /* if EXPLICIT_BOUND != 0, the PolyhedralFunction will explicitly produce an
  * all-0 flat subgradient each time that compute() hits the lower/upper
- * bound; this should not be necessary since the bound is known and therefore
- * that information is implicitly available anyway, but some Solver may not be
- * smart enough to use it properly. */
+ * bound. The bound is known, so whoever holds this function alone can do
+ * without that subgradient; whoever holds it as one term of a sum cannot,
+ * because the sum is not at its own bound when one of its terms is, and the
+ * term that is has to say what it contributes to the linearization of the
+ * sum. Refusing to answer there leaves such a caller to stand in for a
+ * function it does not know, which is why the subgradient is produced. */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
