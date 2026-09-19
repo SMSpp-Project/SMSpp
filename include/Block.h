@@ -117,6 +117,7 @@
 
 #include <boost/bimap.hpp>
 #include <netcdf>
+#include <span>
 #include <type_traits>
 
 /*--------------------------------------------------------------------------*/
@@ -6202,11 +6203,6 @@ class Block : public Observer {
  * possibility is always left open that some registration may happen outside
  * it.
  *
- * A further use of the factory is *sizing* a :Block, a parameter k of it
- * being written in through a setter; this is called (re)sizing and is
- * described elsewhere [see Design and scaling of this Block]. What follows
- * holds for any method registered here, that one included.
- *
  * Several writers may act on the same datum, in no fixed order. Because of
  * this
  *
@@ -6216,11 +6212,10 @@ class Block : public Observer {
  * the point being that an increment reads what is there before writing, so
  * its outcome depends on which writer acted last, whereas a recomputation
  * depends on the fields alone. Those fields therefore have to keep the base
- * datum: what a consumer reads back is the derivative of the value of this
- * Block with respect to k, assembled out of the solve and out of what k
- * multiplies, never out of k times it. An implementation that had written
- * the scaled values over the base ones would give that derivative back k
- * times too large.
+ * datum, and whatever a getter reads back is assembled out of them and out
+ * of the solve, never out of values a setter has already transformed: an
+ * implementation that had written the transformed values over the base ones
+ * would apply the transformation twice.
  *
  * Note that what a setter writes arrives as a change of the "physical
  * representation" of the :Block, the "abstract" one, if it has been
@@ -6273,8 +6268,8 @@ class Block : public Observer {
  *
  * A consumer that has to know whether a :Block supports an operation asks
  * this factory, and the name either resolves or it does not: a :Block
- * registers a name exactly when it supports what that name promises. The
- * No method is run to obtain the answer.
+ * registers a name exactly when it supports what that name promises. No
+ * method is run to obtain the answer.
  *
  * A call can still be refused: a value outside what the :Block can
  * represent, a state a getter requires and does not find. That is reported
