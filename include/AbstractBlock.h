@@ -521,14 +521,6 @@ class AbstractBlock : public Block
 
  using Block::remove_dynamic_constraint;
 
- using Block::access_static_variable;
-
- using Block::access_dynamic_variable;
-
- using Block::access_static_constraint;
-
- using Block::access_dynamic_constraint;
-
 /** @} ---------------------------------------------------------------------*/
 /*-------------------- Mirroring the abstract representation ---------------*/
 /*--------------------------------------------------------------------------*/

@@ -3370,16 +3370,6 @@ class Block : public Observer {
    v_s_Variable[ std::distance( v_s_Variable_names.begin(), it ) ] ) );
   }
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// the i-th group of dynamic Constraint, to be written into
- /** See access_static_variable(). */
-
- boost::any & access_dynamic_constraint( Index i ) {
-  if( i >= v_d_Constraint.size() )
-   throw( std::invalid_argument( "wrong index into v_d_Constraint" ) );
-  return( v_d_Constraint[ i ] );
-  }
-
 /*--------------------------------------------------------------------------*/
  /// reading the *dynamic* Constraint of the Block
  /** Method for reading the *dynamic* Constraint of the Block. It returns a
@@ -7212,47 +7202,6 @@ class Block : public Observer {
              make_own_group( newc , this , i , name ) );
   v_s_Constraint_names[ i ] = std::move( name );
   }
-
-/*--------------------------------------------------------------------------*/
- /// the i-th group of static Variable, to be written into
- /** The i-th group of static Variable as the boost::any holding it, so that
-  * it can be written into. This is what code building a Block out of another
-  * one needs, the type of a group being known there only at run time: a
-  * Block that knows the type of its own groups uses the typed
-  * set_static_variable() instead, which also tells each Variable which Block
-  * it belongs to, as whoever writes here has to do. Whoever writes here must
-  * then call refresh_static_variable_group( i ), so that the i-th group
-  * views what the boost::any now holds. */
-
- boost::any & access_static_variable( Index i ) {
-  if( i >= v_s_Variable.size() )
-   throw( std::invalid_argument( "wrong index into v_s_Variable" ) );
-  return( v_s_Variable[ i ] );
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// the i-th group of dynamic Variable, to be written into
- /** See access_static_variable(). */
-
- boost::any & access_dynamic_variable( Index i ) {
-  if( i >= v_d_Variable.size() )
-   throw( std::invalid_argument( "wrong index into v_d_Variable" ) );
-  return( v_d_Variable[ i ] );
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// the i-th group of static Constraint, to be written into
- /** See access_static_variable(). */
-
- boost::any & access_static_constraint( Index i ) {
-  if( i >= v_s_Constraint.size() )
-   throw( std::invalid_argument( "wrong index into v_s_Constraint" ) );
-  return( v_s_Constraint[ i ] );
-  }
-
-
-
-
 
 /*--------------------------------------------------------------------------*/
  /// empty slot

@@ -44,7 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `GroupAdapter.h` is gone, having been the scaffolding that read the
   `boost::any` while the consumers of them were converted one at a time, and
   so are `Block::refresh_*_group()`, which existed to rebuild a group after
-  writing into `access_*()` and which nobody calls
+  it was written into through its `boost::any`, and which nobody calls
 
 ### Changed
 
@@ -122,11 +122,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Block::map_forward_solution()` and `Block::map_forward_Modification()`
   serves the AbstractBlock that has mirrored the Block, so that every Block
   has a R3 Block of itself without having had to write a line for it
-
-- `Block::access_static_variable()` and its three companions, which give the
-  group of Variable or Constraint as the boost::any holding it, so that code
-  building a Block out of another one can install a group whose type it only
-  knows at run time
 
 - `ThinComputeInterface::print_parameters()`, which prints the name, the
   current value and the default one of every parameter, walking the six
