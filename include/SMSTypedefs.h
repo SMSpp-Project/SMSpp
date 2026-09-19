@@ -64,7 +64,6 @@
 #include <vector>
 
 // boost libraries
-#include <boost/any.hpp>
 #include "boost/function.hpp"
 #include "boost/functional/factory.hpp"
 #include "boost/functional/forward_adapter.hpp"
@@ -88,17 +87,6 @@ namespace SMSpp_di_unipi_it
  * A few useful typedefs for types not directly tied to any of the major
  * classes of SMS++.
  * @{ */
-
-typedef std::vector< boost::any > Vec_any;
-///< a vector of boost::any, i.e., almost anything
-
-typedef const std::vector< boost::any > c_Vec_any;
-///< a const vector of boost::any, i.e., almost anything
-
-typedef Vec_any::iterator Vec_any_it;
-///< iterator for a Vec_any
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 typedef std::vector< std::string > Vec_string;
 ///< a vector of strings (std::string)

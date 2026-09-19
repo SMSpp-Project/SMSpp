@@ -36,20 +36,16 @@ using namespace SMSpp_di_unipi_it;
 void TearDown( AbstractBlock * block )
 {
  block->reset_static_constraints();
- assert( block->get_static_constraints().empty() );
- assert( block->get_s_const_name().empty() );
+ assert( block->get_static_constraint_groups().empty() );
 
  block->reset_static_variables();
- assert( block->get_static_variables().empty() );
- assert( block->get_s_var_name().empty() );
+ assert( block->get_static_variable_groups().empty() );
 
  block->reset_dynamic_constraints();
- assert( block->get_dynamic_constraints().empty() );
- assert( block->get_d_const_name().empty() );
+ assert( block->get_dynamic_constraint_groups().empty() );
 
  block->reset_dynamic_variables();
- assert( block->get_dynamic_variables().empty() );
- assert( block->get_d_var_name().empty() );
+ assert( block->get_dynamic_variable_groups().empty() );
 
  delete block;
 }

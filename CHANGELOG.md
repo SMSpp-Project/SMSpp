@@ -40,6 +40,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ones. THE ORDER IN WHICH THE ELEMENTS COME OUT IS THE STORAGE ORDER, and it
   is part of the contract: `tests_Group.cpp` fixes it
 
+- a group knows the type of the container it views, not only that of its
+  elements, and `get_container_as< C >()` hands it back when it is a `C` and
+  `nullptr` when it is not: that is what tells a `std::vector< T >` from a
+  `boost::multi_array< T , 1 >`, which have the same elements, the same
+  layout and the same rank, and it is what the typed accessors of `Block`
+  ask instead of `boost::any_cast`
+
 - A group says how to build a container of its own type and shape in another
   Block, which is what `AbstractBlock::mirror()` needed the `boost::any` for,
   and whoever allocates a container says how it goes, so that a Block
@@ -50,6 +57,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   now have the same list of shapes
 
 ### Changed
+
+- ⚠️ THE FOUR `std::vector< boost::any >` OF `Block` ARE GONE, and so are the
+  four vectors of the names beside them: a Block keeps its Variable and its
+  Constraint in its four vectors of groups alone. `get_static_variables()`,
+  `get_dynamic_variables()`, `get_static_constraints()`,
+  `get_dynamic_constraints()` and the four `get_*_name()` that returned the
+  whole vector of the names are gone with them, replaced by
+  `get_static_variable_groups()` and its three fellows;
+  `get_s_const_name( i )` and `get_s_const_index( name )`, and the six like
+  them, stay and read the name of the group. The typed accessors,
+  `get_static_variable< T >( i )` and the 23 like them, keep their signature
+  and read the group instead of the `boost::any`, so their callers do not
+  change. ⚠️ ONE OF THEM ASKED FOR THE WRONG TYPE NOW ANSWERS `nullptr`,
+  WHICH IS WHAT THEIR DOCUMENTATION HAS ALWAYS PROMISED, INSTEAD OF THROWING
+  `boost::bad_any_cast`: whoever was finding a mistake of type out of the
+  exception now gets a null pointer, and finds it out later and elsewhere.
+  `Vec_any`, `c_Vec_any` and `Vec_any_it` are gone from `SMSTypedefs.h`,
+  which no longer includes `<boost/any.hpp>`
 
 - `PolyhedralFunctionBlock::set_lambda()` is `set_size_variable()` with the
   checks it had, and adds the multiplier to the normalization constraint in

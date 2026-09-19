@@ -172,11 +172,10 @@ void RowConstraintSolution::initialize( const Block * const block , bool read ) 
 void RowConstraintSolution::initialize_static_constraint_dual_values
 ( const Block * const block , bool read ) {
 
- const auto & constraint_groups = block->get_static_constraints();
  const auto & groups = block->get_static_constraint_groups();
- static_constraint_dual_values.resize( constraint_groups.size() );
+ static_constraint_dual_values.resize( groups.size() );
 
- for( Vec_any::size_type i = 0 ; i < static_constraint_dual_values.size() ;
+ for( Vec_Group::size_type i = 0 ; i < static_constraint_dual_values.size() ;
       ++i ) {
   auto & values = static_constraint_dual_values[ i ];
   if( ! on_group( groups[ i ] ,
@@ -191,7 +190,8 @@ void RowConstraintSolution::initialize_static_constraint_dual_values
    throw( std::logic_error
     ( "RowConstraintSolution::initialize_static_constraint_dual_values: "
       "invalid constraint group: " +
-      std::string( constraint_groups[ i ].type().name() ) ) );
+      std::string( ( groups[ i ] ? groups[ i ]->get_element_type().name()
+                           : "an empty group" ) ) ) );
   }
 }
 
@@ -200,11 +200,10 @@ void RowConstraintSolution::initialize_static_constraint_dual_values
 void RowConstraintSolution::initialize_dynamic_constraint_dual_values
 ( const Block * const block , bool read ) {
 
- const auto & constraint_groups = block->get_dynamic_constraints();
  const auto & groups = block->get_dynamic_constraint_groups();
- dynamic_constraint_dual_values.resize( constraint_groups.size() );
+ dynamic_constraint_dual_values.resize( groups.size() );
 
- for( Vec_any::size_type i = 0 ; i < dynamic_constraint_dual_values.size() ;
+ for( Vec_Group::size_type i = 0 ; i < dynamic_constraint_dual_values.size() ;
       ++i ) {
   auto & values = dynamic_constraint_dual_values[ i ];
   if( ! on_group( groups[ i ] ,
@@ -222,7 +221,8 @@ void RowConstraintSolution::initialize_dynamic_constraint_dual_values
    throw( std::logic_error(
     "RowConstraintSolution::initialize_dynamic_constraint_dual_values: "
     "invalid constraint group: " +
-    std::string( constraint_groups[ i ].type().name() ) ) );
+    std::string( ( groups[ i ] ? groups[ i ]->get_element_type().name()
+                           : "an empty group" ) ) ) );
   }
 }
 
@@ -231,18 +231,17 @@ void RowConstraintSolution::initialize_dynamic_constraint_dual_values
 void RowConstraintSolution::apply_static( const Block * const block ,
                                           const bool read ) {
 
- auto & constraint_groups = block->get_static_constraints();
  const auto & groups = block->get_static_constraint_groups();
 
- if( constraint_groups.size() != static_constraint_dual_values.size() )
+ if( groups.size() != static_constraint_dual_values.size() )
   throw( std::logic_error
    ( "RowConstraintSolution::apply_static: number of static "
      "Constraint groups of this RowConstraintSolution ("
      + std::to_string( static_constraint_dual_values.size() )
      + ") is different from that of the Block ("
-     + std::to_string( constraint_groups.size() ) + ")" ) );
+     + std::to_string( groups.size() ) + ")" ) );
 
- for( Vec_any::size_type i = 0 ; i < static_constraint_dual_values.size() ;
+ for( Vec_Group::size_type i = 0 ; i < static_constraint_dual_values.size() ;
       ++i ) {
   auto & values = static_constraint_dual_values[ i ];
   bool conforming = true;
@@ -276,18 +275,17 @@ void RowConstraintSolution::apply_dynamic
 ( const Block * const block , const bool read ,
   const RowConstraint::RHSValue default_dual_value ) {
 
- auto & constraint_groups = block->get_dynamic_constraints();
  const auto & groups = block->get_dynamic_constraint_groups();
 
- if( constraint_groups.size() != dynamic_constraint_dual_values.size() )
+ if( groups.size() != dynamic_constraint_dual_values.size() )
   throw( std::logic_error
    ( "RowConstraintSolution::apply_dynamic(): number of dynamic Constraint "
      "groups of this RowConstraintSolution (" +
      std::to_string( dynamic_constraint_dual_values.size() ) +
      ") is different from that of the Block (" +
-     std::to_string( constraint_groups.size() ) + ")" ) );
+     std::to_string( groups.size() ) + ")" ) );
 
- for( Vec_any::size_type i = 0 ; i < dynamic_constraint_dual_values.size() ;
+ for( Vec_Group::size_type i = 0 ; i < dynamic_constraint_dual_values.size() ;
       ++i ) {
   auto & values = dynamic_constraint_dual_values[ i ];
   bool conforming = true;
@@ -338,9 +336,9 @@ void RowConstraintSolution::read( const Block * const block ) {
  f_direction = block->is_direction();
 
  if( ( static_constraint_dual_values.size() !=
-       block->get_static_constraints().size() ) ||
+       block->get_static_constraint_groups().size() ) ||
      ( dynamic_constraint_dual_values.size() !=
-       block->get_dynamic_constraints().size() ) ||
+       block->get_dynamic_constraint_groups().size() ) ||
      ( nested_solutions.size() != block->get_nested_Blocks().size() ) ) {
   // This RowConstraintSolution does not have the same structure as
   // that of the Constraints of the Block: initialize it and read the
@@ -461,7 +459,7 @@ void RowConstraintSolution::sum( const Solution * solution,
 
  // Sum the values of the static Constraints
 
- for( Vec_any::size_type i = 0 ; i < static_constraint_dual_values.size() ;
+ for( Vec_Group::size_type i = 0 ; i < static_constraint_dual_values.size() ;
       ++i ) {
   auto & values = static_constraint_dual_values[ i ];
   const auto & other_values = other_solution->static_constraint_dual_values[ i ];
@@ -478,7 +476,7 @@ void RowConstraintSolution::sum( const Solution * solution,
  // Sum the values of the dynamic Constraints: a value missing on either side
  // counts as zero
 
- for( Vec_any::size_type i = 0 ; i < dynamic_constraint_dual_values.size() ;
+ for( Vec_Group::size_type i = 0 ; i < dynamic_constraint_dual_values.size() ;
       ++i ) {
   auto & cells = dynamic_constraint_dual_values[ i ];
   const auto & other_cells =

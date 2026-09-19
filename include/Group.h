@@ -193,6 +193,19 @@ class BaseGroup {
  [[nodiscard]] void * get_container( void ) const { return( f_container ); }
 
 /*--------------------------------------------------------------------------*/
+ /// the container the group views, if it is a C, nullptr otherwise
+ /** The group knows which container it was built on, so it can hand it back
+  * typed: this answers nullptr, rather than the wrong pointer, when the
+  * container is not a C, which is what tells a std::vector< T > from a
+  * boost::multi_array< T , 1 > (same elements, same layout, same rank). */
+
+ template< class C >
+ [[nodiscard]] C * get_container_as( void ) const {
+  return( f_container_type == std::type_index( typeid( C ) ) ?
+	  static_cast< C * >( f_container ) : nullptr );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// sets the name of the group
 
  void set_name( std::string name ) { f_name = std::move( name ); }
@@ -527,10 +540,11 @@ class BaseGroup {
 
  template< class T >
  BaseGroup( T * , layout_type layout , bool indirect , unsigned char rank ,
-	    void * container , view_function view , Block * block ,
+	    void * container , std::type_index container_type ,
+	    view_function view , Block * block ,
 	    Index index , std::string name )
   : f_Block( block ) , f_index( index ) , f_name( std::move( name ) ) ,
-    f_type( typeid( T ) ) ,
+    f_type( typeid( T ) ) , f_container_type( container_type ) ,
     f_kind( std::is_base_of_v< Variable , T > ? eVariable : eConstraint ) ,
     f_layout( layout ) , f_indirect( indirect ) , f_rank( rank ) ,
     f_container( container ) , f_view( view ) {
@@ -566,6 +580,8 @@ class BaseGroup {
   * the group is entitled to dispose of the storage and said how. */
 
  std::type_index f_type;   ///< the type of the elements
+
+ std::type_index f_container_type;  ///< the type of the container it views
 
  kind_type f_kind;         ///< whether the elements are Variable or Constraint
 
@@ -772,7 +788,8 @@ class StaticGroup : public BaseGroup {
 		       Index index = 0 , std::string name = "" )
   : BaseGroup( static_cast< element_type * >( nullptr ) , eContiguous ,
 	       std::is_pointer_v< S > , group_form< C >::rank , container ,
-	       & group_form< C >::view , block , index , std::move( name ) ) {
+	       typeid( C ) , & group_form< C >::view , block , index ,
+	       std::move( name ) ) {
   static_assert( std::is_same_v< typename group_form< C >::item_type , S > &&
 		 ( group_form< C >::layout == eContiguous ) ,
 		 "the container does not hold one S per cell" );
@@ -896,7 +913,8 @@ class CellGroup : public BaseGroup {
   : BaseGroup( static_cast< element_type * >( nullptr ) ,
 	       std::is_same_v< C , std::list< S > > ? eDynamic : eJagged ,
 	       std::is_pointer_v< S > , group_form< Container >::rank ,
-	       container , & group_form< Container >::view , block , index ,
+	       container , typeid( Container ) ,
+	       & group_form< Container >::view , block , index ,
 	       std::move( name ) ) {
   static_assert(
    std::is_same_v< typename group_form< Container >::cell_type , C > ,

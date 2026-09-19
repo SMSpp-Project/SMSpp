@@ -774,11 +774,12 @@ void Block::print( std::ostream & output , char vlvl ) const
   return;
 
  output << std::endl << classname() << " with: ";
- output << std::endl << v_s_Variable.size() << " groups of static Variable, "
-        << v_d_Variable.size() << " groups of dynamic Variable, "
-        << std::endl << v_s_Constraint.size()
+ output << std::endl << v_s_Variable_groups.size()
+        << " groups of static Variable, "
+        << v_d_Variable_groups.size() << " groups of dynamic Variable, "
+        << std::endl << v_s_Constraint_groups.size()
 	<< " groups of static Constraint, "
-        << v_d_Constraint.size() << " groups of dynamic Constraint, "
+        << v_d_Constraint_groups.size() << " groups of dynamic Constraint, "
         << std::endl << v_Block.size() << " nested Blocks, and "
         << v_Solver.size() << " registered Solvers"
         << std::endl;

@@ -282,8 +282,6 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
  //       fractionally more efficient but it would require every derived
  //       class to implement is_feasible(); so far we prefer the general
  //       even if possibly slower solution
- // auto & sc = get_static_constraints();
- //!! for( Index i = get_first_static_Constraint() ; i < sc.size() ; ++i ) {
  for( const auto & group : get_static_constraint_groups() ) {
   if( ! group )
    continue;
@@ -295,8 +293,6 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
   }
 
  // the static Variables of the Block - - - - - - - - - - - - - - - - - - - -
- // auto & sv = get_static_variables();
- //!! for( Index i = get_first_static_Variable() ; i < sv.size() ; ++i ) {
  // see above for comments
  auto check_variable = [ & feas , eps ]( ColVariable & var ) {
   feas = feas && var.is_feasible( eps ); };
@@ -311,8 +307,6 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
   }
 
  // the dynamic Constraints of the Block-  - - - - - - - - - - - - - - - - - -
- // auto & dc = get_dynamic_constraints();
- //!! for( Index i = get_first_dynamic_Constraint() ; i < dc.size() ; ++i ) {
  // see above for comments
  for( const auto & group : get_dynamic_constraint_groups() ) {
   if( ! group )
@@ -325,8 +319,6 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
   }
 
  // the dynamic Variables of the Block- - - - - - - - - - - - - - - - - - - -
- // auto & dv = get_dynamic_variables();
- //!! for( Index i = get_first_dynamic_Variable() ; i < dv.size() ; ++i ) {
  // see above for comments
  for( const auto & group : get_dynamic_variable_groups() ) {
   if( ! group )
@@ -480,13 +472,13 @@ void AbstractBlock::print( std::ostream & output , char vlvl ) const
          "AbstractBlock::print: output in LP format not implemented yet" ) );
  
  output << std::endl << "AbstractBlock with: ";
- output << std::endl << get_static_variables().size()
+ output << std::endl << get_static_variable_groups().size()
         << " types of static Variables, "
-        << get_dynamic_variables().size()
+        << get_dynamic_variable_groups().size()
         << " types of dynamic Variables, "
-        << std::endl << get_static_constraints().size()
+        << std::endl << get_static_constraint_groups().size()
         << " types of static Constraints, "
-        << get_dynamic_constraints().size()
+        << get_dynamic_constraint_groups().size()
         << " types of dynamic Constraints, "
         << std::endl << v_Block.size() << " inner Blocks" << std::endl;
 
@@ -570,10 +562,10 @@ void AbstractBlock::serialize( netCDF::NcGroup & group ) const
 
  // now the AbstractBlock data- - - - - - - - - - - - - - - - - - - - - - - -
 
- auto & sc = get_static_constraints();
- auto & sv = get_static_variables();
- auto & dc = get_dynamic_constraints();
- auto & dv = get_dynamic_variables();
+ auto & sc = get_static_constraint_groups();
+ auto & sv = get_static_variable_groups();
+ auto & dc = get_dynamic_constraint_groups();
+ auto & dv = get_dynamic_variable_groups();
 
  if( ( sc.size() > get_first_static_Constraint() ) ||
      ( dc.size() > get_first_dynamic_Constraint() ) ||
