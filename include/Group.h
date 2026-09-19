@@ -41,6 +41,7 @@
 #include <functional>
 #include <list>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <type_traits>
 #include <typeindex>
@@ -721,6 +722,33 @@ struct group_form< boost::multi_array< std::list< S > , K > >
  };
 
 /*--------------------------------------------------------------------------*/
+/// throws if a group cannot read the container the way it is laid out
+/** Any container but a boost::multi_array is read the one way it can be. A
+ * boost::multi_array is read in the storage order of C, the last index
+ * running fastest, and with its indices starting at 0: this is how a group
+ * numbers its cells [see BaseGroup::get_multi_index()] and how the copy of a
+ * group is made [see group_form_multi_array::clone()], so a grid stored
+ * otherwise would have its cells named after the wrong indices, and a copy of
+ * another shape. */
+
+template< class C >
+void check_group_form( const C & ) {}
+
+template< class X , std::size_t K >
+void check_group_form( const boost::multi_array< X , K > & a )
+{
+ if( ! ( a.storage_order() == boost::c_storage_order() ) )
+  throw( std::invalid_argument( "check_group_form: a boost::multi_array is "
+				"a group only in the storage order of C" ) );
+
+ for( std::size_t d = 0 ; d < K ; ++d )
+  if( a.index_bases()[ d ] != 0 )
+   throw( std::invalid_argument( "check_group_form: a boost::multi_array "
+				 "is a group only with its indices starting "
+				 "at 0" ) );
+ }
+
+/*--------------------------------------------------------------------------*/
 /*------------------------- CLASS StaticGroup ------------------------------*/
 /*--------------------------------------------------------------------------*/
 /// a group of one element per cell, laid out contiguously in memory
@@ -748,6 +776,8 @@ class StaticGroup : public BaseGroup {
   static_assert( std::is_same_v< typename group_form< C >::item_type , S > &&
 		 ( group_form< C >::layout == eContiguous ) ,
 		 "the container does not hold one S per cell" );
+  if( container )
+   check_group_form( *container );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -871,6 +901,8 @@ class CellGroup : public BaseGroup {
   static_assert(
    std::is_same_v< typename group_form< Container >::cell_type , C > ,
    "the container does not hold cells of type C" );
+  if( container )
+   check_group_form( *container );
   }
 
 /*--------------------------------------------------------------------------*/

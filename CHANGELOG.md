@@ -59,6 +59,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- a `boost::multi_array` stored in the order of Fortran, or with indices not
+  starting at 0, was accepted as a group and then read as if it were not:
+  its cells were named after the wrong indices and its copy had another
+  shape. Registering one now throws `std::invalid_argument`; no module
+  registers one
+
 - the unit tests check what they assert in every build type: the Release one
   defines NDEBUG, which turned each of their `assert()` into nothing, so that
   they passed whatever happened, and `AbstractPath_test` did not even walk

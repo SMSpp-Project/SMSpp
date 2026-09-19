@@ -398,6 +398,44 @@ static void test_cells_of_vectors( void )
  }
 
 /*--------------------------------------------------------------------------*/
+
+static void test_multi_array_layout( void )
+{
+ // a grid is read with the last index running fastest and its indices
+ // starting at 0, which is how its cells are named and how it is copied: one
+ // stored in the order of Fortran, or with its indices starting elsewhere,
+ // is refused rather than read wrongly
+ auto fortran = new boost::multi_array< ColVariable , 2 >(
+			  boost::extents[ 2 ][ 3 ] , boost::fortran_storage_order() );
+ auto based = new boost::multi_array< std::vector< ColVariable > , 2 >(
+						       boost::extents[ 2 ][ 3 ] );
+ based->reindex( 1 );
+ auto plain = new boost::multi_array< ColVariable , 2 >(
+						       boost::extents[ 2 ][ 3 ] );
+
+ auto refused = []( auto && make ) {
+  try {
+   make();
+   }
+  catch( std::invalid_argument & ) {
+   return( true );
+   }
+  return( false );
+  };
+
+ assert( refused( [ & ] { StaticGroup< ColVariable > group( fortran ); } ) );
+ assert( refused( [ & ] {
+   CellGroup< ColVariable , std::vector< ColVariable > > group( based ); } ) );
+ assert( ! refused( [ & ] { StaticGroup< ColVariable > group( plain ); } ) );
+
+ delete plain;
+ delete based;
+ delete fortran;
+
+ std::cout << "multi_array layout: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
 /*--------------------------------- MAIN -----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -406,6 +444,7 @@ int main( void )
  test_shapes();
  test_constraints();
  test_cells_of_vectors();
+ test_multi_array_layout();
 
  std::cout << "All tests passed!!" << std::endl;
 
