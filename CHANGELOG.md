@@ -59,6 +59,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `Observer::new_channel_name()`, when reusing a freed name, dereferenced
+  `rend()` and erased the lowest free name rather than the one it handed
+  out, which only shows when channels are closed out of order, as the
+  grouped Modification of UCBlock do, and made the parallel tests of
+  InvestmentBlock fail now and then with "Observer: wrong channel name"
+
 - a `boost::multi_array` stored in the order of Fortran, or with indices not
   starting at 0, was accepted as a group and then read as if it were not:
   its cells were named after the wrong indices and its copy had another
