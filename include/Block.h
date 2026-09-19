@@ -3022,8 +3022,8 @@ class Block : public Observer {
   *
   * - a pointer to a boost::multi_array< C , K >, where C is any class derived
   *   from Constraint (obviously you can't make a multi_array of the base
-  *   Constraint class), in principle with any K (but the limit for K may be
-  *   dictated by un_any_static() and un_any_thing() in SMSTypedefs.h);
+  *   Constraint class), in principle with any K, up to the
+  *   largest rank a group can have [see BaseGroup::max_rank];
   *
   * Note that this is the "abstract representation" of the Block, which is
   * why these are all pointers. It is assumed that the actual [vectors or
@@ -3206,8 +3206,8 @@ class Block : public Observer {
   *
   * - a pointer to a boost::multi_array< V , K >, where V is any class derived
   *   from Variable (obviously you can't make a multi_array of the base
-  *   Variable class), in principle with any K (but the limit for K may be
-  *   dictated by un_any_static() and un_any_thing() in SMSTypedefs.h);
+  *   Variable class), in principle with any K, up to the
+  *   largest rank a group can have [see BaseGroup::max_rank];
   *
   * Note that this is the "abstract representation" of the Block, which is
   * why these are all pointers. It is assumed that the actual [vectors or
@@ -3398,8 +3398,8 @@ class Block : public Observer {
   *   from Constraint;
   *
   * - a pointer to a boost::multi_array< std::list< C > , K >,  where class C is
-  *   derived from Constraint, in principle with any K (but the limit for K
-  *   may be dictated by un_any_static() and un_any_thing() in SMSTypedefs.h);
+  *   derived from Constraint, in principle with any K, up to the largest
+  *   rank a group can have [see BaseGroup::max_rank];
   *
   * Note that this is the "abstract representation" of the Block, which is
   * why these are all pointers. It is assumed that the actual [vector or
@@ -3615,8 +3615,8 @@ class Block : public Observer {
   *   from Variable;
   *
   * - a pointer to a boost::multi_array< std::list< V > , K >,  where class V is
-  *   derived from Variable, in principle with any K (but the limit for K
-  *   may be dictated by un_any_static() and un_any_thing() in SMSTypedefs.h);
+  *   derived from Variable, in principle with any K, up to the largest
+  *   rank a group can have [see BaseGroup::max_rank];
   *
   * Note that this is the "abstract representation" of the Block, which is
   * why these are all pointers. It is assumed that the actual [vector or
