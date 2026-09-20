@@ -24,42 +24,59 @@
         For some applications (UC) it would be quite handy to have groups of
 	Variable/Constraint with multiple indices, but not all slices necessarily
 	of the same dimension. This could be obtained by std::vector< std::vector<
-	... > > nested a number of times. This might be achievable in the context
-	of explicit "Variable / Constraint Group" replacing the boost::any (see)
+	... > > nested a number of times.
 
-2022-02-10 [very high] get rid of the boost::any
+	Half of this is there: a group whose cells are collections covers
+	std::vector< std::vector< T > > and boost::multi_array< std::vector<
+	T > , K >, i.e. a grid of up to BaseGroup::max_rank dimensions each
+	cell of which holds a collection of its own size, and the same for
+	std::list in place of std::vector. What is not there is the nesting
+	"a number of times": the jaggedness is one level deep, the cells of a
+	cell cannot be cells in their turn.
 
-	The idea of boost::any seemed cool at the time, but in fact it only brings
-	pain, since you do need to know the *exact* type of stuff in order to
-	take it out of a boost::any. This means that, for instance, you have no
-	way of saying "if this Constraint derives from RowConstraint, give it to
-	me". We should get rid of boost::any and define a
+	NOTE THAT THE ORDER IN WHICH THE ELEMENTS OF SUCH A GROUP ARE NUMBERED
+	IS NOT THE ONE Block::ConstraintID DOCUMENTS. For a group whose cells are
+	std::vector the i-th element of the c-th cell of n cells is the
+	( c + i * n )-th, which is the grid read the other way around and is
+	what the code has always done; for a group whose cells are std::list
+	it is instead the cell-by-cell order, j plus the sizes of the cells
+	before it, which is the one ConstraintID describes (and which is also
+	the order in memory). The two have to be made one, and ConstraintID
+	updated, once it is known whether any configuration file out there
+	addresses a Constraint inside a std::vector of std::vector.
 
-	    template< VarOrConst >
-	    class Group
+2022-02-10 [very high] get rid of the boost::any -- DONE, but for one piece
 
-        that implements the concept of "group of Variable / Constraint". The
-	Group should have a size, a name, a number of indices and ways to
-	access to any item, as well as to iterate on all them. It should be
-	possible (not clear if it is) to know if the Group contains, say
-	Constraint derived from RowConstraint and get a RowConstraint * for
-	each of them irrespective to the actual type. Most likely
+	The four std::vector< boost::any > of Block are gone, and so are the
+	four vectors of names beside them: what a Block keeps are four vectors
+	of Group. A group says the type of its elements, its shape, its name
+	and its index in the Block, hands the elements over in storage order
+	without the caller having to know the type of the container they sit
+	in, and answers whether they derive from a given class (elements_are(),
+	for_each_as(), for_each_run_as(), for_each_as_any_of()). It also knows
+	how to build a container of its own type and shape in another Block,
+	which is what AbstractBlock::mirror() uses to copy the whole abstract
+	representation of a Block, the thing this entry said it would set the
+	stage for.
+
+	What remains to do is this one:
 
 	    A Variable / Constraint SHOULD HAVE A POINTER TO THE Group IT
-	    BELONGS TO RATHER THAN TO THE Block, WITH OF COURSE THE Group
-	    HAVING THE POINTER TO THE Block
+	    BELONGS TO RATHER THAN TO THE Block
 
-        Also
+	An element still points at its Block, and get_Block() is what every
+	caller uses. Putting the Group there instead costs the same 8 bytes
+	and one more hop in get_Block(), and buys the index of the element
+	inside its group from its address alone, out of the base, the stride
+	and the extents the group already has. Today that index is found by
+	inspection::index_in_group(), which walks the group until it meets
+	the element, and is then turned into a multi-index by
+	BaseGroup::get_multi_index().
 
-	    A Group SHOULD KNOW ITS INDEX INSIDE THE SET OF Group OF THE
-	    Block, SO THAT, GIVEN A POINTER TO A Variable / Constraint, ONE
-	    CAN EASILY RECONSTRUCT AN "ABSTRACT" (MULTI) INDEX THAT UNIQUELY
-	    IDENTIFIES THE Variable / Constraint
-
-         All this would set the stage for
-
-             BEING CAPABLE OF EFFICIENLTY MAKING A COPY OF THE WHOLE ABSTRACT
-	     REPRESENTATION OF A Block INTO A, SAY, AbstractBlock
+	The 8 bytes themselves are out of scope: giving them back needs
+	either a global table or a split hierarchy of Variable, and the
+	lookup was measured to weigh 0.01% to 0.26% of a solve, so what is
+	at stake here is the structure and not the speed.
 
 2020-08-12 [low] add configuration and vector-of-configuration parameters
 
