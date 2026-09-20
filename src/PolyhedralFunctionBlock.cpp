@@ -1627,9 +1627,17 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
  //    overrides (which call CPXaddcols / CPXdelcols / CPXchgcoeflist and
  //    the Gurobi equivalents).
 
- // shortcuts to the abstract structures of the dual representation
+ // shortcuts to the abstract structures of the dual representation. The
+ // representation may not have been generated yet, and then there is
+ // nothing of it to update: the Modification travels on as the physical
+ // one, and generate_abstract_objective() reads the data as it is now
  auto frobj = static_cast< FRealObjective * >( get_objective() );
+ if( ! frobj )
+  return( false );
+
  auto obj_lf = static_cast< LinearFunction * >( frobj->get_function() );
+ if( ! obj_lf )
+  return( false );
 
  // C05FunctionModVarsAddd/Rngd/Sbst - - - - - - - - - - - - - - - - - - - -
  // x variables of PF() added/removed: this also requires the father
