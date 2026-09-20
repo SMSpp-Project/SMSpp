@@ -209,6 +209,18 @@ namespace SMSpp_di_unipi_it::inspection
   }
 
 /*--------------------------------------------------------------------------*/
+ /// as for_each_named_as(), trying each of T... until one of them fits
+ /** Calls for_each_named_as() for each type of the list in turn, stopping at
+  * the first that the elements of \p group are; answers false if they are
+  * none of them, having called \p f no times. */
+
+ template< class F , class... T >
+ static bool for_each_named_as_any_of( const BaseGroup & group , F f )
+ {
+  return( ( for_each_named_as< T >( group , f ) || ... ) );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// the name \p group gives to \p element, "" if the element is not in it
  /** Walks \p group looking for \p element and names it as name_of_cell()
   * does. This is what it takes to say which Variable a row of the model is

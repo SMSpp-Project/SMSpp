@@ -77,6 +77,22 @@ bool for_each_RowConstraint( const BaseGroup & group , FR frow , FO onevar )
 			     NPConstraint , ZOConstraint >( group , onevar ) );
  }
 
+/*--------------------------------------------------------------------------*/
+/// as for_each_RowConstraint(), with the name of each element beside it
+/** Calls frow( name , element ) or onevar( name , element ), the name being
+ * the one the group gives the element [see inspection::name_of()]. */
+
+template< class FR , class FO >
+bool for_each_named_RowConstraint( const BaseGroup & group , FR frow ,
+				   FO onevar )
+{
+ return( inspection::for_each_named_as< FRowConstraint >( group , frow ) ||
+	 inspection::for_each_named_as_any_of<
+	  FO , BoxConstraint , LB0Constraint , UB0Constraint , LBConstraint ,
+	  UBConstraint , NNConstraint , NPConstraint ,
+	  ZOConstraint >( group , onevar ) );
+ }
+
 }  // end( unnamed namespace )
 
 /*--------------------------------------------------------------------------*/
@@ -493,8 +509,8 @@ void AbstractBlock::print( std::ostream & output , char vlvl ) const
     output << " (" << group.get_name() << "): ";
    };
 
-  auto print_it = [ & output ]( auto & element ) {
-   output << element << std::endl; };
+  auto print_it = [ & output ]( const std::string & name , auto & element ) {
+   output << name << ": " << element << std::endl; };
 
   auto print_constraints = [ & output , & header , & print_it ]
 			   ( const Vec_Group & groups , Index first ) {
@@ -502,7 +518,8 @@ void AbstractBlock::print( std::ostream & output , char vlvl ) const
     if( ( ! group ) || ( group->get_index() < first ) )
      continue;
     header( *group );
-    if( ! for_each_RowConstraint( *group , print_it , print_it ) )
+    output << std::endl;
+    if( ! for_each_named_RowConstraint( *group , print_it , print_it ) )
      throw( std::logic_error( std::string( "some " ) +
 			      ( group->is_dynamic() ? "dynamic" : "static" ) +
 			      " Constraint not FRowConstraint or"

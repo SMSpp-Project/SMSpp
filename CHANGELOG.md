@@ -14,8 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the indices of its cell in the grid and, when the cells are collections, by
   its position inside its own cell; `inspection::for_each_named_as()` walks a
   whole group handing over each element with its name, reading the shape of
-  the grid once rather than once per element. `AbstractBlock::print()` prints
-  the Variable that way, which is what tells which one of them a row of the
+  the grid once rather than once per element, and
+  `inspection::for_each_named_as_any_of()` does it running a cascade of
+  concrete types. `AbstractBlock::print()` prints the Variable and the
+  Constraint that way, which is what tells which one of them a row of the
   model is written on
 
 - `Block::get_size_variable()` and `Block::set_size_variable()`, through

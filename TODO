@@ -157,11 +157,13 @@
 	shape once rather than once per element. AbstractBlock::print() prints
 	the Variable that way.
 
-	What is left: the Constraint are still printed without their name,
-	because they go through for_each_RowConstraint() which hands over the
-	element alone; an IS is not printed at all, and neither is the dual
-	ray that would say which rows to put in it; and there is no way to ask
-	for one part of the model rather than all of it.
+	The Constraint are printed with their name too, through
+	inspection::for_each_named_as_any_of(), which runs the same cascade of
+	concrete types for_each_RowConstraint() runs.
+
+	What is left: an IS is not printed at all, and neither is the dual ray
+	that would say which rows to put in it; and there is no way to ask for
+	one part of the model rather than all of it.
 
 
 2026-07-17 [updated] BendersDecompositionSolver
