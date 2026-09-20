@@ -20,6 +20,8 @@
 
 #include "AbstractBlock.h"
 
+#include "BlockInspection.h"
+
 
 #include "ColVariable.h"
 
@@ -508,13 +510,21 @@ void AbstractBlock::print( std::ostream & output , char vlvl ) const
     }
    };
 
-  auto print_variables = [ & output , & header , & print_it ]
+  // each Variable is printed with the name its group gives it, which is
+  // what tells which one of them a row of the model is written on
+  auto print_named = [ & output ]( const std::string & name ,
+				   ColVariable & variable ) {
+   output << name << ": " << variable << std::endl; };
+
+  auto print_variables = [ & output , & header , & print_named ]
 			 ( const Vec_Group & groups , Index first ) {
    for( const auto & group : groups ) {
     if( ( ! group ) || ( group->get_index() < first ) )
      continue;
     header( *group );
-    if( ! group->for_each_as< ColVariable >( print_it ) )
+    output << std::endl;
+    if( ! inspection::for_each_named_as< ColVariable >( *group ,
+						       print_named ) )
      throw( std::logic_error( std::string( "some " ) +
 			      ( group->is_dynamic() ? "dynamic" : "static" ) +
 			      " Variable not ColVariable" ) );

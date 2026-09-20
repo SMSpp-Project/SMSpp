@@ -145,14 +145,23 @@
         In many cases, printing the full model would be useful. In particular,
         if the model turns out to be unexpectedly unfeasible, one should fetch
         the dual ray from the CDASolver (if any) and use it to output an IS.
-        The biggest hurdle here is to be able to retrieve a significant name for
-        the [Col]Variable involved in the Constraint/Objective (Function). This
-        is not terribly complex, but still requires some work. After this is done,
-        the model and an IS can be printed with relatively little effore exploiting
-        the existing print() infrastructure. Of course, once this is done one should
-        also do the same for Constraint names and print them out, too. Maybe some
-        infrastructure for printing only specific parts of the model could be
-        imagined.
+
+	The hurdle this entry named, retrieving a significant name for the
+	[Col]Variable, is gone: the groups know their own name and the shape
+	of their grid, so inspection::name_of( block , element ) gives a
+	Variable or a Constraint the name of the group it sits in followed by
+	the indices of its cell and, when the cells are collections, by its
+	position inside its own cell ("x[ 2 ]", "M[ 1 ][ 2 ]", "<2>[ 1 ][ 1 ]"
+	when the group has no name), and inspection::for_each_named_as() walks
+	a whole group handing over each element with its name, reading the
+	shape once rather than once per element. AbstractBlock::print() prints
+	the Variable that way.
+
+	What is left: the Constraint are still printed without their name,
+	because they go through for_each_RowConstraint() which hands over the
+	element alone; an IS is not printed at all, and neither is the dual
+	ray that would say which rows to put in it; and there is no way to ask
+	for one part of the model rather than all of it.
 
 
 2026-07-17 [updated] BendersDecompositionSolver

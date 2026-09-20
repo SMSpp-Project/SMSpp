@@ -21,6 +21,7 @@
 /*--------------------------------------------------------------------------*/
 
 #include "AbstractBlock.h"
+#include "BlockInspection.h"
 #include "ColVariableSolution.h"
 #include "FRowConstraint.h"
 #include "LinearFunction.h"
@@ -439,12 +440,56 @@ static void test_multi_array_layout( void )
 /*--------------------------------- MAIN -----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+static void test_names( void )
+{
+ // the name a group gives to an element is the name of the group, or its
+ // index between angle brackets when it has none, followed by the indices
+ // of its cell in the grid and, when the cells are collections, by the
+ // position of the element inside its own cell
+ AbstractBlock b;
+
+ std::vector< ColVariable > v( 3 );
+ b.add_static_variable( v , "x" );
+
+ boost::multi_array< ColVariable , 2 > m( boost::extents[ 2 ][ 3 ] );
+ b.add_static_variable( m , "M" );
+
+ std::vector< std::vector< ColVariable > > w( 2 );
+ w[ 0 ].resize( 1 );
+ w[ 1 ].resize( 2 );
+ b.add_static_variable( w );   // no name: the index answers for it
+
+ assert( inspection::name_of( & b , & v[ 2 ] ) == "x[ 2 ]" );
+ assert( inspection::name_of( & b , & m[ 1 ][ 2 ] ) == "M[ 1 ][ 2 ]" );
+ assert( inspection::name_of( & b , & w[ 1 ][ 1 ] ) == "<2>[ 1 ][ 1 ]" );
+
+ // an element that is not in the Block has no name
+ ColVariable stranger;
+ assert( inspection::name_of( & b , & stranger ).empty() );
+
+ // the walk names every element, in storage order
+ std::vector< std::string > seen;
+ assert( inspection::for_each_named_as< ColVariable >(
+	       *b.get_static_variable_groups()[ 2 ] ,
+	       [ & seen ]( const std::string & name , ColVariable & ) {
+		seen.push_back( name ); } ) );
+ assert( seen.size() == 3 );
+ assert( seen[ 0 ] == "<2>[ 0 ][ 0 ]" );
+ assert( seen[ 1 ] == "<2>[ 1 ][ 0 ]" );
+ assert( seen[ 2 ] == "<2>[ 1 ][ 1 ]" );
+
+ std::cout << "names: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+
 int main( void )
 {
  test_shapes();
  test_constraints();
  test_cells_of_vectors();
  test_multi_array_layout();
+ test_names();
 
  std::cout << "All tests passed!!" << std::endl;
 

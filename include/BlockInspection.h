@@ -124,6 +124,133 @@ namespace SMSpp_di_unipi_it::inspection
   }
 
 /*--------------------------------------------------------------------------*/
+ /// the name \p group gives to the element of it at \p cell and \p position
+ /** The name is that of the group, or its index in the Block between angle
+  * brackets when it has none, followed by the multi-index of the cell, one
+  * pair of square brackets per dimension of the grid, and by the position of
+  * the element inside its cell when the cells are collections. A group that
+  * is one array has one cell per element and no position, so the name of its
+  * i-th element is just "<name>[ i ]". */
+
+ static std::string name_of_cell( const BaseGroup & group , Index cell ,
+				  Index position = Inf< Index >() )
+ {
+  std::string name = group.get_name();
+  if( name.empty() )
+   name = "<" + std::to_string( group.get_index() ) + ">";
+
+  const auto g = group.get_grid();
+  std::array< Index , BaseGroup::max_rank > idx;
+  g.get_multi_index( cell , idx.data() );
+
+  for( unsigned char d = 0 ; d < g.rank ; ++d )
+   name += "[ " + std::to_string( idx[ d ] ) + " ]";
+
+  if( position < Inf< Index >() )
+   name += "[ " + std::to_string( position ) + " ]";
+
+  return( name );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// walks \p group giving each element to \p f together with its name
+ /** Calls f( name , element ) for each element of \p group, in storage
+  * order, with the name name_of_cell() gives it. Answers false, without
+  * calling \p f, if the elements of the group are not T. The shape of the
+  * grid is read once for the whole group and not once per element. */
+
+ template< class T , class F >
+ static bool for_each_named_as( const BaseGroup & group , F f )
+ {
+  std::string base = group.get_name();
+  if( base.empty() )
+   base = "<" + std::to_string( group.get_index() ) + ">";
+
+  const auto g = group.get_grid();
+
+  auto named = [ & base , & g ]( Index cell , Index position ) {
+   std::array< Index , BaseGroup::max_rank > idx;
+   g.get_multi_index( cell , idx.data() );
+   std::string name = base;
+   for( unsigned char d = 0 ; d < g.rank ; ++d )
+    name += "[ " + std::to_string( idx[ d ] ) + " ]";
+   if( position < Inf< Index >() )
+    name += "[ " + std::to_string( position ) + " ]";
+   return( name );
+   };
+
+  if( group.get_layout() == BaseGroup::eContiguous ) {
+   Index i = 0;
+   return( group.for_each_as< T >( [ & ]( T & element ) {
+     f( named( i , Inf< Index >() ) , element );
+     ++i;
+     } ) );
+   }
+
+  bool done = false;
+  for_each_concrete< T >( [ & ]( auto * tag ) {
+    using X = std::remove_pointer_t< decltype( tag ) >;
+    if constexpr( std::is_base_of_v< T , X > ) {
+     if( group.for_each_cell_as< X >( [ & ]( Index c , auto & cell ) {
+       Index i = 0;
+       for( auto & item : cell )
+	f( named( c , i++ ) , static_cast< T & >( group_element( item ) ) );
+       } ) ) {
+      done = true;
+      return( true );
+      }
+     return( false );
+     }
+    else
+     return( false );
+    } );
+
+  return( done );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// the name \p group gives to \p element, "" if the element is not in it
+ /** Walks \p group looking for \p element and names it as name_of_cell()
+  * does. This is what it takes to say which Variable a row of the model is
+  * written on, which is the thing a model printed by hand needs and the
+  * address of the element alone cannot give. */
+
+ template< class C >
+ static std::string name_in_group( const BaseGroup & group ,
+				   const C * element )
+ {
+  using T = std::remove_const_t< C >;
+  std::string found;
+
+  if( group.get_layout() == BaseGroup::eContiguous ) {
+   Index i = 0;
+   group.for_each_as< T >( [ & ]( T & candidate ) {
+     if( & candidate == element )
+      found = name_of_cell( group , i );
+     ++i;
+     } );
+   return( found );
+   }
+
+  for_each_concrete< T >( [ & ]( auto * tag ) {
+    using X = std::remove_pointer_t< decltype( tag ) >;
+    if constexpr( std::is_base_of_v< T , X > )
+     return( group.for_each_cell_as< X >( [ & ]( Index c , auto & cell ) {
+       Index i = 0;
+       for( auto & item : cell ) {
+	if( & group_element( item ) == element )
+	 found = name_of_cell( group , c , i );
+	++i;
+	}
+       } ) );
+    else
+     return( false );
+    } );
+
+  return( found );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// the element of \p group at \p index, nullptr if there is none
  /** The inverse of index_in_group(): the two number the elements of a group
   * in the same way. */
@@ -196,6 +323,31 @@ namespace SMSpp_di_unipi_it::inspection
    return( is_static ? block->get_static_constraint_groups()
 	             : block->get_dynamic_constraint_groups() );
   }
+
+/*--------------------------------------------------------------------------*/
+ /// the name \p block gives to \p element, "" if the element is not in it
+ /** Looks for \p element in the four vectors of groups of \p block, static
+  * first and then dynamic, and gives the name the group it is in gives it. */
+
+ template< class C >
+ static std::string name_of( const Block * block , const C * element )
+ {
+  using T = std::remove_const_t< C >;
+  if( ( ! block ) || ( ! element ) )
+   return( "" );
+
+  for( bool is_static : { true , false } )
+   for( const auto & group : get_groups< T >( block , is_static ) ) {
+    if( ! group )
+     continue;
+    auto name = name_in_group< C >( *group , element );
+    if( ! name.empty() )
+     return( name );
+    }
+
+  return( "" );
+  }
+
 
 /*--------------------------------------------------------------------------*/
  /// says how many groups of a kind a Block has, and what they are named
