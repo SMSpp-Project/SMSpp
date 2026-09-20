@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `AbstractBlock::write_lp()`, which writes what the Block holds as the LP
+  file `read_lp()` reads, `print( out , 'L' )` having thrown "not implemented
+  yet"; `serialize()` uses it to fill the netCDF variable `Model` that
+  `deserialize()` has always read, with `ModelType = 'L'`. The Objective, the
+  rows that are `FRowConstraint` on a `LinearFunction`, the bounds a column
+  has of its own tightened by the `:OneVarConstraint` written on it and the
+  integer columns are written; a row with both sides finite and different
+  goes twice, `<name>_up` and `<name>_lo`, the format having no two-sided
+  row. The names are those the groups give, with the indices joined by
+  underscores, so `name_of_cell()` and `for_each_named_as()` take the two
+  separators as a parameter. An LP file has no notion of groups, so what
+  travels is the model and not the way it is grouped
+
 - `serialize()` and `deserialize()` of `ColVariableSolution`,
   `RowConstraintSolution` and `ColRowSolution`, which threw "not ready yet":
   the values of the static stuff go in `StaticValues` (`StaticDuals` for the

@@ -371,12 +371,37 @@
 	one rather than into an error.
 
 
-2019-08-29 [medium-high] implement [de]serialize() in AbstractBlock
+2019-08-29 [medium-high] implement [de]serialize() in AbstractBlock -- DONE
 
-	the name says it all; if we are ever going to use it seriously inside
-	"true" models, this is needed. It is not simple, but it makes
-	AbstractBlock a lot more valuable since you don't always have to
-	build it up programmatically.
+	The format was there already and nothing had to be decided:
+	guts_of_deserialize() reads the model out of a netCDF variable "Model"
+	holding an LP or an MPS file, with the attribute ModelType saying which
+	of the two it is, and the nested Block out of the subgroups Block_<i>.
+	What was missing was writing the LP, print( out , 'L' ) throwing "not
+	implemented yet"; AbstractBlock::write_lp() writes it now, and
+	serialize() puts it in "Model" with ModelType = 'L' whenever the Block
+	holds something that is not reserved to a derived class.
+
+	What is written is the Objective (the sense and the LinearFunction it
+	is on), the rows that are FRowConstraint on a LinearFunction, the
+	bounds each column has of its own tightened by the :OneVarConstraint
+	written on it, and the columns that are integer. A row with both sides
+	finite and different is written twice, <name>_up and <name>_lo, since
+	the format has no two-sided row, and one with both sides equal is an
+	equality. The names are those the groups give [see
+	inspection::name_of()] with the indices joined by underscores, x_2
+	rather than "x[ 2 ]", the format taking neither brackets nor spaces
+	inside a name; that is why the two separators are a parameter of
+	name_of_cell() and for_each_named_as().
+
+	What travels is the model and not the way it is grouped: an LP file has
+	no notion of groups, so reading back what this writes gives one group
+	of columns and one of rows, as read_lp() builds them. That is not a
+	loss introduced here, it is how the format has been since
+	deserialize() exists.
+
+	What is left: a Function that is not linear is refused rather than
+	written, and the MPS format is still not written [print( out , 'M' )].
 
 
 2019-08-26 [medium] use the methods factory to work with "physical solution"

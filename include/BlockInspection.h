@@ -124,30 +124,51 @@ namespace SMSpp_di_unipi_it::inspection
   }
 
 /*--------------------------------------------------------------------------*/
+ /// how the pieces of the name of an element are spelled out
+ /** The name of an element is made of the name of its group and of a list of
+  * indices; which characters set the indices apart, and which stand around
+  * the index of a group that has no name, is what this says. The default is
+  * the readable one, "x[ 2 ]" and "<2>[ 1 ][ 1 ]"; a caller writing a name
+  * into a file whose format takes neither brackets nor spaces, as the LP one
+  * does not, asks instead for { "_" , "" , "g" , "" } and reads "x_2" and
+  * "g2_1_1". Of course, with a marker that is a letter a nameless group of
+  * index 2 has the name a group truly called "g2" would have; with the
+  * default one it cannot happen, an angle bracket being no part of a name. */
+
+ struct name_format {
+  const char * open = "[ ";     ///< opens the index of a cell
+  const char * close = " ]";    ///< closes the index of a cell
+  const char * gopen = "<";     ///< opens the index of a group with no name
+  const char * gclose = ">";    ///< closes the index of a group with no name
+  };
+
+/*--------------------------------------------------------------------------*/
  /// the name \p group gives to the element of it at \p cell and \p position
  /** The name is that of the group, or its index in the Block between angle
   * brackets when it has none, followed by the multi-index of the cell, one
   * pair of square brackets per dimension of the grid, and by the position of
   * the element inside its cell when the cells are collections. A group that
   * is one array has one cell per element and no position, so the name of its
-  * i-th element is just "<name>[ i ]". */
+  * i-th element is just "<name>[ i ]". \p fmt says which characters play the
+  * part of the brackets [see name_format]. */
 
  static std::string name_of_cell( const BaseGroup & group , Index cell ,
-				  Index position = Inf< Index >() )
+				  Index position = Inf< Index >() ,
+				  name_format fmt = {} )
  {
   std::string name = group.get_name();
   if( name.empty() )
-   name = "<" + std::to_string( group.get_index() ) + ">";
+   name = fmt.gopen + std::to_string( group.get_index() ) + fmt.gclose;
 
   const auto g = group.get_grid();
   std::array< Index , BaseGroup::max_rank > idx;
   g.get_multi_index( cell , idx.data() );
 
   for( unsigned char d = 0 ; d < g.rank ; ++d )
-   name += "[ " + std::to_string( idx[ d ] ) + " ]";
+   name += fmt.open + std::to_string( idx[ d ] ) + fmt.close;
 
   if( position < Inf< Index >() )
-   name += "[ " + std::to_string( position ) + " ]";
+   name += fmt.open + std::to_string( position ) + fmt.close;
 
   return( name );
   }
@@ -160,22 +181,23 @@ namespace SMSpp_di_unipi_it::inspection
   * grid is read once for the whole group and not once per element. */
 
  template< class T , class F >
- static bool for_each_named_as( const BaseGroup & group , F f )
+ static bool for_each_named_as( const BaseGroup & group , F f ,
+				name_format fmt = {} )
  {
   std::string base = group.get_name();
   if( base.empty() )
-   base = "<" + std::to_string( group.get_index() ) + ">";
+   base = fmt.gopen + std::to_string( group.get_index() ) + fmt.gclose;
 
   const auto g = group.get_grid();
 
-  auto named = [ & base , & g ]( Index cell , Index position ) {
+  auto named = [ & base , & g , fmt ]( Index cell , Index position ) {
    std::array< Index , BaseGroup::max_rank > idx;
    g.get_multi_index( cell , idx.data() );
    std::string name = base;
    for( unsigned char d = 0 ; d < g.rank ; ++d )
-    name += "[ " + std::to_string( idx[ d ] ) + " ]";
+    name += fmt.open + std::to_string( idx[ d ] ) + fmt.close;
    if( position < Inf< Index >() )
-    name += "[ " + std::to_string( position ) + " ]";
+    name += fmt.open + std::to_string( position ) + fmt.close;
    return( name );
    };
 

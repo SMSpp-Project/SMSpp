@@ -478,6 +478,23 @@ static void test_names( void )
  assert( seen[ 1 ] == "<2>[ 1 ][ 0 ]" );
  assert( seen[ 2 ] == "<2>[ 1 ][ 1 ]" );
 
+ // a caller writing the name into a file whose format takes neither brackets
+ // nor spaces asks for the separators it can afford, the marker of a group
+ // with no name being one of them
+ const inspection::name_format lp = { "_" , "" , "g" , "" };
+
+ assert( inspection::name_of_cell(
+	       *b.get_static_variable_groups()[ 1 ] , 5 ,
+	       Inf< Block::Index >() , lp ) == "M_1_2" );
+
+ seen.clear();
+ assert( inspection::for_each_named_as< ColVariable >(
+	       *b.get_static_variable_groups()[ 2 ] ,
+	       [ & seen ]( const std::string & name , ColVariable & ) {
+		seen.push_back( name ); } , lp ) );
+ assert( seen[ 0 ] == "g2_0_0" );
+ assert( seen[ 2 ] == "g2_1_1" );
+
  std::cout << "names: OK" << std::endl;
  }
 

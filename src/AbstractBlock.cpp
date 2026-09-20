@@ -22,6 +22,9 @@
 
 #include "BlockInspection.h"
 
+#include <map>
+#include <sstream>
+
 
 #include "ColVariable.h"
 
@@ -479,15 +482,187 @@ Solution * AbstractBlock::get_Solution( Configuration * csolc, bool emptys )
 
 /*--------------------------------------------------------------------------*/
 
+void AbstractBlock::write_lp( std::ostream & output ) const
+{
+ /* An LP file has no notion of groups: every column and every row is one of
+  * a list, and what says which is which is its name. The names are those the
+  * groups give [see inspection::name_of()], with the indices joined by
+  * underscores, since the format takes no brackets and no spaces inside a
+  * name. */
+
+ std::map< const ColVariable * , std::string > name;
+
+ auto name_columns = [ & name ]( const Vec_Group & groups ) {
+  for( const auto & group : groups ) {
+   if( ! group )
+    continue;
+   inspection::for_each_named_as< ColVariable >( *group ,
+    [ & name ]( const std::string & n , ColVariable & v ) {
+     name[ & v ] = n; } , { "_" , "" , "g" , "" } );
+   }
+  };
+
+ name_columns( get_static_variable_groups() );
+ name_columns( get_dynamic_variable_groups() );
+
+ auto write_linear = [ & output , & name ]( const LinearFunction * lf ) {
+  bool first = true;
+  for( const auto & [ var , coeff ] : lf->get_v_var() ) {
+   if( coeff == 0 )
+    continue;
+   const auto it = name.find( var );
+   if( it == name.end() )
+    throw( std::logic_error( "AbstractBlock::write_lp: a Variable of the "
+			     "model is not in any group of this Block" ) );
+   if( first ) {
+    output << ( coeff < 0 ? "- " : "" );
+    first = false;
+    }
+   else
+    output << ( coeff < 0 ? " - " : " + " );
+   const auto a = std::abs( coeff );
+   if( a != 1 )
+    output << a << " ";
+   output << it->second;
+   }
+  if( first )       // every coefficient is zero: the expression is empty,
+   output << "0";   // and the format wants something there
+  };
+
+ // the Objective - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ output << "\\ written by AbstractBlock::write_lp()" << std::endl;
+
+ auto obj = dynamic_cast< const FRealObjective * >( get_objective() );
+ output << ( ( obj && ( obj->get_sense() == Objective::eMax ) )
+	     ? "Maximize" : "Minimize" ) << std::endl << " obj: ";
+ if( obj ) {
+  if( auto lf = dynamic_cast< const LinearFunction * >( obj->get_function() ) )
+   write_linear( lf );
+  else
+   throw( std::invalid_argument( "AbstractBlock::write_lp: the Objective is "
+				 "not written on a LinearFunction" ) );
+  }
+ else
+  output << "0";
+ output << std::endl;
+
+ // the rows - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // a row with both sides finite and different is written twice, since the
+ // format has no two-sided row; one with both sides equal is an equality
+
+ output << "Subject To" << std::endl;
+
+ auto write_rows = [ & output , & write_linear ]( const Vec_Group & groups ) {
+  for( const auto & group : groups ) {
+   if( ! group )
+    continue;
+   inspection::for_each_named_as< FRowConstraint >( *group ,
+    [ & output , & write_linear ]( const std::string & n ,
+				   FRowConstraint & c ) {
+     auto lf = dynamic_cast< const LinearFunction * >( c.get_function() );
+     if( ! lf )
+      throw( std::invalid_argument( "AbstractBlock::write_lp: the row " + n +
+				    " is not written on a LinearFunction" ) );
+     const auto lhs = c.get_lhs();
+     const auto rhs = c.get_rhs();
+     if( lhs == rhs ) {
+      output << " " << n << ": ";
+      write_linear( lf );
+      output << " = " << rhs << std::endl;
+      return;
+      }
+     if( rhs < RowConstraint::RHSINF ) {
+      output << " " << n << "_up: ";
+      write_linear( lf );
+      output << " <= " << rhs << std::endl;
+      }
+     if( lhs > - RowConstraint::RHSINF ) {
+      output << " " << n << "_lo: ";
+      write_linear( lf );
+      output << " >= " << lhs << std::endl;
+      }
+     } , { "_" , "" , "g" , "" } );
+   }
+  };
+
+ write_rows( get_static_constraint_groups() );
+ write_rows( get_dynamic_constraint_groups() );
+
+ // the bounds - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // what a column has of its own, tightened by the :OneVarConstraint that
+ // are written on it: the format says the bounds of a column in one place
+
+ std::map< const ColVariable * , std::pair< double , double > > bnd;
+ for( const auto & [ var , n ] : name )
+  bnd[ var ] = { var->get_lb() , var->get_ub() };
+
+ auto tighten = [ & bnd ]( const Vec_Group & groups ) {
+  for( const auto & group : groups ) {
+   if( ! group )
+    continue;
+   for_each_as_any_of< BoxConstraint , LB0Constraint , UB0Constraint ,
+		       LBConstraint , UBConstraint , NNConstraint ,
+		       NPConstraint , ZOConstraint >( *group ,
+    [ & bnd ]( OneVarConstraint & c ) {
+     auto it = bnd.find( static_cast< const ColVariable * >(
+					       c.get_active_var( 0 ) ) );
+     if( it == bnd.end() )
+      return;
+     it->second.first = std::max( it->second.first ,
+				  double( c.get_lhs() ) );
+     it->second.second = std::min( it->second.second ,
+				   double( c.get_rhs() ) );
+     } );
+   }
+  };
+
+ tighten( get_static_constraint_groups() );
+ tighten( get_dynamic_constraint_groups() );
+
+ output << "Bounds" << std::endl;
+ for( const auto & [ var , n ] : name ) {
+  const auto [ lb , ub ] = bnd[ var ];
+  if( ( lb <= - Inf< double >() ) && ( ub >= Inf< double >() ) )
+   output << " " << n << " free" << std::endl;
+  else {
+   if( lb > - Inf< double >() )
+    output << " " << lb << " <= ";
+   output << n;
+   if( ub < Inf< double >() )
+    output << " <= " << ub;
+   output << std::endl;
+   }
+  }
+
+ // the integer columns- - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ bool any_integer = false;
+ for( const auto & [ var , n ] : name )
+  if( var->is_integer() ) {
+   if( ! any_integer ) {
+    output << "Generals" << std::endl;
+    any_integer = true;
+    }
+   output << " " << n << std::endl;
+   }
+
+ output << "End" << std::endl;
+
+ }  // end( AbstractBlock::write_lp )
+
+/*--------------------------------------------------------------------------*/
+
 void AbstractBlock::print( std::ostream & output , char vlvl ) const
 {
  if( vlvl == 'M' )
   throw( std::invalid_argument(
         "AbstractBlock::print: output in MPS format not implemented yet" ) );
 
- if( vlvl == 'L' )
-  throw( std::invalid_argument(
-         "AbstractBlock::print: output in LP format not implemented yet" ) );
+ if( vlvl == 'L' ) {
+  write_lp( output );
+  return;
+  }
  
  output << std::endl << "AbstractBlock with: ";
  output << std::endl << get_static_variable_groups().size()
@@ -594,13 +769,27 @@ void AbstractBlock::serialize( netCDF::NcGroup & group ) const
  auto & dc = get_dynamic_constraint_groups();
  auto & dv = get_dynamic_variable_groups();
 
+ /* What is not reserved to a derived class is written as the LP file
+  * deserialize() reads back out of Model, with ModelType saying which of the
+  * two formats it is [see guts_of_deserialize()]. An LP file has no notion
+  * of groups, so what travels is the model and not the way it is grouped:
+  * reading it back gives one group of columns and one of rows, as read_lp()
+  * builds them. */
+
  if( ( sc.size() > get_first_static_Constraint() ) ||
      ( dc.size() > get_first_dynamic_Constraint() ) ||
      ( sv.size() > get_first_static_Variable() ) ||
      ( dv.size() > get_first_dynamic_Variable() ) ||
-     ( get_objective() && ( ! is_Objective_reserved() ) ) )
-  throw( std::logic_error(
-                    "AbstractBlock::serialize not fully implemented yet" ) );
+     ( get_objective() && ( ! is_Objective_reserved() ) ) ) {
+  std::ostringstream model;
+  write_lp( model );
+  const auto str = model.str();
+  const char * c_str = str.c_str();
+
+  auto ncVar = group.addVar( "Model" , netCDF::NcString() );
+  ncVar.putVar( & c_str );
+  ncVar.putAtt( "ModelType" , netCDF::NcChar() , 1 , "L" );
+  }
 
  if( v_Block.size() > get_first_inner_Block() ) {
   group.addDim( "NumberInnerBlock", v_Block.size() );

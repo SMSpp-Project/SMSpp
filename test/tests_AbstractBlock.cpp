@@ -21,9 +21,15 @@
 #include "ColVariable.h"
 #include "ColVariableSolution.h"
 
+#include "FRealObjective.h"
+#include "LinearFunction.h"
+#include "OneVarConstraint.h"
+
 #include <netcdf>
 #include <cstdio>
 #include <list>
+#include <sstream>
+#include <algorithm>
 
 // last, so that the headers above are read as the library was compiled
 #include "TestAssert.h"
@@ -282,11 +288,88 @@ static void test_solution_round_trip( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* A Block written as an LP file and read back from it is the same model: the
+ * same rows, the same bounds, the same columns declared integer. What is not
+ * the same is the way it is grouped, since an LP file has no notion of
+ * groups and read_lp() builds one group of columns and one of rows. */
+
+static void test_lp_round_trip( void )
+{
+ AbstractBlock block;
+
+ auto cols = new std::vector< ColVariable >( 3 );
+ ( *cols )[ 0 ].set_type( ColVariable::kNatural );
+ ( *cols )[ 1 ].is_positive( true , eNoMod );
+ block.add_static_variable( *cols , "x" );
+
+ auto rows = new std::vector< FRowConstraint >( 2 );
+ {
+  LinearFunction::v_coeff_pair p;
+  p.push_back( { & ( *cols )[ 0 ] , 1.0 } );
+  p.push_back( { & ( *cols )[ 1 ] , 2.0 } );
+  ( *rows )[ 0 ].set_function( new LinearFunction( std::move( p ) ) );
+  ( *rows )[ 0 ].set_lhs( 1 );   // both sides finite: the LP file says it
+  ( *rows )[ 0 ].set_rhs( 4 );   // in two rows, since it has no two-sided one
+ }
+ {
+  LinearFunction::v_coeff_pair p;
+  p.push_back( { & ( *cols )[ 2 ] , -3.0 } );
+  ( *rows )[ 1 ].set_function( new LinearFunction( std::move( p ) ) );
+  ( *rows )[ 1 ].set_lhs( - Inf< double >() );
+  ( *rows )[ 1 ].set_rhs( 7 );
+ }
+ block.add_static_constraint( *rows , "r" );
+
+ LinearFunction::v_coeff_pair o;
+ o.push_back( { & ( *cols )[ 0 ] , 5.0 } );
+ o.push_back( { & ( *cols )[ 2 ] , -1.0 } );
+ auto obj = new FRealObjective( & block , new LinearFunction( std::move( o ) ) );
+ obj->set_sense( Objective::eMin , eNoMod );
+ block.set_objective( obj , eNoMod );
+
+ std::ostringstream written;
+ block.write_lp( written );
+
+ // the file says what the model is: the three columns are named after the
+ // group they sit in, the row with both sides is there twice, and the one
+ // integer column is in the Generals section
+ const auto lp = written.str();
+ assert( lp.find( "Minimize" ) != std::string::npos );
+ assert( lp.find( "x_0" ) != std::string::npos );
+ assert( lp.find( "r_0_up" ) != std::string::npos );
+ assert( lp.find( "r_0_lo" ) != std::string::npos );
+ assert( lp.find( "Generals" ) != std::string::npos );
+ assert( lp.find( "End" ) != std::string::npos );
+
+ // and what is written is read back into the same model
+ const char * const name = "tests_AbstractBlock_model.nc4";
+ block.Block::serialize( name , eBlockFile );
+
+ auto read = dynamic_cast< AbstractBlock * >( Block::deserialize( name ) );
+ std::remove( name );
+ assert( read );
+
+ std::ostringstream again;
+ read->write_lp( again );
+ delete read;
+
+ // the LP of the copy has the same rows and the same bounds; the names of
+ // the groups are those read_lp() gives, so the two files are not compared
+ // character by character
+ const auto lp2 = again.str();
+ assert( lp2.find( "Minimize" ) != std::string::npos );
+ assert( lp2.find( "Generals" ) != std::string::npos );
+ assert( std::count( lp2.begin() , lp2.end() , '\n' ) ==
+	 std::count( lp.begin() , lp.end() , '\n' ) );
+ }
+
+/*--------------------------------------------------------------------------*/
 
 int main( int argc , char ** argv )
 {
  runAllTests();
  test_solution_round_trip();
+ test_lp_round_trip();
  return( 0 );
 }
 

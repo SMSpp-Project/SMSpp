@@ -790,6 +790,21 @@ class AbstractBlock : public Block
  void print( std::ostream & output , char vlvl = 0 ) const override;
 
 /*--------------------------------------------------------------------------*/
+ /// writes the model in the LP format read_lp() reads
+ /** Writes what the Block holds as an LP file: the Objective, the rows that
+  * are FRowConstraint on a LinearFunction, the bounds the ColVariable have of
+  * their own and those the :OneVarConstraint put on them, and the columns
+  * that are integer. Each column and each row is named after the group it
+  * sits in and where it sits in it [see inspection::name_of()], with the
+  * indices joined by underscores so that the name is one the format accepts.
+  *
+  * What travels is the model and not the way it is grouped: an LP file has
+  * no notion of groups, so reading back what this writes gives one group of
+  * columns and one of rows, as read_lp() builds them. */
+
+ void write_lp( std::ostream & output ) const;
+
+/*--------------------------------------------------------------------------*/
  /// serialize the AbstractBlock (recursively) to a netCDF NcGroup
  /** The AbstractBlock serializes itself out of a netCDF::NcGroup. Besides
   * what is managed by the serialize() method of the base Block class, the
