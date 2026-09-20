@@ -347,9 +347,28 @@
 	the Modification has been constructed, unlike most other ones.
 
 
-2019-08-26 [medium-high] implement [de]serialize() in ColVariableSolution
+2019-08-26 [medium-high] implement [de]serialize() in ColVariableSolution -- DONE
 
-	the name says it all
+	Done for ColVariableSolution, RowConstraintSolution and ColRowSolution,
+	which were the three that answered "not ready yet". The format is the
+	one the rest of SMS++ already uses for a matrix with rows of different
+	length [see serialize() and deserialize() in SMSTypedefs.h]: the values
+	of the static stuff go in StaticValues (StaticDuals for the duals) with
+	StaticValuesStart saying where each group begins.
+
+	The dynamic stuff has one level more, a group of it being a grid of
+	cells each holding a collection of its own size: the cells of all the
+	groups are written as one such matrix, DynamicValues and
+	DynamicValuesStart, and DynamicCellsStart says which of those cells
+	each group begins at. A ColRowSolution writes its two halves in the
+	groups VariableSolution and ConstraintSolution, so that each of them is
+	written exactly as it is when it travels alone, and the Solution of a
+	nested Block goes in NestedSolution_<i>. What a Solution holds, a
+	solution or a direction, is written by Solution::serialize() as it was.
+
+	A group that is not there is read as nothing, so a Solution that holds
+	no Variable, or no Constraint, of one kind deserializes into an empty
+	one rather than into an error.
 
 
 2019-08-29 [medium-high] implement [de]serialize() in AbstractBlock

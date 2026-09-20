@@ -19,6 +19,11 @@
 #include "AbstractBlock.h"
 #include "FRowConstraint.h"
 #include "ColVariable.h"
+#include "ColVariableSolution.h"
+
+#include <netcdf>
+#include <cstdio>
+#include <list>
 
 // last, so that the headers above are read as the library was compiled
 #include "TestAssert.h"
@@ -220,9 +225,68 @@ void runAllTests()
 
 /*--------------------------------------------------------------------------*/
 
+/*--------------------------------------------------------------------------*/
+/* A Solution written to a netCDF group and read back from it holds what it
+ * held: the values of the static Variable, group by group, and those of the
+ * dynamic ones, group by group and cell by cell. */
+
+static void test_solution_round_trip( void )
+{
+ AbstractBlock block;
+
+ std::vector< ColVariable > v( 3 );
+ for( int i = 0 ; i < 3 ; ++i )
+  v[ i ].set_value( 1.0 + i );
+ block.add_static_variable( v , "x" );
+
+ auto cells = new std::vector< std::list< ColVariable > >( 2 );
+ ( *cells )[ 0 ].resize( 2 );
+ ( *cells )[ 1 ].resize( 1 );
+ double k = 10;
+ for( auto & cell : *cells )
+  for( auto & element : cell )
+   element.set_value( k++ );
+ block.add_dynamic_variable( *cells , "y" );
+
+ ColVariableSolution written;
+ written.read( & block );
+
+ const char * const name = "tests_AbstractBlock_solution.nc4";
+ {
+  netCDF::NcFile file( name , netCDF::NcFile::replace );
+  auto g = file.addGroup( "Solution" );
+  written.serialize( g );
+ }
+
+ ColVariableSolution read;
+ {
+  netCDF::NcFile file( name , netCDF::NcFile::read );
+  read.deserialize( file.getGroup( "Solution" ) );
+ }
+ std::remove( name );
+
+ assert( read.get_static_variable_values() ==
+	 written.get_static_variable_values() );
+ assert( read.get_dynamic_variable_values() ==
+	 written.get_dynamic_variable_values() );
+
+ // the shape survives too: one group of 3, and one of 2 cells of 2 and 1
+ assert( read.get_static_variable_values().size() == 1 );
+ assert( read.get_static_variable_values()[ 0 ].size() == 3 );
+ assert( read.get_dynamic_variable_values().size() == 1 );
+ assert( read.get_dynamic_variable_values()[ 0 ].size() == 2 );
+ assert( read.get_dynamic_variable_values()[ 0 ][ 0 ].size() == 2 );
+ assert( read.get_dynamic_variable_values()[ 0 ][ 1 ].size() == 1 );
+
+ delete cells;
+ }
+
+/*--------------------------------------------------------------------------*/
+
 int main( int argc , char ** argv )
 {
  runAllTests();
+ test_solution_round_trip();
  return( 0 );
 }
 

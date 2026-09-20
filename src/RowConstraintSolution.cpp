@@ -132,7 +132,48 @@ SMSpp_insert_in_factory_cpp_0( RowConstraintSolution );
 /*--------------------------------------------------------------------------*/
 
 void RowConstraintSolution::deserialize( const netCDF::NcGroup & group ) {
- throw( std::logic_error( "RowConstraintSolution::deserialize not ready yet" ) );
+ // the inverse of serialize(): what is not there is read as nothing, so a
+ // Solution that holds no Constraint of one kind deserializes into an empty
+ // one rather than into an error
+ static_constraint_dual_values.clear();
+ dynamic_constraint_dual_values.clear();
+ nested_solutions.clear();
+
+ ::deserialize< double >( group , "StaticDuals" , "StaticDualsStart" ,
+			  static_constraint_dual_values );
+
+ std::vector< std::vector< double > > cells;
+ if( ::deserialize< double >( group , "DynamicDuals" , "DynamicDualsStart" ,
+			      cells ) ) {
+  auto ncVar = group.getVar( "DynamicCellsStart" );
+  if( ncVar.isNull() )
+   throw( std::invalid_argument( "RowConstraintSolution::deserialize: "
+				 "DynamicDuals without DynamicCellsStart" ) );
+
+  std::vector< int > group_start( ncVar.getDim( 0 ).getSize() );
+  ncVar.getVar( group_start.data() );
+
+  dynamic_constraint_dual_values.resize( group_start.size() );
+  for( std::size_t g = 0 ; g < group_start.size() ; ++g ) {
+   const auto begin = std::size_t( group_start[ g ] );
+   const auto end = ( g + 1 < group_start.size() )
+                    ? std::size_t( group_start[ g + 1 ] ) : cells.size();
+   if( ( begin > end ) || ( end > cells.size() ) )
+    throw( std::invalid_argument( "RowConstraintSolution::deserialize: "
+				  "wrong indices in DynamicCellsStart" ) );
+   dynamic_constraint_dual_values[ g ].assign( cells.begin() + begin ,
+					       cells.begin() + end );
+   }
+  }
+
+ std::size_t n = 0;
+ while( ! group.getGroup( "NestedSolution_" + std::to_string( n ) ).isNull() )
+  ++n;
+
+ nested_solutions.resize( n );
+ for( std::size_t i = 0 ; i < n ; ++i )
+  nested_solutions[ i ].deserialize(
+		   group.getGroup( "NestedSolution_" + std::to_string( i ) ) );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -412,7 +453,42 @@ void RowConstraintSolution::serialize( netCDF::NcGroup & group ) const
  // always call the method of the base class first
  Solution::serialize( group );
 
- throw( std::logic_error( " RowConstraintSolution::serialize not ready yet" ) );
+ /* The dual values of the static Constraint are a matrix with rows of
+  * different length, one row per group [see serialize() in SMSTypedefs.h];
+  * those of the dynamic ones have one level more, the cells of all the
+  * groups going in one such matrix and DynamicCellsStart saying which of
+  * those cells each group begins at. */
+
+ if( ! static_constraint_dual_values.empty() )
+  ::serialize< double >( group , "StaticDuals" , netCDF::NcDouble() ,
+			 "StaticDualsStart" , static_constraint_dual_values );
+
+ if( ! dynamic_constraint_dual_values.empty() ) {
+  std::vector< std::vector< double > > cells;
+  std::vector< int > group_start;
+  group_start.reserve( dynamic_constraint_dual_values.size() );
+
+  for( const auto & grp : dynamic_constraint_dual_values ) {
+   group_start.push_back( int( cells.size() ) );
+   for( const auto & cell : grp )
+    cells.push_back( cell );
+   }
+
+  ::serialize< double >( group , "DynamicDuals" , netCDF::NcDouble() ,
+			 "DynamicDualsStart" , cells );
+
+  auto ncDim = group.addDim( "NumberDynamicGroups" , group_start.size() );
+  auto ncVar = group.addVar( "DynamicCellsStart" , netCDF::NcInt() , ncDim );
+  ncVar.putVar( group_start.data() );
+  }
+
+ if( ! nested_solutions.empty() ) {
+  group.addDim( "NumberNestedSolutions" , nested_solutions.size() );
+  for( std::size_t i = 0 ; i < nested_solutions.size() ; ++i ) {
+   auto sg = group.addGroup( "NestedSolution_" + std::to_string( i ) );
+   nested_solutions[ i ].serialize( sg );
+   }
+  }
  }
 
 /*--------------------------------------------------------------------------*/

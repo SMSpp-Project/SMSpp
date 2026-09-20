@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `serialize()` and `deserialize()` of `ColVariableSolution`,
+  `RowConstraintSolution` and `ColRowSolution`, which threw "not ready yet":
+  the values of the static stuff go in `StaticValues` (`StaticDuals` for the
+  duals) with `StaticValuesStart` saying where each group begins, which is
+  how SMS++ writes a matrix with rows of different length; the dynamic ones
+  have one level more, the cells of all the groups going in one such matrix
+  and `DynamicCellsStart` saying which of those cells each group begins at. A
+  `ColRowSolution` writes its two halves in the groups `VariableSolution` and
+  `ConstraintSolution`, and the Solution of a nested Block goes in
+  `NestedSolution_<i>`
+
 - `inspection::name_of()` gives a Variable or a Constraint the name of the
   group it sits in, or the index of that group when it has none, followed by
   the indices of its cell in the grid and, when the cells are collections, by
