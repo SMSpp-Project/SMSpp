@@ -22,6 +22,7 @@
 
 #include "BlockInspection.h"
 
+#include <iomanip>
 #include <map>
 #include <sstream>
 
@@ -482,28 +483,135 @@ Solution * AbstractBlock::get_Solution( Configuration * csolc, bool emptys )
 
 /*--------------------------------------------------------------------------*/
 
-void AbstractBlock::write_lp( std::ostream & output ) const
+/* Writes v with the fewest digits that read back as v: a model file is read
+ * by somebody else, so a number in it has to be the number that was written
+ * and not the six digits the default precision of a stream gives. */
+
+static void put_double( std::ostream & output , double v )
 {
- /* An LP file has no notion of groups: every column and every row is one of
-  * a list, and what says which is which is its name. The names are those the
-  * groups give [see inspection::name_of()], with the indices joined by
-  * underscores, since the format takes no brackets and no spaces inside a
-  * name. */
+ std::ostringstream s;
+ for( int p = 15 ; p <= 17 ; ++p ) {
+  s.str( std::string() );
+  s.clear();
+  s << std::setprecision( p ) << v;
+  if( std::stod( s.str() ) == v )
+   break;
+  }
+ output << s.str();
+ }
 
- std::map< const ColVariable * , std::string > name;
+/*--------------------------------------------------------------------------*/
 
- auto name_columns = [ & name ]( const Vec_Group & groups ) {
+void AbstractBlock::file_model( std::vector< f_column > & columns ,
+				std::vector< f_row > & rows ) const
+{
+ /* A model file has no notion of groups: every column and every row is one
+  * of a list, and what says which is which is its name. The names are those
+  * the groups give [see inspection::name_of()], with the indices joined by
+  * underscores, since neither format takes brackets or spaces inside a name.
+  * The order is the order the elements are stored in, so that writing the
+  * same Block twice gives the same file and reading one back gives the
+  * columns in the order they had. */
+
+ const inspection::name_format fmt = { "_" , "" , "g" , "" };
+
+ auto do_columns = [ & columns , & fmt ]( const Vec_Group & groups ) {
   for( const auto & group : groups ) {
    if( ! group )
     continue;
    inspection::for_each_named_as< ColVariable >( *group ,
-    [ & name ]( const std::string & n , ColVariable & v ) {
-     name[ & v ] = n; } , { "_" , "" , "g" , "" } );
+    [ & columns ]( const std::string & n , ColVariable & v ) {
+     columns.emplace_back( & v , n ); } , fmt );
    }
   };
 
- name_columns( get_static_variable_groups() );
- name_columns( get_dynamic_variable_groups() );
+ do_columns( get_static_variable_groups() );
+ do_columns( get_dynamic_variable_groups() );
+
+ auto do_rows = [ & rows , & fmt ]( const Vec_Group & groups ) {
+  for( const auto & group : groups ) {
+   if( ! group )
+    continue;
+   inspection::for_each_named_as< FRowConstraint >( *group ,
+    [ & rows ]( const std::string & n , FRowConstraint & c ) {
+     rows.emplace_back( & c , n ); } , fmt );
+   }
+  };
+
+ do_rows( get_static_constraint_groups() );
+ do_rows( get_dynamic_constraint_groups() );
+
+ }  // end( AbstractBlock::file_model )
+
+/*--------------------------------------------------------------------------*/
+
+void AbstractBlock::file_bounds( const std::vector< f_column > & columns ,
+				 std::vector< f_bound > & bounds ) const
+{
+ /* What a column has of its own, tightened by the :OneVarConstraint that are
+  * written on it: both formats say the bounds of a column in one place of
+  * their own, and not as a row. */
+
+ std::map< const ColVariable * , Index > where;
+ bounds.resize( columns.size() );
+
+ for( Index i = 0 ; i < columns.size() ; ++i ) {
+  where[ columns[ i ].first ] = i;
+  bounds[ i ] = { columns[ i ].first->get_lb() ,
+		  columns[ i ].first->get_ub() };
+  }
+
+ auto tighten = [ & where , & bounds ]( const Vec_Group & groups ) {
+  for( const auto & group : groups ) {
+   if( ! group )
+    continue;
+   for_each_as_any_of< BoxConstraint , LB0Constraint , UB0Constraint ,
+		       LBConstraint , UBConstraint , NNConstraint ,
+		       NPConstraint , ZOConstraint >( *group ,
+    [ & where , & bounds ]( OneVarConstraint & c ) {
+     auto it = where.find( static_cast< const ColVariable * >(
+					       c.get_active_var( 0 ) ) );
+     if( it == where.end() )
+      return;
+     auto & b = bounds[ it->second ];
+     b.first = std::max( b.first , double( c.get_lhs() ) );
+     b.second = std::min( b.second , double( c.get_rhs() ) );
+     } );
+   }
+  };
+
+ tighten( get_static_constraint_groups() );
+ tighten( get_dynamic_constraint_groups() );
+
+ }  // end( AbstractBlock::file_bounds )
+
+/*--------------------------------------------------------------------------*/
+
+/* The LinearFunction a row or the Objective is written on, refusing anything
+ * else: what the two formats can say is a linear expression, so a Function
+ * that is not one has to be reported rather than silently written wrong. */
+
+static const LinearFunction * linear_of( const Function * f ,
+					 const std::string & what )
+{
+ auto lf = dynamic_cast< const LinearFunction * >( f );
+ if( ! lf )
+  throw( std::invalid_argument( "AbstractBlock::write: " + what +
+				" is not written on a LinearFunction" ) );
+ return( lf );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void AbstractBlock::write_lp( std::ostream & output ) const
+{
+ std::vector< f_column > columns;
+ std::vector< f_row > rows;
+ file_model( columns , rows );
+
+ std::map< const ColVariable * , const std::string * > name;
+ for( const auto & [ var , n ] : columns )
+  name[ var ] = & n;
 
  auto write_linear = [ & output , & name ]( const LinearFunction * lf ) {
   bool first = true;
@@ -521,9 +629,11 @@ void AbstractBlock::write_lp( std::ostream & output ) const
    else
     output << ( coeff < 0 ? " - " : " + " );
    const auto a = std::abs( coeff );
-   if( a != 1 )
-    output << a << " ";
-   output << it->second;
+   if( a != 1 ) {
+    put_double( output , a );
+    output << " ";
+    }
+   output << *( it->second );
    }
   if( first )       // every coefficient is zero: the expression is empty,
    output << "0";   // and the format wants something there
@@ -536,13 +646,8 @@ void AbstractBlock::write_lp( std::ostream & output ) const
  auto obj = dynamic_cast< const FRealObjective * >( get_objective() );
  output << ( ( obj && ( obj->get_sense() == Objective::eMax ) )
 	     ? "Maximize" : "Minimize" ) << std::endl << " obj: ";
- if( obj ) {
-  if( auto lf = dynamic_cast< const LinearFunction * >( obj->get_function() ) )
-   write_linear( lf );
-  else
-   throw( std::invalid_argument( "AbstractBlock::write_lp: the Objective is "
-				 "not written on a LinearFunction" ) );
-  }
+ if( obj )
+  write_linear( linear_of( obj->get_function() , "the Objective" ) );
  else
   output << "0";
  output << std::endl;
@@ -553,92 +658,63 @@ void AbstractBlock::write_lp( std::ostream & output ) const
 
  output << "Subject To" << std::endl;
 
- auto write_rows = [ & output , & write_linear ]( const Vec_Group & groups ) {
-  for( const auto & group : groups ) {
-   if( ! group )
-    continue;
-   inspection::for_each_named_as< FRowConstraint >( *group ,
-    [ & output , & write_linear ]( const std::string & n ,
-				   FRowConstraint & c ) {
-     auto lf = dynamic_cast< const LinearFunction * >( c.get_function() );
-     if( ! lf )
-      throw( std::invalid_argument( "AbstractBlock::write_lp: the row " + n +
-				    " is not written on a LinearFunction" ) );
-     const auto lhs = c.get_lhs();
-     const auto rhs = c.get_rhs();
-     if( lhs == rhs ) {
-      output << " " << n << ": ";
-      write_linear( lf );
-      output << " = " << rhs << std::endl;
-      return;
-      }
-     if( rhs < RowConstraint::RHSINF ) {
-      output << " " << n << "_up: ";
-      write_linear( lf );
-      output << " <= " << rhs << std::endl;
-      }
-     if( lhs > - RowConstraint::RHSINF ) {
-      output << " " << n << "_lo: ";
-      write_linear( lf );
-      output << " >= " << lhs << std::endl;
-      }
-     } , { "_" , "" , "g" , "" } );
+ for( const auto & [ row , n ] : rows ) {
+  auto lf = linear_of( row->get_function() , "the row " + n );
+  const auto lhs = row->get_lhs();
+  const auto rhs = row->get_rhs();
+  if( lhs == rhs ) {
+   output << " " << n << ": ";
+   write_linear( lf );
+   output << " = ";
+   put_double( output , rhs );
+   output << std::endl;
+   continue;
    }
-  };
-
- write_rows( get_static_constraint_groups() );
- write_rows( get_dynamic_constraint_groups() );
-
- // the bounds - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- // what a column has of its own, tightened by the :OneVarConstraint that
- // are written on it: the format says the bounds of a column in one place
-
- std::map< const ColVariable * , std::pair< double , double > > bnd;
- for( const auto & [ var , n ] : name )
-  bnd[ var ] = { var->get_lb() , var->get_ub() };
-
- auto tighten = [ & bnd ]( const Vec_Group & groups ) {
-  for( const auto & group : groups ) {
-   if( ! group )
-    continue;
-   for_each_as_any_of< BoxConstraint , LB0Constraint , UB0Constraint ,
-		       LBConstraint , UBConstraint , NNConstraint ,
-		       NPConstraint , ZOConstraint >( *group ,
-    [ & bnd ]( OneVarConstraint & c ) {
-     auto it = bnd.find( static_cast< const ColVariable * >(
-					       c.get_active_var( 0 ) ) );
-     if( it == bnd.end() )
-      return;
-     it->second.first = std::max( it->second.first ,
-				  double( c.get_lhs() ) );
-     it->second.second = std::min( it->second.second ,
-				   double( c.get_rhs() ) );
-     } );
-   }
-  };
-
- tighten( get_static_constraint_groups() );
- tighten( get_dynamic_constraint_groups() );
-
- output << "Bounds" << std::endl;
- for( const auto & [ var , n ] : name ) {
-  const auto [ lb , ub ] = bnd[ var ];
-  if( ( lb <= - Inf< double >() ) && ( ub >= Inf< double >() ) )
-   output << " " << n << " free" << std::endl;
-  else {
-   if( lb > - Inf< double >() )
-    output << " " << lb << " <= ";
-   output << n;
-   if( ub < Inf< double >() )
-    output << " <= " << ub;
+  if( rhs < RowConstraint::RHSINF ) {
+   output << " " << n << "_up: ";
+   write_linear( lf );
+   output << " <= ";
+   put_double( output , rhs );
    output << std::endl;
    }
+  if( lhs > - RowConstraint::RHSINF ) {
+   output << " " << n << "_lo: ";
+   write_linear( lf );
+   output << " >= ";
+   put_double( output , lhs );
+   output << std::endl;
+   }
+  }
+
+ // the bounds - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ std::vector< f_bound > bnd;
+ file_bounds( columns , bnd );
+
+ output << "Bounds" << std::endl;
+ for( Index i = 0 ; i < columns.size() ; ++i ) {
+  const auto [ lb , ub ] = bnd[ i ];
+  const auto & n = columns[ i ].second;
+  if( ( lb <= - Inf< double >() ) && ( ub >= Inf< double >() ) ) {
+   output << " " << n << " free" << std::endl;
+   continue;
+   }
+  if( lb > - Inf< double >() ) {
+   put_double( output , lb );
+   output << " <= ";
+   }
+  output << n;
+  if( ub < Inf< double >() ) {
+   output << " <= ";
+   put_double( output , ub );
+   }
+  output << std::endl;
   }
 
  // the integer columns- - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  bool any_integer = false;
- for( const auto & [ var , n ] : name )
+ for( const auto & [ var , n ] : columns )
   if( var->is_integer() ) {
    if( ! any_integer ) {
     output << "Generals" << std::endl;
@@ -653,11 +729,224 @@ void AbstractBlock::write_lp( std::ostream & output ) const
 
 /*--------------------------------------------------------------------------*/
 
+void AbstractBlock::write_mps( std::ostream & output ) const
+{
+ std::vector< f_column > columns;
+ std::vector< f_row > rows;
+ file_model( columns , rows );
+
+ std::vector< f_bound > bnd;
+ file_bounds( columns , bnd );
+
+ /* The MPS file is written by column, which is the opposite of how a Block
+  * holds the model: a row knows the columns it is written on, a column knows
+  * nothing. So the rows are walked once and what each column appears in is
+  * collected, the entries of a column staying together as the format wants.
+  * The name of a row is its position here, the objective being -1. */
+
+ std::map< const ColVariable * , std::vector< std::pair< int , double > > >
+  entries;
+ for( const auto & [ var , n ] : columns )
+  entries[ var ];   // a column with no entry at all is still a column
+
+ auto collect = [ & entries ]( const LinearFunction * lf , int r ,
+			       const std::string & what ) {
+  for( const auto & [ var , coeff ] : lf->get_v_var() ) {
+   if( coeff == 0 )
+    continue;
+   auto it = entries.find( var );
+   if( it == entries.end() )
+    throw( std::logic_error( "AbstractBlock::write_mps: a Variable of " +
+			     what + " is not in any group of this Block" ) );
+   it->second.emplace_back( r , coeff );
+   }
+  };
+
+ auto obj = dynamic_cast< const FRealObjective * >( get_objective() );
+ if( obj )
+  collect( linear_of( obj->get_function() , "the Objective" ) , -1 ,
+	   "the Objective" );
+
+ /* A row whose two sides are both infinite constrains nothing, and the
+  * format has no way of saying it other than a second objective row, so it
+  * is left out: what goes is the row, not anything the model says. */
+
+ std::vector< Index > kept;
+ for( Index r = 0 ; r < rows.size() ; ++r ) {
+  const auto lhs = rows[ r ].first->get_lhs();
+  const auto rhs = rows[ r ].first->get_rhs();
+  if( ( lhs <= - RowConstraint::RHSINF ) && ( rhs >= RowConstraint::RHSINF ) )
+   continue;
+  collect( linear_of( rows[ r ].first->get_function() ,
+		      "the row " + rows[ r ].second ) , int( kept.size() ) ,
+	   "the row " + rows[ r ].second );
+  kept.push_back( r );
+  }
+
+ auto row_name = [ & rows , & kept ]( int r ) -> const std::string & {
+  static const std::string objective = "obj";
+  return( r < 0 ? objective : rows[ kept[ r ] ].second );
+  };
+
+ // the header and the rows- - - - - - - - - - - - - - - - - - - - - - - - -
+ // G means rhs <= f(), L means f() <= rhs, E means both, and the second side
+ // of a two-sided row travels in RANGES
+
+ output << "NAME" << std::endl;
+ output << "OBJSENSE" << std::endl << "    "
+	<< ( ( obj && ( obj->get_sense() == Objective::eMax ) )
+	     ? "MAX" : "MIN" ) << std::endl;
+
+ output << "ROWS" << std::endl;
+ output << " N  obj" << std::endl;
+
+ auto sense_of = []( const FRowConstraint * row ) {
+  const auto lhs = row->get_lhs();
+  const auto rhs = row->get_rhs();
+  if( lhs == rhs )
+   return( 'E' );
+  return( rhs < RowConstraint::RHSINF ? 'L' : 'G' );
+  };
+
+ for( auto r : kept )
+  output << " " << sense_of( rows[ r ].first ) << "  " << rows[ r ].second
+	 << std::endl;
+
+ // the columns- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // the integer ones are the ones between an INTORG marker and an INTEND one,
+ // and a column that is in no row at all is given a zero cost so that it is
+ // in the file, the format having no place where a column is just named
+
+ output << "COLUMNS" << std::endl;
+
+ bool integer = false;
+ int marker = 0;
+ for( const auto & [ var , n ] : columns ) {
+  if( var->is_integer() != integer ) {
+   integer = ! integer;
+   output << "    M" << marker++ << "  'MARKER'  '"
+	  << ( integer ? "INTORG" : "INTEND" ) << "'" << std::endl;
+   }
+
+  auto & mine = entries[ var ];
+  if( mine.empty() )
+   mine.emplace_back( -1 , 0.0 );
+
+  for( Index k = 0 ; k < mine.size() ; k += 2 ) {
+   output << "    " << n;
+   output << "  " << row_name( mine[ k ].first ) << "  ";
+   put_double( output , mine[ k ].second );
+   if( k + 1 < mine.size() ) {
+    output << "  " << row_name( mine[ k + 1 ].first ) << "  ";
+    put_double( output , mine[ k + 1 ].second );
+    }
+   output << std::endl;
+   }
+  }
+
+ if( integer )
+  output << "    M" << marker << "  'MARKER'  'INTEND'" << std::endl;
+
+ // the right-hand sides and the ranges- - - - - - - - - - - - - - - - - - -
+
+ output << "RHS" << std::endl;
+ for( Index r = 0 ; r < kept.size() ; ++r ) {
+  const auto * row = rows[ kept[ r ] ].first;
+  const double value = ( sense_of( row ) == 'G' ) ? double( row->get_lhs() )
+						  : double( row->get_rhs() );
+  output << "    RHS  " << rows[ kept[ r ] ].second << "  ";
+  put_double( output , value );
+  output << std::endl;
+  }
+
+ bool any_range = false;
+ for( Index r = 0 ; r < kept.size() ; ++r ) {
+  const auto * row = rows[ kept[ r ] ].first;
+  const auto lhs = row->get_lhs();
+  const auto rhs = row->get_rhs();
+  if( ( lhs == rhs ) || ( lhs <= - RowConstraint::RHSINF ) ||
+      ( rhs >= RowConstraint::RHSINF ) )
+   continue;
+  if( ! any_range ) {
+   output << "RANGES" << std::endl;
+   any_range = true;
+   }
+  output << "    RNG  " << rows[ kept[ r ] ].second << "  ";
+  put_double( output , double( rhs ) - double( lhs ) );
+  output << std::endl;
+  }
+
+ // the bounds - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // the default of the format is 0 <= x < +infinity, so only what differs is
+ // written; MI is not used, as what it means has changed over time, and a
+ // column with no lower bound is freed and then given its upper one
+
+ bool any_bound = false;
+ auto bound_line = [ & output , & any_bound ]( const char * type ,
+					       const std::string & n ) {
+  if( ! any_bound ) {
+   output << "BOUNDS" << std::endl;
+   any_bound = true;
+   }
+  output << " " << type << " BND  " << n;
+  };
+
+ for( Index i = 0 ; i < columns.size() ; ++i ) {
+  const auto [ lb , ub ] = bnd[ i ];
+  const auto & n = columns[ i ].second;
+  const auto * var = columns[ i ].first;
+
+  if( var->is_fixed() ) {
+   bound_line( "FX" , n );
+   output << "  ";
+   put_double( output , var->get_value() );
+   output << std::endl;
+   continue;
+   }
+
+  if( ( lb == 0 ) && ( ub >= Inf< double >() ) )
+   continue;
+
+  if( lb == ub ) {
+   bound_line( "FX" , n );
+   output << "  ";
+   put_double( output , lb );
+   output << std::endl;
+   continue;
+   }
+
+  if( lb <= - Inf< double >() ) {
+   bound_line( "FR" , n );
+   output << std::endl;
+   }
+  else
+   if( lb != 0 ) {
+    bound_line( "LO" , n );
+    output << "  ";
+    put_double( output , lb );
+    output << std::endl;
+    }
+
+  if( ub < Inf< double >() ) {
+   bound_line( "UP" , n );
+   output << "  ";
+   put_double( output , ub );
+   output << std::endl;
+   }
+  }
+
+ output << "ENDATA" << std::endl;
+
+ }  // end( AbstractBlock::write_mps )
+
+/*--------------------------------------------------------------------------*/
+
 void AbstractBlock::print( std::ostream & output , char vlvl ) const
 {
- if( vlvl == 'M' )
-  throw( std::invalid_argument(
-        "AbstractBlock::print: output in MPS format not implemented yet" ) );
+ if( vlvl == 'M' ) {
+  write_mps( output );
+  return;
+  }
 
  if( vlvl == 'L' ) {
   write_lp( output );

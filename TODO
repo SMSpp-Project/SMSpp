@@ -400,8 +400,18 @@
 	loss introduced here, it is how the format has been since
 	deserialize() exists.
 
+	The MPS format is written too, by write_mps(), which print( out , 'M' )
+	dispatches: it says the same things in the same names, save that a row
+	with both sides finite and different is one row with its second side in
+	RANGES rather than two, and that a row whose two sides are both
+	infinite is left out, the format having no way of saying it. Reading an
+	MPS file written here and writing it again gives the same file, so
+	nothing is lost or added at each trip; the first file is not among
+	them, since its groups are not the one group of columns and the one of
+	rows read_mps() builds.
+
 	What is left: a Function that is not linear is refused rather than
-	written, and the MPS format is still not written [print( out , 'M' )].
+	written, which is all either format can take.
 
 
 2019-08-26 [medium] use the methods factory to work with "physical solution"

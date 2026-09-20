@@ -365,11 +365,110 @@ static void test_lp_round_trip( void )
 
 /*--------------------------------------------------------------------------*/
 
+/*--------------------------------------------------------------------------*/
+/* The same model written as an MPS file and read back from it. The format
+ * says a two-sided row once, with its second side in RANGES, so the file has
+ * one row per Constraint and not two as the LP one has. */
+
+static void test_mps_round_trip( void )
+{
+ AbstractBlock block;
+
+ auto cols = new std::vector< ColVariable >( 3 );
+ ( *cols )[ 0 ].set_type( ColVariable::kNatural );
+ ( *cols )[ 1 ].is_positive( true , eNoMod );
+ block.add_static_variable( *cols , "x" );
+
+ auto rows = new std::vector< FRowConstraint >( 2 );
+ {
+  LinearFunction::v_coeff_pair p;
+  p.push_back( { & ( *cols )[ 0 ] , 1.0 } );
+  p.push_back( { & ( *cols )[ 1 ] , 2.0 } );
+  ( *rows )[ 0 ].set_function( new LinearFunction( std::move( p ) ) );
+  ( *rows )[ 0 ].set_lhs( 1 );       // both sides finite: RANGES says the
+  ( *rows )[ 0 ].set_rhs( 4 );       // second one
+ }
+ {
+  LinearFunction::v_coeff_pair p;
+  p.push_back( { & ( *cols )[ 2 ] , -3.0 } );
+  ( *rows )[ 1 ].set_function( new LinearFunction( std::move( p ) ) );
+  ( *rows )[ 1 ].set_lhs( - Inf< double >() );
+  ( *rows )[ 1 ].set_rhs( 7 );
+ }
+ block.add_static_constraint( *rows , "r" );
+
+ LinearFunction::v_coeff_pair o;
+ o.push_back( { & ( *cols )[ 0 ] , 5.0 } );
+ o.push_back( { & ( *cols )[ 2 ] , -1.0 } );
+ auto obj = new FRealObjective( & block , new LinearFunction( std::move( o ) ) );
+ obj->set_sense( Objective::eMin , eNoMod );
+ block.set_objective( obj , eNoMod );
+
+ std::ostringstream written;
+ block.write_mps( written );
+
+ const auto mps = written.str();
+ assert( mps.find( "OBJSENSE" ) != std::string::npos );
+ assert( mps.find( " L  r_0" ) != std::string::npos );
+ assert( mps.find( "RANGES" ) != std::string::npos );
+ assert( mps.find( "'INTORG'" ) != std::string::npos );
+ assert( mps.find( "ENDATA" ) != std::string::npos );
+
+ // read back: the same rows, the same bounds, the same integer column
+ AbstractBlock again;
+ std::istringstream in( mps );
+ again.load( in , 'M' );
+
+ const auto & gv = again.get_static_variable_groups();
+ const auto & gc = again.get_static_constraint_groups();
+ assert( gv.size() == 1 );
+ assert( gc.size() == 2 );          // the rows, and the box of the columns
+ assert( gv[ 0 ]->get_num_elements() == 3 );
+ assert( gc[ 0 ]->get_num_elements() == 2 );  // one row each, not two
+
+ // and what it says is what was written
+ std::vector< double > lhs , rhs;
+ gc[ 0 ]->for_each_as< FRowConstraint >(
+  [ & lhs , & rhs ]( FRowConstraint & c ) {
+   lhs.push_back( c.get_lhs() ); rhs.push_back( c.get_rhs() ); } );
+ assert( lhs.size() == 2 );
+ assert( lhs[ 0 ] == 1 );
+ assert( rhs[ 0 ] == 4 );
+ assert( lhs[ 1 ] <= - Inf< double >() );
+ assert( rhs[ 1 ] == 7 );
+
+ bool first = true;
+ gv[ 0 ]->for_each_as< ColVariable >(
+  [ & first ]( ColVariable & v ) {
+   if( first ) { assert( v.is_integer() ); first = false; } } );
+
+ /* Writing the copy does NOT give the first file back: an MPS file has no
+  * notion of groups, so the copy has the one group of columns and the one of
+  * rows read_mps() builds, and its elements are named after those. What does
+  * hold is that from there on the file is a fixed point, which is what says
+  * that nothing is lost or added at each trip. */
+
+ std::ostringstream twice;
+ again.write_mps( twice );
+ assert( twice.str() != mps );
+
+ AbstractBlock third;
+ std::istringstream in2( twice.str() );
+ third.load( in2 , 'M' );
+
+ std::ostringstream thrice;
+ third.write_mps( thrice );
+ assert( thrice.str() == twice.str() );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 int main( int argc , char ** argv )
 {
  runAllTests();
  test_solution_round_trip();
  test_lp_round_trip();
+ test_mps_round_trip();
  return( 0 );
 }
 

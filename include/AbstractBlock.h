@@ -60,6 +60,8 @@ namespace SMSpp_di_unipi_it
 
  class RowConstraint;   // forward declaration, only pointers are needed here
 
+ class FRowConstraint;  // forward declaration, only pointers are needed here
+
  class Function;        // forward declaration, only pointers are needed here
 
 /*--------------------------------------------------------------------------*/
@@ -805,6 +807,19 @@ class AbstractBlock : public Block
  void write_lp( std::ostream & output ) const;
 
 /*--------------------------------------------------------------------------*/
+ /// writes the model in the MPS format read_mps() reads
+ /** Writes what the Block holds as an MPS file, saying the same things
+  * write_lp() says and in the same names, with the two differences the
+  * format makes: a row with both sides finite and different is one row with
+  * its second side in RANGES rather than two rows, and a row whose two sides
+  * are both infinite is left out, the format having no way of saying it.
+  *
+  * What travels is the model and not the way it is grouped, exactly as with
+  * write_lp(). */
+
+ void write_mps( std::ostream & output ) const;
+
+/*--------------------------------------------------------------------------*/
  /// serialize the AbstractBlock (recursively) to a netCDF NcGroup
  /** The AbstractBlock serializes itself out of a netCDF::NcGroup. Besides
   * what is managed by the serialize() method of the base Block class, the
@@ -909,6 +924,42 @@ class AbstractBlock : public Block
 /*--------------------------------------------------------------------------*/
 
  private:
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- WHAT THE TWO WRITERS SHARE -----------------------*/
+/*--------------------------------------------------------------------------*/
+ /// a column of a model file: the ColVariable and the name it goes by
+ using f_column = std::pair< ColVariable * , std::string >;
+
+ /// a row of a model file: the FRowConstraint and the name it goes by
+ using f_row = std::pair< FRowConstraint * , std::string >;
+
+ /// the two bounds a column of a model file has
+ using f_bound = std::pair< double , double >;
+
+/*--------------------------------------------------------------------------*/
+ /// the columns and the rows of the model, named and in storage order
+ /** Fills \p columns with every ColVariable of this Block and \p rows with
+  * every FRowConstraint of it, each with the name its group gives it written
+  * the way a model file takes it, the indices joined by underscores. Both
+  * come in storage order, so that writing the same Block twice gives the
+  * same file. */
+
+ void file_model( std::vector< f_column > & columns ,
+		  std::vector< f_row > & rows ) const;
+
+/*--------------------------------------------------------------------------*/
+ /// the bounds of each of \p columns, in the same order
+ /** Fills \p bounds with the two bounds of each of \p columns: the ones the
+  * ColVariable has of its own, tightened by every :OneVarConstraint of this
+  * Block that is written on it. */
+
+ void file_bounds( const std::vector< f_column > & columns ,
+		   std::vector< f_bound > & bounds ) const;
+
+/*--------------------------------------------------------------------------*/
+/*------------------------------ MPS READER --------------------------------*/
+/*--------------------------------------------------------------------------*/
 
  /// Loads the block from a MPS file
  void read_mps( std::istream & file );

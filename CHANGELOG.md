@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `AbstractBlock::write_mps()`, which writes what the Block holds as the MPS
+  file `read_mps()` reads, `print( out , 'M' )` having thrown "not implemented
+  yet" as well. It says what `write_lp()` says and in the same names, with the
+  two differences the format makes: a row with both sides finite and different
+  is one row with its second side in `RANGES` rather than two rows, and a row
+  whose two sides are both infinite is left out, the format having no way of
+  saying it. A number is written with the fewest digits that read back as
+  itself, in both writers, the six digits a stream gives by default not being
+  enough to make the trip
+
 - `AbstractBlock::write_lp()`, which writes what the Block holds as the LP
   file `read_lp()` reads, `print( out , 'L' )` having thrown "not implemented
   yet"; `serialize()` uses it to fill the netCDF variable `Model` that
