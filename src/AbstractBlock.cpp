@@ -699,6 +699,7 @@ void AbstractBlock::write_lp( std::ostream & output ) const
    output << " " << n << " free" << std::endl;
    continue;
    }
+  output << " ";
   if( lb > - Inf< double >() ) {
    put_double( output , lb );
    output << " <= ";
@@ -941,10 +942,146 @@ void AbstractBlock::write_mps( std::ostream & output ) const
 
 /*--------------------------------------------------------------------------*/
 
+void AbstractBlock::write_is( std::ostream & output , double eps ) const
+{
+ /* What is written here is the certificate the Solver has left in the Block,
+  * not a search for the smallest set of rows that cannot hold together: the
+  * rows with a non-zero multiplier are the ones the certificate names, and
+  * they are a set that is unfeasible, though not necessarily a minimal one.
+  * That is the thing one wants in front of them when a model comes back
+  * unfeasible and the question is which rows are fighting each other. */
+
+ std::vector< f_column > columns;
+ std::vector< f_row > rows;
+ file_model( columns , rows );
+
+ std::map< const ColVariable * , const std::string * > name;
+ for( const auto & [ var , n ] : columns )
+  name[ var ] = & n;
+
+ auto write_linear = [ & output , & name ]( const LinearFunction * lf ) {
+  bool first = true;
+  for( const auto & [ var , coeff ] : lf->get_v_var() ) {
+   if( coeff == 0 )
+    continue;
+   const auto it = name.find( var );
+   if( it == name.end() )
+    continue;
+   if( first ) {
+    output << ( coeff < 0 ? "- " : "" );
+    first = false;
+    }
+   else
+    output << ( coeff < 0 ? " - " : " + " );
+   const auto a = std::abs( coeff );
+   if( a != 1 ) {
+    put_double( output , a );
+    output << " ";
+    }
+   output << *( it->second );
+   }
+  if( first )
+   output << "0";
+  };
+
+ output << "\\ the rows a dual ray of this Block says cannot hold together"
+	<< std::endl;
+
+ Index said = 0;
+
+ for( const auto & [ row , n ] : rows ) {
+  const double mult = row->get_dual();
+  if( std::abs( mult ) <= eps )
+   continue;
+  auto lf = dynamic_cast< const LinearFunction * >( row->get_function() );
+  if( ! lf )               // a row that is not linear has no place in a
+   continue;               // certificate written this way
+
+  ++said;
+  const auto lhs = row->get_lhs();
+  const auto rhs = row->get_rhs();
+
+  output << " ";
+  put_double( output , mult );
+  output << " * ( " << n << ": ";
+
+  if( lhs == rhs ) {
+   write_linear( lf );
+   output << " = ";
+   put_double( output , rhs );
+   }
+  else {
+   if( lhs > - RowConstraint::RHSINF ) {
+    put_double( output , lhs );
+    output << " <= ";
+    }
+   write_linear( lf );
+   if( rhs < RowConstraint::RHSINF ) {
+    output << " <= ";
+    put_double( output , rhs );
+    }
+   }
+  output << " )" << std::endl;
+  }
+
+ /* A bound is a row of the certificate like any other: a model can be
+  * unfeasible because of what a column is allowed to be, with no row of the
+  * model saying anything about it. */
+
+ auto bounds_of = [ & output , & name , & said , eps ]
+                  ( const Vec_Group & groups ) {
+  for( const auto & group : groups ) {
+   if( ! group )
+    continue;
+   for_each_as_any_of< BoxConstraint , LB0Constraint , UB0Constraint ,
+		       LBConstraint , UBConstraint , NNConstraint ,
+		       NPConstraint , ZOConstraint >( *group ,
+    [ & output , & name , & said , eps ]( OneVarConstraint & c ) {
+     const double mult = c.get_dual();
+     if( std::abs( mult ) <= eps )
+      return;
+     const auto it = name.find( static_cast< const ColVariable * >(
+					       c.get_active_var( 0 ) ) );
+     if( it == name.end() )
+      return;
+     ++said;
+     output << " ";
+     put_double( output , mult );
+     output << " * ( ";
+     if( c.get_lhs() > - RowConstraint::RHSINF ) {
+      put_double( output , double( c.get_lhs() ) );
+      output << " <= ";
+      }
+     output << *( it->second );
+     if( c.get_rhs() < RowConstraint::RHSINF ) {
+      output << " <= ";
+      put_double( output , double( c.get_rhs() ) );
+      }
+     output << " )" << std::endl;
+     } );
+   }
+  };
+
+ bounds_of( get_static_constraint_groups() );
+ bounds_of( get_dynamic_constraint_groups() );
+
+ if( ! said )
+  output << "\\ no multiplier of the ray is larger than eps: either no ray "
+	 << "was written in this Block, or it is zero" << std::endl;
+
+ }  // end( AbstractBlock::write_is )
+
+/*--------------------------------------------------------------------------*/
+
 void AbstractBlock::print( std::ostream & output , char vlvl ) const
 {
  if( vlvl == 'M' ) {
   write_mps( output );
+  return;
+  }
+
+ if( vlvl == 'I' ) {
+  write_is( output );
   return;
   }
 

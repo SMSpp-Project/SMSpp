@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `AbstractBlock::write_is()`, which `print( out , 'I' )` dispatches: after a
+  `CDASolver` has proved the model unfeasible and `get_dual_direction()` has
+  written the unbounded dual direction into the Block, it writes the rows
+  whose multiplier is not zero, each with its multiplier and its name, and
+  the bounds of the columns the same way. It asks nothing of any Solver, the
+  ray being in the Constraint of the Block; what it writes is the certificate
+  the Solver has left and not the smallest set of rows with that property
+
 - `AbstractBlock::write_mps()`, which writes what the Block holds as the MPS
   file `read_mps()` reads, `print( out , 'M' )` having thrown "not implemented
   yet" as well. It says what `write_lp()` says and in the same names, with the

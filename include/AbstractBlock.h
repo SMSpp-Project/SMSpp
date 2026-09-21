@@ -820,6 +820,29 @@ class AbstractBlock : public Block
  void write_mps( std::ostream & output ) const;
 
 /*--------------------------------------------------------------------------*/
+ /// writes the rows a dual ray of this Block says cannot hold together
+ /** When a CDASolver answers kInfeasible it can be asked for the unbounded
+  * dual direction that proves it, and get_dual_direction() writes that ray
+  * into this Block, each Constraint holding its own multiplier [see
+  * CDASolver::get_dual_direction() and RowConstraint::get_dual()]. This
+  * writes the rows whose multiplier is larger than \p eps in absolute value,
+  * each with its multiplier and with the name its group gives it: the
+  * combination of them the multipliers give is the one that says something
+  * that cannot be, which is what one wants to look at when a model comes
+  * back unfeasible and the question is which rows are fighting each other.
+  * The bounds of a column are written the same way, a model being able to be
+  * unfeasible because of what a column is allowed to be with no row of it
+  * saying anything.
+  *
+  * What is written is the certificate the Solver has left, not the smallest
+  * set of rows with that property: the rows named here are unfeasible
+  * together, but they need not be irreducibly so. Calling this before a ray
+  * has been written in the Block says so rather than writing a wrong
+  * answer. */
+
+ void write_is( std::ostream & output , double eps = 0 ) const;
+
+/*--------------------------------------------------------------------------*/
  /// serialize the AbstractBlock (recursively) to a netCDF NcGroup
  /** The AbstractBlock serializes itself out of a netCDF::NcGroup. Besides
   * what is managed by the serialize() method of the base Block class, the

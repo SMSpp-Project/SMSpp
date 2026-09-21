@@ -463,12 +463,76 @@ static void test_mps_round_trip( void )
 
 /*--------------------------------------------------------------------------*/
 
+/*--------------------------------------------------------------------------*/
+/* The rows a dual ray names. What a Solver does when it proves a model
+ * unfeasible is writing the ray into the Block, one multiplier per
+ * Constraint, so the ray is put there by hand here and what is checked is
+ * that the printer names the rows that carry one and leaves the others
+ * alone. The model is x >= 2 and x <= 1, which cannot both hold. */
+
+static void test_is( void )
+{
+ AbstractBlock block;
+
+ auto cols = new std::vector< ColVariable >( 2 );
+ block.add_static_variable( *cols , "x" );
+
+ auto rows = new std::vector< FRowConstraint >( 3 );
+ for( int i = 0 ; i < 3 ; ++i ) {
+  LinearFunction::v_coeff_pair p;
+  p.push_back( { & ( *cols )[ i == 2 ? 1 : 0 ] , 1.0 } );
+  ( *rows )[ i ].set_function( new LinearFunction( std::move( p ) ) );
+ }
+ ( *rows )[ 0 ].set_lhs( 2 );                    // x_0 >= 2
+ ( *rows )[ 0 ].set_rhs( Inf< double >() );
+ ( *rows )[ 1 ].set_lhs( - Inf< double >() );    // x_0 <= 1
+ ( *rows )[ 1 ].set_rhs( 1 );
+ ( *rows )[ 2 ].set_lhs( - Inf< double >() );    // and one that has nothing
+ ( *rows )[ 2 ].set_rhs( 9 );                    // to do with it
+ block.add_static_constraint( *rows , "r" );
+
+ // with no ray in the Block the printer says so rather than naming rows
+ {
+  std::ostringstream none;
+  block.write_is( none );
+  assert( none.str().find( "no multiplier" ) != std::string::npos );
+ }
+
+ // the ray a Solver would have written: the two rows that fight, and not
+ // the third one
+ ( *rows )[ 0 ].set_dual( 1 );
+ ( *rows )[ 1 ].set_dual( -1 );
+ ( *rows )[ 2 ].set_dual( 0 );
+
+ std::ostringstream is;
+ block.write_is( is );
+ const auto said = is.str();
+
+ assert( said.find( "r_2" ) == std::string::npos );
+ assert( said.find( "no multiplier" ) == std::string::npos );
+
+ // the line is read by somebody, so it is the whole line that is checked:
+ // the multiplier, the name, and the row with its side where it belongs
+ assert( said.find( " 1 * ( r_0: 2 <= x_0 )" ) != std::string::npos );
+ assert( said.find( " -1 * ( r_1: x_0 <= 1 )" ) != std::string::npos );
+
+ // eps leaves out what is smaller than it
+ ( *rows )[ 1 ].set_dual( 1e-12 );
+ std::ostringstream cut;
+ block.write_is( cut , 1e-9 );
+ assert( cut.str().find( "r_0" ) != std::string::npos );
+ assert( cut.str().find( "r_1" ) == std::string::npos );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 int main( int argc , char ** argv )
 {
  runAllTests();
  test_solution_round_trip();
  test_lp_round_trip();
  test_mps_round_trip();
+ test_is();
  return( 0 );
 }
 

@@ -161,9 +161,26 @@
 	inspection::for_each_named_as_any_of(), which runs the same cascade of
 	concrete types for_each_RowConstraint() runs.
 
-	What is left: an IS is not printed at all, and neither is the dual ray
-	that would say which rows to put in it; and there is no way to ask for
-	one part of the model rather than all of it.
+	The dual ray is printed too, by write_is(), which print( out , 'I' )
+	dispatches. It takes nothing from any Solver: a CDASolver that has
+	proved a model unfeasible writes the unbounded dual direction into the
+	Block itself, every Constraint holding its own multiplier [see
+	CDASolver::get_dual_direction() and RowConstraint::get_dual()], so the
+	Block reads its own rows. What comes out are the rows whose multiplier
+	is not zero, each with its multiplier, its name and its own side, and
+	the bounds of the columns the same way, a model being able to be
+	unfeasible because of what a column is allowed to be with no row of it
+	saying anything.
+
+	Of course, that is the certificate the Solver has left and not the
+	smallest set of rows with the property: the rows named are unfeasible
+	together, but need not be irreducibly so, and saying otherwise would
+	promise something that is not delivered. An eps leaves out the
+	multipliers that are only numerical noise, and asking for this before
+	a ray has been written says so rather than printing a wrong answer.
+
+	What is left: there is still no way to ask for one part of the model
+	rather than all of it, other than the part a ray names.
 
 
 2026-07-17 [updated] BendersDecompositionSolver
