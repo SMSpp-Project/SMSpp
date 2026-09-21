@@ -21,6 +21,7 @@
 /*--------------------------------------------------------------------------*/
 
 #include "Block.h"
+#include "Group.h"
 #include "Constraint.h"
 
 /*--------------------------------------------------------------------------*/
@@ -33,16 +34,23 @@ using namespace SMSpp_di_unipi_it;
 /*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+Block * Constraint::group_Block( void ) const
+{
+ return( get_Group()->get_Block() );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 void Constraint::relax( bool relax_it, c_ModParam issueMod ) {
  if( relax_it == f_is_relaxed )  // actually doing nothing
   return;                        // cowardly (and silently) return
 
  f_is_relaxed = relax_it;        // relaxed/enforce it
 
- if( ( ! f_Block ) || ( ! f_Block->issue_mod( issueMod ) ) )
+ if( ( ! get_Block() ) || ( ! get_Block()->issue_mod( issueMod ) ) )
   return;
 
- f_Block->add_Modification(
+ get_Block()->add_Modification(
   std::make_shared< ConstraintMod >(
    this,
    f_is_relaxed ? ConstraintMod::eRelaxConst : ConstraintMod::eEnforceConst,

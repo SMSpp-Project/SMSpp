@@ -422,6 +422,17 @@ class BaseGroup {
  [[nodiscard]] virtual Constraint * get_Constraint( Index i ) const = 0;
 
 /*--------------------------------------------------------------------------*/
+ /// returns true if \p cell is one of the cells of the group
+ /** Returns true if \p cell is the address of one of the collections the
+  * cells of the group hold, which is how the Block finds the group of the
+  * std::list a dynamic element is added to; a group whose cells hold one
+  * element each has no such collection, and answers false. */
+
+ [[nodiscard]] virtual bool has_cell( const void * cell ) const {
+  return( false );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// returns true if the elements of the group derive from T
  /** Returns true if the elements of the group derive from T. If T is the
   * type of the elements this is a comparison of types; otherwise it is asked
@@ -970,6 +981,16 @@ class CellGroup : public BaseGroup {
    return( get( i ) );
   else
    return( nullptr );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ [[nodiscard]] bool has_cell( const void * cell ) const override {
+  auto s = get_storage();
+  auto cells = static_cast< const C * >( s.first );
+  auto c = static_cast< const C * >( cell );
+  return( std::greater_equal<>()( c , cells ) &&
+	  std::less<>()( c , cells + s.num_cells ) );
   }
 
 /*--------------------------------------------------------------------------*/

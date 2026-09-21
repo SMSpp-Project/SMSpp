@@ -918,6 +918,8 @@ void Block::remove_constraint_from_variables( Constraint * constraint )
 {
  for( Constraint::Index i = 0 ; i < constraint->get_num_active_var() ; )
   constraint->get_active_var( i++ )->remove_active( constraint );
+
+ constraint->set_Group( nullptr );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -933,6 +935,8 @@ void Block::remove_variable_from_stuff( Variable * const variable ,
 
   si->remove_variable( ivar , issueindMod );
   }
+
+ variable->set_Group( nullptr );
  }
 
 /*--------------------------------------------------------------------------*/

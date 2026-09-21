@@ -32,6 +32,7 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <cstdint>
 #include <list>
 #include <vector>
 
@@ -47,6 +48,7 @@ namespace SMSpp_di_unipi_it
  class ThinVarDepInterface;  // forward definition of ThinVarDepInterface
  class Variable;             // forward definition of Variable
  class Block;                // forward definition of Block
+ class BaseGroup;            // forward definition of BaseGroup
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
@@ -64,7 +66,9 @@ namespace SMSpp_di_unipi_it
  * variables that the Block can support. This base class only supports a
  * few fundamental facts:
  *
- * - a Variable belongs to one Block;
+ * - a Variable belongs to one Block and, once the Block has registered it,
+ *   to one group of that Block [see BaseGroup], through which get_Block()
+ *   answers and from which get_Group() tells where the Variable sits;
  *
  * - a Variable influences a set of different objects, gathered below the
  *   abstract class ThinVarDepInterface (Constraint, Objective, Function,
@@ -158,17 +162,30 @@ class Variable
  * can be fixed (see is_fixed()). */
 
  explicit Variable( Block * my_block = nullptr )
-  : f_Block( my_block ) , f_state( var_type( 0 ) ) {}
+  : f_state( var_type( 0 ) ) ,
+    f_owner( reinterpret_cast< std::uintptr_t >( my_block ) ) {}
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor
  /** Copy constructor: The father Block of this Variable is defined to be
   * the father Block of the Variable that is being copied. Notice, however,
-  * that this does not make this Variable property of that Block. */
+  * that this does not make this Variable property of that Block, and in
+  * particular the copy is in none of its groups. */
 
- Variable( const Variable & v ) {
+ Variable( const Variable & v )
+  : f_state( v.f_state ) ,
+    f_owner( reinterpret_cast< std::uintptr_t >( v.get_Block() ) ) {}
+
+/*--------------------------------------------------------------------------*/
+ /// copy assignment
+ /** Copies the state and the father Block of \p v, as the copy constructor
+  * does; the group, being where this Variable sits, is kept if \p v belongs
+  * to the same Block [see set_Block()]. */
+
+ Variable & operator=( const Variable & v ) {
   f_state = v.f_state;
-  f_Block = v.f_Block;
+  set_Block( v.get_Block() );
+  return( *this );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -209,9 +226,29 @@ class Variable
  /// set the pointer to the Block to which the Variable belongs
  /** Method to set the pointer to the Block to which the Variable belongs.
   * If the pointer is not provided in the constructor, it should be called
-  * before any other method of the class. */
+  * before any other method of the class. If the Variable is in a group of
+  * \p fblock already this does nothing, so that a :Block setting its own
+  * Variable to itself does not take them out of their groups; any other
+  * Block takes the Variable out of its group. */
 
- void set_Block( Block * fblock ) { f_Block = fblock; }
+ void set_Block( Block * fblock ) {
+  if( ( f_owner & 1 ) && ( group_Block() == fblock ) )
+   return;
+  f_owner = reinterpret_cast< std::uintptr_t >( fblock );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// set the group of the Block to which the Variable belongs
+ /** Called by the Block when it registers a group the Variable is an element
+  * of [see Block::add_static_variable() and the like], and when it drops
+  * that group, in which case \p group is nullptr and the Variable keeps the
+  * Block of the group it leaves. The Block of the Variable is then the Block
+  * of its group. */
+
+ void set_Group( BaseGroup * group ) {
+  f_owner = group ? ( reinterpret_cast< std::uintptr_t >( group ) | 1 )
+                  : reinterpret_cast< std::uintptr_t >( get_Block() );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// sets the value of this Variable to its default value
@@ -244,7 +281,25 @@ class Variable
 
  /// returns the pointer to the Block to which the Variable belongs
 
- [[nodiscard]] Block * get_Block() const { return( f_Block ); }
+ [[nodiscard]] Block * get_Block() const {
+  return( ( f_owner & 1 ) ? group_Block()
+                          : reinterpret_cast< Block * >( f_owner ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the group the Variable is an element of, nullptr if none
+ /** Returns the group of its Block the Variable has been registered in, which
+  * says the index of the group in the Block and, with
+  * inspection::index_in_group(), the position of the Variable in it; nullptr
+  * if the Variable is in no group, as it is before its Block registers it or
+  * after the Block drops the group, or if it is reached through a group that
+  * holds pointers to it [see BaseGroup::is_indirect()]. */
+
+ [[nodiscard]] BaseGroup * get_Group( void ) const {
+  return( ( f_owner & 1 ) ?
+          reinterpret_cast< BaseGroup * >( f_owner & ~std::uintptr_t( 1 ) ) :
+          nullptr );
+  }
 
 /** @} ---------------------------------------------------------------------*/
 /*------------- METHODS DESCRIBING THE BEHAVIOR OF A Variable --------------*/
@@ -380,7 +435,7 @@ class Variable
   * in the format they choose. */
 
  virtual void print( std::ostream & output ) const {
-  output << "Variable [" << this << "] of Block [" << f_Block << "] with "
+  output << "Variable [" << this << "] of Block [" << get_Block() << "] with "
          << get_num_active() << " active stuff" << std::endl;
   }
 
@@ -388,11 +443,26 @@ class Variable
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
- Block * f_Block;   ///< pointer to the Block to which the Variable belongs
-
  var_type f_state;  ///< current state of the Variable
 
 /*--------------------------------------------------------------------------*/
+/*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ private:
+
+/*--------------------------------------------------------------------------*/
+ /// the Block of the group of the Variable, which is known to have one
+
+ [[nodiscard]] Block * group_Block( void ) const;
+
+/*--------------------------------------------------------------------------*/
+
+ std::uintptr_t f_owner;  ///< the group of the Variable, or its Block
+ /**< The group [see BaseGroup] the Variable is an element of, with the
+  * lowest bit set, or, if it is in none, the Block it belongs to, possibly
+  * nullptr: both are aligned, so the lowest bit is free to tell them. */
+
 /*--------------------------------------------------------------------------*/
 
  };  // end( class( Variable ) )

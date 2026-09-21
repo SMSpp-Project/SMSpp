@@ -769,7 +769,7 @@ is_feasible( boost::multi_array< T , K > & constraints ,
 
  /// print information about the RowConstraint on an ostream
  void print( std::ostream & output ) const override {
-  output << "RowConstraint [" << this << "] of Block [" << f_Block
+  output << "RowConstraint [" << this << "] of Block [" << get_Block()
          << "] with " << get_num_active_var() << " active variables"
 	 << std::endl;
   }

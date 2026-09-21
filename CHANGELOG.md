@@ -111,6 +111,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- ⚠️ A `Variable` AND A `Constraint` POINT TO THEIR GROUP: the field that held
+  the pointer to the Block holds the pointer to the group the element is in,
+  the lowest bit telling the two apart, and `get_Block()` answers through the
+  group; `get_Group()` gives the group, `nullptr` for an element in none. The
+  Block sets it when it registers a group, when an element is added to a
+  dynamic list it has registered, and takes it away when the group is
+  replaced or reset and when the element is removed; `set_Block()` with the
+  Block of the group leaves the element in it, any other Block takes it out,
+  and a copy of a `Variable` has the Block of the original and no group.
+  `inspection::get_element_index()` looks in the group of the element only.
+  ⚠️ `f_Block` IS NO LONGER A PROTECTED FIELD OF `Variable` AND `Constraint`:
+  a derived class reads `get_Block()`. ⚠️ A CONTAINER HAS TO BE THERE,
+  POSSIBLY EMPTY, WHEN ITS GROUP IS REPLACED OR RESET, since the Block walks
+  it to take its elements out of the group: clearing it first, as every
+  `:Block` of the umbrella does, is fine, deleting it first is not
+
 - ⚠️ THE FOUR `std::vector< boost::any >` OF `Block` ARE GONE, and so are the
   four vectors of the names beside them: a Block keeps its Variable and its
   Constraint in its four vectors of groups alone. `get_static_variables()`,
