@@ -499,6 +499,76 @@ static void test_names( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* A group with no element at all. It is not a curiosity: a dynamic group is
+ * born empty, and what the group answers then has already broken a Solver
+ * once, MILPSolver refusing a model over a dynamic group that held nothing
+ * yet. What holds is written here so that it keeps holding. */
+
+static void test_empty_group( void )
+{
+ AbstractBlock b;
+
+ auto none = new std::vector< ColVariable >( 0 );
+ b.add_static_variable( *none , "none" );
+
+ auto cells = new std::vector< std::list< FRowConstraint > >( 2 );
+ b.add_dynamic_constraint( *cells , "born_empty" );
+
+ const auto & sv = b.get_static_variable_groups();
+ const auto & dc = b.get_dynamic_constraint_groups();
+
+ assert( sv[ 0 ]->get_num_elements() == 0 );
+ assert( dc[ 0 ]->get_num_elements() == 0 );
+
+ /* The type of the elements is a field of the group, so asking for the
+  * EXACT type is answered without looking at any element and holds on an
+  * empty group; asking for a BASE class is answered by casting an element,
+  * and on an empty group there is none to cast, so it answers false. That
+  * is the trap: whoever asks elements_are() of a base class has to say what
+  * an empty group means for them, since the answer is not "no elements of
+  * that type" but "no elements". */
+
+ assert( sv[ 0 ]->elements_are< ColVariable >() );
+ assert( ! sv[ 0 ]->elements_are< Variable >() );
+ assert( dc[ 0 ]->elements_are< FRowConstraint >() );
+ assert( ! dc[ 0 ]->elements_are< RowConstraint >() );
+
+ /* And the size the inspection reports is 0, not something undefined, and
+  * it is 0 whatever type is asked of it: an empty group holds no element of
+  * any type and says nothing about the type it will hold. */
+
+ assert( inspection::get_element_size< ColVariable >( & b , true , 0 ) == 0 );
+ assert( inspection::get_element_size< Variable >( & b , true , 0 ) == 0 );
+ assert( inspection::get_element_size< FRowConstraint >( & b , false , 0 )
+	 == 0 );
+ assert( inspection::get_element_size< RowConstraint >( & b , false , 0 )
+	 == 0 );
+
+ // walking one calls nobody, and says it walked it
+ Block::Index seen = 0;
+ assert( sv[ 0 ]->for_each_as< ColVariable >(
+	       [ & seen ]( ColVariable & ) { ++seen; } ) );
+ assert( seen == 0 );
+
+ // naming one names nobody, rather than naming a cell that is not there
+ std::vector< std::string > names;
+ assert( inspection::for_each_named_as< ColVariable >( *sv[ 0 ] ,
+	       [ & names ]( const std::string & n , ColVariable & ) {
+		names.push_back( n ); } ) );
+ assert( names.empty() );
+
+ // an element of another Block has no name here either
+ ColVariable stranger;
+ assert( inspection::name_of( & b , & stranger ).empty() );
+
+ /* The two containers are NOT deleted here: the Block still has them
+  * registered, and its destructor walks its groups, so freeing what a group
+  * views is a read of memory that is gone. */
+
+ std::cout << "empty group: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
 
 int main( void )
 {
@@ -507,6 +577,8 @@ int main( void )
  test_cells_of_vectors();
  test_multi_array_layout();
  test_names();
+
+ test_empty_group();
 
  std::cout << "All tests passed!!" << std::endl;
 

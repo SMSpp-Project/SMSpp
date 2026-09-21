@@ -143,10 +143,134 @@ void runAllTests()
 }
 
 /*--------------------------------------------------------------------------*/
+/* What the tests above never touch: a LinearFunction with nothing in it, the
+ * constant term, a coefficient that is zero, and the three ways of removing
+ * Variable at their own edges, one of which means the opposite of what it
+ * looks like. */
+
+static void test_edge_cases( void )
+{
+ // ---- a function with no Variable at all ----------------------------
+
+ LinearFunction empty;
+ assert( empty.get_num_active_var() == 0 );
+ assert( empty.get_constant_term() == 0 );
+ assert( empty.compute( true ) == LinearFunction::kOK );
+ assert( empty.get_value() == 0 );
+
+ // a Variable that was never added is not active, and answering with Inf
+ // is what tells it apart from the one that sits at index 0
+ ColVariable stranger;
+ assert( empty.is_active( & stranger ) ==
+	 Inf< LinearFunction::Index >() );
+
+ // ---- the constant term ---------------------------------------------
+ // it is the value of a function of no Variable, and it is added to the
+ // value of one that has some: an affine function, not a linear one
+
+ empty.set_constant_term( 3.5 );
+ assert( empty.get_constant_term() == 3.5 );
+ assert( empty.compute( true ) == LinearFunction::kOK );
+ assert( empty.get_value() == 3.5 );
+
+ ColVariable v;
+ v.set_value( 2 );
+ empty.add_variable( & v , 4 );
+ assert( empty.compute( true ) == LinearFunction::kOK );
+ assert( empty.get_value() == 3.5 + 8 );
+
+ // ---- a coefficient of zero -----------------------------------------
+ // the Variable is active all the same: it is in the function, it just
+ // does not move its value, and whoever walks the pairs sees it
+
+ LinearFunction zero;
+ ColVariable z;
+ z.set_value( 7 );
+ zero.add_variable( & z , 0 );
+ assert( zero.get_num_active_var() == 1 );
+ assert( zero.is_active( & z ) == 0 );
+ assert( zero.get_coefficient( 0 ) == 0 );
+ assert( zero.compute( true ) == LinearFunction::kOK );
+ assert( zero.get_value() == 0 );
+
+ // and a coefficient can be changed to something that does move it
+ zero.modify_coefficient( 0 , 2 );
+ assert( zero.get_coefficient( 0 ) == 2 );
+ assert( zero.compute( true ) == LinearFunction::kOK );
+ assert( zero.get_value() == 14 );
+
+ // ---- removing by range ---------------------------------------------
+
+ auto ten = []( LinearFunction & f , std::vector< ColVariable > & vars ) {
+  LinearFunction::v_coeff_pair p( vars.size() );
+  for( LinearFunction::Index i = 0 ; i < vars.size() ; ++i )
+   p[ i ] = { & vars[ i ] , double( i + 1 ) };
+  f.add_variables( std::move( p ) );
+  };
+
+ std::vector< ColVariable > vars( 10 );
+
+ {                              // an empty range removes nothing
+  LinearFunction f;
+  ten( f , vars );
+  f.remove_variables( LinearFunction::Range{ 4 , 4 } );
+  assert( f.get_num_active_var() == 10 );
+ }
+ {                              // a range past the end stops at the end
+  LinearFunction f;
+  ten( f , vars );
+  f.remove_variables( LinearFunction::Range{ 8 , 1000 } );
+  assert( f.get_num_active_var() == 8 );
+  assert( f.get_active_var( 7 ) == & vars[ 7 ] );
+ }
+ {                              // and one that covers it all empties it
+  LinearFunction f;
+  ten( f , vars );
+  f.remove_variables( LinearFunction::Range{ 0 , 10 } );
+  assert( f.get_num_active_var() == 0 );
+  assert( f.compute( true ) == LinearFunction::kOK );
+  assert( f.get_value() == 0 );
+ }
+
+ // ---- removing by subset --------------------------------------------
+
+ {                              // the last one, which leaves it empty
+  LinearFunction f;
+  ColVariable only;
+  f.add_variable( & only , 1 );
+  f.remove_variable( 0 );
+  assert( f.get_num_active_var() == 0 );
+  assert( f.is_active( & only ) == Inf< LinearFunction::Index >() );
+ }
+ {                              // an unordered subset, said to be unordered
+  LinearFunction f;
+  ten( f , vars );
+  f.remove_variables( LinearFunction::Subset{ 7 , 1 , 4 } , false );
+  assert( f.get_num_active_var() == 7 );
+  assert( f.is_active( & vars[ 1 ] ) == Inf< LinearFunction::Index >() );
+  assert( f.is_active( & vars[ 4 ] ) == Inf< LinearFunction::Index >() );
+  assert( f.is_active( & vars[ 7 ] ) == Inf< LinearFunction::Index >() );
+  assert( f.is_active( & vars[ 0 ] ) == 0 );
+ }
+ {
+  /* ⚠️ An EMPTY subset removes EVERY Variable, which is the opposite of
+   * what an empty range does and of what the word suggests: it is written
+   * in the comments of remove_variables( Subset ), and a caller that
+   * builds the subset and finds it empty has to know it. */
+
+  LinearFunction f;
+  ten( f , vars );
+  f.remove_variables( LinearFunction::Subset{} );
+  assert( f.get_num_active_var() == 0 );
+ }
+ }
+
+/*--------------------------------------------------------------------------*/
 
 int main( int argc , char ** argv )
 {
  runAllTests();
+ test_edge_cases();
  return( 0 );
 }
 
