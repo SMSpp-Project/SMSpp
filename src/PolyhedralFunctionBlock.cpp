@@ -1086,13 +1086,11 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF(
     }
    else  // modify constants only
     if( PF().is_convex() )
-     for( Index i = strt ; i < stop ; )
-      (cit++)->set_lhs( ScaledRowFactor( i ) * PF().get_b()[ i++ ] ,
-                        par );
+     for( Index i = strt ; i < stop ; ++i )
+      (cit++)->set_lhs( ScaledRowFactor( i ) * PF().get_b()[ i ] , par );
     else
-     for( Index i = strt ; i < stop ; )
-      (cit++)->set_rhs( ScaledRowFactor( i ) * PF().get_b()[ i++ ] ,
-                        par );
+     for( Index i = strt ; i < stop ; ++i )
+      (cit++)->set_rhs( ScaledRowFactor( i ) * PF().get_b()[ i ] , par );
    }
 
   close_if_needed( par , nc );
@@ -1202,8 +1200,9 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF(
 
    // properly set the lhs/rhs of the constraints
    for( auto & ci : f_const ) {
-    ci.set_lhs( ScaledRowFactor( i ) * PF().get_b()[ i++ ] , par );
+    ci.set_lhs( ScaledRowFactor( i ) * PF().get_b()[ i ] , par );
     ci.set_rhs( Inf< Function::FunctionValue >() , par );
+    ++i;
     }
    }
   else {
@@ -1218,7 +1217,8 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF(
    // properly set the lhs/rhs of the constraints
    for( auto & ci : f_const ) {
     ci.set_lhs( -Inf< Function::FunctionValue >() , par );
-    ci.set_rhs( ScaledRowFactor( i ) * PF().get_b()[ i++ ] , par );
+    ci.set_rhs( ScaledRowFactor( i ) * PF().get_b()[ i ] , par );
+    ++i;
     }
    }
 
