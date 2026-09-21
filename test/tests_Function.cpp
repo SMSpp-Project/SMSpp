@@ -192,17 +192,17 @@ static void test_parameter_tables( void )
   return( false );
   };
 
- assert( throws( [ & ] { fun.Function::int_par_idx2str(
+ assert( throws( [ & ] { (void) fun.Function::int_par_idx2str(
 			  fun.Function::get_num_int_par() ); } ) );
- assert( throws( [ & ] { fun.Function::dbl_par_idx2str(
+ assert( throws( [ & ] { (void) fun.Function::dbl_par_idx2str(
 			  fun.Function::get_num_dbl_par() ); } ) );
- assert( throws( [ & ] { fun.Function::get_dflt_int_par(
+ assert( throws( [ & ] { (void) fun.Function::get_dflt_int_par(
 			  fun.Function::get_num_int_par() ); } ) );
- assert( throws( [ & ] { fun.Function::get_dflt_dbl_par(
+ assert( throws( [ & ] { (void) fun.Function::get_dflt_dbl_par(
 			  fun.Function::get_num_dbl_par() ); } ) );
- assert( throws( [ & ] { fun.C05Function::int_par_idx2str(
+ assert( throws( [ & ] { (void) fun.C05Function::int_par_idx2str(
 			  fun.C05Function::get_num_int_par() ); } ) );
- assert( throws( [ & ] { fun.C05Function::get_dflt_dbl_par(
+ assert( throws( [ & ] { (void) fun.C05Function::get_dflt_dbl_par(
 			  fun.C05Function::get_num_dbl_par() ); } ) );
  }
 
