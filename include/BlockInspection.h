@@ -130,10 +130,14 @@ namespace SMSpp_di_unipi_it::inspection
   * the index of a group that has no name, is what this says. The default is
   * the readable one, "x[ 2 ]" and "<2>[ 1 ][ 1 ]"; a caller writing a name
   * into a file whose format takes neither brackets nor spaces, as the LP one
-  * does not, asks instead for { "_" , "" , "g" , "" } and reads "x_2" and
-  * "g2_1_1". Of course, with a marker that is a letter a nameless group of
-  * index 2 has the name a group truly called "g2" would have; with the
-  * default one it cannot happen, an angle bracket being no part of a name. */
+  * does not, asks instead for { "_" , "" , "v" , "" } and reads "x_2" and
+  * "v2_1_1". Of course, with a marker that is a letter a nameless group of
+  * index 2 has the name a group truly called "v2" would have; with the
+  * default one it cannot happen, an angle bracket being no part of a name.
+  * A caller that names two kinds of thing into the same file, as a model
+  * file names columns and rows, gives each kind its own marker: the index
+  * of a group of columns and that of a group of rows are the same numbers,
+  * so one marker for both would put the same name on two things. */
 
  struct name_format {
   const char * open = "[ ";     ///< opens the index of a cell

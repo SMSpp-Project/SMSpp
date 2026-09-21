@@ -513,28 +513,34 @@ void AbstractBlock::file_model( std::vector< f_column > & columns ,
   * same Block twice gives the same file and reading one back gives the
   * columns in the order they had. */
 
- const inspection::name_format fmt = { "_" , "" , "g" , "" };
+ /* A group that has no name is named after its index, and a group of
+  * columns and one of rows can well have the same index: the marker of the
+  * two is therefore not the same, or a file would have a row and a column
+  * both called g0_1 and no reader could tell which of them a name means. */
 
- auto do_columns = [ & columns , & fmt ]( const Vec_Group & groups ) {
+ const inspection::name_format cfmt = { "_" , "" , "v" , "" };
+ const inspection::name_format rfmt = { "_" , "" , "c" , "" };
+
+ auto do_columns = [ & columns , & cfmt ]( const Vec_Group & groups ) {
   for( const auto & group : groups ) {
    if( ! group )
     continue;
    inspection::for_each_named_as< ColVariable >( *group ,
     [ & columns ]( const std::string & n , ColVariable & v ) {
-     columns.emplace_back( & v , n ); } , fmt );
+     columns.emplace_back( & v , n ); } , cfmt );
    }
   };
 
  do_columns( get_static_variable_groups() );
  do_columns( get_dynamic_variable_groups() );
 
- auto do_rows = [ & rows , & fmt ]( const Vec_Group & groups ) {
+ auto do_rows = [ & rows , & rfmt ]( const Vec_Group & groups ) {
   for( const auto & group : groups ) {
    if( ! group )
     continue;
    inspection::for_each_named_as< FRowConstraint >( *group ,
     [ & rows ]( const std::string & n , FRowConstraint & c ) {
-     rows.emplace_back( & c , n ); } , fmt );
+     rows.emplace_back( & c , n ); } , rfmt );
    }
   };
 

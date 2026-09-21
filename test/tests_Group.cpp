@@ -481,7 +481,7 @@ static void test_names( void )
  // a caller writing the name into a file whose format takes neither brackets
  // nor spaces asks for the separators it can afford, the marker of a group
  // with no name being one of them
- const inspection::name_format lp = { "_" , "" , "g" , "" };
+ const inspection::name_format lp = { "_" , "" , "v" , "" };
 
  assert( inspection::name_of_cell(
 	       *b.get_static_variable_groups()[ 1 ] , 5 ,
@@ -492,8 +492,8 @@ static void test_names( void )
 	       *b.get_static_variable_groups()[ 2 ] ,
 	       [ & seen ]( const std::string & name , ColVariable & ) {
 		seen.push_back( name ); } , lp ) );
- assert( seen[ 0 ] == "g2_0_0" );
- assert( seen[ 2 ] == "g2_1_1" );
+ assert( seen[ 0 ] == "v2_0_0" );
+ assert( seen[ 2 ] == "v2_1_1" );
 
  std::cout << "names: OK" << std::endl;
  }

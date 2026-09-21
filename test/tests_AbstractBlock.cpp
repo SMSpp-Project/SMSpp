@@ -22,6 +22,7 @@
 #include "ColVariableSolution.h"
 
 #include "FRealObjective.h"
+#include "DQuadFunction.h"
 #include "LinearFunction.h"
 #include "OneVarConstraint.h"
 
@@ -526,6 +527,228 @@ static void test_is( void )
 
 /*--------------------------------------------------------------------------*/
 
+/*--------------------------------------------------------------------------*/
+/* What the two writers do with what is degenerate: no Objective at all, a
+ * row every coefficient of which is zero, a free column, a fixed one, a
+ * column that is in no row and in no Objective, an equality row, a row whose
+ * two sides are both infinite, a group with no name, a coefficient of 1 and
+ * one of -1, a number that wants all of its digits, and a Block that is
+ * maximizing. Each of these is a branch of the two writers that the plain
+ * model does not go through. */
+
+static void test_writers_edge_cases( void )
+{
+ AbstractBlock block;
+
+ auto cols = new std::vector< ColVariable >( 5 );
+ // x_0 free, x_1 fixed, x_2 in nothing, x_3 and x_4 ordinary
+ ( *cols )[ 0 ].is_positive( false , eNoMod );
+ ( *cols )[ 0 ].is_negative( false , eNoMod );
+ ( *cols )[ 1 ].set_value( 2.5 );
+ ( *cols )[ 1 ].is_fixed( true , eNoMod );
+ block.add_static_variable( *cols , "x" );
+
+ // a group with no name: its elements are named after its index
+ auto more = new std::vector< ColVariable >( 1 );
+ block.add_static_variable( *more );
+
+ auto rows = new std::vector< FRowConstraint >( 4 );
+ {                                       // every coefficient zero
+  LinearFunction::v_coeff_pair p;
+  p.push_back( { & ( *cols )[ 3 ] , 0.0 } );
+  ( *rows )[ 0 ].set_function( new LinearFunction( std::move( p ) ) );
+  ( *rows )[ 0 ].set_lhs( - Inf< double >() );
+  ( *rows )[ 0 ].set_rhs( 1 );
+ }
+ {                                       // an equality, and a 1 and a -1
+  LinearFunction::v_coeff_pair p;
+  p.push_back( { & ( *cols )[ 3 ] , 1.0 } );
+  p.push_back( { & ( *cols )[ 4 ] , -1.0 } );
+  ( *rows )[ 1 ].set_function( new LinearFunction( std::move( p ) ) );
+  ( *rows )[ 1 ].set_both( 3 );
+ }
+ {                                       // both sides infinite
+  LinearFunction::v_coeff_pair p;
+  p.push_back( { & ( *cols )[ 4 ] , 2.0 } );
+  ( *rows )[ 2 ].set_function( new LinearFunction( std::move( p ) ) );
+  ( *rows )[ 2 ].set_lhs( - Inf< double >() );
+  ( *rows )[ 2 ].set_rhs( Inf< double >() );
+ }
+ {                                       // a number that wants its digits
+  LinearFunction::v_coeff_pair p;
+  p.push_back( { & ( *more )[ 0 ] , 0.1 } );
+  ( *rows )[ 3 ].set_function( new LinearFunction( std::move( p ) ) );
+  ( *rows )[ 3 ].set_lhs( 1.0 / 3.0 );
+  ( *rows )[ 3 ].set_rhs( Inf< double >() );
+ }
+ block.add_static_constraint( *rows , "r" );
+
+ // ---- with no Objective at all --------------------------------------
+
+ std::ostringstream noobj;
+ block.write_lp( noobj );
+ assert( noobj.str().find( "Minimize" ) != std::string::npos );
+ assert( noobj.str().find( " obj: 0" ) != std::string::npos );
+
+ // ---- the LP file ---------------------------------------------------
+
+ LinearFunction::v_coeff_pair o;
+ o.push_back( { & ( *cols )[ 3 ] , 1.0 } );
+ auto obj = new FRealObjective( & block ,
+				new LinearFunction( std::move( o ) ) );
+ obj->set_sense( Objective::eMax , eNoMod );
+ block.set_objective( obj , eNoMod );
+
+ std::ostringstream lps;
+ block.write_lp( lps );
+ const auto lp = lps.str();
+
+ assert( lp.find( "Maximize" ) != std::string::npos );
+ // a row with no coefficient left is still a row, and says 0
+ assert( lp.find( " r_0_up: 0 <= 1" ) != std::string::npos );
+ // an equality is one row, and a coefficient of 1 or -1 is not written
+ assert( lp.find( " r_1: x_3 - x_4 = 3" ) != std::string::npos );
+ // the free column says so, the fixed one is a point, and the group with
+ // no name is named after its index
+ assert( lp.find( " x_0 free" ) != std::string::npos );
+ assert( lp.find( " v1_0" ) != std::string::npos );
+ // the number is there whole
+ assert( lp.find( "0.3333333333333333" ) != std::string::npos );
+ assert( lp.find( "0.1 v1_0" ) != std::string::npos );
+
+ // ---- the MPS file --------------------------------------------------
+
+ std::ostringstream mpss;
+ block.write_mps( mpss );
+ const auto mps = mpss.str();
+
+ assert( mps.find( "OBJSENSE" ) != std::string::npos );
+ assert( mps.find( "    MAX" ) != std::string::npos );
+ assert( mps.find( " E  r_1" ) != std::string::npos );
+ // the row with both sides infinite is not in the file at all
+ assert( mps.find( "r_2" ) == std::string::npos );
+ // the column that is in no row is, with a zero cost
+ assert( mps.find( "    x_2  obj  0" ) != std::string::npos );
+ // the fixed column is a point and the free one is free
+ assert( mps.find( " FX BND  x_1  2.5" ) != std::string::npos );
+ assert( mps.find( " FR BND  x_0" ) != std::string::npos );
+ // no INTORG marker, nothing here being integer
+ assert( mps.find( "INTORG" ) == std::string::npos );
+
+ // and it still makes the trip: reading it and writing it again is a fixed
+ // point, which is what says that none of these was lost on the way
+ AbstractBlock again;
+ std::istringstream in( mps );
+ again.load( in , 'M' );
+
+ std::ostringstream twice , thrice;
+ again.write_mps( twice );
+
+ /* The copy has no named group at all, and its group of columns and its
+  * group of rows both have index 0: the two markers have to differ, or the
+  * file would call a row and a column by the same name and no reader could
+  * tell which of them a name means. */
+
+ assert( twice.str().find( " E  c0_1" ) != std::string::npos );
+ assert( twice.str().find( "    v0_1  obj" ) != std::string::npos );
+
+ AbstractBlock third;
+ std::istringstream in2( twice.str() );
+ third.load( in2 , 'M' );
+ third.write_mps( thrice );
+ assert( thrice.str() == twice.str() );
+
+ // ---- a Function that is not linear is refused, not written wrong ----
+
+ auto quad = new std::vector< FRowConstraint >( 1 );
+ {
+  DQuadFunction::v_coeff_triple t;
+  t.push_back( { & ( *cols )[ 3 ] , 1.0 , 1.0 } );
+  ( *quad )[ 0 ].set_function( new DQuadFunction( std::move( t ) ) );
+  ( *quad )[ 0 ].set_rhs( 1 );
+ }
+ block.add_static_constraint( *quad , "q" );
+
+ bool refused = false;
+ try { std::ostringstream no; block.write_lp( no ); }
+ catch( const std::invalid_argument & ) { refused = true; }
+ assert( refused );
+
+ refused = false;
+ try { std::ostringstream no; block.write_mps( no ); }
+ catch( const std::invalid_argument & ) { refused = true; }
+ assert( refused );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* What write_is() does at its own edges: a multiplier exactly equal to eps,
+ * which the comparison leaves out; an equality row, which is written with
+ * its one side; a row that is not linear, which has no place in a
+ * certificate written this way; and a ray that names nothing at all. */
+
+static void test_is_edge_cases( void )
+{
+ AbstractBlock block;
+
+ auto cols = new std::vector< ColVariable >( 2 );
+ block.add_static_variable( *cols , "y" );
+
+ auto rows = new std::vector< FRowConstraint >( 2 );
+ {
+  LinearFunction::v_coeff_pair p;
+  p.push_back( { & ( *cols )[ 0 ] , 1.0 } );
+  ( *rows )[ 0 ].set_function( new LinearFunction( std::move( p ) ) );
+  ( *rows )[ 0 ].set_both( 4 );              // an equality
+  ( *rows )[ 0 ].set_dual( 1e-9 );
+ }
+ {
+  LinearFunction::v_coeff_pair p;
+  p.push_back( { & ( *cols )[ 1 ] , 1.0 } );
+  ( *rows )[ 1 ].set_function( new LinearFunction( std::move( p ) ) );
+  ( *rows )[ 1 ].set_lhs( - Inf< double >() );
+  ( *rows )[ 1 ].set_rhs( 2 );
+  ( *rows )[ 1 ].set_dual( -1 );
+ }
+ block.add_static_constraint( *rows , "e" );
+
+ // a multiplier exactly equal to eps is left out: the comparison is <=, so
+ // the row on the threshold does not enter the certificate
+ std::ostringstream at;
+ block.write_is( at , 1e-9 );
+ assert( at.str().find( "e_0" ) == std::string::npos );
+ assert( at.str().find( "e_1" ) != std::string::npos );
+
+ // just below eps it does enter, and an equality is written with its side
+ std::ostringstream under;
+ block.write_is( under , 1e-10 );
+ assert( under.str().find( " 1e-09 * ( e_0: y_0 = 4 )" ) != std::string::npos );
+
+ // a row that is not linear carries no multiplier into the certificate
+ auto quad = new std::vector< FRowConstraint >( 1 );
+ {
+  DQuadFunction::v_coeff_triple t;
+  t.push_back( { & ( *cols )[ 0 ] , 1.0 , 1.0 } );
+  ( *quad )[ 0 ].set_function( new DQuadFunction( std::move( t ) ) );
+  ( *quad )[ 0 ].set_rhs( 1 );
+  ( *quad )[ 0 ].set_dual( 7 );
+ }
+ block.add_static_constraint( *quad , "q" );
+
+ std::ostringstream withq;
+ block.write_is( withq );
+ assert( withq.str().find( "q_0" ) == std::string::npos );
+ assert( withq.str().find( "e_1" ) != std::string::npos );
+
+ // a ray that names nothing says so rather than writing an empty answer
+ ( *rows )[ 0 ].set_dual( 0 );
+ ( *rows )[ 1 ].set_dual( 0 );
+ std::ostringstream none;
+ block.write_is( none );
+ assert( none.str().find( "no multiplier" ) != std::string::npos );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 int main( int argc , char ** argv )
 {
  runAllTests();
@@ -533,6 +756,8 @@ int main( int argc , char ** argv )
  test_lp_round_trip();
  test_mps_round_trip();
  test_is();
+ test_writers_edge_cases();
+ test_is_edge_cases();
  return( 0 );
 }
 
