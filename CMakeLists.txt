@@ -205,6 +205,7 @@ target_sources(${modName} PRIVATE
         src/Block.cpp
         src/BlockSolverConfig.cpp
         src/C05Function.cpp
+        src/C05SumFunction.cpp
         src/BendersBFunction.cpp
         src/BendersBlock.cpp
         src/ColRowSolution.cpp
