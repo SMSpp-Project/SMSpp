@@ -175,6 +175,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `LagBFunction` ignored the removal of *all* the Variable of the Objective
+  of its inner Block: `LinearFunction::remove_variables()` says it with a
+  `C05FunctionModVarsSbst` whose subset is empty, and the LagBFunction read
+  the empty subset as "nothing removed". Its table of the costs then went out
+  of step with the Objective, and a Variable having a Lagrangian term that had
+  to be put back in the Objective was lost, which gave a wrong value of the
+  function; the empty subset is now read as the whole range
+
 - `Observer::new_channel_name()`, when reusing a freed name, dereferenced
   `rend()` and erased the lowest free name rather than the one it handed
   out, which only shows when channels are closed out of order, as the

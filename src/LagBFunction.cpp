@@ -4729,8 +4729,16 @@ void LagBFunction::update_CostMatrix_ModVarsSbst( Index h ,
  // still to be added, because if they are still to be added they cannot
  // have been deleted
 
- if( vars.empty() || sbst.empty() )
+ if( vars.empty() )
   return;
+
+ // an empty subset means that all the Variable have been removed, the i-th
+ // of vars() having been the i-th of the Objective [see FunctionModVarsSbst],
+ // which is the range version with the whole range
+ if( sbst.empty() ) {
+  update_CostMatrix_ModVarsRngd( h , vars , Range( 0 , vars.size() ) );
+  return;
+  }
 
  // the index of the modified Objective is provided by the caller: it cannot
  // be recovered here from the Variable in the Modification, since an inner
