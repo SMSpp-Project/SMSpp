@@ -24,42 +24,59 @@
         For some applications (UC) it would be quite handy to have groups of
 	Variable/Constraint with multiple indices, but not all slices necessarily
 	of the same dimension. This could be obtained by std::vector< std::vector<
-	... > > nested a number of times. This might be achievable in the context
-	of explicit "Variable / Constraint Group" replacing the boost::any (see)
+	... > > nested a number of times.
 
-2022-02-10 [very high] get rid of the boost::any
+	Half of this is there: a group whose cells are collections covers
+	std::vector< std::vector< T > > and boost::multi_array< std::vector<
+	T > , K >, i.e. a grid of up to BaseGroup::max_rank dimensions each
+	cell of which holds a collection of its own size, and the same for
+	std::list in place of std::vector. What is not there is the nesting
+	"a number of times": the jaggedness is one level deep, the cells of a
+	cell cannot be cells in their turn.
 
-	The idea of boost::any seemed cool at the time, but in fact it only brings
-	pain, since you do need to know the *exact* type of stuff in order to
-	take it out of a boost::any. This means that, for instance, you have no
-	way of saying "if this Constraint derives from RowConstraint, give it to
-	me". We should get rid of boost::any and define a
+	NOTE THAT THE ORDER IN WHICH THE ELEMENTS OF SUCH A GROUP ARE NUMBERED
+	IS NOT THE ONE Block::ConstraintID DOCUMENTS. For a group whose cells are
+	std::vector the i-th element of the c-th cell of n cells is the
+	( c + i * n )-th, which is the grid read the other way around and is
+	what the code has always done; for a group whose cells are std::list
+	it is instead the cell-by-cell order, j plus the sizes of the cells
+	before it, which is the one ConstraintID describes (and which is also
+	the order in memory). The two have to be made one, and ConstraintID
+	updated, once it is known whether any configuration file out there
+	addresses a Constraint inside a std::vector of std::vector.
 
-	    template< VarOrConst >
-	    class Group
+2022-02-10 [very high] get rid of the boost::any -- DONE, but for one piece
 
-        that implements the concept of "group of Variable / Constraint". The
-	Group should have a size, a name, a number of indices and ways to
-	access to any item, as well as to iterate on all them. It should be
-	possible (not clear if it is) to know if the Group contains, say
-	Constraint derived from RowConstraint and get a RowConstraint * for
-	each of them irrespective to the actual type. Most likely
+	The four std::vector< boost::any > of Block are gone, and so are the
+	four vectors of names beside them: what a Block keeps are four vectors
+	of Group. A group says the type of its elements, its shape, its name
+	and its index in the Block, hands the elements over in storage order
+	without the caller having to know the type of the container they sit
+	in, and answers whether they derive from a given class (elements_are(),
+	for_each_as(), for_each_run_as(), for_each_as_any_of()). It also knows
+	how to build a container of its own type and shape in another Block,
+	which is what AbstractBlock::mirror() uses to copy the whole abstract
+	representation of a Block, the thing this entry said it would set the
+	stage for.
+
+	What remains to do is this one:
 
 	    A Variable / Constraint SHOULD HAVE A POINTER TO THE Group IT
-	    BELONGS TO RATHER THAN TO THE Block, WITH OF COURSE THE Group
-	    HAVING THE POINTER TO THE Block
+	    BELONGS TO RATHER THAN TO THE Block
 
-        Also
+	An element still points at its Block, and get_Block() is what every
+	caller uses. Putting the Group there instead costs the same 8 bytes
+	and one more hop in get_Block(), and buys the index of the element
+	inside its group from its address alone, out of the base, the stride
+	and the extents the group already has. Today that index is found by
+	inspection::index_in_group(), which walks the group until it meets
+	the element, and is then turned into a multi-index by
+	BaseGroup::get_multi_index().
 
-	    A Group SHOULD KNOW ITS INDEX INSIDE THE SET OF Group OF THE
-	    Block, SO THAT, GIVEN A POINTER TO A Variable / Constraint, ONE
-	    CAN EASILY RECONSTRUCT AN "ABSTRACT" (MULTI) INDEX THAT UNIQUELY
-	    IDENTIFIES THE Variable / Constraint
-
-         All this would set the stage for
-
-             BEING CAPABLE OF EFFICIENLTY MAKING A COPY OF THE WHOLE ABSTRACT
-	     REPRESENTATION OF A Block INTO A, SAY, AbstractBlock
+	The 8 bytes themselves are out of scope: giving them back needs
+	either a global table or a split hierarchy of Variable, and the
+	lookup was measured to weigh 0.01% to 0.26% of a solve, so what is
+	at stake here is the structure and not the speed.
 
 2020-08-12 [low] add configuration and vector-of-configuration parameters
 
@@ -128,14 +145,42 @@
         In many cases, printing the full model would be useful. In particular,
         if the model turns out to be unexpectedly unfeasible, one should fetch
         the dual ray from the CDASolver (if any) and use it to output an IS.
-        The biggest hurdle here is to be able to retrieve a significant name for
-        the [Col]Variable involved in the Constraint/Objective (Function). This
-        is not terribly complex, but still requires some work. After this is done,
-        the model and an IS can be printed with relatively little effore exploiting
-        the existing print() infrastructure. Of course, once this is done one should
-        also do the same for Constraint names and print them out, too. Maybe some
-        infrastructure for printing only specific parts of the model could be
-        imagined.
+
+	The hurdle this entry named, retrieving a significant name for the
+	[Col]Variable, is gone: the groups know their own name and the shape
+	of their grid, so inspection::name_of( block , element ) gives a
+	Variable or a Constraint the name of the group it sits in followed by
+	the indices of its cell and, when the cells are collections, by its
+	position inside its own cell ("x[ 2 ]", "M[ 1 ][ 2 ]", "<2>[ 1 ][ 1 ]"
+	when the group has no name), and inspection::for_each_named_as() walks
+	a whole group handing over each element with its name, reading the
+	shape once rather than once per element. AbstractBlock::print() prints
+	the Variable that way.
+
+	The Constraint are printed with their name too, through
+	inspection::for_each_named_as_any_of(), which runs the same cascade of
+	concrete types for_each_RowConstraint() runs.
+
+	The dual ray is printed too, by write_is(), which print( out , 'I' )
+	dispatches. It takes nothing from any Solver: a CDASolver that has
+	proved a model unfeasible writes the unbounded dual direction into the
+	Block itself, every Constraint holding its own multiplier [see
+	CDASolver::get_dual_direction() and RowConstraint::get_dual()], so the
+	Block reads its own rows. What comes out are the rows whose multiplier
+	is not zero, each with its multiplier, its name and its own side, and
+	the bounds of the columns the same way, a model being able to be
+	unfeasible because of what a column is allowed to be with no row of it
+	saying anything.
+
+	Of course, that is the certificate the Solver has left and not the
+	smallest set of rows with the property: the rows named are unfeasible
+	together, but need not be irreducibly so, and saying otherwise would
+	promise something that is not delivered. An eps leaves out the
+	multipliers that are only numerical noise, and asking for this before
+	a ray has been written says so rather than printing a wrong answer.
+
+	What is left: there is still no way to ask for one part of the model
+	rather than all of it, other than the part a ray names.
 
 
 2026-07-17 [updated] BendersDecompositionSolver
@@ -319,17 +364,71 @@
 	the Modification has been constructed, unlike most other ones.
 
 
-2019-08-26 [medium-high] implement [de]serialize() in ColVariableSolution
+2019-08-26 [medium-high] implement [de]serialize() in ColVariableSolution -- DONE
 
-	the name says it all
+	Done for ColVariableSolution, RowConstraintSolution and ColRowSolution,
+	which were the three that answered "not ready yet". The format is the
+	one the rest of SMS++ already uses for a matrix with rows of different
+	length [see serialize() and deserialize() in SMSTypedefs.h]: the values
+	of the static stuff go in StaticValues (StaticDuals for the duals) with
+	StaticValuesStart saying where each group begins.
+
+	The dynamic stuff has one level more, a group of it being a grid of
+	cells each holding a collection of its own size: the cells of all the
+	groups are written as one such matrix, DynamicValues and
+	DynamicValuesStart, and DynamicCellsStart says which of those cells
+	each group begins at. A ColRowSolution writes its two halves in the
+	groups VariableSolution and ConstraintSolution, so that each of them is
+	written exactly as it is when it travels alone, and the Solution of a
+	nested Block goes in NestedSolution_<i>. What a Solution holds, a
+	solution or a direction, is written by Solution::serialize() as it was.
+
+	A group that is not there is read as nothing, so a Solution that holds
+	no Variable, or no Constraint, of one kind deserializes into an empty
+	one rather than into an error.
 
 
-2019-08-29 [medium-high] implement [de]serialize() in AbstractBlock
+2019-08-29 [medium-high] implement [de]serialize() in AbstractBlock -- DONE
 
-	the name says it all; if we are ever going to use it seriously inside
-	"true" models, this is needed. It is not simple, but it makes
-	AbstractBlock a lot more valuable since you don't always have to
-	build it up programmatically.
+	The format was there already and nothing had to be decided:
+	guts_of_deserialize() reads the model out of a netCDF variable "Model"
+	holding an LP or an MPS file, with the attribute ModelType saying which
+	of the two it is, and the nested Block out of the subgroups Block_<i>.
+	What was missing was writing the LP, print( out , 'L' ) throwing "not
+	implemented yet"; AbstractBlock::write_lp() writes it now, and
+	serialize() puts it in "Model" with ModelType = 'L' whenever the Block
+	holds something that is not reserved to a derived class.
+
+	What is written is the Objective (the sense and the LinearFunction it
+	is on), the rows that are FRowConstraint on a LinearFunction, the
+	bounds each column has of its own tightened by the :OneVarConstraint
+	written on it, and the columns that are integer. A row with both sides
+	finite and different is written twice, <name>_up and <name>_lo, since
+	the format has no two-sided row, and one with both sides equal is an
+	equality. The names are those the groups give [see
+	inspection::name_of()] with the indices joined by underscores, x_2
+	rather than "x[ 2 ]", the format taking neither brackets nor spaces
+	inside a name; that is why the two separators are a parameter of
+	name_of_cell() and for_each_named_as().
+
+	What travels is the model and not the way it is grouped: an LP file has
+	no notion of groups, so reading back what this writes gives one group
+	of columns and one of rows, as read_lp() builds them. That is not a
+	loss introduced here, it is how the format has been since
+	deserialize() exists.
+
+	The MPS format is written too, by write_mps(), which print( out , 'M' )
+	dispatches: it says the same things in the same names, save that a row
+	with both sides finite and different is one row with its second side in
+	RANGES rather than two, and that a row whose two sides are both
+	infinite is left out, the format having no way of saying it. Reading an
+	MPS file written here and writing it again gives the same file, so
+	nothing is lost or added at each trip; the first file is not among
+	them, since its groups are not the one group of columns and the one of
+	rows read_mps() builds.
+
+	What is left: a Function that is not linear is refused rather than
+	written, which is all either format can take.
 
 
 2019-08-26 [medium] use the methods factory to work with "physical solution"

@@ -720,9 +720,35 @@ class PolyhedralFunctionBlock : public AbstractBlock
   * - calling this method more than once with the *same* lambda is a no-op
   *   (lambda is added only if not already present); each PolyhedralFunction-
   *   Block can however have multiple distinct lambda's registered, one
-  *   per global-LB-style coupling it participates in. */
+  *   per global-LB-style coupling it participates in.
+  *
+  * This is the size variable of this Block [see set_size_variable()], and
+  * the method is set_size_variable( lambda , eNoMod ) with the checks it
+  * always had: it throws where set_size_variable() returns false. */
 
  void set_lambda( ColVariable * lambda );
+
+/*--------------------------------------------------------------------------*/
+ /// gives this Block the Variable of its size parameter
+ /** The size parameter of a PolyhedralFunctionBlock is the shared multiplier
+  * lambda of set_lambda(), owned by the father: it is written into the
+  * normalization constraint of the dual representation, with coefficient
+  * -1 / global_scale, the sides of that constraint going to 0, and the
+  * global rescaling keeps that coefficient in step, in place.
+  *
+  * It may be called before generate_abstract_variables(), in which case
+  * the Variable is stored and written in when the normalization constraint
+  * is built, generate_abstract_constraints() throwing if the
+  * representation chosen is not the dual one; or after
+  * generate_abstract_constraints(), in which case it returns false unless
+  * the representation is the dual one, and the Variable is added to the
+  * normalization constraint in place, the Modification being issued as
+  * \p issueAMod says. It returns false if \p size_var is not a
+  * ColVariable, and passing a Variable that is there already changes
+  * nothing. */
+
+ bool set_size_variable( Variable * size_var ,
+                         c_ModParam issueAMod = eNoBlck ) override;
 
 /*--------------------------------------------------------------------------*/
  /// add this block's coupling terms to a list of external constraints

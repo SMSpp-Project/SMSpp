@@ -14,6 +14,9 @@
 
 #include "QuadFunction.h"
 
+// last, so that the headers above are read as the library was compiled
+#include "TestAssert.h"
+
 /*--------------------------------------------------------------------------*/
 /*-------------------------------- USING -----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -159,11 +162,140 @@ void runAllTests()
 }
 
 /*--------------------------------------------------------------------------*/
+/* What the tests above never touch: a function with nothing in it, the
+ * constant term, the matrix read on the side it was not written on, a pair
+ * of Variable that carries no term at all, and the two edges of a Range.
+ * The matrix being symmetric is the one thing every caller assumes of a
+ * quadratic function and the one an index swapped somewhere breaks. */
+
+static void test_edge_cases( void )
+{
+    // ---- a function with no Variable at all ------------------------
+
+    QuadFunction empty;
+    assert( empty.get_num_active_var() == 0 );
+    assert( empty.get_constant_term() == 0 );
+    assert( empty.compute( true ) == QuadFunction::kOK );
+    assert( empty.get_value() == 0 );
+
+    ColVariable stranger;
+    assert( empty.is_active( &stranger ) == Inf< QuadFunction::Index >() );
+
+    // the constant term is the value of a function of no Variable, and it
+    // is added to the value of one that has some
+    empty.set_constant_term( 2.5 );
+    assert( empty.compute( true ) == QuadFunction::kOK );
+    assert( empty.get_value() == 2.5 );
+
+    ColVariable w;
+    w.set_value( 3.0 );
+    empty.add_variable( &w , 1.0 , 2.0 );      // 2 w^2 + w + 2.5
+    assert( empty.compute( true ) == QuadFunction::kOK );
+    assert( empty.get_value() == 2.0 * 9.0 + 3.0 + 2.5 );
+
+    // ---- the matrix is symmetric -----------------------------------
+
+    ColVariable a , b , c;
+    a.set_value( 1.0 ); b.set_value( 1.0 ); c.set_value( 1.0 );
+
+    DQuadFunction::v_coeff_triple tr;
+    tr.emplace_back( &a , 0.0 , 1.0 );
+    tr.emplace_back( &b , 0.0 , 1.0 );
+    tr.emplace_back( &c , 0.0 , 1.0 );
+
+    QuadFunction::v_off_diag_term od;
+    od.emplace_back( 1 , 0 , 3.0 );            // the only pair with a term
+    QuadFunction sym( std::move( tr ) , std::move( od ) );
+
+    // read on the side it was written on and on the other one: the same
+    assert( sym.get_quadratic_coefficient( 1 , 0 ) == 3.0 );
+    assert( sym.get_quadratic_coefficient( 0 , 1 ) == 3.0 );
+
+    // a pair that carries no term at all is 0, not something undefined
+    assert( sym.get_quadratic_coefficient( 2 , 0 ) == 0 );
+    assert( sym.get_quadratic_coefficient( 0 , 2 ) == 0 );
+    assert( sym.get_quadratic_coefficient( 2 , 1 ) == 0 );
+
+    // and asking for i == j is the diagonal, which is the DQuadFunction one
+    for( QuadFunction::Index i = 0 ; i < 3 ; ++i )
+        assert( sym.get_quadratic_coefficient( i , i ) == 1.0 );
+
+    /* ---- a function that is linear ---------------------------------
+     *
+     * A linear function is convex AND concave, its Hessian being the zero
+     * matrix, which is both positive and negative semidefinite. The class
+     * keeps ONE state out of Convex, Concave and NotConvex, and decides it
+     * by asking Eigen for positive semidefiniteness first, so a linear
+     * QuadFunction comes out Convex and is_concave() answers false. That is
+     * what it does today and it is pinned here so that nobody changes it by
+     * accident; a caller that has to tell this case apart asks is_linear(),
+     * which is what it is for. */
+
+    DQuadFunction::v_coeff_triple flat;
+    flat.emplace_back( &a , 2.0 , 0.0 );
+    flat.emplace_back( &b , -1.0 , 0.0 );
+    QuadFunction line( std::move( flat ) , QuadFunction::v_off_diag_term() );
+    assert( line.is_linear() );
+    assert( line.is_convex() );
+    assert( ! line.is_concave() );
+
+    // and one that curves downwards is concave and not convex
+    DQuadFunction::v_coeff_triple down;
+    down.emplace_back( &a , 0.0 , -2.0 );
+    down.emplace_back( &b , 0.0 , -2.0 );
+    QuadFunction cap( std::move( down ) , QuadFunction::v_off_diag_term() );
+    assert( cap.is_concave() );
+    assert( ! cap.is_convex() );
+
+    // ---- the two edges of a Range ----------------------------------
+    // the off-diagonal terms are what makes this worth checking: they are
+    // named by index, so removing nothing must move nothing
+
+    auto three = [ &a , &b , &c ]() {
+        DQuadFunction::v_coeff_triple t;
+        t.emplace_back( &a , 1.0 , 1.0 );
+        t.emplace_back( &b , 2.0 , 1.0 );
+        t.emplace_back( &c , 3.0 , 1.0 );
+        QuadFunction::v_off_diag_term o;
+        o.emplace_back( 1 , 0 , 5.0 );
+        o.emplace_back( 2 , 1 , 7.0 );
+        return( new QuadFunction( std::move( t ) , std::move( o ) ) );
+        };
+
+    {   // an empty Range removes nothing, and moves no term
+        auto f = three();
+        f->remove_variables( QuadFunction::Range( 1 , 1 ) , eNoMod );
+        assert( f->get_num_active_var() == 3 );
+        assert( f->get_quadratic_coefficient( 1 , 0 ) == 5.0 );
+        assert( f->get_quadratic_coefficient( 2 , 1 ) == 7.0 );
+        delete f;
+        }
+
+    {   // a Range past the end stops at the end
+        auto f = three();
+        f->remove_variables( QuadFunction::Range( 2 , 1000 ) , eNoMod );
+        assert( f->get_num_active_var() == 2 );
+        assert( f->get_quadratic_coefficient( 1 , 0 ) == 5.0 );
+        delete f;
+        }
+
+    {   // and one that covers it all empties it
+        auto f = three();
+        f->remove_variables( QuadFunction::Range( 0 , 3 ) , eNoMod );
+        assert( f->get_num_active_var() == 0 );
+        assert( f->compute( true ) == QuadFunction::kOK );
+        assert( f->get_value() == 0 );
+        delete f;
+        }
+    }
+
+/*--------------------------------------------------------------------------*/
 
 int main( int argc , char ** argv )
 {
     std::cout << "Running tests for QuadFunction\n";
     runAllTests();
+    test_edge_cases();
     return( 0 );
 }
 

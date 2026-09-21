@@ -73,6 +73,12 @@ smspp_install(ColVariable_test)
 add_test(NAME ColVariable_test
          COMMAND ColVariable_test)
 
+add_executable(Group_test tests_Group.cpp)
+target_link_libraries(Group_test PRIVATE SMS++::SMS++)
+smspp_install(Group_test)
+add_test(NAME Group_test
+         COMMAND Group_test)
+
 add_executable(Function_test tests_Function.cpp)
 target_link_libraries(Function_test PRIVATE SMS++::SMS++)
 smspp_install(Function_test)
@@ -90,5 +96,11 @@ target_link_libraries(QuadFunction_test PRIVATE SMS++::SMS++)
 smspp_install(QuadFunction_test)
 add_test(NAME QuadFunction_test
          COMMAND QuadFunction_test)
+
+add_executable(SizeVariable_test tests_SizeVariable.cpp)
+target_link_libraries(SizeVariable_test PRIVATE SMS++::SMS++)
+smspp_install(SizeVariable_test)
+add_test(NAME SizeVariable_test
+         COMMAND SizeVariable_test)
 
 # --------------------------------------------------------------------------- #

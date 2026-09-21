@@ -731,7 +731,7 @@ class PolyhedralFunction : public C05Function {
 /*--------------------------------------------------------------------------*/
 
  bool is_linearization_there( Index name ) const override {
-  return( v_glob[ name ] < Inf< int >() );
+  return( ( name < v_glob.size() ) && ( v_glob[ name ] < Inf< int >() ) );
   }
 
 /*--------------------------------------------------------------------------*/

@@ -9,6 +9,143 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `AbstractBlock::write_is()`, which `print( out , 'I' )` dispatches: after a
+  `CDASolver` has proved the model unfeasible and `get_dual_direction()` has
+  written the unbounded dual direction into the Block, it writes the rows
+  whose multiplier is not zero, each with its multiplier and its name, and
+  the bounds of the columns the same way. It asks nothing of any Solver, the
+  ray being in the Constraint of the Block; what it writes is the certificate
+  the Solver has left and not the smallest set of rows with that property
+
+- `AbstractBlock::write_mps()`, which writes what the Block holds as the MPS
+  file `read_mps()` reads, `print( out , 'M' )` having thrown "not implemented
+  yet" as well. It says what `write_lp()` says and in the same names, with the
+  two differences the format makes: a row with both sides finite and different
+  is one row with its second side in `RANGES` rather than two rows, and a row
+  whose two sides are both infinite is left out, the format having no way of
+  saying it. A number is written with the fewest digits that read back as
+  itself, in both writers, the six digits a stream gives by default not being
+  enough to make the trip
+
+- `AbstractBlock::write_lp()`, which writes what the Block holds as the LP
+  file `read_lp()` reads, `print( out , 'L' )` having thrown "not implemented
+  yet"; `serialize()` uses it to fill the netCDF variable `Model` that
+  `deserialize()` has always read, with `ModelType = 'L'`. The Objective, the
+  rows that are `FRowConstraint` on a `LinearFunction`, the bounds a column
+  has of its own tightened by the `:OneVarConstraint` written on it and the
+  integer columns are written; a row with both sides finite and different
+  goes twice, `<name>_up` and `<name>_lo`, the format having no two-sided
+  row. The names are those the groups give, with the indices joined by
+  underscores, so `name_of_cell()` and `for_each_named_as()` take the two
+  separators as a parameter. An LP file has no notion of groups, so what
+  travels is the model and not the way it is grouped
+
+- `serialize()` and `deserialize()` of `ColVariableSolution`,
+  `RowConstraintSolution` and `ColRowSolution`, which threw "not ready yet":
+  the values of the static stuff go in `StaticValues` (`StaticDuals` for the
+  duals) with `StaticValuesStart` saying where each group begins, which is
+  how SMS++ writes a matrix with rows of different length; the dynamic ones
+  have one level more, the cells of all the groups going in one such matrix
+  and `DynamicCellsStart` saying which of those cells each group begins at. A
+  `ColRowSolution` writes its two halves in the groups `VariableSolution` and
+  `ConstraintSolution`, and the Solution of a nested Block goes in
+  `NestedSolution_<i>`
+
+- `inspection::name_of()` gives a Variable or a Constraint the name of the
+  group it sits in, or the index of that group when it has none, followed by
+  the indices of its cell in the grid and, when the cells are collections, by
+  its position inside its own cell; `inspection::for_each_named_as()` walks a
+  whole group handing over each element with its name, reading the shape of
+  the grid once rather than once per element, and
+  `inspection::for_each_named_as_any_of()` does it running a cascade of
+  concrete types. `AbstractBlock::print()` prints the Variable and the
+  Constraint that way, which is what tells which one of them a row of the
+  model is written on
+
+- `Block::get_size_variable()` and `Block::set_size_variable()`, through
+  which a :Block declares a column standing for a size parameter that it
+  writes into its own rows, a column it owns or one it is given, normally by
+  its father, a Solver seeing only ordinary Variable and Constraint; the
+  size parameter that is a datum goes through the methods factory instead.
+  `PolyhedralFunctionBlock` takes one, the multiplier of `set_lambda()`,
+  before or after its abstract representation exists, and keeps its
+  coefficient in step with the global scale, in place
+
+- the methods factory takes the data of a setter as a `std::span` as well
+  (`MF_dbl_sp`, `MF_int_sp` and the `MS_sp_*` signatures), which lets the
+  setter check the length of what it is given instead of reading past its
+  end, and has query families, `QueryType` with the `MS_qry_*` signatures
+  and `get_query_fs()`, through which a caller reads data back from a Block
+  it knows by name only; the forms taking an iterator stay, and are meant to
+  go once the setters of every module take a span
+
+- `Block` holds a group of its own for each of the four vectors of
+  `boost::any` in which it keeps its Variable and its Constraint: a group
+  says the type of its elements, its shape and its name, and hands them over
+  without the caller having to know the type of the container they sit in,
+  which is what the `un_any_*` machinery was for. `BaseGroup::for_each_as()`
+  walks them with one switch per group and a loop typed on the element,
+  `for_each_run_as()` gives them one run of contiguous ones at a time, which
+  is what a caller mapping an element back to its position from its address
+  needs, `elements_are()` answers the question on the type once for the whole
+  group, and `Block::for_each_variable_group()` and
+  `for_each_constraint_group()` walk the static groups and then the dynamic
+  ones. THE ORDER IN WHICH THE ELEMENTS COME OUT IS THE STORAGE ORDER, and it
+  is part of the contract: `tests_Group.cpp` fixes it
+
+- a group knows the type of the container it views, not only that of its
+  elements, and `get_container_as< C >()` hands it back when it is a `C` and
+  `nullptr` when it is not: that is what tells a `std::vector< T >` from a
+  `boost::multi_array< T , 1 >`, which have the same elements, the same
+  layout and the same rank, and it is what the typed accessors of `Block`
+  ask instead of `boost::any_cast`
+
+- A group says how to build a container of its own type and shape in another
+  Block, which is what `AbstractBlock::mirror()` needed the `boost::any` for,
+  and whoever allocates a container says how it goes, so that a Block
+  disposes of what it owns through its own groups
+
+- `std::vector< std::vector< Var > >` can be registered as a group of
+  Variable, as it already could be as a group of Constraint: the two sides
+  now have the same list of shapes
+
+### Changed
+
+- ⚠️ THE FOUR `std::vector< boost::any >` OF `Block` ARE GONE, and so are the
+  four vectors of the names beside them: a Block keeps its Variable and its
+  Constraint in its four vectors of groups alone. `get_static_variables()`,
+  `get_dynamic_variables()`, `get_static_constraints()`,
+  `get_dynamic_constraints()` and the four `get_*_name()` that returned the
+  whole vector of the names are gone with them, replaced by
+  `get_static_variable_groups()` and its three fellows;
+  `get_s_const_name( i )` and `get_s_const_index( name )`, and the six like
+  them, stay and read the name of the group. The typed accessors,
+  `get_static_variable< T >( i )` and the 23 like them, keep their signature
+  and read the group instead of the `boost::any`, so their callers do not
+  change. ⚠️ ONE OF THEM ASKED FOR THE WRONG TYPE NOW ANSWERS `nullptr`,
+  WHICH IS WHAT THEIR DOCUMENTATION HAS ALWAYS PROMISED, INSTEAD OF THROWING
+  `boost::bad_any_cast`: whoever was finding a mistake of type out of the
+  exception now gets a null pointer, and finds it out later and elsewhere.
+  `Vec_any`, `c_Vec_any` and `Vec_any_it` are gone from `SMSTypedefs.h`,
+  which no longer includes `<boost/any.hpp>`
+
+- `PolyhedralFunctionBlock::set_lambda()` is `set_size_variable()` with the
+  checks it had, and adds the multiplier to the normalization constraint in
+  place instead of giving the constraint a new LinearFunction, so that the
+  constraint and its LinearFunction stay the objects they were
+
+- ⚠️ THE LAYOUT OF `Block` HAS CHANGED, and `add_static_variable()` and the
+  other 35 registration methods are templates, hence they live in the
+  translation unit of whoever calls them: after updating, EVERYTHING has to
+  be rebuilt, not only `libSMS++`, and a stale object file is not a
+  compilation error but a group without the means to copy itself, or a
+  library that is a hybrid of two layouts
+
+- `GroupAdapter.h` is gone, having been the scaffolding that read the
+  `boost::any` while the consumers of them were converted one at a time, and
+  so are `Block::refresh_*_group()`, which existed to rebuild a group after
+  it was written into through its `boost::any`, and which nobody calls
+
 ### Changed
 
 - `PolyhedralFunctionBlock`, in the "linearized dual" representation, issues
@@ -21,6 +158,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Modification it saw before
 
 ### Fixed
+
+- `Observer::new_channel_name()`, when reusing a freed name, dereferenced
+  `rend()` and erased the lowest free name rather than the one it handed
+  out, which only shows when channels are closed out of order, as the
+  grouped Modification of UCBlock do, and made the parallel tests of
+  InvestmentBlock fail now and then with "Observer: wrong channel name"
+
+- a `boost::multi_array` stored in the order of Fortran, or with indices not
+  starting at 0, was accepted as a group and then read as if it were not:
+  its cells were named after the wrong indices and its copy had another
+  shape. Registering one now throws `std::invalid_argument`; no module
+  registers one
+
+- the unit tests check what they assert in every build type: the Release one
+  defines NDEBUG, which turned each of their `assert()` into nothing, so that
+  they passed whatever happened, and `AbstractPath_test` did not even walk
+  the Block, the walk being inside an `assert()`; now that it does, it
+  writes and reads back through netCDF one path in 8, many thousands to a
+  file, rather than every path in a file of its own, which took 9 minutes
 
 - `RowConstraint::is_feasible()` on a collection of collections of
   RowConstraint, and on a `boost::multi_array` of collections, took them as
@@ -78,11 +234,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Block::map_forward_solution()` and `Block::map_forward_Modification()`
   serves the AbstractBlock that has mirrored the Block, so that every Block
   has a R3 Block of itself without having had to write a line for it
-
-- `Block::access_static_variable()` and its three companions, which give the
-  group of Variable or Constraint as the boost::any holding it, so that code
-  building a Block out of another one can install a group whose type it only
-  knows at run time
 
 - `ThinComputeInterface::print_parameters()`, which prints the name, the
   current value and the default one of every parameter, walking the six

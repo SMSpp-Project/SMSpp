@@ -20,7 +20,12 @@
 
 #include "AbstractBlock.h"
 
-#include "GroupAdapter.h"
+#include "BlockInspection.h"
+
+#include <iomanip>
+#include <map>
+#include <sstream>
+
 
 #include "ColVariable.h"
 
@@ -51,36 +56,45 @@ using v_off_diag_term = QuadFunction::v_off_diag_term;
 
 namespace {
 
+/// says that the container a group views belongs to the Block, and how it goes
+
+template< class C >
+static void own_storage( const std::unique_ptr< BaseGroup > & group , C * c )
+{
+ if( group )
+  group->set_storage_deleter( [ c ]( void ) { delete c; } );
+ }
+
+/*--------------------------------------------------------------------------*/
 /// calls the right function on each element of a group of :RowConstraint
 /** Calls frow() on each element of the group if these are FRowConstraint, and
- * onevar() on each of them if these are one of the concrete :OneVarConstraint
- * of the core; the type is matched exactly, so the loop runs on it. Returns
- * false, having done nothing, if the elements are of none of those types. */
+ * onevar() on each of them if these are one of the concrete
+ * :OneVarConstraint of the core; returns false, having done nothing, if the
+ * elements are of none of those types. */
 
 template< class FR , class FO >
 bool for_each_RowConstraint( const BaseGroup & group , FR frow , FO onevar )
 {
- auto type = group.get_element_type();
- if( type == typeid( FRowConstraint ) )
-  return( group.for_each_as< FRowConstraint >( frow ) );
- if( type == typeid( BoxConstraint ) )
-  return( group.for_each_as< BoxConstraint >( onevar ) );
- if( type == typeid( LB0Constraint ) )
-  return( group.for_each_as< LB0Constraint >( onevar ) );
- if( type == typeid( UB0Constraint ) )
-  return( group.for_each_as< UB0Constraint >( onevar ) );
- if( type == typeid( LBConstraint ) )
-  return( group.for_each_as< LBConstraint >( onevar ) );
- if( type == typeid( UBConstraint ) )
-  return( group.for_each_as< UBConstraint >( onevar ) );
- if( type == typeid( NNConstraint ) )
-  return( group.for_each_as< NNConstraint >( onevar ) );
- if( type == typeid( NPConstraint ) )
-  return( group.for_each_as< NPConstraint >( onevar ) );
- if( type == typeid( ZOConstraint ) )
-  return( group.for_each_as< ZOConstraint >( onevar ) );
+ return( group.for_each_as< FRowConstraint >( frow ) ||
+	 for_each_as_any_of< BoxConstraint , LB0Constraint , UB0Constraint ,
+			     LBConstraint , UBConstraint , NNConstraint ,
+			     NPConstraint , ZOConstraint >( group , onevar ) );
+ }
 
- return( false );
+/*--------------------------------------------------------------------------*/
+/// as for_each_RowConstraint(), with the name of each element beside it
+/** Calls frow( name , element ) or onevar( name , element ), the name being
+ * the one the group gives the element [see inspection::name_of()]. */
+
+template< class FR , class FO >
+bool for_each_named_RowConstraint( const BaseGroup & group , FR frow ,
+				   FO onevar )
+{
+ return( inspection::for_each_named_as< FRowConstraint >( group , frow ) ||
+	 inspection::for_each_named_as_any_of<
+	  FO , BoxConstraint , LB0Constraint , UB0Constraint , LBConstraint ,
+	  UBConstraint , NNConstraint , NPConstraint ,
+	  ZOConstraint >( group , onevar ) );
  }
 
 }  // end( unnamed namespace )
@@ -101,17 +115,16 @@ AbstractBlock::~AbstractBlock()
 {
  // first, clear() all Constraint: each group says what it holds, hence no
  // type has to be enumerated here
- auto & sc = get_static_constraints();
- for( auto & group : make_constraint_groups( this , sc , {} , false ) )
-  if( group && ( ! group->is_indirect() ) &&
-      ( group->get_index() >= get_first_static_Constraint() ) )
-   group->for_each( []( Constraint & cnst ) { cnst.clear(); } );
+ auto clear_them = [ this ]( const Vec_Group & groups , Index first ) {
+  for( auto & group : groups )
+   if( group && ( ! group->is_indirect() ) &&
+       ( group->get_index() >= first ) )
+    group->for_each( []( Constraint & cnst ) { cnst.clear(); } );
+  };
 
- auto & dc = get_dynamic_constraints();
- for( auto & group : make_constraint_groups( this , dc , {} , true ) )
-  if( group && ( ! group->is_indirect() ) &&
-      ( group->get_index() >= get_first_dynamic_Constraint() ) )
-   group->for_each( []( Constraint & cnst ) { cnst.clear(); } );
+ clear_them( get_static_constraint_groups() , get_first_static_Constraint() );
+ clear_them( get_dynamic_constraint_groups() ,
+	     get_first_dynamic_Constraint() );
 
  // then clear the Objective
  if( ( ! is_Objective_reserved() ) && get_objective() )
@@ -123,44 +136,23 @@ AbstractBlock::~AbstractBlock()
 
  v_Block.clear();
 
- // now delete the storage of all the Constraint: the container of a group
- // is of a type that only the group knows, and it is the group that disposes
- // of it. An irregular static group, i.e. one whose cells are vectors of
- // different lengths, and a group of pointers are left alone: nothing ever
- // deleted those containers here, and an AbstractBlock given one is not the
- // owner of it
- auto disposable = []( const std::unique_ptr< BaseGroup > & group ) {
-  return( group && ( ! group->is_indirect() ) &&
-	  ( group->is_dynamic() || ( ! group->cells_are_collections() ) ) );
+ // now delete the containers this Block owns: each of them was registered
+ // here, and its group was told then how to dispose of it, so nothing has to
+ // be said here about their types. A container somebody else owns has no
+ // deleter and is left alone
+ auto dispose_of = []( const Vec_Group & groups , Index first ) {
+  for( auto & group : groups )
+   if( group && ( group->get_index() >= first ) )
+    group->delete_storage();
   };
- for( auto & group : make_constraint_groups( this , sc , {} , false ) )
-  if( disposable( group ) &&
-      ( group->get_index() >= get_first_static_Constraint() ) )
-   group->delete_storage();
 
- for( auto & group : make_constraint_groups( this , dc , {} , true ) )
-  if( disposable( group ) &&
-      ( group->get_index() >= get_first_dynamic_Constraint() ) )
-   group->delete_storage();
+ dispose_of( get_static_constraint_groups() , get_first_static_Constraint() );
+ dispose_of( get_dynamic_constraint_groups() ,
+	     get_first_dynamic_Constraint() );
+ dispose_of( get_static_variable_groups() , get_first_static_Variable() );
+ dispose_of( get_dynamic_variable_groups() , get_first_dynamic_Variable() );
 
- // now delete the storage of all the Variable
- auto & sv = get_static_variables();
- for( auto & group : make_variable_groups( this , sv , {} , false ) )
-  if( disposable( group ) &&
-      ( group->get_index() >= get_first_static_Variable() ) )
-   group->delete_storage();
-
- auto & dv = get_dynamic_variables();
- for( auto & group : make_variable_groups( this , dv , {} , true ) )
-  if( disposable( group ) &&
-      ( group->get_index() >= get_first_dynamic_Variable() ) )
-   group->delete_storage();
-
- // now delete the Objective
- if( ( ! is_Objective_reserved() ) && get_objective() )
-  delete get_objective();
-
- }  // end( ~AbstractBlock )
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -312,8 +304,6 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
  //       fractionally more efficient but it would require every derived
  //       class to implement is_feasible(); so far we prefer the general
  //       even if possibly slower solution
- // auto & sc = get_static_constraints();
- //!! for( Index i = get_first_static_Constraint() ; i < sc.size() ; ++i ) {
  for( const auto & group : get_static_constraint_groups() ) {
   if( ! group )
    continue;
@@ -325,8 +315,6 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
   }
 
  // the static Variables of the Block - - - - - - - - - - - - - - - - - - - -
- // auto & sv = get_static_variables();
- //!! for( Index i = get_first_static_Variable() ; i < sv.size() ; ++i ) {
  // see above for comments
  auto check_variable = [ & feas , eps ]( ColVariable & var ) {
   feas = feas && var.is_feasible( eps ); };
@@ -341,8 +329,6 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
   }
 
  // the dynamic Constraints of the Block-  - - - - - - - - - - - - - - - - - -
- // auto & dc = get_dynamic_constraints();
- //!! for( Index i = get_first_dynamic_Constraint() ; i < dc.size() ; ++i ) {
  // see above for comments
  for( const auto & group : get_dynamic_constraint_groups() ) {
   if( ! group )
@@ -355,8 +341,6 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
   }
 
  // the dynamic Variables of the Block- - - - - - - - - - - - - - - - - - - -
- // auto & dv = get_dynamic_variables();
- //!! for( Index i = get_first_dynamic_Variable() ; i < dv.size() ; ++i ) {
  // see above for comments
  for( const auto & group : get_dynamic_variable_groups() ) {
   if( ! group )
@@ -435,24 +419,21 @@ void AbstractBlock::is_correct( void )
  auto check_cnst = [ this ]( auto & cnst ) { check_Constraint( & cnst ); };
 
  // the Variables of the Block- - - - - - - - - - - - - - - - - - - - - - - -
- for( auto groups : { & get_static_variable_groups() ,
-		      & get_dynamic_variable_groups() } )
-  for( const auto & group : *groups )
-   if( group && ( ! group->for_each_as< ColVariable >( check_var ) ) )
+ for_each_variable_group( [ & check_var ]( const BaseGroup & group ) {
+   if( ! group.for_each_as< ColVariable >( check_var ) )
     throw( std::logic_error( std::string( "some " ) +
-			     ( group->is_dynamic() ? "dynamic" : "static" ) +
+			     ( group.is_dynamic() ? "dynamic" : "static" ) +
 			     " Variable not ColVariable" ) );
+   } );
 
  // the Constraints of the Block- - - - - - - - - - - - - - - - - - - - - - -
- for( auto groups : { & get_static_constraint_groups() ,
-		      & get_dynamic_constraint_groups() } )
-  for( const auto & group : *groups )
-   if( group && ( ! for_each_RowConstraint( *group , check_cnst ,
-					    check_cnst ) ) )
+ for_each_constraint_group( [ & check_cnst ]( const BaseGroup & group ) {
+   if( ! for_each_RowConstraint( group , check_cnst , check_cnst ) )
     throw( std::logic_error( std::string( "some " ) +
-			     ( group->is_dynamic() ? "dynamic" : "static" ) +
+			     ( group.is_dynamic() ? "dynamic" : "static" ) +
 			     " Constraint not FRowConstraint or"
 			     " :OneVarConstraint" ) );
+   } );
 
  // the Objective of the Block- - - - - - - - - - - - - - - - - - - - - - - -
  if( auto obj = get_objective() )
@@ -502,24 +483,627 @@ Solution * AbstractBlock::get_Solution( Configuration * csolc, bool emptys )
 
 /*--------------------------------------------------------------------------*/
 
+/* Writes v with the fewest digits that read back as v: a model file is read
+ * by somebody else, so a number in it has to be the number that was written
+ * and not the six digits the default precision of a stream gives. */
+
+static void put_double( std::ostream & output , double v )
+{
+ std::ostringstream s;
+ for( int p = 15 ; p <= 17 ; ++p ) {
+  s.str( std::string() );
+  s.clear();
+  s << std::setprecision( p ) << v;
+  if( std::stod( s.str() ) == v )
+   break;
+  }
+ output << s.str();
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void AbstractBlock::file_model( std::vector< f_column > & columns ,
+				std::vector< f_row > & rows ) const
+{
+ /* A model file has no notion of groups: every column and every row is one
+  * of a list, and what says which is which is its name. The names are those
+  * the groups give [see inspection::name_of()], with the indices joined by
+  * underscores, since neither format takes brackets or spaces inside a name.
+  * The order is the order the elements are stored in, so that writing the
+  * same Block twice gives the same file and reading one back gives the
+  * columns in the order they had. */
+
+ /* A group that has no name is named after its index, and a group of
+  * columns and one of rows can well have the same index: the marker of the
+  * two is therefore not the same, or a file would have a row and a column
+  * both called g0_1 and no reader could tell which of them a name means. */
+
+ const inspection::name_format cfmt = { "_" , "" , "v" , "" };
+ const inspection::name_format rfmt = { "_" , "" , "c" , "" };
+
+ auto do_columns = [ & columns , & cfmt ]( const Vec_Group & groups ) {
+  for( const auto & group : groups ) {
+   if( ! group )
+    continue;
+   inspection::for_each_named_as< ColVariable >( *group ,
+    [ & columns ]( const std::string & n , ColVariable & v ) {
+     columns.emplace_back( & v , n ); } , cfmt );
+   }
+  };
+
+ do_columns( get_static_variable_groups() );
+ do_columns( get_dynamic_variable_groups() );
+
+ auto do_rows = [ & rows , & rfmt ]( const Vec_Group & groups ) {
+  for( const auto & group : groups ) {
+   if( ! group )
+    continue;
+   inspection::for_each_named_as< FRowConstraint >( *group ,
+    [ & rows ]( const std::string & n , FRowConstraint & c ) {
+     rows.emplace_back( & c , n ); } , rfmt );
+   }
+  };
+
+ do_rows( get_static_constraint_groups() );
+ do_rows( get_dynamic_constraint_groups() );
+
+ }  // end( AbstractBlock::file_model )
+
+/*--------------------------------------------------------------------------*/
+
+void AbstractBlock::file_bounds( const std::vector< f_column > & columns ,
+				 std::vector< f_bound > & bounds ) const
+{
+ /* What a column has of its own, tightened by the :OneVarConstraint that are
+  * written on it: both formats say the bounds of a column in one place of
+  * their own, and not as a row. */
+
+ std::map< const ColVariable * , Index > where;
+ bounds.resize( columns.size() );
+
+ for( Index i = 0 ; i < columns.size() ; ++i ) {
+  where[ columns[ i ].first ] = i;
+  bounds[ i ] = { columns[ i ].first->get_lb() ,
+		  columns[ i ].first->get_ub() };
+  }
+
+ auto tighten = [ & where , & bounds ]( const Vec_Group & groups ) {
+  for( const auto & group : groups ) {
+   if( ! group )
+    continue;
+   for_each_as_any_of< BoxConstraint , LB0Constraint , UB0Constraint ,
+		       LBConstraint , UBConstraint , NNConstraint ,
+		       NPConstraint , ZOConstraint >( *group ,
+    [ & where , & bounds ]( OneVarConstraint & c ) {
+     auto it = where.find( static_cast< const ColVariable * >(
+					       c.get_active_var( 0 ) ) );
+     if( it == where.end() )
+      return;
+     auto & b = bounds[ it->second ];
+     b.first = std::max( b.first , double( c.get_lhs() ) );
+     b.second = std::min( b.second , double( c.get_rhs() ) );
+     } );
+   }
+  };
+
+ tighten( get_static_constraint_groups() );
+ tighten( get_dynamic_constraint_groups() );
+
+ }  // end( AbstractBlock::file_bounds )
+
+/*--------------------------------------------------------------------------*/
+
+/* The LinearFunction a row or the Objective is written on, refusing anything
+ * else: what the two formats can say is a linear expression, so a Function
+ * that is not one has to be reported rather than silently written wrong. */
+
+static const LinearFunction * linear_of( const Function * f ,
+					 const std::string & what )
+{
+ auto lf = dynamic_cast< const LinearFunction * >( f );
+ if( ! lf )
+  throw( std::invalid_argument( "AbstractBlock::write: " + what +
+				" is not written on a LinearFunction" ) );
+ return( lf );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void AbstractBlock::write_lp( std::ostream & output ) const
+{
+ std::vector< f_column > columns;
+ std::vector< f_row > rows;
+ file_model( columns , rows );
+
+ std::map< const ColVariable * , const std::string * > name;
+ for( const auto & [ var , n ] : columns )
+  name[ var ] = & n;
+
+ auto write_linear = [ & output , & name ]( const LinearFunction * lf ) {
+  bool first = true;
+  for( const auto & [ var , coeff ] : lf->get_v_var() ) {
+   if( coeff == 0 )
+    continue;
+   const auto it = name.find( var );
+   if( it == name.end() )
+    throw( std::logic_error( "AbstractBlock::write_lp: a Variable of the "
+			     "model is not in any group of this Block" ) );
+   if( first ) {
+    output << ( coeff < 0 ? "- " : "" );
+    first = false;
+    }
+   else
+    output << ( coeff < 0 ? " - " : " + " );
+   const auto a = std::abs( coeff );
+   if( a != 1 ) {
+    put_double( output , a );
+    output << " ";
+    }
+   output << *( it->second );
+   }
+  if( first )       // every coefficient is zero: the expression is empty,
+   output << "0";   // and the format wants something there
+  };
+
+ // the Objective - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ output << "\\ written by AbstractBlock::write_lp()" << std::endl;
+
+ auto obj = dynamic_cast< const FRealObjective * >( get_objective() );
+ output << ( ( obj && ( obj->get_sense() == Objective::eMax ) )
+	     ? "Maximize" : "Minimize" ) << std::endl << " obj: ";
+ if( obj )
+  write_linear( linear_of( obj->get_function() , "the Objective" ) );
+ else
+  output << "0";
+ output << std::endl;
+
+ // the rows - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // a row with both sides finite and different is written twice, since the
+ // format has no two-sided row; one with both sides equal is an equality
+
+ output << "Subject To" << std::endl;
+
+ for( const auto & [ row , n ] : rows ) {
+  auto lf = linear_of( row->get_function() , "the row " + n );
+  const auto lhs = row->get_lhs();
+  const auto rhs = row->get_rhs();
+  if( lhs == rhs ) {
+   output << " " << n << ": ";
+   write_linear( lf );
+   output << " = ";
+   put_double( output , rhs );
+   output << std::endl;
+   continue;
+   }
+  if( rhs < RowConstraint::RHSINF ) {
+   output << " " << n << "_up: ";
+   write_linear( lf );
+   output << " <= ";
+   put_double( output , rhs );
+   output << std::endl;
+   }
+  if( lhs > - RowConstraint::RHSINF ) {
+   output << " " << n << "_lo: ";
+   write_linear( lf );
+   output << " >= ";
+   put_double( output , lhs );
+   output << std::endl;
+   }
+  }
+
+ // the bounds - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ std::vector< f_bound > bnd;
+ file_bounds( columns , bnd );
+
+ output << "Bounds" << std::endl;
+ for( Index i = 0 ; i < columns.size() ; ++i ) {
+  const auto [ lb , ub ] = bnd[ i ];
+  const auto & n = columns[ i ].second;
+  if( ( lb <= - Inf< double >() ) && ( ub >= Inf< double >() ) ) {
+   output << " " << n << " free" << std::endl;
+   continue;
+   }
+  output << " ";
+  if( lb > - Inf< double >() ) {
+   put_double( output , lb );
+   output << " <= ";
+   }
+  output << n;
+  if( ub < Inf< double >() ) {
+   output << " <= ";
+   put_double( output , ub );
+   }
+  output << std::endl;
+  }
+
+ // the integer columns- - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ bool any_integer = false;
+ for( const auto & [ var , n ] : columns )
+  if( var->is_integer() ) {
+   if( ! any_integer ) {
+    output << "Generals" << std::endl;
+    any_integer = true;
+    }
+   output << " " << n << std::endl;
+   }
+
+ output << "End" << std::endl;
+
+ }  // end( AbstractBlock::write_lp )
+
+/*--------------------------------------------------------------------------*/
+
+void AbstractBlock::write_mps( std::ostream & output ) const
+{
+ std::vector< f_column > columns;
+ std::vector< f_row > rows;
+ file_model( columns , rows );
+
+ std::vector< f_bound > bnd;
+ file_bounds( columns , bnd );
+
+ /* The MPS file is written by column, which is the opposite of how a Block
+  * holds the model: a row knows the columns it is written on, a column knows
+  * nothing. So the rows are walked once and what each column appears in is
+  * collected, the entries of a column staying together as the format wants.
+  * The name of a row is its position here, the objective being -1. */
+
+ std::map< const ColVariable * , std::vector< std::pair< int , double > > >
+  entries;
+ for( const auto & [ var , n ] : columns )
+  entries[ var ];   // a column with no entry at all is still a column
+
+ auto collect = [ & entries ]( const LinearFunction * lf , int r ,
+			       const std::string & what ) {
+  for( const auto & [ var , coeff ] : lf->get_v_var() ) {
+   if( coeff == 0 )
+    continue;
+   auto it = entries.find( var );
+   if( it == entries.end() )
+    throw( std::logic_error( "AbstractBlock::write_mps: a Variable of " +
+			     what + " is not in any group of this Block" ) );
+   it->second.emplace_back( r , coeff );
+   }
+  };
+
+ auto obj = dynamic_cast< const FRealObjective * >( get_objective() );
+ if( obj )
+  collect( linear_of( obj->get_function() , "the Objective" ) , -1 ,
+	   "the Objective" );
+
+ /* A row whose two sides are both infinite constrains nothing, and the
+  * format has no way of saying it other than a second objective row, so it
+  * is left out: what goes is the row, not anything the model says. */
+
+ std::vector< Index > kept;
+ for( Index r = 0 ; r < rows.size() ; ++r ) {
+  const auto lhs = rows[ r ].first->get_lhs();
+  const auto rhs = rows[ r ].first->get_rhs();
+  if( ( lhs <= - RowConstraint::RHSINF ) && ( rhs >= RowConstraint::RHSINF ) )
+   continue;
+  collect( linear_of( rows[ r ].first->get_function() ,
+		      "the row " + rows[ r ].second ) , int( kept.size() ) ,
+	   "the row " + rows[ r ].second );
+  kept.push_back( r );
+  }
+
+ auto row_name = [ & rows , & kept ]( int r ) -> const std::string & {
+  static const std::string objective = "obj";
+  return( r < 0 ? objective : rows[ kept[ r ] ].second );
+  };
+
+ // the header and the rows- - - - - - - - - - - - - - - - - - - - - - - - -
+ // G means rhs <= f(), L means f() <= rhs, E means both, and the second side
+ // of a two-sided row travels in RANGES
+
+ output << "NAME" << std::endl;
+ output << "OBJSENSE" << std::endl << "    "
+	<< ( ( obj && ( obj->get_sense() == Objective::eMax ) )
+	     ? "MAX" : "MIN" ) << std::endl;
+
+ output << "ROWS" << std::endl;
+ output << " N  obj" << std::endl;
+
+ auto sense_of = []( const FRowConstraint * row ) {
+  const auto lhs = row->get_lhs();
+  const auto rhs = row->get_rhs();
+  if( lhs == rhs )
+   return( 'E' );
+  return( rhs < RowConstraint::RHSINF ? 'L' : 'G' );
+  };
+
+ for( auto r : kept )
+  output << " " << sense_of( rows[ r ].first ) << "  " << rows[ r ].second
+	 << std::endl;
+
+ // the columns- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // the integer ones are the ones between an INTORG marker and an INTEND one,
+ // and a column that is in no row at all is given a zero cost so that it is
+ // in the file, the format having no place where a column is just named
+
+ output << "COLUMNS" << std::endl;
+
+ bool integer = false;
+ int marker = 0;
+ for( const auto & [ var , n ] : columns ) {
+  if( var->is_integer() != integer ) {
+   integer = ! integer;
+   output << "    M" << marker++ << "  'MARKER'  '"
+	  << ( integer ? "INTORG" : "INTEND" ) << "'" << std::endl;
+   }
+
+  auto & mine = entries[ var ];
+  if( mine.empty() )
+   mine.emplace_back( -1 , 0.0 );
+
+  for( Index k = 0 ; k < mine.size() ; k += 2 ) {
+   output << "    " << n;
+   output << "  " << row_name( mine[ k ].first ) << "  ";
+   put_double( output , mine[ k ].second );
+   if( k + 1 < mine.size() ) {
+    output << "  " << row_name( mine[ k + 1 ].first ) << "  ";
+    put_double( output , mine[ k + 1 ].second );
+    }
+   output << std::endl;
+   }
+  }
+
+ if( integer )
+  output << "    M" << marker << "  'MARKER'  'INTEND'" << std::endl;
+
+ // the right-hand sides and the ranges- - - - - - - - - - - - - - - - - - -
+
+ output << "RHS" << std::endl;
+ for( Index r = 0 ; r < kept.size() ; ++r ) {
+  const auto * row = rows[ kept[ r ] ].first;
+  const double value = ( sense_of( row ) == 'G' ) ? double( row->get_lhs() )
+						  : double( row->get_rhs() );
+  output << "    RHS  " << rows[ kept[ r ] ].second << "  ";
+  put_double( output , value );
+  output << std::endl;
+  }
+
+ bool any_range = false;
+ for( Index r = 0 ; r < kept.size() ; ++r ) {
+  const auto * row = rows[ kept[ r ] ].first;
+  const auto lhs = row->get_lhs();
+  const auto rhs = row->get_rhs();
+  if( ( lhs == rhs ) || ( lhs <= - RowConstraint::RHSINF ) ||
+      ( rhs >= RowConstraint::RHSINF ) )
+   continue;
+  if( ! any_range ) {
+   output << "RANGES" << std::endl;
+   any_range = true;
+   }
+  output << "    RNG  " << rows[ kept[ r ] ].second << "  ";
+  put_double( output , double( rhs ) - double( lhs ) );
+  output << std::endl;
+  }
+
+ // the bounds - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // the default of the format is 0 <= x < +infinity, so only what differs is
+ // written; MI is not used, as what it means has changed over time, and a
+ // column with no lower bound is freed and then given its upper one
+
+ bool any_bound = false;
+ auto bound_line = [ & output , & any_bound ]( const char * type ,
+					       const std::string & n ) {
+  if( ! any_bound ) {
+   output << "BOUNDS" << std::endl;
+   any_bound = true;
+   }
+  output << " " << type << " BND  " << n;
+  };
+
+ for( Index i = 0 ; i < columns.size() ; ++i ) {
+  const auto [ lb , ub ] = bnd[ i ];
+  const auto & n = columns[ i ].second;
+  const auto * var = columns[ i ].first;
+
+  if( var->is_fixed() ) {
+   bound_line( "FX" , n );
+   output << "  ";
+   put_double( output , var->get_value() );
+   output << std::endl;
+   continue;
+   }
+
+  if( ( lb == 0 ) && ( ub >= Inf< double >() ) )
+   continue;
+
+  if( lb == ub ) {
+   bound_line( "FX" , n );
+   output << "  ";
+   put_double( output , lb );
+   output << std::endl;
+   continue;
+   }
+
+  if( lb <= - Inf< double >() ) {
+   bound_line( "FR" , n );
+   output << std::endl;
+   }
+  else
+   if( lb != 0 ) {
+    bound_line( "LO" , n );
+    output << "  ";
+    put_double( output , lb );
+    output << std::endl;
+    }
+
+  if( ub < Inf< double >() ) {
+   bound_line( "UP" , n );
+   output << "  ";
+   put_double( output , ub );
+   output << std::endl;
+   }
+  }
+
+ output << "ENDATA" << std::endl;
+
+ }  // end( AbstractBlock::write_mps )
+
+/*--------------------------------------------------------------------------*/
+
+void AbstractBlock::write_is( std::ostream & output , double eps ) const
+{
+ /* What is written here is the certificate the Solver has left in the Block,
+  * not a search for the smallest set of rows that cannot hold together: the
+  * rows with a non-zero multiplier are the ones the certificate names, and
+  * they are a set that is unfeasible, though not necessarily a minimal one.
+  * That is the thing one wants in front of them when a model comes back
+  * unfeasible and the question is which rows are fighting each other. */
+
+ std::vector< f_column > columns;
+ std::vector< f_row > rows;
+ file_model( columns , rows );
+
+ std::map< const ColVariable * , const std::string * > name;
+ for( const auto & [ var , n ] : columns )
+  name[ var ] = & n;
+
+ auto write_linear = [ & output , & name ]( const LinearFunction * lf ) {
+  bool first = true;
+  for( const auto & [ var , coeff ] : lf->get_v_var() ) {
+   if( coeff == 0 )
+    continue;
+   const auto it = name.find( var );
+   if( it == name.end() )
+    continue;
+   if( first ) {
+    output << ( coeff < 0 ? "- " : "" );
+    first = false;
+    }
+   else
+    output << ( coeff < 0 ? " - " : " + " );
+   const auto a = std::abs( coeff );
+   if( a != 1 ) {
+    put_double( output , a );
+    output << " ";
+    }
+   output << *( it->second );
+   }
+  if( first )
+   output << "0";
+  };
+
+ output << "\\ the rows a dual ray of this Block says cannot hold together"
+	<< std::endl;
+
+ Index said = 0;
+
+ for( const auto & [ row , n ] : rows ) {
+  const double mult = row->get_dual();
+  if( std::abs( mult ) <= eps )
+   continue;
+  auto lf = dynamic_cast< const LinearFunction * >( row->get_function() );
+  if( ! lf )               // a row that is not linear has no place in a
+   continue;               // certificate written this way
+
+  ++said;
+  const auto lhs = row->get_lhs();
+  const auto rhs = row->get_rhs();
+
+  output << " ";
+  put_double( output , mult );
+  output << " * ( " << n << ": ";
+
+  if( lhs == rhs ) {
+   write_linear( lf );
+   output << " = ";
+   put_double( output , rhs );
+   }
+  else {
+   if( lhs > - RowConstraint::RHSINF ) {
+    put_double( output , lhs );
+    output << " <= ";
+    }
+   write_linear( lf );
+   if( rhs < RowConstraint::RHSINF ) {
+    output << " <= ";
+    put_double( output , rhs );
+    }
+   }
+  output << " )" << std::endl;
+  }
+
+ /* A bound is a row of the certificate like any other: a model can be
+  * unfeasible because of what a column is allowed to be, with no row of the
+  * model saying anything about it. */
+
+ auto bounds_of = [ & output , & name , & said , eps ]
+                  ( const Vec_Group & groups ) {
+  for( const auto & group : groups ) {
+   if( ! group )
+    continue;
+   for_each_as_any_of< BoxConstraint , LB0Constraint , UB0Constraint ,
+		       LBConstraint , UBConstraint , NNConstraint ,
+		       NPConstraint , ZOConstraint >( *group ,
+    [ & output , & name , & said , eps ]( OneVarConstraint & c ) {
+     const double mult = c.get_dual();
+     if( std::abs( mult ) <= eps )
+      return;
+     const auto it = name.find( static_cast< const ColVariable * >(
+					       c.get_active_var( 0 ) ) );
+     if( it == name.end() )
+      return;
+     ++said;
+     output << " ";
+     put_double( output , mult );
+     output << " * ( ";
+     if( c.get_lhs() > - RowConstraint::RHSINF ) {
+      put_double( output , double( c.get_lhs() ) );
+      output << " <= ";
+      }
+     output << *( it->second );
+     if( c.get_rhs() < RowConstraint::RHSINF ) {
+      output << " <= ";
+      put_double( output , double( c.get_rhs() ) );
+      }
+     output << " )" << std::endl;
+     } );
+   }
+  };
+
+ bounds_of( get_static_constraint_groups() );
+ bounds_of( get_dynamic_constraint_groups() );
+
+ if( ! said )
+  output << "\\ no multiplier of the ray is larger than eps: either no ray "
+	 << "was written in this Block, or it is zero" << std::endl;
+
+ }  // end( AbstractBlock::write_is )
+
+/*--------------------------------------------------------------------------*/
+
 void AbstractBlock::print( std::ostream & output , char vlvl ) const
 {
- if( vlvl == 'M' )
-  throw( std::invalid_argument(
-        "AbstractBlock::print: output in MPS format not implemented yet" ) );
+ if( vlvl == 'M' ) {
+  write_mps( output );
+  return;
+  }
 
- if( vlvl == 'L' )
-  throw( std::invalid_argument(
-         "AbstractBlock::print: output in LP format not implemented yet" ) );
+ if( vlvl == 'I' ) {
+  write_is( output );
+  return;
+  }
+
+ if( vlvl == 'L' ) {
+  write_lp( output );
+  return;
+  }
  
  output << std::endl << "AbstractBlock with: ";
- output << std::endl << get_static_variables().size()
+ output << std::endl << get_static_variable_groups().size()
         << " types of static Variables, "
-        << get_dynamic_variables().size()
+        << get_dynamic_variable_groups().size()
         << " types of dynamic Variables, "
-        << std::endl << get_static_constraints().size()
+        << std::endl << get_static_constraint_groups().size()
         << " types of static Constraints, "
-        << get_dynamic_constraints().size()
+        << get_dynamic_constraint_groups().size()
         << " types of dynamic Constraints, "
         << std::endl << v_Block.size() << " inner Blocks" << std::endl;
 
@@ -532,8 +1116,8 @@ void AbstractBlock::print( std::ostream & output , char vlvl ) const
     output << " (" << group.get_name() << "): ";
    };
 
-  auto print_it = [ & output ]( auto & element ) {
-   output << element << std::endl; };
+  auto print_it = [ & output ]( const std::string & name , auto & element ) {
+   output << name << ": " << element << std::endl; };
 
   auto print_constraints = [ & output , & header , & print_it ]
 			   ( const Vec_Group & groups , Index first ) {
@@ -541,7 +1125,8 @@ void AbstractBlock::print( std::ostream & output , char vlvl ) const
     if( ( ! group ) || ( group->get_index() < first ) )
      continue;
     header( *group );
-    if( ! for_each_RowConstraint( *group , print_it , print_it ) )
+    output << std::endl;
+    if( ! for_each_named_RowConstraint( *group , print_it , print_it ) )
      throw( std::logic_error( std::string( "some " ) +
 			      ( group->is_dynamic() ? "dynamic" : "static" ) +
 			      " Constraint not FRowConstraint or"
@@ -549,13 +1134,21 @@ void AbstractBlock::print( std::ostream & output , char vlvl ) const
     }
    };
 
-  auto print_variables = [ & output , & header , & print_it ]
+  // each Variable is printed with the name its group gives it, which is
+  // what tells which one of them a row of the model is written on
+  auto print_named = [ & output ]( const std::string & name ,
+				   ColVariable & variable ) {
+   output << name << ": " << variable << std::endl; };
+
+  auto print_variables = [ & output , & header , & print_named ]
 			 ( const Vec_Group & groups , Index first ) {
    for( const auto & group : groups ) {
     if( ( ! group ) || ( group->get_index() < first ) )
      continue;
     header( *group );
-    if( ! group->for_each_as< ColVariable >( print_it ) )
+    output << std::endl;
+    if( ! inspection::for_each_named_as< ColVariable >( *group ,
+						       print_named ) )
      throw( std::logic_error( std::string( "some " ) +
 			      ( group->is_dynamic() ? "dynamic" : "static" ) +
 			      " Variable not ColVariable" ) );
@@ -603,18 +1196,32 @@ void AbstractBlock::serialize( netCDF::NcGroup & group ) const
 
  // now the AbstractBlock data- - - - - - - - - - - - - - - - - - - - - - - -
 
- auto & sc = get_static_constraints();
- auto & sv = get_static_variables();
- auto & dc = get_dynamic_constraints();
- auto & dv = get_dynamic_variables();
+ auto & sc = get_static_constraint_groups();
+ auto & sv = get_static_variable_groups();
+ auto & dc = get_dynamic_constraint_groups();
+ auto & dv = get_dynamic_variable_groups();
+
+ /* What is not reserved to a derived class is written as the LP file
+  * deserialize() reads back out of Model, with ModelType saying which of the
+  * two formats it is [see guts_of_deserialize()]. An LP file has no notion
+  * of groups, so what travels is the model and not the way it is grouped:
+  * reading it back gives one group of columns and one of rows, as read_lp()
+  * builds them. */
 
  if( ( sc.size() > get_first_static_Constraint() ) ||
      ( dc.size() > get_first_dynamic_Constraint() ) ||
      ( sv.size() > get_first_static_Variable() ) ||
      ( dv.size() > get_first_dynamic_Variable() ) ||
-     ( get_objective() && ( ! is_Objective_reserved() ) ) )
-  throw( std::logic_error(
-                    "AbstractBlock::serialize not fully implemented yet" ) );
+     ( get_objective() && ( ! is_Objective_reserved() ) ) ) {
+  std::ostringstream model;
+  write_lp( model );
+  const auto str = model.str();
+  const char * c_str = str.c_str();
+
+  auto ncVar = group.addVar( "Model" , netCDF::NcString() );
+  ncVar.putVar( & c_str );
+  ncVar.putAtt( "ModelType" , netCDF::NcChar() , 1 , "L" );
+  }
 
  if( v_Block.size() > get_first_inner_Block() ) {
   group.addDim( "NumberInnerBlock", v_Block.size() );
@@ -1101,6 +1708,13 @@ void AbstractBlock::read_mps( std::istream & file )
  add_static_variable( *cols );
  add_static_constraint( *rows );
  add_static_constraint( *bounds );
+
+ // these three containers are ours, and the groups are told how to dispose
+ // of them, so that the destructor does not have to know their type
+ own_storage( get_static_variable_groups().back() , cols );
+ own_storage( get_static_constraint_groups()[
+			  get_static_constraint_groups().size() - 2 ] , rows );
+ own_storage( get_static_constraint_groups().back() , bounds );
 
  // Issue the NBModification
  if( anyone_there() )
@@ -2044,6 +2658,13 @@ void AbstractBlock::read_lp( std::istream & file )
  add_static_constraint( *rows );
  add_static_constraint( *bounds );
 
+ // these three containers are ours, and the groups are told how to dispose
+ // of them, so that the destructor does not have to know their type
+ own_storage( get_static_variable_groups().back() , cols );
+ own_storage( get_static_constraint_groups()[
+			  get_static_constraint_groups().size() - 2 ] , rows );
+ own_storage( get_static_constraint_groups().back() , bounds );
+
  // Issue the NBModification
  if( anyone_there() )
    add_Modification( std::make_shared< NBModification >( this ) );
@@ -2240,121 +2861,34 @@ std::vector< std::string > AbstractBlock::expected_vars( void ) const {
 /*--------------------- MIRRORING ANOTHER Block ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
-/* A group of the copy is created with the shape of the group it copies, and
- * f is applied to each pair of corresponding objects; a dynamic group is a
- * list, whose copy is grown one element at a time since the objects are not
- * copyable. Returns false if the group is not made of C, which is how the
- * caller finds out which concrete type it is looking at. */
+/* The copy of a group is made by the group itself, which knows the type of
+ * the container it views and can therefore say how to build another one of
+ * the same shape in the copy; what is left to do here is to pair the objects
+ * of the two, which come in the same order, the storage order being what a
+ * group promises [see BaseGroup]. */
 
-/* A static group whose cells are *vectors* of objects, which is the shape a
- * Block gives a family with one entry per cell and a different number of
- * them in each: the creation above would give the copy one object per cell
- * and lose the others, hence it is done here. A dynamic group needs none of
- * this, its cells being lists and the list the very type that is created. */
-
-template< class C , std::size_t K , class F >
-static bool mirror_irregular_array( const boost::any & src , boost::any & dst ,
-                                    F f )
+template< class C , class F >
+static bool mirror_elements( const BaseGroup & src , const BaseGroup & dst ,
+                             F f )
 {
- using MA = boost::multi_array< std::vector< C > , K >;
+ if( ! src.elements_are< C >() )
+  return( false );  // the group is of another type, the caller tries on
 
- if( src.type() != typeid( MA * ) )
-  return( false );
+ std::vector< C * > copy;
+ copy.reserve( dst.get_num_elements() );
+ dst.for_each_as< C >( [ & copy ]( C & d ) { copy.push_back( & d ); } );
 
- auto & s = * boost::any_cast< MA * >( src );
- std::vector< std::size_t > shape( s.shape() ,
-                                   s.shape() + s.num_dimensions() );
- auto d = new MA( shape );
+ Block::Index i = 0;
+ src.for_each_as< C >( [ & f , & copy , & i ]( C & o ) {
+   if( i < copy.size() )
+    f( o , * copy[ i ] );
+   ++i;
+   } );
 
- auto p1 = s.data();
- auto p2 = d->data();
- for( std::size_t i = s.num_elements() ; i-- ; ++p1 , ++p2 ) {
-  p2->resize( p1->size() );
-  for( std::size_t j = 0 ; j < p1->size() ; ++j )
-   f( (*p1)[ j ] , (*p2)[ j ] );
-  }
-
- dst = d;
  return( true );
  }
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
-template< class C , class F >
-static bool mirror_irregular( const boost::any & src , boost::any & dst , F f )
-{
- if( src.type() == typeid( std::vector< std::vector< C > > * ) ) {
-  auto & s = * boost::any_cast< std::vector< std::vector< C > > * >( src );
-  auto d = new std::vector< std::vector< C > >( s.size() );
-  for( std::size_t i = 0 ; i < s.size() ; ++i ) {
-   (*d)[ i ].resize( s[ i ].size() );
-   for( std::size_t j = 0 ; j < s[ i ].size() ; ++j )
-    f( s[ i ][ j ] , (*d)[ i ][ j ] );
-   }
-  dst = d;
-  return( true );
-  }
-
- return( mirror_irregular_array< C , 1 >( src , dst , f ) ||
-         mirror_irregular_array< C , 2 >( src , dst , f ) ||
-         mirror_irregular_array< C , 3 >( src , dst , f ) ||
-         mirror_irregular_array< C , 4 >( src , dst , f ) );
- }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
-template< class C , class F >
-static bool mirror_static_group( const boost::any & src , boost::any & dst ,
-                                 F f )
-{
- // the irregular shapes first, the creation below claiming them as well
- if( mirror_irregular< C >( src , dst , f ) )
-  return( true );
-
- return( un_any_static_2_create( src , dst , un_any_type< C >() ,
-                                 un_any_type< C >() , f ) );
- }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
-template< class C , class F >
-static bool mirror_dynamic_group( const boost::any & src , boost::any & dst ,
-                                  F f )
-{
- return( un_any_dynamic_2_create(
-          src , dst , un_any_type< C >() , un_any_type< std::list< C > >() ,
-          [ & f ]( std::list< C > & s , std::list< C > & d ) {
-           for( auto & el : s ) {
-            d.emplace_back();
-            f( el , d.back() );
-            }
-           } , true ) );
- }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
-/* How many objects of type C a group holds, which is what says whether the
- * copy of it holds as many: a group whose shape the creation above does not
- * reproduce would otherwise lose objects in silence, which is the one thing
- * a copy must not do. */
-
-template< class C >
-static std::size_t count_static( const boost::any & any )
-{
- std::size_t n = 0;
- un_any_const_static( any , [ & n ]( C & ) { ++n; } , un_any_type< C >() );
- return( n );
- }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
-template< class C >
-static std::size_t count_dynamic( const boost::any & any )
-{
- std::size_t n = 0;
- un_any_const_dynamic( any , [ & n ]( C & ) { ++n; } , un_any_type< C >() );
- return( n );
- }
+/*--------------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------------------*/
 
@@ -2420,41 +2954,41 @@ void AbstractBlock::mirror_variables( Block * src , AbstractBlock * dst )
   f_v_rmap[ & d ] = & s;
   };
 
- auto & sv = src->get_static_variables();
- for( Index i = 0 ; i < sv.size() ; ++i ) {
-  dst->add_static_variable( std::string( src->get_s_var_name( i ) ) );
-  const bool made = mirror_static_group< ColVariable >(
-                     sv[ i ] , dst->access_static_variable( i ) , take );
-  dst->refresh_static_variable_group( i );
-  if( ! made )
-   v_issues.push_back( "static Variable group " + std::to_string( i ) +
-                       " of " + src->name() +
-                       " is not made of ColVariable" );
-  else
-   check_count( count_static< ColVariable >( sv[ i ] ) ,
-                count_static< ColVariable >(
-                                     dst->access_static_variable( i ) ) ,
-                "static Variable group " + std::to_string( i ) + " of " +
-                src->name() );
-  }
+ // each group of the original makes a group of the copy, of the same type
+ // and shape, and the objects are paired in storage order
+ auto mirror_group = [ & ]( const BaseGroup & group , bool dynamic ) {
+  const std::string what = std::string( dynamic ? "dynamic" : "static" ) +
+                           " Variable group " +
+                           std::to_string( group.get_index() ) + " of " +
+                           src->name();
 
- auto & dv = src->get_dynamic_variables();
- for( Index i = 0 ; i < dv.size() ; ++i ) {
-  dst->add_dynamic_variable( std::string( src->get_d_var_name( i ) ) );
-  const bool made = mirror_dynamic_group< ColVariable >(
-                     dv[ i ] , dst->access_dynamic_variable( i ) , take );
-  dst->refresh_dynamic_variable_group( i );
-  if( ! made )
-   v_issues.push_back( "dynamic Variable group " + std::to_string( i ) +
-                       " of " + src->name() +
-                       " is not made of ColVariable" );
+  if( ! group.clone_into( dst , std::string( group.get_name() ) ) ) {
+   v_issues.push_back( what + " is one the copy cannot make, it is empty "
+                       "in the copy" );
+   dynamic ? dst->add_dynamic_variable() : dst->add_static_variable();
+   return;
+   }
+
+  const auto & copy = dynamic ? dst->get_dynamic_variable_groups().back()
+                              : dst->get_static_variable_groups().back();
+
+  if( ! mirror_elements< ColVariable >( group , *copy , take ) )
+   v_issues.push_back( what + " is not made of ColVariable" );
   else
-   check_count( count_dynamic< ColVariable >( dv[ i ] ) ,
-                count_dynamic< ColVariable >(
-                                     dst->access_dynamic_variable( i ) ) ,
-                "dynamic Variable group " + std::to_string( i ) + " of " +
-                src->name() );
-  }
+   check_count( group.get_num_elements() , copy->get_num_elements() , what );
+  };
+
+ for( const auto & group : src->get_static_variable_groups() )
+  if( group )
+   mirror_group( *group , false );
+  else
+   dst->add_static_variable();
+
+ for( const auto & group : src->get_dynamic_variable_groups() )
+  if( group )
+   mirror_group( *group , true );
+  else
+   dst->add_dynamic_variable();
 
  // the inner Block: a Constraint of any of them may use their Variable
  for( Index i = 0 ; i < src->get_number_nested_Blocks() ; ++i ) {
@@ -2525,95 +3059,54 @@ void AbstractBlock::mirror_constraints( Block * src , AbstractBlock * dst )
  auto npc = [ & ]( NPConstraint & s , NPConstraint & d ) { take_one( s , d ); };
  auto zoc = [ & ]( ZOConstraint & s , ZOConstraint & d ) { take_one( s , d ); };
 
- auto & sc = src->get_static_constraints();
- for( Index i = 0 ; i < sc.size() ; ++i ) {
-  dst->add_static_constraint( std::string( src->get_s_const_name( i ) ) );
-  auto & any = dst->access_static_constraint( i );
+ // the concrete type of a group says which of the lambdas above applies to
+ // it; the first that claims it is the one, as the group is homogeneous
+ auto copy_rows = [ & ]( const BaseGroup & s , const BaseGroup & d ) {
+  return( mirror_elements< FRowConstraint >( s , d , take_frow ) ||
+	  mirror_elements< BoxConstraint >( s , d , box ) ||
+	  mirror_elements< LB0Constraint >( s , d , lb0 ) ||
+	  mirror_elements< UB0Constraint >( s , d , ub0 ) ||
+	  mirror_elements< LBConstraint >( s , d , lbc ) ||
+	  mirror_elements< UBConstraint >( s , d , ubc ) ||
+	  mirror_elements< NNConstraint >( s , d , nnc ) ||
+	  mirror_elements< NPConstraint >( s , d , npc ) ||
+	  mirror_elements< ZOConstraint >( s , d , zoc ) );
+  };
 
-  const std::string what = "static Constraint group " +
-                           std::to_string( i ) + " of " + src->name();
+ auto mirror_group = [ & ]( const BaseGroup & group , bool dynamic ) {
+  const std::string what = std::string( dynamic ? "dynamic" : "static" ) +
+                           " Constraint group " +
+                           std::to_string( group.get_index() ) + " of " +
+                           src->name();
 
-  const bool done =
-   ( mirror_static_group< FRowConstraint >( sc[ i ] , any , take_frow ) &&
-     check_count( count_static< FRowConstraint >( sc[ i ] ) ,
-                  count_static< FRowConstraint >( any ) , what ) ) ||
-   ( mirror_static_group< BoxConstraint >( sc[ i ] , any , box ) &&
-     check_count( count_static< BoxConstraint >( sc[ i ] ) ,
-                  count_static< BoxConstraint >( any ) , what ) ) ||
-   ( mirror_static_group< LB0Constraint >( sc[ i ] , any , lb0 ) &&
-     check_count( count_static< LB0Constraint >( sc[ i ] ) ,
-                  count_static< LB0Constraint >( any ) , what ) ) ||
-   ( mirror_static_group< UB0Constraint >( sc[ i ] , any , ub0 ) &&
-     check_count( count_static< UB0Constraint >( sc[ i ] ) ,
-                  count_static< UB0Constraint >( any ) , what ) ) ||
-   ( mirror_static_group< LBConstraint >( sc[ i ] , any , lbc ) &&
-     check_count( count_static< LBConstraint >( sc[ i ] ) ,
-                  count_static< LBConstraint >( any ) , what ) ) ||
-   ( mirror_static_group< UBConstraint >( sc[ i ] , any , ubc ) &&
-     check_count( count_static< UBConstraint >( sc[ i ] ) ,
-                  count_static< UBConstraint >( any ) , what ) ) ||
-   ( mirror_static_group< NNConstraint >( sc[ i ] , any , nnc ) &&
-     check_count( count_static< NNConstraint >( sc[ i ] ) ,
-                  count_static< NNConstraint >( any ) , what ) ) ||
-   ( mirror_static_group< NPConstraint >( sc[ i ] , any , npc ) &&
-     check_count( count_static< NPConstraint >( sc[ i ] ) ,
-                  count_static< NPConstraint >( any ) , what ) ) ||
-   ( mirror_static_group< ZOConstraint >( sc[ i ] , any , zoc ) &&
-     check_count( count_static< ZOConstraint >( sc[ i ] ) ,
-                  count_static< ZOConstraint >( any ) , what ) );
+  if( ! group.clone_into( dst , std::string( group.get_name() ) ) ) {
+   v_issues.push_back( what + " is one the copy cannot make, it is empty "
+                       "in the copy" );
+   dynamic ? dst->add_dynamic_constraint() : dst->add_static_constraint();
+   return;
+   }
 
-  dst->refresh_static_constraint_group( i );
+  const auto & copy = dynamic ? dst->get_dynamic_constraint_groups().back()
+                              : dst->get_static_constraint_groups().back();
 
-  if( ! done )
-   v_issues.push_back( "static Constraint group " + std::to_string( i ) +
-                       " of " + src->name() + " is of a type the mirror "
-                       "does not know, the group is empty in the copy" );
-  }
+  if( ! copy_rows( group , *copy ) )
+   v_issues.push_back( what + " is of a type the mirror does not know, the "
+                       "group is empty in the copy" );
+  else
+   check_count( group.get_num_elements() , copy->get_num_elements() , what );
+  };
 
- auto & dc = src->get_dynamic_constraints();
- for( Index i = 0 ; i < dc.size() ; ++i ) {
-  dst->add_dynamic_constraint( std::string( src->get_d_const_name( i ) ) );
-  auto & any = dst->access_dynamic_constraint( i );
+ for( const auto & group : src->get_static_constraint_groups() )
+  if( group )
+   mirror_group( *group , false );
+  else
+   dst->add_static_constraint();
 
-  const std::string what = "dynamic Constraint group " +
-                           std::to_string( i ) + " of " + src->name();
-
-  const bool done =
-   ( mirror_dynamic_group< FRowConstraint >( dc[ i ] , any , take_frow ) &&
-     check_count( count_dynamic< FRowConstraint >( dc[ i ] ) ,
-                  count_dynamic< FRowConstraint >( any ) , what ) ) ||
-   ( mirror_dynamic_group< BoxConstraint >( dc[ i ] , any , box ) &&
-     check_count( count_dynamic< BoxConstraint >( dc[ i ] ) ,
-                  count_dynamic< BoxConstraint >( any ) , what ) ) ||
-   ( mirror_dynamic_group< LB0Constraint >( dc[ i ] , any , lb0 ) &&
-     check_count( count_dynamic< LB0Constraint >( dc[ i ] ) ,
-                  count_dynamic< LB0Constraint >( any ) , what ) ) ||
-   ( mirror_dynamic_group< UB0Constraint >( dc[ i ] , any , ub0 ) &&
-     check_count( count_dynamic< UB0Constraint >( dc[ i ] ) ,
-                  count_dynamic< UB0Constraint >( any ) , what ) ) ||
-   ( mirror_dynamic_group< LBConstraint >( dc[ i ] , any , lbc ) &&
-     check_count( count_dynamic< LBConstraint >( dc[ i ] ) ,
-                  count_dynamic< LBConstraint >( any ) , what ) ) ||
-   ( mirror_dynamic_group< UBConstraint >( dc[ i ] , any , ubc ) &&
-     check_count( count_dynamic< UBConstraint >( dc[ i ] ) ,
-                  count_dynamic< UBConstraint >( any ) , what ) ) ||
-   ( mirror_dynamic_group< NNConstraint >( dc[ i ] , any , nnc ) &&
-     check_count( count_dynamic< NNConstraint >( dc[ i ] ) ,
-                  count_dynamic< NNConstraint >( any ) , what ) ) ||
-   ( mirror_dynamic_group< NPConstraint >( dc[ i ] , any , npc ) &&
-     check_count( count_dynamic< NPConstraint >( dc[ i ] ) ,
-                  count_dynamic< NPConstraint >( any ) , what ) ) ||
-   ( mirror_dynamic_group< ZOConstraint >( dc[ i ] , any , zoc ) &&
-     check_count( count_dynamic< ZOConstraint >( dc[ i ] ) ,
-                  count_dynamic< ZOConstraint >( any ) , what ) );
-
-  dst->refresh_dynamic_constraint_group( i );
-
-  if( ! done )
-   v_issues.push_back( "dynamic Constraint group " + std::to_string( i ) +
-                       " of " + src->name() + " is of a type the mirror "
-                       "does not know, the group is empty in the copy" );
-  }
+ for( const auto & group : src->get_dynamic_constraint_groups() )
+  if( group )
+   mirror_group( *group , true );
+  else
+   dst->add_dynamic_constraint();
 
  // the Objective, which the copy has only if the original has one
  if( auto obj = src->get_objective() ) {

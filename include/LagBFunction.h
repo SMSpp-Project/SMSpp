@@ -1554,8 +1554,16 @@ namespace SMSpp_di_unipi_it
    throw( std::invalid_argument( "LagBFunction: Solution not stored" ) );
   if( ( i >= f_max_glob ) || ( !  g_pool[ i ].sol ) )
    throw( std::invalid_argument( "global_pool_to_block: invalid index" ) );
-  if( i == LastSolution )  // already there
-   return;                 // nothing to do
+
+  /* The entry is written even if LastSolution says it is the one the Block
+   * holds: what LastSolution records is the last entry this LagBFunction has
+   * written there, and the Variable of the inner Block can have been written
+   * by anyone else in the meantime (another Solver attached to an ancestor,
+   * a heuristic, whoever reads a solution), none of which the LagBFunction
+   * is told about. Skipping the write on that ground leaves in the Block a
+   * point that is not the one asked for, and a caller reconstructing a
+   * solution out of the components gets a mixture of two. */
+
   g_pool[ i ].sol->write( v_Block.front() );
   LastSolution = i;  // and recall what's there
   }

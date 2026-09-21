@@ -62,7 +62,49 @@ bool on_group( const std::unique_ptr< BaseGroup > & group , F f )
 
 void ColVariableSolution::deserialize( const netCDF::NcGroup & group )
 {
- throw( std::logic_error( " ColVariableSolution::deserialize not ready yet" ) );
+ // the inverse of serialize(): what is not there is read as nothing, so a
+ // Solution that holds no Variable of one kind deserializes into an empty
+ // one rather than into an error
+ static_variable_values.clear();
+ dynamic_variable_values.clear();
+ nested_solutions.clear();
+
+ ::deserialize< double >( group , "StaticValues" , "StaticValuesStart" ,
+			  static_variable_values );
+
+ std::vector< std::vector< double > > cells;
+ if( ::deserialize< double >( group , "DynamicValues" ,
+			      "DynamicValuesStart" , cells ) ) {
+  auto ncVar = group.getVar( "DynamicCellsStart" );
+  if( ncVar.isNull() )
+   throw( std::invalid_argument( "ColVariableSolution::deserialize: "
+				 "DynamicValues without DynamicCellsStart" ) );
+
+  std::vector< int > group_start( ncVar.getDim( 0 ).getSize() );
+  ncVar.getVar( group_start.data() );
+
+  dynamic_variable_values.resize( group_start.size() );
+  for( std::size_t g = 0 ; g < group_start.size() ; ++g ) {
+   const auto begin = std::size_t( group_start[ g ] );
+   const auto end = ( g + 1 < group_start.size() )
+                    ? std::size_t( group_start[ g + 1 ] ) : cells.size();
+   if( ( begin > end ) || ( end > cells.size() ) )
+    throw( std::invalid_argument( "ColVariableSolution::deserialize: "
+				  "wrong indices in DynamicCellsStart" ) );
+   dynamic_variable_values[ g ].assign( cells.begin() + begin ,
+					cells.begin() + end );
+   }
+  }
+
+ // the Solution of the nested Blocks, each in a group of its own
+ std::size_t n = 0;
+ while( ! group.getGroup( "NestedSolution_" + std::to_string( n ) ).isNull() )
+  ++n;
+
+ nested_solutions.resize( n );
+ for( std::size_t i = 0 ; i < n ; ++i )
+  nested_solutions[ i ].deserialize(
+		   group.getGroup( "NestedSolution_" + std::to_string( i ) ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -102,11 +144,10 @@ void ColVariableSolution::initialize( const Block * const block , bool read ) {
 void ColVariableSolution::initialize_static_variable_values
 ( const Block * const block , bool read ) {
 
- const auto & variable_groups = block->get_static_variables();
  const auto & groups = block->get_static_variable_groups();
- static_variable_values.resize( variable_groups.size() );
+ static_variable_values.resize( groups.size() );
 
- for( Vec_any::size_type i = 0 ; i < static_variable_values.size() ; ++i ) {
+ for( Vec_Group::size_type i = 0 ; i < static_variable_values.size() ; ++i ) {
   auto & values = static_variable_values[ i ];
   if( ! on_group( groups[ i ] ,
                  [ & values , read ]( const BaseGroup & group ) {
@@ -119,7 +160,8 @@ void ColVariableSolution::initialize_static_variable_values
        } ) )
    throw( std::logic_error( std::string( "ColVariableSolution::initialize: "
 					 "invalid variable group: " ) +
-			    variable_groups[ i ].type().name() ) );
+			    ( groups[ i ] ? groups[ i ]->get_element_type().name()
+                           : "an empty group" ) ) );
   }
  }
 
@@ -128,11 +170,10 @@ void ColVariableSolution::initialize_static_variable_values
 void ColVariableSolution::initialize_dynamic_variable_values
 ( const Block * const block , bool read ) {
 
- const auto & variable_groups = block->get_dynamic_variables();
  const auto & groups = block->get_dynamic_variable_groups();
- dynamic_variable_values.resize( variable_groups.size() );
+ dynamic_variable_values.resize( groups.size() );
 
- for( Vec_any::size_type i = 0 ; i < dynamic_variable_values.size() ; ++i ) {
+ for( Vec_Group::size_type i = 0 ; i < dynamic_variable_values.size() ; ++i ) {
   auto & values = dynamic_variable_values[ i ];
   if( ! on_group( groups[ i ] ,
                  [ & values , read ]( const BaseGroup & group ) {
@@ -149,7 +190,8 @@ void ColVariableSolution::initialize_dynamic_variable_values
    throw( std::logic_error( std::string( "ColVariableSolution::"
 					 "initialize_dynamic_variable_values: "
 					 "invalid variable group: " ) +
-			    variable_groups[ i ].type().name() ) );
+			    ( groups[ i ] ? groups[ i ]->get_element_type().name()
+                           : "an empty group" ) ) );
   }
  }
 
@@ -158,19 +200,18 @@ void ColVariableSolution::initialize_dynamic_variable_values
 void ColVariableSolution::apply_static( const Block * const block ,
                                         bool read ) {
 
-  auto & variable_groups = block->get_static_variables();
  const auto & groups = block->get_static_variable_groups();
 
-  if( variable_groups.size() != static_variable_values.size() )
+  if( groups.size() != static_variable_values.size() )
     throw( std::logic_error
      ( std::string
         ( "ColVariableSolution::apply_static: "
           "number of static Variable groups of this ColVariableSolution (" ) +
        std::to_string( static_variable_values.size() ) +
        std::string( ") is different from that of the Block (" ) +
-       std::to_string( variable_groups.size() ) + std::string( ")" ) ) );
+       std::to_string( groups.size() ) + std::string( ")" ) ) );
 
- for( Vec_any::size_type i = 0 ; i < static_variable_values.size() ; ++i ) {
+ for( Vec_Group::size_type i = 0 ; i < static_variable_values.size() ; ++i ) {
   auto & values = static_variable_values[ i ];
   bool conforming = true;
   if( ! on_group( groups[ i ] ,
@@ -201,19 +242,18 @@ void ColVariableSolution::apply_static( const Block * const block ,
 void ColVariableSolution::apply_dynamic( const Block * const block ,
                                          bool read ) {
 
-  auto & variable_groups = block->get_dynamic_variables();
  const auto & groups = block->get_dynamic_variable_groups();
 
-  if( variable_groups.size() != dynamic_variable_values.size() )
+  if( groups.size() != dynamic_variable_values.size() )
     throw( std::logic_error
      ( std::string
         ( "ColVariableSolution::apply_dynamic: "
           "number of dynamic Variable groups of this ColVariableSolution (" ) +
        std::to_string( dynamic_variable_values.size() ) +
        std::string( ") is different from that of the Block (" ) +
-       std::to_string( variable_groups.size() ) + std::string( ")" ) ) );
+       std::to_string( groups.size() ) + std::string( ")" ) ) );
 
- for( Vec_any::size_type i = 0 ; i < dynamic_variable_values.size() ; ++i ) {
+ for( Vec_Group::size_type i = 0 ; i < dynamic_variable_values.size() ; ++i ) {
   auto & values = dynamic_variable_values[ i ];
   bool conforming = true;
   if( ! on_group( groups[ i ] ,
@@ -263,8 +303,8 @@ void ColVariableSolution::read( const Block * const block ) {
   // Solution holds from now on
   f_direction = block->is_direction();
 
-  if( static_variable_values.size() != block->get_static_variables().size() ||
-      dynamic_variable_values.size() != block->get_dynamic_variables().size() ||
+  if( static_variable_values.size() != block->get_static_variable_groups().size() ||
+      dynamic_variable_values.size() != block->get_dynamic_variable_groups().size() ||
       nested_solutions.size() != block->get_nested_Blocks().size() ) {
     // This ColVariableSolution does not have the same structure as
     // that of the Variables of the Block: initialize it and read the
@@ -337,7 +377,49 @@ void ColVariableSolution::serialize( netCDF::NcGroup & group ) const
  // always call the method of the base class first
  Solution::serialize( group );
 
- throw( std::logic_error( "ColVariableSolution::serialize not ready yet" ) );
+ /* The values of the static Variable are a matrix with rows of different
+  * length, one row per group, and go in the two netCDF variables such a
+  * matrix is written in [see serialize() in SMSTypedefs.h]: StaticValues
+  * holds them all in a row, StaticValuesStart says where each group begins.
+  *
+  * Those of the dynamic Variable have one level more, since a group of them
+  * is a grid of cells and each cell holds a collection of its own size: the
+  * cells of all the groups are written as one matrix with rows of different
+  * length, DynamicValues and DynamicValuesStart, and DynamicCellsStart says
+  * which of those cells the groups begin at. */
+
+ if( ! static_variable_values.empty() )
+  ::serialize< double >( group , "StaticValues" , netCDF::NcDouble() ,
+			 "StaticValuesStart" , static_variable_values );
+
+ if( ! dynamic_variable_values.empty() ) {
+  std::vector< std::vector< double > > cells;
+  std::vector< int > group_start;
+  group_start.reserve( dynamic_variable_values.size() );
+
+  for( const auto & grp : dynamic_variable_values ) {
+   group_start.push_back( int( cells.size() ) );
+   for( const auto & cell : grp )
+    cells.push_back( cell );
+   }
+
+  ::serialize< double >( group , "DynamicValues" , netCDF::NcDouble() ,
+			 "DynamicValuesStart" , cells );
+
+  auto ncDim = group.addDim( "NumberDynamicGroups" , group_start.size() );
+  auto ncVar = group.addVar( "DynamicCellsStart" , netCDF::NcInt() , ncDim );
+  ncVar.putVar( group_start.data() );
+  }
+
+ // the Solution of each nested Block goes in a group of its own, numbered
+ // as the nested Block it belongs to
+ if( ! nested_solutions.empty() ) {
+  group.addDim( "NumberNestedSolutions" , nested_solutions.size() );
+  for( std::size_t i = 0 ; i < nested_solutions.size() ; ++i ) {
+   auto sg = group.addGroup( "NestedSolution_" + std::to_string( i ) );
+   nested_solutions[ i ].serialize( sg );
+   }
+  }
  }
 
 /*--------------------------------------------------------------------------*/
@@ -377,7 +459,7 @@ void ColVariableSolution::sum( const Solution * solution, double multiplier ) {
 
   // Sum the values of the static Variables
 
- for( Vec_any::size_type i = 0 ; i < static_variable_values.size() ; ++i ) {
+ for( Vec_Group::size_type i = 0 ; i < static_variable_values.size() ; ++i ) {
   auto & values = static_variable_values[ i ];
   const auto & other_values = other_solution->static_variable_values[ i ];
   if( values.size() != other_values.size() )
@@ -393,7 +475,7 @@ void ColVariableSolution::sum( const Solution * solution, double multiplier ) {
   // Sum the values of the dynamic Variables: a value missing on either side
   // counts as zero
 
- for( Vec_any::size_type i = 0 ; i < dynamic_variable_values.size() ; ++i ) {
+ for( Vec_Group::size_type i = 0 ; i < dynamic_variable_values.size() ; ++i ) {
   auto & cells = dynamic_variable_values[ i ];
   const auto & other_cells = other_solution->dynamic_variable_values[ i ];
   if( cells.size() != other_cells.size() )

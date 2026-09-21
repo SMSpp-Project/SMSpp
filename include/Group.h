@@ -41,6 +41,7 @@
 #include <functional>
 #include <list>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <type_traits>
 #include <typeindex>
@@ -101,7 +102,23 @@ T & group_element( T * element ) { return( *element ); }
  * storage with one indirect call and one switch per group and then run a loop
  * typed on the element, which the compiler can inline: this is the access to
  * use on hot paths. for_each() goes through a std::function per element and
- * is meant for the cold ones. */
+ * is meant for the cold ones.
+ *
+ * THE ORDER IN WHICH THE ELEMENTS COME OUT IS PART OF THE CONTRACT. It is the
+ * storage order: cell by cell along the grid, the last index running fastest,
+ * and inside a cell the order of the collection. Callers pair the i-th
+ * element of a group with the i-th entry of a vector of their own, and the
+ * pairing has to hold between one walk and the next: the columns of a
+ * :MILPSolver, the Lagrangian multipliers of a LagrangianDualSolver and the
+ * re-synchronisation of a PrimalProximalHeur all rest on it. Whoever changes
+ * the order of any of the forms breaks them, and tests_Group.cpp is there to
+ * say so.
+ *
+ * A const group hands out modifiable elements, and this is meant: the group
+ * is a view, and its own constness is that of the view, not that of the
+ * elements, which belong to the :Block. Reading a Block and writing in its
+ * Variable, as a Solver does when it writes a solution, is one const group
+ * and elements that change. */
 
 class BaseGroup {
 
@@ -116,6 +133,18 @@ class BaseGroup {
  using Index = unsigned int;   ///< type for indices of elements and cells
 
  using c_Index = const Index;  ///< a const Index
+
+/*--------------------------------------------------------------------------*/
+ /// the function building a copy of the container in another Block
+ /** Given the container of the group, a Block and a name, allocates a
+  * container of the same type and of the same shape, with its elements built
+  * anew, and registers it in that Block under that name, as the group is
+  * registered in its own. Whoever registered the group knows the type of the
+  * container, and is therefore the one that can say how to make another one
+  * of it. */
+
+ using clone_function = void (*)( void * container , Block * dst ,
+				  std::string name );
 
  static constexpr unsigned char max_rank = 8;  ///< the largest rank
 
@@ -164,6 +193,19 @@ class BaseGroup {
  [[nodiscard]] void * get_container( void ) const { return( f_container ); }
 
 /*--------------------------------------------------------------------------*/
+ /// the container the group views, if it is a C, nullptr otherwise
+ /** The group knows which container it was built on, so it can hand it back
+  * typed: this answers nullptr, rather than the wrong pointer, when the
+  * container is not a C, which is what tells a std::vector< T > from a
+  * boost::multi_array< T , 1 > (same elements, same layout, same rank). */
+
+ template< class C >
+ [[nodiscard]] C * get_container_as( void ) const {
+  return( f_container_type == std::type_index( typeid( C ) ) ?
+	  static_cast< C * >( f_container ) : nullptr );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// sets the name of the group
 
  void set_name( std::string name ) { f_name = std::move( name ); }
@@ -174,6 +216,29 @@ class BaseGroup {
  void set_Block( Block * block , Index index ) {
   f_Block = block;
   f_index = index;
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// says how a copy of the container of the group is made
+ /** Only whoever registered the group, which knows the type of the
+  * container, calls this. */
+
+ void set_cloner( clone_function clone ) { f_clone = clone; }
+
+/*--------------------------------------------------------------------------*/
+ /// registers a copy of the container of the group in \p dst
+ /** Allocates a container of the same type and shape of the one this group
+  * views, with its elements built anew, and registers it in \p dst under \p
+  * name; returns false, having done nothing, if nobody said how to make one,
+  * which is the case of a group that holds pointers to elements owned by
+  * somebody else. The elements of the copy are not the elements of this
+  * group: they come in the same order, and the caller pairs them. */
+
+ bool clone_into( Block * dst , std::string name ) const {
+  if( ! f_clone )
+   return( false );
+  f_clone( f_container , dst , std::move( name ) );
+  return( true );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -227,6 +292,50 @@ class BaseGroup {
 
  [[nodiscard]] Index get_num_cells( void ) const {
   return( get_storage().num_cells );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// writes the indices of the c-th cell of the grid into \p index
+ /** Writes into index[ 0 ] ... index[ get_rank() - 1 ] the position of the
+  * c-th cell of the grid along each dimension, the cells being numbered in
+  * storage order, so that an element can be named after where it sits rather
+  * than after its position in the sequence: the 7-th cell of a 3 x 4 grid is
+  * ( 1 , 3 ). For a group of rank 0 there is nothing to write. */
+
+ void get_multi_index( Index c , Index * index ) const {
+  get_grid().get_multi_index( c , index );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// the shape of the grid of cells, read once
+ /** The rank and the extents of the grid, read out of the container once, so
+  * that a caller that has to name many cells does not pay a read for each of
+  * them: get_grid() is the shape as it is now, get_multi_index() is the
+  * indices of one cell in it. */
+
+ struct grid {
+  unsigned char rank;                 ///< the number of dimensions
+  std::array< Index , max_rank > size; ///< the extent along each of them
+
+  /// writes the indices of the c-th cell of this grid into \p index
+  void get_multi_index( Index c , Index * index ) const {
+   for( unsigned char d = rank ; d-- ; ) {
+    index[ d ] = size[ d ] ? c % size[ d ] : 0;
+    c = size[ d ] ? c / size[ d ] : 0;
+    }
+   }
+  };
+
+/*--------------------------------------------------------------------------*/
+ /// returns the shape of the grid of cells
+
+ [[nodiscard]] grid get_grid( void ) const {
+  grid g;
+  g.rank = f_rank;
+  g.size.fill( 1 );
+  if( f_rank )
+   f_view( f_container , g.size.data() );
+  return( g );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -317,8 +426,10 @@ class BaseGroup {
  /** Returns true if the elements of the group derive from T. If T is the
   * type of the elements this is a comparison of types; otherwise it is asked
   * of one element only, the group being homogeneous, with one dynamic_cast
-  * for the whole group, and an empty group answers false, having no element
-  * to ask. */
+  * for the whole group, and an EMPTY group answers false, having no element
+  * to ask: a caller that has to tell the type of a group which may be empty,
+  * as a dynamic one is until it fills up, asks get_num_elements() first and
+  * treats the empty one as saying nothing. */
 
  template< class T >
  [[nodiscard]] bool elements_are( void ) const {
@@ -383,6 +494,20 @@ class BaseGroup {
  template< class T , class F >
  bool for_each_cell_as( F f ) const;
 
+/*--------------------------------------------------------------------------*/
+ /// calls f() on each run of contiguous elements of the group
+ /** Calls f( first , n ) on each maximal run of n elements of the group that
+  * are contiguous in memory, in storage order, and returns true, if the
+  * elements are T; does nothing and returns false otherwise. A group that is
+  * a single array is one run, a group made of many arrays is one run per
+  * array, and a group that holds pointers, or whose cells are collections,
+  * can be one run per element. This is what a caller needs to map an element
+  * back to its position from its address alone, which is a subtraction
+  * inside a run and says nothing across two of them. */
+
+ template< class T , class F >
+ bool for_each_run_as( F f ) const;
+
 /** @} ---------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -396,6 +521,7 @@ class BaseGroup {
   * grid into size[ 0 ] ... size[ rank - 1 ]. */
 
  using view_function = void * (*)( void * container , Index * size );
+
 
  /// where the storage of the group is now, and how many cells it has
 
@@ -414,10 +540,11 @@ class BaseGroup {
 
  template< class T >
  BaseGroup( T * , layout_type layout , bool indirect , unsigned char rank ,
-	    void * container , view_function view , Block * block ,
+	    void * container , std::type_index container_type ,
+	    view_function view , Block * block ,
 	    Index index , std::string name )
   : f_Block( block ) , f_index( index ) , f_name( std::move( name ) ) ,
-    f_type( typeid( T ) ) ,
+    f_type( typeid( T ) ) , f_container_type( container_type ) ,
     f_kind( std::is_base_of_v< Variable , T > ? eVariable : eConstraint ) ,
     f_layout( layout ) , f_indirect( indirect ) , f_rank( rank ) ,
     f_container( container ) , f_view( view ) {
@@ -454,6 +581,8 @@ class BaseGroup {
 
  std::type_index f_type;   ///< the type of the elements
 
+ std::type_index f_container_type;  ///< the type of the container it views
+
  kind_type f_kind;         ///< whether the elements are Variable or Constraint
 
  layout_type f_layout;     ///< what a cell holds
@@ -465,6 +594,8 @@ class BaseGroup {
  void * f_container;       ///< the container the group views
 
  view_function f_view;     ///< how the storage is read out of the container
+
+ clone_function f_clone = nullptr;  ///< how a copy of the container is made
 
 /*--------------------------------------------------------------------------*/
 
@@ -489,6 +620,8 @@ struct group_form {
  static constexpr BaseGroup::layout_type layout = BaseGroup::eContiguous;
  static constexpr unsigned char rank = 0;
  static void * view( void * c , BaseGroup::Index * ) { return( c ); }
+ /// a container of the same shape, with its elements built anew
+ static C * clone( const C & ) { return( new C ); }
  };
 
 template< class S >
@@ -501,6 +634,9 @@ struct group_form< std::vector< S > > {
   auto v = static_cast< std::vector< S > * >( c );
   size[ 0 ] = v->size();
   return( v->data() );
+  }
+ static std::vector< S > * clone( const std::vector< S > & src ) {
+  return( new std::vector< S >( src.size() ) );
   }
  };
 
@@ -515,6 +651,13 @@ struct group_form< std::vector< std::vector< S > > > {
   size[ 0 ] = v->size();
   return( v->data() );
   }
+ static std::vector< cell_type > * clone(
+			     const std::vector< cell_type > & src ) {
+  auto copy = new std::vector< cell_type >( src.size() );
+  for( std::size_t i = 0 ; i < src.size() ; ++i )
+   ( *copy )[ i ].resize( src[ i ].size() );
+  return( copy );
+  }
  };
 
 template< class S >
@@ -524,6 +667,9 @@ struct group_form< std::list< S > > {
  static constexpr BaseGroup::layout_type layout = BaseGroup::eDynamic;
  static constexpr unsigned char rank = 0;
  static void * view( void * c , BaseGroup::Index * ) { return( c ); }
+ static std::list< S > * clone( const std::list< S > & src ) {
+  return( new std::list< S >( src.size() ) );
+  }
  };
 
 template< class S >
@@ -536,6 +682,13 @@ struct group_form< std::vector< std::list< S > > > {
   auto v = static_cast< std::vector< cell_type > * >( c );
   size[ 0 ] = v->size();
   return( v->data() );
+  }
+ static std::vector< cell_type > * clone(
+			     const std::vector< cell_type > & src ) {
+  auto copy = new std::vector< cell_type >( src.size() );
+  for( std::size_t i = 0 ; i < src.size() ; ++i )
+   ( *copy )[ i ].resize( src[ i ].size() );
+  return( copy );
   }
  };
 
@@ -551,6 +704,16 @@ struct group_form_multi_array {
   for( std::size_t d = 0 ; d < K ; ++d )
    size[ d ] = a->shape()[ d ];
   return( a->data() );
+  }
+ /// a grid of the same extents, its cells as long as those of \p src
+ static boost::multi_array< X , K > * clone(
+			    const boost::multi_array< X , K > & src ) {
+  std::vector< std::size_t > extents( src.shape() , src.shape() + K );
+  auto copy = new boost::multi_array< X , K >( extents );
+  if constexpr( ! std::is_void_v< Cell > )
+   for( std::size_t i = 0 ; i < src.num_elements() ; ++i )
+    ( copy->data() )[ i ].resize( ( src.data() )[ i ].size() );
+  return( copy );
   }
  };
 
@@ -573,6 +736,33 @@ struct group_form< boost::multi_array< std::list< S > , K > >
 			   std::list< S > > {
  using item_type = S;
  };
+
+/*--------------------------------------------------------------------------*/
+/// throws if a group cannot read the container the way it is laid out
+/** Any container but a boost::multi_array is read the one way it can be. A
+ * boost::multi_array is read in the storage order of C, the last index
+ * running fastest, and with its indices starting at 0: this is how a group
+ * numbers its cells [see BaseGroup::get_multi_index()] and how the copy of a
+ * group is made [see group_form_multi_array::clone()], so a grid stored
+ * otherwise would have its cells named after the wrong indices, and a copy of
+ * another shape. */
+
+template< class C >
+void check_group_form( const C & ) {}
+
+template< class X , std::size_t K >
+void check_group_form( const boost::multi_array< X , K > & a )
+{
+ if( ! ( a.storage_order() == boost::c_storage_order() ) )
+  throw( std::invalid_argument( "check_group_form: a boost::multi_array is "
+				"a group only in the storage order of C" ) );
+
+ for( std::size_t d = 0 ; d < K ; ++d )
+  if( a.index_bases()[ d ] != 0 )
+   throw( std::invalid_argument( "check_group_form: a boost::multi_array "
+				 "is a group only with its indices starting "
+				 "at 0" ) );
+ }
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS StaticGroup ------------------------------*/
@@ -598,10 +788,13 @@ class StaticGroup : public BaseGroup {
 		       Index index = 0 , std::string name = "" )
   : BaseGroup( static_cast< element_type * >( nullptr ) , eContiguous ,
 	       std::is_pointer_v< S > , group_form< C >::rank , container ,
-	       & group_form< C >::view , block , index , std::move( name ) ) {
+	       typeid( C ) , & group_form< C >::view , block , index ,
+	       std::move( name ) ) {
   static_assert( std::is_same_v< typename group_form< C >::item_type , S > &&
 		 ( group_form< C >::layout == eContiguous ) ,
 		 "the container does not hold one S per cell" );
+  if( container )
+   check_group_form( *container );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -720,11 +913,14 @@ class CellGroup : public BaseGroup {
   : BaseGroup( static_cast< element_type * >( nullptr ) ,
 	       std::is_same_v< C , std::list< S > > ? eDynamic : eJagged ,
 	       std::is_pointer_v< S > , group_form< Container >::rank ,
-	       container , & group_form< Container >::view , block , index ,
+	       container , typeid( Container ) ,
+	       & group_form< Container >::view , block , index ,
 	       std::move( name ) ) {
   static_assert(
    std::is_same_v< typename group_form< Container >::cell_type , C > ,
    "the container does not hold cells of type C" );
+  if( container )
+   check_group_form( *container );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -850,6 +1046,27 @@ std::unique_ptr< BaseGroup > make_group( C & container ,
  }
 
 /*--------------------------------------------------------------------------*/
+/*---------------------------- FREE FUNCTIONS ------------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Reading a group whose elements are one of a set of types
+ *  @{ */
+
+/// calls f() on the elements of the group if these are any of T...
+/** Calls f() on each element of the group, in storage order, and returns
+ * true, if the elements of the group are of any of the types T..., which are
+ * tried in the order in which they are given; does nothing and returns false
+ * otherwise. This is the pattern of a caller that can treat a handful of
+ * concrete types, say the :RowConstraint of the core, and leaves the other
+ * groups of a Block alone. */
+
+template< class... T , class F >
+bool for_each_as_any_of( const BaseGroup & group , F f )
+{
+ return( ( group.template for_each_as< T >( f ) || ... ) );
+ }
+
+/** @} ---------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 /*------------------- METHODS OF BaseGroup NEEDING THE LEAVES --------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -898,6 +1115,12 @@ bool BaseGroup::for_each_as( F f ) const
 template< class T , class F >
 bool BaseGroup::for_each_cell_as( F f ) const
 {
+ // no cell can hold a collection of an abstract type, and asking for one
+ // would mean writing std::list< T > with T abstract, which does not exist
+ if constexpr( std::is_abstract_v< T > )
+  return( false );
+ else {
+
  if( ( f_type != typeid( T ) ) || ( f_layout == eContiguous ) )
   return( false );
 
@@ -921,6 +1144,37 @@ bool BaseGroup::for_each_cell_as( F f ) const
   }
 
  return( true );
+ }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+template< class T , class F >
+bool BaseGroup::for_each_run_as( F f ) const
+{
+ if( f_type != typeid( T ) )
+  return( for_each_as< T >( [ & f ]( T & element ) { f( & element , 1 ); } ) );
+
+ // where the runs are is known from the shape alone, and the elements are
+ // not looked at one by one: an array is one run, a collection of arrays is
+ // one run per array, and elements reached through pointers, or sitting in
+ // the nodes of a list, are one run each
+ if( f_indirect || ( f_layout == eDynamic ) )
+  return( for_each_as< T >( [ & f ]( T & element ) { f( & element , 1 ); } ) );
+
+ if( f_layout == eContiguous ) {
+  auto s = get_storage();
+  if( s.num_cells )
+   f( static_cast< T * >( s.first ) , s.num_cells );
+  return( true );
+  }
+
+ return( for_each_cell_as< T >( [ & f ]( Index , auto & cell ) {
+   if constexpr( std::is_same_v< std::decay_t< decltype( cell ) > ,
+				 std::vector< T > > )
+    if( ! cell.empty() )
+     f( cell.data() , Index( cell.size() ) );
+   } ) );
  }
 
 /*--------------------------------------------------------------------------*/

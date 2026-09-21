@@ -39,7 +39,15 @@ SMSpp_insert_in_factory_cpp_0( ColRowSolution );
 /*--------------------------------------------------------------------------*/
 
 void ColRowSolution::deserialize( const netCDF::NcGroup & group ) {
- throw( std::logic_error( "ColRowSolution::deserialize not ready yet" ) );
+ // the two halves live in two groups of their own, so that each of them is
+ // written exactly as it is when it travels alone
+ auto vg = group.getGroup( "VariableSolution" );
+ if( ! vg.isNull() )
+  f_variable_solution.deserialize( vg );
+
+ auto cg = group.getGroup( "ConstraintSolution" );
+ if( ! cg.isNull() )
+  f_constraint_solution.deserialize( cg );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -63,7 +71,11 @@ void ColRowSolution::serialize( netCDF::NcGroup & group ) const {
  // always call the method of the base class first
  Solution::serialize( group );
 
- throw( std::logic_error( " ColRowSolution::serialize not ready yet" ) );
+ auto vg = group.addGroup( "VariableSolution" );
+ f_variable_solution.serialize( vg );
+
+ auto cg = group.addGroup( "ConstraintSolution" );
+ f_constraint_solution.serialize( cg );
  }
 
 /*--------------------------------------------------------------------------*/

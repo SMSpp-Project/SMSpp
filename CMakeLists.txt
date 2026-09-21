@@ -190,7 +190,6 @@ endif ()
 set_target_properties(${modName} PROPERTIES
         VERSION ${PROJECT_VERSION}
         SOVERSION ${soVersion})
-include(ClangPatch) # TODO: Remove this when it's not needed anymore
 
 # When adding source files with target_sources(), PRIVATE means that the files
 # should only be added to this library, whereas PUBLIC means they should be
@@ -206,6 +205,7 @@ target_sources(${modName} PRIVATE
         src/Block.cpp
         src/BlockSolverConfig.cpp
         src/C05Function.cpp
+        src/C05SumFunction.cpp
         src/BendersBFunction.cpp
         src/BendersBlock.cpp
         src/ColRowSolution.cpp

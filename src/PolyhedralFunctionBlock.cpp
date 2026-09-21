@@ -219,8 +219,14 @@ void PolyhedralFunctionBlock::generate_abstract_constraints(
     if( ! PF().is_row_vertical( i ) )
      vp.emplace_back( & *thit , RowScale( i ) );
 
-   f_normcns.set_lhs( 1.0 / f_global_scale , eNoMod );
-   f_normcns.set_rhs( 1.0 / f_global_scale , eNoMod );
+   // a size variable given before the constraints existed is written in
+   // now, as set_size_variable() would have done [see there]
+   if( f_lambda )
+    vp.emplace_back( f_lambda , -1.0 / f_global_scale );
+
+   const double rhs = f_lambda ? 0 : 1.0 / f_global_scale;
+   f_normcns.set_lhs( rhs , eNoMod );
+   f_normcns.set_rhs( rhs , eNoMod );
    f_normcns.set_function( new LinearFunction( std::move( vp ) ) , eNoMod );
 
    // the normalization is added as the first static constraint
@@ -228,6 +234,11 @@ void PolyhedralFunctionBlock::generate_abstract_constraints(
    add_static_constraint( f_normcns , "PolyF_norm" , true );
    }
  // else (natural): nothing to do here
+
+ if( f_lambda && ( ! is_dual() ) )
+  throw( std::logic_error( "PolyhedralFunctionBlock::generate_abstract_"
+			   "constraints: a size variable was given, which "
+			   "only the dual representation takes" ) );
 
  f_rep |= k_built_cnst;
 
@@ -310,19 +321,40 @@ void PolyhedralFunctionBlock::generate_objective( Configuration * objc )
 
 void PolyhedralFunctionBlock::set_lambda( ColVariable * lambda )
 {
- // sanity checks
  if( ! is_dual() )
-  throw( std::logic_error(
-            "set_lambda() requires the dual representation" ) );
+  throw( std::logic_error( "PolyhedralFunctionBlock::set_lambda: it "
+			   "requires the dual representation" ) );
  if( ! ( f_rep & k_built_cnst ) )
-  throw( std::logic_error(
-       "set_lambda() must be called after generate_abstract_constraints()" ) );
+  throw( std::logic_error( "PolyhedralFunctionBlock::set_lambda: it has to "
+			   "be called after generate_abstract_constraints()" ) );
  if( ! lambda )
-  throw( std::invalid_argument( "set_lambda(): nullptr lambda" ) );
+  throw( std::invalid_argument( "PolyhedralFunctionBlock::set_lambda: "
+				"nullptr lambda" ) );
 
- f_lambda = lambda;
+ set_size_variable( lambda , eNoMod );
 
- // The normalization constraint built by generate_abstract_constraints
+ }  // end( set_lambda )
+
+/*--------------------------------------------------------------------------*/
+
+bool PolyhedralFunctionBlock::set_size_variable( Variable * size_var ,
+						 c_ModParam issueAMod )
+{
+ auto lambda = dynamic_cast< ColVariable * >( size_var );
+ if( ! lambda )
+  return( false );
+
+ // before the constraints exist the Variable is only stored, and written
+ // in when the normalization constraint is built
+ if( ! ( f_rep & k_built_cnst ) ) {
+  f_lambda = lambda;
+  return( true );
+  }
+
+ if( ! is_dual() )
+  return( false );
+
+ // The normalization constraint built by generate_abstract_constraints()
  // is the stand-alone scaled simplex
  //
  //     sum_{i in B_D} local_scale_i theta_i + gamma_local
@@ -337,41 +369,35 @@ void PolyhedralFunctionBlock::set_lambda( ColVariable * lambda )
  //     sum_{i in B_D} local_scale_i theta_i^k + gamma_local^k
  //       - lambda / global_scale = 0
  //
- // and ties the per-component theta + gamma mass to the global lambda.
- // set_lambda() therefore appends lambda with coefficient
- // -1 / global_scale to
- // f_normcns and pulls LHS / RHS to 0; gamma_local is left untouched
- // (its coefficient stays +1 in the normalization row and its sign in
- // the Objective is the per-PFB lower bound).
+ // and ties the per-component theta + gamma mass to the global lambda:
+ // lambda is appended with coefficient -1 / global_scale and the sides
+ // go to 0, gamma_local being left untouched. It is done in place, so
+ // that the constraint and its LinearFunction stay the objects they are.
 
  auto lf = static_cast< LinearFunction * >( f_normcns.get_function() );
  if( ! lf )
-  throw( std::logic_error(
-            "set_lambda(): normalization constraint not initialized" ) );
+  throw( std::logic_error( "PolyhedralFunctionBlock::set_size_variable: "
+			   "the normalization constraint is not there" ) );
 
- // build a new LinearFunction with lambda appended (skipping the append
- // if lambda is already present, e.g. because of a re-invocation).
- LinearFunction::v_coeff_pair new_vp;
- const auto & old_vp = lf->get_v_var();
- new_vp.reserve( old_vp.size() + 1 );
- bool already_present = false;
- for( const auto & p : old_vp ) {
-  if( p.first == lambda )
-   already_present = true;
-  new_vp.emplace_back( p );
-  }
- if( ! already_present )
-  new_vp.emplace_back( lambda , -1.0 / f_global_scale );
+ f_lambda = lambda;
+ if( lf->is_active( lambda ) < lf->get_num_active_var() )
+  return( true );  // there already
 
- f_normcns.set_function( new LinearFunction( std::move( new_vp ) ) , eNoMod );
+ lf->add_variable( lambda , -1.0 / f_global_scale , issueAMod );
 
- // lift the RHS = 1 / global_scale set by
- // generate_abstract_constraints to RHS = 0,
- // since lambda now plays the role of "shifted normalization mass"
- f_normcns.set_lhs( 0.0 , eNoMod );
- f_normcns.set_rhs( 0.0 , eNoMod );
+ // the constraint registers itself with a Variable coming in only when it
+ // receives the Modification, which issueAMod may not ask for, and a Solver
+ // building its model by columns reads the rows of a Variable from there
+ const auto & act = lambda->active_stuff();
+ ThinVarDepInterface * me = & f_normcns;
+ if( ! std::binary_search( act.begin() , act.end() , me ) )
+  lambda->add_active( me );
 
- }  // end( set_lambda )
+ f_normcns.set_both( 0.0 , issueAMod );
+
+ return( true );
+
+ }  // end( PolyhedralFunctionBlock::set_size_variable )
 
 /*--------------------------------------------------------------------------*/
 
@@ -1060,13 +1086,11 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF(
     }
    else  // modify constants only
     if( PF().is_convex() )
-     for( Index i = strt ; i < stop ; )
-      (cit++)->set_lhs( ScaledRowFactor( i ) * PF().get_b()[ i++ ] ,
-                        par );
+     for( Index i = strt ; i < stop ; ++i )
+      (cit++)->set_lhs( ScaledRowFactor( i ) * PF().get_b()[ i ] , par );
     else
-     for( Index i = strt ; i < stop ; )
-      (cit++)->set_rhs( ScaledRowFactor( i ) * PF().get_b()[ i++ ] ,
-                        par );
+     for( Index i = strt ; i < stop ; ++i )
+      (cit++)->set_rhs( ScaledRowFactor( i ) * PF().get_b()[ i ] , par );
    }
 
   close_if_needed( par , nc );
@@ -1176,8 +1200,9 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF(
 
    // properly set the lhs/rhs of the constraints
    for( auto & ci : f_const ) {
-    ci.set_lhs( ScaledRowFactor( i ) * PF().get_b()[ i++ ] , par );
+    ci.set_lhs( ScaledRowFactor( i ) * PF().get_b()[ i ] , par );
     ci.set_rhs( Inf< Function::FunctionValue >() , par );
+    ++i;
     }
    }
   else {
@@ -1192,7 +1217,8 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF(
    // properly set the lhs/rhs of the constraints
    for( auto & ci : f_const ) {
     ci.set_lhs( -Inf< Function::FunctionValue >() , par );
-    ci.set_rhs( ScaledRowFactor( i ) * PF().get_b()[ i++ ] , par );
+    ci.set_rhs( ScaledRowFactor( i ) * PF().get_b()[ i ] , par );
+    ++i;
     }
    }
 
@@ -1601,9 +1627,17 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
  //    overrides (which call CPXaddcols / CPXdelcols / CPXchgcoeflist and
  //    the Gurobi equivalents).
 
- // shortcuts to the abstract structures of the dual representation
+ // shortcuts to the abstract structures of the dual representation. The
+ // representation may not have been generated yet, and then there is
+ // nothing of it to update: the Modification travels on as the physical
+ // one, and generate_abstract_objective() reads the data as it is now
  auto frobj = static_cast< FRealObjective * >( get_objective() );
+ if( ! frobj )
+  return( false );
+
  auto obj_lf = static_cast< LinearFunction * >( frobj->get_function() );
+ if( ! obj_lf )
+  return( false );
 
  // C05FunctionModVarsAddd/Rngd/Sbst - - - - - - - - - - - - - - - - - - - -
  // x variables of PF() added/removed: this also requires the father

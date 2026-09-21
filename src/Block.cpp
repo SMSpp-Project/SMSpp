@@ -27,7 +27,6 @@
 #include "AbstractBlock.h"
 #include "Block.h"
 #include "Constraint.h"
-#include "GroupAdapter.h"
 #include "Objective.h"
 #include "Solution.h"
 #include "Variable.h"
@@ -775,69 +774,20 @@ void Block::print( std::ostream & output , char vlvl ) const
   return;
 
  output << std::endl << classname() << " with: ";
- output << std::endl << v_s_Variable.size() << " groups of static Variable, "
-        << v_d_Variable.size() << " groups of dynamic Variable, "
-        << std::endl << v_s_Constraint.size()
+ output << std::endl << v_s_Variable_groups.size()
+        << " groups of static Variable, "
+        << v_d_Variable_groups.size() << " groups of dynamic Variable, "
+        << std::endl << v_s_Constraint_groups.size()
 	<< " groups of static Constraint, "
-        << v_d_Constraint.size() << " groups of dynamic Constraint, "
+        << v_d_Constraint_groups.size() << " groups of dynamic Constraint, "
         << std::endl << v_Block.size() << " nested Blocks, and "
         << v_Solver.size() << " registered Solvers"
         << std::endl;
 
  if( ! vlvl ) {
-  /*
-  // the static Constraints of the Block- - - - - - - - - - - - - - - - - - -
-  output << "Static Constraints:" << std::endl;
-  for( unsigned int i = 0 ; i < v_s_Constraint.size() ; ++i ) {
-   output << i;
-   if( ! v_s_Constraint_names[ i ].empty() )
-    output << " (" << v_s_Constraint_names[ i ] << "): ";
-   else
-    output << ": ";
-
-   un_any_static_constraint( v_s_Constraint[ i ] , { output << *var; } );
-   output << std::endl;
-   }
-
-  // the static Variables of the Block- - - - - - - - - - - - - - - - - - - -
-  output << "Static Variables:" << std::endl;
-  for( unsigned int i = 0 ; i < v_s_Variable.size() ; ++i ) {
-   output << i;
-   if( ! v_s_Variable_names[ i ].empty() )
-    output << " (" << v_s_Variable_names[ i ] << "): ";
-   else
-    output << ": ";
-
-   un_any_static_Variable( v_s_Variable[ i ] , { output << *var; } );
-   output << std::endl;
-   }
-
-  // the dynamic Constraints of the Block- - - - - - - - - - - - - - - - - -
-  output << "Dynamic Constraints:" << std::endl;
-  for( unsigned int i = 0 ; i < v_d_Constraint.size() ; ++i ) {
-   output << i;
-   if( ! v_d_Constraint_names[ i ].empty() )
-    output << " (" << v_d_Constraint_names[ i ] << "): ";
-   else
-    output << ": ";
-
-   un_any_static_Constraint( v_d_Constraint[ i ] , { output << *var; } );
-   output << std::endl;
-   }
-
-  // the dynamic Variables of the Block - - - - - - - - - - - - - - - - - - -
-  output << "Dynamic Variables:" << std::endl;
-  for( unsigned int i = 0 ; i < v_d_Variable.size() ; ++i ) {
-   output << i;
-   if( ! v_d_Variable_names[ i ].empty() )
-    output << " (" << v_d_Variable_names[ i ] << "): ";
-   else
-    output << ": ";
-
-   un_any_static_Variable( v_d_Variable[ i ] , { output << *var; } );
-   output << std::endl;
-   }
-  */
+  // what a Block holds of its own is printed by whoever knows what it is:
+  // the groups say the type and the shape of the Variable and of the
+  // Constraint, and AbstractBlock::print() walks them
 
   // the inner Blocks - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   output << std::endl << "Nested Blocks:" << std::endl;
@@ -892,6 +842,54 @@ Block::MF_int_sbst_map & Block::methods_int_sbst_factory( void )
  return( f );
  }
 
+Block::MF_sp_dbl_rngd_map & Block::methods_sp_dbl_rngd_factory( void )
+{
+ static MF_sp_dbl_rngd_map f;
+ return( f );
+ }
+
+Block::MF_sp_int_rngd_map & Block::methods_sp_int_rngd_factory( void )
+{
+ static MF_sp_int_rngd_map f;
+ return( f );
+ }
+
+Block::MF_sp_dbl_sbst_map & Block::methods_sp_dbl_sbst_factory( void )
+{
+ static MF_sp_dbl_sbst_map f;
+ return( f );
+ }
+
+Block::MF_sp_int_sbst_map & Block::methods_sp_int_sbst_factory( void )
+{
+ static MF_sp_int_sbst_map f;
+ return( f );
+ }
+
+Block::MF_qry_dbl_rngd_map & Block::queries_dbl_rngd_factory( void )
+{
+ static MF_qry_dbl_rngd_map f;
+ return( f );
+ }
+
+Block::MF_qry_dbl_sbst_map & Block::queries_dbl_sbst_factory( void )
+{
+ static MF_qry_dbl_sbst_map f;
+ return( f );
+ }
+
+Block::MF_qry_int_rngd_map & Block::queries_int_rngd_factory( void )
+{
+ static MF_qry_int_rngd_map f;
+ return( f );
+ }
+
+Block::MF_qry_int_sbst_map & Block::queries_int_sbst_factory( void )
+{
+ static MF_qry_int_sbst_map f;
+ return( f );
+ }
+
 /*--------------------------------------------------------------------------*/
 
 std::string & block_filename_prefix( void )
@@ -912,87 +910,6 @@ const std::string & Block::get_filename_prefix( void )
 
 /*--------------------------------------------------------------------------*/
 /*------------------- METHODS FOR KEEPING THE GROUPS -----------------------*/
-/*--------------------------------------------------------------------------*/
-
-namespace {
-
-/// a sink of GroupAdapter.h that keeps the group, owning nothing of it
-
-struct keep_view {
- std::unique_ptr< BaseGroup > & group;
-
- template< class G , class P >
- void operator()( G && g , P * ) const {
-  group = std::make_unique< std::decay_t< G > >( std::forward< G >( g ) );
-  }
- };
-
-/// the group of what an any holds, nullptr if it is nothing known
-
-template< bool variable >
-std::unique_ptr< BaseGroup > group_of( const boost::any & any , bool dynamic ,
-				       Block * block , Block::Index i ,
-				       const std::string & name ) {
- std::unique_ptr< BaseGroup > group;
- if( variable )
-  group_adapter_detail::fits_variable( dynamic , any , block , i , name ,
-				       keep_view{ group } );
- else
-  group_adapter_detail::fits_constraint( dynamic , any , block , i , name ,
-					 keep_view{ group } );
- return( group );
- }
-
-}  // end( unnamed namespace )
-
-/*--------------------------------------------------------------------------*/
-
-void Block::refresh_static_variable_group( Index i )
-{
- if( i >= v_s_Variable.size() )
-  throw( std::invalid_argument( "Block::refresh_static_variable_group: "
-				"wrong index into v_s_Variable" ) );
- set_group( v_s_Variable_groups , i ,
-	    group_of< true >( v_s_Variable[ i ] , false , this , i ,
-			      v_s_Variable_names[ i ] ) );
- }
-
-/*--------------------------------------------------------------------------*/
-
-void Block::refresh_dynamic_variable_group( Index i )
-{
- if( i >= v_d_Variable.size() )
-  throw( std::invalid_argument( "Block::refresh_dynamic_variable_group: "
-				"wrong index into v_d_Variable" ) );
- set_group( v_d_Variable_groups , i ,
-	    group_of< true >( v_d_Variable[ i ] , true , this , i ,
-			      v_d_Variable_names[ i ] ) );
- }
-
-/*--------------------------------------------------------------------------*/
-
-void Block::refresh_static_constraint_group( Index i )
-{
- if( i >= v_s_Constraint.size() )
-  throw( std::invalid_argument( "Block::refresh_static_constraint_group: "
-				"wrong index into v_s_Constraint" ) );
- set_group( v_s_Constraint_groups , i ,
-	    group_of< false >( v_s_Constraint[ i ] , false , this , i ,
-			       v_s_Constraint_names[ i ] ) );
- }
-
-/*--------------------------------------------------------------------------*/
-
-void Block::refresh_dynamic_constraint_group( Index i )
-{
- if( i >= v_d_Constraint.size() )
-  throw( std::invalid_argument( "Block::refresh_dynamic_constraint_group: "
-				"wrong index into v_d_Constraint" ) );
- set_group( v_d_Constraint_groups , i ,
-	    group_of< false >( v_d_Constraint[ i ] , true , this , i ,
-			       v_d_Constraint_names[ i ] ) );
- }
-
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/

@@ -18,6 +18,9 @@
 #include "AbstractBlockGenerator.h"
 #include "AbstractPath.h"
 
+// last, so that the headers above are read as the library was compiled
+#include "TestAssert.h"
+
 /*--------------------------------------------------------------------------*/
 /*-------------------------------- USING -----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -38,27 +41,68 @@ void test_serialization( const AbstractPath & path ) {
 }
 
 /*--------------------------------------------------------------------------*/
+/// the same round trip for many paths at once, through one file
+/** Creating a netCDF file costs far more than writing a path into it, so the
+ * paths go through one file in many thousands at a time, in the format of a
+ * vector of AbstractPath, and each of them is compared with its own
+ * reading. */
+
+void test_serialization( const std::vector< AbstractPath > & paths ) {
+ if( paths.empty() )
+  return;
+ netCDF::NcFile ncFile( "ncfile_path_test.txt" , netCDF::NcFile::replace );
+ auto group = ncFile.addGroup( "Paths" );
+ AbstractPath::serialize( paths , group );
+ const auto read = AbstractPath::vector_deserialize( group );
+ assert( read.size() == paths.size() );
+ for( decltype( paths.size() ) i = 0 ; i < paths.size() ; ++i )
+  assert( read[ i ] == paths[ i ] );
+}
+
+/*--------------------------------------------------------------------------*/
+
+/// the paths made so far and not yet written and read back
+std::vector< AbstractPath > pending_paths;
+
+/// writes and reads back the pending paths, and forgets them
+void flush_paths( void ) {
+ test_serialization( pending_paths );
+ pending_paths.clear();
+}
+
+/// adds one path in 8 to the pending ones, flushing them when they are many
+/** Every path is checked by get_element() where it is made, which costs
+ * little; the round trip through netCDF costs a few calls to the library per
+ * path, and there are hundreds of thousands of them, so it is done for one
+ * path in 8, at a fixed stride over the order in which they are made. */
+void add_path( const AbstractPath & path ) {
+ static unsigned long made = 0;
+ if( made++ % 8 )
+  return;
+ pending_paths.push_back( path );
+ if( pending_paths.size() >= 16384 )
+  flush_paths();
+}
+
+/*--------------------------------------------------------------------------*/
 
 void test_paths( Block * block , Block * reference_block ) {
 
- for( const auto & group : block->get_static_variables() )
-  assert( un_any_const_static
-          ( group ,
-            [ reference_block ]( ColVariable & v ) {
-             AbstractPath path( & v , reference_block );
-             assert( & v == path.get_element< Variable >( reference_block ) );
-             test_serialization( path );
-            } ,
-            un_any_type< ColVariable >() ) );
+ for( const auto & group : block->get_static_variable_groups() )
+  assert( group->for_each_as< ColVariable >(
+           [ reference_block ]( ColVariable & v ) {
+            AbstractPath path( & v , reference_block );
+            assert( & v == path.get_element< Variable >( reference_block ) );
+            add_path( path );
+            } ) );
 
- for( const auto & group : block->get_static_constraints() )
-  assert( un_any_const_static
-          ( group ,
+ for( const auto & group : block->get_static_constraint_groups() )
+  assert( group->for_each_as< FRowConstraint >(
             [ reference_block ]( FRowConstraint & v ) {
              {
              AbstractPath path( & v , reference_block );
              assert( & v == path.get_element< Constraint >( reference_block ) );
-             test_serialization( path );
+             add_path( path );
              }
 
              {
@@ -66,29 +110,25 @@ void test_paths( Block * block , Block * reference_block ) {
              AbstractPath path( function , reference_block );
              assert( function == path.get_element< Function >
                      ( reference_block ) );
-             test_serialization( path );
+             add_path( path );
              }
-            } ,
-            un_any_type< FRowConstraint >() ) );
+            }  ) );
 
- for( const auto & group : block->get_dynamic_variables() )
-  assert( un_any_const_dynamic
-          ( group ,
+ for( const auto & group : block->get_dynamic_variable_groups() )
+  assert( group->for_each_as< ColVariable >(
             [ reference_block ]( ColVariable & v ) {
              AbstractPath path( & v , reference_block );
              assert( & v == path.get_element< Variable >( reference_block ) );
-             test_serialization( path );
-            } ,
-            un_any_type< ColVariable >() ) );
+             add_path( path );
+            }  ) );
 
- for( const auto & group : block->get_dynamic_constraints() )
-  assert( un_any_const_dynamic
-          ( group ,
+ for( const auto & group : block->get_dynamic_constraint_groups() )
+  assert( group->for_each_as< FRowConstraint >(
             [ reference_block ]( FRowConstraint & v ) {
              {
              AbstractPath path( & v , reference_block );
              assert( & v == path.get_element< Constraint >( reference_block ) );
-             test_serialization( path );
+             add_path( path );
              }
 
              {
@@ -96,17 +136,16 @@ void test_paths( Block * block , Block * reference_block ) {
              AbstractPath path( function , reference_block );
              assert( function == path.get_element< Function >
                      ( reference_block ) );
-             test_serialization( path );
+             add_path( path );
              }
-            } ,
-            un_any_type< FRowConstraint >() ) );
+            }  ) );
 
  {
   auto objective = block->get_objective();
   AbstractPath path( objective , reference_block );
   auto e = path.get_element< Objective >( reference_block );
   assert( objective == e );
-  test_serialization( path );
+  add_path( path );
  }
 
  {
@@ -118,21 +157,21 @@ void test_paths( Block * block , Block * reference_block ) {
   AbstractPath path( function , reference_block );
   auto e = path.get_element< Function >( reference_block );
   assert( function == e );
-  test_serialization( path );
+  add_path( path );
  }
 
  {
   AbstractPath path( block , reference_block );
   const auto retrieved_block = path.get_element< Block >( reference_block );
   assert( retrieved_block == block );
-  test_serialization( path );
+  add_path( path );
  }
 
  for( const auto nested_block : block->get_nested_Blocks() ) {
   AbstractPath path( nested_block , reference_block );
   const auto retrieved_block = path.get_element< Block >( reference_block );
   assert( retrieved_block == nested_block );
-  test_serialization( path );
+  add_path( path );
  }
 
  if( const auto pfb = dynamic_cast< PolyhedralFunctionBlock * >( block ) ) {
@@ -141,7 +180,7 @@ void test_paths( Block * block , Block * reference_block ) {
   const auto retrieved_function =
    path.get_element< Function >( reference_block );
   assert( retrieved_function == & function );
-  test_serialization( path );
+  add_path( path );
  }
 }
 
@@ -152,10 +191,10 @@ void test_variable_multi_selection( Block * reference ) {
 
  // Find a static ColVariable group of size >= 2 in the reference Block;
  // skip the test if no such group is available.
- const auto & static_vars = reference->get_static_variables();
+ const auto & static_vars = reference->get_static_variable_groups();
  for( Index g = 0 ; g < static_vars.size() ; ++g ) {
-  const auto group_size = inspection::get_static_element_size<
-   ColVariable , ColVariable >( static_vars[ g ] );
+  const auto group_size = inspection::get_element_size< ColVariable >(
+					       reference , true , g );
   if( ( group_size == Inf< Index >() ) || ( group_size < 2 ) )
    continue;
 
@@ -346,21 +385,17 @@ void test( Block * block , Block * reference_block ) {
 
 void test_everyone_has_function( Block * block ) {
 
- for( const auto & group : block->get_static_constraints() )
-  assert( un_any_const_static
-          ( group ,
+ for( const auto & group : block->get_static_constraint_groups() )
+  assert( group->for_each_as< FRowConstraint >(
             []( FRowConstraint & v ) {
              assert( v.get_function() != nullptr );
-            } ,
-            un_any_type< FRowConstraint >() ) );
+            }  ) );
 
- for( const auto & group : block->get_dynamic_constraints() )
-  assert( un_any_const_dynamic
-          ( group ,
+ for( const auto & group : block->get_dynamic_constraint_groups() )
+  assert( group->for_each_as< FRowConstraint >(
             []( FRowConstraint & v ) {
              assert( v.get_function() != nullptr );
-            } ,
-            un_any_type< FRowConstraint >() ) );
+            }  ) );
 
  {
   auto objective = static_cast< FRealObjective * >( block->get_objective() );
@@ -440,6 +475,7 @@ void simple_full_test() {
  test_everyone_has_function( block );
 
  test( block , block );
+ flush_paths();
 
  test_block_multi_selection( block );
  test_variable_multi_selection( block );
