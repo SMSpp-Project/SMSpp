@@ -2040,12 +2040,25 @@ int LagBFunction::compute( bool changedvars )
   // objective, the sorted positions j coupled to a multiplier (non-empty
   // CostMatrix[h][j].second). Cached; rebuilt only on f_active_dirty, so the
   // per-compute loop below iterates O(|coupled|) and not O(#vars).
+  // A position that has lost its last multiplier [see remove_variable()]
+  // still carries in the Objective the Lagrangian cost last written there:
+  // it is kept until the loop below has put its original cost back, which
+  // the next rebuild sees, dropping it
   if( f_active_dirty ) {
    v_active.assign( CostMatrix.size() , Subset() );
    for( Index h = 0 ; h < CostMatrix.size() ; ++h ) {
     const auto & cm = CostMatrix[ h ];
+    auto * fn = v_Obj[ h ]->get_function();
+    const Index nv = ! v_ObjIsQuad[ h ]
+                      ? static_cast< p_LF >( fn )->get_num_active_var()
+                      : static_cast< p_QF >( fn )->get_num_active_var();
     for( Index i = 0 ; i < cm.size() ; ++i )
-     if( ! cm[ i ].second.empty() )
+     if( ( ! cm[ i ].second.empty() ) ||
+         ( ( i < nv ) &&
+           ( ( ! v_ObjIsQuad[ h ]
+               ? static_cast< p_LF >( fn )->get_v_var()[ i ].second
+               : std::get< 1 >( static_cast< p_QF >( fn )->get_v_var()[ i ] ) )
+             != cm[ i ].first ) ) )
       v_active[ h ].push_back( i );
     }
    f_active_dirty = false;

@@ -175,6 +175,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `LagBFunction` left the Lagrangian cost in the Objective of a Variable of
+  its inner Block that had lost its last multiplier, whenever a change of
+  structure in the same batch of Modification rebuilt the list of the
+  coupled positions before the costs were written again: the position was
+  dropped from the list while still holding $c + y_k a$, and the function
+  kept that cost for good. A position whose cost in the Objective differs
+  from its original one now stays in the list until the original cost is
+  back
+
 - `LagBFunction` ignored the removal of *all* the Variable of the Objective
   of its inner Block: `LinearFunction::remove_variables()` says it with a
   `C05FunctionModVarsSbst` whose subset is empty, and the LagBFunction read
