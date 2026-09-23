@@ -302,6 +302,29 @@ static void test_cells_of_vectors( void )
  block->add_static_variable( *jagged , "jagged" );
  block->add_static_constraint( *rows , "rows" );
 
+ /* The index of an element of a group whose cells are vectors is the one a
+  * ConstraintID carries, i.e., storage order: the position inside the cell
+  * plus the sizes of the cells before it, the empty ones counting for 0.
+  * The rows are 3, 0, 1 and 2 per cell, so the indices run 0, 1, 2 in the
+  * first cell, 3 in the third and 4, 5 in the fourth, and asking for each
+  * of them gives back the very element it was taken from. */
+ Block::Index name = 0;
+ for( Block::Index c = 0 ; c < 4 ; ++c )
+  for( Block::Index j = 0 ; j < length[ c ] ; ++j ) {
+   auto & row = rows->data()[ c ][ j ];
+   auto where = inspection::get_element_index( & row );
+   assert( std::get< 0 >( where ) && ( std::get< 1 >( where ) == 0 ) &&
+	   ( std::get< 2 >( where ) == name ) );
+   assert( inspection::get_Constraint( block ,
+				       Block::ConstraintID( 0 , name ) )
+	   == & row );
+   ++name;
+   }
+
+ // an index past the last element has no Constraint to give back
+ assert( ! inspection::get_Constraint( block ,
+				       Block::ConstraintID( 0 , name ) ) );
+
  // the two Solution give back what they took, element by element, with the
  // empty cells in between not shifting anything
  ColVariableSolution primal;
@@ -714,9 +737,9 @@ static void test_element_knows_its_group( void )
 	 ( std::get< 2 >( where ) == 1 ) );
 
  /* In a group whose cells are vectors of different lengths the index is
-  * the one ConstraintID has always carried, c + i * n for the i-th element
-  * of the c-th of n cells, and the group of the element does not change
-  * that: it only spares the search among the other groups. */
+  * the one ConstraintID carries, the position of the element inside its
+  * cell plus the sizes of the cells before it, and the group of the element
+  * does not change that: it only spares the search among the other groups. */
 
  auto jag = new std::vector< std::vector< ColVariable > >( 3 );
  ( *jag )[ 0 ].resize( 1 );
@@ -726,7 +749,7 @@ static void test_element_knows_its_group( void )
  assert( ( *jag )[ 1 ][ 2 ].get_Group() == osv[ 1 ].get() );
  where = inspection::get_element_index( & ( *jag )[ 1 ][ 2 ] );
  assert( std::get< 0 >( where ) && ( std::get< 1 >( where ) == 1 ) &&
-	 ( std::get< 2 >( where ) == 1 + 2 * 3 ) );
+	 ( std::get< 2 >( where ) == 1 + 2 ) );
 
  /* The containers are NOT deleted here, for the reason given at the end of
   * test_empty_group(); the ones reset away are no longer seen by the Block,

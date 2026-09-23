@@ -827,18 +827,22 @@ class Block : public Observer {
   * important to notice that all indices mentioned here belong to zero-based
   * numbered sequences, i.e., sequences whose first element is 0.
   *
-  * A static group of Constraint can be one of three types:
+  * A static group of Constraint can be one of five types:
   *
   * 1. It is a single Constraint;
   *
   * 2. It is a vector of Constraint;
   *
-  * 3. It is a multidimensional array of Constraint.
+  * 3. It is a multidimensional array of Constraint;
+  *
+  * 4. It is a vector of vectors of Constraint;
+  *
+  * 5. It is a multidimensional array of vectors of Constraint.
   *
   * In the first case, in which the group is a single Constraint, the index of
   * the Constraint is 0. In the second case, in which the group is a vector of
   * Constraint, the index of the Constraint is simply its position in that
-  * vector. In the last case, in which the group is a multidimensional array
+  * vector. In the third case, in which the group is a multidimensional array
   * of Constraint, the index of the Constraint is its position in the
   * vectorized multidimensional array in row-major layout. For instance, if
   * the multidimensional array has two dimensions with sizes m and n,
@@ -850,6 +854,15 @@ class Block : public Observer {
   * \f[
   *   \sum_{r = 0}^{k-1} ( \prod_{s = r + 1}^{k-1} n_s ) i_r
   * \f]
+  *
+  * In the last two cases, in which the cells of the group are vectors of
+  * Constraint, whose lengths need not be the same, the index of the
+  * Constraint at position j of the k-th cell is given by
+  * \f[
+  *    j + \sum_{t = 0}^{k-1} s_t
+  * \f]
+  * where s_t is the number of Constraint in the t-th cell: the same rule as
+  * the one of a dynamic group whose cells are lists, i.e., storage order.
   *
   * A dynamic group of Constraint can be one of three types:
   *

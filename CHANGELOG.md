@@ -111,6 +111,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- the elements of a static group whose cells are `std::vector` are numbered
+  cell by cell, the position inside the cell plus the sizes of the cells
+  before it, as those of a dynamic group whose cells are `std::list` already
+  were and as `Block::ConstraintID` documents, rather than the grid read the
+  other way around, `c + i * n` for the i-th element of the c-th of n cells.
+  A `ConstraintID` naming a `Constraint` inside such a group therefore names
+  another one now; no configuration file did, those groups being recent, and
+  the documentation of `Block::ConstraintID` covers them from now on
+
 - ⚠️ A `Variable` AND A `Constraint` POINT TO THEIR GROUP: the field that held
   the pointer to the Block holds the pointer to the group the element is in,
   the lowest bit telling the two apart, and `get_Block()` answers through the

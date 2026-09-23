@@ -10,10 +10,9 @@
  * which says the type of its elements and their shape, so that the functions
  * here are a matter of asking the right group [see BaseGroup]; what they add
  * is the numbering of the elements INSIDE a group, which is the one a
- * ConstraintID carries and which therefore cannot change: the elements of a
- * group that is one array are numbered in storage order, while those of a
- * group made of many arrays are numbered cell by cell, i.e., the i-th
- * element of the c-th cell of a group of n cells is the ( c + i * n )-th.
+ * ConstraintID carries: the elements of a group are numbered in storage
+ * order, cell by cell, so that the i-th element of the c-th cell comes after
+ * all the elements of the cells before it, whatever the cells hold.
  *
  * \author Rafael Durbano Lobato \n
  *         Dipartimento di Informatica \n
@@ -82,10 +81,9 @@ namespace SMSpp_di_unipi_it::inspection
 
  /// the index of an element inside its group, Inf< Index >() if not there
  /** The index the functions here give an element of \p group, which is the
-  * one a ConstraintID carries: the position in storage order for a group
-  * that is one array, or one collection of them, and c + i * n for the i-th
-  * element of the c-th cell of a group of n cells whose cells are vectors,
-  * which is how such a group has always been numbered here. */
+  * one a ConstraintID carries: the position in storage order, i.e., the
+  * position of the element inside its cell plus the sizes of the cells
+  * before it, whatever the cells hold. */
 
  template< class C >
  static Index index_in_group( const BaseGroup & group , const C * element )
@@ -117,7 +115,7 @@ namespace SMSpp_di_unipi_it::inspection
    return( found );
    }
 
-  const Index cells = group.get_num_cells();
+  Index base = 0;
 
   for_each_concrete< T >( [ & ]( auto * tag ) {
     using X = std::remove_pointer_t< decltype( tag ) >;
@@ -126,9 +124,10 @@ namespace SMSpp_di_unipi_it::inspection
        Index i = 0;
        for( auto & item : cell ) {
 	if( & group_element( item ) == element )
-	 found = c + i * cells;
+	 found = base + i;
 	++i;
 	}
+       base += i;
        } ) );
     else
      return( false );
@@ -318,21 +317,21 @@ namespace SMSpp_di_unipi_it::inspection
   if( group.get_layout() != BaseGroup::eJagged )
    return( group.get_as< T >( index ) );
 
-  const Index cells = group.get_num_cells();
-  if( ! cells )
+  if( ! group.get_num_cells() )
    return( nullptr );
 
   C * found = nullptr;
-  const Index wanted_cell = index % cells;
-  const Index wanted = index / cells;
+  Index base = 0;
 
   for_each_concrete< T >( [ & ]( auto * tag ) {
     using X = std::remove_pointer_t< decltype( tag ) >;
     if constexpr( std::is_base_of_v< T , X > )
      return( group.for_each_cell_as< X >( [ & ]( Index c , auto & cell ) {
-       if( ( c != wanted_cell ) || ( wanted >= cell.size() ) )
-	return;
-       found = & group_element( * std::next( cell.begin() , wanted ) );
+       const Index n = Index( cell.size() );
+       if( ( ! found ) && ( index >= base ) && ( index < base + n ) )
+	found = & group_element( * std::next( cell.begin() ,
+					      index - base ) );
+       base += n;
        } ) );
     else
      return( false );
