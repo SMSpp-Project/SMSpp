@@ -28,6 +28,15 @@
 
 #include "Change.h"
 
+#include "Block.h"
+#include "ColVariable.h"
+#include "Objective.h"
+#include "Function.h"
+#include "FRealObjective.h"
+#include "LinearFunction.h"
+#include "DQuadFunction.h"
+
+
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -41,6 +50,8 @@ using namespace SMSpp_di_unipi_it;
 // register GroupChange to the Change factory
 
 SMSpp_insert_in_factory_cpp_0( GroupChange );
+
+using Index = Block::Index;
 
 void AbstractChange::deserialize(const netCDF::NcGroup &group)
 {
