@@ -45,6 +45,8 @@
 
 #include "Modification.h"
 
+#include "AbstractPath.h"
+
 /*--------------------------------------------------------------------------*/
 /*------------------------------ NAMESPACE ---------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -534,6 +536,75 @@ private:
  [[nodiscard]] virtual const std::string & private_name( void ) const = 0;
 
  };  // end( class( Change ) )
+
+ /*--------------------------------------------------------------------------*/
+ /*------------------------- CLASS AbstractChange ---------------------------*/
+ /*--------------------------------------------------------------------------*/
+ /// concrete class for a Change applicable to Blocks with abstract representation
+ /** The class AbstractChange derives from Change and provides a
+  *  concrete implementation of a Change that can be applied to a Block with
+  *  abstract representation. It contains the type of the change, the value of
+  *  the change and the vector of abstract paths involved in the change.
+  *  AbstractChange works with AbstractPath to define the variable and constraint
+  *  involved in the change. It's possible that for some types of changes, 
+  *  when applied directly could return an exception.
+  */
+
+ class AbstractChange : public Change
+ {
+ public:
+   enum AbstractChangeType
+   {
+     eEmpty = 0,      ///< empty change, used for initialization
+     eChgObj,         ///< change objective coefficient of a variable
+     eChgSense,       ///< change sense of the objective
+     eChgIntegrality, ///< change integrality of a variable
+     eFixX,           ///< fix a variable to a value
+     eUnfixX,         ///< unfix a variable
+     eChgLB,          ///< change lower bound of a variable
+     eChgUB           ///< change upper bound of a variable
+   };
+   /*---------------------- CONSTRUCTOR & DESTRUCTOR --------------------------*/
+
+   // constructor
+   AbstractChange() : f_type(eEmpty), v_data(), v_paths() {}
+
+   AbstractChange(int type, std::vector<double> value, std::vector<AbstractPath> paths)
+       : f_type(type), v_data(std::move(value)), v_paths(std::move(paths)) {}
+
+   // decostructor
+   ~AbstractChange() = default;
+
+   /*-------------------- PUBLIC METHODS OF THE CLASS -------------------------*/
+   /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+   void deserialize(const netCDF::NcGroup &group) override;
+
+   /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+   void serialize(netCDF::NcGroup &group) const override;
+
+   /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+   Change *apply(Block *block, bool doUndo = false,
+                 ModParam issueMod = eNoBlck,
+                 ModParam issueAMod = eNoBlck) override;
+
+   // getter
+   [[nodiscard]] int get_type() const { return f_type; }
+   [[nodiscard]] const std::vector<double> &get_data() const { return v_data; }
+   [[nodiscard]] const std::vector<AbstractPath> &get_paths() const { return v_paths; }
+
+   /*-------------------- PUBLIC FIELDS OF THE CLASS -------------------------*/
+
+ protected:
+   int f_type;                        ///< type of the change
+   std::vector<double> v_data;        ///< value of the change
+   std::vector<AbstractPath> v_paths; ///< vector of abstract path (variables and constraints) involved in the change
+
+ private:
+   SMSpp_insert_in_factory_h;
+ }; // end of class AbstractChange
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS GroupChange -----------------------------*/
