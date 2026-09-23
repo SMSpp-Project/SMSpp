@@ -37,10 +37,12 @@ SMS++OBJ = $(SMS++SDR)/obj/AbstractBlock.o \
 	$(SMS++SDR)/obj/BendersBlock.o \
 	$(SMS++SDR)/obj/Block.o \
 	$(SMS++SDR)/obj/BlockSolverConfig.o \
+	$(SMS++SDR)/obj/BooleanVariableSolution.o \
 	$(SMS++SDR)/obj/BoxSolver.o \
 	$(SMS++SDR)/obj/CDASolver.o \
 	$(SMS++SDR)/obj/C05Function.o \
 	$(SMS++SDR)/obj/C05SumFunction.o \
+	$(SMS++SDR)/obj/ClauseConstraint.o \
 	$(SMS++SDR)/obj/ColRowSolution.o \
 	$(SMS++SDR)/obj/ColVariable.o \
 	$(SMS++SDR)/obj/ColVariableSolution.o \
@@ -75,12 +77,15 @@ SMS++H = $(SMS++SDR)/include/AbstractBlock.h \
 	$(SMS++SDR)/include/BendersBlock.h \
 	$(SMS++SDR)/include/Block.h \
 	$(SMS++SDR)/include/BlockSolverConfig.h \
+	$(SMS++SDR)/include/BooleanVariable.h \
+	$(SMS++SDR)/include/BooleanVariableSolution.h \
 	$(SMS++SDR)/include/BoxSolver.h \
 	$(SMS++SDR)/include/C05Function.h \
 	$(SMS++SDR)/include/C05SumFunction.h \
 	$(SMS++SDR)/include/C15Function.h \
 	$(SMS++SDR)/include/CDASolver.h \
 	$(SMS++SDR)/include/Change.h \
+	$(SMS++SDR)/include/ClauseConstraint.h \
 	$(SMS++SDR)/include/ChangeSolver.h \
 	$(SMS++SDR)/include/ColRowSolution.h \
 	$(SMS++SDR)/include/ColVariable.h \
@@ -237,6 +242,19 @@ $(SMS++SDR)/obj/ColVariableSolution.o: \
 	$(SMS++SDR)/include/Constraint.h $(SMS++SDR)/include/Variable.h \
 	$(SMS++SDR)/include/ThinComputeInterface.h
 	$(CC) -c $(SMS++SDR)/src/ColVariableSolution.cpp -o $@ $(SMS++INC) $(SW)
+
+$(SMS++SDR)/obj/BooleanVariableSolution.o: \
+	$(SMS++SDR)/src/BooleanVariableSolution.cpp \
+	$(intBlockINC) $(SMS++SDR)/include/BooleanVariableSolution.h \
+	$(SMS++SDR)/include/Solution.h $(SMS++SDR)/include/BooleanVariable.h \
+	$(SMS++SDR)/include/Variable.h $(SMS++SDR)/include/ThinComputeInterface.h
+	$(CC) -c $(SMS++SDR)/src/BooleanVariableSolution.cpp -o $@ $(SMS++INC) $(SW)
+
+$(SMS++SDR)/obj/ClauseConstraint.o: $(SMS++SDR)/src/ClauseConstraint.cpp \
+	$(SMS++SDR)/include/ClauseConstraint.h \
+	$(SMS++SDR)/include/BooleanVariable.h $(SMS++SDR)/include/Constraint.h \
+	$(SMS++SDR)/include/ThinVarDepInterface.h $(intBlockINC)
+	$(CC) -c $(SMS++SDR)/src/ClauseConstraint.cpp -o $@ $(SMS++INC) $(SW)
 
 $(SMS++SDR)/obj/Constraint.o: $(SMS++SDR)/src/Constraint.cpp \
 	$(SMS++SDR)/include/Constraint.h \

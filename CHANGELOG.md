@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `BooleanVariable`, the Variable of the propositional logic, whose value is
+  either true or false, and `ClauseConstraint`, a clause, i.e., the
+  disjunction of literals each being a `BooleanVariable` as it is or
+  negated, with the `ClauseConstraintMod` it issues when its literals are
+  replaced, added or removed: the first Variable other than `ColVariable`
+  and the first Constraint other than a `RowConstraint` of the core, for the
+  satisfiability problems
+- `BooleanVariableSolution`, the Solution of a Block whose Variables are
+  `BooleanVariable`: it follows `ColVariableSolution`, storing each value as
+  1 or 0 so that a convex combination of solutions gives the frequency with
+  which each `BooleanVariable` is true, and `write()` rounds it at 1/2
 - `MasterProblemBlock`, the master problem of a stabilized method as a Block
   of the core: the model a bundle method solves at every iteration is built,
   read and changed through the abstract representation, so that whichever

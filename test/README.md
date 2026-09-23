@@ -7,6 +7,8 @@ Unit tests for the core SMS++ library. Each test is registered as a separate
   `Solver` and `Configuration` objects by name.
 - `AbstractBlock_test` covers `Block` and `AbstractBlock`.
 - `ColVariable_test` covers `Variable` and `ColVariable`.
+- `BooleanVariable_test` covers `BooleanVariable`, `ClauseConstraint` with
+  the `ClauseConstraintMod` it issues, and `BooleanVariableSolution`.
 - `Function_test` covers the `Function` interface.
 - `LinearFunction_test` covers `LinearFunction`.
 - `QuadFunction_test` covers `DQuadFunction`.

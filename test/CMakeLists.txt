@@ -67,6 +67,12 @@ smspp_install(AbstractPath_test)
 add_test(NAME AbstractPath_test
          COMMAND AbstractPath_test)
 
+add_executable(BooleanVariable_test tests_BooleanVariable.cpp)
+target_link_libraries(BooleanVariable_test PRIVATE SMS++::SMS++)
+smspp_install(BooleanVariable_test)
+add_test(NAME BooleanVariable_test
+         COMMAND BooleanVariable_test)
+
 add_executable(ColVariable_test tests_ColVariable.cpp)
 target_link_libraries(ColVariable_test PRIVATE SMS++::SMS++)
 smspp_install(ColVariable_test)
