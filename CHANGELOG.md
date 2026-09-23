@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `MasterProblemBlock`, the master problem of a stabilized method as a Block
+  of the core: the model a bundle method solves at every iteration is built,
+  read and changed through the abstract representation, so that whichever
+  Solver is attached to it solves it, and its comments speak of the Solver
+  that drives the master and not of one of them in particular
 - `C05SumFunction`, the `C05Function` that is the sum of a given set of
   `C05Function`: it computes them, combines their linearizations into its
   own, and is their `Observer`, so that what happens to a member is seen as
@@ -117,6 +122,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- the makefile of the library carries `C05SumFunction`, which was built by
+  CMake alone
 - `tests_Function` discards on purpose what the calls that must throw return,
   the compiler warning that a value was ignored where the point is that the
   call never gets to return one
