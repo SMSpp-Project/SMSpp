@@ -33,6 +33,8 @@
 
 #include <limits>
 
+#include <numeric>
+
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -184,18 +186,44 @@ void C05SumFunction::steal_the_Observers( void )
 
 /*--------------------------------------------------------------------------*/
 
+C05SumFunction::Index C05SumFunction::member_of( const sp_Mod & mod ) const
+{
+ /* A FunctionModVars is not a FunctionMod, the two hierarchies being apart
+  * although both say which Function they come from: which one it is has to
+  * be asked of both. */
+
+ const Function * f = nullptr;
+ if( const auto fmod = std::dynamic_pointer_cast< FunctionMod >( mod ) )
+  f = fmod->function();
+ else
+  if( const auto vmod = std::dynamic_pointer_cast< FunctionModVars >( mod ) )
+   f = vmod->function();
+
+ if( f )
+  for( Index k = 0 ; k < v_members.size() ; ++k )
+   if( v_members[ k ] == f )
+    return( k );
+
+ return( Inf< Index >() );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 void C05SumFunction::add_Modification( sp_Mod mod , ChnlName chnl )
 {
+ /* A GroupModification is looked into: the Observer of a Function is
+  * entitled to receive one, as FRealObjective (the Observer whose place the
+  * sum takes) does, and what it says about the sum is what its
+  * sub-Modification say together. */
+
+ if( const auto gmod = std::dynamic_pointer_cast< GroupModification >( mod ) ) {
+  group_Modification( gmod , chnl );
+  return;
+  }
+
  // which member is speaking: a Modification of anything else is passed on
  // as it is, the sum having nothing to say about it
- const auto fmod = std::dynamic_pointer_cast< FunctionMod >( mod );
- Index h = Inf< Index >();
- if( fmod )
-  for( Index k = 0 ; k < v_members.size() ; ++k )
-   if( v_members[ k ] == fmod->function() ) {
-    h = k;
-    break;
-    }
+ const Index h = member_of( mod );
 
  if( h == Inf< Index >() ) {
   if( f_Observer )
@@ -236,16 +264,312 @@ void C05SumFunction::member_Modification( const sp_Mod & mod ,
                                           Observer * previous ,
                                           ChnlName chnl )
 {
+ translate_Modification( mod , chnl );
+
+ // last, the member speaks to the Observer it had, which is what the Solver
+ // attached to its Block are waiting for
+ if( previous )
+  previous->add_Modification( sp_Mod( mod ) , chnl );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void C05SumFunction::group_Modification(
+                       const std::shared_ptr< GroupModification > & gmod ,
+                       ChnlName chnl )
+{
+ /* The sub-Modification that belong to the members are translated, the
+  * others are passed on as they are; the translations are held and merged,
+  * so that a group in which every member changes in the same way becomes
+  * one Modification of the sum rather than one per member. */
+
+ std::vector< Observer * > previous;  // the Observer of the members involved
+
+ {
+  bunching mine( *this , chnl );
+
+  for( const auto & sub : gmod->sub_Modifications() ) {
+   if( const auto sgmod =
+       std::dynamic_pointer_cast< GroupModification >( sub ) ) {
+    group_Modification( sgmod , chnl );   // a nested group is looked into
+    continue;
+    }
+
+   const Index h = member_of( sub );
+   if( h == Inf< Index >() ) {            // not a member: not ours to say
+    if( f_Observer )
+     f_Observer->add_Modification( sub , chnl );
+    continue;
+    }
+
+   if( std::find( previous.begin() , previous.end() , v_prev_obs[ h ] ) ==
+       previous.end() )
+    previous.push_back( v_prev_obs[ h ] );
+
+   // while the sum is changing the members itself, what they say is the
+   // echo of that, and the sum reports for itself
+   if( ! f_own_op )
+    translate_Modification( sub , chnl );
+   }
+  }
+
+ // the group goes on, whole, to the Observer the members had: it is one
+ // change of theirs, and the Solver attached to their Block see it as such
+ for( auto obs : previous )
+  if( obs )
+   obs->add_Modification( gmod , chnl );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void C05SumFunction::emit( sp_Mod out , ChnlName chnl )
+{
+ if( f_bunching )
+  v_pending.push_back( std::move( out ) );
+ else
+  if( f_Observer )
+   f_Observer->add_Modification( std::move( out ) , chnl );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void C05SumFunction::flush_pending( ChnlName chnl )
+{
+ if( ! f_Observer ) {
+  v_pending.clear();
+  return;
+  }
+
+ /* Two translations say the same thing about the sum if they are the same
+  * kind of Modification about the same linearizations: they are then merged
+  * into one, whose shift is the sum of theirs, a shift of one addend being
+  * a shift of the sum, and which concerns the Block if either does. */
+
+ auto same = []( const sp_Mod & a , const sp_Mod & b ) -> bool {
+  const auto ca = std::dynamic_pointer_cast< C05FunctionMod >( a );
+  const auto cb = std::dynamic_pointer_cast< C05FunctionMod >( b );
+  if( bool( ca ) != bool( cb ) )
+   return( false );
+  if( ! ca )
+   return( true );          // both plain FunctionMod: only the shift
+  return( ( ca->type() == cb->type() ) && ( ca->which() == cb->which() ) );
+  };
+
+ auto add_shift = []( FunctionValue a , FunctionValue b ) -> FunctionValue {
+  if( ( a == FunctionMod::INFshift ) || ( b == FunctionMod::INFshift ) )
+   return( FunctionMod::INFshift );  // unpredictable stays unpredictable
+  return( a + b );          // NaN, i.e. "no shift known", propagates
+  };
+
+ while( ! v_pending.empty() ) {
+  auto out = v_pending.front();
+  v_pending.pop_front();
+  auto fout = std::static_pointer_cast< FunctionMod >( out );
+  FunctionValue shift = fout->shift();
+  bool cB = fout->concerns_Block();
+  bool merged = false;
+
+  while( ( ! v_pending.empty() ) && same( out , v_pending.front() ) ) {
+   auto nxt = std::static_pointer_cast< FunctionMod >( v_pending.front() );
+   shift = add_shift( shift , nxt->shift() );
+   cB = cB || nxt->concerns_Block();
+   v_pending.pop_front();
+   merged = true;
+   }
+
+  if( merged ) {     // the merged one is built anew, the held ones are gone
+   if( const auto cout = std::dynamic_pointer_cast< C05FunctionMod >( out ) )
+    out = std::make_shared< C05FunctionMod >( this , cout->type() ,
+                                              Subset( cout->which() ) ,
+                                              shift , cB );
+   else
+    out = std::make_shared< FunctionMod >( this , shift , cB );
+   }
+
+  f_Observer->add_Modification( std::move( out ) , chnl );
+  }
+ }
+
+
+/*--------------------------------------------------------------------------*/
+
+void C05SumFunction::rebuild_map( Index h )
+{
+ auto m = v_members[ h ];
+ const auto n = m->get_num_active_var();
+ v_map[ h ].resize( n );
+ for( Index i = 0 ; i < n ; ++i ) {
+  const auto it = f_var2idx.find( m->get_active_var( i ) );
+  if( it == f_var2idx.end() )
+   throw( std::logic_error( "C05SumFunction::rebuild_map: a Variable of a "
+                            "member is not among those of the group" ) );
+  v_map[ h ][ i ] = it->second;
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void C05SumFunction::member_Variables_changed(
+                        const std::shared_ptr< FunctionModVars > & vmod ,
+                        ChnlName chnl )
+{
+ const auto h = member_of( vmod );
+ auto member = v_members[ h ];
+
+ /* The "active" Variable of the sum are the union of those of the members,
+  * so that a Variable added to a member is one of the sum only if no other
+  * member had it, and one removed from a member leaves the sum only if no
+  * other member still has it. The linearizations of the sum are combined
+  * through v_map at each request, and not stored, so that rebuilding the
+  * map is all there is to do on this side. */
+
+ Vec_p_Var changed;   // the Variable that are added to, or leave, the sum
+ Subset where;        // where they were, for a removal
+
+ if( vmod->added() ) {
+  const Index first = v_vars.size();
+
+  for( auto v : vmod->vars() ) {
+   auto var = static_cast< ColVariable * >( v );
+   if( f_var2idx.find( var ) != f_var2idx.end() )
+    continue;                      // some other member already had it
+   f_var2idx.emplace( var , v_vars.size() );
+   v_vars.push_back( var );
+   changed.push_back( var );
+   }
+
+  rebuild_map( h );
+
+  if( changed.empty() )            // nothing new for the sum
+   return;
+
+  if( f_Observer && anyone_there() ) {
+   sp_Mod out;
+      if( std::dynamic_pointer_cast< C05FunctionModVarsAddd >( vmod ) )
+    out = std::make_shared< C05FunctionModVarsAddd >( this ,
+                                     std::move( changed ) , first ,
+                                     vmod->shift() , vmod->concerns_Block() );
+   else
+    out = std::make_shared< FunctionModVarsAddd >( this ,
+                                     std::move( changed ) , first ,
+                                     vmod->shift() , vmod->concerns_Block() );
+   emit( std::move( out ) , chnl );
+   }
+
+  return;
+  }
+
+ /* A removal: a Variable leaves the sum only if no member still has it,
+  * which is asked of the members as they are now, the one that has changed
+  * included. The Variable that leave are taken out of v_vars, whence the
+  * positions of those after them change, and every map is rebuilt. */
+
+ for( auto v : vmod->vars() ) {
+  auto var = static_cast< ColVariable * >( v );
+  const auto it = f_var2idx.find( var );
+  if( it == f_var2idx.end() )
+   continue;                       // it was not one of the sum anyway
+
+  bool someone = false;
+  for( Index k = 0 ; ( k < v_members.size() ) && ( ! someone ) ; ++k )
+   if( v_members[ k ]->is_active( var ) <
+       v_members[ k ]->get_num_active_var() )
+    someone = true;
+
+  if( someone )                    // some member still has it
+   continue;
+
+  changed.push_back( var );
+  where.push_back( it->second );
+  }
+
+ if( changed.empty() ) {           // no Variable leaves the sum
+  rebuild_map( h );
+  return;
+  }
+
+ // the positions are given in increasing order, as a Subset is expected to
+ Subset ord( where.size() );
+ std::iota( ord.begin() , ord.end() , 0 );
+ std::sort( ord.begin() , ord.end() ,
+            [ & where ]( Index a , Index b ) {
+             return( where[ a ] < where[ b ] );
+             } );
+
+ Vec_p_Var sorted( changed.size() );
+ Subset positions( where.size() );
+ for( Index i = 0 ; i < ord.size() ; ++i ) {
+  sorted[ i ] = changed[ ord[ i ] ];
+  positions[ i ] = where[ ord[ i ] ];
+  }
+
+ // take them out, keeping the order of the ones that stay
+ auto gone = [ & sorted ]( const ColVariable * v ) {
+  return( std::find( sorted.begin() , sorted.end() , v ) != sorted.end() );
+  };
+ v_vars.erase( std::remove_if( v_vars.begin() , v_vars.end() , gone ) ,
+               v_vars.end() );
+
+ f_var2idx.clear();
+ f_var2idx.reserve( v_vars.size() );
+ for( Index i = 0 ; i < v_vars.size() ; ++i )
+  f_var2idx.emplace( v_vars[ i ] , i );
+
+ for( Index k = 0 ; k < v_members.size() ; ++k )
+  rebuild_map( k );
+
+ if( f_Observer && anyone_there() ) {
+  sp_Mod out;
+    const bool strong =
+   std::dynamic_pointer_cast< C05FunctionModVarsRngd >( vmod ) ||
+   std::dynamic_pointer_cast< C05FunctionModVarsSbst >( vmod );
+  // a run of consecutive positions is a range, which is cheaper to read
+  const bool range = ( positions.back() - positions.front() + 1 ) ==
+                     positions.size();
+  if( range ) {
+   Function::Range rng( positions.front() , positions.back() + 1 );
+   if( strong )
+    out = std::make_shared< C05FunctionModVarsRngd >( this ,
+                                     std::move( sorted ) , rng ,
+                                     vmod->shift() , vmod->concerns_Block() );
+   else
+    out = std::make_shared< FunctionModVarsRngd >( this ,
+                                     std::move( sorted ) , rng ,
+                                     vmod->shift() , vmod->concerns_Block() );
+   }
+  else
+   if( strong )
+    out = std::make_shared< C05FunctionModVarsSbst >( this ,
+                                     std::move( sorted ) ,
+                                     std::move( positions ) , true ,
+                                     vmod->shift() , vmod->concerns_Block() );
+   else
+    out = std::make_shared< FunctionModVarsSbst >( this ,
+                                     std::move( sorted ) ,
+                                     std::move( positions ) , true ,
+                                     vmod->shift() , vmod->concerns_Block() );
+
+  emit( std::move( out ) , chnl );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void C05SumFunction::translate_Modification( const sp_Mod & mod ,
+                                             ChnlName chnl )
+{
+ /* A Variable added to or removed from a member changes the "active"
+  * Variable of the sum, which are their union, and the map between the two:
+  * this is dealt with apart, since what the sum has to say about it is not
+  * a Modification of its linearizations but one of its Variable. */
+
+ if( const auto vmod = std::dynamic_pointer_cast< FunctionModVars >( mod ) ) {
+  member_Variables_changed( vmod , chnl );
+  return;
+  }
+
  const auto fmod = std::static_pointer_cast< FunctionMod >( mod );
  const auto member = static_cast< C05Function * >( fmod->function() );
-
- /* A Variable added to or removed from a member changes the "active"
-  * Variable of the sum, and the map between the two: this is not supported
-  * yet, and it is better said than silently ignored. */
-
- if( std::dynamic_pointer_cast< FunctionModVars >( mod ) )
-  throw( std::logic_error( "C05SumFunction::add_Modification: a member "
-                           "changing its Variable is not supported" ) );
 
  /* The global pool of the sum is kept to what the Modification of the
   * members say it is: a linearization that a member no longer has is no
@@ -296,18 +620,13 @@ void C05SumFunction::member_Modification( const sp_Mod & mod ,
     out = std::make_shared< FunctionMod >( this , fmod->shift() ,
                                            fmod->concerns_Block() );
 
-  f_Observer->add_Modification( std::move( out ) , chnl );
+    emit( std::move( out ) , chnl );
 
   if( ! stale.empty() )
-   f_Observer->add_Modification( std::make_shared< C05FunctionMod >( this ,
+   emit( std::make_shared< C05FunctionMod >( this ,
                                  C05FunctionMod::GlobalPoolRemoved ,
                                  std::move( stale ) , 0 ) , chnl );
   }
-
- // last, the member speaks to the Observer it had, which is what the Solver
- // attached to its Block are waiting for
- if( previous )
-  previous->add_Modification( sp_Mod( mod ) , chnl );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -461,7 +780,8 @@ int C05SumFunction::compute_parallel( bool changedvars ,
                                        const std::vector< double > & shares )
 {
  /* The members are evaluated as many at a time as the threads the group has
-  * been allowed. The time cannot be handed down one member at a time here,
+    * been allowed to spend. The time cannot be handed down one member at a
+  * time here,
   * they being computed together: each of them is given all of what the group
   * has left, which is the only thing the group has to respect anyway, and
   * the ones that run together share it rather than adding up to it. */
@@ -485,22 +805,34 @@ int C05SumFunction::compute_parallel( bool changedvars ,
     v_members[ h ]->set_par( dblMaxTime , left );
    }
 
+    /* The members but the first are handed to whoever runs them, and the
+   * first is run here: the thread that would otherwise only wait for them
+   * does one of them, which is one thread less to find and, when the
+   * threads come from a pool shared with the solver driving the group, is
+   * what keeps a thread of that pool from being held doing nothing. */
+
   std::vector< std::future< int > > running;
-  running.reserve( to - from );
+  running.reserve( to - from - 1 );
   for( Index h = from ; h < to ; ++h ) {
    for( const auto & [ par , value ] : f_abs_par )
     v_members[ h ]->set_par( par , value * shares[ h ] );
    v_members[ h ]->set_par( intMaxThread , 1 );
    ++f_member_evals;
-   running.push_back( v_members[ h ]->compute_async( changedvars ) );
+   if( h == from )
+    continue;
+   running.push_back( f_submit ? f_submit( v_members[ h ] , changedvars )
+                               : v_members[ h ]->compute_async( changedvars )
+                      );
    }
+
+  const int first = v_members[ from ]->compute( changedvars );
 
   // whatever happens, every member that has been started is waited for:
   // returning while one of them is still writing its own Block would leave
   // the group reading a value that is being changed under it
   int bad = kOK;
   for( Index h = from ; h < to ; ++h ) {
-   const int s = running[ h - from ].get();
+   const int s = ( h == from ) ? first : running[ h - from - 1 ].get();
    if( ( s <= kUnEval ) || ( ( s >= kError ) && ( s != Solver::kLowPrecision ) ) )
     bad = s;
    else if( s == Solver::kLowPrecision )
@@ -533,15 +865,20 @@ int C05SumFunction::compute( bool changedvars )
  // the share of the absolute accuracies each member is given
  const auto shares = accuracy_shares();
 
- /* The members are evaluated together only if they are worth a thread each:
+  /* The members are evaluated together only if they are worth a thread each:
   * spawning one and waiting for it costs of the order of 100 microseconds,
   * so a group whose members are answered by a dynamic program in ten of
   * them would spend on the threads several times what the evaluation takes.
   * What a member has cost so far is therefore what decides, and since it is
   * not known before the first evaluation, that one is done one member at a
-  * time. */
+  * time. When the threads come from a pool [see set_submitter()] handing a
+  * member over is a queue and not a thread, which costs two orders of
+  * magnitude less, and the members that are worth it are accordingly
+  * cheaper ones. */
 
- if( ( f_max_thread > 1 ) && ( f_member_time > 1e-3 ) )
+ const double worth = f_submit ? 1e-5 : 1e-3;
+
+ if( ( f_max_thread > 1 ) && ( f_member_time > worth ) )
   return( compute_parallel( changedvars , shares ) );
 
  const auto t0 = std::chrono::system_clock::now();

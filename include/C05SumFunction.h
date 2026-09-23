@@ -37,6 +37,12 @@
 
 #include <chrono>
 
+#include <functional>
+
+#include <future>
+
+#include <list>
+
 #include <map>
 
 #include <random>
@@ -244,8 +250,32 @@ class C05SumFunction : public C05Function , public Observer
   * the group is the only one that knows how many of them are not already
   * spent on evaluating the groups themselves. */
 
- void set_members_at_once( int n ) {
+  void set_members_at_once( int n ) {
   f_max_thread = n > 1 ? n : 1;
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// the threads the group is given, if they come from a pool
+ /** The type of what runs a member on a thread that is not the caller's: it
+  * takes the member and whether its Variable have changed, and returns the
+  * future of its compute(), i.e., it is what compute_async() does, done by
+  * whoever owns the threads. */
+
+ using Submitter = std::function< std::future< int >(
+                                   ThinComputeInterface * , bool ) >;
+
+/*--------------------------------------------------------------------------*/
+ /// gives the group the threads of whoever drives it
+ /** Sets what the group uses to evaluate a member on another thread. On its
+  * own the group starts a thread for each of them, which costs of the order
+  * of 10^-4 seconds and is therefore worth it only for members that cost
+  * more than that; a solver that keeps a pool of threads alive can hand it
+  * over here, the cost of using one becoming that of a queue and the
+  * threads of the two levels being the same ones, so that they are not
+  * contended. Passing nothing puts the group back to starting its own. */
+
+ void set_submitter( Submitter submit = {} ) {
+  f_submit = std::move( submit );
   }
 
  const std::vector< C05Function * > & get_members( void ) const {
@@ -526,6 +556,63 @@ class C05SumFunction : public C05Function , public Observer
  void member_Modification( const sp_Mod & mod , Observer * previous ,
                            ChnlName chnl );
 
+  /// which member a Modification speaks for, Inf< Index >() if none
+ [[nodiscard]] Index member_of( const sp_Mod & mod ) const;
+
+ /// redoes the map between the Variable of member h and those of the sum
+ void rebuild_map( Index h );
+
+ /// a member has changed its "active" Variable, hence maybe the sum has
+ /** The "active" Variable of the sum are the union of those of the members:
+  * this takes in one added to or removed from a member, gives the sum the
+  * ones that no other member has, redoes the map between the two, and says
+  * so to the Observer of the sum. */
+
+ void member_Variables_changed(
+                     const std::shared_ptr< FunctionModVars > & vmod ,
+                     ChnlName chnl );
+
+ /// what a Modification of a member does to the sum, told to its Observer
+ /** The part of member_Modification() that concerns the sum: the cascade on
+  * the global pool and the Modification of the sum that the one of the
+  * member translates into. It does not pass the original on to the Observer
+  * the member had, which the caller does. */
+
+ void translate_Modification( const sp_Mod & mod , ChnlName chnl );
+
+ /// a GroupModification of the members, seen by the sum
+ /** The Observer of a Function is entitled to receive a GroupModification,
+  * and has to look inside it: this does so, translating each of the
+  * sub-Modification that belongs to a member, and says once what the whole
+  * group does to the sum whenever the translations agree. The group itself
+  * is passed on, whole, to the Observer the members had. */
+
+ void group_Modification( const std::shared_ptr< GroupModification > & gmod ,
+                          ChnlName chnl );
+
+ /// tells the Observer of the sum, or holds it while a group is open
+ void emit( sp_Mod out , ChnlName chnl );
+
+ /// says once what a whole group of Modification of the members does
+ /** Marks the span in which the translations of the sum are held instead of
+  * being told one by one: at the end of it the ones that say the same thing
+  * about the sum are merged, i.e., a group in which every member changes in
+  * the same way becomes one Modification of the sum and not one per member. */
+
+ class bunching
+ {
+  public:
+  explicit bunching( C05SumFunction & f , ChnlName chnl )
+   : f_f( f ) , f_chnl( chnl ) { ++f_f.f_bunching; }
+  ~bunching() { if( ! --f_f.f_bunching ) f_f.flush_pending( f_chnl ); }
+  private:
+  C05SumFunction & f_f;
+  ChnlName f_chnl;
+  };
+
+ /// merges the held translations and tells them to the Observer
+ void flush_pending( ChnlName chnl );
+
  /// tells the Observer of the sum what has happened to its global pool
  void issue_pool_Modification( int type , Subset && which ,
                                ModParam issueMod );
@@ -557,6 +644,14 @@ class C05SumFunction : public C05Function , public Observer
  ///< true while the sum is changing the global pools of the members itself
  ///< [see own_operation]
 
+ unsigned int f_bunching = 0;
+ ///< how many groups of Modification of the members are being looked into,
+ ///< the translations being held until the outermost one is done
+ ///< [see bunching]
+
+ std::list< sp_Mod > v_pending;
+ ///< the translations held while a group is being looked into [see emit()]
+
  std::vector< ColVariable * > v_vars;     ///< the "active" Variable
 
  std::unordered_map< const Variable * , Index > f_var2idx;
@@ -584,10 +679,15 @@ class C05SumFunction : public C05Function , public Observer
  ///< what says whether evaluating them together is worth a thread each
  ///< [see compute()]
 
- int f_max_thread = 1;
+  int f_max_thread = 1;
  ///< how many members the group evaluates at once: one, i.e. one at a time,
  ///< unless whoever drives the group says otherwise
  ///< [see set_members_at_once()]
+
+ Submitter f_submit;
+ ///< what runs a member on a thread of whoever drives the group, if any:
+ ///< when it is not there the group starts a thread of its own
+ ///< [see set_submitter()]
 
  Index f_gp_size = 0;
  ///< how many names the global pool of each member holds [intGPMaxSz]

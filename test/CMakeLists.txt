@@ -79,6 +79,12 @@ smspp_install(Group_test)
 add_test(NAME Group_test
          COMMAND Group_test)
 
+add_executable(C05SumFunction_test tests_C05SumFunction.cpp)
+target_link_libraries(C05SumFunction_test PRIVATE SMS++::SMS++)
+smspp_install(C05SumFunction_test)
+add_test(NAME C05SumFunction_test
+         COMMAND C05SumFunction_test)
+
 add_executable(Function_test tests_Function.cpp)
 target_link_libraries(Function_test PRIVATE SMS++::SMS++)
 smspp_install(Function_test)
