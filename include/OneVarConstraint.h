@@ -380,7 +380,7 @@ class OneVarConstraint : public RowConstraint {
 
  /// print information about the OneVarConstraint on an ostream
  void print( std::ostream & output ) const override {
-  output << "OneVarConstraint [" << this << "] of Block [" << f_Block
+  output << "OneVarConstraint [" << this << "] of Block [" << get_Block()
          << "] with ColVariable [" << f_variable << "]" << std::endl;
   }
 
@@ -499,7 +499,7 @@ class BoxConstraint : public OneVarConstraint {
 
  /// print information about the BoxConstraint on an ostream
  void print( std::ostream & output ) const override {
-  output << "BoxConstraint [" << this << "] of Block [" << f_Block
+  output << "BoxConstraint [" << this << "] of Block [" << get_Block()
          << "] with ColVariable [" << f_variable << "], LHS = "
          << f_lhs << ", RHS = " << f_rhs << std::endl;
   }
@@ -615,7 +615,7 @@ class LB0Constraint : public OneVarConstraint {
 
  /// print information about the LB0Constraint on an ostream
  void print( std::ostream & output ) const final {
-  output << "LB0Constraint [" << this << "] of Block [" << f_Block
+  output << "LB0Constraint [" << this << "] of Block [" << get_Block()
          << "] with ColVariable [" << f_variable << "], RHS = "
          << f_rhs << std::endl;
   }
@@ -730,7 +730,7 @@ class UB0Constraint : public OneVarConstraint {
 
  /// print information about the OneVarConstraint on an ostream
  void print( std::ostream & output ) const override {
-  output << "UB0Constraint [" << this << "] of Block [" << f_Block
+  output << "UB0Constraint [" << this << "] of Block [" << get_Block()
          << "] with ColVariable [" << f_variable << "], LHS = "
          << f_lhs << std::endl;
   }
@@ -881,7 +881,7 @@ class LBConstraint : public OneVarConstraint {
 
  /// print information about the LBConstraint on an ostream
  void print( std::ostream & output ) const override {
-  output << "LBConstraint [" << this << "] of Block [" << f_Block
+  output << "LBConstraint [" << this << "] of Block [" << get_Block()
          << "] with ColVariable [" << f_variable << "], LHS = "
          << f_lhs << std::endl;
   }
@@ -1034,7 +1034,7 @@ class UBConstraint : public OneVarConstraint {
 
  /// print information about the UBConstraint on an ostream
  void print( std::ostream & output ) const override {
-  output << "UBConstraint [" << this << "] of Block [" << f_Block
+  output << "UBConstraint [" << this << "] of Block [" << get_Block()
          << "] with ColVariable [" << f_variable << "], RHS = "
          << f_rhs << std::endl;
   }
@@ -1166,7 +1166,7 @@ class NNConstraint : public OneVarConstraint {
 
  /// print information about the NNConstraint on an ostream
  void print( std::ostream & output ) const override {
-  output << "NNConstraint [" << this << "] of Block [" << f_Block
+  output << "NNConstraint [" << this << "] of Block [" << get_Block()
          << "] with ColVariable [" << f_variable << "]" << std::endl;
   }
 
@@ -1289,7 +1289,7 @@ class NPConstraint : public OneVarConstraint {
 
  /// print information about the NPConstraint on an ostream
  void print( std::ostream & output ) const override {
-  output << "NPConstraint [" << this << "] of Block [" << f_Block
+  output << "NPConstraint [" << this << "] of Block [" << get_Block()
          << "] with ColVariable [" << f_variable << "]" << std::endl;
   }
 
@@ -1412,7 +1412,7 @@ class ZOConstraint : public OneVarConstraint {
 
  /// print information about the ZOConstraint on an ostream
  void print( std::ostream & output ) const override {
-  output << "ZOConstraint [" << this << "] of Block [" << f_Block
+  output << "ZOConstraint [" << this << "] of Block [" << get_Block()
          << "] with ColVariable [" << f_variable << "]" << std::endl;
   }
 

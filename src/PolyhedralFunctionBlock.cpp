@@ -2400,11 +2400,21 @@ PolyhedralFunctionBlock::ComputeGlobalMeasure( void ) const
 {
  assert( f_row_measure.size() == PF().get_A().size() );
 
- Function::FunctionValue mx = 1.0;
+ // the median, not the maximum: a single row far out of scale (e.g., a cut
+ // taken at a point where the function is huge) would otherwise make the
+ // shared factor so small that every other row falls below the tolerances
+ // of the solver of the master problem
+ std::vector< Function::FunctionValue > m;
+ m.reserve( f_row_measure.size() );
  for( const auto measure : f_row_measure )
-  mx = std::max( mx , measure );
+  if( std::isfinite( measure ) )
+   m.push_back( measure );
+ if( m.empty() )
+  return( 1.0 );
 
- return( std::isfinite( mx ) ? mx : 1.0 );
+ const auto mid = m.begin() + m.size() / 2;
+ std::nth_element( m.begin() , mid , m.end() );
+ return( std::max( Function::FunctionValue( 1 ) , *mid ) );
 
  }  // end( PolyhedralFunctionBlock::ComputeGlobalMeasure )
 

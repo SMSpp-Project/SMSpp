@@ -206,7 +206,7 @@ class LinearConstraint : public FRowConstraint {
  /// print information about the LinearConstraint on an ostream
 
  void print( std::ostream &output ) const override {
-  output << "LinearConstraint [" << this << "] of Block [" << f_Block
+  output << "LinearConstraint [" << this << "] of Block [" << get_Block()
 	 << "] with LinearFunction [" << f_function << "] with "
 	 << ( f_function ? f_function->get_num_active_var() : 0 )
 	 << " active variables, ";

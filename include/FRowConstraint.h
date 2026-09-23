@@ -255,9 +255,8 @@ class FRowConstraint : public RowConstraint, public Observer {
 
  /// returns the Block to which this Observer belongs/
  /** FRowConstraint is an Observer, and it belongs to the Block to which it
-  * belongs as a Constraint. However, note that FRowConstraint::get_Block()
-  * is virtual while Constraint::get_Block() is not, hence the former has to
-  * be explicitly implemented in terms of the latter. */
+  * belongs as a Constraint. It inherits get_Block() from both Observer and
+  * Constraint, hence it has to say which one answers, and it is the latter. */
 
  [[nodiscard]] Block * get_Block() const override {
   return( Constraint::get_Block() );
@@ -624,23 +623,23 @@ class FRowConstraint : public RowConstraint, public Observer {
 
  ChnlName open_channel( ChnlName chnl = 0 ,
 			GroupModification * gmpmod = nullptr ) override {
-  return( f_Block ? f_Block->open_channel( chnl , gmpmod ) : 0 );
+  return( get_Block() ? get_Block()->open_channel( chnl , gmpmod ) : 0 );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
  /// just dispatch to close_channel() of the Block (if any)
 
  void close_channel( ChnlName chnl , bool force = false ) override {
-  if( f_Block )
-   f_Block->close_channel( chnl , force );
+  if( get_Block() )
+   get_Block()->close_channel( chnl , force );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
  /// just dispatch to set_default_channel() of the Block (if any)
 
  void set_default_channel( ChnlName chnl = 0 ) override {
-  if( f_Block )
-   f_Block->set_default_channel( chnl );
+  if( get_Block() )
+   get_Block()->set_default_channel( chnl );
   }
 
 /** @} ---------------------------------------------------------------------*/
@@ -657,7 +656,7 @@ class FRowConstraint : public RowConstraint, public Observer {
 
  /// print information about the FRowConstraint on an ostream
  void print( std::ostream & output ) const override {
-  output << "FRowConstraint [" << this << "] of Block [" << f_Block
+  output << "FRowConstraint [" << this << "] of Block [" << get_Block()
          << "] with Function [" << f_function << "] with "
          << ( f_function ? f_function->get_num_active_var() : 0 )
          << " active variables" << std::endl;

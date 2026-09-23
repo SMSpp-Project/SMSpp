@@ -93,6 +93,20 @@ namespace SMSpp_di_unipi_it::inspection
   using T = std::remove_const_t< C >;
   Index found = Inf< Index >();
 
+  // one array of elements of type exactly T is one run, where the position
+  // of the element is a subtraction; anything else comes one by one
+  if( group.get_layout() == BaseGroup::eContiguous ) {
+   Index base = 0;
+   group.for_each_run_as< T >( [ & ]( T * first , Index n ) {
+     if( ( found == Inf< Index >() ) &&
+	 std::less_equal<>()( first , element ) &&
+	 std::less<>()( element , first + n ) )
+      found = base + Index( element - first );
+     base += n;
+     } );
+   return( found );
+   }
+
   if( group.get_layout() != BaseGroup::eJagged ) {
    Index i = 0;
    group.for_each_as< T >( [ & ]( T & candidate ) {
@@ -486,7 +500,10 @@ namespace SMSpp_di_unipi_it::inspection
  /// where the given element sits in the Block it belongs to
  /** Returns whether \p element is static, the index of the group it belongs
   * to and its index inside that group; the three are Inf< Index >() if it
-  * belongs to no group of its Block, or to no Block at all. */
+  * belongs to no group of its Block, or to no Block at all. An element that
+  * knows its group [see Variable::get_Group()] is looked for there only; one
+  * that does not, as an element reached through a group of pointers, is
+  * looked for in all the groups of its Block. */
 
  template< class T >
  static std::tuple< bool , Index , Index > get_element_index( T * element )
@@ -495,6 +512,14 @@ namespace SMSpp_di_unipi_it::inspection
 		( ! std::is_base_of_v< Constraint , T > ) )
    return( std::make_tuple( true , Inf< Index >() , Inf< Index >() ) );
   else {
+  if( const auto group = element->get_Group() ) {
+   // a dynamic group is one of std::list, and no static group is
+   const auto i = index_in_group< T >( *group , element );
+   if( i < Inf< Index >() )
+    return( std::make_tuple( ! group->is_dynamic() , group->get_index() ,
+			     i ) );
+   }
+
   const auto block = element->get_Block();
   if( ! block )
    return( std::make_tuple( true , Inf< Index >() , Inf< Index >() ) );

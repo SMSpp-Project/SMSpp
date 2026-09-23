@@ -569,6 +569,173 @@ static void test_empty_group( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* Each element knows the group it is in, and its Block through the group.
+ * What is written here is when it knows it and when it does not: before its
+ * Block registers it, after a copy, after the group is replaced or reset,
+ * after the element is moved to another Block, and for the dynamic elements
+ * that join a group after it has been registered. */
+
+static void test_element_knows_its_group( void )
+{
+ AbstractBlock b;
+ AbstractBlock other;
+
+ // before the registration an element has its Block and no group
+ auto x = new std::vector< ColVariable >( 4 );
+ for( auto & v : *x )
+  v.set_Block( & b );
+ assert( ( *x )[ 0 ].get_Block() == & b );
+ assert( ! ( *x )[ 0 ].get_Group() );
+
+ auto m = new boost::multi_array< ColVariable , 2 >( boost::extents[ 2 ][ 3 ] );
+ b.add_static_variable( *x , "x" );
+ b.add_static_variable( *m , "M" );
+
+ const auto & sv = b.get_static_variable_groups();
+ for( auto & v : *x ) {
+  assert( v.get_Group() == sv[ 0 ].get() );
+  assert( v.get_Block() == & b );
+  }
+ assert( ( *m )[ 1 ][ 2 ].get_Group() == sv[ 1 ].get() );
+
+ // where an element sits comes from its group, in either shape
+ auto where = inspection::get_element_index( & ( *x )[ 3 ] );
+ assert( std::get< 0 >( where ) && ( std::get< 1 >( where ) == 0 ) &&
+	 ( std::get< 2 >( where ) == 3 ) );
+ where = inspection::get_element_index( & ( *m )[ 1 ][ 2 ] );
+ assert( std::get< 0 >( where ) && ( std::get< 1 >( where ) == 1 ) &&
+	 ( std::get< 2 >( where ) == 5 ) );
+
+ // the first and the last element, where a subtraction goes wrong first
+ where = inspection::get_element_index( & ( *m )[ 0 ][ 0 ] );
+ assert( std::get< 2 >( where ) == 0 );
+ where = inspection::get_element_index( & ( *x )[ 0 ] );
+ assert( std::get< 2 >( where ) == 0 );
+
+ // the same Block again leaves the element in its group
+ ( *x )[ 1 ].set_Block( & b );
+ assert( ( *x )[ 1 ].get_Group() == sv[ 0 ].get() );
+
+ // a copy has the Block of the original and no group, not being in it
+ ColVariable copy( ( *x )[ 2 ] );
+ assert( copy.get_Block() == & b );
+ assert( ! copy.get_Group() );
+ where = inspection::get_element_index( & copy );
+ assert( std::get< 1 >( where ) == Inf< Block::Index >() );
+
+ // an assignment within the Block keeps the element where it sits
+ ( *x )[ 1 ] = ( *x )[ 2 ];
+ assert( ( *x )[ 1 ].get_Group() == sv[ 0 ].get() );
+
+ // another Block takes the element out of its group
+ ( *x )[ 1 ].set_Block( & other );
+ assert( ( *x )[ 1 ].get_Block() == & other );
+ assert( ! ( *x )[ 1 ].get_Group() );
+ where = inspection::get_element_index( & ( *x )[ 1 ] );
+ assert( std::get< 1 >( where ) == Inf< Block::Index >() );
+ ( *x )[ 1 ].set_Block( & b );
+
+ // replacing a group takes its elements out of it, the Block staying
+ auto y = new std::vector< ColVariable >( 2 );
+ b.set_static_variable( 0 , *y , "y" );
+ assert( ! ( *x )[ 0 ].get_Group() );
+ assert( ( *x )[ 0 ].get_Block() == & b );
+ assert( ( *y )[ 1 ].get_Group() == sv[ 0 ].get() );
+
+ // and so does resetting all of them
+ b.reset_static_variables();
+ assert( ! ( *y )[ 1 ].get_Group() );
+ assert( ( *y )[ 1 ].get_Block() == & b );
+ assert( ! ( *m )[ 0 ][ 0 ].get_Group() );
+ assert( ( *m )[ 0 ][ 0 ].get_Block() == & b );
+
+ /* A dynamic element added to a list the Block has registered joins the
+  * group of the list, both when the list is the whole group and when it is
+  * one of its cells; an element added to a list that is not registered
+  * gets the Block and no group, as before. */
+
+ auto rows = new std::list< FRowConstraint >( 2 );
+ auto grid = new std::vector< std::list< FRowConstraint > >( 3 );
+ b.add_dynamic_constraint( *rows , "rows" );
+ b.add_dynamic_constraint( *grid , "grid" );
+ const auto & dc = b.get_dynamic_constraint_groups();
+ assert( rows->front().get_Group() == dc[ 0 ].get() );
+
+ std::list< FRowConstraint > more( 2 );
+ b.add_dynamic_constraints( *rows , more , eNoMod );
+ assert( rows->size() == 4 );
+ assert( rows->back().get_Group() == dc[ 0 ].get() );
+ where = inspection::get_element_index( & rows->back() );
+ assert( ( ! std::get< 0 >( where ) ) && ( std::get< 1 >( where ) == 0 ) &&
+	 ( std::get< 2 >( where ) == 3 ) );
+
+ std::list< FRowConstraint > in_cell( 1 );
+ b.add_dynamic_constraints( ( *grid )[ 2 ] , in_cell , eNoMod );
+ assert( ( *grid )[ 2 ].front().get_Group() == dc[ 1 ].get() );
+ where = inspection::get_element_index( & ( *grid )[ 2 ].front() );
+ assert( ( ! std::get< 0 >( where ) ) && ( std::get< 1 >( where ) == 1 ) &&
+	 ( std::get< 2 >( where ) == 0 ) );
+
+ std::list< FRowConstraint > loose;
+ std::list< FRowConstraint > into_loose( 1 );
+ b.add_dynamic_constraints( loose , into_loose , eNoMod );
+ assert( loose.front().get_Block() == & b );
+ assert( ! loose.front().get_Group() );
+
+ // a dynamic grid of lists: the cell added to is found among many
+ auto lists = new boost::multi_array< std::list< FRowConstraint > , 2 >(
+					     boost::extents[ 2 ][ 2 ] );
+ b.add_dynamic_constraint( *lists , "lists" );
+ std::list< FRowConstraint > in_grid( 2 );
+ b.add_dynamic_constraints( ( *lists )[ 1 ][ 0 ] , in_grid , eNoMod );
+ assert( ( *lists )[ 1 ][ 0 ].back().get_Group() == dc[ 2 ].get() );
+ assert( ( *lists )[ 1 ][ 0 ].back().get_Block() == & b );
+
+ /* A container registered in a second Block goes with its last group, and
+  * resetting the first Block does not take it out of the second one: a
+  * group only lets go of the elements that are still its own. */
+
+ auto z = new std::vector< ColVariable >( 3 );
+ b.add_static_variable( *z , "z" );
+ other.add_static_variable( *z , "z_again" );
+ const auto & osv = other.get_static_variable_groups();
+ assert( ( *z )[ 2 ].get_Group() == osv[ 0 ].get() );
+ assert( ( *z )[ 2 ].get_Block() == & other );
+ b.reset_static_variables();
+ assert( ( *z )[ 2 ].get_Group() == osv[ 0 ].get() );
+ assert( ( *z )[ 2 ].get_Block() == & other );
+
+ // registering a container again in its own slot leaves it in the new group
+ other.set_static_variable( 0 , *z , "z_same" );
+ assert( ( *z )[ 0 ].get_Group() == osv[ 0 ].get() );
+ assert( osv[ 0 ]->get_name() == "z_same" );
+ where = inspection::get_element_index( & ( *z )[ 1 ] );
+ assert( std::get< 0 >( where ) && ( std::get< 1 >( where ) == 0 ) &&
+	 ( std::get< 2 >( where ) == 1 ) );
+
+ /* In a group whose cells are vectors of different lengths the index is
+  * the one ConstraintID has always carried, c + i * n for the i-th element
+  * of the c-th of n cells, and the group of the element does not change
+  * that: it only spares the search among the other groups. */
+
+ auto jag = new std::vector< std::vector< ColVariable > >( 3 );
+ ( *jag )[ 0 ].resize( 1 );
+ ( *jag )[ 1 ].resize( 3 );
+ ( *jag )[ 2 ].resize( 2 );
+ other.add_static_variable( *jag , "jag" );
+ assert( ( *jag )[ 1 ][ 2 ].get_Group() == osv[ 1 ].get() );
+ where = inspection::get_element_index( & ( *jag )[ 1 ][ 2 ] );
+ assert( std::get< 0 >( where ) && ( std::get< 1 >( where ) == 1 ) &&
+	 ( std::get< 2 >( where ) == 1 + 2 * 3 ) );
+
+ /* The containers are NOT deleted here, for the reason given at the end of
+  * test_empty_group(); the ones reset away are no longer seen by the Block,
+  * and are left alone for uniformity. */
+
+ std::cout << "element knows its group: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
 
 int main( void )
 {
@@ -579,6 +746,7 @@ int main( void )
  test_names();
 
  test_empty_group();
+ test_element_knows_its_group();
 
  std::cout << "All tests passed!!" << std::endl;
 

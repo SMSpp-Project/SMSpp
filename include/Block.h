@@ -7059,8 +7059,13 @@ class Block : public Observer {
  * case in which this happens in different steps (say, a :Block class does
  * a part of it, but a further derived class does another part).
  *
- * For sake of consistency, set_Block( this ) is called on every new added
- * element; users may set another Block later at their own risk.
+ * For sake of consistency, every new added element is told the group it is
+ * now in [see Variable::set_Group() and Constraint::set_Group()], which also
+ * makes this Block its Block; users may set another Block later at their own
+ * risk, which takes the element out of its group. Replacing or resetting a
+ * group takes its elements out of it, and so does removing a dynamic
+ * element; hence, a container has still to be there, possibly empty, when
+ * its group is replaced or reset.
  *
  * Similar methods are provided to handle the set of sub-Block. Although
  * currently v_Block is protected and derived classes can manipulate it
@@ -7103,6 +7108,7 @@ class Block : public Observer {
  /// removes any existing static Constraint; to be used with care
 
  void reset_static_constraints( void ) {
+  leave_groups( v_s_Constraint_groups );
   v_s_Constraint_groups.clear();
   }
 
@@ -7110,6 +7116,7 @@ class Block : public Observer {
  /// removes any existing static Variable; to be used with care
 
  void reset_static_variables( void ) {
+  leave_groups( v_s_Variable_groups );
   v_s_Variable_groups.clear();
   }
 
@@ -7117,6 +7124,7 @@ class Block : public Observer {
  /// removes any existing dynamic Constraint; to be used with care
 
  void reset_dynamic_constraints( void ) {
+  leave_groups( v_d_Constraint_groups );
   v_d_Constraint_groups.clear();
   }
 
@@ -7124,6 +7132,7 @@ class Block : public Observer {
  /// removes any existing dynamic Variable; to be used with care
 
  void reset_dynamic_variables( void ) {
+  leave_groups( v_d_Variable_groups );
   v_d_Variable_groups.clear();
   }
 
@@ -7885,10 +7894,56 @@ class Block : public Observer {
  std::unique_ptr< BaseGroup > make_own_group( C & container , Block * block ,
 					      Index index ,
 					      const std::string & name ) {
+  using S = typename group_form< C >::item_type;
   auto group = make_group( container , block , index , name );
-  if constexpr( ! std::is_pointer_v< typename group_form< C >::item_type > )
+  if constexpr( ! std::is_pointer_v< S > ) {
    group->set_cloner( & Block::clone_group_into< C > );
+   group->template for_each_as< S >(
+    [ g = group.get() ]( S & element ) { element.set_Group( g ); } );
+   }
   return( group );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// takes the elements of \p group out of it, leaving them to its Block
+ /** The elements that are still in \p group, which a container registered
+  * again elsewhere is not, are told that they are in no group [see
+  * Variable::set_Group()], and keep the Block of the group; a group that
+  * holds pointers has not told its elements anything, and is left alone. */
+
+ static void leave_group( const BaseGroup * group ) {
+  if( ( ! group ) || group->is_indirect() )
+   return;
+
+  if( group->get_kind() == BaseGroup::eVariable )
+   group->for_each( [ group ]( Variable & v ) {
+    if( v.get_Group() == group )
+     v.set_Group( nullptr );
+    } );
+  else
+   group->for_each( [ group ]( Constraint & c ) {
+    if( c.get_Group() == group )
+     c.set_Group( nullptr );
+    } );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// takes the elements of all \p groups out of them [see leave_group()]
+
+ static void leave_groups( const Vec_Group & groups ) {
+  for( const auto & group : groups )
+   leave_group( group.get() );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// the group among \p groups one of whose cells is \p cell, nullptr if none
+
+ static BaseGroup * group_of_cell( const Vec_Group & groups ,
+				   const void * cell ) {
+  for( const auto & group : groups )
+   if( group && ( ! group->is_indirect() ) && group->has_cell( cell ) )
+    return( group.get() );
+  return( nullptr );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -7953,6 +8008,7 @@ class Block : public Observer {
 
  void set_group( Vec_Group & groups , Index i ,
 		 std::unique_ptr< BaseGroup > group ) {
+  leave_group( groups[ i ].get() );
   groups[ i ] = std::move( group );
   if( groups[ i ] )
    groups[ i ]->set_Block( this , i );
@@ -7991,13 +8047,14 @@ class Block : public Observer {
 
 /*--------------------------------------------------------------------------*/
 /** This method removes the given Constraint from each Variable that
- * is active in it. */
+ * is active in it, and takes it out of its group, it being removed. */
 
  void remove_constraint_from_variables( Constraint * constraint );
 
 /*--------------------------------------------------------------------------*/
 /** This method removes the given Variable from all Constraints and Objectives
- * in which it is active. The removal of a Variable from a Constraint or
+ * in which it is active, and takes it out of its group, it being removed.
+ * The removal of a Variable from a Constraint or
  * Objective typically results in a Modification being issued, which may be
  * wasteful in some cases; to avoid this one could "just" use issueindMod ==
  * eNoMod, although this has to be done with great care [see the comments to
@@ -9501,6 +9558,9 @@ Block::add_dynamic_constraints( std::list< Const > & list ,
  if( newlist.empty() )  // actually no Constraint to add
   return;               // cowardly (and silently) return
 
+ // the group of the list, which the new Constraint join
+ auto group = group_of_cell( v_d_Constraint_groups , & list );
+
  if( issue_mod( issueMod ) ) {
   // initialize the vector of pointer to added Constraint
   Index first = list.size();
@@ -9508,6 +9568,8 @@ Block::add_dynamic_constraints( std::list< Const > & list ,
   auto it = names.begin();
   for( auto & el : newlist ) {  // all the new Constraint
    el.set_Block( this );        // now belong to this Block
+   if( group )                  // ... and to the group of the list
+    el.set_Group( group );
    *(it++) = &el;             // keep their names
    }
 
@@ -9521,8 +9583,11 @@ Block::add_dynamic_constraints( std::list< Const > & list ,
 		    Observer::par2chnl( issueMod ) );
   }
  else {
-  for( auto & el : newlist )    // all the new Constraint
+  for( auto & el : newlist ) {  // all the new Constraint
    el.set_Block( this );        // now belong to this Block
+   if( group )                  // ... and to the group of the list
+    el.set_Group( group );
+   }
 
   list.splice( list.end(), newlist );  // add them at the end
   }
@@ -9538,6 +9603,9 @@ Block::add_dynamic_variables( std::list< Var > & list ,
  if( newlist.empty() )  // actually no Variable to add
   return;               // cowardly (and silently) return
 
+ // the group of the list, which the new Variable join
+ auto group = group_of_cell( v_d_Variable_groups , & list );
+
  if( issue_mod( issueMod ) ) {
   // initialize the vector of pointer to added Constraint
   Index first = list.size();
@@ -9545,6 +9613,8 @@ Block::add_dynamic_variables( std::list< Var > & list ,
   auto it = names.begin();
   for( auto & el : newlist ) {  // all the new Variable
    el.set_Block( this );        // now belong to this Block
+   if( group )                  // ... and to the group of the list
+    el.set_Group( group );
    *(it++) = &el;               // keep their names
    }
 
@@ -9558,8 +9628,11 @@ Block::add_dynamic_variables( std::list< Var > & list ,
 		    Observer::par2chnl( issueMod ) );
   }
  else {
-  for( auto & el : newlist )    // all the new Variable
+  for( auto & el : newlist ) {  // all the new Variable
    el.set_Block( this );        // now belong to this Block
+   if( group )                  // ... and to the group of the list
+    el.set_Group( group );
+   }
 
   list.splice( list.end(), newlist );  // add them at the end
   }

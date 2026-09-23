@@ -625,7 +625,7 @@ class ColVariable : public Variable
  /// print the ColVariable
 
  void print( std::ostream & output ) const override {
-  output << "ColVariable [" << this << "] of Block [" << f_Block
+  output << "ColVariable [" << this << "] of Block [" << get_Block()
          << "] with " << get_num_active()
          << " active stuff, value = " << f_value << std::endl;
  }

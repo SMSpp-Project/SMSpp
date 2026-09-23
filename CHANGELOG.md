@@ -111,6 +111,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- ⚠️ A `Variable` AND A `Constraint` POINT TO THEIR GROUP: the field that held
+  the pointer to the Block holds the pointer to the group the element is in,
+  the lowest bit telling the two apart, and `get_Block()` answers through the
+  group; `get_Group()` gives the group, `nullptr` for an element in none. The
+  Block sets it when it registers a group, when an element is added to a
+  dynamic list it has registered, and takes it away when the group is
+  replaced or reset and when the element is removed; `set_Block()` with the
+  Block of the group leaves the element in it, any other Block takes it out,
+  and a copy of a `Variable` has the Block of the original and no group.
+  `inspection::get_element_index()` looks in the group of the element only.
+  ⚠️ `f_Block` IS NO LONGER A PROTECTED FIELD OF `Variable` AND `Constraint`:
+  a derived class reads `get_Block()`. ⚠️ A CONTAINER HAS TO BE THERE,
+  POSSIBLY EMPTY, WHEN ITS GROUP IS REPLACED OR RESET, since the Block walks
+  it to take its elements out of the group: clearing it first, as every
+  `:Block` of the umbrella does, is fine, deleting it first is not
+
 - ⚠️ THE FOUR `std::vector< boost::any >` OF `Block` ARE GONE, and so are the
   four vectors of the names beside them: a Block keeps its Variable and its
   Constraint in its four vectors of groups alone. `get_static_variables()`,
@@ -158,6 +174,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Modification it saw before
 
 ### Fixed
+
+- `LagBFunction` left the Lagrangian cost in the Objective of a Variable of
+  its inner Block that had lost its last multiplier, whenever a change of
+  structure in the same batch of Modification rebuilt the list of the
+  coupled positions before the costs were written again: the position was
+  dropped from the list while still holding $c + y_k a$, and the function
+  kept that cost for good. A position whose cost in the Objective differs
+  from its original one now stays in the list until the original cost is
+  back
+
+- `LagBFunction` ignored the removal of *all* the Variable of the Objective
+  of its inner Block: `LinearFunction::remove_variables()` says it with a
+  `C05FunctionModVarsSbst` whose subset is empty, and the LagBFunction read
+  the empty subset as "nothing removed". Its table of the costs then went out
+  of step with the Objective, and a Variable having a Lagrangian term that had
+  to be put back in the Objective was lost, which gave a wrong value of the
+  function; the empty subset is now read as the whole range
 
 - `Observer::new_channel_name()`, when reusing a freed name, dereferenced
   `rend()` and erased the lowest free name rather than the one it handed

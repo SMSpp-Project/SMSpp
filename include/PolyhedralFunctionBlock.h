@@ -503,8 +503,11 @@ class PolyhedralFunctionBlock : public AbstractBlock
   *               1 / sqrt( max( 1 , || A_i ||_inf , | b_i | ) );
   *
   * - bit 3 = 1 : global epigraph scaling is enabled. One shared factor is
-  *               computed with the same formula, using the maximum over
-  *               all rows. In the primal representation an extra internal
+  *               computed with the same formula, using the median over
+  *               all rows (not the maximum, so that a single row far out
+  *               of scale does not push all the others below the
+  *               tolerances of the solver). In the primal representation
+  *               an extra internal
   *               ColVariable stores the scaled epigraph value. It is linked
   *               to the physical epigraph variable by an equality, so the
   *               scaling remains invisible outside this Block.
@@ -512,7 +515,7 @@ class PolyhedralFunctionBlock : public AbstractBlock
   * The two scaling modes can be enabled independently or together. Local
   * factors are fixed when each row enters the representation. The global
   * factor is monitored in batches: PFB caches each row measure
-  * max( 1 , || A_i ||_inf , | b_i | ), keeps their maximum, and changes the
+  * max( 1 , || A_i ||_inf , | b_i | ), takes their median, and changes the
   * shared factor to the inverse square root of this measure only when it
   * drifts by more than two orders of magnitude from the value used for the
   * previous scaling. When the factor changes, PFB preserves the existing
