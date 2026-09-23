@@ -1731,7 +1731,7 @@ void MasterProblemBlock::add_LBF_to_coupling_rows(
    //       - sign(F_internal) g_i(u) - hard_terms = 0.
    //
    // For a convex minimisation F_internal = F, hence append -g_i(u).
-   // For a concave maximisation BundleSolver minimises -F internally,
+   // For a concave maximisation the driver minimises -F internally,
    // hence the easy-component subgradient is -g_i(u) and we append +g_i(u).
    const double easy_sign = IsConvex ? 1.0 : -1.0;
    for( Function::Index h = 0 ; h < gi->get_num_active_var() ; ++h ) {
@@ -2450,8 +2450,8 @@ double MasterProblemBlock::get_FiBLambda( int k ) const
    value += ( f_x_bar[ j ] + d[ j ] ) * gi->get_value();
    }
 
-  // BundleSolver represents a concave maximisation as the minimisation of
-  // -F. Return the easy value in those same internal units.
+  // A concave maximisation is represented as the minimisation of -F: return
+  // the easy value in those same internal units.
   return( IsConvex ? - value : value );
   }
 
@@ -2608,7 +2608,7 @@ std::vector< double > MasterProblemBlock::get_z_vector( void ) const
 
  for( const auto & zj : Var_z )
   // In pure level the dual stationarity vector is eta z*, so expose the
-  // normalized aggregate expected by BundleSolver stopping and cut logic.
+  // normalized aggregate the stopping and cut logic of a driver expects.
   out.push_back( normalize_level_z ? zj.get_value() / eta : zj.get_value() );
  return( out );
  }
@@ -2722,8 +2722,8 @@ double MasterProblemBlock::get_level_multiplier( void ) const
 double MasterProblemBlock::get_Gid_aggregate( void ) const
 {
  // Once get_z_vector() and get_d_vector() have translated the concrete master
- // representation into physical BundleSolver quantities, Gid is the same
- // scalar product in primal, dual, proximal, and level forms.
+ // representation into the physical quantities the driver reads, Gid is the
+ // same scalar product in primal, dual, proximal, and level forms.
  const auto z = get_z_vector();
  const auto d = get_d_vector();
  if( z.empty() || d.empty() )
@@ -3240,7 +3240,7 @@ void MasterProblemBlock::set_box( const std::vector< double > & L ,
  const std::vector< double > upper = U.empty()
   ? std::vector< double >( NumVars , Inf< double >() ) : U;
 
- // BundleSolver may resubmit the complete box before every master solve.
+ // The driver may resubmit the complete box before every master solve.
  // Compare semantically so that an empty side and an explicit vector of
  // infinities are treated alike after a preceding partial update.
  bool lower_changed = false;
@@ -3663,7 +3663,7 @@ void MasterProblemBlock::set_reference(
     }
 
    // Refresh finite native lower bounds from their cached physical value.
-   // Absent bounds may be temporary fictitious bounds managed by BundleSolver.
+   // Absent bounds may be temporary fictitious bounds the driver manages.
    if( k < int( f_LB_raw.size() ) && std::isfinite( f_LB_raw[ k ] ) )
     poly.modify_bound( get_stored_constant( k , {} , f_LB_raw[ k ] , false ) );
    }
@@ -4670,7 +4670,7 @@ void MasterProblemBlock::set_f_lev( double f )
 
   if( f_abs_rep & k_mpb_built_var ) {
    // During the one-shot level probe the dual master is proximal, so omega is
-   // not part of the active normalization even if BundleSolver installs a
+   // not part of the active normalization even if the driver installs a
    // temporary level value before the probe is removed.
    if( has_initial_level_objective() ) {
     Var_omega.set_value( 0 );

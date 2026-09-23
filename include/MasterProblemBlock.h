@@ -3,11 +3,12 @@
 /*--------------------------------------------------------------------------*/
 /** @file
  * Header file for the class MasterProblemBlock, which derives from Block to
- * implement the Master Problem of a generic Bundle algorithm
- * within the SMS++ framework.
+ * implement, within the SMS++ framework, the Master Problem of a stabilized
+ * method, i.e., the problem of minimizing a model made of linearizations plus
+ * a stabilizing term.
  *
- * MasterProblemBlock represents and solves the Master Problem (MP) of a Bundle
- * method on a sum-function
+ * MasterProblemBlock represents and solves that Master Problem (MP) on a
+ * sum-function
  *
  *     f( x ) = b * x + \sum_{ k \in K } f^k( x )
  *
@@ -79,11 +80,14 @@
  * the primal or dual MP are the corresponding abstract representation
  * generated from that physical state.
  *
- * MasterProblemBlock is meant to be driven by a bundle driver
- * which is responsible for keeping the bundles B^k updated as the algorithm
- * proceeds; the driver does *not* directly call any MILP backend, it only
- * manipulates the MP at the Block/Modification level and triggers compute() on
- * the [MILP]Solver attached to the MasterProblemBlock.
+ * MasterProblemBlock is meant to be driven by a solver, which is responsible
+ * for keeping the sets B^k of linearizations updated as its algorithm
+ * proceeds and for reading the solution of the MP; the class makes no
+ * assumption on what that algorithm is, a bundle method and a conditional
+ * gradient method using the very same object for different purposes. The
+ * driver does *not* directly call any MILP backend, it only manipulates the
+ * MP at the Block/Modification level and triggers compute() on the
+ * [MILP]Solver attached to the MasterProblemBlock.
  *
  * For the underlying theory and notation, the reader is referred to:
  *
@@ -174,9 +178,10 @@ class PolyhedralFunctionBlock;
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
-/// A Block representing the Master Problem of a Bundle Method
+/// A Block representing the Master Problem of a stabilized method
 /** MasterProblemBlock implements, as an SMS++ Block, the Master Problem (MP)
- * of a Generalized Bundle Method (cf. \link MasterProblemBlock.h \endlink for
+ * of a stabilized method, the Generalized Bundle Method being the one its
+ * formulations come from (cf. \link MasterProblemBlock.h \endlink for
  * the mathematical description of the supported primal and dual forms, and for
  * the underlying references).
  *
@@ -193,7 +198,7 @@ class PolyhedralFunctionBlock;
  *
  * A regular Solver (typically a [MILP]Solver from the SMS++ MILPSolver module)
  * is attached to MasterProblemBlock through register_Solver(), and is then
- * asked to solve the MP at every Bundle iteration.
+ * asked to solve the MP at every iteration of whoever drives it.
  *
  * That Solver is asked for something rather more specific than an optimal
  * value, which puts two demands on how it is configured. It has to re-optimise
@@ -694,7 +699,7 @@ class MasterProblemBlock : public Block {
  /// returns ||z*||^2, the squared 2-norm of the aggregate subgradient
  /** Reads the normalized aggregate returned by get_z_vector() and squares it.
   * This matters in pure-level dual form because Var_z stores eta z*, not z*
-  * itself; callers of this method always get the BundleSolver z* norm. */
+  * itself; callers of this method always get the norm of z* as such. */
 
  [[nodiscard]] double get_dual_norm_squared( void ) const;
 
@@ -721,8 +726,8 @@ class MasterProblemBlock : public Block {
   * Modification interface, so the [MILP]Solver attached to MasterProblemBlock
   * picks it up on the next compute(). Each bundle item owns a physical row,
   * even when its coefficients coincide with another item: duplicate
-  * management is an algorithmic responsibility of BundleSolver, not of the
-  * master representation. The return value is #kCutInserted. */
+  * management is an algorithmic responsibility of the solver driving the
+  * master, not of the master representation. The return value is #kCutInserted. */
 
  static constexpr int kCutInserted = -1;
 
