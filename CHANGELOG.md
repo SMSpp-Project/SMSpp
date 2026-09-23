@@ -184,6 +184,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- the test of the size variable asked the global scale of the epigraph to
+  move when one row a thousand times larger than the others is added, which
+  is what the scale of the median of the row measures is there not to do;
+  it now asks it to stay where it is, and to move once enough large rows are
+  there for the median to be among them
+
 - `LagBFunction` left the Lagrangian cost in the Objective of a Variable of
   its inner Block that had lost its last multiplier, whenever a change of
   structure in the same batch of Modification rebuilt the list of the
