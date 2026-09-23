@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `MasterProblemBlock::keep_easy_duals()` and `restore_easy_dual()`: the
+  duals of the rows of an easy component, and with them the reduced costs of
+  its columns, are saved at each solve of the master and written back when
+  they are asked for, as the primal of that component already was. The
+  sub-Block of an easy component is a Block of the model, which any other
+  Solver may write into between the solve and the question, so what it holds
+  when asked is not what the master left there; they are saved only if
+  whoever drives the master says that it wants them, that being a pass over
+  the rows at every solve
+
 - `BooleanVariable`, the Variable of the propositional logic, whose value is
   either true or false, and `ClauseConstraint`, a clause, i.e., the
   disjunction of literals each being a `BooleanVariable` as it is or

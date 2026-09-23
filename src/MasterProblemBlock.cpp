@@ -125,6 +125,7 @@ void MasterProblemBlock::clear()
  EasyCmps_Owner.clear();
  EasyCmps_SB.clear();
  EasyPrimal.clear();
+ EasyDual.clear();
  EasyObjVars.clear();
  EasyObjCoeffs.clear();
  HardCmps.clear();
@@ -1862,6 +1863,16 @@ bool MasterProblemBlock::restore_easy_primal( int k )
  if( ( k < 0 ) || ( k >= int( EasyPrimal.size() ) ) || ( ! EasyPrimal[ k ] ) )
   return( false );
  EasyPrimal[ k ]->write( EasyCmps_SB[ k ] );
+ return( true );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool MasterProblemBlock::restore_easy_dual( int k )
+{
+ if( ( k < 0 ) || ( k >= int( EasyDual.size() ) ) || ( ! EasyDual[ k ] ) )
+  return( false );
+ EasyDual[ k ]->write( EasyCmps_SB[ k ] );
  return( true );
  }
 
@@ -4474,6 +4485,16 @@ int MasterProblemBlock::solve_master( void )
     if( ! EasyPrimal[ k ] )
      EasyPrimal[ k ] = std::make_unique< ColVariableSolution >();
     EasyPrimal[ k ]->read( EasyCmps_SB[ k ] );
+    }
+   // and the duals of their rows, with them the reduced costs of their
+   // columns, if whoever drives the MP has said that it wants them
+   if( f_keep_easy_duals ) {
+    EasyDual.resize( EasyCmps_SB.size() );
+    for( std::size_t k = 0 ; k < EasyCmps_SB.size() ; ++k ) {
+     if( ! EasyDual[ k ] )
+      EasyDual[ k ] = std::make_unique< RowConstraintSolution >();
+     EasyDual[ k ]->read( EasyCmps_SB[ k ] );
+     }
     }
    // In the primal linearized PFB representation the bundle multipliers are
    // the dual values of the cut constraints, rather than explicit theta

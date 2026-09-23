@@ -136,6 +136,7 @@
 #include "C05Function.h"
 #include "ColVariable.h"
 #include "ColVariableSolution.h"
+#include "RowConstraintSolution.h"
 #include "FRowConstraint.h"
 #include "LinearFunction.h"
 #include "OneVarConstraint.h"
@@ -694,6 +695,27 @@ class MasterProblemBlock : public Block {
   * been saved, true otherwise. */
 
  bool restore_easy_primal( int k );
+
+/*--------------------------------------------------------------------------*/
+ /// says whether the duals of the easy components are to be kept
+ /** The duals of the RowConstraint of an easy component, and with them the
+  * reduced costs of its ColVariable, are saved at each solve of the MP only
+  * if somebody asks for them, saving them being a pass over the rows of the
+  * component every time. Whoever drives the MP says so once, out of what it
+  * has been asked to give back. */
+
+ void keep_easy_duals( bool yes ) { f_keep_easy_duals = yes; }
+
+/*--------------------------------------------------------------------------*/
+ /// writes back into the k-th easy component the duals of the last solve
+ /** What restore_easy_primal() does for the primal, for the duals: the
+  * duals of the RowConstraint of the sub-Block of an easy component, which
+  * the Solver of the MP writes there at each solve and which anybody may
+  * write over afterwards, are written back as the last solve left them.
+  * Answers false if they are not kept [see keep_easy_duals()] or if no
+  * solve of the MP has had them saved. */
+
+ bool restore_easy_dual( int k );
 
 /*--------------------------------------------------------------------------*/
  /// returns ||z*||^2, the squared 2-norm of the aggregate subgradient
@@ -1701,6 +1723,13 @@ class MasterProblemBlock : public Block {
  ///< and remain owned by the corresponding Function Block in EasyCmps_Owner
 
  std::vector< Block * > HardCmps;  ///< sub-Blocks of the "hard" components
+
+ std::vector< std::unique_ptr< RowConstraintSolution > > EasyDual;
+ ///< the duals of the RowConstraint of each easy component at the last
+ ///< solve of the MP, kept only if asked [see keep_easy_duals()]
+
+ bool f_keep_easy_duals = false;
+ ///< true if the duals of the easy components are saved at each solve
 
  std::vector< std::unique_ptr< ColVariableSolution > > EasyPrimal;
  ///< the values of the ColVariable of each easy component at the last
