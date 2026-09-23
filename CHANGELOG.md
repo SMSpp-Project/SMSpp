@@ -639,10 +639,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - First test release.
 
-[Unreleased]: https://gitlab.com/smspp/smspp/-/compare/0.7.0...develop
+[Unreleased]: https://gitlab.com/smspp/smspp/-/compare/0.7.1...develop
+[0.7.1]: https://gitlab.com/smspp/smspp/-/compare/0.7.0...0.7.1
 [0.7.0]: https://gitlab.com/smspp/smspp/-/compare/0.6.0...0.7.0
-[0.6.0]: https://gitlab.com/smspp/smspp/-/compare/0.5.3...0.6.0
-[0.5.3]: https://gitlab.com/smspp/smspp/-/compare/0.5.2...0.5.3
+[0.6.0]: https://gitlab.com/smspp/smspp/-/compare/0.5.2...0.6.0
 [0.5.2]: https://gitlab.com/smspp/smspp/-/compare/0.5.1...0.5.2
 [0.5.1]: https://gitlab.com/smspp/smspp/-/compare/0.5.0...0.5.1
 [0.5.0]: https://gitlab.com/smspp/smspp/-/compare/0.4.0...0.5.0
