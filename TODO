@@ -45,7 +45,7 @@
 	updated, once it is known whether any configuration file out there
 	addresses a Constraint inside a std::vector of std::vector.
 
-2022-02-10 [very high] get rid of the boost::any -- DONE, but for one piece
+2022-02-10 [very high] get rid of the boost::any -- DONE
 
 	The four std::vector< boost::any > of Block are gone, and so are the
 	four vectors of names beside them: what a Block keeps are four vectors
@@ -59,24 +59,25 @@
 	representation of a Block, the thing this entry said it would set the
 	stage for.
 
-	What remains to do is this one:
-
-	    A Variable / Constraint SHOULD HAVE A POINTER TO THE Group IT
-	    BELONGS TO RATHER THAN TO THE Block
-
-	An element still points at its Block, and get_Block() is what every
-	caller uses. Putting the Group there instead costs the same 8 bytes
-	and one more hop in get_Block(), and buys the index of the element
-	inside its group from its address alone, out of the base, the stride
-	and the extents the group already has. Today that index is found by
-	inspection::index_in_group(), which walks the group until it meets
-	the element, and is then turned into a multi-index by
-	BaseGroup::get_multi_index().
+	A Variable / Constraint knows the group it is an element of: the
+	field that held the pointer to its Block holds the pointer to its
+	group instead, the lowest bit telling the two apart, and get_Block()
+	answers through the group, get_Group() giving the group itself. The
+	Block tells an element its group when it registers the group, when a
+	dynamic element is added to a list it has registered, and takes it
+	out of it when the group is replaced or reset and when the element is
+	removed; an element in no group (not yet registered, a copy, one moved
+	to another Block, one reached through a group of pointers) keeps its
+	Block in the same field, so get_Block() always answers. What an
+	element gains is where it sits: inspection::get_element_index() looks
+	in its group only rather than in all those of its Block, and in a
+	group that is one array the position is a subtraction.
 
 	The 8 bytes themselves are out of scope: giving them back needs
 	either a global table or a split hierarchy of Variable, and the
-	lookup was measured to weigh 0.01% to 0.26% of a solve, so what is
+	lookup was measured to weigh 0.01% to 0.26% of a solve, so what was
 	at stake here is the structure and not the speed.
+
 
 2020-08-12 [low] add configuration and vector-of-configuration parameters
 

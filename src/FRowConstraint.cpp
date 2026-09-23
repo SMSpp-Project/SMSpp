@@ -68,8 +68,8 @@ void FRowConstraint::set_function( Function * const function ,
   }
 
  // if so instructed, issue the FRowConstraintMod
- if( f_Block && f_Block->issue_mod( issueMod ) )
-  f_Block->add_Modification( std::make_shared< FRowConstraintMod >(
+ if( get_Block() && get_Block()->issue_mod( issueMod ) )
+  get_Block()->add_Modification( std::make_shared< FRowConstraintMod >(
                               this , FRowConstraintMod::eFunctionChanged ,
                               Observer::par2concern( issueMod ) ) ,
                              Observer::par2chnl( issueMod ) );
@@ -85,10 +85,10 @@ void FRowConstraint::set_rhs( c_RHSValue rhs_value , ModParam issueMod )
 
  f_rhs = rhs_value;        // change the value
 
- if( ( ! f_Block ) || ( ! f_Block->issue_mod( issueMod ) ) )
+ if( ( ! get_Block() ) || ( ! get_Block()->issue_mod( issueMod ) ) )
   return;
 
- f_Block->add_Modification( std::make_shared< RowConstraintMod >(
+ get_Block()->add_Modification( std::make_shared< RowConstraintMod >(
                              this , RowConstraintMod::eChgRHS ,
                              Observer::par2concern( issueMod ) ) ,
                             Observer::par2chnl( issueMod ) );
@@ -103,10 +103,10 @@ void FRowConstraint::set_lhs( c_RHSValue lhs_value , ModParam issueMod )
 
  f_lhs = lhs_value;        // change the value
 
- if( ( ! f_Block ) || ( ! f_Block->issue_mod( issueMod ) ) )
+ if( ( ! get_Block() ) || ( ! get_Block()->issue_mod( issueMod ) ) )
   return;
 
- f_Block->add_Modification( std::make_shared< RowConstraintMod >(
+ get_Block()->add_Modification( std::make_shared< RowConstraintMod >(
                              this , RowConstraintMod::eChgLHS ,
                              Observer::par2concern( issueMod ) ) ,
                             Observer::par2chnl( issueMod ) );
@@ -122,10 +122,10 @@ void FRowConstraint::set_both( c_RHSValue both_value , ModParam issueMod )
  f_lhs = both_value;
  f_rhs = both_value;
 
- if( ( ! f_Block ) || ( ! f_Block->issue_mod( issueMod ) ) )
+ if( ( ! get_Block() ) || ( ! get_Block()->issue_mod( issueMod ) ) )
   return;
 
- f_Block->add_Modification( std::make_shared< RowConstraintMod >(
+ get_Block()->add_Modification( std::make_shared< RowConstraintMod >(
                              this , RowConstraintMod::eChgBTS ,
                              Observer::par2concern( issueMod ) ) ,
                             Observer::par2chnl( issueMod ) );
@@ -146,7 +146,7 @@ void FRowConstraint::remove_variable( Index i , ModParam issueMod )
  if( ! f_function )
   return;
 
- if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
+ if( ( par2mod( issueMod ) > eNoMod ) && get_Block()->anyone_there() )
   f_function->remove_variable( i , issueMod );
  else {
   // unregistration can preceed removal, since the Function completely
@@ -163,7 +163,7 @@ void FRowConstraint::remove_variables( Range range , ModParam issueMod )
  if( ! f_function )
   return;
 
- if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
+ if( ( par2mod( issueMod ) > eNoMod ) && get_Block()->anyone_there() )
   f_function->remove_variables( range, issueMod );
  else {
   // unregistration can preceed removal, since the Function completely
@@ -182,7 +182,7 @@ void FRowConstraint::remove_variables( Subset && nms , bool ordered ,
  if( ! f_function )
   return;
 
- if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
+ if( ( par2mod( issueMod ) > eNoMod ) && get_Block()->anyone_there() )
   f_function->remove_variables( std::move( nms ) , ordered , issueMod );
  else {
   // unregistration can preceed removal, since the Function completely
@@ -247,8 +247,8 @@ void FRowConstraint::add_Modification( sp_Mod mod , c_ChnlName chnl )
 
  // finally, dispatch to add_Modification() of the Block - - - - - - - - - - -
 
- if( f_Block && f_Block->anyone_there() )  // ... if any, and listening
-  f_Block->add_Modification( mod , chnl );
+ if( get_Block() && get_Block()->anyone_there() )  // ... if any, and listening
+  get_Block()->add_Modification( mod , chnl );
 
  }  // end( FRowConstraint::add_Modification )
 

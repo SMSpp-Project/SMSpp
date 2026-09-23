@@ -38,10 +38,10 @@ void ColVariable::set_type( var_type type , c_ModParam issueMod )
  f_state &= var_type( 1 );  // clear all bits except the LSB
  f_state |= type * 2;       // set the type, leaving the LSB unchanged
 
- if( ( ! f_Block ) || ( ! f_Block->issue_mod( issueMod ) ) )
+ if( ( ! get_Block() ) || ( ! get_Block()->issue_mod( issueMod ) ) )
   return;
 
- f_Block->add_Modification( std::make_shared< VariableMod >(
+ get_Block()->add_Modification( std::make_shared< VariableMod >(
                              this , old_state , f_state ,
                              Observer::par2concern( issueMod ) ) ,
                             Observer::par2chnl( issueMod ) );
@@ -60,10 +60,10 @@ void ColVariable::is_integer( bool yn , c_ModParam issueMod )
  else
   f_state &= ~var_type( 2 );
 
- if( ( ! f_Block ) || ( ! f_Block->issue_mod( issueMod ) ) )
+ if( ( ! get_Block() ) || ( ! get_Block()->issue_mod( issueMod ) ) )
   return;
 
- f_Block->add_Modification( std::make_shared< VariableMod >(
+ get_Block()->add_Modification( std::make_shared< VariableMod >(
                              this , old_state , f_state ,
                              Observer::par2concern( issueMod ) ) ,
                             Observer::par2chnl( issueMod ) );
@@ -82,10 +82,10 @@ void ColVariable::is_positive( bool yn, c_ModParam issueMod )
  else
   f_state &= ~var_type( 4 );
 
- if( ( ! f_Block ) || ( ! f_Block->issue_mod( issueMod ) ) )
+ if( ( ! get_Block() ) || ( ! get_Block()->issue_mod( issueMod ) ) )
   return;
 
- f_Block->add_Modification( std::make_shared< VariableMod >(
+ get_Block()->add_Modification( std::make_shared< VariableMod >(
                              this , old_state , f_state ,
                              Observer::par2concern( issueMod ) ) ,
                             Observer::par2chnl( issueMod ) );
@@ -104,10 +104,10 @@ void ColVariable::is_negative( bool yn , c_ModParam issueMod )
  else
   f_state &= ~var_type( 8 );
 
- if( ( ! f_Block ) || ( ! f_Block->issue_mod( issueMod ) ) )
+ if( ( ! get_Block() ) || ( ! get_Block()->issue_mod( issueMod ) ) )
   return;
 
- f_Block->add_Modification( std::make_shared< VariableMod >(
+ get_Block()->add_Modification( std::make_shared< VariableMod >(
                              this , old_state , f_state ,
                              Observer::par2concern( issueMod ) ) ,
                             Observer::par2chnl( issueMod ) );
@@ -126,10 +126,10 @@ void ColVariable::is_unitary( bool yn , c_ModParam issueMod )
  else
   f_state &= ~var_type( 16 );
 
- if( ( ! f_Block ) || ( ! f_Block->issue_mod( issueMod ) ) )
+ if( ( ! get_Block() ) || ( ! get_Block()->issue_mod( issueMod ) ) )
   return;
 
- f_Block->add_Modification( std::make_shared< VariableMod >(
+ get_Block()->add_Modification( std::make_shared< VariableMod >(
                              this , old_state , f_state ,
                              Observer::par2concern( issueMod ) ) ,
                             Observer::par2chnl( issueMod ) );

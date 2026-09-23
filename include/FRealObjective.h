@@ -184,9 +184,8 @@ class FRealObjective : public RealObjective , public Observer {
 
  /// returns the Block to which this Observer belongs/
  /** FRealObjective is an Observer, and it belongs to the Block to which it
-  * belongs as a Constraint. However, note that FRealObjective::get_Block()
-  * is virtual while Constraint::get_Block() is not, hence the former has to
-  * be explicitly implemented in terms of the latter. */
+  * belongs as an Objective. It inherits get_Block() from both Observer and
+  * Objective, hence it has to say which one answers, and it is the latter. */
 
  [[nodiscard]] Block * get_Block( void ) const override {
   return( Objective::get_Block() );
