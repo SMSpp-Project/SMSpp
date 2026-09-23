@@ -220,6 +220,7 @@ target_sources(${modName} PRIVATE
         src/Function.cpp
         src/LagBFunction.cpp
         src/LinearFunction.cpp
+        src/MasterProblemBlock.cpp
         src/Objective.cpp
         src/OneVarConstraint.cpp
         src/PolyhedralFunction.cpp
