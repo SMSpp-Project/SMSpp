@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `C05SumFunction`, the `C05Function` that is the sum of a given set of
+  `C05Function`: it computes them, combines their linearizations into its
+  own, and is their `Observer`, so that what happens to a member is seen as
+  happening to the sum. It looks inside a `GroupModification` of its members
+  and says once what the ones that agree do to it, and it takes in a member
+  that changes its own Variable by keeping the union of the lists
 - `AbstractBlock::write_is()`, which `print( out , 'I' )` dispatches: after a
   `CDASolver` has proved the model unfeasible and `get_dual_direction()` has
   written the unbounded dual direction into the Block, it writes the rows
@@ -111,6 +117,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `tests_Function` discards on purpose what the calls that must throw return,
+  the compiler warning that a value was ignored where the point is that the
+  call never gets to return one
 - the elements of a static group whose cells are `std::vector` are numbered
   cell by cell, the position inside the cell plus the sizes of the cells
   before it, as those of a dynamic group whose cells are `std::list` already
@@ -184,6 +193,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- a change of an off-diagonal coefficient of a `QuadFunction` issues the
+  Modification of a change of the quadratic part and not that of the linear
+  one, a Solver reading the wrong one having rebuilt the row it did not have
+  to and left the one it had to alone
 - the test of the size variable asked the global scale of the epigraph to
   move when one row a thousand times larger than the others is added, which
   is what the scale of the median of the row measures is there not to do;
