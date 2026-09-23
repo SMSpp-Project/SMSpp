@@ -2159,40 +2159,39 @@ int LagBFunction::compute(bool changedvars)
     for (Index i = 0; i < LagPairs.size(); ++i)
       y[i] = LagPairs[i].first->get_value();
 
-    // (re)build v_active if the dual-pair / variable structure changed: per
-    // objective, the sorted positions j coupled to a multiplier (non-empty
-    // CostMatrix[h][j].second). Cached; rebuilt only on f_active_dirty, so the
-    // per-compute loop below iterates O(|coupled|) and not O(#vars).
-    // A position that has lost its last multiplier [see remove_variable()]
-    // still carries in the Objective the Lagrangian cost last written there:
-    // it is kept until the loop below has put its original cost back, which
-    // the next rebuild sees, dropping it
-    if (f_active_dirty)
-    {
-      v_active.assign(CostMatrix.size(), Subset());
-      for (Index h = 0; h < CostMatrix.size(); ++h)
-      {
-        const auto &cm = CostMatrix[h];
-        auto *fn = v_Obj[h]->get_function();
-        const Index nv = !v_ObjIsQuad[h]
-                             ? static_cast<p_LF>(fn)->get_num_active_var()
-                             : static_cast<p_QF>(fn)->get_num_active_var();
-        for (Index i = 0; i < cm.size(); ++i)
-          if ((!cm[i].second.empty()) ||
-              ((i < nv) &&
-               ((!v_ObjIsQuad[h]
-                     ? static_cast<p_LF>(fn)->get_v_var()[i].second
-                     : std::get<1>(static_cast<p_QF>(fn)->get_v_var()[i])) != cm[i].first)))
-            v_active[h].push_back(i);
-      }
-      f_active_dirty = false;
-      // v_active changed shape: any conv_active stored against the old structure
-      // is now misaligned. Drop them so get_linearization_coefficients() falls
-      // back to sol->write() until those entries are re-stored against the new
-      // v_active. Structural changes are rare, so the scan is cheap amortised.
-      for (auto &el : g_pool)
-        el.conv_active.clear();
+  // (re)build v_active if the dual-pair / variable structure changed: per
+  // objective, the sorted positions j coupled to a multiplier (non-empty
+  // CostMatrix[h][j].second). Cached; rebuilt only on f_active_dirty, so the
+  // per-compute loop below iterates O(|coupled|) and not O(#vars).
+  // A position that has lost its last multiplier [see remove_variable()]
+  // still carries in the Objective the Lagrangian cost last written there:
+  // it is kept until the loop below has put its original cost back, which
+  // the next rebuild sees, dropping it
+  if( f_active_dirty ) {
+   v_active.assign( CostMatrix.size() , Subset() );
+   for( Index h = 0 ; h < CostMatrix.size() ; ++h ) {
+    const auto & cm = CostMatrix[ h ];
+    auto * fn = v_Obj[ h ]->get_function();
+    const Index nv = ! v_ObjIsQuad[ h ]
+                      ? static_cast< p_LF >( fn )->get_num_active_var()
+                      : static_cast< p_QF >( fn )->get_num_active_var();
+    for( Index i = 0 ; i < cm.size() ; ++i )
+     if( ( ! cm[ i ].second.empty() ) ||
+         ( ( i < nv ) &&
+           ( ( ! v_ObjIsQuad[ h ]
+               ? static_cast< p_LF >( fn )->get_v_var()[ i ].second
+               : std::get< 1 >( static_cast< p_QF >( fn )->get_v_var()[ i ] ) )
+             != cm[ i ].first ) ) )
+      v_active[ h ].push_back( i );
     }
+   f_active_dirty = false;
+   // v_active changed shape: any conv_active stored against the old structure
+   // is now misaligned. Drop them so get_linearization_coefficients() falls
+   // back to sol->write() until those entries are re-stored against the new
+   // v_active. Structural changes are rare, so the scan is cheap amortised.
+   for( auto & el : g_pool )
+    el.conv_active.clear();
+   }
 
     // loop over all Blocks in BFS order
     for (Index h = 0; h < CostMatrix.size(); ++h)
@@ -5019,21 +5018,20 @@ void LagBFunction::update_CostMatrix_ModVarsSbst(c_Vec_p_Var &vars,
   // still to be added, because if they are still to be added they cannot
   // have been deleted
 
-  if (vars.empty())
-    return;
+ if( vars.empty() )
+  return;
 
-  // an empty subset means that all the Variable have been removed, the i-th
-  // of vars() having been the i-th of the Objective [see FunctionModVarsSbst],
-  // which is the range version with the whole range
-  if (sbst.empty())
-  {
-    update_CostMatrix_ModVarsRngd(h, vars, Range(0, vars.size()));
-    return;
+ // an empty subset means that all the Variable have been removed, the i-th
+ // of vars() having been the i-th of the Objective [see FunctionModVarsSbst],
+ // which is the range version with the whole range
+ if( sbst.empty() ) {
+  update_CostMatrix_ModVarsRngd( h , vars , Range( 0 , vars.size() ) );
+  return;
   }
 
-  // the index of the modified Objective is provided by the caller: it cannot
-  // be recovered here from the Variable in the Modification, since an inner
-  // Objective may well reference Variable owned by other nested sub-Block
+ // the index of the modified Objective is provided by the caller: it cannot
+ // be recovered here from the Variable in the Modification, since an inner
+ // Objective may well reference Variable owned by other nested sub-Block
 
   m_column &CM = CostMatrix[h];
 
