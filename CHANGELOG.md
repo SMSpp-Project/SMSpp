@@ -26,21 +26,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   replaced, added or removed: the first Variable other than `ColVariable`
   and the first Constraint other than a `RowConstraint` of the core, for the
   satisfiability problems
+
 - `BooleanVariableSolution`, the Solution of a Block whose Variables are
   `BooleanVariable`: it follows `ColVariableSolution`, storing each value as
   1 or 0 so that a convex combination of solutions gives the frequency with
   which each `BooleanVariable` is true, and `write()` rounds it at 1/2
+
 - `MasterProblemBlock`, the master problem of a stabilized method as a Block
   of the core: the model a bundle method solves at every iteration is built,
   read and changed through the abstract representation, so that whichever
   Solver is attached to it solves it, and its comments speak of the Solver
   that drives the master and not of one of them in particular
+
 - `C05SumFunction`, the `C05Function` that is the sum of a given set of
   `C05Function`: it computes them, combines their linearizations into its
   own, and is their `Observer`, so that what happens to a member is seen as
   happening to the sum. It looks inside a `GroupModification` of its members
   and says once what the ones that agree do to it, and it takes in a member
   that changes its own Variable by keeping the union of the lists
+
 - `Solver::has_Solver()`, which tells whether the factory holds a `:Solver`
   with a given name, i.e., whether `new_Solver()` would build one rather than
   throwing: which `:Solver` are there depends on the modules the program is
@@ -151,8 +155,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   needs, `elements_are()` answers the question on the type once for the whole
   group, and `Block::for_each_variable_group()` and
   `for_each_constraint_group()` walk the static groups and then the dynamic
-  ones. THE ORDER IN WHICH THE ELEMENTS COME OUT IS THE STORAGE ORDER, and it
-  is part of the contract: `tests_Group.cpp` fixes it
+  ones. The order in which the elements come out is the storage order, and
+  that is part of the contract: `tests_Group.cpp` fixes it
 
 - a group knows the type of the container it views, not only that of its
   elements, and `get_container_as< C >()` hands it back when it is a `C` and
@@ -161,7 +165,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   layout and the same rank, and it is what the typed accessors of `Block`
   ask instead of `boost::any_cast`
 
-- A group says how to build a container of its own type and shape in another
+- a group says how to build a container of its own type and shape in another
   Block, which is what `AbstractBlock::mirror()` needed the `boost::any` for,
   and whoever allocates a container says how it goes, so that a Block
   disposes of what it owns through its own groups
@@ -174,9 +178,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - the makefile of the library carries `C05SumFunction`, which was built by
   CMake alone
+
 - `tests_Function` discards on purpose what the calls that must throw return,
   the compiler warning that a value was ignored where the point is that the
   call never gets to return one
+
 - a `Solution` that holds a direction, given to a `Block` that does not know
   what a direction of its own is [see `Block::has_directions()`], is declared
   not feasible rather than written in the Variable and checked as if it were
@@ -184,16 +190,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reason `LagBFunction::check_Solution()` drops the entry of the global pool
   it cannot check instead of keeping it, since keeping a wrong entry costs a
   wrong answer while dropping a right one costs finding it again
-
-- when dynamic Constraint are removed from its sub-Block,
-  `BendersBFunction` keeps the entries of the global pool whose multiplier of
-  the rows that went was zero, dropping it from the dual solution they hold
-  [see `Solution::drop_dynamic_values()`], and deletes only the others, where
-  what is left does not satisfy the dual constraints any more; the rows are
-  still alive inside the `BlockModRmv` while it is being processed, which is
-  what makes the multiplier readable at all. The whole pool goes, as it used
-  to, when the Modification does not say which rows went or a Solution of the
-  pool cannot drop them
 
 - the elements of a static group whose cells are `std::vector` are numbered
   cell by cell, the position inside the cell plus the sizes of the cells
@@ -204,7 +200,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   another one now; no configuration file did, those groups being recent, and
   the documentation of `Block::ConstraintID` covers them from now on
 
-- ⚠️ A `Variable` AND A `Constraint` POINT TO THEIR GROUP: the field that held
+- a `Variable` and a `Constraint` point to their group: the field that held
   the pointer to the Block holds the pointer to the group the element is in,
   the lowest bit telling the two apart, and `get_Block()` answers through the
   group; `get_Group()` gives the group, `nullptr` for an element in none. The
@@ -214,13 +210,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Block of the group leaves the element in it, any other Block takes it out,
   and a copy of a `Variable` has the Block of the original and no group.
   `inspection::get_element_index()` looks in the group of the element only.
-  ⚠️ `f_Block` IS NO LONGER A PROTECTED FIELD OF `Variable` AND `Constraint`:
-  a derived class reads `get_Block()`. ⚠️ A CONTAINER HAS TO BE THERE,
-  POSSIBLY EMPTY, WHEN ITS GROUP IS REPLACED OR RESET, since the Block walks
+  `f_Block` is no longer a protected field of `Variable` and `Constraint`, a
+  derived class reading `get_Block()`, and a container has to be there,
+  possibly empty, when its group is replaced or reset, since the Block walks
   it to take its elements out of the group: clearing it first, as every
   `:Block` of the umbrella does, is fine, deleting it first is not
 
-- ⚠️ THE FOUR `std::vector< boost::any >` OF `Block` ARE GONE, and so are the
+- the four `std::vector< boost::any >` of `Block` are gone, and so are the
   four vectors of the names beside them: a Block keeps its Variable and its
   Constraint in its four vectors of groups alone. `get_static_variables()`,
   `get_dynamic_variables()`, `get_static_constraints()`,
@@ -231,10 +227,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   them, stay and read the name of the group. The typed accessors,
   `get_static_variable< T >( i )` and the 23 like them, keep their signature
   and read the group instead of the `boost::any`, so their callers do not
-  change. ⚠️ ONE OF THEM ASKED FOR THE WRONG TYPE NOW ANSWERS `nullptr`,
-  WHICH IS WHAT THEIR DOCUMENTATION HAS ALWAYS PROMISED, INSTEAD OF THROWING
-  `boost::bad_any_cast`: whoever was finding a mistake of type out of the
-  exception now gets a null pointer, and finds it out later and elsewhere.
+  change; one of them asked for the wrong type answers `nullptr`, which is
+  what their documentation has always promised, instead of throwing
+  `boost::bad_any_cast`, so that whoever was finding a mistake of type out of
+  the exception now gets a null pointer, and finds it out later and elsewhere.
   `Vec_any`, `c_Vec_any` and `Vec_any_it` are gone from `SMSTypedefs.h`,
   which no longer includes `<boost/any.hpp>`
 
@@ -242,20 +238,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   checks it had, and adds the multiplier to the normalization constraint in
   place instead of giving the constraint a new LinearFunction, so that the
   constraint and its LinearFunction stay the objects they were
-
-- ⚠️ THE LAYOUT OF `Block` HAS CHANGED, and `add_static_variable()` and the
-  other 35 registration methods are templates, hence they live in the
-  translation unit of whoever calls them: after updating, EVERYTHING has to
-  be rebuilt, not only `libSMS++`, and a stale object file is not a
-  compilation error but a group without the means to copy itself, or a
-  library that is a hybrid of two layouts
-
-- `GroupAdapter.h` is gone, having been the scaffolding that read the
-  `boost::any` while the consumers of them were converted one at a time, and
-  so are `Block::refresh_*_group()`, which existed to rebuild a group after
-  it was written into through its `boost::any`, and which nobody calls
-
-### Changed
 
 - `PolyhedralFunctionBlock`, in the "linearized dual" representation, issues
   the Modification of a row being added or removed inside a
@@ -266,17 +248,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that does not recognise the group takes it apart and sees exactly the
   Modification it saw before
 
+- the layout of `Block` has changed, and `add_static_variable()` and the
+  other 35 registration methods are templates, hence they live in the
+  translation unit of whoever calls them: after updating, everything has to
+  be rebuilt, not only `libSMS++`, and a stale object file is not a
+  compilation error but a group without the means to copy itself, or a
+  library that is a hybrid of two layouts
+
+- `GroupAdapter.h` is gone, having been the scaffolding that read the
+  `boost::any` while the consumers of them were converted one at a time, and
+  so are `Block::refresh_*_group()`, which existed to rebuild a group after
+  it was written into through its `boost::any`, and which nobody calls
+
 ### Fixed
 
 - a change of an off-diagonal coefficient of a `QuadFunction` issues the
   Modification of a change of the quadratic part and not that of the linear
   one, a Solver reading the wrong one having rebuilt the row it did not have
   to and left the one it had to alone
+
 - the test of the size variable asked the global scale of the epigraph to
   move when one row a thousand times larger than the others is added, which
   is what the scale of the median of the row measures is there not to do;
   it now asks it to stay where it is, and to move once enough large rows are
   there for the median to be among them
+
 - `Block::remove_dynamic_constraints()`, asked for the whole list with an
   empty subset and with no Modification to be issued, removed each Constraint
   from its active Variable twice, and the second time threw "remove_active()
@@ -289,7 +285,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its inner Block that had lost its last multiplier, whenever a change of
   structure in the same batch of Modification rebuilt the list of the
   coupled positions before the costs were written again: the position was
-  dropped from the list while still holding $c + y_k a$, and the function
+  dropped from the list while still holding `c + y_k a`, and the function
   kept that cost for good. A position whose cost in the Objective differs
   from its original one now stays in the list until the original cost is
   back
@@ -327,10 +323,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   compile as soon as it was used
 
 - `BendersBFunction` kept the dual solutions of its global pool when the
-  Constraint of the sub-Block changed, adding and removing alike: a removal
-  takes a dual variable away, and what is left satisfies the dual constraints
-  only if that variable was zero, so the pool is now invalidated there, while
-  an addition keeps it, the new dual variable being feasible at zero
+  Constraint of the sub-Block changed, adding and removing alike, while a
+  removal takes a dual variable away and what is left satisfies the dual
+  constraints only if that variable was zero. An addition keeps the pool, the
+  new dual variable being feasible at zero; a removal keeps the entries whose
+  multiplier of the rows that went was zero, dropping it from the dual
+  solution they hold [see `Solution::drop_dynamic_values()`], and deletes the
+  others. The rows are still alive inside the `BlockModRmv` while it is being
+  processed, which is what makes the multiplier readable at all, and the whole
+  pool goes when the Modification does not say which rows went or a Solution
+  of the pool cannot drop them
 
 - `LagBFunction` marked no Solution as written in the inner Block after
   checking one of the global pool against a Block that is not
@@ -430,7 +432,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.6.0] - 2025-12-12
 
-### Added 
+### Added
 
 - SimpleConfiguration< std::pair< std::string ,
   Configuration * > >
@@ -446,7 +448,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to the "root" inner Block (as previously) or rather
   in the [Linear/DQuad]Function of the Block where the
   ColVariable is defined
-  
+
 - added full netCDF file support for State
 
 - un\_any\_thing\_OneVarConstraint\_*
@@ -479,7 +481,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - support for reading .lp and .mps files in AbstractBlock,
   comprised handling of QP problems
 
-### Changed 
+### Changed
 
 - parameter in set\_ComputeConfig() is now const
 
@@ -495,7 +497,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - moved vectors for parameters inside methods
 
-### Fixed 
+### Fixed
 
 - fixed conceptual flaw in LagBFunction: getting an empty
   Solution from the Block and accumulating all the
@@ -517,7 +519,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.5.3] - 2024-02-29
 
-### Added 
+### Added
 
 - "father of LagBFunction" mechanism
 
@@ -525,11 +527,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - AbstractBlock::read_mps()
 
-### Changed 
+### Changed
 
 - adapted to new CMake / makefile organisation
 
-### Fixed 
+### Fixed
 
 - flaw in DQuadFunction
 
@@ -544,11 +546,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - C05Function uses Function::set_par
+
 - RowConstraint::is_feasible()
 
 ### Changed
 
 - definition of RowConstraint::rel_viol()
+
 - feasibility check in AbstractBlock
 
 ### Removed
@@ -559,6 +563,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - dynamic cast in put_State() (BendersBFunction, LagBFunction, and
   PolyhedralFunction)
+
 - copy constructor of BlockConfig
 
 ## [0.5.1] - 2022-06-28
@@ -632,9 +637,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - AbstractBlock can read MPS files.
+
 - State (representation of the state of a ThinComputeInterface).
+
 - BendersBFunctionState, LagBFunctionState, and PolyhedralFunctionState.
+
 - Two new SimpleConfiguration.
+
 - VariableGroupMod.
 
 ### Changed
@@ -644,9 +653,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Bugs in LagBFunction.
+
 - Multiplier in sum() of RowConstraintSolution and ColVariableSolution.
+
 - get_*_index()/element() in BlockInspection.
+
 - Bugs in BoxSolver.
+
 - Flaw in AbstractBlock::is_feasible().
 
 ## [0.4.0] - 2021-02-05
@@ -714,8 +727,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Support for concurrency.
+
 - [O][C][R]BlockConfig for configuring also the Objective, Constraint, and
   sub-Block, recursively.
+
 - RBlockSolverConfig for configuring the Solver of the sub-Block, recursively.
 
 ### Changed
