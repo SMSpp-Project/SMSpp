@@ -171,6 +171,7 @@ void MasterProblemBlock::clear()
  // there to hear. The two rows that are members of *this outlive clear(),
  // so they are the ones that have to give their Function up by hand
  CouplingCns.clear();
+ Bounds_d.clear();
  Bounds_v_hard.clear();
  NormalizationCns.set_function( nullptr , eNoMod );
  LevelCns.set_function( nullptr , eNoMod );
