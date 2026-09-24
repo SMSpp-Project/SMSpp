@@ -1520,11 +1520,19 @@ class MasterProblemBlock : public Block {
  /** lambda is the master-side non-negative dual multiplier paired with the
   * model-value equation of the lower model (
   * stationarity (i): lambda + r - omega = 1), shared across every hard
-  * component (cf. PolyhedralFunctionBlock::set_lambda). Meaningful only
-  * after solve_master(). */
+  * component (cf. PolyhedralFunctionBlock::set_lambda). In the primal form
+  * it is 1 plus the multiplier of the level row, if any, that the rows of
+  * each component share with the proximal term. Meaningful only after
+  * solve_master(). */
 
- [[nodiscard]] double get_lambda( void ) const
-  { return( IsPrimal ? 1.0 : Var_lambda.get_value() ); }
+ [[nodiscard]] double get_lambda( void ) const {
+  if( ! IsPrimal )
+   return( Var_lambda.get_value() );
+  if( ( StblType == kDoublyStabilized ) ||
+      ( ( StblType == kLevel ) && has_initial_level_objective() ) )
+   return( 1.0 + get_level_multiplier() );
+  return( 1.0 );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the physical gamma multiplier of the k-th hard component

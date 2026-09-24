@@ -262,6 +262,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- with a level row next to the proximal term, the primal form of
+  `MasterProblemBlock` reads the aggregate linearization error with the mass
+  mu = 1 + eta that the rows of each component share, and `get_lambda()`
+  returns that mass, rather than 1: the error was smaller than the true one,
+  which made the stopping tests optimistic and the noise reduction fire with
+  an exact oracle
+- the raw aggregate constant of a component counts the vertical rows with
+  their multipliers, as the aggregate subgradient already did, so that the
+  aggregate row is a valid one
+
 - a change of an off-diagonal coefficient of a `QuadFunction` issues the
   Modification of a change of the quadratic part and not that of the linear
   one, a Solver reading the wrong one having rebuilt the row it did not have

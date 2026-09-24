@@ -2814,7 +2814,15 @@ double MasterProblemBlock::get_aggregated_alpha( int k ) const
   //     v*[k] = < z*[k] , d* > - Sigma*[k].
   // Using it here automatically includes horizontal lower-bound mass and
   // vertical/domain multipliers without exposing their abstract dual objects.
+  //
+  // With a level row next to the proximal term the multipliers of the rows
+  // of each component sum to mu = 1 + eta and z* = - d* / t is their raw
+  // combination, so the identity reads < z*[k] , d* > = mu v*[k] + Sigma*[k]
+  // with the same raw Sigma* the dual form sums row by row; reading it with
+  // mu = 1 would give Sigma* - ( mu - 1 ) v*, i.e., a smaller aggregate error
+  // than the true one. In pure level z* is already normalized, and mu = 1.
   const auto d = get_d_vector();
+  const double mu = get_lambda();
 
   if( k >= 0 ) {
    const auto zk = get_aggregated_subgradient( k );
@@ -2822,10 +2830,10 @@ double MasterProblemBlock::get_aggregated_alpha( int k ) const
    double zd = 0.0;
    for( std::size_t j = 0 ; j < n ; ++j )
     zd += zk[ j ] * d[ j ];
-   return( zd - get_FiBLambda( k ) );
+   return( zd - mu * get_FiBLambda( k ) );
    }
 
-  return( get_Gid_aggregate() - get_FiBLambda() );
+  return( get_Gid_aggregate() - mu * get_FiBLambda() );
   }
 
  // b[i] is stored in the physical PolyhedralFunction units. The multiplier
@@ -3017,8 +3025,21 @@ double MasterProblemBlock::get_raw_aggregated_alpha( int k ) const
 
    double alpha = 0.0;
    for( PolyhedralFunction::Index i = 0 ; i < poly.get_nrows() ; ++i ) {
-    if( poly.is_row_vertical( i ) )
+    // a vertical row enters the aggregate subgradient with its multiplier
+    // [see get_aggregated_subgradient()], hence its constant must enter the
+    // aggregate constant too; it is stored as alpha + g . x_bar in the
+    // displacement form, and as alpha in the iterate one [see
+    // get_stored_constant()]
+    if( poly.is_row_vertical( i ) ) {
+     double raw_b = b[ i ];
+     if( ! f_v2_form && i < A.size() ) {
+      const std::size_t n = std::min( A[ i ].size() , f_x_bar.size() );
+      for( std::size_t j = 0 ; j < n ; ++j )
+       raw_b -= A[ i ][ j ] * f_x_bar[ j ];
+      }
+     alpha += pfb->get_row_multiplier( i ) * raw_b;
      continue;
+     }
 
     double raw_b = b[ i ];
     if( ! f_v2_form && i < A.size() ) {
