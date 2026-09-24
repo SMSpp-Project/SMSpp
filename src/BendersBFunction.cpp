@@ -43,6 +43,61 @@
 using namespace SMSpp_di_unipi_it;
 
 /*--------------------------------------------------------------------------*/
+/*-------------------------- LOCAL FUNCTIONS -------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+namespace {
+
+/// tells which RowConstraint of type C a Modification says have been removed
+/** Writes in cell the address of the cell of the group of dynamic Constraint
+ * they were removed from and in positions the positions they had in it, with
+ * all telling that the whole cell went. Returns false if the Modification is
+ * not one that removes RowConstraint of type C saying which ones. */
+
+template< class C >
+bool rmvd_rows_of( const Modification * mod , const void * & cell ,
+		   Block::Subset & positions , bool & all )
+{
+ if( const auto tmod = dynamic_cast< const BlockModRmvRngd< C > * >( mod ) ) {
+  cell = static_cast< const void * >( & tmod->whc() );
+  const auto & rng = tmod->range();
+  positions.clear();
+  for( Block::Index i = rng.first ; i < rng.second ; ++i )
+   positions.push_back( i );
+  all = false;
+  return( true );
+  }
+
+ if( const auto tmod = dynamic_cast< const BlockModRmvSbst< C > * >( mod ) ) {
+  cell = static_cast< const void * >( & tmod->whc() );
+  positions = tmod->subset();
+  all = positions.empty();   // an empty subset means all of them
+  return( true );
+  }
+
+ return( false );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// as rmvd_rows_of(), for each concrete :RowConstraint of the core
+
+bool rmvd_rows( const Modification * mod , const void * & cell ,
+		Block::Subset & positions , bool & all )
+{
+ return( rmvd_rows_of< FRowConstraint >( mod , cell , positions , all ) ||
+	 rmvd_rows_of< BoxConstraint >( mod , cell , positions , all ) ||
+	 rmvd_rows_of< LB0Constraint >( mod , cell , positions , all ) ||
+	 rmvd_rows_of< UB0Constraint >( mod , cell , positions , all ) ||
+	 rmvd_rows_of< LBConstraint >( mod , cell , positions , all ) ||
+	 rmvd_rows_of< UBConstraint >( mod , cell , positions , all ) ||
+	 rmvd_rows_of< NNConstraint >( mod , cell , positions , all ) ||
+	 rmvd_rows_of< NPConstraint >( mod , cell , positions , all ) ||
+	 rmvd_rows_of< ZOConstraint >( mod , cell , positions , all ) );
+ }
+
+}  // end( unnamed namespace )
+
+/*--------------------------------------------------------------------------*/
 /*----------------------------- STATIC MEMBERS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1777,16 +1832,29 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
     * none of those this BendersBFunction handles. Adding one adds a dual
     * variable, which is dual feasible at zero, hence the dual solutions in
     * the global pool survive it. Removing one takes a dual variable away,
-    * and what is left of the dual solution satisfies the dual constraints
-    * only if that variable was zero: which of the two it is is not known
-    * here, and cannot be checked either, the row being gone by now, so the
-    * pool goes. The value of the Function changes as get_behaviour() says
-    * in either case. */
+    * and what is left of a dual solution satisfies the dual constraints only
+    * if the multiplier of that row was zero: the row is still alive inside
+    * the Modification while it is being processed, hence the entries of the
+    * pool that have a zero there are kept, dropping the multiplier that is
+    * gone, and only the others are deleted; if this cannot be done at all,
+    * the pool goes whole, as it used to. The value of the Function changes
+    * as get_behaviour() says in either case. */
 
    auto behaviour = get_behaviour( tmod );
 
-   if( ! tmod->is_added() )
-    global_pool.invalidate();
+   if( ! tmod->is_added() ) {
+    Subset which;   // the entries of the pool that do not survive
+
+    if( ! keep_pool_after_removal( mod.get() , which ) )
+     global_pool.invalidate();
+    else
+     if( ( ! which.empty() ) && f_Observer &&
+	 f_Observer->issue_mod( eModBlck ) )
+      f_Observer->add_Modification( std::make_shared< BendersBFunctionMod >(
+		       this , C05FunctionMod::GlobalPoolRemoved ,
+		       std::move( which ) , 0 ,
+		       Observer::par2concern( eModBlck ) ) , chnl );
+    }
 
    if( behaviour == function_value_behaviour::unknown )
     send_nuclear_modification( chnl );
@@ -2891,6 +2959,53 @@ BendersBFunction::get_behaviour( std::shared_ptr< ConstraintMod > mod ) {
      ( modified_constraint->get_Block()->get_objective_sense() ) ,
     ( mod->type() == ConstraintMod::eEnforceConst ) ) );
 }  // end( BendersBFunction::get_behaviour )
+
+/*--------------------------------------------------------------------------*/
+
+bool BendersBFunction::keep_pool_after_removal( const Modification * mod ,
+						Subset & which )
+{
+ const void * cell = nullptr;
+ Subset positions;
+ bool all = false;
+
+ if( ! rmvd_rows( mod , cell , positions , all ) )
+  return( false );   // the Modification does not say which rows went
+
+ if( ( ! all ) && positions.empty() )
+  return( true );    // no row went, the pool is untouched
+
+ if( v_Block.empty() )
+  return( false );
+
+ for( Index i = 0 ; i < global_pool.size() ; ++i ) {
+  if( ! global_pool.is_linearization_there( i ) )
+   continue;
+
+  auto solution = global_pool.get_solution( i );
+  if( ! solution )
+   continue;
+
+  std::vector< double > dropped;
+  if( ! solution->drop_dynamic_values( v_Block.front() , cell , positions ,
+				       dropped ) )
+   return( false );  // it cannot say what it held for those rows
+
+  /* The dual variable of a removed row is gone: what is left satisfies the
+   * dual constraints only if the multiplier of that row was zero, which is
+   * what a simplex basis gives exactly. Anything else, a multiplier that a
+   * barrier leaves small but nonzero included, is taken for nonzero, and the
+   * entry goes. */
+  if( std::any_of( dropped.begin() , dropped.end() ,
+		   []( double d ) { return( d != 0 ); } ) ) {
+   global_pool.delete_linearization( i );
+   which.push_back( i );
+   }
+  }
+
+ return( true );
+
+ }  // end( BendersBFunction::keep_pool_after_removal )
 
 /*--------------------------------------------------------------------------*/
 

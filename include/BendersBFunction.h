@@ -2869,6 +2869,27 @@ void print( std::ostream & output ) override {
  void send_nuclear_modification( const Observer::ChnlName chnl = 0 );
 
 /*--------------------------------------------------------------------------*/
+ /// keeps the entries of the global pool that survive removed RowConstraint
+ /** Called when dynamic Constraint have been removed from the sub-Block, with
+  * the Modification that says so, whose removed Constraint are still alive
+  * while it is being processed. The dual variable of a removed row is gone,
+  * hence what is left of a dual solution in the global pool satisfies the
+  * dual constraints only if the multiplier of that row was zero: this method
+  * asks each Solution of the pool to drop what it holds for those rows [see
+  * Solution::drop_dynamic_values()] and deletes the entries whose dropped
+  * multipliers were not all zero, writing in \p which the names of those it
+  * deleted. Returns false if the Modification does not say which rows went,
+  * or if a Solution of the pool cannot drop them, in which case nothing can
+  * be said of the pool and the caller has to invalidate it whole.
+  *
+  * @param mod the Modification saying that the Constraint were removed
+  *
+  * @param which the names of the entries of the global pool that have been
+  *        deleted, in increasing order */
+
+ bool keep_pool_after_removal( const Modification * mod , Subset & which );
+
+/*--------------------------------------------------------------------------*/
  /// returns the behaviour of this Function considering the given Modification
 
  function_value_behaviour get_behaviour( std::shared_ptr< BlockModAD > mod );

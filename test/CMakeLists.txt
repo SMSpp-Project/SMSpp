@@ -109,6 +109,12 @@ smspp_install(QuadFunction_test)
 add_test(NAME QuadFunction_test
          COMMAND QuadFunction_test)
 
+add_executable(Solution_test tests_Solution.cpp)
+target_link_libraries(Solution_test PRIVATE SMS++::SMS++)
+smspp_install(Solution_test)
+add_test(NAME Solution_test
+         COMMAND Solution_test)
+
 add_executable(SizeVariable_test tests_SizeVariable.cpp)
 target_link_libraries(SizeVariable_test PRIVATE SMS++::SMS++)
 smspp_install(SizeVariable_test)

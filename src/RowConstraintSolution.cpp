@@ -420,6 +420,70 @@ void RowConstraintSolution::read( const Block * const block ) {
 
 /*--------------------------------------------------------------------------*/
 
+bool RowConstraintSolution::drop_dynamic_values
+( const Block * const block , const void * cell ,
+  const Block::Subset & positions , std::vector< double > & dropped )
+{
+ // look for the cell among the groups of dynamic Constraint of this Block
+
+ const auto & groups = block->get_dynamic_constraint_groups();
+
+ if( groups.size() == dynamic_constraint_dual_values.size() )
+  for( Block::Index i = 0 ; i < groups.size() ; ++i ) {
+   auto & values = dynamic_constraint_dual_values[ i ];
+   bool found = false;
+
+   on_group( groups[ i ] , [ & ]( const BaseGroup & group ) {
+     for_each_row_cell( group , [ & ]( BaseGroup::Index c , auto & cll ) {
+       if( found || ( static_cast< const void * >( & cll ) != cell ) )
+	return;
+       found = true;
+       if( c >= values.size() )  // nothing is held for this cell
+	return;
+       auto & cell_values = values[ c ];
+
+       if( positions.empty() ) {  // the whole cell is gone
+	dropped.assign( cell_values.begin() , cell_values.end() );
+	cell_values.clear();
+	return;
+	}
+
+       dropped.assign( positions.size() , 0 );
+       for( Block::Index k = 0 ; k < positions.size() ; ++k )
+	if( positions[ k ] < cell_values.size() )
+	 dropped[ k ] = cell_values[ positions[ k ] ];
+
+       // erase from the back, so that the positions keep their meaning
+       auto sorted = positions;
+       std::sort( sorted.begin() , sorted.end() , std::greater<>() );
+       for( auto p : sorted )
+	if( p < cell_values.size() )
+	 cell_values.erase( cell_values.begin() + p );
+       } );
+     } );
+
+   if( found )
+    return( true );
+   }
+
+ // it is not in this Block: look in the nested ones
+
+ const auto & sub_blocks = block->get_nested_Blocks();
+
+ if( sub_blocks.size() != nested_solutions.size() )
+  return( false );
+
+ for( Block::Index i = 0 ; i < sub_blocks.size() ; ++i )
+  if( nested_solutions[ i ].drop_dynamic_values( sub_blocks[ i ] , cell ,
+						 positions , dropped ) )
+   return( true );
+
+ return( false );
+
+ }  // end( RowConstraintSolution::drop_dynamic_values )
+
+/*--------------------------------------------------------------------------*/
+
 void RowConstraintSolution::write( Block * const block ) {
 
  RowConstraint::RHSValue default_dual_value = 0;
@@ -432,7 +496,7 @@ void RowConstraintSolution::write( Block * const block ) {
  auto & sub_blocks = block->get_nested_Blocks();
 
  if( sub_blocks.size() != nested_solutions.size() )
-  throw( std::logic_error( "RowConstraintSolution::read(): "
+  throw( std::logic_error( "RowConstraintSolution::write(): "
                            "number of nested Blocks (" +
                            std::to_string( sub_blocks.size() ) +
                            ") is different from the "

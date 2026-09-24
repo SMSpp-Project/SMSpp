@@ -198,6 +198,23 @@ public:
  virtual void sum( const Solution * solution , double multiplier ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// drops the values of dynamic Variable or Constraint that were removed
+ /** A ColRowSolution holds the values of the ColVariable and the dual values
+  * of the RowConstraint, hence the cell is looked for among the groups of the
+  * ones and then among those of the others [see
+  * Solution::drop_dynamic_values()]. */
+
+ bool drop_dynamic_values( const Block * const block , const void * cell ,
+			  const Block::Subset & positions ,
+			  std::vector< double > & dropped ) override {
+  if( f_variable_solution.drop_dynamic_values( block , cell , positions ,
+					      dropped ) )
+   return( true );
+  return( f_constraint_solution.drop_dynamic_values( block , cell ,
+						    positions , dropped ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  virtual ColRowSolution * clone( bool empty = false ) const override;
 

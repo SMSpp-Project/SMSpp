@@ -588,6 +588,26 @@ class Solver : public ThinComputeInterface
   }
 
 /*--------------------------------------------------------------------------*/
+ /// tells whether the factory holds a :Solver with the given name
+ /** Tells whether the factory holds a :Solver with the given name, i.e.,
+  * whether new_Solver() would construct one rather than throwing. Which
+  * :Solver are in the factory depends on which modules the program is built
+  * with, and on the external libraries each of them has found: whoever
+  * applies a configuration that names the :Solver of a module that is not
+  * there can then leave that one out, and say so, rather than dying on it.
+  * The name is normalised as new_Solver() normalises it, hence the same
+  * spellings work here.
+  *
+  * @param classname The name of the :Solver class asked about. */
+
+ static bool has_Solver( const std::string & classname ) {
+  const std::string classname_( SMSpp_classname_normalise(
+					        std::string( classname ) ) );
+  return( Solver::f_factory().find( classname_ ) !=
+	  Solver::f_factory().end() );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// destructor: it has to release all the Modifications
  /** The destructor of the Solver class has to delete all the Modifications
   * that the Solver has received so far and has not processed yet. Because

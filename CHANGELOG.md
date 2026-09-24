@@ -41,6 +41,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   happening to the sum. It looks inside a `GroupModification` of its members
   and says once what the ones that agree do to it, and it takes in a member
   that changes its own Variable by keeping the union of the lists
+- `Solver::has_Solver()`, which tells whether the factory holds a `:Solver`
+  with a given name, i.e., whether `new_Solver()` would build one rather than
+  throwing: which `:Solver` are there depends on the modules the program is
+  built with and on the external libraries each of them has found, so that
+  whoever applies a configuration naming the `:Solver` of a module that is not
+  there can leave that one out, and say so, rather than dying on it
+
+- `Solution::drop_dynamic_values()`, which tells a Solution that the dynamic
+  Variable or Constraint that were in some positions of a cell of a group of
+  the Block it was read from, or of one nested in it, are no longer there: a
+  `Solution` that holds one value per element of the group, as the values of
+  the `ColVariable` of a `ColVariableSolution` and the dual values of the
+  `RowConstraint` of a `RowConstraintSolution` are, drops the values of those,
+  so that the ones that are left keep matching the elements that are left, and
+  gives them back to the caller, who is typically holding a dual solution and
+  has to know whether the multiplier of a row that is gone was zero. A
+  `ColRowSolution` looks for the cell among the groups of the Variable and
+  then among those of the Constraint. The cell is named by its address, and it
+  is looked for in the Solution of the Block and then in those of the nested
+  ones; the default implementation returns false, which says that what the
+  Solution holds is only good for the Block as it was
+
+- when dynamic Variable are removed from its inner Block, `LagBFunction`
+  drops what each entry of its global pool holds for them before checking
+  whether the entry is still feasible: what is left would otherwise be
+  written on the Variable that have taken their place, and the check would be
+  made on a point that is nobody's; an entry that cannot let them go is
+  deleted, since what it holds only fits the inner Block as it was
+
 - `AbstractBlock::write_is()`, which `print( out , 'I' )` dispatches: after a
   `CDASolver` has proved the model unfeasible and `get_dual_direction()` has
   written the unbounded dual direction into the Block, it writes the rows
@@ -148,6 +177,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tests_Function` discards on purpose what the calls that must throw return,
   the compiler warning that a value was ignored where the point is that the
   call never gets to return one
+- a `Solution` that holds a direction, given to a `Block` that does not know
+  what a direction of its own is [see `Block::has_directions()`], is declared
+  not feasible rather than written in the Variable and checked as if it were
+  a solution, which could call a ray that is not one feasible; for the same
+  reason `LagBFunction::check_Solution()` drops the entry of the global pool
+  it cannot check instead of keeping it, since keeping a wrong entry costs a
+  wrong answer while dropping a right one costs finding it again
+
+- when dynamic Constraint are removed from its sub-Block,
+  `BendersBFunction` keeps the entries of the global pool whose multiplier of
+  the rows that went was zero, dropping it from the dual solution they hold
+  [see `Solution::drop_dynamic_values()`], and deletes only the others, where
+  what is left does not satisfy the dual constraints any more; the rows are
+  still alive inside the `BlockModRmv` while it is being processed, which is
+  what makes the multiplier readable at all. The whole pool goes, as it used
+  to, when the Modification does not say which rows went or a Solution of the
+  pool cannot drop them
+
 - the elements of a static group whose cells are `std::vector` are numbered
   cell by cell, the position inside the cell plus the sizes of the cells
   before it, as those of a dynamic group whose cells are `std::list` already
@@ -230,6 +277,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is what the scale of the median of the row measures is there not to do;
   it now asks it to stay where it is, and to move once enough large rows are
   there for the median to be among them
+- `Block::remove_dynamic_constraints()`, asked for the whole list with an
+  empty subset and with no Modification to be issued, removed each Constraint
+  from its active Variable twice, and the second time threw "remove_active()
+  called on non-active stuff"; the second pass `clear()`s them, as the one
+  taking a Range already did
+
+- the message of `RowConstraintSolution::write()` named `read()`
 
 - `LagBFunction` left the Lagrangian cost in the Objective of a Variable of
   its inner Block that had lost its last multiplier, whenever a change of

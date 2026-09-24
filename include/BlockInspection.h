@@ -253,7 +253,7 @@ namespace SMSpp_di_unipi_it::inspection
   * the first that the elements of \p group are; answers false if they are
   * none of them, having called \p f no times. */
 
- template< class F , class... T >
+ template< class... T , class F >
  static bool for_each_named_as_any_of( const BaseGroup & group , F f )
  {
   return( ( for_each_named_as< T >( group , f ) || ... ) );

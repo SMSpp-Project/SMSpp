@@ -210,6 +210,20 @@ public:
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
+ /// drops the values of dynamic ColVariable that have been removed
+ /** Drops the values of the ColVariable that were in the given positions of
+  * the given cell of a group of dynamic Variable of the given Block, which is
+  * the Block of this ColVariableSolution or one nested in it: the cell is
+  * searched for by its address, in this Solution and then in the nested ones,
+  * and what is left of the values of that cell keeps matching the ColVariable
+  * that are left in it [see Solution::drop_dynamic_values()]. */
+
+ bool drop_dynamic_values( const Block * const block , const void * cell ,
+			  const Block::Subset & positions ,
+			  std::vector< double > & dropped ) override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
  ColVariableSolution * clone( bool empty = false ) const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/

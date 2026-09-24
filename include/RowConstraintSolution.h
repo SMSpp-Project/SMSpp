@@ -199,6 +199,20 @@ public:
                      const double factor );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// drops the dual values of dynamic RowConstraint that have been removed
+ /** Drops the dual values of the RowConstraint that were in the given
+  * positions of the given cell of a group of dynamic Constraint of the given
+  * Block, which is the Block of this RowConstraintSolution or one nested in
+  * it: the cell is searched for by its address, in this Solution and then in
+  * the nested ones, and what is left of the values of that cell keeps
+  * matching the RowConstraint that are left in it
+  * [see Solution::drop_dynamic_values()]. */
+
+ bool drop_dynamic_values( const Block * const block , const void * cell ,
+			  const Block::Subset & positions ,
+			  std::vector< double > & dropped ) override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// adds a multiple of the given Solution to this Solution
  /** This method adds a multiple of the dual values of the RowConstraint
   * stored in the Solution provided as argument to the values stored in this

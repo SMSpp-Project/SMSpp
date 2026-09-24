@@ -71,6 +71,45 @@
 using namespace SMSpp_di_unipi_it;
 
 /*--------------------------------------------------------------------------*/
+/*-------------------------- LOCAL FUNCTIONS -------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+namespace {
+
+/// tells which dynamic Variable a Modification says have been removed
+/** Writes in cell the address of the cell of the group of dynamic Variable
+ * they were removed from and in positions the positions they had in it, with
+ * all telling that the whole cell went. Returns false if the Modification is
+ * not one that removes ColVariable saying which ones. */
+
+bool rmvd_vars( const Modification * mod , const void * & cell ,
+		Block::Subset & positions , bool & all )
+{
+ if( const auto tmod =
+     dynamic_cast< const BlockModRmvRngd< ColVariable > * >( mod ) ) {
+  cell = static_cast< const void * >( & tmod->whc() );
+  const auto & rng = tmod->range();
+  positions.clear();
+  for( Block::Index i = rng.first ; i < rng.second ; ++i )
+   positions.push_back( i );
+  all = false;
+  return( true );
+  }
+
+ if( const auto tmod =
+     dynamic_cast< const BlockModRmvSbst< ColVariable > * >( mod ) ) {
+  cell = static_cast< const void * >( & tmod->whc() );
+  positions = tmod->subset();
+  all = positions.empty();   // an empty subset means all of them
+  return( true );
+  }
+
+ return( false );
+ }
+
+}  // end( unnamed namespace )
+
+/*--------------------------------------------------------------------------*/
 /*----------------------------- STATIC MEMBERS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1132,6 +1171,19 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
   Index cnt = 0;  // how many linearizations are there
   Subset which;   // which ones get eliminated
 
+  /* If dynamic Variable of the inner Block have been removed, what each
+   * Solution of the global pool holds for them has to go with them: the
+   * values that are left would otherwise be written on the Variable that
+   * have taken their place, and the check would be made on a point that is
+   * nobody's [see Solution::drop_dynamic_values()]. A Solution that cannot
+   * drop them is not checked but deleted, since what it holds only fits the
+   * inner Block as it was. */
+  const void * rmvd_cell = nullptr;
+  Subset rmvd_positions;
+  bool rmvd_all = false;
+  const bool rmvd = rmvd_vars( mod.get() , rmvd_cell , rmvd_positions ,
+			       rmvd_all );
+
   // only run the elimination loop if Solution are there, otherwise assume
   // the worst and remove everything
   if( NoSol ) {
@@ -1144,9 +1196,20 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
     if( g_pool[ i ].sol ) {  // a Solution is there
      ++cnt;
 
+     // the values of the Variable that are gone go with them, and an entry
+     // that cannot let them go does not fit the inner Block any more
+     bool feas = true;
+     if( rmvd ) {
+      std::vector< double > dropped;
+      feas = g_pool[ i ].sol->drop_dynamic_values( v_Block.front() ,
+						   rmvd_cell ,
+						   rmvd_positions , dropped );
+      }
+
      // check it's still a feasible solution/direction: the Solution says
      // which of the two it is and the Block answers with one method
-     const bool feas = check_Solution( g_pool[ i ].sol );
+     if( feas )
+      feas = check_Solution( g_pool[ i ].sol );
      if( ! feas ) {              // if not
       delete g_pool[ i ].sol;  // eliminate it
       g_pool[ i ].sol = nullptr;

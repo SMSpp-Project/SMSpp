@@ -19,6 +19,10 @@ Unit tests for the core SMS++ library. Each test is registered as a separate
 - `Group_test` covers the groups of `Variable` and `Constraint` of a `Block`,
   and the two consumers that copy them, the `Solution` and the abstract copy
   of a `Block`.
+- `Solution_test` covers what a `Solution` does when the dynamic
+  `RowConstraint` of the `Block` it was read from are removed, i.e., the dual
+  values it has to drop for whoever holds a dual solution to see whether what
+  is left of it is still feasible.
 
 These are built and run through CMake / ctest (there is no makefile here);
 all of them passing is a good sign that no regressions have been introduced

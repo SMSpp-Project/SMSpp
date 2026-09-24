@@ -384,6 +384,40 @@ class Solution
  virtual void write( Block * const block ) {};
 
 /*--------------------------------------------------------------------------*/
+ /// tells this Solution that some dynamic Constraint are no longer there
+ /** Tells this Solution that the dynamic Constraint that were in the given
+  * positions of the given cell of a group of the given Block, which is the
+  * Block of this Solution or one nested in it, have been removed from it. A
+  * Solution that holds one value per Constraint, as the dual values of the
+  * RowConstraint are, drops the values of those, so that the ones that are
+  * left keep matching the Constraint that are left, writes them in \p
+  * dropped and returns true; whoever has to know if they were significant,
+  * as whoever holds a dual solution and sees a row go has to, reads them
+  * there. The method in the base class returns false, which says that this
+  * Solution cannot do it, be it because it holds nothing per Constraint or
+  * because it cannot find them, and therefore that what it holds is only
+  * good for the Block as it was.
+  *
+  * @param block the Block, or nested Block, that held the Constraint
+  *
+  * @param cell the address of the cell, i.e., of the std::list, of the group
+  *        of dynamic Constraint of \p block they were removed from
+  *
+  * @param positions the positions that the removed Constraint had in that
+  *        cell, in any order; if empty, the whole cell was removed
+  *
+  * @param dropped the values that have been dropped, one per position and in
+  *        the order of \p positions, zero for a position beyond what this
+  *        Solution holds */
+
+ virtual bool drop_dynamic_values( const Block * const block ,
+				  const void * cell ,
+				  const Block::Subset & positions ,
+				  std::vector< double > & dropped ) {
+  return( false );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// tells whether this Solution holds a solution or a direction
  /** Returns true if what this Solution holds is not a solution but a
   * direction, i.e., a ray of the feasible region of the Block along which

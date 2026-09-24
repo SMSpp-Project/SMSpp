@@ -4521,7 +4521,11 @@ class Block : public Observer {
   * The method is given a default implementation that goes through the
   * Variable of the Block: what they hold is saved, sol is written in, the
   * check is done by is_feasible( true , fsbc ) and what was there is put
-  * back. This makes the method available for any :Block, at the price of
+  * back; a sol that holds a direction, however, is declared not feasible
+  * unless the Block knows what a direction of its own is [see
+  * has_directions()], since a Block that does not cannot tell a ray of its
+  * own from one that is not, and what cannot be told is not declared
+  * feasible. This makes the method available for any :Block, at the price of
   * requiring the "abstract representation" to exist and of touching the
   * Variable while it runs; is_sol_feasible_physical() is what tells the two
   * cases apart. A :Block that can read its own :Solution directly is
@@ -9869,8 +9873,10 @@ Block::remove_dynamic_constraints( std::list< Const > & list ,
 		     Observer::par2chnl( issueMod ) );
    }
   else {                           // nobody is listening, just do it
+   // ... which means the Constraint need be clear()-ed now, while they have
+   // already been removed from their active Variable above
    for( auto & c : list )
-    remove_constraint_from_variables( &c );
+    c.clear();
    list.clear();
    }
 

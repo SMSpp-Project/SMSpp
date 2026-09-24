@@ -92,7 +92,7 @@ bool for_each_named_RowConstraint( const BaseGroup & group , FR frow ,
 {
  return( inspection::for_each_named_as< FRowConstraint >( group , frow ) ||
 	 inspection::for_each_named_as_any_of<
-	  FO , BoxConstraint , LB0Constraint , UB0Constraint , LBConstraint ,
+	  BoxConstraint , LB0Constraint , UB0Constraint , LBConstraint ,
 	  UBConstraint , NNConstraint , NPConstraint ,
 	  ZOConstraint >( group , onevar ) );
  }
