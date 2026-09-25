@@ -120,8 +120,9 @@ C05SumFunction::C05SumFunction( std::vector< C05Function * > && members ,
   f_var2idx.emplace( v_vars[ i ] , i );
 
  // the vectors of entries are drawn from a generator of the group's own, so
- // that a run is repeatable: the seed is the size of the group, which is
- // what tells one group of a run from another
+ // that a run is repeatable; the size of the group is only a fallback, since
+ // two groups of the same size would draw the very same sequence, and
+ // whoever forms the groups sets the seed with set_seed()
  f_rnd.seed( std::mt19937::result_type( v_members.size() ) );
 
  f_convex = v_members.front()->is_convex();
@@ -1133,24 +1134,25 @@ bool C05SumFunction::has_linearization( bool diagonal )
   return( own );  // with every member at its bound, the bound says it all
   }
 
- // the members that give a vertical one make it, the others take no part;
- // when only one of them does, the sum is that member's own linearization,
- // so the round of the single ones starts after it rather than handing the
- // same row back a second time [see compute_new_linearization]
+ // A vertical row of a member is a valid inequality of the domain of the
+ // group, the domain of the group being the intersection of those of the
+ // members; the sum of two of them is valid as well, but it is implied by
+ // the two of them together while the converse fails, so it is weaker than
+ // either. The group therefore hands them out one at a time, this request
+ // included, and v_vert records which members have one for the round that
+ // follows [see compute_new_linearization]
  bool any = false;
  f_solo = Inf< Index >();
- Index only = Inf< Index >();
- Index howmany = 0;
  v_vert.assign( v_members.size() , 0 );
+ v_part.assign( v_members.size() , 0 );
  for( Index h = 0 ; h < v_members.size() ; ++h )
-  if( ( v_vert[ h ] = v_part[ h ] = v_members[ h ]->has_linearization( false ) ) ) {
+  if( ( v_vert[ h ] = v_members[ h ]->has_linearization( false ) ) ) {
    any = true;
-   only = h;
-   ++howmany;
+   if( f_solo == Inf< Index >() ) {  // the first one answers this request
+    f_solo = h;
+    v_part[ h ] = 1;
+    }
    }
-
- if( howmany == 1 )    // the sum is the linearization of that member alone
-  f_solo = only;       // which is therefore already given
 
  return( any );
  }

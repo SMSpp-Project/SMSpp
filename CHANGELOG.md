@@ -262,6 +262,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- a group hands out the vertical linearizations of its members one at a time
+  from the first request, and no longer answers the first one with their sum:
+  a vertical row of a member is a valid inequality of the domain of the group,
+  the domain of the group being the intersection of those of the members, and
+  the sum of two of them, while valid, is implied by the two of them together
+  while the converse fails, hence weaker than either
+
+- `C05SumFunction::set_seed()` sets the seed of the generator that draws the
+  combinations of linearizations, which whoever forms the groups now provides:
+  the seed was the size of the group, so that two groups of the same size,
+  which is what a partition into groups of equal size gives, drew the very
+  same sequence
+
+
 - with a level row next to the proximal term, the primal form of
   `MasterProblemBlock` reads the aggregate linearization error with the mass
   mu = 1 + eta that the rows of each component share, and `get_lambda()`

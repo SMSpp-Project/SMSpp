@@ -305,6 +305,16 @@ class C05SumFunction : public C05Function , public Observer
  Subset remove_stale_flat_linearizations( const C05Function * member );
 
 /*--------------------------------------------------------------------------*/
+ /// sets the seed of the generator that draws the vectors of entries
+ /** The combinations of linearizations that the group hands out are drawn
+  * from a generator of its own, so that a run is repeatable. The seed is set
+  * from outside because what tells one group of a run from another is known
+  * to whoever forms the groups, and because two groups of the same size would
+  * otherwise draw the very same sequence. */
+
+ void set_seed( unsigned int seed ) { f_rnd.seed( seed ); }
+
+/*--------------------------------------------------------------------------*/
 /*--------------- METHODS FOR HANDLING THE PARAMETERS ----------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -702,7 +712,7 @@ class C05SumFunction : public C05Function , public Observer
  ///< same combination is not reported twice
 
  std::mt19937 f_rnd;
- ///< the generator of the vectors, seeded as the grouping is
+ ///< the generator of the vectors [see set_seed()]
 
  Index f_solo = Inf< Index >();
  ///< when < Inf, the current linearization is the vertical one of this
