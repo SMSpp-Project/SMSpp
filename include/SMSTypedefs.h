@@ -8,11 +8,6 @@
  *
  * - some macros for easily using factories
  *
- * - some methods and macros for easily applying some operations to a
- *   boost::any in a way that is as much independent as possible to the shape
- *   of the content (individual/std::vector/boost::multi_array of [std::list]
- *   of [classes derived from] Variable/Constraint);
- *
  * - handles printing (in the sense of operator<<()) of boost::multi_array<>,
  *   std::list<> and std::vector<>;
  *
