@@ -211,7 +211,7 @@ int PolyhedralFunction::compute( bool changedvars )
  // same constraint, so that points at the boundary (where small
  // floating-point residuals are unavoidable) are not declared
  // infeasible here. 1e-6 matches the typical default feasibility
- // tolerance of CPLEX, Gurobi, OSI, ...
+ // tolerance of CPLEX, Gurobi, HiGHS, ...
  //
  // TODO: a cleaner long-term design exposes this as a parameter (e.g.
  // via dblRelAcc or a new dblViol parameter on the function), so that
