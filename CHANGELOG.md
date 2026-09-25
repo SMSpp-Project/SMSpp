@@ -67,13 +67,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ones; the default implementation returns false, which says that what the
   Solution holds is only good for the Block as it was
 
-- when dynamic Variable are removed from its inner Block, `LagBFunction`
-  drops what each entry of its global pool holds for them before checking
-  whether the entry is still feasible: what is left would otherwise be
-  written on the Variable that have taken their place, and the check would be
-  made on a point that is nobody's; an entry that cannot let them go is
-  deleted, since what it holds only fits the inner Block as it was
-
 - `AbstractBlock::write_is()`, which `print( out , 'I' )` dispatches: after a
   `CDASolver` has proved the model unfeasible and `get_dual_direction()` has
   written the unbounded dual direction into the Block, it writes the rows
@@ -144,19 +137,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   it knows by name only; the forms taking an iterator stay, and are meant to
   go once the setters of every module take a span
 
-- `Block` holds a group of its own for each of the four vectors of
-  `boost::any` in which it keeps its Variable and its Constraint: a group
-  says the type of its elements, its shape and its name, and hands them over
-  without the caller having to know the type of the container they sit in,
-  which is what the `un_any_*` machinery was for. `BaseGroup::for_each_as()`
-  walks them with one switch per group and a loop typed on the element,
-  `for_each_run_as()` gives them one run of contiguous ones at a time, which
-  is what a caller mapping an element back to its position from its address
-  needs, `elements_are()` answers the question on the type once for the whole
-  group, and `Block::for_each_variable_group()` and
-  `for_each_constraint_group()` walk the static groups and then the dynamic
-  ones. The order in which the elements come out is the storage order, and
-  that is part of the contract: `tests_Group.cpp` fixes it
+- `Block` keeps its Variable and its Constraint in groups: a group says the
+  type of its elements, its shape and its name, and hands them over without the
+  caller having to know the type of the container they sit in, the job the
+  `un_any_*` machinery used to do. `BaseGroup::for_each_as()` walks them with
+  one switch per group and a loop typed on the element, `for_each_run_as()`
+  gives them one run of contiguous ones at a time, which is what a caller
+  mapping an element back to its position from its address needs,
+  `elements_are()` answers the question on the type once for the whole group,
+  and `Block::for_each_variable_group()` and `for_each_constraint_group()` walk
+  the static groups and then the dynamic ones. The order in which the elements
+  come out is the storage order, and that is part of the contract:
+  `tests_Group.cpp` fixes it
 
 - a group knows the type of the container it views, not only that of its
   elements, and `get_container_as< C >()` hands it back when it is a `C` and
@@ -175,14 +167,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   now have the same list of shapes
 
 ### Changed
-
-- a `Solution` that holds a direction, given to a `Block` that does not know
-  what a direction of its own is [see `Block::has_directions()`], is declared
-  not feasible rather than written in the Variable and checked as if it were
-  a solution, which could call a ray that is not one feasible; for the same
-  reason `LagBFunction::check_Solution()` drops the entry of the global pool
-  it cannot check instead of keeping it, since keeping a wrong entry costs a
-  wrong answer while dropping a right one costs finding it again
 
 - the makefile of the library carries `C05SumFunction`, which was built by
   CMake alone
@@ -270,6 +254,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- when dynamic Variable are removed from its inner Block, `LagBFunction`
+  drops what each entry of its global pool holds for them before checking
+  whether the entry is still feasible: what is left would otherwise be
+  written on the Variable that have taken their place, and the check would be
+  made on a point that is nobody's; an entry that cannot let them go is
+  deleted, since what it holds only fits the inner Block as it was
+
 - `RowConstraint::is_feasible()` on a collection of collections, e.g., a
   `std::vector< std::vector< FRowConstraint > >`, did not compile with MSVC,
   whose deduction does not match `C< D< T > >` against containers that also
@@ -288,13 +279,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   which is what a partition into groups of equal size gives, drew the very
   same sequence
 
-
 - with a level row next to the proximal term, the primal form of
   `MasterProblemBlock` reads the aggregate linearization error with the mass
   mu = 1 + eta that the rows of each component share, and `get_lambda()`
   returns that mass, rather than 1: the error was smaller than the true one,
   which made the stopping tests optimistic and the noise reduction fire with
   an exact oracle
+
 - the raw aggregate constant of a component counts the vertical rows with
   their multipliers, as the aggregate subgradient already did, so that the
   aggregate row is a valid one
