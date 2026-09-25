@@ -272,6 +272,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   their multipliers, as the aggregate subgradient already did, so that the
   aggregate row is a valid one
 
+- the dual form of `MasterProblemBlock` divides by that same mass what
+  whoever drives the master reads, i.e., the aggregate subgradient, the
+  aggregate linearization error and the step it induces: only the pure level
+  case did, so with a level row next to the proximal term the aggregate came
+  out mu times too large and the aggregate error turned negative, the
+  doubly stabilized method failing on problems that the proximal one solves
+
 - a change of an off-diagonal coefficient of a `QuadFunction` issues the
   Modification of a change of the quadratic part and not that of the linear
   one, a Solver reading the wrong one having rebuilt the row it did not have

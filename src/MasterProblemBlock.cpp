@@ -2530,7 +2530,7 @@ double MasterProblemBlock::get_FiBLambda( int k ) const
  // d* = -eta z*. The scalar below is therefore the displacement mass that
  // converts the normalized aggregate z* into the actual step.
  const double step_scale = uses_pure_level_aggregation()
-                           ? get_level_multiplier() : t_stab;
+                           ? get_level_multiplier() : t_stab * get_lambda();
  auto has_model_row = [ this ]( int kk ) -> bool {
   if( kk < 0 || kk >= int( HardCmps.size() ) )
    return( false );
@@ -2609,8 +2609,12 @@ std::vector< double > MasterProblemBlock::get_z_vector( void ) const
    std::fill( out.begin() , out.end() , 0.0 );
   return( out );
   }
- const bool normalize_level_z = uses_pure_level_aggregation();
- const double eta = normalize_level_z ? get_level_multiplier() : 1.0;
+ // the rows of a component share the mass lambda, which the level row
+ // makes larger than one: what the driver of the master reads has to be the
+ // convex combination, hence the division
+ const double eta = uses_pure_level_aggregation() ? get_level_multiplier()
+                                                  : get_lambda();
+ const bool normalize_level_z = ( eta != 1.0 );
  out.reserve( Var_z.size() );
 
  if( normalize_level_z && eta <= 0.0 ) {
@@ -2652,8 +2656,9 @@ MasterProblemBlock::get_aggregated_subgradient( int k ) const
     ->get_PolyhedralFunction().get_A();
  const double row_sign = IsPrimal ? 1.0 : -1.0;
 
- const bool normalize_level_theta = uses_pure_level_aggregation();
- const double level_eta = normalize_level_theta ? get_level_multiplier() : 1.0;
+ const double level_eta = uses_pure_level_aggregation()
+                          ? get_level_multiplier() : get_lambda();
+ const bool normalize_level_theta = ( level_eta != 1.0 );
  if( normalize_level_theta && level_eta <= 0.0 )
   return( out );
 
@@ -2890,12 +2895,13 @@ double MasterProblemBlock::get_aggregated_alpha( int k ) const
       std::isfinite( f_LB_raw[ kk ] ) )
    s += get_gamma( kk ) * ( f_F_at_x_bar[ kk ] - f_LB_raw[ kk ] );
 
-  if( uses_pure_level_aggregation() ) {
-   // Pure-level theta/gamma masses are scaled by eta in the dual rows; divide
-   // here so Sigma remains the normalized bundle-method linearization error.
-   const double eta = get_level_multiplier();
-   s = ( eta > 0.0 ) ? s / eta : 0.0;
-   }
+  if( const double mass = uses_pure_level_aggregation()
+                          ? get_level_multiplier() : get_lambda() ;
+      mass != 1.0 )
+   // the theta and gamma masses are scaled by the mass of the rows in the
+   // dual form, so divide here to leave Sigma the normalized linearization
+   // error of the bundle method
+   s = ( mass > 0.0 ) ? s / mass : 0.0;
 
   return( s );
   };
@@ -2954,10 +2960,10 @@ double MasterProblemBlock::get_aggregated_alpha( int k ) const
 
  // Match the normalization of the component errors and residual in pure
  // level mode. Proximal objective recovery above already includes the box.
- if( uses_pure_level_aggregation() ) {
-  const double eta = get_level_multiplier();
-  box_error = ( eta > 0.0 ) ? box_error / eta : 0.0;
-  }
+ if( const double mass = uses_pure_level_aggregation()
+                         ? get_level_multiplier() : get_lambda() ;
+     mass != 1.0 )
+  box_error = ( mass > 0.0 ) ? box_error / mass : 0.0;
  total += box_error;
 
  return( total );
