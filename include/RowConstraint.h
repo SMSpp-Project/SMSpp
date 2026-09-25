@@ -702,10 +702,11 @@ is_feasible( boost::multi_array< T , K > & constraints ,
   *         given tolerance. */
 
  template< template< class ... > class C ,
-           template< class ... > class D , class T >
+           template< class ... > class D , class T ,
+           class ... DA , class ... CA >
  static std::enable_if_t< std::is_base_of_v< RowConstraint , T > , bool >
- is_feasible( C< D< T > > & constraints , double tolerance = 1e-10 ,
-              bool rel_viol = true ) {
+ is_feasible( C< D< T , DA ... > , CA ... > & constraints ,
+              double tolerance = 1e-10 , bool rel_viol = true ) {
   // if empty, std::all_of returns true, i.e., the solution is feasible
   return std::all_of( constraints.begin() , constraints.end() ,
                       [ tolerance , rel_viol ]( auto & l_constraints ) {

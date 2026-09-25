@@ -262,6 +262,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `RowConstraint::is_feasible()` on a collection of collections, e.g., a
+  `std::vector< std::vector< FRowConstraint > >`, did not compile with MSVC,
+  whose deduction does not match `C< D< T > >` against containers that also
+  take an allocator; the overload now deduces those trailing arguments too
+
 - a group hands out the vertical linearizations of its members one at a time
   from the first request, and no longer answers the first one with their sum:
   a vertical row of a member is a valid inequality of the domain of the group,
