@@ -1465,16 +1465,18 @@ class LagBFunction : public C05Function , public Block
   * Solution::is_direction()], one method answering for both cases; note that
   * the Solution need not be written in the Block, whether it is being the
   * Block's business [see Block::is_sol_feasible() and
-  * Block::is_sol_feasible_physical()]. */
+  * Block::is_sol_feasible_physical()].
+  *
+  * An entry that cannot be checked is declared not feasible: a Block that
+  * does not know what a direction of its own is cannot say anything about
+  * one [see Block::has_directions()], and keeping an entry that may be
+  * wrong costs a wrong answer, while dropping one that was right costs the
+  * work of finding it again. */
 
  bool check_Solution( Solution * sol ) {
   auto blck = v_Block.front();
   if( sol->is_direction() && ( ! blck->has_directions() ) )
-   // the entry is a direction and the Block does not know what one of its
-   // own is: it is not saying that the direction is no longer one, it is
-   // saying that it cannot tell, and an entry that cannot be checked is
-   // kept rather than thrown away
-   return( true );
+   return( false );
   const bool feas = blck->is_sol_feasible( sol );
 
   // a Block that is not physical answers by writing sol in its Variable and

@@ -176,6 +176,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- a `Solution` that holds a direction, given to a `Block` that does not know
+  what a direction of its own is [see `Block::has_directions()`], is declared
+  not feasible rather than written in the Variable and checked as if it were
+  a solution, which could call a ray that is not one feasible; for the same
+  reason `LagBFunction::check_Solution()` drops the entry of the global pool
+  it cannot check instead of keeping it, since keeping a wrong entry costs a
+  wrong answer while dropping a right one costs finding it again
+
 - the makefile of the library carries `C05SumFunction`, which was built by
   CMake alone
 

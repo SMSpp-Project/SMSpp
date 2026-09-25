@@ -444,6 +444,13 @@ static bool check_Solution( Block * blck , Solution * sol , Check && check )
  if( ! sol )
   return( false );
 
+ // a direction can only be checked as one, and only a Block that knows what
+ // a direction of its own is can be told that its Variable hold one: one
+ // that does not cannot tell, and what cannot be told is not declared
+ // feasible [see Block::has_directions()]
+ if( sol->is_direction() && ( ! blck->has_directions() ) )
+  return( false );
+
  auto current = blck->get_Solution( nullptr , false );
  if( ! current )
   throw( std::logic_error( "Block::check_Solution: the state of the Block "
@@ -454,7 +461,7 @@ static bool check_Solution( Block * blck , Solution * sol , Check && check )
  // may have been told so already by whoever has the two apart, which is why
  // the flag is only ever raised here and put back as it was found
  const bool wasdir = blck->is_direction();
- if( sol->is_direction() && ( ! wasdir ) && blck->has_directions() )
+ if( sol->is_direction() && ( ! wasdir ) )
   blck->is_direction( true );
 
  sol->write( blck );
