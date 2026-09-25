@@ -562,14 +562,15 @@ private:
      eFixX,           ///< fix a variable to a value
      eUnfixX,         ///< unfix a variable
      eChgLB,          ///< change lower bound of a variable
-     eChgUB           ///< change upper bound of a variable
+     eChgUB,          ///< change upper bound of a variable
+     eLastACTtype     ///< first allowed new type for derived changes
    };
    /*---------------------- CONSTRUCTOR & DESTRUCTOR --------------------------*/
 
    // constructor
    AbstractChange() : f_type(eEmpty), v_data(), v_paths() {}
 
-   AbstractChange(int type, std::vector<double> value, std::vector<AbstractPath> paths)
+   AbstractChange( AbstractChangeType type, std::vector<double> value, std::vector<AbstractPath> paths)
        : f_type(type), v_data(std::move(value)), v_paths(std::move(paths)) {}
 
    // decostructor

@@ -47,8 +47,6 @@
 
 #include "GlobalInformation.h"
 
-#include <utility>
-
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -511,7 +509,7 @@ namespace SMSpp_di_unipi_it
     struct gpool_el
     {
       p_Solution sol = nullptr;
-      bool varsol = false;
+      bool varsol = true;
       bool convexified = false;
       double value = 0;
       std::vector<Vec_FunctionValue> conv_active;
@@ -651,6 +649,7 @@ namespace SMSpp_di_unipi_it
     };
 
     /*--------------------------------------------------------------------------*/
+
     /// public enum for the possible types of events
     /** This enum defines additional types of events that LagBFunction can
      * manage. */
@@ -669,7 +668,6 @@ namespace SMSpp_di_unipi_it
        * compute() can support. */
     }; // end( event_type_lagBFunction )
 
-    /*--------------------------------------------------------------------------*/
     /// public enum for the int algorithmic parameters
     /** Public enum describing the different algorithmic parameters of int type
      * that LagBFunction has in addition to these of C05Function. The value
@@ -1055,7 +1053,7 @@ namespace SMSpp_di_unipi_it
       {
         if (par == Inf<idx_type>())
           return (par);
-        if (par >= intLastLagBFPar)
+        if (par >= Solver::intLastAlgPar)
           par += intLastLagBFPar - Solver::intLastAlgPar;
       }
       return (par);
@@ -1074,7 +1072,7 @@ namespace SMSpp_di_unipi_it
       {
         if (par == Inf<idx_type>())
           return (par);
-        if (par >= dblLastLagBFPar)
+        if (par >= Solver::dblLastAlgPar)
           par += dblLastLagBFPar - Solver::dblLastAlgPar;
       }
       return (par);
@@ -1093,7 +1091,7 @@ namespace SMSpp_di_unipi_it
       {
         if (par == Inf<idx_type>())
           return (par);
-        if (par >= strLastLagBFPar)
+        if (par >= Solver::strLastAlgPar)
           par += strLastLagBFPar - Solver::strLastAlgPar;
       }
       return (par);
@@ -1112,7 +1110,7 @@ namespace SMSpp_di_unipi_it
       {
         if (par == Inf<idx_type>())
           return (par);
-        if (par >= vintLastLagBFPar)
+        if (par >= Solver::vintLastAlgPar)
           par += vintLastLagBFPar - Solver::vintLastAlgPar;
       }
       return (par);
@@ -1131,7 +1129,7 @@ namespace SMSpp_di_unipi_it
       {
         if (par == Inf<idx_type>())
           return (par);
-        if (par >= vdblLastLagBFPar)
+        if (par >= Solver::vdblLastAlgPar)
           par += vdblLastLagBFPar - Solver::vdblLastAlgPar;
       }
       return (par);
@@ -1150,7 +1148,7 @@ namespace SMSpp_di_unipi_it
       {
         if (par == Inf<idx_type>())
           return (par);
-        if (par >= vstrLastLagBFPar)
+        if (par >= Solver::vstrLastAlgPar)
           par += vstrLastLagBFPar - Solver::vstrLastAlgPar;
       }
       return (par);
@@ -1549,53 +1547,55 @@ namespace SMSpp_di_unipi_it
     /** Given a position \p i into the global pool, writes back the corresponding
      * Solution into the Block. */
 
- void global_pool_to_block( Index i ) {
-  if( NoSol )
-   throw( std::invalid_argument( "LagBFunction: Solution not stored" ) );
-  if( ( i >= f_max_glob ) || ( !  g_pool[ i ].sol ) )
-   throw( std::invalid_argument( "global_pool_to_block: invalid index" ) );
+    void global_pool_to_block(Index i)
+    {
+      if (NoSol)
+        throw(std::invalid_argument("LagBFunction: Solution not stored"));
+      if ((i >= f_max_glob) || (!g_pool[i].sol))
+        throw(std::invalid_argument("global_pool_to_block: invalid index"));
 
-  /* The entry is written even if LastSolution says it is the one the Block
-   * holds: what LastSolution records is the last entry this LagBFunction has
-   * written there, and the Variable of the inner Block can have been written
-   * by anyone else in the meantime (another Solver attached to an ancestor,
-   * a heuristic, whoever reads a solution), none of which the LagBFunction
-   * is told about. Skipping the write on that ground leaves in the Block a
-   * point that is not the one asked for, and a caller reconstructing a
-   * solution out of the components gets a mixture of two. */
+      /* The entry is written even if LastSolution says it is the one the Block
+       * holds: what LastSolution records is the last entry this LagBFunction has
+       * written there, and the Variable of the inner Block can have been written
+       * by anyone else in the meantime (another Solver attached to an ancestor,
+       * a heuristic, whoever reads a solution), none of which the LagBFunction
+       * is told about. Skipping the write on that ground leaves in the Block a
+       * point that is not the one asked for, and a caller reconstructing a
+       * solution out of the components gets a mixture of two. */
 
-  g_pool[ i ].sol->write( v_Block.front() );
-  LastSolution = i;  // and recall what's there
-  }
+      g_pool[i].sol->write(v_Block.front());
+      LastSolution = i; // and recall what's there
+    }
 
-/*--------------------------------------------------------------------------*/
- /// checks a Solution of the global pool against the inner Block
- /** Asks the inner Block if what sol holds is still feasible for it. Whether
-  * that is a solution or a direction sol says itself [see
-  * Solution::is_direction()], one method answering for both cases; note that
-  * the Solution need not be written in the Block, whether it is being the
-  * Block's business [see Block::is_sol_feasible() and
-  * Block::is_sol_feasible_physical()]. */
+    /*--------------------------------------------------------------------------*/
+    /// checks a Solution of the global pool against the inner Block
+    /** Asks the inner Block if what sol holds is still feasible for it. Whether
+     * that is a solution or a direction sol says itself [see
+     * Solution::is_direction()], one method answering for both cases; note that
+     * the Solution need not be written in the Block, whether it is being the
+     * Block's business [see Block::is_sol_feasible() and
+     * Block::is_sol_feasible_physical()]. */
 
- bool check_Solution( Solution * sol ) {
-  auto blck = v_Block.front();
-  if( sol->is_direction() && ( ! blck->has_directions() ) )
-   // the entry is a direction and the Block does not know what one of its
-   // own is: it is not saying that the direction is no longer one, it is
-   // saying that it cannot tell, and an entry that cannot be checked is
-   // kept rather than thrown away
-   return( true );
-  const bool feas = blck->is_sol_feasible( sol );
+    bool check_Solution(Solution *sol)
+    {
+      auto blck = v_Block.front();
+      if (sol->is_direction() && (!blck->has_directions()))
+        // the entry is a direction and the Block does not know what one of its
+        // own is: it is not saying that the direction is no longer one, it is
+        // saying that it cannot tell, and an entry that cannot be checked is
+        // kept rather than thrown away
+        return (true);
+      const bool feas = blck->is_sol_feasible(sol);
 
-  // a Block that is not physical answers by writing sol in its Variable and
-  // putting back what was there, which is only as complete as the Solution
-  // it hands out: what the Block holds is no longer known to be the entry
-  // that was written in it
-  if( ! blck->is_sol_feasible_physical() )
-   LastSolution = g_pool.size();
+      // a Block that is not physical answers by writing sol in its Variable and
+      // putting back what was there, which is only as complete as the Solution
+      // it hands out: what the Block holds is no longer known to be the entry
+      // that was written in it
+      if (!blck->is_sol_feasible_physical())
+        LastSolution = g_pool.size();
 
-  return( feas );
-  }
+      return (feas);
+    }
 
     /*--------------------------------------------------------------------------*/
     /// returns the objective of the inner Block to its "pristine" state
@@ -1943,7 +1943,7 @@ namespace SMSpp_di_unipi_it
     /// returns a pointer to the i-th Lagrangian term
     /** Returns a pointer to the Function defining the Lagrangian term g_i(x)
      * associated with the i-th ColVariable y_i of the LagBFunction (that
-     * returned by get_active_var( i )). Currently this can only be a
+     * returned by get_active_var( i )). Currently, this can only be a
      * LinearFunction, hence the return value can be safely static_cast-ed to
      * a LinearFunction *. */
 
@@ -2724,11 +2724,13 @@ namespace SMSpp_di_unipi_it
     {
       return (new LagBFunction::v_const_iterator(LagPairs.end()));
     }
+    /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
     gpool_el release_current_purged_solution() noexcept
     {
       return std::exchange(f_current_purged_solution, gpool_el{});
     }
+    /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
     void restore_purged_solutions(std::vector<gpool_el> solutions)
     {
@@ -2872,12 +2874,12 @@ namespace SMSpp_di_unipi_it
 
     /*--------------------------------------------------------------------------*/
 
-    void update_CostMatrix_ModLinRngd(const v_coeff_pair &rc,
+    void update_CostMatrix_ModLinRngd(Index h, const v_coeff_pair &rc,
                                       c_Vec_p_Var &vars, c_Range &rng);
 
     /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
-    void update_CostMatrix_ModLinSbst(const v_coeff_pair &rc,
+    void update_CostMatrix_ModLinSbst(Index h, const v_coeff_pair &rc,
                                       c_Vec_p_Var &vars, c_Subset &sbst);
 
     /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -2894,6 +2896,18 @@ namespace SMSpp_di_unipi_it
 
     void eager_pool_cost_delta(const v_coeff_pair &rc,
                                const std::vector<std::pair<Index, double>> &jdeltas);
+
+    /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+    /// EAGER: remove original linear-cost terms from stored pool constants
+    /** A C05FunctionModVarsRngd/Sbst reaches LagBFunction after the Variable have
+     * already been removed from the Objective, while CostMatrix still contains
+     * their old original costs. Before changing CostMatrix, subtract
+     * sum_j c_j x*_j from every eager full epigraphic constant. This is exact for
+     * a LinearFunction Objective, including convexified pool entries, because the
+     * removed objective term is affine. Does nothing under lazy or NoSol. */
+
+    void eager_pool_cost_removal(c_Vec_p_Var &vars,
+                                 c_Vec_FunctionValue &costs);
 
     /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
     /// EAGER subgradient: fill g from conv_active without writing the Solution
@@ -2934,15 +2948,18 @@ namespace SMSpp_di_unipi_it
 
     /*--------------------------------------------------------------------------*/
 
-    void update_CostMatrix_ModVarsAddd(c_Vec_p_Var &vars, Index first);
+    void update_CostMatrix_ModVarsAddd(Index h, c_Vec_p_Var &vars,
+                                       Index first);
 
     /*--------------------------------------------------------------------------*/
 
-    void update_CostMatrix_ModVarsRngd(c_Vec_p_Var &vars, c_Range &rng);
+    void update_CostMatrix_ModVarsRngd(Index h, c_Vec_p_Var &vars,
+                                       c_Range &rng);
 
     /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
-    void update_CostMatrix_ModVarsSbst(c_Vec_p_Var &vars, c_Subset &sbst);
+    void update_CostMatrix_ModVarsSbst(Index h, c_Vec_p_Var &vars,
+                                       c_Subset &sbst);
 
     /*--------------------------------------------------------------------------*/
     /// reset the BlockConfig of the inner Block to the default one
@@ -2964,6 +2981,9 @@ namespace SMSpp_di_unipi_it
       set_default_inner_BlockSolverConfig();
       set_default_inner_BlockConfig();
     }
+
+    /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
     /// set the GlobalInformation
     void set_GlobalInformation(GlobalInformation *gi) { f_GI = gi; }
 
@@ -3194,8 +3214,6 @@ namespace SMSpp_di_unipi_it
 
     void *f_id; ///< the "identity" of the LagBFunction
 
-    /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
     GlobalInformation *f_GI = nullptr; ///< pointer to the GlobalInformation object
 
     std::vector<EventHandler> v_column_purged_handlers; /// registered handlers for the column-purged event
@@ -3361,7 +3379,7 @@ namespace SMSpp_di_unipi_it
   /*--------------------------------------------------------------------------*/
   /// class to describe the "internal state" of a LagBFunction
   /** Derived class from State to describe the "internal state" of a
-   * LagBFunction, i.e., its global pool. This means savng the stored Solution
+   * LagBFunction, i.e., its global pool. This means saving the stored Solution
    * (and their type). */
 
   class LagBFunctionState : public State
