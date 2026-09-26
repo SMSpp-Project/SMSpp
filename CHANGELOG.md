@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `Solution::is_dual_feasible( block , config )`: a Block has no notion of
+  a dual solution, while a Solution knows whether it holds one and of which
+  Block, hence it is the Solution that tells whether its dual values are
+  feasible, asking its Block to check them without writing them there; the
+  base class throws, and `ColVariableSolution` and `BooleanVariableSolution`,
+  which hold no dual values, return false
+
 - `MasterProblemBlock::shift_cuts()`, which adds a given delta to the
   subgradient of a set of cuts of a component, the constant of each of them
   staying as it is: this is what a change of the linear part of a component
@@ -283,6 +290,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   it was written into through its `boost::any`, and which nobody calls
 
 ### Fixed
+
+- `BendersBFunction` read the linearization of an entry of its pool out of
+  the dual values the sub-Block held from its last solve when the Solution
+  of that entry holds no dual values, as the one `get_Solution()` gives an
+  `AbstractBlock` without a Solution Configuration: it now throws when it
+  has to write such a Solution back, saying that the BlockConfig of the
+  sub-Block has to give a Configuration that asks for the dual values
 
 - `BendersBFunction` checks that the Solver of the sub-Block writes the dual
   value of every Constraint the linearization is made of, and throws if it

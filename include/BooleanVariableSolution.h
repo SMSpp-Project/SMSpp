@@ -126,6 +126,16 @@ public:
 /** @name Methods describing the behavior of a BooleanVariableSolution
  *  @{ */
 
+/*--------------------------------------------------------------------------*/
+ /// a BooleanVariableSolution holds no dual values, hence none that is feasible
+ /** Returns false, this Solution holding the values of the Variable only
+  * [see Solution::is_dual_feasible()]. */
+
+ bool is_dual_feasible( Block * block ,
+			Configuration * fsbc = nullptr ) override {
+  return( false );
+  }
+
  /// read the BooleanVariableSolution from the given Block
  /** This method reads the solution of the given Block and stores it in this
   * BooleanVariableSolution. For this method to be used, it is required that:
