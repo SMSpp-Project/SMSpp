@@ -17,6 +17,8 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <cstdlib>
+
 #include "SMSTypedefs.h"
 
 #include "ThinComputeInterface.h"
@@ -52,6 +54,19 @@ static void checkfail( std::istream & input , const std::string & msg )
 {
  if( input.fail() )
   throw( std::invalid_argument( msg ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+// reads the i-th element of a netCDF string variable: netCDF gives it as a
+// char * it allocates, which is copied and then freed
+
+static std::string get_string( const netCDF::NcVar & var , size_t i )
+{
+ char * str = nullptr;
+ var.getVar( { i } , & str );
+ std::string rv( str ? str : "" );
+ free( str );
+ return( rv );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -322,7 +337,7 @@ void ComputeConfig::deserialize( const netCDF::NcGroup & group )
   int_pars.resize( num );
   for( size_t i = 0; i < num ; ++i ) {
    std::vector< size_t > idx = { i };
-   names.getVar( idx , &( int_pars[ i ].first ) );
+   int_pars[ i ].first = get_string( names , i );
    vals.getVar( idx , &( int_pars[ i ].second ) );
    }
   }
@@ -342,7 +357,7 @@ void ComputeConfig::deserialize( const netCDF::NcGroup & group )
   dbl_pars.resize( num );
   for( size_t i = 0 ; i < num ; ++i ) {
    std::vector< size_t > idx = { i };
-   names.getVar( idx , &( dbl_pars[ i ].first ) );
+   dbl_pars[ i ].first = get_string( names , i );
    vals.getVar( idx , &( dbl_pars[ i ].second ) );
    }
   }
@@ -361,9 +376,8 @@ void ComputeConfig::deserialize( const netCDF::NcGroup & group )
 
   str_pars.resize( num );
   for( size_t i = 0 ; i < num ; ++i ) {
-   std::vector< size_t > idx = { i };
-   names.getVar( idx , &( str_pars[ i ].first ) );
-   vals.getVar( idx , &( str_pars[ i ].second ) );
+   str_pars[ i ].first = get_string( names , i );
+   str_pars[ i ].second = get_string( vals , i );
    }
   }
 
@@ -381,7 +395,7 @@ void ComputeConfig::deserialize( const netCDF::NcGroup & group )
 
   vint_pars.resize( num );
   for( size_t i = 0 ; i < num ; ++i ) {
-   names.getVar( { i } , &( vint_pars[ i ].first ) );
+   vint_pars[ i ].first = get_string( names , i );
    vint_pars[ i ].second = std::move( tmp[ i ] );
    }
   }
@@ -400,7 +414,7 @@ void ComputeConfig::deserialize( const netCDF::NcGroup & group )
 
   vdbl_pars.resize( num );
   for( size_t i = 0 ; i < num ; ++i ) {
-   names.getVar( { i } , &( vdbl_pars[ i ].first ) );
+   vdbl_pars[ i ].first = get_string( names , i );
    vdbl_pars[ i ].second = std::move( tmp[ i ] );
    }
   }
@@ -419,7 +433,7 @@ void ComputeConfig::deserialize( const netCDF::NcGroup & group )
 
   vstr_pars.resize( num );
   for( size_t i = 0 ; i < num ; ++i ) {
-   names.getVar( { i } , &( vstr_pars[ i ].first ) );
+   vstr_pars[ i ].first = get_string( names , i );
    vstr_pars[ i ].second = std::move( tmp[ i ] );
    }
   }
@@ -686,8 +700,7 @@ void ComputeConfig::load( std::istream & input )
   f_extra_Configuration = nullptr;
   }
 
- clear();
- f_diff = true;
+ clear();  // f_diff = f_relax = false if the stream ends before the flags
 
  static const std::string sre( "ComputeConfig::load: stream read error" );
  if( advance( input , sre ) )
@@ -886,10 +899,10 @@ void ComputeConfig::merge_overrides( std::istream & input )
   set_par( std::move( name ) , std::move( value ) );
   }
 
- // extra Configuration slot is optional in an override block: if the
- // stream is exhausted (or the next non-whitespace token belongs to the
- // enclosing container), the base's extra is preserved. Otherwise the
- // override's extra wholesale replaces it.
+ // the extra Configuration slot is read as in load(): if the stream ends
+ // before it the extra of the base is kept, otherwise whatever comes next
+ // (a '*' for nullptr included) replaces it; hence, inside a container the
+ // slot has to be written, or the next Configuration is read as the extra
  if( advance( input ) )
   return;
 

@@ -214,6 +214,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Variable, as it already could be as a group of Constraint: the two sides
   now have the same list of shapes
 
+- `Configuration_unit_test`, `BlockModification_unit_test`,
+  `Objective_unit_test`, `Constraint_unit_test`,
+  `LinearConstraint_unit_test`, `PolyhedralFunction_unit_test`,
+  `LagBFunction_unit_test`, `BendersBFunction_unit_test` and
+  `Misc_unit_test`, and new cases in `AbstractBlock_test`,
+  `AbstractPath_test`, `C05SumFunction_test`, `Group_test`,
+  `LinearFunction_test`, `QuadFunction_test` and `Solution_test`: they check
+  the edge cases of the core, i.e., empty and full `Range`, empty and
+  unordered `Subset`, Variable and Constraint added and removed (all of them
+  at once too), empty groups, Blocks, boxes and files, Blocks with no Solver
+  attached, the netCDF round trip of each object that has one and malformed
+  input
+
 ### Changed
 
 - the makefile of the library carries `C05SumFunction`, which was built by
@@ -299,6 +312,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `boost::any` while the consumers of them were converted one at a time, and
   so are `Block::refresh_*_group()`, which existed to rebuild a group after
   it was written into through its `boost::any`, and which nobody calls
+
+- `BoxSolver::get_var_solution()` and `get_dual_solution()` write the
+  solution each time they are asked for it, rather than only when `compute()`
+  has not written it already, since something else may have written the
+  ColVariable or the dual values in between; `get_dual_solution()` writes all
+  the dual values whatever `intPDSol` says `compute()` writes, 0 for the
+  Constraint that are not box ones, these being relaxed, and 0 for a bound
+  that is not tight at the optimum (both of them when the cost is 0), rather
+  than leaving what was there
+
+- `Block::set_default_channel()` throws `std::invalid_argument` for a name
+  that is not an open channel of the Block or of one of its ancestors, the
+  only ones a Modification of the Block can reach; 0 is always accepted
+
+- `AbstractPath::get_number_elements()`, `get_element()` and
+  `get_resolved_indices()` throw `std::invalid_argument` for a node of type
+  'B' selecting a nested Block that is not there, which was only an
+  `assert()`
 
 ### Fixed
 
@@ -479,6 +510,217 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   back what the Variable held when the Block could not hand out its current
   Solution, leaving it with the checked Solution written in it; it now
   throws instead
+
+- `BoxSolver` writes the dual value of a tight bound as minus the derivative
+  of the Objective there, which it wrote with the wrong sign, and in the two
+  linear cases of the minimization it writes it on the bound that is tight,
+  which was the other one
+
+- `BoxSolver` adds `x ( a x + b )` to the value for a Variable that does not
+  belong to its Block, which stays fixed, rather than `a ( a x + b )`
+
+- `BoxSolver::compute()` on an empty box sets the maximum and the minimum
+  value to - INF and INF, those over an empty set, rather than leaving those
+  of the previous solve
+
+- `BoxSolver` forgets its solution when the sense of the Objective changes,
+  which it kept as the solution of the new sense
+
+- `BoxSolver::get_var_solution()` on a problem that is `kUnbounded`, for
+  which `has_var_solution()` is true, gives a feasible value of each
+  unbounded Variable, as `compute()` does, rather than throwing "unexpected
+  unboundedness"
+
+- `Block::open_channel()` leaks no `GroupModification` when it throws
+
+- `Block::close_channel()` passes on the outermost `GroupModification` of the
+  channel, the nested ones being owned by the one they are nested into,
+  rather than the current one, which was then owned twice
+
+- `BlockConfig`'s move constructor moves the Configuration of the structure
+  too, which it left in the moved-from object
+
+- `BlockConfig::serialize()` and `BlockSolverConfig::serialize()` on a
+  problem file write the groups `Prob_<i>/BlockConfig` and
+  `Prob_<i>/BlockSolver` that `Configuration::deserialize()` reads, rather
+  than `Config_<i>/BlockConfig` and `Config_<i>/SolverConfig`, and
+  `BlockSolverConfig::deserialize()` reads them there
+
+- `Configuration::deserialize()` on a problem file reads the BlockSolver of
+  `idx < 0` in the group `Prob_<-idx-1>`, as the documentation now says,
+  rather than `Prob_<1-idx>`
+
+- `Configuration::deserialize()` on a stream gives nullptr for a `*` followed
+  by the end of the stream, as for one followed by whitespace
+
+- `SimpleConfiguration< std::map< std::string , Configuration * >
+  >::deserialize()` empties the map before reading, and reads as many entries
+  as the file has, rather than as many as the map had, whose deleted
+  Configuration it kept
+
+- `SimpleConfiguration< std::vector< Configuration * > >` writes and reads
+  its classname, which the factory needs to read it back, and a nullptr in it
+  is written as a missing group and read back as nullptr, rather than
+  dereferenced
+
+- `ComputeConfig::deserialize()`, the `deserialize()` of a matrix of
+  `std::string` in `SMSTypedefs.h` and `AbstractBlock::deserialize()` for the
+  text of the model read a netCDF string through the `char *` netCDF
+  allocates, and free it, rather than into the address of a `std::string`
+
+- `ComputeConfig::set_par()` of a vector parameter that is not there yet
+  writes into the new entry, rather than past the end of the list
+
+- `ComputeConfig::load()` of a stream that ends before the flags leaves
+  `f_diff` false, as `clear()` does, rather than true
+
+- `OCRBlockConfig::get_right_BlockConfig()` builds the BlockConfig out of the
+  Block, while the `const Block *` it has was converted to the `bool` of the
+  constructor that takes `diff`, so that nothing was got
+
+- `AbstractBlock::write_lp()` writes the lower bound of every column,
+  `-infinity` included, since the format reads a column whose lower bound is
+  not written as one with lower bound 0
+
+- `AbstractBlock::read_lp()` reads the constant term of the Objective and of
+  the rows, the latter moved to the side, a column that is only named in the
+  Bounds, General or Binary sections, an Objective with no term and a file
+  that ends right after its End
+
+- `AbstractBlock::read_lp()` throws `std::invalid_argument` on a file that
+  ends before its End, where it looped forever
+
+- `AbstractBlock::deserialize()` gives the nested Blocks it reads the
+  AbstractBlock as their father
+
+- `AbstractPath::set_last_node_subset()` with an empty subset selects
+  nothing, rather than what the node selected before, an empty subset being
+  how a node says it has none
+
+- `ColVariableSolution::deserialize()` and
+  `RowConstraintSolution::deserialize()` read the dynamic groups out of
+  `DynamicCellsStart` also when no group has a cell, in which case
+  `DynamicValues` (`DynamicDuals`) is not written, rather than losing them
+
+- the empty `clone()` of `ColVariableSolution`, `RowConstraintSolution`,
+  `ColRowSolution` and `BooleanVariableSolution` keeps `is_direction()`, as
+  the documentation of `Solution::is_direction()` says a clone does
+
+- `map_active()` of `ThinVarDepInterface`, `LinearFunction` and
+  `DQuadFunction`, with `ordered == true`, maps a Variable only to the active
+  one that is that very Variable, and throws only if one of those given is
+  not active, rather than mapping a Variable that is not active to the next
+  one and throwing when the active Variable are more than those given
+
+- the copy and move assignments of the iterators of `ThinVarDepInterface`
+  delete the iterator they replace, which leaked, and do nothing on a
+  self-assignment
+
+- `DQuadFunction::get_hessian_approximation()` and
+  `QuadFunction::get_hessian_approximation()` put the i-th diagonal term in
+  position ( i , i ), rather than all of them in ( 0 , 0 ), in a matrix of
+  the right size
+
+- `DQuadFunction::get_linearization_constant()` subtracts `a x^2` rather than
+  `a^2 x`
+
+- `DQuadFunctionModSbst` sorts its coefficients together with its unordered
+  subset, so that each stays with its Variable
+
+- `QuadFunction`'s constructor refuses a non-diagonal term whose larger index
+  is out of range, which it checked on the smaller one
+
+- `QuadFunction::add_nd_term()` and `modify_term()` refuse a diagonal term,
+  and issue a `QuadFunctionModSbst` whose subset is increasing, as they say
+  it is, with the Variable in the same order
+
+- `PolyhedralFunction::get_linearization_coefficients()` on a Range starts
+  from `range.first` rather than from 0
+
+- `PolyhedralFunction::get_linearization_coefficients()` on a Subset reads
+  the coefficient of each index in the subset, rather than the next one, and
+  writes the dense output in the order of the subset rather than at the index
+
+- `PolyhedralFunction::remove_variables()` on a Subset compacts the Variable
+  and the rows of A, which `compact()`, taking its vector by value, left as
+  they were
+
+- `PolyhedralFunction::modify_rows()` and `modify_constants()` on an
+  unordered Subset permute the rows and the constants along with it, which
+  were left in the order given
+
+- `PolyhedralFunction::delete_rows()` on a Subset takes the index
+  `get_A().size()` as the bound and resets it, as documented, rather than
+  throwing
+
+- `PolyhedralFunction::put_State()` of a State with a smaller global pool
+  empties the names that the State does not have, and updates the largest
+  name in the pool
+
+- `PolyhedralFunction::compute_new_linearization()` does not give the flat
+  row of a bound that is not set as a linearization
+
+- `PolyhedralFunction`'s constructor sets `AAccMlt` to its default, which was
+  not initialized
+
+- the documentation of `PolyhedralFunction` gives the `type()` of the
+  Modification that `modify_rows()`, `modify_constants()` and `delete_rows()`
+  issue, `NothingChanged` when no modified row is in the global pool and
+  `GlobalPoolRemoved` for a deletion, and says that `delete_rows()` on a
+  Range leaves the bound alone
+
+- `LinearConstraint::add_variables()` and `add_variable()` with no
+  Modification issued register the row in its new Variable, which is
+  otherwise done by whoever reads the Modification
+
+- `LinearConstraint::print()` compiles, having called a `value()` that no
+  class has, which no build noticed since no file of the library includes the
+  header
+
+- `FRealObjective::remove_variables()` and
+  `FRowConstraint::remove_variables()` on an empty Subset with no
+  Modification issued take the Objective or the row out of the active list of
+  all its Variable, the empty Subset meaning all of them
+
+- the `remove_variable*()` of `FRealObjective` and `FRowConstraint` do not
+  dereference a missing Block
+
+- `LBConstraint`, `UBConstraint`, `NNConstraint`, `NPConstraint` and
+  `ZOConstraint` read their Variable through `lb()` and `ub()`, which give 0
+  when there is none, rather than dereferencing it
+
+- `abs_viol()` and `rel_viol()` of `LBConstraint`, `UBConstraint`,
+  `NNConstraint`, `NPConstraint` and `ZOConstraint` are 0 on a satisfied or
+  infinite side, rather than negative or - INF, and `rel_viol()` divides by
+  `max( 1 , |side| )`
+
+- `Observer::issue_pmod()` is false for `eNoMod`, which it took as asking for
+  a physical Modification
+
+- `BendersBFunction::deserialize()` reads a matrix in sparse form into the
+  matrix it builds, rather than into the rows of the current one
+
+- `BendersBFunction::delete_rows()` finds the rows of A to delete by their
+  position, rather than by their being empty, since with no active Variable
+  every row is empty and all of them went
+
+- `BendersBFunction::serialize()` in sparse form writes the number of
+  nonzeros of every row, including the rows with none after the last nonzero
+
+- the documentation of `BendersBFunction::modify_constants()` and
+  `modify_constant()` says that the shift is `NaNshift`, which is what they
+  issue, the sign of the change depending on the side of the row and on the
+  sense of the inner Block
+
+- `LagBFunction` clears the multipliers in the columns of the cost matrix
+  when it deletes all its Lagrangian terms, which kept referring to the
+  deleted ones
+
+- the documentation of `Block::remove_dynamic_constraints()` says that a
+  removed Constraint is `clear()`-ed in the destructor of the `BlockModRmv`
+  when one is issued, so that whoever reads it can still read the Variable
+  the Constraint was active in, rather than saying that this information is
+  gone
 
 ## [0.7.1] - 2026-09-13
 

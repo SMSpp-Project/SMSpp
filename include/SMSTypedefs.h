@@ -2174,7 +2174,20 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
   }
 
  std::vector< T > tmp( ncVar.getDim( 0 ).getSize() );
- ncVar.getVar( tmp.data() );
+ if constexpr( std::is_same_v< T , std::string > ) {
+  // netCDF gives the strings as char * it allocates, which are copied and
+  // then freed
+  std::vector< char * > tmp_cstr( tmp.size() , nullptr );
+  if( ! tmp_cstr.empty() )
+   ncVar.getVar( tmp_cstr.data() );
+  for( std::size_t i = 0 ; i < tmp.size() ; ++i ) {
+   if( tmp_cstr[ i ] )
+    tmp[ i ] = tmp_cstr[ i ];
+   free( tmp_cstr[ i ] );
+   }
+  }
+ else
+  ncVar.getVar( tmp.data() );
 
  matrix.resize( nrows );
 

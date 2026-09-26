@@ -91,7 +91,8 @@ void FRealObjective::remove_variable( Index i, ModParam issueMod ) {
  if( ! f_function )
   return;
 
- if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
+ if( ( par2mod( issueMod ) > eNoMod ) && f_Block &&
+     f_Block->anyone_there() )
   f_function->remove_variable( i, issueMod );
  else {
   // unregistration can preceed removal, since the Function completely
@@ -107,7 +108,8 @@ void FRealObjective::remove_variables( Range range, ModParam issueMod ) {
  if( ! f_function )
   return;
 
- if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
+ if( ( par2mod( issueMod ) > eNoMod ) && f_Block &&
+     f_Block->anyone_there() )
   f_function->remove_variables( range, issueMod );
  else {
   // unregistration can preceed removal, since the Function completely
@@ -125,13 +127,19 @@ void FRealObjective::remove_variables( Subset && nms, bool ordered,
  if( ! f_function )
   return;
 
- if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
+ if( ( par2mod( issueMod ) > eNoMod ) && f_Block &&
+     f_Block->anyone_there() )
   f_function->remove_variables( std::move( nms ), ordered, issueMod );
  else {
   // unregistration can preceed removal, since the Function completely
   // ignores this information
-  for( auto i : nms )
-   f_function->get_active_var( i++ )->remove_active( this );
+  // an empty nms means all of them
+  if( nms.empty() )
+   for( Index i = 0 ; i < f_function->get_num_active_var() ; ++i )
+    f_function->get_active_var( i )->remove_active( this );
+  else
+   for( auto i : nms )
+    f_function->get_active_var( i )->remove_active( this );
   f_function->remove_variables( std::move( nms ), ordered, eNoMod );
  }
 }  // end( FRealObjective::remove_variables( subset ) )

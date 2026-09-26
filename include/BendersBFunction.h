@@ -1403,16 +1403,12 @@ class BendersBFunction : public C05Function , public Block {
   * @param issueMod decides if and how the BendersBFunctionModRngd is issued,
   *        as described in Observer::make_par(). Note that type() ==
   *        AlphaChanged (all the alphas may have changed, although actually
-  *        only a subset of them has) and BFtype() == ModifyCnst. As for
-  *        shift(), however, the value of the function *may* change in a very
-  *        predictable way: if the new value of the constant is > than the
-  *        current value for *all* rows, then the function has necessarily
-  *        increased, hence the shift is +INFshift. If it is < for *all* rows,
-  *        then the function has necessarily decreased, hence the shift is
-  *        -INFshift. Otherwise the value has changed "unpredictably" and the
-  *        shift is NANshift (unless all the values are equal, in which case
-  *        the function value has not changed and the method does
-  *        nothing). */
+  *        only a subset of them has) and BFtype() == ModifyCnst. The
+  *        shift() is NANshift: whether a larger constant increases or
+  *        decreases the function depends on the side of the RowConstraint
+  *        it is mapped to and on the sense of the inner Block, and not on
+  *        the constant alone (if all the values are equal, the function
+  *        value has not changed and the method does nothing). */
 
  void modify_constants( c_RealVector & nb , Range range ,
                         ModParam issueMod = eModBlck );
@@ -1438,16 +1434,12 @@ class BendersBFunction : public C05Function , public Block {
   * @param issueMod decides if and how the BendersBFunctionModSbst is issued,
   *        as described in Observer::make_par(). Note that type() ==
   *        AlphaChanged (all the alphas may have changed, although actually
-  *        only a subset of them has) and BFtype() == ModifyCnst. As for
-  *        shift(), however, the value of the function *may* change in a very
-  *        predictable way: if the new value of the constant is > than the
-  *        current value for *all* rows, then the function has necessarily
-  *        increased, hence the shift is +INFshift. If it is < for *all* rows,
-  *        then the function has necessarily decreased, hence the shift is
-  *        -INFshift. Otherwise the value has changed "unpredictably" and the
-  *        shift is NANshift (unless all the values are equal, in which case
-  *        the function value has not changed and the method does
-  *        nothing). */
+  *        only a subset of them has) and BFtype() == ModifyCnst. The
+  *        shift() is NANshift: whether a larger constant increases or
+  *        decreases the function depends on the side of the RowConstraint
+  *        it is mapped to and on the sense of the inner Block, and not on
+  *        the constant alone (if all the values are equal, the function
+  *        value has not changed and the method does nothing). */
 
  void modify_constants( c_RealVector & nb , Subset && rows ,
                         bool ordered , ModParam issueMod );
@@ -1472,15 +1464,12 @@ class BendersBFunction : public C05Function , public Block {
   * @param issueAMod decides if and how the BendersBFunctionModRngd is issued,
   *        as described in Observer::make_par(). Note that type() ==
   *        AlphaChanged (all the alphas may have changed, although actually
-  *        only a subset of them has) and BFtype() == ModifyCnst. As for
-  *        shift(), however, the value of the function *may* change in a very
-  *        predictable way: if the new value of the constant is > than the
-  *        current value for *all* rows, then the function has necessarily
-  *        increased, hence the shift is +INFshift. If it is < for *all* rows,
-  *        then the function has necessarily decreased, hence the shift is
-  *        -INFshift. Otherwise the value has changed "unpredictably" and the
-  *        shift is NANshift (unless all the values are equal, in which case
-  *        the function value has not changed and the method does nothing). */
+  *        only a subset of them has) and BFtype() == ModifyCnst. The
+  *        shift() is NANshift: whether a larger constant increases or
+  *        decreases the function depends on the side of the RowConstraint
+  *        it is mapped to and on the sense of the inner Block, and not on
+  *        the constant alone (if all the values are equal, the function
+  *        value has not changed and the method does nothing). */
 
  void modify_constants( MF_dbl_it nb , Range range = Block::INFRange ,
                         ModParam issuePMod = eNoBlck ,
@@ -1512,16 +1501,12 @@ class BendersBFunction : public C05Function , public Block {
   * @param issueAMod decides if and how the BendersBFunctionModSbst is issued,
   *        as described in Observer::make_par(). Note that type() ==
   *        AlphaChanged (all the alphas may have changed, although actually
-  *        only a subset of them has) and BFtype() == ModifyCnst. As for
-  *        shift(), however, the value of the function *may* change in a very
-  *        predictable way: if the new value of the constant is > than the
-  *        current value for *all* rows, then the function has necessarily
-  *        increased, hence the shift is +INFshift. If it is < for *all* rows,
-  *        then the function has necessarily decreased, hence the shift is
-  *        -INFshift. Otherwise the value has changed "unpredictably" and the
-  *        shift is NANshift (unless all the values are equal, in which case
-  *        the function value has not changed and the method does
-  *        nothing). */
+  *        only a subset of them has) and BFtype() == ModifyCnst. The
+  *        shift() is NANshift: whether a larger constant increases or
+  *        decreases the function depends on the side of the RowConstraint
+  *        it is mapped to and on the sense of the inner Block, and not on
+  *        the constant alone (if all the values are equal, the function
+  *        value has not changed and the method does nothing). */
 
  void modify_constants( MF_dbl_it nb , Subset && rows ,
 			bool ordered = false ,
@@ -1539,12 +1524,11 @@ class BendersBFunction : public C05Function , public Block {
   * @param issueMod which decides if and how the BendersBFunctionModRngd is
   *        issued, as described in Observer::make_par(). Note that type() ==
   *        AlphaChanged (all the alphas may have changed, although actually
-  *        only a subset of them has) and BFtype() == ModifyCnst. As for
-  *        shift(), the value of the function changes in a very predictable
-  *        way: if bi is > than the current value the function has
-  *        necessarily increased, otherwise necessarily decreased (if it is
-  *        == it has not changed and the method does nothing), hence the
-  *        shift is either +INFshift or -INFshift accordingly. */
+  *        only a subset of them has) and BFtype() == ModifyCnst. The
+  *        shift() is NANshift: whether a larger bi increases or decreases
+  *        the function depends on the side of the RowConstraint the row is
+  *        mapped to and on the sense of the inner Block (if bi is == the
+  *        current value the method does nothing). */
 
  void modify_constant( Index i , FunctionValue bi ,
                        ModParam issueMod = eModBlck );
@@ -2641,7 +2625,8 @@ void print( std::ostream & output ) override {
   }
 
   void clear() {
-   nnz_at_row.clear();
+   // the number of rows stays, so that a row with no nonzero is counted
+   nnz_at_row.assign( nnz_at_row.size() , 0 );
    column.clear();
    values.clear();
   }

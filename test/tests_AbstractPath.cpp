@@ -17,6 +17,12 @@
 
 #include "AbstractBlockGenerator.h"
 #include "AbstractPath.h"
+#include "OneVarConstraint.h"
+
+#include <iostream>
+#include <list>
+#include <memory>
+#include <string>
 
 // last, so that the headers above are read as the library was compiled
 #include "TestAssert.h"
@@ -48,8 +54,6 @@ void test_serialization( const AbstractPath & path ) {
  * reading. */
 
 void test_serialization( const std::vector< AbstractPath > & paths ) {
- if( paths.empty() )
-  return;
  netCDF::NcFile ncFile( "ncfile_path_test.txt" , netCDF::NcFile::replace );
  auto group = ncFile.addGroup( "Paths" );
  AbstractPath::serialize( paths , group );
@@ -606,11 +610,339 @@ void test_names( void ) {
  }
 
 /*--------------------------------------------------------------------------*/
+/*------------------------- THE EDGES OF A PATH ----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// writes a path and reads it back
+
+static AbstractPath round_trip( const AbstractPath & path )
+{
+ netCDF::NcFile ncFile( "ncfile_path_test.txt" , netCDF::NcFile::replace );
+ auto group = ncFile.addGroup( "Path" );
+ path.serialize( group );
+ return( AbstractPath( group ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+// writes into group the path with the given node types and numeric group,
+// element and range indices
+
+void write_numeric_path( netCDF::NcGroup group ,
+                         const std::vector< char > & types ,
+                         const std::vector< unsigned int > & groups ,
+                         const std::vector< unsigned int > & elements ,
+                         const std::vector< unsigned int > & ranges ) {
+ auto dim = group.addDim( "PathTotalLength" , types.size() );
+ group.addVar( "PathNodeTypes" , netCDF::NcChar() , dim ).putVar(
+                                                               types.data() );
+ group.addVar( "PathGroupIndices" , netCDF::NcUint() , dim ).putVar(
+                                                              groups.data() );
+ group.addVar( "PathElementIndices" , netCDF::NcUint() , dim ).putVar(
+                                                            elements.data() );
+ group.addVar( "PathRangeIndices" , netCDF::NcUint() , dim ).putVar(
+                                                              ranges.data() );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+// an empty contiguous range on the last node selects nothing, and says so
+// before and after the round trip through netCDF
+
+void test_empty_range( void ) {
+ AbstractBlock block;
+ auto x = new std::vector< ColVariable >( 4 );
+ block.add_static_variable( *x , "x" );
+
+ AbstractPath path( & ( *x )[ 0 ] , & block );
+ path.set_last_node_range( 2 , 2 );
+ assert( path.get_number_elements< ColVariable >( & block ) == 0 );
+ assert( path.get_resolved_indices< ColVariable >( & block ).empty() );
+
+ const auto back = round_trip( path );
+ assert( back == path );
+ assert( back.get_number_elements< ColVariable >( & block ) == 0 );
+ assert( back.get_resolved_indices< ColVariable >( & block ).empty() );
+
+ // the empty range at the end of the group, and one that is not empty
+ path.set_last_node_range( 4 , 4 );
+ assert( path.get_number_elements< ColVariable >( & block ) == 0 );
+ path.set_last_node_range( 1 , 4 );
+ assert( path.get_number_elements< ColVariable >( & block ) == 3 );
+ assert( path.get_element< ColVariable >( & block , 2 ) == & ( *x )[ 3 ] );
+
+ // an end before the start is refused
+ bool refused = false;
+ try { path.set_last_node_range( 3 , 1 ); }
+ catch( const std::logic_error & ) { refused = true; }
+ assert( refused );
+
+ std::cout << "empty range: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+// an empty explicit subset on the last node: after set_last_node_subset(),
+// get_number_elements() is the size of the subset [see the method], i.e., 0
+
+void test_empty_subset( void ) {
+ AbstractBlock block;
+ auto x = new std::vector< ColVariable >( 4 );
+ block.add_static_variable( *x , "x" );
+
+ AbstractPath path( & ( *x )[ 1 ] , & block );
+ path.set_last_node_subset( { 0 , 3 } );
+ assert( path.get_number_elements< ColVariable >( & block ) == 2 );
+
+ path.set_last_node_subset( {} );
+ assert( path.get_number_elements< ColVariable >( & block ) == 0 );
+ assert( path.get_resolved_indices< ColVariable >( & block ).empty() );
+
+ // and the path goes through netCDF selecting nothing
+ const auto back = round_trip( path );
+ assert( back == path );
+ assert( back.get_number_elements< ColVariable >( & block ) == 0 );
+
+ // the same on a 'B' node, and on one that targets the reference Block
+ auto root = new AbstractBlock;
+ root->add_nested_Block( new AbstractBlock( root ) );
+ root->add_nested_Block( new AbstractBlock( root ) );
+ AbstractPath to_son( root->get_nested_Blocks()[ 1 ] , root );
+ to_son.set_last_node_subset( {} );
+ assert( to_son.get_number_elements< Block >( root ) == 0 );
+ assert( to_son.get_resolved_indices< Block >( root ).empty() );
+ assert( round_trip( to_son ).get_number_elements< Block >( root ) == 0 );
+ AbstractPath to_root( root , root );
+ to_root.set_last_node_subset( {} );
+ assert( to_root.get_number_elements< Block >( root ) == 0 );
+ delete root;
+
+ std::cout << "empty subset: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+// indices that are not there: a group index past the groups of the Block is
+// refused when the path is resolved, an element index past the elements of
+// its group resolves to nothing, and so does a nested Block past the last
+// one on the last node
+
+void test_out_of_range( void ) {
+ auto block = new AbstractBlock;
+ auto x = new std::vector< ColVariable >( 3 );
+ block->add_static_variable( *x , "x" );
+ block->add_nested_Block( new AbstractBlock( block ) );
+
+ netCDF::NcFile ncFile( "ncfile_path_range_test.txt" ,
+                        netCDF::NcFile::replace );
+ const auto inf = Inf< unsigned int >();
+
+ // the group is not there
+ {
+  auto g = ncFile.addGroup( "Group" );
+  write_numeric_path( g , { 'V' } , { 7 } , { 0 } , { 1 } );
+  AbstractPath path( g );
+  bool refused = false;
+  try { path.get_element< Variable >( block ); }
+  catch( const std::invalid_argument & ) { refused = true; }
+  assert( refused );
+  }
+
+ // the group is not there, and the range goes to its end: counting the
+ // elements asks the group, which is refused
+ {
+  auto g = ncFile.addGroup( "ToTheEnd" );
+  write_numeric_path( g , { 'V' } , { 7 } , { 0 } , { inf } );
+  AbstractPath path( g );
+  bool refused = false;
+  try { path.get_number_elements< ColVariable >( block ); }
+  catch( const std::invalid_argument & ) { refused = true; }
+  assert( refused );
+  refused = false;
+  try { path.get_resolved_indices< ColVariable >( block ); }
+  catch( const std::invalid_argument & ) { refused = true; }
+  assert( refused );
+  }
+
+ // the group is not there, and it is named by its index
+ {
+  auto g = ncFile.addGroup( "Named" );
+  write_named_path( g , { 'V' } , { "7" } , { 0 } , { 1 } );
+  AbstractPath path( g );
+  bool refused = false;
+  try { path.get_element< Variable >( block ); }
+  catch( const std::invalid_argument & ) { refused = true; }
+  assert( refused );
+  }
+
+ // the element is not there
+ {
+  auto g = ncFile.addGroup( "Element" );
+  write_numeric_path( g , { 'V' } , { 0 } , { 3 } , { 4 } );
+  AbstractPath path( g );
+  assert( ! path.get_element< Variable >( block ) );
+  assert( path.get_element< Variable >( block , 0 ) == nullptr );
+  }
+
+ // a nested Block that is not there in the middle of the path
+ {
+  auto g = ncFile.addGroup( "Middle" );
+  write_numeric_path( g , { 'B' , 'V' } , { 3 , 0 } , { inf , 0 } ,
+		      { inf , 1 } );
+  AbstractPath path( g );
+  bool refused = false;
+  try { path.get_element< Variable >( block ); }
+  catch( const std::invalid_argument & ) { refused = true; }
+  assert( refused );
+  refused = false;
+  try { path.get_number_elements< ColVariable >( block ); }
+  catch( const std::invalid_argument & ) { refused = true; }
+  assert( refused );
+  refused = false;
+  try { path.get_resolved_indices< ColVariable >( block ); }
+  catch( const std::invalid_argument & ) { refused = true; }
+  assert( refused );
+  }
+
+ // the nested Block is not there
+ {
+  auto g = ncFile.addGroup( "Block" );
+  write_numeric_path( g , { 'B' } , { 1 } , { inf } , { inf } );
+  AbstractPath path( g );
+  assert( ! path.get_element< Block >( block ) );
+  AbstractPath first( block->get_nested_Blocks()[ 0 ] , block );
+  assert( first.get_element< Block >( block ) ==
+	  block->get_nested_Blocks()[ 0 ] );
+  first.set_last_node_range( 0 , 2 );
+  assert( first.get_element< Block >( block , 1 ) == nullptr );
+  }
+
+ delete block;
+ std::cout << "indices out of range: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+// paths to the OneVarConstraint, static and dynamic: each resolves to its
+// element, as a Constraint and as its own type, before and after netCDF
+
+void test_one_var_constraint( void ) {
+ AbstractBlock block;
+ auto x = new std::vector< ColVariable >( 3 );
+ block.add_static_variable( *x , "x" );
+
+ auto boxes = new std::vector< BoxConstraint >( 3 );
+ for( Block::Index i = 0 ; i < 3 ; ++i ) {
+  ( *boxes )[ i ].set_variable( & ( *x )[ i ] );
+  ( *boxes )[ i ].set_lhs( 0 );
+  ( *boxes )[ i ].set_rhs( 1 + i );
+  }
+ block.add_static_constraint( *boxes , "box" );
+
+ auto lbs = new std::list< LBConstraint >( 2 );
+ for( auto & lb : *lbs ) {
+  lb.set_variable( & ( *x )[ 0 ] );
+  lb.set_lhs( -1 );
+  }
+ block.add_dynamic_constraint( *lbs , "lb" );
+
+ for( auto & box : *boxes ) {
+  AbstractPath path( & box , & block );
+  assert( path.get_element< Constraint >( & block ) == & box );
+  assert( path.get_element< BoxConstraint >( & block ) == & box );
+  assert( path.get_element< OneVarConstraint >( & block ) == & box );
+  const auto back = round_trip( path );
+  assert( back == path );
+  assert( back.get_element< BoxConstraint >( & block ) == & box );
+  }
+
+ AbstractPath all( & boxes->front() , & block );
+ all.set_last_node_range( 0 , 3 );
+ assert( all.get_number_elements< BoxConstraint >( & block ) == 3 );
+ assert( all.get_element< BoxConstraint >( & block , 2 ) == & boxes->back() );
+
+ for( auto & lb : *lbs ) {
+  AbstractPath path( & lb , & block );
+  assert( path.get_element< LBConstraint >( & block ) == & lb );
+  assert( round_trip( path ).get_element< Constraint >( & block ) == & lb );
+  }
+
+ std::cout << "OneVarConstraint: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+// a path to a dynamic element is by position [see deserialize()]: after a
+// removal before it, the path gives the element that is now in that
+// position, and a path past the end of what is left gives nothing
+
+void test_after_a_dynamic_removal( void ) {
+ AbstractBlock block;
+ auto y = new std::list< ColVariable >( 4 );
+ block.add_dynamic_variable( *y , "y" );
+ std::vector< ColVariable * > was;
+ for( auto & v : *y )
+  was.push_back( & v );
+
+ AbstractPath second( was[ 2 ] , & block );
+ AbstractPath last( was[ 3 ] , & block );
+ assert( second.get_element< ColVariable >( & block ) == was[ 2 ] );
+ assert( last.get_element< ColVariable >( & block ) == was[ 3 ] );
+
+ block.remove_dynamic_variables( *y , Block::Subset( { 1 } ) , true , eNoMod );
+ assert( y->size() == 3 );
+
+ assert( second.get_element< ColVariable >( & block ) == was[ 3 ] );
+ assert( ! last.get_element< ColVariable >( & block ) );
+
+ // the path made now to the same element says its new position
+ AbstractPath again( was[ 2 ] , & block );
+ assert( again.get_element< ColVariable >( & block ) == was[ 2 ] );
+ assert( again.get_resolved_indices< ColVariable >( & block ) ==
+	 std::vector< Block::Index >( { 1 } ) );
+ assert( ! ( again == second ) );
+
+ // the range to the end of the group follows its size
+ AbstractPath tail( was[ 0 ] , & block );
+ tail.set_last_node_range( 0 , Inf< Block::Index >() );
+ assert( tail.get_number_elements< ColVariable >( & block ) == 3 );
+
+ std::cout << "path after a dynamic removal: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+// a vector of no path goes through netCDF and comes back as a vector of no
+// path, in both forms of vector_deserialize()
+
+void test_empty_vector( void ) {
+ test_serialization( std::vector< AbstractPath >() );
+
+ netCDF::NcFile ncFile( "ncfile_path_test.txt" , netCDF::NcFile::replace );
+ auto group = ncFile.addGroup( "Paths" );
+ AbstractPath::serialize( std::vector< AbstractPath >() , group );
+ std::vector< std::unique_ptr< AbstractPath > > read;
+ read.emplace_back( std::make_unique< AbstractPath >() );
+ AbstractPath::vector_deserialize( group , read );
+ assert( read.empty() );
+
+ std::cout << "empty vector of paths: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
 
 int main( int argc , char ** argv )
 {
  test_names();
+ test_empty_range();
+ test_empty_subset();
+ test_out_of_range();
+ test_one_var_constraint();
+ test_after_a_dynamic_removal();
+ test_empty_vector();
  simple_full_test();
+
+ std::cout << "All tests passed!!" << std::endl;
  return( 0 );
 }
 

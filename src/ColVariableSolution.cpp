@@ -72,13 +72,18 @@ void ColVariableSolution::deserialize( const netCDF::NcGroup & group )
  ::deserialize< double >( group , "StaticValues" , "StaticValuesStart" ,
 			  static_variable_values );
 
+ // the groups are said by DynamicCellsStart, which is there as soon as
+ // there is a group: DynamicValues is not there when no group has a cell
  std::vector< std::vector< double > > cells;
- if( ::deserialize< double >( group , "DynamicValues" ,
-			      "DynamicValuesStart" , cells ) ) {
-  auto ncVar = group.getVar( "DynamicCellsStart" );
-  if( ncVar.isNull() )
+ const bool any = ::deserialize< double >( group , "DynamicValues" ,
+					   "DynamicValuesStart" , cells );
+ auto ncVar = group.getVar( "DynamicCellsStart" );
+ if( ncVar.isNull() ) {
+  if( any )
    throw( std::invalid_argument( "ColVariableSolution::deserialize: "
 				 "DynamicValues without DynamicCellsStart" ) );
+  }
+ else {
 
   std::vector< int > group_start( ncVar.getDim( 0 ).getSize() );
   ncVar.getVar( group_start.data() );
@@ -592,6 +597,8 @@ ColVariableSolution * ColVariableSolution::clone( bool empty ) const {
 
   if( ! empty )
     cloned_solution->scale( this , 1.0 );
+  else  // an empty clone says what this holds all the same
+    cloned_solution->is_direction( f_direction );
 
   return( cloned_solution );
 }

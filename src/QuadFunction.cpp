@@ -241,10 +241,12 @@ void QuadFunction::get_hessian_approximation( SparseHessian & hessian ) const {
  std::vector< Eigen::Triplet< FunctionValue > > tripletList;
  tripletList.reserve( num_active_var + 2 * mat_nd.nonZeros() );
  int index = 0;
- for( const auto & triple : v_triples )
+ for( const auto & triple : v_triples ) {
   tripletList.push_back(
    Eigen::Triplet< FunctionValue >( index , index , 2 * std::get< 2 >( triple )
    ) );
+  ++index;
+ }
 
  // now shove in the off_diagonal terms
  for( int k = 0 ; k < mat_nd.outerSize() ; ++k ) {
@@ -256,7 +258,7 @@ void QuadFunction::get_hessian_approximation( SparseHessian & hessian ) const {
     Eigen::Triplet< FunctionValue >( it.col() , it.row() , it.value() ) );
   }
  }
- hessian.setZero();
+ hessian.resize( num_active_var , num_active_var );  // also zeroes it
  hessian.reserve(
   Eigen::VectorXi::Constant( num_active_var + 2 * mat_nd.nonZeros() , 1 ) );
  hessian.setFromTriplets( tripletList.begin() , tripletList.end() );
@@ -374,7 +376,7 @@ void QuadFunction::add_nd_term( ColVariable * var1 , ColVariable * var2 ,
   Index i = DQuadFunction::is_active( var1 );
   Index j = DQuadFunction::is_active( var2 );
 
-  if( ( std::min( i , j ) < 0 ) ||
+  if( ( std::min( i , j ) < 0 ) || ( i == j ) ||
    ( std::max( i , j ) >= DQuadFunction::get_num_active_var() ) ) {
    throw( std::logic_error( "Only non-diagonal coefficients of existing "
     "variables can be specified" ) );
@@ -388,8 +390,10 @@ void QuadFunction::add_nd_term( ColVariable * var1 , ColVariable * var2 ,
    return; // noone is there: all done
 
   Coefficient od_term = quad_coeff;
-  Subset var_idxs = { std::max( i , j ) , std::min( i , j ) };
-  Vec_p_Var vars = { var1 , var2 };
+  // the Subset is said to be ordered, hence it is increasing, and vars[ k ]
+  // is the Variable of var_idxs[ k ]
+  Subset var_idxs = { std::min( i , j ) , std::max( i , j ) };
+  Vec_p_Var vars = { i < j ? var1 : var2 , i < j ? var2 : var1 };
 
   f_Observer->add_Modification(
    std::make_shared< QuadFunctionModSbst >(
@@ -415,6 +419,10 @@ void QuadFunction::modify_term( Index i , Index j ,
    "index: " + std::to_string( i ) + " , " +
    std::to_string( j ) ) );
  }
+ if( i == j )  // the diagonal belongs to DQuadFunction::modify_term()
+  throw( std::invalid_argument( "QuadFunction::modify_term: i == j == " +
+                                std::to_string( i ) +
+                                " is not a non-diagonal term" ) );
  // Observe that this insertion is highly inefficient if done one coeff at a time
  auto & coeff = mat_nd.coeffRef( std::max( i , j ) , std::min( i , j ) );
  const Coefficient old_coeff = coeff;
@@ -427,10 +435,11 @@ void QuadFunction::modify_term( Index i , Index j ,
 
  // the Modification carries the difference, which is what its readers add
  Coefficient od_term = quad_nd_coeff - old_coeff;
- Subset var_idxs = { std::max( i , j ) , std::min( i , j ) };
+ // the Subset is said to be ordered, hence it is increasing
+ Subset var_idxs = { std::min( i , j ) , std::max( i , j ) };
  Vec_p_Var vars = {
-  std::get< 0 >( v_triples[ std::max( i , j ) ] ) ,
-  std::get< 0 >( v_triples[ std::min( i , j ) ] )
+  std::get< 0 >( v_triples[ std::min( i , j ) ] ) ,
+  std::get< 0 >( v_triples[ std::max( i , j ) ] )
  };
 
  f_Observer->add_Modification(

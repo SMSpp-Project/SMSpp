@@ -531,6 +531,8 @@ BooleanVariableSolution * BooleanVariableSolution::clone( bool empty ) const {
 
   if( ! empty )
     cloned_solution->scale( this , 1.0 );
+  else  // an empty clone says what this holds all the same
+    cloned_solution->is_direction( f_direction );
 
   return( cloned_solution );
 }

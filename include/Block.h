@@ -3999,14 +3999,16 @@ class Block : public Observer {
   * Constraint, unlike that of a Variable, is supposed to un-register it
   * from all the Variable that it is active in. To avoid this
   *
-  *     ALL DELETED Constraint ARE clear()-ED WITHIN THE METHOD
+  *     ALL DELETED Constraint ARE clear()-ED BEFORE BEING DESTROYED
   *
-  * This means that the list of Variable that the Constraint was active in
-  * is immediately cleared (without re-warning the Variable, who have just
-  * been). As a consequence,
+  * which means that the list of Variable that the Constraint was active in
+  * is cleared without re-warning the Variable, who have just been. If the
+  * BlockModRmv is not issued this happens within the method; if it is, it
+  * happens in the destructor of the BlockModRmv. As a consequence,
   *
-  *     WHOMEVER HANDLES THE ISSUED BlockModRmv (IF ANY) CANNOT RELY ON
-  *     THAT INFORMATION, SINCE IT WILL NO LONGER BE THERE
+  *     WHOMEVER HANDLES THE ISSUED BlockModRmv (IF ANY) CAN STILL READ
+  *     THE Variable THAT EACH REMOVED Constraint WAS ACTIVE IN, BUT THESE
+  *     Variable NO LONGER LIST THE Constraint AMONG THEIR ACTIVE STUFF
   *
   * Note that when the Constraint is removed from the Variable, no
   * Modification is issued (see Variable::remove_active()); thus, calling
@@ -5578,7 +5580,7 @@ class Block : public Observer {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
- void set_default_channel( ChnlName chnl = 0 ) override { f_channel = chnl; }
+ void set_default_channel( ChnlName chnl = 0 ) override;
 
 /** @} ---------------------------------------------------------------------*/
 /*---------------------- Methods for handling Solver -----------------------*/

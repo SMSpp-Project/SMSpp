@@ -455,9 +455,10 @@ class Solution
   *
   * What a Solution holds is decided when it is read out of a Block, or by
   * whoever produces it without passing from one [see Solver::get_Solution()],
-  * and it travels with it: clone(), scale() and the (de)serialization keep
-  * it as it is, while a sum() is a direction only if every Solution in it is
-  * one, a solution plus a ray being a solution [see sum()].
+  * and it travels with it: clone() (the empty one too), scale() and the
+  * (de)serialization keep it as it is, while a sum() is a direction only if
+  * every Solution in it is one, a solution plus a ray being a solution [see
+  * sum()].
   *
   * The default is false, a Solution being a solution unless the :Solution of
   * a Block that has rays says otherwise. */

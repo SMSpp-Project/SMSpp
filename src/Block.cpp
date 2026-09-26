@@ -615,12 +615,18 @@ void Block::add_Modification( sp_Mod mod , ChnlName chnl )
 Observer::ChnlName Block::open_channel( ChnlName chnl ,
 					GroupModification * gmpmod )
 {
- if( ! gmpmod )                    // if a GroupModification is not provided
-  gmpmod = new GroupModification;  // create one
+ // if a GroupModification is not provided create one, which is owned
+ // here until it is given to a channel, so that an error does not leak it
+ std::unique_ptr< GroupModification > own;
+ if( ! gmpmod ) {
+  own.reset( new GroupModification );
+  gmpmod = own.get();
+  }
 
  if( ! chnl ) {  // opening a new channel
   chnl = Observer::new_channel_name();
   v_GroupMod.push_back( std::pair( chnl , gmpmod ) );
+  own.release();
   return( chnl );
   }
 
@@ -637,6 +643,7 @@ Observer::ChnlName Block::open_channel( ChnlName chnl ,
 
    // add the new GroupModification to the current channel
    GMit->second->add( std::shared_ptr< GroupModification >( gmpmod ) );
+   own.release();
 
    // the current channel becomes the new GroupModification
    GMit->second = gmpmod;
@@ -652,6 +659,7 @@ Observer::ChnlName Block::open_channel( ChnlName chnl ,
 				" not found" ) );
 
  f_Block->open_channel( chnl , gmpmod );  // try to find it in the father
+ own.release();
 
  return( chnl );  // unless exception is thrown, it has been found
 
@@ -678,18 +686,22 @@ void Block::close_channel( ChnlName chnl , bool force )
     if( chnl == f_channel )  // if it was the default channel
      f_channel = 0;          // reset it
 
+    // the outermost GroupModification of the channel is the one shipped:
+    // the nested ones are already owned by the one they are nested into
+    auto root = GMit->second;
+
     // if concerns_Block() of the current GroupModification is true, ensure
     // that the concerns_Block() of is also true up until the top
-    if( GMit->second->concerns_Block() )
-     while( father ) {
-      father->concerns_Block( true );
-      father = father->father();
-      }
+    const bool concerns = root->concerns_Block();
+    while( root->father() ) {
+     root = root->father();
+     if( concerns )
+      root->concerns_Block( true );
+     }
 
     // finally pass the GroupModification to the Block, on the (possibly
     // freshly reset) default channel
-    Block::add_Modification( std::shared_ptr< GroupModification
-			                      >( GMit->second ) );
+    Block::add_Modification( std::shared_ptr< GroupModification >( root ) );
     Observer::release_channel_name( chnl );  // give back the channel name
     v_GroupMod.erase( GMit );                // delete the local channel
     }
@@ -718,6 +730,27 @@ void Block::close_channel( ChnlName chnl , bool force )
  f_Block->close_channel( chnl , force );
 
  }  // end( Block::close_channel )
+
+/*--------------------------------------------------------------------------*/
+
+void Block::set_default_channel( ChnlName chnl )
+{
+ // 0 is always fine, any other name has to be an open channel of this Block
+ // or of an ancestor, the only ones a Modification of this Block can reach
+ if( chnl )
+  for( const Block * blck = this ; ; blck = blck->f_Block ) {
+   if( ! blck )
+    throw( std::invalid_argument( "Block::set_default_channel: " +
+				  std::to_string( chnl ) +
+				  " is not an open channel" ) );
+   if( std::any_of( blck->v_GroupMod.begin() , blck->v_GroupMod.end() ,
+		    [ chnl ]( auto & a ) { return( a.first == chnl ); } ) )
+    break;
+   }
+
+ f_channel = chnl;
+
+ }  // end( Block::set_default_channel )
 
 /*--------------------------------------------------------------------------*/
 /*------------ METHODS FOR LOADING, PRINTING & SAVING THE Block ------------*/
@@ -968,6 +1001,9 @@ BlockConfig::BlockConfig( const BlockConfig & old ) : BlockConfig()
 BlockConfig::BlockConfig( BlockConfig && old )
 {
  f_diff = old.f_diff;
+ f_structure_Configuration = old.f_structure_Configuration;
+ old.f_structure_Configuration = nullptr;
+
  f_static_constraints_Configuration = old.f_static_constraints_Configuration;
  old.f_static_constraints_Configuration = nullptr;
 
@@ -1023,7 +1059,8 @@ void BlockConfig::serialize( netCDF::NcFile & f , int type ) const
   return;
   }
 
- auto cg = ( f.addGroup( "Config_" + std::to_string( f.getGroupCount() )
+ // appended after the last problem of the file, as Block::serialize() does
+ auto cg = ( f.addGroup( "Prob_" + std::to_string( f.getGroupCount() )
  ) ).addGroup( "BlockConfig" );
  serialize( cg );
 

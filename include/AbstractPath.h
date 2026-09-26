@@ -412,6 +412,24 @@ private:
 /*----------------------------- PRIVATE METHODS ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
+ /// the nested Block of \p block an intermediate 'B' node goes to
+ /** Returns the nested Block of \p block that \p node, the \p i-th of the
+  * path, selects, and throws std::invalid_argument if \p block has no such
+  * nested Block; \p method names the caller in the message. */
+
+ static Block * nested_Block( const Block * block , const Node & node ,
+			      Index i , const char * method ) {
+  const auto & nested = block->get_nested_Blocks();
+  if( node.group_index >= nested.size() )
+   throw( std::invalid_argument( std::string( "AbstractPath::" ) + method +
+    ": node [" + std::to_string( i ) + "] of type 'B' selects nested Block "
+    + std::to_string( node.group_index ) + ", but the " + block->classname()
+    + " has " + std::to_string( nested.size() ) + " nested Block" ) );
+  return( nested[ node.group_index ] );
+  }
+
+/*--------------------------------------------------------------------------*/
+
  template< class T >
  void add_node( const T * t , Node::NodeType type ) {
   const auto triple = inspection::get_element_index( t );
@@ -829,21 +847,31 @@ public:
   * with index subset[ k ]. An explicit subset takes precedence over any
   * contiguous range that may have been set on the same node; the first subset
   * element is also recorded as the node's "start" index so that consumers that
-  * ignore subsets still resolve to the first selected element. */
+  * ignore subsets still resolve to the first selected element.
+  *
+  * An empty \p subset selects nothing: since an empty subset is how a node
+  * says that it has none, the last node is given the empty range starting
+  * where it starts (at 0 for a 'B' node that targets the reference Block
+  * itself), which is kept through serialize() and deserialize(). */
  void set_last_node_subset( std::vector< Index > subset ) {
   if( empty() ||
       ( ! Node::is_block( node_types.back() ) &&
         ! Node::has_range( node_types.back() ) ) )
    throw( std::logic_error( "AbstractPath::set_last_node_subset: the last node "
                             "does not support a subset." ) );
+  if( subset.empty() ) {
+   const auto start = Node::is_block( node_types.back() )
+    ? ( group_indices.back() == Inf< Index >() ? 0 : group_indices.back() )
+    : element_indices.back();
+   set_last_node_range( start , start );
+   return;
+   }
   if( node_subsets.size() < length() )
    node_subsets.resize( length() );
-  if( ! subset.empty() ) {
-   if( Node::is_block( node_types.back() ) )
-    group_indices.back() = subset.front();
-   else
-    element_indices.back() = subset.front();
-  }
+  if( Node::is_block( node_types.back() ) )
+   group_indices.back() = subset.front();
+  else
+   element_indices.back() = subset.front();
   node_subsets.back() = std::move( subset );
  }
 
@@ -1003,8 +1031,7 @@ public:
    // Intermediate nodes can be: Block, Constraint, or Objective.
 
    if( node.type == Node::eBlock ) {
-    assert( node.group_index < block->get_nested_Blocks().size() );
-    block = block->get_nested_Blocks()[ node.group_index ];
+    block = nested_Block( block , node , i , "get_number_elements" );
    }
    else if( Node::is_constraint( node.type ) ) {
     auto constraint = inspection::get_element< Constraint >
@@ -1114,8 +1141,7 @@ public:
    // Intermediate nodes can be: Block, Constraint, or Objective.
 
    if( node.type == Node::eBlock ) {
-    assert( node.group_index < block->get_nested_Blocks().size() );
-    block = block->get_nested_Blocks()[ node.group_index ];
+    block = nested_Block( block , node , i , "get_element" );
    }
    else if( Node::is_constraint( node.type ) ) {
     auto constraint = inspection::get_element< Constraint >
@@ -1293,8 +1319,7 @@ public:
   for( Index i = 0 ; i < length() - 1 ; ++i ) {
    const auto node = get_node( block , i );
    if( node.type == Node::eBlock ) {
-    assert( node.group_index < block->get_nested_Blocks().size() );
-    block = block->get_nested_Blocks()[ node.group_index ];
+    block = nested_Block( block , node , i , "get_resolved_indices" );
     }
    else if( Node::is_constraint( node.type ) ) {
     auto constraint = inspection::get_element< Constraint >

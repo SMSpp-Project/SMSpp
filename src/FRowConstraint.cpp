@@ -146,7 +146,8 @@ void FRowConstraint::remove_variable( Index i , ModParam issueMod )
  if( ! f_function )
   return;
 
- if( ( par2mod( issueMod ) > eNoMod ) && get_Block()->anyone_there() )
+ if( ( par2mod( issueMod ) > eNoMod ) && get_Block() &&
+     get_Block()->anyone_there() )
   f_function->remove_variable( i , issueMod );
  else {
   // unregistration can preceed removal, since the Function completely
@@ -163,7 +164,8 @@ void FRowConstraint::remove_variables( Range range , ModParam issueMod )
  if( ! f_function )
   return;
 
- if( ( par2mod( issueMod ) > eNoMod ) && get_Block()->anyone_there() )
+ if( ( par2mod( issueMod ) > eNoMod ) && get_Block() &&
+     get_Block()->anyone_there() )
   f_function->remove_variables( range, issueMod );
  else {
   // unregistration can preceed removal, since the Function completely
@@ -182,13 +184,18 @@ void FRowConstraint::remove_variables( Subset && nms , bool ordered ,
  if( ! f_function )
   return;
 
- if( ( par2mod( issueMod ) > eNoMod ) && get_Block()->anyone_there() )
+ if( ( par2mod( issueMod ) > eNoMod ) && get_Block() &&
+     get_Block()->anyone_there() )
   f_function->remove_variables( std::move( nms ) , ordered , issueMod );
  else {
   // unregistration can preceed removal, since the Function completely
   // ignores this information
-  for( auto i : nms )
-   f_function->get_active_var( i++ )->remove_active( this );
+  if( nms.empty() )  // all the Variable are removed
+   for( Index i = 0 ; i < f_function->get_num_active_var() ; ++i )
+    f_function->get_active_var( i )->remove_active( this );
+  else
+   for( auto i : nms )
+    f_function->get_active_var( i )->remove_active( this );
   f_function->remove_variables( std::move( nms ) , ordered , eNoMod );
   }
  }  // end( FRowConstraint::remove_variables( subset ) )

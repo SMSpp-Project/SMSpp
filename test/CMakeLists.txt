@@ -76,11 +76,41 @@ smspp_install(ColVariable_test)
 add_test(NAME ColVariable_test
          COMMAND ColVariable_test)
 
+add_executable(Configuration_unit_test tests_Configuration.cpp)
+target_link_libraries(Configuration_unit_test PRIVATE SMS++::SMS++)
+smspp_install(Configuration_unit_test)
+add_test(NAME Configuration_unit_test
+         COMMAND Configuration_unit_test)
+
 add_executable(Group_test tests_Group.cpp)
 target_link_libraries(Group_test PRIVATE SMS++::SMS++)
 smspp_install(Group_test)
 add_test(NAME Group_test
          COMMAND Group_test)
+
+add_executable(BlockModification_unit_test tests_BlockModification.cpp)
+target_link_libraries(BlockModification_unit_test PRIVATE SMS++::SMS++)
+smspp_install(BlockModification_unit_test)
+add_test(NAME BlockModification_unit_test
+         COMMAND BlockModification_unit_test)
+
+add_executable(Objective_unit_test tests_Objective.cpp)
+target_link_libraries(Objective_unit_test PRIVATE SMS++::SMS++)
+smspp_install(Objective_unit_test)
+add_test(NAME Objective_unit_test
+         COMMAND Objective_unit_test)
+
+add_executable(Constraint_unit_test tests_Constraint.cpp)
+target_link_libraries(Constraint_unit_test PRIVATE SMS++::SMS++)
+smspp_install(Constraint_unit_test)
+add_test(NAME Constraint_unit_test
+         COMMAND Constraint_unit_test)
+
+add_executable(LinearConstraint_unit_test tests_LinearConstraint.cpp)
+target_link_libraries(LinearConstraint_unit_test PRIVATE SMS++::SMS++)
+smspp_install(LinearConstraint_unit_test)
+add_test(NAME LinearConstraint_unit_test
+         COMMAND LinearConstraint_unit_test)
 
 add_executable(C05SumFunction_test tests_C05SumFunction.cpp)
 target_link_libraries(C05SumFunction_test PRIVATE SMS++::SMS++)
@@ -123,5 +153,29 @@ target_link_libraries(Modification_test PRIVATE SMS++::SMS++)
 smspp_install(Modification_test)
 add_test(NAME Modification_test
          COMMAND Modification_test)
+
+add_executable(PolyhedralFunction_unit_test tests_PolyhedralFunction.cpp)
+target_link_libraries(PolyhedralFunction_unit_test PRIVATE SMS++::SMS++)
+smspp_install(PolyhedralFunction_unit_test)
+add_test(NAME PolyhedralFunction_unit_test
+         COMMAND PolyhedralFunction_unit_test)
+
+add_executable(LagBFunction_unit_test tests_LagBFunction.cpp)
+target_link_libraries(LagBFunction_unit_test PRIVATE SMS++::SMS++)
+smspp_install(LagBFunction_unit_test)
+add_test(NAME LagBFunction_unit_test
+         COMMAND LagBFunction_unit_test)
+
+add_executable(BendersBFunction_unit_test tests_BendersBFunction.cpp)
+target_link_libraries(BendersBFunction_unit_test PRIVATE SMS++::SMS++)
+smspp_install(BendersBFunction_unit_test)
+add_test(NAME BendersBFunction_unit_test
+         COMMAND BendersBFunction_unit_test)
+
+add_executable(Misc_unit_test tests_Misc.cpp)
+target_link_libraries(Misc_unit_test PRIVATE SMS++::SMS++)
+smspp_install(Misc_unit_test)
+add_test(NAME Misc_unit_test
+         COMMAND Misc_unit_test)
 
 # --------------------------------------------------------------------------- #

@@ -200,15 +200,25 @@ void LinearFunction::map_active( c_Vec_p_Var & vars , Subset & map ,
  if( map.size() < vars.size() )
   map.resize( vars.size() );
 
- if( ordered )
+ if( ordered ) {
+  // each of vars has to be found among the "active" ones, which may be more
+  std::vector< bool > found( vars.size() , false );
+  Index nfound = 0;
   for( Index i = 0 ; i < v_pairs.size() ; ++i ) {
    auto itvi = std::lower_bound( vars.begin() , vars.end() ,
                                  v_pairs[ i ].first );
-   if( itvi != vars.end() )
-    map[ std::distance( vars.begin() , itvi ) ] = i;
-   else
-    throw( std::invalid_argument( "LinearFunction::map_active: "
-                                  "some Variable is not active" ) );
+   if( ( itvi != vars.end() ) && ( *itvi == v_pairs[ i ].first ) ) {
+    const auto k = std::distance( vars.begin() , itvi );
+    map[ k ] = i;
+    if( ! found[ k ] ) {
+     found[ k ] = true;
+     ++nfound;
+     }
+    }
+   }
+  if( nfound < vars.size() )
+   throw( std::invalid_argument( "LinearFunction::map_active: "
+                                 "some Variable is not active" ) );
   }
  else {
   auto it = map.begin();

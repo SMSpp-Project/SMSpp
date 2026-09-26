@@ -156,11 +156,11 @@ BlockSolverConfig * BlockSolverConfig::deserialize( netCDF::NcFile & f,
   netCDF::NcGroup cg;
 
   if( type == eProbFile ) {
-   netCDF::NcGroup dg = f.getGroup( "Config_" + std::to_string( idx ) );
+   netCDF::NcGroup dg = f.getGroup( "Prob_" + std::to_string( idx ) );
    if( dg.isNull() )
     return( nullptr );
 
-   cg = dg.getGroup( "SolverConfig" );
+   cg = dg.getGroup( "BlockSolver" );
    }
   else
    cg = f.getGroup( "Config_" + std::to_string( idx ) );
@@ -457,8 +457,9 @@ void BlockSolverConfig::serialize( netCDF::NcFile & f , int type ) const
  if( type == eConfigFile )
   Configuration::serialize( f, type );
  else {
-  auto cg = ( f.addGroup( "Config_" + std::to_string( f.getGroupCount() )
-  ) ).addGroup( "SolverConfig" );
+  // appended after the last problem of the file, as Block::serialize() does
+  auto cg = ( f.addGroup( "Prob_" + std::to_string( f.getGroupCount() )
+  ) ).addGroup( "BlockSolver" );
   serialize( cg );
   }
  }  // end( BlockSolverConfig::serialize( file ) )

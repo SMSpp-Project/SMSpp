@@ -2553,11 +2553,17 @@ class LagBFunction : public C05Function , public Block
  *  @{ */
 
 // delete all the Lagrangian terms (and the ColVariable with them)
+// the columns of CostMatrix stay, aligned with the Objective, but they no
+// longer refer to any multiplier
 
  void clear_lp( void ) {
   for( const auto & dp : LagPairs )
    delete dp.second;
   LagPairs.clear();
+  for( auto & CMh : CostMatrix )
+   for( auto & col : CMh )
+    col.second.clear();
+  f_active_dirty = true;
   f_Lc = -1;
   }
 

@@ -295,7 +295,7 @@ void BendersBFunction::deserialize( const netCDF::NcGroup & group ,
     for( Index i = 0 ; i < nrow ; ++i ) {
      for( Index l = 0 ; l < num_nonzero_at_row[ i ] ; ++l , ++k ) {
       auto j = column[ k ];
-      ncVar_A.getVar( { k } , & v_A[ i ][ j ] );
+      ncVar_A.getVar( { k } , & tA[ i ][ j ] );
      }
     }
    }
@@ -1361,21 +1361,33 @@ void BendersBFunction::delete_rows( Subset && rows , bool ordered ,
 
  auto mod_type = C05FunctionMod::AllEntriesChanged;
 
- // mark stuff to be killed in v_A[] and v_b[]
+ // mark stuff to be killed in v_b[]
  for( auto idx : rows ) {
   if( v_b[ idx ] != FunctionValue( 0 ) )
     mod_type = C05FunctionMod::AllLinearizationChanged;
 
-  v_A[ idx ].clear();
   v_b[ idx ] = std::numeric_limits< FunctionValue >::quiet_NaN();
   v_constraints[ idx ] = nullptr;
   v_sides[ idx ] = ConstraintSide::eNone;
  }
 
- // kill stuff in v_A[]
- v_A.erase( std::remove_if( v_A.begin() + rows.front() , v_A.end() ,
-                            []( RealVector & ai ) { return( ai.empty() ); } ) ,
-            v_A.end() );
+ // kill stuff in v_A[]: the rows are found by position, since with no
+ // active Variable every row of A is empty
+ {
+  auto rit = rows.begin();
+  Index k = rows.front();
+  for( Index i = rows.front() ; i < v_A.size() ; ++i ) {
+   if( ( rit != rows.end() ) && ( *rit == i ) ) {
+    while( ( rit != rows.end() ) && ( *rit == i ) )  // repeated indices
+     ++rit;
+    continue;
+    }
+   if( k != i )
+    v_A[ k ] = std::move( v_A[ i ] );
+   ++k;
+   }
+  v_A.resize( k );
+ }
 
  // kill stuff in v_b[]
  v_b.erase( std::remove_if( v_b.begin() + rows.front() , v_b.end() ,

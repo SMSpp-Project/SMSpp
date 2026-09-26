@@ -11,6 +11,10 @@
  * one. The members are PolyhedralFunction, i.e. the very C05Function the
  * master problem of a bundle method is made of.
  *
+ * The tests then check what the sum computes: its value and its
+ * linearization are the sums of those of the members, a member with no
+ * Variable included, and what the sum does not allow is rejected.
+ *
  * \author Donato Meoli \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
@@ -25,9 +29,13 @@
 #include "AbstractBlock.h"
 #include "C05SumFunction.h"
 #include "ColVariable.h"
+#include "DQuadFunction.h"
+#include "LinearFunction.h"
 #include "PolyhedralFunction.h"
 
+#include <cmath>
 #include <iostream>
+#include <stdexcept>
 #include <memory>
 #include <vector>
 
@@ -41,6 +49,7 @@
 using namespace SMSpp_di_unipi_it;
 
 using Index = Function::Index;
+using Range = Function::Range;
 using Subset = Function::Subset;
 using FunctionValue = Function::FunctionValue;
 
@@ -138,6 +147,183 @@ static sp_Mod changed( PolyhedralFunction & member , Index name ,
  return( std::make_shared< C05FunctionMod >( & member ,
                             C05FunctionMod::AllLinearizationChanged ,
                             Subset( { name } ) , shift ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+/*------------------- VALUE AND LINEARIZATION OF THE SUM -------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// true if calling f() throws an exception of type E
+
+template< class E , class F >
+static bool throws( F f )
+{
+ try {
+  f();
+  }
+ catch( E & ) {
+  return( true );
+  }
+ catch( ... ) {
+  return( false );
+  }
+ return( false );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The value and the linearization of a sum at a point where no Variable is
+ * zero: the members are a DQuadFunction on { x0 , x1 }, a PolyhedralFunction
+ * on { x1 , x2 } and a PolyhedralFunction with no Variable at all (a
+ * constant), so that the "active" Variable of the sum are the union
+ * { x0 , x1 , x2 }, x1 being shared. The value is the sum of the values of
+ * the members, and the coefficients, over a Range or a Subset, the sum of
+ * the gradients of the members mapped on the union, where a member that
+ * does not have a Variable gives it nothing; the constant is the sum of the
+ * constants. */
+
+static void test_value_and_linearization( void )
+{
+ std::vector< ColVariable > x( 3 );
+ x[ 0 ].set_value( 1 );
+ x[ 1 ].set_value( -2 );
+ x[ 2 ].set_value( 3 );
+
+ // f1 = x0^2 + 3 x0 + 3 x1^2 - x1 + 0.5
+ DQuadFunction f1( { std::make_tuple( & x[ 0 ] , 3.0 , 1.0 ) ,
+		     std::make_tuple( & x[ 1 ] , -1.0 , 3.0 ) } , 0.5 );
+
+ // f2 = max{ x1 + 2 x2 , - x1 + x2 + 4 }
+ PolyhedralFunction f2( { & x[ 1 ] , & x[ 2 ] } ,
+			{ { 1 , 2 } , { -1 , 1 } } , { 0 , 4 } );
+
+ // f3 = 5, a member with no Variable
+ PolyhedralFunction f3( {} , { {} } , { 5 } );
+ assert( f3.get_num_active_var() == 0 );
+
+ C05SumFunction sum( { & f1 , & f2 , & f3 } , false );
+ assert( sum.get_num_active_var() == 3 );
+ for( Index i = 0 ; i < 3 ; ++i )
+  assert( sum.get_active_var( i ) == & x[ i ] );
+
+ assert( sum.compute( true ) == Function::kOK );
+ assert( ( f1.compute( true ) == Function::kOK ) &&
+	 ( f2.compute( true ) == Function::kOK ) &&
+	 ( f3.compute( true ) == Function::kOK ) );
+ const double v1 = f1.get_value() , v2 = f2.get_value() ,
+              v3 = f3.get_value();
+ assert( v1 == 1 + 3 + 12 + 2 + 0.5 );
+ assert( v2 == std::max( -2.0 + 6 , 2.0 + 3 + 4 ) );
+ assert( v3 == 5 );
+ assert( std::abs( sum.get_value() - ( v1 + v2 + v3 ) ) <= 1e-12 );
+
+ // the gradient of the sum on { x0 , x1 , x2 }
+ assert( sum.has_linearization( true ) );
+ std::vector< double > g1( 2 ) , g2( 2 );
+ assert( f1.has_linearization( true ) && f2.has_linearization( true ) );
+ f1.get_linearization_coefficients( g1.data() );
+ f2.get_linearization_coefficients( g2.data() );
+ assert( ( g1[ 0 ] == 2 * 1 + 3 ) && ( g1[ 1 ] == 2 * 3 * ( -2 ) - 1 ) );
+ assert( ( g2[ 0 ] == -1 ) && ( g2[ 1 ] == 1 ) );   // the second row
+ const std::vector< double > grad{ g1[ 0 ] , g1[ 1 ] + g2[ 0 ] , g2[ 1 ] };
+
+ std::vector< double > g( 3 , 1e30 );
+ sum.get_linearization_coefficients( g.data() );
+ assert( g == grad );
+
+ std::vector< double > gr( 2 , 1e30 );
+ sum.get_linearization_coefficients( gr.data() , Range( 1 , 3 ) );
+ assert( ( gr[ 0 ] == grad[ 1 ] ) && ( gr[ 1 ] == grad[ 2 ] ) );
+
+ std::vector< double > gs( 2 , 1e30 );
+ sum.get_linearization_coefficients( gs.data() , Subset( { 2 , 0 } ) );
+ assert( ( gs[ 0 ] == grad[ 2 ] ) && ( gs[ 1 ] == grad[ 0 ] ) );
+
+ // an empty Range or Subset writes nothing
+ std::vector< double > none( 1 , 1e30 );
+ sum.get_linearization_coefficients( none.data() , Range( 2 , 2 ) );
+ sum.get_linearization_coefficients( none.data() , Subset() );
+ assert( none[ 0 ] == 1e30 );
+
+ // the constant is the sum of those of the members
+ const double a = f1.get_linearization_constant() +
+                  f2.get_linearization_constant() +
+                  f3.get_linearization_constant();
+ assert( std::abs( sum.get_linearization_constant() - a ) <= 1e-12 );
+
+ // at another point the sum follows
+ x[ 1 ].set_value( 4 );
+ assert( sum.compute( true ) == Function::kOK );
+ f1.compute( true );
+ f2.compute( true );
+ assert( std::abs( sum.get_value() - ( f1.get_value() + f2.get_value() + 5 ) )
+	 <= 1e-12 );
+ assert( sum.has_linearization( true ) );
+ sum.get_linearization_coefficients( g.data() );
+ assert( ( g[ 0 ] == 5 ) && ( g[ 1 ] == 2 * 3 * 4 - 1 + 1 ) && ( g[ 2 ] == 2 ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* A sum of LinearFunction, one of which has no Variable: its constant is
+ * part of the value and of the linearization constant, and it gives no
+ * coefficient. */
+
+static void test_sum_of_linear( void )
+{
+ std::vector< ColVariable > x( 2 );
+ x[ 0 ].set_value( 2 );
+ x[ 1 ].set_value( -3 );
+
+ LinearFunction l1( { { & x[ 0 ] , 4 } } , 1 );
+ LinearFunction l2( { { & x[ 1 ] , -2 } , { & x[ 0 ] , 0.5 } } , 2 );
+ LinearFunction l3( {} , -7 );
+
+ C05SumFunction sum( { & l1 , & l2 , & l3 } , false );
+ assert( sum.get_num_active_var() == 2 );
+ assert( sum.is_active( & x[ 0 ] ) == 0 );
+ assert( sum.is_active( & x[ 1 ] ) == 1 );
+ assert( sum.is_convex() && sum.is_concave() );
+
+ assert( sum.compute( true ) == Function::kOK );
+ assert( sum.get_value() == ( 8 + 1 ) + ( 6 + 1 + 2 ) - 7 );
+
+ assert( sum.has_linearization( true ) );
+ std::vector< double > g( 2 );
+ sum.get_linearization_coefficients( g.data() );
+ assert( ( g[ 0 ] == 4.5 ) && ( g[ 1 ] == -2 ) );
+ assert( sum.get_linearization_constant() == 1 + 2 - 7 );
+
+ // a sum of one member is that member
+ C05SumFunction one( { & l3 } , false );
+ assert( one.get_num_active_var() == 0 );
+ assert( one.compute( true ) == Function::kOK );
+ assert( one.get_value() == -7 );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* What a sum does not allow: no members at all, members that are not all
+ * convex or all concave, a Variable of a member missing from those given,
+ * and changing its Variable; the members are fixed once and for all, there
+ * being no method to add or remove one. */
+
+static void test_what_is_not_allowed( void )
+{
+ assert( throws< std::invalid_argument >( []() {
+  C05SumFunction s{ std::vector< C05Function * >() }; } ) );
+
+ std::vector< ColVariable > x( 2 );
+ PolyhedralFunction convex( { & x[ 0 ] } , { { 1 } } , { 0 } );
+ PolyhedralFunction concave( { & x[ 0 ] } , { { 1 } } , { 0 } ,
+			     Inf< FunctionValue >() , false );
+ assert( throws< std::invalid_argument >( [ & ]() {
+  C05SumFunction s( { & convex , & concave } , false ); } ) );
+
+ PolyhedralFunction other( { & x[ 1 ] } , { { 1 } } , { 0 } );
+ assert( throws< std::invalid_argument >( [ & ]() {
+  C05SumFunction s( { & convex , & other } , { & x[ 0 ] } , false ); } ) );
+
+ C05SumFunction s( { & convex , & other } , false );
+ assert( throws< std::logic_error >( [ & s ]() { s.remove_variable( 0 ); } ) );
+ assert( s.get_num_active_var() == 2 );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -337,10 +523,14 @@ int main( void )
   }
  assert( before.size() == 0 );
 
- std::cout << "All tests passed" << std::endl;
-
  for( auto m : members )
   m->register_Observer( nullptr );
+
+ test_value_and_linearization();
+ test_sum_of_linear();
+ test_what_is_not_allowed();
+
+ std::cout << "All tests passed!!" << std::endl;
 
  return( 0 );
  }
