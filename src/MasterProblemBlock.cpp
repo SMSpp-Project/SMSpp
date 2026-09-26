@@ -119,6 +119,24 @@ void MasterProblemBlock::clear()
    inner->anyone_there( true );
   }
 
+ // The PolyhedralFunctionBlock of the hard components are allocated here
+ // [see CreatePrimalMP() / CreateDualMP()], so they go with the rest. They
+ // leave v_Block now and are deleted at the very end of the method, when
+ // nothing of the master points into them any more. Forgetting the pointers
+ // alone would leave the Block in the master, where the next
+ // CreateEmptyMP() adds the new ones beside them: the stale ones carry no
+ // linearization, and their row sum_i theta^k_i + gamma^k = lambda, with
+ // gamma^k fixed to 0, forces lambda = 0 and makes the master infeasible
+ // from the second time it is built on.
+ auto stale_hard = HardCmps;
+ for( auto * hard : stale_hard ) {
+  if( ! hard )
+   continue;
+  auto it = std::find( v_Block.begin() , v_Block.end() , hard );
+  if( it != v_Block.end() )
+   v_Block.erase( it );
+  }
+
  // Forget all per-component lookup tables. Easy inner Blocks remain owned by
  // their LagBFunction or BendersBFunction.
  EasyCmps.clear();
@@ -195,6 +213,12 @@ void MasterProblemBlock::clear()
  reset_static_variables();
  reset_dynamic_constraints();
  reset_dynamic_variables();
+
+ // now that no row, no objective term and no group of the master views them
+ // any more, the Block of the hard components of the previous incarnation
+ // can go
+ for( auto * hard : stale_hard )
+  delete hard;
 
  }  // end( MasterProblemBlock::clear )
 
