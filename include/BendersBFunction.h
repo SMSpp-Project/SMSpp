@@ -2772,6 +2772,13 @@ void print( std::ostream & output ) override {
  void write_dual_solution( Index name );
 
 /*--------------------------------------------------------------------------*/
+ /// asks \p solver for the dual solution, checking that it covers v_constraints
+ /** Throws std::logic_error if the Solver leaves the dual value of some of
+  * the Constraint of the mapping unwritten. */
+
+ void fetch_dual_solution( CDASolver * solver , Configuration * config );
+
+/*--------------------------------------------------------------------------*/
  /// write the Solution with the given name in the sub-Block
  /** This function writes the Solution stored in the global pool under the
   * given \p name in the sub-Block. If the given \p name is invalid or the

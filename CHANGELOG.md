@@ -254,6 +254,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `BendersBFunction` checks that the Solver of the sub-Block writes the dual
+  value of every Constraint the linearization is made of, and throws if it
+  does not: a Solver that gives the duals of only a part of the sub-Block
+  (e.g., a `LagrangianDualSolver` whose components are solved by a dynamic
+  programming) left the others with the value of a previous solve, and the
+  cut was silently wrong
+
 - `FRealObjective` and `FRowConstraint` pass to their Block a Modification
   that concerns it also when no Solver is attached: an "abstract" change
   issued with eModBlck before any Solver is registered, such as the

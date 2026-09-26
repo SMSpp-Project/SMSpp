@@ -2157,7 +2157,7 @@ void BendersBFunction::store_linearization( Index name , ModParam issueMod ) {
  // get_linearization_coefficients() takes care of the inverted-row case.
  if( f_diagonal_linearization_required ) {
   if( solver->has_dual_solution() )
-   solver->get_dual_solution( f_get_dual_solution_config );
+   fetch_dual_solution( solver , f_get_dual_solution_config );
   }
  else {
   if( solver->has_dual_direction() )
@@ -2281,7 +2281,7 @@ void BendersBFunction::write_dual_solution( Index name ) {
   // caller falls back to synthesizing the cut from inverted-bound rows.
   if( f_diagonal_linearization_required ) {
    if( solver->has_dual_solution() )
-    solver->get_dual_solution( f_get_dual_solution_partial_config );
+    fetch_dual_solution( solver , f_get_dual_solution_partial_config );
    }
   else {
    if( solver->has_dual_direction() )
@@ -2303,6 +2303,35 @@ bool ignore_constraint( RowConstraint * constraint ) {
   return( true );
  return( false );
 }
+
+/*--------------------------------------------------------------------------*/
+
+void BendersBFunction::fetch_dual_solution( CDASolver * solver ,
+                                            Configuration * config )
+{
+ // the linearization is made of the dual values of the Constraint in which
+ // the Variable of the mapping appear: a Solver that gives the dual solution
+ // of only a part of the sub-Block (say, a LagrangianDualSolver whose
+ // components are solved by a dynamic programming) leaves some of them with
+ // whatever value they had, and the linearization would not be valid. Each
+ // of them is therefore set to NaN before, and has to be written by now
+ for( auto c : v_constraints )
+  if( c && ( ! ignore_constraint( c ) ) )
+   c->set_dual( std::numeric_limits< RowConstraint::RHSValue >::quiet_NaN() );
+
+ solver->get_dual_solution( config );
+
+ for( auto c : v_constraints )
+  if( c && ( ! ignore_constraint( c ) ) && std::isnan( c->get_dual() ) )
+   throw( std::logic_error( "BendersBFunction::fetch_dual_solution: the "
+                            "Solver of the sub-Block gives no dual value of "
+                            "a Constraint in which the Variable of the "
+                            "mapping appear (as a LagrangianDualSolver does "
+                            "when that Constraint is inside a component "
+                            "solved by a dynamic programming or a MILP), "
+                            "hence no valid linearization" ) );
+
+ }  // end( BendersBFunction::fetch_dual_solution )
 
 /*--------------------------------------------------------------------------*/
 
