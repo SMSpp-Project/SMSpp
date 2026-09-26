@@ -93,9 +93,12 @@ namespace SMSpp_di_unipi_it {
  *   there is no diagonal linearization, as for a single member;
  *
  * - a vertical one is the sum of the vertical linearizations of the members
- *   that have one, since for each of them 0 >= alpha_h + g_h x holds; the
- *   members that do not have one take no part in it, and do not hold that
- *   name in their global pool.
+ *   taking part in it, since for each of them 0 >= alpha_h + g_h x holds;
+ *   the members that take no part in it do not hold that name in their
+ *   global pool. The ones the group produces have a single member taking
+ *   part, the sum of two being implied by the two of them together while
+ *   the converse fails, hence weaker than either [see
+ *   has_linearization()].
  *
  * Accordingly, a combination of linearizations of the group is the
  * combination, member by member, of those among them that the member holds.

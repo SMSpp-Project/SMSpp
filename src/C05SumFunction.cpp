@@ -1075,12 +1075,12 @@ bool C05SumFunction::compute_new_linearization( bool diagonal )
   }
 
  /* The vertical ones are a different matter: their sum is a valid inequality
-  * of the domain, but a weaker one than any of its terms, so it is worth
-  * reporting only when a single linearization is asked for. Each further
-  * request is therefore answered with the vertical linearization of one
-  * member alone, the members being walked in order; when they have all been
-  * handed out, they are asked for a new one each and the walk starts again
-  * over those that have one. */
+  * of the domain, but it is implied by its own terms while the converse
+  * fails, so it is never handed out. Every request, this one and the first
+  * [see has_linearization], is answered with the vertical linearization of
+  * one member alone, the members being walked in order; when they have all
+  * been handed out, they are asked for a new one each and the walk starts
+  * again over those that have one. */
 
  if( v_vert.size() != v_members.size() )  // no vertical round is on
   return( false );
