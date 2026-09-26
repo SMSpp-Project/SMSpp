@@ -118,4 +118,10 @@ smspp_install(SizeVariable_test)
 add_test(NAME SizeVariable_test
          COMMAND SizeVariable_test)
 
+add_executable(Modification_test tests_Modification.cpp)
+target_link_libraries(Modification_test PRIVATE SMS++::SMS++)
+smspp_install(Modification_test)
+add_test(NAME Modification_test
+         COMMAND Modification_test)
+
 # --------------------------------------------------------------------------- #

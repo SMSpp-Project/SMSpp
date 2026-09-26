@@ -19,6 +19,12 @@ Unit tests for the core SMS++ library. Each test is registered as a separate
 - `Group_test` covers the groups of `Variable` and `Constraint` of a `Block`,
   and the two consumers that copy them, the `Solution` and the abstract copy
   of a `Block`.
+- `Modification_test` covers the `Modification` issued by the modifying
+  methods of `ColVariable`, `FRowConstraint`, the `OneVarConstraint`
+  family, `FRealObjective`, `LinearFunction` and the dynamic `Variable` and
+  `Constraint` of a `Block`: whether the change is done and what is issued
+  under each value of the `ModParam`, with or without a `Solver` listening
+  and on a channel, and the type and content of the `Modification`.
 - `Solution_test` covers what a `Solution` does when the dynamic
   `RowConstraint` of the `Block` it was read from are removed, i.e., the dual
   values it has to drop for whoever holds a dual solution to see whether what

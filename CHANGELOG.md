@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `Modification_test` checks, for the modifying methods of `ColVariable`,
+  `FRowConstraint`, the `OneVarConstraint` family, `FRealObjective`,
+  `LinearFunction` and the dynamic `Variable` and `Constraint` of a `Block`,
+  whether the change is done and what is issued under each value of the
+  `ModParam`, with and without a `Solver` listening and on a channel, the
+  type and content of each `Modification`, and the edge cases (empty and full
+  `Range`, empty and unordered `Subset`, adding nothing, removing
+  everything); what the library does not do yet is kept out in blocks marked
+  KNOWN DEFECT
+
+- `ClassFactory_test` asserts what it used to print: every factory of the
+  core (`Block`, `Configuration`, `Solver`, `Solution`, `State`, `Change`)
+  gives an object of the class asked for every class the core registers,
+  whatever the blanks in the classname, and refuses a name nobody
+  registered, or no name, with `std::invalid_argument`
+
 - `MasterProblemBlock::keep_easy_duals()` and `restore_easy_dual()`: the
   duals of the rows of an easy component, and with them the reduced costs of
   its columns, are saved at each solve of the master and written back when

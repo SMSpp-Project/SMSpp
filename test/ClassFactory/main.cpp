@@ -2,13 +2,22 @@
 /*---------------------- File tests_class_factory.cpp ----------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
- * Implementation of the tests for the class factories.
+ * Implementation of the tests for the class factories: each factory of the
+ * core (Block, Configuration, Solver, Solution, State and Change) is asked
+ * for every class the core registers and for classes registered here, with
+ * a classname written in different ways, and the object it gives must be of
+ * the class asked; a name nobody registered, or no name at all, must be
+ * refused with std::invalid_argument.
  *
  * \author Rafael Durbano Lobato \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Rafael Durbano Lobato
+ * \author Donato Meoli \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \copyright &copy; by Rafael Durbano Lobato, Donato Meoli
  */
 
 /*--------------------------------------------------------------------------*/
@@ -21,11 +30,33 @@
 
 #include "BendersBlock.h"
 
+#include "BlockSolverConfig.h"
+
+#include "BooleanVariableSolution.h"
+
+#include "BoxSolver.h"
+
+#include "Change.h"
+
+#include "ColRowSolution.h"
+
 #include "FakeSolver.h"
 
 #include "LagBFunction.h"
 
+#include "MasterProblemBlock.h"
+
+#include "PolyhedralFunction.h"
+
 #include "PolyhedralFunctionBlock.h"
+
+#include "RBlockConfig.h"
+
+#include "UpdateSolver.h"
+
+#include <iostream>
+
+#include "../TestAssert.h"  // last: see the comments in it
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------------- USING -----------------------------------*/
@@ -81,81 +112,6 @@ SMSpp_insert_in_factory_cpp_1_t
 ( DummyBlockT< std::list< std::pair < int , double > > , 1 > );
 
 /*--------------------------------------------------------------------------*/
-
-void test_Block( const std::string & classname ) {
- try {
-  auto c = Block::new_Block( classname );
-  std::cout << "success";
-  delete c;
-  }
- catch( std::invalid_argument ) {
-  std::cout << "failure";
-  }
- catch( ... ) {
-  std::cout << std::endl << "unexpected exception" << std::endl;
-  exit( 1 );
-  }
- std::cout << " for \"" << classname << "\"" << std::endl;
- }
-
-/*--------------------------------------------------------------------------*/
-
-template< class B >
-void test_Block( const std::string & classname ) {
- try {
-  auto c = Block::new_Block( classname );
-  if( dynamic_cast< B * >( c ) )
-   std::cout << "success";
-  else
-   std::cout << "wrong type in factory";
-  delete c;
-  }
- catch( std::invalid_argument ) {
-  std::cout << "failure";
-  }
- catch( ... ) {
-  std::cout << std::endl << "unexpected exception" << std::endl;
-  exit( 1 );
-  }
- std::cout << " for \"" << classname << "\"" << std::endl;
- }
-
-/*--------------------------------------------------------------------------*/
-
-void test_Block( void ) {
-
- // SMS++ Block
-
- test_Block( " AbstractBlock " );
- test_Block< BendersBFunction >( " BendersBFunction " );
- test_Block< BendersBlock >( " BendersBlock " );
- test_Block( " LagBFunction " );
- test_Block< PolyhedralFunctionBlock > ( " PolyhedralFunctionBlock " );
-
- // DummyBlock
-
- test_Block( " DummyBlock " );
- test_Block< DummyBlock2 >( " DummyBlock2 " );
-
- test_Block( " DummyBlockT<> " );
- test_Block( " DummyBlockT< double > " );
- test_Block( " DummyBlockT< char > " );
- test_Block( " DummyBlockT< int > " );
- test_Block( " DummyBlockT< std::pair< double , int > > " );
- test_Block( " DummyBlockT< std::pair< double , int > > " );
- test_Block< DummyBlockT< std::list< std::pair< int , double > > > > (
-		          " DummyBlockT< std::list< std::pair< int , double > > > " );
-
- test_Block( " DummyBlockT< void , 1 > " );
- test_Block( " DummyBlockT< double , 1 > " );
- test_Block( " DummyBlockT< char , 1 > " );
- test_Block( " DummyBlockT< int , 1 > " );
- test_Block( " DummyBlockT< std::pair< double , int > , 1 > " );
- test_Block< DummyBlockT< std::list< std::pair< int , double > > , 1 > >(
-			 " DummyBlockT< std::list< std::pair< int , double > > , 1 > " );
- }
-
-/*--------------------------------------------------------------------------*/
 /*---------------------------- Configuration -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -177,54 +133,6 @@ SMSpp_insert_in_factory_cpp_0_t
 SMSpp_insert_in_factory_cpp_0_t
 ( DummyConfiguration< int , DummyConfiguration< int , std::list<
     std::pair< int , double > > > > );
-
-/*--------------------------------------------------------------------------*/
-
-void test_Configuration( const std::string & classname ) {
- try {
-  auto c = Configuration::new_Configuration( classname );
-  std::cout << "success";
-  delete c;
-  }
- catch( std::invalid_argument ) {
-  std::cout << "failure";
-  }
- catch( ... ) {
-  std::cout << std::endl << "unexpected exception" << std::endl;
-  exit( 1 );
-  }
- std::cout << " for \"" << classname << "\"" << std::endl;
- }
-
-/*--------------------------------------------------------------------------*/
-
-void test_Configuration( void ) {
-
- // ComputeConfig
-
- test_Configuration( " ComputeConfig " );
-
- // SimpleConfiguration
-
- test_Configuration( " SimpleConfiguration< int > " );
- test_Configuration( " SimpleConfiguration< double > " );
- test_Configuration( " SimpleConfiguration< std::pair< int , int > > " );
- test_Configuration( " SimpleConfiguration< std::pair< double , double > > " );
- test_Configuration( " SimpleConfiguration< std::pair< int , double > > " );
- test_Configuration( " SimpleConfiguration< std::pair< double , int > > " );
- test_Configuration( " SimpleConfiguration< std::vector< int > > " );
- test_Configuration( " SimpleConfiguration< std::vector< double > > " );
- test_Configuration( " SimpleConfiguration< std::pair< Configuration * , Configuration * > > " );
- test_Configuration( " SimpleConfiguration< std::vector< Configuration * > > " );
-
- // DummyConfiguration
-
- test_Configuration( " DummyConfiguration<> " );
- test_Configuration( " DummyConfiguration< int , double > " );
- test_Configuration( " DummyConfiguration< double , std::pair< int , double > > " );
- test_Configuration( " DummyConfiguration< int , std::list< std::pair< int , double > > > " );
- test_Configuration( " DummyConfiguration< int , DummyConfiguration< int , std::list< std::pair< int , double > > > > " );
-}
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------------- Solver ----------------------------------*/
@@ -250,37 +158,241 @@ SMSpp_insert_in_factory_cpp_0_t
     std::list< std::pair< int , double > > > > );
 
 /*--------------------------------------------------------------------------*/
+/*----------------------------- THE CHECKS ---------------------------------*/
+/*--------------------------------------------------------------------------*/
 
-void test_Solver( const std::string & classname ) {
+static int n_checks = 0;  ///< how many classnames have been checked
+
+/*--------------------------------------------------------------------------*/
+/// the factory \p make gives an object of class T for \p classname
+
+template< class T , class Base , class Make >
+static void check( Make make , const std::string & classname )
+{
+ Base * obj = make( classname );
+ assert( obj );
+ assert( dynamic_cast< T * >( obj ) );
+ delete obj;
+ ++n_checks;
+ }
+
+/*--------------------------------------------------------------------------*/
+/// the factory \p make refuses \p classname with std::invalid_argument
+
+template< class Make >
+static void check_refused( Make make , const std::string & classname )
+{
+ bool refused = false;
  try {
-  auto c = Solver::new_Solver( classname );
-  std::cout << "success";
-  delete c;
+  delete make( classname );
   }
- catch( std::invalid_argument ) {
-  std::cout << "failure";
+ catch( std::invalid_argument & ) {
+  refused = true;
   }
- catch( ... ) {
-  std::cout << std::endl << "unexpected exception" << std::endl;
-  exit( 1 );
-  }
- std::cout << " for \"" << classname << "\"" << std::endl;
+ assert( refused );
+ ++n_checks;
  }
 
 /*--------------------------------------------------------------------------*/
 
-void test_Solver( void ) {
- test_Solver( " FakeSolver " );
- test_Solver( " UpdateSolver " );
+static void test_Block( void )
+{
+ auto make = []( const std::string & n ) { return( Block::new_Block( n ) ); };
 
- // DummySolver
+ // the Block of the core
+ check< AbstractBlock , Block >( make , "AbstractBlock" );
+ check< BendersBFunction , Block >( make , "BendersBFunction" );
+ check< BendersBlock , Block >( make , "BendersBlock" );
+ check< LagBFunction , Block >( make , "LagBFunction" );
+ check< MasterProblemBlock , Block >( make , "MasterProblemBlock" );
+ check< PolyhedralFunctionBlock , Block >( make , "PolyhedralFunctionBlock" );
 
- test_Solver( " DummySolver<> " );
- test_Solver( " DummySolver< int , double > " );
- test_Solver( " DummySolver< double , std::pair< int , double > > " );
- test_Solver( " DummySolver< int , std::list< std::pair< int , double > > > " );
- test_Solver( " DummySolver< int , DummySolver< int , std::list< std::pair< int , double > > > > " );
-}
+ // the classname is found whatever the blanks around it
+ check< AbstractBlock , Block >( make , " AbstractBlock " );
+
+ // the Block registered here, templates included, the arguments written
+ // with and without the blanks between them
+ check< DummyBlock , Block >( make , "DummyBlock" );
+ check< DummyBlock2 , Block >( make , " DummyBlock2 " );
+ check< DummyBlockT<> , Block >( make , "DummyBlockT<>" );
+ check< DummyBlockT< double > , Block >( make , "DummyBlockT< double >" );
+ check< DummyBlockT< double > , Block >( make , "DummyBlockT<double>" );
+ check< DummyBlockT< char > , Block >( make , "DummyBlockT< char >" );
+ check< DummyBlockT< int > , Block >( make , "DummyBlockT< int >" );
+ check< DummyBlockT< std::pair< double , int > > , Block >( make ,
+			      "DummyBlockT< std::pair< double , int > >" );
+ check< DummyBlockT< std::pair< double , int > > , Block >( make ,
+				       "DummyBlockT<std::pair<double,int>>" );
+ check< DummyBlockT< std::list< std::pair< int , double > > > , Block >(
+       make , "DummyBlockT< std::list< std::pair< int , double > > >" );
+ check< DummyBlockT< void , 1 > , Block >( make , "DummyBlockT< void , 1 >" );
+ check< DummyBlockT< double , 1 > , Block >( make ,
+					      "DummyBlockT< double , 1 >" );
+ check< DummyBlockT< char , 1 > , Block >( make , "DummyBlockT< char , 1 >" );
+ check< DummyBlockT< int , 1 > , Block >( make , "DummyBlockT< int , 1 >" );
+ check< DummyBlockT< std::pair< double , int > , 1 > , Block >( make ,
+			  "DummyBlockT< std::pair< double , int > , 1 >" );
+ check< DummyBlockT< std::list< std::pair< int , double > > , 1 > , Block >(
+   make , "DummyBlockT< std::list< std::pair< int , double > > , 1 >" );
+
+ // a name nobody registered, and no name
+ check_refused( make , "NoSuchBlock" );
+ check_refused( make , "DummyBlockT< float >" );
+ check_refused( make , "" );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+static void test_Configuration( void )
+{
+ auto make = []( const std::string & n ) {
+  return( Configuration::new_Configuration( n ) ); };
+
+ // the Configuration of the core
+ check< ComputeConfig , Configuration >( make , "ComputeConfig" );
+ check< BlockConfig , Configuration >( make , "BlockConfig" );
+ check< OBlockConfig , Configuration >( make , "OBlockConfig" );
+ check< CBlockConfig , Configuration >( make , "CBlockConfig" );
+ check< RBlockConfig , Configuration >( make , "RBlockConfig" );
+ check< OCBlockConfig , Configuration >( make , "OCBlockConfig" );
+ check< ORBlockConfig , Configuration >( make , "ORBlockConfig" );
+ check< CRBlockConfig , Configuration >( make , "CRBlockConfig" );
+ check< OCRBlockConfig , Configuration >( make , "OCRBlockConfig" );
+ check< BlockSolverConfig , Configuration >( make , "BlockSolverConfig" );
+ check< RBlockSolverConfig , Configuration >( make , "RBlockSolverConfig" );
+
+ // the SimpleConfiguration the core registers, with and without blanks
+ check< SimpleConfiguration< int > , Configuration >( make ,
+					       "SimpleConfiguration< int >" );
+ check< SimpleConfiguration< int > , Configuration >( make ,
+						 "SimpleConfiguration<int>" );
+ check< SimpleConfiguration< double > , Configuration >( make ,
+					    "SimpleConfiguration< double >" );
+ check< SimpleConfiguration< std::pair< int , int > > , Configuration >(
+		   make , "SimpleConfiguration< std::pair< int , int > >" );
+ check< SimpleConfiguration< std::pair< double , double > > , Configuration >(
+	     make , "SimpleConfiguration< std::pair< double , double > >" );
+ check< SimpleConfiguration< std::pair< int , double > > , Configuration >(
+		make , "SimpleConfiguration< std::pair< int , double > >" );
+ check< SimpleConfiguration< std::pair< double , int > > , Configuration >(
+		make , "SimpleConfiguration< std::pair< double , int > >" );
+ check< SimpleConfiguration< std::vector< int > > , Configuration >(
+			make , "SimpleConfiguration< std::vector< int > >" );
+ check< SimpleConfiguration< std::vector< int > > , Configuration >(
+			     make , "SimpleConfiguration<std::vector<int>>" );
+ check< SimpleConfiguration< std::vector< double > > , Configuration >(
+		     make , "SimpleConfiguration< std::vector< double > >" );
+ check< SimpleConfiguration< std::pair< Configuration * ,
+					Configuration * > > , Configuration >(
+   make , "SimpleConfiguration< std::pair< Configuration * , "
+	  "Configuration * > >" );
+ check< SimpleConfiguration< std::vector< Configuration * > > ,
+	Configuration >( make ,
+		   "SimpleConfiguration< std::vector< Configuration * > >" );
+ check< SimpleConfiguration< std::vector< std::pair< int , int > > > ,
+	Configuration >( make ,
+	      "SimpleConfiguration< std::vector< std::pair< int , int > > >" );
+ check< SimpleConfiguration< std::vector< std::pair< int ,
+					    Configuration * > > > ,
+	Configuration >( make , "SimpleConfiguration< std::vector< "
+			 "std::pair< int , Configuration * > > >" );
+ check< SimpleConfiguration< std::map< std::string , Configuration * > > ,
+	Configuration >( make , "SimpleConfiguration< std::map< "
+			 "std::string , Configuration * > >" );
+
+ // the Configuration registered here
+ check< DummyConfiguration<> , Configuration >( make ,
+						 "DummyConfiguration<>" );
+ check< DummyConfiguration< int , double > , Configuration >( make ,
+				       "DummyConfiguration< int , double >" );
+ check< DummyConfiguration< double , std::pair< int , double > > ,
+	Configuration >( make ,
+		  "DummyConfiguration< double , std::pair< int , double > >" );
+ check< DummyConfiguration< int , std::list< std::pair< int , double > > > ,
+	Configuration >( make ,
+       "DummyConfiguration< int , std::list< std::pair< int , double > > >" );
+ check< DummyConfiguration< int , DummyConfiguration< int ,
+	std::list< std::pair< int , double > > > > , Configuration >( make ,
+   "DummyConfiguration< int , DummyConfiguration< int , std::list< "
+   "std::pair< int , double > > > >" );
+
+ // a SimpleConfiguration of a type nobody registered, and no name
+ check_refused( make , "SimpleConfiguration< float >" );
+ check_refused( make , "NoSuchConfiguration" );
+ check_refused( make , "" );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+static void test_Solver( void )
+{
+ auto make = []( const std::string & n ) { return( Solver::new_Solver( n ) ); };
+
+ // the Solver of the core
+ check< FakeSolver , Solver >( make , "FakeSolver" );
+ check< UpdateSolver , Solver >( make , "UpdateSolver" );
+ check< BoxSolver , Solver >( make , "BoxSolver" );
+
+ // the Solver registered here
+ check< DummySolver<> , Solver >( make , "DummySolver<>" );
+ check< DummySolver< int , double > , Solver >( make ,
+					      "DummySolver< int , double >" );
+ check< DummySolver< double , std::pair< int , double > > , Solver >( make ,
+			 "DummySolver< double , std::pair< int , double > >" );
+ check< DummySolver< int , std::list< std::pair< int , double > > > ,
+	Solver >( make ,
+	      "DummySolver< int , std::list< std::pair< int , double > > >" );
+ check< DummySolver< int , DummySolver< int ,
+	std::list< std::pair< int , double > > > > , Solver >( make ,
+   "DummySolver< int , DummySolver< int , std::list< std::pair< int , "
+   "double > > > >" );
+
+ check_refused( make , "NoSuchSolver" );
+ check_refused( make , "" );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+static void test_Solution( void )
+{
+ auto make = []( const std::string & n ) {
+  return( Solution::new_Solution( n ) ); };
+
+ check< ColVariableSolution , Solution >( make , "ColVariableSolution" );
+ check< RowConstraintSolution , Solution >( make , "RowConstraintSolution" );
+ check< ColRowSolution , Solution >( make , "ColRowSolution" );
+ check< BooleanVariableSolution , Solution >( make ,
+					      "BooleanVariableSolution" );
+
+ check_refused( make , "NoSuchSolution" );
+ check_refused( make , "" );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+static void test_State( void )
+{
+ auto make = []( const std::string & n ) { return( State::new_State( n ) ); };
+
+ check< LagBFunctionState , State >( make , "LagBFunctionState" );
+ check< PolyhedralFunctionState , State >( make , "PolyhedralFunctionState" );
+ check< BendersBFunctionState , State >( make , "BendersBFunctionState" );
+
+ check_refused( make , "NoSuchState" );
+ check_refused( make , "" );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+static void test_Change( void )
+{
+ auto make = []( const std::string & n ) { return( Change::new_Change( n ) ); };
+
+ check< GroupChange , Change >( make , "GroupChange" );
+
+ check_refused( make , "NoSuchChange" );
+ check_refused( make , "" );
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -289,8 +401,14 @@ int main( int argc , char ** argv )
  test_Block();
  test_Configuration();
  test_Solver();
+ test_Solution();
+ test_State();
+ test_Change();
+
+ std::cout << "ClassFactory_test: all " << n_checks << " checks passed"
+	   << std::endl;
  return( 0 );
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- End File tests_class_factory.cpp --------------------*/
