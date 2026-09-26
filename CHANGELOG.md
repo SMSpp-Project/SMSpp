@@ -254,6 +254,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `LagBFunction::set_par( intInnrSlvr , ... )` no longer dereferences the
+  BlockSolverConfig of the inner Block when none has been given
+
 - when dynamic Variable are removed from its inner Block, `LagBFunction`
   drops what each entry of its global pool holds for them before checking
   whether the entry is still feasible: what is left would otherwise be

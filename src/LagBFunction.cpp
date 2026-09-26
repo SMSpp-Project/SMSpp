@@ -552,8 +552,9 @@ void LagBFunction::set_par( idx_type par , int value )
   case( intInnrSlvr ):  // intInnrSlvr - - - - - - - - - - - - - - - - - - -
    if( InnrSlvr != Index( value ) ) {
     InnrSlvr = Index( value );
-    // ensure there is a ComputeConfig in diff mode ready
-    while( f_BSC->num_ComputeConfig() <= InnrSlvr ) {
+    // ensure there is a ComputeConfig in diff mode ready, if a
+    // BlockSolverConfig of the inner Block has been given at all
+    while( f_BSC && ( f_BSC->num_ComputeConfig() <= InnrSlvr ) ) {
      auto cc = new ComputeConfig;
      cc->set_diff( true );
      f_BSC->add_ComputeConfig( "" , cc );
