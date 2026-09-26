@@ -419,6 +419,33 @@ class Solution
   }
 
 /*--------------------------------------------------------------------------*/
+ /// tells this Solution that a physical Modification removed what it holds
+ /** The physical counterpart of drop_dynamic_values(): tells this Solution
+  * that the physical Modification \p mod of the given Block, which is the
+  * Block of this Solution or one nested in it, has removed some of the
+  * elements this Solution holds values of, as the arcs a MCFBlock removes
+  * are of the flows of its MCFSolution. The Modification says which, in the
+  * terms of the physical representation, which only the :Solution of that
+  * Block knows how to read; it drops their values, so that the ones that are
+  * left keep matching the elements that are left, writes them in \p dropped
+  * and returns true. The method in the base class returns false, which says
+  * that this Solution cannot do it, be it because it holds nothing of what
+  * \p mod removes or because it does not know that Modification.
+  *
+  * @param block the Block, or nested Block, that issued \p mod
+  *
+  * @param mod the physical Modification that removed the elements
+  *
+  * @param dropped the values that have been dropped, one per removed element
+  *        and in the order the Modification gives them */
+
+ virtual bool drop_physical_values( const Block * const block ,
+				    const Modification * const mod ,
+				    std::vector< double > & dropped ) {
+  return( false );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// tells whether this Solution holds a solution or a direction
  /** Returns true if what this Solution holds is not a solution but a
   * direction, i.e., a ray of the feasible region of the Block along which

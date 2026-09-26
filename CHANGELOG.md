@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `RowConstraintSolution::is_dual_feasible()` checks the dual values it
+  holds as a dual solution of a linear program: the sign of each against
+  the finite sides of its row [see `RowConstraint::dual_sign_feasible()`],
+  and the sign of the reduced cost of each ColVariable against its domain,
+  the nested Block taken in; `ColRowSolution` forwards to it
+
+- `Solution::drop_physical_values( block , mod , dropped )`, the physical
+  counterpart of `drop_dynamic_values()`: the :Solution of a Block reads a
+  physical Modification of that Block that removed some of the elements it
+  holds values of and drops them; the base class returns false
+
 - `Solution::is_dual_feasible( block , config )`: a Block has no notion of
   a dual solution, while a Solution knows whether it holds one and of which
   Block, hence it is the Solution that tells whether its dual values are

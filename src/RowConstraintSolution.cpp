@@ -21,6 +21,8 @@
 /*--------------------------------------------------------------------------*/
 
 #include "FRowConstraint.h"
+#include "FRealObjective.h"
+#include "LinearFunction.h"
 #include "OneVarConstraint.h"
 #include "RowConstraintSolution.h"
 
@@ -705,6 +707,160 @@ void RowConstraintSolution::scale( const RowConstraintSolution * const solution 
  for( ; i1 != this->nested_solutions.end() ; ++i1 , ++i2 )
   ( *i1 ).scale( &( *i2 ) , factor );
 }
+
+/*--------------------------------------------------------------------------*/
+
+bool RowConstraintSolution::is_dual_feasible( Block * block ,
+					      Configuration * fsbc ) {
+ double eps = 1e-6;
+ if( auto c = dynamic_cast< SimpleConfiguration< double > * >( fsbc ) )
+  eps = c->f_value;
+
+ const auto obj = block->get_objective();
+ const bool minimize = ( ! obj ) || ( obj->get_sense() == Objective::eMin );
+
+ ReducedCosts rc;
+ if( ! add_dual_terms( block , minimize , eps , rc ) )
+  return( false );
+
+ // the reduced cost of each ColVariable against its domain
+ for( const auto & [ var , term ] : rc ) {
+  if( var->is_fixed() )
+   continue;
+  const bool below = var->is_positive() || var->is_unitary();
+  const bool above = var->is_negative() || var->is_unitary();
+  if( below && above )
+   continue;
+  const double r = minimize ? term.first : - term.first;
+  const double tol = eps * std::max( 1.0 , term.second );
+  if( below ) {
+   if( r < - tol )
+    return( false );
+   }
+  else
+   if( above ) {
+    if( r > tol )
+     return( false );
+    }
+   else
+    if( std::abs( r ) > tol )
+     return( false );
+  }
+
+ return( true );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool RowConstraintSolution::add_dual_terms( const Block * const block ,
+					    bool minimize , double eps ,
+					    ReducedCosts & rc ) const {
+ // the linear Objective of the Block gives the first term of each reduced
+ // cost
+ if( auto obj = dynamic_cast< const FRealObjective * >(
+					       block->get_objective() ) ) {
+  auto lf = dynamic_cast< const LinearFunction * >( obj->get_function() );
+  if( ! lf )
+   throw( std::invalid_argument( "RowConstraintSolution::is_dual_feasible: "
+				 "the Objective of a Block is not linear" ) );
+  for( const auto & [ var , coeff ] : lf->get_v_var() ) {
+   auto & t = rc[ var ];
+   t.first += coeff;
+   t.second = std::max( t.second , std::abs( coeff ) );
+   }
+  }
+ else
+  if( block->get_objective() )
+   throw( std::invalid_argument( "RowConstraintSolution::is_dual_feasible: "
+				 "the Objective of a Block is not linear" ) );
+
+ bool ok = true;
+
+ // one row: the sign of its dual value, and its terms in the reduced costs
+ auto row = [ & ]( auto & con , double d ) {
+  if( ! con.dual_sign_feasible( d , eps , minimize ) )
+   ok = false;
+  if( d == 0 )
+   return;
+  using C = std::decay_t< decltype( con ) >;
+  if constexpr( std::is_same_v< C , FRowConstraint > ) {
+   auto lf = dynamic_cast< const LinearFunction * >( con.get_function() );
+   if( ! lf )
+    throw( std::invalid_argument( "RowConstraintSolution::"
+				  "is_dual_feasible: a FRowConstraint is not "
+				  "linear" ) );
+   for( const auto & [ var , coeff ] : lf->get_v_var() ) {
+    auto & t = rc[ var ];
+    t.first += d * coeff;
+    t.second = std::max( t.second , std::abs( d * coeff ) );
+    }
+   }
+  else
+   if( auto var = dynamic_cast< const ColVariable * >(
+					       con.get_active_var( 0 ) ) ) {
+    auto & t = rc[ var ];
+    t.first += d;
+    t.second = std::max( t.second , std::abs( d ) );
+    }
+  };
+
+ const auto & sgroups = block->get_static_constraint_groups();
+ if( sgroups.size() != static_constraint_dual_values.size() )
+  throw( std::logic_error( "RowConstraintSolution::is_dual_feasible: the "
+			   "static Constraint of the Block are not those "
+			   "of this RowConstraintSolution" ) );
+ for( Vec_Group::size_type i = 0 ; i < sgroups.size() ; ++i ) {
+  auto & values = static_constraint_dual_values[ i ];
+  on_group( sgroups[ i ] , [ & ]( const BaseGroup & group ) {
+    if( group.get_num_elements() != values.size() )
+     throw( std::logic_error( "RowConstraintSolution::is_dual_feasible: "
+			      "the size of a static Constraint group is "
+			      "different from that of the Block" ) );
+    auto value = values.data();
+    for_each_row( group , [ & ]( auto & con ) { row( con , *(value++) ); } );
+    } );
+  }
+
+ const auto & dgroups = block->get_dynamic_constraint_groups();
+ if( dgroups.size() != dynamic_constraint_dual_values.size() )
+  throw( std::logic_error( "RowConstraintSolution::is_dual_feasible: the "
+			   "dynamic Constraint of the Block are not those "
+			   "of this RowConstraintSolution" ) );
+ for( Vec_Group::size_type i = 0 ; i < dgroups.size() ; ++i ) {
+  auto & values = dynamic_constraint_dual_values[ i ];
+  on_group( dgroups[ i ] , [ & ]( const BaseGroup & group ) {
+    if( group.get_num_cells() != values.size() )
+     throw( std::logic_error( "RowConstraintSolution::is_dual_feasible: "
+			      "the number of cells of a dynamic Constraint "
+			      "group is different from that of the Block" ) );
+    for_each_row_cell( group , [ & ]( BaseGroup::Index c , auto & cell ) {
+      auto & cv = values[ c ];
+      std::size_t k = 0;
+      for( auto & item : cell ) {
+       row( group_element( item ) , k < cv.size() ? cv[ k ] : 0 );
+       ++k;
+       }
+      } );
+    } );
+  }
+
+ if( ! ok )
+  return( false );
+
+ // the nested Block, whose ColVariable the rows above may hold, and whose
+ // rows may hold those of this one
+ const auto & nested = block->get_nested_Blocks();
+ if( nested.size() != nested_solutions.size() )
+  throw( std::logic_error( "RowConstraintSolution::is_dual_feasible: the "
+			   "nested Block are not those of this "
+			   "RowConstraintSolution" ) );
+ auto nb = nested.begin();
+ for( const auto & ns : nested_solutions )
+  if( ! ns.add_dual_terms( *(nb++) , minimize , eps , rc ) )
+   return( false );
+
+ return( true );
+ }
 
 /*--------------------------------------------------------------------------*/
 /*---------------- End File RowConstraintSolution.cpp ----------------------*/

@@ -564,6 +564,31 @@ class RowConstraint : public Constraint
  [[nodiscard]] RHSValue get_dual( void ) const { return( d_value ); }
 
 /*--------------------------------------------------------------------------*/
+ /// tells whether a value of the dual variable has the sign this row allows
+ /** Tells whether \p dual, taken as the dual value of this RowConstraint in
+  * the convention of get_dual(), has the sign that its finite sides allow,
+  * up to \p eps: in a minimization a row whose only finite side is the
+  * upper one has a nonnegative dual value, one whose only finite side is
+  * the lower one a nonpositive dual value, a ranged row or an equality any,
+  * and a row with no finite side zero; in a maximization (\p minimize ==
+  * false) the signs are the opposite ones. */
+
+ [[nodiscard]] bool dual_sign_feasible( RHSValue dual , RHSValue eps ,
+					bool minimize = true ) const {
+  const bool lo = ( get_lhs() > -RHSINF );
+  const bool up = ( get_rhs() < RHSINF );
+  if( ! minimize )
+   dual = - dual;
+  if( lo && up )
+   return( true );
+  if( up )
+   return( dual >= - eps );
+  if( lo )
+   return( dual <= eps );
+  return( std::abs( dual ) <= eps );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// checks if the violation of a RowConstraint does not exceed the tolerance
  /** This function checks whether the violation of the given RowConstraint (that
   * is not relaxed; see is_relaxed()) is not greater than the provided tolerance.
