@@ -2170,6 +2170,56 @@ void MasterProblemBlock::modify_alpha( int k , int slot , double alpha )
 
 /*--------------------------------------------------------------------------*/
 
+void MasterProblemBlock::shift_cuts( int k , const std::vector< int > & slots ,
+                                     const std::vector< double > & delta )
+{
+ auto pfb = pfb_at( HardCmps , k , "shift_cuts" );
+ auto & poly = pfb->get_PolyhedralFunction();
+
+ for( auto slot : slots ) {
+  if( ( slot < 0 ) || ( slot >= int( slot_to_local[ k ].size() ) ) )
+   continue;
+  const int loc = slot_to_local[ k ][ slot ];
+  if( loc < 0 )
+   continue;
+
+  const auto li = PolyhedralFunction::Index( loc );
+  if( poly.is_row_vertical( li ) )
+   continue;   // the domain does not move with the linear part
+
+  // the row as it is stored, back into the space the caller speaks
+  std::vector< double > g = poly.get_A()[ loc ];
+  if( ! IsPrimal )
+   for( auto & gj : g )
+    gj = - gj;
+
+  /* The constant moves with the subgradient wherever it depends on it.
+   * Rather than recovering the raw alpha out of what is stored, which asks
+   * for undoing a different expression in each of the four representations,
+   * the shift of the stored constant is read off get_stored_constant()
+   * itself: that function is affine in ( g , alpha ), so evaluating it on
+   * the two subgradients with alpha = 0 leaves exactly the term that
+   * depends on g, whatever the representation is, and the alpha of the cut
+   * cancels out. */
+  const double b_old_g = get_stored_constant( k , g , 0.0 , false );
+
+  const std::size_t n = std::min( g.size() , delta.size() );
+  for( std::size_t j = 0 ; j < n ; ++j )
+   g[ j ] += delta[ j ];
+
+  const double b_new_g = get_stored_constant( k , g , 0.0 , false );
+  const double b_store = poly.get_b()[ loc ] + ( b_new_g - b_old_g );
+
+  if( ! IsPrimal )
+   for( auto & gj : g )
+    gj = - gj;
+
+  poly.modify_row( li , std::move( g ) , b_store , eModBlck , false );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
 double MasterProblemBlock::get_theta( int k , int slot ) const
 {
  if( k < 0 || k >= int( HardCmps.size() ) )

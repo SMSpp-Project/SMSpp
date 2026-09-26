@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `MasterProblemBlock::shift_cuts()`, which adds a given delta to the
+  subgradient of a set of cuts of a component, the constant of each of them
+  staying as it is: this is what a change of the linear part of a component
+  does to its linearizations, so that the cuts need not be thrown away and
+  asked again, which is what the interface of the master problem of 1.0
+  forced one to do. The vertical rows are left alone, the domain not moving
+  with the linear part, and the stored constant follows the subgradient
+  wherever the representation makes it depend on it: rather than recovering
+  the raw constant out of what is stored, which asks for undoing a different
+  expression in each of the four representations, the shift is read off
+  get_stored_constant() itself, which is affine in ( g , alpha ), so that
+  evaluating it on the two subgradients with alpha = 0 leaves exactly the
+  term that depends on g
+
 - `Modification_test` checks, for the modifying methods of `ColVariable`,
   `FRowConstraint`, the `OneVarConstraint` family, `FRealObjective`,
   `LinearFunction` and the dynamic `Variable` and `Constraint` of a `Block`,

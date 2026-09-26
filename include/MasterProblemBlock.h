@@ -854,6 +854,28 @@ class MasterProblemBlock : public Block {
  void modify_alpha( int k , int slot , double alpha );
 
 /*--------------------------------------------------------------------------*/
+ /// add \p delta to the subgradient of a set of cuts of B^k
+ /** Adds \p delta to the subgradient of every cut of B^k whose slot is in
+  * \p slots, the constant alpha of each of them staying as it is. This is
+  * the linear part of the component changing under the cuts: a
+  * C05FunctionModLin carries the delta of the linear part, and every
+  * linearization of that component moves by that same delta, so there is
+  * nothing to ask the component and no reason to throw the cuts away.
+  *
+  * \p delta is given in the same (physical) space as the \p g of add_cut(),
+  * and is indexed as it is, i.e., entry j of \p delta goes on entry j of
+  * the subgradient; an empty entry of \p slots, or one out of range, is
+  * skipped. The vertical cuts are left alone: they say where the component
+  * is finite, which the linear part does not move.
+  *
+  * The stored constant follows the subgradient wherever the representation
+  * makes it depend on it (the displacement form, both primal and dual),
+  * and stays as it is where it does not (the iterate form). */
+
+ void shift_cuts( int k , const std::vector< int > & slots ,
+                  const std::vector< double > & delta );
+
+/*--------------------------------------------------------------------------*/
  /// returns the optimal multiplier theta at slot \p slot of B^k
  /** Returns the current value of the dual multiplier theta^k stored at
   * NDOFi-style slot \p slot of HardCmps[k]; the lookup goes through the slot
