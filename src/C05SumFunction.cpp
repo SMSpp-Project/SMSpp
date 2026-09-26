@@ -821,9 +821,9 @@ int C05SumFunction::compute_parallel( bool changedvars ,
    ++f_member_evals;
    if( h == from )
     continue;
-   running.push_back( f_submit ? f_submit( v_members[ h ] , changedvars )
-                               : v_members[ h ]->compute_async( changedvars )
-                      );
+   running.push_back( f_run_member
+                      ? f_run_member( v_members[ h ] , changedvars )
+                      : v_members[ h ]->compute_async( changedvars ) );
    }
 
   const int first = v_members[ from ]->compute( changedvars );
@@ -872,12 +872,12 @@ int C05SumFunction::compute( bool changedvars )
   * them would spend on the threads several times what the evaluation takes.
   * What a member has cost so far is therefore what decides, and since it is
   * not known before the first evaluation, that one is done one member at a
-  * time. When the threads come from a pool [see set_submitter()] handing a
-  * member over is a queue and not a thread, which costs two orders of
+  * time. When the threads come from a pool [see set_member_runner()] handing
+  * a member over is a queue and not a thread, which costs two orders of
   * magnitude less, and the members that are worth it are accordingly
   * cheaper ones. */
 
- const double worth = f_submit ? 1e-5 : 1e-3;
+ const double worth = f_run_member ? 1e-5 : 1e-3;
 
  if( ( f_max_thread > 1 ) && ( f_member_time > worth ) )
   return( compute_parallel( changedvars , shares ) );

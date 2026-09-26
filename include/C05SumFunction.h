@@ -255,14 +255,16 @@ class C05SumFunction : public C05Function , public Observer
   }
 
 /*--------------------------------------------------------------------------*/
- /// the threads the group is given, if they come from a pool
- /** The type of what runs a member on a thread that is not the caller's: it
-  * takes the member and whether its Variable have changed, and returns the
-  * future of its compute(), i.e., it is what compute_async() does, done by
-  * whoever owns the threads. */
+ /// what runs one member of the group on a thread that is not the caller's
+ /** The type of what runs a member of the group on a thread that is not the
+  * caller's: it takes the member and whether its Variable have changed, and
+  * returns the future of its compute(), which is what compute_async() does,
+  * done by whoever owns the threads. What travels is therefore a way of
+  * running one member, and not a pool: the group is told how to have a
+  * member run, and knows nothing of what is behind it. */
 
- using Submitter = std::function< std::future< int >(
-                                   ThinComputeInterface * , bool ) >;
+ using MemberRunner = std::function< std::future< int >(
+                                      ThinComputeInterface * , bool ) >;
 
 /*--------------------------------------------------------------------------*/
  /// gives the group the threads of whoever drives it
@@ -274,8 +276,8 @@ class C05SumFunction : public C05Function , public Observer
   * threads of the two levels being the same ones, so that they are not
   * contended. Passing nothing puts the group back to starting its own. */
 
- void set_submitter( Submitter submit = {} ) {
-  f_submit = std::move( submit );
+ void set_member_runner( MemberRunner run = {} ) {
+  f_run_member = std::move( run );
   }
 
  const std::vector< C05Function * > & get_members( void ) const {
@@ -694,10 +696,10 @@ class C05SumFunction : public C05Function , public Observer
  ///< unless whoever drives the group says otherwise
  ///< [see set_members_at_once()]
 
- Submitter f_submit;
+ MemberRunner f_run_member;
  ///< what runs a member on a thread of whoever drives the group, if any:
  ///< when it is not there the group starts a thread of its own
- ///< [see set_submitter()]
+ ///< [see set_member_runner()]
 
  Index f_gp_size = 0;
  ///< how many names the global pool of each member holds [intGPMaxSz]
