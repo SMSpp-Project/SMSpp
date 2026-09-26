@@ -155,7 +155,8 @@ ColVariable::Index ColVariable::is_active(
                                  const ThinVarDepInterface * stuff ) const {
  auto idx = std::lower_bound( v_active.begin(), v_active.end(), stuff );
 
- if( idx != v_active.end() )
+ // lower_bound() gives where stuff would be: it is there only if it is found
+ if( ( idx != v_active.end() ) && ( *idx == stuff ) )
   return( std::distance( v_active.begin() , idx ) );
  else
   return( Inf< Index >() );

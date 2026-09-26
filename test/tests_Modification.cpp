@@ -165,8 +165,8 @@ static bool throws( F f )
 
 /*--------------------------------------------------------------------------*/
 /// true if s is among the stuff in which v is active
-/** The list is scanned, since ColVariable::is_active() is not reliable on a
- * stuff that is not there. */
+/** The list is scanned, so that the checks do not rely on
+ * ColVariable::is_active(), which test_active_list() checks apart. */
 
 static bool active_in( const Variable & v , const ThinVarDepInterface * s )
 {
@@ -875,14 +875,11 @@ static void test_Objective( void )
  check_unheard_noblck( r , swap );
  check_unheard_modblck( r , swap );
 
-#if 0
- // KNOWN DEFECT: on a channel the BlockMod is not packed into the
- // GroupModification of the channel but dispatched at once, since
- // Block::set_objective() [src/Block.cpp:429-430] calls add_Modification()
- // without passing Observer::par2chnl( issueMod ), i.e., on the default
- // channel; and under eDryRun the Objective is changed all the same
- // [src/Block.cpp:425-426]
  check_channel( r , swap );
+
+#if 0
+ // KNOWN DEFECT: under eDryRun the Objective is changed all the same
+ // [src/Block.cpp:425-426]
  check_dry_run( r , swap );
 #endif
 
@@ -1632,13 +1629,9 @@ static void test_removed_Variable_in_stuff( void )
   r.clear();
   }
 
-#if 0
- // KNOWN DEFECT: a dynamic Variable active in two stuff is removed from the
- // first only. Block::remove_variable_from_stuff() [src/Block.cpp:937-944]
- // scans the active stuff of the Variable by index while removing the
- // Variable from each, and each removal takes the stuff out of that very
- // list (the FRowConstraint unregisters itself), so the index skips the
- // next one: c1 keeps in its Function a Variable that is then destroyed
+ // a dynamic Variable active in two stuff is removed from both, although
+ // each removal takes the stuff out of the active list of the Variable
+ // that Block::remove_variable_from_stuff() walks
  {
   setup( true );
   r.block->remove_dynamic_variable( *vars , vars->begin() , eModBlck ,
@@ -1649,7 +1642,41 @@ static void test_removed_Variable_in_stuff( void )
   assert( r.got().size() == 3 );
   r.clear();
   }
-#endif
+ }
+
+/*--------------------------------------------------------------------------*/
+/* is_active() and remove_active() of a ColVariable with a stuff that is not
+ * in its active list: whichever the place the stuff would take in the list,
+ * which is ordered by address, is_active() gives Inf and remove_active()
+ * throws, leaving the list as it is */
+
+static void test_active_list( void )
+{
+ std::vector< FRowConstraint > stuff( 5 );
+ for( std::size_t k = 0 ; k < stuff.size() ; ++k ) {
+  // the active list holds all the stuff but the k-th one
+  ColVariable v;
+  for( std::size_t h = 0 ; h < stuff.size() ; ++h )
+   if( h != k )
+    v.add_active( & stuff[ h ] );
+
+  assert( v.get_num_active() == stuff.size() - 1 );
+  assert( v.is_active( & stuff[ k ] ) == Inf< Index >() );
+  for( std::size_t h = 0 ; h < stuff.size() ; ++h )
+   if( h != k )
+    assert( v.get_active( v.is_active( & stuff[ h ] ) ) == & stuff[ h ] );
+
+  assert( throws( [ & ]() { v.remove_active( & stuff[ k ] ); } ) );
+  assert( v.get_num_active() == stuff.size() - 1 );
+  for( std::size_t h = 0 ; h < stuff.size() ; ++h )
+   assert( active_in( v , & stuff[ h ] ) == ( h != k ) );
+
+  // and removing the ones that are there empties it
+  for( std::size_t h = 0 ; h < stuff.size() ; ++h )
+   if( h != k )
+    v.remove_active( & stuff[ h ] );
+  assert( v.get_num_active() == 0 );
+  }
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1659,6 +1686,7 @@ static void test_removed_Variable_in_stuff( void )
 int main( void )
 {
  test_ColVariable();
+ test_active_list();
  test_RowConstraint();
  test_OneVarConstraint();
  test_Objective();

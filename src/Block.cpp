@@ -427,7 +427,8 @@ void Block::set_objective( Objective * newOF , c_ModParam issueMod )
 
  if( issue_mod( issueMod ) )
   add_Modification( std::make_shared< BlockMod >(
-   this , Observer::par2concern( issueMod ) ) );
+   this , Observer::par2concern( issueMod ) ) ,
+		    Observer::par2chnl( issueMod ) );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -934,13 +935,19 @@ void Block::remove_constraint_from_variables( Constraint * constraint )
 void Block::remove_variable_from_stuff( Variable * const variable ,
                                         int issueindMod )
 {
+ // removing the Variable from a stuff takes that stuff out of the active
+ // list of the Variable, which is the list being walked: the position only
+ // moves on when the stuff has stayed in it
  for( Variable::Index i = 0 ; i < variable->get_num_active() ; ) {
-  auto si = variable->get_active( i++ );
+  const auto n = variable->get_num_active();
+  auto si = variable->get_active( i );
   auto ivar = si->is_active( variable );
   if( ivar >= si->get_num_active_var() )
    throw( std::logic_error( "inconsistency between active lists" ) );
 
   si->remove_variable( ivar , issueindMod );
+  if( variable->get_num_active() == n )
+   ++i;
   }
 
  variable->set_Group( nullptr );

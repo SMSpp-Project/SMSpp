@@ -309,6 +309,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   has to write such a Solution back, saying that the BlockConfig of the
   sub-Block has to give a Configuration that asks for the dual values
 
+- a dynamic `Variable` active in more than one stuff is removed from all of
+  them: `Block::remove_variable_from_stuff()` walked the active list of the
+  `Variable` by index while each removal took the stuff out of that very
+  list, so it skipped the next one, which kept a `Variable` then destroyed
+
+- `ColVariable::is_active()` gives `Inf` for a stuff that is not in the
+  active list, and `remove_active()` throws for it, as `BooleanVariable`
+  does: they took the place where the stuff would be for the place where it
+  is, giving the index of another stuff and removing it
+
+- `Block::set_objective()` issues its `BlockMod` on the channel of the
+  `ModParam`, which it ignored, so that on a channel it was dispatched at
+  once instead of in the `GroupModification` of the channel
+
 - `BendersBFunction` checks that the Solver of the sub-Block writes the dual
   value of every Constraint the linearization is made of, and throws if it
   does not: a Solver that gives the duals of only a part of the sub-Block
