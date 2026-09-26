@@ -254,6 +254,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `FRealObjective` and `FRowConstraint` pass to their Block a Modification
+  that concerns it also when no Solver is attached: an "abstract" change
+  issued with eModBlck before any Solver is registered, such as the
+  scaling of the scenario objectives by their probability in
+  `TwoStageStochasticBlock`, was dropped, and the "physical" representation
+  of the Block (e.g., the start-up costs of a `ThermalUnitBlock`, which its
+  DP solvers read) was left out of synch with the Objective
+
 - `MasterProblemBlock::clear()` leaves the `PolyhedralFunctionBlock` of the
   hard components, which the master allocates itself, out of `v_Block` and
   deletes them, rather than only forgetting the pointers: they used to stay
@@ -265,6 +273,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   learns the step-size is at every epoch, therefore failed with
   "unrecoverable MP failure" on its second solve. They were also never
   deallocated, not even by the destructor
+
 - `LagBFunction::set_par( intInnrSlvr , ... )` no longer dereferences the
   BlockSolverConfig of the inner Block when none has been given
 

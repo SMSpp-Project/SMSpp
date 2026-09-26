@@ -186,8 +186,11 @@ void FRealObjective::add_Modification( sp_Mod mod , c_ChnlName chnl ) {
  guts_of_aM( mod );  // now the actual call to the "guts of"
 
  // finally, dispatch to add_Modification() of the Block - - - - - - - - - - -
+ // if any, and either listening or concerned by the Modification: an
+ // "abstract" Modification issued with eModBlck must reach the Block even if
+ // no Solver is there, for it to keep the "physical" representation in synch
 
- if( f_Block && f_Block->anyone_there() )  // ... if any, and listening
+ if( f_Block && ( f_Block->anyone_there() || mod->concerns_Block() ) )
   f_Block->add_Modification( mod , chnl );
 
  }  // end( FRealObjective::add_Modification )
