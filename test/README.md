@@ -19,8 +19,6 @@ Unit tests for the core SMS++ library. Each test is registered as a separate
   `Block`, and `read_lp()` on an empty model, on constants and bounds at
   the edges of the format and on malformed input.
 - `ColVariable_test` covers `Variable` and `ColVariable`.
-- `BooleanVariable_test` covers `BooleanVariable`, `ClauseConstraint` with
-  the `ClauseConstraintMod` it issues, and `BooleanVariableSolution`.
 - `Constraint_unit_test` covers `FRowConstraint` with a `LinearFunction`, with
   the value of a row of every sense, the `RowConstraintMod` and
   `FRowConstraintMod` it issues and the registration in the `Variable` of

@@ -37,8 +37,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a dual solution, while a Solution knows whether it holds one and of which
   Block, hence it is the Solution that tells whether its dual values are
   feasible, asking its Block to check them without writing them there; the
-  base class throws, and `ColVariableSolution` and `BooleanVariableSolution`,
-  which hold no dual values, return false
+  base class throws, and `ColVariableSolution`, which holds no dual values,
+  returns false
 
 - `MasterProblemBlock::shift_cuts()`, which adds a given delta to the
   subgradient of a set of cuts of a component, the constant of each of them
@@ -79,19 +79,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   when asked is not what the master left there; they are saved only if
   whoever drives the master says that it wants them, that being a pass over
   the rows at every solve
-
-- `BooleanVariable`, the Variable of the propositional logic, whose value is
-  either true or false, and `ClauseConstraint`, a clause, i.e., the
-  disjunction of literals each being a `BooleanVariable` as it is or
-  negated, with the `ClauseConstraintMod` it issues when its literals are
-  replaced, added or removed: the first Variable other than `ColVariable`
-  and the first Constraint other than a `RowConstraint` of the core, for the
-  satisfiability problems
-
-- `BooleanVariableSolution`, the Solution of a Block whose Variables are
-  `BooleanVariable`: it follows `ColVariableSolution`, storing each value as
-  1 or 0 so that a convex combination of solutions gives the frequency with
-  which each `BooleanVariable` is true, and `write()` rounds it at 1/2
 
 - `MasterProblemBlock`, the master problem of a stabilized method as a Block
   of the core: the model a bundle method solves at every iteration is built,
@@ -364,8 +351,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   list, so it skipped the next one, which kept a `Variable` then destroyed
 
 - `ColVariable::is_active()` gives `Inf` for a stuff that is not in the
-  active list, and `remove_active()` throws for it, as `BooleanVariable`
-  does: they took the place where the stuff would be for the place where it
+  active list, and `remove_active()` throws for it: they took the place where the stuff would be for the place where it
   is, giving the index of another stuff and removing it
 
 - `Block::set_objective()` issues its `BlockMod` on the channel of the
@@ -620,8 +606,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `DynamicCellsStart` also when no group has a cell, in which case
   `DynamicValues` (`DynamicDuals`) is not written, rather than losing them
 
-- the empty `clone()` of `ColVariableSolution`, `RowConstraintSolution`,
-  `ColRowSolution` and `BooleanVariableSolution` keeps `is_direction()`, as
+- the empty `clone()` of `ColVariableSolution`, `RowConstraintSolution` and
+  `ColRowSolution` keeps `is_direction()`, as
   the documentation of `Solution::is_direction()` says a clone does
 
 - `map_active()` of `ThinVarDepInterface`, `LinearFunction` and

@@ -206,10 +206,8 @@ target_sources(${modName} PRIVATE
         src/BlockSolverConfig.cpp
         src/C05Function.cpp
         src/C05SumFunction.cpp
-        src/ClauseConstraint.cpp
         src/BendersBFunction.cpp
         src/BendersBlock.cpp
-        src/BooleanVariableSolution.cpp
         src/ColRowSolution.cpp
         src/ColVariable.cpp
         src/ColVariableSolution.cpp

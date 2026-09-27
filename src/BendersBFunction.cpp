@@ -23,7 +23,6 @@
 #include "AbstractPath.h"
 #include "BendersBFunction.h"
 #include "BlockSolverConfig.h"
-#include "BooleanVariableSolution.h"
 #include "ColVariableSolution.h"
 #include "FRowConstraint.h"
 #include "Objective.h"
@@ -2710,8 +2709,7 @@ void BendersBFunction::write_dual_solution_from_global_pool( Index name ) {
   * the values of the Variable only, as the one of get_Solution() without a
   * Configuration is for an AbstractBlock, would leave there those of the
   * last solve, and the linearization would be that one. */
- if( dynamic_cast< ColVariableSolution * >( solution ) ||
-     dynamic_cast< BooleanVariableSolution * >( solution ) )
+ if( dynamic_cast< ColVariableSolution * >( solution ) )
   throw( std::logic_error( "BendersBFunction::write_dual_solution_from_"
 			   "global_pool: the Solution of linearization " +
 			   std::to_string( name ) + " holds no dual values; "

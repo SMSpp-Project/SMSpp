@@ -32,8 +32,6 @@
 
 #include "BlockSolverConfig.h"
 
-#include "BooleanVariableSolution.h"
-
 #include "BoxSolver.h"
 
 #include "Change.h"
@@ -361,8 +359,6 @@ static void test_Solution( void )
  check< ColVariableSolution , Solution >( make , "ColVariableSolution" );
  check< RowConstraintSolution , Solution >( make , "RowConstraintSolution" );
  check< ColRowSolution , Solution >( make , "ColRowSolution" );
- check< BooleanVariableSolution , Solution >( make ,
-					      "BooleanVariableSolution" );
 
  check_refused( make , "NoSuchSolution" );
  check_refused( make , "" );
