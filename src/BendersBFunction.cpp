@@ -196,13 +196,16 @@ void BendersBFunction::deserialize( const netCDF::NcGroup & group ,
   return;
 
 
- c_Index nvar = get_num_active_var();
-
  auto ncDim_NumVar = group.getDim( "NumVar" );
 
  if( ncDim_NumVar.isNull() )
   throw( std::logic_error( "BendersBFunction::deserialize: "
                            "NumVar dimension is required." ) );
+
+ // with no active Variable, their number is the one the group says, and
+ // set_variables() will have to give as many; otherwise, the two must agree
+ const Index nvar = v_x.empty() ? ncDim_NumVar.getSize()
+                                : get_num_active_var();
 
  if( ncDim_NumVar.getSize() != nvar )
   throw( std::invalid_argument( "BendersBFunction::deserialize: matrix A has "
@@ -296,7 +299,14 @@ void BendersBFunction::deserialize( const netCDF::NcGroup & group ,
     Index k = 0;
     for( Index i = 0 ; i < nrow ; ++i ) {
      for( Index l = 0 ; l < num_nonzero_at_row[ i ] ; ++l , ++k ) {
+      if( k >= nnz )
+       throw( std::logic_error( "BendersBFunction::deserialize: "
+                                "'NumNonzeroAtRow' adds up to more than "
+                                "'NumNonzero'." ) );
       auto j = column[ k ];
+      if( j >= nvar )
+       throw( std::logic_error( "BendersBFunction::deserialize: 'Column' "
+                                "has an entry larger than 'NumVar'." ) );
       ncVar_A.getVar( { k } , & tA[ i ][ j ] );
      }
     }
@@ -347,8 +357,24 @@ void BendersBFunction::deserialize( const netCDF::NcGroup & group ,
  std::vector< RowConstraint * > constraints;
  constraints.resize( v_paths_to_constraints.size() , nullptr );
 
- set_mapping( std::move( tA ) , std::move( tb ) ,
-              std::move( constraints ) , std::move( sides ) , issueMod );
+ if( v_x.empty() && ( nvar > 0 ) && ( ! tA.empty() ) ) {
+  // the mapping is there before the Variable it is on, which set_mapping()
+  // does not accept: it is stored as set_mapping() would store it
+  v_A = std::move( tA );
+  v_b = std::move( tb );
+  v_constraints = std::move( constraints );
+  v_sides = std::move( sides );
+  f_constraints_are_updated = false;
+
+  if( f_Observer && f_Observer->issue_mod( issueMod ) )
+   f_Observer->add_Modification( std::make_shared< FunctionMod >(
+                                  this , FunctionMod::NaNshift ,
+                                  Observer::par2concern( issueMod ) ) ,
+                                 Observer::par2chnl( issueMod ) );
+  }
+ else
+  set_mapping( std::move( tA ) , std::move( tb ) ,
+               std::move( constraints ) , std::move( sides ) , issueMod );
 
  Block::deserialize( group );
 
@@ -3620,6 +3646,10 @@ void BendersBFunction::GlobalPool::clone( const GlobalPool & global_pool ) {
             global_pool.linearization_constants.cend() ,
             linearization_constants.begin() );
 
+ // the places past those of the given GlobalPool hold no linearization
+ std::fill( linearization_constants.begin() + global_pool.size() ,
+            linearization_constants.end() , NaN );
+
  important_linearization_lin_comb =
   global_pool.important_linearization_lin_comb;
 
@@ -3652,11 +3682,8 @@ void BendersBFunction::GlobalPool::clone( GlobalPool && global_pool ) {
  important_linearization_lin_comb =
   std::move( global_pool.important_linearization_lin_comb );
 
- auto this_solution = solutions.begin();
- for( auto & given_solution : global_pool.solutions ) {
-  *this_solution++ = given_solution;
-  given_solution = nullptr;
- }
+ solutions = std::move( global_pool.solutions );
+ global_pool.solutions.clear();
 
  // Possibly resize this GlobalPool so that it has at least the same size it
  // had before.

@@ -52,6 +52,7 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <numeric>
 #include <queue>
 
 #include "BlockSolverConfig.h"
@@ -61,6 +62,8 @@
 #include "FRowConstraint.h"
 
 #include "LagBFunction.h"
+
+#include "AbstractPath.h"
 
 #include "RBlockConfig.h"
 
@@ -219,6 +222,8 @@ void LagBFunction::clear( void )
 {
  // delete all the Lagrangian terms (and the ColVariable with them)
  clear_lp();
+ v_readA.clear();
+ v_readb.clear();
 
  // delete the auxiliary data structure for computing the Lagrangian costs
  CostMatrix.clear();
@@ -241,6 +246,10 @@ void LagBFunction::clear( void )
 
 void LagBFunction::set_inner_block( Block * innerblock , bool deleteold )
 {
+ // the terms deserialize() has read are on the Variable of the old one
+ v_readA.clear();
+ v_readb.clear();
+
  // if there is an existing inner Block, cleanup it
  if( ! v_Block.empty() ) {
   if( ! deleteold ) {
@@ -367,6 +376,8 @@ void LagBFunction::set_inner_block( Block * innerblock , bool deleteold )
 void LagBFunction::set_dual_pairs( v_dual_pair && dp )
 {
  clear_lp();       // ensure we are starting from a "tabula rasa"
+ v_readA.clear();  // what deserialize() has read is replaced as well
+ v_readb.clear();
  for( auto & tmp : v_tmpCP )
   tmp.clear();     // no terms to be stealthily added to obj yet
 
@@ -422,6 +433,28 @@ void LagBFunction::set_dual_pairs( v_dual_pair && dp )
  f_dirty_Lc = f_c_changed || ( ! LagPairs.empty() );
 
  }  // end( LagBFunction::set_dual_pairs )
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::set_variables( std::vector< ColVariable * > && y )
+{
+ if( y.size() != v_readA.size() )
+  throw( std::invalid_argument( "LagBFunction::set_variables: " +
+				std::to_string( y.size() ) + " ColVariable "
+				"for " + std::to_string( v_readA.size() ) +
+				" Lagrangian terms read by deserialize()" ) );
+ if( y.empty() )
+  return;
+
+ v_dual_pair dp;
+ dp.reserve( y.size() );
+ for( Index i = 0 ; i < y.size() ; ++i )
+  dp.emplace_back( y[ i ] , new LinearFunction( std::move( v_readA[ i ] ) ,
+						v_readb[ i ] ) );
+
+ set_dual_pairs( std::move( dp ) );  // which clears v_readA and v_readb
+
+ }  // end( LagBFunction::set_variables )
 
 /*--------------------------------------------------------------------------*/
 
@@ -644,33 +677,81 @@ void LagBFunction::set_par( idx_type par , double value )
 
 void LagBFunction::deserialize( const netCDF::NcGroup & group )
 {
- throw( std::logic_error( "LagBFunction::deserialize not implemented yet" ) );
-
  guts_of_destructor();  // cleanup whatever is there now
 
  // ensure f_CC is there (it is deleted in guts_of)
  init_CC();
 
- f_c_changed = false;   // Lagrangian costs are still == to original costs
- f_dirty_Lc = ! LagPairs.empty();  // ... hence they have to be updated,
-                                   // unless the Lagrangian term is empty
- f_yb = INF;            // have to check if b == 0 or not
- f_Lc = -1;             // the Lipschitz constant must be computed
-
  // now the inner Block - - - - - - - - - - - - - - - - - - - - - - - - - - -
- netCDF::NcGroup sb = group.getGroup( "B" );
+
+ netCDF::NcGroup sb = group.getGroup( "Block" );
  if( sb.isNull() )
-  throw( std::invalid_argument( "no inner Block provided" ) );
+  throw( std::invalid_argument( "LagBFunction::deserialize: the group Block "
+				"is missing" ) );
 
- v_Block.push_back( new_Block( sb , this ) );
+ auto inner = new_Block( sb , this );
+ if( ! inner )
+  throw( std::invalid_argument( "LagBFunction::deserialize: the group Block "
+				"does not describe a Block" ) );
 
- // now the Lagrangian term < y , g( x ) >- - - - - - - - - - - - - - - - - -
- //!! not implemented yet
+ set_inner_block( inner );
 
- // call the method of Block- - - - - - - - - - - - - - - - - - - - - - - - -
- // inside this the NBModification, the "nuclear option",  is issued
+ // now the Lagrangian term < y , g( x ) > = < y , A x + b > - - - - - - - - -
+ // the g_i( x ) wait for their y [see set_variables()]
 
- Block::deserialize( group );
+ auto nvd = group.getDim( "NumVar" );
+ const Index n = nvd.isNull() ? 0 : nvd.getSize();
+ auto nzd = group.getDim( "NumNonzero" );
+ const Index nnz = nzd.isNull() ? 0 : nzd.getSize();
+
+ std::vector< Index > nnz_at_row( n , 0 );
+ std::vector< double > A;
+ std::vector< AbstractPath > paths;
+ if( nnz ) {
+  SMSpp_di_unipi_it::deserialize( group , "NumNonzeroAtRow" , n , nnz_at_row ,
+				  false );
+  SMSpp_di_unipi_it::deserialize( group , "A" , nnz , A , false );
+  paths = AbstractPath::vector_deserialize( group.getGroup( "AbstractPath" ) );
+  if( paths.size() != nnz )
+   throw( std::invalid_argument( "LagBFunction::deserialize: the group "
+				 "AbstractPath does not have NumNonzero "
+				 "paths" ) );
+  if( std::accumulate( nnz_at_row.begin() , nnz_at_row.end() , Index( 0 ) )
+      != nnz )
+   throw( std::invalid_argument( "LagBFunction::deserialize: "
+				 "NumNonzeroAtRow does not add up to "
+				 "NumNonzero" ) );
+  }
+
+ std::vector< double > b;
+ if( ! SMSpp_di_unipi_it::deserialize( group , "b" , n , b ) )
+  b.assign( n , 0 );
+
+ v_readA.assign( n , {} );
+ for( Index i = 0 , k = 0 ; i < n ; ++i ) {
+  v_readA[ i ].reserve( nnz_at_row[ i ] );
+  for( Index l = 0 ; l < nnz_at_row[ i ] ; ++l , ++k ) {
+   auto x = paths[ k ].get_element< ColVariable >( inner );
+   if( ! x )
+    throw( std::invalid_argument( "LagBFunction::deserialize: the path " +
+				  std::to_string( k ) + " does not lead to a "
+				  "ColVariable of the inner Block" ) );
+   v_readA[ i ].emplace_back( x , A[ k ] );
+   }
+  }
+ v_readb = std::move( b );
+
+ // the name, as Block::deserialize() reads it- - - - - - - - - - - - - - - -
+ // Block::deserialize() is not called since it issues an NBModification,
+ // which a LagBFunction does not take from itself: as set_inner_block() and
+ // set_dual_pairs(), this is supposed to be called before the LagBFunction
+ // gets an Observer
+
+ netCDF::NcGroupAtt gname = group.getAtt( "name" );
+ if( gname.isNull() )
+  f_name.clear();
+ else
+  gname.getValues( f_name );
 
  }  // end( LagBFunction::deserialize )
 
@@ -1297,21 +1378,57 @@ void LagBFunction::print( std::ostream & output , char vlvl ) const
 
 void LagBFunction::serialize( netCDF::NcGroup & group ) const
 {
- throw( std::logic_error( "LagBFunction::serialize not implemented yet" ) );
+ if( v_Block.size() != 1 )
+  throw( std::logic_error( "LagBFunction::serialize: exactly one inner Block "
+			   "expected" ) );
 
  // call the method of Block- - - - - - - - - - - - - - - - - - - - - - - - -
 
  Block::serialize( group );
 
- // now the Lagrangian term < y , g(x) >- - - - - - - - - - - - - - - - - - -
- //!! not implemented yet
+ // now the Lagrangian term < y , g( x ) > = < y , A x + b > - - - - - - - - -
+ // the one of LagPairs, or else the one read and waiting for its y
+
+ const auto inner = v_Block.front();
+ std::vector< Index > nnz_at_row;
+ std::vector< double > A;
+ std::vector< double > b;
+ std::vector< AbstractPath > paths;
+
+ auto add_row = [ & ]( const LinearFunction::v_coeff_pair & terms ,
+		       double constant ) {
+  nnz_at_row.push_back( terms.size() );
+  for( const auto & [ x , a ] : terms ) {
+   A.push_back( a );
+   paths.emplace_back( x , inner );
+   }
+  b.push_back( constant );
+  };
+
+ if( ! LagPairs.empty() )
+  for( const auto & dp : LagPairs ) {
+   const auto lf = static_cast< p_LF >( dp.second );
+   add_row( lf->get_v_var() , lf->get_constant_term() );
+   }
+ else
+  for( Index i = 0 ; i < v_readA.size() ; ++i )
+   add_row( v_readA[ i ] , v_readb[ i ] );
+
+ auto nvd = group.addDim( "NumVar" , b.size() );
+ SMSpp_di_unipi_it::serialize( group , "b" , netCDF::NcDouble() , nvd , b );
+
+ if( ! A.empty() ) {
+  auto nzd = group.addDim( "NumNonzero" , A.size() );
+  SMSpp_di_unipi_it::serialize( group , "NumNonzeroAtRow" , netCDF::NcUint() ,
+				nvd , nnz_at_row );
+  SMSpp_di_unipi_it::serialize( group , "A" , netCDF::NcDouble() , nzd , A );
+  auto pg = group.addGroup( "AbstractPath" );
+  AbstractPath::serialize( paths , pg );
+  }
 
  // now the inner Block - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( v_Block.size() != 1 )
-  throw( std::invalid_argument( "exactly one sub-Block expected" ) );
-
- netCDF::NcGroup sb = group.addGroup( "B" );
+ netCDF::NcGroup sb = group.addGroup( "Block" );
 
  if( ! f_c_changed ) {  // if the costs are still the original ones
   v_Block.front()->serialize( sb );  // just do it
@@ -1332,7 +1449,8 @@ void LagBFunction::serialize( netCDF::NcGroup & group ) const
 
  bool owned = v_Block.front()->is_owned_by( f_id );
  if( ( ! owned ) && ( ! v_Block.front()->lock( f_id ) ) )
-  throw( std::logic_error( "cannot lock inner Block" ) );
+  throw( std::logic_error( "LagBFunction::serialize: cannot lock the inner "
+			   "Block" ) );
 
  // The costs saved in (obj_B) are the Lagrangian ones. Hence, we need
  // to restore the original ones before serializing (B).
@@ -1341,10 +1459,14 @@ void LagBFunction::serialize( netCDF::NcGroup & group ) const
  // to (temporarily) change a field of the class inside a const method
  const_cast< LagBFunction * >( this )->f_play_dumb = true;
 
+ // the Lagrangian costs of each Objective, to be put back afterwards
+ std::vector< Vec_FunctionValue > LagCoef( v_Obj.size() );
+
  for( Index h = 0 ; h < v_Obj.size() ; ++h ) {
   auto * f = v_Obj[ h ]->get_function();
 
-  Vec_FunctionValue NCoef1, NCoef2;
+  Vec_FunctionValue NCoef1;
+  auto & NCoef2 = LagCoef[ h ];
 
   if( auto * lf = dynamic_cast< p_LF >( f ) ) {
    const auto & ov_pair = lf->get_v_var();
@@ -1383,27 +1505,11 @@ void LagBFunction::serialize( netCDF::NcGroup & group ) const
  for( Index h = 0 ; h < v_Obj.size() ; ++h ) {
   auto * f = v_Obj[ h ]->get_function();
 
-  Vec_FunctionValue NCoef;
-
-  if( auto * lf = dynamic_cast< p_LF >( f ) ) {
-   const auto & ov_pair = lf->get_v_var();
-   const auto nv = lf->get_num_active_var();
-   NCoef.resize( nv );
-   for( Index i = 0 ; i < nv ; ++i )
-    NCoef[ i ] = ov_pair[ i ].second;
-
-   lf->modify_coefficients( std::move( NCoef ) );
-   }
+  if( auto * lf = dynamic_cast< p_LF >( f ) )
+   lf->modify_coefficients( std::move( LagCoef[ h ] ) );
   else
-   if( auto * qf = dynamic_cast< p_QF >( f ) ) {
-    const auto & ov_triples = qf->get_v_var();
-    const auto nv = qf->get_num_active_var();
-    NCoef.resize( nv );
-    for( Index i = 0 ; i < nv ; ++i )
-     NCoef[ i ] = std::get< 1 >( ov_triples[ i ] );
-
-    qf->modify_linear_coefficients( std::move( NCoef ) );
-    }
+   if( auto * qf = dynamic_cast< p_QF >( f ) )
+    qf->modify_linear_coefficients( std::move( LagCoef[ h ] ) );
   }
 
  // back to normal operations
@@ -1436,6 +1542,12 @@ void LagBFunction::put_State( const State & state )
  // ensure g_pool is large enough
  if( s.f_max_glob > g_pool.size() )
   g_pool.resize( s.f_max_glob );
+
+ // an entry of the global pool is not one of those that are put in it, and
+ // an undefined LastSolution stays so in a global pool that has grown [see
+ // set_par( intGPMaxSz )]: either way, the Block holds no entry of it
+ if( LastSolution < Inf< Index >() )
+  LastSolution = g_pool.size();
 
  // copy the important linearization information
  zLC = s.zLC;
@@ -1529,6 +1641,12 @@ void LagBFunction::put_State( State && state )
  // ensure g_pool is large enough
  if( s.f_max_glob > g_pool.size() )
   g_pool.resize( s.f_max_glob );
+
+ // an entry of the global pool is not one of those that are put in it, and
+ // an undefined LastSolution stays so in a global pool that has grown [see
+ // set_par( intGPMaxSz )]: either way, the Block holds no entry of it
+ if( LastSolution < Inf< Index >() )
+  LastSolution = g_pool.size();
 
  // move the important linearization information
  zLC = std::move( s.zLC );
@@ -1638,6 +1756,19 @@ void LagBFunction::serialize_State( netCDF::NcGroup & group ,
  
   ( group.addVar( "LagBFunction_Type" , netCDF::NcByte() , gs )
     ).putVar( { 0 } , {  f_max_glob } , typ.data() );
+
+  // the constant and the convexified flag of each entry, as
+  // LagBFunctionState::serialize() writes them: 0 and false for an empty one
+  std::vector< double > val( f_max_glob );
+  std::vector< int > cvx( f_max_glob );
+  for( Index i = 0 ; i < f_max_glob ; ++i ) {
+   val[ i ] = g_pool[ i ].sol ? g_pool[ i ].value : 0;
+   cvx[ i ] = ( g_pool[ i ].sol && g_pool[ i ].convexified ) ? 1 : 0;
+   }
+  ( group.addVar( "LagBFunction_Value" , netCDF::NcDouble() , gs ) ).putVar(
+				      { 0 } , { f_max_glob } , val.data() );
+  ( group.addVar( "LagBFunction_Convexified" , netCDF::NcByte() , gs )
+    ).putVar( { 0 } , { f_max_glob } , cvx.data() );
 
   for( Index i = 0 ; i < f_max_glob ; ++i ) {
    if( ! g_pool[ i ].sol )

@@ -24,6 +24,7 @@
 
 #include <iomanip>
 #include <map>
+#include <memory>
 #include <sstream>
 
 
@@ -619,43 +620,82 @@ void AbstractBlock::write_lp( std::ostream & output ) const
  for( const auto & [ var , n ] : columns )
   name[ var ] = & n;
 
- auto write_linear = [ & output , & name ]( const LinearFunction * lf ) {
-  bool first = true;
+ using term = std::pair< const ColVariable * , double >;
+
+ // the nonzero terms of lf, each on a column of the model
+ auto terms_of = [ & name ]( const LinearFunction * lf ) {
+  std::vector< term > terms;
   for( const auto & [ var , coeff ] : lf->get_v_var() ) {
    if( coeff == 0 )
     continue;
-   const auto it = name.find( var );
-   if( it == name.end() )
+   if( name.find( var ) == name.end() )
     throw( std::logic_error( "AbstractBlock::write_lp: a Variable of the "
 			     "model is not in any group of this Block" ) );
+   terms.emplace_back( var , coeff );
+   }
+  return( terms );
+  };
+
+ // the terms as they are given, a zero coefficient being written as 0, a
+ // few of them on each line
+ auto write_terms = [ & output , & name ]( const std::vector< term > & t ) {
+  bool first = true;
+  Index k = 0;
+  for( const auto & [ var , coeff ] : t ) {
    if( first ) {
     output << ( coeff < 0 ? "- " : "" );
     first = false;
     }
-   else
+   else {
+    if( ! ( k % 8 ) )
+     output << std::endl << "   ";
     output << ( coeff < 0 ? " - " : " + " );
+    }
+   ++k;
    const auto a = std::abs( coeff );
    if( a != 1 ) {
     put_double( output , a );
     output << " ";
     }
-   output << *( it->second );
+   output << *( name.at( var ) );
    }
-  if( first )       // every coefficient is zero: the expression is empty,
-   output << "0";   // and the format wants something there
+  if( first )       // no term at all: the expression is empty, and the
+   output << "0";   // format wants something there, the constant 0
+  };
+
+ auto write_linear = [ & write_terms , & terms_of ](
+					       const LinearFunction * f ) {
+  write_terms( terms_of( f ) );
   };
 
  // the Objective - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ /* Every column is written in the Objective, in the order of the columns and
+  * with its cost even when this is zero: read_lp() numbers the columns in
+  * the order it first meets them, so this is what gives them back in the
+  * order they have here (which an AbstractPath to one of them relies on),
+  * and a column that is in no row is then not in the Bounds section alone.
+  */
 
  output << "\\ written by AbstractBlock::write_lp()" << std::endl;
 
  auto obj = dynamic_cast< const FRealObjective * >( get_objective() );
  output << ( ( obj && ( obj->get_sense() == Objective::eMax ) )
 	     ? "Maximize" : "Minimize" ) << std::endl << " obj: ";
- if( obj )
-  write_linear( linear_of( obj->get_function() , "the Objective" ) );
- else
-  output << "0";
+ {
+  std::map< const ColVariable * , double > cost;
+  if( obj )
+   for( const auto & [ var , coeff ] :
+	  terms_of( linear_of( obj->get_function() , "the Objective" ) ) )
+    cost[ var ] += coeff;
+
+  std::vector< term > terms;
+  terms.reserve( columns.size() );
+  for( const auto & [ var , n ] : columns ) {
+   const auto it = cost.find( var );
+   terms.emplace_back( var , ( it == cost.end() ) ? 0 : it->second );
+   }
+  write_terms( terms );
+  }
  output << std::endl;
 
  // the rows - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -705,14 +745,16 @@ void AbstractBlock::write_lp( std::ostream & output ) const
    output << " " << n << " free" << std::endl;
    continue;
    }
-  // the lower bound is always written, since the format reads a column
-  // whose lower bound is not said as one with lower bound 0
+  // a missing lower bound is 0 to the format, so an infinite one is said
+  // whenever there is an upper bound; a missing upper bound is +inf
   output << " ";
-  if( lb > - Inf< double >() )
+  if( lb > - Inf< double >() ) {
    put_double( output , lb );
+   output << " <= ";
+   }
   else
-   output << "-infinity";
-  output << " <= " << n;
+   output << "-infinity <= ";
+  output << n;
   if( ub < Inf< double >() ) {
    output << " <= ";
    put_double( output , ub );
@@ -1728,86 +1770,135 @@ void AbstractBlock::read_mps( std::istream & file )
 
 void AbstractBlock::read_lp( std::istream & file )
 {
- static const std::string _prfx = "AbstractBlock::read_lp: ";
+ /* The file is read twice: the first scan counts the rows and names the
+  * columns, in the order they are met, in the Objective, in the rows and in
+  * the Bounds, Generals and Binaries sections (a column may well be in these
+  * alone); the second one reads the coefficients, the sides, the bounds and
+  * the types. Every read that finds the end of the file before the End
+  * section, and every word that has no place where it is, throws. */
 
- // every word is read here: a file that ends before its End is refused, so
- // that no loop below can wait for a word that never comes
- auto next = [ & file ]( std::string & w ) {
+ auto syntax = []( const std::string & what ) {
+  return( std::invalid_argument( "AbstractBlock::read_lp: " + what ) );
+  };
+
+ // the next word of the file, which has to be there
+ auto next = [ & file , & syntax ]( std::string & w ) {
   if( ! ( file >> w ) )
-   throw( std::invalid_argument( _prfx + "the file ends before its End" ) );
+   throw( syntax( "the file ends before its End section" ) );
   };
-
- // whether the word read where a column is expected ends the term instead:
- // then the number read before it is a constant, not a coefficient
- auto ends_term = [ this ]( const std::string & w , int sec ) {
-  if( w.empty() || ( w[ 0 ] == '+' ) || ( w[ 0 ] == '-' ) ||
-      ( w[ 0 ] == '<' ) || ( w[ 0 ] == '>' ) || ( w[ 0 ] == '=' ) ||
-      ( w[ 0 ] == '[' ) )
-   return( true );
-  int s = sec;
-  sec_reached( & s , w );
-  return( s != sec );
-  };
-
- // whether a word of the sections after the rows is the name of a column
- auto is_name = []( const std::string & w ) {
-  if( w.empty() || std::isdigit( w[ 0 ] ) || ( w[ 0 ] == '.' ) ||
-      ( w[ 0 ] == '+' ) || ( w[ 0 ] == '-' ) || ( w[ 0 ] == '<' ) ||
-      ( w[ 0 ] == '>' ) || ( w[ 0 ] == '=' ) )
-   return( false );
-  return( ! ( boost::iequals( w , "free" ) || boost::iequals( w , "inf" ) ||
-	      boost::iequals( w , "infinity" ) ) );
-  };
-
- double of_constant = 0;   // the constant term of the Objective
 
  // function to convert a float value written in a string in a double
- auto dbl_val = []( std::string & s ) {
- assert( ! s.empty() );
- if( s == "-infinity")
+ auto dbl_val = [ & syntax ]( std::string & s ) {
+  if( boost::iequals( s , "-infinity" ) || boost::iequals( s , "-inf" ) )
    return( -Inf< double >() );
- else if( s == "infinity")
+  if( boost::iequals( s , "infinity" ) || boost::iequals( s , "inf" ) ||
+      boost::iequals( s , "+infinity" ) || boost::iequals( s , "+inf" ) )
    return( Inf< double >() );
 
- if( s[ 0 ] == '.' )
-  s.insert( 0 , "0" );
- else
-  if( ( s[ 0 ] == '-' ) && ( s[ 1 ] == '.' ) )
+  if( s.empty() )
+   throw( syntax( "a number is missing" ) );
+
+  if( s[ 0 ] == '.' )
+   s.insert( 0 , "0" );
+  else
+   if( ( s[ 0 ] == '-' ) && ( s.size() > 1 ) && ( s[ 1 ] == '.' ) )
     s.insert( 1 , "0" );
 
- if( s.back() == '.' )
-  s.pop_back();
+  if( s.back() == '.' )
+   s.pop_back();
 
- return( std::stod( s ) );
- };
+  std::size_t used = 0;
+  double v;
+  try {
+   v = std::stod( s , & used );
+   }
+  catch( const std::exception & ) {
+   throw( syntax( "\"" + s + "\" is not a number" ) );
+   }
+  if( used != s.size() )
+   throw( syntax( "\"" + s + "\" is not a number" ) );
+  return( v );
+  };
 
- struct compare_words
- {
-    std::string key_s;
-    compare_words(std::string const &s): key_s(s) {}
+ // true if w is the sense of a row, and which one: '<', '>' or '='
+ auto is_sense = []( const std::string & w ) {
+  return( ( ! w.empty() ) &&
+	  ( ( w[ 0 ] == '<' ) || ( w[ 0 ] == '>' ) || ( w[ 0 ] == '=' ) ) );
+  };
  
-    bool operator()(std::string const &s) {
-        return boost::iequals( s , key_s);
-    }
- };
+ auto sense_of = []( const std::string & w ) {
+  if( w.find( '<' ) != std::string::npos )
+   return( '<' );
+  if( w.find( '>' ) != std::string::npos )
+   return( '>' );
+  return( '=' );
+  };
+
+ auto is_sign = []( const std::string & w ) {
+  return( ( w == "+" ) || ( w == "-" ) );
+  };
+
+ // true if w can be the name of a column: the format does not let a name
+ // begin with a digit or a period, and the other characters here are those
+ // of the expressions
+ auto is_name = []( const std::string & w ) {
+  return( ( ! w.empty() ) && ( ! std::isdigit( w[ 0 ] ) ) &&
+	  ( std::string( ".+-<>=[]*^:" ).find( w[ 0 ] ) == std::string::npos )
+	  && ( ! boost::iequals( w , "free" ) ) &&
+	  ( ! boost::iequals( w , "inf" ) ) &&
+	  ( ! boost::iequals( w , "infinity" ) ) );
+  };
+
+ int current_section;
+
+ // true if w begins a section coming after the current one
+ auto is_section = [ this , & current_section ]( const std::string & w ) {
+  int s = current_section;
+  sec_reached( & s , w );
+  return( s != current_section );
+  };
 
  std::string problem_name;
  int num_rows = 0;
  int num_cols = 0;
 
- auto * of = new FRealObjective();
+ // what is built, until it is given to the Block; if a throw comes first,
+ // what is on the columns goes before them
+ std::unique_ptr< std::vector< ColVariable > > cols;
+ std::unique_ptr< FRealObjective > of( new FRealObjective() );
+ std::unique_ptr< std::vector< FRowConstraint > > rows;
+ std::unique_ptr< std::vector< BoxConstraint > > bounds;
+
  std::string of_name;
  int of_sense = 0;
+ double of_const = 0;
  bool is_qp = 0;
 
- std::vector< FRowConstraint > * rows;
  std::vector< std::string > row_names;
  std::vector< char > row_type;
  std::vector< bool > is_row_q;
 
- std::vector< ColVariable > * cols;
  std::vector< std::string > col_names;
- std::vector< BoxConstraint > * bounds;
+
+ // the index of the column called c, which has to be one
+ auto column_index = [ & col_names , & syntax ]( const std::string & c ) {
+  auto it = std::find( col_names.begin() , col_names.end() , c );
+  if( it == col_names.end() )
+   throw( syntax( "\"" + c + "\" is not a column" ) );
+  return( std::distance( col_names.begin() , it ) );
+  };
+
+ // names c as a column, if it is not one yet
+ auto add_column = [ & col_names , & num_cols , & is_name , & syntax ](
+					       const std::string & c ) {
+  if( ! is_name( c ) )
+   throw( syntax( "\"" + c + "\" cannot be the name of a column" ) );
+  if( std::find( col_names.begin() , col_names.end() , c ) ==
+      col_names.end() ) {
+   col_names.push_back( c );
+   ++num_cols;
+   }
+  };
 
  std::string rhs_name; // Only one RHS vector is supported
  std::string rng_name; // Only one RANGES vector is supported
@@ -1815,12 +1906,6 @@ void AbstractBlock::read_lp( std::istream & file )
 
  std::string word;
  auto max = std::numeric_limits< std::streamsize >::max();
-
- std::vector< std::string > minfinity_names = { "-inf" , 
-                              "-infinity" };
-
- // int value used to store the section currently scanned
- int current_section;
 
  /*---------------------------------------*/
  /* HERE WE ARE STARTING TO READ THE FILE */
@@ -1843,8 +1928,7 @@ void AbstractBlock::read_lp( std::istream & file )
  else if( boost::iequals(word, "minimize") || boost::iequals(word, "min") )
     of_sense = -1;
  else
-    throw( std::invalid_argument( _prfx + "invalid objective sense " +
-				  word ) );
+    throw( syntax( "invalid objective sense \"" + word + "\"" ) );
   
  // Get objective function data
  next( word );
@@ -1872,7 +1956,7 @@ void AbstractBlock::read_lp( std::istream & file )
 
  while( current_section == LP_sections::LP_LINOBJECTIVE ) {
   std::string column;
-  ColVariable * v;
+  bool number = false;
   
   char first_char = word[0];
   int len_word = word.length();
@@ -1888,32 +1972,33 @@ void AbstractBlock::read_lp( std::istream & file )
   if( file.peek() !=  '[' ) {
     if( len_word == 1 && read_sign ) {
     next( word ); // reading the coefficient
-    if( std::isdigit( word[0] ) )
+    if( std::isdigit( word[0] ) ) {
       // we read the coefficient
+      number = true;
       next( column ); // reading the variable name
+      }
     else
       column = word;
     }
     else if( std::isdigit( first_char ) || read_sign ) {
       // we already read the coefficient
+      number = true;
       next( column ); // reading the variable name
     }
     else{ // the only possibility left is that we read the variable name
       column = word;
     }
-
-    // a number followed by no column is a constant: what follows is the
-    // next term, or the next section
-    if( ends_term( column , current_section ) ) {
+  
+    // a number followed by a sign or by a new section is a constant
+    if( is_sign( column ) || is_section( column ) ) {
+     if( ! number )
+      throw( syntax( "a sign with no term after it in the Objective" ) );
      word = column;
      sec_reached( &current_section , word );
      continue;
      }
-  
-    // When reading the active variable in the objective function, no variable
-    // have been added before
-    col_names.push_back( column );
-    ++num_cols;
+
+    add_column( column );
   }
   
   next( word );
@@ -1931,7 +2016,6 @@ void AbstractBlock::read_lp( std::istream & file )
     is_qp = 1;
 
   std::string column;
-  ColVariable * v;
   
   char first_char = word[0];
   int len_word = word.length();
@@ -1969,7 +2053,7 @@ void AbstractBlock::read_lp( std::istream & file )
   }
 
   file.get(); // eat white space
-  if( column[ column.length() - 2 ] == '^' ) {
+  if( ( column.length() > 1 ) && ( column[ column.length() - 2 ] == '^' ) ) {
     // We are reading the quadratic term x^2. Thus the real name of the
     // variable is obtained by removing the last two character
     column = column.substr( 0 , column.length() - 2 );
@@ -1982,12 +2066,12 @@ void AbstractBlock::read_lp( std::istream & file )
   
   // Now we have to check if the variable considered has been already found
   // in the linear objective function or in a precedent quadratic term
-  auto it = std::find( col_names.begin(), col_names.end(), column );
-  if( it == col_names.end() ) {
-    col_names.push_back( column );
-    ++num_cols;
-  }
+  add_column( column );
  }
+
+ if( current_section == LP_sections::LP_LINOBJECTIVE ||
+     current_section == LP_sections::LP_QUADOBJECTIVE )
+  throw( syntax( "the Subject To section is missing" ) );
  
  /*---------------------------------------*/
  /*------------- READ ROWS ---------------*/
@@ -2002,20 +2086,21 @@ void AbstractBlock::read_lp( std::istream & file )
   // All row name must end with a ":"
   pos = word.find( ":" );
   
-  if( pos != -1 ) { // we actually found a new row
-   is_row_q.push_back( false );
-   ++num_rows;
-   std::string row_name = word.substr( 0 , pos );
-   row_names.push_back( row_name );
-   }
+  if( pos == -1 )
+   throw( syntax( "a row with no name, or \"" + word + "\" out of place" ) );
  
+  is_row_q.push_back( false );
+  ++num_rows;
+  row_names.push_back( word.substr( 0 , pos ) );
+
   next( word );
   char first_char = word[0];
 
   // we can read symbols until we get to the sign, i.e., we are reading variables
   // and coefficients
-  while( first_char != '<' &&  first_char != '>' && first_char != '=' ) {
+  while( ! is_sense( word ) ) {
    std::string column;
+   bool number = false;
    int len_word = word.length();
    bool read_sign = ( first_char == '-'  || first_char == '+' );
 
@@ -2041,22 +2126,28 @@ void AbstractBlock::read_lp( std::istream & file )
         next( word ); // Read next word after the sign
     }
 
-    if( std::isdigit( word[0] ) )
+    if( std::isdigit( word[0] ) ) {
       // we read the coefficient
+      number = true;
       next( column ); // reading the variable name
+      }
     else
       column = word;
     }  
    else if( std::isdigit( first_char ) || read_sign ) {
     // we already read the coefficient
+    number = true;
     next( column ); // reading the variable name
     }
    else{ // the only possibility left is that we read the variable name
     column = word;
     }
 
-   // a number followed by no column is a constant [see the Objective]
-   if( ends_term( column , current_section ) ) {
+   // a number followed by a sign or by the sense of the row is a constant
+   if( is_sign( column ) || is_sense( column ) ) {
+    if( ! number )
+     throw( syntax( "a sign with no term after it in the row " +
+		    row_names.back() ) );
     word = column;
     first_char = word[0];
     continue;
@@ -2064,7 +2155,7 @@ void AbstractBlock::read_lp( std::istream & file )
 
    // Options to check if we are in the quadratic part
    file.get(); // eat white space
-   if( column[ column.length() - 2 ] == '^' ) {
+   if( ( column.length() > 1 ) && ( column[ column.length() - 2 ] == '^' ) ) {
     // We are reading the quadratic term x^2. Thus the real name of the
     // variable is obtained by removing the last two character
     column = column.substr( 0 , column.length() - 2 );
@@ -2077,11 +2168,7 @@ void AbstractBlock::read_lp( std::istream & file )
 
    // Now we have to check if the variable considered has been already found
    // in the objective function or in a precedent row
-   auto it = std::find( col_names.begin(), col_names.end(), column );
-   if( it == col_names.end() ) {
-    col_names.push_back( column );
-    ++num_cols;
-    }
+   add_column( column );
 
    next( word );
    first_char = word[0];
@@ -2100,22 +2187,21 @@ void AbstractBlock::read_lp( std::istream & file )
   sec_reached( &current_section , word );
  }
 
- /* A column in no row and not in the Objective is only named in the
-  * sections after the rows, where write_lp() writes all of them: a name
-  * there that is not a column yet is one. */
+ /*---------------------------------------*/
+ /*-- COLUMNS OF BOUNDS AND TYPES ALONE --*/
+ /*---------------------------------------*/
+ // a name in the Bounds, Generals or Binaries section that has not been
+ // met in the Objective or in a row is a column all the same
 
- for( int sec = current_section ; ( sec == LP_sections::LP_BOUND ) ||
-	( sec == LP_sections::LP_GENERAL ) || ( sec == LP_sections::LP_BINARY ) ; ) {
-  std::string w;
-  next( w );
-  const int was = sec;
-  sec_reached( & sec , w );
-  if( ( sec == was ) && is_name( w ) &&
-      ( std::find( col_names.begin() , col_names.end() , w ) ==
-	col_names.end() ) ) {
-   col_names.push_back( w );
-   ++num_cols;
-   }
+ while( current_section == LP_sections::LP_BOUND ||
+        current_section == LP_sections::LP_GENERAL ||
+        current_section == LP_sections::LP_BINARY ) {
+  next( word );
+  if( is_section( word ) )
+   sec_reached( &current_section , word );
+  else
+   if( is_name( word ) )
+    add_column( word );
   }
 
  /*---------------------------------------*/
@@ -2132,11 +2218,13 @@ void AbstractBlock::read_lp( std::istream & file )
  // Vector used to store local active var in a certain constrain/objective
  std::vector< std::string > local_active_var; 
 
- rows = new std::vector< FRowConstraint >( num_rows );
+ rows.reset( new std::vector< FRowConstraint >( num_rows ) );
 
- cols = new std::vector< ColVariable >( num_cols );
- bounds = new std::vector< BoxConstraint >( num_cols );
+ cols.reset( new std::vector< ColVariable >( num_cols ) );
+ bounds.reset( new std::vector< BoxConstraint >( num_cols ) );
 
+ // a column in no line of the Bounds section has the bounds the format
+ // gives by default, those of a new BoxConstraint: 0 <= x <= +inf
  for( int i = 0; i < num_cols; ++i ) {
   ( *bounds )[ i ].set_variable( &( *cols )[ i ], eNoMod );
   ( *bounds )[ i ].set_Block( this );
@@ -2147,10 +2235,11 @@ void AbstractBlock::read_lp( std::istream & file )
  /*------------ SECOND SCAN --------------*/
  /*---------------------------------------*/
  
+ file.clear();
  file.seekg( pos_start_objective, file.beg ); // Go back to objective section
  current_section = LP_sections::LP_LINOBJECTIVE;
  word = first_obj_word;
- sec_reached( &current_section , word );  // an Objective with no term
+ sec_reached( &current_section , word );
 
  while( current_section == LP_sections::LP_LINOBJECTIVE ) {
   std::string column;
@@ -2190,9 +2279,9 @@ void AbstractBlock::read_lp( std::istream & file )
       column = word;
     }
 
-    // a number followed by no column is the constant [see the first scan]
-    if( ends_term( column , current_section ) ) {
-     of_constant += dbl_val( value );
+    // a constant [see the first scan]
+    if( is_sign( column ) || is_section( column ) ) {
+     of_const += dbl_val( value );
      word = column;
      sec_reached( &current_section , word );
      continue;
@@ -2201,13 +2290,14 @@ void AbstractBlock::read_lp( std::istream & file )
     // Update active variable in the objective function
     local_active_var.push_back( column );
 
-    auto it = std::find( col_names.begin(), col_names.end(), column );
-    auto j = std::distance( col_names.begin(), it );
-    v = &( *cols )[ j ];
+    v = &( *cols )[ column_index( column ) ];
     
     if( ! is_qp ) {
-      // LinearFunction Modification
-      lin_var.push_back( std::make_pair( v , dbl_val( value ) ) );
+      // LinearFunction Modification: a zero coefficient only says that
+      // the column is there
+      const double c = dbl_val( value );
+      if( c != 0 )
+       lin_var.push_back( std::make_pair( v , c ) );
     }
     else{
       // DQuadFunction Modification (also consider a 
@@ -2276,7 +2366,7 @@ void AbstractBlock::read_lp( std::istream & file )
 
   // eat white space
   file.get();
-  if( column[ column.length() - 2 ] == '^' ) {
+  if( ( column.length() > 1 ) && ( column[ column.length() - 2 ] == '^' ) ) {
     // We are reading the quadratic term x^2. Thus the real name of the
     // variable is obtained by removing the last two character
     column = column.substr( 0 , column.length() - 2 );
@@ -2286,9 +2376,7 @@ void AbstractBlock::read_lp( std::istream & file )
                                 column );
     auto idx_local = std::distance( local_active_var.begin(), it_local );
 
-    auto it = std::find( col_names.begin(), col_names.end(), column );
-    auto j = std::distance( col_names.begin(), it );
-    v = &( *cols )[ j ];
+    v = &( *cols )[ column_index( column ) ];
 
     if( it_local != local_active_var.end() ) {
       // Var v had already a linear coefficient set
@@ -2299,11 +2387,6 @@ void AbstractBlock::read_lp( std::istream & file )
       // Var v doesn't have a linear coefficient
       // DQuadFunction modification (nothing to be done on the linear term)
       local_active_var.push_back( column );
-
-      auto it_global = std::find( col_names.begin(), col_names.end(), column );
-      auto idx_global = std::distance( col_names.begin(), it_global );
-      v = &( *cols )[ idx_global ];
-
       qd_var.push_back( std::make_tuple( v , 0 , dbl_val( value )/2 ) );
     }
   }
@@ -2321,9 +2404,7 @@ void AbstractBlock::read_lp( std::istream & file )
     // set of active var of the constraint
     if( it_local1 == local_active_var.end() ) {
       // Map globally the column in the set of all the variable  
-      auto it_global1 = std::find( col_names.begin(), col_names.end(), column );
-      auto idx_global1 = std::distance( col_names.begin(), it_global1 );
-      v = &( *cols )[ idx_global1 ];
+      v = &( *cols )[ column_index( column ) ];
 
       local_active_var.push_back( column );
       qd_var.push_back( std::make_tuple( v , 0 , 0 ) );
@@ -2338,9 +2419,7 @@ void AbstractBlock::read_lp( std::istream & file )
     // set of active var of the constraint
     if( it_local2 == local_active_var.end() ) {
       // Map globally the column in the set of all the variable  
-      auto it_global2 = std::find( col_names.begin(), col_names.end(), column2 );
-      auto idx_global2 = std::distance( col_names.begin(), it_global2 );
-      v2 = &( *cols )[ idx_global2 ];
+      v2 = &( *cols )[ column_index( column2 ) ];
 
       local_active_var.push_back( column2 );
       qd_var.push_back( std::make_tuple( v2 , 0 , 0 ) );
@@ -2351,31 +2430,25 @@ void AbstractBlock::read_lp( std::istream & file )
     qod_var.push_back( std::make_tuple( std::max( idx_local1 , idx_local2 ) ,
                           std::min( idx_local1 , idx_local2 ) , dbl_val( value )/2 ) );
   }
-  else{
-    std::stringstream ss;
-    ss << _prfx << "error while reading the quadratic part of the objective "
-       << "function: expected ^ (got " << column[ column.length() - 2 ]
-       << ") or * (got " << file.peek() << ")";
-
-    std::string error = ss.str();
-    throw( std::runtime_error( error ) );
-  }
+  else
+    throw( syntax( "a term of the quadratic part of the Objective is neither "
+		   "x ^ 2 nor x * y" ) );
  }
 
  // Intizialize objective function
  if( is_qp == 0 ) {
   // Linear Function
-  of->set_function( new LinearFunction( std::move( lin_var ) ,
-					of_constant ) , eNoMod );
+  of->set_function( new LinearFunction( std::move( lin_var ) , of_const ) ,
+		    eNoMod );
  }
  else{
   // Quadratic Function
   if( qod_var.size() == 0 )
-    of->set_function( new DQuadFunction( std::move( qd_var ) ,
-					 of_constant ) , eNoMod );
+    of->set_function( new DQuadFunction( std::move( qd_var ) , of_const ) ,
+		      eNoMod );
   else
     of->set_function( new QuadFunction( std::move( qd_var ) ,
-					std::move( qod_var ) , of_constant ) ,
+					std::move( qod_var ) , of_const ) ,
 		      eNoMod );
  }
 
@@ -2390,14 +2463,9 @@ void AbstractBlock::read_lp( std::istream & file )
  next( word );
  sec_reached( &current_section , word );
  
- while( current_section == LP_sections::LP_ROW ) {
-  std::string row_name;
+ for( int r = 0 ; current_section == LP_sections::LP_ROW ; ++r ) {
   std::string rhs;
-   
-  pos = word.find( ":" );
-  row_name = word.substr( 0 , pos );
-  auto it_row = std::find( row_names.begin(), row_names.end(), row_name );
-  auto r = std::distance( row_names.begin(), it_row );
+  double row_const = 0;  // a constant on the side of the terms
 
   // Reset vectors to store constraint information
   lin_var.clear();    // vector of (var-coeff) used to declare
@@ -2410,14 +2478,12 @@ void AbstractBlock::read_lp( std::istream & file )
   // Vector to map the active variable in a specific row
   local_active_var.clear();
 
-  double row_constant = 0;   // the constant term of the row, moved to the rhs
-
   next( word );
   char first_char = word[0];
 
   // we can read symbols until we get to the sign, i.e., we are reading variables
   // and coefficients
-  while( first_char != '<' &&  first_char != '>' && first_char != '=' ) {
+  while( ! is_sense( word ) ) {
    std::string column;
    std::string column2;
    std::string value = "1";
@@ -2431,7 +2497,7 @@ void AbstractBlock::read_lp( std::istream & file )
    // we can either read the sign, the coefficient or directly the 
    // variable ( i.e., the coefficient is 1)
 
-   if( len_word == 1 && read_sign || word[0] == '[' ) {
+   if( ( len_word == 1 && read_sign ) || word[0] == '[' ) {
     // We take into account the strange case where we don't have any linear
     // coefficient. Thus, no sign will be found before the quadratic part as
     // we expected.
@@ -2472,9 +2538,9 @@ void AbstractBlock::read_lp( std::istream & file )
     column = word;
    }
 
-   // a number followed by no column is a constant [see the first scan]
-   if( ends_term( column , current_section ) ) {
-    row_constant += dbl_val( value );
+   // a constant [see the first scan]
+   if( is_sign( column ) || is_sense( column ) ) {
+    row_const += dbl_val( value );
     word = column;
     first_char = word[0];
     continue;
@@ -2482,7 +2548,7 @@ void AbstractBlock::read_lp( std::istream & file )
 
    // Check if we are in the quadratic part!
    file.get(); // eat white space
-   if( column[ column.length() - 2 ] == '^' ) {
+   if( ( column.length() > 1 ) && ( column[ column.length() - 2 ] == '^' ) ) {
     // We are reading the quadratic term x^2. Thus the real name of the
     // variable is obtained by removing the last two character
     column = column.substr( 0 , column.length() - 2 );
@@ -2501,9 +2567,7 @@ void AbstractBlock::read_lp( std::istream & file )
       // Var v doesn't have a linear coefficient
       // DQuadFunction modification (nothing to be done on the linear term)
       // Map globally the column in the set of all the variable  
-      auto it_global = std::find( col_names.begin(), col_names.end(), column );
-      auto idx_global = std::distance( col_names.begin(), it_global );
-      v = &( *cols )[ idx_global ];
+      v = &( *cols )[ column_index( column ) ];
 
       local_active_var.push_back( column ); // Update set of local active var
       qd_var.push_back( std::make_tuple( v , 0 , dbl_val( value ) ) );
@@ -2523,9 +2587,7 @@ void AbstractBlock::read_lp( std::istream & file )
     // set of active var of the constraint
     if( it_local1 == local_active_var.end() ) {
       // Map globally the column in the set of all the variable  
-      auto it_global1 = std::find( col_names.begin(), col_names.end(), column );
-      auto idx_global1 = std::distance( col_names.begin(), it_global1 );
-      v = &( *cols )[ idx_global1 ];
+      v = &( *cols )[ column_index( column ) ];
 
       local_active_var.push_back( column );
       qd_var.push_back( std::make_tuple( v , 0 , 0 ) );
@@ -2540,9 +2602,7 @@ void AbstractBlock::read_lp( std::istream & file )
     // set of active var of the constraint
     if( it_local2 == local_active_var.end() ) {
       // Map globally the column in the set of all the variable  
-      auto it_global2 = std::find( col_names.begin(), col_names.end(), column2 );
-      auto idx_global2 = std::distance( col_names.begin(), it_global2 );
-      v2 = &( *cols )[ idx_global2 ];
+      v2 = &( *cols )[ column_index( column2 ) ];
 
       local_active_var.push_back( column2 );
       qd_var.push_back( std::make_tuple( v2 , 0 , 0 ) );
@@ -2561,9 +2621,7 @@ void AbstractBlock::read_lp( std::istream & file )
     // scanned constraint.
     local_active_var.push_back( column );
 
-    auto it_global = std::find( col_names.begin(), col_names.end(), column );
-    auto idx_global = std::distance( col_names.begin(), it_global );
-    v = &( *cols )[ idx_global ];
+    v = &( *cols )[ column_index( column ) ];
 
     if( ! is_row_q[ r ] ) {
       // LinearFunction Modification
@@ -2589,6 +2647,7 @@ void AbstractBlock::read_lp( std::istream & file )
   
   // Now we should be reading the rhs
   next( rhs );
+  const double side = dbl_val( rhs ) - row_const;
   auto & row = (*rows)[ r ];
 
   // Initialize row with data collected
@@ -2599,9 +2658,7 @@ void AbstractBlock::read_lp( std::istream & file )
   
   row.set_Block( this );
 
-  const double side = dbl_val( rhs ) - row_constant;
-
-  switch( first_char ) {
+  switch( sense_of( word ) ) {
    case '<' :
     // G: -inf =< f() =< rhs
     row.set_lhs( - Inf< double >(), eNoMod );
@@ -2614,14 +2671,9 @@ void AbstractBlock::read_lp( std::istream & file )
     row.set_rhs( Inf< double >(), eNoMod );
     break;
 
-   case '=' :
+   default :
     // E (no range): rhs =< f() =< rhs
     row.set_both( side , eNoMod );
-    break;
-
-   default:
-    throw( std::invalid_argument( _prfx + "invalid sense of row " +
-				  row_names[ r ] ) );
    }
 
   next( word );
@@ -2637,8 +2689,8 @@ void AbstractBlock::read_lp( std::istream & file )
   sec_reached( &current_section , word );
  }
  
- // In this case we have to control both for the general and binary section,
- // because they can come in any order.
+ // each line is one of "l <= x <= u", "l <= x", "x <= u", "x >= l",
+ // "x = v", "x free", where <= may also be >= and then l and u swap
  while( current_section == LP_sections::LP_BOUND ) {
   
   std::string column;
@@ -2647,51 +2699,51 @@ void AbstractBlock::read_lp( std::istream & file )
   
   char first_char = word[0];
   
-  if( std::isdigit( first_char ) || first_char == '-' || first_char == '.' ) {
-   // we read the lhs
-   lhs_value = word;
-   next( word ); // we can skip the <=
+  if( std::isdigit( first_char ) || first_char == '-' ||
+      first_char == '+' || first_char == '.' ||
+      boost::iequals( word , "inf" ) || boost::iequals( word , "infinity" ) ) {
+   // we read the value before the column
+   std::string value = word;
+   next( word ); // the sense
+   if( ! is_sense( word ) )
+    throw( syntax( "\"" + word + "\" in place of the sense of a bound" ) );
+   switch( sense_of( word ) ) {
+    case '<' : lhs_value = value; break;
+    case '>' : rhs_value = value; break;
+    default :  lhs_value = rhs_value = value;
+    }
    next( column );
    }
   else // we should have found the variable
    column = word;
 
-  next( word ); // We expect to be reading the sense
-  first_char = word[0];
+  const auto j = column_index( column );
   
-  if( first_char == '<' ) { // now reading rhs
-   next( rhs_value );
+  next( word ); // We expect to be reading the sense
+
+  if( is_sense( word ) ) {
+   switch( sense_of( word ) ) {
+    case '<' : next( rhs_value ); break;
+    case '>' : next( lhs_value ); break;
+    default :  next( rhs_value ); lhs_value = rhs_value;
+    }
    next( word );
-  }
-  else if( first_char == '>' ) { // now reading lhs
-   next( lhs_value );
-   next( word );
-  }
-  else if( first_char == '=' ) { // reading both
-   next( rhs_value );
-   lhs_value = rhs_value;
-   next( word );
-  }
+   }
   else if( boost::iequals( word , "free" ) ) { // free variable
    lhs_value = "-infinity";
+   rhs_value = "infinity";
    next( word );
-  }
+   }
+  // else what was read is already the next line
 
-  auto it = std::find( col_names.begin(), col_names.end(), column );
-  if( it != col_names.end() ) {
-   auto j = std::distance( col_names.begin(), it );
-   auto & b = ( *bounds )[ j ];
-   auto & c = ( *cols )[j];
-   b.set_lhs( dbl_val( lhs_value ), eNoMod );
-   b.set_rhs( dbl_val( rhs_value ), eNoMod );
+  auto & b = ( *bounds )[ j ];
+  const double lb = dbl_val( lhs_value );
+  const double ub = dbl_val( rhs_value );
+  b.set_lhs( lb , eNoMod );
+  b.set_rhs( ub , eNoMod );
    
-   if( lhs_value == rhs_value )
-    c.is_fixed( true, eNoMod );
-
-   } 
-  else
-   throw( std::invalid_argument( _prfx + "unknown column " + column +
-				 " in Bounds" ) );
+  if( lb == ub )
+   ( *cols )[ j ].is_fixed( true, eNoMod );
 
   sec_reached( &current_section , word );
   }
@@ -2700,32 +2752,20 @@ void AbstractBlock::read_lp( std::istream & file )
  /*-------------- READ TYPES -------------*/
  /*---------------------------------------*/
 
- // the file may end right after its End
- if( current_section != LP_sections::LP_END ) {
-  next( word );
-  sec_reached( &current_section , word );
-  }
  while( current_section == LP_sections::LP_GENERAL || 
          current_section == LP_sections::LP_BINARY ) {
-   
-   std::string column;   
-   column = word; // read new variable
-   auto it = std::find( col_names.begin(), col_names.end(), column );
-   if( it != col_names.end() ) {
-    auto j = std::distance( col_names.begin(), it );
-    auto & c = ( *cols )[j];
-    if( current_section == LP_sections::LP_GENERAL )
-     c.set_type( ColVariable::kInteger, eNoMod );
-    else // Binary
-     c.set_type( ColVariable::kBinary, eNoMod );
-    }
-   else // we already switched to a new section
-    sec_reached( &current_section , column );
-   
-   // In any case, now we can read a new word and update the section
-   next( word );
+  next( word );
+  if( is_section( word ) ) {
    sec_reached( &current_section , word );
+   continue;
    }
+   
+  auto & c = ( *cols )[ column_index( word ) ];
+  if( current_section == LP_sections::LP_GENERAL )
+   c.set_type( ColVariable::kInteger, eNoMod );
+  else // Binary
+   c.set_type( ColVariable::kBinary, eNoMod );
+  }
 
  /*---------------------------------------*/
  /*------- READ REMAINING SECTIONS -------*/
@@ -2740,27 +2780,26 @@ void AbstractBlock::read_lp( std::istream & file )
  else if( current_section == LP_sections::LP_END ) {
    // Nothing to do
  }
- else{
-   throw( std::invalid_argument( _prfx + "unexpected " + word +
-				 " after the Bounds" ) );
- }
+ else
+  throw( syntax( "\"" + word + "\" out of place" ) );
 
  // Reset and set abstract representation
  reset_static_constraints();
  reset_static_variables();
  reset_objective();
 
- set_objective( of, eNoMod );
+ set_objective( of.release() , eNoMod );
  add_static_variable( *cols );
  add_static_constraint( *rows );
  add_static_constraint( *bounds );
 
  // these three containers are ours, and the groups are told how to dispose
  // of them, so that the destructor does not have to know their type
- own_storage( get_static_variable_groups().back() , cols );
+ own_storage( get_static_variable_groups().back() , cols.release() );
  own_storage( get_static_constraint_groups()[
-			  get_static_constraint_groups().size() - 2 ] , rows );
- own_storage( get_static_constraint_groups().back() , bounds );
+			  get_static_constraint_groups().size() - 2 ] ,
+	      rows.release() );
+ own_storage( get_static_constraint_groups().back() , bounds.release() );
 
  // Issue the NBModification
  if( anyone_there() )
@@ -2888,12 +2927,9 @@ void AbstractBlock::guts_of_deserialize( const netCDF::NcGroup & group )
  
  // check if the LP/MPS representation of the block is provided 
  if( ! mod.isNull() ) {
-  // Prepare the stream of the file to be read: a netCDF string is read into
-  // a char * that the library allocates, and that it has to free
-  char * text = nullptr;
-  mod.getVar( { 0 } , & text );
-  std::string str( text ? text : "" );
-  nc_free_string( 1 , & text );
+  // Prepare the stream of the file to be read
+  std::string str;
+  get_var_values( mod , &str , { 0 } , { 1 } );
   std::istringstream file( str );
 
   /* Get the format of the file provided. Possible values for this attribute

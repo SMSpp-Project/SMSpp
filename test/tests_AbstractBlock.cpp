@@ -1184,11 +1184,12 @@ static void test_set_objective_replaces( void )
  assert( first->get_function() );
  delete first;
 
- // and what the Block writes is the new one
+ // and what the Block writes is the new one, every column being in the
+ // Objective, x_0 with the zero cost it now has [see write_lp()]
  std::ostringstream lp;
  block.write_lp( lp );
  assert( lp.str().find( "Maximize" ) != std::string::npos );
- assert( lp.str().find( " obj: x_1" ) != std::string::npos );
+ assert( lp.str().find( " obj: 0 x_0 + x_1" ) != std::string::npos );
 
  std::cout << "set_objective replaces: OK" << std::endl;
  }

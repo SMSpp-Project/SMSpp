@@ -268,11 +268,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `NetCDF_test` writes to a netCDF group and reads back the rows, the bounds
   and the `FRealObjective` of an `AbstractBlock`, the
-  `PolyhedralFunctionBlock`, the `BendersBFunction` with its sub-Block, the
-  empty cases included, the LP files `read_lp()` has to refuse, and the
-  `State` of the `PolyhedralFunction`, of the `BendersBFunction` and of the
+  `PolyhedralFunctionBlock`, the `BendersBFunction` with its sub-Block and
+  the `LagBFunction` with its inner Block and its Lagrangian term, the empty
+  cases included, the LP files `read_lp()` has to refuse, and the `State`
+  of the `PolyhedralFunction`, of the `BendersBFunction` and of the
   `LagBFunction`, both the one of `get_State()` and the one written by
   `serialize_State()`, with the core alone
+
+- the netCDF format of `LagBFunction`, whose `serialize()` and
+  `deserialize()` threw: the inner Block in the group `Block`, with the
+  original costs of its Objective, and the Lagrangian term as g( x ) = A x
+  + b, A in the sparse format of the matrix of a `BendersBFunction` with an
+  `AbstractPath` to the column of each coefficient in place of its index;
+  as for the other :Function, the multipliers y are not in the format, and
+  the new `LagBFunction::set_variables()` gives them to the functions read.
+  `serialize()` also puts back the Lagrangian costs it takes out of the
+  inner Block to write it, which it restored as the original ones
 
 ### Changed
 
@@ -888,6 +899,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `BlockSolverConfig::deserialize( netCDF::NcFile , idx )` also take the
   groups `Config_<i>/BlockConfig` and `Config_<i>/SolverConfig` that older
   eProbFile have
+
+- `AbstractBlock::write_lp()` writes every column in the Objective, with a
+  zero cost if it has none, so that `read_lp()`, which numbers the columns
+  in the order it meets them, gives them back in the order they have in the
+  Block, which an `AbstractPath` to one of them relies on
+
+- `AbstractBlock::read_lp()` throws `std::invalid_argument` also on a word
+  out of its place, e.g., a row with no name or a sign with no term after
+  it, and on a number that is not one; it reads a bound with the sense
+  turned (`u >= x >= l`), `-inf` and `inf` in any case, and the rows in
+  their order rather than by name, and it deletes what it has built when it
+  throws
+
+- `BendersBFunction::deserialize()` takes the number of active Variable out
+  of `NumVar` when it has none, as its documentation says, so that
+  `Block::new_Block()` of a `BendersBFunction` with columns works: it threw
+  unless `NumVar` was the number it had, 0 in a new one; a sparse A whose
+  `NumNonzeroAtRow` adds up to more than `NumNonzero`, or whose `Column`
+  goes past `NumVar`, is refused rather than read out of bounds
+
+- `put_State()` of `BendersBFunction` leaves no linearization in the places
+  of its global pool past those of the State (the copy kept their
+  constants), and moving a State in a `BendersBFunction` whose global pool
+  is smaller no longer writes past the end of it
+
+- `LagBFunction::serialize_State()` writes `LagBFunction_Value` and
+  `LagBFunction_Convexified` as `LagBFunctionState::serialize()` does: the
+  constants of the linearizations were read back as 0
+
+- `LagBFunction::put_State()` leaves `LastSolution` undefined: a global pool
+  that grew to the size of the State took the Solution of the inner Block
+  for that of the first entry, and computed its constant from the Block
+  rather than taking the one of the State
 
 ## [0.7.1] - 2026-09-13
 

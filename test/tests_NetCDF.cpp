@@ -18,8 +18,7 @@
  * global pools are filled by compute() for a PolyhedralFunction and by
  * reading a State written here for the LagBFunction and the
  * BendersBFunction, which would need a Solver of their sub-Block to compute
- * anything. What the library does not do yet is kept out in blocks marked
- * KNOWN DEFECT, each saying what fails and where.
+ * anything.
  *
  * \author Donato Meoli \n
  *         Dipartimento di Informatica \n
@@ -50,6 +49,7 @@
 #include <limits>
 #include <map>
 #include <memory>
+#include <sstream>
 #include <tuple>
 #include <vector>
 
@@ -311,11 +311,9 @@ static void test_abstract_block( void )
  delete again;
  delete read;
 
- #if 0
- // KNOWN DEFECT: write_lp() writes a column with no lower bound and a
- // finite upper bound u as "x <= u" [src/AbstractBlock.cpp:708-717], which
- // in the LP format, and for read_lp(), leaves the default lower bound 0:
- // the column comes back as 0 <= x <= u rather than -inf <= x <= u
+ // a column with no lower bound and a finite upper bound u, which the LP
+ // format has to be told is -inf <= x <= u, a lower bound that is not
+ // written being 0 to it
  {
   AbstractBlock only_ub;
   auto y = new std::vector< ColVariable >( 1 );
@@ -328,7 +326,6 @@ static void test_abstract_block( void )
   assert( r && same( model_of( *r ) , model_of( only_ub ) ) );
   delete r;
   }
- #endif
 
  // the AbstractBlock owns what was added to it, and deletes it
  std::cout << "rows, bounds and Objective of an AbstractBlock: OK"
@@ -377,12 +374,7 @@ static void test_empty_abstract_block( void )
   delete read;
   }
 
- #if 0
- // KNOWN DEFECT: a column that is in no row and has a zero coefficient in
- // the Objective is written only in the Bounds section of the LP file, as
- // the format allows, but read_lp() only knows the columns it has met in
- // the Objective and in the rows, and throws "Invalid syntax in LP file"
- // on it [src/AbstractBlock.cpp:2588-2601]: deserialize() gives nullptr
+ // a column that is in no row and has a zero coefficient in the Objective
  {
   AbstractBlock block;
   auto x = new std::vector< ColVariable >( 2 );
@@ -395,15 +387,8 @@ static void test_empty_abstract_block( void )
   assert( read && same( model_of( *read ) , model_of( block ) ) );
   delete read;
   }
- #endif
 
- #if 0
- // KNOWN DEFECT: an AbstractBlock with columns and no Objective, or one
- // whose coefficients are all zero, is written with the objective line
- // " obj: 0" [src/AbstractBlock.cpp:645 and 658]; read_lp() takes the "0"
- // as a coefficient and the next word as the name of a column, and its
- // loop on the objective [src/AbstractBlock.cpp:1838-1878] never checks the
- // end of the stream, so deserialize() never returns
+ // columns and no Objective
  {
   AbstractBlock block;
   auto x = new std::vector< ColVariable >( 2 );
@@ -413,7 +398,71 @@ static void test_empty_abstract_block( void )
   assert( read && same( model_of( *read ) , model_of( block ) ) );
   delete read;
   }
- #endif
+
+ // an Objective whose coefficients are all zero, the columns being in a row
+ // whose coefficients are all zero too: both are written as the constant 0
+ {
+  AbstractBlock block;
+  auto x = new std::vector< ColVariable >( 2 );
+  block.add_static_variable( *x , "x" );
+  auto rows = new std::vector< FRowConstraint >( 2 );
+  ( *rows )[ 0 ].set_function( linear( *x , { 1 , 1 } ) );
+  ( *rows )[ 0 ].set_lhs( - Inf< double >() );
+  ( *rows )[ 0 ].set_rhs( 4 );
+  ( *rows )[ 1 ].set_function( linear( *x , { 0 , 0 } ) );
+  ( *rows )[ 1 ].set_lhs( -1 );
+  ( *rows )[ 1 ].set_rhs( Inf< double >() );
+  block.add_static_constraint( *rows , "r" );
+  block.set_objective( new FRealObjective( & block ,
+					   linear( *x , { 0 , 0 } ) ) ,
+		       eNoMod );
+
+  auto read = round_trip( block );
+  assert( read && same( model_of( *read ) , model_of( block ) ) );
+  delete read;
+  }
+
+ // an LP file that ends before its End section, or has a word out of its
+ // place, is refused rather than read forever
+ for( const char * lp : { "Minimize\n obj: 0\n" ,
+			  "Minimize\n obj: x\nSubject To\n c: x >= 1\n" ,
+			  "Minimize\n obj: x\nSubject To\n c: x >= 1\n"
+			  "Bounds\n x <= 3\n" ,
+			  "Minimize\n obj: x\nSubject To\n c: x >= 1\n"
+			  "Bounds\n x <= <= 3\nEnd\n" ,
+			  "Minimize\n obj: x\nSubject To\n x >= 1\nEnd\n" ,
+			  "Maximise\n obj: x\nSubject To\nEnd\n" } ) {
+  AbstractBlock block;
+  std::istringstream in( lp );
+  bool refused = false;
+  try { block.load( in , 'L' ); }
+  catch( const std::invalid_argument & ) { refused = true; }
+  assert( refused );
+  }
+
+ // what read_lp() takes that write_lp() does not write: a constant in the
+ // Objective and in a row, a column named in the Bounds section alone, the
+ // bounds with the sense turned, the default bounds of a column
+ {
+  AbstractBlock block;
+  std::istringstream in( "Maximize\n obj: 2 x + 3 + y\nSubject To\n"
+			 " c: x + 1 <= 5\n d: 0 >= -2\nBounds\n"
+			 " 4 >= x >= -1\n z <= 6\nEnd\n" );
+  block.load( in , 'L' );
+  const auto m = model_of( block );
+  assert( m.lb.size() == 3 );
+  assert( ( m.obj[ 0 ] == 2 ) && ( m.obj[ 1 ] == 1 ) && ( m.obj[ 2 ] == 0 ) );
+  assert( ( m.obj_const == 3 ) && ( m.sense == Objective::eMax ) );
+  assert( ( m.lb[ 0 ] == -1 ) && ( m.ub[ 0 ] == 4 ) );
+  assert( ( m.lb[ 1 ] == 0 ) && ( m.ub[ 1 ] == Inf< double >() ) );
+  assert( ( m.lb[ 2 ] == 0 ) && ( m.ub[ 2 ] == 6 ) );
+  assert( m.rows.size() == 2 );
+  // sorted: the row with no coefficient comes first
+  assert( std::get< 0 >( m.rows[ 0 ] ).empty() &&
+	  ( std::get< 1 >( m.rows[ 0 ] ) == -2 ) );
+  assert( ( std::get< 0 >( m.rows[ 1 ] ).size() == 1 ) &&
+	  ( std::get< 2 >( m.rows[ 1 ] ) == 4 ) );
+  }
 
  std::cout << "empty AbstractBlock: OK" << std::endl;
  }
@@ -491,12 +540,7 @@ static void test_polyhedral_function_block( void )
   delete pfb;
   }
 
- #if 0
- // KNOWN DEFECT: the netCDF format of a PolyhedralFunction does not carry
- // which rows are vertical linearizations: serialize() does not write them
- // and deserialize() reads "all diagonal" [src/PolyhedralFunction.cpp:
- // 115-118 and 800-826], so a function with vertical rows comes back as
- // a different function
+ // which rows are vertical linearizations goes in the file too
  {
   auto pfb = new PolyhedralFunctionBlock();
   auto & pf = pfb->get_PolyhedralFunction();
@@ -510,7 +554,6 @@ static void test_polyhedral_function_block( void )
   delete read;
   delete pfb;
   }
- #endif
 
  std::cout << "PolyhedralFunctionBlock: OK" << std::endl;
  }
@@ -529,9 +572,6 @@ static void fill_pf( PolyhedralFunction & pf , std::vector< ColVariable > & x )
 			    { 0 , 1 , 2 } , - Inf< double >() , true ,
 			    eNoMod );
  pf.set_par( PolyhedralFunction::intGPMaxSz , 4 );
- // the tolerance on the multipliers, set since the default is not [see the
- // KNOWN DEFECT in test_polyhedral_function_state()]
- pf.set_par( PolyhedralFunction::dblAAccMlt , 1e-10 );
  }
 
 /// true if the two PolyhedralFunction have the same global pool
@@ -566,19 +606,12 @@ static bool same_pool( PolyhedralFunction & a , PolyhedralFunction & b )
 
 static void test_polyhedral_function_state( void )
 {
- #if 0
- // KNOWN DEFECT: the constructor of PolyhedralFunction does not initialise
- // AAccMlt [include/PolyhedralFunction.h:371-386, the field at line 1780],
- // which store_combination_of_linearizations() reads [src/
- // PolyhedralFunction.cpp:436 and 483], so that until set_par( dblAAccMlt )
- // is called the tolerance on the multipliers is whatever the memory holds
- // rather than the default 1e-10 of get_dflt_dbl_par()
+ // a new PolyhedralFunction has the default tolerance on the multipliers
  {
   PolyhedralFunction fresh;
   assert( fresh.get_dbl_par( PolyhedralFunction::dblAAccMlt ) ==
 	  fresh.get_dflt_dbl_par( PolyhedralFunction::dblAAccMlt ) );
   }
- #endif
 
  std::vector< ColVariable > x( 2 );
  PolyhedralFunction pf;
@@ -755,13 +788,7 @@ static void test_benders_function( void )
   delete r;
   }
 
- #if 0
- // KNOWN DEFECT: when A is sparse enough to be written in the sparse
- // format, BendersBFunction::deserialize() reads its entries into the
- // member v_A instead of the local matrix tA it is building
- // [src/BendersBFunction.cpp:298], which is empty in a BendersBFunction
- // being read, so the entries are written out of bounds and the matrix
- // that is set is all zeros
+ // A sparse enough to be written in the sparse format, with an empty row
  {
   Benders b( { { 1 , 0 , 0 , 0 } , { 0 , 0 , 0 , 0 } , { 0 , 0 , 2 , 0 } ,
 	       { 0 , 0 , 0 , 3 } } , { 1 , 2 , 3 , 4 } ,
@@ -771,22 +798,23 @@ static void test_benders_function( void )
   check_benders( *r , *b.f );
   delete r;
   }
- #endif
 
- #if 0
- // KNOWN DEFECT: BendersBFunction::deserialize() says that when the set of
- // active Variable is empty "the number of active Variable is dictated by
- // the data found in the netCDF::NcGroup", but it throws if NumVar is not
- // get_num_active_var() [src/BendersBFunction.cpp:205-208], i.e., 0 in a
- // BendersBFunction built by the factory: Block::new_Block() of the group
- // of a BendersBFunction with variables gives nullptr
+ // the factory, which builds a BendersBFunction with no active Variable:
+ // their number is then the one of the netCDF group, and set_variables()
+ // afterwards has to give as many
  {
   Benders b( { { 1 , 2 } } , { 5 } , { BendersBFunction::eBoth } );
   auto r = dynamic_cast< BendersBFunction * >( round_trip( *b.f ) );
   assert( r && ( r->get_A() == b.f->get_A() ) );
+  assert( r->get_num_active_var() == 0 );
+  bool refused = false;
+  try { r->set_variables( { & b.x[ 0 ] } ); }
+  catch( const std::logic_error & ) { refused = true; }
+  assert( refused );
+  r->set_variables( { & b.x[ 0 ] , & b.x[ 1 ] } );
+  check_benders( *r , *b.f );
   delete r;
   }
- #endif
 
  std::cout << "BendersBFunction: OK" << std::endl;
  }
@@ -860,51 +888,50 @@ static void test_benders_state( void )
 			      g->serialize( grp ); } ) );
   a.f->put_State( *r );
   assert( a.f->get_important_linearization_coefficients().empty() );
-  #if 0
-  // KNOWN DEFECT: put_State( const State & ) copies the global pool with
-  // GlobalPool::clone( const GlobalPool & ) [src/BendersBFunction.cpp:
-  // 3519-3550], which deletes the Solution of all the places but copies the
-  // constants only of the places the State has: those after them keep the
-  // constant they had, and is_linearization_there() still says yes for a
-  // linearization that has no Solution any more (the version for a State
-  // that is moved in does reset them)
+  // the places of the pool past those of the State, which it keeps, hold
+  // no linearization any more
+  assert( a.f->get_int_par( C05Function::intGPMaxSz ) == 2 );
   assert( ! a.f->is_linearization_there( 0 ) );
-  #endif
+  assert( ! a.f->is_linearization_there( 1 ) );
   }
 
- #if 0
- // KNOWN DEFECT: put_State( State && ) moves the global pool with
- // GlobalPool::clone( GlobalPool && ), which writes the Solution of the
- // State one after the other from solutions.begin() before resizing the
- // pool [src/BendersBFunction.cpp:3570-3574]: in a BendersBFunction whose
- // pool is smaller than the one of the State, e.g., a new one, it writes
- // past the end of the vector
+ // a State moved in a BendersBFunction whose pool is smaller than the one
+ // of the State, and one moved in a BendersBFunction whose pool is larger
  {
   std::unique_ptr< State > r( state_round_trip( write_benders_state ) );
   Benders b( { { 1 , 2 } } , { 5 } , { BendersBFunction::eBoth } );
   b.f->put_State( std::move( *r ) );
   check_benders_pool( *b.f );
+
+  Benders e( { { 1 , 2 } } , { 5 } , { BendersBFunction::eBoth } );
+  std::unique_ptr< State > g( e.f->get_State() );
+  b.f->put_State( std::move( *g ) );
+  assert( b.f->get_int_par( C05Function::intGPMaxSz ) == 2 );
+  assert( ! b.f->is_linearization_there( 0 ) );
   }
- #endif
 
  std::cout << "State of a BendersBFunction: OK" << std::endl;
  }
 
 /*--------------------------------------------------------------------------*/
-/* LagBFunction: its netCDF format is not there yet; its State is. Filling
- * the global pool asks a Solver of the inner Block, hence the State is
- * written here in the format LagBFunctionState reads, with a Solution of
+/* LagBFunction: the inner Block and the Lagrangian term, and its State.
+ * Filling the global pool asks a Solver of the inner Block, hence the State
+ * is written here in the format LagBFunctionState reads, with a Solution of
  * the inner Block in the first place of the pool. */
 
-/// a LagBFunction on one Lagrangian multiplier and its inner Block
+/// a LagBFunction and its inner Block
+/** With terms == 1, one Lagrangian multiplier y and g( x ) = 2 x_0 + x_1;
+ * with terms == 2, y with g_0( x ) = -4 x_1 + 1.5 and y2 with g_1( x ) = -2,
+ * a function with no term; with terms == 0, none. */
 
 struct Lagrangian {
  ColVariable y;
+ ColVariable y2;
  AbstractBlock * inner;
  std::vector< ColVariable > * x;
  LagBFunction * f;
 
- Lagrangian( void ) {
+ Lagrangian( int terms = 1 ) {
   inner = new AbstractBlock();
   x = new std::vector< ColVariable >( 2 );
   inner->add_static_variable( *x , "x" );
@@ -913,28 +940,33 @@ struct Lagrangian {
 			eNoMod );
   f = new LagBFunction( inner );
   LagBFunction::v_dual_pair dp;
-  dp.emplace_back( & y , linear( *x , { 2 , 1 } ) );
+  if( terms == 1 )
+   dp.emplace_back( & y , linear( *x , { 2 , 1 } ) );
+  if( terms == 2 ) {
+   dp.emplace_back( & y , linear( *x , { 0 , -4 } , 1.5 ) );
+   dp.emplace_back( & y2 , linear( *x , { 0 , 0 } , -2 ) );
+   }
   f->set_dual_pairs( std::move( dp ) );
-  // a pool of the size of the State to be put in it [see the KNOWN DEFECT
-  // in test_lagrangian_function()]
-  f->set_par( LagBFunction::intGPMaxSz , 2 );
   }
 
  ~Lagrangian() { delete f; }
  };
 
-static void write_lagrangian_state( netCDF::NcGroup & g , Block * inner )
+static void write_lagrangian_state( netCDF::NcGroup & g , Block * inner ,
+				    bool with_value = true )
 {
  g.putAtt( "type" , "LagBFunctionState" );
  auto d = g.addDim( "LagBFunction_MaxGlob" , 2 );
  std::vector< signed char > type = { 1 , 0 };
  g.addVar( "LagBFunction_Type" , netCDF::NcByte() , d ).putVar( type.data() );
- std::vector< double > value = { 2.5 , 0 };
- g.addVar( "LagBFunction_Value" , netCDF::NcDouble() , d ).putVar(
+ if( with_value ) {
+  std::vector< double > value = { 2.5 , 0 };
+  g.addVar( "LagBFunction_Value" , netCDF::NcDouble() , d ).putVar(
 							       value.data() );
- std::vector< signed char > convexified = { 1 , 0 };
- g.addVar( "LagBFunction_Convexified" , netCDF::NcByte() , d ).putVar(
+  std::vector< signed char > convexified = { 1 , 0 };
+  g.addVar( "LagBFunction_Convexified" , netCDF::NcByte() , d ).putVar(
 							 convexified.data() );
+  }
  ColVariableSolution sol;
  sol.read( inner );
  auto sg = g.addGroup( "LagBFunction_Sol_0" );
@@ -986,16 +1018,20 @@ static void test_lagrangian_function( void )
 			      a.f->serialize_State( grp ); } ) );
   Lagrangian b;
   b.f->put_State( *r );
+  check_lagrangian_pool( *b.f );
+  }
+
+ // a State with no LagBFunction_Value and LagBFunction_Convexified, which
+ // are optional: the constants are 0
+ {
+  std::unique_ptr< State > r( state_round_trip( [ & a ]( auto & g ) {
+			      write_lagrangian_state( g , a.inner , false );
+			      } ) );
+  Lagrangian b;
+  b.f->put_State( *r );
   assert( b.f->is_linearization_there( 0 ) );
   assert( ! b.f->is_linearization_there( 1 ) );
-  #if 0
-  // KNOWN DEFECT: LagBFunction::serialize_State() writes the State "by
-  // hand" [src/LagBFunction.cpp:1607-1653] but, unlike
-  // LagBFunctionState::serialize() [the same file, lines 5017-5072], it
-  // does not write LagBFunction_Value and LagBFunction_Convexified, so the
-  // constant of each linearization of the pool comes back as 0
-  check_lagrangian_pool( *b.f );
-  #endif
+  assert( b.f->get_linearization_constant( 0 ) == 0 );
   }
 
  // an empty pool
@@ -1009,46 +1045,78 @@ static void test_lagrangian_function( void )
   assert( b.f->get_important_linearization_coefficients().empty() );
   }
 
- #if 0
- // KNOWN DEFECT: LagBFunction::put_State() makes the global pool as large
- // as the one of the State [src/LagBFunction.cpp:1424-1425] but never
- // makes LastSolution undefined, as set_par( intGPMaxSz ) does [the same
- // file, lines 535-537] and as put_State() of BendersBFunction does: a
- // LagBFunction whose pool was empty has LastSolution == 0, which after
- // put_State() says that the Solution of the place 0 is the one written in
- // the inner Block, so get_linearization_constant( 0 ) computes the constant
- // out of the values of the inner Block rather than giving the one of the
- // State
+ // a LagBFunction whose pool is larger than the one of the State, and has
+ // been made so first: the constants are those of the State as well
  {
-  AbstractBlock * inner = new AbstractBlock();
-  auto x = new std::vector< ColVariable >( 2 );
-  inner->add_static_variable( *x , "x" );
-  inner->set_objective( new FRealObjective( inner ,
-					    linear( *x , { 1 , -1 } ) ) ,
-			eNoMod );
-  ColVariable y;
-  LagBFunction f( inner );
-  LagBFunction::v_dual_pair dp;
-  dp.emplace_back( & y , linear( *x , { 2 , 1 } ) );
-  f.set_dual_pairs( std::move( dp ) );
-  std::unique_ptr< State > r( state_round_trip( [ inner ]( auto & g ) {
-			      write_lagrangian_state( g , inner ); } ) );
-  f.put_State( *r );
-  check_lagrangian_pool( f );
+  Lagrangian b;
+  b.f->set_par( LagBFunction::intGPMaxSz , 3 );
+  std::unique_ptr< State > r( state_round_trip( [ & b ]( auto & g ) {
+			      write_lagrangian_state( g , b.inner ); } ) );
+  b.f->put_State( *r );
+  check_lagrangian_pool( *b.f );
+  assert( ! b.f->is_linearization_there( 2 ) );
   }
- #endif
 
- #if 0
- // KNOWN DEFECT: the netCDF format of a LagBFunction is not implemented:
- // serialize() and deserialize() throw "not implemented yet" as their
- // first statement [src/LagBFunction.cpp:647 and 1288]
+ // the netCDF format: the inner Block and the functions g_i( x ) of the
+ // Lagrangian term, whose y are not in the format and are given afterwards
  {
   auto r = dynamic_cast< LagBFunction * >( round_trip( *a.f ) );
-  assert( r && ( r->get_num_active_var() == 1 ) );
+  assert( r && ( r->get_num_active_var() == 0 ) );
   assert( same( model_of( *r->get_inner_block() ) , model_of( *a.inner ) ) );
+
+  ColVariable z;
+  bool refused = false;
+  try { r->set_variables( { & z , & a.y } ); }
+  catch( const std::invalid_argument & ) { refused = true; }
+  assert( refused );
+
+  r->set_variables( { & z } );
+  assert( ( r->get_num_active_var() == 1 ) &&
+	  ( r->get_active_var( 0 ) == & z ) );
+  auto g = static_cast< const LinearFunction * >(
+					       r->get_Lagrangian_term( 0 ) );
+  assert( g->get_num_active_var() == 2 );
+  for( const auto & [ x , c ] : g->get_v_var() )
+   assert( x->get_Block() == r->get_inner_block() );
+  assert( ( g->get_v_var()[ 0 ].second == 2 ) &&
+	  ( g->get_v_var()[ 1 ].second == 1 ) );
+  assert( g->get_constant_term() == 0 );
+
+  // and a second trip gives the same again
+  auto again = dynamic_cast< LagBFunction * >( round_trip( *r ) );
+  assert( again && same( model_of( *again->get_inner_block() ) ,
+			 model_of( *a.inner ) ) );
+  again->set_variables( { & z } );
+  assert( again->get_num_active_var() == 1 );
+  delete again;
   delete r;
   }
- #endif
+
+ // two Lagrangian terms, one with a constant and one with no term at all,
+ // and none at all
+ {
+  Lagrangian t( 2 );
+  auto r = dynamic_cast< LagBFunction * >( round_trip( *t.f ) );
+  assert( r && ( r->get_num_active_var() == 0 ) );
+  r->set_variables( { & t.y , & t.y2 } );
+  auto g0 = static_cast< const LinearFunction * >(
+					       r->get_Lagrangian_term( 0 ) );
+  auto g1 = static_cast< const LinearFunction * >(
+					       r->get_Lagrangian_term( 1 ) );
+  assert( ( g0->get_num_active_var() == 1 ) &&
+	  ( g0->get_v_var()[ 0 ].second == -4 ) &&
+	  ( g0->get_constant_term() == 1.5 ) );
+  assert( ( g1->get_num_active_var() == 0 ) &&
+	  ( g1->get_constant_term() == -2 ) );
+  delete r;
+
+  Lagrangian e( 0 );
+  auto n = dynamic_cast< LagBFunction * >( round_trip( *e.f ) );
+  assert( n && ( n->get_num_active_var() == 0 ) );
+  n->set_variables( {} );
+  assert( n->get_num_active_var() == 0 );
+  delete n;
+  }
 
  std::cout << "LagBFunction: OK" << std::endl;
  }
