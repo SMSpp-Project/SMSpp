@@ -29,13 +29,13 @@ Unit tests for the core SMS++ library. Each test is registered as a separate
   removing everything, lists in the cells of a vector) with the
   `BlockModAdd` and `BlockModRmv*` each of them issues.
 - `ColVariable_test` covers `Variable` and `ColVariable`.
-- `Constraint_unit_test` covers `FRowConstraint` with a `LinearFunction`, with
-  the value of a row of every sense, the `RowConstraintMod` and
-  `FRowConstraintMod` it issues and the registration in the `Variable` of
-  its `Function`, and the `OneVarConstraint` family, with the sides each
-  of them fixes and the setters it refuses.
-- `LinearConstraint_unit_test` covers `LinearConstraint`, whose header no file
-  of the library includes, so that the test is also what compiles it.
+- `Constraint_unit_test` covers `FRowConstraint` with a `LinearFunction`,
+  with the value of a row of every sense, the `RowConstraintMod` and
+  `FRowConstraintMod` it issues and the registration in the `Variable` of its
+  `Function`, and the `OneVarConstraint` family, with the sides each of them
+  fixes and the setters it refuses.
+- `LinearConstraint_unit_test` covers `LinearConstraint`, whose header no
+  file of the library includes, so that the test is also what compiles it.
 - `Function_test` covers the `Function` interface.
 - `LinearFunction_test` covers `LinearFunction`: its value and
   linearization, the changes of its Variable and coefficients, and the
@@ -73,18 +73,21 @@ Unit tests for the core SMS++ library. Each test is registered as a separate
   names after a dynamic removal, groups asked for out of range and walks of
   empty groups.
 - `Modification_test` covers the `Modification` issued by the modifying
-  methods of `ColVariable`, `FRowConstraint`, the `OneVarConstraint`
-  family, `FRealObjective`, `LinearFunction` and the dynamic `Variable` and
+  methods of `ColVariable`, `FRowConstraint`, the `OneVarConstraint` family,
+  `FRealObjective`, `LinearFunction` and the dynamic `Variable` and
   `Constraint` of a `Block`: whether the change is done and what is issued
   under each value of the `ModParam`, with or without a `Solver` listening
-  and on a channel, and the type and content of the `Modification`.
+  and on a channel, and the type and content of the `Modification`; and that
+  under eDryRun the modifying methods of those classes and of
+  `DQuadFunction`, `QuadFunction`, `PolyhedralFunction`, `LagBFunction`,
+  `BendersBFunction` and `C05SumFunction` change nothing and issue nothing.
 - `BlockModification_unit_test` covers the Modification a `Block` issues when
   dynamic `Variable` and `Constraint` are added and removed, the parameter
   that says if, how and where a Modification is issued, the channels that
   pack them into a `GroupModification`, and the way they reach the `Solver`
   of the `Block` and of its ancestors.
-- `Objective_unit_test` covers `Objective` and `FRealObjective`: the change of
-  sense, the replacement of the `Function`, the Modification of the
+- `Objective_unit_test` covers `Objective` and `FRealObjective`: the change
+  of sense, the replacement of the `Function`, the Modification of the
   `Function` reaching the `Solver`, and the removal of its `Variable`.
 - `Solution_test` covers what a `Solution` does when the dynamic
   `RowConstraint` of the `Block` it was read from are removed, i.e., the dual
@@ -102,15 +105,15 @@ Unit tests for the core SMS++ library. Each test is registered as a separate
   `get_A_by_col()` gives it, when the Lagrangian pairs are set (once or
   twice), added and removed (all of them, a `Range`, a `Subset`, a single
   one), and on the edge cases of those methods.
-- `BendersBFunction_unit_test` covers `BendersBFunction` and `BendersBlock`: the
-  rows added, modified and deleted with the Modification they issue, the
+- `BendersBFunction_unit_test` covers `BendersBFunction` and `BendersBlock`:
+  the rows added, modified and deleted with the Modification they issue, the
   sides written by `compute()` over a box inner Block solved by `BoxSolver`,
   and the serialization with the matrix in dense and sparse form.
-- `Misc_unit_test` covers `GlobalInformation`, `SimpleDataMapping`, `Change` and
-  `GroupChange`, `BoxSolver` (box LPs and QPs in both senses, empty boxes,
-  unbounded directions, dual values), `UpdateSolver`, and what the base
-  `Solver` does by itself: registration, the queue of Modification and the
-  tables of the parameters.
+- `Misc_unit_test` covers `GlobalInformation`, `SimpleDataMapping`, `Change`
+  and `GroupChange`, `BoxSolver` (box LPs and QPs in both senses, empty
+  boxes, unbounded directions, dual values), `UpdateSolver`, and what the
+  base `Solver` does by itself: registration, the queue of Modification and
+  the tables of the parameters.
 - `NetCDF_test` covers the round trips through the netCDF format of the rows,
   the bounds and the `FRealObjective` of an `AbstractBlock`, of the
   `PolyhedralFunctionBlock`, of the `BendersBFunction` with its sub-Block and
@@ -122,7 +125,11 @@ Unit tests for the core SMS++ library. Each test is registered as a separate
 
 These are built and run through CMake / ctest (there is no makefile here);
 all of them passing is a good sign that no regressions have been introduced
-in the SMS++ core.
+in the SMS++ core. A test is named `<Component>_unit_test` rather than
+`<Component>_test` where the tests repository has a battery of tests with
+the latter name (e.g., `LagBFunction_test`, `PolyhedralFunction_test` and
+`PolyhedralFunctionBlock_test`), so that the two executables do not clash
+in a build of the whole project.
 
 The checks of a test are `assert()`, and they hold in every build type, the
 Release one included: each test includes `TestAssert.h` after every header of

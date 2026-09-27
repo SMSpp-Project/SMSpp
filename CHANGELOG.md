@@ -414,8 +414,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   list, so it skipped the next one, which kept a `Variable` then destroyed
 
 - `ColVariable::is_active()` gives `Inf` for a stuff that is not in the
-  active list, and `remove_active()` throws for it: they took the place where the stuff would be for the place where it
-  is, giving the index of another stuff and removing it
+  active list, and `remove_active()` throws for it: they took the place
+  where the stuff would be for the place where it is, giving the index of
+  another stuff and removing it
 
 - `Block::set_objective()` issues its `BlockMod` on the channel of the
   `ModParam`, which it ignored, so that on a channel it was dispatched at
