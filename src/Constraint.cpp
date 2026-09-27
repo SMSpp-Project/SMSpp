@@ -42,6 +42,9 @@ Block * Constraint::group_Block( void ) const
 /*--------------------------------------------------------------------------*/
 
 void Constraint::relax( bool relax_it, c_ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( relax_it == f_is_relaxed )  // actually doing nothing
   return;                        // cowardly (and silently) return
 

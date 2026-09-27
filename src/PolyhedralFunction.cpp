@@ -67,6 +67,9 @@ SMSpp_insert_in_factory_cpp_0( PolyhedralFunctionState );
 void PolyhedralFunction::deserialize( const netCDF::NcGroup & group ,
 				      ModParam issueMod  )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  auto nv = group.getDim( "PolyFunction_NumVar" );
  if( nv.isNull() )
   throw( std::logic_error( "PolyFunction_NumVar dimension is required" ) );
@@ -384,6 +387,9 @@ bool PolyhedralFunction::has_linearization( bool diagonal )
 void PolyhedralFunction::store_linearization( Index name ,
 					      ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( name >= v_glob.size() )
   throw( std::invalid_argument( "invalid global pool name" ) );
 
@@ -412,6 +418,9 @@ void PolyhedralFunction::store_linearization( Index name ,
 void PolyhedralFunction::store_combination_of_linearizations(
         c_LinearCombination & coefficients , Index name , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( name >= v_glob.size() )
   throw( std::invalid_argument( "invalid global pool name" ) );
 
@@ -539,6 +548,9 @@ void PolyhedralFunction::store_combination_of_linearizations(
 void PolyhedralFunction::delete_linearization( Index name ,
 					       ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( name >= v_glob.size() )
   throw( std::invalid_argument( "invalid global pool name" ) );
 
@@ -571,6 +583,9 @@ void PolyhedralFunction::delete_linearizations( Subset && which ,
 						bool ordered ,
 						ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( which.empty() ) {  // delete them all, the global pool keeps its size
   v_glob.assign( v_glob.size() , Inf< int >() );
   v_aA.clear();
@@ -1039,6 +1054,9 @@ void PolyhedralFunction::set_PolyhedralFunction( MultiVector && A ,
 						 ModParam issueMod ,
 						 BoolVector && is_vert )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( ( ! A.empty() ) && ( ! v_x.empty() ) )
   if( v_x.size() != A[ 0 ].size() )
    throw( std::invalid_argument( "A and x must have the same columns" ) );
@@ -1107,6 +1125,9 @@ void PolyhedralFunction::set_PolyhedralFunction( MultiVector && A ,
 
 void PolyhedralFunction::set_is_convex( bool is_convex , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( is_convex == f_is_convex )  // actually doing nothing
   return;                        // cowardly (and silently) return
 
@@ -1142,6 +1163,9 @@ void PolyhedralFunction::set_is_convex( bool is_convex , ModParam issueMod )
 void PolyhedralFunction::add_variables( VarVector && nx , MultiVector && nA ,
 				        ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  c_Index nn = nx.size();
  if( ! nn )  // actually nothing to add
   return;    // cowardly (and silently) return
@@ -1198,6 +1222,9 @@ void PolyhedralFunction::add_variable( ColVariable * const var ,
 				       c_RealVector & Aj ,
 				       ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( var == nullptr )  // actually nothing to add
   return;              // cowardly (and silently) return
 
@@ -1233,6 +1260,9 @@ void PolyhedralFunction::add_variable( ColVariable * const var ,
 
 void PolyhedralFunction::remove_variable( Index i , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( v_x.size() <= i )
   throw( std::logic_error( "invalid Variable index" ) );
 
@@ -1261,6 +1291,9 @@ void PolyhedralFunction::remove_variable( Index i , ModParam issueMod )
 
 void PolyhedralFunction::remove_variables( Range range , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  range.second = std::min( range.second , Index( v_x.size() ) );
  if( range.second <= range.first )
   return;
@@ -1345,6 +1378,9 @@ static void compact( std::vector< T > & x ,
 void PolyhedralFunction::remove_variables( Subset && nms , bool ordered ,
 					   ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  set_f_uncomputed();                // the function value has changed
  f_Lipschitz_constant = -Inf< FunctionValue >();  // == unknown
 
@@ -1430,6 +1466,9 @@ void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
 				      Range range , ModParam issueMod ,
 				      BoolVector && is_vert )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( range.second <= range.first )  // actually nothing to modify
   return;                           // cowardly (and silently) return
 
@@ -1554,6 +1593,9 @@ void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
 				      ModParam issueMod ,
 				      BoolVector && is_vert )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( rows.empty() )  // actually nothing to modify
   return;            // cowardly (and silently) return
 
@@ -1707,6 +1749,9 @@ void PolyhedralFunction::modify_row( Index i , RealVector && Ai ,
 				     FunctionValue bi , ModParam issueMod ,
 				     bool is_vert )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( i >= get_nrows() )
   throw( std::invalid_argument( "wrong row name" ) );
 
@@ -1812,6 +1857,9 @@ void PolyhedralFunction::modify_row( Index i , RealVector && Ai ,
 void PolyhedralFunction::modify_constants( c_RealVector & nb , Range range ,
 					   ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( range.second <= range.first )  // actually nothing to modify
   return;                           // cowardly (and silently) return
 
@@ -1925,6 +1973,9 @@ void PolyhedralFunction::modify_constants( c_RealVector & nb ,
 					   Subset && rows , bool ordered ,
 					   ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( rows.empty() )  // actually nothing to modify
   return;            // cowardly (and silently) return
 
@@ -2060,6 +2111,9 @@ void PolyhedralFunction::modify_constants( c_RealVector & nb ,
 void PolyhedralFunction::modify_constant( Index i , FunctionValue bi ,
 					  ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( i >= get_nrows() )
   throw( std::invalid_argument( "wrong row name" ) );
 
@@ -2143,6 +2197,9 @@ void PolyhedralFunction::modify_constant( Index i , FunctionValue bi ,
 void PolyhedralFunction::modify_bound( FunctionValue newbound ,
 				       ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( newbound == f_bound )  // actually nothing is changing
   return;                   // cowardly (and silently) return
 
@@ -2292,6 +2349,9 @@ void PolyhedralFunction::add_rows( MultiVector && nA , c_RealVector & nb ,
 				   ModParam issueMod ,
 				   BoolVector && is_vert )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  c_Index k = nA.size();
  if( k != nb.size() )
   throw( std::invalid_argument( "nA and nb must have the same size" ) );
@@ -2350,6 +2410,9 @@ void PolyhedralFunction::add_rows( MultiVector && nA , c_RealVector & nb ,
 void PolyhedralFunction::add_row( RealVector && Ai , FunctionValue bi ,
 				  ModParam issueMod , bool is_vert )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( Ai.size() != v_x.size() )
   throw( std::invalid_argument( "Ai has a wrong size" ) );
 
@@ -2395,6 +2458,9 @@ void PolyhedralFunction::add_row( RealVector && Ai , FunctionValue bi ,
 
 void PolyhedralFunction::delete_rows( Range range , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( range.second <= range.first )  // actually nothing to modify
   return;                           // cowardly (and silently) return
 
@@ -2490,6 +2556,9 @@ void PolyhedralFunction::delete_rows( Range range , ModParam issueMod )
 void PolyhedralFunction::delete_rows( Subset && rows , bool ordered ,
 				      ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( rows.empty() )  // actually nothing to remove
   return;            // cowardly (and silently) returning
 
@@ -2616,6 +2685,9 @@ void PolyhedralFunction::delete_rows( Subset && rows , bool ordered ,
 
 void PolyhedralFunction::delete_row( Index i , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( i >= get_nrows() )
   throw( std::invalid_argument( "invalid names in rows" ) );
 
@@ -2695,6 +2767,9 @@ void PolyhedralFunction::delete_row( Index i , ModParam issueMod )
 
 void PolyhedralFunction::delete_rows( ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  v_A.clear();   // delete original rows
  v_b.clear();
  v_is_vert.clear();    // and the per-row vertical flags
@@ -2729,6 +2804,9 @@ void PolyhedralFunction::remove_parallel_rows( FunctionValue abs_error ,
 					       FunctionValue rel_error ,
 					       ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( v_A.empty() )
   return;
 
@@ -2889,6 +2967,9 @@ void PolyhedralFunction::reset_aggregate_linearizations( void )
 
 void PolyhedralFunction::reset_aggregate_linearizations( ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( v_aA.empty() )
   return;
 

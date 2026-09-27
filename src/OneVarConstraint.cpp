@@ -36,6 +36,9 @@ using namespace SMSpp_di_unipi_it;
 void OneVarConstraint::set_variable( ColVariable * const variable,
                                      ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( variable == f_variable )  // changing nothing
   return;                      // all done
 
@@ -62,6 +65,9 @@ void OneVarConstraint::set_variable( ColVariable * const variable,
 
 void BoxConstraint::set_rhs( c_RHSValue rhs_value , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( f_rhs == rhs_value )  // actually doing nothing
   return;                  // cowardly (and silently) return
 
@@ -80,6 +86,9 @@ void BoxConstraint::set_rhs( c_RHSValue rhs_value , ModParam issueMod )
 
 void BoxConstraint::set_lhs( c_RHSValue lhs_value , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( f_lhs == lhs_value )  // actually doing nothing
   return;                  // cowardly (and silently) return
 
@@ -98,6 +107,9 @@ void BoxConstraint::set_lhs( c_RHSValue lhs_value , ModParam issueMod )
 
 void BoxConstraint::set_both( c_RHSValue both_value , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( ( f_rhs == both_value ) && ( f_lhs == both_value ) )  // doing nothing
   return;                                 // cowardly (and silently) return
 
@@ -117,6 +129,9 @@ void BoxConstraint::set_both( c_RHSValue both_value , ModParam issueMod )
 
 void LB0Constraint::set_rhs( c_RHSValue rhs_value, ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( f_rhs == rhs_value )  // actually doing nothing
   return;                  // cowardly (and silently) return
 
@@ -135,6 +150,9 @@ void LB0Constraint::set_rhs( c_RHSValue rhs_value, ModParam issueMod )
 
 void UB0Constraint::set_lhs( c_RHSValue lhs_value , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( f_lhs == lhs_value )  // actually doing nothing
   return;                  // cowardly (and silently) return
 
@@ -153,6 +171,9 @@ void UB0Constraint::set_lhs( c_RHSValue lhs_value , ModParam issueMod )
 
 void LBConstraint::set_lhs( c_RHSValue lhs_value , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( f_lhs == lhs_value )  // actually doing nothing
   return;                  // cowardly (and silently) return
 
@@ -171,6 +192,9 @@ void LBConstraint::set_lhs( c_RHSValue lhs_value , ModParam issueMod )
 
 void UBConstraint::set_rhs( c_RHSValue rhs_value, ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( f_rhs == rhs_value )  // actually doing nothing
   return;                  // cowardly (and silently) return
 

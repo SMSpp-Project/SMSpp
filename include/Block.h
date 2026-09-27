@@ -4134,7 +4134,11 @@ class Block : public Observer {
   * ThinVarDepInterface::remove_variable() will be called, and this in
   * principle issues a Modification on its own. The further parameter
   * issueindMod is provided to control this, with the usual format described
-  * in Observer::make_par().
+  * in Observer::make_par(). Under issueMod == eDryRun nothing at all is done,
+  * whatever issueindMod is; under issueindMod == eDryRun the Variable are
+  * removed from the list but not from the "stuff" they are active in, which
+  * is only right if they are no longer there, for otherwise the "stuff" is
+  * left with pointers to destroyed Variable.
   *
   * Modification are crucial to maintaining the coherence between the Block
   * and the Solver: hence, choosing to disable them should be a very well
@@ -9600,6 +9604,9 @@ std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
 Block::add_dynamic_constraints( std::list< Const > & list ,
                                 std::list< Const > & newlist ,
                                 ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( newlist.empty() )  // actually no Constraint to add
   return;               // cowardly (and silently) return
 
@@ -9645,6 +9652,9 @@ std::enable_if_t< std::is_base_of_v< Variable, Var > , void >
 Block::add_dynamic_variables( std::list< Var > & list ,
                               std::list< Var > & newlist ,
                               ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( newlist.empty() )  // actually no Variable to add
   return;               // cowardly (and silently) return
 
@@ -9692,6 +9702,9 @@ Block::remove_dynamic_constraints( std::list< Const > & list ,
                                                 std::list< Const >::iterator
                                                 > & rmvd ,
                                    ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( rmvd.empty() )  // actually no Constraints to remove
   return;            // cowardly (and silently) return
 
@@ -9769,6 +9782,9 @@ std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
 Block::remove_dynamic_constraint( std::list< Const > & list ,
                                   typename std::list< Const >::iterator rmvd ,
                                   ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( list.empty() )
   throw( std::invalid_argument( "removing from empty list" ) );
 
@@ -9822,6 +9838,9 @@ template< class Const >
 std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
 Block::remove_dynamic_constraints( std::list< Const > & list ,
                                    Range range , ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( range.second <= range.first )  // actually no Constraints to remove
   return;                           // cowardly (and silently) return
 
@@ -9889,6 +9908,9 @@ std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
 Block::remove_dynamic_constraints( std::list< Const > & list ,
                                    Subset && subset , bool ordered ,
                                    ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( subset.empty() ) {  // completely cleanup the list
   if( list.empty() )     // which is empty already
    return;               // cowardly (and silently) return
@@ -10019,6 +10041,9 @@ Block::remove_dynamic_variables( std::list< Var > & list ,
                                               std::list< Var >::iterator
                                               > & rmvd ,
                                  ModParam issueMod , ModParam issueindMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( rmvd.empty() )  // actually no Variables to remove
   return;            // cowardly (and silently) return
 
@@ -10091,6 +10116,9 @@ std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
 Block::remove_dynamic_variable( std::list< Var > & list ,
                                 typename std::list< Var >::iterator rmvd ,
                                 ModParam issueMod , ModParam issueindMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( list.empty() )
   throw( std::invalid_argument( "removing from empty list" ) );
 
@@ -10138,6 +10166,9 @@ template< class Var >
 std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
 Block::remove_dynamic_variables( std::list< Var > & list , Range range ,
                                  ModParam issueMod , ModParam issueindMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( range.second <= range.first )  // actually no Constraints to remove
   return;                           // cowardly (and silently) return
 
@@ -10198,6 +10229,9 @@ std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
 Block::remove_dynamic_variables( std::list< Var > & list ,
                                  Subset && subset , bool ordered ,
                                  ModParam issueMod , ModParam issueindMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( subset.empty() ) {  // completely cleanup the list
   if( list.empty() )     // which is empty already
    return;               // cowardly (and silently) return

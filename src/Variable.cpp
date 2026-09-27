@@ -43,6 +43,9 @@ Block * Variable::group_Block( void ) const
 
 void Variable::is_fixed( bool fixed , c_ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( fixed == is_fixed() )  // actually doing nothing
   return;                   // cowardly (and silently) return
 

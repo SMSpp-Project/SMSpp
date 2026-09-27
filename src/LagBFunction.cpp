@@ -680,6 +680,9 @@ void LagBFunction::deserialize( const netCDF::NcGroup & group )
 
 void LagBFunction::add_dual_pairs( v_dual_pair && dp , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( dp.empty() )  // adding nothing
   return;          // cowardly (and silently) return
 
@@ -729,6 +732,9 @@ void LagBFunction::add_dual_pairs( v_dual_pair && dp , ModParam issueMod )
 
 void LagBFunction::remove_variable( Index i , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( i >= LagPairs.size() )
   throw( std::invalid_argument( "LagBFunction::remove_variable: wrong index"
 				) );
@@ -804,6 +810,9 @@ void LagBFunction::remove_variable( Index i , ModParam issueMod )
 
 void LagBFunction::remove_variables( Range range , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  range.second = std::min( range.second , Index( LagPairs.size() ) );
  if( range.second <= range.first )  // actually nothing to remove
   return;                           // cowardly (and silently) return
@@ -941,6 +950,9 @@ void LagBFunction::remove_variables( Range range , ModParam issueMod )
 void LagBFunction::remove_variables( Subset && nms , bool ordered ,
 				     ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( nms.empty() ) {  // removing all Variables
   if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
    // an Observer is there: copy the names of deleted Variables (all of them)
@@ -1699,6 +1711,9 @@ bool LagBFunction::compute_new_linearization( const bool diagonal )
 
 void LagBFunction::store_linearization( Index name , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( name >= g_pool.size() )
   throw( std::logic_error(
 	 "LagBFunction::store_linearization: invalid linearization name" ) );
@@ -1800,6 +1815,9 @@ void LagBFunction::store_linearization( Index name , ModParam issueMod )
 void LagBFunction::store_combination_of_linearizations(
 	c_LinearCombination & coefficients , Index name , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( name >= g_pool.size() )
   throw( std::logic_error( "max size of global pool already exceed" ) );
 
@@ -1946,6 +1964,9 @@ void LagBFunction::store_combination_of_linearizations(
 
 void LagBFunction::delete_linearization( Index name , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( ( name >= g_pool.size() ) || ( ! g_pool[ name ].sol ) )
   throw( std::invalid_argument(
 	 "LagBFunction::delete_linearization: invalid linearization name" ) );
@@ -1975,6 +1996,9 @@ void LagBFunction::delete_linearization( Index name , ModParam issueMod )
 void LagBFunction::delete_linearizations( Subset && which , bool ordered ,
 					  ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( which.empty() ) {  // delete them all
   if( NoSol )
    for( Index i = 0 ; i < f_max_glob ; ++i )

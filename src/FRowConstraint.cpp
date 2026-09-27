@@ -36,6 +36,9 @@ using namespace SMSpp_di_unipi_it;
 void FRowConstraint::set_function( Function * const function ,
                                    ModParam issueMod , bool deleteold )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( function == f_function )  // changing nothing
   return;                      // all done
 
@@ -80,6 +83,9 @@ void FRowConstraint::set_function( Function * const function ,
 
 void FRowConstraint::set_rhs( c_RHSValue rhs_value , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( f_rhs == rhs_value )  // actually doing nothing
   return;                  // cowardly (and silently) return
 
@@ -98,6 +104,9 @@ void FRowConstraint::set_rhs( c_RHSValue rhs_value , ModParam issueMod )
 
 void FRowConstraint::set_lhs( c_RHSValue lhs_value , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( f_lhs == lhs_value )  // actually doing nothing
   return;                  // cowardly (and silently) return
 
@@ -116,6 +125,9 @@ void FRowConstraint::set_lhs( c_RHSValue lhs_value , ModParam issueMod )
 
 void FRowConstraint::set_both( c_RHSValue both_value , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( ( f_rhs == both_value ) && ( f_lhs == both_value ) )  // doing nothing
   return;                                 // cowardly (and silently) return
 
@@ -137,6 +149,9 @@ void FRowConstraint::set_both( c_RHSValue both_value , ModParam issueMod )
 
 void FRowConstraint::remove_variable( Index i , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  /* FRowConstraint typically relies on FunctionModVars to know if something
   * has happened to the Variable of the Function and register/unregister
   * itself from them. However, in this case it knows beforehand what is
@@ -146,8 +161,7 @@ void FRowConstraint::remove_variable( Index i , ModParam issueMod )
  if( ! f_function )
   return;
 
- if( ( par2mod( issueMod ) > eNoMod ) && get_Block() &&
-     get_Block()->anyone_there() )
+ if( get_Block() && get_Block()->issue_mod( issueMod ) )
   f_function->remove_variable( i , issueMod );
  else {
   // unregistration can preceed removal, since the Function completely
@@ -161,15 +175,20 @@ void FRowConstraint::remove_variable( Index i , ModParam issueMod )
 
 void FRowConstraint::remove_variables( Range range , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( ! f_function )
   return;
 
- if( ( par2mod( issueMod ) > eNoMod ) && get_Block() &&
-     get_Block()->anyone_there() )
+ if( get_Block() && get_Block()->issue_mod( issueMod ) )
   f_function->remove_variables( range, issueMod );
  else {
   // unregistration can preceed removal, since the Function completely
-  // ignores this information
+  // ignores this information; the Range is cut to the active Variable, as
+  // the Function does
+  range.second = std::min( range.second ,
+			   f_function->get_num_active_var() );
   for( Index i = range.first ; i < range.second ; )
    f_function->get_active_var( i++ )->remove_active( this );
   f_function->remove_variables( range, eNoMod );
@@ -181,16 +200,18 @@ void FRowConstraint::remove_variables( Range range , ModParam issueMod )
 void FRowConstraint::remove_variables( Subset && nms , bool ordered ,
                                        ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( ! f_function )
   return;
 
- if( ( par2mod( issueMod ) > eNoMod ) && get_Block() &&
-     get_Block()->anyone_there() )
+ if( get_Block() && get_Block()->issue_mod( issueMod ) )
   f_function->remove_variables( std::move( nms ) , ordered , issueMod );
  else {
   // unregistration can preceed removal, since the Function completely
-  // ignores this information
-  if( nms.empty() )  // all the Variable are removed
+  // ignores this information; the empty Subset means all the Variable
+  if( nms.empty() )
    for( Index i = 0 ; i < f_function->get_num_active_var() ; ++i )
     f_function->get_active_var( i )->remove_active( this );
   else

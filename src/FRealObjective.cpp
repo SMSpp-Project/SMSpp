@@ -37,6 +37,9 @@ using namespace SMSpp_di_unipi_it;
 void FRealObjective::set_function( Function * const function ,
                                    ModParam issueMod , bool deleteold )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( function == f_function )  // changing nothing
   return;                      // all done
 
@@ -82,6 +85,9 @@ void FRealObjective::set_function( Function * const function ,
 /*--------------------------------------------------------------------------*/
 
 void FRealObjective::remove_variable( Index i, ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  /* FRealObjective typically relies on FunctionModVars to know if something
   * has happened to the Variable of the Function and register/unregister
   * itself from them. However, in this case it knows beforehand what is
@@ -91,8 +97,7 @@ void FRealObjective::remove_variable( Index i, ModParam issueMod ) {
  if( ! f_function )
   return;
 
- if( ( par2mod( issueMod ) > eNoMod ) && f_Block &&
-     f_Block->anyone_there() )
+ if( f_Block && f_Block->issue_mod( issueMod ) )
   f_function->remove_variable( i, issueMod );
  else {
   // unregistration can preceed removal, since the Function completely
@@ -105,16 +110,21 @@ void FRealObjective::remove_variable( Index i, ModParam issueMod ) {
 /*--------------------------------------------------------------------------*/
 
 void FRealObjective::remove_variables( Range range, ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( ! f_function )
   return;
 
- if( ( par2mod( issueMod ) > eNoMod ) && f_Block &&
-     f_Block->anyone_there() )
+ if( f_Block && f_Block->issue_mod( issueMod ) )
   f_function->remove_variables( range, issueMod );
  else {
   // unregistration can preceed removal, since the Function completely
-  // ignores this information
-  for( Index i = range.first; i < range.second; )
+  // ignores this information; the Range is cut to the active Variable, as
+  // the Function does
+  range.second = std::min( range.second ,
+			   f_function->get_num_active_var() );
+  for( Index i = range.first ; i < range.second ; )
    f_function->get_active_var( i++ )->remove_active( this );
   f_function->remove_variables( range, eNoMod );
  }
@@ -124,16 +134,17 @@ void FRealObjective::remove_variables( Range range, ModParam issueMod ) {
 
 void FRealObjective::remove_variables( Subset && nms, bool ordered,
                                        ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( ! f_function )
   return;
 
- if( ( par2mod( issueMod ) > eNoMod ) && f_Block &&
-     f_Block->anyone_there() )
-  f_function->remove_variables( std::move( nms ), ordered, issueMod );
+ if( f_Block && f_Block->issue_mod( issueMod ) )
+  f_function->remove_variables( std::move( nms ) , ordered , issueMod );
  else {
   // unregistration can preceed removal, since the Function completely
-  // ignores this information
-  // an empty nms means all of them
+  // ignores this information; the empty Subset means all the Variable
   if( nms.empty() )
    for( Index i = 0 ; i < f_function->get_num_active_var() ; ++i )
     f_function->get_active_var( i )->remove_active( this );

@@ -422,6 +422,9 @@ int Block::get_objective_sense( void ) const
 
 void Block::set_objective( Objective * newOF , c_ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  f_Objective = newOF;
  newOF->set_Block( this );
 

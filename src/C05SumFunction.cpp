@@ -1204,6 +1204,9 @@ void C05SumFunction::unset( Index h , Index name ,
 
 void C05SumFunction::store_linearization( Index name , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  {
   own_operation mine( f_own_op );
 
@@ -1270,6 +1273,9 @@ void C05SumFunction::store_combination_of_linearizations(
                                           c_LinearCombination & coefficients ,
                                           Index name , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  // the member combines those it holds, and gives the horizontal linearization
  // at its bound to the mass left by its diagonal ones; if it holds no
  // diagonal one, the group records the horizontal one if any is combined
@@ -1330,6 +1336,9 @@ void C05SumFunction::set_important_linearization(
 
 void C05SumFunction::delete_linearization( Index name , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  {
   own_operation mine( f_own_op );
 
@@ -1346,6 +1355,9 @@ void C05SumFunction::delete_linearization( Index name , ModParam issueMod )
 void C05SumFunction::delete_linearizations( Subset && which , bool ordered ,
                                               ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  {
   own_operation mine( f_own_op );
 

@@ -61,8 +61,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ModParam`, with and without a `Solver` listening and on a channel, the
   type and content of each `Modification`, and the edge cases (empty and full
   `Range`, empty and unordered `Subset`, adding nothing, removing
-  everything); what the library does not do yet is kept out in blocks marked
-  KNOWN DEFECT
+  everything); and, under eDryRun, that the modifying methods of those
+  classes and of `DQuadFunction`, `QuadFunction`, `PolyhedralFunction`,
+  `LagBFunction`, `BendersBFunction` and `C05SumFunction` change nothing and
+  issue nothing
 
 - `ClassFactory_test` asserts what it used to print: every factory of the
   core (`Block`, `Configuration`, `Solver`, `Solution`, `State`, `Change`)
@@ -728,6 +730,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   when one is issued, so that whoever reads it can still read the Variable
   the Constraint was active in, rather than saying that this information is
   gone
+
+- the default `ThinVarDepInterface::remove_variables( Range )` accepts a
+  Range that ends at the last active Variable, as its documentation says,
+  while it threw for it
+
+- the modifying methods of the core that take a `ModParam` honour eDryRun,
+  returning at once without changing anything and without issuing anything:
+  those of `Variable`, `ColVariable`, `Constraint`, the `OneVarConstraint`
+  family, `FRowConstraint`, `Objective`, `FRealObjective`, `LinearFunction`,
+  `DQuadFunction`, `QuadFunction`, `PolyhedralFunction`, `LagBFunction`,
+  `BendersBFunction`, `C05Function`, `C05SumFunction`, and
+  `Block::set_objective()`, `add_dynamic_*()` and `remove_dynamic_*()`, the
+  latter leaving also the stuff of the removed Variable alone. They looked
+  at the `ModParam` only to decide whether to issue the Modification, so
+  that under eDryRun the change was done all the same, silently
+
+- the `remove_variable*()` of `FRowConstraint` and of `FRealObjective` keep
+  eModBlck: the Modification of the Function is issued, and reaches the
+  Block, also when no Solver is listening, while they turned eModBlck into
+  eNoMod when the Block had no one there, so that the Block never learnt of
+  a change it was concerned by
+
+- the `remove_variables( Range )` of `FRowConstraint` and of
+  `FRealObjective`, when no Modification is issued, cut the Range to the
+  number of active Variable, as the Function does, while a Range up to
+  `Inf` made them read past the end of the Function
 
 ## [0.7.1] - 2026-09-13
 

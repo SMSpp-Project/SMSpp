@@ -279,6 +279,9 @@ void DQuadFunction::map_active( c_Vec_p_Var & vars , Subset & map ,
 void DQuadFunction::add_variables( v_coeff_triple && vars ,
 				   ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( vars.empty() )  // actually nothing to add
   return;            // cowardly (and silently) return
 
@@ -318,6 +321,9 @@ void DQuadFunction::add_variable( ColVariable * var , Coefficient lin_coeff ,
 				  Coefficient quad_coeff ,
 				  ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( var == nullptr )  // actually nothing to add
   return;              // cowardly (and silently) return
 
@@ -345,6 +351,9 @@ void DQuadFunction::modify_term( Index i , Coefficient lin_coeff ,
                                  Coefficient quad_coeff ,
 				 ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( i >= v_triples.size() )
   throw( std::invalid_argument( "DQuadFunction::modify_term: invalid "
                                 "index: " + std::to_string( i ) ) );
@@ -381,6 +390,9 @@ void DQuadFunction::modify_term( Index i , Coefficient lin_coeff ,
 void DQuadFunction::modify_linear_coefficient( Index i , Coefficient coeff ,
                                                ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( i >= v_triples.size() )
   throw( std::invalid_argument( "DQuadFunction::modify_linear_coefficient: "
                                 "invalid index: " + std::to_string( i ) ) );
@@ -409,6 +421,9 @@ void DQuadFunction::modify_terms( c_v_coeff_it NQuadCoef ,
 				  c_v_coeff_it NLinCoef , Subset && nms ,
 				  bool ordered , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( nms.empty() )
   return;
 
@@ -461,6 +476,9 @@ void DQuadFunction::modify_linear_coefficients( Vec_FunctionValue && NCoef ,
                                                 Subset && nms , bool ordered ,
                                                 ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( nms.empty() )
   return;
 
@@ -513,6 +531,9 @@ void DQuadFunction::modify_terms( c_v_coeff_it NQuadCoef ,
 				  c_v_coeff_it NLinCoef ,
 				  Range range , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  range.second = std::min( range.second , c_Index( v_triples.size() ) );
  if( range.second <= range.first )
   return;
@@ -563,6 +584,9 @@ void DQuadFunction::modify_linear_coefficients( Vec_FunctionValue && NCoef ,
 						Range range ,
 						ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  range.second = std::min( range.second , c_Index( v_triples.size() ) );
  if( range.second <= range.first )
   return;
@@ -605,6 +629,9 @@ void DQuadFunction::modify_linear_coefficients( Vec_FunctionValue && NCoef ,
 
 void DQuadFunction::remove_variable( Index i , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( v_triples.size() <= i )
   throw( std::logic_error( "less than i Variable are active" ) );
 
@@ -628,6 +655,9 @@ void DQuadFunction::remove_variable( Index i , ModParam issueMod )
 
 void DQuadFunction::remove_variables( Range range, ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  range.second = std::min( range.second , Index( v_triples.size() ) );
  if( range.second <= range.first )
   return;
@@ -688,6 +718,9 @@ void DQuadFunction::remove_variables( Range range, ModParam issueMod )
 void DQuadFunction::remove_variables( Subset && nms , bool ordered ,
 				      ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( nms.empty() ) {      // removing *all* variable
   if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
    // an Observer is there: copy the names of deleted Variable (all of them)
@@ -778,6 +811,9 @@ void DQuadFunction::remove_variables( Subset && nms , bool ordered ,
 void DQuadFunction::set_constant_term( FunctionValue constant_term ,
 				       ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( f_constant_term == constant_term )  // actually nothing to change
   return;                                // cowardly (and silently) return
 

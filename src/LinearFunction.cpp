@@ -239,6 +239,9 @@ void LinearFunction::map_active( c_Vec_p_Var & vars , Subset & map ,
 void LinearFunction::add_variables( v_coeff_pair && vars ,
 				                                ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( vars.empty() )  // actually nothing to add
   return;            // cowardly (and silently) return
 
@@ -275,6 +278,9 @@ void LinearFunction::add_variables( v_coeff_pair && vars ,
 
 void LinearFunction::add_variable( ColVariable * var , Coefficient coeff ,
                                    ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( var == nullptr )  // actually nothing to add
   return;              // cowardly (and silently) return
 
@@ -298,6 +304,9 @@ void LinearFunction::add_variable( ColVariable * var , Coefficient coeff ,
 void LinearFunction::modify_coefficient( Index i , Coefficient coeff ,
                                          ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( i >= v_pairs.size() )
   throw( std::invalid_argument( "LinearFunction::modify_coefficient: invalid"
                                 " index: " + std::to_string( i ) ) );
@@ -326,6 +335,9 @@ void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
                                           Subset && nms , bool ordered ,
                                           ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( nms.empty() )
   return;
 
@@ -374,6 +386,9 @@ void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
 void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
                                           Range range , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  range.second = std::min( range.second , c_Index( v_pairs.size() ) );
  if( range.second <= range.first )
   return;
@@ -417,6 +432,9 @@ void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
 
 void LinearFunction::remove_variable( Index i , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( v_pairs.size() <= i )
   throw( std::logic_error( "LinearFunction::remove_variable: there is no "
                            "Variable with index " + std::to_string( i ) ) );
@@ -441,6 +459,9 @@ void LinearFunction::remove_variable( Index i , ModParam issueMod )
 
 void LinearFunction::remove_variables( Range range , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  range.second = std::min( range.second , Index( v_pairs.size() ) );
  if( range.second <= range.first )
   return;
@@ -501,6 +522,9 @@ void LinearFunction::remove_variables( Range range , ModParam issueMod )
 void LinearFunction::remove_variables( Subset && nms , bool ordered ,
                                        ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( nms.empty() ) {      // removing *all* variable
   if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
    // an Observer is there: copy the names of deleted Variable (all of them)
@@ -591,6 +615,9 @@ void LinearFunction::remove_variables( Subset && nms , bool ordered ,
 void LinearFunction::set_constant_term( FunctionValue constant_term ,
                                         ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( f_constant_term == constant_term )  // actually nothing to change
   return;                                // cowardly (and silently) return
 
