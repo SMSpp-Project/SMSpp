@@ -297,10 +297,13 @@ class BlockSolverConfig : public Configuration {
   * parameter idx: for an eProbFile it is extracted out of the
   * netCDF::NcGroup "BlockSolver" inside the netCDF::NcGroup "Prob_<idx>",
   * while for an eConfigFile it is extracted out of the netCDF::NcGroup
-  * "Config_<idx>". If something goes wrong with the entire operation (the
-  * file is not there, the "SMS++_file_type" attribute is not there, there is
-  * no required "Prob_<idx>" or "Config_<idx>" child group, there is any
-  * fatal error during the process, ...) results in nullptr being returned.
+  * "Config_<idx>". In an eProbFile whose "Prob_<idx>" has no "BlockSolver"
+  * group, the group "SolverConfig" inside "Config_<idx>" is read, which is
+  * where some eProbFile have it. If something goes wrong with the entire
+  * operation (the file is not there, the "SMS++_file_type" attribute is not
+  * there, there is no required "Prob_<idx>" or "Config_<idx>" child group,
+  * there is any fatal error during the process, ...) results in nullptr
+  * being returned.
   *
   * Note that the method is static, hence it is to be called as
   *
@@ -599,9 +602,11 @@ class BlockSolverConfig : public Configuration {
 /*--------------------------------------------------------------------------*/
  /// "extends" Configuration::serialize( netCDF::NcFile , type ) to eProbFile
  /** Since a BlockSolverConfig knows it is a BlockSolverConfig, it "knows its
-  * place" in an eProbFile netCDF SMS++ file; see
-  * BlockSolverConfig::deserialize( netCDF::NcGroup , int ) for details of
-  * where the created netCDF group is placed in the SMS++ file. */
+  * place" in an eProbFile netCDF SMS++ file: the group "BlockSolver" of a
+  * "Prob_<i>" group, that of the last Block written if it has no
+  * BlockSolver yet and a new one otherwise [see
+  * Configuration::add_Prob_group()]. For any other type of file this is
+  * Configuration::serialize( netCDF::NcFile , type ). */
 
  void serialize( netCDF::NcFile & f , int type ) const override;
 

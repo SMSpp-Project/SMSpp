@@ -178,4 +178,10 @@ smspp_install(Misc_unit_test)
 add_test(NAME Misc_unit_test
          COMMAND Misc_unit_test)
 
+add_executable(NetCDF_test tests_NetCDF.cpp)
+target_link_libraries(NetCDF_test PRIVATE SMS++::SMS++)
+smspp_install(NetCDF_test)
+add_test(NAME NetCDF_test
+         COMMAND NetCDF_test)
+
 # --------------------------------------------------------------------------- #

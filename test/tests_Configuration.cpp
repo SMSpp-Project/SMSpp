@@ -15,6 +15,15 @@
  * both modes, and cleared; the BlockSolverConfig register their Solver, and
  * the cleared ones remove all and only these.
  *
+ * A second set of tests, whose files go in a directory of their own that
+ * is removed at the end, compares what is read with what was written field
+ * by field: the pairs of numbers and the nested SimpleConfiguration, the
+ * meta-configuration with its "*file" and "*file +" entries, whose extra
+ * slot may be left out before the next key, the ComputeConfig applied to a
+ * ThinComputeInterface, the ten slots of a BlockConfig and what its print()
+ * writes, the :BlockConfig with the handlers of the Objective, of the
+ * Constraint and of the sub-Block, and the RBlockSolverConfig.
+ *
  * The checks that are made with expect() rather than assert() are those
  * whose failure leaves the test able to go on: each failed one is printed,
  * and main() returns non-zero if any has failed, so that a run shows all of
@@ -36,11 +45,15 @@
 #include "FakeSolver.h"
 #include "RBlockConfig.h"
 
+#include <chrono>
 #include <filesystem>
 #include <memory>
 #include <fstream>
 #include <iostream>
+#include <map>
 #include <sstream>
+#include <string>
+#include <vector>
 
 // last, so that the headers above are read as the library was compiled
 #include "TestAssert.h"
@@ -58,6 +71,11 @@ using MapConf = SimpleConfiguration< std::map< std::string ,
 					       Configuration * > >;
 
 using VecConf = SimpleConfiguration< std::vector< Configuration * > >;
+
+using SC_int = SimpleConfiguration< int >;
+using SC_dbl = SimpleConfiguration< double >;
+using SC_map =
+ SimpleConfiguration< std::map< std::string , Configuration * > >;
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- STATIC MEMBERS --------------------------------*/
@@ -1522,6 +1540,1102 @@ static void test_BlockSolverConfig_netCDF( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/*----------------------------- FIELD BY FIELD -----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// the directory of the files the tests write, removed at the end
+
+static const std::filesystem::path & dir( void )
+{
+ static const std::filesystem::path d =
+  std::filesystem::temp_directory_path() /
+  ( "smspp_Configuration_test_" + std::to_string(
+       std::chrono::steady_clock::now().time_since_epoch().count() ) );
+ return( d );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// the absolute name of a file in dir()
+
+static std::string file( const std::string & name )
+{
+ return( ( dir() / name ).string() );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// writes \p text in the file of dir() with the given name, returns its name
+
+static std::string write_tmp_file( const std::string & name ,
+			       const std::string & text )
+{
+ std::ofstream f( file( name ) );
+ f << text;
+ return( file( name ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// reads a Configuration out of \p text, as a .txt file would give it
+/** The text is given the newline a .txt file ends with. */
+
+static Configuration * from_txt( const std::string & text )
+{
+ std::istringstream in( text + "\n" );
+ return( Configuration::deserialize( in ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// reads a Configuration of type T out of \p text, nullptr if another type
+
+template< class T >
+static T * text_as( const std::string & text )
+{
+ auto c = from_txt( text );
+ auto t = dynamic_cast< T * >( c );
+ if( ! t )
+  delete c;
+ return( t );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// writes \p c to a netCDF file of Configuration and reads it back
+/** The call goes through a reference to the base class, since the :Block
+ * Configuration override the serialize() of an open file, which hides the
+ * one taking a filename. */
+
+static Configuration * nc_back( const Configuration & c )
+{
+ const auto fn = file( "round_trip.nc4" );
+ c.serialize( fn , eConfigFile );
+ auto r = Configuration::deserialize( fn );
+ std::filesystem::remove( fn );
+ return( r );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// the netCDF round trip of \p c, nullptr if it is not a T
+
+template< class T >
+static T * nc_as( const Configuration & c )
+{
+ auto r = nc_back( c );
+ auto t = dynamic_cast< T * >( r );
+ if( ! t )
+  delete r;
+ return( t );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// true if the two Configuration are equal, for the types used here
+
+static bool same( const Configuration * a , const Configuration * b );
+
+/*--------------------------------------------------------------------------*/
+/// true if the two ComputeConfig hold the same parameters
+
+static bool same_cc( const ComputeConfig & a , const ComputeConfig & b )
+{
+ return( ( a.diff() == b.diff() ) && ( a.relax() == b.relax() ) &&
+	 ( a.int_pars == b.int_pars ) && ( a.dbl_pars == b.dbl_pars ) &&
+	 ( a.str_pars == b.str_pars ) && ( a.vint_pars == b.vint_pars ) &&
+	 ( a.vdbl_pars == b.vdbl_pars ) && ( a.vstr_pars == b.vstr_pars ) &&
+	 same( a.f_extra_Configuration , b.f_extra_Configuration ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// true if the ten sub-Configuration of the two BlockConfig are the same
+
+static bool same_bc( const BlockConfig & a , const BlockConfig & b )
+{
+ return( ( a.is_diff() == b.is_diff() ) &&
+	 same( a.f_structure_Configuration , b.f_structure_Configuration ) &&
+	 same( a.f_static_constraints_Configuration ,
+	       b.f_static_constraints_Configuration ) &&
+	 same( a.f_dynamic_constraints_Configuration ,
+	       b.f_dynamic_constraints_Configuration ) &&
+	 same( a.f_static_variables_Configuration ,
+	       b.f_static_variables_Configuration ) &&
+	 same( a.f_dynamic_variables_Configuration ,
+	       b.f_dynamic_variables_Configuration ) &&
+	 same( a.f_objective_Configuration , b.f_objective_Configuration ) &&
+	 same( a.f_is_feasible_Configuration , b.f_is_feasible_Configuration ) &&
+	 same( a.f_is_optimal_Configuration , b.f_is_optimal_Configuration ) &&
+	 same( a.f_solution_Configuration , b.f_solution_Configuration ) &&
+	 same( a.f_extra_Configuration , b.f_extra_Configuration ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// true if the two Configuration are equal, for the types used here
+
+static bool same( const Configuration * a , const Configuration * b )
+{
+ if( ( ! a ) || ( ! b ) )
+  return( a == b );
+ if( a->classname() != b->classname() )
+  return( false );
+ if( auto x = dynamic_cast< const SC_int * >( a ) )
+  return( x->f_value == static_cast< const SC_int * >( b )->f_value );
+ if( auto x = dynamic_cast< const SC_dbl * >( a ) )
+  return( x->f_value == static_cast< const SC_dbl * >( b )->f_value );
+ if( auto x = dynamic_cast< const ComputeConfig * >( a ) )
+  return( same_cc( *x , *static_cast< const ComputeConfig * >( b ) ) );
+ if( auto x = dynamic_cast< const BlockConfig * >( a ) ) {
+  auto y = static_cast< const BlockConfig * >( b );
+  if( ! same_bc( *x , *y ) )
+   return( false );
+  if( auto o = dynamic_cast< const BlockConfigHandlers::OHandler * >( x ) )
+   if( ! same( o->get_Config_Objective() ,
+	       dynamic_cast< const BlockConfigHandlers::OHandler * >( y )
+	       ->get_Config_Objective() ) )
+    return( false );
+  if( auto c = dynamic_cast< const BlockConfigHandlers::CHandler * >( x ) ) {
+   auto d = dynamic_cast< const BlockConfigHandlers::CHandler * >( y );
+   if( c->num_ComputeConfig_Constraint() != d->num_ComputeConfig_Constraint() )
+    return( false );
+   for( Block::Index i = 0 ; i < c->num_ComputeConfig_Constraint() ; ++i )
+    if( ( c->get_Constraint_id( i ) != d->get_Constraint_id( i ) ) ||
+	( ! same( c->get_ComputeConfig_Constraint( i ) ,
+		  d->get_ComputeConfig_Constraint( i ) ) ) )
+     return( false );
+   }
+  if( auto r = dynamic_cast< const BlockConfigHandlers::RHandler * >( x ) ) {
+   auto s = dynamic_cast< const BlockConfigHandlers::RHandler * >( y );
+   if( r->num_sub_BlockConfig() != s->num_sub_BlockConfig() )
+    return( false );
+   for( Block::Index i = 0 ; i < r->num_sub_BlockConfig() ; ++i )
+    if( ( r->get_sub_Block_id( i ) != s->get_sub_Block_id( i ) ) ||
+	( ! same( r->get_sub_BlockConfig( i ) , s->get_sub_BlockConfig( i ) ) ) )
+     return( false );
+   }
+  return( true );
+  }
+ if( auto x = dynamic_cast< const BlockSolverConfig * >( a ) ) {
+  auto y = static_cast< const BlockSolverConfig * >( b );
+  if( ( x->is_diff() != y->is_diff() ) ||
+      ( x->get_SolverNames() != y->get_SolverNames() ) ||
+      ( x->num_ComputeConfig() != y->num_ComputeConfig() ) )
+   return( false );
+  for( Block::Index i = 0 ; i < x->num_ComputeConfig() ; ++i )
+   if( ! same( x->get_SolverConfig( i ) , y->get_SolverConfig( i ) ) )
+    return( false );
+  if( auto r = dynamic_cast< const RBlockSolverConfig * >( x ) ) {
+   auto s = static_cast< const RBlockSolverConfig * >( y );
+   if( r->num_BlockSolverConfig() != s->num_BlockSolverConfig() )
+    return( false );
+   for( Block::Index i = 0 ; i < r->num_BlockSolverConfig() ; ++i )
+    if( ( r->get_sub_Block_id( i ) != s->get_sub_Block_id( i ) ) ||
+	( ! same( r->get_BlockSolverConfig( i ) ,
+		  s->get_BlockSolverConfig( i ) ) ) )
+     return( false );
+   }
+  return( true );
+  }
+ assert( false );  // a type the tests do not use
+ return( false );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// a ThinComputeInterface with two int and one double parameters
+/** The parameters are "intA" (default 10), "intB" (default 20) and "dblC"
+ * (default 0.5): enough to see what set_ComputeConfig() does with a
+ * differential ComputeConfig and with one that is not. */
+
+class Params : public ThinComputeInterface
+{
+ public:
+
+ Params( void ) : f_int{ 10 , 20 } , f_dbl( 0.5 ) {}
+
+ int compute( bool changedvars = true ) override { return( kOK ); }
+
+ using ThinComputeInterface::set_par;
+ using ThinComputeInterface::get_int_par;
+ using ThinComputeInterface::get_dbl_par;
+
+ [[nodiscard]] idx_type get_num_int_par( void ) const override {
+  return( 2 );
+  }
+ [[nodiscard]] idx_type get_num_dbl_par( void ) const override {
+  return( 1 );
+  }
+ [[nodiscard]] int get_dflt_int_par( idx_type par ) const override {
+  return( par == 0 ? 10 : 20 );
+  }
+ [[nodiscard]] double get_dflt_dbl_par( idx_type par ) const override {
+  return( 0.5 );
+  }
+ [[nodiscard]] idx_type int_par_str2idx( const std::string & name )
+  const override {
+  return( name == "intA" ? 0 : name == "intB" ? 1 : Inf< idx_type >() );
+  }
+ [[nodiscard]] idx_type dbl_par_str2idx( const std::string & name )
+  const override {
+  return( name == "dblC" ? 0 : Inf< idx_type >() );
+  }
+ [[nodiscard]] const std::string & int_par_idx2str( idx_type idx )
+  const override {
+  static const std::string n[] = { "intA" , "intB" };
+  return( n[ idx ] );
+  }
+ [[nodiscard]] const std::string & dbl_par_idx2str( idx_type idx )
+  const override {
+  static const std::string n = "dblC";
+  return( n );
+  }
+ void set_par( idx_type par , int value ) override { f_int[ par ] = value; }
+ void set_par( idx_type par , double value ) override { f_dbl = value; }
+ [[nodiscard]] int get_int_par( idx_type par ) const override {
+  return( f_int[ par ] );
+  }
+ [[nodiscard]] double get_dbl_par( idx_type par ) const override {
+  return( f_dbl );
+  }
+
+ int f_int[ 2 ];
+ double f_dbl;
+ };
+
+/*--------------------------------------------------------------------------*/
+/* The name given to the factory, with or without blanks, and the names and
+ * values it refuses. */
+
+static void test_factory_names( void )
+{
+ // the factory ignores the blanks in the name
+ auto c = Configuration::new_Configuration( " Simple Configuration < int > " );
+ assert( dynamic_cast< SC_int * >( c ) );
+ delete c;
+
+ // a name nobody registered is refused, and so is a value that is not there
+ assert( throws< std::invalid_argument >( [](){
+    delete from_txt( "SimpleConfiguration<float> 1" ); } ) );
+ assert( throws< std::invalid_argument >( [](){
+    delete from_txt( "SimpleConfiguration<int> abc" ); } ) );
+
+ std::cout << "names in the factory: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+/* SimpleConfiguration of the pairs of numbers and of the vector of pairs,
+ * in text and in netCDF. */
+
+static void test_pairs_and_vectors( void )
+{
+ {
+  using T = SimpleConfiguration< std::pair< int , int > >;
+  auto c = text_as< T >( "SimpleConfiguration<std::pair<int,int>> 3 -4" );
+  assert( c && ( c->f_value == std::make_pair( 3 , -4 ) ) );
+  auto n = nc_as< T >( *c );
+  assert( n && ( n->f_value == c->f_value ) );
+  delete n; delete c;
+  }
+ {
+  using T = SimpleConfiguration< std::pair< double , double > >;
+  auto c = text_as< T >(
+		     "SimpleConfiguration<std::pair<double,double>> 0.5 0" );
+  assert( c && ( c->f_value == std::make_pair( 0.5 , 0.0 ) ) );
+  auto n = nc_as< T >( *c );
+  assert( n && ( n->f_value == c->f_value ) );
+  delete n; delete c;
+  }
+ {
+  using T = SimpleConfiguration< std::pair< int , double > >;
+  auto c = text_as< T >( "SimpleConfiguration<std::pair<int,double>> 1 2.5" );
+  assert( c && ( c->f_value == std::make_pair( 1 , 2.5 ) ) );
+  auto n = nc_as< T >( *c );
+  assert( n && ( n->f_value == c->f_value ) );
+  delete n; delete c;
+  }
+ {
+  using T = SimpleConfiguration< std::pair< double , int > >;
+  auto c = text_as< T >( "SimpleConfiguration<std::pair<double,int>> 2.5 1" );
+  assert( c && ( c->f_value == std::make_pair( 2.5 , 1 ) ) );
+  auto n = nc_as< T >( *c );
+  assert( n && ( n->f_value == c->f_value ) );
+  delete n; delete c;
+  }
+
+ using VI = SimpleConfiguration< std::vector< int > >;
+ using VP = SimpleConfiguration< std::vector< std::pair< int , int > > >;
+
+ {
+  auto c = text_as< VP >(
+	   "SimpleConfiguration<std::vector<std::pair<int,int>>> 2 1 2 3 4" );
+  assert( c && ( c->f_value == std::vector< std::pair< int , int > >(
+					     { { 1 , 2 } , { 3 , 4 } } ) ) );
+  auto n = nc_as< VP >( *c );
+  assert( n && ( n->f_value == c->f_value ) );
+  delete n; delete c;
+  }
+
+ // printing a pair or a vector is for a human reader, and does not throw
+ {
+  std::ostringstream out;
+  SimpleConfiguration< std::pair< int , int > > p( { 1 , 2 } );
+  VI v( std::vector< int >( { 1 , 2 } ) );
+  out << p << v;
+  assert( ! out.str().empty() );
+  }
+
+ std::cout << "pairs and vectors: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+/* SimpleConfiguration holding other Configuration: the pairs whose second
+ * element is a Configuration, the vector of them and the vector of pairs;
+ * the '*' giving no Configuration, the clone() being deep. */
+
+static void test_nested( void )
+{
+ {
+  using T = SimpleConfiguration< std::pair< int , Configuration * > >;
+  auto c = text_as< T >( "SimpleConfiguration<std::pair<int,Configuration*>> "
+			 "5 SimpleConfiguration<double> 2.5" );
+  assert( c && ( c->f_value.first == 5 ) );
+  assert( value_of< double >( c->f_value.second ) == 2.5 );
+
+  auto n = nc_as< T >( *c );
+  assert( n && ( n->f_value.first == 5 ) );
+  assert( same( n->f_value.second , c->f_value.second ) );
+
+  auto k = static_cast< T * >( c->clone() );
+  assert( k->f_value.second != c->f_value.second );
+  assert( same( k->f_value.second , c->f_value.second ) );
+  delete k; delete n; delete c;
+
+  // '*' followed by nothing, or by a blank, is no Configuration
+  c = text_as< T >( "SimpleConfiguration<std::pair<int,Configuration*>> 7 *" );
+  assert( c && ( c->f_value.first == 7 ) && ( ! c->f_value.second ) );
+  n = nc_as< T >( *c );
+  assert( n && ( n->f_value.first == 7 ) && ( ! n->f_value.second ) );
+  delete n; delete c;
+  }
+ {
+  using T = SimpleConfiguration< std::pair< double , Configuration * > >;
+  auto c = text_as< T >( "SimpleConfiguration<std::pair<double,"
+			 "Configuration*>> 0 SimpleConfiguration<int> 3" );
+  assert( c && ( c->f_value.first == 0 ) );
+  assert( value_of< int >( c->f_value.second ) == 3 );
+  auto n = nc_as< T >( *c );
+  assert( n && ( n->f_value.first == 0 ) );
+  assert( same( n->f_value.second , c->f_value.second ) );
+  delete n; delete c;
+  }
+ {
+  using T = SimpleConfiguration< std::pair< std::string , Configuration * > >;
+  auto c = text_as< T >( "SimpleConfiguration<std::pair<std::string,"
+			 "Configuration*>> name SimpleConfiguration<int> 3" );
+  assert( c && ( c->f_value.first == "name" ) );
+  assert( value_of< int >( c->f_value.second ) == 3 );
+  auto n = nc_as< T >( *c );
+  assert( n && ( n->f_value.first == "name" ) );
+  assert( same( n->f_value.second , c->f_value.second ) );
+  delete n; delete c;
+  }
+ {
+  // a pair of pairs: a Configuration nested two levels down
+  using T = SimpleConfiguration< std::pair< Configuration * ,
+					    Configuration * > >;
+  auto c = text_as< T >(
+   "SimpleConfiguration<std::pair<Configuration*,Configuration*>>\n"
+   " SimpleConfiguration<std::pair<int,Configuration*>> 4\n"
+   "  SimpleConfiguration<double> -1\n"
+   " SimpleConfiguration<int> 2\n" );
+  assert( c );
+  auto in = dynamic_cast< SimpleConfiguration< std::pair< int ,
+		       Configuration * > > * >( c->f_value.first );
+  assert( in && ( in->f_value.first == 4 ) );
+  assert( value_of< double >( in->f_value.second ) == -1 );
+  assert( value_of< int >( c->f_value.second ) == 2 );
+
+  auto n = nc_as< T >( *c );
+  assert( n );
+  auto nin = dynamic_cast< SimpleConfiguration< std::pair< int ,
+			Configuration * > > * >( n->f_value.first );
+  assert( nin && ( nin->f_value.first == 4 ) );
+  assert( same( nin->f_value.second , in->f_value.second ) );
+  assert( same( n->f_value.second , c->f_value.second ) );
+  delete n; delete c;
+  }
+ {
+  using T = SimpleConfiguration< std::vector< Configuration * > >;
+  auto c = text_as< T >( "SimpleConfiguration<std::vector<Configuration*>> 3 "
+			 "SimpleConfiguration<int> 1 * "
+			 "SimpleConfiguration<double> 2" );
+  assert( c && ( c->f_value.size() == 3 ) );
+  assert( value_of< int >( c->f_value[ 0 ] ) == 1 );
+  assert( ! c->f_value[ 1 ] );
+  assert( value_of< double >( c->f_value[ 2 ] ) == 2 );
+
+  auto k = static_cast< T * >( c->clone() );
+  assert( ( k->f_value.size() == 3 ) && ( ! k->f_value[ 1 ] ) );
+  assert( ( k->f_value[ 0 ] != c->f_value[ 0 ] ) &&
+	  same( k->f_value[ 0 ] , c->f_value[ 0 ] ) );
+  delete k;
+
+  auto e = text_as< T >(
+		   "SimpleConfiguration<std::vector<Configuration*>> 0" );
+  assert( e && e->f_value.empty() );
+  delete e;
+
+  // read out of text, the '*' element comes back as nullptr from netCDF
+  auto m = nc_as< T >( *c );
+  assert( m && ( m->f_value.size() == 3 ) && ( ! m->f_value[ 1 ] ) );
+  delete m;
+  delete c;
+  }
+ {
+  using T = SimpleConfiguration< std::vector< std::pair< int ,
+							 Configuration * > > >;
+  auto c = text_as< T >(
+	 "SimpleConfiguration<std::vector<std::pair<int,Configuration*>>> 2 "
+	 "1 SimpleConfiguration<int> 10 2 *" );
+  assert( c && ( c->f_value.size() == 2 ) );
+  assert( ( c->f_value[ 0 ].first == 1 ) &&
+	  ( value_of< int >( c->f_value[ 0 ].second ) == 10 ) );
+  assert( ( c->f_value[ 1 ].first == 2 ) && ( ! c->f_value[ 1 ].second ) );
+
+  auto n = nc_as< T >( *c );
+  assert( n && ( n->f_value.size() == 2 ) );
+  assert( ( n->f_value[ 0 ].first == 1 ) &&
+	  same( n->f_value[ 0 ].second , c->f_value[ 0 ].second ) );
+  assert( ( n->f_value[ 1 ].first == 2 ) && ( ! n->f_value[ 1 ].second ) );
+  delete n; delete c;
+
+  auto e = text_as< T >(
+	 "SimpleConfiguration<std::vector<std::pair<int,Configuration*>>> 0" );
+  assert( e && e->f_value.empty() );
+  auto ne = nc_as< T >( *e );
+  assert( ne && ne->f_value.empty() );
+  delete ne; delete e;
+  }
+
+ std::cout << "nested Configuration: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The meta-configuration mapping a classname to a Configuration, i.e., the
+ * SimpleConfiguration< std::map< std::string , Configuration * > > that
+ * dispatches a Configuration to each :Block of a tree by classname. */
+
+static void test_meta_configuration( void )
+{
+ auto c = text_as< SC_map >(
+	   "SimpleConfiguration<std::map<std::string,Configuration*>>\n"
+	   "2  # two classes\n"
+	   "A SimpleConfiguration<int> 1  # the first\n"
+	   "B *                           # the second has none\n" );
+ assert( c && ( c->f_value.size() == 2 ) );
+ assert( value_of< int >( c->f_value.at( "A" ) ) == 1 );
+ assert( c->f_value.count( "B" ) && ( ! c->f_value.at( "B" ) ) );
+
+ // printing is for a human reader, and does not throw
+ std::ostringstream out;
+ out << *c;
+ assert( out.str().find( "A" ) != std::string::npos );
+
+ auto e = text_as< SC_map >(
+		  "SimpleConfiguration<std::map<std::string,Configuration*>> 0" );
+ assert( e && e->f_value.empty() );
+ auto ne = nc_as< SC_map >( *e );
+ assert( ne && ne->f_value.empty() );
+ delete ne; delete e;
+ delete c;
+
+ std::cout << "meta-configuration: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The "*file" of the text format inside a meta-configuration: a .txt file,
+ * the Configuration in a given position of a netCDF file, and '*'. */
+
+static void test_includes( void )
+{
+ write_tmp_file( "int.txt" ,
+		 "# an included file\nSimpleConfiguration<int> 9\n" );
+
+ // a netCDF file of two Configuration, the position in brackets
+ const auto nc = file( "two.nc4" );
+ SC_int first( 1 );
+ SC_dbl second( 2.5 );
+ static_cast< Configuration & >( first ).serialize( nc , eConfigFile );
+ static_cast< Configuration & >( second ).serialize( nc , eConfigFile ,
+						     false );
+ // the includes inside a meta-configuration
+ auto m = text_as< SC_map >(
+	   "SimpleConfiguration<std::map<std::string,Configuration*>> 3 "
+	   "A *" + file( "int.txt" ) + " B *" + nc + "[1] C *" );
+ assert( m && ( m->f_value.size() == 3 ) );
+ assert( value_of< int >( m->f_value.at( "A" ) ) == 9 );
+ assert( value_of< double >( m->f_value.at( "B" ) ) == 2.5 );
+ assert( ! m->f_value.at( "C" ) );
+ delete m;
+
+ std::cout << "includes: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+/* ComputeConfig: the deep copy, the printing and the extra Configuration
+ * read out of another file. */
+
+static const char * full_cc =
+ "ComputeConfig\n"
+ "1                  # differential\n"
+ "2 intA 1 intB -2   # int\n"
+ "1 dblC 0.5         # double\n"
+ "1 strD hello       # string\n"
+ "2 vintE 3 1 2 3    # vector of int\n"
+ "  vintF 0          # an empty one\n"
+ "1 vdblG 2 0.5 1.5  # vector of double\n"
+ "1 vstrH 2 a b      # vector of string\n"
+ "SimpleConfiguration<int> 7  # the extra Configuration\n";
+
+static void check_full_cc( const ComputeConfig & c )
+{
+ assert( c.diff() && ( ! c.relax() ) );
+ using IP = std::vector< std::pair< std::string , int > >;
+ using DP = std::vector< std::pair< std::string , double > >;
+ using SP = std::vector< std::pair< std::string , std::string > >;
+ using VIP = std::vector< std::pair< std::string , std::vector< int > > >;
+ using VDP = std::vector< std::pair< std::string , std::vector< double > > >;
+ using VSP = std::vector< std::pair< std::string ,
+				     std::vector< std::string > > >;
+ assert( ( c.int_pars == IP( { { "intA" , 1 } , { "intB" , -2 } } ) ) );
+ assert( ( c.dbl_pars == DP( { { "dblC" , 0.5 } } ) ) );
+ assert( ( c.str_pars == SP( { { "strD" , "hello" } } ) ) );
+ assert( ( c.vint_pars == VIP( { { "vintE" , { 1 , 2 , 3 } } ,
+				 { "vintF" , {} } } ) ) );
+ assert( ( c.vdbl_pars == VDP( { { "vdblG" , { 0.5 , 1.5 } } } ) ) );
+ assert( ( c.vstr_pars == VSP( { { "vstrH" , { "a" , "b" } } } ) ) );
+ assert( value_of< int >( c.f_extra_Configuration ) == 7 );
+ }
+
+static void test_ComputeConfig_copy( void )
+{
+ auto c = text_as< ComputeConfig >( full_cc );
+ assert( c );
+ check_full_cc( *c );
+
+ // the copy is deep
+ ComputeConfig copy( *c );
+ check_full_cc( copy );
+ assert( copy.f_extra_Configuration != c->f_extra_Configuration );
+ auto k = c->clone();
+ assert( same( k , c ) );
+ delete k;
+
+ // printing is for a human reader
+ std::ostringstream out;
+ out << *c;
+ assert( out.str().find( "intA = 1" ) != std::string::npos );
+
+ // the extra Configuration read out of another file
+ write_tmp_file( "extra.txt" , "SimpleConfiguration<double> 4.5" );
+ auto z = text_as< ComputeConfig >( "ComputeConfig 0 0 0 0 0 0 0 *" +
+				    file( "extra.txt" ) );
+ assert( z && ( value_of< double >( z->f_extra_Configuration ) == 4.5 ) );
+ delete z;
+
+ delete c;
+ std::cout << "ComputeConfig copy, print, extra from a file: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+/* What applying a ComputeConfig does: a differential one changes only the
+ * parameters it gives, one that is not first puts all of them back to
+ * their default, nullptr puts all of them back to their default; a name
+ * nobody knows is an error, unless the ComputeConfig is relaxed. */
+
+static void test_ComputeConfig_apply( void )
+{
+ Params p;
+
+ auto set = text_as< ComputeConfig >( "ComputeConfig 0 "
+				      "2 intA 1 intB 2 1 dblC 3" );
+ p.set_ComputeConfig( set );
+ assert( ( p.f_int[ 0 ] == 1 ) && ( p.f_int[ 1 ] == 2 ) && ( p.f_dbl == 3 ) );
+
+ auto diff = text_as< ComputeConfig >( "ComputeConfig 1 1 intB 7" );
+ p.set_ComputeConfig( diff );
+ assert( ( p.f_int[ 0 ] == 1 ) && ( p.f_int[ 1 ] == 7 ) && ( p.f_dbl == 3 ) );
+
+ // a differential ComputeConfig with nothing in it changes nothing
+ auto none = text_as< ComputeConfig >( "ComputeConfig 1 0 0 0 0 0 0 *" );
+ p.set_ComputeConfig( none );
+ assert( ( p.f_int[ 0 ] == 1 ) && ( p.f_int[ 1 ] == 7 ) && ( p.f_dbl == 3 ) );
+
+ auto reset = text_as< ComputeConfig >( "ComputeConfig 0 1 intB 8" );
+ p.set_ComputeConfig( reset );
+ assert( ( p.f_int[ 0 ] == 10 ) && ( p.f_int[ 1 ] == 8 ) &&
+	 ( p.f_dbl == 0.5 ) );
+
+ p.set_ComputeConfig( set );
+ p.set_ComputeConfig( nullptr );
+ assert( ( p.f_int[ 0 ] == 10 ) && ( p.f_int[ 1 ] == 20 ) &&
+	 ( p.f_dbl == 0.5 ) );
+
+ // what the ThinComputeInterface gives back is what it was given
+ p.set_ComputeConfig( set );
+ auto got = p.get_ComputeConfig( true );
+ assert( ( ! got->diff() ) && ( got->int_pars.size() == 2 ) &&
+	 ( got->dbl_pars.size() == 1 ) );
+ Params q;
+ q.set_ComputeConfig( got );
+ assert( ( q.f_int[ 0 ] == 1 ) && ( q.f_int[ 1 ] == 2 ) && ( q.f_dbl == 3 ) );
+ delete got;
+
+ // a name nobody knows
+ auto unknown = text_as< ComputeConfig >( "ComputeConfig 1 1 intZ 1" );
+ assert( throws< std::invalid_argument >( [ & ](){
+    p.set_ComputeConfig( unknown ); } ) );
+ auto relaxed = text_as< ComputeConfig >( "ComputeConfig 3 2 intZ 1 intA 5" );
+ p.set_ComputeConfig( relaxed );
+ assert( p.f_int[ 0 ] == 5 );
+
+ delete relaxed; delete unknown; delete reset; delete none; delete diff;
+ delete set;
+ std::cout << "applying a ComputeConfig: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The differential override "*file.txt +" of the text format inside a
+ * meta-configuration, whose next key is not the name of a Configuration:
+ * the extra slot of the body can be given or left out. */
+
+static void test_override_in_a_map( void )
+{
+ write_tmp_file( "base.txt" , "ComputeConfig 0\n"
+		 "2 intA 1 intB 2\n"
+		 "1 dblC 0.5\n"
+		 "0 0 0 0\n"
+		 "SimpleConfiguration<int> 3\n" );
+
+ // a full body, extra slot included, inside a meta-configuration
+ auto m = text_as< SC_map >(
+	   "SimpleConfiguration<std::map<std::string,Configuration*>> 2 "
+	   "A *" + file( "base.txt" ) + " + 1 1 intB 6 0 0 0 0 0 "
+	   "SimpleConfiguration<int> 5 "
+	   "B SimpleConfiguration<int> 4" );
+ assert( m && ( m->f_value.size() == 2 ) );
+ auto a = dynamic_cast< ComputeConfig * >( m->f_value.at( "A" ) );
+ assert( a && ( a->int_pars.size() == 2 ) &&
+	 ( a->int_pars[ 1 ].second == 6 ) );
+ assert( value_of< int >( a->f_extra_Configuration ) == 5 );
+ assert( value_of< int >( m->f_value.at( "B" ) ) == 4 );
+ delete m;
+
+ // the extra slot of the body is optional also inside a
+ // meta-configuration: the next key of the map is not the name of a
+ // Configuration, and is left to the map
+ m = text_as< SC_map >(
+	   "SimpleConfiguration<std::map<std::string,Configuration*>> 2 "
+	   "A *" + file( "base.txt" ) + " + 1 1 intB 6 0 0 0 0 0 "
+	   "B SimpleConfiguration<int> 4" );
+ assert( m && ( m->f_value.size() == 2 ) );
+ assert( value_of< int >( m->f_value.at( "B" ) ) == 4 );
+ delete m;
+
+ std::cout << "override in a meta-configuration: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+/* BlockConfig: the ten slots compared field by field after the netCDF round
+ * trip, the copy, the move and print(), which writes what load() reads. */
+
+static const char * full_bc =
+ "BlockConfig\n"
+ "1 2                           # differential, version 2\n"
+ "*                             # structure\n"
+ "SimpleConfiguration<int> 1    # static constraints\n"
+ "*                             # dynamic constraints\n"
+ "SimpleConfiguration<double> 2.5 # static variables\n"
+ "*                             # dynamic variables\n"
+ "SimpleConfiguration<int> 3    # objective\n"
+ "*                             # is_feasible\n"
+ "*                             # is_optimal\n"
+ "*                             # solution\n"
+ "SimpleConfiguration<int> 9    # extra\n";
+
+static void test_BlockConfig_fields( void )
+{
+ auto c = text_as< BlockConfig >( full_bc );
+ assert( c && c->is_diff() && ( ! c->empty() ) );
+ assert( ! c->f_structure_Configuration );
+ assert( value_of< int >( c->f_static_constraints_Configuration ) == 1 );
+ assert( ! c->f_dynamic_constraints_Configuration );
+ assert( value_of< double >( c->f_static_variables_Configuration ) == 2.5 );
+ assert( ! c->f_dynamic_variables_Configuration );
+ assert( value_of< int >( c->f_objective_Configuration ) == 3 );
+ assert( ! c->f_is_feasible_Configuration );
+ assert( ! c->f_is_optimal_Configuration );
+ assert( ! c->f_solution_Configuration );
+ assert( value_of< int >( c->f_extra_Configuration ) == 9 );
+
+ auto n = nc_as< BlockConfig >( *c );
+ assert( n && same( n , c ) );
+ delete n;
+
+ BlockConfig copy( *c );
+ assert( same( & copy , c ) );
+ assert( copy.f_extra_Configuration != c->f_extra_Configuration );
+
+ // print() writes the format that load() reads, which reads back the
+ // same BlockConfig
+ std::ostringstream out;
+ out << c->classname() << " " << *c;
+ auto p = text_as< BlockConfig >( out.str() );
+ assert( p && same( p , c ) );
+ delete p;
+
+ // the move constructor takes all the ten Configuration, the structure
+ // one included, and leaves none in the moved-from BlockConfig
+ BlockConfig moved( std::move( copy ) );
+ assert( same( & moved , c ) );
+ assert( ! copy.f_structure_Configuration );
+
+ // a slot read out of another file
+ auto e = text_as< BlockConfig >( "BlockConfig 1 2 * *" + file( "int.txt" ) );
+ assert( e && ( value_of< int >( e->f_static_constraints_Configuration ) ==
+		9 ) );
+ delete e;
+
+ // the structure slot is the first one
+ e = text_as< BlockConfig >( "BlockConfig 1 2 SimpleConfiguration<int> 4" );
+ assert( e && ( value_of< int >( e->f_structure_Configuration ) == 4 ) );
+ auto ns = nc_as< BlockConfig >( *e );
+ assert( ns && same( ns , e ) );
+ delete ns; delete e;
+
+ delete c;
+ std::cout << "BlockConfig field by field: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+/* A differential BlockConfig with nothing in it changes nothing of the
+ * BlockConfig of a Block, and what is read back from the Block is what is
+ * there. */
+
+static void test_BlockConfig_apply_nothing( void )
+{
+ AbstractBlock block;
+
+ auto full = text_as< BlockConfig >( "BlockConfig 0 2 * "
+				     "SimpleConfiguration<int> 3 * * * * * * * "
+				     "SimpleConfiguration<int> 2" );
+ full->apply( & block );
+
+ // a differential one with nothing in it changes nothing
+ auto none = text_as< BlockConfig >( "BlockConfig 1 2" );
+ none->apply( & block );
+ auto bc = block.get_BlockConfig();
+ assert( value_of< int >( bc->f_static_constraints_Configuration ) == 3 );
+ assert( value_of< int >( bc->f_extra_Configuration ) == 2 );
+
+ // and what is read back from the Block is what is there
+ BlockConfig got( & block );
+ assert( same( & got , bc ) );
+
+ delete none; delete full;
+ std::cout << "applying an empty differential BlockConfig: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The :BlockConfig with the handlers of the Objective (O), of the
+ * Constraint (C) and of the sub-Block (R), alone and together. */
+
+static const std::string empty_slots = " * * * * * * * * * * ";
+
+static void test_handlers( void )
+{
+ // the Objective
+ {
+  auto c = text_as< OBlockConfig >( "OBlockConfig 1 2" + empty_slots +
+				    "ComputeConfig 1 1 intA 3 0 0 0 0 0 *" );
+  assert( c && c->get_Config_Objective() );
+  assert( c->get_Config_Objective()->int_pars[ 0 ].second == 3 );
+  auto n = nc_as< OBlockConfig >( *c );
+  assert( n && ( n->get_Config_Objective() ) &&
+	  ( n->get_Config_Objective()->int_pars[ 0 ].second == 3 ) );
+  delete n;
+
+  auto k = c->clone();
+  assert( same( k , c ) );
+  delete k;
+
+  // nothing after the BlockConfig: no ComputeConfig for the Objective
+  auto e = text_as< OBlockConfig >( "OBlockConfig 1 2" + empty_slots );
+  assert( e && ( ! e->get_Config_Objective() ) );
+  auto ne = nc_as< OBlockConfig >( *e );
+  assert( ne && ( ! ne->get_Config_Objective() ) );
+  delete ne; delete e;
+
+  // a '*' is no ComputeConfig for the Objective
+  e = text_as< OBlockConfig >( "OBlockConfig 1 2" + empty_slots + "*" );
+  assert( e && ( ! e->get_Config_Objective() ) );
+  delete e;
+  delete c;
+  }
+
+ // the Constraint
+ {
+  auto c = text_as< CBlockConfig >( "CBlockConfig 1 2" + empty_slots +
+				    "2 rows 0 ComputeConfig 1 1 intA 1 0 0 0 0 0 *"
+				    "  rows 3 ComputeConfig 1 1 intA 2 0 0 0 0 0 *" );
+  assert( c && ( c->num_ComputeConfig_Constraint() == 2 ) );
+  assert( ( c->get_Constraint_id( 0 ) ==
+	    std::pair< std::string , Block::Index >( "rows" , 0 ) ) );
+  assert( ( c->get_Constraint_id( 1 ) ==
+	    std::pair< std::string , Block::Index >( "rows" , 3 ) ) );
+  assert( c->get_ComputeConfig_Constraint( 1 )->int_pars[ 0 ].second == 2 );
+
+  auto n = nc_as< CBlockConfig >( *c );
+  assert( n && ( n->num_ComputeConfig_Constraint() == 2 ) );
+  for( Block::Index i = 0 ; i < 2 ; ++i ) {
+   assert( n->get_Constraint_id( i ).second ==
+	   c->get_Constraint_id( i ).second );
+   assert( n->get_ComputeConfig_Constraint( i )->int_pars[ 0 ].second ==
+	   c->get_ComputeConfig_Constraint( i )->int_pars[ 0 ].second );
+   }
+  // the netCDF format keeps the name of the group of each Constraint
+  for( Block::Index i = 0 ; i < 2 ; ++i )
+   assert( n->get_Constraint_id( i ) == c->get_Constraint_id( i ) );
+  delete n;
+
+  // the numeric identification of a group of Constraint
+  auto d = text_as< CBlockConfig >( "CBlockConfig 1 2" + empty_slots +
+				    "1 0 1 ComputeConfig 1 0 0 0 0 0 0 *" );
+  assert( d && ( d->get_Constraint_id( 0 ) ==
+		 std::pair< std::string , Block::Index >( "0" , 1 ) ) );
+  delete d;
+
+  auto e = text_as< CBlockConfig >( "CBlockConfig 1 2" + empty_slots + "0" );
+  assert( e && ( ! e->num_ComputeConfig_Constraint() ) );
+  auto ne = nc_as< CBlockConfig >( *e );
+  assert( ne && ( ! ne->num_ComputeConfig_Constraint() ) );
+  delete ne; delete e;
+
+  // a '*' is no ComputeConfig for a Constraint
+  e = text_as< CBlockConfig >( "CBlockConfig 1 2" + empty_slots +
+			       "1 rows 0 *" );
+  assert( e && ( e->num_ComputeConfig_Constraint() == 1 ) &&
+	  ( ! e->get_ComputeConfig_Constraint( 0 ) ) );
+  delete e;
+  delete c;
+  }
+
+ // the sub-Block, by name and by position, one of them with none
+ {
+  auto c = text_as< RBlockConfig >( "RBlockConfig 1 2" + empty_slots +
+				    "-2 sub1 BlockConfig 1 2 * "
+				    "SimpleConfiguration<int> 4 * * * * * * * *"
+				    " sub2 *" );
+  assert( c && ( c->num_sub_BlockConfig() == 2 ) );
+  assert( c->get_sub_Block_id( 0 ) == "sub1" );
+  assert( c->get_sub_Block_id( 1 ) == "sub2" );
+  assert( value_of< int >( c->get_sub_BlockConfig( 0 )
+			   ->f_static_constraints_Configuration ) == 4 );
+  assert( ! c->get_sub_BlockConfig( 1 ) );
+
+  // the netCDF round trip of one sub-Block
+  {
+   auto one = text_as< RBlockConfig >( "RBlockConfig 1 2" + empty_slots +
+				       "-1 sub1 BlockConfig 1 2 * "
+				       "SimpleConfiguration<int> 4 * * * * * * * *" );
+   assert( one && ( one->num_sub_BlockConfig() == 1 ) );
+   auto n = nc_as< RBlockConfig >( *one );
+   assert( n && ( n->num_sub_BlockConfig() == 1 ) );
+   assert( same( n->get_sub_BlockConfig( 0 ) ,
+		 one->get_sub_BlockConfig( 0 ) ) );
+   delete n;
+   delete one;
+   }
+  // the netCDF format keeps the ids of the sub-Block
+  {
+   auto n = nc_as< RBlockConfig >( *c );
+   assert( n && ( n->num_sub_BlockConfig() == 2 ) );
+   assert( same( n->get_sub_BlockConfig( 0 ) ,
+		 c->get_sub_BlockConfig( 0 ) ) );
+   assert( ! n->get_sub_BlockConfig( 1 ) );
+   assert( n->get_sub_Block_id( 0 ) == "sub1" );
+   assert( n->get_sub_Block_id( 1 ) == "sub2" );
+   delete n;
+   }
+
+  auto p = text_as< RBlockConfig >( "RBlockConfig 0 2" + empty_slots +
+				    "1 BlockConfig 0 2" + empty_slots );
+  assert( p && ( p->num_sub_BlockConfig() == 1 ) );
+  assert( p->get_sub_Block_id( 0 ) == "0" );
+  assert( p->get_sub_BlockConfig( 0 ) &&
+	  p->get_sub_BlockConfig( 0 )->empty() );
+  delete p;
+
+  auto e = text_as< RBlockConfig >( "RBlockConfig 1 2" + empty_slots + "0" );
+  assert( e && ( ! e->num_sub_BlockConfig() ) );
+  auto ne = nc_as< RBlockConfig >( *e );
+  assert( ne && ( ! ne->num_sub_BlockConfig() ) );
+  delete ne; delete e;
+  delete c;
+  }
+
+ // all three together, in the order O, C, R
+ {
+  auto c = text_as< OCRBlockConfig >( "OCRBlockConfig 1 2" + empty_slots +
+				      "ComputeConfig 1 1 intA 3 0 0 0 0 0 * "
+				      "1 0 0 ComputeConfig 1 0 0 0 0 0 0 * "
+				      "1 BlockConfig 1 2" + empty_slots );
+  assert( c && c->get_Config_Objective() &&
+	  ( c->num_ComputeConfig_Constraint() == 1 ) &&
+	  ( c->num_sub_BlockConfig() == 1 ) );
+  auto n = nc_as< OCRBlockConfig >( *c );
+  assert( n && n->get_Config_Objective() &&
+	  ( n->num_ComputeConfig_Constraint() == 1 ) &&
+	  ( n->num_sub_BlockConfig() == 1 ) );
+  assert( n->get_Config_Objective()->int_pars[ 0 ].second == 3 );
+  delete n; delete c;
+  }
+
+ // the other combinations are there, and read what they are given
+ for( const std::string & name : { "OCBlockConfig" , "ORBlockConfig" ,
+				   "CRBlockConfig" } ) {
+  // the handlers are the letters before "BlockConfig"
+  const auto h = name.substr( 0 , 2 );
+  std::string text = name + " 1 2" + empty_slots;
+  if( h.find( 'O' ) != std::string::npos )
+   text += "ComputeConfig 1 1 intA 3 0 0 0 0 0 * ";
+  if( h.find( 'C' ) != std::string::npos )
+   text += "1 0 0 ComputeConfig 1 0 0 0 0 0 0 * ";
+  if( h.find( 'R' ) != std::string::npos )
+   text += "1 BlockConfig 1 2" + empty_slots;
+  auto c = from_txt( text );
+  assert( c && ( c->classname() == name ) );
+  auto n = nc_back( *c );
+  assert( n && ( n->classname() == name ) );
+  delete n; delete c;
+  }
+
+ std::cout << "handlers of a BlockConfig: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+/* BlockSolverConfig and RBlockSolverConfig: the names with no Solver, more
+ * ComputeConfig than names, the eProbFile written by serialize( NcFile ),
+ * the sub-Block by name and by position, and '*' for no BlockSolverConfig
+ * of a sub-Block. */
+
+static void test_BlockSolverConfig_fields( void )
+{
+ auto c = text_as< BlockSolverConfig >(
+	  "BlockSolverConfig\n"
+	  "1                   # differential\n"
+	  "2 BoxSolver *       # two Solver, the second with no name\n"
+	  "2                   # two ComputeConfig\n"
+	  "ComputeConfig 1 1 intPDSol 3 0 0 0 0 0 *\n"
+	  "*\n" );
+ assert( c && ( c->is_diff() == BlockSolverConfig::eDiffMode ) );
+ assert( ( c->get_SolverNames() ==
+	   std::vector< std::string >( { "BoxSolver" , "" } ) ) );
+ assert( c->get_SolverConfig( 0 ) && ( ! c->get_SolverConfig( 1 ) ) );
+ assert( c->get_SolverConfig( 0 )->int_pars[ 0 ].second == 3 );
+
+ auto n = nc_as< BlockSolverConfig >( *c );
+ assert( n && ( n->is_diff() == c->is_diff() ) );
+ assert( n->get_SolverNames() == c->get_SolverNames() );
+ assert( n->get_SolverConfig( 0 ) && ( ! n->get_SolverConfig( 1 ) ) );
+ assert( n->get_SolverConfig( 0 )->int_pars[ 0 ].second == 3 );
+ delete n;
+
+ auto k = c->clone();
+ assert( same( k , c ) );
+ delete k;
+
+ // the eProbFile the BlockSolverConfig writes is the one it reads
+ {
+  const auto fn = file( "bsc.nc4" );
+  {
+   netCDF::NcFile f( fn , netCDF::NcFile::replace );
+   f.putAtt( "SMS++_file_type" , netCDF::NcInt() , eProbFile );
+   c->serialize( f , eProbFile );
+   }
+  netCDF::NcFile f( fn , netCDF::NcFile::read );
+  auto r = BlockSolverConfig::deserialize( f , 0 );
+  assert( r && ( r->get_SolverNames() == c->get_SolverNames() ) );
+  delete r;
+  }
+
+ // more ComputeConfig than names
+ auto f = text_as< BlockSolverConfig >( "BlockSolverConfig 0 1 A 2 * "
+				   "ComputeConfig 0 0 0 0 0 0 0 *" );
+ assert( f && ( f->num_ComputeConfig() == 2 ) );
+ assert( ( f->get_SolverNames() ==
+	   std::vector< std::string >( { "A" , "" } ) ) );
+ assert( ( ! f->get_SolverConfig( 0 ) ) && f->get_SolverConfig( 1 ) );
+ delete f;
+
+ // the sub-Block, by name
+ auto r = text_as< RBlockSolverConfig >(
+	  "RBlockSolverConfig 0 1 BoxSolver 1 ComputeConfig 0 0 0 0 0 0 0 *\n"
+	  "-2 sub1 BlockSolverConfig 1 1 BoxSolver 0\n"
+	  "   sub2 RBlockSolverConfig 2 0 0\n" );
+ assert( r && ( r->num_BlockSolverConfig() == 2 ) );
+ assert( r->get_sub_Block_id( 0 ) == "sub1" );
+ assert( r->get_sub_Block_id( 1 ) == "sub2" );
+ assert( r->get_BlockSolverConfig( 0 )->get_SolverName( 0 ) == "BoxSolver" );
+ assert( dynamic_cast< RBlockSolverConfig * >( r->get_BlockSolverConfig( 1 ) )
+	 );
+ assert( r->get_BlockSolverConfig( 1 )->is_diff() ==
+	 BlockSolverConfig::eAddMode );
+
+ // the netCDF round trip of one sub-Block
+ {
+  auto one = text_as< RBlockSolverConfig >(
+	  "RBlockSolverConfig 0 1 BoxSolver 1 ComputeConfig 0 0 0 0 0 0 0 *\n"
+	  "-1 sub1 BlockSolverConfig 1 1 BoxSolver 0\n" );
+  assert( one && ( one->num_BlockSolverConfig() == 1 ) );
+  auto nr = nc_as< RBlockSolverConfig >( *one );
+  assert( nr && ( nr->num_BlockSolverConfig() == 1 ) );
+  assert( nr->get_SolverNames() == one->get_SolverNames() );
+  assert( same( nr->get_BlockSolverConfig( 0 ) ,
+		one->get_BlockSolverConfig( 0 ) ) );
+  delete nr;
+  delete one;
+  }
+ // the netCDF format keeps the ids of the sub-Block
+ {
+  auto nr = nc_as< RBlockSolverConfig >( *r );
+  assert( nr && ( nr->num_BlockSolverConfig() == 2 ) );
+  assert( same( nr->get_BlockSolverConfig( 0 ) ,
+		r->get_BlockSolverConfig( 0 ) ) );
+  assert( same( nr->get_BlockSolverConfig( 1 ) ,
+		r->get_BlockSolverConfig( 1 ) ) );
+  assert( nr->get_sub_Block_id( 0 ) == "sub1" );
+  assert( nr->get_sub_Block_id( 1 ) == "sub2" );
+  delete nr;
+  }
+
+ // by position
+ auto p = text_as< RBlockSolverConfig >(
+	  "RBlockSolverConfig 0 0 1 BlockSolverConfig 0 0" );
+ assert( p && ( p->num_BlockSolverConfig() == 1 ) &&
+	 ( p->get_sub_Block_id( 0 ) == "0" ) );
+ delete p;
+
+ // no sub-Block at all
+ p = text_as< RBlockSolverConfig >( "RBlockSolverConfig 0 0" );
+ assert( p && ( ! p->num_BlockSolverConfig() ) && p->empty() );
+ auto np = nc_as< RBlockSolverConfig >( *p );
+ assert( np && ( ! np->num_BlockSolverConfig() ) );
+ delete np; delete p;
+
+ // a '*' is no BlockSolverConfig for a sub-Block
+ p = text_as< RBlockSolverConfig >( "RBlockSolverConfig 0 0 1 *" );
+ assert( p && ( p->num_BlockSolverConfig() == 1 ) &&
+	 ( ! p->get_BlockSolverConfig( 0 ) ) );
+ delete p;
+
+ delete r; delete c;
+ std::cout << "BlockSolverConfig and RBlockSolverConfig field by field: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
 /*----------------------------------- MAIN ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1554,6 +2668,21 @@ int main( void )
  test_BlockSolverConfig_load();
  test_BlockSolverConfig_apply();
  test_BlockSolverConfig_netCDF();
+
+ std::filesystem::create_directories( dir() );
+ test_factory_names();
+ test_pairs_and_vectors();
+ test_nested();
+ test_meta_configuration();
+ test_includes();
+ test_ComputeConfig_copy();
+ test_ComputeConfig_apply();
+ test_override_in_a_map();
+ test_BlockConfig_fields();
+ test_BlockConfig_apply_nothing();
+ test_handlers();
+ test_BlockSolverConfig_fields();
+ std::filesystem::remove_all( dir() );
 
  // last, since what they find broken may not leave the test standing
  test_OCRBlockConfig();

@@ -256,8 +256,13 @@ class Configuration
   * - if \p idx >= 0, then the BlockConfig in the "Prob_<idx>" group is
   *   returned;
   *
-  * - if \p idx < 0, then the BlockSolver in the "Prob_(- <idx> - 1)" group
-  *   is returned, i.e., -1 is the BlockSolver of "Prob_0".
+  * - if \p idx < 0, then the BlockSolver in the "Prob_<- idx - 1>" group
+  *   is returned, i.e., \p idx == -1 gives that of "Prob_0", \p idx == -2
+  *   that of "Prob_1", and so on.
+  *
+  * If the "Prob_<i>" group has no such child, the child "BlockConfig" or
+  * "SolverConfig", respectively, of the group "Config_<i>" is taken, which
+  * is where some eProbFile have them [see get_Prob_group()].
   *
   * Once the appropriate group is selected, the :Configuration is loaded from
   * it with a call to new_Configuration( netCDF::NcGroup & ); see the
@@ -666,6 +671,32 @@ class Configuration
   * Use Idiom" that solves the "static initialization order problem". */
 
  static ConfigurationFactoryMap & f_factory( void );
+
+/*--------------------------------------------------------------------------*/
+ /// the group of an eProbFile where a BlockConfig or BlockSolver is written
+ /** Returns a new child group with name \p name ("BlockConfig" or
+  * "BlockSolver") of a "Prob_<i>" group of the eProbFile \p f: of the last
+  * one, "Prob_<n - 1>" with n the number of groups of \p f, if it has no
+  * child with that name yet (so that the BlockConfig and the BlockSolver
+  * written right after a Block go in the problem of that Block), and of a
+  * new "Prob_<n>" otherwise. */
+
+ static netCDF::NcGroup add_Prob_group( netCDF::NcFile & f ,
+					const std::string & name );
+
+/*--------------------------------------------------------------------------*/
+ /// the group of an eProbFile where a BlockConfig or BlockSolver is read
+ /** Returns the child group with name \p name ("BlockConfig" or
+  * "BlockSolver") of the group "Prob_<idx>" of the eProbFile \p f. If it
+  * is not there, the child group with name \p alt_name of the group
+  * "Config_<idx>" is returned, which is where some eProbFile have it
+  * ("BlockConfig" and "SolverConfig", respectively); a null group if
+  * neither is there. */
+
+ static netCDF::NcGroup get_Prob_group( const netCDF::NcFile & f ,
+					unsigned int idx ,
+					const std::string & name ,
+					const std::string & alt_name );
 
 /*--------------------------------------------------------------------------*/
  /// empty placeholder for class-specific static initialization

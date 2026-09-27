@@ -7,10 +7,16 @@ Unit tests for the core SMS++ library. Each test is registered as a separate
   `Configuration`, `Solver`, `Solution` and `State` objects by name: each
   name is found, gives an object of the class asked for and of the same
   `classname()`, and a name that is not there throws.
-- `Configuration_unit_test` covers `SimpleConfiguration`, `ComputeConfig` with
-  its cascade override, `BlockConfig` and `OCRBlockConfig`, and
+- `Configuration_unit_test` covers `SimpleConfiguration`, `ComputeConfig`
+  with its cascade override, `BlockConfig` and `OCRBlockConfig`, and
   `BlockSolverConfig`: read from text, written and read back in netCDF,
-  cloned, got from a `Block` and applied to another, and cleared.
+  cloned, got from a `Block` and applied to another, and cleared; and,
+  compared field by field, the pairs and the nested `SimpleConfiguration`,
+  the meta-configuration with the `*file.txt` and `*file.txt +` entries,
+  the `ComputeConfig` applied to a `ThinComputeInterface`, the ten slots of
+  a `BlockConfig` and what its `print()` writes, the `:BlockConfig` with
+  the handlers of the Objective, of the Constraint and of the sub-Block,
+  and `RBlockSolverConfig`.
 - `AbstractBlock_test` covers `Block` and `AbstractBlock`: the groups it
   registers, the LP, MPS and certificate writers, the netCDF round trip of
   an empty `Block`, of dynamic groups, of `OneVarConstraint`, of nested
@@ -105,6 +111,14 @@ Unit tests for the core SMS++ library. Each test is registered as a separate
   unbounded directions, dual values), `UpdateSolver`, and what the base
   `Solver` does by itself: registration, the queue of Modification and the
   tables of the parameters.
+- `NetCDF_test` covers the round trips through the netCDF format of the rows,
+  the bounds and the `FRealObjective` of an `AbstractBlock`, of the
+  `PolyhedralFunctionBlock`, of the `BendersBFunction` with its sub-Block and
+  of the `LagBFunction` with its inner Block and its Lagrangian term, the
+  empty cases included, the LP files `read_lp()` has to refuse, and those of
+  the `State` of the `PolyhedralFunction`, of the `BendersBFunction` and of
+  the `LagBFunction`, both the one of `get_State()` and the one written by
+  `serialize_State()`.
 
 These are built and run through CMake / ctest (there is no makefile here);
 all of them passing is a good sign that no regressions have been introduced

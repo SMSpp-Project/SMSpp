@@ -975,6 +975,66 @@ inline constexpr bool is_netCDF_type_v =
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /*- - - - - - SERIALIZING AND DESERIALIZING BASIC TYPES - - - - - - - - - -*/
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// read the values of a netCDF variable, std::string ones included
+/** Reads into \p data the values of the netCDF variable \p ncVar in the
+ * hyperslab given by \p start and \p count, or all of them if \p count is
+ * empty. For any T but std::string this is just NcVar::getVar(). For
+ * T = std::string the variable is a netCDF::NcString one, for which the
+ * netCDF library writes one char * per string, allocated by itself: these
+ * are read into an array of char *, copied into the std::string of \p data
+ * and given back to the library with nc_free_string(). Passing an array of
+ * std::string to NcVar::getVar() would instead make the library write the
+ * char * over the std::string objects.
+ *
+ * @param[in] ncVar The netCDF variable to be read.
+ *
+ * @param[out] data A pointer to the first of the elements that receive the
+ *                  values, as many as the product of \p count (of the sizes
+ *                  of the dimensions of \p ncVar if \p count is empty, 1 if
+ *                  \p ncVar is a scalar).
+ *
+ * @param[in] start The index of the first value to be read in each
+ *                  dimension, ignored if \p count is empty.
+ *
+ * @param[in] count The number of values to be read in each dimension; if
+ *                  empty, the whole variable is read. */
+
+template< class T >
+void get_var_values( const netCDF::NcVar & ncVar , T * data ,
+                     const std::vector< std::size_t > & start = {} ,
+                     const std::vector< std::size_t > & count = {} ) {
+ if constexpr( std::is_same_v< T , std::string > ) {
+  std::size_t n = 1;
+  if( count.empty() )
+   for( const auto & dim : ncVar.getDims() )
+    n *= dim.getSize();
+  else
+   for( auto c : count )
+    n *= c;
+
+  if( ! n )
+   return;
+
+  std::vector< char * > tmp( n , nullptr );
+  if( count.empty() )
+   ncVar.getVar( tmp.data() );
+  else
+   ncVar.getVar( start , count , tmp.data() );
+
+  for( std::size_t i = 0 ; i < n ; ++i )
+   data[ i ] = tmp[ i ] ? tmp[ i ] : "";
+
+  nc_free_string( n , tmp.data() );
+  }
+ else {
+  if( count.empty() )
+   ncVar.getVar( data );
+  else
+   ncVar.getVar( start , count , data );
+  }
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// deserialize a simple value out of a given group
 /** Deserialize a "simple" value, one for which NcGroup::getVar() is defined,
  * out of the given \p group and into \p data. This is supposed to live in
@@ -1015,7 +1075,7 @@ deserialize( const netCDF::NcGroup & group , T & data ,
   return( false );
   }
 
- ncVar.getVar( &data );
+ get_var_values( ncVar , &data );
  return( true );
  }
 
@@ -1452,13 +1512,13 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
 
  if( dc == 0 ) {
   R value;
-  ncVar.getVar( &value );
+  get_var_values( ncVar , &value );
   buf.assign( size , value );
   }
 
  else {
   buf.resize( size );
-  ncVar.getVar( { 0 } , { size } , buf.data() );
+  get_var_values( ncVar , buf.data() , { 0 } , { size } );
   }
 
  // Apply decompression if requested
@@ -1987,7 +2047,7 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
 
  if( ncVar.getDimCount() == 0 ) {
   data.resize( 1 );
-  ncVar.getVar( &data[ 0 ] );
+  get_var_values( ncVar , &data[ 0 ] );
   return( true );
   }
 
@@ -2003,7 +2063,7 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
 
  std::vector< std::size_t > start( sizes.size() , 0 );
 
- ncVar.getVar( start , sizes , data.data() );
+ get_var_values( ncVar , data.data() , start , sizes );
 
  return( true );
  }
@@ -2065,7 +2125,7 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
  if( sizes_dimensions.empty() ) {
   // The variable is a scalar one.
   data.resize( 1 );
-  ncVar.getVar( data.data() );
+  get_var_values( ncVar , data.data() );
   return( true );
   }
 
@@ -2081,7 +2141,7 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
 
  std::vector< std::size_t > start( sizes_dimensions.size() , 0 );
 
- ncVar.getVar( start , sizes_dimensions , data.data() );
+ get_var_values( ncVar , data.data() , start , sizes_dimensions );
 
  return( true );
  }
@@ -2174,20 +2234,7 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
   }
 
  std::vector< T > tmp( ncVar.getDim( 0 ).getSize() );
- if constexpr( std::is_same_v< T , std::string > ) {
-  // netCDF gives the strings as char * it allocates, which are copied and
-  // then freed
-  std::vector< char * > tmp_cstr( tmp.size() , nullptr );
-  if( ! tmp_cstr.empty() )
-   ncVar.getVar( tmp_cstr.data() );
-  for( std::size_t i = 0 ; i < tmp.size() ; ++i ) {
-   if( tmp_cstr[ i ] )
-    tmp[ i ] = tmp_cstr[ i ];
-   free( tmp_cstr[ i ] );
-   }
-  }
- else
-  ncVar.getVar( tmp.data() );
+ get_var_values( ncVar , tmp.data() );
 
  matrix.resize( nrows );
 
@@ -2373,7 +2420,8 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
  matrix.resize( num_rows );
  for( decltype( num_rows ) i = 0 ; i < num_rows ; ++i ) {
   matrix[ i ].resize( num_cols );
-  ncVar.getVar( { i , 0 } , { 1 , num_cols } , matrix[ i ].data() );
+  get_var_values( ncVar , matrix[ i ].data() , { i , 0 } ,
+                  { 1 , num_cols } );
   }
 
  return( true );
@@ -2560,7 +2608,7 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
    multi_array.resize( new_sizes );
 
    T value;
-   ncVar.getVar( & value );
+   get_var_values( ncVar , & value );
 
    std::fill( multi_array.data() ,
               multi_array.data() + multi_array.num_elements() ,
@@ -2581,7 +2629,8 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
  multi_array.resize( sizes_dimensions );
 
  std::vector< std::size_t > start( sizes_dimensions.size() , 0 );
- ncVar.getVar( start , sizes_dimensions , multi_array.data() );
+ get_var_values( ncVar , multi_array.data() , start ,
+                 sizes_dimensions );
 
  // Post-processing only for 2D arrays
  if constexpr( N == 2 ) {

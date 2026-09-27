@@ -1035,7 +1035,7 @@ BlockConfig::BlockConfig( const BlockConfig & old ) : BlockConfig()
 
 /*--------------------------------------------------------------------------*/
 
-BlockConfig::BlockConfig( BlockConfig && old )
+BlockConfig::BlockConfig( BlockConfig && old ) : BlockConfig()
 {
  f_diff = old.f_diff;
  f_structure_Configuration = old.f_structure_Configuration;
@@ -1091,46 +1091,52 @@ void BlockConfig::get( Block * block )
 
 void BlockConfig::serialize( netCDF::NcFile & f , int type ) const
 {
- if( type == eConfigFile ) {
+ if( type != eProbFile ) {
   Configuration::serialize( f , type );
   return;
   }
 
- // appended after the last problem of the file, as Block::serialize() does
- auto cg = ( f.addGroup( "Prob_" + std::to_string( f.getGroupCount() )
- ) ).addGroup( "BlockConfig" );
+ auto cg = add_Prob_group( f , "BlockConfig" );
  serialize( cg );
 
  }  // end( BlockConfig::serialize( file ) )
 
 /*--------------------------------------------------------------------------*/
 
+/// print one slot of a BlockConfig as BlockConfig::load() reads it
+
+static void print_slot( std::ostream & output , const Configuration * config ,
+			const char * name )
+{
+ if( config )
+  output << config->classname() << " " << *config;
+ else
+  output << "*";
+ output << "  # " << name << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+
 void BlockConfig::print( std::ostream & output ) const
 {
- output << private_name();
- if( f_diff ) output << "[diff]";
- output << ": " << std::endl;
- if( f_structure_Configuration )
-  output << *f_structure_Configuration;
- if( f_static_constraints_Configuration )
-  output << *f_static_constraints_Configuration;
- if( f_dynamic_constraints_Configuration )
-  output << *f_dynamic_constraints_Configuration;
- if( f_static_variables_Configuration )
-  output << *f_static_variables_Configuration;
- if( f_dynamic_variables_Configuration )
-  output << *f_dynamic_variables_Configuration;
- if( f_objective_Configuration )
-  output << *f_objective_Configuration;
- if( f_is_feasible_Configuration )
-  output << *f_is_feasible_Configuration;
- if( f_is_optimal_Configuration )
-  output << *f_is_optimal_Configuration;
- if( f_solution_Configuration )
-  output << *f_solution_Configuration;
- if( f_extra_Configuration )
-  output << *f_extra_Configuration;
- output << std::endl;
+ // the format that load() reads, each slot on a line with its name as a
+ // comment, a '*' for the empty ones
+ output << f_diff << " " << f_txt_version
+	<< "  # differential, version of the format" << std::endl;
+ print_slot( output , f_structure_Configuration , "structure" );
+ print_slot( output , f_static_constraints_Configuration ,
+	     "static constraints" );
+ print_slot( output , f_dynamic_constraints_Configuration ,
+	     "dynamic constraints" );
+ print_slot( output , f_static_variables_Configuration ,
+	     "static variables" );
+ print_slot( output , f_dynamic_variables_Configuration ,
+	     "dynamic variables" );
+ print_slot( output , f_objective_Configuration , "objective" );
+ print_slot( output , f_is_feasible_Configuration , "is_feasible" );
+ print_slot( output , f_is_optimal_Configuration , "is_optimal" );
+ print_slot( output , f_solution_Configuration , "solution" );
+ print_slot( output , f_extra_Configuration , "extra" );
 
  }  // end( BlockConfig::print )
 

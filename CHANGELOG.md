@@ -257,6 +257,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the `BlockModAdd` and `BlockModRmv*` sent, and the stuff a removed element
   was active in
 
+- `Configuration_unit_test` also compares field by field what is read with
+  what was written for the pairs of numbers and the nested
+  `SimpleConfiguration`, the meta-configuration mapping a classname to a
+  `Configuration` with its `*file.txt` and `*file.txt +` entries, the
+  `ComputeConfig` applied to a `ThinComputeInterface`, the ten slots of a
+  `BlockConfig` and what its `print()` writes, the `:BlockConfig` with the
+  handlers of the Objective, of the Constraint and of the sub-Block, and
+  `RBlockSolverConfig`
+
+- `NetCDF_test` writes to a netCDF group and reads back the rows, the bounds
+  and the `FRealObjective` of an `AbstractBlock`, the
+  `PolyhedralFunctionBlock`, the `BendersBFunction` with its sub-Block, the
+  empty cases included, the LP files `read_lp()` has to refuse, and the
+  `State` of the `PolyhedralFunction`, of the `BendersBFunction` and of the
+  `LagBFunction`, both the one of `get_State()` and the one written by
+  `serialize_State()`, with the core alone
+
 ### Changed
 
 - the makefile of the library carries `C05SumFunction`, which was built by
@@ -833,6 +850,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the call threw after the coefficients had been changed. With a `Subset`,
   they and `DQuadFunction::modify_terms()` check all the indices before
   changing anything
+
+- the `load()` of `OBlockConfig`, `CBlockConfig` and `RBlockSolverConfig`
+  accept the `*` they document for no `ComputeConfig` of the Objective, of a
+  Constraint and no `BlockSolverConfig` of a sub-Block, on which they threw
+
+- `Configuration::deserialize( std::istream )` deletes the `Configuration` it
+  has built when reading its body, or merging the overrides of a `*file.txt
+  +`, throws, while it leaked it
+
+- every string of a netCDF file is read with the new `get_var_values()` of
+  SMSTypedefs.h, which reads the `char *` that the netCDF library allocates
+  for each string, copies it and gives it back with `nc_free_string()`, and
+  which the `deserialize()` helpers of the scalars, of the vectors, of the
+  multi-dimensional arrays and of the matrices use too: besides the names
+  and values of the parameters of `ComputeConfig`, so are read the keys of
+  the meta-configuration, the name of the group of each Constraint of a
+  `CBlockConfig`, the ids of the sub-Block of `RBlockConfig` and of
+  `RBlockSolverConfig`, which were read into the `std::string` objects
+  themselves, and the name of each Solver of `BlockSolverConfig`, which
+  leaked
+
+- the extra slot of the body of a `*file.txt +` override is optional also
+  inside a meta-configuration: `ComputeConfig::merge_overrides()` leaves in
+  the stream a next token that is neither a `*` nor the name of a
+  `Configuration`, i.e., the next key of the map, which it read as the
+  classname of the extra `Configuration` and threw
+
+- `BlockConfig::print()` writes the format that `load()` reads, with the
+  version of the format, a `*` for each empty slot and the name of each slot
+  as a comment
+
+- `BlockConfig` and `BlockSolverConfig` written in an eProbFile go in the
+  `Prob_<i>` group of the last Block written if it has no `BlockConfig`
+  (`BlockSolver`) yet, and in a new one otherwise, rather than always in a
+  new one; `Configuration::deserialize( netCDF::NcFile , idx )` and
+  `BlockSolverConfig::deserialize( netCDF::NcFile , idx )` also take the
+  groups `Config_<i>/BlockConfig` and `Config_<i>/SolverConfig` that older
+  eProbFile have
 
 ## [0.7.1] - 2026-09-13
 

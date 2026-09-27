@@ -9268,7 +9268,11 @@ class BlockConfig : public Configuration {
 
  /// extends Configuration::serialize( netCDF::NcFile , type ) to eProbFile
  /** Since a BlockConfig knows it is a BlockConfig, it "knows its place" in
-  * an eProbFile netCDF SMS++ file. */
+  * an eProbFile netCDF SMS++ file: the group "BlockConfig" of a "Prob_<i>"
+  * group, that of the last Block written if it has no BlockConfig yet and a
+  * new one otherwise [see Configuration::add_Prob_group()]. For any other
+  * type of file this is Configuration::serialize( netCDF::NcFile , type ).
+  */
 
  void serialize( netCDF::NcFile & f , int type ) const override;
 
@@ -9380,6 +9384,14 @@ class BlockConfig : public Configuration {
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 
  /// print the BlockConfig
+ /** Prints the BlockConfig in the format that load() reads, without the
+  * classname in front (as for any Configuration): the differential flag
+  * and f_txt_version, then each of the ten Configuration on a line of its
+  * own, as its classname followed by what its print() writes or as a '*'
+  * if it is not there, with the name of the slot as a comment. What is
+  * printed can be read back as long as the Configuration in it print
+  * themselves in the format their load() reads. */
+
  void print( std::ostream & output ) const override;
 
 /*--------------------------------------------------------------------------*/
