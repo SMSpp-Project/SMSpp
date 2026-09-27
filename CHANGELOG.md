@@ -237,6 +237,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Range` and `Subset`, a `Range` past the end, a wrong index, no pair at
   all)
 
+- `PolyhedralFunction_unit_test` also checks the edges of every method of
+  `PolyhedralFunction` taking a `Range` or a `Subset` (empty, to the end,
+  past the end, covering everything, unordered), with the `Modification`
+  each change issues, the functions with no row, no Variable or neither,
+  the vertical rows, the names of the global pool, which follow the rows and
+  the `State` puts back, and the netCDF round trip of the vertical flags and
+  of the functions with no row or no Variable
+
+- `DQuadFunction_test` checks `DQuadFunction`: the value, the gradient whole
+  and in part, dense and sparse, the Hessian and the convexity, the
+  coefficients and the Variable changed by `Range` and by `Subset` at their
+  edges, and the `Modification` each change issues
+
+- `AbstractBlock_test` checks the edges of adding and removing dynamic
+  Variable and Constraint: adding nothing, empty, reversed and out-of-range
+  `Range`, empty, unordered and out-of-range `Subset`, removing everything,
+  lists in the cells of a vector, the group and the `Block` of the elements,
+  the `BlockModAdd` and `BlockModRmv*` sent, and the stuff a removed element
+  was active in
+
 ### Changed
 
 - the makefile of the library carries `C05SumFunction`, which was built by
@@ -340,6 +360,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `get_resolved_indices()` throw `std::invalid_argument` for a node of type
   'B' selecting a nested Block that is not there, which was only an
   `assert()`
+
+- `SizeVariable_test` is renamed `PolyhedralFunctionBlock_unit_test`, and its
+  source `tests_PolyhedralFunctionBlock.cpp`, since what it tests is the size
+  variable of a `PolyhedralFunctionBlock`; the `_unit_test` keeps it apart
+  from the `PolyhedralFunctionBlock_test` battery of the tests repository
 
 ### Fixed
 
@@ -764,6 +789,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `FRealObjective`, when no Modification is issued, cut the Range to the
   number of active Variable, as the Function does, while a Range up to
   `Inf` made them read past the end of the Function
+
+- removing Variable from a `PolyhedralFunction` also takes their columns out
+  of the aggregated linearizations of the global pool, which kept them and so
+  gave the coefficients of other Variable
+
+- `PolyhedralFunction::modify_rows( Subset )` checks the size of all the
+  rows before changing any
+
+- `PolyhedralFunction::delete_rows( Subset )` deletes the rows by position:
+  it marked them by emptying them and then erased every empty row, so that
+  with no Variable, where all rows are empty, it erased all the rows of A
+  from the first deleted one on while b lost only the right ones
+
+- `PolyhedralFunction::add_rows()` given no row returns silently, as the
+  other methods given nothing to do, rather than issuing a
+  `PolyhedralFunctionModAddd` with no row
+
+- `PolyhedralFunction::set_par( intGPMaxSz , ... )` shrinking the pool to
+  just the names in use loses nothing and issues nothing: it took the last
+  name in use for lost, and the changes of the rows then no longer followed
+  it
+
+- `PolyhedralFunction::add_variables()` to a function with Variable but no
+  row only adds the Variable, where an assert aborted a build without NDEBUG;
+  there and in `add_variable()` the new coefficients must be one per row, and
+  are refused otherwise, `add_variable()` having read past the end of a short
+  vector and made rows of the wrong size in a function with no row
+
+- the netCDF format of `PolyhedralFunction` has the optional variable
+  `PolyFunction_Vert` with the vertical rows, which `serialize()` writes when
+  some row is vertical and `deserialize()` reads, a file without it giving
+  all the rows diagonal: they used to come back all diagonal
+
+- `DQuadFunction::remove_variables( Range )` of a part of the Variable with
+  the Modification issued no longer writes past the end of the vector of the
+  removed Variable, whose loop tested an iterator that never moved
+
+- `DQuadFunction::modify_linear_coefficients()` and
+  `LinearFunction::modify_coefficients()` pass to the Modification only the
+  part of `NCoef` they use, with a `Range` cut at the end as with a longer
+  `NCoef`: the Modification refused a `delta()` longer than its Variable and
+  the call threw after the coefficients had been changed. With a `Subset`,
+  they and `DQuadFunction::modify_terms()` check all the indices before
+  changing anything
 
 ## [0.7.1] - 2026-09-13
 

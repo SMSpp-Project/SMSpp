@@ -14,9 +14,18 @@
  * trip, and the primal and dual abstract representations of an empty
  * PolyhedralFunctionBlock are followed while rows are added and deleted.
  *
- * Each check prints what it expected when it fails, and all of them run, so
- * that one failing does not hide the others; main() returns the number of
- * failed checks.
+ * A second set of tests, whose Modification are read by an Observer that
+ * records them, goes over the edge cases of every method taking a Range or
+ * a Subset (empty, to the end, past the end, covering everything,
+ * unordered), over the degenerate functions with no row, no Variable or
+ * neither, over the vertical rows, which make the function infinite outside
+ * of their domain, over the names of the global pool, which follow the rows
+ * and the State puts back, and over the netCDF round trip of the vertical
+ * flags and of the functions with no row or no Variable.
+ *
+ * Each check of the first set prints what it expected when it fails, and
+ * all of them run, so that one failing does not hide the others; main()
+ * returns 1 if any failed. The checks of the second set are assert().
  *
  * \author Donato Meoli \n
  *         Dipartimento di Informatica \n
@@ -60,6 +69,10 @@ using namespace SMSpp_di_unipi_it;
 using PF = PolyhedralFunction;
 using Index = PF::Index;
 using FV = PF::FunctionValue;
+using Range = PF::Range;
+using Subset = PF::Subset;
+using RealVector = PF::RealVector;
+using MultiVector = PF::MultiVector;
 
 static const FV INF = Inf< FV >();
 
@@ -115,7 +128,8 @@ static bool eq( FV a , FV b ) { return( std::abs( a - b ) <= 1e-12 ); }
 static PF::RealVector coeffs( PF & f , Index name = Inf< Index >() )
 {
  PF::RealVector g( f.get_num_active_var() , NAN );
- f.get_linearization_coefficients( g.data() , PF::INFRange , name );
+ if( ! g.empty() )
+  f.get_linearization_coefficients( g.data() , PF::INFRange , name );
  return( g );
  }
 
@@ -1320,6 +1334,1195 @@ static void test_PFB_dual( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/*----------------------------- THE EDGE CASES -----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// an Observer that records every Modification it is sent
+/** anyone_there() answers what listening says, which is what tells eNoBlck
+ * from eModBlck; channels are not used by the tests, and all of them are the
+ * default one. */
+
+class Recorder : public Observer
+{
+ public:
+
+ Block * get_Block( void ) const override { return( nullptr ); }
+
+ bool anyone_there( void ) const override { return( listening ); }
+
+ void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override {
+  mods.push_back( mod );
+  }
+
+ ChnlName open_channel( ChnlName chnl = 0 ,
+			GroupModification * gmpmod = nullptr ) override {
+  return( 0 );
+  }
+
+ void close_channel( ChnlName chnl , bool force = false ) override {}
+
+ void set_default_channel( ChnlName chnl = 0 ) override {}
+
+ bool listening = true;  ///< what anyone_there() says
+ Lst_sp_Mod mods;        ///< what has been sent, in order
+ };
+
+/*--------------------------------------------------------------------------*/
+/// true if calling f() throws an exception derived from E
+
+template< class E , class F >
+static bool throws_a( F f )
+{
+ try {
+  f();
+  }
+ catch( E & ) {
+  return( true );
+  }
+ return( false );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// the one Modification recorded, as a T, the record being emptied
+
+template< class T >
+static std::shared_ptr< T > take( Recorder & rec )
+{
+ assert( rec.mods.size() == 1 );
+ auto mod = std::dynamic_pointer_cast< T >( rec.mods.front() );
+ assert( mod );
+ rec.mods.clear();
+ return( mod );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// the value of f at the current point
+
+static double value( PF & f )
+{
+ assert( f.compute( true ) == PF::kOK );
+ return( f.get_value() );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// the Variable x, with the given values
+
+static std::vector< ColVariable > point( const RealVector & v )
+{
+ std::vector< ColVariable > x( v.size() );
+ for( Index i = 0 ; i < v.size() ; ++i )
+  x[ i ].set_value( v[ i ] );
+ return( x );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// the pointers to the Variable in x
+
+static PF::VarVector ptrs( std::vector< ColVariable > & x )
+{
+ PF::VarVector p;
+ for( auto & v : x )
+  p.push_back( & v );
+ return( p );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// the rows x_0, x_1 and - x_0 - x_1, all with constant 0
+
+static MultiVector three_rows( void )
+{
+ return( MultiVector{ { 1 , 0 } , { 0 , 1 } , { -1 , -1 } } );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The degenerate functions. With no row and no bound the convex function is
+ * the max over an empty set, i.e., + INF, and the concave one - INF; with no
+ * Variable it is the max (min) of the constants. A bound that is on the
+ * wrong side of the verse is refused, and so are data that do not fit
+ * together. */
+
+static void test_degenerate( void )
+{
+ // ---- nothing at all -----------------------------------------------------
+
+ PF empty;
+ assert( empty.get_num_active_var() == 0 );
+ assert( empty.get_nrows() == 0 );
+ assert( empty.is_convex() && ( ! empty.is_concave() ) );
+ assert( ! empty.is_linear() );
+ assert( ! empty.is_bound_set() );
+ assert( value( empty ) == INF );
+ assert( empty.get_global_lower_bound() == - INF );
+ assert( empty.get_global_upper_bound() == INF );
+ assert( ! empty.has_linearization( true ) );
+ assert( ! empty.has_linearization( false ) );
+
+ ColVariable stranger;
+ assert( empty.is_active( & stranger ) == Inf< Index >() );
+
+ PF cave( {} , {} , {} , INF , false );
+ assert( cave.is_concave() && ( ! cave.is_convex() ) );
+ assert( value( cave ) == - INF );
+
+ // - INF is the "no bound" of a convex function, not of a concave one
+ assert( throws_a< std::invalid_argument >( []() {
+  PF wrong( {} , {} , {} , - INF , false ); } ) );
+
+ // ---- rows, no Variable --------------------------------------------------
+ // the rows have no column, and the function is a constant
+
+ PF consts( {} , MultiVector( 3 ) , { 1 , 4 , 2 } );
+ assert( consts.get_nrows() == 3 );
+ assert( value( consts ) == 4 );
+ assert( consts.get_linearization_constant() == 4 );
+
+ PF cconsts( {} , MultiVector( 3 ) , { 1 , 4 , 2 } , INF , false );
+ assert( value( cconsts ) == 1 );
+
+ // ---- data that do not fit together --------------------------------------
+
+ auto x = point( { 3 , -7 } );
+
+ assert( throws_a< std::invalid_argument >( [ & x ]() {   // 3 columns for 2
+  PF wrong( ptrs( x ) , { { 1 , 2 , 3 } } , { 0 } ); } ) );
+ assert( throws_a< std::invalid_argument >( [ & x ]() {   // 2 rows, 1 constant
+  PF wrong( ptrs( x ) , { { 1 , 2 } , { 3 , 4 } } , { 0 } ); } ) );
+ assert( throws_a< std::invalid_argument >( [ & x ]() {   // rows of 2 sizes
+  PF wrong( {} , { { 1 , 2 } , { 3 } } , { 0 , 0 } ); } ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The value and the linearization: at a point where one row is active it is
+ * that row; where two rows tie it is either of them, and the local pool
+ * gives the other one next; the bound wins over every row below it. The
+ * concave function is the min of the very same rows. */
+
+static void test_value_edges( void )
+{
+ auto x = point( { 2 , 1 } );
+
+ // ---- convex: max{ x_0 , x_1 , - x_0 - x_1 } -----------------------------
+
+ PF f( ptrs( x ) , three_rows() , { 0 , 0 , 0 } );
+ assert( value( f ) == 2 );                         // row 0
+ assert( f.get_lower_estimate() == 2 );
+ assert( f.get_upper_estimate() == 2 );
+ assert( coeffs( f ) == RealVector( { 1 , 0 } ) );
+ assert( f.get_linearization_constant() == 0 );
+ assert( f.has_linearization( true ) );
+ assert( ! f.has_linearization( false ) );          // no vertical row
+
+ // the Lipschitz constant is the largest norm of a row
+ assert( std::abs( f.get_Lipschitz_constant() - std::sqrt( 2.0 ) ) < 1e-12 );
+
+ // a part of the linearization of x_0 + 2 x_1, by Range: the dense
+ // version writes only the entries in the Range, the sparse one has only
+ // the entries in the Range, none if the Range is past the end
+ {
+  PF one( ptrs( x ) , { { 1 , 2 } } , { 0 } );
+  assert( value( one ) == 4 );
+
+  RealVector g( 2 , NAN );
+  one.get_linearization_coefficients( g.data() , Range( 0 , 1 ) );
+  assert( g[ 0 ] == 1 );
+  assert( std::isnan( g[ 1 ] ) );                  // not written
+
+  PF::SparseVector sg;
+  one.get_linearization_coefficients( sg , Range( 1 , 2 ) );
+  assert( sg.size() == 2 );
+  assert( sg.nonZeros() == 1 );
+  assert( sg.coeff( 1 ) == 2 );
+
+  PF::SparseVector sh;
+  one.get_linearization_coefficients( sh , Range( 5 , 9 ) );  // past the end
+  assert( sh.nonZeros() == 0 );
+ }
+
+ // the same function at another point
+ x[ 0 ].set_value( -3 );
+ x[ 1 ].set_value( -4 );
+ assert( value( f ) == 7 );                         // row 2
+ assert( coeffs( f ) == RealVector( { -1 , -1 } ) );
+
+ // ---- two rows active: the local pool gives both -------------------------
+
+ x[ 0 ].set_value( 1 );
+ x[ 1 ].set_value( 1 );
+ f.set_par( PF::intLPMaxSz , 4 );
+ assert( f.get_int_par( PF::intLPMaxSz ) == 4 );
+ assert( value( f ) == 1 );
+ auto g1 = coeffs( f );
+ assert( ( g1 == RealVector( { 1 , 0 } ) ) ||
+	 ( g1 == RealVector( { 0 , 1 } ) ) );
+ assert( f.compute_new_linearization( true ) );
+ auto g2 = coeffs( f );
+ assert( ( g2 == RealVector( { 1 , 0 } ) ) ||
+	 ( g2 == RealVector( { 0 , 1 } ) ) );
+ assert( g1 != g2 );
+ // and then the one that is not active, the pool being in order of value
+ assert( f.compute_new_linearization( true ) );
+ assert( coeffs( f ) == RealVector( { -1 , -1 } ) );
+ // no vertical linearization is asked of a function that has none
+ assert( ! f.compute_new_linearization( false ) );
+ // the pool is finite
+ int left = 0;
+ while( f.compute_new_linearization( true ) )
+  assert( ++left < 3 );
+
+ assert( throws_a< std::invalid_argument >( [ & f ]() {
+  f.set_par( PF::intLPMaxSz , 0 ); } ) );
+
+ // ---- the bound above every row ------------------------------------------
+
+ x[ 0 ].set_value( 2 );
+ x[ 1 ].set_value( 1 );
+ PF b( ptrs( x ) , three_rows() , { 0 , 0 , 0 } , 5 );
+ assert( value( b ) == 5 );
+ assert( coeffs( b ) == RealVector( { 0 , 0 } ) );
+ assert( b.get_linearization_constant() == 5 );
+ // and below them it changes nothing
+ PF b2( ptrs( x ) , three_rows() , { 0 , 0 , 0 } , 1 );
+ assert( value( b2 ) == 2 );
+
+ // ---- concave: min of the same rows --------------------------------------
+
+ PF c( ptrs( x ) , three_rows() , { 0 , 0 , 0 } , INF , false );
+ assert( value( c ) == -3 );
+ assert( coeffs( c ) == RealVector( { -1 , -1 } ) );
+ PF cb( ptrs( x ) , three_rows() , { 0 , 0 , 0 } , -10 , false );
+ assert( value( cb ) == -10 );
+ assert( coeffs( cb ) == RealVector( { 0 , 0 } ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* Adding and deleting rows, and what is issued: a PolyhedralFunctionModAddd
+ * for the added ones, a PolyhedralFunctionModRngd or ...Sbst with PFtype()
+ * == DeleteRows for the deleted ones, with the shift that says which way the
+ * function moved, and a FunctionMod with NaN shift when all are deleted at
+ * once. Unlike the removal of Variable, an empty Subset of rows deletes
+ * nothing, deleting all the rows being a method of its own. */
+
+static void test_rows_edges( void )
+{
+ auto x = point( { 2 , 1 } );
+ Recorder rec;
+
+ // four rows, row i being ( i , 0 ) with constant i
+ auto four = [ & ]( PF & f ) {
+  f.set_PolyhedralFunction( { { 0 , 0 } , { 1 , 0 } , { 2 , 0 } , { 3 , 0 } } ,
+			    { 0 , 1 , 2 , 3 } , - INF , true , eNoMod );
+  rec.mods.clear();
+  };
+
+ PF f( ptrs( x ) );
+ f.register_Observer( & rec );
+
+ // ---- adding -------------------------------------------------------------
+
+ four( f );
+ f.add_row( { 10 , 0 } , 0 );
+ assert( f.get_nrows() == 5 );
+ assert( f.get_A()[ 4 ] == RealVector( { 10 , 0 } ) );
+ {
+  auto mod = take< PolyhedralFunctionModAddd >( rec );
+  assert( mod->addedrows() == 1 );
+  assert( mod->type() == C05FunctionMod::NothingChanged );
+  assert( mod->shift() == FunctionMod::INFshift );   // a max goes up
+  assert( mod->function() == & f );
+ }
+ assert( value( f ) == 20 );
+
+ f.add_rows( { { 0 , 1 } , { 0 , 2 } } , { 7 , 8 } );
+ assert( f.get_nrows() == 7 );
+ assert( f.get_b()[ 6 ] == 8 );
+ assert( take< PolyhedralFunctionModAddd >( rec )->addedrows() == 2 );
+
+ // a row of the wrong size is refused and leaves the rows as they were
+ assert( throws_a< std::invalid_argument >( [ & f ]() {
+  f.add_row( { 1 , 2 , 3 } , 0 ); } ) );
+ assert( throws_a< std::invalid_argument >( [ & f ]() {
+  f.add_rows( { { 1 , 2 } } , { 0 , 0 } ); } ) );
+ assert( f.get_nrows() == 7 );
+ assert( rec.mods.empty() );
+
+ // under eNoMod the rows are added and nothing is issued, and under eNoBlck
+ // the same holds when nobody is listening
+ f.add_row( { 0 , 0 } , 0 , eNoMod );
+ rec.listening = false;
+ f.add_row( { 0 , 0 } , 0 , eNoBlck );
+ assert( f.get_nrows() == 9 );
+ assert( rec.mods.empty() );
+ f.add_row( { 0 , 0 } , 0 , eModBlck );
+ assert( take< PolyhedralFunctionModAddd >( rec )->concerns_Block() );
+ rec.listening = true;
+ f.add_row( { 0 , 0 } , 0 , eNoBlck );
+ assert( ! take< PolyhedralFunctionModAddd >( rec )->concerns_Block() );
+
+ // adding no row at all changes nothing and issues nothing, as every
+ // other method that is given nothing to do
+ {
+  const auto nr = f.get_nrows();
+  f.add_rows( {} , {} );
+  assert( f.get_nrows() == nr );
+  assert( rec.mods.empty() );
+ }
+ rec.mods.clear();
+
+ // ---- deleting by Range --------------------------------------------------
+
+ four( f );
+ f.delete_rows( Range( 2 , 2 ) );                  // empty: nothing
+ assert( f.get_nrows() == 4 );
+ assert( rec.mods.empty() );
+
+ f.delete_rows( Range( 1 , 4 ) );                  // to the end
+ assert( f.get_nrows() == 1 );
+ assert( f.get_b() == RealVector( { 0 } ) );
+ {
+  auto mod = take< PolyhedralFunctionModRngd >( rec );
+  assert( mod->PFtype() == PolyhedralFunctionMod::DeleteRows );
+  assert( mod->range() == Range( 1 , 4 ) );
+  assert( mod->type() == C05FunctionMod::NothingChanged );  // pool empty
+  assert( mod->which().empty() );
+  assert( mod->shift() == - FunctionMod::INFshift );       // a max goes down
+ }
+
+ four( f );
+ assert( throws_a< std::invalid_argument >( [ & f ]() {    // past the end
+  f.delete_rows( Range( 2 , 5 ) ); } ) );
+ assert( f.get_nrows() == 4 );
+ assert( rec.mods.empty() );
+
+ f.delete_rows( Range( 2 , 3 ) );                  // one row: delete_row()
+ assert( f.get_b() == RealVector( { 0 , 1 , 3 } ) );
+ assert( take< PolyhedralFunctionModRngd >( rec )->range() == Range( 2 , 3 ) );
+
+ f.delete_rows( Range( 0 , 3 ) );                  // all of them
+ assert( f.get_nrows() == 0 );
+ assert( take< PolyhedralFunctionModRngd >( rec )->range() == Range( 0 , 3 ) );
+ assert( value( f ) == INF );                      // max over nothing
+
+ // ---- deleting by Subset -------------------------------------------------
+
+ four( f );
+ f.delete_rows( Subset() );                        // empty: nothing
+ assert( f.get_nrows() == 4 );
+ assert( rec.mods.empty() );
+
+ f.delete_rows( Subset( { 3 , 0 } ) , false );     // unordered
+ assert( f.get_b() == RealVector( { 1 , 2 } ) );
+ assert( f.get_A()[ 0 ] == RealVector( { 1 , 0 } ) );
+ assert( f.get_A()[ 1 ] == RealVector( { 2 , 0 } ) );
+ {
+  auto mod = take< PolyhedralFunctionModSbst >( rec );
+  assert( mod->PFtype() == PolyhedralFunctionMod::DeleteRows );
+  assert( mod->rows() == Subset( { 0 , 3 } ) );    // ordered inside
+ }
+
+ f.delete_rows( Subset( { 1 } ) );                 // one row: delete_row()
+ assert( f.get_b() == RealVector( { 1 } ) );
+ assert( take< PolyhedralFunctionModRngd >( rec )->range() == Range( 1 , 2 ) );
+
+ four( f );
+ assert( throws_a< std::invalid_argument >( [ & f ]() {
+  f.delete_rows( Subset( { 1 , 9 } ) ); } ) );
+ assert( throws_a< std::invalid_argument >( [ & f ]() { f.delete_row( 4 ); } ) );
+ assert( f.get_nrows() == 4 );
+ assert( rec.mods.empty() );
+
+ f.delete_rows( Subset( { 0 , 1 , 2 , 3 } ) , true );   // all, by name
+ assert( f.get_nrows() == 0 );
+ assert( f.get_b().empty() );
+ assert( take< PolyhedralFunctionModSbst >( rec )->rows().size() == 4 );
+
+ // ---- rows with no Variable ----------------------------------------------
+
+ PF k( {} , MultiVector( 4 ) , { 1 , 2 , 3 , 4 } );
+ k.delete_rows( Range( 1 , 3 ) );
+ assert( k.get_nrows() == 2 );
+ assert( k.get_b() == RealVector( { 1 , 4 } ) );
+ assert( value( k ) == 4 );
+
+ // with no Variable every row of A is an empty vector, and a Subset
+ // deletes the rows it names all the same, in A as in b
+ PF z( {} , MultiVector( 4 ) , { 1 , 2 , 3 , 4 } );
+ z.delete_rows( Subset( { 0 , 2 } ) , true );
+ assert( z.get_nrows() == 2 );
+ assert( z.get_b() == RealVector( { 2 , 4 } ) );
+ assert( value( z ) == 4 );
+
+ // ---- parallel rows ------------------------------------------------------
+ // with no parallel rows, remove_parallel_rows() leaves the rows alone
+
+ PF r( ptrs( x ) , three_rows() , { 0 , 0 , 0 } );
+ r.remove_parallel_rows();
+ assert( r.get_nrows() == 3 );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* Modifying rows, constants, the verse and the whole data. A
+ * change that changes nothing issues nothing, and the shift says which way
+ * the function moved when that is known: + INF if every constant went up,
+ * - INF if every one went down, NaN otherwise. */
+
+static void test_modify_edges( void )
+{
+ auto x = point( { 2 , 1 } );
+ Recorder rec;
+ PF f( ptrs( x ) );
+ f.register_Observer( & rec );
+
+ auto reset = [ & ]() {
+  f.set_PolyhedralFunction( three_rows() , { 0 , 0 , 0 } , - INF , true ,
+			    eNoMod );
+  rec.mods.clear();
+  };
+
+ // ---- the whole data -----------------------------------------------------
+
+ reset();
+ f.set_PolyhedralFunction( { { 1 , 1 } } , { 3 } );
+ assert( f.get_nrows() == 1 );
+ assert( value( f ) == 6 );
+ {
+  auto mod = take< FunctionMod >( rec );
+  assert( ! std::dynamic_pointer_cast< C05FunctionMod >( mod ) );
+  assert( std::isnan( mod->shift() ) );
+ }
+ assert( throws_a< std::invalid_argument >( [ & f ]() {    // wrong columns
+  f.set_PolyhedralFunction( { { 1 } } , { 3 } ); } ) );
+ assert( rec.mods.empty() );
+
+ // ---- rows by Range ------------------------------------------------------
+
+ reset();
+ f.modify_rows( {} , {} , Range( 1 , 1 ) );        // empty: nothing
+ assert( rec.mods.empty() );
+
+ f.modify_rows( { { 5 , 5 } , { 6 , 6 } } , { 1 , 2 } , Range( 1 , 3 ) );
+ assert( f.get_A()[ 1 ] == RealVector( { 5 , 5 } ) );
+ assert( f.get_A()[ 2 ] == RealVector( { 6 , 6 } ) );
+ assert( f.get_b() == RealVector( { 0 , 1 , 2 } ) );
+ assert( value( f ) == 20 );
+ {
+  auto mod = take< PolyhedralFunctionModRngd >( rec );
+  assert( mod->PFtype() == PolyhedralFunctionMod::ModifyRows );
+  assert( mod->range() == Range( 1 , 3 ) );
+  assert( mod->type() == C05FunctionMod::NothingChanged );  // pool empty
+  assert( std::isnan( mod->shift() ) );
+ }
+
+ assert( throws_a< std::invalid_argument >( [ & f ]() {    // past the end
+  f.modify_rows( { { 1 , 1 } , { 1 , 1 } } , { 0 , 0 } ,
+		 Range( 2 , 4 ) ); } ) );
+ assert( throws_a< std::invalid_argument >( [ & f ]() {    // sizes differ
+  f.modify_rows( { { 1 , 1 } } , { 0 , 0 } , Range( 0 , 1 ) ); } ) );
+ assert( rec.mods.empty() );
+
+ f.modify_row( 0 , { 9 , 9 } , 1 );
+ assert( f.get_A()[ 0 ] == RealVector( { 9 , 9 } ) );
+ assert( f.get_b()[ 0 ] == 1 );
+ assert( take< PolyhedralFunctionModRngd >( rec )->range() == Range( 0 , 1 ) );
+ assert( throws_a< std::invalid_argument >( [ & f ]() {
+  f.modify_row( 3 , { 1 , 1 } , 0 ); } ) );
+ assert( throws_a< std::invalid_argument >( [ & f ]() {
+  f.modify_row( 0 , { 1 } , 0 ); } ) );
+
+ // ---- rows by Subset -----------------------------------------------------
+
+ reset();
+ f.modify_rows( {} , {} , Subset() );              // empty: nothing
+ assert( rec.mods.empty() );
+ assert( f.get_A() == three_rows() );
+
+ f.modify_rows( { { 4 , 4 } , { 8 , 8 } } , { 4 , 8 } , Subset( { 0 , 2 } ) ,
+		true );
+ assert( f.get_A()[ 0 ] == RealVector( { 4 , 4 } ) );
+ assert( f.get_A()[ 2 ] == RealVector( { 8 , 8 } ) );
+ assert( f.get_b() == RealVector( { 4 , 0 , 8 } ) );
+ {
+  auto mod = take< PolyhedralFunctionModSbst >( rec );
+  assert( mod->PFtype() == PolyhedralFunctionMod::ModifyRows );
+  assert( mod->rows() == Subset( { 0 , 2 } ) );
+ }
+
+ // a row of the wrong size is refused before any row is changed
+ reset();
+ assert( throws_a< std::invalid_argument >( [ & f ]() {
+  f.modify_rows( { { 4 , 4 } , { 8 } } , { 4 , 8 } , Subset( { 0 , 2 } ) ,
+		 true ); } ) );
+ assert( f.get_A() == three_rows() );
+ assert( rec.mods.empty() );
+
+ // ---- constants ----------------------------------------------------------
+
+ reset();
+ f.modify_constants( { 0 , 0 } , Range( 1 , 3 ) );   // the same: nothing
+ f.modify_constants( {} , Range( 2 , 2 ) );          // empty: nothing
+ f.modify_constant( 1 , 0 );                         // the same: nothing
+ f.modify_constants( { 0 } , Subset( { 2 } ) );      // the same: nothing
+ f.modify_constants( {} , Subset() );                // empty: nothing
+ assert( rec.mods.empty() );
+
+ f.modify_constants( { 1 , 2 } , Range( 1 , 3 ) );   // all up
+ assert( f.get_b() == RealVector( { 0 , 1 , 2 } ) );
+ {
+  auto mod = take< PolyhedralFunctionModRngd >( rec );
+  assert( mod->PFtype() == PolyhedralFunctionMod::ModifyCnst );
+  assert( mod->range() == Range( 1 , 3 ) );
+  assert( mod->shift() == FunctionMod::INFshift );
+ }
+
+ f.modify_constants( { -1 , -1 } , Range( 0 , 2 ) ); // all down
+ assert( take< PolyhedralFunctionModRngd >( rec )->shift() ==
+	 - FunctionMod::INFshift );
+
+ f.modify_constants( { 5 , -5 } , Range( 0 , 2 ) );  // one up, one down
+ assert( std::isnan( take< PolyhedralFunctionModRngd >( rec )->shift() ) );
+
+ f.modify_constant( 2 , 7 );
+ assert( f.get_b()[ 2 ] == 7 );
+ {
+  auto mod = take< PolyhedralFunctionModRngd >( rec );
+  assert( mod->range() == Range( 2 , 3 ) );
+  assert( mod->shift() == FunctionMod::INFshift );
+ }
+
+ f.modify_constants( { 1 , 1 } , Subset( { 0 , 2 } ) , true );
+ assert( f.get_b() == RealVector( { 1 , -5 , 1 } ) );
+ {
+  auto mod = take< PolyhedralFunctionModSbst >( rec );
+  assert( mod->PFtype() == PolyhedralFunctionMod::ModifyCnst );
+  assert( mod->rows() == Subset( { 0 , 2 } ) );
+  assert( mod->shift() == - FunctionMod::INFshift );   // 5 -> 1, 7 -> 1
+ }
+
+ assert( throws_a< std::invalid_argument >( [ & f ]() {
+  f.modify_constants( { 1 , 1 } , Range( 2 , 4 ) ); } ) );
+ assert( throws_a< std::invalid_argument >( [ & f ]() {
+  f.modify_constants( { 1 } , Subset( { 3 } ) ); } ) );
+ assert( throws_a< std::invalid_argument >( [ & f ]() {
+  f.modify_constant( 3 , 1 ); } ) );
+ assert( rec.mods.empty() );
+
+ // ---- the verse ----------------------------------------------------------
+
+ reset();
+ f.set_is_convex( true );                           // the same: nothing
+ assert( rec.mods.empty() );
+
+ f.set_is_convex( false );
+ assert( f.is_concave() );
+ assert( f.get_global_bound() == INF );             // "no bound" follows
+ assert( value( f ) == -3 );
+ {
+  auto mod = take< PolyhedralFunctionMod >( rec );
+  assert( mod->type() == C05FunctionMod::NothingChanged );
+  assert( mod->shift() == - FunctionMod::INFshift );   // max -> min
+ }
+
+ f.set_is_convex( true );
+ assert( f.get_global_bound() == - INF );
+ assert( take< PolyhedralFunctionMod >( rec )->shift() ==
+	 FunctionMod::INFshift );
+
+ // a finite bound stays where it is, and becomes an upper one
+ f.modify_bound( -1 , eNoMod );
+ f.set_is_convex( false , eNoMod );
+ assert( f.get_global_upper_bound() == -1 );
+ assert( f.get_global_lower_bound() == - INF );
+ assert( value( f ) == -3 );
+ assert( rec.mods.empty() );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* Adding and removing Variable: a C05FunctionModVarsAddd, ...VarsRngd or
+ * ...VarsSbst with the Variable concerned, and the columns of A going with
+ * them. A Range past the end stops at the end, an empty one removes
+ * nothing, and an empty Subset removes all the Variable, leaving the rows
+ * with no column and their constants as they were. */
+
+static void test_variables_edges( void )
+{
+ auto x = point( { 1 , 2 , 3 , 4 } );
+ Recorder rec;
+ PF f;
+ f.register_Observer( & rec );
+
+ // three Variable and the rows ( 1 , 2 , 3 ) + 0 and ( -1 , 0 , 1 ) + 10
+ auto reset = [ & ]() {
+  f.set_PolyhedralFunction( {} , {} , - INF , true , eNoMod );
+  f.set_variables( {} );
+  f.add_variables( { & x[ 0 ] , & x[ 1 ] , & x[ 2 ] } , {} , eNoMod );
+  f.add_rows( { { 1 , 2 , 3 } , { -1 , 0 , 1 } } , { 0 , 10 } , eNoMod );
+  rec.mods.clear();
+  };
+
+ // ---- adding -------------------------------------------------------------
+
+ reset();
+ assert( f.get_num_active_var() == 3 );
+ assert( value( f ) == 14 );                       // 1 + 4 + 9
+
+ f.add_variable( & x[ 3 ] , { 1 , 0 } );
+ assert( f.get_num_active_var() == 4 );
+ assert( f.is_active( & x[ 3 ] ) == 3 );
+ assert( f.get_A()[ 0 ] == RealVector( { 1 , 2 , 3 , 1 } ) );
+ assert( f.get_A()[ 1 ] == RealVector( { -1 , 0 , 1 , 0 } ) );
+ {
+  auto mod = take< C05FunctionModVarsAddd >( rec );
+  assert( mod->first() == 3 );
+  assert( mod->vars() == Vec_p_Var( { & x[ 3 ] } ) );
+  assert( mod->shift() == 0 );                     // strongly q.-additive
+ }
+ assert( value( f ) == 18 );
+
+ f.add_variables( {} , {} );                       // nothing: nothing
+ assert( rec.mods.empty() );
+ assert( f.get_num_active_var() == 4 );
+
+ reset();
+ assert( throws_a< std::invalid_argument >( [ & ]() {   // one row of two
+  f.add_variables( { & x[ 3 ] } , { { 1 } } ); } ) );
+ assert( throws_a< std::invalid_argument >( [ & ]() {   // a row too long
+  f.add_variables( { & x[ 3 ] } , { { 1 , 2 } , { 3 } } ); } ) );
+ assert( f.get_num_active_var() == 3 );
+ assert( rec.mods.empty() );
+
+ f.add_variables( { & x[ 3 ] } , { { 1 } , { 0 } } );
+ {
+  auto mod = take< C05FunctionModVarsAddd >( rec );
+  assert( mod->first() == 3 );
+  assert( mod->vars().size() == 1 );
+ }
+
+ // ---- removing one -------------------------------------------------------
+
+ reset();
+ f.remove_variable( 1 );
+ assert( f.get_num_active_var() == 2 );
+ assert( f.get_active_var( 1 ) == & x[ 2 ] );
+ assert( f.get_A()[ 0 ] == RealVector( { 1 , 3 } ) );
+ {
+  auto mod = take< C05FunctionModVarsRngd >( rec );
+  assert( mod->range() == Range( 1 , 2 ) );
+  assert( mod->vars() == Vec_p_Var( { & x[ 1 ] } ) );
+ }
+ assert( throws_a< std::logic_error >( [ & f ]() { f.remove_variable( 2 ); } ) );
+ assert( rec.mods.empty() );
+
+ // ---- removing by Range --------------------------------------------------
+
+ reset();
+ f.remove_variables( Range( 1 , 1 ) );             // empty: nothing
+ assert( f.get_num_active_var() == 3 );
+ assert( rec.mods.empty() );
+
+ f.remove_variables( Range( 1 , 1000 ) );          // past the end
+ assert( f.get_num_active_var() == 1 );
+ assert( f.get_A()[ 0 ] == RealVector( { 1 } ) );
+ assert( f.get_A()[ 1 ] == RealVector( { -1 } ) );
+ {
+  auto mod = take< C05FunctionModVarsRngd >( rec );
+  assert( mod->range() == Range( 1 , 3 ) );        // the one done
+  assert( mod->vars() == Vec_p_Var( { & x[ 1 ] , & x[ 2 ] } ) );
+ }
+
+ reset();
+ f.remove_variables( Range( 0 , 3 ) );             // all of them
+ assert( f.get_num_active_var() == 0 );
+ assert( f.get_nrows() == 2 );                     // the rows stay
+ assert( f.get_A()[ 0 ].empty() );
+ assert( f.get_b() == RealVector( { 0 , 10 } ) );
+ assert( value( f ) == 10 );                       // max of the constants
+ assert( take< C05FunctionModVarsRngd >( rec )->vars().size() == 3 );
+
+ // ---- removing by Subset -------------------------------------------------
+
+ reset();
+ f.remove_variables( Subset( { 2 , 0 , 1 } ) );    // all of them, by name
+ assert( f.get_num_active_var() == 0 );
+ assert( take< C05FunctionModVarsSbst >( rec )->subset().empty() );
+
+ reset();
+ assert( throws_a< std::invalid_argument >( [ & f ]() {
+  f.remove_variables( Subset( { 0 , 5 } ) , true ); } ) );
+ assert( rec.mods.empty() );
+
+ // ---- Variable of a function with no row ---------------------------------
+
+ PF norows;
+ norows.add_variables( { & x[ 0 ] , & x[ 1 ] } , {} );
+ assert( norows.get_num_active_var() == 2 );
+ assert( norows.get_nrows() == 0 );
+ norows.remove_variables( Range( 0 , 1 ) );
+ assert( norows.get_num_active_var() == 1 );
+ assert( norows.get_active_var( 0 ) == & x[ 1 ] );
+
+ // adding Variable to a function that has Variable but no row only
+ // makes v_x grow
+ norows.add_variables( { & x[ 2 ] } , {} );
+ assert( norows.get_num_active_var() == 2 );
+ assert( norows.get_nrows() == 0 );
+
+ // one Variable at a time: no coefficient if there is no row, one per row
+ // otherwise
+ norows.add_variable( & x[ 3 ] , {} );
+ assert( norows.get_num_active_var() == 3 );
+ assert( norows.get_nrows() == 0 );
+ assert( throws_a< std::invalid_argument >( [ & ]() {
+  norows.add_variable( & x[ 0 ] , { 1 } ); } ) );
+ assert( throws_a< std::invalid_argument >( [ & ]() {
+  norows.add_variables( { & x[ 0 ] } , { { 1 } } ); } ) );
+ assert( norows.get_num_active_var() == 3 );
+ reset();
+ assert( throws_a< std::invalid_argument >( [ & ]() {   // one row of two
+  f.add_variable( & x[ 3 ] , { 1 } ); } ) );
+ assert( f.get_num_active_var() == 3 );
+ assert( rec.mods.empty() );
+
+ // set_variables() is only for a function with no Variable, or with as many
+ // as the columns of A
+ PF sv( {} , { { 1 , 1 } } , { 0 } );
+ assert( throws_a< std::logic_error >( [ & ]() {
+  sv.set_variables( { & x[ 0 ] } ); } ) );
+ sv.set_variables( { & x[ 0 ] , & x[ 1 ] } );
+ assert( value( sv ) == 3 );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The vertical rows: a vertical row a x + b <= 0 (>= 0 if concave) is the
+ * domain of the function, and where it is violated the function is + INF
+ * (- INF) and the linearization is the most violated vertical row. The
+ * flags follow the rows through additions, deletions and modifications,
+ * and fall back to the empty vector when no row is vertical any more. */
+
+static void test_vertical( void )
+{
+ auto x = point( { 1 , 1 } );
+
+ // max{ x_0 } over the domain x_0 + x_1 - 4 <= 0 and x_1 - 5 <= 0
+ PF f( ptrs( x ) , { { 1 , 0 } , { 1 , 1 } , { 0 , 1 } } , { 0 , -4 , -5 } ,
+       - INF , true , nullptr , { false , true , true } );
+ assert( ! f.is_row_vertical( 0 ) );
+ assert( f.is_row_vertical( 1 ) && f.is_row_vertical( 2 ) );
+ assert( ! f.is_row_vertical( 3 ) );               // past the end: no
+ assert( f.get_is_vert().size() == 3 );
+
+ // inside: the vertical rows count for nothing
+ assert( value( f ) == 1 );
+ assert( f.has_linearization( true ) );
+ assert( ! f.has_linearization( false ) );
+ assert( coeffs( f ) == RealVector( { 1 , 0 } ) );
+
+ // outside of one: + INF, and the linearization is that row
+ x[ 0 ].set_value( 4 );
+ assert( value( f ) == INF );
+ assert( f.has_linearization( false ) );
+ assert( ! f.has_linearization( true ) );
+ assert( coeffs( f ) == RealVector( { 1 , 1 } ) );
+ assert( f.get_linearization_constant() == -4 );
+
+ // outside of both: the most violated one first, then the other
+ x[ 1 ].set_value( 20 );                           // 20 and 15
+ f.set_par( PF::intLPMaxSz , 4 );
+ assert( value( f ) == INF );
+ assert( coeffs( f ) == RealVector( { 1 , 1 } ) );
+ assert( ! f.compute_new_linearization( true ) );  // no diagonal one there
+ assert( f.compute_new_linearization( false ) );
+ assert( coeffs( f ) == RealVector( { 0 , 1 } ) );
+ assert( ! f.compute_new_linearization( false ) );
+
+ // within the tolerance of the boundary it is still inside
+ x[ 0 ].set_value( 2 );
+ x[ 1 ].set_value( 2 + 1e-9 );
+ assert( value( f ) == 2 );
+
+ // concave: min{ x_0 } over the domain x_0 + x_1 - 4 >= 0
+ x[ 0 ].set_value( 1 );
+ x[ 1 ].set_value( 1 );
+ PF c( ptrs( x ) , { { 1 , 0 } , { 1 , 1 } } , { 0 , -4 } , INF , false ,
+       nullptr , { false , true } );
+ assert( value( c ) == - INF );
+ assert( coeffs( c ) == RealVector( { 1 , 1 } ) );
+ x[ 0 ].set_value( 5 );
+ assert( value( c ) == 5 );
+
+ // ---- the flags follow the rows ------------------------------------------
+
+ x[ 0 ].set_value( 1 );
+ x[ 1 ].set_value( 1 );
+ PF g( ptrs( x ) , { { 1 , 0 } } , { 0 } );
+ assert( g.get_is_vert().empty() );                // none: empty
+
+ g.add_row( { 1 , 1 } , -4 , eNoMod , true );
+ assert( g.get_is_vert() == PF::BoolVector( { false , true } ) );
+ g.add_rows( { { 2 , 0 } } , { 0 } , eNoMod );    // diagonal by default
+ assert( g.get_is_vert() == PF::BoolVector( { false , true , false } ) );
+ g.add_rows( { { 0 , 1 } , { 0 , 2 } } , { -5 , 0 } , eNoMod ,
+	     { true , false } );
+ assert( g.get_is_vert() ==
+	 PF::BoolVector( { false , true , false , true , false } ) );
+
+ g.delete_row( 0 , eNoMod );
+ assert( g.get_is_vert() ==
+	 PF::BoolVector( { true , false , true , false } ) );
+ g.delete_rows( Subset( { 0 , 3 } ) , true , eNoMod );
+ assert( g.get_is_vert() == PF::BoolVector( { false , true } ) );
+
+ // modifying a row makes it diagonal unless told otherwise
+ g.modify_row( 1 , { 0 , 1 } , -5 , eNoMod );
+ assert( g.get_is_vert().empty() );                // no vertical one left
+ g.modify_rows( { { 0 , 1 } } , { -5 } , Range( 1 , 2 ) , eNoMod , { true } );
+ assert( g.get_is_vert() == PF::BoolVector( { false , true } ) );
+ g.modify_rows( { { 0 , 1 } } , { -5 } , Subset( { 1 } ) , true , eNoMod );
+ assert( g.get_is_vert().empty() );
+
+ // the flags must be as many as the rows
+ assert( throws_a< std::invalid_argument >( [ & g ]() {
+  g.add_rows( { { 1 , 1 } } , { 0 } , eNoMod , { true , true } ); } ) );
+ assert( throws_a< std::invalid_argument >( [ & x ]() {
+  PF wrong( ptrs( x ) , { { 1 , 1 } } , { 0 } , - INF , true , nullptr ,
+	    { true , false } ); } ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The global pool: a stored linearization keeps its name while the rows
+ * around it are deleted, is removed with its row, and makes the changes of
+ * its row issue a Modification whose which() names it. The State saves the
+ * pool and puts it back, directly and through netCDF, and refuses to go to
+ * a function with a different number of Variable. */
+
+static void test_global_pool_names( void )
+{
+ auto x = point( { 2 , 1 } );
+ Recorder rec;
+
+ // max{ x_0 , x_1 , - x_0 - x_1 , 2 x_0 - 10 }
+ PF f( ptrs( x ) , { { 1 , 0 } , { 0 , 1 } , { -1 , -1 } , { 2 , 0 } } ,
+       { 0 , 0 , 0 , -10 } );
+ f.register_Observer( & rec );
+
+ assert( f.get_int_par( PF::intGPMaxSz ) == 0 );
+ f.set_par( PF::intGPMaxSz , 3 );
+ assert( f.get_int_par( PF::intGPMaxSz ) == 3 );
+ assert( throws_a< std::invalid_argument >( [ & f ]() {
+  f.set_par( PF::intGPMaxSz , -1 ); } ) );
+ assert( rec.mods.empty() );
+
+ // row 0 active, stored as 0; row 2 active, stored as 2
+ assert( value( f ) == 2 );
+ f.store_linearization( 0 );
+ {
+  auto mod = take< PolyhedralFunctionMod >( rec );
+  assert( mod->type() == C05FunctionMod::GlobalPoolAdded );
+  assert( mod->which() == Subset( { 0 } ) );
+ }
+ x[ 0 ].set_value( -3 );
+ x[ 1 ].set_value( -4 );
+ assert( value( f ) == 7 );
+ f.store_linearization( 2 , eNoMod );
+ assert( rec.mods.empty() );
+
+ assert( f.is_linearization_there( 0 ) );
+ assert( ! f.is_linearization_there( 1 ) );
+ assert( f.is_linearization_there( 2 ) );
+ assert( ! f.is_linearization_there( 3 ) );        // past the pool
+ assert( ! f.is_linearization_vertical( 0 ) );
+ assert( coeffs( f , 0 ) == RealVector( { 1 , 0 } ) );
+ assert( coeffs( f , 2 ) == RealVector( { -1 , -1 } ) );
+ assert( throws_a< std::invalid_argument >( [ & f ]() {
+  f.store_linearization( 3 ); } ) );
+
+ // ---- the State saves the pool and puts it back --------------------------
+
+ std::unique_ptr< State > saved( f.get_State() );
+ assert( dynamic_cast< PolyhedralFunctionState * >( saved.get() ) );
+
+ const char * const name = "tests_PolyhedralFunction_state.nc4";
+ {
+  netCDF::NcFile file( name , netCDF::NcFile::replace );
+  auto g = file.addGroup( "Own" );
+  f.serialize_State( g );
+  auto h = file.addGroup( "State" );
+  saved->serialize( h );
+ }
+
+ f.delete_linearizations( Subset() );
+ assert( ! f.is_linearization_there( 0 ) );
+ assert( ! f.is_linearization_there( 2 ) );
+ {
+  auto mod = take< PolyhedralFunctionMod >( rec );
+  assert( mod->type() == C05FunctionMod::GlobalPoolRemoved );
+  assert( mod->which().empty() );                  // i.e., all of them
+ }
+
+ f.put_State( *saved );
+ assert( f.is_linearization_there( 0 ) );
+ assert( f.is_linearization_there( 2 ) );
+ assert( coeffs( f , 2 ) == RealVector( { -1 , -1 } ) );
+ {
+  auto mod = take< PolyhedralFunctionMod >( rec );
+  assert( mod->type() == C05FunctionMod::GlobalPoolAdded );
+  assert( mod->which() == Subset( { 0 , 2 } ) );
+ }
+
+ // putting back the State the function is in changes nothing and says so
+ f.put_State( *saved );
+ assert( rec.mods.empty() );
+
+ // the two ways of writing it read back to the same pool
+ for( const char * group : { "Own" , "State" } ) {
+  std::unique_ptr< State > read;
+  {
+   netCDF::NcFile file( name , netCDF::NcFile::read );
+   read.reset( State::new_State( file.getGroup( group ) ) );
+  }
+  assert( dynamic_cast< PolyhedralFunctionState * >( read.get() ) );
+  f.delete_linearizations( Subset() , true , eNoMod );
+  f.put_State( std::move( *read ) );
+  assert( f.is_linearization_there( 0 ) );
+  assert( ! f.is_linearization_there( 1 ) );
+  assert( f.is_linearization_there( 2 ) );
+  assert( coeffs( f , 0 ) == RealVector( { 1 , 0 } ) );
+  assert( take< PolyhedralFunctionMod >( rec )->which() ==
+	  Subset( { 0 , 2 } ) );
+  }
+ std::remove( name );
+
+ // a State taken from a function with another number of Variable is refused
+ auto y = point( { 0 } );
+ PF other( ptrs( y ) , { { 1 } } , { 0 } );
+ assert( throws_a< std::invalid_argument >( [ & ]() {
+  other.put_State( *saved ); } ) );
+
+ // put_State() puts back the names in use too, so that deleting a row
+ // renames or drops the linearizations it has put back, and the
+ // Modification names the one that goes
+ f.delete_row( 1 );
+ assert( take< PolyhedralFunctionModRngd >( rec )->which().empty() );
+ assert( f.is_linearization_there( 2 ) );
+ assert( coeffs( f , 2 ) == RealVector( { -1 , -1 } ) );
+ f.delete_row( 1 );
+ assert( ! f.is_linearization_there( 2 ) );
+ assert( take< PolyhedralFunctionModRngd >( rec )->which() ==
+	 Subset( { 2 } ) );
+ rec.mods.clear();
+
+ // ---- the names follow the rows ------------------------------------------
+ // a function of its own, whose pool is filled by store_linearization():
+ // name 0 is row 0, name 2 is row 2
+
+ PF h( ptrs( x ) , { { 1 , 0 } , { 0 , 1 } , { -1 , -1 } , { 2 , 0 } } ,
+       { 0 , 0 , 0 , -10 } );
+ h.register_Observer( & rec );
+ h.set_par( PF::intGPMaxSz , 3 );
+ x[ 0 ].set_value( 2 );
+ x[ 1 ].set_value( 1 );
+ assert( value( h ) == 2 );
+ h.store_linearization( 0 , eNoMod );
+ x[ 0 ].set_value( -3 );
+ x[ 1 ].set_value( -4 );
+ assert( value( h ) == 7 );
+ h.store_linearization( 2 , eNoMod );
+ assert( rec.mods.empty() );
+
+ h.delete_row( 1 );                                // before name 2's row
+ assert( h.is_linearization_there( 2 ) );
+ assert( coeffs( h , 2 ) == RealVector( { -1 , -1 } ) );
+ {
+  auto mod = take< PolyhedralFunctionModRngd >( rec );
+  assert( mod->type() == C05FunctionMod::NothingChanged );
+  assert( mod->which().empty() );
+ }
+
+ // changing the constant of a stored row names it: AlphaChanged
+ h.modify_constant( 1 , 3 );                       // row 1 is name 2
+ {
+  auto mod = take< PolyhedralFunctionModRngd >( rec );
+  assert( mod->type() == C05FunctionMod::AlphaChanged );
+  assert( mod->which() == Subset( { 2 } ) );
+ }
+ assert( h.get_linearization_constant( 2 ) == 3 );
+
+ // changing the row itself: AllLinearizationChanged
+ h.modify_row( 0 , { 1 , 1 } , 0 );               // row 0 is name 0
+ {
+  auto mod = take< PolyhedralFunctionModRngd >( rec );
+  assert( mod->type() == C05FunctionMod::AllLinearizationChanged );
+  assert( mod->which() == Subset( { 0 } ) );
+ }
+
+ // deleting a stored row deletes it from the pool
+ h.delete_row( 1 );                                // name 2
+ assert( ! h.is_linearization_there( 2 ) );
+ assert( h.is_linearization_there( 0 ) );
+ {
+  auto mod = take< PolyhedralFunctionModRngd >( rec );
+  assert( mod->type() == C05FunctionMod::GlobalPoolRemoved );
+  assert( mod->which() == Subset( { 2 } ) );
+ }
+
+ // one at a time, and a name with nothing in it is left alone
+ h.delete_linearization( 1 );
+ assert( rec.mods.empty() );
+ h.delete_linearization( 0 );
+ assert( ! h.is_linearization_there( 0 ) );
+ assert( take< PolyhedralFunctionMod >( rec )->which() == Subset( { 0 } ) );
+ assert( throws_a< std::invalid_argument >( [ & h ]() {
+  h.delete_linearization( 3 ); } ) );
+
+ // shrinking the pool loses what does not fit any more
+ x[ 0 ].set_value( 2 );
+ x[ 1 ].set_value( 1 );
+ assert( h.compute( true ) == PF::kOK );
+ h.store_linearization( 2 , eNoMod );
+ h.set_par( PF::intGPMaxSz , 1 );
+ assert( ! h.is_linearization_there( 2 ) );
+ assert( h.get_int_par( PF::intGPMaxSz ) == 1 );
+ rec.mods.clear();
+
+ // shrinking the pool to just the names in use loses nothing and says
+ // nothing, and those names still follow the rows
+ {
+  auto y = point( { 2 , 1 } );
+  Recorder pr;
+  PF p( ptrs( y ) , { { 1 , 0 } , { 0 , 1 } } , { 0 , 0 } );
+  p.register_Observer( & pr );
+  p.set_par( PF::intGPMaxSz , 4 );
+  assert( value( p ) == 2 );                       // row 0
+  p.store_linearization( 2 , eNoMod );
+  pr.mods.clear();
+  p.set_par( PF::intGPMaxSz , 3 );
+  assert( pr.mods.empty() );
+  assert( p.is_linearization_there( 2 ) );
+  p.delete_row( 0 );
+  assert( ! p.is_linearization_there( 2 ) );
+  assert( take< PolyhedralFunctionModRngd >( pr )->which() ==
+	  Subset( { 2 } ) );
+ }
+
+ // a combination of linearizations, whose multipliers are checked with the
+ // default tolerance, loses the column of a Variable removed as the rows do
+ {
+  auto y = point( { 1 , 1 , 1 , 1 , 0 } );
+  PF p( ptrs( y ) , { { 1 , 2 , 3 , 4 , 5 } , { 0 , 0 , 0 , 0 , 1 } } ,
+	{ 0 , 0 } );
+  assert( p.get_dbl_par( PF::dblAAccMlt ) == 1e-10 );
+  p.set_par( PF::intGPMaxSz , 2 );
+  assert( value( p ) == 10 );                      // row 0
+  p.store_linearization( 0 , eNoMod );
+  p.store_combination_of_linearizations( { { 0 , 1 } } , 1 , eNoMod );
+  assert( coeffs( p , 1 ) == RealVector( { 1 , 2 , 3 , 4 , 5 } ) );
+  p.remove_variable( 0 , eNoMod );
+  assert( coeffs( p , 1 ) == RealVector( { 2 , 3 , 4 , 5 } ) );
+  p.remove_variables( Range( 1 , 2 ) , eNoMod );
+  assert( coeffs( p , 1 ) == RealVector( { 2 , 4 , 5 } ) );
+  p.remove_variables( Subset( { 2 , 0 } ) , false , eNoMod );
+  assert( coeffs( p , 1 ) == RealVector( { 4 } ) );
+  assert( coeffs( p , 0 ) == RealVector( { 4 } ) );
+ }
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The netCDF round trip of the function: A, b, the vertical flags, the verse
+ * and the bound come back as they were, and each of the optional parts of
+ * the format is left out when it has nothing to say (no row, no vertical
+ * row, no bound, convex), a file without the flags giving diagonal rows.
+ * Data that do not fit the Variable already there are refused. */
+
+static void test_netCDF_edges( void )
+{
+ auto x = point( { 1 , 2 } );
+ const char * const name = "tests_PolyhedralFunction.nc4";
+
+ auto round_trip = [ & ]( const PF & f , PF & g ) {
+  {
+   netCDF::NcFile file( name , netCDF::NcFile::replace );
+   auto gr = file.addGroup( "F" );
+   f.serialize( gr );
+  }
+  {
+   netCDF::NcFile file( name , netCDF::NcFile::read );
+   g.deserialize( file.getGroup( "F" ) );
+  }
+  std::remove( name );
+  };
+
+ auto same = []( PF & f , PF & g ) {
+  return( ( f.get_A() == g.get_A() ) && ( f.get_b() == g.get_b() ) &&
+	  ( f.is_convex() == g.is_convex() ) &&
+	  ( f.get_global_bound() == g.get_global_bound() ) );
+  };
+
+ {                                        // convex, with a bound
+  PF f( ptrs( x ) , three_rows() , { 1 , 2 , 3 } , -7 );
+  PF g( ptrs( x ) );
+  round_trip( f , g );
+  assert( same( f , g ) );
+  assert( value( g ) == value( f ) );
+ }
+ {                                        // concave, with no bound
+  PF f( ptrs( x ) , three_rows() , { 1 , 2 , 3 } , INF , false );
+  PF g( ptrs( x ) );
+  round_trip( f , g );
+  assert( same( f , g ) );
+  assert( g.is_concave() );
+ }
+ {                                        // no row
+  PF f( ptrs( x ) , {} , {} , 2 );
+  PF g( ptrs( x ) , three_rows() , { 1 , 2 , 3 } );
+  round_trip( f , g );
+  assert( same( f , g ) );
+  assert( g.get_nrows() == 0 );
+ }
+ {                                        // no Variable at all
+  PF f( {} , MultiVector( 2 ) , { 1 , 5 } );
+  PF g;
+  round_trip( f , g );
+  assert( same( f , g ) );
+  assert( g.get_nrows() == 2 );
+  assert( value( g ) == 5 );
+ }
+ {                                        // Variable given afterwards
+  PF f( ptrs( x ) , three_rows() , { 1 , 2 , 3 } );
+  PF g;
+  round_trip( f , g );
+  assert( g.get_nrows() == 3 );
+  g.set_variables( ptrs( x ) );
+  assert( same( f , g ) );
+ }
+ {                                        // the vertical flags go too
+  PF f( ptrs( x ) , three_rows() , { 1 , 2 , 3 } , - INF , true , nullptr ,
+	{ false , true , false } );
+  PF g( ptrs( x ) );
+  round_trip( f , g );
+  assert( same( f , g ) );
+  assert( g.get_is_vert() == PF::BoolVector( { false , true , false } ) );
+  assert( value( g ) == value( f ) );
+ }
+ {                                        // and without them all diagonal
+  // with no vertical row the flags are not written, as in the files that
+  // predate them: whatever g had, all its rows come back diagonal
+  PF f( ptrs( x ) , three_rows() , { 1 , 2 , 3 } );
+  PF g( ptrs( x ) , three_rows() , { 1 , 2 , 3 } , - INF , true , nullptr ,
+	{ true , false , false } );
+  round_trip( f , g );
+  assert( same( f , g ) );
+  assert( g.get_is_vert().empty() );
+  assert( ! g.is_row_vertical( 0 ) );
+ }
+ {                                        // 2 columns for 1 Variable
+  PF f( ptrs( x ) , three_rows() , { 1 , 2 , 3 } );
+  auto y = point( { 0 } );
+  PF g( ptrs( y ) );
+  assert( throws_a< std::invalid_argument >( [ & ]() {
+   round_trip( f , g ); } ) );
+  std::remove( name );
+ }
+ }
+
+/*--------------------------------------------------------------------------*/
 /*--------------------------------- MAIN -----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1349,6 +2552,14 @@ int main( void )
  test_R3_copy();
  test_PFB_primal();
  test_PFB_dual();
+ test_degenerate();
+ test_value_edges();
+ test_rows_edges();
+ test_modify_edges();
+ test_variables_edges();
+ test_vertical();
+ test_global_pool_names();
+ test_netCDF_edges();
 
  if( n_failed ) {
   std::cout << n_failed << " checks FAILED" << std::endl;

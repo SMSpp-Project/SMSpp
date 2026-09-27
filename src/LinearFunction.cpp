@@ -345,6 +345,16 @@ void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
   throw( std::invalid_argument( "LinearFunction::modify_coefficients: NCoef"
                                 ".size < nms.size" ) );
 
+ // all the indices are checked before anything is changed
+ for( auto i : nms )
+  if( i >= v_pairs.size() )
+   throw( std::invalid_argument( "LinearFunction::modify_coefficients: "
+                                 "invalid index: " + std::to_string( i ) ) );
+
+ // the part of NCoef past nms is not used, and the one used becomes the
+ // vector of the changes in the Modification
+ NCoef.resize( nms.size() );
+
  auto NCit = NCoef.begin();
 
  if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
@@ -354,9 +364,6 @@ void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
   auto vpit = vp.begin();
 
   for( auto i : nms ) {
-   if( i >= v_pairs.size() )
-    throw( std::invalid_argument( "LinearFunction::modify_coefficients: "
-                                  "invalid index: " + std::to_string( i ) ) );
    *( vpit++ ) = v_pairs[ i ].first;
    auto di = *NCit - v_pairs[ i ].second;
    v_pairs[ i ].second = *NCit;
@@ -372,12 +379,8 @@ void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
                                 Observer::par2chnl( issueMod ) );
   }
  else  // noone is there: just do it
-  for( auto i : nms ) {
-   if( i >= v_pairs.size() )
-    throw( std::invalid_argument( "LinearFunction::modify_coefficients: "
-                                  "invalid index: " + std::to_string( i ) ) );
+  for( auto i : nms )
    v_pairs[ i ].second = *( NCit++ );
-   }
 
  }  // end( LinearFunction::modify_coefficients( subset ) )
 
@@ -396,6 +399,10 @@ void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
  if( NCoef.size() < range.second - range.first )
   throw( std::invalid_argument( "LinearFunction::modify_coefficients: NCoef"
                                 ".size is too small" ) );
+
+ // the part of NCoef past the (cut) range is not used, and the one used
+ // becomes the vector of the changes in the Modification
+ NCoef.resize( range.second - range.first );
 
  auto NCit = NCoef.begin();
  auto strtit = v_pairs.begin() + range.first;

@@ -39,6 +39,8 @@
 
 #include <math.h>
 
+#include <numeric>
+
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -82,6 +84,7 @@ void PolyhedralFunction::deserialize( const netCDF::NcGroup & group ,
 
  MultiVector tA;
  RealVector tb;
+ BoolVector tvert;
 
  auto nr = group.getDim( "PolyFunction_NumRow" );
  if( ( ! nr.isNull() ) && ( nr.getSize() ) ) {
@@ -101,6 +104,16 @@ void PolyhedralFunction::deserialize( const netCDF::NcGroup & group ,
 
   tb.resize( nr.getSize() );
   ncdb.getVar( tb.data() );
+
+  // which rows are vertical: if it is not there, none is
+  auto ncdv = group.getVar( "PolyFunction_Vert" );
+  if( ! ncdv.isNull() ) {
+   std::vector< unsigned char > vert( nr.getSize() );
+   ncdv.getVar( vert.data() );
+   tvert.resize( vert.size() );
+   for( Index i = 0 ; i < vert.size() ; ++i )
+    tvert[ i ] = vert[ i ];
+   }
   }
 
  bool cnvx = true;
@@ -115,10 +128,8 @@ void PolyhedralFunction::deserialize( const netCDF::NcGroup & group ,
  else
   nclb.getVar( & bound );
 
- // the netCDF format does not (yet) carry the per-row "is vertical" flag,
- // so we deserialize as "all diagonal" (the default)
  set_PolyhedralFunction( std::move( tA ) , std::move( tb ) , bound , cnvx ,
-			 issueMod );
+			 issueMod , std::move( tvert ) );
 
  }  // end( PolyhedralFunction::deserialize )
 
@@ -137,7 +148,8 @@ std::vector< std::string > PolyhedralFunction::expected_dims( void ) const {
 
 std::vector< std::string > PolyhedralFunction::expected_vars( void ) const {
  static const std::vector< std::string > ev =
- { "PolyFunction_A" , "PolyFunction_b" , "PolyFunction_lb" };
+ { "PolyFunction_A" , "PolyFunction_b" , "PolyFunction_Vert" ,
+   "PolyFunction_lb" };
 
  return( ev );
  }
@@ -832,6 +844,16 @@ void PolyhedralFunction::serialize( netCDF::NcGroup & group ) const
 
   ( group.addVar( "PolyFunction_b" , netCDF::NcDouble() , nr ) ).putVar(
 				      { 0 } , { get_nrows() } , v_b.data() );
+
+  // which rows are vertical, only written if any is
+  if( f_n_vert ) {
+   std::vector< unsigned char > vert( get_nrows() , 0 );
+   for( Index i = 0 ; ( i < vert.size() ) && ( i < v_is_vert.size() ) ;
+	++i )
+    vert[ i ] = v_is_vert[ i ];
+   ( group.addVar( "PolyFunction_Vert" , netCDF::NcUbyte() , nr ) ).putVar(
+				    { 0 } , { vert.size() } , vert.data() );
+   }
   }
 
  if( ! f_is_convex )
@@ -1170,25 +1192,23 @@ void PolyhedralFunction::add_variables( VarVector && nx , MultiVector && nA ,
  if( ! nn )  // actually nothing to add
   return;    // cowardly (and silently) return
 
- if( ! v_A.empty() && nA.size() != get_nrows() )
-  throw( std::invalid_argument( "wrong number of rows in nA" ) );
+ c_Index n = v_x.size();
+
+ // with some Variable already there, the rows are those of A, if any
+ if( ( n || ! v_A.empty() ) && ( nA.size() != get_nrows() ) )
+  throw( std::invalid_argument(
+	 "PolyhedralFunction::add_variables: wrong number of rows in nA" ) );
 
  for( auto & a : nA )
   if( a.size() != nn )
-   throw( std::invalid_argument( "all rows nA must have the size of nx" ) );
-
- c_Index n = v_x.size();
+   throw( std::invalid_argument( "PolyhedralFunction::add_variables: "
+				 "all rows nA must have the size of nx" ) );
 
  if( ! n ) {    // very easy case: adding to nothing
   v_A = std::move( nA );
   v_x = std::move( nx );
   }
  else {         // not much more difficult: append at the end
-  if( v_A.empty() ) {
-   assert( ! nA.empty() );
-   v_A.resize( nA.size() );
-   }
-
   for( Index i = 0 ; i < get_nrows() ; ++i )
    v_A[ i ].insert( v_A[ i ].end() , nA[ i ].begin() , nA[ i ].end() );
 
@@ -1228,8 +1248,13 @@ void PolyhedralFunction::add_variable( ColVariable * const var ,
  if( var == nullptr )  // actually nothing to add
   return;              // cowardly (and silently) return
 
- if( v_A.empty() )
+ // with some Variable already there, the rows are those of A, if any
+ if( v_x.empty() && v_A.empty() )
   v_A.resize( Aj.size() );
+ else
+  if( Aj.size() != get_nrows() )
+   throw( std::invalid_argument(
+	 "PolyhedralFunction::add_variable: wrong number of rows in Aj" ) );
 
  for( Index j = 0 ; j < get_nrows() ; ++j )
   v_A[ j ].push_back( Aj[ j ] );
@@ -1270,6 +1295,9 @@ void PolyhedralFunction::remove_variable( Index i , ModParam issueMod )
  v_x.erase( v_x.begin() + i );    // erase it in v_x
  for( auto & ai : v_A )           // erase the column in A
   ai.erase( ai.begin() + i );
+ for( auto & ai : v_aA )          // and in the aggregated linearizations
+  if( ai.size() > i )
+   ai.erase( ai.begin() + i );
 
  set_f_uncomputed();                // the function value has changed
  f_Lipschitz_constant = -Inf< FunctionValue >();  // == unknown
@@ -1311,6 +1339,8 @@ void PolyhedralFunction::remove_variables( Range range , ModParam issueMod )
   v_x.clear();            // clear v_x
   for( auto & ai : v_A )  // erase all v_A
    ai.clear();
+  for( auto & ai : v_aA )  // and all the aggregated linearizations
+   ai.clear();
 
   // now issue the Modification
   // a polyhedral function is strongly quasi-additive, and nms is ordered
@@ -1326,6 +1356,9 @@ void PolyhedralFunction::remove_variables( Range range , ModParam issueMod )
  // erase the columns in v_A
  for( auto & ai : v_A )
   ai.erase( ai.begin() + range.first , ai.begin() + range.second );
+ for( auto & ai : v_aA )  // and in the aggregated linearizations
+  if( ai.size() >= range.second )
+   ai.erase( ai.begin() + range.first , ai.begin() + range.second );
 
  set_f_uncomputed();                // the function value has changed
  f_Lipschitz_constant = -Inf< FunctionValue >();  // == unknown
@@ -1398,6 +1431,8 @@ void PolyhedralFunction::remove_variables( Subset && nms , bool ordered ,
   v_x.clear();            // clear v_x
   for( auto & ai : v_A )  // erase all v_A
    ai.clear();
+  for( auto & ai : v_aA )  // and all the aggregated linearizations
+   ai.clear();
 
   // now issue the Modification: note that the subset is empty
   // a polyhedral function is strongly quasi-additive, and nms is ordered
@@ -1417,6 +1452,9 @@ void PolyhedralFunction::remove_variables( Subset && nms , bool ordered ,
 
  for( auto & ai : v_A )          // erase the columns in A
   compact( ai , nms );
+ for( auto & ai : v_aA )         // and in the aggregated linearizations
+  if( ai.size() > nms.back() )
+   compact( ai , nms );
 
  if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
   Vec_p_Var vars( nms.size() );
@@ -1629,10 +1667,12 @@ void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
  if( rows.back() >= get_nrows() )
   throw( std::invalid_argument( "wrong row names" ) );
 
- for( Index i = 0 ; i < rows.size() ; ++i ) {
-  if( nA[ i ].size() != v_x.size() )
+ // all the sizes are checked before anything is changed
+ for( auto & a : nA )
+  if( a.size() != v_x.size() )
    throw( std::invalid_argument( "wrong row size" ) );
 
+ for( Index i = 0 ; i < rows.size() ; ++i ) {
   v_A[ rows[ i ] ] = std::move( nA[ i ] );
   v_b[ rows[ i ] ] = b[ i ];
   }
@@ -2359,6 +2399,9 @@ void PolyhedralFunction::add_rows( MultiVector && nA , c_RealVector & nb ,
  if( ( ! is_vert.empty() ) && ( is_vert.size() != k ) )
   throw( std::invalid_argument( "is_vert size must match nA, or be empty" ) );
 
+ if( ! k )  // actually nothing to add
+  return;   // cowardly (and silently) return
+
  c_Index n = v_x.size();
  for( auto & a : nA )
   if( a.size() != n )
@@ -2580,21 +2623,10 @@ void PolyhedralFunction::delete_rows( Subset && rows , bool ordered ,
  if( rows.back() >= get_nrows() )
   throw( std::invalid_argument( "invalid names in rows" ) );
 
- // mark stuff to be killed in v_A[] and v_b[]
- for( auto idx : rows ) {
-  v_A[ idx ].clear();
-  v_b[ idx ] = std::numeric_limits< FunctionValue >::quiet_NaN();
-  }
-
- // kill stuff in v_A[]
- v_A.erase( remove_if( v_A.begin() + rows.front() , v_A.end() ,
-		       []( RealVector & ai ) { return( ai.empty() ); } ) ,
-	    v_A.end() );
-
- // kill stuff in v_b[]
- v_b.erase( remove_if( v_b.begin() + rows.front() , v_b.end() ,
-		       []( FunctionValue bi ) {	return( std::isnan( bi ) ); }
-		       ) , v_b.end() );
+ // kill stuff in v_A[] and v_b[], by position since a row may well be
+ // empty (when there is no Variable)
+ compact( v_A , rows );
+ compact( v_b , rows );
 
  // kill stuff in v_is_vert[] for the same indices (if present); since we
  // sorted rows above, we can just erase from back to front

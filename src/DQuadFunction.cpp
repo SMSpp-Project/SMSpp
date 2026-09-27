@@ -427,6 +427,12 @@ void DQuadFunction::modify_terms( c_v_coeff_it NQuadCoef ,
  if( nms.empty() )
   return;
 
+ // all the indices are checked before anything is changed
+ for( auto i : nms )
+  if( i >= v_triples.size() )
+   throw( std::invalid_argument( "DQuadFunction::modify_terms: invalid "
+                                 "index: " + std::to_string( i ) ) );
+
  if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
   // somebody is there: meanwhile, prepare data for the Modification
 
@@ -436,9 +442,6 @@ void DQuadFunction::modify_terms( c_v_coeff_it NQuadCoef ,
   auto vcit = vcoef.begin();
 
   for( auto i : nms ) {
-   if( i >= v_triples.size() )
-    throw( std::invalid_argument( "DQuadFunction::modify_terms: invalid "
-                                  "index: " + std::to_string( i ) ) );
    *(vpit++) = std::get< 0 >( v_triples[ i ] );
    
    // Create the delta coefficients for linear and quadratic terms
@@ -461,9 +464,6 @@ void DQuadFunction::modify_terms( c_v_coeff_it NQuadCoef ,
   }
  else  // noone is there: just do it
   for( auto i : nms ) {
-   if( i >= v_triples.size() )
-    throw( std::invalid_argument( "DQuadFunction::modify_terms: invalid "
-                                  "index: " + std::to_string( i ) ) );
    std::get< 1 >( v_triples[ i ] ) = *(NLinCoef++);   // modify quad. coeff.
    std::get< 2 >( v_triples[ i ] ) = *(NQuadCoef++);  // modify linear coeff.
    }
@@ -485,6 +485,18 @@ void DQuadFunction::modify_linear_coefficients( Vec_FunctionValue && NCoef ,
  if( NCoef.size() < nms.size() )
   throw( std::invalid_argument( "DQuadFunction::modify_linear_coefficients: "
                                 "NCoef.size < nms.size" ) );
+
+ // all the indices are checked before anything is changed
+ for( auto i : nms )
+  if( i >= v_triples.size() )
+   throw( std::invalid_argument(
+	   "DQuadFunction::modify_linear_coefficients: invalid index " +
+	   std::to_string( i ) ) );
+
+ // the part of NCoef past nms is not used, and the one used becomes the
+ // vector of the changes in the Modification
+ NCoef.resize( nms.size() );
+
  auto NCit = NCoef.begin();
  
  if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
@@ -494,11 +506,6 @@ void DQuadFunction::modify_linear_coefficients( Vec_FunctionValue && NCoef ,
   auto vpit = vp.begin();
 
   for( auto i : nms ) {
-   if( i >= v_triples.size() )
-    throw( std::invalid_argument(
-	    "DQuadFunction::modify_linear_coefficients: invalid index " +
-	    std::to_string( i ) ) );
-
    *(vpit++) = std::get< 0 >( v_triples[ i ] );
    auto di = *NCit - std::get< 1 >( v_triples[ i ] );
    std::get< 1 >( v_triples[ i ] ) = *NCit;
@@ -514,14 +521,8 @@ void DQuadFunction::modify_linear_coefficients( Vec_FunctionValue && NCoef ,
                                 Observer::par2chnl( issueMod ) );
   }
  else  // noone is there: just do it
-  for( auto i : nms ) {
-   if( i >= v_triples.size() )
-    throw( std::invalid_argument(
-	    "DQuadFunction::modify_linear_coefficients: invalid index " +
-	    std::to_string( i ) ) );
-
+  for( auto i : nms )
    std::get< 1 >( v_triples[ i ] ) = *(NCit++);
-   }
 
  }  // end( DQuadFunction::modify_linear_coefficients( subset ) )
 
@@ -594,6 +595,10 @@ void DQuadFunction::modify_linear_coefficients( Vec_FunctionValue && NCoef ,
  if( NCoef.size() < range.second - range.first )
   throw( std::invalid_argument( "DQuadFunction::modify_linear_coefficients: "
                                 "NCoef.size too small" ) );
+
+ // the part of NCoef past the (cut) range is not used, and the one used
+ // becomes the vector of the changes in the Modification
+ NCoef.resize( range.second - range.first );
 
  auto NCit = NCoef.begin();
  auto strtit = v_triples.begin() + range.first;
@@ -696,7 +701,7 @@ void DQuadFunction::remove_variables( Range range, ModParam issueMod )
 
   Vec_p_Var vars( range.second - range.first );
   auto vpit = vars.begin();
-  for( auto tmpit = strtit ; strtit < stopit ; )
+  for( auto tmpit = strtit ; tmpit < stopit ; )
    *(vpit++) = std::get< 0 >( *(tmpit++) );
 
   v_triples.erase( strtit , stopit );

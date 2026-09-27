@@ -32,7 +32,11 @@
 #include <cstdio>
 #include <iostream>
 #include <list>
+#include <memory>
 #include <sstream>
+#include <stdexcept>
+#include <type_traits>
+#include <vector>
 
 // last, so that the headers above are read as the library was compiled
 #include "TestAssert.h"
@@ -585,14 +589,14 @@ static void test_writers_edge_cases( void )
  }
  block.add_static_constraint( *rows , "r" );
 
- // ---- with no Objective at all --------------------------------------
+ // ---- with no Objective at all -------------------------------------------
 
  std::ostringstream noobj;
  block.write_lp( noobj );
  assert( noobj.str().find( "Minimize" ) != std::string::npos );
  assert( noobj.str().find( " obj: 0" ) != std::string::npos );
 
- // ---- the LP file ---------------------------------------------------
+ // ---- the LP file --------------------------------------------------------
 
  LinearFunction::v_coeff_pair o;
  o.push_back( { & ( *cols )[ 3 ] , 1.0 } );
@@ -618,7 +622,7 @@ static void test_writers_edge_cases( void )
  assert( lp.find( "0.3333333333333333" ) != std::string::npos );
  assert( lp.find( "0.1 v1_0" ) != std::string::npos );
 
- // ---- the MPS file --------------------------------------------------
+ // ---- the MPS file -------------------------------------------------------
 
  std::ostringstream mpss;
  block.write_mps( mpss );
@@ -660,7 +664,7 @@ static void test_writers_edge_cases( void )
  third.write_mps( thrice );
  assert( thrice.str() == twice.str() );
 
- // ---- a Function that is not linear is refused, not written wrong ----
+ // ---- a Function that is not linear is refused, not written wrong --------
 
  auto quad = new std::vector< FRowConstraint >( 1 );
  {
@@ -1236,6 +1240,395 @@ static void test_mirror_of_an_empty_Block( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* The edges of add_dynamic_*() and remove_dynamic_*(), for Variable and for
+ * Constraint alike: adding nothing, adding to an empty list, a Range that is
+ * empty (anywhere, even reversed or on an empty list), one to the end, one
+ * that covers everything and one past the end (which, unlike the Range of a
+ * LinearFunction, is refused rather than cut), an empty Subset (which means
+ * "all of them"), an unordered one, an unordered one that is contiguous
+ * (hence a Range), one that names every element and one with an index out
+ * of the list. What is checked is the list, the Block and the group of the
+ * elements, the size of the group, and the BlockModAdd / BlockModRmvRngd /
+ * BlockModRmvSbst the Block is sent under eModBlck, which is sent whether or
+ * not a Solver is listening. */
+
+/// an AbstractBlock that records every Modification it is sent
+
+class RecBlock : public AbstractBlock
+{
+ public:
+
+ void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override {
+  v_seen.push_back( mod );
+  AbstractBlock::add_Modification( mod , chnl );
+  }
+
+ Lst_sp_Mod v_seen;  ///< what the Block has been sent, in order
+ };
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// the one Modification the Block has been sent, as a T, the record emptied
+
+template< class T >
+static std::shared_ptr< T > take( RecBlock * b )
+{
+ assert( b->v_seen.size() == 1 );
+ auto mod = std::dynamic_pointer_cast< T >( b->v_seen.front() );
+ assert( mod );
+ b->v_seen.clear();
+ return( mod );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// the addresses of the elements of a list, in order
+
+template< class T >
+static std::vector< const T * > addrs( const std::list< T > & l )
+{
+ std::vector< const T * > rv;
+ for( const auto & el : l )
+  rv.push_back( & el );
+ return( rv );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// the elements of v in the given positions
+
+template< class T >
+static std::vector< const T * > pick( const std::vector< const T * > & v ,
+				      std::initializer_list< Block::Index >
+				      pos )
+{
+ std::vector< const T * > rv;
+ for( auto i : pos )
+  rv.push_back( v[ i ] );
+ return( rv );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+// what tells Variable from Constraint, for the template below
+
+template< class T >
+static void add_d( Block * b , std::list< T > & l , std::list< T > & n ,
+		   ModParam iM = eModBlck )
+{
+ if constexpr( std::is_base_of_v< Variable , T > )
+  b->add_dynamic_variables( l , n , iM );
+ else
+  b->add_dynamic_constraints( l , n , iM );
+ }
+
+template< class T >
+static void rmv_d( Block * b , std::list< T > & l , Block::Range range ,
+		   ModParam iM = eModBlck )
+{
+ if constexpr( std::is_base_of_v< Variable , T > )
+  b->remove_dynamic_variables( l , range , iM , iM );
+ else
+  b->remove_dynamic_constraints( l , range , iM );
+ }
+
+template< class T >
+static void rmv_d( Block * b , std::list< T > & l , Block::Subset && nms ,
+		   bool ordered , ModParam iM = eModBlck )
+{
+ if constexpr( std::is_base_of_v< Variable , T > )
+  b->remove_dynamic_variables( l , std::move( nms ) , ordered , iM , iM );
+ else
+  b->remove_dynamic_constraints( l , std::move( nms ) , ordered , iM );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+template< class T >
+static void test_dynamic_edges_of( RecBlock * b , std::list< T > & l ,
+				   const BaseGroup * group )
+{
+ using Range = Block::Range;
+ using Subset = Block::Subset;
+ static constexpr bool isvar = std::is_base_of_v< Variable , T >;
+
+ // the list with n new elements, nothing recorded, their addresses
+ auto fill = [ b , & l ]( Block::Index n ) {
+  rmv_d( b , l , Subset() , false , eNoMod );
+  std::list< T > nl( n );
+  add_d( b , l , nl , eNoMod );
+  b->v_seen.clear();
+  return( addrs( l ) );
+  };
+
+ // a removal that leaves the positions left of the old list and sends a
+ // BlockModRmvRngd with the Range, or a BlockModRmvSbst with the Subset if
+ // the Range is empty, carrying the elements in the positions gone
+ auto removed = [ b , & l ]( const std::vector< const T * > & old ,
+			     std::initializer_list< Block::Index > left ,
+			     std::initializer_list< Block::Index > gone ,
+			     Range range , const Subset & subset ) {
+  assert( addrs( l ) == pick( old , left ) );
+  if( range.second > range.first ) {
+   auto mod = take< BlockModRmvRngd< T > >( b );
+   assert( & mod->whc() == & l );
+   assert( ( ! mod->is_added() ) && ( mod->is_variable() == isvar ) );
+   assert( mod->range() == range );
+   assert( addrs( mod->removed() ) == pick( old , gone ) );
+   }
+  else {
+   auto mod = take< BlockModRmvSbst< T > >( b );
+   assert( & mod->whc() == & l );
+   assert( ( ! mod->is_added() ) && ( mod->is_variable() == isvar ) );
+   assert( mod->subset() == subset );
+   assert( addrs( mod->removed() ) == pick( old , gone ) );
+   }
+  };
+
+ const Range NR( 0 , 0 );  // not a Range: a Subset is expected
+
+ // ---- adding -------------------------------------------------------------
+
+ {                              // nothing, to a list with something in it
+  auto old = fill( 2 );
+  std::list< T > nl;
+  add_d( b , l , nl );
+  assert( addrs( l ) == old );
+  assert( b->v_seen.empty() );
+ }
+ {                              // nothing to nothing
+  fill( 0 );
+  std::list< T > nl;
+  add_d( b , l , nl );
+  assert( l.empty() && b->v_seen.empty() );
+ }
+ {                              // to an empty list, then to a non-empty one
+  fill( 0 );
+  for( Block::Index first : { 0 , 3 } ) {
+   std::list< T > nl( 3 );
+   auto want = addrs( nl );
+   add_d( b , l , nl );
+   assert( nl.empty() );        // spliced, not copied
+   assert( l.size() == first + 3 );
+   auto now = addrs( l );
+   assert( std::equal( want.begin() , want.end() , now.begin() + first ) );
+   for( const auto & el : l ) {
+    assert( el.get_Block() == b );
+    assert( el.get_Group() == group );
+    }
+   assert( group->get_num_elements() == first + 3 );
+
+   auto mod = take< BlockModAdd< T > >( b );
+   assert( & mod->whc() == & l );
+   assert( mod->is_added() && ( mod->is_variable() == isvar ) );
+   assert( mod->first() == first );
+   assert( mod->added().size() == 3 );
+   for( Block::Index k = 0 ; k < 3 ; ++k )
+    assert( mod->added()[ k ] == want[ k ] );
+   }
+ }
+
+ // ---- removing by Range --------------------------------------------------
+
+ {                              // empty, anywhere: nothing, and no throw
+  auto old = fill( 3 );
+  rmv_d( b , l , Range( 1 , 1 ) );
+  rmv_d( b , l , Range( 3 , 3 ) );
+  rmv_d( b , l , Range( 2 , 1 ) );       // reversed
+  rmv_d( b , l , Range( 7 , 7 ) );       // past the end, but empty
+  assert( addrs( l ) == old );
+  assert( b->v_seen.empty() );
+  fill( 0 );
+  rmv_d( b , l , Range( 0 , 0 ) );       // on an empty list
+  assert( l.empty() && b->v_seen.empty() );
+ }
+ {                              // to the end
+  auto old = fill( 3 );
+  rmv_d( b , l , Range( 1 , 3 ) );
+  removed( old , { 0 } , { 1 , 2 } , Range( 1 , 3 ) , {} );
+  assert( group->get_num_elements() == 1 );
+ }
+ {                              // all: said with an empty Subset
+  auto old = fill( 3 );
+  rmv_d( b , l , Range( 0 , 3 ) );
+  removed( old , {} , { 0 , 1 , 2 } , NR , {} );
+  assert( group->get_num_elements() == 0 );
+ }
+ {                              // past the end: refused, nothing done
+  auto old = fill( 3 );
+  bool thrown = false;
+  try { rmv_d( b , l , Range( 1 , 4 ) ); }
+  catch( const std::invalid_argument & ) { thrown = true; }
+  assert( thrown );
+  assert( addrs( l ) == old );
+  assert( b->v_seen.empty() );
+ }
+ {                              // anything but nothing from an empty list
+  fill( 0 );
+  bool thrown = false;
+  try { rmv_d( b , l , Range( 0 , 1 ) ); }
+  catch( const std::invalid_argument & ) { thrown = true; }
+  assert( thrown );
+  assert( b->v_seen.empty() );
+ }
+ {                              // silently: done, and nothing sent
+  auto old = fill( 3 );
+  rmv_d( b , l , Range( 0 , 2 ) , eNoMod );
+  assert( addrs( l ) == pick( old , { 2 } ) );
+  assert( b->v_seen.empty() );
+ }
+
+ // ---- removing by Subset -------------------------------------------------
+
+ {                              // empty: all of them
+  auto old = fill( 3 );
+  rmv_d( b , l , Subset() , true );
+  removed( old , {} , { 0 , 1 , 2 } , NR , {} );
+ }
+ {                              // empty, on an empty list: nothing
+  fill( 0 );
+  rmv_d( b , l , Subset() , false );
+  assert( l.empty() && b->v_seen.empty() );
+ }
+ {                              // unordered: ordered inside
+  auto old = fill( 4 );
+  rmv_d( b , l , Subset( { 3 , 0 } ) , false );
+  removed( old , { 1 , 2 } , { 0 , 3 } , NR , { 0 , 3 } );
+  assert( group->get_num_elements() == 2 );
+ }
+ {                              // unordered and contiguous: a Range
+  auto old = fill( 4 );
+  rmv_d( b , l , Subset( { 2 , 1 } ) , false );
+  removed( old , { 0 , 3 } , { 1 , 2 } , Range( 1 , 3 ) , {} );
+ }
+ {                              // one element, the last one
+  auto old = fill( 4 );
+  rmv_d( b , l , Subset( { 3 } ) , true );
+  removed( old , { 0 , 1 , 2 } , { 3 } , Range( 3 , 4 ) , {} );
+ }
+ {                              // every one by name: all of them
+  auto old = fill( 3 );
+  rmv_d( b , l , Subset( { 2 , 0 , 1 } ) , false );
+  removed( old , {} , { 0 , 1 , 2 } , NR , {} );
+ }
+ {                              // an index out of the list: refused
+  auto old = fill( 4 );
+  bool thrown = false;
+  try { rmv_d( b , l , Subset( { 4 , 0 } ) , false ); }
+  catch( const std::invalid_argument & ) { thrown = true; }
+  assert( thrown );
+  assert( addrs( l ) == old );
+  assert( b->v_seen.empty() );
+ }
+ {                              // anything but "all" from an empty list
+  fill( 0 );
+  bool thrown = false;
+  try { rmv_d( b , l , Subset( { 0 } ) , true ); }
+  catch( const std::invalid_argument & ) { thrown = true; }
+  assert( thrown );
+  assert( b->v_seen.empty() );
+ }
+ {                              // silently: done, and nothing sent
+  auto old = fill( 4 );
+  rmv_d( b , l , Subset( { 3 , 1 } ) , false , eNoMod );
+  assert( addrs( l ) == pick( old , { 0 , 2 } ) );
+  assert( b->v_seen.empty() );
+ }
+
+ fill( 0 );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+static void test_dynamic_edges( void )
+{
+ auto b = new RecBlock;
+
+ // one list of Variable and one of Constraint
+ auto vars = new std::list< ColVariable >;
+ b->add_dynamic_variable( *vars , "y" );
+ auto rows = new std::list< FRowConstraint >;
+ b->add_dynamic_constraint( *rows , "c" );
+
+ test_dynamic_edges_of( b , *vars ,
+			b->get_dynamic_variable_groups().back().get() );
+ test_dynamic_edges_of( b , *rows ,
+			b->get_dynamic_constraint_groups().back().get() );
+
+ // ---- a vector of lists: one group, a list per cell ----------------------
+
+ auto cells = new std::vector< std::list< ColVariable > >( 3 );
+ b->add_dynamic_variable( *cells , "z" );
+ const auto group = b->get_dynamic_variable_groups().back().get();
+ assert( group->get_num_elements() == 0 );
+ {
+  std::list< ColVariable > nl( 2 );
+  b->add_dynamic_variables( ( *cells )[ 1 ] , nl );
+  auto mod = take< BlockModAdd< ColVariable > >( b );
+  assert( & mod->whc() == & ( *cells )[ 1 ] );
+  assert( mod->first() == 0 );         // the position in its own list
+ }
+ {
+  std::list< ColVariable > nl( 1 );
+  b->add_dynamic_variables( ( *cells )[ 2 ] , nl );
+  b->v_seen.clear();
+ }
+ assert( ( *cells )[ 0 ].empty() );
+ assert( group->get_num_elements() == 3 );
+ for( auto & cell : *cells )
+  for( auto & v : cell )
+   assert( ( v.get_Block() == b ) && ( v.get_Group() == group ) );
+
+ // removing from one cell leaves the others alone
+ b->remove_dynamic_variables( ( *cells )[ 1 ] , Block::Subset() );
+ assert( ( *cells )[ 1 ].empty() && ( ( *cells )[ 2 ].size() == 1 ) );
+ assert( group->get_num_elements() == 1 );
+ assert( take< BlockModRmvSbst< ColVariable > >( b )->subset().empty() );
+
+ // ---- what goes away leaves the stuff it was in --------------------------
+
+ auto x = new std::vector< ColVariable >( 1 );
+ b->add_static_variable( *x , "x" );
+ for( ModParam iM : { eNoMod , eModBlck } ) {
+  // a dynamic Constraint on a static Variable: removing the Constraint
+  // takes it off the active stuff of the Variable
+  std::list< FRowConstraint > nl( 2 );
+  for( auto & r : nl )
+   r.set_function( new LinearFunction( { { & ( *x )[ 0 ] , 1.0 } } ) ,
+		   eNoMod );
+  b->add_dynamic_constraints( *rows , nl , eNoMod );
+  assert( ( *x )[ 0 ].get_num_active() == 2 );
+  b->remove_dynamic_constraints( *rows , Block::Range( 0 , 1 ) , iM );
+  assert( ( *x )[ 0 ].get_num_active() == 1 );
+  b->remove_dynamic_constraints( *rows , Block::Subset() , false , iM );
+  assert( ( *x )[ 0 ].get_num_active() == 0 );
+  assert( rows->empty() );
+  b->v_seen.clear();
+  }
+
+ {
+  // a dynamic Variable in a static Constraint: removing the Variable takes
+  // it off the Function of the Constraint
+  std::list< ColVariable > nl( 2 );
+  b->add_dynamic_variables( *vars , nl , eNoMod );
+  auto c = new std::vector< FRowConstraint >( 1 );
+  LinearFunction::v_coeff_pair p;
+  for( auto & v : *vars )
+   p.push_back( { & v , 1.0 } );
+  ( *c )[ 0 ].set_function( new LinearFunction( std::move( p ) ) , eNoMod );
+  b->add_static_constraint( *c , "k" );
+  assert( ( *c )[ 0 ].get_function()->get_num_active_var() == 2 );
+  b->remove_dynamic_variables( *vars , Block::Range( 1 , 2 ) , eModBlck ,
+			       eNoMod );
+  assert( ( *c )[ 0 ].get_function()->get_num_active_var() == 1 );
+  assert( ( *c )[ 0 ].get_function()->get_active_var( 0 ) ==
+	  & vars->front() );
+  b->remove_dynamic_variables( *vars , Block::Subset() , false , eNoMod ,
+			       eNoMod );
+  assert( ( *c )[ 0 ].get_function()->get_num_active_var() == 0 );
+  b->v_seen.clear();
+ }
+
+ delete b;
+ }
+
+/*--------------------------------------------------------------------------*/
 
 int main( int argc , char ** argv )
 {
@@ -1259,6 +1652,7 @@ int main( int argc , char ** argv )
  test_read_lp_of_an_empty_model();
  test_read_lp_edges();
  test_read_lp_malformed();
+ test_dynamic_edges();
 
  std::cout << "All tests passed!!" << std::endl;
  return( 0 );

@@ -16,8 +16,12 @@ Unit tests for the core SMS++ library. Each test is registered as a separate
   an empty `Block`, of dynamic groups, of `OneVarConstraint`, of nested
   `Block` and of an `Objective` that is not linear (which is refused),
   `set_objective()` replacing an `Objective`, `mirror()` of an empty
-  `Block`, and `read_lp()` on an empty model, on constants and bounds at
-  the edges of the format and on malformed input.
+  `Block`, `read_lp()` on an empty model, on constants and bounds at the
+  edges of the format and on malformed input, and the edges of adding and
+  removing dynamic `Variable` and `Constraint` (empty, reversed and
+  out-of-range `Range`, empty and unordered `Subset`, adding nothing,
+  removing everything, lists in the cells of a vector) with the
+  `BlockModAdd` and `BlockModRmv*` each of them issues.
 - `ColVariable_test` covers `Variable` and `ColVariable`.
 - `Constraint_unit_test` covers `FRowConstraint` with a `LinearFunction`, with
   the value of a row of every sense, the `RowConstraintMod` and
@@ -31,6 +35,10 @@ Unit tests for the core SMS++ library. Each test is registered as a separate
   linearization, the changes of its Variable and coefficients, and the
   `Modification` it issues from an `FRowConstraint` or an `FRealObjective`
   of a `Block`.
+- `DQuadFunction_test` covers `DQuadFunction`: its value, linearization and
+  Hessian, the changes of its coefficients and of its `Variable` by `Range`
+  and by `Subset`, at their edges, and the `Modification` each of them
+  issues.
 - `QuadFunction_test` covers `QuadFunction` and `DQuadFunction`, the latter
   both on its own and as the diagonal part of the former: value, gradient,
   Hessian, convexity, the changes of the coefficients and the `Modification`
@@ -42,11 +50,15 @@ Unit tests for the core SMS++ library. Each test is registered as a separate
   empty ranges and subsets on the last node, indices out of range, paths to
   `OneVarConstraint`, paths after a dynamic removal and an empty vector of
   paths through netCDF.
-- `PolyhedralFunction_unit_test` covers `PolyhedralFunction`, i.e., its value
-  and linearizations, the Modification each of its mutators issues, its
-  `State` and its netCDF format, and the primal and dual abstract
-  representations of a `PolyhedralFunctionBlock` kept in step with it.
-- `SizeVariable_test` covers the size variable of a
+- `PolyhedralFunction_unit_test` covers `PolyhedralFunction`, i.e., its
+  value and linearizations, the Modification each of its mutators issues,
+  its `State` and its netCDF format, and the primal and dual abstract
+  representations of a `PolyhedralFunctionBlock` kept in step with it; and
+  the edges of every method taking a `Range` or a `Subset`, the degenerate
+  functions with no row or no `Variable`, the vertical rows, the names of
+  the global pool, which follow the rows and the `State` puts back, and the
+  netCDF round trip of the vertical flags.
+- `PolyhedralFunctionBlock_unit_test` covers the size variable of a
   `PolyhedralFunctionBlock`, given before or after its abstract
   representation exists and kept in step by a change of the global scale.
 - `Group_test` covers the groups of `Variable` and `Constraint` of a `Block`,
