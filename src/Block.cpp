@@ -667,7 +667,7 @@ Observer::ChnlName Block::open_channel( ChnlName chnl ,
 
 /*--------------------------------------------------------------------------*/
 
-void Block::close_channel( ChnlName chnl , bool force )
+void Block::close_channel( ChnlName chnl , bool force , bool discard )
 {
  if( ! chnl )
   throw( std::invalid_argument( "cannot close default channel" ) );
@@ -699,19 +699,31 @@ void Block::close_channel( ChnlName chnl , bool force )
       root->concerns_Block( true );
      }
 
-    // finally pass the GroupModification to the Block, on the (possibly
-    // freshly reset) default channel
-    Block::add_Modification( std::shared_ptr< GroupModification >( root ) );
     Observer::release_channel_name( chnl );  // give back the channel name
     v_GroupMod.erase( GMit );                // delete the local channel
+
+    // finally pass the GroupModification to the Block, on the (possibly
+    // freshly reset) default channel, or delete it (with all the tree)
+    if( discard )
+     delete root;
+    else
+     Block::add_Modification( std::shared_ptr< GroupModification >( root ) );
     }
    else {
     // the channel is not in "root mode" and closure is not forced, just
     // un-nest the GroupModification by one level
-    // if concerns_Block() of the current GroupModification is true, ensure
-    // that the concerns_Block() of father is also true
-    if( GMit->second->concerns_Block() )
-     father->concerns_Block( true );
+    if( discard ) {
+     // the current GroupModification is the last element of its father,
+     // since after it has been nested only it has been added to
+     auto & subs = father->v_sub_Modifications;
+     if( ( ! subs.empty() ) && ( subs.back().get() == GMit->second ) )
+      subs.pop_back();
+     }
+    else
+     // if concerns_Block() of the current GroupModification is true, ensure
+     // that the concerns_Block() of father is also true
+     if( GMit->second->concerns_Block() )
+      father->concerns_Block( true );
 
     GMit->second = father; // move back the channel to being the father
     }
@@ -727,9 +739,31 @@ void Block::close_channel( ChnlName chnl , bool force )
 				" not found" ) );
 
  // pass the message up to the father
- f_Block->close_channel( chnl , force );
+ f_Block->close_channel( chnl , force , discard );
 
  }  // end( Block::close_channel )
+
+/*--------------------------------------------------------------------------*/
+
+void Block::clear_channel( ChnlName chnl )
+{
+ if( ! chnl )
+  throw( std::invalid_argument( "Block::clear_channel: cannot clear the "
+				"default channel" ) );
+
+ for( Block * blck = this ; blck ; blck = blck->f_Block ) {
+  auto GMit = std::find_if( blck->v_GroupMod.begin() , blck->v_GroupMod.end() ,
+			    [ chnl ]( auto & a ) { return( a.first == chnl ); } );
+  if( GMit != blck->v_GroupMod.end() ) {
+   GMit->second->clear();
+   return;
+   }
+  }
+
+ throw( std::invalid_argument( "Block::clear_channel: " +
+			       std::to_string( chnl ) + " not found" ) );
+
+ }  // end( Block::clear_channel )
 
 /*--------------------------------------------------------------------------*/
 

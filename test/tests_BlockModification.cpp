@@ -11,8 +11,8 @@
  * the empty Range and the empty Subset, which the documentation gives
  * opposite meanings), over the arithmetic of the parameter that says if, how
  * and where a Modification is issued, over the channels that pack them into
- * a GroupModification (nested, forced, empty, and hijacking the default
- * channel), and over the path of a Modification from a sub-Block to the
+ * a GroupModification (nested, forced, empty, emptied, discarded, and
+ * hijacking the default channel), and over the path of a Modification from a sub-Block to the
  * Solver of its father.
  *
  * \author Donato Meoli \n
@@ -1292,6 +1292,161 @@ static void test_default_channel( void )
 
 /*--------------------------------------------------------------------------*/
 
+/* Emptying and discarding a channel: clear_channel() deletes what the
+ * current level holds and leaves it open, so that what is sent afterwards
+ * is all that is shipped, and concerns_Block() is only that of what is left;
+ * on a nested channel it empties the inner level and leaves the outer one
+ * alone, while on the outer one it also deletes the inner levels closed in
+ * it; close_channel( ch , force , true ) delivers nothing, deleting the
+ * inner level (which the outer one no longer holds) or, in "root mode" or
+ * forced, the whole channel, which is then closed and is no longer the
+ * default one; both pass up from a sub-Block to the father that defined the
+ * channel, whose Solver receives nothing while that of the sub-Block
+ * receives everything naked; 0 and a name that is not open are errors. */
+
+static void test_clear_and_discard( void )
+{
+ auto block = new AbstractBlock;
+ auto s = new std::vector< ColVariable >( 4 );
+ block->add_static_variable( *s , "s" );
+ auto solver = new FakeSolver();
+ block->register_Solver( solver );
+ auto & mods = solver->get_Modification_list();
+ mods.clear();
+ const auto nb = [ & ]( ChnlName c ) { return( Observer::make_par( eNoBlck ,
+								c ) ); };
+
+ // an empty channel: clearing it changes nothing, discarding it ships
+ // nothing and closes it
+ auto ch = block->open_channel();
+ block->clear_channel( ch );
+ block->close_channel( ch , false , true );
+ assert( mods.empty() );
+ assert( throws( [ & ]() { block->close_channel( ch ); } ) );
+ assert( throws( [ & ]() { block->clear_channel( ch ); } ) );
+
+ // clear, then add: only what comes after the clear is shipped, and an
+ // eModBlck cleared away no longer makes the group concern the Block
+ ch = block->open_channel();
+ ( *s )[ 0 ].is_fixed( true , Observer::make_par( eModBlck , ch ) );
+ ( *s )[ 1 ].is_fixed( true , nb( ch ) );
+ block->clear_channel( ch );
+ assert( mods.empty() );
+ ( *s )[ 2 ].is_fixed( true , nb( ch ) );
+ block->close_channel( ch );
+ assert( mods.size() == 1 );
+ {
+  auto gm = as< GroupModification >( mods.front() );
+  assert( gm && ( gm->sub_Modifications().size() == 1 ) );
+  assert( as< VariableMod >( gm->sub_Modifications().front() )->variable()
+	  == & ( *s )[ 2 ] );
+  assert( ! gm->concerns_Block() );
+  }
+
+ // discarding a channel with something in it, the default one: nothing is
+ // shipped, the channel is closed, and channel 0 goes through again
+ mods.clear();
+ ch = block->open_channel();
+ block->set_default_channel( ch );
+ assert( block->get_default_channel() == ch );
+ ( *s )[ 0 ].is_fixed( false );
+ ( *s )[ 1 ].is_fixed( false , nb( ch ) );
+ block->close_channel( ch , false , true );
+ assert( mods.empty() );
+ assert( block->get_default_channel() == 0 );
+ ( *s )[ 0 ].is_fixed( true );
+ assert( ( mods.size() == 1 ) && as< VariableMod >( mods.front() ) );
+
+ // nested: the clear of the inner level leaves the outer one as it is,
+ // the discard of the inner level takes it out of the outer one, and the
+ // outer one is shipped with what it had and what came after
+ mods.clear();
+ ch = block->open_channel();
+ ( *s )[ 0 ].is_fixed( false , nb( ch ) );
+ block->open_channel( ch );
+ ( *s )[ 1 ].is_fixed( true , Observer::make_par( eModBlck , ch ) );
+ block->clear_channel( ch );
+ ( *s )[ 2 ].is_fixed( false , nb( ch ) );
+ block->close_channel( ch , false , true );
+ assert( mods.empty() );
+ ( *s )[ 3 ].is_fixed( true , nb( ch ) );
+ block->close_channel( ch );
+ assert( mods.size() == 1 );
+ {
+  auto gm = as< GroupModification >( mods.front() );
+  assert( gm && ( gm->father() == nullptr ) );
+  const auto & subs = gm->sub_Modifications();
+  assert( subs.size() == 2 );
+  assert( as< VariableMod >( subs.front() )->variable() == & ( *s )[ 0 ] );
+  assert( as< VariableMod >( subs.back() )->variable() == & ( *s )[ 3 ] );
+  assert( ! gm->concerns_Block() );
+  }
+
+ // the clear of the outer level also deletes the inner ones closed in it
+ mods.clear();
+ ch = block->open_channel();
+ block->open_channel( ch );
+ ( *s )[ 0 ].is_fixed( true , nb( ch ) );
+ block->close_channel( ch );
+ block->clear_channel( ch );
+ ( *s )[ 1 ].is_fixed( false , nb( ch ) );
+ block->close_channel( ch );
+ assert( mods.size() == 1 );
+ {
+  auto gm = as< GroupModification >( mods.front() );
+  assert( gm && ( gm->sub_Modifications().size() == 1 ) );
+  assert( as< VariableMod >( gm->sub_Modifications().front() ) );
+  }
+
+ // a forced discard at depth 3 deletes the whole channel and closes it
+ mods.clear();
+ ch = block->open_channel();
+ ( *s )[ 0 ].is_fixed( false , nb( ch ) );
+ block->open_channel( ch );
+ ( *s )[ 1 ].is_fixed( true , nb( ch ) );
+ block->open_channel( ch );
+ ( *s )[ 2 ].is_fixed( true , nb( ch ) );
+ block->close_channel( ch , true , true );
+ assert( mods.empty() );
+ assert( throws( [ & ]() { block->close_channel( ch ); } ) );
+
+ // errors: channel 0 and a name that is not open
+ assert( throws( [ & ]() { block->clear_channel( 0 ); } ) );
+ assert( throws( [ & ]() { block->close_channel( 0 , false , true ); } ) );
+ assert( throws( [ & ]() { block->close_channel( ch , true , true ); } ) );
+
+ // from a sub-Block, on the default channel of the father: the Solver of
+ // the sub-Block receives everything naked, the one of the father nothing
+ auto sub = new AbstractBlock( block );
+ block->add_nested_Block( sub );
+ auto t = new std::vector< ColVariable >( 1 );
+ sub->add_static_variable( *t , "t" );
+ auto ssolver = new FakeSolver();
+ sub->register_Solver( ssolver );
+ auto & smods = ssolver->get_Modification_list();
+ smods.clear();
+ mods.clear();
+ ch = block->open_channel();
+ block->set_default_channel( ch );
+ for( int i = 0 ; i < 10 ; ++i ) {
+  sub->clear_channel( ch );
+  ( *t )[ 0 ].is_fixed( i % 2 == 0 );
+  }
+ assert( smods.size() == 10 );
+ assert( mods.empty() );
+ sub->close_channel( ch , false , true );
+ assert( mods.empty() && ( smods.size() == 10 ) );
+ assert( block->get_default_channel() == 0 );
+ assert( throws( [ & ]() { sub->clear_channel( ch ); } ) );
+
+ sub->unregister_Solvers( true );
+ block->unregister_Solvers( true );
+ delete block;
+ std::cout << "clear and discard: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+
 /* A sub-Block: a sub-Block with no Solver of its own knows someone listens
  * to its father, also when it is nested after the Solver was registered,
  * and forgets it when the Solver goes; its Modification reach the Solver of
@@ -1428,6 +1583,7 @@ int main( void )
  test_forced_close();
  test_empty_channel();
  test_default_channel();
+ test_clear_and_discard();
  test_sub_Block();
 
  if( n_failed ) {

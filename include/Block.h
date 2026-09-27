@@ -5576,11 +5576,48 @@ class Block : public Observer {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
- void close_channel( ChnlName chnl , bool force = false ) override;
+ void close_channel( ChnlName chnl , bool force = false ) override {
+  close_channel( chnl , force , false );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /// close a channel, possibly discarding what has been sent to it
+ /** Same as close_channel( chnl , force ) if \p discard == false. If
+  * \p discard == true the level that close_channel( chnl , force ) would
+  * finalize is deleted instead: in "root mode", or if \p force == true, the
+  * outermost GroupModification of the channel is deleted rather than
+  * shipped, and the channel is closed; otherwise the current (inner)
+  * GroupModification is removed from its father GroupModification, and
+  * addition resumes there. Either way, nobody receives anything. As
+  * close_channel( chnl , force ), this is passed up to the ancestor that
+  * has defined the channel, and it is an error if none has. */
+
+ void close_channel( ChnlName chnl , bool force , bool discard );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /// empty the current GroupModification of a channel
+ /** Deletes all the Modification sent to the open channel chnl since the
+  * current level of the channel has been opened (the nested
+  * GroupModification it holds comprised), which is then left open and
+  * empty, and has concerns_Block() == false; the outer levels of the channel
+  * are not touched. Nobody receives anything. This allows one to issue an
+  * unbounded sequence of Modification that is known to have no net effect
+  * without them piling up in the channel. As close_channel(), this is passed
+  * up to the ancestor that has defined the channel, and it is an error if
+  * none has, or if chnl == 0. */
+
+ void clear_channel( ChnlName chnl );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
  void set_default_channel( ChnlName chnl = 0 ) override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /// returns the "default" channel [see set_default_channel()]
+
+ [[nodiscard]] ChnlName get_default_channel( void ) const {
+  return( f_channel );
+  }
 
 /** @} ---------------------------------------------------------------------*/
 /*---------------------- Methods for handling Solver -----------------------*/

@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `Block::clear_channel( chnl )` empties the current level of an open
+  channel, which stays open, and `Block::close_channel( chnl , force ,
+  discard )` with `discard == true` deletes the level it would finalize
+  instead of shipping it, so that nobody receives anything; with
+  `Block::get_default_channel()`, this lets whoever issues an unbounded
+  sequence of Modification with no net effect (e.g., a decomposition that
+  rewrites the costs of its sub-Block at each iteration and restores them at
+  the end) keep them off the other Solver of the Block. `GroupModification`
+  gets the protected `clear()` it needs. `BlockModification_unit_test` covers
+  the empty channel, the clear followed by new Modification, the discard of
+  a nested level, of the whole channel and of the default one, and the path
+  from a sub-Block
+
 - `RowConstraintSolution::is_dual_feasible()` checks the dual values it
   holds as a dual solution of a linear program: the sign of each against
   the finite sides of its row [see `RowConstraint::dual_sign_feasible()`],
@@ -332,6 +345,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `assert()`
 
 ### Fixed
+
+- `Block::close_channel()` takes the channel out of the Block before
+  shipping its `GroupModification`, so that an exception thrown by whoever
+  receives it no longer leaves the Block with a channel whose
+  `GroupModification` has already been deleted
 
 - `BendersBFunction` read the linearization of an entry of its pool out of
   the dual values the sub-Block held from its last solve when the Solution
