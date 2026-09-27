@@ -229,6 +229,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   attached, the netCDF round trip of each object that has one and malformed
   input
 
+- `LagBFunction_unit_test` also checks the columns of the Lagrangian term
+  that the Lagrangian costs are computed from, as `get_A_by_col()` gives
+  them, against the ones computed by hand when the Lagrangian pairs are set
+  (once and twice), added and removed (all of them, a `Range`, an ordered
+  and an unordered `Subset`, a single one), and on the edge cases (empty
+  `Range` and `Subset`, a `Range` past the end, a wrong index, no pair at
+  all)
+
 ### Changed
 
 - the makefile of the library carries `C05SumFunction`, which was built by

@@ -75,11 +75,15 @@ Unit tests for the core SMS++ library. Each test is registered as a separate
   `RowConstraintSolution` and `ColRowSolution`, `clone()`, `scale()`,
   `sum()`, `is_direction()` through all of them, the refusal to be written
   into a `Block` of another shape, and the factory.
-- `LagBFunction_unit_test` covers `LagBFunction` over a box inner Block solved by
-  `BoxSolver`: an empty Lagrangian term, the term removed all at once and
-  given again, the Modification these changes issue, the value and the
-  linearizations against their closed form (on the kinks too), and the copy
-  of the global pool a State holds.
+- `LagBFunction_unit_test` covers `LagBFunction` over a box inner Block
+  solved by `BoxSolver`: an empty Lagrangian term, the term removed all at
+  once and given again, the Modification these changes issue, the value and
+  the linearizations against their closed form (on the kinks too), and the
+  copy of the global pool a State holds; and the by-column representation
+  of the Lagrangian term that the Lagrangian costs are computed from, as
+  `get_A_by_col()` gives it, when the Lagrangian pairs are set (once or
+  twice), added and removed (all of them, a `Range`, a `Subset`, a single
+  one), and on the edge cases of those methods.
 - `BendersBFunction_unit_test` covers `BendersBFunction` and `BendersBlock`: the
   rows added, modified and deleted with the Modification they issue, the
   sides written by `compute()` over a box inner Block solved by `BoxSolver`,

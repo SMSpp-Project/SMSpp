@@ -17,6 +17,14 @@
  * points where the minimizer is not unique, and over the copy of the global
  * pool that a State holds.
  *
+ * A second set of tests checks the by-column representation of the
+ * Lagrangian term that the Lagrangian costs c_j + y A^j are computed from,
+ * as get_A_by_col() gives it, after the Lagrangian pairs are set (once and
+ * twice), added and removed (all of them, a Range, an ordered and an
+ * unordered Subset, a single one), and on the edge cases of those methods
+ * (empty Range and Subset, a Range past the end, a wrong index, no pair at
+ * all).
+ *
  * A check that fails because of a defect of the library prints what it
  * found and what it expected, and the test goes on with the next one; the
  * return value of main() says whether any failed.
@@ -53,8 +61,10 @@
 using namespace SMSpp_di_unipi_it;
 
 using Index = Block::Index;
+using Range = Block::Range;
 using Subset = Block::Subset;
 using v_dual_pair = LagBFunction::v_dual_pair;
+using v_mon_pair = LagBFunction::v_mon_pair;
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CONSTANTS --------------------------------*/
@@ -498,6 +508,326 @@ static void test_state_copy( void )
 
 /*--------------------------------------------------------------------------*/
 
+/*--------------------------------------------------------------------------*/
+/*------------------- THE COLUMNS OF THE LAGRANGIAN TERM -------------------*/
+/*--------------------------------------------------------------------------*/
+
+/* The inner Block has four ColVariable x0, ..., x3 and the linear Objective
+ * 1 x0 + 2 x1: x2 enters the Objective (with cost 0) as soon as a Lagrangian
+ * term has it, x3 is never in any. The multipliers y are ColVariable held by
+ * the Rig, as the Lagrangian pairs only point to them. */
+
+struct Rig {
+ std::vector< ColVariable > * x;
+ std::vector< ColVariable > y;
+ LagBFunction * f;
+
+ Rig( void ) : y( 8 ) {
+  auto block = new AbstractBlock();
+  x = new std::vector< ColVariable >( 4 );
+  block->add_static_variable( *x , "x" );
+  block->set_objective( new FRealObjective( nullptr ,
+			 new LinearFunction( { { X( 0 ) , 1 } ,
+					       { X( 1 ) , 2 } } ) ) ,
+			eNoMod );
+  f = new LagBFunction( block );
+  }
+
+ ~Rig( void ) { delete f; }  // the LagBFunction deletes the inner Block
+
+ ColVariable * X( Index j ) { return( & ( *x )[ j ] ); }
+
+ // the Lagrangian pair < y[ k ] , sum_j a_j x_j > for terms { { j , a_j } }
+ LagBFunction::dual_pair pair( Index k ,
+			       std::vector< std::pair< Index , double > > t ) {
+  LinearFunction::v_coeff_pair cp;
+  for( auto & el : t )
+   cp.push_back( { X( el.first ) , el.second } );
+  return( LagBFunction::dual_pair( & y[ k ] ,
+				    new LinearFunction( std::move( cp ) ) ) );
+  }
+
+ // the by-column representation A^j of x_j, which must be there
+ const v_mon_pair & A( Index j ) {
+  auto col = f->get_A_by_col( X( j ) );
+  assert( col );
+  return( col->second );
+  }
+
+ // the original cost c_j of x_j
+ double c( Index j ) { return( f->get_A_by_col( X( j ) )->first ); }
+
+ // the Lagrangian cost c_j + y A^j of x_j, with the names in A^j checked to
+ // be those of the current Lagrangian pairs
+ double lag_cost( Index j ) {
+  auto col = f->get_A_by_col( X( j ) );
+  assert( col );
+  double cost = col->first;
+  for( auto & el : col->second ) {
+   assert( el.first < f->get_num_active_var() );
+   cost += static_cast< ColVariable * >(
+			 f->get_active_var( el.first ) )->get_value()
+    * el.second;
+   }
+  return( cost );
+  }
+ };
+
+/*--------------------------------------------------------------------------*/
+
+static bool same( const v_mon_pair & a , const v_mon_pair & b )
+{
+ if( a.size() != b.size() )
+  return( false );
+ for( Index i = 0 ; i < a.size() ; ++i )
+  if( ( a[ i ].first != b[ i ].first ) || ( a[ i ].second != b[ i ].second ) )
+   return( false );
+ return( true );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+// the two pairs < y0 , x0 + 2 x1 > and < y1 , 3 x1 + 4 x2 >
+
+static void set_two_pairs( Rig & r )
+{
+ v_dual_pair dp;
+ dp.push_back( r.pair( 0 , { { 0 , 1 } , { 1 , 2 } } ) );
+ dp.push_back( r.pair( 1 , { { 1 , 3 } , { 2 , 4 } } ) );
+ r.f->set_dual_pairs( std::move( dp ) );
+
+ assert( r.f->get_num_active_var() == 2 );
+ assert( same( r.A( 0 ) , { { 0 , 1 } } ) );
+ assert( same( r.A( 1 ) , { { 0 , 2 } , { 1 , 3 } } ) );
+ assert( same( r.A( 2 ) , { { 1 , 4 } } ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+// no Lagrangian pair left: every A^j is empty and every cost is the original
+
+static void check_empty( Rig & r )
+{
+ assert( r.f->get_num_active_var() == 0 );
+ for( Index j = 0 ; j < 3 ; ++j )
+  assert( r.A( j ).empty() );
+ assert( r.c( 0 ) == 1 );
+ assert( r.c( 1 ) == 2 );
+ assert( r.c( 2 ) == 0 );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+// after the Lagrangian term is emptied, the single pair < z , 5 x2 > is added:
+// A^2 is { < 0 , 5 > } and nothing else, since the name 0 is now z
+
+static void check_after_readd( Rig & r )
+{
+ v_dual_pair dp;
+ dp.push_back( r.pair( 4 , { { 2 , 5 } } ) );
+ r.f->add_dual_pairs( std::move( dp ) );
+
+ assert( r.f->get_num_active_var() == 1 );
+ assert( r.A( 0 ).empty() );
+ assert( r.A( 1 ).empty() );
+ assert( same( r.A( 2 ) , { { 0 , 5 } } ) );
+
+ r.y[ 4 ].set_value( 7 );
+ assert( equal( r.lag_cost( 0 ) , 1 ) );
+ assert( equal( r.lag_cost( 1 ) , 2 ) );
+ assert( equal( r.lag_cost( 2 ) , 35 ) );
+ }
+
+/* set_dual_pairs() builds A^j for each x_j, x2 entering the Objective with
+ * cost 0, and the Lagrangian costs are c_j + y A^j; x3 has no column. */
+
+static void test_columns_set_dual_pairs( void )
+{
+ Rig r;
+ set_two_pairs( r );
+
+ assert( r.c( 0 ) == 1 );
+ assert( r.c( 1 ) == 2 );
+ assert( r.c( 2 ) == 0 );
+ assert( r.f->get_A_by_col( r.X( 3 ) ) == nullptr );
+
+ r.y[ 0 ].set_value( 10 );
+ r.y[ 1 ].set_value( -1 );
+ assert( equal( r.lag_cost( 0 ) , 1 + 10 ) );
+ assert( equal( r.lag_cost( 1 ) , 2 + 20 - 3 ) );
+ assert( equal( r.lag_cost( 2 ) , 0 - 4 ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+/* set_dual_pairs() called a second time replaces the Lagrangian term: the
+ * columns of the first one must not survive into the second, whose pairs
+ * take the names from 0 again. */
+
+static void test_columns_set_dual_pairs_twice( void )
+{
+ Rig r;
+ set_two_pairs( r );
+
+ v_dual_pair dp;
+ dp.push_back( r.pair( 2 , { { 0 , 6 } } ) );
+ dp.push_back( r.pair( 3 , { { 2 , 8 } } ) );
+ r.f->set_dual_pairs( std::move( dp ) );
+
+ assert( r.f->get_num_active_var() == 2 );
+ assert( same( r.A( 0 ) , { { 0 , 6 } } ) );
+ assert( r.A( 1 ).empty() );
+ assert( same( r.A( 2 ) , { { 1 , 8 } } ) );
+
+ r.y[ 2 ].set_value( 2 );
+ r.y[ 3 ].set_value( 3 );
+ assert( equal( r.lag_cost( 0 ) , 1 + 12 ) );
+ assert( equal( r.lag_cost( 1 ) , 2 ) );
+ assert( equal( r.lag_cost( 2 ) , 24 ) );
+
+ // and set to no pair at all
+ r.f->set_dual_pairs( v_dual_pair() );
+ check_empty( r );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+/* Removing all the pairs, with a Range covering them (exactly or past the
+ * end) or with an empty Subset, empties every A^j; the pairs added then
+ * take the names from 0. */
+
+static void test_columns_remove_all( void )
+{
+ for( int how = 0 ; how < 4 ; ++how ) {
+  Rig r;
+  set_two_pairs( r );
+
+  switch( how ) {
+   case( 0 ): r.f->remove_variables( Range( 0 , 2 ) ); break;
+   case( 1 ): r.f->remove_variables( Range( 0 , Inf< Index >() ) ); break;
+   case( 2 ): r.f->remove_variables( Subset() ); break;
+   default:   r.f->remove_variables( Subset( { 1 , 0 } ) );
+   }
+
+  check_empty( r );
+  check_after_readd( r );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+/* Partial removals keep the pairs left, renamed, in A^j, and the pairs
+ * added afterwards take the names that follow. */
+
+static void test_columns_remove_some( void )
+{
+ {  // a Range with the first pair
+  Rig r;
+  set_two_pairs( r );
+  r.f->remove_variables( Range( 0 , 1 ) );
+  assert( r.f->get_num_active_var() == 1 );
+  assert( r.A( 0 ).empty() );
+  assert( same( r.A( 1 ) , { { 0 , 3 } } ) );
+  assert( same( r.A( 2 ) , { { 0 , 4 } } ) );
+
+  v_dual_pair dp;
+  dp.push_back( r.pair( 4 , { { 0 , 5 } , { 1 , -1 } } ) );
+  r.f->add_dual_pairs( std::move( dp ) );
+  assert( same( r.A( 0 ) , { { 1 , 5 } } ) );
+  assert( same( r.A( 1 ) , { { 0 , 3 } , { 1 , -1 } } ) );
+  assert( same( r.A( 2 ) , { { 0 , 4 } } ) );
+
+  r.y[ 1 ].set_value( 2 );
+  r.y[ 4 ].set_value( 3 );
+  assert( equal( r.lag_cost( 0 ) , 1 + 15 ) );
+  assert( equal( r.lag_cost( 1 ) , 2 + 6 - 3 ) );
+  assert( equal( r.lag_cost( 2 ) , 8 ) );
+  }
+ {  // a Subset with the last pair
+  Rig r;
+  set_two_pairs( r );
+  r.f->remove_variables( Subset( { 1 } ) );
+  assert( r.f->get_num_active_var() == 1 );
+  assert( same( r.A( 0 ) , { { 0 , 1 } } ) );
+  assert( same( r.A( 1 ) , { { 0 , 2 } } ) );
+  assert( r.A( 2 ).empty() );
+
+  v_dual_pair dp;
+  dp.push_back( r.pair( 4 , { { 2 , 5 } } ) );
+  r.f->add_dual_pairs( std::move( dp ) );
+  assert( same( r.A( 0 ) , { { 0 , 1 } } ) );
+  assert( same( r.A( 1 ) , { { 0 , 2 } } ) );
+  assert( same( r.A( 2 ) , { { 1 , 5 } } ) );
+  }
+ {  // an unordered Subset of three pairs out of four, and remove_variable()
+  Rig r;
+  v_dual_pair dp;
+  dp.push_back( r.pair( 0 , { { 0 , 1 } } ) );
+  dp.push_back( r.pair( 1 , { { 0 , 2 } , { 1 , 2 } } ) );
+  dp.push_back( r.pair( 2 , { { 1 , 3 } } ) );
+  dp.push_back( r.pair( 3 , { { 0 , 4 } , { 2 , 4 } } ) );
+  r.f->set_dual_pairs( std::move( dp ) );
+
+  r.f->remove_variables( Subset( { 2 , 0 } ) );
+  assert( r.f->get_num_active_var() == 2 );
+  assert( r.f->get_active_var( 0 ) == & r.y[ 1 ] );
+  assert( r.f->get_active_var( 1 ) == & r.y[ 3 ] );
+  assert( same( r.A( 0 ) , { { 0 , 2 } , { 1 , 4 } } ) );
+  assert( same( r.A( 1 ) , { { 0 , 2 } } ) );
+  assert( same( r.A( 2 ) , { { 1 , 4 } } ) );
+
+  r.f->remove_variable( 0 );
+  assert( r.f->get_num_active_var() == 1 );
+  assert( same( r.A( 0 ) , { { 0 , 4 } } ) );
+  assert( r.A( 1 ).empty() );
+  assert( same( r.A( 2 ) , { { 0 , 4 } } ) );
+
+  // the last pair removed by index: the Lagrangian term is empty
+  r.f->remove_variable( 0 );
+  check_empty( r );
+  check_after_readd( r );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+/* The edge cases: an empty Range and a Range past the end remove nothing,
+ * adding no pair does nothing, a wrong index throws, and removing all the
+ * pairs when there are none leaves the columns as they are. */
+
+static void test_columns_edge_cases( void )
+{
+ Rig r;
+ set_two_pairs( r );
+
+ r.f->remove_variables( Range( 1 , 1 ) );
+ r.f->remove_variables( Range( 5 , 9 ) );
+ r.f->add_dual_pairs( v_dual_pair() );
+ assert( r.f->get_num_active_var() == 2 );
+ assert( same( r.A( 0 ) , { { 0 , 1 } } ) );
+ assert( same( r.A( 1 ) , { { 0 , 2 } , { 1 , 3 } } ) );
+ assert( same( r.A( 2 ) , { { 1 , 4 } } ) );
+
+ bool thrown = false;
+ try { r.f->remove_variable( 2 ); }
+ catch( std::invalid_argument & ) { thrown = true; }
+ assert( thrown );
+
+ thrown = false;
+ try { r.f->remove_variables( Subset( { 0 , 2 } ) ); }
+ catch( std::invalid_argument & ) { thrown = true; }
+ assert( thrown );
+
+ r.f->remove_variables( Subset() );
+ check_empty( r );
+ r.f->remove_variables( Subset() );
+ r.f->remove_variables( Range( 0 , Inf< Index >() ) );
+ check_empty( r );
+ check_after_readd( r );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 int main( int argc , char ** argv )
 {
  test_empty_dual_pairs();
@@ -505,6 +835,11 @@ int main( int argc , char ** argv )
  test_set_dual_pairs_twice();
  test_values_and_kinks();
  test_state_copy();
+ test_columns_set_dual_pairs();
+ test_columns_set_dual_pairs_twice();
+ test_columns_remove_all();
+ test_columns_remove_some();
+ test_columns_edge_cases();
 
  if( n_failures ) {
   std::cout << "LagBFunction_unit_test: " << n_failures << " check(s) failed"
