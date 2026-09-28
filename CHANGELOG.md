@@ -374,16 +374,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   DP solvers read) was left out of synch with the Objective
 
 - `MasterProblemBlock::clear()` leaves the `PolyhedralFunctionBlock` of the
-  hard components, which the master allocates itself, out of `v_Block` and
-  deletes them, rather than only forgetting the pointers: they used to stay
+  hard components, which the master allocates itself, out of `v_Block`,
+  rather than only forgetting the pointers: they used to stay
   in the master, where the next `CreateEmptyMP()` added the new ones beside
   them, and since a stale one carries no linearization its row
   `sum_i theta^k_i + gamma^k = lambda`, with `gamma^k` fixed to 0, forced
   `lambda = 0` and made the master infeasible from the second time it was
   built on. A Solver registered twice on the same Block, as the one that
   learns the step-size is at every epoch, therefore failed with
-  "unrecoverable MP failure" on its second solve. They were also never
-  deallocated, not even by the destructor
+  "unrecoverable MP failure" on its second solve. They are deleted by the
+  destructor, which is the only place that can: a Solver registered on the
+  master keeps the `Variable` of the rows it has loaded and reads them again
+  when it reloads the problem, so that freeing them any earlier is a read of
+  freed memory. They used never to be deallocated at all
 
 - `LagBFunction::set_par( intInnrSlvr , ... )` no longer dereferences the
   BlockSolverConfig of the inner Block when none has been given

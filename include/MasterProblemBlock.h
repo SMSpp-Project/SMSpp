@@ -290,9 +290,16 @@ class MasterProblemBlock : public Block {
  /// destructor: releases all the resources owned by MasterProblemBlock
  /** The destructor releases the dynamic Variable/Constraint that
   * MasterProblemBlock owns via the abstract representation, and detaches any
-  * registered Solver. The actual cleanup is delegated to clear(). */
+  * registered Solver. The actual cleanup is delegated to clear(), save for
+  * the Block of the hard components [see v_stale_hard], which can only go
+  * here. */
 
- ~MasterProblemBlock() override { clear(); }
+ ~MasterProblemBlock() override {
+  clear();
+  for( auto * hard : v_stale_hard )
+   delete hard;
+  v_stale_hard.clear();
+  }
 
 /*--------------------------------------------------------------------------*/
  /// release the abstract representation and any per-component state
@@ -1753,6 +1760,18 @@ class MasterProblemBlock : public Block {
  ///< and remain owned by the corresponding Function Block in EasyCmps_Owner
 
  std::vector< Block * > HardCmps;  ///< sub-Blocks of the "hard" components
+
+ std::vector< Block * > v_stale_hard;
+ ///< the Block of the hard components of the incarnations gone by
+ /**< The Block of the hard components are allocated by the master itself
+  * [see CreatePrimalMP() and CreateDualMP()], so it is the master that has
+  * to release them; they cannot be released when the master is cleared,
+  * though, because a Solver registered on the master keeps the Variable of
+  * the rows it has loaded and reads them again when it reloads the problem,
+  * so that freeing them any earlier is a read of freed memory (which only
+  * some allocators turn into a crash). They therefore leave v_Block when the
+  * master is cleared, wait here while the master is built again, and are
+  * deleted by the destructor, after which nothing can reach them. */
 
  std::vector< std::unique_ptr< RowConstraintSolution > > EasyDual;
  ///< the duals of the RowConstraint of each easy component at the last

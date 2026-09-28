@@ -121,8 +121,9 @@ void MasterProblemBlock::clear()
 
  // The PolyhedralFunctionBlock of the hard components are allocated here
  // [see CreatePrimalMP() / CreateDualMP()], so they go with the rest. They
- // leave v_Block now and are deleted at the very end of the method, when
- // nothing of the master points into them any more. Forgetting the pointers
+ // leave v_Block now and are handed to v_stale_hard at the end of the
+ // method, the destructor being the only place that can release them
+ // [see v_stale_hard]. Forgetting the pointers
  // alone would leave the Block in the master, where the next
  // CreateEmptyMP() adds the new ones beside them: the stale ones carry no
  // linearization, and their row sum_i theta^k_i + gamma^k = lambda, with
@@ -214,11 +215,13 @@ void MasterProblemBlock::clear()
  reset_dynamic_constraints();
  reset_dynamic_variables();
 
- // now that no row, no objective term and no group of the master views them
- // any more, the Block of the hard components of the previous incarnation
- // can go
- for( auto * hard : stale_hard )
-  delete hard;
+ // no row, no objective term and no group of the master views them any more,
+ // but a Solver registered on the master still holds the Variable of the
+ // rows it has loaded, and reads them again when it reloads the problem:
+ // the Block of the hard components therefore wait for the destructor
+ // [see v_stale_hard]
+ v_stale_hard.insert( v_stale_hard.end() , stale_hard.begin() ,
+                      stale_hard.end() );
 
  }  // end( MasterProblemBlock::clear )
 
