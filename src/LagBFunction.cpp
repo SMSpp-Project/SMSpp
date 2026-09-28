@@ -1314,7 +1314,7 @@ void LagBFunction::add_Modification(sp_Mod mod, ChnlName chnl)
             delete f_current_purged_solution.sol; // eliminate it
             f_current_purged_solution = gpool_el{};
             // g_pool[i].sol = nullptr;
-            which.push_back(i); // recall its name
+            which.push_back( i ); // recall its name
             LastSolution = g_pool.size();
             // say that no Solution is saved in the Block, since the name is now
             // available again for a different Solution
