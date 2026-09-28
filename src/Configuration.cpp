@@ -161,7 +161,7 @@ Configuration * Configuration::deserialize( const netCDF::NcFile & f ,
   netCDF::NcGroup cg;
   if( type == eProbFile ) {
    netCDF::NcGroup dg = f.getGroup( "Prob_" +
-			        std::to_string( idx >= 0 ? idx : 1 - idx ) );
+			        std::to_string( idx >= 0 ? idx : - idx - 1 ) );
    if( dg.isNull() )
     return( nullptr );
 
@@ -243,13 +243,13 @@ Configuration * Configuration::deserialize( std::istream & input )
  if( input.peek() == input.widen( '*' ) ) {
   input.get();
 
-  if( input.eof() )
-   return( nullptr );
-
   if( input.fail() )
    throw( std::invalid_argument( sre ) );
 
-  if( std::isspace( input.peek() ) )
+  // '*' followed by whitespace, or by the end of the stream, is nullptr
+  const auto next = input.peek();
+  if( ( next == std::istream::traits_type::eof() ) ||
+      std::isspace( next ) )
    return( nullptr );
 
   input >> tmp;
@@ -770,23 +770,20 @@ void SimpleConfiguration< std::map< std::string , Configuration * >
  Configuration::deserialize( group );
  for( auto & [ key , val ] : f_value )
   delete val;
+ f_value.clear();
 
  auto dim = group.getDim( "size" );
- if( dim.isNull() ) {
-  f_value.clear();
+ if( dim.isNull() )
   return;
-  }
 
  size_t sz = dim.getSize();
  if( ! sz )
   return;
 
- std::vector< std::string > tmp( sz );
- std::vector< size_t > start = { 0 };
- std::vector< size_t > count = { sz };
- ( group.getVar( "keys" ) ).getVar( start , count , tmp.data() );
+ std::vector< std::string > tmp;
+ SMSpp_di_unipi_it::deserialize( group , "keys" , sz , tmp , false );
 
- for( size_t i = 0 ; i < f_value.size() ; ++i ) {
+ for( size_t i = 0 ; i < sz ; ++i ) {
   auto sc = group.getGroup( "Config_" + std::to_string( i ) );
   f_value[ tmp[ i ] ] = new_Configuration( sc );
   }

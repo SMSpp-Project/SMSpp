@@ -34,6 +34,8 @@
 #include "RowConstraint.h"
 #include "Solution.h"
 
+#include <unordered_map>
+
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -43,6 +45,7 @@ namespace SMSpp_di_unipi_it
 {
 
  class RowConstraintSolution; ///< forward definition of RowConstraintSolution
+ class ColVariable;  ///< forward definition of ColVariable
 
 /*--------------------------------------------------------------------------*/
 /*----------------- RowConstraintSolution-RELATED TYPES --------------------*/
@@ -199,6 +202,20 @@ public:
                      const double factor );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// drops the dual values of dynamic RowConstraint that have been removed
+ /** Drops the dual values of the RowConstraint that were in the given
+  * positions of the given cell of a group of dynamic Constraint of the given
+  * Block, which is the Block of this RowConstraintSolution or one nested in
+  * it: the cell is searched for by its address, in this Solution and then in
+  * the nested ones, and what is left of the values of that cell keeps
+  * matching the RowConstraint that are left in it
+  * [see Solution::drop_dynamic_values()]. */
+
+ bool drop_dynamic_values( const Block * const block , const void * cell ,
+			  const Block::Subset & positions ,
+			  std::vector< double > & dropped ) override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// adds a multiple of the given Solution to this Solution
  /** This method adds a multiple of the dual values of the RowConstraint
   * stored in the Solution provided as argument to the values stored in this
@@ -274,7 +291,41 @@ public:
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
+/*--------------------------------------------------------------------------*/
+ /// tells whether the dual values held here are feasible for the Block
+ /** Tells whether the dual values held here are a feasible dual solution of
+  * the given Block, which has the structure of the one they have been read
+  * from, as a linear program: every RowConstraint has to have a dual value
+  * of the sign its finite sides allow [see RowConstraint::
+  * dual_sign_feasible()], and every ColVariable a reduced cost, i.e., the
+  * coefficient of the linear Objective of its Block plus the sum over the
+  * rows it is in of the dual value times its coefficient there, of the sign
+  * the domain of the ColVariable allows: zero if the ColVariable is free,
+  * nonnegative (nonpositive in a maximization) if it is only bounded below,
+  * nonpositive (nonnegative) if it is only bounded above, any if it is
+  * bounded on both sides or fixed. The nested Block are taken in, a row
+  * possibly holding the ColVariable of other Block. The sense is that of
+  * the Objective of \p block, minimization if it has none. The tolerance is
+  * the double of \p fsbc, if it is a SimpleConfiguration< double >, 1e-6
+  * otherwise, relative to the largest term of each sum. The values of the
+  * Block are not touched; a Function that is not a LinearFunction, in a row
+  * or in the Objective, throws, the method knowing only linear programs. */
+
+ bool is_dual_feasible( Block * block ,
+			Configuration * fsbc = nullptr ) override;
+
+/*--------------------------------------------------------------------------*/
+
 protected:
+
+ /// the reduced cost of each ColVariable, and the scale of its terms
+ using ReducedCosts = std::unordered_map< const ColVariable * ,
+					  std::pair< double , double > >;
+
+ /// checks the signs of the rows of block and adds their terms to rc
+ bool add_dual_terms( const Block * const block , bool minimize ,
+		      double eps , ReducedCosts & rc ) const;
+
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PROTECTED METHODS -----------------------------*/

@@ -579,8 +579,9 @@ class ColVariable : public Variable
   // find proper position in ascending order
   auto idx = std::lower_bound( v_active.begin() , v_active.end() , stuff );
 
-  if( idx == v_active.end() )
-   throw( std::invalid_argument( "remove_active() called on non-active stuff" ) );
+  if( ( idx == v_active.end() ) || ( *idx != stuff ) )
+   throw( std::invalid_argument(
+		     "ColVariable::remove_active: called on non-active stuff" ) );
 
   v_active.erase( idx );  // now remove it
   }

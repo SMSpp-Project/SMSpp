@@ -10,14 +10,11 @@
 #                             Universita' di Pisa                             #
 # --------------------------------------------------------------------------- #
 
-# Since we are using the block factory, objects from linked libraries
-# may wrongly appear unused, and by default the linker does not include them,
-# so we have to force the linking.
-if (BUILD_SHARED_LIBS)
-    if (UNIX AND (NOT APPLE))
-        add_link_options("-Wl,--no-as-needed")
-    endif ()
-else ()
+# The classes of the modules register themselves in the factories from
+# static objects, which nothing here names: a shared library is kept by
+# what its module asks of the linker [see the CMakeLists.txt of the
+# module], while an archive has to be taken whole.
+if (NOT BUILD_SHARED_LIBS)
     if (MSVC)
         add_link_options("/WHOLEARCHIVE" "/FORCE:MULTIPLE")
     else () # Unix
@@ -73,11 +70,47 @@ smspp_install(ColVariable_test)
 add_test(NAME ColVariable_test
          COMMAND ColVariable_test)
 
+add_executable(Configuration_unit_test tests_Configuration.cpp)
+target_link_libraries(Configuration_unit_test PRIVATE SMS++::SMS++)
+smspp_install(Configuration_unit_test)
+add_test(NAME Configuration_unit_test
+         COMMAND Configuration_unit_test)
+
 add_executable(Group_test tests_Group.cpp)
 target_link_libraries(Group_test PRIVATE SMS++::SMS++)
 smspp_install(Group_test)
 add_test(NAME Group_test
          COMMAND Group_test)
+
+add_executable(BlockModification_unit_test tests_BlockModification.cpp)
+target_link_libraries(BlockModification_unit_test PRIVATE SMS++::SMS++)
+smspp_install(BlockModification_unit_test)
+add_test(NAME BlockModification_unit_test
+         COMMAND BlockModification_unit_test)
+
+add_executable(Objective_unit_test tests_Objective.cpp)
+target_link_libraries(Objective_unit_test PRIVATE SMS++::SMS++)
+smspp_install(Objective_unit_test)
+add_test(NAME Objective_unit_test
+         COMMAND Objective_unit_test)
+
+add_executable(Constraint_unit_test tests_Constraint.cpp)
+target_link_libraries(Constraint_unit_test PRIVATE SMS++::SMS++)
+smspp_install(Constraint_unit_test)
+add_test(NAME Constraint_unit_test
+         COMMAND Constraint_unit_test)
+
+add_executable(LinearConstraint_unit_test tests_LinearConstraint.cpp)
+target_link_libraries(LinearConstraint_unit_test PRIVATE SMS++::SMS++)
+smspp_install(LinearConstraint_unit_test)
+add_test(NAME LinearConstraint_unit_test
+         COMMAND LinearConstraint_unit_test)
+
+add_executable(C05SumFunction_test tests_C05SumFunction.cpp)
+target_link_libraries(C05SumFunction_test PRIVATE SMS++::SMS++)
+smspp_install(C05SumFunction_test)
+add_test(NAME C05SumFunction_test
+         COMMAND C05SumFunction_test)
 
 add_executable(Function_test tests_Function.cpp)
 target_link_libraries(Function_test PRIVATE SMS++::SMS++)
@@ -97,10 +130,46 @@ smspp_install(QuadFunction_test)
 add_test(NAME QuadFunction_test
          COMMAND QuadFunction_test)
 
+add_executable(Solution_test tests_Solution.cpp)
+target_link_libraries(Solution_test PRIVATE SMS++::SMS++)
+smspp_install(Solution_test)
+add_test(NAME Solution_test
+         COMMAND Solution_test)
+
 add_executable(SizeVariable_test tests_SizeVariable.cpp)
 target_link_libraries(SizeVariable_test PRIVATE SMS++::SMS++)
 smspp_install(SizeVariable_test)
 add_test(NAME SizeVariable_test
          COMMAND SizeVariable_test)
+
+add_executable(Modification_test tests_Modification.cpp)
+target_link_libraries(Modification_test PRIVATE SMS++::SMS++)
+smspp_install(Modification_test)
+add_test(NAME Modification_test
+         COMMAND Modification_test)
+
+add_executable(PolyhedralFunction_unit_test tests_PolyhedralFunction.cpp)
+target_link_libraries(PolyhedralFunction_unit_test PRIVATE SMS++::SMS++)
+smspp_install(PolyhedralFunction_unit_test)
+add_test(NAME PolyhedralFunction_unit_test
+         COMMAND PolyhedralFunction_unit_test)
+
+add_executable(LagBFunction_unit_test tests_LagBFunction.cpp)
+target_link_libraries(LagBFunction_unit_test PRIVATE SMS++::SMS++)
+smspp_install(LagBFunction_unit_test)
+add_test(NAME LagBFunction_unit_test
+         COMMAND LagBFunction_unit_test)
+
+add_executable(BendersBFunction_unit_test tests_BendersBFunction.cpp)
+target_link_libraries(BendersBFunction_unit_test PRIVATE SMS++::SMS++)
+smspp_install(BendersBFunction_unit_test)
+add_test(NAME BendersBFunction_unit_test
+         COMMAND BendersBFunction_unit_test)
+
+add_executable(Misc_unit_test tests_Misc.cpp)
+target_link_libraries(Misc_unit_test PRIVATE SMS++::SMS++)
+smspp_install(Misc_unit_test)
+add_test(NAME Misc_unit_test
+         COMMAND Misc_unit_test)
 
 # --------------------------------------------------------------------------- #

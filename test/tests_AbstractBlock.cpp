@@ -21,16 +21,18 @@
 #include "ColVariable.h"
 #include "ColVariableSolution.h"
 
+#include "BlockInspection.h"
 #include "FRealObjective.h"
 #include "DQuadFunction.h"
 #include "LinearFunction.h"
 #include "OneVarConstraint.h"
 
 #include <netcdf>
+#include <algorithm>
 #include <cstdio>
+#include <iostream>
 #include <list>
 #include <sstream>
-#include <algorithm>
 
 // last, so that the headers above are read as the library was compiled
 #include "TestAssert.h"
@@ -91,22 +93,22 @@ void runAllTests()
   block->get_static_constraint< FRowConstraint >( 0 )->get_Block() == block );
  TearDown( block ); // TearDown
 
- // test Adds_StaticConstraints_Vector
- block = new AbstractBlock(); // SetUp
- c = new FRowConstraint();
- block->add_static_constraint( *c );
- assert( block->get_static_constraint< FRowConstraint >( 0 ) == c );
- assert(
-  block->get_static_constraint< FRowConstraint >( 0 )->get_Block() == block );
- TearDown( block ); // TearDown
-
- // test Adds_StaticConstraints_MultiArray
+ // test Adds_StaticConstraints_Vector: the group is the vector, and each of
+ // its elements knows the Block and where it sits in the group
  block = new AbstractBlock(); // SetUp
  auto v_c = new std::vector< FRowConstraint >( 5 );
- block->add_static_constraint( *v_c );
+ block->add_static_constraint( *v_c , "v_c" );
  assert( block->get_static_constraint_v< FRowConstraint >( 0 ) == v_c );
- for( const auto & i : *v_c )
-  assert( i.get_Block() == block );
+ assert( block->get_number_static_constraints() == 1 );
+ assert( block->get_static_constraint_groups()[ 0 ]->get_num_elements() == 5 );
+ assert( block->get_static_constraint_groups()[ 0 ]->get_rank() == 1 );
+ for( Block::Index i = 0 ; i < v_c->size() ; ++i ) {
+  assert( ( *v_c )[ i ].get_Block() == block );
+  assert( inspection::get_element< FRowConstraint >( block , true , 0 , i )
+	  == & ( *v_c )[ i ] );
+  assert( std::get< 2 >( inspection::get_element_index( & ( *v_c )[ i ] ) )
+	  == i );
+  }
  Constraint::clear( *v_c );
  TearDown( block ); // TearDown
 
@@ -748,6 +750,492 @@ static void test_is_edge_cases( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/*------------------ SERIALIZATION, Objective AND mirror() -----------------*/
+/*--------------------------------------------------------------------------*/
+
+/// writes the Block into a netCDF file and reads it back, nullptr if it fails
+
+static Block * through_a_file( const Block & block )
+{
+ const char * const name = "tests_AbstractBlock_round_trip.nc4";
+ block.Block::serialize( name , eBlockFile );
+ auto read = Block::deserialize( name );
+ std::remove( name );
+ return( read );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// a LinearFunction with coefficient 1 for each of the given Variable
+
+static LinearFunction * sum_of( const std::vector< ColVariable * > & vars )
+{
+ LinearFunction::v_coeff_pair p;
+ for( auto var : vars )
+  p.push_back( { var , 1.0 } );
+ return( new LinearFunction( std::move( p ) ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+/* An empty Block goes through a netCDF file and comes back as an empty
+ * AbstractBlock: no group, no Objective, no nested Block. */
+
+static void test_serialize_empty( void )
+{
+ AbstractBlock block;
+
+ auto read = through_a_file( block );
+ assert( read );
+ assert( dynamic_cast< AbstractBlock * >( read ) );
+ assert( read->get_static_variable_groups().empty() );
+ assert( read->get_dynamic_variable_groups().empty() );
+ assert( read->get_static_constraint_groups().empty() );
+ assert( read->get_dynamic_constraint_groups().empty() );
+ assert( ! read->get_objective() );
+ assert( read->get_nested_Blocks().empty() );
+
+ delete read;
+ std::cout << "serialize an empty Block: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+/* The dynamic groups travel as the model they are part of [see
+ * AbstractBlock::serialize()]: what comes back has the same columns and the
+ * same rows, in the static groups read_lp() builds. */
+
+static void test_serialize_dynamic_groups( void )
+{
+ AbstractBlock block;
+
+ auto cols = new std::list< ColVariable >( 3 );
+ block.add_dynamic_variable( *cols , "y" );
+ std::vector< ColVariable * > y;
+ for( auto & col : *cols )
+  y.push_back( & col );
+
+ auto rows = new std::list< FRowConstraint >( 2 );
+ double rhs = 5;
+ for( auto & row : *rows ) {
+  row.set_function( sum_of( { y[ 0 ] , y[ 1 ] } ) );
+  row.set_lhs( - Inf< double >() );
+  row.set_rhs( rhs++ );
+  }
+ block.add_dynamic_constraint( *rows , "d" );
+
+ block.set_objective( new FRealObjective( & block , sum_of( y ) ) , eNoMod );
+
+ auto read = through_a_file( block );
+ assert( read );
+ assert( read->get_dynamic_variable_groups().empty() );
+ assert( read->get_dynamic_constraint_groups().empty() );
+
+ const auto & sv = read->get_static_variable_groups();
+ const auto & sc = read->get_static_constraint_groups();
+ assert( sv.size() == 1 );
+ assert( sv[ 0 ]->get_num_elements() == 3 );
+ assert( sc.size() == 2 );                // the rows, and the box of columns
+ assert( sc[ 0 ]->get_num_elements() == 2 );
+
+ std::vector< double > got;
+ sc[ 0 ]->for_each_as< FRowConstraint >( [ & got ]( FRowConstraint & c ) {
+   assert( c.get_lhs() <= - Inf< double >() );
+   got.push_back( c.get_rhs() ); } );
+ assert( ( got == std::vector< double >( { 5 , 6 } ) ) );
+ assert( read->get_objective() );
+
+ delete read;
+ std::cout << "serialize dynamic groups: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+/* The bounds a :OneVarConstraint puts on a column travel as bounds of that
+ * column; the Objective as it is. */
+
+static void test_serialize_one_var_constraint( void )
+{
+ AbstractBlock block;
+
+ auto cols = new std::vector< ColVariable >( 2 );
+ block.add_static_variable( *cols , "x" );
+ auto box = new std::vector< BoxConstraint >( 1 );
+ ( *box )[ 0 ].set_variable( & ( *cols )[ 1 ] );
+ ( *box )[ 0 ].set_lhs( 1 );
+ ( *box )[ 0 ].set_rhs( 3 );
+ block.add_static_constraint( *box , "b" );
+
+ // both columns in the Objective, so that each of them is in the model
+ // somewhere else than in the Bounds [see test_serialize_column_in_no_row()]
+ block.set_objective( new FRealObjective( & block ,
+				 sum_of( { & ( *cols )[ 0 ] , & ( *cols )[ 1 ] } ) ) ,
+		      eNoMod );
+
+ auto read = through_a_file( block );
+ assert( read );
+
+ // the bounds of the columns read back: x_0 is free, x_1 is in [ 1 , 3 ]
+ std::vector< std::pair< double , double > > bounds;
+ for( const auto & group : read->get_static_constraint_groups() )
+  group->for_each_as< BoxConstraint >( [ & bounds ]( BoxConstraint & c ) {
+    bounds.emplace_back( c.get_lhs() , c.get_rhs() ); } );
+ assert( bounds.size() == 2 );
+ assert( bounds[ 0 ].first <= - Inf< double >() );
+ assert( bounds[ 0 ].second >= Inf< double >() );
+ assert( ( bounds[ 1 ] == std::pair< double , double >( 1 , 3 ) ) );
+
+ auto obj = dynamic_cast< FRealObjective * >( read->get_objective() );
+ assert( obj );
+ auto lf = dynamic_cast< LinearFunction * >( obj->get_function() );
+ assert( lf && ( lf->get_num_active_var() == 2 ) );
+
+ delete read;
+ std::cout << "serialize a OneVarConstraint: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+/* A column that is in no row and not in the Objective is still a column of
+ * the model, and write_lp() writes it in the Bounds section: read_lp() has
+ * to take it from there, or the Block cannot be read back at all. */
+
+static void test_serialize_column_in_no_row( void )
+{
+ AbstractBlock block;
+
+ auto cols = new std::vector< ColVariable >( 2 );
+ block.add_static_variable( *cols , "x" );
+ block.set_objective( new FRealObjective( & block ,
+					  sum_of( { & ( *cols )[ 0 ] } ) ) ,
+		      eNoMod );
+
+ auto read = through_a_file( block );
+ assert( read );
+ const auto & sv = read->get_static_variable_groups();
+ assert( sv.size() == 1 );
+ assert( sv[ 0 ]->get_num_elements() == 2 );
+ delete read;
+
+ std::cout << "serialize a column in no row: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+/* An Objective that is not linear cannot be written as the LP file the
+ * AbstractBlock is serialized into: it is refused, not written wrong. */
+
+static void test_serialize_quadratic_objective( void )
+{
+ AbstractBlock block;
+
+ auto cols = new std::vector< ColVariable >( 1 );
+ block.add_static_variable( *cols , "x" );
+ DQuadFunction::v_coeff_triple t;
+ t.push_back( { & ( *cols )[ 0 ] , 1.0 , 2.0 } );
+ block.set_objective( new FRealObjective( & block ,
+				  new DQuadFunction( std::move( t ) ) ) ,
+		      eNoMod );
+
+ const char * const name = "tests_AbstractBlock_quadratic.nc4";
+ bool refused = false;
+ try {
+  block.Block::serialize( name , eBlockFile );
+  }
+ catch( const std::invalid_argument & ) {
+  refused = true;
+  }
+ std::remove( name );
+ assert( refused );
+
+ std::cout << "serialize a quadratic Objective: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+/* The nested Block travel each in a group of its own, and come back nested
+ * in the Block they were nested in, with their own model. */
+
+static void test_serialize_nested( void )
+{
+ auto block = new AbstractBlock;
+ auto x = new std::vector< ColVariable >( 1 );
+ block->add_static_variable( *x , "x" );
+ block->set_objective( new FRealObjective( block ,
+					   sum_of( { & ( *x )[ 0 ] } ) ) , eNoMod );
+
+ for( int k = 0 ; k < 2 ; ++k ) {
+  auto inner = new AbstractBlock( block );
+  auto z = new std::vector< ColVariable >( 2 );
+  inner->add_static_variable( *z , "z" );
+  auto rows = new std::vector< FRowConstraint >( 1 + k );
+  for( auto & row : *rows ) {
+   row.set_function( sum_of( { & ( *z )[ 0 ] , & ( *z )[ 1 ] } ) );
+   row.set_lhs( - Inf< double >() );   // one side, hence one row of the LP
+   row.set_rhs( 4 );
+   }
+  inner->add_static_constraint( *rows , "r" );
+  inner->set_objective( new FRealObjective( inner ,
+					    sum_of( { & ( *z )[ 1 ] } ) ) ,
+			eNoMod );
+  block->add_nested_Block( inner );
+  }
+
+ auto read = through_a_file( *block );
+ assert( read );
+ const auto & nested = read->get_nested_Blocks();
+ assert( nested.size() == 2 );
+ for( int k = 0 ; k < 2 ; ++k ) {
+  assert( nested[ k ] );
+  assert( nested[ k ]->get_static_variable_groups().size() == 1 );
+  assert( nested[ k ]->get_static_variable_groups()[ 0 ]->
+	  get_num_elements() == 2 );
+  assert( nested[ k ]->get_static_constraint_groups()[ 0 ]->
+	  get_num_elements() == Block::Index( 1 + k ) );
+  assert( nested[ k ]->get_f_Block() == read );
+  }
+
+ delete read;
+ delete block;
+ std::cout << "serialize nested Blocks: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+/* A Block with no Objective, whose LP file says " obj: 0", i.e., an
+ * Objective made of a constant alone: it comes back as the same model, with
+ * its row, and with an Objective that has no term. */
+
+static void test_serialize_no_objective( void )
+{
+ AbstractBlock block;
+ auto cols = new std::vector< ColVariable >( 1 );
+ block.add_static_variable( *cols , "x" );
+ auto rows = new std::vector< FRowConstraint >( 1 );
+ ( *rows )[ 0 ].set_function( sum_of( { & ( *cols )[ 0 ] } ) );
+ ( *rows )[ 0 ].set_lhs( - Inf< double >() );
+ ( *rows )[ 0 ].set_rhs( 2 );
+ block.add_static_constraint( *rows , "r" );
+
+ std::ostringstream lp;
+ block.write_lp( lp );
+ assert( lp.str().find( " obj: 0" ) != std::string::npos );
+
+ auto read = through_a_file( block );
+ assert( read );
+ const auto & sc = read->get_static_constraint_groups();
+ assert( sc.size() == 2 );
+ assert( sc[ 0 ]->get_num_elements() == 1 );
+ sc[ 0 ]->for_each_as< FRowConstraint >( []( FRowConstraint & c ) {
+   assert( c.get_rhs() == 2 ); } );
+ auto obj = dynamic_cast< FRealObjective * >( read->get_objective() );
+ assert( obj );
+ auto lf = dynamic_cast< LinearFunction * >( obj->get_function() );
+ assert( lf && ( lf->get_num_active_var() == 0 ) );
+
+ delete read;
+ std::cout << "serialize a Block with no Objective: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+/* The LP file of an empty model, as write_lp() writes it, is read back as a
+ * model with no column and no row. */
+
+static void test_read_lp_of_an_empty_model( void )
+{
+ AbstractBlock empty;
+ std::ostringstream lp;
+ empty.write_lp( lp );
+
+ AbstractBlock again;
+ std::istringstream in( lp.str() );
+ again.load( in , 'L' );
+ for( const auto & g : again.get_static_variable_groups() )
+  assert( g->get_num_elements() == 0 );
+ for( const auto & g : again.get_static_constraint_groups() )
+  assert( g->get_num_elements() == 0 );
+
+ std::cout << "read_lp of an empty model: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+/* What read_lp() does with what write_lp() writes at its edges: constants in
+ * the Objective and in a row, which the first carries as its constant term
+ * and the second moves to its side; a column whose lower bound is -infinity
+ * and whose upper one is finite; a column that is only named among the
+ * Generals. */
+
+static void test_read_lp_edges( void )
+{
+ const std::string lp =
+  "\\ a comment\n"
+  "Maximize\n"
+  " obj: 2 x + 3 - y\n"
+  "Subject To\n"
+  " r: 0 <= 4\n"
+  " s: x + 1 >= 3\n"
+  "Bounds\n"
+  " -infinity <= x <= 5\n"
+  " y free\n"
+  "Generals\n"
+  " z\n"
+  "End\n";
+
+ AbstractBlock block;
+ std::istringstream in( lp );
+ block.load( in , 'L' );
+
+ const auto & sv = block.get_static_variable_groups();
+ const auto & sc = block.get_static_constraint_groups();
+ assert( sv.size() == 1 );
+ assert( sv[ 0 ]->get_num_elements() == 3 );    // x , y and z
+ assert( sc[ 0 ]->get_num_elements() == 2 );
+
+ auto obj = dynamic_cast< FRealObjective * >( block.get_objective() );
+ assert( obj && ( obj->get_sense() == Objective::eMax ) );
+ auto lf = dynamic_cast< LinearFunction * >( obj->get_function() );
+ assert( lf && ( lf->get_num_active_var() == 2 ) );
+ assert( lf->get_linearization_constant() == 3 );
+
+ std::vector< std::pair< double , double > > sides;
+ sc[ 0 ]->for_each_as< FRowConstraint >( [ & sides ]( FRowConstraint & c ) {
+   sides.emplace_back( c.get_lhs() , c.get_rhs() ); } );
+ assert( sides[ 0 ].first <= - Inf< double >() );
+ assert( sides[ 0 ].second == 4 );
+ assert( sides[ 1 ].first == 2 );                // x + 1 >= 3 is x >= 2
+ assert( sides[ 1 ].second >= Inf< double >() );
+
+ std::vector< std::pair< double , double > > bounds;
+ sc[ 1 ]->for_each_as< BoxConstraint >( [ & bounds ]( BoxConstraint & c ) {
+   bounds.emplace_back( c.get_lhs() , c.get_rhs() ); } );
+ assert( bounds[ 0 ].first <= - Inf< double >() );
+ assert( bounds[ 0 ].second == 5 );
+
+ bool integer = false;
+ sv[ 0 ]->for_each_as< ColVariable >( [ & integer ]( ColVariable & v ) {
+   integer = integer || v.is_integer(); } );
+ assert( integer );
+
+ // and the bound -infinity <= x <= 5 is written so that it is read so
+ std::ostringstream again;
+ block.write_lp( again );
+ assert( again.str().find( "-infinity <= " ) != std::string::npos );
+
+ std::cout << "read_lp at its edges: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+/* Input that is not an LP file, or one that ends before its End, is refused
+ * with an exception that says who refuses it, and does not keep read_lp()
+ * reading forever. */
+
+static void test_read_lp_malformed( void )
+{
+ for( const std::string lp : {
+   std::string( "" ) ,
+   std::string( "Maybe\n obj: x\nEnd\n" ) ,
+   std::string( "Minimize\n obj: x\n" ) ,
+   std::string( "Minimize\n obj: 0\n" ) ,
+   std::string( "Minimize\n obj: x\nSubject To\n r: x <= 1\n" ) ,
+   std::string( "Minimize\n obj: x\nSubject To\n r: x\n" ) ,
+   std::string( "Minimize\n obj: x\nSubject To\nBounds\n x <= 1\n" ) ,
+   std::string( "Minimize\n obj: x\nSubject To\nGenerals\n x\n" ) } ) {
+  AbstractBlock block;
+  std::istringstream in( lp );
+  std::string what;
+  try { block.load( in , 'L' ); }
+  catch( const std::invalid_argument & e ) { what = e.what(); }
+  assert( what.find( "AbstractBlock::read_lp: " ) == 0 );
+  }
+
+ std::cout << "read_lp of malformed input: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+/* set_objective() on a Block that has one replaces it: the new one is the
+ * Objective of the Block and knows it, and the old one is left to whoever
+ * made it, not deleted [see Block::set_objective()]. */
+
+static void test_set_objective_replaces( void )
+{
+ AbstractBlock block;
+ auto cols = new std::vector< ColVariable >( 2 );
+ block.add_static_variable( *cols , "x" );
+
+ auto first = new FRealObjective( & block , sum_of( { & ( *cols )[ 0 ] } ) );
+ block.set_objective( first , eNoMod );
+ assert( block.get_objective() == first );
+ assert( first->get_Block() == & block );
+
+ auto second = new FRealObjective( nullptr , sum_of( { & ( *cols )[ 1 ] } ) );
+ second->set_sense( Objective::eMax , eNoMod );
+ block.set_objective( second , eNoMod );
+ assert( block.get_objective() == second );
+ assert( second->get_Block() == & block );
+
+ // the old one is still there to be deleted by whoever made it
+ assert( first->get_function() );
+ delete first;
+
+ // and what the Block writes is the new one
+ std::ostringstream lp;
+ block.write_lp( lp );
+ assert( lp.str().find( "Maximize" ) != std::string::npos );
+ assert( lp.str().find( " obj: x_1" ) != std::string::npos );
+
+ std::cout << "set_objective replaces: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+/* mirror() of an empty Block gives an empty copy that knows what it is a
+ * copy of, with nothing to report and nothing to move; a second mirror(), a
+ * mirror() of nothing and a mirror() into a Block that is not empty are
+ * refused. */
+
+static void test_mirror_of_an_empty_Block( void )
+{
+ AbstractBlock original;
+ AbstractBlock copy;
+
+ copy.mirror( & original );
+ assert( copy.get_mirrored() == & original );
+ assert( copy.get_mirror_issues().empty() );
+ assert( copy.get_static_variable_groups().empty() );
+ assert( copy.get_dynamic_variable_groups().empty() );
+ assert( copy.get_static_constraint_groups().empty() );
+ assert( copy.get_dynamic_constraint_groups().empty() );
+ assert( copy.get_nested_Blocks().empty() );
+ assert( ! copy.get_objective() );
+ copy.mirror_read();
+ copy.mirror_write();
+
+ bool refused = false;
+ try { copy.mirror( & original ); }
+ catch( const std::logic_error & ) { refused = true; }
+ assert( refused );
+
+ AbstractBlock other;
+ refused = false;
+ try { other.mirror( nullptr ); }
+ catch( const std::invalid_argument & ) { refused = true; }
+ assert( refused );
+ assert( ! other.get_mirrored() );
+
+ AbstractBlock full;
+ full.add_static_variable( * new std::vector< ColVariable >( 1 ) , "x" );
+ refused = false;
+ try { full.mirror( & original ); }
+ catch( const std::logic_error & ) { refused = true; }
+ assert( refused );
+
+ std::cout << "mirror of an empty Block: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
 
 int main( int argc , char ** argv )
 {
@@ -758,6 +1246,21 @@ int main( int argc , char ** argv )
  test_is();
  test_writers_edge_cases();
  test_is_edge_cases();
+
+ test_serialize_empty();
+ test_serialize_dynamic_groups();
+ test_serialize_one_var_constraint();
+ test_serialize_column_in_no_row();
+ test_serialize_quadratic_objective();
+ test_serialize_nested();
+ test_serialize_no_objective();
+ test_set_objective_replaces();
+ test_mirror_of_an_empty_Block();
+ test_read_lp_of_an_empty_model();
+ test_read_lp_edges();
+ test_read_lp_malformed();
+
+ std::cout << "All tests passed!!" << std::endl;
  return( 0 );
 }
 

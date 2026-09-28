@@ -116,10 +116,9 @@ namespace SMSpp_di_unipi_it
  * when there is any Solver attached to the AbstractBlock, but only during
  * the initial construction phase. Yet, during the destructor of
  * AbstractBlock, the corresponding Variable / Constraint / Objective have
- * to be destroyed. This requires the( pointer to the)m to be fetched out of
- * the corresponding std::vector< boost::any >, which can only be done by
- * knowing their exact type; whence the need of specifying exactly which
- * types are handled by the class.
+ * to be destroyed. This is done through their groups, each of which has
+ * been told how to dispose of its container when it was registered, so
+ * that the destructor need not know the type of any of them.
  *
  * Note that, conversely, add_dynamic_constraint*s*() and
  * add_dynamic_variable*s*() (the methods for adding/removing stuff from an
@@ -199,8 +198,8 @@ namespace SMSpp_di_unipi_it
  * deserialize(). However, the add_X_Y() and set_X_Y() methods of Block
  * allow the derived class to "slip its group before the already present
  * ones", and therefore the derived class can ensure that the right set of
- * groups is reserved. Note that, unlike the std::vector< boost::any >
- * implementing the groups that are private, the v_Block vector of the
+ * groups is reserved. Note that, unlike the vectors of groups of Variable
+ * and Constraint, that are private, the v_Block vector of the
  * sub-Block is protected and therefore can be freely manipulated by
  * derived classes. Yet, doing all this right is entirely the responsibility
  * of the derived classes themselves. */
@@ -725,13 +724,12 @@ class AbstractBlock : public Block
   *
   * - ...
   *
-  * These are very generic checks that should be done at the level of Block,
-  * but they can not because it is not possible to just "extract Variable"
-  * or "extract Constraint" from the "abstract representation": one can only
-  * extract :Variable (say, ColVariable) or :Constraint (say, FRowConstraint).
-  * This is a very bad consequence of the initial design choice about using
-  * boost::any, and one of the reasons why these will be put to the wall when
-  * the revolution will come. */
+  * These are very generic checks, that only use the interface of Variable,
+  * Constraint and Objective, and that could be done at the level of Block,
+  * since a group hands out its elements as Variable or Constraint whatever
+  * their actual type [see BaseGroup::for_each_as()]. Here they also check
+  * that the Variable and Constraint are of the types that AbstractBlock
+  * handles, throwing if they are not. */
 
  void is_correct( void );
 

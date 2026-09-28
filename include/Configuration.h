@@ -256,8 +256,8 @@ class Configuration
   * - if \p idx >= 0, then the BlockConfig in the "Prob_<idx>" group is
   *   returned;
   *
-  * - if \p idx z 0, then the BlockSolver in the "Prob_(- <idx> + 1)" group
-  *   is returned.
+  * - if \p idx < 0, then the BlockSolver in the "Prob_(- <idx> - 1)" group
+  *   is returned, i.e., -1 is the BlockSolver of "Prob_0".
   *
   * Once the appropriate group is selected, the :Configuration is loaded from
   * it with a call to new_Configuration( netCDF::NcGroup & ); see the
@@ -361,8 +361,8 @@ class Configuration
   *     string.
   *
   *   = The characters immediately following '*' form an empty string (which
-  *     means that '*' is immediately followed by whitespaces or comments):
-  *     then, nullptr is returned;
+  *     means that '*' is immediately followed by whitespaces, comments or
+  *     the end of the stream): then, nullptr is returned;
   *
   * - Or the first character that is found after any whitespace and comment
   *   is not '*', in which case it has to be the first character of a
@@ -1107,7 +1107,8 @@ void deserialize( const netCDF::NcGroup & group ,
  * given \p group and into \p data. This is supposed to be represented by
  * the dimension with name \p size giving the size of the container, plus
  * by as many sub-groups of \p group with name <name>0, <name>1, ..., each
- * one containing one of the Configuration. */
+ * one containing one of the Configuration; the sub-group of a nullptr is
+ * not created, and it is read back as nullptr. */
 
 template< template< class ... > class C >
 void serialize( netCDF::NcGroup & group , const C< Configuration * > & data ,
@@ -1117,8 +1118,11 @@ void serialize( netCDF::NcGroup & group , const C< Configuration * > & data ,
  group.addDim( size , data.size() );
  size_t i = 0;
  for( auto el : data ) {
-  auto gr = group.addGroup( name + std::to_string( i++ ) );
-  el->serialize( gr );
+  if( el ) {
+   auto gr = group.addGroup( name + std::to_string( i ) );
+   el->serialize( gr );
+   }
+  ++i;
   }
  }
 
@@ -1271,12 +1275,14 @@ void SimpleConfiguration< std::vector< Configuration * >
 template<>
 inline void SimpleConfiguration< std::vector< Configuration * >
  >::serialize( netCDF::NcGroup & group ) const {
+ Configuration::serialize( group );
  SMSpp_di_unipi_it::serialize< std::vector >( group , f_value );
  }
 
 template<>
 inline void SimpleConfiguration< std::vector< Configuration * >
  >::deserialize( const netCDF::NcGroup & group ) {
+ Configuration::deserialize( group );
  SMSpp_di_unipi_it::deserialize< std::vector >( group , f_value );
  }
 

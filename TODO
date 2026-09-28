@@ -34,16 +34,15 @@
 	"a number of times": the jaggedness is one level deep, the cells of a
 	cell cannot be cells in their turn.
 
-	NOTE THAT THE ORDER IN WHICH THE ELEMENTS OF SUCH A GROUP ARE NUMBERED
-	IS NOT THE ONE Block::ConstraintID DOCUMENTS. For a group whose cells are
-	std::vector the i-th element of the c-th cell of n cells is the
-	( c + i * n )-th, which is the grid read the other way around and is
-	what the code has always done; for a group whose cells are std::list
-	it is instead the cell-by-cell order, j plus the sizes of the cells
-	before it, which is the one ConstraintID describes (and which is also
-	the order in memory). The two have to be made one, and ConstraintID
-	updated, once it is known whether any configuration file out there
-	addresses a Constraint inside a std::vector of std::vector.
+	The elements of such a group are numbered cell by cell, j plus the
+	sizes of the cells before it, whatever the cells hold: the order in
+	memory, and the one Block::ConstraintID documents, which now covers
+	the jagged static forms as well. A group whose cells are std::vector
+	used to be numbered the grid read the other way around, ( c + i * n )
+	for the i-th element of the c-th of n cells, as the code had always
+	done; no configuration file addressed a Constraint inside one of them,
+	the only such groups having been born this year, so the two orders
+	have been made one instead of keeping both.
 
 2022-02-10 [very high] get rid of the boost::any -- DONE
 

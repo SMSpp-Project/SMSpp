@@ -89,11 +89,13 @@ void DQuadFunction::get_hessian_approximation( SparseHessian & hessian ) const
  tripletList.reserve( num_active_var );
 
  int index = 0;
- for( const auto & triple : v_triples )
+ for( const auto & triple : v_triples ) {
   tripletList.push_back(
    Eigen::Triplet< FunctionValue >( index , index, 2 * std::get< 2 >( triple )
 				  ) );
- hessian.setZero();
+  ++index;
+  }
+ hessian.resize( num_active_var , num_active_var );  // also zeroes it
  hessian.reserve( Eigen::VectorXi::Constant( num_active_var , 1 ) );
  hessian.setFromTriplets( tripletList.begin() , tripletList.end() );
  }
@@ -238,16 +240,26 @@ void DQuadFunction::map_active( c_Vec_p_Var & vars , Subset & map ,
  if( map.size() < vars.size() )
    map.resize( vars.size() );
 
- if( ordered )
+ if( ordered ) {
+  // each of vars has to be found among the "active" ones, which may be more
+  std::vector< bool > found( vars.size() , false );
+  Index nfound = 0;
   for( Index i = 0 ; i < v_triples.size() ; ++i ) {
-   auto itvi = std::lower_bound( vars.begin() , vars.end() ,
-				 std::get< 0 >( v_triples[ i ] ) );
-   if( itvi != vars.end() )
-    map[ std::distance( vars.begin() , itvi ) ] = i;
-   else
-    throw( std::invalid_argument( "DQuadFunction::map_active: "
-				  "some Variable is not active" ) );
+   const auto var = std::get< 0 >( v_triples[ i ] );
+   auto itvi = std::lower_bound( vars.begin() , vars.end() , var );
+   if( ( itvi != vars.end() ) && ( *itvi == var ) ) {
+    const auto k = std::distance( vars.begin() , itvi );
+    map[ k ] = i;
+    if( ! found[ k ] ) {
+     found[ k ] = true;
+     ++nfound;
+     }
+    }
    }
+  if( nfound < vars.size() )
+   throw( std::invalid_argument( "DQuadFunction::map_active: "
+				 "some Variable is not active" ) );
+  }
  else {
   auto it = map.begin();
   for( auto var : vars ) {

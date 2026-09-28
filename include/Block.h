@@ -827,18 +827,22 @@ class Block : public Observer {
   * important to notice that all indices mentioned here belong to zero-based
   * numbered sequences, i.e., sequences whose first element is 0.
   *
-  * A static group of Constraint can be one of three types:
+  * A static group of Constraint can be one of five types:
   *
   * 1. It is a single Constraint;
   *
   * 2. It is a vector of Constraint;
   *
-  * 3. It is a multidimensional array of Constraint.
+  * 3. It is a multidimensional array of Constraint;
+  *
+  * 4. It is a vector of vectors of Constraint;
+  *
+  * 5. It is a multidimensional array of vectors of Constraint.
   *
   * In the first case, in which the group is a single Constraint, the index of
   * the Constraint is 0. In the second case, in which the group is a vector of
   * Constraint, the index of the Constraint is simply its position in that
-  * vector. In the last case, in which the group is a multidimensional array
+  * vector. In the third case, in which the group is a multidimensional array
   * of Constraint, the index of the Constraint is its position in the
   * vectorized multidimensional array in row-major layout. For instance, if
   * the multidimensional array has two dimensions with sizes m and n,
@@ -850,6 +854,15 @@ class Block : public Observer {
   * \f[
   *   \sum_{r = 0}^{k-1} ( \prod_{s = r + 1}^{k-1} n_s ) i_r
   * \f]
+  *
+  * In the last two cases, in which the cells of the group are vectors of
+  * Constraint, whose lengths need not be the same, the index of the
+  * Constraint at position j of the k-th cell is given by
+  * \f[
+  *    j + \sum_{t = 0}^{k-1} s_t
+  * \f]
+  * where s_t is the number of Constraint in the t-th cell: the same rule as
+  * the one of a dynamic group whose cells are lists, i.e., storage order.
   *
   * A dynamic group of Constraint can be one of three types:
   *
@@ -3986,14 +3999,16 @@ class Block : public Observer {
   * Constraint, unlike that of a Variable, is supposed to un-register it
   * from all the Variable that it is active in. To avoid this
   *
-  *     ALL DELETED Constraint ARE clear()-ED WITHIN THE METHOD
+  *     ALL DELETED Constraint ARE clear()-ED BEFORE BEING DESTROYED
   *
-  * This means that the list of Variable that the Constraint was active in
-  * is immediately cleared (without re-warning the Variable, who have just
-  * been). As a consequence,
+  * which means that the list of Variable that the Constraint was active in
+  * is cleared without re-warning the Variable, who have just been. If the
+  * BlockModRmv is not issued this happens within the method; if it is, it
+  * happens in the destructor of the BlockModRmv. As a consequence,
   *
-  *     WHOMEVER HANDLES THE ISSUED BlockModRmv (IF ANY) CANNOT RELY ON
-  *     THAT INFORMATION, SINCE IT WILL NO LONGER BE THERE
+  *     WHOMEVER HANDLES THE ISSUED BlockModRmv (IF ANY) CAN STILL READ
+  *     THE Variable THAT EACH REMOVED Constraint WAS ACTIVE IN, BUT THESE
+  *     Variable NO LONGER LIST THE Constraint AMONG THEIR ACTIVE STUFF
   *
   * Note that when the Constraint is removed from the Variable, no
   * Modification is issued (see Variable::remove_active()); thus, calling
@@ -4508,7 +4523,11 @@ class Block : public Observer {
   * The method is given a default implementation that goes through the
   * Variable of the Block: what they hold is saved, sol is written in, the
   * check is done by is_feasible( true , fsbc ) and what was there is put
-  * back. This makes the method available for any :Block, at the price of
+  * back; a sol that holds a direction, however, is declared not feasible
+  * unless the Block knows what a direction of its own is [see
+  * has_directions()], since a Block that does not cannot tell a ray of its
+  * own from one that is not, and what cannot be told is not declared
+  * feasible. This makes the method available for any :Block, at the price of
   * requiring the "abstract representation" to exist and of touching the
   * Variable while it runs; is_sol_feasible_physical() is what tells the two
   * cases apart. A :Block that can read its own :Solution directly is
@@ -5568,11 +5587,48 @@ class Block : public Observer {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
- void close_channel( ChnlName chnl , bool force = false ) override;
+ void close_channel( ChnlName chnl , bool force = false ) override {
+  close_channel( chnl , force , false );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /// close a channel, possibly discarding what has been sent to it
+ /** Same as close_channel( chnl , force ) if \p discard == false. If
+  * \p discard == true the level that close_channel( chnl , force ) would
+  * finalize is deleted instead: in "root mode", or if \p force == true, the
+  * outermost GroupModification of the channel is deleted rather than
+  * shipped, and the channel is closed; otherwise the current (inner)
+  * GroupModification is removed from its father GroupModification, and
+  * addition resumes there. Either way, nobody receives anything. As
+  * close_channel( chnl , force ), this is passed up to the ancestor that
+  * has defined the channel, and it is an error if none has. */
+
+ void close_channel( ChnlName chnl , bool force , bool discard );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /// empty the current GroupModification of a channel
+ /** Deletes all the Modification sent to the open channel chnl since the
+  * current level of the channel has been opened (the nested
+  * GroupModification it holds comprised), which is then left open and
+  * empty, and has concerns_Block() == false; the outer levels of the channel
+  * are not touched. Nobody receives anything. This allows one to issue an
+  * unbounded sequence of Modification that is known to have no net effect
+  * without them piling up in the channel. As close_channel(), this is passed
+  * up to the ancestor that has defined the channel, and it is an error if
+  * none has, or if chnl == 0. */
+
+ void clear_channel( ChnlName chnl );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
- void set_default_channel( ChnlName chnl = 0 ) override { f_channel = chnl; }
+ void set_default_channel( ChnlName chnl = 0 ) override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /// returns the "default" channel [see set_default_channel()]
+
+ [[nodiscard]] ChnlName get_default_channel( void ) const {
+  return( f_channel );
+  }
 
 /** @} ---------------------------------------------------------------------*/
 /*---------------------- Methods for handling Solver -----------------------*/
@@ -9867,8 +9923,10 @@ Block::remove_dynamic_constraints( std::list< Const > & list ,
 		     Observer::par2chnl( issueMod ) );
    }
   else {                           // nobody is listening, just do it
+   // ... which means the Constraint need be clear()-ed now, while they have
+   // already been removed from their active Variable above
    for( auto & c : list )
-    remove_constraint_from_variables( &c );
+    c.clear();
    list.clear();
    }
 

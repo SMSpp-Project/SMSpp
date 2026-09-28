@@ -8,11 +8,6 @@
  *
  * - some macros for easily using factories
  *
- * - some methods and macros for easily applying some operations to a
- *   boost::any in a way that is as much independent as possible to the shape
- *   of the content (individual/std::vector/boost::multi_array of [std::list]
- *   of [classes derived from] Variable/Constraint);
- *
  * - handles printing (in the sense of operator<<()) of boost::multi_array<>,
  *   std::list<> and std::vector<>;
  *
@@ -2179,7 +2174,20 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
   }
 
  std::vector< T > tmp( ncVar.getDim( 0 ).getSize() );
- ncVar.getVar( tmp.data() );
+ if constexpr( std::is_same_v< T , std::string > ) {
+  // netCDF gives the strings as char * it allocates, which are copied and
+  // then freed
+  std::vector< char * > tmp_cstr( tmp.size() , nullptr );
+  if( ! tmp_cstr.empty() )
+   ncVar.getVar( tmp_cstr.data() );
+  for( std::size_t i = 0 ; i < tmp.size() ; ++i ) {
+   if( tmp_cstr[ i ] )
+    tmp[ i ] = tmp_cstr[ i ];
+   free( tmp_cstr[ i ] );
+   }
+  }
+ else
+  ncVar.getVar( tmp.data() );
 
  matrix.resize( nrows );
 

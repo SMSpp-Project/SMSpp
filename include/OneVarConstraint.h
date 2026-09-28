@@ -53,6 +53,9 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <algorithm>
+#include <cmath>
+
 #include "ColVariable.h"
 
 #include "RowConstraint.h"
@@ -838,33 +841,31 @@ class LBConstraint : public OneVarConstraint {
     @{ */
 
  [[nodiscard]] bool feasible( void ) const final {
-  return( ( f_lhs <= -RHSINF ) || ( f_variable->get_value() >= f_lhs ) );
+  return( ( f_lhs <= -RHSINF ) || ( OneVarConstraint::lb() >= f_lhs ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
  [[nodiscard]] RHSValue abs_viol( void ) const final {
   if( f_lhs <= -RHSINF )
-   return( -RHSINF );
+   return( 0 );
 
-  c_RHSValue val = f_variable->get_value();
-  return( val <= -RHSINF ? RHSINF : f_lhs - val );
+  c_RHSValue val = OneVarConstraint::lb();
+  return( val <= -RHSINF ? RHSINF : std::max( RHSValue( 0 ) , f_lhs - val ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
  [[nodiscard]] RHSValue rel_viol( void ) const final {
   if( f_lhs <= -RHSINF )
-   return( -RHSINF );
+   return( 0 );
 
-  c_RHSValue val = f_variable->get_value();
-  if( val >= RHSINF )
-   return( -RHSINF );
-
+  c_RHSValue val = OneVarConstraint::lb();
   if( val <= -RHSINF )
    return( RHSINF );
 
-  return( f_lhs == 0 ? f_lhs - val : ( f_lhs - val ) / std::abs( f_lhs ) );
+  return( std::max( RHSValue( 0 ) , f_lhs - val ) /
+	  std::max( RHSValue( 1 ) , std::abs( f_lhs ) ) );
   }
 
 /** @} ---------------------------------------------------------------------*/
@@ -991,33 +992,31 @@ class UBConstraint : public OneVarConstraint {
     @{ */
 
  [[nodiscard]] bool feasible( void ) const final {
-  return( ( f_rhs >= RHSINF ) || ( f_variable->get_value() <= f_rhs ) );
+  return( ( f_rhs >= RHSINF ) || ( OneVarConstraint::ub() <= f_rhs ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
  [[nodiscard]] RHSValue abs_viol( void ) const final {
   if( f_rhs >= RHSINF )
-   return( -RHSINF );
+   return( 0 );
 
-  c_RHSValue val = f_variable->get_value();
-  return( val >= RHSINF ? RHSINF : val - f_rhs );
+  c_RHSValue val = OneVarConstraint::ub();
+  return( val >= RHSINF ? RHSINF : std::max( RHSValue( 0 ) , val - f_rhs ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
  [[nodiscard]] RHSValue rel_viol( void ) const final {
   if( f_rhs >= RHSINF )
-   return( -RHSINF );
+   return( 0 );
 
-  c_RHSValue val = f_variable->get_value();
-  if( val <= -RHSINF )
-   return( -RHSINF );
+  c_RHSValue val = OneVarConstraint::ub();
+  if( val >= RHSINF )
+   return( RHSINF );
 
-  if( val <= -RHSINF )
-   return( Inf< double >() );
-
-  return( f_rhs == 0 ? val - f_rhs : ( val - f_rhs ) / std::abs( f_rhs ) );
+  return( std::max( RHSValue( 0 ) , val - f_rhs ) /
+	  std::max( RHSValue( 1 ) , std::abs( f_rhs ) ) );
   }
 
 /** @} ---------------------------------------------------------------------*/
@@ -1138,14 +1137,13 @@ class NNConstraint : public OneVarConstraint {
     @{ */
 
  [[nodiscard]] bool feasible( void ) const final {
-  return( f_variable->get_value() >= 0 );
+  return( OneVarConstraint::lb() >= 0 );
   }
 
 /*--------------------------------------------------------------------------*/
 
  [[nodiscard]] RHSValue abs_viol( void ) const final {
-  c_RHSValue val = f_variable->get_value();
-  return( val <= -RHSINF ? RHSINF : -val );
+  return( std::max( RHSValue( 0 ) , - OneVarConstraint::lb() ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1261,14 +1259,13 @@ class NPConstraint : public OneVarConstraint {
     @{ */
 
  [[nodiscard]] bool feasible( void ) const final {
-  return( f_variable->get_value() <= 0 );
+  return( OneVarConstraint::ub() <= 0 );
   }
 
 /*--------------------------------------------------------------------------*/
 
  [[nodiscard]] RHSValue abs_viol( void ) const final {
-  c_RHSValue val = f_variable->get_value();
-  return( val >= RHSINF ? RHSINF : val );
+  return( std::max( RHSValue( 0 ) , OneVarConstraint::ub() ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1383,15 +1380,15 @@ class ZOConstraint : public OneVarConstraint {
     @{ */
 
  [[nodiscard]] bool feasible( void ) const final {
-  c_RHSValue val = f_variable->get_value();
+  c_RHSValue val = OneVarConstraint::lb();
   return( ( val >= 0 ) && ( val <= 1 ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
  [[nodiscard]] RHSValue abs_viol( void ) const final {
-  c_RHSValue val = f_variable->get_value();
-  return( std::max( -val , val - 1 ) );
+  c_RHSValue val = OneVarConstraint::lb();
+  return( std::max( { RHSValue( 0 ) , -val , val - 1 } ) );
   }
 
 /*--------------------------------------------------------------------------*/

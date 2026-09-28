@@ -2587,7 +2587,7 @@ class ComputeConfig : public Configuration
 
   if( it == vint_pars.end() ) {
    vint_pars.emplace_back( std::move( name ) , std::vector< int >() );
-   it = (vint_pars.end())--;
+   it = std::prev( vint_pars.end() );
    }
 
   if( pos >= decltype( pos )( it->second.size() ) )
@@ -2638,7 +2638,7 @@ class ComputeConfig : public Configuration
 
   if( it == vdbl_pars.end() ) {
    vdbl_pars.emplace_back( std::move( name ) , std::vector< double >() );
-   it = (vdbl_pars.end())--;
+   it = std::prev( vdbl_pars.end() );
    }
 
   if( pos >= decltype( pos )( it->second.size() ) )
@@ -2690,7 +2690,7 @@ class ComputeConfig : public Configuration
 
   if( it == vstr_pars.end() ) {
    vstr_pars.emplace_back( std::move( name ) , std::vector< std::string >() );
-   it = (vstr_pars.end())--;
+   it = std::prev( vstr_pars.end() );
    }
 
   if( pos >= decltype( pos )( it->second.size() ) )

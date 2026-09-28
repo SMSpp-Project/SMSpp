@@ -146,7 +146,8 @@ void FRowConstraint::remove_variable( Index i , ModParam issueMod )
  if( ! f_function )
   return;
 
- if( ( par2mod( issueMod ) > eNoMod ) && get_Block()->anyone_there() )
+ if( ( par2mod( issueMod ) > eNoMod ) && get_Block() &&
+     get_Block()->anyone_there() )
   f_function->remove_variable( i , issueMod );
  else {
   // unregistration can preceed removal, since the Function completely
@@ -163,7 +164,8 @@ void FRowConstraint::remove_variables( Range range , ModParam issueMod )
  if( ! f_function )
   return;
 
- if( ( par2mod( issueMod ) > eNoMod ) && get_Block()->anyone_there() )
+ if( ( par2mod( issueMod ) > eNoMod ) && get_Block() &&
+     get_Block()->anyone_there() )
   f_function->remove_variables( range, issueMod );
  else {
   // unregistration can preceed removal, since the Function completely
@@ -182,13 +184,18 @@ void FRowConstraint::remove_variables( Subset && nms , bool ordered ,
  if( ! f_function )
   return;
 
- if( ( par2mod( issueMod ) > eNoMod ) && get_Block()->anyone_there() )
+ if( ( par2mod( issueMod ) > eNoMod ) && get_Block() &&
+     get_Block()->anyone_there() )
   f_function->remove_variables( std::move( nms ) , ordered , issueMod );
  else {
   // unregistration can preceed removal, since the Function completely
   // ignores this information
-  for( auto i : nms )
-   f_function->get_active_var( i++ )->remove_active( this );
+  if( nms.empty() )  // all the Variable are removed
+   for( Index i = 0 ; i < f_function->get_num_active_var() ; ++i )
+    f_function->get_active_var( i )->remove_active( this );
+  else
+   for( auto i : nms )
+    f_function->get_active_var( i )->remove_active( this );
   f_function->remove_variables( std::move( nms ) , ordered , eNoMod );
   }
  }  // end( FRowConstraint::remove_variables( subset ) )
@@ -246,8 +253,11 @@ void FRowConstraint::add_Modification( sp_Mod mod , c_ChnlName chnl )
  guts_of_aM( mod );  // now the actual call to the "guts of"
 
  // finally, dispatch to add_Modification() of the Block - - - - - - - - - - -
+ // if any, and either listening or concerned by the Modification: an
+ // "abstract" Modification issued with eModBlck must reach the Block even if
+ // no Solver is there, for it to keep the "physical" representation in synch
 
- if( get_Block() && get_Block()->anyone_there() )  // ... if any, and listening
+ if( get_Block() && ( get_Block()->anyone_there() || mod->concerns_Block() ) )
   get_Block()->add_Modification( mod , chnl );
 
  }  // end( FRowConstraint::add_Modification )

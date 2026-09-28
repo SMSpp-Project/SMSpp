@@ -551,7 +551,7 @@ class Observer {
   * static. */
 
  [[nodiscard]] bool issue_pmod( ModParam issueMod ) const {
-  return( par2mod( issueMod ) && anyone_there() );
+  return( ( par2mod( issueMod ) >= eNoBlck ) && anyone_there() );
   }
 
 /*--------------------------------------------------------------------------*/

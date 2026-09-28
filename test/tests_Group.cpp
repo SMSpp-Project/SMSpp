@@ -302,6 +302,29 @@ static void test_cells_of_vectors( void )
  block->add_static_variable( *jagged , "jagged" );
  block->add_static_constraint( *rows , "rows" );
 
+ /* The index of an element of a group whose cells are vectors is the one a
+  * ConstraintID carries, i.e., storage order: the position inside the cell
+  * plus the sizes of the cells before it, the empty ones counting for 0.
+  * The rows are 3, 0, 1 and 2 per cell, so the indices run 0, 1, 2 in the
+  * first cell, 3 in the third and 4, 5 in the fourth, and asking for each
+  * of them gives back the very element it was taken from. */
+ Block::Index name = 0;
+ for( Block::Index c = 0 ; c < 4 ; ++c )
+  for( Block::Index j = 0 ; j < length[ c ] ; ++j ) {
+   auto & row = rows->data()[ c ][ j ];
+   auto where = inspection::get_element_index( & row );
+   assert( std::get< 0 >( where ) && ( std::get< 1 >( where ) == 0 ) &&
+	   ( std::get< 2 >( where ) == name ) );
+   assert( inspection::get_Constraint( block ,
+				       Block::ConstraintID( 0 , name ) )
+	   == & row );
+   ++name;
+   }
+
+ // an index past the last element has no Constraint to give back
+ assert( ! inspection::get_Constraint( block ,
+				       Block::ConstraintID( 0 , name ) ) );
+
  // the two Solution give back what they took, element by element, with the
  // empty cells in between not shifting anything
  ColVariableSolution primal;
@@ -714,9 +737,9 @@ static void test_element_knows_its_group( void )
 	 ( std::get< 2 >( where ) == 1 ) );
 
  /* In a group whose cells are vectors of different lengths the index is
-  * the one ConstraintID has always carried, c + i * n for the i-th element
-  * of the c-th of n cells, and the group of the element does not change
-  * that: it only spares the search among the other groups. */
+  * the one ConstraintID carries, the position of the element inside its
+  * cell plus the sizes of the cells before it, and the group of the element
+  * does not change that: it only spares the search among the other groups. */
 
  auto jag = new std::vector< std::vector< ColVariable > >( 3 );
  ( *jag )[ 0 ].resize( 1 );
@@ -726,13 +749,285 @@ static void test_element_knows_its_group( void )
  assert( ( *jag )[ 1 ][ 2 ].get_Group() == osv[ 1 ].get() );
  where = inspection::get_element_index( & ( *jag )[ 1 ][ 2 ] );
  assert( std::get< 0 >( where ) && ( std::get< 1 >( where ) == 1 ) &&
-	 ( std::get< 2 >( where ) == 1 + 2 * 3 ) );
+	 ( std::get< 2 >( where ) == 1 + 2 ) );
 
  /* The containers are NOT deleted here, for the reason given at the end of
   * test_empty_group(); the ones reset away are no longer seen by the Block,
   * and are left alone for uniformity. */
 
  std::cout << "element knows its group: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The index and the name of a dynamic element after a removal: they say
+ * where the element sits now, hence those after the removed one move up by
+ * one, in a list and in a vector of lists, where the index counts the
+ * elements of the cells before [see BlockInspection.h] and the name the
+ * position inside the cell. */
+
+static void test_after_a_dynamic_removal( void )
+{
+ AbstractBlock b;
+
+ auto y = new std::list< ColVariable >( 4 );
+ b.add_dynamic_variable( *y , "y" );
+ std::vector< ColVariable * > was;
+ for( auto & v : *y )
+  was.push_back( & v );
+
+ auto lists = new std::vector< std::list< ColVariable > >( 2 );
+ ( *lists )[ 0 ].resize( 3 );
+ ( *lists )[ 1 ].resize( 2 );
+ b.add_dynamic_variable( *lists , "g" );
+ auto second_cell_last = & ( *lists )[ 1 ].back();
+
+ assert( inspection::name_of( & b , was[ 2 ] ) == "y[ 2 ]" );
+ assert( std::get< 2 >( inspection::get_element_index( second_cell_last ) )
+	 == 4 );
+ assert( inspection::name_of( & b , second_cell_last ) == "g[ 1 ][ 1 ]" );
+
+ b.remove_dynamic_variables( *y , Block::Subset( { 1 } ) , true , eNoMod );
+ b.remove_dynamic_variables( ( *lists )[ 0 ] , Block::Subset( { 0 , 2 } ) ,
+			     true , eNoMod );
+
+ const auto & dv = b.get_dynamic_variable_groups();
+ assert( dv[ 0 ]->get_num_elements() == 3 );
+ assert( dv[ 1 ]->get_num_elements() == 3 );
+
+ // the list: the element that was third is second, the last one third
+ for( Block::Index k : { 0 , 2 , 3 } ) {
+  const Block::Index now = ( k == 0 ) ? 0 : k - 1;
+  auto where = inspection::get_element_index( was[ k ] );
+  assert( ( ! std::get< 0 >( where ) ) && ( std::get< 1 >( where ) == 0 ) &&
+	  ( std::get< 2 >( where ) == now ) );
+  assert( inspection::name_of( & b , was[ k ] ) ==
+	  "y[ " + std::to_string( now ) + " ]" );
+  assert( dv[ 0 ]->get_Variable( now ) == was[ k ] );
+  }
+ assert( ! dv[ 0 ]->get_Variable( 3 ) );
+
+ // the vector of lists: the first cell holds one element less than two, so
+ // the index of the elements of the second one is two less, while their
+ // name, which says the position inside their own cell, is the same
+ auto where = inspection::get_element_index( second_cell_last );
+ assert( std::get< 1 >( where ) == 1 );
+ assert( std::get< 2 >( where ) == 2 );
+ assert( inspection::name_of( & b , second_cell_last ) == "g[ 1 ][ 1 ]" );
+ assert( dv[ 1 ]->get_Variable( 2 ) == second_cell_last );
+ assert( inspection::get_element< ColVariable >( & b , false , 1 , 2 ) ==
+	 second_cell_last );
+
+ std::cout << "after a dynamic removal: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+/* A grid of rank 3, which the shapes above do not reach: its extents, the
+ * numbering of its cells with the last index running fastest, the names,
+ * the index of an element and the one run it is made of. */
+
+static void test_rank_three( void )
+{
+ AbstractBlock b;
+
+ auto t = new boost::multi_array< ColVariable , 3 >(
+					      boost::extents[ 2 ][ 3 ][ 4 ] );
+ double next = 0;
+ for( auto var = t->data() ; var != t->data() + 24 ; ++var )
+  var->set_value( next++ );
+ b.add_static_variable( *t , "T" );
+
+ const auto & group = *b.get_static_variable_groups()[ 0 ];
+ assert( group.get_rank() == 3 );
+ assert( group.get_size( 0 ) == 2 );
+ assert( group.get_size( 1 ) == 3 );
+ assert( group.get_size( 2 ) == 4 );
+ assert( group.get_num_cells() == 24 );
+ assert( group.get_num_elements() == 24 );
+
+ const auto values = values_of( group );
+ for( Block::Index i = 0 ; i < 24 ; ++i )
+  assert( values[ i ] == i );
+
+ std::array< Block::Index , BaseGroup::max_rank > index;
+ group.get_multi_index( 23 , index.data() );
+ assert( ( index[ 0 ] == 1 ) && ( index[ 1 ] == 2 ) && ( index[ 2 ] == 3 ) );
+ group.get_multi_index( 13 , index.data() );   // 13 = 1 * 12 + 0 * 4 + 1
+ assert( ( index[ 0 ] == 1 ) && ( index[ 1 ] == 0 ) && ( index[ 2 ] == 1 ) );
+
+ assert( inspection::name_of( & b , & ( *t )[ 1 ][ 0 ][ 1 ] ) ==
+	 "T[ 1 ][ 0 ][ 1 ]" );
+ auto where = inspection::get_element_index( & ( *t )[ 1 ][ 2 ][ 3 ] );
+ assert( std::get< 0 >( where ) && ( std::get< 1 >( where ) == 0 ) &&
+	 ( std::get< 2 >( where ) == 23 ) );
+ assert( group.get_Variable( 13 ) == & ( *t )[ 1 ][ 0 ][ 1 ] );
+ assert( runs_of( group ) == std::vector< Block::Index >( { 24 } ) );
+
+ // and a Solution takes it and gives it back
+ ColVariableSolution sol;
+ sol.read( & b );
+ for( auto var = t->data() ; var != t->data() + 24 ; ++var )
+  var->set_value( -1 );
+ sol.write( & b );
+ assert( values_of( group ) == values );
+
+ std::cout << "rank three: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+/* A grid one of whose extents is zero: it has a rank and the extents it was
+ * given, and no cell, hence no element; walking it calls nobody, it has no
+ * run and no i-th element, and a Solution reads and writes it. */
+
+static void test_zero_extent( void )
+{
+ AbstractBlock b;
+
+ auto z = new boost::multi_array< ColVariable , 2 >( boost::extents[ 3 ][ 0 ] );
+ b.add_static_variable( *z , "Z" );
+ auto zc = new boost::multi_array< std::vector< FRowConstraint > , 2 >(
+						    boost::extents[ 0 ][ 2 ] );
+ b.add_static_constraint( *zc , "C" );
+
+ const auto & group = *b.get_static_variable_groups()[ 0 ];
+ assert( group.get_rank() == 2 );
+ assert( group.get_size( 0 ) == 3 );
+ assert( group.get_size( 1 ) == 0 );
+ assert( group.get_num_cells() == 0 );
+ assert( group.get_num_elements() == 0 );
+ assert( ! group.get_Variable( 0 ) );
+ assert( values_of( group ).empty() );
+ assert( runs_of( group ).empty() );
+ assert( inspection::get_element_size< ColVariable >( & b , true , 0 ) == 0 );
+ assert( ! inspection::get_element< ColVariable >( & b , true , 0 , 0 ) );
+
+ const auto & cgroup = *b.get_static_constraint_groups()[ 0 ];
+ assert( cgroup.get_rank() == 2 );
+ assert( cgroup.get_size( 0 ) == 0 );
+ assert( cgroup.get_num_cells() == 0 );
+ assert( cgroup.get_num_elements() == 0 );
+ assert( ! inspection::get_Constraint( & b , Block::ConstraintID( 0 , 0 ) ) );
+
+ ColVariableSolution primal;
+ primal.read( & b );
+ primal.write( & b );
+ RowConstraintSolution duals;
+ duals.read( & b );
+ duals.write( & b );
+
+ std::cout << "zero extent: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The inspection asked for a group that is not there: get_element() and
+ * get_element_size() refuse it for the Variable and for the Constraint, and
+ * so does get_Constraint() past the dynamic groups, while an index inside a
+ * group that is there and past its elements gives nothing. */
+
+static void test_group_index_out_of_range( void )
+{
+ AbstractBlock b;
+ auto x = new std::vector< ColVariable >( 2 );
+ b.add_static_variable( *x , "x" );
+ auto rows = new std::vector< FRowConstraint >( 2 );
+ b.add_static_constraint( *rows , "r" );
+ auto more = new std::list< FRowConstraint >( 1 );
+ b.add_dynamic_constraint( *more , "d" );
+
+ auto refused = []( auto && f ) {
+  try { f(); }
+  catch( const std::invalid_argument & ) { return( true ); }
+  catch( const std::logic_error & ) { return( true ); }
+  return( false );
+  };
+
+ assert( refused( [ & ] {
+   inspection::get_element< ColVariable >( & b , true , 1 , 0 ); } ) );
+ assert( refused( [ & ] {
+   inspection::get_element< ColVariable >( & b , false , 0 , 0 ); } ) );
+ assert( refused( [ & ] {
+   inspection::get_element< FRowConstraint >( & b , true , 5 , 0 ); } ) );
+ assert( refused( [ & ] {
+   inspection::get_element_size< ColVariable >( & b , true , 1 ); } ) );
+ assert( refused( [ & ] {
+   inspection::get_element_size< FRowConstraint >( & b , false , 1 ); } ) );
+
+ // the static groups first and the dynamic ones after: 0 and 1 are there,
+ // 2 is not
+ assert( inspection::get_Constraint( & b , Block::ConstraintID( 0 , 1 ) ) ==
+	 & ( *rows )[ 1 ] );
+ assert( inspection::get_Constraint( & b , Block::ConstraintID( 1 , 0 ) ) ==
+	 & more->front() );
+ assert( refused( [ & ] {
+   inspection::get_Constraint( & b , Block::ConstraintID( 2 , 0 ) ); } ) );
+
+ // the group is there, the element is not
+ assert( ! inspection::get_element< ColVariable >( & b , true , 0 , 2 ) );
+ assert( ! inspection::get_Constraint( & b , Block::ConstraintID( 1 , 1 ) ) );
+
+ std::cout << "group index out of range: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+/* Every walk of a group with no element calls nobody and says it walked it:
+ * the virtual for_each(), for_each_as(), for_each_cell_as() and
+ * for_each_run_as(), on an empty vector, on an empty list and on a vector of
+ * lists with no cell at all, of Variable and of Constraint. */
+
+static void test_for_each_on_empty( void )
+{
+ AbstractBlock b;
+ b.add_static_variable( * new std::vector< ColVariable >( 0 ) , "v" );
+ b.add_dynamic_variable( * new std::list< ColVariable >( 0 ) , "l" );
+ b.add_dynamic_variable( * new std::vector< std::list< ColVariable > >( 0 ) ,
+			 "n" );
+ b.add_static_constraint( * new std::vector< FRowConstraint >( 0 ) , "r" );
+ b.add_dynamic_constraint(
+	       * new std::vector< std::list< FRowConstraint > >( 0 ) , "c" );
+
+ Block::Index seen = 0;
+ for( const auto * groups : { & b.get_static_variable_groups() ,
+			      & b.get_dynamic_variable_groups() } )
+  for( const auto & group : *groups ) {
+   group->for_each( [ & seen ]( Variable & ) { ++seen; } );
+   assert( group->for_each_as< ColVariable >(
+			 [ & seen ]( ColVariable & ) { ++seen; } ) );
+   assert( group->for_each_run_as< ColVariable >(
+			 [ & seen ]( ColVariable * , Block::Index ) { ++seen; } ) );
+   }
+
+ // a list is a cell of its own: the one of an empty list is walked, and it
+ // is empty; a vector of no list has no cell
+ Block::Index cells = 0;
+ assert( b.get_dynamic_variable_groups()[ 0 ]->for_each_cell_as< ColVariable >(
+	  [ & cells , & seen ]( Block::Index , auto & cell ) {
+	   ++cells; seen += cell.size(); } ) );
+ assert( cells == 1 );
+ cells = 0;
+ assert( b.get_dynamic_variable_groups()[ 1 ]->for_each_cell_as< ColVariable >(
+	  [ & cells ]( Block::Index , auto & ) { ++cells; } ) );
+ assert( cells == 0 );
+ assert( b.get_dynamic_variable_groups()[ 1 ]->get_num_cells() == 0 );
+
+ for( const auto * groups : { & b.get_static_constraint_groups() ,
+			      & b.get_dynamic_constraint_groups() } )
+  for( const auto & group : *groups ) {
+   group->for_each( [ & seen ]( Constraint & ) { ++seen; } );
+   assert( group->for_each_as< FRowConstraint >(
+			 [ & seen ]( FRowConstraint & ) { ++seen; } ) );
+   }
+ assert( b.get_dynamic_constraint_groups()[ 0 ]->
+	 for_each_cell_as< FRowConstraint >(
+	  [ & cells ]( Block::Index , auto & ) { ++cells; } ) );
+ assert( cells == 0 );
+
+ // and so do the walks of the Block over its groups
+ b.for_each_constraint_group( [ & seen ]( const BaseGroup & group ) {
+   group.for_each_as< FRowConstraint >( [ & seen ]( FRowConstraint & ) {
+     ++seen; } ); } );
+
+ assert( seen == 0 );
+
+ std::cout << "for_each on empty groups: OK" << std::endl;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -747,6 +1042,12 @@ int main( void )
 
  test_empty_group();
  test_element_knows_its_group();
+
+ test_after_a_dynamic_removal();
+ test_rank_three();
+ test_zero_extent();
+ test_group_index_out_of_range();
+ test_for_each_on_empty();
 
  std::cout << "All tests passed!!" << std::endl;
 

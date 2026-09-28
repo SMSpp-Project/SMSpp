@@ -163,8 +163,10 @@ static void test_after( void )
 
 static void test_rescale( void )
 {
- // a row a thousand times larger moves the global scale, and the
- // coefficient of the size variable follows it in place
+ // the global scale of the epigraph is the median of the measures of the
+ // rows, so one row a thousand times larger than the others leaves it where
+ // it is, which is what the median is there for, while enough of them move
+ // it; the coefficient of the size variable follows the scale in place
  Father f;
  SimpleConfiguration< int > cfg( dual_global );
  f.pfb->generate_abstract_variables( & cfg );
@@ -177,6 +179,16 @@ static void test_rescale( void )
  const auto scale = f.pfb->get_v_scale();
 
  f.pfb->get_PolyhedralFunction().add_row( { 1e4 , 1e4 } , 1e4 );
+
+ assert( f.pfb->get_v_scale() == scale );
+ assert( normalization( f.pfb ) == row );
+ assert( row->get_function() == function );
+ check_in( f.pfb , & f.lambda[ 0 ] );
+
+ // two more of them, and the median is among the large rows
+
+ f.pfb->get_PolyhedralFunction().add_row( { 1e4 , 2e4 } , 1e4 );
+ f.pfb->get_PolyhedralFunction().add_row( { 2e4 , 1e4 } , 1e4 );
 
  assert( f.pfb->get_v_scale() != scale );
  assert( normalization( f.pfb ) == row );

@@ -1403,16 +1403,12 @@ class BendersBFunction : public C05Function , public Block {
   * @param issueMod decides if and how the BendersBFunctionModRngd is issued,
   *        as described in Observer::make_par(). Note that type() ==
   *        AlphaChanged (all the alphas may have changed, although actually
-  *        only a subset of them has) and BFtype() == ModifyCnst. As for
-  *        shift(), however, the value of the function *may* change in a very
-  *        predictable way: if the new value of the constant is > than the
-  *        current value for *all* rows, then the function has necessarily
-  *        increased, hence the shift is +INFshift. If it is < for *all* rows,
-  *        then the function has necessarily decreased, hence the shift is
-  *        -INFshift. Otherwise the value has changed "unpredictably" and the
-  *        shift is NANshift (unless all the values are equal, in which case
-  *        the function value has not changed and the method does
-  *        nothing). */
+  *        only a subset of them has) and BFtype() == ModifyCnst. The
+  *        shift() is NANshift: whether a larger constant increases or
+  *        decreases the function depends on the side of the RowConstraint
+  *        it is mapped to and on the sense of the inner Block, and not on
+  *        the constant alone (if all the values are equal, the function
+  *        value has not changed and the method does nothing). */
 
  void modify_constants( c_RealVector & nb , Range range ,
                         ModParam issueMod = eModBlck );
@@ -1438,16 +1434,12 @@ class BendersBFunction : public C05Function , public Block {
   * @param issueMod decides if and how the BendersBFunctionModSbst is issued,
   *        as described in Observer::make_par(). Note that type() ==
   *        AlphaChanged (all the alphas may have changed, although actually
-  *        only a subset of them has) and BFtype() == ModifyCnst. As for
-  *        shift(), however, the value of the function *may* change in a very
-  *        predictable way: if the new value of the constant is > than the
-  *        current value for *all* rows, then the function has necessarily
-  *        increased, hence the shift is +INFshift. If it is < for *all* rows,
-  *        then the function has necessarily decreased, hence the shift is
-  *        -INFshift. Otherwise the value has changed "unpredictably" and the
-  *        shift is NANshift (unless all the values are equal, in which case
-  *        the function value has not changed and the method does
-  *        nothing). */
+  *        only a subset of them has) and BFtype() == ModifyCnst. The
+  *        shift() is NANshift: whether a larger constant increases or
+  *        decreases the function depends on the side of the RowConstraint
+  *        it is mapped to and on the sense of the inner Block, and not on
+  *        the constant alone (if all the values are equal, the function
+  *        value has not changed and the method does nothing). */
 
  void modify_constants( c_RealVector & nb , Subset && rows ,
                         bool ordered , ModParam issueMod );
@@ -1472,15 +1464,12 @@ class BendersBFunction : public C05Function , public Block {
   * @param issueAMod decides if and how the BendersBFunctionModRngd is issued,
   *        as described in Observer::make_par(). Note that type() ==
   *        AlphaChanged (all the alphas may have changed, although actually
-  *        only a subset of them has) and BFtype() == ModifyCnst. As for
-  *        shift(), however, the value of the function *may* change in a very
-  *        predictable way: if the new value of the constant is > than the
-  *        current value for *all* rows, then the function has necessarily
-  *        increased, hence the shift is +INFshift. If it is < for *all* rows,
-  *        then the function has necessarily decreased, hence the shift is
-  *        -INFshift. Otherwise the value has changed "unpredictably" and the
-  *        shift is NANshift (unless all the values are equal, in which case
-  *        the function value has not changed and the method does nothing). */
+  *        only a subset of them has) and BFtype() == ModifyCnst. The
+  *        shift() is NANshift: whether a larger constant increases or
+  *        decreases the function depends on the side of the RowConstraint
+  *        it is mapped to and on the sense of the inner Block, and not on
+  *        the constant alone (if all the values are equal, the function
+  *        value has not changed and the method does nothing). */
 
  void modify_constants( MF_dbl_it nb , Range range = Block::INFRange ,
                         ModParam issuePMod = eNoBlck ,
@@ -1512,16 +1501,12 @@ class BendersBFunction : public C05Function , public Block {
   * @param issueAMod decides if and how the BendersBFunctionModSbst is issued,
   *        as described in Observer::make_par(). Note that type() ==
   *        AlphaChanged (all the alphas may have changed, although actually
-  *        only a subset of them has) and BFtype() == ModifyCnst. As for
-  *        shift(), however, the value of the function *may* change in a very
-  *        predictable way: if the new value of the constant is > than the
-  *        current value for *all* rows, then the function has necessarily
-  *        increased, hence the shift is +INFshift. If it is < for *all* rows,
-  *        then the function has necessarily decreased, hence the shift is
-  *        -INFshift. Otherwise the value has changed "unpredictably" and the
-  *        shift is NANshift (unless all the values are equal, in which case
-  *        the function value has not changed and the method does
-  *        nothing). */
+  *        only a subset of them has) and BFtype() == ModifyCnst. The
+  *        shift() is NANshift: whether a larger constant increases or
+  *        decreases the function depends on the side of the RowConstraint
+  *        it is mapped to and on the sense of the inner Block, and not on
+  *        the constant alone (if all the values are equal, the function
+  *        value has not changed and the method does nothing). */
 
  void modify_constants( MF_dbl_it nb , Subset && rows ,
 			bool ordered = false ,
@@ -1539,12 +1524,11 @@ class BendersBFunction : public C05Function , public Block {
   * @param issueMod which decides if and how the BendersBFunctionModRngd is
   *        issued, as described in Observer::make_par(). Note that type() ==
   *        AlphaChanged (all the alphas may have changed, although actually
-  *        only a subset of them has) and BFtype() == ModifyCnst. As for
-  *        shift(), the value of the function changes in a very predictable
-  *        way: if bi is > than the current value the function has
-  *        necessarily increased, otherwise necessarily decreased (if it is
-  *        == it has not changed and the method does nothing), hence the
-  *        shift is either +INFshift or -INFshift accordingly. */
+  *        only a subset of them has) and BFtype() == ModifyCnst. The
+  *        shift() is NANshift: whether a larger bi increases or decreases
+  *        the function depends on the side of the RowConstraint the row is
+  *        mapped to and on the sense of the inner Block (if bi is == the
+  *        current value the method does nothing). */
 
  void modify_constant( Index i , FunctionValue bi ,
                        ModParam issueMod = eModBlck );
@@ -2641,7 +2625,8 @@ void print( std::ostream & output ) override {
   }
 
   void clear() {
-   nnz_at_row.clear();
+   // the number of rows stays, so that a row with no nonzero is counted
+   nnz_at_row.assign( nnz_at_row.size() , 0 );
    column.clear();
    values.clear();
   }
@@ -2772,6 +2757,13 @@ void print( std::ostream & output ) override {
  void write_dual_solution( Index name );
 
 /*--------------------------------------------------------------------------*/
+ /// asks \p solver for the dual solution, checking that it covers v_constraints
+ /** Throws std::logic_error if the Solver leaves the dual value of some of
+  * the Constraint of the mapping unwritten. */
+
+ void fetch_dual_solution( CDASolver * solver , Configuration * config );
+
+/*--------------------------------------------------------------------------*/
  /// write the Solution with the given name in the sub-Block
  /** This function writes the Solution stored in the global pool under the
   * given \p name in the sub-Block. If the given \p name is invalid or the
@@ -2867,6 +2859,27 @@ void print( std::ostream & output ) override {
   *        sent. */
 
  void send_nuclear_modification( const Observer::ChnlName chnl = 0 );
+
+/*--------------------------------------------------------------------------*/
+ /// keeps the entries of the global pool that survive removed RowConstraint
+ /** Called when dynamic Constraint have been removed from the sub-Block, with
+  * the Modification that says so, whose removed Constraint are still alive
+  * while it is being processed. The dual variable of a removed row is gone,
+  * hence what is left of a dual solution in the global pool satisfies the
+  * dual constraints only if the multiplier of that row was zero: this method
+  * asks each Solution of the pool to drop what it holds for those rows [see
+  * Solution::drop_dynamic_values()] and deletes the entries whose dropped
+  * multipliers were not all zero, writing in \p which the names of those it
+  * deleted. Returns false if the Modification does not say which rows went,
+  * or if a Solution of the pool cannot drop them, in which case nothing can
+  * be said of the pool and the caller has to invalidate it whole.
+  *
+  * @param mod the Modification saying that the Constraint were removed
+  *
+  * @param which the names of the entries of the global pool that have been
+  *        deleted, in increasing order */
+
+ bool keep_pool_after_removal( const Modification * mod , Subset & which );
 
 /*--------------------------------------------------------------------------*/
  /// returns the behaviour of this Function considering the given Modification

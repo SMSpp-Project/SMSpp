@@ -121,6 +121,16 @@ public:
 /** @name Methods describing the behavior of a ColVariableSolution
  *  @{ */
 
+/*--------------------------------------------------------------------------*/
+ /// a ColVariableSolution holds no dual values, hence none that is feasible
+ /** Returns false, this Solution holding the values of the Variable only
+  * [see Solution::is_dual_feasible()]. */
+
+ bool is_dual_feasible( Block * block ,
+			Configuration * fsbc = nullptr ) override {
+  return( false );
+  }
+
  /// read the ColVariableSolution from the given Block
  /** This method reads the solution of the given Block and stores it in this
   * ColVariableSolution. For this method to be used, it is required that:
@@ -207,6 +217,20 @@ public:
   * multiplier * v2" in this ColVariableSolution. */
 
  void sum( const Solution * solution , double multiplier ) override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ /// drops the values of dynamic ColVariable that have been removed
+ /** Drops the values of the ColVariable that were in the given positions of
+  * the given cell of a group of dynamic Variable of the given Block, which is
+  * the Block of this ColVariableSolution or one nested in it: the cell is
+  * searched for by its address, in this Solution and then in the nested ones,
+  * and what is left of the values of that cell keeps matching the ColVariable
+  * that are left in it [see Solution::drop_dynamic_values()]. */
+
+ bool drop_dynamic_values( const Block * const block , const void * cell ,
+			  const Block::Subset & positions ,
+			  std::vector< double > & dropped ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 

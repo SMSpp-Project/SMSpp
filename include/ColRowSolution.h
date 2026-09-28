@@ -108,6 +108,16 @@ public:
 /** @} ---------------------------------------------------------------------*/
 /*---------- METHODS DESCRIBING THE BEHAVIOR OF A ColRowSolution -----------*/
 /*--------------------------------------------------------------------------*/
+ /// tells whether the dual values held here are feasible for the Block
+ /** Asks the RowConstraintSolution held here [see RowConstraintSolution::
+  * is_dual_feasible()]. */
+
+ bool is_dual_feasible( Block * block ,
+			Configuration * fsbc = nullptr ) override {
+  return( f_constraint_solution.is_dual_feasible( block , fsbc ) );
+  }
+
+/*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a ColRowSolution
  *  @{ */
 
@@ -196,6 +206,23 @@ public:
   * it will become "v + multiplier * v2" in this ColRowSolution. */
 
  virtual void sum( const Solution * solution , double multiplier ) override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// drops the values of dynamic Variable or Constraint that were removed
+ /** A ColRowSolution holds the values of the ColVariable and the dual values
+  * of the RowConstraint, hence the cell is looked for among the groups of the
+  * ones and then among those of the others [see
+  * Solution::drop_dynamic_values()]. */
+
+ bool drop_dynamic_values( const Block * const block , const void * cell ,
+			  const Block::Subset & positions ,
+			  std::vector< double > & dropped ) override {
+  if( f_variable_solution.drop_dynamic_values( block , cell , positions ,
+					      dropped ) )
+   return( true );
+  return( f_constraint_solution.drop_dynamic_values( block , cell ,
+						    positions , dropped ) );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 

@@ -427,7 +427,8 @@ void Block::set_objective( Objective * newOF , c_ModParam issueMod )
 
  if( issue_mod( issueMod ) )
   add_Modification( std::make_shared< BlockMod >(
-   this , Observer::par2concern( issueMod ) ) );
+   this , Observer::par2concern( issueMod ) ) ,
+		    Observer::par2chnl( issueMod ) );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -444,6 +445,13 @@ static bool check_Solution( Block * blck , Solution * sol , Check && check )
  if( ! sol )
   return( false );
 
+ // a direction can only be checked as one, and only a Block that knows what
+ // a direction of its own is can be told that its Variable hold one: one
+ // that does not cannot tell, and what cannot be told is not declared
+ // feasible [see Block::has_directions()]
+ if( sol->is_direction() && ( ! blck->has_directions() ) )
+  return( false );
+
  auto current = blck->get_Solution( nullptr , false );
  if( ! current )
   throw( std::logic_error( "Block::check_Solution: the state of the Block "
@@ -454,7 +462,7 @@ static bool check_Solution( Block * blck , Solution * sol , Check && check )
  // may have been told so already by whoever has the two apart, which is why
  // the flag is only ever raised here and put back as it was found
  const bool wasdir = blck->is_direction();
- if( sol->is_direction() && ( ! wasdir ) && blck->has_directions() )
+ if( sol->is_direction() && ( ! wasdir ) )
   blck->is_direction( true );
 
  sol->write( blck );
@@ -607,12 +615,18 @@ void Block::add_Modification( sp_Mod mod , ChnlName chnl )
 Observer::ChnlName Block::open_channel( ChnlName chnl ,
 					GroupModification * gmpmod )
 {
- if( ! gmpmod )                    // if a GroupModification is not provided
-  gmpmod = new GroupModification;  // create one
+ // if a GroupModification is not provided create one, which is owned
+ // here until it is given to a channel, so that an error does not leak it
+ std::unique_ptr< GroupModification > own;
+ if( ! gmpmod ) {
+  own.reset( new GroupModification );
+  gmpmod = own.get();
+  }
 
  if( ! chnl ) {  // opening a new channel
   chnl = Observer::new_channel_name();
   v_GroupMod.push_back( std::pair( chnl , gmpmod ) );
+  own.release();
   return( chnl );
   }
 
@@ -629,6 +643,7 @@ Observer::ChnlName Block::open_channel( ChnlName chnl ,
 
    // add the new GroupModification to the current channel
    GMit->second->add( std::shared_ptr< GroupModification >( gmpmod ) );
+   own.release();
 
    // the current channel becomes the new GroupModification
    GMit->second = gmpmod;
@@ -644,6 +659,7 @@ Observer::ChnlName Block::open_channel( ChnlName chnl ,
 				" not found" ) );
 
  f_Block->open_channel( chnl , gmpmod );  // try to find it in the father
+ own.release();
 
  return( chnl );  // unless exception is thrown, it has been found
 
@@ -651,7 +667,7 @@ Observer::ChnlName Block::open_channel( ChnlName chnl ,
 
 /*--------------------------------------------------------------------------*/
 
-void Block::close_channel( ChnlName chnl , bool force )
+void Block::close_channel( ChnlName chnl , bool force , bool discard )
 {
  if( ! chnl )
   throw( std::invalid_argument( "cannot close default channel" ) );
@@ -670,28 +686,44 @@ void Block::close_channel( ChnlName chnl , bool force )
     if( chnl == f_channel )  // if it was the default channel
      f_channel = 0;          // reset it
 
+    // the outermost GroupModification of the channel is the one shipped:
+    // the nested ones are already owned by the one they are nested into
+    auto root = GMit->second;
+
     // if concerns_Block() of the current GroupModification is true, ensure
     // that the concerns_Block() of is also true up until the top
-    if( GMit->second->concerns_Block() )
-     while( father ) {
-      father->concerns_Block( true );
-      father = father->father();
-      }
+    const bool concerns = root->concerns_Block();
+    while( root->father() ) {
+     root = root->father();
+     if( concerns )
+      root->concerns_Block( true );
+     }
 
-    // finally pass the GroupModification to the Block, on the (possibly
-    // freshly reset) default channel
-    Block::add_Modification( std::shared_ptr< GroupModification
-			                      >( GMit->second ) );
     Observer::release_channel_name( chnl );  // give back the channel name
     v_GroupMod.erase( GMit );                // delete the local channel
+
+    // finally pass the GroupModification to the Block, on the (possibly
+    // freshly reset) default channel, or delete it (with all the tree)
+    if( discard )
+     delete root;
+    else
+     Block::add_Modification( std::shared_ptr< GroupModification >( root ) );
     }
    else {
     // the channel is not in "root mode" and closure is not forced, just
     // un-nest the GroupModification by one level
-    // if concerns_Block() of the current GroupModification is true, ensure
-    // that the concerns_Block() of father is also true
-    if( GMit->second->concerns_Block() )
-     father->concerns_Block( true );
+    if( discard ) {
+     // the current GroupModification is the last element of its father,
+     // since after it has been nested only it has been added to
+     auto & subs = father->v_sub_Modifications;
+     if( ( ! subs.empty() ) && ( subs.back().get() == GMit->second ) )
+      subs.pop_back();
+     }
+    else
+     // if concerns_Block() of the current GroupModification is true, ensure
+     // that the concerns_Block() of father is also true
+     if( GMit->second->concerns_Block() )
+      father->concerns_Block( true );
 
     GMit->second = father; // move back the channel to being the father
     }
@@ -707,9 +739,52 @@ void Block::close_channel( ChnlName chnl , bool force )
 				" not found" ) );
 
  // pass the message up to the father
- f_Block->close_channel( chnl , force );
+ f_Block->close_channel( chnl , force , discard );
 
  }  // end( Block::close_channel )
+
+/*--------------------------------------------------------------------------*/
+
+void Block::clear_channel( ChnlName chnl )
+{
+ if( ! chnl )
+  throw( std::invalid_argument( "Block::clear_channel: cannot clear the "
+				"default channel" ) );
+
+ for( Block * blck = this ; blck ; blck = blck->f_Block ) {
+  auto GMit = std::find_if( blck->v_GroupMod.begin() , blck->v_GroupMod.end() ,
+			    [ chnl ]( auto & a ) { return( a.first == chnl ); } );
+  if( GMit != blck->v_GroupMod.end() ) {
+   GMit->second->clear();
+   return;
+   }
+  }
+
+ throw( std::invalid_argument( "Block::clear_channel: " +
+			       std::to_string( chnl ) + " not found" ) );
+
+ }  // end( Block::clear_channel )
+
+/*--------------------------------------------------------------------------*/
+
+void Block::set_default_channel( ChnlName chnl )
+{
+ // 0 is always fine, any other name has to be an open channel of this Block
+ // or of an ancestor, the only ones a Modification of this Block can reach
+ if( chnl )
+  for( const Block * blck = this ; ; blck = blck->f_Block ) {
+   if( ! blck )
+    throw( std::invalid_argument( "Block::set_default_channel: " +
+				  std::to_string( chnl ) +
+				  " is not an open channel" ) );
+   if( std::any_of( blck->v_GroupMod.begin() , blck->v_GroupMod.end() ,
+		    [ chnl ]( auto & a ) { return( a.first == chnl ); } ) )
+    break;
+   }
+
+ f_channel = chnl;
+
+ }  // end( Block::set_default_channel )
 
 /*--------------------------------------------------------------------------*/
 /*------------ METHODS FOR LOADING, PRINTING & SAVING THE Block ------------*/
@@ -927,13 +1002,19 @@ void Block::remove_constraint_from_variables( Constraint * constraint )
 void Block::remove_variable_from_stuff( Variable * const variable ,
                                         int issueindMod )
 {
+ // removing the Variable from a stuff takes that stuff out of the active
+ // list of the Variable, which is the list being walked: the position only
+ // moves on when the stuff has stayed in it
  for( Variable::Index i = 0 ; i < variable->get_num_active() ; ) {
-  auto si = variable->get_active( i++ );
+  const auto n = variable->get_num_active();
+  auto si = variable->get_active( i );
   auto ivar = si->is_active( variable );
   if( ivar >= si->get_num_active_var() )
    throw( std::logic_error( "inconsistency between active lists" ) );
 
   si->remove_variable( ivar , issueindMod );
+  if( variable->get_num_active() == n )
+   ++i;
   }
 
  variable->set_Group( nullptr );
@@ -954,6 +1035,9 @@ BlockConfig::BlockConfig( const BlockConfig & old ) : BlockConfig()
 BlockConfig::BlockConfig( BlockConfig && old )
 {
  f_diff = old.f_diff;
+ f_structure_Configuration = old.f_structure_Configuration;
+ old.f_structure_Configuration = nullptr;
+
  f_static_constraints_Configuration = old.f_static_constraints_Configuration;
  old.f_static_constraints_Configuration = nullptr;
 
@@ -1009,7 +1093,8 @@ void BlockConfig::serialize( netCDF::NcFile & f , int type ) const
   return;
   }
 
- auto cg = ( f.addGroup( "Config_" + std::to_string( f.getGroupCount() )
+ // appended after the last problem of the file, as Block::serialize() does
+ auto cg = ( f.addGroup( "Prob_" + std::to_string( f.getGroupCount() )
  ) ).addGroup( "BlockConfig" );
  serialize( cg );
 

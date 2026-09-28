@@ -30,6 +30,7 @@
 
 #include "Block.h"
 
+#include <stdexcept>
 #include <vector>
 
 /*--------------------------------------------------------------------------*/
@@ -384,6 +385,67 @@ class Solution
  virtual void write( Block * const block ) {};
 
 /*--------------------------------------------------------------------------*/
+ /// tells this Solution that some dynamic Constraint are no longer there
+ /** Tells this Solution that the dynamic Constraint that were in the given
+  * positions of the given cell of a group of the given Block, which is the
+  * Block of this Solution or one nested in it, have been removed from it. A
+  * Solution that holds one value per Constraint, as the dual values of the
+  * RowConstraint are, drops the values of those, so that the ones that are
+  * left keep matching the Constraint that are left, writes them in \p
+  * dropped and returns true; whoever has to know if they were significant,
+  * as whoever holds a dual solution and sees a row go has to, reads them
+  * there. The method in the base class returns false, which says that this
+  * Solution cannot do it, be it because it holds nothing per Constraint or
+  * because it cannot find them, and therefore that what it holds is only
+  * good for the Block as it was.
+  *
+  * @param block the Block, or nested Block, that held the Constraint
+  *
+  * @param cell the address of the cell, i.e., of the std::list, of the group
+  *        of dynamic Constraint of \p block they were removed from
+  *
+  * @param positions the positions that the removed Constraint had in that
+  *        cell, in any order; if empty, the whole cell was removed
+  *
+  * @param dropped the values that have been dropped, one per position and in
+  *        the order of \p positions, zero for a position beyond what this
+  *        Solution holds */
+
+ virtual bool drop_dynamic_values( const Block * const block ,
+				  const void * cell ,
+				  const Block::Subset & positions ,
+				  std::vector< double > & dropped ) {
+  return( false );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// tells this Solution that a physical Modification removed what it holds
+ /** The physical counterpart of drop_dynamic_values(): tells this Solution
+  * that the physical Modification \p mod of the given Block, which is the
+  * Block of this Solution or one nested in it, has removed some of the
+  * elements this Solution holds values of, as the arcs a MCFBlock removes
+  * are of the flows of its MCFSolution. The Modification says which, in the
+  * terms of the physical representation, which only the :Solution of that
+  * Block knows how to read; it drops their values, so that the ones that are
+  * left keep matching the elements that are left, writes them in \p dropped
+  * and returns true. The method in the base class returns false, which says
+  * that this Solution cannot do it, be it because it holds nothing of what
+  * \p mod removes or because it does not know that Modification.
+  *
+  * @param block the Block, or nested Block, that issued \p mod
+  *
+  * @param mod the physical Modification that removed the elements
+  *
+  * @param dropped the values that have been dropped, one per removed element
+  *        and in the order the Modification gives them */
+
+ virtual bool drop_physical_values( const Block * const block ,
+				    const Modification * const mod ,
+				    std::vector< double > & dropped ) {
+  return( false );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// tells whether this Solution holds a solution or a direction
  /** Returns true if what this Solution holds is not a solution but a
   * direction, i.e., a ray of the feasible region of the Block along which
@@ -393,9 +455,10 @@ class Solution
   *
   * What a Solution holds is decided when it is read out of a Block, or by
   * whoever produces it without passing from one [see Solver::get_Solution()],
-  * and it travels with it: clone(), scale() and the (de)serialization keep
-  * it as it is, while a sum() is a direction only if every Solution in it is
-  * one, a solution plus a ray being a solution [see sum()].
+  * and it travels with it: clone() (the empty one too), scale() and the
+  * (de)serialization keep it as it is, while a sum() is a direction only if
+  * every Solution in it is one, a solution plus a ray being a solution [see
+  * sum()].
   *
   * The default is false, a Solution being a solution unless the :Solution of
   * a Block that has rays says otherwise. */
@@ -413,6 +476,25 @@ class Solution
   * has to say it here. */
 
  virtual void is_direction( bool yesno ) { f_direction = yesno; }
+
+/*--------------------------------------------------------------------------*/
+ /// tells whether the dual values this Solution holds are feasible
+ /** Tells whether the dual values this Solution holds are feasible for the
+  * given Block, which is the one this Solution has been read from or one
+  * with the same structure, up to the tolerance \p fsbc gives (with the
+  * default of the Block if it is nullptr). A Block has no notion of a dual
+  * solution, while a Solution knows whether it holds one, and of which
+  * Block, hence it is the Solution that answers, asking its Block to check
+  * the values it gives it; the Block is not written, and its Constraint need
+  * not exist. The method in the base class throws, since it cannot know
+  * what a Solution holds; a :Solution that holds no dual values returns
+  * false. */
+
+ virtual bool is_dual_feasible( Block * block ,
+				Configuration * fsbc = nullptr ) {
+  throw( std::logic_error( "Solution::is_dual_feasible: not implemented by "
+			   "this :Solution" ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns a scaled version of this Solution

@@ -717,6 +717,14 @@ class GroupModification : public AModification {
  }
 
 /*--------------------------------------------------------------------------*/
+ /// delete all the sub-Modification, and set concerns_Block() to false
+
+ void clear( void ) {
+  v_sub_Modifications.clear();
+  concerns_Block( false );
+ }
+
+/*--------------------------------------------------------------------------*/
  /// sets (the pointer to) the "father" GroupModification
 
  void set_father( GroupModification * father ) { f_father = father; }

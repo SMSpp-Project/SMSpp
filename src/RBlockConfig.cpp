@@ -622,7 +622,10 @@ BlockConfig * OCRBlockConfig::get_right_BlockConfig( const Block * block )
  if( ! block )
   return( nullptr );
 
- auto OCRBC = new OCRBlockConfig( block );
+ // the get() of the *BlockConfig only read the Block, but take it non-const:
+ // without the cast the const Block * would convert to the bool diff of
+ // OCRBlockConfig( bool ), and nothing would be got
+ auto OCRBC = new OCRBlockConfig( const_cast< Block * >( block ) );
  if( OCRBC->OHandler::empty() ) {
   auto CRBC = new CRBlockConfig( std::move( *OCRBC ) );
   delete OCRBC;

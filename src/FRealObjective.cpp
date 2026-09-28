@@ -91,7 +91,8 @@ void FRealObjective::remove_variable( Index i, ModParam issueMod ) {
  if( ! f_function )
   return;
 
- if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
+ if( ( par2mod( issueMod ) > eNoMod ) && f_Block &&
+     f_Block->anyone_there() )
   f_function->remove_variable( i, issueMod );
  else {
   // unregistration can preceed removal, since the Function completely
@@ -107,7 +108,8 @@ void FRealObjective::remove_variables( Range range, ModParam issueMod ) {
  if( ! f_function )
   return;
 
- if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
+ if( ( par2mod( issueMod ) > eNoMod ) && f_Block &&
+     f_Block->anyone_there() )
   f_function->remove_variables( range, issueMod );
  else {
   // unregistration can preceed removal, since the Function completely
@@ -125,13 +127,19 @@ void FRealObjective::remove_variables( Subset && nms, bool ordered,
  if( ! f_function )
   return;
 
- if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
+ if( ( par2mod( issueMod ) > eNoMod ) && f_Block &&
+     f_Block->anyone_there() )
   f_function->remove_variables( std::move( nms ), ordered, issueMod );
  else {
   // unregistration can preceed removal, since the Function completely
   // ignores this information
-  for( auto i : nms )
-   f_function->get_active_var( i++ )->remove_active( this );
+  // an empty nms means all of them
+  if( nms.empty() )
+   for( Index i = 0 ; i < f_function->get_num_active_var() ; ++i )
+    f_function->get_active_var( i )->remove_active( this );
+  else
+   for( auto i : nms )
+    f_function->get_active_var( i )->remove_active( this );
   f_function->remove_variables( std::move( nms ), ordered, eNoMod );
  }
 }  // end( FRealObjective::remove_variables( subset ) )
@@ -186,8 +194,11 @@ void FRealObjective::add_Modification( sp_Mod mod , c_ChnlName chnl ) {
  guts_of_aM( mod );  // now the actual call to the "guts of"
 
  // finally, dispatch to add_Modification() of the Block - - - - - - - - - - -
+ // if any, and either listening or concerned by the Modification: an
+ // "abstract" Modification issued with eModBlck must reach the Block even if
+ // no Solver is there, for it to keep the "physical" representation in synch
 
- if( f_Block && f_Block->anyone_there() )  // ... if any, and listening
+ if( f_Block && ( f_Block->anyone_there() || mod->concerns_Block() ) )
   f_Block->add_Modification( mod , chnl );
 
  }  // end( FRealObjective::add_Modification )
