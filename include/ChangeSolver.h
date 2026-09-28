@@ -288,9 +288,9 @@ class RelaxationSolver : public virtual ChangeSolver
   * the global ones live in the GlobalInformation. nullptr means none is
   * available. */
 
- virtual void set_global_information( GlobalInformation * gi ) {
+/*  virtual void set_global_information( GlobalInformation * gi ) override {
   f_global_information = gi;
-  }
+  } */
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- METHODS FOR READING RESULTS -----------------------*/
@@ -383,7 +383,7 @@ class RelaxationSolver : public virtual ChangeSolver
  protected:
 
  /// the search-global information, nullptr if none [see set_global_information]
- GlobalInformation * f_global_information = nullptr;
+ //GlobalInformation * f_global_information = nullptr;
 
 /*--------------------------------------------------------------------------*/
 
