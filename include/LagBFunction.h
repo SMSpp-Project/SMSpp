@@ -2755,9 +2755,15 @@ namespace SMSpp_di_unipi_it
 
         if (pos == Inf<Index>())
         {
-          g_pool.push_back(gpool_el{});
-          pos = static_cast<Index>(g_pool.size() - 1);
-          start = pos + 1;
+          if (f_max_glob < g_pool.size())
+          {
+            pos = f_max_glob;
+            start = f_max_glob + 1;
+          }
+          else
+            throw(std::logic_error(
+                "restore_purged_solutions: no space in g_pool to restore "
+                "purged solutions"));
         }
 
         g_pool[pos] = std::move(el);
