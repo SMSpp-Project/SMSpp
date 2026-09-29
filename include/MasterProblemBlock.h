@@ -1592,7 +1592,7 @@ class MasterProblemBlock : public Block {
   * must lie in [0, NumVars). Meaningful only after solve_master(). */
 
  [[nodiscard]] double get_z( int j ) const {
-  return( Var_z[ j ].get_value() );
+  return( Var_z_idx[ j ]->get_value() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1813,15 +1813,25 @@ class MasterProblemBlock : public Block {
                                    ///< generated rows indexed by original
                                    ///< component k and row
 
- // - - - - - - - - - - -  static MP entities (primal form)  - - - - - - - - -
+ // - - - - - - - - - - coordinate MP entities (primal form) - - - - - - - - -
 
- std::vector< ColVariable > Var_d;
+ /* Coordinate objects live in lists so insertions keep their addresses
+  * stable; the parallel *_idx vectors are non-owning O(1) indexed views.
+  * Reallocating a view moves only pointers, never the objects themselves. */
+
+ std::list< ColVariable > Var_d;
                                 ///< d in translated primal form, absolute x
                                 ///< in raw primal form (free, size NumVars)
 
- std::vector< BoxConstraint > Bounds_d;
+ std::vector< ColVariable * > Var_d_idx;
+                                ///< indexed, non-owning view of Var_d
+
+ std::list< BoxConstraint > Bounds_d;
                                 ///< per-coordinate primal box on x (raw form)
                                 ///< or on d (translated form)
+
+ std::vector< BoxConstraint * > Bounds_d_idx;
+                                ///< indexed, non-owning view of Bounds_d
 
  std::vector< ColVariable > Var_v_hard;
                                 ///< the epigraph variables v^k
@@ -1835,7 +1845,7 @@ class MasterProblemBlock : public Block {
                                          ///< b*d + sum_k v^k <= f_lev
                                          ///< (kLevel / kDoublyStabilized only)
 
- // - - - - - - - - - - - -  static MP entities (dual form)  - - - - - - - - -
+ // - - - - - - - - - - - coordinate MP entities (dual form) - - - - - - - - -
 
  ColVariable Var_lambda;
                                    ///< global non-negative dual multiplier
@@ -1849,7 +1859,7 @@ class MasterProblemBlock : public Block {
                                    ///< master-side NormalizationCns
                                    ///< (lambda + r - omega = 1).
 
- std::vector< ColVariable > Var_s_plus;
+ std::list< ColVariable > Var_s_plus;
                                    ///< non-negative slack multipliers s^+
                                    ///< paired with the lower side of the
                                    ///< box  L - x_bar <= d  (cf.
@@ -1860,7 +1870,10 @@ class MasterProblemBlock : public Block {
                                    ///< i.e. the corresponding slack does
                                    ///< not really exist.
 
- std::vector< ColVariable > Var_s_minus;
+ std::vector< ColVariable * > Var_s_plus_idx;
+                                   ///< indexed, non-owning view of Var_s_plus
+
+ std::list< ColVariable > Var_s_minus;
                                    ///< non-negative slack multipliers s^-
                                    ///< paired with the upper side of the
                                    ///< box  d <= U - x_bar  (cf.
@@ -1869,14 +1882,20 @@ class MasterProblemBlock : public Block {
                                    ///< (size NumVars); coordinates without
                                    ///< a finite U are kept fixed to 0.
 
+ std::vector< ColVariable * > Var_s_minus_idx;
+                                   ///< indexed, non-owning view of Var_s_minus
+
  ColVariable Var_r;                ///< dual multiplier of the global LB row
 
  ColVariable Var_omega;            ///< dual multiplier of the level / X row
 
- std::vector< ColVariable > Var_z;
+ std::list< ColVariable > Var_z;
                                    ///< auxiliary dual variables z (one per
                                    ///< coordinate of the original sum-function
                                    ///< variable space; size NumVars)
+
+ std::vector< ColVariable * > Var_z_idx;
+                                   ///< indexed, non-owning view of Var_z
 
  FRowConstraint NormalizationCns;
                                    ///< global normalization row
