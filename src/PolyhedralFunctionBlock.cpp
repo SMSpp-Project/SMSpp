@@ -2290,6 +2290,17 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR_dual( c_p_Mod mod ,
   if( & tmod->whc() == & f_theta )
    return;
   }
+
+ // BlockModAdd on the external coupling rows -> internal. This occurs when
+ // the PFB itself owns the coupling list (for instance, the nf == 0 test):
+ // the higher-level coordination appends the rows before PF() emits the
+ // C05FunctionModVarsAddd that fills them with the theta coefficients.
+ if( auto tmod =
+       dynamic_cast< const BlockModAdd< FRowConstraint > * >( mod ) ) {
+  if( f_coupling && ( & tmod->whc() == f_coupling ) )
+   return;
+  }
+
  if( dynamic_cast< const BlockModRmvRngd< ColVariable > * >( mod ) )
   return;
  if( dynamic_cast< const BlockModRmvSbst< ColVariable > * >( mod ) )
