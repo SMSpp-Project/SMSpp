@@ -84,14 +84,24 @@ static char mpb_built_stage( Configuration * cfg )
  return( scfg ? char( scfg->f_value & k_mpb_built_mask ) : 0 );
 }
 
-template< class T >
-static void rebuild_index_view( std::list< T > & storage ,
-                                std::vector< T * > & index )
+template< class T , class Inserter >
+static void append_indexed_group( std::list< T > & additions ,
+                                  std::vector< T * > & index ,
+                                  Inserter && insert )
 {
- index.clear();
- index.reserve( storage.size() );
- for( auto & element : storage )
-  index.push_back( & element );
+ if( additions.empty() )
+  return;
+
+ // Reserve both vectors before publishing anything to the Block. The
+ // pointers remain valid after the list splice performed by the SMS++ API.
+ index.reserve( index.size() + additions.size() );
+ std::vector< T * > added;
+ added.reserve( additions.size() );
+ for( auto & element : additions )
+  added.push_back( & element );
+
+ insert( additions );
+ index.insert( index.end() , added.begin() , added.end() );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -875,10 +885,14 @@ void MasterProblemBlock::generate_primal_abstract_variables( void )
  //    "x" variables of the PolyhedralFunction.
 
  Var_d.clear();
- Var_d.resize( NumVars );          // x (raw form) or d (translated form)
- rebuild_index_view( Var_d , Var_d_idx );
- // Register the group even when empty: it must be able to grow later.
+ Var_d_idx.clear();
+ // Register the empty group first: all insertions then follow the same
+ // SMS++ dynamic-group path, including the initial construction.
  add_dynamic_variable( Var_d , f_v2_form ? "MPB_x" : "MPB_d" );
+ std::list< ColVariable > new_d( NumVars );
+ append_indexed_group( new_d , Var_d_idx , [ this ]( auto & additions ) {
+  add_dynamic_variables( Var_d , additions , eNoMod );
+  } );
 
 
  // Now handle each hard component
@@ -904,10 +918,13 @@ void MasterProblemBlock::generate_primal_abstract_constraints( void )
 {
  // Initialize the possible bounds on the step d
  Bounds_d.clear();
- Bounds_d.resize( NumVars );
- rebuild_index_view( Bounds_d , Bounds_d_idx );
- for( int j = 0 ; j < NumVars ; ++j ) {
-  Bounds_d_idx[ j ]->set_variable( Var_d_idx[ j ] , eNoMod );
+ Bounds_d_idx.clear();
+ // As for Var_d, register the group before inserting its initial elements.
+ add_dynamic_constraint( Bounds_d , "MPB_box" );
+ std::list< BoxConstraint > new_bounds( NumVars );
+ int j = 0;
+ for( auto & bound : new_bounds ) {
+  bound.set_variable( Var_d_idx[ j ] , eNoMod );
 
   // set_box() can be called before the abstract constraints are generated.
   // Materialize its cached bounds now, since a later identical set_box()
@@ -924,11 +941,14 @@ void MasterProblemBlock::generate_primal_abstract_constraints( void )
     rhs -= xj;
    }
 
-  Bounds_d_idx[ j ]->set_lhs( lhs , eNoMod );
-  Bounds_d_idx[ j ]->set_rhs( rhs , eNoMod );
+  bound.set_lhs( lhs , eNoMod );
+  bound.set_rhs( rhs , eNoMod );
+  ++j;
   }
- // Register the group even when empty: it must be able to grow later.
- add_dynamic_constraint( Bounds_d , "MPB_box" );
+ append_indexed_group( new_bounds , Bounds_d_idx ,
+                       [ this ]( auto & additions ) {
+  add_dynamic_constraints( Bounds_d , additions , eNoMod );
+  } );
 
  // Now handle each hard component
  for( int k = 0 ; k < NoHardCmps ; ++k ) {
@@ -1237,10 +1257,12 @@ void MasterProblemBlock::generate_dual_abstract_variables( void )
  // ---- z auxiliary variables (free, one per coordinate) -------------------
 
  Var_z.clear();
- Var_z.resize( NumVars );
- rebuild_index_view( Var_z , Var_z_idx );
- // Register the group even when empty: it must be able to grow later.
+ Var_z_idx.clear();
  add_dynamic_variable( Var_z , "MPB_z" );
+ std::list< ColVariable > new_z( NumVars );
+ append_indexed_group( new_z , Var_z_idx , [ this ]( auto & additions ) {
+  add_dynamic_variables( Var_z , additions , eNoMod );
+  } );
 
  // ---- s^+ / s^- non-negative slack multipliers (box) ---------------------
  // One per coordinate; the slack is meaningful only when the matching
@@ -1249,25 +1271,37 @@ void MasterProblemBlock::generate_dual_abstract_variables( void )
  // stored in f_L / f_U before abstract variables are generated, so initialize
  // the fixed status from that state. Missing sides stay fixed to 0.
  Var_s_plus.clear();
+ Var_s_plus_idx.clear();
  Var_s_minus.clear();
- Var_s_plus.resize( NumVars );
- Var_s_minus.resize( NumVars );
- rebuild_index_view( Var_s_plus , Var_s_plus_idx );
- rebuild_index_view( Var_s_minus , Var_s_minus_idx );
+ Var_s_minus_idx.clear();
+ add_dynamic_variable( Var_s_plus  , "MPB_s_plus"  );
+ add_dynamic_variable( Var_s_minus , "MPB_s_minus" );
+
+ std::list< ColVariable > new_s_plus( NumVars );
+ std::list< ColVariable > new_s_minus( NumVars );
+ auto plus_it = new_s_plus.begin();
+ auto minus_it = new_s_minus.begin();
  for( int j = 0 ; j < NumVars ; ++j ) {
   const bool has_L = ! f_L.empty() && std::isfinite( f_L[ j ] );
   const bool has_U = ! f_U.empty() && std::isfinite( f_U[ j ] );
 
-  Var_s_plus_idx[ j ]->is_positive( true , eNoMod );
-  Var_s_plus_idx[ j ]->set_value( 0.0 );
-  Var_s_plus_idx[ j ]->is_fixed( ! has_L , eNoMod );
-  Var_s_minus_idx[ j ]->is_positive( true , eNoMod );
-  Var_s_minus_idx[ j ]->set_value( 0.0 );
-  Var_s_minus_idx[ j ]->is_fixed( ! has_U , eNoMod );
+  plus_it->is_positive( true , eNoMod );
+  plus_it->set_value( 0.0 );
+  plus_it->is_fixed( ! has_L , eNoMod );
+  minus_it->is_positive( true , eNoMod );
+  minus_it->set_value( 0.0 );
+  minus_it->is_fixed( ! has_U , eNoMod );
+  ++plus_it;
+  ++minus_it;
   }
- // Register both groups even when empty: they must be able to grow later.
- add_dynamic_variable( Var_s_plus  , "MPB_s_plus"  );
- add_dynamic_variable( Var_s_minus , "MPB_s_minus" );
+ append_indexed_group( new_s_plus , Var_s_plus_idx ,
+                       [ this ]( auto & additions ) {
+  add_dynamic_variables( Var_s_plus , additions , eNoMod );
+  } );
+ append_indexed_group( new_s_minus , Var_s_minus_idx ,
+                       [ this ]( auto & additions ) {
+  add_dynamic_variables( Var_s_minus , additions , eNoMod );
+  } );
 
  // Now handle each hard component
  for( int k = 0 ; k < NoHardCmps ; ++k ) {
