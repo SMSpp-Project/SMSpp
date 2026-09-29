@@ -1380,10 +1380,9 @@ void MasterProblemBlock::generate_dual_abstract_constraints( void )
  // conjugate_constraint() called below for every hard component; the
  // u^k A^k terms (easy components in the dual MP) must be set explicity
  // using the mapping provided by the LagBFunction class.
- // CouplingCns is exposed as a *dynamic* group because
- // PolyhedralFunctionBlock::set_conjugate_constraint takes
- // a std::list< FRowConstraint > & by reference; the list size itself
- // stays constant (NumVars) throughout the algorithm.
+ // CouplingCns is exposed as a *dynamic* group: its list can grow without
+ // moving existing rows, and the reference retained by each
+ // PolyhedralFunctionBlock::set_conjugate_constraint remains valid.
  //
  // The fixed entries on Var_lambda / Var_s_plus[ j ] / Var_s_minus[ j ]
  // are inserted *now* (with a 0 coefficient on Var_lambda, which
@@ -1792,12 +1791,19 @@ void MasterProblemBlock::absorb_BBF_into_primal_MP( BendersBFunction * bbf )
 /*--------------------------------------------------------------------------*/
 
 void MasterProblemBlock::add_LBF_to_coupling_rows(
-     std::vector< LinearFunction::v_coeff_pair > & vp_Cns )
+     std::vector< LinearFunction::v_coeff_pair > & vp_Cns , Index first )
 {
  if( EasyCmps.empty() )
   throw( std::invalid_argument(
        "MasterProblemBlock::add_LBF_to_coupling_rows: there are no "
        "easy components" ) );
+
+ if( first > Index( NumVars ) ||
+     vp_Cns.size() > Index( NumVars ) - first )
+  throw( std::invalid_argument(
+       "MasterProblemBlock::add_LBF_to_coupling_rows: invalid range" ) );
+
+ const Index last = first + vp_Cns.size();
 
  for( Index easy_id = 0 ; easy_id < EasyCmps.size() ; ++easy_id ) {
   // Retrieve specific easy component
@@ -1811,6 +1817,9 @@ void MasterProblemBlock::add_LBF_to_coupling_rows(
     throw( std::logic_error(
         "MasterProblemBlock::add_LBF_to_coupling_rows: "
         "global index outside master dimension" ) );
+
+   if( j < first || j >= last )
+    continue;
 
    // Collect lagrangian terms associated with the variable
    auto * gi = dynamic_cast< LinearFunction * >(
@@ -1836,7 +1845,7 @@ void MasterProblemBlock::add_LBF_to_coupling_rows(
 
     // Append the new term to the coupling constraint terms associated
     // with the j-th global variable
-    vp_Cns[ j ].emplace_back( u , easy_sign * a );
+    vp_Cns[ j - first ].emplace_back( u , easy_sign * a );
    }
 
    /*
@@ -4404,6 +4413,59 @@ void MasterProblemBlock::append_coordinate_state( int n , ModParam issueMod )
 
  MaxSGLen = new_n;
  NumVars = new_n;
+}
+
+/*--------------------------------------------------------------------------*/
+
+void MasterProblemBlock::append_coupling_rows( int first , int n ,
+                                               ModParam issueMod )
+{
+ if( n <= 0 || IsPrimal || ! ( f_abs_rep & k_mpb_built_cnst ) )
+  return;
+
+ if( first < 0 || first > NumVars || n > NumVars - first )
+  throw( std::invalid_argument(
+       "MasterProblemBlock::append_coupling_rows: invalid range" ) );
+
+ const int last = first + n;
+ if( int( CouplingCns.size() ) != first ||
+     int( Var_z_idx.size() ) < last ||
+     int( Var_s_plus_idx.size() ) < last ||
+     int( Var_s_minus_idx.size() ) < last ||
+     int( f_linear_part.size() ) < last )
+  throw( std::logic_error(
+       "MasterProblemBlock::append_coupling_rows: inconsistent coordinate "
+       "state" ) );
+
+ // Build every row completely before publishing it to the dynamic group.
+ // Positions 0..3 deliberately match generate_dual_abstract_constraints(),
+ // because set_linear_part() updates the lambda coefficient at position 1.
+ std::vector< LinearFunction::v_coeff_pair > terms( n );
+ for( int j = first ; j < last ; ++j ) {
+  auto & row = terms[ j - first ];
+  row.reserve( 4 );
+  row.emplace_back( Var_z_idx[ j ]      ,  1.0 );
+  row.emplace_back( & Var_lambda        , - f_linear_part[ j ] );
+  row.emplace_back( Var_s_plus_idx[ j ] ,  1.0 );
+  row.emplace_back( Var_s_minus_idx[ j ], -1.0 );
+  }
+
+ // In the sparse case the caller must publish the updated easy local-to-global
+ // maps before this method: only easy variables mapped into [first, last) are
+ // appended, while components that do not depend on a new coordinate add 0.
+ if( NoEasyCmps > 0 )
+  add_LBF_to_coupling_rows( terms , Index( first ) );
+
+ std::list< FRowConstraint > new_rows( n );
+ auto row = new_rows.begin();
+ for( int i = 0 ; i < n ; ++i , ++row ) {
+  row->set_function( new LinearFunction( std::move( terms[ i ] ) , 0.0 ) ,
+                     eNoMod );
+  row->set_lhs( 0.0 , eNoMod );
+  row->set_rhs( 0.0 , eNoMod );
+  }
+
+ add_dynamic_constraints( CouplingCns , new_rows , issueMod );
 }
 
 /*--------------------------------------------------------------------------*/

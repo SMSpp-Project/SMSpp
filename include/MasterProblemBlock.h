@@ -609,11 +609,14 @@ class MasterProblemBlock : public Block {
   *          - hard-component terms = 0.
   *
   * This method is meaningful only in the dual MP and only after CouplingCns
-  * has been initialized.
+  * has been initialized. vp_Cns represents the global coordinate interval
+  * [first, first + vp_Cns.size()); contributions outside it are ignored. The
+  * default first == 0 preserves the full-row construction used at startup.
   */
 
  void add_LBF_to_coupling_rows(
-  std::vector< LinearFunction::v_coeff_pair > & vp_Cns );
+  std::vector< LinearFunction::v_coeff_pair > & vp_Cns ,
+  Index first = 0 );
 
 /*--------------------------------------------------------------------------*/
  /// Map a local active-variable index of an easy component to the global
@@ -1904,7 +1907,7 @@ class MasterProblemBlock : public Block {
                                    ///< component, see Var_lambdas)
 
  std::list< FRowConstraint > CouplingCns;
-                                   ///< coupling rows z_j = b_j
+                                   ///< dynamic coupling rows z_j = b_j
                                    ///< (j = 0 .. NumVars-1); populated by each
                                    ///< hard-cmp sub-Block via PolyhedralFunc-
                                    ///< tionBlock::set_conjugate_constraint
@@ -2097,6 +2100,11 @@ class MasterProblemBlock : public Block {
                     ///< append the MP-owned objects and numeric caches for n
                     ///< coordinates; objective, coupling rows and PFB columns
                     ///< are deliberately left to the coordinating caller
+
+ void append_coupling_rows( int first , int n , ModParam issueMod );
+                    ///< append the dual coupling rows of coordinates
+                    ///< [first, first + n), including base and easy terms;
+                    ///< hard-component theta terms are added by the PFBs
 
  void append_coordinate_objective( int first , int n , ModParam issueMod );
                     ///< append the root-objective terms of coordinates
