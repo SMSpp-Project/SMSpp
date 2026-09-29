@@ -264,6 +264,15 @@ class MasterProblemBlock : public Block {
   kUpperLower       = 5    ///< upper / lower bundle pair
   };
 
+ /** Coefficients of the old bundle cuts on coordinates being appended.
+  * The three indices are, respectively, hard component, persistent bundle
+  * slot, and position among the new coordinates. Empty entries correspond to
+  * empty bundle slots. The slot-indexed form deliberately leaves the
+  * slot-to-local-row translation inside MasterProblemBlock, which owns it. */
+
+ using AddedCutCoefficients =
+  std::vector< std::vector< std::vector< double > > >;
+
 /*----------------------------- CONSTANTS ----------------------------------*/
 
 /** @} ---------------------------------------------------------------------*/
@@ -1483,19 +1492,27 @@ class MasterProblemBlock : public Block {
   { return( f_linear_part ); }
 
 /*--------------------------------------------------------------------------*/
- /// append \p n new optimization variables to the Master Problem
- /** Drop-in for Master->AddVars(n). Extends the master problem from
-  * NumVars to NumVars + n coordinates by appending n new entries to Var_d /
-  * Var_v_hard / Var_z and growing CouplingCns accordingly. This is a
-  * structural change and forces a fresh load_problem() of the registered
-  * [MILP]Solver on the next compute().
-  *
-  * NOT YET IMPLEMENTED -- throws std::logic_error. Adding NumVars on the fly
-  * requires rebuilding the diagonal-quadratic part of the Objective (the per-d
-  * / per-z triples) and re-wiring every PolyhedralFunction- Block sub-Block
-  * via set_variables() / set_conjugate_constraint(). */
+ /// append \p n new optimization variables to an empty-bundle Master Problem
+ /** Convenience overload for the case in which every hard-component bundle
+  * is empty. If cuts are present their new coefficients are indispensable and
+  * this overload throws; use add_vars(n, coefficients) instead. */
 
  void add_vars( int n );
+
+ /// append \p n variables and extend every cut already in the master
+ /** Extends the master from NumVars to NumVars + n coordinates without
+  * rebuilding it. \p coefficients[k][slot][h] is the physical coefficient of
+  * the cut in persistent bundle slot `slot` of hard component `k` on new
+  * coordinate `h`. It must contain one n-vector for every occupied slot; empty
+  * slots may be omitted or represented by an empty vector.
+  *
+  * The operation appends the MP-owned coordinate variables and constraints,
+  * the root-objective terms, the primal level-row terms or dual coupling rows,
+  * and the active variables/columns of every hard PolyhedralFunctionBlock.
+  * The latter issue the ordinary incremental SMS++ Modifications, so the
+  * registered Solver can update the live master in place. */
+
+ void add_vars( int n , AddedCutCoefficients coefficients );
 
 /*--------------------------------------------------------------------------*/
  /// remove a subset of optimization variables from the Master Problem
@@ -1848,6 +1865,10 @@ class MasterProblemBlock : public Block {
                                          ///< b*d + sum_k v^k <= f_lev
                                          ///< (kLevel / kDoublyStabilized only)
 
+ std::vector< int > level_d_idx;
+                                ///< positions of d_j in LevelCns' LinearFunction
+                                ///< (new d terms may follow the existing v^k)
+
  // - - - - - - - - - - - coordinate MP entities (dual form) - - - - - - - - -
 
  ColVariable Var_lambda;
@@ -2105,6 +2126,10 @@ class MasterProblemBlock : public Block {
                     ///< append the dual coupling rows of coordinates
                     ///< [first, first + n), including base and easy terms;
                     ///< hard-component theta terms are added by the PFBs
+
+ void append_primal_level_coordinates( int first , int n , ModParam issueMod );
+                    ///< append d_j terms to the primal level row and record
+                    ///< their possibly non-contiguous LinearFunction positions
 
  void append_coordinate_objective( int first , int n , ModParam issueMod );
                     ///< append the root-objective terms of coordinates

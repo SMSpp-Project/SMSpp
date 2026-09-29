@@ -193,6 +193,7 @@ void MasterProblemBlock::clear()
  t_stab        = 1.0;
  f_lev         = 0.0;
  d_obj_idx.clear();
+ level_d_idx.clear();
  z_obj_idx.clear();
  s_plus_obj_idx.clear();
  s_minus_obj_idx.clear();
@@ -982,9 +983,12 @@ void MasterProblemBlock::generate_primal_abstract_constraints( void )
           && NoHardCmps > 0 ) {
   LinearFunction::v_coeff_pair lvl_terms;
   lvl_terms.reserve( NumVars + NoHardCmps );
+  level_d_idx.clear();
+  level_d_idx.reserve( NumVars );
   for( int j = 0 ; j < NumVars ; ++j ) {
    const double coeff = ( j < int( f_linear_part.size() ) )
                         ? f_linear_part[ j ] : 0.0;
+   level_d_idx.push_back( int( lvl_terms.size() ) );
    lvl_terms.emplace_back( Var_d_idx[ j ] , coeff );
    }
 
@@ -4470,6 +4474,39 @@ void MasterProblemBlock::append_coupling_rows( int first , int n ,
 
 /*--------------------------------------------------------------------------*/
 
+void MasterProblemBlock::append_primal_level_coordinates(
+                                      int first , int n , ModParam issueMod )
+{
+ if( n <= 0 || ! IsPrimal || ! ( f_abs_rep & k_mpb_built_cnst ) ||
+     ( StblType != kLevel && StblType != kDoublyStabilized ) )
+  return;
+
+ auto * lf = dynamic_cast< LinearFunction * >( LevelCns.get_function() );
+ if( ! lf )
+  return;
+
+ if( first < 0 || first > NumVars || n > NumVars - first ||
+     int( Var_d_idx.size() ) < first + n ||
+     int( f_linear_part.size() ) < first + n ||
+     int( level_d_idx.size() ) != first )
+  throw( std::logic_error(
+       "MasterProblemBlock::append_primal_level_coordinates: inconsistent "
+       "coordinate state" ) );
+
+ const int base = int( lf->get_num_active_var() );
+ LinearFunction::v_coeff_pair terms;
+ terms.reserve( n );
+ for( int j = first ; j < first + n ; ++j )
+  terms.emplace_back( Var_d_idx[ j ] , f_linear_part[ j ] );
+
+ lf->add_variables( std::move( terms ) , issueMod );
+ level_d_idx.reserve( first + n );
+ for( int h = 0 ; h < n ; ++h )
+  level_d_idx.push_back( base + h );
+}
+
+/*--------------------------------------------------------------------------*/
+
 void MasterProblemBlock::append_coordinate_objective( int first , int n ,
                                                        ModParam issueMod )
 {
@@ -4597,32 +4634,115 @@ void MasterProblemBlock::add_vars( int n )
  if( n <= 0 )
   return;
 
- // append_coordinate_state() now grows the MP-owned dynamic groups and their
- // coordinate caches. The public operation still requires coordination of:
- //   - the dynamic constraint group CouplingCns (one new row z_j = 0
- //     per added coordinate);
- //   - every PolyhedralFunctionBlock sub-Block (its f_polyf
- //     active-variables list, plus the set_conjugate_constraint
- //     bookkeeping, must mirror the new NumVars);
- //   - the root DQuadFunction terms for the new d_j, or z_j and box slacks
- //     (append_coordinate_objective() implements this part without moving
- //     r, omega, easy or level-probe terms).
- //
- // Until the full plumbing is wired in this is a no-op, which is safe
- // whenever NumVars is stable across the algorithm (the typical case
- // for the bundle pipelines exercised by the in-tree tests). A one-shot
- // warning on std::cerr makes the mismatch visible the first time the
- // method is called with a non-zero count, so silent miscomputation can
- // be diagnosed without crashing the surrounding solver.
- static bool warned = false;
- if( ! warned ) {
-  std::cerr << "WARNING: MasterProblemBlock::add_vars( " << n
-            << " ): structural resize not implemented yet; the master "
-               "will not track new coordinates of the original "
-               "sum-function. (This warning is shown once.)"
-            << std::endl;
-  warned = true;
+ for( int k = 0 ; k < int( HardCmps.size() ) ; ++k )
+  if( get_bundle_size( k ) != 0 )
+   throw( std::invalid_argument(
+        "MasterProblemBlock::add_vars: coefficients of existing cuts are "
+        "required" ) );
+
+ add_vars( n , AddedCutCoefficients( HardCmps.size() ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void MasterProblemBlock::add_vars( int n ,
+                                   AddedCutCoefficients coefficients )
+{
+ if( n <= 0 )
+  return;
+ if( coefficients.size() != HardCmps.size() )
+  throw( std::invalid_argument(
+       "MasterProblemBlock::add_vars: wrong number of hard components" ) );
+
+ const int first = NumVars;
+ const bool vars_built = f_abs_rep & k_mpb_built_var;
+
+ // Validate all caller-owned data before changing the master. The matrices
+ // are indexed by persistent bundle slot; PolyhedralFunction rows, instead,
+ // are compact and are reconstructed below through slot_to_local.
+ for( int k = 0 ; k < int( HardCmps.size() ) ; ++k ) {
+  auto * pfb = pfb_at( HardCmps , k , "MasterProblemBlock::add_vars" );
+  auto & pf = pfb->get_PolyhedralFunction();
+  const int nr = int( pf.get_nrows() );
+
+  if( ! vars_built && nr != 0 )
+   throw( std::logic_error(
+        "MasterProblemBlock::add_vars: cuts exist before the master "
+        "variables have been generated" ) );
+  if( vars_built && int( pf.get_num_active_var() ) != first )
+   throw( std::logic_error(
+        "MasterProblemBlock::add_vars: inconsistent PFB dimension" ) );
+
+  std::vector< bool > seen( nr , false );
+  const auto & slots = slot_to_local[ k ];
+  const auto & supplied = coefficients[ k ];
+  for( int slot = 0 ; slot < int( slots.size() ) ; ++slot ) {
+   const int loc = slots[ slot ];
+   if( loc < 0 ) {
+    if( slot < int( supplied.size() ) && ! supplied[ slot ].empty() )
+     throw( std::invalid_argument(
+          "MasterProblemBlock::add_vars: coefficients supplied for an "
+          "empty bundle slot" ) );
+    continue;
+    }
+   if( loc >= nr || seen[ loc ] )
+    throw( std::logic_error(
+         "MasterProblemBlock::add_vars: invalid slot-to-row map" ) );
+   if( slot >= int( supplied.size() ) ||
+       int( supplied[ slot ].size() ) != n )
+    throw( std::invalid_argument(
+         "MasterProblemBlock::add_vars: missing or wrongly sized cut "
+         "coefficients" ) );
+   seen[ loc ] = true;
+   }
+  if( std::find( seen.begin() , seen.end() , false ) != seen.end() )
+   throw( std::logic_error(
+        "MasterProblemBlock::add_vars: incomplete slot-to-row map" ) );
+  for( int slot = int( slots.size() ) ; slot < int( supplied.size() ) ; ++slot )
+   if( ! supplied[ slot ].empty() )
+    throw( std::invalid_argument(
+         "MasterProblemBlock::add_vars: bundle slot out of range" ) );
   }
+
+ const auto chnl = open_channel();
+ const auto cpar = make_par( eModBlck , chnl );
+ try {
+  append_coordinate_state( n , cpar );
+  append_coupling_rows( first , n , cpar );
+  append_primal_level_coordinates( first , n , cpar );
+
+  if( vars_built )
+   for( int k = 0 ; k < int( HardCmps.size() ) ; ++k ) {
+    auto * pfb = pfb_at( HardCmps , k , "MasterProblemBlock::add_vars" );
+    auto & pf = pfb->get_PolyhedralFunction();
+    PolyhedralFunction::MultiVector added(
+     pf.get_nrows() , PolyhedralFunction::RealVector( n , 0.0 ) );
+
+    for( int slot = 0 ; slot < int( slot_to_local[ k ].size() ) ; ++slot ) {
+     const int loc = slot_to_local[ k ][ slot ];
+     if( loc >= 0 )
+      added[ loc ] = std::move( coefficients[ k ][ slot ] );
+     }
+
+    if( ! IsPrimal )
+     for( auto & row : added )
+      for( auto & value : row )
+       value = - value;
+
+    PolyhedralFunction::VarVector variables;
+    variables.reserve( n );
+    for( int j = first ; j < first + n ; ++j )
+     variables.push_back( IsPrimal ? Var_d_idx[ j ] : Var_z_idx[ j ] );
+    pf.add_variables( std::move( variables ) , std::move( added ) , cpar );
+    }
+
+  append_coordinate_objective( first , n , cpar );
+  }
+ catch( ... ) {
+  close_channel( chnl );
+  throw;
+  }
+ close_channel( chnl );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -4865,13 +4985,22 @@ void MasterProblemBlock::refresh_primal_level_linear_part( Range range )
  auto * lf = dynamic_cast< LinearFunction * >( LevelCns.get_function() );
  if( ! lf )
   return;
+ if( level_d_idx.size() != std::size_t( NumVars ) )
+  throw( std::logic_error(
+       "MasterProblemBlock::refresh_primal_level_linear_part: inconsistent "
+       "coordinate index" ) );
 
  LinearFunction::Vec_FunctionValue coeff;
+ Subset terms;
  coeff.reserve( range.second - range.first );
- for( Index j = range.first ; j < range.second ; ++j )
+ terms.reserve( range.second - range.first );
+ for( Index j = range.first ; j < range.second ; ++j ) {
   coeff.push_back( f_linear_part[ j ] );
+  terms.push_back( Index( level_d_idx[ j ] ) );
+  }
 
- lf->modify_coefficients( std::move( coeff ) , range , eModBlck );
+ lf->modify_coefficients( std::move( coeff ) , std::move( terms ) , true ,
+                          eModBlck );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -4887,13 +5016,20 @@ void MasterProblemBlock::refresh_primal_level_linear_part(
  auto * lf = dynamic_cast< LinearFunction * >( LevelCns.get_function() );
  if( ! lf )
   return;
+ if( level_d_idx.size() != std::size_t( NumVars ) )
+  throw( std::logic_error(
+       "MasterProblemBlock::refresh_primal_level_linear_part: inconsistent "
+       "coordinate index" ) );
 
  LinearFunction::Vec_FunctionValue coeff;
+ Subset terms;
  coeff.reserve( subset.size() );
- for( auto j : subset )
+ terms.reserve( subset.size() );
+ for( auto j : subset ) {
   coeff.push_back( f_linear_part[ j ] );
- auto indices = subset;
- lf->modify_coefficients( std::move( coeff ) , std::move( indices ) , true ,
+  terms.push_back( Index( level_d_idx[ j ] ) );
+  }
+ lf->modify_coefficients( std::move( coeff ) , std::move( terms ) , true ,
                           eModBlck );
  }
 

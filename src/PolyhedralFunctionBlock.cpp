@@ -973,7 +973,7 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF(
    const auto scale = ScaledRowFactor( i );
    LinearFunction::v_coeff_pair vars( nav - frst );
    auto vit = vars.begin();
-   auto Aiit = PF().get_A()[ i++ ].begin(); 
+   auto Aiit = PF().get_A()[ i++ ].begin() + frst;
    for( Index j = frst ; j < nav ; ++j )
     *(vit++) = std::make_pair( static_cast< ColVariable * >(
 					     PF().get_active_var( j ) ) ,
