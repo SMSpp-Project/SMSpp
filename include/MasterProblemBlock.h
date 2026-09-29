@@ -284,7 +284,7 @@ class MasterProblemBlock : public Block {
     MaxBSize( 0 ) , MaxSGLen( 0 ) , NumVars( 0 ) ,
     NoTotCmps( 0 ) , NoEasyCmps( 0 ) , NoHardCmps( 0 ) , DoEasy( 0 ) ,
     t_stab( 1.0 ) , f_lev( 0.0 ) ,
-    z_obj_idx( -1 ) , r_obj_idx( -1 ) , omega_obj_idx( -1 ) { }
+    r_obj_idx( -1 ) , omega_obj_idx( -1 ) { }
 
 /*--------------------------------------------------------------------------*/
  /// destructor: releases all the resources owned by MasterProblemBlock
@@ -2009,9 +2009,14 @@ class MasterProblemBlock : public Block {
                     ///< bit-wise PFB scaling for hard components:
                     ///< bit 0 = local rows, bit 1 = global epigraph
 
- int z_obj_idx;     ///< index of the first z_j entry in the DQuadFunction
-                    ///< triples (the NumVars entries z_0..z_{NumVars-1} are
-                    ///< laid out contiguously), or -1 if absent
+ std::vector< int > d_obj_idx;
+                    ///< per-coordinate positions of d_j in the primal root
+                    ///< DQuadFunction. New coordinates may be appended after
+                    ///< non-coordinate terms, hence a single base is not enough
+
+ std::vector< int > z_obj_idx;
+                    ///< per-coordinate positions of z_j in the dual root
+                    ///< DQuadFunction
 
  int r_obj_idx;     ///< index of the r multiplier in the DQuadFunction
                     ///< triples; carries the (+ r * LB) global lower
@@ -2021,15 +2026,13 @@ class MasterProblemBlock : public Block {
                     ///< if omega does not contribute to the master Objective
                     ///< (i.e. under #kProximal)
 
- int s_plus_obj_idx  = -1;
-                    ///< index of the first s^+_j entry in the DQuadFunction
-                    ///< triples (the NumVars s^+ entries are laid out
-                    ///< contiguously); carries the +sgn*(L_j - x_bar_j)
-                    ///< coefficient updated by set_x_bar / set_box
+ std::vector< int > s_plus_obj_idx;
+                    ///< per-coordinate positions of s^+_j in the dual root
+                    ///< DQuadFunction; carries +sgn*(L_j - x_bar_j)
 
- int s_minus_obj_idx = -1;
-                    ///< index of the first s^-_j entry in the DQuadFunction
-                    ///< triples; carries the -sgn*(U_j - x_bar_j) coefficient
+ std::vector< int > s_minus_obj_idx;
+                    ///< per-coordinate positions of s^-_j in the dual root
+                    ///< DQuadFunction; carries -sgn*(U_j - x_bar_j)
 
  int easy_obj_idx = -1;
                     ///< index of the first displacement-form easy objective
@@ -2038,6 +2041,10 @@ class MasterProblemBlock : public Block {
  int level_model_obj_idx = -1;
                     ///< first v^k term in the primal one-shot level probe
                     ///< objective
+
+ int level_model_obj_num = 0;
+                    ///< number of consecutive v^k terms starting at
+                    ///< level_model_obj_idx; later coordinate terms can follow
 
  bool f_dual_level_probe_active = false;
                     ///< true while pure-level dual form is temporarily solved
@@ -2085,6 +2092,16 @@ class MasterProblemBlock : public Block {
  void generate_dual_objective();
                     ///< materialize the dual master objective and PFB
                     ///< objective pieces
+
+ void append_coordinate_state( int n , ModParam issueMod );
+                    ///< append the MP-owned objects and numeric caches for n
+                    ///< coordinates; objective, coupling rows and PFB columns
+                    ///< are deliberately left to the coordinating caller
+
+ void append_coordinate_objective( int first , int n , ModParam issueMod );
+                    ///< append the root-objective terms of coordinates
+                    ///< [first, first + n); the coordinate state must already
+                    ///< exist, while coupling rows and PFB columns are external
 
  void refresh_primal_objective();
                     ///< emit one batched objective Modification from the
