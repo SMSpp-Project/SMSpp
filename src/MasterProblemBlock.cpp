@@ -48,6 +48,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <limits>
 #include <memory>
 #include <numeric>
 #include <stdexcept>
@@ -4269,16 +4270,136 @@ void MasterProblemBlock::set_linear_part( std::vector< double > b ,
 
 /*--------------------------------------------------------------------------*/
 
+void MasterProblemBlock::append_coordinate_state( int n , ModParam issueMod )
+{
+ if( n <= 0 )
+  return;
+
+ if( n > std::numeric_limits< int >::max() - NumVars )
+  throw( std::overflow_error(
+       "MasterProblemBlock::append_coordinate_state: dimension overflow" ) );
+
+ const int old_n = NumVars;
+ const int new_n = old_n + n;
+ const bool vars_built = f_abs_rep & k_mpb_built_var;
+ const bool cnst_built = f_abs_rep & k_mpb_built_cnst;
+
+ if( cnst_built && ! vars_built )
+  throw( std::logic_error(
+       "MasterProblemBlock::append_coordinate_state: constraints built "
+       "without variables" ) );
+
+ auto wrong_optional_size = [ old_n ]( const std::vector< double > & values ) {
+  return( ! values.empty() && int( values.size() ) != old_n );
+  };
+
+ if( int( f_x_bar.size() ) != old_n ||
+     int( f_linear_part.size() ) != old_n ||
+     wrong_optional_size( f_x_ref ) || wrong_optional_size( f_L ) ||
+     wrong_optional_size( f_U ) || wrong_optional_size( f_rho ) )
+  throw( std::logic_error(
+       "MasterProblemBlock::append_coordinate_state: inconsistent caches" ) );
+
+ if( vars_built ) {
+  if( IsPrimal ) {
+   if( int( Var_d.size() ) != old_n ||
+       int( Var_d_idx.size() ) != old_n ||
+       ( cnst_built && ( int( Bounds_d.size() ) != old_n ||
+                         int( Bounds_d_idx.size() ) != old_n ) ) )
+    throw( std::logic_error(
+         "MasterProblemBlock::append_coordinate_state: inconsistent "
+         "primal coordinate groups" ) );
+   }
+  else
+   if( int( Var_z.size() ) != old_n ||
+       int( Var_z_idx.size() ) != old_n ||
+       int( Var_s_plus.size() ) != old_n ||
+       int( Var_s_plus_idx.size() ) != old_n ||
+       int( Var_s_minus.size() ) != old_n ||
+       int( Var_s_minus_idx.size() ) != old_n )
+    throw( std::logic_error(
+         "MasterProblemBlock::append_coordinate_state: inconsistent "
+         "dual coordinate groups" ) );
+  }
+
+ // A new coordinate is born at zero. Empty bound vectors retain their
+ // compact meaning of an entirely infinite side of the box.
+ f_x_bar.resize( new_n , 0.0 );
+ f_linear_part.resize( new_n , 0.0 );
+ if( ! f_x_ref.empty() )
+  f_x_ref.resize( new_n , 0.0 );
+ if( ! f_L.empty() )
+  f_L.resize( new_n , - Inf< double >() );
+ if( ! f_U.empty() )
+  f_U.resize( new_n , Inf< double >() );
+ if( ! f_rho.empty() )
+  f_rho.resize( new_n , 0.0 );
+
+ if( vars_built ) {
+  if( IsPrimal ) {
+   std::list< ColVariable > new_d( n );
+   append_indexed_group( new_d , Var_d_idx ,
+                         [ this , issueMod ]( auto & additions ) {
+    add_dynamic_variables( Var_d , additions , issueMod );
+    } );
+
+   if( cnst_built ) {
+    std::list< BoxConstraint > new_bounds( n );
+    auto bound = new_bounds.begin();
+    for( int j = old_n ; j < new_n ; ++j , ++bound ) {
+     bound->set_variable( Var_d_idx[ j ] , eNoMod );
+     bound->set_lhs( - Inf< double >() , eNoMod );
+     bound->set_rhs( Inf< double >() , eNoMod );
+     }
+    append_indexed_group( new_bounds , Bounds_d_idx ,
+                          [ this , issueMod ]( auto & additions ) {
+     add_dynamic_constraints( Bounds_d , additions , issueMod );
+     } );
+    }
+   }
+  else {
+   std::list< ColVariable > new_z( n );
+   append_indexed_group( new_z , Var_z_idx ,
+                         [ this , issueMod ]( auto & additions ) {
+    add_dynamic_variables( Var_z , additions , issueMod );
+    } );
+
+   std::list< ColVariable > new_s_plus( n );
+   std::list< ColVariable > new_s_minus( n );
+   auto plus = new_s_plus.begin();
+   auto minus = new_s_minus.begin();
+   for( int j = 0 ; j < n ; ++j , ++plus , ++minus ) {
+    plus->is_positive( true , eNoMod );
+    plus->set_value( 0.0 );
+    plus->is_fixed( true , eNoMod );
+    minus->is_positive( true , eNoMod );
+    minus->set_value( 0.0 );
+    minus->is_fixed( true , eNoMod );
+    }
+   append_indexed_group( new_s_plus , Var_s_plus_idx ,
+                         [ this , issueMod ]( auto & additions ) {
+    add_dynamic_variables( Var_s_plus , additions , issueMod );
+    } );
+   append_indexed_group( new_s_minus , Var_s_minus_idx ,
+                         [ this , issueMod ]( auto & additions ) {
+    add_dynamic_variables( Var_s_minus , additions , issueMod );
+    } );
+   }
+  }
+
+ MaxSGLen = new_n;
+ NumVars = new_n;
+}
+
+/*--------------------------------------------------------------------------*/
+
 void MasterProblemBlock::add_vars( int n )
 {
  if( n <= 0 )
   return;
 
- // Structural change: resizing NumVars while the master problem is live
- // requires a coordinated rewrite of:
- //   - the static-variable groups Var_d / Var_v_hard / Var_z
- //     (the Block internally keeps pointers into the underlying vector,
- //     and a plain resize() would invalidate them);
+ // append_coordinate_state() now grows the MP-owned dynamic groups and their
+ // coordinate caches. The public operation still requires coordination of:
  //   - the dynamic constraint group CouplingCns (one new row z_j = 0
  //     per added coordinate);
  //   - every PolyhedralFunctionBlock sub-Block (its f_polyf
