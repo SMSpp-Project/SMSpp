@@ -1147,16 +1147,26 @@ class PolyhedralFunctionBlock : public AbstractBlock
 
   mod->concerns_Block( false );  // recall it's been checked already
 
-  auto tmod = std::dynamic_pointer_cast< const FunctionMod >( mod );
-  if( tmod && ( tmod->function() == & PF() ) ) {
+  // FunctionMod and FunctionModVars are sibling classes deriving from
+  // AModification. In particular, C05FunctionModVarsAddd cannot be caught
+  // by a cast to FunctionMod, so identify the affected Function through
+  // either branch before dispatching Modifications produced by PF().
+  Function * modified_function = nullptr;
+  if( auto fmod = std::dynamic_pointer_cast< const FunctionMod >( mod ) )
+   modified_function = fmod->function();
+  else if( auto vmod =
+              std::dynamic_pointer_cast< const FunctionModVars >( mod ) )
+   modified_function = vmod->function();
+
+  if( modified_function == & PF() ) {
    // if the Modification comes from the PolyhedralFunction; it will
    // generate a (bunch of) Modification(s) in the abstract
    // representation, and this Modification itself will also remain to
    // serves a the "physical" Modification) unless the Modification
    // causes a NBModification to be issued, in which case it is useless
    const bool reissued_nb = is_dual()
-      ? guts_of_add_Modification_PF_dual( tmod.get() , chnl )
-      : guts_of_add_Modification_PF( tmod.get() , chnl );
+      ? guts_of_add_Modification_PF_dual( mod.get() , chnl )
+      : guts_of_add_Modification_PF( mod.get() , chnl );
    if( reissued_nb )
     return;
    }
@@ -1248,13 +1258,13 @@ class PolyhedralFunctionBlock : public AbstractBlock
   * This assumption drastically simplifies some of the logic here. Hence,
   * derived classes must ensure they do not mess up with this property.
   *
-  * The method returns true if and only if the FunctionMod produced by the
+  * The method returns true if and only if the Modification produced by the
   * PolyhedralFunction is the "nuclear Modification for Function" that
   * causes a NBModification to be issued by PolyhedralFunctionBlock; in this
   * case, and in this case only, forwarding the original Modification is
   * pointless because the whole of the Block has been changed, */
 
- bool guts_of_add_Modification_PF( const FunctionMod * mod , ChnlName chnl );
+ bool guts_of_add_Modification_PF( c_p_Mod mod , ChnlName chnl );
 
 /*--------------------------------------------------------------------------*/
  /// process a Modification produced by the "linearized" representation
@@ -1315,8 +1325,7 @@ class PolyhedralFunctionBlock : public AbstractBlock
   * true means a NBModification was issued (so the caller should not
   * forward the original Modification any further), false otherwise. */
 
- bool guts_of_add_Modification_PF_dual( const FunctionMod * mod ,
-                                        ChnlName chnl );
+ bool guts_of_add_Modification_PF_dual( c_p_Mod mod , ChnlName chnl );
 
 /*--------------------------------------------------------------------------*/
  /// dual abstract -> PF: counterpart of guts_of_add_Modification_LR

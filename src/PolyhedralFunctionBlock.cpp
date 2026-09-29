@@ -950,12 +950,12 @@ void PolyhedralFunctionBlock::guts_of_destructor( void )
 
 /*--------------------------------------------------------------------------*/
 
-bool PolyhedralFunctionBlock::guts_of_add_Modification_PF(
-				    const FunctionMod * mod , ChnlName chnl )
+bool PolyhedralFunctionBlock::guts_of_add_Modification_PF( c_p_Mod mod ,
+                                                          ChnlName chnl )
 {
- // process a FunctionMod produced by the PolyhedralFunction- - - - - - - - -
+ // process a Modification produced by the PolyhedralFunction - - - - - - - -
  /* This requires to patiently sift through the possible Modification types
-  * (but only those derived from FunctionMod) to find what this Modification
+  * derived from FunctionMod or FunctionModVars to find what this Modification
   * exactly is, and appropriately mirror the changes to the PolyhedralFunction
   * (which in this case counts as the "physical representation") into the
   * "abstract" one, i.e., performing the corresponding changes on the LP. */
@@ -1230,7 +1230,13 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF(
  // if all else fails, this must be a "simple" FunctionMod, whose
  // meaning is "everything is changed", hence change everything
 
- assert( std::isnan( mod->shift() ) );
+ const auto fmod = dynamic_cast< const FunctionMod * >( mod );
+ if( ! fmod )
+  throw( std::logic_error(
+       "PolyhedralFunctionBlock: unsupported PolyhedralFunction "
+       "Modification" ) );
+
+ assert( std::isnan( fmod->shift() ) );
 
  // set upper/lower bound on v
  f_row_scale.clear();
@@ -1599,8 +1605,8 @@ static Block * group_owner( Block * blck , Block::ChnlName chnl )
 
 /*--------------------------------------------------------------------------*/
 
-bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
-                                    const FunctionMod * mod , ChnlName chnl )
+bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual( c_p_Mod mod ,
+                                                               ChnlName chnl )
 {
  // process a FunctionMod produced by PF() in the *dual* representation,
  // mirroring the change into f_theta (the dynamic theta variables),
@@ -2230,7 +2236,13 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
  // this point means the modification is the bare FunctionMod variant
  // with no incremental info.
 
- assert( std::isnan( mod->shift() ) );
+ const auto fmod = dynamic_cast< const FunctionMod * >( mod );
+ if( ! fmod )
+  throw( std::logic_error(
+       "PolyhedralFunctionBlock: unsupported PolyhedralFunction "
+       "Modification" ) );
+
+ assert( std::isnan( fmod->shift() ) );
 
  f_row_scale.clear();
  f_row_scale.reserve( PF().get_A().size() );
