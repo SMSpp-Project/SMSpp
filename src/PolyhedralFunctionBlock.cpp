@@ -1639,18 +1639,87 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
  if( ! obj_lf )
   return( false );
 
- // C05FunctionModVarsAddd/Rngd/Sbst - - - - - - - - - - - - - - - - - - - -
- // x variables of PF() added/removed: this also requires the father
- // Block to add/remove its corresponding coupling constraints, which is
- // outside the responsibility of a single PolyhedralFunctionBlock. Until
- // a higher-level coordination mechanism is in place, refuse these mods
- if( dynamic_cast< const C05FunctionModVarsAddd * >( mod ) ||
-     dynamic_cast< const C05FunctionModVarsRngd * >( mod ) ||
+ // C05FunctionModVarsAddd - - - - - - - - - - - - - - - - - - - - - - - -
+ // A Variable of PF() is a column of A and therefore corresponds, in the
+ // linearized dual, to one external coupling row. The father Block has to
+ // create those rows first; here we only append the existing theta
+ // coefficients carried by each new column. No theta, objective or
+ // normalization term is added, since those objects correspond to rows of A.
+ if( auto tmod = dynamic_cast< const C05FunctionModVarsAddd * >( mod ) ) {
+  const Index first = tmod->first();
+  const Index nadd = tmod->vars().size();
+  if( nadd == 0 || ! f_coupling )
+   return( false );
+
+  const Index nv = PF().get_num_active_var();
+  if( first > nv || nadd != nv - first )
+   throw( std::logic_error(
+        "PolyhedralFunctionBlock: dual active Variables must be appended" ) );
+
+  if( f_coupling->size() != nv )
+   throw( std::logic_error(
+        "PolyhedralFunctionBlock: coupling rows must be appended before "
+        "the dual PolyhedralFunction Variables" ) );
+
+  const auto & A = PF().get_A();
+  const Index nr = A.size();
+  if( f_theta.size() != nr )
+   throw( std::logic_error(
+        "PolyhedralFunctionBlock: inconsistent theta and row dimensions" ) );
+  for( const auto & row : A )
+   if( row.size() != nv )
+    throw( std::logic_error(
+         "PolyhedralFunctionBlock: inconsistent PolyhedralFunction matrix" ) );
+
+  std::vector< LinearFunction * > row_functions( nadd );
+  std::vector< LinearFunction::v_coeff_pair > contributions( nadd );
+  Index nmods = 0;
+  auto coupling = std::next( f_coupling->begin() , first );
+  for( Index h = 0 ; h < nadd ; ++h , ++coupling ) {
+   auto * lf = dynamic_cast< LinearFunction * >( coupling->get_function() );
+   if( ! lf || lf->get_num_active_var() == 0 ||
+       lf->get_active_var( 0 ) != tmod->vars()[ h ] )
+    throw( std::logic_error(
+         "PolyhedralFunctionBlock: new coupling row is not aligned with "
+         "the added PolyhedralFunction Variable" ) );
+
+   row_functions[ h ] = lf;
+   auto & terms = contributions[ h ];
+   terms.reserve( nr );
+   auto theta = f_theta.begin();
+   for( Index i = 0 ; i < nr ; ++i , ++theta ) {
+    const double a = ScaledRowFactor( i ) * A[ i ][ first + h ];
+    if( a != 0.0 )
+     terms.emplace_back( & *theta , a );
+    }
+   if( ! terms.empty() )
+    ++nmods;
+   }
+
+  if( nmods == 0 )
+   return( false );
+
+  // The modified constraints belong to an ancestor Block. When the caller
+  // did not provide a channel, open it at the top of the Block tree so every
+  // LinearFunction modification can reach the same group.
+  auto * gowner = group_owner( this , chnl );
+  const auto gchnl = gowner->open_channel( chnl );
+  const auto par = make_par( eNoBlck , gchnl );
+  for( Index h = 0 ; h < nadd ; ++h )
+   if( ! contributions[ h ].empty() )
+    row_functions[ h ]->add_variables( std::move( contributions[ h ] ) , par );
+  gowner->close_channel( gchnl );
+
+  return( false );
+  }
+
+ // C05FunctionModVarsRngd/Sbst - - - - - - - - - - - - - - - - - - - - - -
+ // Removing coordinates still needs the symmetric higher-level coordination.
+ if( dynamic_cast< const C05FunctionModVarsRngd * >( mod ) ||
      dynamic_cast< const C05FunctionModVarsSbst * >( mod ) )
-  throw( std::logic_error( "PolyhedralFunctionBlock: changing the active "
-                           "Variable of the PolyhedralFunction is not yet "
-			   "supported in "
-                           "the dual representation" ) );
+  throw( std::logic_error( "PolyhedralFunctionBlock: removing active "
+                           "Variables of the PolyhedralFunction is not yet "
+                           "supported in the dual representation" ) );
 
  // detect the "cheap" sub-cases that can be handled incrementally
  // (without touching the constraint matrix of the dual LP) before

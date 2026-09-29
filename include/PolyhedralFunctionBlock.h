@@ -789,8 +789,11 @@ class PolyhedralFunctionBlock : public AbstractBlock
   * - this method must be called *after* generate_abstract_variables() has
   *   built the f_theta list (i.e. with the "dual representation" active);
   *
-  * - this method is meant to be called *at most once*: the assumption is
-  *   that the list of external constraints is set once and for all.
+  * - this method is meant to be called *at most once*. The list object is
+  *   retained by reference and may subsequently grow; when it does, the
+  *   owner must append the new constraints before adding the corresponding
+  *   active Variable to the PolyhedralFunction, so that the dual Modification
+  *   handler can populate the new coupling rows.
   *
   * - the LinearFunction of each provided FRowConstraint must already
   *   exist (so that this method can simply add the new coefficients to
@@ -1304,6 +1307,9 @@ class PolyhedralFunctionBlock : public AbstractBlock
   * representation (f_theta dynamic variables, f_normcns normalization
   * constraint, the FRealObjective LinearFunction and, when registered, the
   * f_coupling external coupling constraints).
+  * Strongly quasi-additive Variable additions are supported when the external
+  * owner has already appended the corresponding coupling rows; removals still
+  * require higher-level coordination.
   *
   * The return value has the same semantics as guts_of_add_Modification_PF:
   * true means a NBModification was issued (so the caller should not
