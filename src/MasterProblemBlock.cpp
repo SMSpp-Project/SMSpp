@@ -4698,7 +4698,8 @@ void MasterProblemBlock::add_vars( int n ,
   if( std::find( seen.begin() , seen.end() , false ) != seen.end() )
    throw( std::logic_error(
         "MasterProblemBlock::add_vars: incomplete slot-to-row map" ) );
-  for( int slot = int( slots.size() ) ; slot < int( supplied.size() ) ; ++slot )
+  for( int slot = int( slots.size() ) ; slot < int( supplied.size() ) ;
+       ++slot )
    if( ! supplied[ slot ].empty() )
     throw( std::invalid_argument(
          "MasterProblemBlock::add_vars: bundle slot out of range" ) );
@@ -4854,7 +4855,8 @@ void MasterProblemBlock::remove_vars( const int * subset , int sz )
   const auto & A = pf.get_A();
   if( A.size() != pf.get_b().size() )
    throw( std::logic_error(
-        "MasterProblemBlock::remove_vars: inconsistent hard-component cuts" ) );
+        "MasterProblemBlock::remove_vars: inconsistent hard-component "
+        "cuts" ) );
   for( const auto & row : A )
    if( int( row.size() ) != NumVars )
     throw( std::logic_error(
@@ -4914,7 +4916,8 @@ void MasterProblemBlock::remove_vars( const int * subset , int sz )
    const auto p = level_d_idx[ j ];
    if( p < 0 || LinearFunction::Index( p ) >=
        level_lf->get_num_active_var() ||
-       level_lf->get_active_var( LinearFunction::Index( p ) ) != Var_d_idx[ j ] )
+       level_lf->get_active_var( LinearFunction::Index( p ) ) !=
+                                                            Var_d_idx[ j ] )
     throw( std::logic_error(
          "MasterProblemBlock::remove_vars: incorrect level term" ) );
    level_positions.push_back( LinearFunction::Index( p ) );

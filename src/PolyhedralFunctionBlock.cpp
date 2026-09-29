@@ -1233,7 +1233,8 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF( c_p_Mod mod ,
  const auto fmod = dynamic_cast< const FunctionMod * >( mod );
  if( ! fmod )
   throw( std::logic_error(
-       "PolyhedralFunctionBlock: unsupported PolyhedralFunction "
+       "PolyhedralFunctionBlock::guts_of_add_Modification_PF: "
+       "unsupported PolyhedralFunction "
        "Modification" ) );
 
  assert( std::isnan( fmod->shift() ) );
@@ -1660,22 +1661,26 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual( c_p_Mod mod ,
   const Index nv = PF().get_num_active_var();
   if( first > nv || nadd != nv - first )
    throw( std::logic_error(
-        "PolyhedralFunctionBlock: dual active Variables must be appended" ) );
+        "PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual: "
+        "dual active Variables must be appended" ) );
 
   if( f_coupling->size() != nv )
    throw( std::logic_error(
-        "PolyhedralFunctionBlock: coupling rows must be appended before "
+        "PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual: "
+        "coupling rows must be appended before "
         "the dual PolyhedralFunction Variables" ) );
 
   const auto & A = PF().get_A();
   const Index nr = A.size();
   if( f_theta.size() != nr )
    throw( std::logic_error(
-        "PolyhedralFunctionBlock: inconsistent theta and row dimensions" ) );
+        "PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual: "
+        "inconsistent theta and row dimensions" ) );
   for( const auto & row : A )
    if( row.size() != nv )
     throw( std::logic_error(
-         "PolyhedralFunctionBlock: inconsistent PolyhedralFunction matrix" ) );
+         "PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual: "
+         "inconsistent PolyhedralFunction matrix" ) );
 
   std::vector< LinearFunction * > row_functions( nadd );
   std::vector< LinearFunction::v_coeff_pair > contributions( nadd );
@@ -1686,7 +1691,8 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual( c_p_Mod mod ,
    if( ! lf || lf->get_num_active_var() == 0 ||
        lf->get_active_var( 0 ) != tmod->vars()[ h ] )
     throw( std::logic_error(
-         "PolyhedralFunctionBlock: new coupling row is not aligned with "
+         "PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual: "
+         "new coupling row is not aligned with "
          "the added PolyhedralFunction Variable" ) );
 
    row_functions[ h ] = lf;
@@ -1729,16 +1735,19 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual( c_p_Mod mod ,
   const Index nv = PF().get_num_active_var();
   if( f_coupling && f_coupling->size() != nv )
    throw( std::logic_error(
-        "PolyhedralFunctionBlock: coupling rows must be removed before "
+        "PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual: "
+        "coupling rows must be removed before "
         "the dual PolyhedralFunction Variables" ) );
   const auto & A = PF().get_A();
   if( f_theta.size() != A.size() )
    throw( std::logic_error(
-        "PolyhedralFunctionBlock: inconsistent theta and row dimensions" ) );
+        "PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual: "
+        "inconsistent theta and row dimensions" ) );
   for( const auto & row : A )
    if( row.size() != nv )
     throw( std::logic_error(
-         "PolyhedralFunctionBlock: inconsistent PolyhedralFunction matrix" ) );
+         "PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual: "
+         "inconsistent PolyhedralFunction matrix" ) );
   return( false );
   }
 
@@ -2254,7 +2263,8 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual( c_p_Mod mod ,
  const auto fmod = dynamic_cast< const FunctionMod * >( mod );
  if( ! fmod )
   throw( std::logic_error(
-       "PolyhedralFunctionBlock: unsupported PolyhedralFunction "
+       "PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual: "
+       "unsupported PolyhedralFunction "
        "Modification" ) );
 
  assert( std::isnan( fmod->shift() ) );
@@ -2367,7 +2377,9 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR_dual( c_p_Mod mod ,
 
  // anything else from somewhere in the dual abstract representation:
  // not supported, throw
- throw( std::logic_error( "PolyhedralFunctionBlock: unsupported Modification "
+ throw( std::logic_error(
+   "PolyhedralFunctionBlock::guts_of_add_Modification_LR_dual: "
+   "unsupported Modification "
                           "on dual abstract representation" ) );
 
  }  // end( PolyhedralFunctionBlock::guts_of_add_Modification_LR_dual )

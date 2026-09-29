@@ -1501,10 +1501,10 @@ class MasterProblemBlock : public Block {
 
  /// append \p n variables and extend every cut already in the master
  /** Extends the master from NumVars to NumVars + n coordinates without
-  * rebuilding it. \p coefficients[k][slot][h] is the physical coefficient of
-  * the cut in persistent bundle slot `slot` of hard component `k` on new
-  * coordinate `h`. It must contain one n-vector for every occupied slot; empty
-  * slots may be omitted or represented by an empty vector.
+  * rebuilding it. \p coefficients[ k ][ s ][ h ] is the coefficient, on the
+  * h-th new coordinate, of the cut in the persistent bundle slot s of the
+  * hard component k. It must contain one n-vector for every occupied slot;
+  * empty slots may be omitted or represented by an empty vector.
   *
   * The operation appends the MP-owned coordinate variables and constraints,
   * the root-objective terms, the primal level-row terms or dual coupling rows,
@@ -1865,8 +1865,9 @@ class MasterProblemBlock : public Block {
                                          ///< (kLevel / kDoublyStabilized only)
 
  std::vector< int > level_d_idx;
-                                ///< positions of d_j in LevelCns' LinearFunction
-                                ///< (new d terms may follow the existing v^k)
+                                ///< positions of d_j in the LinearFunction of
+                                ///< LevelCns (new d terms may follow the
+                                ///< existing v^k)
 
  // - - - - - - - - - - - coordinate MP entities (dual form) - - - - - - - - -
 
@@ -2034,8 +2035,9 @@ class MasterProblemBlock : public Block {
 
  std::vector< int > d_obj_idx;
                     ///< per-coordinate positions of d_j in the primal root
-                    ///< DQuadFunction. New coordinates may be appended after
-                    ///< non-coordinate terms, hence a single base is not enough
+                    ///< DQuadFunction; new coordinates may be appended
+                    ///< after non-coordinate terms, hence a single base is
+                    ///< not enough
 
  std::vector< int > z_obj_idx;
                     ///< per-coordinate positions of z_j in the dual root
@@ -2132,8 +2134,9 @@ class MasterProblemBlock : public Block {
 
  void append_coordinate_objective( int first , int n , ModParam issueMod );
                     ///< append the root-objective terms of coordinates
-                    ///< [first, first + n); the coordinate state must already
-                    ///< exist, while coupling rows and PFB columns are external
+                    ///< [first, first + n); the coordinate state must
+                    ///< already exist, while coupling rows and PFB columns
+                    ///< are external
 
  void refresh_primal_objective();
                     ///< emit one batched objective Modification from the
