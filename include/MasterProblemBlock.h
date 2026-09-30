@@ -1519,12 +1519,9 @@ class MasterProblemBlock : public Block {
  /** The indices in \p subset refer to the coordinate space *before* any
   * removal. They must be strictly increasing, unique and in [0, NumVars).
   * A null \p subset denotes all current coordinates; \p sz must then be
-  * either 0 or NumVars. This contract also applies to the maps and cut
-  * coefficients prepared for the structural removal.
-  *
-  * Structural removal is not implemented yet. The current implementation
-  * validates and prepares the index/cut/reference transformation, then
-  * throws std::logic_error without changing the master. */
+  * either 0 or NumVars. The method projects the stored hard-component cuts,
+  * removes the corresponding primal or dual master entities, and compacts
+  * all remaining coordinate-indexed state without rebuilding the master. */
 
  void remove_vars( const int * subset , int sz );
 
