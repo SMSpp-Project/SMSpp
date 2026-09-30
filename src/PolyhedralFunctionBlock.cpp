@@ -1720,12 +1720,27 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual( c_p_Mod mod ,
   }
 
  // C05FunctionModVarsRngd/Sbst - - - - - - - - - - - - - - - - - - - - - -
- // Removing coordinates still needs the symmetric higher-level coordination.
+ // Each removed PF Variable corresponds to an external coupling row, not a
+ // theta column. The owner must remove those rows before changing PF(); the
+ // surviving rows already retain their theta coefficients. Thus neither
+ // f_theta nor the objective and normalization functions change here.
  if( dynamic_cast< const C05FunctionModVarsRngd * >( mod ) ||
-     dynamic_cast< const C05FunctionModVarsSbst * >( mod ) )
-  throw( std::logic_error( "PolyhedralFunctionBlock: removing active "
-                           "Variables of the PolyhedralFunction is not yet "
-                           "supported in the dual representation" ) );
+     dynamic_cast< const C05FunctionModVarsSbst * >( mod ) ) {
+  const Index nv = PF().get_num_active_var();
+  if( f_coupling && f_coupling->size() != nv )
+   throw( std::logic_error(
+        "PolyhedralFunctionBlock: coupling rows must be removed before "
+        "the dual PolyhedralFunction Variables" ) );
+  const auto & A = PF().get_A();
+  if( f_theta.size() != A.size() )
+   throw( std::logic_error(
+        "PolyhedralFunctionBlock: inconsistent theta and row dimensions" ) );
+  for( const auto & row : A )
+   if( row.size() != nv )
+    throw( std::logic_error(
+         "PolyhedralFunctionBlock: inconsistent PolyhedralFunction matrix" ) );
+  return( false );
+  }
 
  // detect the "cheap" sub-cases that can be handled incrementally
  // (without touching the constraint matrix of the dual LP) before
