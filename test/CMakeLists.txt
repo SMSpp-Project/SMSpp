@@ -124,6 +124,12 @@ smspp_install(LinearFunction_test)
 add_test(NAME LinearFunction_test
          COMMAND LinearFunction_test)
 
+add_executable(DQuadFunction_test tests_DQuadFunction.cpp)
+target_link_libraries(DQuadFunction_test PRIVATE SMS++::SMS++)
+smspp_install(DQuadFunction_test)
+add_test(NAME DQuadFunction_test
+         COMMAND DQuadFunction_test)
+
 add_executable(QuadFunction_test tests_QuadFunction.cpp)
 target_link_libraries(QuadFunction_test PRIVATE SMS++::SMS++)
 smspp_install(QuadFunction_test)
@@ -136,11 +142,11 @@ smspp_install(Solution_test)
 add_test(NAME Solution_test
          COMMAND Solution_test)
 
-add_executable(SizeVariable_test tests_SizeVariable.cpp)
-target_link_libraries(SizeVariable_test PRIVATE SMS++::SMS++)
-smspp_install(SizeVariable_test)
-add_test(NAME SizeVariable_test
-         COMMAND SizeVariable_test)
+add_executable(PolyhedralFunctionBlock_unit_test tests_PolyhedralFunctionBlock.cpp)
+target_link_libraries(PolyhedralFunctionBlock_unit_test PRIVATE SMS++::SMS++)
+smspp_install(PolyhedralFunctionBlock_unit_test)
+add_test(NAME PolyhedralFunctionBlock_unit_test
+         COMMAND PolyhedralFunctionBlock_unit_test)
 
 add_executable(Modification_test tests_Modification.cpp)
 target_link_libraries(Modification_test PRIVATE SMS++::SMS++)
@@ -171,5 +177,11 @@ target_link_libraries(Misc_unit_test PRIVATE SMS++::SMS++)
 smspp_install(Misc_unit_test)
 add_test(NAME Misc_unit_test
          COMMAND Misc_unit_test)
+
+add_executable(NetCDF_test tests_NetCDF.cpp)
+target_link_libraries(NetCDF_test PRIVATE SMS++::SMS++)
+smspp_install(NetCDF_test)
+add_test(NAME NetCDF_test
+         COMMAND NetCDF_test)
 
 # --------------------------------------------------------------------------- #

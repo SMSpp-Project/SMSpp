@@ -28,6 +28,7 @@
 #include "FRowConstraint.h"
 #include "FakeSolver.h"
 #include "LinearFunction.h"
+#include "Observer.h"
 
 // the checks compiled into the library headers exist only without NDEBUG
 #ifdef NDEBUG
@@ -42,6 +43,36 @@
 /*--------------------------------------------------------------------------*/
 
 using namespace SMSpp_di_unipi_it;
+
+/*--------------------------------------------------------------------------*/
+/*------------------------------ CLASSES -----------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// an Observer that records every Modification it is sent
+
+class Recorder : public Observer
+{
+ public:
+
+ Block * get_Block( void ) const override { return( nullptr ); }
+
+ bool anyone_there( void ) const override { return( true ); }
+
+ void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override {
+  mods.push_back( mod );
+  }
+
+ ChnlName open_channel( ChnlName chnl = 0 ,
+			GroupModification * gmpmod = nullptr ) override {
+  return( 0 );
+  }
+
+ void close_channel( ChnlName chnl , bool force = false ) override {}
+
+ void set_default_channel( ChnlName chnl = 0 ) override {}
+
+ Lst_sp_Mod mods;  ///< what has been sent, in order
+ };
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ FUNCTIONS ---------------------------------*/
@@ -357,6 +388,58 @@ static void test_edge_cases( void )
   ten( f , vars );
   f.remove_variables( LinearFunction::Subset{} );
   assert( f.get_num_active_var() == 0 );
+ }
+
+ // ---- modifying coefficients with someone listening ------------------
+ // the part of NCoef that is not used does not reach the Modification,
+ // whose delta() has one entry per Variable changed
+
+ {                              // a Range past the end stops at the end
+  Recorder rec;
+  LinearFunction f;
+  ten( f , vars );
+  f.register_Observer( & rec );
+  f.modify_coefficients( { 20 , 30 , 40 } ,
+			 LinearFunction::Range{ 9 , 12 } );
+  assert( f.get_coefficient( 9 ) == 20 );
+  assert( rec.mods.size() == 1 );
+  auto mod = std::dynamic_pointer_cast< C05FunctionModLinRngd >(
+						      rec.mods.front() );
+  assert( mod );
+  assert( mod->range() == LinearFunction::Range( 9 , 10 ) );
+  assert( mod->delta() == std::vector< double >( { 10 } ) );
+ }
+ {                              // an NCoef longer than the Subset
+  Recorder rec;
+  LinearFunction f;
+  ten( f , vars );
+  f.register_Observer( & rec );
+  f.modify_coefficients( { 20 , 30 , 40 } ,
+			 LinearFunction::Subset{ 3 , 0 } );
+  assert( f.get_coefficient( 3 ) == 20 );
+  assert( f.get_coefficient( 0 ) == 30 );
+  assert( rec.mods.size() == 1 );
+  auto mod = std::dynamic_pointer_cast< C05FunctionModLinSbst >(
+						      rec.mods.front() );
+  assert( mod );
+  assert( mod->subset() == LinearFunction::Subset( { 0 , 3 } ) );
+  assert( mod->delta() == std::vector< double >( { 29 , 16 } ) );
+ }
+ {                              // a wrong index changes nothing
+  Recorder rec;
+  LinearFunction f;
+  ten( f , vars );
+  f.register_Observer( & rec );
+  bool thrown = false;
+  try {
+   f.modify_coefficients( { 20 , 30 } , LinearFunction::Subset{ 0 , 10 } );
+   }
+  catch( std::invalid_argument & ) {
+   thrown = true;
+   }
+  assert( thrown );
+  assert( f.get_coefficient( 0 ) == 1 );
+  assert( rec.mods.empty() );
  }
  }
 

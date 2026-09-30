@@ -563,8 +563,8 @@ class PolyhedralFunction : public C05Function {
 
     v_glob.resize( value , Inf< int >() );  // resize v_glob
 
-    if( f_max_glob >= Index( value ) ) {  // some linearizations are lost
-     f_max_glob = value ? value - 1 : 0;  // value could be 0 ...
+    if( f_max_glob > Index( value ) ) {  // some linearizations are lost
+     f_max_glob = value;
 
      update_f_max_glob();
 
@@ -855,6 +855,12 @@ class PolyhedralFunction : public C05Function {
   * - The variable "PolyFunction_b", of type double and indexed over the
   *   dimension NumRow, which contains the vector b. The variable is only
   *   optional if NumRow == 0.
+  *
+  * - The variable "PolyFunction_Vert", of type netCDF::NcUbyte and indexed
+  *   over the dimension NumRow, whose i-th entry is nonzero if the i-th
+  *   row is vertical (see set_PolyhedralFunction()) and zero if it is
+  *   diagonal. The variable is optional, if it is not provided all the rows
+  *   are diagonal; serialize() only writes it if some row is vertical.
   *
   * - The dimension "PolyFunction_sign" (actually a bool), which contains the
   *   "verse" of the PolyhedralFunction, i.e., true for a convex max-function
@@ -2215,6 +2221,12 @@ class PolyhedralFunctionState : public State
   *   over the dimension PolyFunction_NumRow, which contains the vector ab
   *   (RHS of the aggregated rows. The variable is only optional if
   *   PolyFunction_NumRow == 0.
+  *
+  * - The variable "PolyFunction_aVert", of type netCDF::NcUbyte and indexed
+  *   over the dimension PolyFunction_ANumRow, whose i-th entry is nonzero
+  *   if the i-th aggregated row is vertical and zero if it is diagonal. The
+  *   variable is optional, if it is not provided all the aggregated rows
+  *   are diagonal.
   *
   * - The dimension "PolyFunction_ImpCoeffNum" containing the number of
   *   elements of the important coefficients. The dimension is optional, if

@@ -61,8 +61,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ModParam`, with and without a `Solver` listening and on a channel, the
   type and content of each `Modification`, and the edge cases (empty and full
   `Range`, empty and unordered `Subset`, adding nothing, removing
-  everything); what the library does not do yet is kept out in blocks marked
-  KNOWN DEFECT
+  everything); and, under eDryRun, that the modifying methods of those
+  classes and of `DQuadFunction`, `QuadFunction`, `PolyhedralFunction`,
+  `LagBFunction`, `BendersBFunction` and `C05SumFunction` change nothing and
+  issue nothing
 
 - `ClassFactory_test` asserts what it used to print: every factory of the
   core (`Block`, `Configuration`, `Solver`, `Solution`, `State`, `Change`)
@@ -227,6 +229,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   attached, the netCDF round trip of each object that has one and malformed
   input
 
+- `LagBFunction_unit_test` also checks the columns of the Lagrangian term
+  that the Lagrangian costs are computed from, as `get_A_by_col()` gives
+  them, against the ones computed by hand when the Lagrangian pairs are set
+  (once and twice), added and removed (all of them, a `Range`, an ordered
+  and an unordered `Subset`, a single one), and on the edge cases (empty
+  `Range` and `Subset`, a `Range` past the end, a wrong index, no pair at
+  all)
+
+- `PolyhedralFunction_unit_test` also checks the edges of every method of
+  `PolyhedralFunction` taking a `Range` or a `Subset` (empty, to the end,
+  past the end, covering everything, unordered), with the `Modification`
+  each change issues, the functions with no row, no Variable or neither,
+  the vertical rows, the names of the global pool, which follow the rows and
+  the `State` puts back, and the netCDF round trip of the vertical flags and
+  of the functions with no row or no Variable
+
+- `DQuadFunction_test` checks `DQuadFunction`: the value, the gradient whole
+  and in part, dense and sparse, the Hessian and the convexity, the
+  coefficients and the Variable changed by `Range` and by `Subset` at their
+  edges, and the `Modification` each change issues
+
+- `AbstractBlock_test` checks the edges of adding and removing dynamic
+  Variable and Constraint: adding nothing, empty, reversed and out-of-range
+  `Range`, empty, unordered and out-of-range `Subset`, removing everything,
+  lists in the cells of a vector, the group and the `Block` of the elements,
+  the `BlockModAdd` and `BlockModRmv*` sent, and the stuff a removed element
+  was active in
+
+- `Configuration_unit_test` also compares field by field what is read with
+  what was written for the pairs of numbers and the nested
+  `SimpleConfiguration`, the meta-configuration mapping a classname to a
+  `Configuration` with its `*file.txt` and `*file.txt +` entries, the
+  `ComputeConfig` applied to a `ThinComputeInterface`, the ten slots of a
+  `BlockConfig` and what its `print()` writes, the `:BlockConfig` with the
+  handlers of the Objective, of the Constraint and of the sub-Block, and
+  `RBlockSolverConfig`
+
+- `NetCDF_test` writes to a netCDF group and reads back the rows, the bounds
+  and the `FRealObjective` of an `AbstractBlock`, the
+  `PolyhedralFunctionBlock`, the `BendersBFunction` with its sub-Block and
+  the `LagBFunction` with its inner Block and its Lagrangian term, the empty
+  cases included, the LP files `read_lp()` has to refuse, and the `State`
+  of the `PolyhedralFunction`, of the `BendersBFunction` and of the
+  `LagBFunction`, both the one of `get_State()` and the one written by
+  `serialize_State()`, with the core alone
+
+- the netCDF format of `LagBFunction`, whose `serialize()` and
+  `deserialize()` threw: the inner Block in the group `Block`, with the
+  original costs of its Objective, and the Lagrangian term as g( x ) = A x
+  + b, A in the sparse format of the matrix of a `BendersBFunction` with an
+  `AbstractPath` to the column of each coefficient in place of its index;
+  as for the other :Function, the multipliers y are not in the format, and
+  the new `LagBFunction::set_variables()` gives them to the functions read.
+  `serialize()` also puts back the Lagrangian costs it takes out of the
+  inner Block to write it, which it restored as the original ones
+
 ### Changed
 
 - the makefile of the library carries `C05SumFunction`, which was built by
@@ -331,6 +389,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   'B' selecting a nested Block that is not there, which was only an
   `assert()`
 
+- `SizeVariable_test` is renamed `PolyhedralFunctionBlock_unit_test`, and its
+  source `tests_PolyhedralFunctionBlock.cpp`, since what it tests is the size
+  variable of a `PolyhedralFunctionBlock`; the `_unit_test` keeps it apart
+  from the `PolyhedralFunctionBlock_test` battery of the tests repository
+
 ### Fixed
 
 - `Block::close_channel()` takes the channel out of the Block before
@@ -351,8 +414,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   list, so it skipped the next one, which kept a `Variable` then destroyed
 
 - `ColVariable::is_active()` gives `Inf` for a stuff that is not in the
-  active list, and `remove_active()` throws for it: they took the place where the stuff would be for the place where it
-  is, giving the index of another stuff and removing it
+  active list, and `remove_active()` throws for it: they took the place
+  where the stuff would be for the place where it is, giving the index of
+  another stuff and removing it
 
 - `Block::set_objective()` issues its `BlockMod` on the channel of the
   `ModParam`, which it ignored, so that on a channel it was dispatched at
@@ -728,6 +792,147 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   when one is issued, so that whoever reads it can still read the Variable
   the Constraint was active in, rather than saying that this information is
   gone
+
+- the default `ThinVarDepInterface::remove_variables( Range )` accepts a
+  Range that ends at the last active Variable, as its documentation says,
+  while it threw for it
+
+- the modifying methods of the core that take a `ModParam` honour eDryRun,
+  returning at once without changing anything and without issuing anything:
+  those of `Variable`, `ColVariable`, `Constraint`, the `OneVarConstraint`
+  family, `FRowConstraint`, `Objective`, `FRealObjective`, `LinearFunction`,
+  `DQuadFunction`, `QuadFunction`, `PolyhedralFunction`, `LagBFunction`,
+  `BendersBFunction`, `C05Function`, `C05SumFunction`, and
+  `Block::set_objective()`, `add_dynamic_*()` and `remove_dynamic_*()`, the
+  latter leaving also the stuff of the removed Variable alone. They looked
+  at the `ModParam` only to decide whether to issue the Modification, so
+  that under eDryRun the change was done all the same, silently
+
+- the `remove_variable*()` of `FRowConstraint` and of `FRealObjective` keep
+  eModBlck: the Modification of the Function is issued, and reaches the
+  Block, also when no Solver is listening, while they turned eModBlck into
+  eNoMod when the Block had no one there, so that the Block never learnt of
+  a change it was concerned by
+
+- the `remove_variables( Range )` of `FRowConstraint` and of
+  `FRealObjective`, when no Modification is issued, cut the Range to the
+  number of active Variable, as the Function does, while a Range up to
+  `Inf` made them read past the end of the Function
+
+- removing Variable from a `PolyhedralFunction` also takes their columns out
+  of the aggregated linearizations of the global pool, which kept them and so
+  gave the coefficients of other Variable
+
+- `PolyhedralFunction::modify_rows( Subset )` checks the size of all the
+  rows before changing any
+
+- `PolyhedralFunction::delete_rows( Subset )` deletes the rows by position:
+  it marked them by emptying them and then erased every empty row, so that
+  with no Variable, where all rows are empty, it erased all the rows of A
+  from the first deleted one on while b lost only the right ones
+
+- `PolyhedralFunction::add_rows()` given no row returns silently, as the
+  other methods given nothing to do, rather than issuing a
+  `PolyhedralFunctionModAddd` with no row
+
+- `PolyhedralFunction::set_par( intGPMaxSz , ... )` shrinking the pool to
+  just the names in use loses nothing and issues nothing: it took the last
+  name in use for lost, and the changes of the rows then no longer followed
+  it
+
+- `PolyhedralFunction::add_variables()` to a function with Variable but no
+  row only adds the Variable, where an assert aborted a build without NDEBUG;
+  there and in `add_variable()` the new coefficients must be one per row, and
+  are refused otherwise, `add_variable()` having read past the end of a short
+  vector and made rows of the wrong size in a function with no row
+
+- the netCDF format of `PolyhedralFunction` has the optional variable
+  `PolyFunction_Vert` with the vertical rows, which `serialize()` writes when
+  some row is vertical and `deserialize()` reads, a file without it giving
+  all the rows diagonal: they used to come back all diagonal
+
+- `DQuadFunction::remove_variables( Range )` of a part of the Variable with
+  the Modification issued no longer writes past the end of the vector of the
+  removed Variable, whose loop tested an iterator that never moved
+
+- `DQuadFunction::modify_linear_coefficients()` and
+  `LinearFunction::modify_coefficients()` pass to the Modification only the
+  part of `NCoef` they use, with a `Range` cut at the end as with a longer
+  `NCoef`: the Modification refused a `delta()` longer than its Variable and
+  the call threw after the coefficients had been changed. With a `Subset`,
+  they and `DQuadFunction::modify_terms()` check all the indices before
+  changing anything
+
+- the `load()` of `OBlockConfig`, `CBlockConfig` and `RBlockSolverConfig`
+  accept the `*` they document for no `ComputeConfig` of the Objective, of a
+  Constraint and no `BlockSolverConfig` of a sub-Block, on which they threw
+
+- `Configuration::deserialize( std::istream )` deletes the `Configuration` it
+  has built when reading its body, or merging the overrides of a `*file.txt
+  +`, throws, while it leaked it
+
+- every string of a netCDF file is read with the new `get_var_values()` of
+  SMSTypedefs.h, which reads the `char *` that the netCDF library allocates
+  for each string, copies it and gives it back with `nc_free_string()`, and
+  which the `deserialize()` helpers of the scalars, of the vectors, of the
+  multi-dimensional arrays and of the matrices use too: besides the names
+  and values of the parameters of `ComputeConfig`, so are read the keys of
+  the meta-configuration, the name of the group of each Constraint of a
+  `CBlockConfig`, the ids of the sub-Block of `RBlockConfig` and of
+  `RBlockSolverConfig`, which were read into the `std::string` objects
+  themselves, and the name of each Solver of `BlockSolverConfig`, which
+  leaked
+
+- the extra slot of the body of a `*file.txt +` override is optional also
+  inside a meta-configuration: `ComputeConfig::merge_overrides()` leaves in
+  the stream a next token that is neither a `*` nor the name of a
+  `Configuration`, i.e., the next key of the map, which it read as the
+  classname of the extra `Configuration` and threw
+
+- `BlockConfig::print()` writes the format that `load()` reads, with the
+  version of the format, a `*` for each empty slot and the name of each slot
+  as a comment
+
+- `BlockConfig` and `BlockSolverConfig` written in an eProbFile go in the
+  `Prob_<i>` group of the last Block written if it has no `BlockConfig`
+  (`BlockSolver`) yet, and in a new one otherwise, rather than always in a
+  new one; `Configuration::deserialize( netCDF::NcFile , idx )` and
+  `BlockSolverConfig::deserialize( netCDF::NcFile , idx )` also take the
+  groups `Config_<i>/BlockConfig` and `Config_<i>/SolverConfig` that older
+  eProbFile have
+
+- `AbstractBlock::write_lp()` writes every column in the Objective, with a
+  zero cost if it has none, so that `read_lp()`, which numbers the columns
+  in the order it meets them, gives them back in the order they have in the
+  Block, which an `AbstractPath` to one of them relies on
+
+- `AbstractBlock::read_lp()` throws `std::invalid_argument` also on a word
+  out of its place, e.g., a row with no name or a sign with no term after
+  it, and on a number that is not one; it reads a bound with the sense
+  turned (`u >= x >= l`), `-inf` and `inf` in any case, and the rows in
+  their order rather than by name, and it deletes what it has built when it
+  throws
+
+- `BendersBFunction::deserialize()` takes the number of active Variable out
+  of `NumVar` when it has none, as its documentation says, so that
+  `Block::new_Block()` of a `BendersBFunction` with columns works: it threw
+  unless `NumVar` was the number it had, 0 in a new one; a sparse A whose
+  `NumNonzeroAtRow` adds up to more than `NumNonzero`, or whose `Column`
+  goes past `NumVar`, is refused rather than read out of bounds
+
+- `put_State()` of `BendersBFunction` leaves no linearization in the places
+  of its global pool past those of the State (the copy kept their
+  constants), and moving a State in a `BendersBFunction` whose global pool
+  is smaller no longer writes past the end of it
+
+- `LagBFunction::serialize_State()` writes `LagBFunction_Value` and
+  `LagBFunction_Convexified` as `LagBFunctionState::serialize()` does: the
+  constants of the linearizations were read back as 0
+
+- `LagBFunction::put_State()` leaves `LastSolution` undefined: a global pool
+  that grew to the size of the State took the Solution of the inner Block
+  for that of the first entry, and computed its constant from the Block
+  rather than taking the one of the State
 
 ## [0.7.1] - 2026-09-13
 

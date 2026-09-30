@@ -297,6 +297,9 @@ void QuadFunction::get_hessian_approximation( DenseHessian & hessian ) const {
 void QuadFunction::add_variables( v_coeff_triple && vars ,
                                   v_off_diag_term && v_nd_var ,
                                   ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  // It is probably best to manage adding of variable all at this level and
  // not rely too much on parent functionalities
  if( vars.empty() && v_nd_var.empty() ) // actually nothing to add
@@ -366,6 +369,9 @@ void QuadFunction::add_variables( v_coeff_triple && vars ,
 
 void QuadFunction::add_nd_term( ColVariable * var1 , ColVariable * var2 ,
                                 Coefficient quad_coeff , ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  // We will check if both variables exists in which case the coefficient gets
  // added. (Maybe we want a numeric zero check...)
 
@@ -413,6 +419,9 @@ void QuadFunction::add_nd_term( ColVariable * var1 , ColVariable * var2 ,
 void QuadFunction::modify_term( Index i , Index j ,
                                 Coefficient quad_nd_coeff ,
                                 ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( ( std::min( i , j ) < 0 ) ||
   ( std::max( i , j ) >= DQuadFunction::get_num_active_var() ) ) {
   throw( std::invalid_argument( "QuadFunction::modify_term: invalid "
@@ -455,6 +464,9 @@ void QuadFunction::modify_term( Index i , Index j ,
 /*--------------------------------------------------------------------------*/
 
 void QuadFunction::remove_variable( Index i , ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( DQuadFunction::get_num_active_var() <= i )
   throw( std::logic_error( "less than i Variable are active" ) );
 
@@ -498,6 +510,9 @@ void QuadFunction::remove_variable( Index i , ModParam issueMod ) {
 /*--------------------------------------------------------------------------*/
 
 void QuadFunction::remove_variables( Range range , ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  range.second = std::min( range.second , Index( v_triples.size() ) );
  if( range.second <= range.first )
   return;
@@ -530,6 +545,9 @@ void QuadFunction::remove_variables( Range range , ModParam issueMod ) {
 
 void QuadFunction::remove_variables( Subset && nms , bool ordered ,
                                      ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( nms.empty() ) {   // removing *all* the Variable
   my_convexity = Unknown;
   mat_nd.setZero();

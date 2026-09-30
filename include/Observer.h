@@ -469,8 +469,10 @@ class Observer {
   * set by the amododification_type enum [see Modification.h]:
   *
   * - eDryRun   the change that the method is supposed to perform, which would
-  *             result in a Modification would be issued, must *not* be done;
-  *             as a consequence, no Modification should be issued. Allowing
+  *             result in a Modification being issued, must *not* be done;
+  *             the method returns without changing anything, neither in the
+  *             object nor in whatever the change would be forwarded to, and
+  *             as a consequence no Modification is issued. Allowing
   *             to call a method and actually not doing the change that the
   *             method should do is useful in particular for methods that
   *             change both the "abstract" and the "physical" representation
@@ -497,7 +499,7 @@ class Observer {
   * Furthermore, it is necessary to specify to which channel the Modification
   * is sent. This information can be "packed" into one single parameter, which
   * is what this method does: iM is the parameter containing one of the above
-  * three values, and chnl the "name" of the channel. It is guaranteed that
+  * four values, and chnl the "name" of the channel. It is guaranteed that
   * make_par( iM , 0 ) == iM, so this method is only needed when sending to
   * a non-default channel. */
 

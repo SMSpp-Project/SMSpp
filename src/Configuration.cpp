@@ -160,12 +160,11 @@ Configuration * Configuration::deserialize( const netCDF::NcFile & f ,
 
   netCDF::NcGroup cg;
   if( type == eProbFile ) {
-   netCDF::NcGroup dg = f.getGroup( "Prob_" +
-			        std::to_string( idx >= 0 ? idx : - idx - 1 ) );
-   if( dg.isNull() )
-    return( nullptr );
-
-   cg = dg.getGroup( ( idx >= 0 ? "BlockConfig" : "BlockSolver" ) );
+   if( idx >= 0 )
+    cg = get_Prob_group( f , idx , "BlockConfig" , "BlockConfig" );
+   else
+    cg = get_Prob_group( f , - ( idx + 1 ) , "BlockSolver" ,
+			 "SolverConfig" );
    }
   else
    cg = f.getGroup( "Config_" + std::to_string( idx ) );
@@ -271,7 +270,13 @@ Configuration * Configuration::deserialize( std::istream & input )
     throw( std::invalid_argument(
      "Configuration::deserialize: cascade override `+` after a `*` that "
      "did not produce a Configuration" ) );
-   cfg->merge_overrides( input );
+   try {
+    cfg->merge_overrides( input );
+    }
+   catch( ... ) {
+    delete cfg;
+    throw;
+    }
    }
 
   return( cfg );
@@ -282,7 +287,13 @@ Configuration * Configuration::deserialize( std::istream & input )
     throw( std::invalid_argument( sre ) );
 
   auto cfg = Configuration::new_Configuration( tmp );
-  input >> *cfg;
+  try {
+   input >> *cfg;
+   }
+  catch( ... ) {
+   delete cfg;
+   throw;
+   }
   return( cfg );
   }
  }  // end( Configuration::deserialize( std::istream ) )
@@ -292,6 +303,42 @@ Configuration * Configuration::deserialize( std::istream & input )
 Configuration::ConfigurationFactoryMap & Configuration::f_factory( void ) {
  static ConfigurationFactoryMap s_factory;
  return( s_factory );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+netCDF::NcGroup Configuration::add_Prob_group( netCDF::NcFile & f ,
+					       const std::string & name )
+{
+ const auto n = f.getGroupCount();
+ if( n ) {
+  auto pg = f.getGroup( "Prob_" + std::to_string( n - 1 ) );
+  if( ( ! pg.isNull() ) && pg.getGroup( name ).isNull() )
+   return( pg.addGroup( name ) );
+  }
+
+ return( f.addGroup( "Prob_" + std::to_string( n ) ).addGroup( name ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+netCDF::NcGroup Configuration::get_Prob_group( const netCDF::NcFile & f ,
+					       unsigned int idx ,
+					       const std::string & name ,
+					       const std::string & alt_name )
+{
+ auto pg = f.getGroup( "Prob_" + std::to_string( idx ) );
+ if( ! pg.isNull() ) {
+  auto g = pg.getGroup( name );
+  if( ! g.isNull() )
+   return( g );
+  }
+
+ auto cg = f.getGroup( "Config_" + std::to_string( idx ) );
+ if( ! cg.isNull() )
+  return( cg.getGroup( alt_name ) );
+
+ return( netCDF::NcGroup() );
  }
 
 /*--------------------------------------------------------------------------*/

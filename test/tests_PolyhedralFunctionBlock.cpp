@@ -1,5 +1,6 @@
 /** @file
- * Unit tests for the size variable of a PolyhedralFunctionBlock.
+ * Unit tests for PolyhedralFunctionBlock: the size variable of its dual
+ * representation.
  *
  * The size variable of a PolyhedralFunctionBlock is the multiplier, owned by
  * the father, that set_size_variable() writes into the normalization
@@ -242,5 +243,5 @@ int main( void )
  }
 
 /*--------------------------------------------------------------------------*/
-/*---------------------- End File tests_SizeVariable.cpp -------------------*/
+/*----------------- End File tests_PolyhedralFunctionBlock.cpp -------------*/
 /*--------------------------------------------------------------------------*/

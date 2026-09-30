@@ -31,6 +31,9 @@ using namespace SMSpp_di_unipi_it;
 
 void ColVariable::set_type( var_type type , c_ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( type == get_type() )  // actually doing nothing
   return;                  // cowardly (and silently) return
 
@@ -51,6 +54,9 @@ void ColVariable::set_type( var_type type , c_ModParam issueMod )
 
 void ColVariable::is_integer( bool yn , c_ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( yn == is_integer() )  // actually doing nothing
   return;                  // cowardly (and silently) return
 
@@ -73,6 +79,9 @@ void ColVariable::is_integer( bool yn , c_ModParam issueMod )
 
 void ColVariable::is_positive( bool yn, c_ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( yn == is_positive() )  // actually doing nothing
   return;                   // cowardly (and silently) return
 
@@ -95,6 +104,9 @@ void ColVariable::is_positive( bool yn, c_ModParam issueMod )
 
 void ColVariable::is_negative( bool yn , c_ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( yn == is_negative() )  // actually doing nothing
   return;                   // cowardly (and silently) return
 
@@ -117,6 +129,9 @@ void ColVariable::is_negative( bool yn , c_ModParam issueMod )
 
 void ColVariable::is_unitary( bool yn , c_ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( yn == is_unitary() )  // actually doing nothing
   return;                  // cowardly (and silently) return
 

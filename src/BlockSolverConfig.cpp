@@ -155,13 +155,8 @@ BlockSolverConfig * BlockSolverConfig::deserialize( netCDF::NcFile & f,
 
   netCDF::NcGroup cg;
 
-  if( type == eProbFile ) {
-   netCDF::NcGroup dg = f.getGroup( "Prob_" + std::to_string( idx ) );
-   if( dg.isNull() )
-    return( nullptr );
-
-   cg = dg.getGroup( "BlockSolver" );
-   }
+  if( type == eProbFile )
+   cg = get_Prob_group( f , idx , "BlockSolver" , "SolverConfig" );
   else
    cg = f.getGroup( "Config_" + std::to_string( idx ) );
 
@@ -225,9 +220,7 @@ void BlockSolverConfig::deserialize( const netCDF::NcGroup & group )
 	          "BlockSolverConfig::deserialize: missing SolverNames" ) );
 
  for( size_t i = 0 ; i < num_solvers ; ++i ) {
-  char * solver_name;
-  solver_names_var.getVar( { i } , &solver_name );
-  v_SolverNames[ i ] = std::string( solver_name );
+  get_var_values( solver_names_var , & v_SolverNames[ i ] , { i } , { 1 } );
   auto sc = group.getGroup( "SolverConfig_" + std::to_string( i ) );
   if( sc.isNull() )
    v_SolverConfigs[ i ] = nullptr;
@@ -454,12 +447,10 @@ void BlockSolverConfig::apply( Block * block ,
 
 void BlockSolverConfig::serialize( netCDF::NcFile & f , int type ) const
 {
- if( type == eConfigFile )
+ if( type != eProbFile )
   Configuration::serialize( f, type );
  else {
-  // appended after the last problem of the file, as Block::serialize() does
-  auto cg = ( f.addGroup( "Prob_" + std::to_string( f.getGroupCount() )
-  ) ).addGroup( "BlockSolver" );
+  auto cg = add_Prob_group( f , "BlockSolver" );
   serialize( cg );
   }
  }  // end( BlockSolverConfig::serialize( file ) )
@@ -640,7 +631,7 @@ void RBlockSolverConfig::deserialize( const netCDF::NcGroup & group )
   if( var_sub_Block_id.getDim( 0 ).getSize() != num_config )
    throw( std::invalid_argument(
    "RBlockSolverConfig::deserialize: wrong 1st dimension in sub-Block-id" ) );
-  var_sub_Block_id.getVar( v_sub_Block_id.data() );
+  get_var_values( var_sub_Block_id , v_sub_Block_id.data() );
   }
  }  // end( RBlockSolverConfig::deserialize( group ) )
 
@@ -856,7 +847,7 @@ void RBlockSolverConfig::load( std::istream & input )
 
   auto cfg = Configuration::deserialize( input );
   v_BlockSolverConfig[ i ] = dynamic_cast< BlockSolverConfig * >( cfg );
-  if( ! v_BlockSolverConfig[ i ] ) {
+  if( cfg && ( ! v_BlockSolverConfig[ i ] ) ) {  // '*' is nullptr
    delete cfg;
    throw( std::invalid_argument(
         "RBlockSolverConfig::load: invalid BlockSolverConfig for sub-Block "

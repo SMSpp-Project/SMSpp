@@ -1462,7 +1462,8 @@ class BendersBFunction : public C05Function , public Block {
   *        any physical modifications.
   *
   * @param issueAMod decides if and how the BendersBFunctionModRngd is issued,
-  *        as described in Observer::make_par(). Note that type() ==
+  *        as described in Observer::make_par(), hence under eDryRun the
+  *        constants are not changed at all. Note that type() ==
   *        AlphaChanged (all the alphas may have changed, although actually
   *        only a subset of them has) and BFtype() == ModifyCnst. The
   *        shift() is NANshift: whether a larger constant increases or
@@ -1499,7 +1500,8 @@ class BendersBFunction : public C05Function , public Block {
   *        any physical modifications.
   *
   * @param issueAMod decides if and how the BendersBFunctionModSbst is issued,
-  *        as described in Observer::make_par(). Note that type() ==
+  *        as described in Observer::make_par(), hence under eDryRun the
+  *        constants are not changed at all. Note that type() ==
   *        AlphaChanged (all the alphas may have changed, although actually
   *        only a subset of them has) and BFtype() == ModifyCnst. The
   *        shift() is NANshift: whether a larger constant increases or

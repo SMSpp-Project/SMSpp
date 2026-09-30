@@ -154,7 +154,7 @@ void RHandler::deserialize( const netCDF::NcGroup & group )
   assert( var_sub_Block_id.getDimCount() == 1 );
   assert( var_sub_Block_id.getDim( 0 ).getSize() == n_sub_Block.getSize() );
   v_sub_Block_id.resize( var_sub_Block_id.getDim( 0 ).getSize() );
-  var_sub_Block_id.getVar( v_sub_Block_id.data() );
+  get_var_values( var_sub_Block_id , v_sub_Block_id.data() );
   }
  else {
   decltype( v_sub_Block_id )::size_type n = n_sub_Block.getSize();
@@ -377,7 +377,8 @@ void CHandler::deserialize( const netCDF::NcGroup & group )
   v_Config_Constraint[ i ] = dynamic_cast< ComputeConfig * >(
    Configuration::new_Configuration( config_group ) );
 
-  var_Constraint_group_id.getVar( { i } , & v_Constraint_id[ i ].first );
+  get_var_values( var_Constraint_group_id , & v_Constraint_id[ i ].first ,
+		  { i } , { 1 } );
 
   if( ! var_Constraint_index.isNull() )
    var_Constraint_index.getVar( { i }, & v_Constraint_id[ i ].second );
@@ -524,7 +525,7 @@ void CHandler::load( std::istream & input )
 
   auto cfg = Configuration::deserialize( input );
   v_Config_Constraint[ i ] = dynamic_cast< ComputeConfig * >( cfg );
-  if( ! v_Config_Constraint[ i ] ) {
+  if( cfg && ( ! v_Config_Constraint[ i ] ) ) {  // '*' is nullptr
    delete cfg;
    throw( std::invalid_argument(
 		  "BlockConfig::load: invalid Configuration for Constraint "
@@ -606,7 +607,7 @@ void OHandler::load( std::istream & input )
 
  auto cfg = Configuration::deserialize( input );
  f_Config_Objective = dynamic_cast< ComputeConfig * >( cfg );
- if( ! f_Config_Objective ) {
+ if( cfg && ( ! f_Config_Objective ) ) {  // '*' is nullptr
   delete cfg;
   throw( std::invalid_argument(
 	   "*BlockConfig::load: invalid Configuration for the Objective" ) );

@@ -171,7 +171,9 @@ class FRealObjective : public RealObjective , public Observer {
   * allowing a finer control on which Modification are "listened to".
   *
   * The parameter issueMod decides if and how the FRealObjectiveMod is
-  * issued, as described in Observer::make_par(). */
+  * issued, as described in Observer::make_par(); under eDryRun nothing is
+  * done, hence function does not become property of the FRealObjective and
+  * the old Function is not deleted. */
 
  void set_function( Function * function = nullptr ,
                     ModParam issueMod = eModBlck , bool deleteold = true );

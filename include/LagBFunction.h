@@ -853,6 +853,23 @@ namespace SMSpp_di_unipi_it
     void set_dual_pairs(v_dual_pair &&dp);
 
     /*--------------------------------------------------------------------------*/
+    /// gives the y of the Lagrangian term that deserialize() has read
+    /** The netCDF format of a LagBFunction [see serialize()] has the functions
+     * g_i( x ) of its Lagrangian term < y , g( x ) >, but not the ColVariable y,
+     * which are not the LagBFunction's: after deserialize() the LagBFunction
+     * has no active Variable, as a BendersBFunction or a PolyhedralFunction
+     * that is read has none, and this method gives them, y[ i ] being the
+     * multiplier of the i-th function read. It then does what set_dual_pairs()
+     * does, and as it issues no Modification either.
+     *
+     * \p y must have as many elements as the functions deserialize() has read
+     * and not been given the y of yet (none, if set_dual_pairs() or
+     * set_inner_block() has been called after deserialize()), or else
+     * std::invalid_argument is thrown. */
+
+    void set_variables(std::vector<ColVariable *> &&y);
+
+    /*--------------------------------------------------------------------------*/
     /// set a given int numerical parameter (see set_ComputeConfig())
     /** Set the int numerical parameters of the LagBFunction, which mostly (but
      * not exclusively) means setting those of the inner Solver used to
@@ -1370,6 +1387,15 @@ namespace SMSpp_di_unipi_it
 
     /*--------------------------------------------------------------------------*/
 
+    /// de-serialize a LagBFunction out of netCDF::NcGroup
+    /** De-serialize a LagBFunction out of netCDF::NcGroup, in the format
+     * described in serialize(). Whatever the LagBFunction had is removed first,
+     * the inner Block included, and the functions g_i( x ) of the Lagrangian
+     * term are read but kept waiting for their y: the LagBFunction has no
+     * active Variable until set_variables() gives them. As set_inner_block()
+     * and set_dual_pairs(), this is supposed to be called before the
+     * LagBFunction gets an Observer, as it issues no Modification. */
+
     void deserialize(const netCDF::NcGroup &group) override;
 
     /** @} ---------------------------------------------------------------------*/
@@ -1717,10 +1743,47 @@ namespace SMSpp_di_unipi_it
      * being both a Function and a Block, the netCDF::NcGroup will have to have
      * the "standard format of a :Block", meaning whatever is managed by the
      * serialize() method of the base Block class, plus the
-     * LagBFunction-specific data with the following format:
+     * LagBFunction-specific data with the following format, which writes the
+     * Lagrangian term < y , g( x ) > as g( x ) = A x + b with A in the sparse
+     * format of the matrix of a BendersBFunction, the columns being given by
+     * AbstractPath rather than by index:
      *
-     *     TO BE DONE
-     */
+     * - The dimension "NumVar" containing the number n of Lagrangian terms,
+     *   i.e., of rows of A, i.e., of active Variable y. This dimension is
+     *   optional; if it is not provided, then 0 is assumed. As for any
+     *   :Function, the active Variable y themselves are not part of the format
+     *   [see set_variables()].
+     *
+     * - The dimension "NumNonzero" containing the number of the coefficients
+     *   of A, i.e., of the terms of the n LinearFunction g_i( x ) together.
+     *   This dimension is optional; if it is not provided, then 0 is assumed.
+     *
+     * - The variable "NumNonzeroAtRow", of type netCDF::NcUint and indexed over
+     *   the dimension "NumVar": NumNonzeroAtRow[ i ] is the number of terms of
+     *   g_i( x ). This variable is optional only if NumNonzero == 0.
+     *
+     * - The variable "A", of type netCDF::NcDouble and indexed over the
+     *   dimension "NumNonzero", containing the coefficients of the terms, those
+     *   of g_0( x ) first, then those of g_1( x ), and so on. This variable is
+     *   optional only if NumNonzero == 0.
+     *
+     * - The group "AbstractPath", containing the description of a vector of
+     *   NumNonzero AbstractPath [see AbstractPath::serialize()]: the k-th is
+     *   the path to the ColVariable of the k-th term, taken with respect to the
+     *   inner Block (i.e., the inner Block is the reference Block of the path).
+     *   This group is optional only if NumNonzero == 0.
+     *
+     * - The variable "b", of type netCDF::NcDouble and indexed over the
+     *   dimension "NumVar", containing the constant terms of the g_i( x ). This
+     *   variable is optional; if it is not provided, then b = 0 is assumed.
+     *
+     * - The group "Block", containing the description of the inner Block, with
+     *   the costs of its Objective being the original ones, i.e., without the
+     *   Lagrangian term. This group is mandatory.
+     *
+     * The Lagrangian term written is the one of set_dual_pairs() [or
+     * set_variables()], or else the one deserialize() has read that has not
+     * been given its y yet. */
 
     void serialize(netCDF::NcGroup &group) const override;
 
@@ -3096,6 +3159,18 @@ namespace SMSpp_di_unipi_it
                        *   only for affine f (then delta_na == 0), or Blocks that convex-combine
                        *   every non-linear auxiliary in their Solution. Kept for backward
                        *   compatibility; do NOT use with non-linear costs otherwise. */
+
+    /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+    std::vector<LinearFunction::v_coeff_pair> v_readA;
+    ///< the terms of the g_i( x ) read by deserialize()
+    /**< The terms of the functions g_i( x ) that
+     * deserialize() has read and set_variables() has not
+     * been given the y of yet, each term on a ColVariable of the inner Block;
+     * empty otherwise. */
+
+    std::vector<double> v_readb;
+    ///< the constants of the g_i( x ) of v_readA
 
     /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 

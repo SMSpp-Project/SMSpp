@@ -181,7 +181,9 @@ class FRowConstraint : public RowConstraint, public Observer {
   * allowing a finer control on which Modification are "listened to".
   *
   * The parameter issueMod decides if and how the Modification is issued, as
-  * described in Observer::make_par(). */
+  * described in Observer::make_par(); under eDryRun nothing is done, hence
+  * function does not become property of the FRowConstraint and the old
+  * Function is not deleted. */
 
  void set_function( Function * const function = nullptr,
                     ModParam issueMod = eModBlck, bool deleteold = true );

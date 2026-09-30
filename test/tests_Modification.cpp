@@ -5,10 +5,15 @@
  * Unit tests for the Modification issued by the modifying methods of the
  * core components: ColVariable, FRowConstraint, the OneVarConstraint family,
  * FRealObjective, LinearFunction within an FRowConstraint and within an
- * FRealObjective, and the dynamic Variable and Constraint of a Block.
+ * FRealObjective, and the dynamic Variable and Constraint of a Block; and
+ * that under eDryRun those of DQuadFunction, QuadFunction,
+ * PolyhedralFunction, LagBFunction, BendersBFunction and C05SumFunction
+ * change and issue nothing, those that can be exercised without a Solver
+ * being also checked to do the change under eNoMod.
  *
  * For each method the test checks what Observer::make_par() says of the
- * ModParam: under eNoMod the change is done and nothing is issued; under
+ * ModParam: under eDryRun the change is not done and nothing is issued;
+ * under eNoMod the change is done and nothing is issued; under
  * eNoBlck the Modification is issued, with concerns_Block() == false, only
  * if a Solver is listening; under eModBlck it is issued, with
  * concerns_Block() == true, whether or not a Solver is listening; on a
@@ -19,10 +24,6 @@
  * a call that changes nothing, empty and full Range, Range at the
  * boundaries, empty Subset (which for the removing methods means "all"),
  * unordered Subset, adding nothing and removing everything.
- *
- * The checks that the library does not pass are kept out of the test in
- * blocks marked KNOWN DEFECT, compiled out, each saying what the library
- * does and where.
  *
  * \author Donato Meoli \n
  *         Dipartimento di Informatica \n
@@ -44,12 +45,18 @@
 #include <vector>
 
 #include "AbstractBlock.h"
+#include "BendersBFunction.h"
+#include "C05SumFunction.h"
 #include "ColVariable.h"
+#include "DQuadFunction.h"
 #include "FakeSolver.h"
 #include "FRealObjective.h"
 #include "FRowConstraint.h"
+#include "LagBFunction.h"
 #include "LinearFunction.h"
 #include "OneVarConstraint.h"
+#include "PolyhedralFunction.h"
+#include "QuadFunction.h"
 
 // last, so that the headers above are read as the library was compiled
 #include "TestAssert.h"
@@ -488,16 +495,8 @@ static void test_ColVariable( void )
  for( const auto & c : noops )
   check_nothing( r , c );
 
-#if 0
- // KNOWN DEFECT: under eDryRun the change is done all the same, since
- // Variable::is_fixed() [src/Variable.cpp:48-51] and ColVariable::set_type(),
- // is_integer(), is_positive(), is_negative(), is_unitary()
- // [src/ColVariable.cpp:36-38, 58-61, 80-83, 102-105, 124-127] change f_state
- // before looking at issueMod, which they only use to decide whether to
- // issue the VariableMod
  for( const auto & c : changes )
   check_dry_run( r , c );
-#endif
 
  // a ColVariable of no Block changes all the same, and has none to tell
  ColVariable y;
@@ -603,7 +602,10 @@ static void test_RowConstraint( void )
    rebuild( *c , *x , { { X( 0 ) , 1 } } );
    } ,
   [ = ]( ModParam iM ) {
-   c->set_function( new LinearFunction( { { X( 1 ) , 3 } } ) , iM );
+   auto f = new LinearFunction( { { X( 1 ) , 3 } } );
+   c->set_function( f , iM );
+   if( c->get_function() != f )  // not taken, as under eDryRun
+    delete f;
    } ,
   [ = ]() {
    return( is_lf( c->get_function() , { { X( 0 ) , 1 } } ) &&
@@ -624,15 +626,8 @@ static void test_RowConstraint( void )
  for( const auto & cs : noops )
   check_nothing( r , cs );
 
-#if 0
- // KNOWN DEFECT: under eDryRun the change is done all the same, since
- // FRowConstraint::set_lhs(), set_rhs(), set_both(), set_function()
- // [src/FRowConstraint.cpp:83-85, 100-102, 118-122, 40-58] and
- // Constraint::relax() [src/Constraint.cpp:45-48] change the data before
- // looking at issueMod, which they only use to decide whether to issue
  for( const auto & cs : changes )
   check_dry_run( r , cs );
-#endif
  }
 
 /*--------------------------------------------------------------------------*/
@@ -778,16 +773,8 @@ static void test_OneVarConstraint( void )
  for( const auto & c : throwing )
   check_throws( r , c );
 
-#if 0
- // KNOWN DEFECT: under eDryRun the change is done all the same, since
- // OneVarConstraint::set_variable() [src/OneVarConstraint.cpp:42-49] and
- // the set_lhs(), set_rhs(), set_both() of BoxConstraint, LB0Constraint,
- // LBConstraint, UBConstraint [src/OneVarConstraint.cpp:65-68, 83-86,
- // 101-105, 120-123, 156-159, 174-177] change the data before looking at
- // issueMod, which they only use to decide whether to issue
  for( const auto & c : changes )
   check_dry_run( r , c );
-#endif
  }
 
 /*--------------------------------------------------------------------------*/
@@ -825,7 +812,10 @@ static void test_Objective( void )
   sense( Objective::eMax , Objective::eMin , ObjectiveMod::eSetMin ) ,
   Case{ [ = ]() { rebuild( *obj , *x , { { X( 0 ) , 1 } } ); } ,
 	[ = ]( ModParam iM ) {
-	 obj->set_function( new LinearFunction( { { X( 1 ) , 2 } } ) , iM );
+	 auto f = new LinearFunction( { { X( 1 ) , 2 } } );
+	 obj->set_function( f , iM );
+	 if( obj->get_function() != f )  // not taken, as under eDryRun
+	  delete f;
 	 } ,
 	[ = ]() {
 	 return( is_lf( obj->get_function() , { { X( 0 ) , 1 } } ) &&
@@ -848,15 +838,8 @@ static void test_Objective( void )
  for( const auto & c : noops )
   check_nothing( r , c );
 
-#if 0
- // KNOWN DEFECT: under eDryRun the change is done all the same, since
- // Objective::set_sense() [src/Objective.cpp:37-40] and
- // FRealObjective::set_function() [src/FRealObjective.cpp:43-59] change the
- // data before looking at issueMod, which they only use to decide whether
- // to issue
  for( const auto & c : changes )
   check_dry_run( r , c );
-#endif
 
  // the Objective of the Block changes whole
  FRealObjective other;
@@ -876,12 +859,7 @@ static void test_Objective( void )
  check_unheard_modblck( r , swap );
 
  check_channel( r , swap );
-
-#if 0
- // KNOWN DEFECT: under eDryRun the Objective is changed all the same
- // [src/Block.cpp:425-426]
  check_dry_run( r , swap );
-#endif
 
  r.block->set_objective( obj , eNoMod );
  r.clear();
@@ -1157,54 +1135,24 @@ static void test_LinearFunction( void )
  check_issued( r , past_end , eModBlck , true );
  check_channel( r , past_end );
 
-#if 0
- // KNOWN DEFECT: under eNoMod, and under eNoBlck with no Solver listening,
- // FRowConstraint::remove_variables( Subset ) with the empty Subset (which
- // means all the Variable) empties the Function but leaves c among the
- // active stuff of every Variable it had, since the loop that unregisters
- // c runs over the Subset, not over the Variable
- // [src/FRowConstraint.cpp:190-191]; FRealObjective::remove_variables(
- // Subset )
- // does the same [src/FRealObjective.cpp:133-134]
+ // removing without a Modification, c lets go of all the Variable the
+ // empty Subset stands for, and of those the Range cut to the end has
  check_nomod( r , all_sbst );
  check_unheard_noblck( r , all_sbst );
-#endif
-
-#if 0 // KNOWN DEFECT, undefined behaviour: not even run in a probe
- // under eNoMod, and under eNoBlck / eModBlck with no Solver listening,
- // FRowConstraint::remove_variables( Range ) unregisters c from the Variable
- // in positions range.first ... range.second - 1 without cutting the Range
- // to get_num_active_var() first [src/FRowConstraint.cpp:171-172], hence it
- // reads past the end of the Function for a Range such as ( 2 , Inf ),
- // which LinearFunction::remove_variables() accepts and cuts; the same in
- // FRealObjective::remove_variables( Range ) [src/FRealObjective.cpp:115-116]
  check_nomod( r , past_end );
  check_unheard_noblck( r , past_end );
-#endif
 
-#if 0
- // KNOWN DEFECT: under eModBlck with no Solver listening, the Modification
- // of the Function never reaches the Block. FRowConstraint::add_Modification()
- // [src/FRowConstraint.cpp:250] passes it on only if the Block has anyone
- // there, and remove_variable*() [src/FRowConstraint.cpp:149, 166, 185]
- // turn eModBlck into eNoMod if it has not, while under eModBlck the
- // Modification is to be sent "whether or not there is anyone listening"
- // [Observer::make_par()]; the same in FRealObjective
- // [src/FRealObjective.cpp:190, 94, 110, 128]
+ // under eModBlck the Modification reaches the Block even if no Solver is
+ // listening, also when the removal goes through c
  for( const auto & cs : changes )
   check_unheard_modblck( r , cs );
  check_unheard_modblck( r , all_sbst );
-#endif
+ check_unheard_modblck( r , past_end );
 
-#if 0
- // KNOWN DEFECT: under eDryRun the change is done all the same, since the
- // modifying methods of LinearFunction [src/LinearFunction.cpp:229-600]
- // take issue_mod( issueMod ) == false as "no one is there, just do it", and
- // so do the remove_variable*() of FRowConstraint, which pass eDryRun on
- // [src/FRowConstraint.cpp:149-155, 166-175, 185-194]
  for( const auto & cs : changes )
   check_dry_run( r , cs );
-#endif
+ check_dry_run( r , all_sbst );
+ check_dry_run( r , past_end );
 
  // the same within an FRealObjective of the Block
  auto obj = new FRealObjective;
@@ -1279,13 +1227,10 @@ static void test_LinearFunction( void )
   check_channel( r , cs );
   }
 
-#if 0
- // KNOWN DEFECT: as above, under eModBlck with no Solver listening the
- // Modification of the Function never reaches the Block
- // [src/FRealObjective.cpp:190, 94, 110, 128]
- for( const auto & cs : ochanges )
+ for( const auto & cs : ochanges ) {
   check_unheard_modblck( r , cs );
-#endif
+  check_dry_run( r , cs );
+  }
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1530,13 +1475,8 @@ static void test_dynamic( Rig & r , std::list< T > & l )
  for( const auto & c : noops )
   check_nothing( r , c );
 
-#if 0
- // KNOWN DEFECT: under eDryRun the change is done all the same, since
- // Block::add_dynamic_*() and remove_dynamic_*() [include/Block.h:9561-10270]
- // take issue_mod( issueMod ) == false as "nobody is listening, just do it"
  for( const auto & c : changes )
   check_dry_run( r , c );
-#endif
 
  r.clear();
  refill( 0 );
@@ -1629,6 +1569,19 @@ static void test_removed_Variable_in_stuff( void )
   r.clear();
   }
 
+ // issueMod = eDryRun: nothing at all, whatever issueindMod is
+ for( ModParam iiM : { eDryRun , eNoMod , eNoBlck , eModBlck } ) {
+  auto y = setup( true );
+  r.block->remove_dynamic_variable( *vars , vars->begin() , eDryRun , iiM );
+  assert( ( vars->size() == 1 ) && ( & vars->front() == y ) );
+  assert( c0->get_function()->get_num_active_var() == 1 );
+  assert( c1->get_function()->get_num_active_var() == 1 );
+  assert( active_in( *y , c0 ) && active_in( *y , c1 ) );
+  assert( r.got().empty() && r.seen().empty() );
+  r.block->remove_dynamic_variable( *vars , vars->begin() , eNoMod , eNoMod );
+  r.clear();
+  }
+
  // a dynamic Variable active in two stuff is removed from both, although
  // each removal takes the stuff out of the active list of the Variable
  // that Block::remove_variable_from_stuff() walks
@@ -1642,6 +1595,617 @@ static void test_removed_Variable_in_stuff( void )
   assert( r.got().size() == 3 );
   r.clear();
   }
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The modifying methods of a DQuadFunction and of a QuadFunction within an
+ * FRowConstraint of the Block and of a PolyhedralFunction within an
+ * FRealObjective of the Block, including the removal of Variable through
+ * the stuff: under eDryRun each of them leaves the data, the Variable and
+ * their registration as they were, and issues nothing. */
+
+static void test_dry_run( void )
+{
+ Rig r;
+ auto x = new std::vector< ColVariable >( 3 );
+ r.block->add_static_variable( *x , "x" );
+ auto X = [ x ]( Index i ) { return( & ( *x )[ i ] ); };
+ auto c = new FRowConstraint;
+ r.block->add_static_constraint( *c , "c" );
+ auto obj = new FRealObjective;
+ r.objective = obj;
+ r.block->set_objective( obj , eNoMod );
+
+ // the state of a stuff s with Function f: the active Variable of f, which
+ // of x see s as active, and the data of f that the family gives
+ using State = std::pair< Addrs , std::vector< double > >;
+ std::function< std::vector< double >( void ) > data;
+ auto state = [ & ]( const ThinVarDepInterface * s , const Function * f ) {
+  State st;
+  for( Index i = 0 ; i < f->get_num_active_var() ; ++i )
+   st.first.push_back( f->get_active_var( i ) );
+  for( const auto & v : *x )
+   st.second.push_back( active_in( v , s ) ? 1 : 0 );
+  auto d = data();
+  st.second.insert( st.second.end() , d.begin() , d.end() );
+  return( st );
+  };
+
+ // a Case that gives s a new Function, and is to find it unchanged
+ State snap;
+ auto dry = [ & ]( auto * s , std::function< Function * ( void ) > make ,
+		   std::function< void( ModParam ) > call ) {
+  return( Case{ [ & , s , make ]() {
+                 s->set_function( make() , eNoMod );
+                 snap = state( s , s->get_function() );
+                 } ,
+		call ,
+		[ & , s ]() {
+		 return( state( s , s->get_function() ) == snap ); } ,
+		nullptr , nullptr } );
+  };
+
+ // DQuadFunction - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ auto dq = [ c ]() {
+  return( static_cast< DQuadFunction * >( c->get_function() ) );
+  };
+ auto dq_new = [ X ]() -> Function * {
+  return( new DQuadFunction( { { X( 0 ) , 1 , 2 } , { X( 1 ) , 3 , 4 } } ,
+			     5 ) );
+  };
+ auto dq_data = [ dq ]() {
+  std::vector< double > d;
+  for( Index i = 0 ; i < dq()->get_num_active_var() ; ++i ) {
+   d.push_back( dq()->get_linear_coefficient( i ) );
+   d.push_back( dq()->get_quadratic_coefficient( i ) );
+   }
+  d.push_back( dq()->get_constant_term() );
+  return( d );
+  };
+
+ const DQuadFunction::v_coeff NQ = { 7 , 8 };
+ const DQuadFunction::v_coeff NL = { 9 , 6 };
+
+ std::vector< Case > dq_cases = {
+  dry( c , dq_new , [ = ]( ModParam iM ) {
+                     dq()->add_variables( { { X( 2 ) , 6 , 7 } } , iM ); } ) ,
+  dry( c , dq_new , [ = ]( ModParam iM ) {
+                     dq()->add_variable( X( 2 ) , 6 , 7 , iM ); } ) ,
+  dry( c , dq_new , [ = ]( ModParam iM ) {
+                     dq()->modify_term( 0 , 8 , 9 , iM ); } ) ,
+  dry( c , dq_new , [ = ]( ModParam iM ) {
+                     dq()->modify_linear_coefficient( 1 , 8 , iM ); } ) ,
+  dry( c , dq_new , [ = ]( ModParam iM ) {
+                     dq()->modify_terms( NQ.begin() , NL.begin() ,
+                                         Range( 0 , 2 ) , iM ); } ) ,
+  dry( c , dq_new , [ = ]( ModParam iM ) {
+                     dq()->modify_terms( NQ.begin() , NL.begin() ,
+                                         Subset( { 1 , 0 } ) , false ,
+                                         iM ); } ) ,
+  dry( c , dq_new , [ = ]( ModParam iM ) {
+                     dq()->modify_linear_coefficients( { 9 , 6 } ,
+                                                       Range( 0 , 2 ) ,
+                                                       iM ); } ) ,
+  dry( c , dq_new , [ = ]( ModParam iM ) {
+                     dq()->modify_linear_coefficients( { 9 } ,
+                                                       Subset( { 1 } ) ,
+                                                       true , iM ); } ) ,
+  dry( c , dq_new , [ = ]( ModParam iM ) {
+                     dq()->set_constant_term( 0 , iM ); } ) ,
+  dry( c , dq_new , [ = ]( ModParam iM ) { c->remove_variable( 0 , iM ); } ) ,
+  dry( c , dq_new , [ = ]( ModParam iM ) {
+                     c->remove_variables( Range( 0 , Inf< Index >() ) ,
+                                          iM ); } ) ,
+  dry( c , dq_new , [ = ]( ModParam iM ) {
+                     c->remove_variables( Subset() , false , iM ); } ) };
+
+ data = dq_data;
+ for( const auto & cs : dq_cases )
+  check_dry_run( r , cs );
+
+ // QuadFunction- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ auto qf = [ c ]() {
+  return( static_cast< QuadFunction * >( c->get_function() ) );
+  };
+ auto qf_new = [ X ]() -> Function * {
+  return( new QuadFunction( { { X( 0 ) , 1 , 2 } , { X( 1 ) , 3 , 4 } } ,
+			    { { 1 , 0 , 5 } } ) );
+  };
+ auto qf_data = [ qf ]() {
+  std::vector< double > d;
+  const Index n = qf()->get_num_active_var();
+  for( Index i = 0 ; i < n ; ++i ) {
+   d.push_back( qf()->get_linear_coefficient( i ) );
+   for( Index j = 0 ; j < n ; ++j )
+    d.push_back( qf()->get_quadratic_coefficient( i , j ) );
+   }
+  return( d );
+  };
+
+ std::vector< Case > qf_cases = {
+  dry( c , qf_new , [ = ]( ModParam iM ) {
+                     qf()->add_variables( { { X( 2 ) , 6 , 7 } } ,
+                                          { { 2 , 0 , 8 } } , iM ); } ) ,
+  dry( c , qf_new , [ = ]( ModParam iM ) {
+                     qf()->add_nd_term( X( 1 ) , X( 2 ) , 8 , iM ); } ) ,
+  dry( c , qf_new , [ = ]( ModParam iM ) {
+                     qf()->modify_term( 0 , 1 , 9 , iM ); } ) ,
+  dry( c , qf_new , [ = ]( ModParam iM ) { c->remove_variable( 1 , iM ); } ) ,
+  dry( c , qf_new , [ = ]( ModParam iM ) {
+                     c->remove_variables( Range( 0 , 2 ) , iM ); } ) ,
+  dry( c , qf_new , [ = ]( ModParam iM ) {
+                     c->remove_variables( Subset( { 0 } ) , true ,
+                                          iM ); } ) };
+
+ data = qf_data;
+ for( const auto & cs : qf_cases )
+  check_dry_run( r , cs );
+
+ // PolyhedralFunction- - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ auto pf = [ obj ]() {
+  return( static_cast< PolyhedralFunction * >( obj->get_function() ) );
+  };
+ auto pf_new = [ X ]() -> Function * {
+  return( new PolyhedralFunction( { X( 0 ) , X( 1 ) } ,
+				  { { 1 , 2 } , { 3 , 4 } } , { 5 , 6 } ,
+				  -10 , true ) );
+  };
+ auto pf_data = [ pf ]() {
+  std::vector< double > d;
+  for( const auto & row : pf()->get_A() )
+   d.insert( d.end() , row.begin() , row.end() );
+  d.insert( d.end() , pf()->get_b().begin() , pf()->get_b().end() );
+  d.push_back( pf()->is_convex() ? 1 : 0 );
+  d.push_back( pf()->get_global_lower_bound() );
+  d.push_back( pf()->get_global_upper_bound() );
+  return( d );
+  };
+
+ std::vector< Case > pf_cases = {
+  dry( obj , pf_new , [ = ]( ModParam iM ) {
+                       pf()->set_is_convex( false , iM ); } ) ,
+  dry( obj , pf_new , [ = ]( ModParam iM ) {
+                       pf()->add_variable( X( 2 ) , { 7 , 8 } , iM ); } ) ,
+  dry( obj , pf_new , [ = ]( ModParam iM ) {
+                       pf()->modify_constant( 0 , 9 , iM ); } ) ,
+  dry( obj , pf_new , [ = ]( ModParam iM ) {
+                       pf()->modify_bound( -20 , iM ); } ) ,
+  dry( obj , pf_new , [ = ]( ModParam iM ) {
+                       pf()->add_row( { 7 , 8 } , 9 , iM ); } ) ,
+  dry( obj , pf_new , [ = ]( ModParam iM ) {
+                       pf()->delete_row( 0 , iM ); } ) ,
+  dry( obj , pf_new , [ = ]( ModParam iM ) {
+                       obj->remove_variable( 0 , iM ); } ) ,
+  dry( obj , pf_new , [ = ]( ModParam iM ) {
+                       obj->remove_variables( Range( 1 , Inf< Index >() ) ,
+                                              iM ); } ) ,
+  dry( obj , pf_new , [ = ]( ModParam iM ) {
+                       obj->remove_variables( Subset() , false , iM ); } ) };
+
+ data = pf_data;
+ for( const auto & cs : pf_cases )
+  check_dry_run( r , cs );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* add_dual_pairs(), remove_variable() and remove_variables() of a
+ * LagBFunction, whose inner Block is an AbstractBlock with a linear
+ * Objective, and the methods of its global pool: under eDryRun each of them
+ * leaves the Lagrangian pairs, their terms and the global pool as they
+ * were, and issues nothing, while under eNoMod each of them does the change.
+ * No Solver is attached to the inner Block: the global pool is filled with
+ * intNoSol, under which a combination stands for a Solution, and
+ * store_linearization(), which takes the Solution of the Solver, is only
+ * checked under eDryRun. */
+
+static void test_dry_run_LagBFunction( void )
+{
+ Rig r;
+ std::vector< ColVariable > y( 3 );          // the multipliers
+ std::vector< ColVariable > * z = nullptr;  // the Variable of the inner Block
+ auto Z = [ & z ]( Index i ) { return( & ( *z )[ i ] ); };
+ LagBFunction * lbf = nullptr;
+ FRealObjective * iobj = nullptr;            // Objective of inner Block
+
+ // the pairs, their terms and which names the global pool holds
+ using State = std::pair< Addrs , std::vector< double > >;
+ auto state = [ & ]() {
+  State st;
+  for( Index i = 0 ; i < lbf->get_num_active_var() ; ++i ) {
+   auto lf = static_cast< const LinearFunction * >(
+					      lbf->get_Lagrangian_term( i ) );
+   st.first.push_back( lbf->get_active_var( i ) );
+   st.first.push_back( lf );
+   for( const auto & p : lf->get_v_var() ) {
+    st.first.push_back( p.first );
+    st.second.push_back( p.second );
+    }
+   st.second.push_back( lf->get_constant_term() );
+   }
+  for( Index n = 0 ; n < 3 ; ++n )
+   st.second.push_back( lbf->is_linearization_there( n ) ? 1 : 0 );
+  return( st );
+  };
+
+ // the LagBFunction goes, and the inner Block with it; the Objective, which
+ // the AbstractBlock does not own, has been clear()-ed by it
+ auto drop = [ & ]() {
+  if( ! lbf )
+   return;
+  delete lbf;
+  iobj->set_Block( nullptr );
+  delete iobj;
+  lbf = nullptr;
+  };
+
+ // a new LagBFunction each time, two pairs and linearization 0 in the pool
+ State snap;
+ auto make = [ & ]() {
+  drop();
+  auto inner = new AbstractBlock;
+  z = new std::vector< ColVariable >( 2 );
+  inner->add_static_variable( *z , "z" );
+  iobj = new FRealObjective( inner , new LinearFunction( v_coeff_pair{
+				      { Z( 0 ) , 1 } , { Z( 1 ) , 2 } } ) );
+  inner->set_objective( iobj , eNoMod );
+
+  lbf = new LagBFunction( inner );
+  LagBFunction::v_dual_pair dp;
+  dp.emplace_back( & y[ 0 ] , new LinearFunction(
+				    v_coeff_pair{ { Z( 0 ) , 1 } } , 2 ) );
+  dp.emplace_back( & y[ 1 ] , new LinearFunction( v_coeff_pair{
+				     { Z( 0 ) , 3 } , { Z( 1 ) , 4 } } ) );
+  lbf->set_dual_pairs( std::move( dp ) );
+  lbf->set_par( LagBFunction::intNoSol , 1 );
+  lbf->set_par( LagBFunction::intGPMaxSz , 3 );
+  lbf->store_combination_of_linearizations( { { 0 , 1 } } , 0 , eNoMod );
+  lbf->register_Observer( r.block );
+  snap = state();
+  };
+
+ auto lbf_case = [ & ]( std::function< void( ModParam ) > call ,
+			std::function< bool( void ) > after ) {
+  return( Case{ make , call , [ & ]() { return( state() == snap ); } ,
+		after , nullptr } );
+  };
+
+ auto n_is = [ & ]( Index n ) {
+  return( lbf->get_num_active_var() == n );
+  };
+
+ std::vector< Case > cases = {
+  lbf_case( [ & ]( ModParam iM ) {
+             LagBFunction::v_dual_pair dp;
+             dp.emplace_back( & y[ 2 ] , new LinearFunction(
+                                          v_coeff_pair{ { Z( 1 ) , 5 } } ) );
+             auto term = dp.front().second;
+             lbf->add_dual_pairs( std::move( dp ) , iM );
+             if( lbf->get_num_active_var() < 3 )  // not taken, still ours
+              delete term;
+             } ,
+	    [ & ]() { return( n_is( 3 ) &&
+			      ( lbf->get_active_var( 2 ) == & y[ 2 ] ) );
+	     } ) ,
+  lbf_case( [ & ]( ModParam iM ) { lbf->remove_variable( 0 , iM ); } ,
+	    [ & ]() { return( n_is( 1 ) &&
+			      ( lbf->get_active_var( 0 ) == & y[ 1 ] ) );
+	     } ) ,
+  lbf_case( [ & ]( ModParam iM ) {
+             lbf->remove_variables( Range( 1 , Inf< Index >() ) , iM ); } ,
+	    [ & ]() { return( n_is( 1 ) &&
+			      ( lbf->get_active_var( 0 ) == & y[ 0 ] ) );
+	     } ) ,
+  lbf_case( [ & ]( ModParam iM ) {
+             lbf->remove_variables( Range( 0 , Inf< Index >() ) , iM ); } ,
+	    [ & ]() { return( n_is( 0 ) ); } ) ,
+  lbf_case( [ & ]( ModParam iM ) {
+             lbf->remove_variables( Subset( { 0 } ) , true , iM ); } ,
+	    [ & ]() { return( n_is( 1 ) &&
+			      ( lbf->get_active_var( 0 ) == & y[ 1 ] ) );
+	     } ) ,
+  lbf_case( [ & ]( ModParam iM ) {
+             lbf->remove_variables( Subset() , false , iM ); } ,
+	    [ & ]() { return( n_is( 0 ) ); } ) ,
+  lbf_case( [ & ]( ModParam iM ) { lbf->store_linearization( 1 , iM ); } ,
+	    nullptr ) ,
+  lbf_case( [ & ]( ModParam iM ) {
+             lbf->store_combination_of_linearizations( { { 0 , 1 } } , 1 ,
+                                                       iM ); } ,
+	    [ & ]() { return( lbf->is_linearization_there( 1 ) ); } ) ,
+  lbf_case( [ & ]( ModParam iM ) { lbf->delete_linearization( 0 , iM ); } ,
+	    [ & ]() { return( ! lbf->is_linearization_there( 0 ) ); } ) ,
+  lbf_case( [ & ]( ModParam iM ) {
+             lbf->delete_linearizations( Subset( { 0 } ) , true , iM ); } ,
+	    [ & ]() { return( ! lbf->is_linearization_there( 0 ) ); } ) ,
+  lbf_case( [ & ]( ModParam iM ) {
+             lbf->delete_linearizations( Subset() , true , iM ); } ,
+	    [ & ]() { return( ! lbf->is_linearization_there( 0 ) ); } ) };
+
+ for( const auto & cs : cases ) {
+  check_dry_run( r , cs );
+  if( cs.after )
+   check_nomod( r , cs );
+  }
+
+ drop();
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The modifying methods of a BendersBFunction whose inner Block is an
+ * AbstractBlock holding the RowConstraint of the mapping: under eDryRun
+ * each of them leaves the Variable, the matrix, the constants, the
+ * RowConstraint with their sides and the global pool as they were, and
+ * issues nothing, while under eNoMod each of those that change the mapping
+ * does the change. No Solver is attached to the inner Block, hence the
+ * global pool cannot be filled: store_linearization(),
+ * store_combination_of_linearizations() and the deleting methods are only
+ * checked under eDryRun, which also has to leave alone the netCDF::NcGroup
+ * given to deserialize(), a null one here. */
+
+static void test_dry_run_BendersBFunction( void )
+{
+ Rig r;
+ std::vector< ColVariable > x( 3 );
+ auto X = [ & x ]( Index i ) { return( & x[ i ] ); };
+ std::vector< FRowConstraint > * c = nullptr;  // the rows of the inner Block
+ auto C = [ & c ]( Index i ) { return( & ( *c )[ i ] ); };
+ BendersBFunction * bbf = nullptr;
+
+ // the Variable, the RowConstraint, the matrix row by row, the constants,
+ // the sides and which names the global pool holds
+ using State = std::pair< Addrs , std::vector< double > >;
+ auto state = [ & ]() {
+  State st;
+  for( Index i = 0 ; i < bbf->get_num_active_var() ; ++i )
+   st.first.push_back( bbf->get_active_var( i ) );
+  for( auto cn : bbf->get_constraints() )
+   st.first.push_back( cn );
+  for( const auto & row : bbf->get_A() ) {
+   st.second.push_back( row.size() );
+   st.second.insert( st.second.end() , row.begin() , row.end() );
+   }
+  st.second.insert( st.second.end() , bbf->get_b().begin() ,
+		    bbf->get_b().end() );
+  for( auto s : bbf->get_sides() )
+   st.second.push_back( s );
+  for( Index n = 0 ; n < 2 ; ++n )
+   st.second.push_back( bbf->is_linearization_there( n ) ? 1 : 0 );
+  return( st );
+  };
+
+ // a new BendersBFunction each time, on x[ 0 ] and x[ 1 ] with two rows
+ State snap;
+ auto make = [ & ]() {
+  delete bbf;  // and its inner Block with it
+  auto inner = new AbstractBlock;
+  c = new std::vector< FRowConstraint >( 3 );
+  inner->add_static_constraint( *c , "c" );
+  bbf = new BendersBFunction( inner , { X( 0 ) , X( 1 ) } ,
+			      { { 1 , 2 } , { 3 , 4 } } , { 5 , 6 } ,
+			      { C( 0 ) , C( 1 ) } ,
+			      { BendersBFunction::eLHS ,
+				BendersBFunction::eRHS } );
+  bbf->set_par( BendersBFunction::intGPMaxSz , 2 );
+  bbf->register_Observer( r.block );
+  snap = state();
+  };
+
+ auto bbf_case = [ & ]( std::function< void( ModParam ) > call ,
+			std::function< bool( void ) > after ) {
+  return( Case{ make , call , [ & ]() { return( state() == snap ); } ,
+		after , nullptr } );
+  };
+
+ auto n_is = [ & ]( Index n ) {
+  return( bbf->get_num_active_var() == n );
+  };
+ auto rows_are = [ & ]( Index m ) {
+  return( ( bbf->get_A().size() == m ) && ( bbf->get_b().size() == m ) &&
+	  ( bbf->get_constraints().size() == m ) &&
+	  ( bbf->get_sides().size() == m ) );
+  };
+ auto b_is = [ & ]( Index i , double v ) {
+  return( bbf->get_b()[ i ] == v );
+  };
+
+ const BendersBFunction::RealVector NB = { 9 , 10 };
+
+ std::vector< Case > cases = {
+  bbf_case( [ & ]( ModParam iM ) {
+             bbf->set_mapping( { { 7 , 8 } } , { 9 } , { C( 2 ) } ,
+                               { BendersBFunction::eBoth } , iM ); } ,
+	    [ & ]() { return( rows_are( 1 ) && b_is( 0 , 9 ) ); } ) ,
+  bbf_case( [ & ]( ModParam iM ) {
+             bbf->add_variables( { X( 2 ) } , { { 7 } , { 8 } } , iM ); } ,
+	    [ & ]() { return( n_is( 3 ) &&
+			      ( bbf->get_A()[ 1 ][ 2 ] == 8 ) ); } ) ,
+  bbf_case( [ & ]( ModParam iM ) {
+             bbf->add_variable( X( 2 ) , { 7 , 8 } , iM ); } ,
+	    [ & ]() { return( n_is( 3 ) &&
+			      ( bbf->get_A()[ 1 ][ 2 ] == 8 ) ); } ) ,
+  bbf_case( [ & ]( ModParam iM ) { bbf->remove_variable( 0 , iM ); } ,
+	    [ & ]() { return( n_is( 1 ) &&
+			      ( bbf->get_active_var( 0 ) == X( 1 ) ) ); } ) ,
+  bbf_case( [ & ]( ModParam iM ) {
+             bbf->remove_variables( Range( 0 , 1 ) , iM ); } ,
+	    [ & ]() { return( n_is( 1 ) &&
+			      ( bbf->get_active_var( 0 ) == X( 1 ) ) ); } ) ,
+  bbf_case( [ & ]( ModParam iM ) {
+             bbf->remove_variables( Range( 0 , Inf< Index >() ) , iM ); } ,
+	    [ & ]() { return( n_is( 0 ) ); } ) ,
+  bbf_case( [ & ]( ModParam iM ) {
+             bbf->remove_variables( Subset( { 1 } ) , true , iM ); } ,
+	    [ & ]() { return( n_is( 1 ) &&
+			      ( bbf->get_active_var( 0 ) == X( 0 ) ) ); } ) ,
+  bbf_case( [ & ]( ModParam iM ) {
+             bbf->remove_variables( Subset() , false , iM ); } ,
+	    [ & ]() { return( n_is( 0 ) ); } ) ,
+  bbf_case( [ & ]( ModParam iM ) {
+             bbf->modify_rows( { { 7 , 8 } } , { 9 } , Range( 0 , 1 ) ,
+                               iM ); } ,
+	    [ & ]() { return( b_is( 0 , 9 ) ); } ) ,
+  bbf_case( [ & ]( ModParam iM ) {
+             bbf->modify_rows( { { 7 , 8 } } , { 9 } , Subset( { 1 } ) ,
+                               true , iM ); } ,
+	    [ & ]() { return( b_is( 1 , 9 ) ); } ) ,
+  bbf_case( [ & ]( ModParam iM ) {
+             bbf->modify_row( 0 , { 7 , 8 } , 9 , iM ); } ,
+	    [ & ]() { return( b_is( 0 , 9 ) ); } ) ,
+  bbf_case( [ & ]( ModParam iM ) {
+             bbf->modify_constants( NB , Range( 0 , 2 ) , iM ); } ,
+	    [ & ]() { return( b_is( 0 , 9 ) && b_is( 1 , 10 ) ); } ) ,
+  bbf_case( [ & ]( ModParam iM ) {
+             bbf->modify_constants( NB.cbegin() , Range( 0 , 2 ) , iM ,
+                                    iM ); } ,
+	    [ & ]() { return( b_is( 0 , 9 ) && b_is( 1 , 10 ) ); } ) ,
+  bbf_case( [ & ]( ModParam iM ) {
+             bbf->modify_constants( NB , Subset( { 1 , 0 } ) , false ,
+                                    iM ); } ,
+	    [ & ]() { return( b_is( 1 , 9 ) && b_is( 0 , 10 ) ); } ) ,
+  bbf_case( [ & ]( ModParam iM ) {
+             bbf->modify_constants( NB.cbegin() , Subset( { 1 } ) , true ,
+                                    iM , iM ); } ,
+	    [ & ]() { return( b_is( 1 , 9 ) ); } ) ,
+  bbf_case( [ & ]( ModParam iM ) { bbf->modify_constant( 1 , 9 , iM ); } ,
+	    [ & ]() { return( b_is( 1 , 9 ) ); } ) ,
+  bbf_case( [ & ]( ModParam iM ) {
+             bbf->add_rows( { { 7 , 8 } } , { 9 } , { C( 2 ) } ,
+                            { BendersBFunction::eBoth } , iM ); } ,
+	    [ & ]() { return( rows_are( 3 ) && b_is( 2 , 9 ) ); } ) ,
+  bbf_case( [ & ]( ModParam iM ) {
+             bbf->add_row( { 7 , 8 } , 9 , C( 2 ) , BendersBFunction::eBoth ,
+                           iM ); } ,
+	    [ & ]() { return( rows_are( 3 ) && b_is( 2 , 9 ) ); } ) ,
+  bbf_case( [ & ]( ModParam iM ) {
+             bbf->delete_rows( Range( 0 , Inf< Index >() ) , iM ); } ,
+	    [ & ]() { return( rows_are( 0 ) ); } ) ,
+  bbf_case( [ & ]( ModParam iM ) {
+             bbf->delete_rows( Range( 1 , 2 ) , iM ); } ,
+	    [ & ]() { return( rows_are( 1 ) && b_is( 0 , 5 ) ); } ) ,
+  bbf_case( [ & ]( ModParam iM ) {
+             bbf->delete_rows( Subset( { 1 , 0 } ) , false , iM ); } ,
+	    [ & ]() { return( rows_are( 0 ) ); } ) ,
+  bbf_case( [ & ]( ModParam iM ) { bbf->delete_row( 0 , iM ); } ,
+	    [ & ]() { return( rows_are( 1 ) && b_is( 0 , 6 ) ); } ) ,
+  bbf_case( [ & ]( ModParam iM ) { bbf->delete_rows( iM ); } ,
+	    [ & ]() { return( rows_are( 0 ) ); } ) ,
+  bbf_case( [ & ]( ModParam iM ) { bbf->store_linearization( 0 , iM ); } ,
+	    nullptr ) ,
+  bbf_case( [ & ]( ModParam iM ) {
+             bbf->store_combination_of_linearizations( { { 0 , 1 } } , 1 ,
+                                                       iM ); } ,
+	    nullptr ) ,
+  bbf_case( [ & ]( ModParam iM ) { bbf->delete_linearization( 0 , iM ); } ,
+	    nullptr ) ,
+  bbf_case( [ & ]( ModParam iM ) {
+             bbf->delete_linearizations( Subset() , true , iM ); } ,
+	    nullptr ) ,
+  bbf_case( [ & ]( ModParam iM ) {
+             bbf->deserialize( netCDF::NcGroup() , iM ); } ,
+	    nullptr ) };
+
+ for( const auto & cs : cases ) {
+  check_dry_run( r , cs );
+  if( cs.after )
+   check_nomod( r , cs );
+  }
+
+ delete bbf;
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The methods of the global pool of a C05SumFunction of two
+ * PolyhedralFunction: under eDryRun each of them leaves the global pool of
+ * the sum and those of the members as they were, and issues nothing, while
+ * under eNoMod each of them does the change. remove_variable() is left out,
+ * since it throws whatever the ModParam, the Variable of a sum being those
+ * of its members. */
+
+static void test_dry_run_C05SumFunction( void )
+{
+ Rig r;
+ std::vector< ColVariable > x( 2 );
+ x[ 0 ].set_value( 1 );
+ x[ 1 ].set_value( 2 );
+
+ auto member = [ & x ]( double c ) {
+  PolyhedralFunction::VarVector vars( { & x[ 0 ] , & x[ 1 ] } );
+  PolyhedralFunction::MultiVector A( { { c , 0 } , { 0 , c } } );
+  PolyhedralFunction::RealVector b( { 0 , 1 } );
+  return( new PolyhedralFunction( std::move( vars ) , std::move( A ) ,
+				  std::move( b ) ) );
+  };
+
+ std::vector< PolyhedralFunction * > members{ member( 1 ) , member( 2 ) };
+ auto sum = new C05SumFunction( std::vector< C05Function * >(
+					  members.begin() , members.end() ) );
+ sum->set_par( C05Function::intGPMaxSz , 3 );
+ sum->register_Observer( r.block );
+
+ // which names the sum and the members hold, and what the sum has there
+ auto state = [ & ]() {
+  std::vector< double > st;
+  for( Index n = 0 ; n < 3 ; ++n ) {
+   for( auto m : members )
+    st.push_back( m->is_linearization_there( n ) ? 1 : 0 );
+   if( ! sum->is_linearization_there( n ) ) {
+    st.push_back( 0 );
+    continue;
+    }
+   Vec_FV g( 2 );
+   sum->get_linearization_coefficients( g.data() , Range( 0 , 2 ) , n );
+   st.insert( st.end() , g.begin() , g.end() );
+   st.push_back( sum->get_linearization_constant( n ) );
+   }
+  return( st );
+  };
+
+ // the pool emptied, and the linearization at x stored in name 0
+ std::vector< double > snap;
+ auto reset = [ & ]() {
+  sum->delete_linearizations( Subset() , true , eNoMod );
+  sum->compute();
+  sum->has_linearization( true );
+  sum->store_linearization( 0 , eNoMod );
+  snap = state();
+  };
+
+ auto sum_case = [ & ]( std::function< void( ModParam ) > call ,
+			std::function< bool( void ) > after ) {
+  return( Case{ reset , call , [ & ]() { return( state() == snap ); } ,
+		after , nullptr } );
+  };
+
+ std::vector< Case > cases = {
+  sum_case( [ & ]( ModParam iM ) { sum->store_linearization( 1 , iM ); } ,
+	    [ & ]() { return( sum->is_linearization_there( 1 ) ); } ) ,
+  sum_case( [ & ]( ModParam iM ) {
+             sum->store_combination_of_linearizations( { { 0 , 1 } } , 2 ,
+                                                       iM ); } ,
+	    [ & ]() { return( sum->is_linearization_there( 2 ) ); } ) ,
+  sum_case( [ & ]( ModParam iM ) { sum->delete_linearization( 0 , iM ); } ,
+	    [ & ]() { return( ! sum->is_linearization_there( 0 ) ); } ) ,
+  sum_case( [ & ]( ModParam iM ) {
+             sum->delete_linearizations( Subset( { 0 } ) , true , iM ); } ,
+	    [ & ]() { return( ! sum->is_linearization_there( 0 ) ); } ) ,
+  sum_case( [ & ]( ModParam iM ) {
+             sum->delete_linearizations( Subset() , true , iM ); } ,
+	    [ & ]() { return( ! sum->is_linearization_there( 0 ) ); } ) };
+
+ // the snapshot has something to lose: name 0 is there, in both members
+ reset();
+ assert( sum->is_linearization_there( 0 ) );
+ assert( members[ 0 ]->is_linearization_there( 0 ) &&
+	 members[ 1 ]->is_linearization_there( 0 ) );
+
+ for( const auto & cs : cases ) {
+  check_dry_run( r , cs );
+  check_nomod( r , cs );
+  }
+
+ delete sum;  // it gives the members back their Observer
+ for( auto m : members )
+  delete m;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1693,6 +2257,10 @@ int main( void )
  test_LinearFunction();
  test_AbstractBlock();
  test_removed_Variable_in_stuff();
+ test_dry_run();
+ test_dry_run_LagBFunction();
+ test_dry_run_BendersBFunction();
+ test_dry_run_C05SumFunction();
 
  std::cout << "Modification_test: all tests passed" << std::endl;
  return( 0 );

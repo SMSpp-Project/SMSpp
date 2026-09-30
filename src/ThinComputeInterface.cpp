@@ -17,8 +17,6 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#include <cstdlib>
-
 #include "SMSTypedefs.h"
 
 #include "ThinComputeInterface.h"
@@ -54,19 +52,6 @@ static void checkfail( std::istream & input , const std::string & msg )
 {
  if( input.fail() )
   throw( std::invalid_argument( msg ) );
- }
-
-/*--------------------------------------------------------------------------*/
-// reads the i-th element of a netCDF string variable: netCDF gives it as a
-// char * it allocates, which is copied and then freed
-
-static std::string get_string( const netCDF::NcVar & var , size_t i )
-{
- char * str = nullptr;
- var.getVar( { i } , & str );
- std::string rv( str ? str : "" );
- free( str );
- return( rv );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -337,7 +322,7 @@ void ComputeConfig::deserialize( const netCDF::NcGroup & group )
   int_pars.resize( num );
   for( size_t i = 0; i < num ; ++i ) {
    std::vector< size_t > idx = { i };
-   int_pars[ i ].first = get_string( names , i );
+   get_var_values( names , &( int_pars[ i ].first ) , idx , { 1 } );
    vals.getVar( idx , &( int_pars[ i ].second ) );
    }
   }
@@ -357,7 +342,7 @@ void ComputeConfig::deserialize( const netCDF::NcGroup & group )
   dbl_pars.resize( num );
   for( size_t i = 0 ; i < num ; ++i ) {
    std::vector< size_t > idx = { i };
-   dbl_pars[ i ].first = get_string( names , i );
+   get_var_values( names , &( dbl_pars[ i ].first ) , idx , { 1 } );
    vals.getVar( idx , &( dbl_pars[ i ].second ) );
    }
   }
@@ -376,8 +361,9 @@ void ComputeConfig::deserialize( const netCDF::NcGroup & group )
 
   str_pars.resize( num );
   for( size_t i = 0 ; i < num ; ++i ) {
-   str_pars[ i ].first = get_string( names , i );
-   str_pars[ i ].second = get_string( vals , i );
+   std::vector< size_t > idx = { i };
+   get_var_values( names , &( str_pars[ i ].first ) , idx , { 1 } );
+   get_var_values( vals , &( str_pars[ i ].second ) , idx , { 1 } );
    }
   }
 
@@ -395,7 +381,7 @@ void ComputeConfig::deserialize( const netCDF::NcGroup & group )
 
   vint_pars.resize( num );
   for( size_t i = 0 ; i < num ; ++i ) {
-   vint_pars[ i ].first = get_string( names , i );
+   get_var_values( names , &( vint_pars[ i ].first ) , { i } , { 1 } );
    vint_pars[ i ].second = std::move( tmp[ i ] );
    }
   }
@@ -414,7 +400,7 @@ void ComputeConfig::deserialize( const netCDF::NcGroup & group )
 
   vdbl_pars.resize( num );
   for( size_t i = 0 ; i < num ; ++i ) {
-   vdbl_pars[ i ].first = get_string( names , i );
+   get_var_values( names , &( vdbl_pars[ i ].first ) , { i } , { 1 } );
    vdbl_pars[ i ].second = std::move( tmp[ i ] );
    }
   }
@@ -433,7 +419,7 @@ void ComputeConfig::deserialize( const netCDF::NcGroup & group )
 
   vstr_pars.resize( num );
   for( size_t i = 0 ; i < num ; ++i ) {
-   vstr_pars[ i ].first = get_string( names , i );
+   get_var_values( names , &( vstr_pars[ i ].first ) , { i } , { 1 } );
    vstr_pars[ i ].second = std::move( tmp[ i ] );
    }
   }
@@ -899,12 +885,31 @@ void ComputeConfig::merge_overrides( std::istream & input )
   set_par( std::move( name ) , std::move( value ) );
   }
 
- // the extra Configuration slot is read as in load(): if the stream ends
- // before it the extra of the base is kept, otherwise whatever comes next
- // (a '*' for nullptr included) replaces it; hence, inside a container the
- // slot has to be written, or the next Configuration is read as the extra
+ // extra Configuration slot is optional in an override block: if the
+ // stream is exhausted, or the next token is neither a '*' nor the name of
+ // a Configuration in the factory (and so belongs to the enclosing
+ // container, e.g., it is the next key of a meta-configuration), the
+ // base's extra is preserved and the token is left in the stream.
+ // Otherwise the override's extra wholesale replaces it. The token can be
+ // looked at only in a stream that can be repositioned; in one that
+ // cannot, whatever follows is taken as the extra slot.
  if( advance( input ) )
   return;
+
+ if( input.peek() != input.widen( '*' ) ) {
+  const auto pos = input.tellg();
+  if( pos != std::istream::pos_type( -1 ) ) {
+   std::string next;
+   input >> next;
+   checkfail( input , sre );
+   input.seekg( pos );
+   checkfail( input , sre );
+   if( Configuration::f_factory().find( SMSpp_classname_normalise(
+				 std::move( next ) ) ) ==
+       Configuration::f_factory().end() )
+    return;
+   }
+  }
 
  if( f_extra_Configuration ) {
   delete f_extra_Configuration;

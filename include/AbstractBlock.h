@@ -800,7 +800,14 @@ class AbstractBlock : public Block
   *
   * What travels is the model and not the way it is grouped: an LP file has
   * no notion of groups, so reading back what this writes gives one group of
-  * columns and one of rows, as read_lp() builds them. */
+  * columns and one of rows, as read_lp() builds them.
+  *
+  * A column with an upper bound and no lower bound is written as
+  * -infinity <= x <= u, since a lower bound that is not written is 0 to the
+  * format, and every column is written in the Objective with its cost, even
+  * when this is zero, so that read_lp(), which numbers the columns in the
+  * order it first meets them, gives them back in the order they have in the
+  * Block. */
 
  void write_lp( std::ostream & output ) const;
 
@@ -1006,6 +1013,15 @@ class AbstractBlock : public Block
  void sec_reached( int * actual_sec , std::string word );
 
  /// Loads the block from an LP file
+ /** Reads the linear or quadratic Objective, the rows, the Bounds, Generals
+  * and Binaries sections of an LP file; the columns are numbered in the
+  * order they are first met, a column may be named in the Bounds, Generals
+  * or Binaries section alone, and a number with no column after it is a
+  * constant (of the Objective, or moved to the side of a row). A column
+  * that has no line in the Bounds section has the default bounds of the
+  * format, 0 <= x <= +inf. Anything the reader does not expect where it
+  * is, and the end of the file before the End section, throws
+  * std::invalid_argument. */
  void read_lp( std::istream & file );
 
 /*--------------------------------------------------------------------------*/
