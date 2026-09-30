@@ -1516,13 +1516,15 @@ class MasterProblemBlock : public Block {
 
 /*--------------------------------------------------------------------------*/
  /// remove a subset of optimization variables from the Master Problem
- /** Drop-in for Master->RmvVars(subset, sz). Removes the \p sz coordinates
-  * listed in \p subset (or *all* coordinates if \p subset == nullptr) from
-  * Var_d / Var_v_hard / Var_z, and patches CouplingCns / every
-  * PolyhedralFunctionBlock sub-Block accordingly.
+ /** The indices in \p subset refer to the coordinate space *before* any
+  * removal. They must be strictly increasing, unique and in [0, NumVars).
+  * A null \p subset denotes all current coordinates; \p sz must then be
+  * either 0 or NumVars. This contract also applies to the maps and cut
+  * coefficients prepared for the structural removal.
   *
-  * NOT YET IMPLEMENTED -- throws std::logic_error. Same caveats as add_vars:
-  * it is a structural change that forces a fresh load_problem(). */
+  * Structural removal is not implemented yet. The current implementation
+  * validates and prepares the index/cut/reference transformation, then
+  * throws std::logic_error without changing the master. */
 
  void remove_vars( const int * subset , int sz );
 

@@ -4747,21 +4747,64 @@ void MasterProblemBlock::add_vars( int n ,
 
 /*--------------------------------------------------------------------------*/
 
-void MasterProblemBlock::remove_vars( const int * , int sz )
+void MasterProblemBlock::remove_vars( const int * subset , int sz )
 {
- if( sz <= 0 )
-  return;
- // see add_vars: structural shrink mirrors the grow path and is left
- // as a no-op with a one-shot warning until the same plumbing lands
- static bool warned = false;
- if( ! warned ) {
-  std::cerr << "WARNING: MasterProblemBlock::remove_vars( ..., " << sz
-            << " ): structural shrink not implemented yet; the master "
-               "will not drop removed coordinates of the original "
-               "sum-function. (This warning is shown once.)"
-            << std::endl;
-  warned = true;
+ if( sz < 0 || sz > NumVars ||
+     ( ! subset && sz != 0 && sz != NumVars ) )
+  throw( std::invalid_argument(
+       "MasterProblemBlock::remove_vars: invalid subset size" ) );
+
+ // All indices refer to the old space. A null subset means remove all.
+ if( subset ) {
+  for( int i = 0 ; i < sz ; ++i )
+   if( subset[ i ] < 0 || subset[ i ] >= NumVars ||
+       ( i > 0 && subset[ i - 1 ] >= subset[ i ] ) )
+    throw( std::invalid_argument(
+         "MasterProblemBlock::remove_vars: subset must be strictly "
+         "increasing, unique and within the old coordinate space" ) );
   }
+
+ if( NumVars == 0 || ( subset && sz == 0 ) )
+  return;
+
+ auto check_size = [ this ]( const std::vector< double > & values ,
+                             bool optional , const char * name ) {
+  if( int( values.size() ) != NumVars &&
+      ( ! optional || ! values.empty() ) )
+   throw( std::logic_error( std::string(
+             "MasterProblemBlock::remove_vars: inconsistent " ) + name ) );
+  };
+ check_size( f_x_bar , false , "reference point" );
+ check_size( f_linear_part , false , "linear part" );
+ check_size( f_x_ref , true , "cut reference" );
+ check_size( f_L , true , "lower bounds" );
+ check_size( f_U , true , "upper bounds" );
+ check_size( f_rho , true , "quadratic coefficients" );
+
+ for( int k = 0 ; k < int( HardCmps.size() ) ; ++k ) {
+  const auto & pf = pfb_at( HardCmps , k ,
+                           "MasterProblemBlock::remove_vars" )
+                    ->get_PolyhedralFunction();
+  if( int( pf.get_num_active_var() ) != NumVars )
+   throw( std::logic_error(
+        "MasterProblemBlock::remove_vars: inconsistent hard-component "
+        "coordinate count" ) );
+  const auto & A = pf.get_A();
+  if( A.size() != pf.get_b().size() )
+   throw( std::logic_error(
+        "MasterProblemBlock::remove_vars: inconsistent hard-component cuts" ) );
+  for( const auto & row : A )
+   if( int( row.size() ) != NumVars )
+    throw( std::logic_error(
+         "MasterProblemBlock::remove_vars: inconsistent cut dimension" ) );
+  }
+
+ // No mutation until all abstract references can be removed safely. During
+ // that step, adjust each cut before compacting its old coefficients and
+ // reference; no bundle-wide copy of the cuts is required.
+ throw( std::logic_error(
+       "MasterProblemBlock::remove_vars: structural removal not yet "
+       "implemented; the old-index removal request is valid but unapplied" ) );
  }
 
 /*--------------------------------------------------------------------------*/
