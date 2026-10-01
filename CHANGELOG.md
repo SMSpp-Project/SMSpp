@@ -21,6 +21,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   them back, telling the Observer with one Modification of type
   `GlobalPoolAdded`
 
+- `Solver::concerned_by()` says the kinds of Modification a Solver reads
+  (all of them in the base class), and a Block passes its Solver only those
+  of a kind they read (`Modification::is_of_concern()`);
+  `Block::concerned_by()` says those the Block reads itself (none in the
+  base class), `Observer::concerned()` the kinds read by anyone listening
+  (for a Block, the "or" over its Solver and its ancestors), and
+  `anyone_there_for()`, `issue_mod()` and `issue_pmod()` with a kind tell
+  whether a Modification of that kind has to be issued at all
+
 - `Modification::changes()` says what a Modification changes and what effect
   it may have on the problem, as a `ModConcern` bit mask: the kind
   (`eModPhys`, the data or the set of the Variable, `eModVarData` and
