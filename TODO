@@ -1,24 +1,3 @@
-2022-05-26 [high] avoid that the value of a fixed [Col]Variable be changed
-
-	Currently, calling set_value() of a fixed ColVariable plainly changes the
-	value. This is very dangerous and can lead to serious errors since the
-	change of a fixed variable does change the problem but no Modification is
-	issued and therefore the Solver are not able to react to it. Hence, it
-	should be changed in
-
-	virtual void set_value( VarValue new_value = 0 ) {
-	 if( is_fixed() ) {
-          if( f_value != new_value )
-	   throw( std::logic_error( "changing the value of a fixed ColVariable" ) );
-	  return;
-          }
-	 f_value = new_value;
-         }
-
-	Issue is this may broke some tests and it will require significant testing
-	before being accepted, so we are not doing it now. But we should.
-
-
 2022-02-10 [medium] add multi-dimensional vectors of stuff with non-uniform size
 
         For some applications (UC) it would be quite handy to have groups of
@@ -561,6 +540,38 @@
 #---------------------------------- DONE --------------------------------------#
 ################################################################################
 ################################################################################
+
+2022-05-26 2026-10-01 [high] avoid that the value of a fixed [Col]Variable be changed
+
+	Currently, calling set_value() of a fixed ColVariable plainly changes the
+	value. This is very dangerous and can lead to serious errors since the
+	change of a fixed variable does change the problem but no Modification is
+	issued and therefore the Solver are not able to react to it. Hence, it
+	should be changed in
+
+	virtual void set_value( VarValue new_value = 0 ) {
+	 if( is_fixed() ) {
+          if( f_value != new_value )
+	   throw( std::logic_error( "changing the value of a fixed ColVariable" ) );
+	  return;
+          }
+	 f_value = new_value;
+         }
+
+	Issue is this may broke some tests and it will require significant testing
+	before being accepted, so we are not doing it now. But we should.
+
+	Done as written above, save for the comparison: a new value equal to
+	the fixed one up to a relative 1e-6, with a floor of 1, leaves the
+	ColVariable as it is, which is what a MILP solver hands back for a
+	Variable whose bounds it has been given equal, and a different one
+	throws std::domain_error and changes nothing. Block::check_Solution()
+	catches it, a Solution that gives a fixed Variable another value being
+	not feasible, and puts back what it has written. Of the code that wrote
+	into fixed Variable the only one found was the consensus recovery of
+	PrimalProximalHeur, which fixed a group of copies to their mean and now
+	takes the value of a copy that is fixed already.
+
 
 2019-08-29 2026-09-21 [medium-high] implement [de]serialize() in AbstractBlock
 
