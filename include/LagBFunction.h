@@ -725,19 +725,25 @@ namespace SMSpp_di_unipi_it
 
     }; // end( dbl_par_type_LagBF )
 
-    /*--------------------------------------------------------------------------*/
-    /// public enum for the string algorithmic parameters
-    /** Public enum describing the different algorithmic parameters of string
-     * type that LagBFunction has in addition to these of C05Function (currently,
-     * none). The value strLastLagBFPar is provided so that the list can be
-     * easily further extended by derived classes. */
+/*--------------------------------------------------------------------------*/
+ /// public enum for the string algorithmic parameters
+ /** Public enum describing the different algorithmic parameters of string
+  * type that LagBFunction has in addition to these of C05Function. The value
+  * strLastLagBFPar is provided so that the list can be easily further
+  * extended by derived classes. */
 
-    enum str_par_type_LagBF
-    {
-      strLastLagBFPar = strLastParC05F
-      ///< first allowed new string parameter for derived classes
-      /**< Convenience value for easily allow derived classes to extend the set
-       * of string algorithmic parameters. */
+ enum str_par_type_LagBF {
+  strChkCfg = strLastParC05F ,  ///< the Configuration of the pool check
+  /**< The name of the file of the Configuration that is passed to
+   * is_sol_feasible() of the inner Block when an entry of the global pool is
+   * checked [see check_Solution()], i.e., typically the tolerance of the
+   * check; empty (the default) means none, i.e., the one of the BlockConfig
+   * of the inner Block, or else Block::DefaultFeasTol. */
+
+  strLastLagBFPar
+  ///< first allowed new string parameter for derived classes
+  /**< Convenience value for easily allow derived classes to extend the set
+   * of string algorithmic parameters. */
 
     }; // end( str_par_type_LagBF )
 
@@ -996,19 +1002,19 @@ namespace SMSpp_di_unipi_it
 
     void set_par(idx_type par, double value) override;
 
-    /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-    /// set a given string parameter (see set_ComputeConfig())
-    /** Since LagBFunction does not have any string parameter itself, nor there
-     * currently is any string parameter of C05Function that needs to be
-     * translated to a parameter of the inner Solver, this method can only be
-     * used to set the string parameters of the inner Solver. */
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// set a given string parameter (see set_ComputeConfig())
+ /** Sets strChkCfg, reading the Configuration from the file it names, or
+  * else a string parameter of the inner Solver. */
 
-    void set_par(idx_type par, std::string &&value) override
-    {
-      // note: assumes no string params in C05Function & LagBFunction
-      if (auto is = inner_Solver())
-        add_par(is->str_par_idx2str(str_par_lbf(par)), std::move(value));
-    }
+ void set_par( idx_type par , std::string && value ) override {
+  if( par == strChkCfg ) {
+   set_chk_cfg( std::move( value ) );
+   return;
+   }
+  if( auto is = inner_Solver() )
+   add_par( is->str_par_idx2str( str_par_lbf( par ) ) , std::move( value ) );
+  }
 
     /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
     /// set a given vector-of-int parameter (see set_ComputeConfig())
@@ -1607,12 +1613,11 @@ namespace SMSpp_di_unipi_it
      * wrong costs a wrong answer, while dropping one that was right costs the
      * work of finding it again. */
 
-    bool check_Solution(Solution *sol)
-    {
-      auto blck = v_Block.front();
-      if (sol->is_direction() && (!blck->has_directions()))
-        return (false);
-      const bool feas = blck->is_sol_feasible(sol);
+ bool check_Solution( Solution * sol ) {
+  auto blck = v_Block.front();
+  if( sol->is_direction() && ( ! blck->has_directions() ) )
+   return( false );
+  const bool feas = blck->is_sol_feasible( sol , f_chk_cfg );
 
       // a Block that is not physical answers by writing sol in its Variable and
       // putting back what was there, which is only as complete as the Solution
@@ -2218,8 +2223,11 @@ namespace SMSpp_di_unipi_it
     {
       static const std::string _empty;
 
-      if (par < strLastLagBFPar)
-        return (C05Function::get_dflt_str_par(par));
+  if( par == strChkCfg )
+   return( _empty );
+
+  if( par < strLastLagBFPar )
+   return( C05Function::get_dflt_str_par( par ) );
 
       if (auto is = inner_Solver())
         return (is->get_dflt_str_par(str_par_is(par)));
@@ -2346,14 +2354,16 @@ namespace SMSpp_di_unipi_it
 
     /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
-    [[nodiscard]] const std::string &get_str_par(idx_type par)
-        const override
-    {
-      if (auto is = inner_Solver())
-        return (is->get_str_par(str_par_is(par)));
-      else
-        return (C05Function::get_dflt_str_par(par));
-    }
+ [[nodiscard]] const std::string & get_str_par( idx_type par )
+  const override {
+  if( par == strChkCfg )
+   return( f_chk_cfg_name );
+
+  if( auto is = inner_Solver() )
+   return( is->get_str_par( str_par_is( par ) ) );
+  else
+   return( C05Function::get_dflt_str_par( par ) );
+  }
 
     /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -2425,14 +2435,16 @@ namespace SMSpp_di_unipi_it
 
     /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
-    [[nodiscard]] idx_type str_par_str2idx(const std::string &name)
-        const override
-    {
-      if (auto is = inner_Solver())
-        return (str_par_lbf(is->str_par_str2idx(name)));
-      else
-        return (C05Function::str_par_str2idx(name));
-    }
+ [[nodiscard]] idx_type str_par_str2idx( const std::string & name )
+  const override {
+  if( name == "strChkCfg" )
+   return( strChkCfg );
+
+  if( auto is = inner_Solver() )
+   return( str_par_lbf( is->str_par_str2idx( name ) ) );
+  else
+   return( C05Function::str_par_str2idx( name ) );
+  }
 
     /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -2503,14 +2515,17 @@ namespace SMSpp_di_unipi_it
 
     /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
-    [[nodiscard]] const std::string &str_par_idx2str(idx_type idx)
-        const override
-    {
-      if (auto is = inner_Solver())
-        return (is->str_par_idx2str(str_par_is(idx)));
-      else
-        return (C05Function::str_par_idx2str(idx));
-    }
+ [[nodiscard]] const std::string & str_par_idx2str( idx_type idx )
+  const override {
+  static const std::string _chk = "strChkCfg";
+  if( idx == strChkCfg )
+   return( _chk );
+
+  if( auto is = inner_Solver() )
+   return( is->str_par_idx2str( str_par_is( idx ) ) );
+  else
+   return( C05Function::str_par_idx2str( idx ) );
+  }
 
     /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -3115,7 +3130,24 @@ namespace SMSpp_di_unipi_it
 
     double f_cost_tol; ///< rel. cost-change tolerance (dblCostTol)
 
-    std::vector<Subset> v_active; ///< per objective, the sorted positions j
+ std::string f_chk_cfg_name;           ///< the file of strChkCfg
+ Configuration * f_chk_cfg = nullptr;  ///< the Configuration it holds
+
+ /// sets strChkCfg, reading the Configuration from the file it names
+ void set_chk_cfg( std::string && name ) {
+  delete f_chk_cfg;
+  f_chk_cfg = nullptr;
+  f_chk_cfg_name = std::move( name );
+  if( ! f_chk_cfg_name.empty() ) {
+   f_chk_cfg = Configuration::deserialize( f_chk_cfg_name );
+   if( ! f_chk_cfg )
+    throw( std::invalid_argument( "LagBFunction::set_par: cannot read the "
+				  "Configuration of strChkCfg from " +
+				  f_chk_cfg_name ) );
+   }
+  }
+
+ std::vector< Subset > v_active;  ///< per objective, the sorted positions j
                                   /**< with CostMatrix[ h ][ j ].second
                                    * non-empty, i.e. the variables coupled
                                    * to a multiplier (the dual-pair coords). Used to iterate only the coords

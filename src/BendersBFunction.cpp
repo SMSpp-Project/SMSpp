@@ -23,7 +23,6 @@
 #include "AbstractPath.h"
 #include "BendersBFunction.h"
 #include "BlockSolverConfig.h"
-#include "ColVariableSolution.h"
 #include "FRowConstraint.h"
 #include "Objective.h"
 #include "Observer.h"
@@ -2804,18 +2803,7 @@ void BendersBFunction::write_dual_solution_from_global_pool( Index name ) {
  if( name == f_last_solution )  // the sub-Block holds it already
   return;                       // nothing to do
 
- /* The linearization is read out of the dual values of the Constraint of
-  * the sub-Block, which the Solution has to put back there: one that holds
-  * the values of the Variable only, as the one of get_Solution() without a
-  * Configuration is for an AbstractBlock, would leave there those of the
-  * last solve, and the linearization would be that one. */
- if( dynamic_cast< ColVariableSolution * >( solution ) )
-  throw( std::logic_error( "BendersBFunction::write_dual_solution_from_"
-			   "global_pool: the Solution of linearization " +
-			   std::to_string( name ) + " holds no dual values; "
-			   "the BlockConfig of the sub-Block has to give a "
-			   "Solution Configuration that asks for them" ) );
-
+ // the Solution holds the dual values [see intGPMaxSz]
  solution->write( v_Block.front() );
  f_last_solution = name;        // and recall what it holds
 }  // end( BendersBFunction::write_dual_solution_from_global_pool )

@@ -34,6 +34,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <stdexcept>
+#include <string>
 
 #include <boost/multi_array.hpp>
 
@@ -235,9 +237,25 @@ class ColVariable : public Variable
   * that does not directly own the Variable but for which the Variable is
   * active in some Constraint / Objective. Yet this occurrence is not
   * reported by a Modification, and other mechanisms must be put in place to
-  * (avoid) deal(ing) with it; see the discussion in ThinComputeInterface. */
+  * (avoid) deal(ing) with it; see the discussion in ThinComputeInterface.
+  *
+  * A fixed ColVariable [see is_fixed()] keeps the value it has been fixed
+  * at: a new value equal to it up to a relative 1e-6 (as MILP solvers do)
+  * leaves it as it is, while a different one throws std::domain_error. To
+  * give a fixed ColVariable another value, one unfixes it, sets the value
+  * and fixes it again. */
 
- virtual void set_value( VarValue new_value = 0 ) { f_value = new_value; }
+ virtual void set_value( VarValue new_value = 0 ) {
+  if( is_fixed() ) {
+   if( std::abs( new_value - f_value ) >
+       1e-6 * std::max( VarValue( 1 ) , std::abs( f_value ) ) )
+    throw( std::domain_error( "ColVariable::set_value: " +
+			     std::to_string( new_value ) + " on a Variable "
+			     "fixed at " + std::to_string( f_value ) ) );
+   return;
+   }
+  f_value = new_value;
+  }
 
 /*--------------------------------------------------------------------------*/
  /// sets the "type" of the ColVariable
