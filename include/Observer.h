@@ -151,6 +151,25 @@ class Observer {
  [[nodiscard]] virtual bool anyone_there( void ) const = 0;
 
 /*--------------------------------------------------------------------------*/
+ /// the kinds of Modification that whoever is listening reads
+ /** Returns the kinds of Modification [see Modification::ModConcern] that
+  * whoever is listening to this Observer reads. The base class says all of
+  * them if anyone_there(), and none otherwise; a Block says the "or" of
+  * what it reads itself and of what its Solver and those of its ancestors
+  * read [see Block::concerned()]. */
+
+ [[nodiscard]] virtual Modification::ModConcern concerned( void ) const {
+  return( anyone_there() ? Modification::eModAnything : 0 );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// true if anyone listening reads a Modification that changes \p what
+ [[nodiscard]] bool anyone_there_for( Modification::ModConcern what ) const {
+  return( anyone_there() &&
+	  Modification::is_of_concern( what , concerned() ) );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// notify this Observer about a Modification
  /** This method notifies this Observer about a Modification.
   *
@@ -554,6 +573,26 @@ class Observer {
 
  [[nodiscard]] bool issue_pmod( ModParam issueMod ) const {
   return( ( par2mod( issueMod ) >= eNoBlck ) && anyone_there() );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// as issue_mod(), but only if the Modification is read by anyone
+ /** As issue_mod( issueMod ), except that under eNoBlck the Modification is
+  * issued only if anyone listening reads its kind \p what [see
+  * anyone_there_for()]; eModBlck still issues it anyway, since the Block
+  * itself has to see it. */
+
+ [[nodiscard]] bool issue_mod( ModParam issueMod ,
+			       Modification::ModConcern what ) const {
+  return( ( par2mod( issueMod ) == eModBlck ) ||
+	  ( ( par2mod( issueMod ) == eNoBlck ) && anyone_there_for( what ) ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// as issue_pmod(), but only if the Modification is read by anyone
+ [[nodiscard]] bool issue_pmod( ModParam issueMod ,
+				Modification::ModConcern what ) const {
+  return( ( par2mod( issueMod ) >= eNoBlck ) && anyone_there_for( what ) );
   }
 
 /*--------------------------------------------------------------------------*/

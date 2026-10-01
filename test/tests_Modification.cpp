@@ -25,7 +25,9 @@
  * boundaries, empty Subset (which for the removing methods means "all"),
  * unordered Subset, adding nothing and removing everything. Finally, it
  * checks what changes() says of the Modification of the core and what the
- * static methods of Modification read from it.
+ * static methods of Modification read from it, and that a Block passes a
+ * Solver only the kinds of Modification it reads [see
+ * Solver::concerned_by()].
  *
  * \author Donato Meoli \n
  *         Dipartimento di Informatica \n
@@ -152,6 +154,22 @@ struct Case
  std::function< bool( void ) > before;
  std::function< bool( void ) > after;
  std::function< void( const sp_Mod & ) > check;
+ };
+
+/*--------------------------------------------------------------------------*/
+/// a FakeSolver that reads only some kinds of Modification
+
+class ReadsSolver : public FakeSolver
+{
+ public:
+
+ explicit ReadsSolver( Modification::ModConcern reads ) : f_reads( reads ) {}
+
+ [[nodiscard]] Modification::ModConcern concerned_by( void ) const override {
+  return( f_reads );
+  }
+
+ Modification::ModConcern f_reads;
  };
 
 /*--------------------------------------------------------------------------*/
@@ -2383,6 +2401,80 @@ static void test_changes( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* What a Block passes to a Solver that reads only some kinds of
+ * Modification [see Solver::concerned_by()], and what concerned() and
+ * anyone_there_for() say on a Block, on its son, and with and without
+ * Solver. */
+
+static void test_concerned( void )
+{
+ using M = Modification;
+ Rig r;
+ auto x = new ColVariable;
+ r.block->add_static_variable( *x , "x" );
+ auto rows = new std::list< FRowConstraint >;
+ r.block->add_dynamic_constraint( *rows , "c" );
+ auto son = new AbstractBlock( r.block );
+ r.block->add_nested_Block( son );
+
+ // the FakeSolver of the Rig reads all the kinds, the other only the data
+ // of the Variable
+ auto reads = new ReadsSolver( M::eModVarData );
+ r.block->register_Solver( reads );
+ assert( r.block->concerned() == M::eModAnything );
+ assert( son->concerned() == M::eModAnything );
+
+ // fixing a Variable reaches both, adding a Constraint only the first
+ r.clear();
+ reads->get_Modification_list().clear();
+ x->is_fixed( true , eModBlck );
+ assert( r.got().size() == 1 );
+ assert( reads->get_Modification_list().size() == 1 );
+
+ r.clear();
+ reads->get_Modification_list().clear();
+ {
+  std::list< FRowConstraint > n( 1 );
+  add_d( r.block , *rows , n , eModBlck );
+  }
+ assert( r.got().size() == 1 );
+ assert( reads->get_Modification_list().empty() );
+
+ // a GroupModification reaches whoever reads one of its sub-Modification
+ r.clear();
+ reads->get_Modification_list().clear();
+ {
+  auto chnl = r.block->open_channel();
+  x->is_fixed( false , Observer::make_par( eModBlck , chnl ) );
+  std::list< FRowConstraint > n( 1 );
+  add_d( r.block , *rows , n , Observer::make_par( eModBlck , chnl ) );
+  r.block->close_channel( chnl );
+  }
+ assert( r.got().size() == 1 );
+ assert( reads->get_Modification_list().size() == 1 );
+
+ // without the FakeSolver of the Rig, only the data of the Variable are read,
+ // by the Block and by its son alike
+ r.listen( false );
+ assert( r.block->concerned() == M::eModVarData );
+ assert( son->concerned() == M::eModVarData );
+ assert( r.block->anyone_there_for( M::eModVarData ) );
+ assert( ! r.block->anyone_there_for( M::eModCnsSet ) );
+ assert( son->anyone_there_for( M::eModVarData | M::eModCnsSet ) );
+ assert( r.block->issue_mod( eNoBlck , M::eModVarData ) );
+ assert( ! r.block->issue_mod( eNoBlck , M::eModCnsSet ) );
+ assert( r.block->issue_mod( eModBlck , M::eModCnsSet ) );
+ assert( ! r.block->issue_pmod( eNoBlck , M::eModPhys ) );
+
+ // with no Solver at all, nobody reads anything
+ r.block->unregister_Solver( reads , true );
+ assert( r.block->concerned() == 0 );
+ assert( son->concerned() == 0 );
+ assert( ! son->anyone_there_for( M::eModAnything ) );
+ r.listen( true );
+ }
+
+/*--------------------------------------------------------------------------*/
 
 int main( void )
 {
@@ -2399,6 +2491,7 @@ int main( void )
  test_dry_run_BendersBFunction();
  test_dry_run_C05SumFunction();
  test_changes();
+ test_concerned();
 
  std::cout << "Modification_test: all tests passed" << std::endl;
  return( 0 );

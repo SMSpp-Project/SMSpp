@@ -537,6 +537,19 @@ void Block::anyone_there( bool isthere )
 
 /*--------------------------------------------------------------------------*/
 
+Modification::ModConcern Block::concerned( void ) const
+{
+ Modification::ModConcern c = concerned_by();
+ for( auto slvr : v_Solver )
+  c |= slvr->concerned_by();
+ if( f_Block )
+  c |= f_Block->concerned();
+ return( c );
+
+ }  // end( Block::concerned )
+
+/*--------------------------------------------------------------------------*/
+
 Block * Block::resolve_sub_Block_path( const std::string & path )
 {
  if( path.empty() )
@@ -617,8 +630,14 @@ void Block::add_Modification( sp_Mod mod , ChnlName chnl )
  if( f_Block )                                // if there is a father
   f_Block->add_Modification( mod , chnl );    // pass it above (on chnl)
 
- for( Solver * slv : v_Solver )               // if there is any Solver
-  slv->add_Modification( mod );               // also pass it to them
+ // the Solver, if any, that read the kind of the Modification are passed
+ // it as well [see Solver::concerned_by()]
+ if( ! v_Solver.empty() ) {
+  const auto c = mod->changes();
+  for( Solver * slv : v_Solver )
+   if( Modification::is_of_concern( c , slv->concerned_by() ) )
+    slv->add_Modification( mod );
+  }
 
  }  // end( Block::add_Modification )
 

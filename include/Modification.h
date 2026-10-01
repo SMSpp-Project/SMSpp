@@ -498,6 +498,16 @@ class Modification {
   return( ! ( c & ( eRegnGrow | eObjDown ) ) );
   }
 
+ /// true if a Modification that changes \p c is of concern to \p reads
+ /** \p reads is what someone listening reads [see Solver::concerned_by()],
+  * of which only the kind matters: the Modification concerns it if one of
+  * the kinds of \p c is among them, and one that reads all the kinds is
+  * concerned by any Modification, even one that says nothing of itself. */
+ static constexpr bool is_of_concern( ModConcern c , ModConcern reads ) {
+  return( ( ( reads & eModAnything ) == eModAnything ) ||
+	  ( c & reads & eModAnything ) );
+  }
+
  /// true if the value of a solution is still an upper bound
  /** The solution stays feasible when the region does not shrink, and its
   * value does not increase when the objective does not increase. */
