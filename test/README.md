@@ -72,6 +72,12 @@ Unit tests for the core SMS++ library. Each test is registered as a separate
   of a `Block`; also grids of rank 3 and with a zero extent, indices and
   names after a dynamic removal, groups asked for out of range and walks of
   empty groups.
+- `StableVector_unit_test` covers the `splice()` that the build adds to the
+  `stable_vector` of Boost [see `shim/README.md`]: all of another one, one
+  element or a range of it, at every position, into an empty one and through
+  a growth of the index, with elements that can be neither copied nor moved
+  and with `FRowConstraint`; the order, the addresses, and that no element
+  is constructed or destroyed.
 - `Modification_test` covers the `Modification` issued by the modifying
   methods of `ColVariable`, `FRowConstraint`, the `OneVarConstraint` family,
   `FRealObjective`, `LinearFunction` and the dynamic `Variable` and

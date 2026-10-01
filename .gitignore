@@ -5,6 +5,9 @@
 # --- Project-specific ---------------------------------------
 test/ClassFactory/CF_test
 
+# the rewritten Boost headers of the makefile build [see shim/README.md]
+obj/boost-shim/
+
 # Doxygen output
 doc/
 

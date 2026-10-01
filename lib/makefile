@@ -67,7 +67,20 @@ SMS++OBJ = $(SMS++SDR)/obj/AbstractBlock.o \
 	$(SMS++SDR)/obj/Variable.o
 #	$(SMS++SDR)/obj/RowConstraint.o \
 
-SMS++INC := $(SMS++INC) -I$(SMS++SDR)/include
+# compatibility shim for boost::container::stable_vector: a private copy of
+# boost/container/stable_vector.hpp with the three splice() of std::list,
+# which the packaged Boost lacks, written into $(SMS++SHIM) and found before
+# the one of Boost; the same rewrite as the CMake build [see shim/README.md]
+SMS++SHIM = $(SMS++SDR)/obj/boost-shim
+SMS++SVHPP = $(SMS++SHIM)/boost/container/stable_vector.hpp
+SMS++SVSRC = $(firstword $(wildcard \
+	$(libBOOSTBSCDIR)/include/boost/container/stable_vector.hpp \
+	/usr/include/boost/container/stable_vector.hpp \
+	/usr/local/include/boost/container/stable_vector.hpp \
+	/opt/homebrew/include/boost/container/stable_vector.hpp \
+	/opt/local/include/boost/container/stable_vector.hpp))
+
+SMS++INC := -I$(SMS++SHIM) $(SMS++INC) -I$(SMS++SDR)/include
 
 SMS++H = $(SMS++SDR)/include/AbstractBlock.h \
 	$(SMS++SDR)/include/AbstractPath.h \
@@ -119,6 +132,28 @@ SMS++H = $(SMS++SDR)/include/AbstractBlock.h \
 
 clean::
 	rm -f $(SMS++SDR)/obj/*.o $(SMS++SDR)/src/*~ $(SMS++SDR)/include/*~
+	rm -rf $(SMS++SHIM)
+
+# the shim: the code of shim/stable_vector_splice.inc goes before the
+# documentation of swap(), unless this Boost already has a splice(), and
+# the header is removed, and make stops, if a marker of shim/markers.txt
+# is missing
+SMS++SVANCHOR = "   //! <b>Effects</b>: Swaps the contents of *this and x."
+
+$(SMS++SVHPP): $(SMS++SVSRC) $(SMS++SDR)/shim/stable_vector_splice.inc \
+	$(SMS++SDR)/shim/markers.txt
+	@test -n "$(SMS++SVSRC)" || \
+	  { echo "SMS++: boost/container/stable_vector.hpp not found" >&2; exit 1; }
+	mkdir -p $(@D)
+	if grep -q 'void splice(' $(SMS++SVSRC); then cp $(SMS++SVSRC) $@; else \
+	  awk -v inc=$(SMS++SDR)/shim/stable_vector_splice.inc \
+	    -v anchor=$(SMS++SVANCHOR) \
+	    '$$0 == anchor { while( ( getline l < inc ) > 0 ) print l } { print }' \
+	    $(SMS++SVSRC) > $@ && \
+	  grep '^stable_vector.hpp|' $(SMS++SDR)/shim/markers.txt | cut -d'|' -f2- | \
+	  while IFS= read -r m; do grep -qF "$$m" $@ || \
+	    { echo "SMS++: stable_vector.hpp lacks \"$$m\"" >&2; \
+	      rm -f $@; exit 1; }; done; fi
 
 # dependencies: every .o from its .cpp + every recursively included .h- - - -
 
@@ -126,7 +161,7 @@ clean::
 intBlockINC = $(SMS++SDR)/include/Block.h $(SMS++SDR)/include/Configuration.h \
 	$(SMS++SDR)/include/Modification.h $(SMS++SDR)/include/Solver.h \
 	$(SMS++SDR)/include/Observer.h $(SMS++SDR)/include/SMSTypedefs.h \
-	$(SMS++SDR)/include/ThinComputeInterface.h
+	$(SMS++SDR)/include/ThinComputeInterface.h $(SMS++SVHPP)
 
 $(SMS++SDR)/obj/Change.o: $(SMS++SDR)/src/Change.cpp \
 	$(SMS++SDR)/include/Change.h

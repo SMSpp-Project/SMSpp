@@ -61,6 +61,55 @@ include(FetchContent)
 # The Boost find module is provided by CMake.
 find_package(Boost 1.72.0 REQUIRED)
 
+# ----- Compatibility shim for boost::container::stable_vector -------------- #
+# The packaged Boost has no splice() in stable_vector, i.e., no way of moving
+# elements from one stable_vector to another without copying or destroying
+# them, which the dynamic groups of Block need, their elements being referred
+# to by address. At configure time a private copy of
+# boost/container/stable_vector.hpp gets the three splice() of std::list,
+# whose code lives in shim/stable_vector_splice.inc and is inserted before
+# the documentation of swap() [see shim/README.md]; the copy shadows the
+# system header through an include directory searched first (see
+# target_include_directories below). The rewrite is skipped on a Boost whose
+# stable_vector already has a splice(), and the build stops if the anchor is
+# not found [see shim/markers.txt].
+set(SMSPP_BOOST_SHIM_DIR ${CMAKE_CURRENT_BINARY_DIR}/boost-shim)
+unset(_sv_hdr_src CACHE)
+find_file(_sv_hdr_src boost/container/stable_vector.hpp
+        PATHS ${Boost_INCLUDE_DIRS} NO_DEFAULT_PATH)
+if (NOT _sv_hdr_src)
+    message(FATAL_ERROR "SMS++: boost/container/stable_vector.hpp not found "
+            "in ${Boost_INCLUDE_DIRS}")
+endif ()
+file(READ ${_sv_hdr_src} _sv_hdr_content)
+if (NOT _sv_hdr_content MATCHES "void splice\\(")
+    file(READ ${CMAKE_CURRENT_SOURCE_DIR}/shim/stable_vector_splice.inc
+            _sv_code)
+    set(_sv_anchor "   //! <b>Effects</b>: Swaps the contents of *this and x.")
+    string(REPLACE "${_sv_anchor}" "${_sv_code}${_sv_anchor}"
+            _sv_hdr_content "${_sv_hdr_content}")
+    file(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/shim/markers.txt _shim_markers
+            REGEX "^stable_vector.hpp\\|")
+    foreach (_shim_marker IN LISTS _shim_markers)
+        string(REGEX REPLACE "^stable_vector.hpp\\|" "" _shim_marker
+                "${_shim_marker}")
+        string(FIND "${_sv_hdr_content}" "${_shim_marker}" _shim_pos)
+        if (_shim_pos EQUAL -1)
+            message(FATAL_ERROR "SMS++: the rewrite of boost/container/"
+                    "stable_vector.hpp has not produced \"${_shim_marker}\": "
+                    "this version of Boost has moved its anchor "
+                    "[see shim/markers.txt]")
+        endif ()
+    endforeach ()
+endif ()
+file(WRITE ${SMSPP_BOOST_SHIM_DIR}/boost/container/stable_vector.hpp
+        "${_sv_hdr_content}")
+unset(_sv_hdr_src CACHE)
+# a change of the inserted code reruns the configure step
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+        ${CMAKE_CURRENT_SOURCE_DIR}/shim/stable_vector_splice.inc
+        ${CMAKE_CURRENT_SOURCE_DIR}/shim/markers.txt)
+
 # Try first with library's own configuration file, then with our find module.
 find_package(Eigen3 NO_MODULE)
 if (NOT Eigen3_FOUND)
@@ -243,6 +292,13 @@ target_sources(${modName} PRIVATE
 # This means that if a target finds this library in its build directory
 # will look into the BUILD_INTERFACE path for its headers, if it finds it
 # installed in the system will look into the INSTALL_INTERFACE path.
+# The rewritten stable_vector.hpp has to be found before the one of Boost,
+# also by the users of the library, built in-tree or against the installed
+# package [see the install of the headers below].
+target_include_directories(${modName} BEFORE PUBLIC
+        $<BUILD_INTERFACE:${SMSPP_BOOST_SHIM_DIR}>
+        $<INSTALL_INTERFACE:include/${modNamespace}/boost-shim>)
+
 target_include_directories(
         ${modName} PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -293,6 +349,12 @@ install(TARGETS ${modName}
 # Install the headers
 install(DIRECTORY include/
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${modNamespace})
+
+# Install the rewritten stable_vector.hpp, which the users of the installed
+# library have to find before the one of Boost (see target_include_directories
+# above).
+install(DIRECTORY ${SMSPP_BOOST_SHIM_DIR}/
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${modNamespace}/boost-shim)
 
 # Install the auto-generated configuration header (see above).
 install(FILES ${PROJECT_BINARY_DIR}/${modName}Config.h

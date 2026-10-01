@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- the build gives `boost::container::stable_vector` the three `splice()` of
+  `std::list`, which move elements from one stable_vector to another without
+  copying, moving or destroying them, by a private copy of
+  `boost/container/stable_vector.hpp` written at configure time (CMake) or by
+  `lib/makefile` and put on the include path before the one of Boost, and
+  installed with the library; the code lives once in
+  `shim/stable_vector_splice.inc`, the rewrite is skipped on a Boost that
+  already has a `splice()` and the build stops if its anchor is missing
+  [see `shim/README.md`]. `StableVector_unit_test` covers it
 - `MasterProblemBlock::add_easy_coupling( easy_id , j , local_i )`, the
   reverse of `drop_easy_coupling()`: the easy component gets the terms of
   its Lagrangian term on the coordinate j, already in the master, in the

@@ -1,0 +1,7 @@
+# what each rewritten header of Boost has to contain after the rewrite, one
+# "<header>|<text>" per line: both builds check them, and stop if one is not
+# there, since an anchor that a new version of Boost has moved would leave
+# the rewrite undone without a word
+stable_vector.hpp|void splice(const_iterator p, stable_vector &x)
+stable_vector.hpp|stable_vector &x, const_iterator i)
+stable_vector.hpp|void splice(const_iterator p, stable_vector &x,

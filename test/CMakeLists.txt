@@ -82,6 +82,12 @@ smspp_install(Group_test)
 add_test(NAME Group_test
          COMMAND Group_test)
 
+add_executable(StableVector_unit_test tests_StableVector.cpp)
+target_link_libraries(StableVector_unit_test PRIVATE SMS++::SMS++)
+smspp_install(StableVector_unit_test)
+add_test(NAME StableVector_unit_test
+         COMMAND StableVector_unit_test)
+
 add_executable(BlockModification_unit_test tests_BlockModification.cpp)
 target_link_libraries(BlockModification_unit_test PRIVATE SMS++::SMS++)
 smspp_install(BlockModification_unit_test)
