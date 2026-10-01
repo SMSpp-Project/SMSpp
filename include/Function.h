@@ -1207,6 +1207,17 @@ class FunctionModVars : public AModification
  [[nodiscard]] Block * get_Block( void ) const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns what the Modification changes [see Modification::ModConcern]
+ /** The set of the Variable that the Function depends upon, which is what
+  * an FRowConstraint or an FRealObjective has to see to keep the list of
+  * its active Variable; the effect on the problem depends on where the
+  * Function is, and it may be any. */
+
+ [[nodiscard]] ModConcern changes( void ) const override {
+  return( eModVarSet | eEffAny );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to (the pointer to) the affected Function
 
  [[nodiscard]] Function * function( void ) const { return( f_function ); }

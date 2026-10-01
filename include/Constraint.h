@@ -474,6 +474,22 @@ class ConstraintMod : public AModification {
 
 /*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
+ /// returns what the Modification changes [see Modification::ModConcern]
+ /** The data of a Constraint, which leaves the objective as it is: relaxing
+  * the Constraint makes the region grow, enforcing it shrinks it, and any
+  * other change (of the sides, or of the Function, in a derived class) may
+  * do either. */
+
+ [[nodiscard]] ModConcern changes( void ) const override {
+  if( f_type == eRelaxConst )
+   return( eModCnsData | eRegnGrow );
+  if( f_type == eEnforceConst )
+   return( eModCnsData | eRegnShrink );
+  return( eModCnsData | eRegnShrink | eRegnGrow );
+  }
+
+/*--------------------------------------------------------------------------*/
+
  /// returns the Block to which the Constraint belongs
 
  [[nodiscard]] Block * get_Block( void ) const override {

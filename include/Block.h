@@ -8395,6 +8395,20 @@ class BlockModAD : public AModification
  virtual bool is_added( void ) const = 0;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns what the Modification changes [see Modification::ModConcern]
+ /** The set of the Variable or of the Constraint. Adding Variable makes the
+  * region grow, a solution of before staying feasible with the new Variable
+  * at 0, and removing them shrinks it, as fixing them at 0 would; adding
+  * Constraint shrinks the region, and removing them makes it grow. In all
+  * cases the objective is the same as before at every point of before. */
+
+ [[nodiscard]] ModConcern changes( void ) const override {
+  if( is_variable() )
+   return( eModVarSet | ( is_added() ? eRegnGrow : eRegnShrink ) );
+  return( eModCnsSet | ( is_added() ? eRegnShrink : eRegnGrow ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// stores the pointers to the affected Variable into the given vector
  /** If this BlockModAD is related to Variable, then this function stores the
   * pointers of the affected Variable in the given \p variables vector. The \p
