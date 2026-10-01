@@ -468,8 +468,17 @@ static bool check_Solution( Block * blck , Solution * sol , Check && check )
  if( sol->is_direction() && ( ! wasdir ) )
   blck->is_direction( true );
 
- sol->write( blck );
- const bool answer = check();
+ // a Solution that gives a fixed Variable another value than the one it is
+ // fixed at is not feasible, and writing it stops there [see
+ // ColVariable::set_value()]: what has been written is put back all the same
+ bool answer = false;
+ try {
+  sol->write( blck );
+  answer = check();
+  }
+ catch( const std::domain_error & ) {
+  answer = false;
+  }
 
  if( blck->is_direction() != wasdir )
   blck->is_direction( wasdir );

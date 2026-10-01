@@ -20,6 +20,7 @@
 #include "SMSTypedefs.h"
 
 #include <cmath>
+#include <stdexcept>
 
 // last, so that the headers above are read as the library was compiled
 #include "TestAssert.h"
@@ -216,10 +217,53 @@ static void test_single_point_types( void )
  }
 
 /*--------------------------------------------------------------------------*/
+// a fixed ColVariable keeps its value: the same up to rounding is accepted
+// and changes nothing, another one throws and changes nothing either, and
+// the value is changed by unfixing, setting and fixing again
+
+void test_fixed_value()
+{
+ ColVariable var;
+ var.set_value( 3 );
+ var.is_fixed( true );
+
+ var.set_value( 3 * ( 1 + 1e-12 ) );
+ assert( var.get_value() == 3 );
+
+ bool thrown = false;
+ try { var.set_value( 4 ); }
+ catch( const std::domain_error & ) { thrown = true; }
+ assert( thrown );
+ assert( var.get_value() == 3 );
+
+ // the tolerance is relative with a floor of 1: near zero it is absolute
+ ColVariable zero;
+ zero.is_fixed( true );
+ zero.set_value( 1e-10 );
+ assert( zero.get_value() == 0 );
+ thrown = false;
+ try { zero.set_value( 1e-5 ); }
+ catch( const std::domain_error & ) { thrown = true; }
+ assert( thrown );
+
+ // set_to_default_value() is a set_value( 0 ) like any other
+ thrown = false;
+ try { var.set_to_default_value(); }
+ catch( const std::domain_error & ) { thrown = true; }
+ assert( thrown );
+
+ var.is_fixed( false );
+ var.set_value( 4 );
+ var.is_fixed( true );
+ assert( var.is_fixed() && ( var.get_value() == 4 ) );
+ }
+
+/*--------------------------------------------------------------------------*/
 
 int main( int argc , char ** argv )
 {
  runAllTests();
+ test_fixed_value();
  test_every_type();
  test_single_point_types();
  return( 0 );

@@ -478,25 +478,6 @@ class Solution
  virtual void is_direction( bool yesno ) { f_direction = yesno; }
 
 /*--------------------------------------------------------------------------*/
- /// tells whether the dual values this Solution holds are feasible
- /** Tells whether the dual values this Solution holds are feasible for the
-  * given Block, which is the one this Solution has been read from or one
-  * with the same structure, up to the tolerance \p fsbc gives (with the
-  * default of the Block if it is nullptr). A Block has no notion of a dual
-  * solution, while a Solution knows whether it holds one, and of which
-  * Block, hence it is the Solution that answers, asking its Block to check
-  * the values it gives it; the Block is not written, and its Constraint need
-  * not exist. The method in the base class throws, since it cannot know
-  * what a Solution holds; a :Solution that holds no dual values returns
-  * false. */
-
- virtual bool is_dual_feasible( Block * block ,
-				Configuration * fsbc = nullptr ) {
-  throw( std::logic_error( "Solution::is_dual_feasible: not implemented by "
-			   "this :Solution" ) );
-  }
-
-/*--------------------------------------------------------------------------*/
  /// returns a scaled version of this Solution
  /** This method constructs and returns a scaled version of this Solution,
   * where each of the solution information is scaled by the given double

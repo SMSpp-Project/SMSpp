@@ -178,7 +178,7 @@ void AbstractBlock::load( std::istream & input , char frmt )
 bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
 {
  // compute the accuracy parameter- - - - - - - - - - - - - - - - - - - - - -
- double eps = 0;
+ double eps = DefaultFeasTol;
  bool rel_viol = true;
 
  // Try to extract, from "c", the parameters that determine feasibility.

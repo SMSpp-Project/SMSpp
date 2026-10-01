@@ -214,6 +214,7 @@ LagBFunction::~LagBFunction( void )
 {
  guts_of_destructor();
  delete f_BS;
+ delete f_chk_cfg;
  }
 
 /*--------------------------------------------------------------------------*/

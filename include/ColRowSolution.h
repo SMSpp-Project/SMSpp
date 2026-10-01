@@ -108,16 +108,6 @@ public:
 /** @} ---------------------------------------------------------------------*/
 /*---------- METHODS DESCRIBING THE BEHAVIOR OF A ColRowSolution -----------*/
 /*--------------------------------------------------------------------------*/
- /// tells whether the dual values held here are feasible for the Block
- /** Asks the RowConstraintSolution held here [see RowConstraintSolution::
-  * is_dual_feasible()]. */
-
- bool is_dual_feasible( Block * block ,
-			Configuration * fsbc = nullptr ) override {
-  return( f_constraint_solution.is_dual_feasible( block , fsbc ) );
-  }
-
-/*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a ColRowSolution
  *  @{ */
 

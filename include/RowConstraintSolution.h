@@ -34,8 +34,6 @@
 #include "RowConstraint.h"
 #include "Solution.h"
 
-#include <unordered_map>
-
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -45,7 +43,6 @@ namespace SMSpp_di_unipi_it
 {
 
  class RowConstraintSolution; ///< forward definition of RowConstraintSolution
- class ColVariable;  ///< forward definition of ColVariable
 
 /*--------------------------------------------------------------------------*/
 /*----------------- RowConstraintSolution-RELATED TYPES --------------------*/
@@ -291,41 +288,7 @@ public:
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-/*--------------------------------------------------------------------------*/
- /// tells whether the dual values held here are feasible for the Block
- /** Tells whether the dual values held here are a feasible dual solution of
-  * the given Block, which has the structure of the one they have been read
-  * from, as a linear program: every RowConstraint has to have a dual value
-  * of the sign its finite sides allow [see RowConstraint::
-  * dual_sign_feasible()], and every ColVariable a reduced cost, i.e., the
-  * coefficient of the linear Objective of its Block plus the sum over the
-  * rows it is in of the dual value times its coefficient there, of the sign
-  * the domain of the ColVariable allows: zero if the ColVariable is free,
-  * nonnegative (nonpositive in a maximization) if it is only bounded below,
-  * nonpositive (nonnegative) if it is only bounded above, any if it is
-  * bounded on both sides or fixed. The nested Block are taken in, a row
-  * possibly holding the ColVariable of other Block. The sense is that of
-  * the Objective of \p block, minimization if it has none. The tolerance is
-  * the double of \p fsbc, if it is a SimpleConfiguration< double >, 1e-6
-  * otherwise, relative to the largest term of each sum. The values of the
-  * Block are not touched; a Function that is not a LinearFunction, in a row
-  * or in the Objective, throws, the method knowing only linear programs. */
-
- bool is_dual_feasible( Block * block ,
-			Configuration * fsbc = nullptr ) override;
-
-/*--------------------------------------------------------------------------*/
-
 protected:
-
- /// the reduced cost of each ColVariable, and the scale of its terms
- using ReducedCosts = std::unordered_map< const ColVariable * ,
-					  std::pair< double , double > >;
-
- /// checks the signs of the rows of block and adds their terms to rc
- bool add_dual_terms( const Block * const block , bool minimize ,
-		      double eps , ReducedCosts & rc ) const;
-
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PROTECTED METHODS -----------------------------*/
