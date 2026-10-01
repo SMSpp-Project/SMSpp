@@ -1540,6 +1540,28 @@ class LagBFunction : public C05Function , public Block
 
  void cleanup_inner_objective( void );
 
+/*--------------------------------------------------------------------------*/
+ /// tells whether the inner Block was last solved at the current y
+ /** Returns true if the last time compute() wrote the Lagrangian costs in
+  * the Objective of the inner Block, it did so with the y that the dual
+  * pairs hold now, so that the solution the inner Solver has (if any) is
+  * that of the Lagrangian relaxation at the current y. This is not the case
+  * when the y have been moved after the last compute(), say by a Solver
+  * that writes back its best point after having evaluated other ones: then
+  * the inner Solver may still have a (primal and dual) solution, but it
+  * belongs to another y, and whoever needs the one at the current y has to
+  * call compute() again. cleanup_inner_objective() does not change the
+  * answer, since it does not change which y the inner Block was solved at. */
+
+ bool solved_at_current_point( void ) const {
+  if( v_last_y.size() != LagPairs.size() )
+   return( false );
+  for( Index i = 0 ; i < LagPairs.size() ; ++i )
+   if( LagPairs[ i ].first->get_value() != v_last_y[ i ] )
+    return( false );
+  return( true );
+  }
+
 /** @} ---------------------------------------------------------------------*/
 /*-------------------- Methods for handling Modification -------------------*/
 /*--------------------------------------------------------------------------*/
@@ -3067,6 +3089,8 @@ class LagBFunction : public C05Function , public Block
   * such problem. */
 
  bool f_dirty_Lc;     ///< true if Lagrangian costs have to be modified
+
+ Vec_FunctionValue v_last_y;  ///< the y of the last Lagrangian costs
 
  bool f_c_changed;    ///< true if the costs in the Block are not original
 

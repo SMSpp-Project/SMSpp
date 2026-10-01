@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `LagBFunction::solved_at_current_point()` tells whether the inner Block
+  was last solved at the multipliers the dual pairs hold now, i.e., whether
+  the solution of its Solver, if any, is that of the Lagrangian relaxation
+  at the current y and not at a point tried earlier
+
 - `LagBFunction` has the string parameter `strChkCfg`, the name of the file
   of the Configuration passed to `is_sol_feasible()` of the inner Block when
   an entry of the global pool is checked (typically, the tolerance of the

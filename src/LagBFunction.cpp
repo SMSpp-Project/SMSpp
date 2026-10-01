@@ -2394,6 +2394,7 @@ int LagBFunction::compute( bool changedvars )
 
   f_dirty_Lc = false;           // Lagrangian costs are current
   f_c_changed = true;           // ... and hence no longer original
+  v_last_y = std::move( y );    // ... and computed with these y
   }
 
  // if the inner Block had to be locked, for whatever reason
