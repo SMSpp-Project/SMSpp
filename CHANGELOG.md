@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `MasterProblemBlock::add_easy_coupling( easy_id , j , local_i )`, the
+  reverse of `drop_easy_coupling()`: the easy component gets the terms of
+  its Lagrangian term on the coordinate j, already in the master, in the
+  coupling row of j, those left at 0 by a previous drop getting their
+  coefficient back, and in the displacement form the x_bar_j part in the
+  Objective coefficients of the same Variable. The positions of these
+  Objective corrections are kept one per Variable, since a Variable with
+  no correction yet gets its term after those of the coordinates
+
 - `MasterProblemBlock::add_vars( n , coefficients )` takes the master problem
   from its coordinates to those plus `n` without building it anew, so that
   the stability centre, t, the level and the references stay where they
@@ -434,6 +443,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   from the `PolyhedralFunctionBlock_test` battery of the tests repository
 
 ### Fixed
+
+- `MasterProblemBlock::add_vars()` in the displacement form of the dual
+  gives the easy components the x_bar part of the new coordinates in the
+  Objective, which `set_x_bar()` updates from then on; without it, the
+  easy terms of a new coordinate were in its coupling row only, and the
+  Objective missed their contribution as soon as the centre moved along it
 
 - `PolyhedralFunctionBlock` handles the Variable added to its
   `PolyhedralFunction`: a `C05FunctionModVarsAddd` derives from

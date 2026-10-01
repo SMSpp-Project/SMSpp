@@ -199,7 +199,7 @@ void MasterProblemBlock::clear()
  s_minus_obj_idx.clear();
  r_obj_idx     = -1;
  omega_obj_idx = -1;
- easy_obj_idx  = -1;
+ easy_obj_idx.clear();
  level_model_obj_idx = -1;
  level_model_obj_num = 0;
  f_dual_level_probe_active = false;
@@ -1577,7 +1577,7 @@ void MasterProblemBlock::generate_dual_objective( void )
  // these linear coefficients when the stability centre changes.
  EasyObjVars.clear();
  EasyObjCoeffs.clear();
- easy_obj_idx = -1;
+ easy_obj_idx.clear();
  if( ! f_v2_form ) {
   for( Index easy_id = 0 ; easy_id < EasyCmps.size() ; ++easy_id ) {
    auto * lbf = EasyCmps[ easy_id ];
@@ -1607,10 +1607,9 @@ void MasterProblemBlock::generate_dual_objective( void )
     }
    }
 
-  if( ! EasyObjVars.empty() ) {
-   easy_obj_idx = int( triples.size() );
-   for( auto * u : EasyObjVars )
-    triples.emplace_back( u , 0.0 , 0.0 );
+  for( auto * u : EasyObjVars ) {
+   easy_obj_idx.push_back( int( triples.size() ) );
+   triples.emplace_back( u , 0.0 , 0.0 );
    }
   }
 
@@ -1896,7 +1895,7 @@ void MasterProblemBlock::drop_easy_coupling( Index easy_id , Index j )
 
  // in the displacement form, drop j from the Objective coefficients of the
  // same Variable, and write them again with the current x_bar
- if( ( f_v2_form == 0 ) && ( easy_obj_idx >= 0 ) ) {
+ if( ( f_v2_form == 0 ) && ( ! easy_obj_idx.empty() ) ) {
   auto obj = get_objective< FRealObjective >();
   auto dqf = obj ? dynamic_cast< DQuadFunction * >( obj->get_function() )
                  : nullptr;
@@ -1914,10 +1913,99 @@ void MasterProblemBlock::drop_easy_coupling( Index easy_id , Index j )
     for( const auto & [ jj , a ] : coeffs )
      if( jj < f_x_bar.size() )
       coeff += f_x_bar[ jj ] * a;
-    dqf->modify_term( DQuadFunction::Index( easy_obj_idx + int( h ) ) ,
+    dqf->modify_term( DQuadFunction::Index( easy_obj_idx[ h ] ) ,
                       coeff , 0.0 );
     }
    }
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void MasterProblemBlock::add_easy_coupling( Index easy_id , Index j ,
+                                            Index local_i )
+{
+ if( easy_id >= EasyCmps.size() )
+  throw( std::logic_error( "MasterProblemBlock::add_easy_coupling: invalid "
+                           "easy component index" ) );
+ if( j >= CouplingCns.size() )
+  throw( std::logic_error( "MasterProblemBlock::add_easy_coupling: global "
+                           "index outside master dimension" ) );
+
+ auto * gi = dynamic_cast< LinearFunction * >(
+                          EasyCmps[ easy_id ]->get_Lagrangian_term( local_i ) );
+ if( ! gi )
+  throw( std::logic_error( "MasterProblemBlock::add_easy_coupling: "
+                           "LagBFunction term is not a LinearFunction" ) );
+
+ // the terms of the component in the coupling row of j, with the sign of
+ // add_LBF_to_coupling_rows(): those still in the row with the 0 left by
+ // drop_easy_coupling() get their coefficient back, the others are added
+ const double easy_sign = IsConvex ? 1.0 : -1.0;
+ auto row = std::next( CouplingCns.begin() , j );
+ auto lf = static_cast< LinearFunction * >( row->get_function() );
+ const auto chnl = open_channel();
+ const auto cpar = make_par( eModBlck , chnl );
+ try {
+  LinearFunction::v_coeff_pair added;
+  for( Function::Index h = 0 ; h < gi->get_num_active_var() ; ++h ) {
+   auto * u = static_cast< ColVariable * >( gi->get_active_var( h ) );
+   const double a = easy_sign * gi->get_coefficient( h );
+   const auto idx = lf->is_active( u );
+   if( idx < lf->get_num_active_var() )
+    lf->modify_coefficient( idx , a , cpar );
+   else
+    added.emplace_back( u , a );
+   }
+  if( ! added.empty() )
+   lf->add_variables( std::move( added ) , cpar );
+
+  add_easy_objective_terms( easy_id , j , local_i , cpar );
+  }
+ catch( ... ) {
+  close_channel( chnl );
+  throw;
+  }
+ close_channel( chnl );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void MasterProblemBlock::add_easy_objective_terms( Index easy_id , Index j ,
+                                                   Index local_i ,
+                                                   ModParam issueMod )
+{
+ if( IsPrimal || f_v2_form || ! ( f_abs_rep & k_mpb_built_obj ) )
+  return;
+
+ auto obj = get_objective< FRealObjective >();
+ auto dqf = obj ? dynamic_cast< DQuadFunction * >( obj->get_function() )
+                : nullptr;
+ auto * gi = dynamic_cast< LinearFunction * >(
+                          EasyCmps[ easy_id ]->get_Lagrangian_term( local_i ) );
+ if( ( ! dqf ) || ( ! gi ) )
+  throw( std::logic_error( "MasterProblemBlock::add_easy_objective_terms: "
+                           "expected DQuadFunction and LinearFunction" ) );
+
+ for( Function::Index h = 0 ; h < gi->get_num_active_var() ; ++h ) {
+  auto * u = static_cast< ColVariable * >( gi->get_active_var( h ) );
+  auto it = std::find( EasyObjVars.begin() , EasyObjVars.end() , u );
+  const auto pos = std::size_t( std::distance( EasyObjVars.begin() , it ) );
+  if( it == EasyObjVars.end() ) {  // a Variable with no correction yet
+   EasyObjVars.push_back( u );
+   EasyObjCoeffs.emplace_back();
+   easy_obj_idx.push_back( int( dqf->get_num_active_var() ) );
+   dqf->add_variable( u , 0.0 , 0.0 , issueMod );
+   }
+
+  auto & coeffs = EasyObjCoeffs[ pos ];
+  coeffs.emplace_back( j , gi->get_coefficient( h ) );
+  double coeff = 0.0;
+  for( const auto & [ jj , a ] : coeffs )
+   if( jj < f_x_bar.size() )
+    coeff += f_x_bar[ jj ] * a;
+  dqf->modify_term( DQuadFunction::Index( easy_obj_idx[ pos ] ) , coeff ,
+                    0.0 , issueMod );
   }
  }
 
@@ -4081,13 +4169,13 @@ void MasterProblemBlock::set_x_bar( const std::vector< double > & x_bar )
  // Displacement form has no explicit x_bar * z term. Restore its exact easy
  // component part directly as x_bar * g^k(u^k), using the cached sparse map
  // built in CreateDualMP(). Iterate form needs no such correction.
- if( ( ! iterate ) && easy_obj_idx >= 0 )
+ if( ( ! iterate ) && ( ! easy_obj_idx.empty() ) )
   for( std::size_t h = 0 ; h < EasyObjCoeffs.size() ; ++h ) {
    double coeff = 0.0;
    for( const auto & [ j , a ] : EasyObjCoeffs[ h ] )
     if( j < f_x_bar.size() )
      coeff += f_x_bar[ j ] * a;
-   dqf->modify_term( DQuadFunction::Index( easy_obj_idx + int( h ) ) ,
+   dqf->modify_term( DQuadFunction::Index( easy_obj_idx[ h ] ) ,
                      coeff , 0.0 );
    }
  }
@@ -4755,6 +4843,15 @@ void MasterProblemBlock::add_vars( int n ,
     }
 
   append_coordinate_objective( first , n , cpar );
+
+  // in the displacement form the easy components also need the x_bar part
+  // of the new coordinates in the Objective [see CreateDualMP()]
+  for( Index easy_id = 0 ; easy_id < EasyCmps.size() ; ++easy_id )
+   for( Index i = 0 ; i < EasyCmps[ easy_id ]->get_num_active_var() ; ++i ) {
+    const Index j = easy_local_to_global( easy_id , i );
+    if( ( j >= Index( first ) ) && ( j < Index( first + n ) ) )
+     add_easy_objective_terms( easy_id , j , i , cpar );
+    }
   }
  catch( ... ) {
   close_channel( chnl );
@@ -5050,7 +5147,7 @@ void MasterProblemBlock::remove_vars( const int * subset , int sz )
    for( auto & p : s_minus_obj_idx ) p = reindex( p , objective_positions );
    r_obj_idx = reindex( r_obj_idx , objective_positions );
    omega_obj_idx = reindex( omega_obj_idx , objective_positions );
-   easy_obj_idx = reindex( easy_obj_idx , objective_positions );
+   for( auto & p : easy_obj_idx ) p = reindex( p , objective_positions );
    level_model_obj_idx = reindex( level_model_obj_idx , objective_positions );
    }
   if( level_lf ) {
@@ -5123,12 +5220,12 @@ void MasterProblemBlock::remove_vars( const int * subset , int sz )
        row.side == BendersBFunction::eBoth )
     row.cns->set_rhs( side , cpar );
    }
-  if( dqf && easy_obj_idx >= 0 )
+  if( dqf && ( ! easy_obj_idx.empty() ) )
    for( std::size_t h = 0 ; h < EasyObjCoeffs.size() ; ++h ) {
     double coeff = 0.0;
     for( const auto & [ j , a ] : EasyObjCoeffs[ h ] )
      coeff += f_x_bar[ j ] * a;
-    dqf->modify_term( DQuadFunction::Index( easy_obj_idx + int( h ) ) ,
+    dqf->modify_term( DQuadFunction::Index( easy_obj_idx[ h ] ) ,
                       coeff , 0.0 , cpar );
     }
   }

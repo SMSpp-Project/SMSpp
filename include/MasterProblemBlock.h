@@ -633,6 +633,17 @@ class MasterProblemBlock : public Block {
   Index first = 0 );
 
 /*--------------------------------------------------------------------------*/
+ /// x_bar_j part of the easy objective correction for a Lagrangian term
+ /** In the displacement form, records that the local_i-th Lagrangian term
+  * of the easy component easy_id is on the global coordinate j, adding to
+  * the root DQuadFunction the Variable of the term that are not there yet,
+  * and writes again with the current x_bar the objective coefficients of
+  * the Variable of the term; does nothing in the iterate form. */
+
+ void add_easy_objective_terms( Index easy_id , Index j , Index local_i ,
+                                ModParam issueMod );
+
+/*--------------------------------------------------------------------------*/
  /// Map a local active-variable index of an easy component to the global
  /// master-space coordinate.
  /** For dense Lambda representations, no explicit map is stored and the
@@ -664,6 +675,18 @@ class MasterProblemBlock : public Block {
   * the component [see set_easy_local2global()] is the caller's to update. */
 
  void drop_easy_coupling( Index easy_id , Index j );
+
+/*--------------------------------------------------------------------------*/
+ /// the easy component easy_id now depends on the global Variable j
+ /** Called when the easy LagBFunction easy_id has got the Lagrangian term
+  * of the global coordinate j, which is already in the master, as its
+  * local_i-th active Variable. The terms of that Lagrangian term are put in
+  * CouplingCns[ j ], those given a 0 coefficient by drop_easy_coupling()
+  * getting theirs back; in the displacement form the x_bar_j part goes in
+  * the Objective coefficients of the same Variable. The map of the
+  * component [see set_easy_local2global()] is the caller's to update. */
+
+ void add_easy_coupling( Index easy_id , Index j , Index local_i );
 
 /*--------------------------------------------------------------------------*/
  /// replaces the local-to-global maps of the easy components
@@ -2119,9 +2142,10 @@ class MasterProblemBlock : public Block {
                     ///< per-coordinate positions of s^-_j in the dual root
                     ///< DQuadFunction; carries -sgn*(U_j - x_bar_j)
 
- int easy_obj_idx = -1;
-                    ///< index of the first displacement-form easy objective
-                    ///< correction in the root DQuadFunction, or -1
+ std::vector< int > easy_obj_idx;
+                    ///< per easy variable in EasyObjVars, the position of its
+                    ///< displacement-form objective correction in the root
+                    ///< DQuadFunction
 
  int level_model_obj_idx = -1;
                     ///< first v^k term in the primal one-shot level probe
