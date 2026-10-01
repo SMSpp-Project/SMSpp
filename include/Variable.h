@@ -512,6 +512,28 @@ class VariableMod : public AModification
 
 /*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
+ /// returns what the Modification changes [see Modification::ModConcern]
+ /** The data of a Variable, which leaves the objective as it is at every
+  * point: fixing the Variable, and nothing else, shrinks the region, and
+  * unfixing it, and nothing else, makes it grow; the other bits of the state
+  * are those of the derived class, whose meaning the base class does not
+  * know, and a change of them may have either effect. */
+
+ [[nodiscard]] ModConcern changes( void ) const override {
+  constexpr var_type fix = 1;  // the LSB of the state [see is_fixed()]
+  if( ( f_old_state & ~fix ) == ( f_new_state & ~fix ) ) {
+   if( Variable::is_fixed( f_new_state ) &&
+       ! Variable::is_fixed( f_old_state ) )
+    return( eModVarData | eRegnShrink );
+   if( Variable::is_fixed( f_old_state ) &&
+       ! Variable::is_fixed( f_new_state ) )
+    return( eModVarData | eRegnGrow );
+   }
+  return( eModVarData | eRegnShrink | eRegnGrow );
+  }
+
+/*--------------------------------------------------------------------------*/
+
  /// returns the Block to which the Variable belongs
 
  [[nodiscard]] Block * get_Block( void ) const override {

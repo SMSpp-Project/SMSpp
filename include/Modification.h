@@ -381,6 +381,132 @@ class Modification {
  [[nodiscard]] virtual Block * get_Block( void ) const = 0;
 
 /*--------------------------------------------------------------------------*/
+ /// the bit mask that says what a Modification changes
+ /** A ModConcern says what a Modification changes and what effect it may
+  * have on the problem. The bits of "kind" say what changes:
+  *
+  * - eModPhys     the physical representation of a Block, which only the
+  *                Block and its Solver know (a physical Modification);
+  * - eModVarData  the data of existing Variable: bounds, type, fixing;
+  * - eModVarSet   the set of the Variable: some are added or removed;
+  * - eModCnsData  the data of existing Constraint: sides, coefficients,
+  *                Function;
+  * - eModCnsSet   the set of the Constraint: some are added or removed;
+  * - eModObj      the Objective;
+  *
+  * while those of "effect" say what may happen to the problem, a bit being
+  * set when the effect is possible:
+  *
+  * - eRegnShrink  the feasible region may shrink;
+  * - eRegnGrow    the feasible region may grow;
+  * - eObjUp       the objective may increase somewhere on the region;
+  * - eObjDown     the objective may decrease somewhere on the region.
+  *
+  * Hence, all the effect bits set (eEffAny) is the "anything may happen"
+  * that is always correct, if hardly informative, while an effect bit not set
+  * is a guarantee. The masks eModAbst (all the abstract kinds), eModAnything
+  * (all the kinds) and eModAll (all the bits) serve the standard cases. The
+  * bits are to be read through the static methods below (is_physical(),
+  * may_shrink_region(), lower_bound_stays_valid(), ...) rather than tested
+  * one by one, so that the encoding can change without anyone noticing. */
+
+ using ModConcern = unsigned short int;
+
+ static constexpr ModConcern eModPhys    =    1;  ///< physical
+ static constexpr ModConcern eModVarData =    2;  ///< data of Variable
+ static constexpr ModConcern eModVarSet  =    4;  ///< Variable added/removed
+ static constexpr ModConcern eModCnsData =    8;  ///< data of Constraint
+ static constexpr ModConcern eModCnsSet  =   16;  ///< Constraint added/removed
+ static constexpr ModConcern eModObj     =   32;  ///< the Objective
+ static constexpr ModConcern eRegnShrink =   64;  ///< region may shrink
+ static constexpr ModConcern eRegnGrow   =  128;  ///< region may grow
+ static constexpr ModConcern eObjUp      =  256;  ///< objective may increase
+ static constexpr ModConcern eObjDown    =  512;  ///< objective may decrease
+
+ static constexpr ModConcern eModAbst     =   62;  ///< all the abstract kinds
+ static constexpr ModConcern eModAnything =   63;  ///< all the kinds
+ static constexpr ModConcern eEffAny      =  960;  ///< any effect
+ static constexpr ModConcern eModAll      = 1023;  ///< all the bits
+
+/*--------------------------------------------------------------------------*/
+ /// returns what the Modification changes [see ModConcern]
+ /** Returns the ModConcern of the Modification. The base class, which is
+  * that of the physical Modification, says "physical, with any effect",
+  * which is always correct for them; a derived class says more when it
+  * knows more. */
+
+ [[nodiscard]] virtual ModConcern changes( void ) const {
+  return( eModPhys | eEffAny );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /** @name Reading a ModConcern
+  * The static methods that tell what a ModConcern says, so that nobody
+  * reads its bits directly. The last two are written for a minimization
+  * problem: for a maximization one, lower and upper bound swap.
+  *  @{ */
+
+ /// true if the Modification is physical
+ static constexpr bool is_physical( ModConcern c ) {
+  return( c & eModPhys );
+  }
+
+ /// true if the Modification is abstract
+ static constexpr bool is_abstract( ModConcern c ) {
+  return( c & eModAbst );
+  }
+
+ /// true if the Modification changes the data or the set of the Variable
+ static constexpr bool changes_variables( ModConcern c ) {
+  return( c & ( eModVarData | eModVarSet ) );
+  }
+
+ /// true if the Modification changes the data or the set of the Constraint
+ static constexpr bool changes_constraints( ModConcern c ) {
+  return( c & ( eModCnsData | eModCnsSet ) );
+  }
+
+ /// true if the Modification changes the Objective
+ static constexpr bool changes_objective( ModConcern c ) {
+  return( c & eModObj );
+  }
+
+ /// true if Variable or Constraint are added or removed
+ static constexpr bool changes_structure( ModConcern c ) {
+  return( c & ( eModVarSet | eModCnsSet ) );
+  }
+
+ /// true if the feasible region may shrink
+ static constexpr bool may_shrink_region( ModConcern c ) {
+  return( c & eRegnShrink );
+  }
+
+ /// true if the feasible region may grow
+ static constexpr bool may_grow_region( ModConcern c ) {
+  return( c & eRegnGrow );
+  }
+
+ /// true if a solution feasible before is still feasible
+ static constexpr bool solution_stays_feasible( ModConcern c ) {
+  return( ! ( c & eRegnShrink ) );
+  }
+
+ /// true if a lower bound on the optimal value is still valid
+ /** The optimal value can only increase when the region does not grow and
+  * the objective does not decrease anywhere. */
+ static constexpr bool lower_bound_stays_valid( ModConcern c ) {
+  return( ! ( c & ( eRegnGrow | eObjDown ) ) );
+  }
+
+ /// true if the value of a solution is still an upper bound
+ /** The solution stays feasible when the region does not shrink, and its
+  * value does not increase when the objective does not increase. */
+ static constexpr bool upper_bound_stays_valid( ModConcern c ) {
+  return( ! ( c & ( eRegnShrink | eObjUp ) ) );
+  }
+
+/** @} ---------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
  /// returns true if the :Block needs to process this Modification
  /** This method must return true if the Modification "has not been seen by
   * the Block already", i.e., it has not been issued by the :Block itself
@@ -464,6 +590,15 @@ class AModification : public Modification {
  ~AModification() override = default;  ///< destructor: does nothing
 
 /*--------------------------------------------------------------------------*/
+ /// returns what the Modification changes [see Modification::ModConcern]
+ /** An abstract Modification changes some of the abstract representation,
+  * with any effect, unless a derived class says more. */
+
+ [[nodiscard]] ModConcern changes( void ) const override {
+  return( eModAbst | eEffAny );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// returns the value stored in the f_concerns_Block field
 
  [[nodiscard]] bool concerns_Block( void ) const override {
@@ -531,6 +666,10 @@ class NModification : public Modification {
  NModification() : Modification() {}
 
  ~NModification() override = default;  ///< destructor: does nothing
+
+/*--------------------------------------------------------------------------*/
+ /// returns what the Modification changes: everything
+ [[nodiscard]] ModConcern changes( void ) const override { return( eModAll ); }
 
 /*--------------------------------------------------------------------------*/
 
@@ -660,6 +799,15 @@ class GroupModification : public AModification {
  [[nodiscard]] Block * get_Block( void ) const override {
   return( v_sub_Modifications.empty() ?
 	  nullptr : v_sub_Modifications.front()->get_Block() );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns what the Modification changes: the or of its sub-Modification
+ [[nodiscard]] ModConcern changes( void ) const override {
+  ModConcern c = 0;
+  for( const auto & mod : v_sub_Modifications )
+   c |= mod->changes();
+  return( c );
   }
 
 /*--------------------------------------------------------------------------*/

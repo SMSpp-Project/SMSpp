@@ -23,7 +23,9 @@
  * the range or subset, the elements added or removed), and the edge cases:
  * a call that changes nothing, empty and full Range, Range at the
  * boundaries, empty Subset (which for the removing methods means "all"),
- * unordered Subset, adding nothing and removing everything.
+ * unordered Subset, adding nothing and removing everything. Finally, it
+ * checks what changes() says of the Modification of the core and what the
+ * static methods of Modification read from it.
  *
  * \author Donato Meoli \n
  *         Dipartimento di Informatica \n
@@ -150,6 +152,26 @@ struct Case
  std::function< bool( void ) > before;
  std::function< bool( void ) > after;
  std::function< void( const sp_Mod & ) > check;
+ };
+
+/*--------------------------------------------------------------------------*/
+/// a physical Modification that says nothing more of itself
+
+class PhysMod : public Modification
+{
+ public:
+
+ explicit PhysMod( Block * b ) : f_block( b ) {}
+
+ [[nodiscard]] Block * get_Block( void ) const override { return( f_block ); }
+
+ protected:
+
+ void print( std::ostream & output ) const override {
+  output << "PhysMod" << std::endl;
+  }
+
+ Block * f_block;
  };
 
 /*--------------------------------------------------------------------------*/
@@ -2247,6 +2269,121 @@ static void test_active_list( void )
 /*----------------------------------- MAIN ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+/*--------------------------------------------------------------------------*/
+/* What changes() says of the Modification of the core, both built directly
+ * and issued by the Block, and what the static methods of Modification read
+ * from a ModConcern [see Modification::ModConcern]. */
+
+static void test_changes( void )
+{
+ using M = Modification;
+ Rig r;
+ auto x = new ColVariable;
+ r.block->add_static_variable( *x , "x" );
+
+ // the data of a Variable: fixing it shrinks the region, unfixing it makes
+ // it grow, changing its type may do either
+ const var_type free = 0 , fixed = 1;
+ const var_type integer = var_type( ColVariable::kInteger * 2 );
+ assert( VariableMod( x , free , fixed ).changes() ==
+	 ( M::eModVarData | M::eRegnShrink ) );
+ assert( VariableMod( x , fixed , free ).changes() ==
+	 ( M::eModVarData | M::eRegnGrow ) );
+ assert( VariableMod( x , free , integer ).changes() ==
+	 ( M::eModVarData | M::eRegnShrink | M::eRegnGrow ) );
+ assert( VariableMod( x , free , var_type( integer + 1 ) ).changes() ==
+	 ( M::eModVarData | M::eRegnShrink | M::eRegnGrow ) );
+
+ // the data of a Constraint: relaxing it makes the region grow, enforcing
+ // it shrinks it, changing its sides may do either
+ FRowConstraint c;
+ assert( ConstraintMod( & c , ConstraintMod::eRelaxConst ).changes() ==
+	 ( M::eModCnsData | M::eRegnGrow ) );
+ assert( ConstraintMod( & c , ConstraintMod::eEnforceConst ).changes() ==
+	 ( M::eModCnsData | M::eRegnShrink ) );
+ assert( RowConstraintMod( & c , RowConstraintMod::eChgRHS ).changes() ==
+	 ( M::eModCnsData | M::eRegnShrink | M::eRegnGrow ) );
+
+ // the Objective: the region stays, the objective may move either way
+ FRealObjective o;
+ assert( ObjectiveMod( & o , ObjectiveMod::eSetMax ).changes() ==
+	 ( M::eModObj | M::eObjUp | M::eObjDown ) );
+
+ // physical: any effect; nuclear: everything
+ assert( PhysMod( r.block ).changes() == ( M::eModPhys | M::eEffAny ) );
+ assert( NBModification( r.block ).changes() == M::eModAll );
+
+ // the set of the dynamic Variable and Constraint, as the Block issues it
+ auto vars = new std::list< ColVariable >;
+ r.block->add_dynamic_variable( *vars , "y" );
+ auto rows = new std::list< FRowConstraint >;
+ r.block->add_dynamic_constraint( *rows , "c" );
+
+ auto one = [ & ]( std::function< void( void ) > call , M::ModConcern mc ) {
+  r.clear();
+  call();
+  assert( r.got().size() == 1 );
+  assert( r.got().front()->changes() == mc );
+  };
+
+ one( [ & ]() {
+       std::list< ColVariable > n( 2 );
+       add_d( r.block , *vars , n , eModBlck );
+       } , M::eModVarSet | M::eRegnGrow );
+ one( [ & ]() { rmv_d( r.block , *vars , Range( 0 , 1 ) , eModBlck ); } ,
+      M::eModVarSet | M::eRegnShrink );
+ one( [ & ]() {
+       std::list< FRowConstraint > n( 2 );
+       add_d( r.block , *rows , n , eModBlck );
+       } , M::eModCnsSet | M::eRegnShrink );
+ one( [ & ]() { rmv_d( r.block , *rows , Range( 0 , 1 ) , eModBlck ); } ,
+      M::eModCnsSet | M::eRegnGrow );
+
+ // a GroupModification says the or of what its sub-Modification say
+ one( [ & ]() {
+       auto chnl = r.block->open_channel();
+       x->is_fixed( true , Observer::make_par( eModBlck , chnl ) );
+       std::list< FRowConstraint > n( 1 );
+       add_d( r.block , *rows , n , Observer::make_par( eModBlck , chnl ) );
+       r.block->close_channel( chnl );
+       } , M::eModVarData | M::eModCnsSet | M::eRegnShrink );
+
+ // the static methods
+ const auto phys = M::ModConcern( M::eModPhys | M::eEffAny );
+ assert( M::is_physical( phys ) && ( ! M::is_abstract( phys ) ) );
+ assert( M::is_abstract( M::eModObj ) && ( ! M::is_physical( M::eModObj ) ) );
+ assert( M::changes_variables( M::eModVarSet ) &&
+	 M::changes_variables( M::eModVarData ) &&
+	 ( ! M::changes_variables( M::eModCnsData ) ) );
+ assert( M::changes_constraints( M::eModCnsSet ) &&
+	 ( ! M::changes_constraints( M::eModObj ) ) );
+ assert( M::changes_objective( M::eModObj ) &&
+	 ( ! M::changes_objective( M::eModVarData ) ) );
+ assert( M::changes_structure( M::eModVarSet ) &&
+	 ( ! M::changes_structure( M::eModVarData ) ) );
+
+ // a region that only shrinks keeps the lower bounds, one that only grows
+ // the upper bounds, and an objective that may decrease keeps neither of
+ // the lower bounds
+ const auto shrink = M::ModConcern( M::eModCnsSet | M::eRegnShrink );
+ const auto grow = M::ModConcern( M::eModVarSet | M::eRegnGrow );
+ const auto obj = M::ModConcern( M::eModObj | M::eObjUp | M::eObjDown );
+ assert( M::lower_bound_stays_valid( shrink ) &&
+	 ( ! M::upper_bound_stays_valid( shrink ) ) &&
+	 ( ! M::solution_stays_feasible( shrink ) ) &&
+	 M::may_shrink_region( shrink ) && ( ! M::may_grow_region( shrink ) ) );
+ assert( M::upper_bound_stays_valid( grow ) &&
+	 ( ! M::lower_bound_stays_valid( grow ) ) &&
+	 M::solution_stays_feasible( grow ) );
+ assert( M::solution_stays_feasible( obj ) &&
+	 ( ! M::lower_bound_stays_valid( obj ) ) &&
+	 ( ! M::upper_bound_stays_valid( obj ) ) );
+ assert( ! M::lower_bound_stays_valid( M::eModAll ) );
+ assert( ! M::upper_bound_stays_valid( M::eModAll ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 int main( void )
 {
  test_ColVariable();
@@ -2261,6 +2398,7 @@ int main( void )
  test_dry_run_LagBFunction();
  test_dry_run_BendersBFunction();
  test_dry_run_C05SumFunction();
+ test_changes();
 
  std::cout << "Modification_test: all tests passed" << std::endl;
  return( 0 );

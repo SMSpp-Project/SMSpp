@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `Modification::changes()` says what a Modification changes and what effect
+  it may have on the problem, as a `ModConcern` bit mask: the kind
+  (`eModPhys`, the data or the set of the Variable, `eModVarData` and
+  `eModVarSet`, the data or the set of the Constraint, `eModCnsData` and
+  `eModCnsSet`, and the Objective, `eModObj`) and the possible effects
+  (`eRegnShrink`, `eRegnGrow`, `eObjUp`, `eObjDown`), read through static
+  methods (`is_physical()`, `lower_bound_stays_valid()`, ...); a physical
+  Modification says "any effect", an abstract one "anything abstract, any
+  effect", and `VariableMod`, `ConstraintMod`, `ObjectiveMod`, `BlockModAD`,
+  `FunctionModVars`, `NModification` and `GroupModification` say what they
+  know. `Modification_test` checks them
+
 - `MasterProblemBlock::add_easy_coupling( easy_id , j , local_i )`, the
   reverse of `drop_easy_coupling()`: the easy component gets the terms of
   its Lagrangian term on the coordinate j, already in the master, in the
