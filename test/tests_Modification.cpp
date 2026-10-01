@@ -27,7 +27,7 @@
  * checks what changes() says of the Modification of the core and what the
  * static methods of Modification read from it, and that a Block passes a
  * Solver only the kinds of Modification it reads [see
- * Solver::concerned_by()].
+ * Solver::concerned_by()], and what Solution::adapt() answers to them.
  *
  * \author Donato Meoli \n
  *         Dipartimento di Informatica \n
@@ -52,6 +52,7 @@
 #include "BendersBFunction.h"
 #include "C05SumFunction.h"
 #include "ColVariable.h"
+#include "ColVariableSolution.h"
 #include "DQuadFunction.h"
 #include "FakeSolver.h"
 #include "FRealObjective.h"
@@ -170,6 +171,16 @@ class ReadsSolver : public FakeSolver
   }
 
  Modification::ModConcern f_reads;
+ };
+
+/*--------------------------------------------------------------------------*/
+/// a :Solution that says nothing of what it holds
+
+class GenericSolution : public Solution
+{
+ public:
+
+ GenericSolution( void ) : Solution() {}
  };
 
 /*--------------------------------------------------------------------------*/
@@ -2475,6 +2486,90 @@ static void test_concerned( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* What Solution::adapt() answers: a ColVariableSolution drops the value of
+ * a removed dynamic Variable and is unchanged by what does not touch what it
+ * holds, a NModification invalidates it, a GroupModification combines the
+ * answers, and a :Solution that says nothing of itself cannot be adapted to
+ * a removal. */
+
+static void test_adapt( void )
+{
+ Rig r;
+ auto x = new ColVariable;
+ r.block->add_static_variable( *x , "x" );
+ auto vars = new std::list< ColVariable >;
+ r.block->add_dynamic_variable( *vars , "y" );
+ auto rows = new std::list< FRowConstraint >;
+ r.block->add_dynamic_constraint( *rows , "c" );
+ {
+  std::list< ColVariable > n( 3 );
+  add_d( r.block , *vars , n , eNoMod );
+  std::list< FRowConstraint > m( 2 );
+  add_d( r.block , *rows , m , eNoMod );
+  }
+ double val = 1;
+ for( auto & v : *vars )
+  v.set_value( val++ );
+
+ ColVariableSolution sol;
+ sol.read( r.block );
+ std::vector< double > dropped;
+
+ // the last Modification the Block issued, after the given call
+ auto last = [ & ]( std::function< void( void ) > call ) {
+  r.clear();
+  call();
+  assert( r.got().size() == 1 );
+  return( r.got().front() );
+  };
+
+ // the dynamic Variable in the middle goes, and its value with it
+ auto rmv = last( [ & ]() {
+		   rmv_d( r.block , *vars , Range( 1 , 2 ) , eModBlck ); } );
+ assert( sol.adapt( r.block , *rmv , dropped ) == Solution::kAdapted );
+ assert( ( dropped.size() == 1 ) && ( dropped[ 0 ] == 2 ) );
+ sol.write( r.block );
+ assert( ( vars->front().get_value() == 1 ) &&
+	 ( vars->back().get_value() == 3 ) );
+
+ // a Constraint that goes, the fixing of a Variable and a physical
+ // Modification do not touch what a ColVariableSolution holds
+ dropped.clear();
+ auto rmc = last( [ & ]() {
+		   rmv_d( r.block , *rows , Range( 0 , 1 ) , eModBlck ); } );
+ assert( sol.adapt( r.block , *rmc , dropped ) == Solution::kUnchanged );
+ auto fix = last( [ & ]() { x->is_fixed( true , eModBlck ); } );
+ assert( sol.adapt( r.block , *fix , dropped ) == Solution::kUnchanged );
+ assert( sol.adapt( r.block , PhysMod( r.block ) , dropped ) ==
+	 Solution::kUnchanged );
+ assert( dropped.empty() );
+
+ // after a NModification nothing of the Solution can be trusted
+ assert( sol.adapt( r.block , NBModification( r.block ) , dropped ) ==
+	 Solution::kInvalid );
+
+ // a GroupModification: a removal and a fixing make an adapted Solution
+ auto grp = last( [ & ]() {
+		   auto chnl = r.block->open_channel();
+		   x->is_fixed( false , Observer::make_par( eModBlck , chnl ) );
+		   rmv_d( r.block , *vars , Range( 0 , 1 ) ,
+			  Observer::make_par( eModBlck , chnl ) );
+		   r.block->close_channel( chnl );
+		   } );
+ assert( sol.adapt( r.block , *grp , dropped ) == Solution::kAdapted );
+ assert( ( dropped.size() == 1 ) && ( dropped[ 0 ] == 1 ) );
+
+ // a :Solution that says nothing of itself cannot be adapted to a removal,
+ // and is unchanged by the rest
+ GenericSolution gen;
+ dropped.clear();
+ auto rmv2 = last( [ & ]() {
+		    rmv_d( r.block , *vars , Range( 0 , 1 ) , eModBlck ); } );
+ assert( gen.adapt( r.block , *rmv2 , dropped ) == Solution::kInvalid );
+ assert( gen.adapt( r.block , *fix , dropped ) == Solution::kUnchanged );
+ }
+
+/*--------------------------------------------------------------------------*/
 
 int main( void )
 {
@@ -2492,6 +2587,7 @@ int main( void )
  test_dry_run_C05SumFunction();
  test_changes();
  test_concerned();
+ test_adapt();
 
  std::cout << "Modification_test: all tests passed" << std::endl;
  return( 0 );

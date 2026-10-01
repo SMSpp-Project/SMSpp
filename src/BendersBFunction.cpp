@@ -3128,10 +3128,12 @@ bool BendersBFunction::keep_pool_after_removal( const Modification * mod ,
   if( ! solution )
    continue;
 
+  // the Solution drops what it held for those rows [see Solution::adapt()];
+  // one that holds no dual values cannot say what they were
   std::vector< double > dropped;
-  if( ! solution->drop_dynamic_values( v_Block.front() , cell , positions ,
-				       dropped ) )
-   return( false );  // it cannot say what it held for those rows
+  if( solution->adapt( v_Block.front() , *mod , dropped ) !=
+      Solution::kAdapted )
+   return( false );
 
   /* The dual variable of a removed row is gone: what is left satisfies the
    * dual constraints only if the multiplier of that row was zero, which is

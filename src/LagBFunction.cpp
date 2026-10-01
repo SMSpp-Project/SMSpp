@@ -1292,13 +1292,13 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
      ++cnt;
 
      // the values of the Variable that are gone go with them, and an entry
-     // that cannot let them go does not fit the inner Block any more
+     // that cannot let them go does not fit the inner Block any more [see
+     // Solution::adapt()]
      bool feas = true;
      if( rmvd ) {
       std::vector< double > dropped;
-      feas = g_pool[ i ].sol->drop_dynamic_values( v_Block.front() ,
-						   rmvd_cell ,
-						   rmvd_positions , dropped );
+      feas = ( g_pool[ i ].sol->adapt( v_Block.front() , *mod , dropped ) !=
+	       Solution::kInvalid );
       }
 
      // check it's still a feasible solution/direction: the Solution says
