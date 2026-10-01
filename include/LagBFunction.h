@@ -1455,10 +1455,9 @@ namespace SMSpp_di_unipi_it
 
         if (id == v_column_purged_handlers.size() - 1)
         {
-          do
+          //do
             v_column_purged_handlers.pop_back();
-          while ((!v_column_purged_handlers.empty()) &&
-                 (*(v_column_purged_handlers.back().target<int (*)()>()) == do_nothing));
+          //while ((!v_column_purged_handlers.empty()) && (*(v_column_purged_handlers.back().target<int (*)()>()) == do_nothing));
         }
         else
           v_column_purged_handlers[id] = do_nothing;
@@ -2799,35 +2798,20 @@ namespace SMSpp_di_unipi_it
 
     void restore_purged_solutions(std::vector<gpool_el> solutions)
     {
-      Index start = 0;
       for (auto &el : solutions)
       {
         if (!el.sol)
           continue;
 
         Index pos = Inf<Index>();
-        for (Index i = start; i < f_max_glob; ++i)
+        if (f_max_glob < g_pool.size())
         {
-          if (!g_pool[i].sol)
-          {
-            pos = i;
-            start = i + 1;
-            break;
-          }
+          pos = f_max_glob;
         }
-
-        if (pos == Inf<Index>())
-        {
-          if (f_max_glob < g_pool.size())
-          {
-            pos = f_max_glob;
-            start = f_max_glob + 1;
-          }
-          else
-            throw(std::logic_error(
-                "restore_purged_solutions: no space in g_pool to restore "
-                "purged solutions"));
-        }
+        else
+          throw(std::logic_error(
+              "restore_purged_solutions: no space in g_pool to restore "
+              "purged solutions"));
 
         g_pool[pos] = std::move(el);
 

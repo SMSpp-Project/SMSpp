@@ -1392,11 +1392,15 @@ void LagBFunction::add_Modification(sp_Mod mod, ChnlName chnl)
           if (!feas)
           { // if not
             f_current_purged_solution = std::exchange(g_pool[i], gpool_el{});
-            for (auto &handler : v_column_purged_handlers)
+            //Possibilmente sbagliato, capire come fare se ho una lagBfunction usata da più variabili
+            for (auto it = v_column_purged_handlers.rbegin(); it != v_column_purged_handlers.rend(); ++it)
             {
+              auto& handler = *it;
               if (!handler)
                 continue;
               static_cast<void>(handler());
+              //capire se è giusto e ha senso
+              break;
             }
             // else
             // delete g_pool[i].sol;
