@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `MasterProblemBlock::set_integer()` declares which coordinates of the
+  primal master in raw form are integer, so that its Solver solves a
+  mixed-integer problem, and `solve_master()` does not ask such a master for
+  the dual solution it does not have; `get_master_bound()` gives the lower
+  bound on the optimal value of the last master, which is less than its
+  value when a mixed-integer master stops at a relative gap
+
+- the trust region `kTrustRegion` in the primal `MasterProblemBlock`: the
+  master has the linear Objective of the cutting-plane model and the box
+  `|| x - x_bar ||_inf <= t`, i.e., a mixed-integer linear master with
+  integer coordinates, which any :MILPSolver solves; `set_t( Inf )` removes
+  the stabilization of the primal master, both proximal and trust region,
+  leaving the cutting-plane one
+
 - `Block::clear_channel( chnl )` empties the current level of an open
   channel, which stays open, and `Block::close_channel( chnl , force ,
   discard )` with `discard == true` deletes the level it would finalize

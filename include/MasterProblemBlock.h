@@ -251,9 +251,14 @@ class MasterProblemBlock : public Block {
   *   degenerating one of the two bundles.
   *
   * Only #kProximal, #kLevel and #kDoublyStabilized are currently fully
-  * wired in CreatePrimalMP / CreateDualMP; #kNone, #kTrustRegion and
-  * #kUpperLower are reserved enumerators and CreatePrimalMP /
-  * CreateDualMP throw `std::logic_error` if invoked with one of them. */
+  * wired in CreatePrimalMP / CreateDualMP; #kTrustRegion is wired in
+  * CreatePrimalMP only, where its master has a linear Objective and the box
+  * \f$ \| x - \bar{x} \|_\infty \leq t \f$, which \f$ t = \infty \f$
+  * removes [see set_t()], hence it is a mixed-integer linear problem when
+  * some coordinates are integer [see set_integer()]; #kNone and
+  * #kUpperLower are reserved enumerators, and CreatePrimalMP / CreateDualMP
+  * throw `std::logic_error` if invoked with one of them, as CreateDualMP
+  * does with #kTrustRegion. */
 
  enum stabilization_type {
   kProximal         = 0 ,  ///< proximal stabilization
@@ -1453,6 +1458,51 @@ class MasterProblemBlock : public Block {
  void set_zeroth_quadratic( const std::vector< double > & rho );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// declare which coordinates of the primal MP are integer
+ /** Declares coordinate j of the master integer if \p integer[ j ] is true,
+  * so that the master Solver, a :MILPSolver that does not relax the integer
+  * Variable, solves a mixed-integer problem: the master is
+  * \f[
+  *   \min \{ b x + \sum_k v^k + \frac{1}{2t} \| x - \bar{x} \|^2 :
+  *           v^k \geq g_i^k x + \alpha_i^k \, , \, x \in [ L , U ] \, , \,
+  *           x_j \in \mathbb{Z} \; \forall j : integer[ j ] \} \; ,
+  * \f]
+  * an integer quadratic program, and a mixed-integer linear one, i.e., the
+  * cutting-plane master over the integer points of the box, with
+  * \f$ t = \infty \f$ [see set_t()]. A master with integer coordinates has
+  * no dual solution: the multipliers of the cuts, hence the aggregated
+  * linearization error and subgradient, are not available, and only the
+  * primal solution and its value can be used [see get_master_bound()].
+  *
+  * Only the primal MP in raw form [see set_v2_form()] supports it, since
+  * that is where the Variable of the master are the x themselves: in the
+  * translated form d = x - x_bar is integer only if x_bar is. Otherwise, as
+  * well as when \p integer has not NumVars entries, std::logic_error is
+  * thrown; an empty \p integer, which is the default, declares every
+  * coordinate continuous. It can be called both before and after the
+  * abstract representation is generated. */
+
+ void set_integer( std::vector< bool > integer );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// true if any coordinate of the primal MP is integer [see set_integer()]
+
+ [[nodiscard]] bool has_integer( void ) const { return( f_has_integer ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the lower bound on the optimal value of the last master solved
+ /** Returns the lower bound on the optimal value of the master that its
+  * Solver gives, get_lb() of the Solver, after the last solve_master(): it
+  * is the optimal value if the master is solved to optimality, and less
+  * than that if it is a mixed-integer problem stopped at a relative gap
+  * [see set_integer()]. With \f$ t = \infty \f$ the primal master in raw
+  * form minimizes \f$ b x + \sum_k v^k \f$ over the cuts, hence this is a
+  * lower bound on the minimum of the cutting-plane model less the constant
+  * of the 0-th component. It is -INF if no Solver is registered. */
+
+ [[nodiscard]] double get_master_bound( void ) const;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify the linear part on a contiguous range of coordinates
  /** Installs b[ i ] on coordinate range.first + i for the left-closed,
   * right-open interval [ range.first , range.second ). The size of \p b must
@@ -1602,6 +1652,11 @@ class MasterProblemBlock : public Block {
   * primal MP the abstract Objective update is deferred and batched with any
   * intervening centre / linear-part changes immediately before the next actual
   * solve; in the dual MP the quadratic coefficient is updated immediately.
+  *
+  * With #kTrustRegion t is instead the radius of the trust region
+  * \f$ \| x - \bar{x} \|_\infty \leq t \f$, which is part of the box and
+  * is updated at once. In the primal MP t may be Inf< double >(), which
+  * removes the stabilization: the master is then the cutting-plane one.
   *
   * \note this method only updates the proximal coefficient. The Bundle
   *       algorithm is responsible for issuing the call at every t-change
@@ -1897,6 +1952,11 @@ class MasterProblemBlock : public Block {
  /// the diagonal of the quadratic "0-th" component, empty if there is none
  std::vector< double > f_rho;
 
+ /// which coordinates of the primal MP are integer, empty if none is
+ std::vector< bool > f_integer;
+
+ bool f_has_integer = false;  ///< true if any entry of f_integer is
+
  bool f_primal_objective_dirty = false;
                     ///< whether the primal objective must be synchronized
                     ///< before the next actual master solve
@@ -2082,6 +2142,11 @@ class MasterProblemBlock : public Block {
  void refresh_primal_level_linear_part( const Subset & subset );
                     ///< refresh a subset of b coefficients in the primal
                     ///< level row
+
+ void primal_box( Index j , double & lhs , double & rhs ) const;
+                    ///< the box of coordinate j of the primal MP: [ L , U ]
+                    ///< intersected with the trust region, in the frame of
+                    ///< the Variable
 
  void refresh_box_coordinate( Index j , DQuadFunction * dqf ,
                               ModParam issueMod = eModBlck );
