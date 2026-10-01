@@ -806,11 +806,10 @@ void MasterProblemBlock::generate_objective( Configuration * objc )
 
 void MasterProblemBlock::CreatePrimalMP( stabilization_type Stbl )
 {
- // kNone, kTrustRegion and kUpperLower are reserved enumerators of
- // stabilization_type; their full wiring is tracked separately and
- // until then callers must fall back to kProximal / kLevel /
- // kDoublyStabilized
- if( Stbl == kNone || Stbl == kTrustRegion || Stbl == kUpperLower )
+ // kNone and kUpperLower are reserved enumerators of stabilization_type;
+ // their full wiring is tracked separately and until then callers must fall
+ // back to kProximal / kLevel / kDoublyStabilized / kTrustRegion
+ if( Stbl == kNone || Stbl == kUpperLower )
   throw( std::logic_error(
        "MasterProblemBlock::CreatePrimalMP: stabilization type " +
        std::to_string( int( Stbl ) ) +
@@ -896,6 +895,15 @@ void MasterProblemBlock::generate_primal_abstract_variables( void )
  // SMS++ dynamic-group path, including the initial construction.
  add_dynamic_variable( Var_d , f_v2_form ? "MPB_x" : "MPB_d" );
  std::list< ColVariable > new_d( NumVars );
+
+ // the integer coordinates [see set_integer()], only there in raw form
+ if( f_has_integer && ( int( f_integer.size() ) == NumVars ) ) {
+  auto it = new_d.begin();
+  for( int j = 0 ; j < NumVars ; ++j , ++it )
+   if( f_integer[ j ] )
+    it->is_integer( true , eNoMod );
+  }
+
  append_indexed_group( new_d , Var_d_idx , [ this ]( auto & additions ) {
   add_dynamic_variables( Var_d , additions , eNoMod );
   } );
@@ -935,17 +943,8 @@ void MasterProblemBlock::generate_primal_abstract_constraints( void )
   // set_box() can be called before the abstract constraints are generated.
   // Materialize its cached bounds now, since a later identical set_box()
   // call correctly returns without refreshing the abstract representation.
-  const double lower = f_L.empty() ? - Inf< double >() : f_L[ j ];
-  const double upper = f_U.empty() ? Inf< double >() : f_U[ j ];
-  double lhs = std::isfinite( lower ) ? lower : - Inf< double >();
-  double rhs = std::isfinite( upper ) ? upper : Inf< double >();
-  if( ! f_v2_form ) {
-   const double xj = j < int( f_x_bar.size() ) ? f_x_bar[ j ] : 0.0;
-   if( std::isfinite( lhs ) )
-    lhs -= xj;
-   if( std::isfinite( rhs ) )
-    rhs -= xj;
-   }
+  double lhs , rhs;
+  primal_box( Index( j ) , lhs , rhs );
 
   bound.set_lhs( lhs , eNoMod );
   bound.set_rhs( rhs , eNoMod );
@@ -3371,6 +3370,31 @@ void MasterProblemBlock::set_C( double C )
 
 /*--------------------------------------------------------------------------*/
 
+void MasterProblemBlock::primal_box( Index j , double & lhs ,
+                                     double & rhs ) const
+{
+ lhs = ( f_L.empty() || ( ! std::isfinite( f_L[ j ] ) ) ) ? - Inf< double >()
+                                                          : f_L[ j ];
+ rhs = ( f_U.empty() || ( ! std::isfinite( f_U[ j ] ) ) ) ? Inf< double >()
+                                                          : f_U[ j ];
+ const double xj = j < f_x_bar.size() ? f_x_bar[ j ] : 0.0;
+
+ // the trust region || x - x_bar ||_inf <= t [see #kTrustRegion]
+ if( ( StblType == kTrustRegion ) && std::isfinite( t_stab ) ) {
+  lhs = std::max( lhs , xj - t_stab );
+  rhs = std::min( rhs , xj + t_stab );
+  }
+
+ if( ! f_v2_form ) {
+  if( std::isfinite( lhs ) )
+   lhs -= xj;
+  if( std::isfinite( rhs ) )
+   rhs -= xj;
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
 void MasterProblemBlock::refresh_box_coordinate( Index j ,
                                                  DQuadFunction * dqf ,
                                                  ModParam issueMod )
@@ -3378,17 +3402,8 @@ void MasterProblemBlock::refresh_box_coordinate( Index j ,
  if( IsPrimal ) {
   if( int( Bounds_d.size() ) != NumVars )
    return;
-  const double lower = f_L.empty() ? - Inf< double >() : f_L[ j ];
-  const double upper = f_U.empty() ? Inf< double >() : f_U[ j ];
-  double lhs = std::isfinite( lower ) ? lower : - Inf< double >();
-  double rhs = std::isfinite( upper ) ? upper : Inf< double >();
-  if( ! f_v2_form ) {
-   const double xj = j < f_x_bar.size() ? f_x_bar[ j ] : 0.0;
-   if( std::isfinite( lhs ) )
-    lhs -= xj;
-   if( std::isfinite( rhs ) )
-    rhs -= xj;
-   }
+  double lhs , rhs;
+  primal_box( j , lhs , rhs );
   Bounds_d_idx[ j ]->set_lhs( lhs , issueMod );
   Bounds_d_idx[ j ]->set_rhs( rhs , issueMod );
   return;
@@ -3961,12 +3976,12 @@ void MasterProblemBlock::set_x_bar( const std::vector< double > & x_bar )
   if( f_v2_form || ( ! f_rho.empty() ) )
    f_primal_objective_dirty = true;
 
-  if( ! f_v2_form && int( Bounds_d.size() ) == NumVars )
+  // the box moves with x_bar in translated form, and with the trust region
+  if( ( ( ! f_v2_form ) || ( StblType == kTrustRegion ) ) &&
+      ( int( Bounds_d.size() ) == NumVars ) )
    for( int j = 0 ; j < NumVars ; ++j ) {
-    const double lhs = ( ! f_L.empty() && std::isfinite( f_L[ j ] ) )
-                       ? f_L[ j ] - f_x_bar[ j ] : - Inf< double >();
-    const double rhs = ( ! f_U.empty() && std::isfinite( f_U[ j ] ) )
-                       ? f_U[ j ] - f_x_bar[ j ] : Inf< double >();
+    double lhs , rhs;
+    primal_box( Index( j ) , lhs , rhs );
     Bounds_d_idx[ j ]->set_lhs( lhs );
     Bounds_d_idx[ j ]->set_rhs( rhs );
     }
@@ -4362,6 +4377,8 @@ void MasterProblemBlock::append_coordinate_state( int n , ModParam issueMod )
   f_U.resize( new_n , Inf< double >() );
  if( ! f_rho.empty() )
   f_rho.resize( new_n , 0.0 );
+ if( ! f_integer.empty() )  // a new coordinate is continuous
+  f_integer.resize( new_n , false );
 
  if( vars_built ) {
   if( IsPrimal ) {
@@ -5062,6 +5079,11 @@ void MasterProblemBlock::remove_vars( const int * subset , int sz )
   compact( f_L );
   compact( f_U );
   compact( f_rho );
+  if( ! f_integer.empty() ) {
+   compact( f_integer );
+   f_has_integer = std::find( f_integer.begin() , f_integer.end() , true ) !=
+                   f_integer.end();
+   }
   NumVars = MaxSGLen = new_n;
 
   for( auto & map : EasyLocal2Global ) {
@@ -5492,8 +5514,9 @@ int MasterProblemBlock::solve_master( void )
    // In the primal linearized PFB representation the bundle multipliers are
    // the dual values of the cut constraints, rather than explicit theta
    // variables. Bundle management and aggregation therefore need both sides
-   // of the QP solution.
-   if( IsPrimal )
+   // of the QP solution. A master with integer coordinates has none
+   // [see set_integer()].
+   if( IsPrimal && ( ! f_has_integer ) )
     if( auto * cda = dynamic_cast< CDASolver * >( slv ) )
      cda->get_dual_solution( nullptr );
    }
@@ -5580,6 +5603,63 @@ void MasterProblemBlock::set_zeroth_quadratic( const std::vector< double > &
 
 /*--------------------------------------------------------------------------*/
 
+void MasterProblemBlock::set_integer( std::vector< bool > integer )
+{
+ const bool any = std::any_of( integer.begin() , integer.end() ,
+                               []( bool b ) { return( b ); } );
+
+ if( any ) {
+  if( int( integer.size() ) != NumVars )
+   throw( std::logic_error( "MasterProblemBlock::set_integer: integer must "
+                            "have NumVars entries" ) );
+
+  if( ( ! IsPrimal ) || ( ! f_v2_form ) )
+   throw( std::logic_error( "MasterProblemBlock::set_integer: only the "
+                            "primal MP in raw form has the x as Variable" ) );
+  }
+ else
+  integer.clear();
+
+ if( integer == f_integer )
+  return;
+
+ // the Variable already there change type, with a Modification if anyone
+ // is listening, so that the master Solver sees the change
+ if( f_abs_rep & k_mpb_built_var ) {
+  const auto mod = anyone_there() ? eModBlck : eNoMod;
+  for( int j = 0 ; j < int( Var_d.size() ) ; ++j ) {
+   const bool yn = ( j < int( integer.size() ) ) && integer[ j ];
+   if( Var_d_idx[ j ]->is_integer() != yn )
+    Var_d_idx[ j ]->is_integer( yn , mod );
+   }
+  }
+
+ f_integer = std::move( integer );
+ f_has_integer = any;
+
+ }  // end( MasterProblemBlock::set_integer )
+
+/*--------------------------------------------------------------------------*/
+
+double MasterProblemBlock::get_master_bound( void ) const
+{
+ // the bound side of what get_master_objective_value() gives
+ const auto & solvers = get_registered_solvers();
+ if( solvers.empty() )
+  return( - Inf< double >() );
+
+ const auto * obj = get_objective();
+ if( ! obj )
+  return( - Inf< double >() );
+
+ auto * slv = solvers.front();
+ return( ( obj->get_sense() == Objective::eMin ) ? slv->get_lb()
+                                                : slv->get_ub() );
+
+ }  // end( MasterProblemBlock::get_master_bound )
+
+/*--------------------------------------------------------------------------*/
+
 void MasterProblemBlock::set_t( double t )
 {
  if( t <= 0.0 )
@@ -5603,6 +5683,10 @@ void MasterProblemBlock::set_t( double t )
 
  if( IsPrimal ) {
   f_primal_objective_dirty = true;
+  // t is the radius of the trust region, which lives in the box
+  if( ( StblType == kTrustRegion ) && ( int( Bounds_d.size() ) == NumVars ) )
+   for( int j = 0 ; j < NumVars ; ++j )
+    refresh_box_coordinate( Index( j ) , nullptr , eModBlck );
   issue_t_mod();
   return;
   }

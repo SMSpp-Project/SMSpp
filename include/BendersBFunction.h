@@ -648,6 +648,18 @@ class BendersBFunction : public C05Function , public Block {
   *   global pool, each one of which corresponds to a linearization. The
   *   default value for this parameter is defined by the C05Function.
   *
+  *   The Solution stored in the global pool are those of get_Solution() of
+  *   the inner Block, i.e., as the Solution Configuration in its BlockConfig
+  *   asks, and a linearization is computed out of the dual values of the
+  *   RowConstraint of the inner Block that its Solution writes back there.
+  *   Hence, that Solution Configuration has to ask for (at least) the dual
+  *   values: one that only holds the values of the Variable (as the
+  *   ColVariableSolution that an AbstractBlock gives without a
+  *   Configuration) leaves in the inner Block the dual values of its last
+  *   solve, and each linearization of the global pool is then computed as
+  *   that one. This is not checked, and it is the responsibility of whoever
+  *   configures the inner Block.
+  *
   * - intLinComp [7]: This parameter, coded bit-wise, determines how
   *                   linearizations are computed. This parameter specifies
   *   how linearization constants are computed and whether the Solution of the

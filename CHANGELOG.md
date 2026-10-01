@@ -30,6 +30,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   compacts the per-coordinate state, again without building the master
   anew
 
+- `LagBFunction` has the string parameter `strChkCfg`, the name of the file
+  of the Configuration passed to `is_sol_feasible()` of the inner Block when
+  an entry of the global pool is checked (typically, the tolerance of the
+  check); empty, the default, leaves the one of the BlockConfig of the
+  inner Block
+
+- `MasterProblemBlock::set_integer()` declares which coordinates of the
+  primal master in raw form are integer, so that its Solver solves a
+  mixed-integer problem, and `solve_master()` does not ask such a master for
+  the dual solution it does not have; `get_master_bound()` gives the lower
+  bound on the optimal value of the last master, which is less than its
+  value when a mixed-integer master stops at a relative gap
+
+- the trust region `kTrustRegion` in the primal `MasterProblemBlock`: the
+  master has the linear Objective of the cutting-plane model and the box
+  `|| x - x_bar ||_inf <= t`, i.e., a mixed-integer linear master with
+  integer coordinates, which any :MILPSolver solves; `set_t( Inf )` removes
+  the stabilization of the primal master, both proximal and trust region,
+  leaving the cutting-plane one
+
 - `Block::clear_channel( chnl )` empties the current level of an open
   channel, which stays open, and `Block::close_channel( chnl , force ,
   discard )` with `discard == true` deletes the level it would finalize
@@ -43,23 +63,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a nested level, of the whole channel and of the default one, and the path
   from a sub-Block
 
-- `RowConstraintSolution::is_dual_feasible()` checks the dual values it
-  holds as a dual solution of a linear program: the sign of each against
-  the finite sides of its row [see `RowConstraint::dual_sign_feasible()`],
-  and the sign of the reduced cost of each ColVariable against its domain,
-  the nested Block taken in; `ColRowSolution` forwards to it
-
 - `Solution::drop_physical_values( block , mod , dropped )`, the physical
   counterpart of `drop_dynamic_values()`: the :Solution of a Block reads a
   physical Modification of that Block that removed some of the elements it
   holds values of and drops them; the base class returns false
-
-- `Solution::is_dual_feasible( block , config )`: a Block has no notion of
-  a dual solution, while a Solution knows whether it holds one and of which
-  Block, hence it is the Solution that tells whether its dual values are
-  feasible, asking its Block to check them without writing them there; the
-  base class throws, and `ColVariableSolution`, which holds no dual values,
-  returns false
 
 - `MasterProblemBlock::shift_cuts()`, which adds a given delta to the
   subgradient of a set of cuts of a component, the constant of each of them
@@ -308,6 +315,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- the feasibility checks of `Block::is_feasible()` and
+  `Block::is_sol_feasible()` without a Configuration, neither given nor in
+  the BlockConfig, accept the relative violation `Block::DefaultFeasTol`
+  (1e-12) instead of none, so that a point feasible up to rounding is not
+  declared infeasible
+
+- `ColVariable::set_value()` on a fixed ColVariable leaves it as it is when
+  the new value equals the fixed one up to a relative 1e-6, and throws
+  `std::domain_error` otherwise; `Block::is_sol_feasible()` takes such a
+  throw as an infeasible Solution
+
 - the makefile of the library carries `C05SumFunction`, which was built by
   CMake alone
 
@@ -434,13 +452,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   shipping its `GroupModification`, so that an exception thrown by whoever
   receives it no longer leaves the Block with a channel whose
   `GroupModification` has already been deleted
-
-- `BendersBFunction` read the linearization of an entry of its pool out of
-  the dual values the sub-Block held from its last solve when the Solution
-  of that entry holds no dual values, as the one `get_Solution()` gives an
-  `AbstractBlock` without a Solution Configuration: it now throws when it
-  has to write such a Solution back, saying that the BlockConfig of the
-  sub-Block has to give a Configuration that asks for the dual values
 
 - a dynamic `Variable` active in more than one stuff is removed from all of
   them: `Block::remove_variable_from_stuff()` walked the active list of the

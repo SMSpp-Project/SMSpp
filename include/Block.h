@@ -643,6 +643,15 @@ class Block : public Observer {
  /// an "infinite Range", i.e., [ 0 , INF ), i.e., "everything"
  static constexpr auto INFRange = Range( 0 , Inf< Index >() );
 
+ /// the tolerance of the feasibility checks when no Configuration gives one
+ /** The tolerance that is_feasible() and is_sol_feasible() use when neither
+  * the Configuration they are given nor the BlockConfig of the Block gives
+  * one: a relative violation (i.e., scaled by the magnitude of the sides of
+  * the Constraint) a few orders of magnitude above the machine precision,
+  * so that a point that is feasible up to rounding (say, an optimal one on
+  * an active Constraint) is not declared infeasible by a few ulp. */
+ static constexpr double DefaultFeasTol = 1e-12;
+
  /// a vector of indices for the "subset" functions in the methods factory
  using Subset = std::vector< Index >;
  using c_Subset = const Subset;               ///< a const Subset
@@ -4466,9 +4475,9 @@ class Block : public Observer {
   * means that if the method is called with fsbc = nullptr then the
   * corresponding configuration from the BlockConfig() is used. If the
   * BlockConfig is not set (nullptr) or the corresponding field is not set
-  * (nullptr), this is assumed to mean "all Constraint must be satisfied
-  * exactly", which may be possible in some cases (say, a numerical
-  * Constraint only producing "small" integer numbers).
+  * (nullptr), the Constraint must be satisfied up to the relative violation
+  * DefaultFeasTol, i.e., exactly but for rounding, which a point computed
+  * in floating point may need even on "small" integer data.
   *
   * The method is given a default implementation working for those Blocks for
   * which feasibility is never an issue, in the sense that they are feasible
