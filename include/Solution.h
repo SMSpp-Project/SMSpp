@@ -446,6 +446,66 @@ class Solution
   }
 
 /*--------------------------------------------------------------------------*/
+ /// what adapt() did to the Solution
+ enum adapt_result {
+  kUnchanged = 0 ,  ///< the Solution is as it was, and still fits the Block
+  kAdapted ,        ///< the Solution has been changed to fit the Block
+  kInvalid          ///< the Solution does not fit the Block any more
+  };
+
+/*--------------------------------------------------------------------------*/
+ /// the kinds of Modification whose elements this Solution holds values of
+ /** Returns the kinds of Modification [see Modification::ModConcern] whose
+  * elements this Solution holds values of, and that therefore adapt() has
+  * to look at when they change: eModVarSet for a Solution that holds values
+  * of the Variable, eModCnsSet for one that holds values of the Constraint,
+  * eModPhys for one that drops the values of the physical elements a
+  * physical Modification removes [see drop_physical_values()]. The base
+  * class does not know what a :Solution holds, and says it may hold values
+  * of anything: since it drops nothing, adapt() then answers kInvalid to any
+  * removal, which is the safe answer for a :Solution that does not say
+  * more. */
+
+ [[nodiscard]] virtual Modification::ModConcern adapts( void ) const {
+  return( Modification::eModVarSet | Modification::eModCnsSet |
+	  Modification::eModPhys );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// adapts the Solution to a Modification of its Block
+ /** Tells the Solution that the Block \p block, which is its Block or one
+  * nested in it, has undergone the Modification \p mod, so that whoever
+  * keeps a Solution while the Block changes under it (the global pool of
+  * LagBFunction and of BendersBFunction, say) only has to pass it the
+  * Modification it receives. The Solution answers in three ways [see
+  * adapt_result]:
+  *
+  * - the Modification removes dynamic Variable (Constraint) that this
+  *   Solution holds values of [see adapts()]: it drops those values [see
+  *   drop_dynamic_values()], writes them in \p dropped and answers
+  *   kAdapted, or, if it cannot, kInvalid;
+  *
+  * - the Modification is a physical one that this Solution reads: it drops
+  *   the values of what it removes [see drop_physical_values()] and answers
+  *   kAdapted, or kInvalid if it cannot;
+  *
+  * - the Modification is a NModification, after which nothing of what the
+  *   Solution holds can be trusted: kInvalid;
+  *
+  * - any other Modification (the data of the Variable, of the Constraint or
+  *   of the Objective, added elements, removed elements this Solution holds
+  *   nothing of) leaves its values as they are: kUnchanged, and whether they
+  *   are still feasible is for is_sol_feasible() to say, not for adapt().
+  *
+  * A GroupModification is adapted to one sub-Modification at a time, the
+  * answer being kInvalid if any of them is, kAdapted if any of them is and
+  * kUnchanged otherwise, and the values dropped being appended in order. */
+
+ virtual adapt_result adapt( const Block * const block ,
+			     const Modification & mod ,
+			     std::vector< double > & dropped );
+
+/*--------------------------------------------------------------------------*/
  /// tells whether this Solution holds a solution or a direction
  /** Returns true if what this Solution holds is not a solution but a
   * direction, i.e., a ray of the feasible region of the Block along which

@@ -119,6 +119,12 @@ public:
 /** @} ---------------------------------------------------------------------*/
 /*------- METHODS DESCRIBING THE BEHAVIOR OF A RowConstraintSolution -------*/
 /*--------------------------------------------------------------------------*/
+ /// a RowConstraintSolution holds values of the Constraint [see adapts()]
+ [[nodiscard]] Modification::ModConcern adapts( void ) const override {
+  return( Modification::eModCnsSet );
+  }
+
+/*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a RowConstraintSolution
  *  @{ */
 

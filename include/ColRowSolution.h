@@ -108,6 +108,12 @@ public:
 /** @} ---------------------------------------------------------------------*/
 /*---------- METHODS DESCRIBING THE BEHAVIOR OF A ColRowSolution -----------*/
 /*--------------------------------------------------------------------------*/
+ /// a ColRowSolution holds values of both [see adapts()]
+ [[nodiscard]] Modification::ModConcern adapts( void ) const override {
+  return( Modification::eModVarSet | Modification::eModCnsSet );
+  }
+
+/*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a ColRowSolution
  *  @{ */
 

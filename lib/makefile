@@ -409,7 +409,9 @@ $(SMS++SDR)/obj/Solver.o: $(SMS++SDR)/src/Solver.cpp $(intBlockINC) \
 	$(CC) -c $(SMS++SDR)/src/Solver.cpp -o $@ $(SMS++INC) $(SW)
 
 $(SMS++SDR)/obj/Solution.o: $(SMS++SDR)/src/Solution.cpp $(intBlockINC) \
-	$(SMS++SDR)/include/Solution.h
+	$(SMS++SDR)/include/Solution.h $(SMS++SDR)/include/ColVariable.h \
+	$(SMS++SDR)/include/FRowConstraint.h \
+	$(SMS++SDR)/include/OneVarConstraint.h
 	$(CC) -c $(SMS++SDR)/src/Solution.cpp -o $@ $(SMS++INC) $(SW)
 
 $(SMS++SDR)/obj/Variable.o: $(SMS++SDR)/src/Variable.cpp \

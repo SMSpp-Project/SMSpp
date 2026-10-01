@@ -21,6 +21,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   them back, telling the Observer with one Modification of type
   `GlobalPoolAdded`
 
+- `Solution::adapt()` adapts a Solution to a Modification of its Block, and
+  answers whether it is unchanged, adapted or no longer valid: it drops the
+  values of the removed dynamic Variable or Constraint it holds values of
+  (`drop_dynamic_values()`) and of what a physical Modification it reads
+  removes (`drop_physical_values()`), a `NModification` invalidates it and a
+  `GroupModification` is adapted to one sub-Modification at a time;
+  `Solution::adapts()` says the kinds whose elements a Solution holds values
+  of (`ColVariableSolution` the Variable, `RowConstraintSolution` the
+  Constraint, `ColRowSolution` both, the base class anything). The global
+  pools of `LagBFunction` and of `BendersBFunction` call it
+
 - `Solver::concerned_by()` says the kinds of Modification a Solver reads
   (all of them in the base class), and a Block passes its Solver only those
   of a kind they read (`Modification::is_of_concern()`);
