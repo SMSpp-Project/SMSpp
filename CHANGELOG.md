@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `MasterProblemBlock::set_local_branching( kappa )` gives the binary
+  coordinates of the primal master in raw form, i.e., the integer ones with
+  box [ 0 , 1 ], the local branching constraint Delta( x , x_bar ) <= kappa
+  of the stabilized Benders' method of Baena, Castro and Frangioni (Manag.
+  Sci. 66, 2020), which follows the stability centre, and the trust region
+  then acts on the other coordinates only; `add_reverse_local_branching()`
+  excludes the current region with Delta( x , x_bar ) >= kappa + 1, a
+  constraint that stays when the centre moves, and
+  `clear_reverse_local_branching()` removes them all. `remove_vars()` drops
+  them all as well, and writes again the one around the centre
+
 - `MasterProblemBlock::add_easy_coupling( easy_id , j , local_i )`, the
   reverse of `drop_easy_coupling()`: the easy component gets the terms of
   its Lagrangian term on the coordinate j, already in the master, in the
