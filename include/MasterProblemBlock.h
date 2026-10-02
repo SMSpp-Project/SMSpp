@@ -1696,6 +1696,16 @@ class MasterProblemBlock : public Block {
 
  void remove_initial_level_objective( void );
 
+ /// give the primal MP back the one-shot proximal objective of pure level
+ /** Undoes remove_initial_level_objective() in the primal MP: the model
+  * terms are back in the Objective together with the proximal term, so
+  * that with t == Inf< double >() [see set_t()] and no finite level [see
+  * set_f_lev()] the master is the cutting-plane one again, whose value is
+  * a lower bound. It does nothing if the Objective is already the initial
+  * one, and throws std::logic_error in the dual MP. */
+
+ void restore_initial_level_objective( void );
+
  [[nodiscard]] bool uses_pure_level_aggregation( void ) const {
   return( StblType == kLevel && ! has_initial_level_objective() );
   }
@@ -2227,6 +2237,12 @@ class MasterProblemBlock : public Block {
  int level_model_obj_num = 0;
                     ///< number of consecutive v^k terms starting at
                     ///< level_model_obj_idx; later coordinate terms can follow
+
+ int f_removed_level_obj_idx = -1;
+                    ///< level_model_obj_idx before the initial objective was
+                    ///< removed [see restore_initial_level_objective()]
+
+ int f_removed_level_obj_num = 0;  ///< and level_model_obj_num
 
  bool f_dual_level_probe_active = false;
                     ///< true while pure-level dual form is temporarily solved

@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `MasterProblemBlock::restore_initial_level_objective()` gives the primal
+  master of the pure level back the one-shot proximal objective that
+  `remove_initial_level_objective()` took away, so that with t = infinity and
+  no finite level it is the cutting-plane master again, whose value is a
+  lower bound
+
 - `MasterProblemBlock::set_local_branching( kappa )` gives the binary
   coordinates of the primal master in raw form, i.e., the integer ones with
   box [ 0 , 1 ], the local branching constraint Delta( x , x_bar ) <= kappa

@@ -5179,6 +5179,8 @@ void MasterProblemBlock::remove_vars( const int * subset , int sz )
    omega_obj_idx = reindex( omega_obj_idx , objective_positions );
    for( auto & p : easy_obj_idx ) p = reindex( p , objective_positions );
    level_model_obj_idx = reindex( level_model_obj_idx , objective_positions );
+   f_removed_level_obj_idx = reindex( f_removed_level_obj_idx ,
+                                      objective_positions );
    }
   if( level_lf ) {
    compact( level_d_idx );
@@ -5392,9 +5394,51 @@ void MasterProblemBlock::remove_initial_level_objective( void )
   }
 
  f_primal_objective_dirty = false;
+ // where the v^k terms are, should the objective be restored
+ f_removed_level_obj_idx = level_model_obj_idx;
+ f_removed_level_obj_num = level_model_obj_num;
  level_model_obj_idx = -1;
  level_model_obj_num = 0;
 }
+
+/*--------------------------------------------------------------------------*/
+
+void MasterProblemBlock::restore_initial_level_objective( void )
+{
+ if( ( StblType != kLevel ) || has_initial_level_objective() )
+  return;
+
+ if( ! IsPrimal )
+  throw( std::logic_error( "MasterProblemBlock::"
+                           "restore_initial_level_objective: only the "
+                           "primal MP can restore it" ) );
+
+ if( f_removed_level_obj_idx < 0 )  // never removed, nothing to restore
+  return;
+
+ auto * obj = dynamic_cast< FRealObjective * >( get_objective() );
+ auto * dqf = obj ? dynamic_cast< DQuadFunction * >( obj->get_function() )
+                  : nullptr;
+ if( ! dqf )
+  return;
+
+ // the v^k terms get their coefficient back, and the stabilization term is
+ // the proximal one again [see refresh_primal_objective()]
+ if( f_removed_level_obj_num > 0 ) {
+  std::vector< double > linear( f_removed_level_obj_num , 1.0 );
+  std::vector< double > quadratic( f_removed_level_obj_num , 0.0 );
+  const auto first = DQuadFunction::Index( f_removed_level_obj_idx );
+  dqf->modify_terms( quadratic.cbegin() , linear.cbegin() ,
+                     Range( first , first + f_removed_level_obj_num ) );
+  }
+
+ level_model_obj_idx = f_removed_level_obj_idx;
+ level_model_obj_num = f_removed_level_obj_num;
+ f_removed_level_obj_idx = -1;
+ f_removed_level_obj_num = 0;
+ f_primal_objective_dirty = true;
+
+ }  // end( MasterProblemBlock::restore_initial_level_objective )
 
 /*--------------------------------------------------------------------------*/
 
