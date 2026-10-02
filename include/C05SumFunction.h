@@ -110,12 +110,18 @@ namespace SMSpp_di_unipi_it {
  * The value, the estimates, the global bounds and the Lipschitz constant are
  * the sums of those of the members. Parameters are passed on to every member
  * as they are, save for the targets dblUpCutOff and dblLwCutOff, which cannot
- * be split among them and are therefore not; note that this means that a time
- * limit is given to each member, and not to the group as a whole.
+ * be split among them and are therefore not, for the absolute accuracies,
+ * each member getting its share of them, and for dblMaxTime, which is the
+ * time of the group as a whole: it is kept in the group and each member is
+ * given the time that is left when it starts.
  *
  * The State of a C05SumFunction is not supported, and neither is changing
- * its Variable: the members are Observed as usual by whoever Observes them,
- * and it is up to that one to know that they are part of a group. */
+ * the Variable of the group itself; a member that changes its own "active"
+ * Variable is instead taken in, the group keeping the union of the lists of
+ * its members. The Observer each member had keeps receiving its
+ * Modification, which the group passes on after dealing with them [see the
+ * constructor], and it is up to that one to know that the member is part of
+ * a group. */
 
 class C05SumFunction : public C05Function , public Observer
 {

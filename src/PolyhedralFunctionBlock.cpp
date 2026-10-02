@@ -950,12 +950,12 @@ void PolyhedralFunctionBlock::guts_of_destructor( void )
 
 /*--------------------------------------------------------------------------*/
 
-bool PolyhedralFunctionBlock::guts_of_add_Modification_PF(
-				    const FunctionMod * mod , ChnlName chnl )
+bool PolyhedralFunctionBlock::guts_of_add_Modification_PF( c_p_Mod mod ,
+                                                          ChnlName chnl )
 {
- // process a FunctionMod produced by the PolyhedralFunction- - - - - - - - -
+ // process a Modification produced by the PolyhedralFunction - - - - - - - -
  /* This requires to patiently sift through the possible Modification types
-  * (but only those derived from FunctionMod) to find what this Modification
+  * derived from FunctionMod or FunctionModVars to find what this Modification
   * exactly is, and appropriately mirror the changes to the PolyhedralFunction
   * (which in this case counts as the "physical representation") into the
   * "abstract" one, i.e., performing the corresponding changes on the LP. */
@@ -973,7 +973,7 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF(
    const auto scale = ScaledRowFactor( i );
    LinearFunction::v_coeff_pair vars( nav - frst );
    auto vit = vars.begin();
-   auto Aiit = PF().get_A()[ i++ ].begin(); 
+   auto Aiit = PF().get_A()[ i++ ].begin() + frst;
    for( Index j = frst ; j < nav ; ++j )
     *(vit++) = std::make_pair( static_cast< ColVariable * >(
 					     PF().get_active_var( j ) ) ,
@@ -1230,7 +1230,14 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF(
  // if all else fails, this must be a "simple" FunctionMod, whose
  // meaning is "everything is changed", hence change everything
 
- assert( std::isnan( mod->shift() ) );
+ const auto fmod = dynamic_cast< const FunctionMod * >( mod );
+ if( ! fmod )
+  throw( std::logic_error(
+       "PolyhedralFunctionBlock::guts_of_add_Modification_PF: "
+       "unsupported PolyhedralFunction "
+       "Modification" ) );
+
+ assert( std::isnan( fmod->shift() ) );
 
  // set upper/lower bound on v
  f_row_scale.clear();
@@ -1599,8 +1606,8 @@ static Block * group_owner( Block * blck , Block::ChnlName chnl )
 
 /*--------------------------------------------------------------------------*/
 
-bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
-                                    const FunctionMod * mod , ChnlName chnl )
+bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual( c_p_Mod mod ,
+                                                               ChnlName chnl )
 {
  // process a FunctionMod produced by PF() in the *dual* representation,
  // mirroring the change into f_theta (the dynamic theta variables),
@@ -1639,18 +1646,110 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
  if( ! obj_lf )
   return( false );
 
- // C05FunctionModVarsAddd/Rngd/Sbst - - - - - - - - - - - - - - - - - - - -
- // x variables of PF() added/removed: this also requires the father
- // Block to add/remove its corresponding coupling constraints, which is
- // outside the responsibility of a single PolyhedralFunctionBlock. Until
- // a higher-level coordination mechanism is in place, refuse these mods
- if( dynamic_cast< const C05FunctionModVarsAddd * >( mod ) ||
-     dynamic_cast< const C05FunctionModVarsRngd * >( mod ) ||
-     dynamic_cast< const C05FunctionModVarsSbst * >( mod ) )
-  throw( std::logic_error( "PolyhedralFunctionBlock: changing the active "
-                           "Variable of the PolyhedralFunction is not yet "
-			   "supported in "
-                           "the dual representation" ) );
+ // C05FunctionModVarsAddd - - - - - - - - - - - - - - - - - - - - - - - -
+ // A Variable of PF() is a column of A and therefore corresponds, in the
+ // linearized dual, to one external coupling row. The father Block has to
+ // create those rows first; here we only append the existing theta
+ // coefficients carried by each new column. No theta, objective or
+ // normalization term is added, since those objects correspond to rows of A.
+ if( auto tmod = dynamic_cast< const C05FunctionModVarsAddd * >( mod ) ) {
+  const Index first = tmod->first();
+  const Index nadd = tmod->vars().size();
+  if( nadd == 0 || ! f_coupling )
+   return( false );
+
+  const Index nv = PF().get_num_active_var();
+  if( first > nv || nadd != nv - first )
+   throw( std::logic_error(
+        "PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual: "
+        "dual active Variables must be appended" ) );
+
+  if( f_coupling->size() != nv )
+   throw( std::logic_error(
+        "PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual: "
+        "coupling rows must be appended before "
+        "the dual PolyhedralFunction Variables" ) );
+
+  const auto & A = PF().get_A();
+  const Index nr = A.size();
+  if( f_theta.size() != nr )
+   throw( std::logic_error(
+        "PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual: "
+        "inconsistent theta and row dimensions" ) );
+  for( const auto & row : A )
+   if( row.size() != nv )
+    throw( std::logic_error(
+         "PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual: "
+         "inconsistent PolyhedralFunction matrix" ) );
+
+  std::vector< LinearFunction * > row_functions( nadd );
+  std::vector< LinearFunction::v_coeff_pair > contributions( nadd );
+  Index nmods = 0;
+  auto coupling = std::next( f_coupling->begin() , first );
+  for( Index h = 0 ; h < nadd ; ++h , ++coupling ) {
+   auto * lf = dynamic_cast< LinearFunction * >( coupling->get_function() );
+   if( ! lf || lf->get_num_active_var() == 0 ||
+       lf->get_active_var( 0 ) != tmod->vars()[ h ] )
+    throw( std::logic_error(
+         "PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual: "
+         "new coupling row is not aligned with "
+         "the added PolyhedralFunction Variable" ) );
+
+   row_functions[ h ] = lf;
+   auto & terms = contributions[ h ];
+   terms.reserve( nr );
+   auto theta = f_theta.begin();
+   for( Index i = 0 ; i < nr ; ++i , ++theta ) {
+    const double a = ScaledRowFactor( i ) * A[ i ][ first + h ];
+    if( a != 0.0 )
+     terms.emplace_back( & *theta , a );
+    }
+   if( ! terms.empty() )
+    ++nmods;
+   }
+
+  if( nmods == 0 )
+   return( false );
+
+  // The modified constraints belong to an ancestor Block. When the caller
+  // did not provide a channel, open it at the top of the Block tree so every
+  // LinearFunction modification can reach the same group.
+  auto * gowner = group_owner( this , chnl );
+  const auto gchnl = gowner->open_channel( chnl );
+  const auto par = make_par( eNoBlck , gchnl );
+  for( Index h = 0 ; h < nadd ; ++h )
+   if( ! contributions[ h ].empty() )
+    row_functions[ h ]->add_variables( std::move( contributions[ h ] ) , par );
+  gowner->close_channel( gchnl );
+
+  return( false );
+  }
+
+ // C05FunctionModVarsRngd/Sbst - - - - - - - - - - - - - - - - - - - - - -
+ // Each removed PF Variable corresponds to an external coupling row, not a
+ // theta column. The owner must remove those rows before changing PF(); the
+ // surviving rows already retain their theta coefficients. Thus neither
+ // f_theta nor the objective and normalization functions change here.
+ if( dynamic_cast< const C05FunctionModVarsRngd * >( mod ) ||
+     dynamic_cast< const C05FunctionModVarsSbst * >( mod ) ) {
+  const Index nv = PF().get_num_active_var();
+  if( f_coupling && f_coupling->size() != nv )
+   throw( std::logic_error(
+        "PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual: "
+        "coupling rows must be removed before "
+        "the dual PolyhedralFunction Variables" ) );
+  const auto & A = PF().get_A();
+  if( f_theta.size() != A.size() )
+   throw( std::logic_error(
+        "PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual: "
+        "inconsistent theta and row dimensions" ) );
+  for( const auto & row : A )
+   if( row.size() != nv )
+    throw( std::logic_error(
+         "PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual: "
+         "inconsistent PolyhedralFunction matrix" ) );
+  return( false );
+  }
 
  // detect the "cheap" sub-cases that can be handled incrementally
  // (without touching the constraint matrix of the dual LP) before
@@ -2161,7 +2260,14 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual(
  // this point means the modification is the bare FunctionMod variant
  // with no incremental info.
 
- assert( std::isnan( mod->shift() ) );
+ const auto fmod = dynamic_cast< const FunctionMod * >( mod );
+ if( ! fmod )
+  throw( std::logic_error(
+       "PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual: "
+       "unsupported PolyhedralFunction "
+       "Modification" ) );
+
+ assert( std::isnan( fmod->shift() ) );
 
  f_row_scale.clear();
  f_row_scale.reserve( PF().get_A().size() );
@@ -2209,6 +2315,17 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR_dual( c_p_Mod mod ,
   if( & tmod->whc() == & f_theta )
    return;
   }
+
+ // BlockModAdd on the external coupling rows -> internal. This occurs when
+ // the PFB itself owns the coupling list (for instance, the nf == 0 test):
+ // the higher-level coordination appends the rows before PF() emits the
+ // C05FunctionModVarsAddd that fills them with the theta coefficients.
+ if( auto tmod =
+       dynamic_cast< const BlockModAdd< FRowConstraint > * >( mod ) ) {
+  if( f_coupling && ( & tmod->whc() == f_coupling ) )
+   return;
+  }
+
  if( dynamic_cast< const BlockModRmvRngd< ColVariable > * >( mod ) )
   return;
  if( dynamic_cast< const BlockModRmvSbst< ColVariable > * >( mod ) )
@@ -2260,7 +2377,9 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR_dual( c_p_Mod mod ,
 
  // anything else from somewhere in the dual abstract representation:
  // not supported, throw
- throw( std::logic_error( "PolyhedralFunctionBlock: unsupported Modification "
+ throw( std::logic_error(
+   "PolyhedralFunctionBlock::guts_of_add_Modification_LR_dual: "
+   "unsupported Modification "
                           "on dual abstract representation" ) );
 
  }  // end( PolyhedralFunctionBlock::guts_of_add_Modification_LR_dual )

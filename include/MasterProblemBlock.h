@@ -269,6 +269,15 @@ class MasterProblemBlock : public Block {
   kUpperLower       = 5    ///< upper / lower bundle pair
   };
 
+ /** Coefficients of the old bundle cuts on coordinates being appended.
+  * The three indices are, respectively, hard component, persistent bundle
+  * slot, and position among the new coordinates. Empty entries correspond to
+  * empty bundle slots. The slot-indexed form deliberately leaves the
+  * slot-to-local-row translation inside MasterProblemBlock, which owns it. */
+
+ using AddedCutCoefficients =
+  std::vector< std::vector< std::vector< double > > >;
+
 /*----------------------------- CONSTANTS ----------------------------------*/
 
 /** @} ---------------------------------------------------------------------*/
@@ -289,7 +298,7 @@ class MasterProblemBlock : public Block {
     MaxBSize( 0 ) , MaxSGLen( 0 ) , NumVars( 0 ) ,
     NoTotCmps( 0 ) , NoEasyCmps( 0 ) , NoHardCmps( 0 ) , DoEasy( 0 ) ,
     t_stab( 1.0 ) , f_lev( 0.0 ) ,
-    z_obj_idx( -1 ) , r_obj_idx( -1 ) , omega_obj_idx( -1 ) { }
+    r_obj_idx( -1 ) , omega_obj_idx( -1 ) { }
 
 /*--------------------------------------------------------------------------*/
  /// destructor: releases all the resources owned by MasterProblemBlock
@@ -614,11 +623,25 @@ class MasterProblemBlock : public Block {
   *          - hard-component terms = 0.
   *
   * This method is meaningful only in the dual MP and only after CouplingCns
-  * has been initialized.
+  * has been initialized. vp_Cns represents the global coordinate interval
+  * [first, first + vp_Cns.size()); contributions outside it are ignored. The
+  * default first == 0 preserves the full-row construction used at startup.
   */
 
  void add_LBF_to_coupling_rows(
-  std::vector< LinearFunction::v_coeff_pair > & vp_Cns );
+  std::vector< LinearFunction::v_coeff_pair > & vp_Cns ,
+  Index first = 0 );
+
+/*--------------------------------------------------------------------------*/
+ /// x_bar_j part of the easy objective correction for a Lagrangian term
+ /** In the displacement form, records that the local_i-th Lagrangian term
+  * of the easy component easy_id is on the global coordinate j, adding to
+  * the root DQuadFunction the Variable of the term that are not there yet,
+  * and writes again with the current x_bar the objective coefficients of
+  * the Variable of the term; does nothing in the iterate form. */
+
+ void add_easy_objective_terms( Index easy_id , Index j , Index local_i ,
+                                ModParam issueMod );
 
 /*--------------------------------------------------------------------------*/
  /// Map a local active-variable index of an easy component to the global
@@ -652,6 +675,18 @@ class MasterProblemBlock : public Block {
   * the component [see set_easy_local2global()] is the caller's to update. */
 
  void drop_easy_coupling( Index easy_id , Index j );
+
+/*--------------------------------------------------------------------------*/
+ /// the easy component easy_id now depends on the global Variable j
+ /** Called when the easy LagBFunction easy_id has got the Lagrangian term
+  * of the global coordinate j, which is already in the master, as its
+  * local_i-th active Variable. The terms of that Lagrangian term are put in
+  * CouplingCns[ j ], those given a 0 coefficient by drop_easy_coupling()
+  * getting theirs back; in the displacement form the x_bar_j part goes in
+  * the Objective coefficients of the same Variable. The map of the
+  * component [see set_easy_local2global()] is the caller's to update. */
+
+ void add_easy_coupling( Index easy_id , Index j , Index local_i );
 
 /*--------------------------------------------------------------------------*/
  /// replaces the local-to-global maps of the easy components
@@ -1530,29 +1565,36 @@ class MasterProblemBlock : public Block {
   { return( f_linear_part ); }
 
 /*--------------------------------------------------------------------------*/
- /// append \p n new optimization variables to the Master Problem
- /** Drop-in for Master->AddVars(n). Extends the master problem from
-  * NumVars to NumVars + n coordinates by appending n new entries to Var_d /
-  * Var_v_hard / Var_z and growing CouplingCns accordingly. This is a
-  * structural change and forces a fresh load_problem() of the registered
-  * [MILP]Solver on the next compute().
-  *
-  * NOT YET IMPLEMENTED -- throws std::logic_error. Adding NumVars on the fly
-  * requires rebuilding the diagonal-quadratic part of the Objective (the per-d
-  * / per-z triples) and re-wiring every PolyhedralFunction- Block sub-Block
-  * via set_variables() / set_conjugate_constraint(). */
+ /// append \p n new optimization variables to an empty-bundle Master Problem
+ /** Convenience overload for the case in which every hard-component bundle
+  * is empty. If cuts are present their new coefficients are indispensable and
+  * this overload throws; use add_vars(n, coefficients) instead. */
 
  void add_vars( int n );
 
+ /// append \p n variables and extend every cut already in the master
+ /** Extends the master from NumVars to NumVars + n coordinates without
+  * rebuilding it. \p coefficients[ k ][ s ][ h ] is the coefficient, on the
+  * h-th new coordinate, of the cut in the persistent bundle slot s of the
+  * hard component k. It must contain one n-vector for every occupied slot;
+  * empty slots may be omitted or represented by an empty vector.
+  *
+  * The operation appends the MP-owned coordinate variables and constraints,
+  * the root-objective terms, the primal level-row terms or dual coupling rows,
+  * and the active variables/columns of every hard PolyhedralFunctionBlock.
+  * The latter issue the ordinary incremental SMS++ Modifications, so the
+  * registered Solver can update the live master in place. */
+
+ void add_vars( int n , AddedCutCoefficients coefficients );
+
 /*--------------------------------------------------------------------------*/
  /// remove a subset of optimization variables from the Master Problem
- /** Drop-in for Master->RmvVars(subset, sz). Removes the \p sz coordinates
-  * listed in \p subset (or *all* coordinates if \p subset == nullptr) from
-  * Var_d / Var_v_hard / Var_z, and patches CouplingCns / every
-  * PolyhedralFunctionBlock sub-Block accordingly.
-  *
-  * NOT YET IMPLEMENTED -- throws std::logic_error. Same caveats as add_vars:
-  * it is a structural change that forces a fresh load_problem(). */
+ /** The indices in \p subset refer to the coordinate space *before* any
+  * removal. They must be strictly increasing, unique and in [0, NumVars).
+  * A null \p subset denotes all current coordinates; \p sz must then be
+  * either 0 or NumVars. The method projects the stored hard-component cuts,
+  * removes the corresponding primal or dual master entities, and compacts
+  * all remaining coordinate-indexed state without rebuilding the master. */
 
  void remove_vars( const int * subset , int sz );
 
@@ -1642,7 +1684,7 @@ class MasterProblemBlock : public Block {
   * must lie in [0, NumVars). Meaningful only after solve_master(). */
 
  [[nodiscard]] double get_z( int j ) const {
-  return( Var_z[ j ].get_value() );
+  return( Var_z_idx[ j ]->get_value() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1868,15 +1910,25 @@ class MasterProblemBlock : public Block {
                                    ///< generated rows indexed by original
                                    ///< component k and row
 
- // - - - - - - - - - - -  static MP entities (primal form)  - - - - - - - - -
+ // - - - - - - - - - - coordinate MP entities (primal form) - - - - - - - - -
 
- std::vector< ColVariable > Var_d;
+ /* Coordinate objects live in lists so insertions keep their addresses
+  * stable; the parallel *_idx vectors are non-owning O(1) indexed views.
+  * Reallocating a view moves only pointers, never the objects themselves. */
+
+ std::list< ColVariable > Var_d;
                                 ///< d in translated primal form, absolute x
                                 ///< in raw primal form (free, size NumVars)
 
- std::vector< BoxConstraint > Bounds_d;
+ std::vector< ColVariable * > Var_d_idx;
+                                ///< indexed, non-owning view of Var_d
+
+ std::list< BoxConstraint > Bounds_d;
                                 ///< per-coordinate primal box on x (raw form)
                                 ///< or on d (translated form)
+
+ std::vector< BoxConstraint * > Bounds_d_idx;
+                                ///< indexed, non-owning view of Bounds_d
 
  std::vector< ColVariable > Var_v_hard;
                                 ///< the epigraph variables v^k
@@ -1890,7 +1942,12 @@ class MasterProblemBlock : public Block {
                                          ///< b*d + sum_k v^k <= f_lev
                                          ///< (kLevel / kDoublyStabilized only)
 
- // - - - - - - - - - - - -  static MP entities (dual form)  - - - - - - - - -
+ std::vector< int > level_d_idx;
+                                ///< positions of d_j in the LinearFunction of
+                                ///< LevelCns (new d terms may follow the
+                                ///< existing v^k)
+
+ // - - - - - - - - - - - coordinate MP entities (dual form) - - - - - - - - -
 
  ColVariable Var_lambda;
                                    ///< global non-negative dual multiplier
@@ -1904,7 +1961,7 @@ class MasterProblemBlock : public Block {
                                    ///< master-side NormalizationCns
                                    ///< (lambda + r - omega = 1).
 
- std::vector< ColVariable > Var_s_plus;
+ std::list< ColVariable > Var_s_plus;
                                    ///< non-negative slack multipliers s^+
                                    ///< paired with the lower side of the
                                    ///< box  L - x_bar <= d  (cf.
@@ -1915,7 +1972,10 @@ class MasterProblemBlock : public Block {
                                    ///< i.e. the corresponding slack does
                                    ///< not really exist.
 
- std::vector< ColVariable > Var_s_minus;
+ std::vector< ColVariable * > Var_s_plus_idx;
+                                   ///< indexed, non-owning view of Var_s_plus
+
+ std::list< ColVariable > Var_s_minus;
                                    ///< non-negative slack multipliers s^-
                                    ///< paired with the upper side of the
                                    ///< box  d <= U - x_bar  (cf.
@@ -1924,14 +1984,20 @@ class MasterProblemBlock : public Block {
                                    ///< (size NumVars); coordinates without
                                    ///< a finite U are kept fixed to 0.
 
+ std::vector< ColVariable * > Var_s_minus_idx;
+                                   ///< indexed, non-owning view of Var_s_minus
+
  ColVariable Var_r;                ///< dual multiplier of the global LB row
 
  ColVariable Var_omega;            ///< dual multiplier of the level / X row
 
- std::vector< ColVariable > Var_z;
+ std::list< ColVariable > Var_z;
                                    ///< auxiliary dual variables z (one per
                                    ///< coordinate of the original sum-function
                                    ///< variable space; size NumVars)
+
+ std::vector< ColVariable * > Var_z_idx;
+                                   ///< indexed, non-owning view of Var_z
 
  FRowConstraint NormalizationCns;
                                    ///< global normalization row
@@ -1940,7 +2006,7 @@ class MasterProblemBlock : public Block {
                                    ///< component, see Var_lambdas)
 
  std::list< FRowConstraint > CouplingCns;
-                                   ///< coupling rows z_j = b_j
+                                   ///< dynamic coupling rows z_j = b_j
                                    ///< (j = 0 .. NumVars-1); populated by each
                                    ///< hard-cmp sub-Block via PolyhedralFunc-
                                    ///< tionBlock::set_conjugate_constraint
@@ -2050,9 +2116,15 @@ class MasterProblemBlock : public Block {
                     ///< bit-wise PFB scaling for hard components:
                     ///< bit 0 = local rows, bit 1 = global epigraph
 
- int z_obj_idx;     ///< index of the first z_j entry in the DQuadFunction
-                    ///< triples (the NumVars entries z_0..z_{NumVars-1} are
-                    ///< laid out contiguously), or -1 if absent
+ std::vector< int > d_obj_idx;
+                    ///< per-coordinate positions of d_j in the primal root
+                    ///< DQuadFunction; new coordinates may be appended
+                    ///< after non-coordinate terms, hence a single base is
+                    ///< not enough
+
+ std::vector< int > z_obj_idx;
+                    ///< per-coordinate positions of z_j in the dual root
+                    ///< DQuadFunction
 
  int r_obj_idx;     ///< index of the r multiplier in the DQuadFunction
                     ///< triples; carries the (+ r * LB) global lower
@@ -2062,23 +2134,26 @@ class MasterProblemBlock : public Block {
                     ///< if omega does not contribute to the master Objective
                     ///< (i.e. under #kProximal)
 
- int s_plus_obj_idx  = -1;
-                    ///< index of the first s^+_j entry in the DQuadFunction
-                    ///< triples (the NumVars s^+ entries are laid out
-                    ///< contiguously); carries the +sgn*(L_j - x_bar_j)
-                    ///< coefficient updated by set_x_bar / set_box
+ std::vector< int > s_plus_obj_idx;
+                    ///< per-coordinate positions of s^+_j in the dual root
+                    ///< DQuadFunction; carries +sgn*(L_j - x_bar_j)
 
- int s_minus_obj_idx = -1;
-                    ///< index of the first s^-_j entry in the DQuadFunction
-                    ///< triples; carries the -sgn*(U_j - x_bar_j) coefficient
+ std::vector< int > s_minus_obj_idx;
+                    ///< per-coordinate positions of s^-_j in the dual root
+                    ///< DQuadFunction; carries -sgn*(U_j - x_bar_j)
 
- int easy_obj_idx = -1;
-                    ///< index of the first displacement-form easy objective
-                    ///< correction in the root DQuadFunction, or -1
+ std::vector< int > easy_obj_idx;
+                    ///< per easy variable in EasyObjVars, the position of its
+                    ///< displacement-form objective correction in the root
+                    ///< DQuadFunction
 
  int level_model_obj_idx = -1;
                     ///< first v^k term in the primal one-shot level probe
                     ///< objective
+
+ int level_model_obj_num = 0;
+                    ///< number of consecutive v^k terms starting at
+                    ///< level_model_obj_idx; later coordinate terms can follow
 
  bool f_dual_level_probe_active = false;
                     ///< true while pure-level dual form is temporarily solved
@@ -2126,6 +2201,26 @@ class MasterProblemBlock : public Block {
  void generate_dual_objective();
                     ///< materialize the dual master objective and PFB
                     ///< objective pieces
+
+ void append_coordinate_state( int n , ModParam issueMod );
+                    ///< append the MP-owned objects and numeric caches for n
+                    ///< coordinates; objective, coupling rows and PFB columns
+                    ///< are deliberately left to the coordinating caller
+
+ void append_coupling_rows( int first , int n , ModParam issueMod );
+                    ///< append the dual coupling rows of coordinates
+                    ///< [first, first + n), including base and easy terms;
+                    ///< hard-component theta terms are added by the PFBs
+
+ void append_primal_level_coordinates( int first , int n , ModParam issueMod );
+                    ///< append d_j terms to the primal level row and record
+                    ///< their possibly non-contiguous LinearFunction positions
+
+ void append_coordinate_objective( int first , int n , ModParam issueMod );
+                    ///< append the root-objective terms of coordinates
+                    ///< [first, first + n); the coordinate state must
+                    ///< already exist, while coupling rows and PFB columns
+                    ///< are external
 
  void refresh_primal_objective();
                     ///< emit one batched objective Modification from the

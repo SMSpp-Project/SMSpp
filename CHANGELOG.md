@@ -9,6 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `MasterProblemBlock::add_easy_coupling( easy_id , j , local_i )`, the
+  reverse of `drop_easy_coupling()`: the easy component gets the terms of
+  its Lagrangian term on the coordinate j, already in the master, in the
+  coupling row of j, those left at 0 by a previous drop getting their
+  coefficient back, and in the displacement form the x_bar_j part in the
+  Objective coefficients of the same Variable. The positions of these
+  Objective corrections are kept one per Variable, since a Variable with
+  no correction yet gets its term after those of the coordinates
+
+- `MasterProblemBlock::add_vars( n , coefficients )` takes the master problem
+  from its coordinates to those plus `n` without building it anew, so that
+  the stability centre, t, the level and the references stay where they
+  are. The Variable and Constraint that exist once per coordinate (`Var_d`
+  and `Bounds_d` in the primal form, `Var_z`, `Var_s_plus` and
+  `Var_s_minus` in the dual one) are dynamic groups kept in `std::list`,
+  each with a parallel `std::vector` of pointers for the access by index;
+  `add_vars()` appends the new coordinates to them, together with their
+  coupling rows (dual form), their terms in the level row (primal form) and
+  in the Objective, whose positions are kept one per coordinate, and gives
+  each hard component the new columns of its matrix, which `coefficients`
+  carries indexed by the bundle slot of each cut. A coordinate is born at
+  zero in the stability centre as in the point of every cut, hence no
+  constant moves and no linearization error changes. Everything travels in
+  one channel, so the Solver of the master updates the problem in place.
+  `MasterProblemBlock::remove_vars( subset , sz )` does the converse: it
+  projects the cuts of the hard components on the remaining coordinates,
+  removes the Variable, Constraint and terms of the removed ones and
+  compacts the per-coordinate state, again without building the master
+  anew
+
 - `LagBFunction` has the string parameter `strChkCfg`, the name of the file
   of the Configuration passed to `is_sol_feasible()` of the inner Block when
   an entry of the global pool is checked (typically, the tolerance of the
@@ -413,6 +443,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   from the `PolyhedralFunctionBlock_test` battery of the tests repository
 
 ### Fixed
+
+- `MasterProblemBlock::add_vars()` in the displacement form of the dual
+  gives the easy components the x_bar part of the new coordinates in the
+  Objective, which `set_x_bar()` updates from then on; without it, the
+  easy terms of a new coordinate were in its coupling row only, and the
+  Objective missed their contribution as soon as the centre moved along it
+
+- `PolyhedralFunctionBlock` handles the Variable added to its
+  `PolyhedralFunction`: a `C05FunctionModVarsAddd` derives from
+  `FunctionModVars`, which is not a `FunctionMod` [see `Function.h`], and
+  `add_Modification()` passed on only the latter, so that the code dealing
+  with it was never reached. The linearized primal gives its rows the new
+  columns, reading them at the end of each row of the matrix and not at
+  its beginning, and the dual attaches the theta of the Block to the
+  coupling rows of the new coordinates, which the father Block creates
+  first [see `MasterProblemBlock::add_vars()`]; conversely, removing a
+  Variable in the dual representation requires the father Block to have
+  removed its coupling rows first, the surviving rows keeping their theta
+  coefficients [see `MasterProblemBlock::remove_vars()`]
 
 - `Block::close_channel()` takes the channel out of the Block before
   shipping its `GroupModification`, so that an exception thrown by whoever

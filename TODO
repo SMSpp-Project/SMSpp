@@ -1,24 +1,3 @@
-2022-05-26 [high] avoid that the value of a fixed [Col]Variable be changed
-
-	Currently, calling set_value() of a fixed ColVariable plainly changes the
-	value. This is very dangerous and can lead to serious errors since the
-	change of a fixed variable does change the problem but no Modification is
-	issued and therefore the Solver are not able to react to it. Hence, it
-	should be changed in
-
-	virtual void set_value( VarValue new_value = 0 ) {
-	 if( is_fixed() ) {
-          if( f_value != new_value )
-	   throw( std::logic_error( "changing the value of a fixed ColVariable" ) );
-	  return;
-          }
-	 f_value = new_value;
-         }
-
-	Issue is this may broke some tests and it will require significant testing
-	before being accepted, so we are not doing it now. But we should.
-
-
 2022-02-10 [medium] add multi-dimensional vectors of stuff with non-uniform size
 
         For some applications (UC) it would be quite handy to have groups of
@@ -43,40 +22,6 @@
 	done; no configuration file addressed a Constraint inside one of them,
 	the only such groups having been born this year, so the two orders
 	have been made one instead of keeping both.
-
-2022-02-10 [very high] get rid of the boost::any -- DONE
-
-	The four std::vector< boost::any > of Block are gone, and so are the
-	four vectors of names beside them: what a Block keeps are four vectors
-	of Group. A group says the type of its elements, its shape, its name
-	and its index in the Block, hands the elements over in storage order
-	without the caller having to know the type of the container they sit
-	in, and answers whether they derive from a given class (elements_are(),
-	for_each_as(), for_each_run_as(), for_each_as_any_of()). It also knows
-	how to build a container of its own type and shape in another Block,
-	which is what AbstractBlock::mirror() uses to copy the whole abstract
-	representation of a Block, the thing this entry said it would set the
-	stage for.
-
-	A Variable / Constraint knows the group it is an element of: the
-	field that held the pointer to its Block holds the pointer to its
-	group instead, the lowest bit telling the two apart, and get_Block()
-	answers through the group, get_Group() giving the group itself. The
-	Block tells an element its group when it registers the group, when a
-	dynamic element is added to a list it has registered, and takes it
-	out of it when the group is replaced or reset and when the element is
-	removed; an element in no group (not yet registered, a copy, one moved
-	to another Block, one reached through a group of pointers) keeps its
-	Block in the same field, so get_Block() always answers. What an
-	element gains is where it sits: inspection::get_element_index() looks
-	in its group only rather than in all those of its Block, and in a
-	group that is one array the position is a subtraction.
-
-	The 8 bytes themselves are out of scope: giving them back needs
-	either a global table or a split hierarchy of Variable, and the
-	lookup was measured to weigh 0.01% to 0.26% of a solve, so what was
-	at stake here is the structure and not the speed.
-
 
 2020-08-12 [low] add configuration and vector-of-configuration parameters
 
@@ -364,73 +309,6 @@
 	the Modification has been constructed, unlike most other ones.
 
 
-2019-08-26 [medium-high] implement [de]serialize() in ColVariableSolution -- DONE
-
-	Done for ColVariableSolution, RowConstraintSolution and ColRowSolution,
-	which were the three that answered "not ready yet". The format is the
-	one the rest of SMS++ already uses for a matrix with rows of different
-	length [see serialize() and deserialize() in SMSTypedefs.h]: the values
-	of the static stuff go in StaticValues (StaticDuals for the duals) with
-	StaticValuesStart saying where each group begins.
-
-	The dynamic stuff has one level more, a group of it being a grid of
-	cells each holding a collection of its own size: the cells of all the
-	groups are written as one such matrix, DynamicValues and
-	DynamicValuesStart, and DynamicCellsStart says which of those cells
-	each group begins at. A ColRowSolution writes its two halves in the
-	groups VariableSolution and ConstraintSolution, so that each of them is
-	written exactly as it is when it travels alone, and the Solution of a
-	nested Block goes in NestedSolution_<i>. What a Solution holds, a
-	solution or a direction, is written by Solution::serialize() as it was.
-
-	A group that is not there is read as nothing, so a Solution that holds
-	no Variable, or no Constraint, of one kind deserializes into an empty
-	one rather than into an error.
-
-
-2019-08-29 [medium-high] implement [de]serialize() in AbstractBlock -- DONE
-
-	The format was there already and nothing had to be decided:
-	guts_of_deserialize() reads the model out of a netCDF variable "Model"
-	holding an LP or an MPS file, with the attribute ModelType saying which
-	of the two it is, and the nested Block out of the subgroups Block_<i>.
-	What was missing was writing the LP, print( out , 'L' ) throwing "not
-	implemented yet"; AbstractBlock::write_lp() writes it now, and
-	serialize() puts it in "Model" with ModelType = 'L' whenever the Block
-	holds something that is not reserved to a derived class.
-
-	What is written is the Objective (the sense and the LinearFunction it
-	is on), the rows that are FRowConstraint on a LinearFunction, the
-	bounds each column has of its own tightened by the :OneVarConstraint
-	written on it, and the columns that are integer. A row with both sides
-	finite and different is written twice, <name>_up and <name>_lo, since
-	the format has no two-sided row, and one with both sides equal is an
-	equality. The names are those the groups give [see
-	inspection::name_of()] with the indices joined by underscores, x_2
-	rather than "x[ 2 ]", the format taking neither brackets nor spaces
-	inside a name; that is why the two separators are a parameter of
-	name_of_cell() and for_each_named_as().
-
-	What travels is the model and not the way it is grouped: an LP file has
-	no notion of groups, so reading back what this writes gives one group
-	of columns and one of rows, as read_lp() builds them. That is not a
-	loss introduced here, it is how the format has been since
-	deserialize() exists.
-
-	The MPS format is written too, by write_mps(), which print( out , 'M' )
-	dispatches: it says the same things in the same names, save that a row
-	with both sides finite and different is one row with its second side in
-	RANGES rather than two, and that a row whose two sides are both
-	infinite is left out, the format having no way of saying it. Reading an
-	MPS file written here and writing it again gives the same file, so
-	nothing is lost or added at each trip; the first file is not among
-	them, since its groups are not the one group of columns and the one of
-	rows read_mps() builds.
-
-	What is left: a Function that is not linear is refused rather than
-	written, which is all either format can take.
-
-
 2019-08-26 [medium] use the methods factory to work with "physical solution"
 
         A Block may well have a "physical representation of the solution" that
@@ -487,7 +365,7 @@
 
 2019-04-01 [medium] std::vector for dynamic stuff
 
-	Allow dynamic stuff to be stored in a std::stable_vector that has been
+	Allow dynamic stuff to be stored in a std::vector that has been
 	reserve()-d. Thus, no re-allocation would happen if the std::vector()
 	is resize()-d up until its size() <= capacity(). Dynamic stuff could
 	only be added and removed at the end, but the advantage over std::list
@@ -662,6 +540,139 @@
 #---------------------------------- DONE --------------------------------------#
 ################################################################################
 ################################################################################
+
+2022-05-26 2026-10-01 [high] avoid that the value of a fixed [Col]Variable be changed
+
+	Currently, calling set_value() of a fixed ColVariable plainly changes the
+	value. This is very dangerous and can lead to serious errors since the
+	change of a fixed variable does change the problem but no Modification is
+	issued and therefore the Solver are not able to react to it. Hence, it
+	should be changed in
+
+	virtual void set_value( VarValue new_value = 0 ) {
+	 if( is_fixed() ) {
+          if( f_value != new_value )
+	   throw( std::logic_error( "changing the value of a fixed ColVariable" ) );
+	  return;
+          }
+	 f_value = new_value;
+         }
+
+	Issue is this may broke some tests and it will require significant testing
+	before being accepted, so we are not doing it now. But we should.
+
+	Done as written above, save for the comparison: a new value equal to
+	the fixed one up to a relative 1e-6, with a floor of 1, leaves the
+	ColVariable as it is, which is what a MILP solver hands back for a
+	Variable whose bounds it has been given equal, and a different one
+	throws std::domain_error and changes nothing. Block::check_Solution()
+	catches it, a Solution that gives a fixed Variable another value being
+	not feasible, and puts back what it has written. Of the code that wrote
+	into fixed Variable the only one found was the consensus recovery of
+	PrimalProximalHeur, which fixed a group of copies to their mean and now
+	takes the value of a copy that is fixed already.
+
+
+2019-08-29 2026-09-21 [medium-high] implement [de]serialize() in AbstractBlock
+
+	The format was there already and nothing had to be decided:
+	guts_of_deserialize() reads the model out of a netCDF variable "Model"
+	holding an LP or an MPS file, with the attribute ModelType saying which
+	of the two it is, and the nested Block out of the subgroups Block_<i>.
+	What was missing was writing the LP, print( out , 'L' ) throwing "not
+	implemented yet"; AbstractBlock::write_lp() writes it now, and
+	serialize() puts it in "Model" with ModelType = 'L' whenever the Block
+	holds something that is not reserved to a derived class.
+
+	What is written is the Objective (the sense and the LinearFunction it
+	is on), the rows that are FRowConstraint on a LinearFunction, the
+	bounds each column has of its own tightened by the :OneVarConstraint
+	written on it, and the columns that are integer. A row with both sides
+	finite and different is written twice, <name>_up and <name>_lo, since
+	the format has no two-sided row, and one with both sides equal is an
+	equality. The names are those the groups give [see
+	inspection::name_of()] with the indices joined by underscores, x_2
+	rather than "x[ 2 ]", the format taking neither brackets nor spaces
+	inside a name; that is why the two separators are a parameter of
+	name_of_cell() and for_each_named_as().
+
+	What travels is the model and not the way it is grouped: an LP file has
+	no notion of groups, so reading back what this writes gives one group
+	of columns and one of rows, as read_lp() builds them. That is not a
+	loss introduced here, it is how the format has been since
+	deserialize() exists.
+
+	The MPS format is written too, by write_mps(), which print( out , 'M' )
+	dispatches: it says the same things in the same names, save that a row
+	with both sides finite and different is one row with its second side in
+	RANGES rather than two, and that a row whose two sides are both
+	infinite is left out, the format having no way of saying it. Reading an
+	MPS file written here and writing it again gives the same file, so
+	nothing is lost or added at each trip; the first file is not among
+	them, since its groups are not the one group of columns and the one of
+	rows read_mps() builds.
+
+	What is left: a Function that is not linear is refused rather than
+	written, which is all either format can take.
+
+
+2022-02-10 2026-09-21 [very high] get rid of the boost::any
+
+	The four std::vector< boost::any > of Block are gone, and so are the
+	four vectors of names beside them: what a Block keeps are four vectors
+	of Group. A group says the type of its elements, its shape, its name
+	and its index in the Block, hands the elements over in storage order
+	without the caller having to know the type of the container they sit
+	in, and answers whether they derive from a given class (elements_are(),
+	for_each_as(), for_each_run_as(), for_each_as_any_of()). It also knows
+	how to build a container of its own type and shape in another Block,
+	which is what AbstractBlock::mirror() uses to copy the whole abstract
+	representation of a Block, the thing this entry said it would set the
+	stage for.
+
+	A Variable / Constraint knows the group it is an element of: the
+	field that held the pointer to its Block holds the pointer to its
+	group instead, the lowest bit telling the two apart, and get_Block()
+	answers through the group, get_Group() giving the group itself. The
+	Block tells an element its group when it registers the group, when a
+	dynamic element is added to a list it has registered, and takes it
+	out of it when the group is replaced or reset and when the element is
+	removed; an element in no group (not yet registered, a copy, one moved
+	to another Block, one reached through a group of pointers) keeps its
+	Block in the same field, so get_Block() always answers. What an
+	element gains is where it sits: inspection::get_element_index() looks
+	in its group only rather than in all those of its Block, and in a
+	group that is one array the position is a subtraction.
+
+	The 8 bytes themselves are out of scope: giving them back needs
+	either a global table or a split hierarchy of Variable, and the
+	lookup was measured to weigh 0.01% to 0.26% of a solve, so what was
+	at stake here is the structure and not the speed.
+
+
+2019-08-26 2026-09-20 [medium-high] implement [de]serialize() in ColVariableSolution
+
+	Done for ColVariableSolution, RowConstraintSolution and ColRowSolution,
+	which were the three that answered "not ready yet". The format is the
+	one the rest of SMS++ already uses for a matrix with rows of different
+	length [see serialize() and deserialize() in SMSTypedefs.h]: the values
+	of the static stuff go in StaticValues (StaticDuals for the duals) with
+	StaticValuesStart saying where each group begins.
+
+	The dynamic stuff has one level more, a group of it being a grid of
+	cells each holding a collection of its own size: the cells of all the
+	groups are written as one such matrix, DynamicValues and
+	DynamicValuesStart, and DynamicCellsStart says which of those cells
+	each group begins at. A ColRowSolution writes its two halves in the
+	groups VariableSolution and ConstraintSolution, so that each of them is
+	written exactly as it is when it travels alone, and the Solution of a
+	nested Block goes in NestedSolution_<i>. What a Solution holds, a
+	solution or a direction, is written by Solution::serialize() as it was.
+
+	A group that is not there is read as nothing, so a Solution that holds
+	no Variable, or no Constraint, of one kind deserializes into an empty
+	one rather than into an error.
+
 
 2020-02-17 2026-09-11 [medium-high] Using "names" in AbstractPath
 

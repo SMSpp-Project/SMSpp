@@ -48,6 +48,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <limits>
 #include <memory>
 #include <numeric>
 #include <stdexcept>
@@ -82,6 +83,26 @@ static char mpb_built_stage( Configuration * cfg )
 {
  auto * scfg = dynamic_cast< SimpleConfiguration< int > * >( cfg );
  return( scfg ? char( scfg->f_value & k_mpb_built_mask ) : 0 );
+}
+
+template< class T , class Inserter >
+static void append_indexed_group( std::list< T > & additions ,
+                                  std::vector< T * > & index ,
+                                  Inserter && insert )
+{
+ if( additions.empty() )
+  return;
+
+ // Reserve both vectors before publishing anything to the Block. The
+ // pointers remain valid after the list splice performed by the SMS++ API.
+ index.reserve( index.size() + additions.size() );
+ std::vector< T * > added;
+ added.reserve( additions.size() );
+ for( auto & element : additions )
+  added.push_back( & element );
+
+ insert( additions );
+ index.insert( index.end() , added.begin() , added.end() );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -171,11 +192,16 @@ void MasterProblemBlock::clear()
  HardCmpScaling = 0;
  t_stab        = 1.0;
  f_lev         = 0.0;
- z_obj_idx     = -1;
+ d_obj_idx.clear();
+ level_d_idx.clear();
+ z_obj_idx.clear();
+ s_plus_obj_idx.clear();
+ s_minus_obj_idx.clear();
  r_obj_idx     = -1;
  omega_obj_idx = -1;
- easy_obj_idx  = -1;
+ easy_obj_idx.clear();
  level_model_obj_idx = -1;
+ level_model_obj_num = 0;
  f_dual_level_probe_active = false;
  f_abs_rep = 0;
 
@@ -190,17 +216,22 @@ void MasterProblemBlock::clear()
  // there to hear. The two rows that are members of *this outlive clear(),
  // so they are the ones that have to give their Function up by hand
  CouplingCns.clear();
+ Bounds_d_idx.clear();
  Bounds_d.clear();
  Bounds_v_hard.clear();
  NormalizationCns.set_function( nullptr , eNoMod );
  LevelCns.set_function( nullptr , eNoMod );
 
+ Var_d_idx.clear();
  Var_d.clear();
  Var_v_hard.clear();
+ Var_z_idx.clear();
  Var_z.clear();
  Var_lambda.set_value( 0.0 );
  Var_lambda.is_fixed( false , eNoMod );
+ Var_s_plus_idx.clear();
  Var_s_plus.clear();
+ Var_s_minus_idx.clear();
  Var_s_minus.clear();
  slot_to_local.clear();
 
@@ -859,16 +890,23 @@ void MasterProblemBlock::generate_primal_abstract_variables( void )
  //    "x" variables of the PolyhedralFunction.
 
  Var_d.clear();
- Var_d.resize( NumVars );          // x (raw form) or d (translated form)
+ Var_d_idx.clear();
+ // Register the empty group first: all insertions then follow the same
+ // SMS++ dynamic-group path, including the initial construction.
+ add_dynamic_variable( Var_d , f_v2_form ? "MPB_x" : "MPB_d" );
+ std::list< ColVariable > new_d( NumVars );
 
  // the integer coordinates [see set_integer()], only there in raw form
- if( f_has_integer && ( int( f_integer.size() ) == NumVars ) )
-  for( int j = 0 ; j < NumVars ; ++j )
+ if( f_has_integer && ( int( f_integer.size() ) == NumVars ) ) {
+  auto it = new_d.begin();
+  for( int j = 0 ; j < NumVars ; ++j , ++it )
    if( f_integer[ j ] )
-    Var_d[ j ].is_integer( true , eNoMod );
+    it->is_integer( true , eNoMod );
+  }
 
- if( NumVars > 0 )
-  add_static_variable( Var_d , f_v2_form ? "MPB_x" : "MPB_d" );
+ append_indexed_group( new_d , Var_d_idx , [ this ]( auto & additions ) {
+  add_dynamic_variables( Var_d , additions , eNoMod );
+  } );
 
 
  // Now handle each hard component
@@ -894,9 +932,13 @@ void MasterProblemBlock::generate_primal_abstract_constraints( void )
 {
  // Initialize the possible bounds on the step d
  Bounds_d.clear();
- Bounds_d.resize( NumVars );
- for( int j = 0 ; j < NumVars ; ++j ) {
-  Bounds_d[ j ].set_variable( & Var_d[ j ] , eNoMod );
+ Bounds_d_idx.clear();
+ // As for Var_d, register the group before inserting its initial elements.
+ add_dynamic_constraint( Bounds_d , "MPB_box" );
+ std::list< BoxConstraint > new_bounds( NumVars );
+ int j = 0;
+ for( auto & bound : new_bounds ) {
+  bound.set_variable( Var_d_idx[ j ] , eNoMod );
 
   // set_box() can be called before the abstract constraints are generated.
   // Materialize its cached bounds now, since a later identical set_box()
@@ -904,11 +946,14 @@ void MasterProblemBlock::generate_primal_abstract_constraints( void )
   double lhs , rhs;
   primal_box( Index( j ) , lhs , rhs );
 
-  Bounds_d[ j ].set_lhs( lhs , eNoMod );
-  Bounds_d[ j ].set_rhs( rhs , eNoMod );
+  bound.set_lhs( lhs , eNoMod );
+  bound.set_rhs( rhs , eNoMod );
+  ++j;
   }
- if( NumVars > 0 )
-  add_static_constraint( Bounds_d , "MPB_box" );
+ append_indexed_group( new_bounds , Bounds_d_idx ,
+                       [ this ]( auto & additions ) {
+  add_dynamic_constraints( Bounds_d , additions , eNoMod );
+  } );
 
  // Now handle each hard component
  for( int k = 0 ; k < NoHardCmps ; ++k ) {
@@ -937,10 +982,13 @@ void MasterProblemBlock::generate_primal_abstract_constraints( void )
           && NoHardCmps > 0 ) {
   LinearFunction::v_coeff_pair lvl_terms;
   lvl_terms.reserve( NumVars + NoHardCmps );
+  level_d_idx.clear();
+  level_d_idx.reserve( NumVars );
   for( int j = 0 ; j < NumVars ; ++j ) {
    const double coeff = ( j < int( f_linear_part.size() ) )
                         ? f_linear_part[ j ] : 0.0;
-   lvl_terms.emplace_back( & Var_d[ j ] , coeff );
+   level_d_idx.push_back( int( lvl_terms.size() ) );
+   lvl_terms.emplace_back( Var_d_idx[ j ] , coeff );
    }
 
   for( int k = 0 ; k < NoHardCmps ; ++k ) {
@@ -996,6 +1044,8 @@ void MasterProblemBlock::generate_primal_objective( void )
 
  DQuadFunction::v_coeff_triple triples;
  triples.reserve( NumVars + ( level_probe ? NoHardCmps : 0 ) );
+ d_obj_idx.clear();
+ d_obj_idx.reserve( NumVars );
 
  /* The quadratic 0-th component is absorbed into the stabilization
   * [see set_zeroth_quadratic()]: the quadratic coefficient of coordinate j
@@ -1019,28 +1069,29 @@ void MasterProblemBlock::generate_primal_objective( void )
    * set_linear_part() into the Objective once it exists: the rho * x_bar
    * shift that goes with it is therefore added by refresh_primal_objective(),
    * which has both and runs before every solve. */
-  triples.emplace_back( & Var_d[ i ] , lin_coeff ,
+  d_obj_idx.push_back( int( triples.size() ) );
+  triples.emplace_back( Var_d_idx[ i ] , lin_coeff ,
                         quad_coeff + ( f_rho.empty() ? 0.0
                                                      : f_rho[ i ] / 2.0 ) );
   }
 
  level_model_obj_idx = -1;
+ level_model_obj_num = 0;
  if( level_probe ) {
   level_model_obj_idx = int( triples.size() );
   for( int k = 0 ; k < NoHardCmps ; ++k ) {
    auto * pfb = dynamic_cast< PolyhedralFunctionBlock * >( HardCmps[ k ] );
-   if( pfb )
+   if( pfb ) {
     triples.emplace_back( pfb->get_v() , 1.0 , 0.0 );
+    ++level_model_obj_num;
+    }
    }
   }
 
- FRealObjective * obj;
- if( triples.empty() ) {
-  obj = new FRealObjective( this , new LinearFunction() );
-  }
- else {
-  obj = new FRealObjective( this , new DQuadFunction( std::move( triples ) ) );
-  }
+ // Keep the root Function dynamically extensible even when it is initially
+ // empty (NumVars == 0 and there is no level-probe term).
+ auto * obj = new FRealObjective(
+                    this , new DQuadFunction( std::move( triples ) ) );
  obj->set_sense( Objective::eMin , eNoMod );
  set_objective( obj , eNoMod );
  f_primal_objective_dirty = false;
@@ -1217,9 +1268,12 @@ void MasterProblemBlock::generate_dual_abstract_variables( void )
  // ---- z auxiliary variables (free, one per coordinate) -------------------
 
  Var_z.clear();
- Var_z.resize( NumVars );
- if( NumVars > 0 )
-  add_static_variable( Var_z , "MPB_z" );
+ Var_z_idx.clear();
+ add_dynamic_variable( Var_z , "MPB_z" );
+ std::list< ColVariable > new_z( NumVars );
+ append_indexed_group( new_z , Var_z_idx , [ this ]( auto & additions ) {
+  add_dynamic_variables( Var_z , additions , eNoMod );
+  } );
 
  // ---- s^+ / s^- non-negative slack multipliers (box) ---------------------
  // One per coordinate; the slack is meaningful only when the matching
@@ -1228,24 +1282,37 @@ void MasterProblemBlock::generate_dual_abstract_variables( void )
  // stored in f_L / f_U before abstract variables are generated, so initialize
  // the fixed status from that state. Missing sides stay fixed to 0.
  Var_s_plus.clear();
+ Var_s_plus_idx.clear();
  Var_s_minus.clear();
- Var_s_plus.resize( NumVars );
- Var_s_minus.resize( NumVars );
+ Var_s_minus_idx.clear();
+ add_dynamic_variable( Var_s_plus  , "MPB_s_plus"  );
+ add_dynamic_variable( Var_s_minus , "MPB_s_minus" );
+
+ std::list< ColVariable > new_s_plus( NumVars );
+ std::list< ColVariable > new_s_minus( NumVars );
+ auto plus_it = new_s_plus.begin();
+ auto minus_it = new_s_minus.begin();
  for( int j = 0 ; j < NumVars ; ++j ) {
   const bool has_L = ! f_L.empty() && std::isfinite( f_L[ j ] );
   const bool has_U = ! f_U.empty() && std::isfinite( f_U[ j ] );
 
-  Var_s_plus[ j ].is_positive( true , eNoMod );
-  Var_s_plus[ j ].set_value( 0.0 );
-  Var_s_plus[ j ].is_fixed( ! has_L , eNoMod );
-  Var_s_minus[ j ].is_positive( true , eNoMod );
-  Var_s_minus[ j ].set_value( 0.0 );
-  Var_s_minus[ j ].is_fixed( ! has_U , eNoMod );
+  plus_it->is_positive( true , eNoMod );
+  plus_it->set_value( 0.0 );
+  plus_it->is_fixed( ! has_L , eNoMod );
+  minus_it->is_positive( true , eNoMod );
+  minus_it->set_value( 0.0 );
+  minus_it->is_fixed( ! has_U , eNoMod );
+  ++plus_it;
+  ++minus_it;
   }
- if( NumVars > 0 ) {
-  add_static_variable( Var_s_plus  , "MPB_s_plus"  );
-  add_static_variable( Var_s_minus , "MPB_s_minus" );
-  }
+ append_indexed_group( new_s_plus , Var_s_plus_idx ,
+                       [ this ]( auto & additions ) {
+  add_dynamic_variables( Var_s_plus , additions , eNoMod );
+  } );
+ append_indexed_group( new_s_minus , Var_s_minus_idx ,
+                       [ this ]( auto & additions ) {
+  add_dynamic_variables( Var_s_minus , additions , eNoMod );
+  } );
 
  // Now handle each hard component
  for( int k = 0 ; k < NoHardCmps ; ++k ) {
@@ -1316,10 +1383,9 @@ void MasterProblemBlock::generate_dual_abstract_constraints( void )
  // conjugate_constraint() called below for every hard component; the
  // u^k A^k terms (easy components in the dual MP) must be set explicity
  // using the mapping provided by the LagBFunction class.
- // CouplingCns is exposed as a *dynamic* group because
- // PolyhedralFunctionBlock::set_conjugate_constraint takes
- // a std::list< FRowConstraint > & by reference; the list size itself
- // stays constant (NumVars) throughout the algorithm.
+ // CouplingCns is exposed as a *dynamic* group: its list can grow without
+ // moving existing rows, and the reference retained by each
+ // PolyhedralFunctionBlock::set_conjugate_constraint remains valid.
  //
  // The fixed entries on Var_lambda / Var_s_plus[ j ] / Var_s_minus[ j ]
  // are inserted *now* (with a 0 coefficient on Var_lambda, which
@@ -1337,10 +1403,10 @@ void MasterProblemBlock::generate_dual_abstract_constraints( void )
   for( int j = 0 ; j < NumVars ; ++j ) {
    LinearFunction::v_coeff_pair vp;
    vp.reserve( 4 );
-   vp.emplace_back( & Var_z[ j ]        ,  1.0 );  // pos 0
+   vp.emplace_back( Var_z_idx[ j ]      ,  1.0 );  // pos 0
    vp.emplace_back( & Var_lambda        ,  0.0 );  // pos 1, set_linear_part
-   vp.emplace_back( & Var_s_plus[ j ]   ,  1.0 );  // pos 2
-   vp.emplace_back( & Var_s_minus[ j ]  , -1.0 );  // pos 3
+   vp.emplace_back( Var_s_plus_idx[ j ] ,  1.0 );  // pos 2
+   vp.emplace_back( Var_s_minus_idx[ j ], -1.0 );  // pos 3
 
    vp_Cns[ j ] = vp;
   }
@@ -1359,8 +1425,8 @@ void MasterProblemBlock::generate_dual_abstract_constraints( void )
   }
  }
 
- if( NumVars > 0 )
-  add_dynamic_constraint( CouplingCns , "MPB_coupling" );
+ // Register the group even when empty: it must be able to grow later.
+ add_dynamic_constraint( CouplingCns , "MPB_coupling" );
 
  // Now handle each hard component
  for( int k = 0 ; k < NoHardCmps ; ++k ) {
@@ -1408,9 +1474,7 @@ void MasterProblemBlock::generate_dual_objective( void )
  // injects it through LinearFunction::modify_coefficient as the stability
  // centre changes.
 
- // Triple layout in the DQuadFunction (always the same regardless of
- // stabilization, so that set_x_bar / set_global_LB / set_f_lev can locate
- // their target coefficient by a fixed offset):
+ // Initial triple layout in the DQuadFunction:
  //
  //   triples[ 0 .. NumVars - 1 ]   :  z_j with (linear = 0, quad = -t/2
  //                                   for proximal/doubly and for the one-shot
@@ -1424,6 +1488,10 @@ void MasterProblemBlock::generate_dual_objective( void )
  //   triples[ NumVars + 1 ]        :  omega with (linear = f_lev, quad = 0)
  //                                   IF has_omega_lin; set_f_lev refreshes
  //                                   the linear coefficient
+ //
+ // Dynamic coordinates are appended rather than inserted into this layout.
+ // The explicit *_obj_idx vectors below therefore remain the authoritative
+ // mapping between a master coordinate and its objective terms.
  const bool pure_level = ( StblType == kLevel );
  const bool level_probe = has_initial_level_objective();
  const bool true_level = pure_level && ( ! level_probe );
@@ -1444,14 +1512,17 @@ void MasterProblemBlock::generate_dual_objective( void )
  const double sgn = IsConvex ? -1.0 : 1.0;
 
  DQuadFunction::v_coeff_triple triples;
- triples.reserve( NumVars + 1 + ( has_omega_lin ? 1 : 0 ) );
+ triples.reserve( 3 * NumVars + 1 + ( has_omega_lin ? 1 : 0 ) );
 
- z_obj_idx = NumVars > 0 ? 0 : -1;
+ z_obj_idx.clear();
+ z_obj_idx.reserve( NumVars );
  const double quad_coeff = has_quad ? - sgn * ( true_level ? 0.5
                                                                : t_stab / 2.0 )
                                       : 0.0;
- for( int j = 0 ; j < NumVars ; ++j )
-  triples.emplace_back( & Var_z[ j ] , 0.0 , quad_coeff );
+ for( int j = 0 ; j < NumVars ; ++j ) {
+  z_obj_idx.push_back( int( triples.size() ) );
+  triples.emplace_back( Var_z_idx[ j ] , 0.0 , quad_coeff );
+  }
 
  r_obj_idx = int( triples.size() );
  triples.emplace_back( & Var_r , 0.0 , 0.0 );
@@ -1471,26 +1542,27 @@ void MasterProblemBlock::generate_dual_objective( void )
  //     + s^+ ( L - x_bar ) - s^- ( U - x_bar )
  // in the textbook eMax form. Coefficients are initialized from the physical
  // box state f_L / f_U if already available, and set_box() / set_x_bar()
- // refresh them later. The s^+ / s^- triples are laid out contiguously after
- // omega so that the refresh logic can address them by a fixed base offset.
- s_plus_obj_idx  = -1;
- s_minus_obj_idx = -1;
+ // refresh them later.
+ s_plus_obj_idx.clear();
+ s_minus_obj_idx.clear();
+ s_plus_obj_idx.reserve( NumVars );
+ s_minus_obj_idx.reserve( NumVars );
  if( NumVars > 0 ) {
   const bool iterate = ( f_v2_form != 0 );
-  s_plus_obj_idx = int( triples.size() );
   for( int j = 0 ; j < NumVars ; ++j ) {
    const double xj = ( ( ! iterate ) && j < int( f_x_bar.size() ) )
                      ? f_x_bar[ j ] : 0.0;
    const bool has_L = ! f_L.empty() && std::isfinite( f_L[ j ] );
-   triples.emplace_back( & Var_s_plus[ j ] ,
+   s_plus_obj_idx.push_back( int( triples.size() ) );
+   triples.emplace_back( Var_s_plus_idx[ j ] ,
                          has_L ? sgn * ( f_L[ j ] - xj ) : 0.0 , 0.0 );
    }
-  s_minus_obj_idx = int( triples.size() );
   for( int j = 0 ; j < NumVars ; ++j ) {
    const double xj = ( ( ! iterate ) && j < int( f_x_bar.size() ) )
                      ? f_x_bar[ j ] : 0.0;
    const bool has_U = ! f_U.empty() && std::isfinite( f_U[ j ] );
-   triples.emplace_back( & Var_s_minus[ j ] ,
+   s_minus_obj_idx.push_back( int( triples.size() ) );
+   triples.emplace_back( Var_s_minus_idx[ j ] ,
                          has_U ? - sgn * ( f_U[ j ] - xj ) : 0.0 , 0.0 );
    }
   }
@@ -1505,7 +1577,7 @@ void MasterProblemBlock::generate_dual_objective( void )
  // these linear coefficients when the stability centre changes.
  EasyObjVars.clear();
  EasyObjCoeffs.clear();
- easy_obj_idx = -1;
+ easy_obj_idx.clear();
  if( ! f_v2_form ) {
   for( Index easy_id = 0 ; easy_id < EasyCmps.size() ; ++easy_id ) {
    auto * lbf = EasyCmps[ easy_id ];
@@ -1535,10 +1607,9 @@ void MasterProblemBlock::generate_dual_objective( void )
     }
    }
 
-  if( ! EasyObjVars.empty() ) {
-   easy_obj_idx = int( triples.size() );
-   for( auto * u : EasyObjVars )
-    triples.emplace_back( u , 0.0 , 0.0 );
+  for( auto * u : EasyObjVars ) {
+   easy_obj_idx.push_back( int( triples.size() ) );
+   triples.emplace_back( u , 0.0 , 0.0 );
    }
   }
 
@@ -1642,7 +1713,7 @@ void MasterProblemBlock::absorb_BBF_into_primal_MP( BendersBFunction * bbf )
          static_cast< ColVariable * >( lf->get_active_var( j ) ) ,
          lf->get_coefficient( j ) );
    for( int j = 0 ; j < NumVars ; ++j )
-    pairs.emplace_back( & Var_d[ j ] , - A[ i ][ j ] );
+    pairs.emplace_back( Var_d_idx[ j ] , - A[ i ][ j ] );
    new_fun = new LinearFunction( std::move( pairs ) );
    }
   else if( dqf ) {
@@ -1654,7 +1725,7 @@ void MasterProblemBlock::absorb_BBF_into_primal_MP( BendersBFunction * bbf )
          dqf->get_linear_coefficient( j ) ,
          dqf->get_quadratic_coefficient( j ) );
    for( int j = 0 ; j < NumVars ; ++j )
-    triples.emplace_back( & Var_d[ j ] , - A[ i ][ j ] , 0.0 );
+    triples.emplace_back( Var_d_idx[ j ] , - A[ i ][ j ] , 0.0 );
    new_fun = new DQuadFunction( std::move( triples ) );
    }
   else {  // QuadFunction
@@ -1670,7 +1741,7 @@ void MasterProblemBlock::absorb_BBF_into_primal_MP( BendersBFunction * bbf )
          qf->get_linear_coefficient( j ) ,
          qf->DQuadFunction::get_quadratic_coefficient( j ) );
    for( int j = 0 ; j < NumVars ; ++j )
-    triples.emplace_back( & Var_d[ j ] , - A[ i ][ j ] , 0.0 );
+    triples.emplace_back( Var_d_idx[ j ] , - A[ i ][ j ] , 0.0 );
    QuadFunction::v_off_diag_term off_diag;
    qf->get_v_nd_var( off_diag );
    new_fun = new QuadFunction( std::move( triples ) , std::move( off_diag ) );
@@ -1722,12 +1793,19 @@ void MasterProblemBlock::absorb_BBF_into_primal_MP( BendersBFunction * bbf )
 /*--------------------------------------------------------------------------*/
 
 void MasterProblemBlock::add_LBF_to_coupling_rows(
-     std::vector< LinearFunction::v_coeff_pair > & vp_Cns )
+     std::vector< LinearFunction::v_coeff_pair > & vp_Cns , Index first )
 {
  if( EasyCmps.empty() )
   throw( std::invalid_argument(
        "MasterProblemBlock::add_LBF_to_coupling_rows: there are no "
        "easy components" ) );
+
+ if( first > Index( NumVars ) ||
+     vp_Cns.size() > Index( NumVars ) - first )
+  throw( std::invalid_argument(
+       "MasterProblemBlock::add_LBF_to_coupling_rows: invalid range" ) );
+
+ const Index last = first + vp_Cns.size();
 
  for( Index easy_id = 0 ; easy_id < EasyCmps.size() ; ++easy_id ) {
   // Retrieve specific easy component
@@ -1741,6 +1819,9 @@ void MasterProblemBlock::add_LBF_to_coupling_rows(
     throw( std::logic_error(
         "MasterProblemBlock::add_LBF_to_coupling_rows: "
         "global index outside master dimension" ) );
+
+   if( j < first || j >= last )
+    continue;
 
    // Collect lagrangian terms associated with the variable
    auto * gi = dynamic_cast< LinearFunction * >(
@@ -1766,7 +1847,7 @@ void MasterProblemBlock::add_LBF_to_coupling_rows(
 
     // Append the new term to the coupling constraint terms associated
     // with the j-th global variable
-    vp_Cns[ j ].emplace_back( u , easy_sign * a );
+    vp_Cns[ j - first ].emplace_back( u , easy_sign * a );
    }
 
    /*
@@ -1814,7 +1895,7 @@ void MasterProblemBlock::drop_easy_coupling( Index easy_id , Index j )
 
  // in the displacement form, drop j from the Objective coefficients of the
  // same Variable, and write them again with the current x_bar
- if( ( f_v2_form == 0 ) && ( easy_obj_idx >= 0 ) ) {
+ if( ( f_v2_form == 0 ) && ( ! easy_obj_idx.empty() ) ) {
   auto obj = get_objective< FRealObjective >();
   auto dqf = obj ? dynamic_cast< DQuadFunction * >( obj->get_function() )
                  : nullptr;
@@ -1832,10 +1913,99 @@ void MasterProblemBlock::drop_easy_coupling( Index easy_id , Index j )
     for( const auto & [ jj , a ] : coeffs )
      if( jj < f_x_bar.size() )
       coeff += f_x_bar[ jj ] * a;
-    dqf->modify_term( DQuadFunction::Index( easy_obj_idx + int( h ) ) ,
+    dqf->modify_term( DQuadFunction::Index( easy_obj_idx[ h ] ) ,
                       coeff , 0.0 );
     }
    }
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void MasterProblemBlock::add_easy_coupling( Index easy_id , Index j ,
+                                            Index local_i )
+{
+ if( easy_id >= EasyCmps.size() )
+  throw( std::logic_error( "MasterProblemBlock::add_easy_coupling: invalid "
+                           "easy component index" ) );
+ if( j >= CouplingCns.size() )
+  throw( std::logic_error( "MasterProblemBlock::add_easy_coupling: global "
+                           "index outside master dimension" ) );
+
+ auto * gi = dynamic_cast< LinearFunction * >(
+                          EasyCmps[ easy_id ]->get_Lagrangian_term( local_i ) );
+ if( ! gi )
+  throw( std::logic_error( "MasterProblemBlock::add_easy_coupling: "
+                           "LagBFunction term is not a LinearFunction" ) );
+
+ // the terms of the component in the coupling row of j, with the sign of
+ // add_LBF_to_coupling_rows(): those still in the row with the 0 left by
+ // drop_easy_coupling() get their coefficient back, the others are added
+ const double easy_sign = IsConvex ? 1.0 : -1.0;
+ auto row = std::next( CouplingCns.begin() , j );
+ auto lf = static_cast< LinearFunction * >( row->get_function() );
+ const auto chnl = open_channel();
+ const auto cpar = make_par( eModBlck , chnl );
+ try {
+  LinearFunction::v_coeff_pair added;
+  for( Function::Index h = 0 ; h < gi->get_num_active_var() ; ++h ) {
+   auto * u = static_cast< ColVariable * >( gi->get_active_var( h ) );
+   const double a = easy_sign * gi->get_coefficient( h );
+   const auto idx = lf->is_active( u );
+   if( idx < lf->get_num_active_var() )
+    lf->modify_coefficient( idx , a , cpar );
+   else
+    added.emplace_back( u , a );
+   }
+  if( ! added.empty() )
+   lf->add_variables( std::move( added ) , cpar );
+
+  add_easy_objective_terms( easy_id , j , local_i , cpar );
+  }
+ catch( ... ) {
+  close_channel( chnl );
+  throw;
+  }
+ close_channel( chnl );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void MasterProblemBlock::add_easy_objective_terms( Index easy_id , Index j ,
+                                                   Index local_i ,
+                                                   ModParam issueMod )
+{
+ if( IsPrimal || f_v2_form || ! ( f_abs_rep & k_mpb_built_obj ) )
+  return;
+
+ auto obj = get_objective< FRealObjective >();
+ auto dqf = obj ? dynamic_cast< DQuadFunction * >( obj->get_function() )
+                : nullptr;
+ auto * gi = dynamic_cast< LinearFunction * >(
+                          EasyCmps[ easy_id ]->get_Lagrangian_term( local_i ) );
+ if( ( ! dqf ) || ( ! gi ) )
+  throw( std::logic_error( "MasterProblemBlock::add_easy_objective_terms: "
+                           "expected DQuadFunction and LinearFunction" ) );
+
+ for( Function::Index h = 0 ; h < gi->get_num_active_var() ; ++h ) {
+  auto * u = static_cast< ColVariable * >( gi->get_active_var( h ) );
+  auto it = std::find( EasyObjVars.begin() , EasyObjVars.end() , u );
+  const auto pos = std::size_t( std::distance( EasyObjVars.begin() , it ) );
+  if( it == EasyObjVars.end() ) {  // a Variable with no correction yet
+   EasyObjVars.push_back( u );
+   EasyObjCoeffs.emplace_back();
+   easy_obj_idx.push_back( int( dqf->get_num_active_var() ) );
+   dqf->add_variable( u , 0.0 , 0.0 , issueMod );
+   }
+
+  auto & coeffs = EasyObjCoeffs[ pos ];
+  coeffs.emplace_back( j , gi->get_coefficient( h ) );
+  double coeff = 0.0;
+  for( const auto & [ jj , a ] : coeffs )
+   if( jj < f_x_bar.size() )
+    coeff += f_x_bar[ jj ] * a;
+  dqf->modify_term( DQuadFunction::Index( easy_obj_idx[ pos ] ) , coeff ,
+                    0.0 , issueMod );
   }
  }
 
@@ -2767,8 +2937,8 @@ std::vector< double > MasterProblemBlock::get_d_vector( void ) const
 
  if( IsPrimal ) {
   out.reserve( Var_d.size() );
-  for( std::size_t i = 0 ; i < Var_d.size() ; ++i )
-   out.push_back( Var_d[ i ].get_value() -
+  for( std::size_t i = 0 ; i < Var_d_idx.size() ; ++i )
+   out.push_back( Var_d_idx[ i ]->get_value() -
                   ( f_v2_form ? f_x_bar[ i ] : 0.0 ) );
   return( out );
   }
@@ -3025,10 +3195,10 @@ double MasterProblemBlock::get_aggregated_alpha( int k ) const
                            Var_s_minus.size() } );
  for( std::size_t j = 0 ; j < n ; ++j ) {
   if( j < f_L.size() && std::isfinite( f_L[ j ] ) )
-   box_error += Var_s_plus[ j ].get_value() *
+   box_error += Var_s_plus_idx[ j ]->get_value() *
                 ( f_x_bar[ j ] - f_L[ j ] );
   if( j < f_U.size() && std::isfinite( f_U[ j ] ) )
-   box_error += Var_s_minus[ j ].get_value() *
+   box_error += Var_s_minus_idx[ j ]->get_value() *
                 ( f_U[ j ] - f_x_bar[ j ] );
   }
 
@@ -3322,12 +3492,13 @@ void MasterProblemBlock::refresh_box_coordinate( Index j ,
    return;
   double lhs , rhs;
   primal_box( j , lhs , rhs );
-  Bounds_d[ j ].set_lhs( lhs , issueMod );
-  Bounds_d[ j ].set_rhs( rhs , issueMod );
+  Bounds_d_idx[ j ]->set_lhs( lhs , issueMod );
+  Bounds_d_idx[ j ]->set_rhs( rhs , issueMod );
   return;
   }
 
- if( ! dqf || s_plus_obj_idx < 0 || s_minus_obj_idx < 0 )
+ if( ! dqf || j >= s_plus_obj_idx.size() ||
+     j >= s_minus_obj_idx.size() )
   return;
 
  const double sgn = IsConvex ? -1.0 : 1.0;
@@ -3337,18 +3508,18 @@ void MasterProblemBlock::refresh_box_coordinate( Index j ,
 
  const double lower = f_L.empty() ? - Inf< double >() : f_L[ j ];
  const bool has_L = std::isfinite( lower );
- Var_s_plus[ j ].is_fixed( ! has_L , eNoMod );
+ Var_s_plus_idx[ j ]->is_fixed( ! has_L , eNoMod );
  if( ! has_L )
-  Var_s_plus[ j ].set_value( 0.0 );
- dqf->modify_term( DQuadFunction::Index( s_plus_obj_idx + int( j ) ) ,
+  Var_s_plus_idx[ j ]->set_value( 0.0 );
+ dqf->modify_term( DQuadFunction::Index( s_plus_obj_idx[ j ] ) ,
                    has_L ? sgn * ( lower - xj ) : 0.0 , 0.0 , issueMod );
 
  const double upper = f_U.empty() ? Inf< double >() : f_U[ j ];
  const bool has_U = std::isfinite( upper );
- Var_s_minus[ j ].is_fixed( ! has_U , eNoMod );
+ Var_s_minus_idx[ j ]->is_fixed( ! has_U , eNoMod );
  if( ! has_U )
-  Var_s_minus[ j ].set_value( 0.0 );
- dqf->modify_term( DQuadFunction::Index( s_minus_obj_idx + int( j ) ) ,
+  Var_s_minus_idx[ j ]->set_value( 0.0 );
+ dqf->modify_term( DQuadFunction::Index( s_minus_obj_idx[ j ] ) ,
                    has_U ? - sgn * ( upper - xj ) : 0.0 , 0.0 , issueMod );
  }
 
@@ -3899,8 +4070,8 @@ void MasterProblemBlock::set_x_bar( const std::vector< double > & x_bar )
    for( int j = 0 ; j < NumVars ; ++j ) {
     double lhs , rhs;
     primal_box( Index( j ) , lhs , rhs );
-    Bounds_d[ j ].set_lhs( lhs );
-    Bounds_d[ j ].set_rhs( rhs );
+    Bounds_d_idx[ j ]->set_lhs( lhs );
+    Bounds_d_idx[ j ]->set_rhs( rhs );
     }
 
   for( auto & row : EasyBBFRows ) {
@@ -3923,7 +4094,7 @@ void MasterProblemBlock::set_x_bar( const std::vector< double > & x_bar )
   return;
   }
 
- if( z_obj_idx < 0 )
+ if( int( z_obj_idx.size() ) != NumVars )
   return;
 
  auto obj = dynamic_cast< FRealObjective * >( get_objective() );
@@ -3971,7 +4142,7 @@ void MasterProblemBlock::set_x_bar( const std::vector< double > & x_bar )
    lin_coeff = sgn * f_x_bar[ j ];
   else if( lazy )
    lin_coeff = - sgn * ( f_x_bar[ j ] - f_x_ref[ j ] );
-  dqf->modify_term( DQuadFunction::Index( z_obj_idx + j ) ,
+  dqf->modify_term( DQuadFunction::Index( z_obj_idx[ j ] ) ,
                     lin_coeff , quad_coeff );
   }
 
@@ -3981,29 +4152,30 @@ void MasterProblemBlock::set_x_bar( const std::vector< double > & x_bar )
  // invariant ( s^+_j = sgn*L_j, s^-_j = -sgn*U_j ) because x_bar lives in the
  // Var_z linear coefficient instead. Entries with a non-finite bound keep
  // their fixed-to-0 slack and 0 coefficient
- if( ( s_plus_obj_idx >= 0 ) && ( s_minus_obj_idx >= 0 ) &&
+ if( ( int( s_plus_obj_idx.size() ) == NumVars ) &&
+     ( int( s_minus_obj_idx.size() ) == NumVars ) &&
      ( ! f_L.empty() || ! f_U.empty() ) )
   for( int j = 0 ; j < NumVars ; ++j ) {
    const double xj = ( ( ! iterate ) && j < int( f_x_bar.size() ) )
                      ? f_x_bar[ j ] : 0.0;
    const bool has_L = ! f_L.empty() && std::isfinite( f_L[ j ] );
-   dqf->modify_term( DQuadFunction::Index( s_plus_obj_idx + j ) ,
+   dqf->modify_term( DQuadFunction::Index( s_plus_obj_idx[ j ] ) ,
                      has_L ? sgn * ( f_L[ j ] - xj ) : 0.0 , 0.0 );
    const bool has_U = ! f_U.empty() && std::isfinite( f_U[ j ] );
-   dqf->modify_term( DQuadFunction::Index( s_minus_obj_idx + j ) ,
+   dqf->modify_term( DQuadFunction::Index( s_minus_obj_idx[ j ] ) ,
                      has_U ? - sgn * ( f_U[ j ] - xj ) : 0.0 , 0.0 );
    }
 
  // Displacement form has no explicit x_bar * z term. Restore its exact easy
  // component part directly as x_bar * g^k(u^k), using the cached sparse map
  // built in CreateDualMP(). Iterate form needs no such correction.
- if( ( ! iterate ) && easy_obj_idx >= 0 )
+ if( ( ! iterate ) && ( ! easy_obj_idx.empty() ) )
   for( std::size_t h = 0 ; h < EasyObjCoeffs.size() ; ++h ) {
    double coeff = 0.0;
    for( const auto & [ j , a ] : EasyObjCoeffs[ h ] )
     if( j < f_x_bar.size() )
      coeff += f_x_bar[ j ] * a;
-   dqf->modify_term( DQuadFunction::Index( easy_obj_idx + int( h ) ) ,
+   dqf->modify_term( DQuadFunction::Index( easy_obj_idx[ h ] ) ,
                      coeff , 0.0 );
    }
  }
@@ -4229,59 +4401,839 @@ void MasterProblemBlock::set_linear_part( std::vector< double > b ,
 
 /*--------------------------------------------------------------------------*/
 
+void MasterProblemBlock::append_coordinate_state( int n , ModParam issueMod )
+{
+ if( n <= 0 )
+  return;
+
+ if( n > std::numeric_limits< int >::max() - NumVars )
+  throw( std::overflow_error(
+       "MasterProblemBlock::append_coordinate_state: dimension overflow" ) );
+
+ const int old_n = NumVars;
+ const int new_n = old_n + n;
+ const bool vars_built = f_abs_rep & k_mpb_built_var;
+ const bool cnst_built = f_abs_rep & k_mpb_built_cnst;
+
+ if( cnst_built && ! vars_built )
+  throw( std::logic_error(
+       "MasterProblemBlock::append_coordinate_state: constraints built "
+       "without variables" ) );
+
+ auto wrong_optional_size = [ old_n ]( const std::vector< double > & values ) {
+  return( ! values.empty() && int( values.size() ) != old_n );
+  };
+
+ if( int( f_x_bar.size() ) != old_n ||
+     int( f_linear_part.size() ) != old_n ||
+     wrong_optional_size( f_x_ref ) || wrong_optional_size( f_L ) ||
+     wrong_optional_size( f_U ) || wrong_optional_size( f_rho ) )
+  throw( std::logic_error(
+       "MasterProblemBlock::append_coordinate_state: inconsistent caches" ) );
+
+ if( vars_built ) {
+  if( IsPrimal ) {
+   if( int( Var_d.size() ) != old_n ||
+       int( Var_d_idx.size() ) != old_n ||
+       ( cnst_built && ( int( Bounds_d.size() ) != old_n ||
+                         int( Bounds_d_idx.size() ) != old_n ) ) )
+    throw( std::logic_error(
+         "MasterProblemBlock::append_coordinate_state: inconsistent "
+         "primal coordinate groups" ) );
+   }
+  else
+   if( int( Var_z.size() ) != old_n ||
+       int( Var_z_idx.size() ) != old_n ||
+       int( Var_s_plus.size() ) != old_n ||
+       int( Var_s_plus_idx.size() ) != old_n ||
+       int( Var_s_minus.size() ) != old_n ||
+       int( Var_s_minus_idx.size() ) != old_n )
+    throw( std::logic_error(
+         "MasterProblemBlock::append_coordinate_state: inconsistent "
+         "dual coordinate groups" ) );
+  }
+
+ // A new coordinate is born at zero. Empty bound vectors retain their
+ // compact meaning of an entirely infinite side of the box.
+ f_x_bar.resize( new_n , 0.0 );
+ f_linear_part.resize( new_n , 0.0 );
+ if( ! f_x_ref.empty() )
+  f_x_ref.resize( new_n , 0.0 );
+ if( ! f_L.empty() )
+  f_L.resize( new_n , - Inf< double >() );
+ if( ! f_U.empty() )
+  f_U.resize( new_n , Inf< double >() );
+ if( ! f_rho.empty() )
+  f_rho.resize( new_n , 0.0 );
+ if( ! f_integer.empty() )  // a new coordinate is continuous
+  f_integer.resize( new_n , false );
+
+ if( vars_built ) {
+  if( IsPrimal ) {
+   std::list< ColVariable > new_d( n );
+   append_indexed_group( new_d , Var_d_idx ,
+                         [ this , issueMod ]( auto & additions ) {
+    add_dynamic_variables( Var_d , additions , issueMod );
+    } );
+
+   if( cnst_built ) {
+    std::list< BoxConstraint > new_bounds( n );
+    auto bound = new_bounds.begin();
+    for( int j = old_n ; j < new_n ; ++j , ++bound ) {
+     bound->set_variable( Var_d_idx[ j ] , eNoMod );
+     bound->set_lhs( - Inf< double >() , eNoMod );
+     bound->set_rhs( Inf< double >() , eNoMod );
+     }
+    append_indexed_group( new_bounds , Bounds_d_idx ,
+                          [ this , issueMod ]( auto & additions ) {
+     add_dynamic_constraints( Bounds_d , additions , issueMod );
+     } );
+    }
+   }
+  else {
+   std::list< ColVariable > new_z( n );
+   append_indexed_group( new_z , Var_z_idx ,
+                         [ this , issueMod ]( auto & additions ) {
+    add_dynamic_variables( Var_z , additions , issueMod );
+    } );
+
+   std::list< ColVariable > new_s_plus( n );
+   std::list< ColVariable > new_s_minus( n );
+   auto plus = new_s_plus.begin();
+   auto minus = new_s_minus.begin();
+   for( int j = 0 ; j < n ; ++j , ++plus , ++minus ) {
+    plus->is_positive( true , eNoMod );
+    plus->set_value( 0.0 );
+    plus->is_fixed( true , eNoMod );
+    minus->is_positive( true , eNoMod );
+    minus->set_value( 0.0 );
+    minus->is_fixed( true , eNoMod );
+    }
+   append_indexed_group( new_s_plus , Var_s_plus_idx ,
+                         [ this , issueMod ]( auto & additions ) {
+    add_dynamic_variables( Var_s_plus , additions , issueMod );
+    } );
+   append_indexed_group( new_s_minus , Var_s_minus_idx ,
+                         [ this , issueMod ]( auto & additions ) {
+    add_dynamic_variables( Var_s_minus , additions , issueMod );
+    } );
+   }
+  }
+
+ MaxSGLen = new_n;
+ NumVars = new_n;
+}
+
+/*--------------------------------------------------------------------------*/
+
+void MasterProblemBlock::append_coupling_rows( int first , int n ,
+                                               ModParam issueMod )
+{
+ if( n <= 0 || IsPrimal || ! ( f_abs_rep & k_mpb_built_cnst ) )
+  return;
+
+ if( first < 0 || first > NumVars || n > NumVars - first )
+  throw( std::invalid_argument(
+       "MasterProblemBlock::append_coupling_rows: invalid range" ) );
+
+ const int last = first + n;
+ if( int( CouplingCns.size() ) != first ||
+     int( Var_z_idx.size() ) < last ||
+     int( Var_s_plus_idx.size() ) < last ||
+     int( Var_s_minus_idx.size() ) < last ||
+     int( f_linear_part.size() ) < last )
+  throw( std::logic_error(
+       "MasterProblemBlock::append_coupling_rows: inconsistent coordinate "
+       "state" ) );
+
+ // Build every row completely before publishing it to the dynamic group.
+ // Positions 0..3 deliberately match generate_dual_abstract_constraints(),
+ // because set_linear_part() updates the lambda coefficient at position 1.
+ std::vector< LinearFunction::v_coeff_pair > terms( n );
+ for( int j = first ; j < last ; ++j ) {
+  auto & row = terms[ j - first ];
+  row.reserve( 4 );
+  row.emplace_back( Var_z_idx[ j ]      ,  1.0 );
+  row.emplace_back( & Var_lambda        , - f_linear_part[ j ] );
+  row.emplace_back( Var_s_plus_idx[ j ] ,  1.0 );
+  row.emplace_back( Var_s_minus_idx[ j ], -1.0 );
+  }
+
+ // In the sparse case the caller must publish the updated easy local-to-global
+ // maps before this method: only easy variables mapped into [first, last) are
+ // appended, while components that do not depend on a new coordinate add 0.
+ if( NoEasyCmps > 0 )
+  add_LBF_to_coupling_rows( terms , Index( first ) );
+
+ std::list< FRowConstraint > new_rows( n );
+ auto row = new_rows.begin();
+ for( int i = 0 ; i < n ; ++i , ++row ) {
+  row->set_function( new LinearFunction( std::move( terms[ i ] ) , 0.0 ) ,
+                     eNoMod );
+  row->set_lhs( 0.0 , eNoMod );
+  row->set_rhs( 0.0 , eNoMod );
+  }
+
+ add_dynamic_constraints( CouplingCns , new_rows , issueMod );
+}
+
+/*--------------------------------------------------------------------------*/
+
+void MasterProblemBlock::append_primal_level_coordinates(
+                                      int first , int n , ModParam issueMod )
+{
+ if( n <= 0 || ! IsPrimal || ! ( f_abs_rep & k_mpb_built_cnst ) ||
+     ( StblType != kLevel && StblType != kDoublyStabilized ) )
+  return;
+
+ auto * lf = dynamic_cast< LinearFunction * >( LevelCns.get_function() );
+ if( ! lf )
+  return;
+
+ if( first < 0 || first > NumVars || n > NumVars - first ||
+     int( Var_d_idx.size() ) < first + n ||
+     int( f_linear_part.size() ) < first + n ||
+     int( level_d_idx.size() ) != first )
+  throw( std::logic_error(
+       "MasterProblemBlock::append_primal_level_coordinates: inconsistent "
+       "coordinate state" ) );
+
+ const int base = int( lf->get_num_active_var() );
+ LinearFunction::v_coeff_pair terms;
+ terms.reserve( n );
+ for( int j = first ; j < first + n ; ++j )
+  terms.emplace_back( Var_d_idx[ j ] , f_linear_part[ j ] );
+
+ lf->add_variables( std::move( terms ) , issueMod );
+ level_d_idx.reserve( first + n );
+ for( int h = 0 ; h < n ; ++h )
+  level_d_idx.push_back( base + h );
+}
+
+/*--------------------------------------------------------------------------*/
+
+void MasterProblemBlock::append_coordinate_objective( int first , int n ,
+                                                       ModParam issueMod )
+{
+ if( n <= 0 || ! ( f_abs_rep & k_mpb_built_obj ) )
+  return;
+
+ if( first < 0 || first > NumVars || n > NumVars - first )
+  throw( std::invalid_argument(
+       "MasterProblemBlock::append_coordinate_objective: invalid range" ) );
+
+ auto * obj = dynamic_cast< FRealObjective * >( get_objective() );
+ auto * dqf = obj ? dynamic_cast< DQuadFunction * >( obj->get_function() )
+                  : nullptr;
+ if( ! dqf )
+  throw( std::logic_error(
+       "MasterProblemBlock::append_coordinate_objective: expected "
+       "DQuadFunction" ) );
+
+ const int last = first + n;
+ const int base = int( dqf->get_num_active_var() );
+ DQuadFunction::v_coeff_triple triples;
+
+ if( IsPrimal ) {
+  if( int( Var_d_idx.size() ) < last || int( d_obj_idx.size() ) != first )
+   throw( std::logic_error(
+        "MasterProblemBlock::append_coordinate_objective: inconsistent "
+        "primal objective state" ) );
+
+  d_obj_idx.reserve( last );
+  triples.reserve( n );
+
+  const bool pure_level = ( StblType == kLevel );
+  const bool level_probe = has_initial_level_objective();
+  const bool has_quad = pure_level || ( StblType == kProximal ) ||
+                        ( StblType == kDoublyStabilized );
+  const double quad = level_probe ? 1.0 / ( 2.0 * t_stab )
+                                  : pure_level ? 0.5
+                                  : has_quad ? 1.0 / ( 2.0 * t_stab ) : 0.0;
+
+  for( int j = first ; j < last ; ++j ) {
+   double linear = ( pure_level && ! level_probe )
+                   ? 0.0 : f_linear_part[ j ];
+   if( f_v2_form && has_quad )
+    linear -= ( pure_level && ! level_probe )
+              ? f_x_bar[ j ] : f_x_bar[ j ] / t_stab;
+   else if( ! f_rho.empty() )
+    linear += f_rho[ j ] * f_x_bar[ j ];
+
+   triples.emplace_back( Var_d_idx[ j ] , linear ,
+                         quad + ( f_rho.empty() ? 0.0
+                                                : f_rho[ j ] / 2.0 ) );
+   }
+
+  dqf->add_variables( std::move( triples ) , issueMod );
+  for( int i = 0 ; i < n ; ++i )
+   d_obj_idx.push_back( base + i );
+  return;
+  }
+
+ if( int( Var_z_idx.size() ) < last ||
+     int( Var_s_plus_idx.size() ) < last ||
+     int( Var_s_minus_idx.size() ) < last ||
+     int( z_obj_idx.size() ) != first ||
+     int( s_plus_obj_idx.size() ) != first ||
+     int( s_minus_obj_idx.size() ) != first )
+  throw( std::logic_error(
+       "MasterProblemBlock::append_coordinate_objective: inconsistent "
+       "dual objective state" ) );
+
+ z_obj_idx.reserve( last );
+ s_plus_obj_idx.reserve( last );
+ s_minus_obj_idx.reserve( last );
+ triples.reserve( 3 * n );
+
+ const double sgn = IsConvex ? -1.0 : 1.0;
+ const bool level_probe = has_initial_level_objective();
+ const bool true_level = ( StblType == kLevel ) && ! level_probe;
+ const bool has_quad = ( StblType == kProximal ) ||
+                       ( StblType == kDoublyStabilized ) ||
+                       ( StblType == kLevel );
+ const double quad = has_quad ? - sgn * ( true_level ? 0.5
+                                                     : t_stab / 2.0 ) : 0.0;
+ const bool iterate = ( f_v2_form != 0 );
+ const bool lazy = ! iterate && ( f_xref_tol > 0.0 ) &&
+                   ( int( f_x_ref.size() ) == NumVars );
+
+ const int z_offset = int( triples.size() );
+ for( int j = first ; j < last ; ++j ) {
+  double linear = 0.0;
+  if( iterate )
+   linear = sgn * f_x_bar[ j ];
+  else if( lazy )
+   linear = - sgn * ( f_x_bar[ j ] - f_x_ref[ j ] );
+  triples.emplace_back( Var_z_idx[ j ] , linear , quad );
+  }
+
+ const int s_plus_offset = int( triples.size() );
+ for( int j = first ; j < last ; ++j ) {
+  const double xj = iterate ? 0.0 : f_x_bar[ j ];
+  const bool has_L = ! f_L.empty() && std::isfinite( f_L[ j ] );
+  triples.emplace_back( Var_s_plus_idx[ j ] ,
+                        has_L ? sgn * ( f_L[ j ] - xj ) : 0.0 , 0.0 );
+  }
+
+ const int s_minus_offset = int( triples.size() );
+ for( int j = first ; j < last ; ++j ) {
+  const double xj = iterate ? 0.0 : f_x_bar[ j ];
+  const bool has_U = ! f_U.empty() && std::isfinite( f_U[ j ] );
+  triples.emplace_back( Var_s_minus_idx[ j ] ,
+                        has_U ? - sgn * ( f_U[ j ] - xj ) : 0.0 , 0.0 );
+  }
+
+ dqf->add_variables( std::move( triples ) , issueMod );
+ for( int i = 0 ; i < n ; ++i ) {
+  z_obj_idx.push_back( base + z_offset + i );
+  s_plus_obj_idx.push_back( base + s_plus_offset + i );
+  s_minus_obj_idx.push_back( base + s_minus_offset + i );
+  }
+}
+
+/*--------------------------------------------------------------------------*/
+
 void MasterProblemBlock::add_vars( int n )
 {
  if( n <= 0 )
   return;
 
- // Structural change: resizing NumVars while the master problem is live
- // requires a coordinated rewrite of:
- //   - the static-variable groups Var_d / Var_v_hard / Var_z
- //     (the Block internally keeps pointers into the underlying vector,
- //     and a plain resize() would invalidate them);
- //   - the dynamic constraint group CouplingCns (one new row z_j = 0
- //     per added coordinate);
- //   - every PolyhedralFunctionBlock sub-Block (its f_polyf
- //     active-variables list, plus the set_conjugate_constraint
- //     bookkeeping, must mirror the new NumVars);
- //   - the DQuadFunction triples laid out as [z..r..omega] in the
- //     master Objective (the new z_j entries must be inserted before
- //     r_obj_idx and omega_obj_idx shifted accordingly).
- //
- // Until the full plumbing is wired in this is a no-op, which is safe
- // whenever NumVars is stable across the algorithm (the typical case
- // for the bundle pipelines exercised by the in-tree tests). A one-shot
- // warning on std::cerr makes the mismatch visible the first time the
- // method is called with a non-zero count, so silent miscomputation can
- // be diagnosed without crashing the surrounding solver.
- static bool warned = false;
- if( ! warned ) {
-  std::cerr << "WARNING: MasterProblemBlock::add_vars( " << n
-            << " ): structural resize not implemented yet; the master "
-               "will not track new coordinates of the original "
-               "sum-function. (This warning is shown once.)"
-            << std::endl;
-  warned = true;
-  }
+ for( int k = 0 ; k < int( HardCmps.size() ) ; ++k )
+  if( get_bundle_size( k ) != 0 )
+   throw( std::invalid_argument(
+        "MasterProblemBlock::add_vars: coefficients of existing cuts are "
+        "required" ) );
+
+ add_vars( n , AddedCutCoefficients( HardCmps.size() ) );
  }
 
 /*--------------------------------------------------------------------------*/
 
-void MasterProblemBlock::remove_vars( const int * , int sz )
+void MasterProblemBlock::add_vars( int n ,
+                                   AddedCutCoefficients coefficients )
 {
- if( sz <= 0 )
+ if( n <= 0 )
   return;
- // see add_vars: structural shrink mirrors the grow path and is left
- // as a no-op with a one-shot warning until the same plumbing lands
- static bool warned = false;
- if( ! warned ) {
-  std::cerr << "WARNING: MasterProblemBlock::remove_vars( ..., " << sz
-            << " ): structural shrink not implemented yet; the master "
-               "will not drop removed coordinates of the original "
-               "sum-function. (This warning is shown once.)"
-            << std::endl;
-  warned = true;
+ if( coefficients.size() != HardCmps.size() )
+  throw( std::invalid_argument(
+       "MasterProblemBlock::add_vars: wrong number of hard components" ) );
+
+ const int first = NumVars;
+ const bool vars_built = f_abs_rep & k_mpb_built_var;
+
+ // Validate all caller-owned data before changing the master. The matrices
+ // are indexed by persistent bundle slot; PolyhedralFunction rows, instead,
+ // are compact and are reconstructed below through slot_to_local.
+ for( int k = 0 ; k < int( HardCmps.size() ) ; ++k ) {
+  auto * pfb = pfb_at( HardCmps , k , "MasterProblemBlock::add_vars" );
+  auto & pf = pfb->get_PolyhedralFunction();
+  const int nr = int( pf.get_nrows() );
+
+  if( ! vars_built && nr != 0 )
+   throw( std::logic_error(
+        "MasterProblemBlock::add_vars: cuts exist before the master "
+        "variables have been generated" ) );
+  if( vars_built && int( pf.get_num_active_var() ) != first )
+   throw( std::logic_error(
+        "MasterProblemBlock::add_vars: inconsistent PFB dimension" ) );
+
+  std::vector< bool > seen( nr , false );
+  const auto & slots = slot_to_local[ k ];
+  const auto & supplied = coefficients[ k ];
+  for( int slot = 0 ; slot < int( slots.size() ) ; ++slot ) {
+   const int loc = slots[ slot ];
+   if( loc < 0 ) {
+    if( slot < int( supplied.size() ) && ! supplied[ slot ].empty() )
+     throw( std::invalid_argument(
+          "MasterProblemBlock::add_vars: coefficients supplied for an "
+          "empty bundle slot" ) );
+    continue;
+    }
+   if( loc >= nr || seen[ loc ] )
+    throw( std::logic_error(
+         "MasterProblemBlock::add_vars: invalid slot-to-row map" ) );
+   if( slot >= int( supplied.size() ) ||
+       int( supplied[ slot ].size() ) != n )
+    throw( std::invalid_argument(
+         "MasterProblemBlock::add_vars: missing or wrongly sized cut "
+         "coefficients" ) );
+   seen[ loc ] = true;
+   }
+  if( std::find( seen.begin() , seen.end() , false ) != seen.end() )
+   throw( std::logic_error(
+        "MasterProblemBlock::add_vars: incomplete slot-to-row map" ) );
+  for( int slot = int( slots.size() ) ; slot < int( supplied.size() ) ;
+       ++slot )
+   if( ! supplied[ slot ].empty() )
+    throw( std::invalid_argument(
+         "MasterProblemBlock::add_vars: bundle slot out of range" ) );
   }
+
+ const auto chnl = open_channel();
+ const auto cpar = make_par( eModBlck , chnl );
+ try {
+  append_coordinate_state( n , cpar );
+  append_coupling_rows( first , n , cpar );
+  append_primal_level_coordinates( first , n , cpar );
+
+  if( vars_built )
+   for( int k = 0 ; k < int( HardCmps.size() ) ; ++k ) {
+    auto * pfb = pfb_at( HardCmps , k , "MasterProblemBlock::add_vars" );
+    auto & pf = pfb->get_PolyhedralFunction();
+    PolyhedralFunction::MultiVector added(
+     pf.get_nrows() , PolyhedralFunction::RealVector( n , 0.0 ) );
+
+    for( int slot = 0 ; slot < int( slot_to_local[ k ].size() ) ; ++slot ) {
+     const int loc = slot_to_local[ k ][ slot ];
+     if( loc >= 0 )
+      added[ loc ] = std::move( coefficients[ k ][ slot ] );
+     }
+
+    if( ! IsPrimal )
+     for( auto & row : added )
+      for( auto & value : row )
+       value = - value;
+
+    PolyhedralFunction::VarVector variables;
+    variables.reserve( n );
+    for( int j = first ; j < first + n ; ++j )
+     variables.push_back( IsPrimal ? Var_d_idx[ j ] : Var_z_idx[ j ] );
+    pf.add_variables( std::move( variables ) , std::move( added ) , cpar );
+    }
+
+  append_coordinate_objective( first , n , cpar );
+
+  // in the displacement form the easy components also need the x_bar part
+  // of the new coordinates in the Objective [see CreateDualMP()]
+  for( Index easy_id = 0 ; easy_id < EasyCmps.size() ; ++easy_id )
+   for( Index i = 0 ; i < EasyCmps[ easy_id ]->get_num_active_var() ; ++i ) {
+    const Index j = easy_local_to_global( easy_id , i );
+    if( ( j >= Index( first ) ) && ( j < Index( first + n ) ) )
+     add_easy_objective_terms( easy_id , j , i , cpar );
+    }
+  }
+ catch( ... ) {
+  close_channel( chnl );
+  throw;
+  }
+ close_channel( chnl );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void MasterProblemBlock::remove_vars( const int * subset , int sz )
+{
+ if( sz < 0 || sz > NumVars ||
+     ( ! subset && sz != 0 && sz != NumVars ) )
+  throw( std::invalid_argument(
+       "MasterProblemBlock::remove_vars: invalid subset size" ) );
+
+ // All indices refer to the old space. A null subset means remove all.
+ if( subset ) {
+  for( int i = 0 ; i < sz ; ++i )
+   if( subset[ i ] < 0 || subset[ i ] >= NumVars ||
+       ( i > 0 && subset[ i - 1 ] >= subset[ i ] ) )
+    throw( std::invalid_argument(
+         "MasterProblemBlock::remove_vars: subset must be strictly "
+         "increasing, unique and within the old coordinate space" ) );
+  }
+
+ if( NumVars == 0 || ( subset && sz == 0 ) )
+  return;
+
+ const int old_n = NumVars;
+ std::vector< int > removed;
+ removed.reserve( subset ? sz : old_n );
+ if( subset )
+  removed.assign( subset , subset + sz );
+ else {
+  removed.resize( old_n );
+  std::iota( removed.begin() , removed.end() , 0 );
+  }
+ const int new_n = old_n - int( removed.size() );
+ const bool vars_built = f_abs_rep & k_mpb_built_var;
+ const bool cnst_built = f_abs_rep & k_mpb_built_cnst;
+ const bool obj_built = f_abs_rep & k_mpb_built_obj;
+
+ // The same old-coordinate subset is used by all the indexed groups. Keep
+ // it explicit even for a complete removal: an empty SMS++ Subset means
+ // "remove all", whereas an empty *coordinate* subset means "do nothing".
+ auto names = [ &removed ]() {
+  return Subset( removed.begin() , removed.end() );
+  };
+ auto compact = [ &removed ]( auto & values ) {
+  if( values.empty() )
+   return;
+  std::size_t dst = 0;
+  std::size_t r = 0;
+  for( std::size_t j = 0 ; j < values.size() ; ++j ) {
+   if( r < removed.size() && j == std::size_t( removed[ r ] ) ) {
+    ++r;
+    continue;
+    }
+   if( dst != j )
+    values[ dst ] = std::move( values[ j ] );
+   ++dst;
+   }
+  values.resize( dst );
+  };
+
+ auto check_size = [ this ]( const std::vector< double > & values ,
+                             bool optional , const char * name ) {
+  if( int( values.size() ) != NumVars &&
+      ( ! optional || ! values.empty() ) )
+   throw( std::logic_error( std::string(
+             "MasterProblemBlock::remove_vars: inconsistent " ) + name ) );
+  };
+ check_size( f_x_bar , false , "reference point" );
+ check_size( f_linear_part , false , "linear part" );
+ check_size( f_x_ref , true , "cut reference" );
+ check_size( f_L , true , "lower bounds" );
+ check_size( f_U , true , "upper bounds" );
+ check_size( f_rho , true , "quadratic coefficients" );
+
+ if( ( cnst_built || obj_built ) && ! vars_built )
+  throw( std::logic_error(
+       "MasterProblemBlock::remove_vars: built constraints or objective "
+       "without variables" ) );
+
+ if( vars_built ) {
+  if( IsPrimal ) {
+   if( int( Var_d.size() ) != old_n ||
+       int( Var_d_idx.size() ) != old_n ||
+       ( cnst_built && ( int( Bounds_d.size() ) != old_n ||
+                         int( Bounds_d_idx.size() ) != old_n ) ) )
+    throw( std::logic_error(
+         "MasterProblemBlock::remove_vars: inconsistent primal groups" ) );
+   }
+  else if( int( Var_z.size() ) != old_n ||
+           int( Var_z_idx.size() ) != old_n ||
+           int( Var_s_plus.size() ) != old_n ||
+           int( Var_s_plus_idx.size() ) != old_n ||
+           int( Var_s_minus.size() ) != old_n ||
+           int( Var_s_minus_idx.size() ) != old_n ||
+           ( cnst_built && int( CouplingCns.size() ) != old_n ) )
+   throw( std::logic_error(
+        "MasterProblemBlock::remove_vars: inconsistent dual groups" ) );
+  }
+
+ for( int k = 0 ; vars_built && k < int( HardCmps.size() ) ; ++k ) {
+  const auto & pf = pfb_at( HardCmps , k ,
+                           "MasterProblemBlock::remove_vars" )
+                    ->get_PolyhedralFunction();
+  if( int( pf.get_num_active_var() ) != NumVars )
+   throw( std::logic_error(
+        "MasterProblemBlock::remove_vars: inconsistent hard-component "
+        "coordinate count" ) );
+  const auto & A = pf.get_A();
+  if( A.size() != pf.get_b().size() )
+   throw( std::logic_error(
+        "MasterProblemBlock::remove_vars: inconsistent hard-component "
+        "cuts" ) );
+  for( const auto & row : A )
+   if( int( row.size() ) != NumVars )
+    throw( std::logic_error(
+         "MasterProblemBlock::remove_vars: inconsistent cut dimension" ) );
+  }
+
+ auto * obj = obj_built ? dynamic_cast< FRealObjective * >( get_objective() )
+                        : nullptr;
+ auto * dqf = obj ? dynamic_cast< DQuadFunction * >( obj->get_function() )
+                  : nullptr;
+ if( obj_built && ! dqf )
+  throw( std::logic_error(
+       "MasterProblemBlock::remove_vars: expected DQuadFunction" ) );
+
+ Subset objective_positions;
+ if( dqf ) {
+  const auto nterms = dqf->get_num_active_var();
+  auto collect = [ & ]( const std::vector< int > & positions ,
+                        const std::vector< ColVariable * > & variables ) {
+   if( int( positions.size() ) != old_n ||
+       int( variables.size() ) != old_n )
+    throw( std::logic_error(
+         "MasterProblemBlock::remove_vars: inconsistent objective map" ) );
+   for( auto j : removed ) {
+    const auto p = positions[ j ];
+    if( p < 0 || DQuadFunction::Index( p ) >= nterms ||
+        dqf->get_active_var( DQuadFunction::Index( p ) ) != variables[ j ] )
+     throw( std::logic_error(
+          "MasterProblemBlock::remove_vars: incorrect objective term" ) );
+    objective_positions.push_back( DQuadFunction::Index( p ) );
+    }
+   };
+  if( IsPrimal )
+   collect( d_obj_idx , Var_d_idx );
+  else {
+   collect( z_obj_idx , Var_z_idx );
+   collect( s_plus_obj_idx , Var_s_plus_idx );
+   collect( s_minus_obj_idx , Var_s_minus_idx );
+   }
+  std::sort( objective_positions.begin() , objective_positions.end() );
+  if( std::adjacent_find( objective_positions.begin() ,
+                          objective_positions.end() ) !=
+      objective_positions.end() )
+   throw( std::logic_error(
+        "MasterProblemBlock::remove_vars: duplicate objective term" ) );
+  }
+
+ auto * level_lf = IsPrimal && cnst_built
+                  ? dynamic_cast< LinearFunction * >( LevelCns.get_function() )
+                  : nullptr;
+ Subset level_positions;
+ if( level_lf ) {
+  if( int( level_d_idx.size() ) != old_n )
+   throw( std::logic_error(
+        "MasterProblemBlock::remove_vars: inconsistent level row" ) );
+  for( auto j : removed ) {
+   const auto p = level_d_idx[ j ];
+   if( p < 0 || LinearFunction::Index( p ) >=
+       level_lf->get_num_active_var() ||
+       level_lf->get_active_var( LinearFunction::Index( p ) ) !=
+                                                            Var_d_idx[ j ] )
+    throw( std::logic_error(
+         "MasterProblemBlock::remove_vars: incorrect level term" ) );
+   level_positions.push_back( LinearFunction::Index( p ) );
+   }
+  std::sort( level_positions.begin() , level_positions.end() );
+  if( std::adjacent_find( level_positions.begin() ,
+                          level_positions.end() ) != level_positions.end() )
+   throw( std::logic_error(
+        "MasterProblemBlock::remove_vars: duplicate level term" ) );
+  }
+
+ for( const auto & row : EasyBBFRows ) {
+  if( ! IsPrimal || ! vars_built || ! row.cns ||
+      int( row.A_row.size() ) != old_n )
+   throw( std::logic_error(
+        "MasterProblemBlock::remove_vars: inconsistent easy BBF row" ) );
+  for( auto j : removed )
+   if( row.cns->is_active( Var_d_idx[ j ] ) == Inf< Index >() )
+    throw( std::logic_error(
+         "MasterProblemBlock::remove_vars: missing easy BBF term" ) );
+  }
+ for( const auto & coeffs : EasyObjCoeffs )
+  for( const auto & term : coeffs )
+   if( term.first >= Index( old_n ) )
+    throw( std::logic_error(
+         "MasterProblemBlock::remove_vars: incorrect easy objective map" ) );
+
+ const auto chnl = open_channel();
+ const auto cpar = make_par( eModBlck , chnl );
+ try {
+  // With the old reference still available, project the stored affine rows
+  // onto the surviving coordinates. In iterate form their constants do not
+  // depend on the reference and need no adjustment.
+  if( vars_built && ! f_v2_form ) {
+   const auto & ref = IsPrimal ? f_x_bar : cut_ref();
+   const double sign = ( IsPrimal || IsConvex ) ? 1.0 : -1.0;
+   for( int k = 0 ; k < int( HardCmps.size() ) ; ++k ) {
+    auto & pf = pfb_at( HardCmps , k ,
+                       "MasterProblemBlock::remove_vars" )
+                ->get_PolyhedralFunction();
+    const auto & A = pf.get_A();
+    for( PolyhedralFunction::Index i = 0 ; i < A.size() ; ++i ) {
+     double delta = 0.0;
+     for( auto j : removed )
+      delta += A[ i ][ j ] * ref[ j ];
+     if( delta != 0.0 )
+      pf.modify_constant( i , pf.get_b()[ i ] - sign * delta , cpar );
+     }
+    }
+   }
+
+  // A dual PFB uses CouplingCns externally; it expects the row group to
+  // have its new size when the PF announces removed active variables.
+  if( ! IsPrimal && cnst_built )
+   remove_dynamic_constraints( CouplingCns , names() , true , cpar );
+
+  if( vars_built )
+   for( int k = 0 ; k < int( HardCmps.size() ) ; ++k ) {
+    auto & pf = pfb_at( HardCmps , k ,
+                       "MasterProblemBlock::remove_vars" )
+                ->get_PolyhedralFunction();
+    if( new_n == 0 )
+     pf.remove_variables( Range( 0 , PolyhedralFunction::Index( old_n ) ) ,
+                          cpar );
+    else
+     pf.remove_variables( names() , true , cpar );
+    }
+
+  if( IsPrimal && cnst_built ) {
+   if( level_lf ) {
+    if( level_positions.size() == level_lf->get_num_active_var() )
+     LevelCns.remove_variables(
+                         Range( 0 , level_lf->get_num_active_var() ) , cpar );
+    else
+     LevelCns.remove_variables( Subset( level_positions ) , true , cpar );
+    }
+   for( auto & row : EasyBBFRows ) {
+    Subset positions;
+    positions.reserve( removed.size() );
+    for( auto j : removed )
+     positions.push_back( row.cns->is_active( Var_d_idx[ j ] ) );
+    std::sort( positions.begin() , positions.end() );
+    if( positions.size() == row.cns->get_num_active_var() )
+     row.cns->remove_variables(
+                        Range( 0 , row.cns->get_num_active_var() ) , cpar );
+    else
+     row.cns->remove_variables( std::move( positions ) , true , cpar );
+    compact( row.A_row );
+    }
+   remove_dynamic_constraints( Bounds_d , names() , true , cpar );
+   compact( Bounds_d_idx );
+   }
+
+  if( dqf )
+   dqf->remove_variables( Subset( objective_positions ) , true , cpar );
+
+  // Every positional map below still contains old objective/level indices.
+  // Subtract the number of deleted terms preceding each surviving one.
+  auto reindex = []( int p , const Subset & removed_positions ) {
+   return p < 0 ? p :
+    p - int( std::lower_bound( removed_positions.begin() ,
+                              removed_positions.end() ,
+                              Index( p ) ) - removed_positions.begin() );
+   };
+  if( dqf ) {
+   compact( d_obj_idx );
+   compact( z_obj_idx );
+   compact( s_plus_obj_idx );
+   compact( s_minus_obj_idx );
+   for( auto & p : d_obj_idx ) p = reindex( p , objective_positions );
+   for( auto & p : z_obj_idx ) p = reindex( p , objective_positions );
+   for( auto & p : s_plus_obj_idx ) p = reindex( p , objective_positions );
+   for( auto & p : s_minus_obj_idx ) p = reindex( p , objective_positions );
+   r_obj_idx = reindex( r_obj_idx , objective_positions );
+   omega_obj_idx = reindex( omega_obj_idx , objective_positions );
+   for( auto & p : easy_obj_idx ) p = reindex( p , objective_positions );
+   level_model_obj_idx = reindex( level_model_obj_idx , objective_positions );
+   }
+  if( level_lf ) {
+   compact( level_d_idx );
+   for( auto & p : level_d_idx ) p = reindex( p , level_positions );
+   }
+
+  if( vars_built ) {
+   if( IsPrimal ) {
+    remove_dynamic_variables( Var_d , names() , true , cpar );
+    compact( Var_d_idx );
+    }
+   else {
+    remove_dynamic_variables( Var_z , names() , true , cpar );
+    remove_dynamic_variables( Var_s_plus , names() , true , cpar );
+    remove_dynamic_variables( Var_s_minus , names() , true , cpar );
+    compact( Var_z_idx );
+    compact( Var_s_plus_idx );
+    compact( Var_s_minus_idx );
+    }
+   }
+
+  compact( f_x_bar );
+  compact( f_x_ref );
+  compact( f_linear_part );
+  compact( f_L );
+  compact( f_U );
+  compact( f_rho );
+  if( ! f_integer.empty() ) {
+   compact( f_integer );
+   f_has_integer = std::find( f_integer.begin() , f_integer.end() , true ) !=
+                   f_integer.end();
+   }
+  NumVars = MaxSGLen = new_n;
+
+  for( auto & map : EasyLocal2Global ) {
+   map.erase( std::remove_if( map.begin() , map.end() ,
+              [ &removed , old_n ]( Index j ) {
+               return j < Index( old_n ) &&
+                      std::binary_search( removed.begin() , removed.end() ,
+                                          int( j ) );
+               } ) , map.end() );
+   for( auto & j : map )
+    if( j < Index( old_n ) )
+     j -= Index( std::lower_bound( removed.begin() , removed.end() ,
+                                  int( j ) ) - removed.begin() );
+   }
+  for( auto & coeffs : EasyObjCoeffs ) {
+   coeffs.erase( std::remove_if( coeffs.begin() , coeffs.end() ,
+                 [ &removed ]( const auto & term ) {
+                  return std::binary_search( removed.begin() , removed.end() ,
+                                             int( term.first ) );
+                  } ) , coeffs.end() );
+   for( auto & term : coeffs )
+    term.first -= Index( std::lower_bound( removed.begin() , removed.end() ,
+                                          int( term.first ) ) -
+                         removed.begin() );
+   }
+
+  // Refresh only the easy rows/objective coefficients that depend on the
+  // projected reference; all other surviving objective terms retain theirs.
+  for( auto & row : EasyBBFRows ) {
+   double side = row.b_i;
+   for( int j = 0 ; j < new_n ; ++j )
+    side += row.A_row[ j ] * f_x_bar[ j ];
+   if( row.side == BendersBFunction::eLHS ||
+       row.side == BendersBFunction::eBoth )
+    row.cns->set_lhs( side , cpar );
+   if( row.side == BendersBFunction::eRHS ||
+       row.side == BendersBFunction::eBoth )
+    row.cns->set_rhs( side , cpar );
+   }
+  if( dqf && ( ! easy_obj_idx.empty() ) )
+   for( std::size_t h = 0 ; h < EasyObjCoeffs.size() ; ++h ) {
+    double coeff = 0.0;
+    for( const auto & [ j , a ] : EasyObjCoeffs[ h ] )
+     coeff += f_x_bar[ j ] * a;
+    dqf->modify_term( DQuadFunction::Index( easy_obj_idx[ h ] ) ,
+                      coeff , 0.0 , cpar );
+    }
+  }
+ catch( ... ) {
+  close_channel( chnl );
+  throw;
+  }
+ close_channel( chnl );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -4353,11 +5305,15 @@ void MasterProblemBlock::remove_initial_level_objective( void )
    }
 
   if( dqf ) {
+   if( int( z_obj_idx.size() ) != NumVars )
+    throw( std::logic_error(
+         "MasterProblemBlock::remove_initial_level_objective: inconsistent "
+         "coordinate-to-objective map" ) );
    const double sgn = IsConvex ? -1.0 : 1.0;
    for( int j = 0 ; j < NumVars ; ++j ) {
     const double lin_coeff = dqf->get_linear_coefficient(
-                                      DQuadFunction::Index( z_obj_idx + j ) );
-    dqf->modify_term( DQuadFunction::Index( z_obj_idx + j ) ,
+                                      DQuadFunction::Index( z_obj_idx[ j ] ) );
+    dqf->modify_term( DQuadFunction::Index( z_obj_idx[ j ] ) ,
                       lin_coeff , - sgn * 0.5 , eNoBlck );
     }
 
@@ -4375,14 +5331,18 @@ void MasterProblemBlock::remove_initial_level_objective( void )
  if( ! dqf )
   return;
 
- const auto n_terms = dqf->get_num_active_var();
- if( DQuadFunction::Index( level_model_obj_idx ) < n_terms ) {
-  const auto n_v_terms = n_terms - DQuadFunction::Index( level_model_obj_idx );
-  std::vector< double > linear( n_v_terms , 0.0 );
-  std::vector< double > quadratic( n_v_terms , 0.0 );
+ if( int( d_obj_idx.size() ) != NumVars )
+  throw( std::logic_error(
+       "MasterProblemBlock::remove_initial_level_objective: inconsistent "
+       "coordinate-to-objective map" ) );
+
+ if( level_model_obj_num > 0 ) {
+  std::vector< double > linear( level_model_obj_num , 0.0 );
+  std::vector< double > quadratic( level_model_obj_num , 0.0 );
   dqf->modify_terms( quadratic.cbegin() , linear.cbegin() ,
                      Range( DQuadFunction::Index( level_model_obj_idx ) ,
-                            n_terms ) );
+                            DQuadFunction::Index( level_model_obj_idx +
+                                                  level_model_obj_num ) ) );
   }
 
  std::vector< double > linear( NumVars );
@@ -4390,12 +5350,18 @@ void MasterProblemBlock::remove_initial_level_objective( void )
  for( int j = 0 ; j < NumVars ; ++j )
   linear[ j ] = f_v2_form ? - f_x_bar[ j ] : 0.0;
 
- if( NumVars > 0 )
+ if( NumVars > 0 ) {
+  Subset terms;
+  terms.reserve( NumVars );
+  for( const auto idx : d_obj_idx )
+   terms.push_back( DQuadFunction::Index( idx ) );
   dqf->modify_terms( quadratic.cbegin() , linear.cbegin() ,
-                     Range( 0 , DQuadFunction::Index( NumVars ) ) );
+                     std::move( terms ) , true );
+  }
 
  f_primal_objective_dirty = false;
  level_model_obj_idx = -1;
+ level_model_obj_num = 0;
 }
 
 /*--------------------------------------------------------------------------*/
@@ -4417,6 +5383,11 @@ void MasterProblemBlock::refresh_primal_objective( void )
   throw( std::logic_error(
        "MasterProblemBlock::refresh_primal_objective: expected "
        "DQuadFunction" ) );
+
+ if( int( d_obj_idx.size() ) != NumVars )
+  throw( std::logic_error(
+       "MasterProblemBlock::refresh_primal_objective: inconsistent "
+       "coordinate-to-objective map" ) );
 
  const bool pure_level = ( StblType == kLevel );
  const bool level_probe = has_initial_level_objective();
@@ -4448,14 +5419,21 @@ void MasterProblemBlock::refresh_primal_objective( void )
 
   changed = changed ||
    ( linear[ j ] !=
-     dqf->get_linear_coefficient( DQuadFunction::Index( j ) ) ) ||
+     dqf->get_linear_coefficient(
+                           DQuadFunction::Index( d_obj_idx[ j ] ) ) ) ||
    ( quadratic[ j ] !=
-     dqf->get_quadratic_coefficient( DQuadFunction::Index( j ) ) );
+     dqf->get_quadratic_coefficient(
+                           DQuadFunction::Index( d_obj_idx[ j ] ) ) );
   }
 
- if( changed )
+ if( changed ) {
+  Subset terms;
+  terms.reserve( NumVars );
+  for( const auto idx : d_obj_idx )
+   terms.push_back( DQuadFunction::Index( idx ) );
   dqf->modify_terms( quadratic.cbegin() , linear.cbegin() ,
-                     Range( 0 , DQuadFunction::Index( NumVars ) ) );
+                     std::move( terms ) , true );
+  }
 
  f_primal_objective_dirty = false;
 }
@@ -4479,13 +5457,22 @@ void MasterProblemBlock::refresh_primal_level_linear_part( Range range )
  auto * lf = dynamic_cast< LinearFunction * >( LevelCns.get_function() );
  if( ! lf )
   return;
+ if( level_d_idx.size() != std::size_t( NumVars ) )
+  throw( std::logic_error(
+       "MasterProblemBlock::refresh_primal_level_linear_part: inconsistent "
+       "coordinate index" ) );
 
  LinearFunction::Vec_FunctionValue coeff;
+ Subset terms;
  coeff.reserve( range.second - range.first );
- for( Index j = range.first ; j < range.second ; ++j )
+ terms.reserve( range.second - range.first );
+ for( Index j = range.first ; j < range.second ; ++j ) {
   coeff.push_back( f_linear_part[ j ] );
+  terms.push_back( Index( level_d_idx[ j ] ) );
+  }
 
- lf->modify_coefficients( std::move( coeff ) , range , eModBlck );
+ lf->modify_coefficients( std::move( coeff ) , std::move( terms ) , true ,
+                          eModBlck );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -4501,13 +5488,20 @@ void MasterProblemBlock::refresh_primal_level_linear_part(
  auto * lf = dynamic_cast< LinearFunction * >( LevelCns.get_function() );
  if( ! lf )
   return;
+ if( level_d_idx.size() != std::size_t( NumVars ) )
+  throw( std::logic_error(
+       "MasterProblemBlock::refresh_primal_level_linear_part: inconsistent "
+       "coordinate index" ) );
 
  LinearFunction::Vec_FunctionValue coeff;
+ Subset terms;
  coeff.reserve( subset.size() );
- for( auto j : subset )
+ terms.reserve( subset.size() );
+ for( auto j : subset ) {
   coeff.push_back( f_linear_part[ j ] );
- auto indices = subset;
- lf->modify_coefficients( std::move( coeff ) , std::move( indices ) , true ,
+  terms.push_back( Index( level_d_idx[ j ] ) );
+  }
+ lf->modify_coefficients( std::move( coeff ) , std::move( terms ) , true ,
                           eModBlck );
  }
 
@@ -4562,13 +5556,13 @@ int MasterProblemBlock::solve_master( void )
                                        f_linear_part.end() ,
                                        []( double c ) { return( c != 0 ); } );
   if( IsPrimal )
-   for( int i = 0 ; i < int( Var_d.size() ) ; ++i )
-    Var_d[ i ].set_value( ( f_v2_form ? f_x_bar[ i ] : 0.0 )
+   for( int i = 0 ; i < int( Var_d_idx.size() ) ; ++i )
+    Var_d_idx[ i ]->set_value( ( f_v2_form ? f_x_bar[ i ] : 0.0 )
                           - ( has_linear ? t_stab * f_linear_part[ i ]
                                          : 0.0 ) );
   else
-   for( int i = 0 ; i < int( Var_z.size() ) ; ++i )
-    Var_z[ i ].set_value( has_linear ? f_linear_part[ i ] : 0.0 );
+   for( int i = 0 ; i < int( Var_z_idx.size() ) ; ++i )
+    Var_z_idx[ i ]->set_value( has_linear ? f_linear_part[ i ] : 0.0 );
 
   return( Solver::kOK );
   }
@@ -4732,8 +5726,8 @@ void MasterProblemBlock::set_integer( std::vector< bool > integer )
   const auto mod = anyone_there() ? eModBlck : eNoMod;
   for( int j = 0 ; j < int( Var_d.size() ) ; ++j ) {
    const bool yn = ( j < int( integer.size() ) ) && integer[ j ];
-   if( Var_d[ j ].is_integer() != yn )
-    Var_d[ j ].is_integer( yn , mod );
+   if( Var_d_idx[ j ]->is_integer() != yn )
+    Var_d_idx[ j ]->is_integer( yn , mod );
    }
   }
 
@@ -4806,8 +5800,7 @@ void MasterProblemBlock::set_t( double t )
   return;
   }
 
- // The z_j quadratic terms occupy the first NumVars entries.
- if( Var_z.empty() ) {
+ if( z_obj_idx.empty() || int( z_obj_idx.size() ) != NumVars ) {
   issue_t_mod();
   return;
   }
@@ -4836,8 +5829,9 @@ void MasterProblemBlock::set_t( double t )
 
  for( int i = 0 ; i < NumVars ; ++i ) {
   const double lin_coeff = dqf->get_linear_coefficient(
-                                       DQuadFunction::Index( i ) );
-  dqf->modify_term( DQuadFunction::Index( i ) , lin_coeff , quad_coeff ,
+                                  DQuadFunction::Index( z_obj_idx[ i ] ) );
+  dqf->modify_term( DQuadFunction::Index( z_obj_idx[ i ] ) ,
+                    lin_coeff , quad_coeff ,
                     tpar );
   }
 
