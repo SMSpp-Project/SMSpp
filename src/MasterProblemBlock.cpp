@@ -5571,12 +5571,11 @@ int MasterProblemBlock::solve_master( void )
 
  int rc = slv->compute();
 
- // a status that promises a solution, possibly an inexact one, may still
- // come with none (e.g., a solver giving up for numerical reasons after
- // having found nothing): then the master problem has failed, and reading
- // the solution would throw
+ // A solution returned with kLowPrecision may exist but be infeasible.
+ // Neither a missing nor an infeasible solution can be used as a master
+ // step; in both cases let the caller handle a failed master solve.
  if( ( rc == Solver::kOK || rc == Solver::kLowPrecision ) &&
-     ( ! slv->has_var_solution() ) )
+     ( ( ! slv->has_var_solution() ) || ( ! slv->is_var_feasible() ) ) )
   rc = Solver::kError;
 
  // SMS++ pattern: compute() only writes the solution to the Solver's internal
