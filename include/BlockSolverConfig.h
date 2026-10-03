@@ -1409,6 +1409,203 @@ class RBlockSolverConfig : public BlockSolverConfig {
 };  // end( class( RBlockSolverConfig ) )
 
 /*--------------------------------------------------------------------------*/
+/*--------------------- CLASS MetaBlockSolverConfig ------------------------*/
+/*--------------------------------------------------------------------------*/
+/// a BlockSolverConfig plus one for the descendants of each classname()
+/** The MetaBlockSolverConfig is a BlockSolverConfig that, besides its own
+ * fields, which configure the Solver of the Block it is apply()-ed to as
+ * those of a BlockSolverConfig do, contains a single extra field: a (pointer
+ * to a)
+ *
+ *   SimpleConfiguration< std::map< std::string , Configuration * > >
+ *
+ * (the "map"), saying which BlockSolverConfig is to be apply()-ed to each
+ * of the descendants of that Block (its sub-Block, their sub-Block, and so
+ * on, but not the Block itself) according to their classname(), the special
+ * entry "*" (if any) acting as the default for the descendants whose
+ * classname() does not match any other entry. A descendant matching no
+ * entry, or matching an entry whose Configuration is nullptr, is left alone.
+ * Each entry of the map must be a BlockSolverConfig (or nullptr).
+ *
+ * The descendants are visited father-first: the sub-Block of a Block are
+ * looked up only after the Block itself has been configured. The same
+ * BlockSolverConfig of the map is typically apply()-ed to many descendants;
+ * this is fine since the registry of the Solver it has registered is
+ * per-Block [see BlockSolverConfig::apply()], and therefore clear()-ing
+ * the MetaBlockSolverConfig, which also clear()-s all the BlockSolverConfig
+ * of the map, gives the object that un-does all of it.
+ *
+ * In the textual format, the map follows the usual fields of the
+ * BlockSolverConfig as a Configuration, i.e., either written in place or as
+ * the name of the file containing it ("*filename"); "*" alone, or nothing at
+ * all, mean that there is no map. Unlike in a BlockSolverConfig, the number
+ * of ComputeConfig can also be given when there are no Solver names, as the
+ * canonical files always write it. In the netCDF format, the map is the
+ * Configuration in the sub-group "map", if any. */
+
+class MetaBlockSolverConfig : public BlockSolverConfig {
+
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+ public:
+
+/*---------------------------- PUBLIC TYPES --------------------------------*/
+
+ /// the type of the map from classname() to BlockSolverConfig
+ using MapConfig = SimpleConfiguration< std::map< std::string ,
+						  Configuration * > >;
+
+/*--------------------------------------------------------------------------*/
+/*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+/*--------------------------------------------------------------------------*/
+/*----------- CONSTRUCTING AND DESTRUCTING MetaBlockSolverConfig -----------*/
+/*--------------------------------------------------------------------------*/
+
+ /// constructor: creates an empty MetaBlockSolverConfig
+
+ explicit MetaBlockSolverConfig( bool diff = true )
+  : BlockSolverConfig( diff ) {}
+
+/*--------------------------------------------------------------------------*/
+ /// constructs a MetaBlockSolverConfig out of the given netCDF \p group
+
+ explicit MetaBlockSolverConfig( netCDF::NcGroup & group )
+  : BlockSolverConfig() { MetaBlockSolverConfig::deserialize( group ); }
+
+/*--------------------------------------------------------------------------*/
+ /// constructs a MetaBlockSolverConfig out of an istream
+
+ explicit MetaBlockSolverConfig( std::istream & input )
+  : BlockSolverConfig() { MetaBlockSolverConfig::load( input ); }
+
+/*--------------------------------------------------------------------------*/
+ /// copy constructor: also copies the map
+
+ MetaBlockSolverConfig( const MetaBlockSolverConfig & old )
+  : BlockSolverConfig( old ) ,
+    f_map( old.f_map ? old.f_map->clone() : nullptr ) {}
+
+/*--------------------------------------------------------------------------*/
+ /// copy assignment operator: it is deleted
+
+ MetaBlockSolverConfig & operator=( const MetaBlockSolverConfig & ) = delete;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// extends BlockSolverConfig::deserialize( netCDF::NcGroup )
+
+ void deserialize( const netCDF::NcGroup & group ) override;
+
+/*------------------------------ DESTRUCTOR --------------------------------*/
+ /// destructor: deletes the map
+
+ ~MetaBlockSolverConfig() override { delete f_map; }
+
+/*-------------------------- OTHER INITIALIZATIONS -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ /// getting the BlockSolverConfig of the given Block, the map is kept
+ /** Gets the fields of the BlockSolverConfig out of \p block as
+  * BlockSolverConfig::get() does; the map is kept as it is, since which
+  * descendants should share a BlockSolverConfig cannot be told out of the
+  * Block, but if \p clear is true then all its BlockSolverConfig are
+  * clear()-ed. */
+
+ void get( const Block * block , bool clear = false ) override {
+  BlockSolverConfig::get( block , clear );
+  if( clear && f_map )
+   f_map->clear();
+  }
+
+/*------- METHODS DESCRIBING THE BEHAVIOR OF THE MetaBlockSolverConfig -----*/
+/*--------------------------------------------------------------------------*/
+
+ /// configure the Solver of the Block, then those of its descendants
+
+ void apply( Block * block ,
+             const std::unordered_set< Block * > * ignored = nullptr )
+  override;
+
+/*--------------------------------------------------------------------------*/
+ /// clear this MetaBlockSolverConfig, comprised all those in the map
+
+ void clear( void ) override {
+  BlockSolverConfig::clear();
+  if( f_map )
+   f_map->clear();
+  }
+
+/*------------------------------- CLONE -----------------------------------*/
+
+ [[nodiscard]] MetaBlockSolverConfig * clone( void ) const override {
+  return( new MetaBlockSolverConfig( *this ) );
+  }
+
+/*----- METHODS FOR LOADING, PRINTING & SAVING THE MetaBlockSolverConfig ---*/
+/*--------------------------------------------------------------------------*/
+
+ /// extends BlockSolverConfig::serialize( netCDF::NcGroup )
+
+ void serialize( netCDF::NcGroup & group ) const override;
+
+/*------------ METHODS FOR MODIFYING THE MetaBlockSolverConfig -------------*/
+/*--------------------------------------------------------------------------*/
+
+ /// sets the map, of which the MetaBlockSolverConfig takes ownership
+ /** Sets the map, deleting the previous one (if any); nullptr means no
+  * map. Throws std::invalid_argument if any entry of \p map is neither a
+  * BlockSolverConfig nor nullptr. */
+
+ void set_map( MapConfig * map );
+
+/*-------- Methods for reading the data of the MetaBlockSolverConfig -------*/
+/*--------------------------------------------------------------------------*/
+
+ /// returns the map, nullptr if there is none
+
+ [[nodiscard]] MapConfig * get_map( void ) const { return( f_map ); }
+
+/*--------------------------------------------------------------------------*/
+ /// returns true if the MetaBlockSolverConfig is "empty"
+
+ [[nodiscard]] bool empty( void ) const override {
+  return( BlockSolverConfig::empty() &&
+	  ( ( ! f_map ) || f_map->f_value.empty() ) );
+  }
+
+/*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+
+ /// print the MetaBlockSolverConfig
+
+ void print( std::ostream & output ) const override;
+
+/*--------------------------------------------------------------------------*/
+ /// load this MetaBlockSolverConfig out of an istream
+
+ void load( std::istream & input ) override;
+
+/*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
+
+ /// the map from classname() to the BlockSolverConfig of the descendants
+ MapConfig * f_map = nullptr;
+
+/*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
+
+ private:
+
+/*---------------------------- PRIVATE FIELDS ------------------------------*/
+
+ SMSpp_insert_in_factory_h;
+
+/*--------------------------------------------------------------------------*/
+
+};  // end( class( MetaBlockSolverConfig ) )
+
+/*--------------------------------------------------------------------------*/
 
 /** @}  end( group( BlockSolverConfig_CLASSES ) ) */
 

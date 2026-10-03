@@ -2045,6 +2045,159 @@ static void test_meta_configuration( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* A MetaBlockSolverConfig configures the Block it is apply()-ed to with its
+ * own fields and the descendants, not the Block itself, with the map, by
+ * classname() and "*" for the others; cleared, it removes all it has
+ * registered; the map goes through clone() and netCDF, a missing map is
+ * none, and an entry that is not a BlockSolverConfig throws. */
+
+static void test_MetaBlockSolverConfig( void )
+{
+ AbstractBlock root;
+ auto child = new AbstractBlock( & root );
+ root.add_nested_Block( child );
+ auto grand = new AbstractBlock( child );
+ child->add_nested_Block( grand );
+
+ const std::string map_head =
+                "SimpleConfiguration<std::map<std::string,Configuration*>> ";
+ auto c = from_text( "MetaBlockSolverConfig 2  1 FakeSolver  0\n" + map_head +
+		     "1  AbstractBlock BlockSolverConfig 2  2 FakeSolver "
+		     "FakeSolver  0\n" );
+ auto m = dynamic_cast< MetaBlockSolverConfig * >( c );
+ expect( m && m->get_map() && ( m->get_map()->f_value.size() == 1 ) ,
+	 "MetaBlockSolverConfig: the map is read" );
+ if( ! m ) {
+  delete c;
+  return;
+  }
+
+ m->apply( & root );
+ expect( ( root.get_registered_solvers().size() == 1 ) &&
+	 ( child->get_registered_solvers().size() == 2 ) &&
+	 ( grand->get_registered_solvers().size() == 2 ) ,
+	 "MetaBlockSolverConfig: own fields on the Block, map on the rest" );
+
+ auto k = m->clone();
+ expect( k->get_map() && ( k->get_map() != m->get_map() ) &&
+	 ( k->get_map()->f_value.size() == 1 ) &&
+	 ( k->get_map()->f_value.begin()->second !=
+	   m->get_map()->f_value.begin()->second ) ,
+	 "MetaBlockSolverConfig: clone() copies the map" );
+ delete k;
+
+ auto n = nc_as< MetaBlockSolverConfig >( *m );
+ expect( n && n->get_map() && n->get_map()->f_value.count( "AbstractBlock" ) &&
+	 dynamic_cast< BlockSolverConfig * >(
+		     n->get_map()->f_value.at( "AbstractBlock" ) ) ,
+	 "MetaBlockSolverConfig: the map goes through netCDF" );
+ delete n;
+
+ m->clear();
+ m->apply( & root );
+ expect( root.get_registered_solvers().empty() &&
+	 child->get_registered_solvers().empty() &&
+	 grand->get_registered_solvers().empty() ,
+	 "MetaBlockSolverConfig: cleared, it removes all it registered" );
+ delete m;
+
+ // "*" for the classname() that are not in the map
+ c = from_text( "MetaBlockSolverConfig 2  0  0\n" + map_head +
+		"2  NoSuchBlock BlockSolverConfig 2  2 FakeSolver FakeSolver"
+		"  0"
+		"   * BlockSolverConfig 2  1 FakeSolver  0\n" );
+ m = dynamic_cast< MetaBlockSolverConfig * >( c );
+ expect( m , "MetaBlockSolverConfig: read with a \"*\" entry" );
+ if( m ) {
+  m->apply( & root );
+  expect( root.get_registered_solvers().empty() &&
+	  ( child->get_registered_solvers().size() == 1 ) &&
+	  ( grand->get_registered_solvers().size() == 1 ) ,
+	  "MetaBlockSolverConfig: \"*\" for the others" );
+  m->clear();
+  m->apply( & root );
+  expect( child->get_registered_solvers().empty() &&
+	  grand->get_registered_solvers().empty() ,
+	  "MetaBlockSolverConfig: \"*\" entries are removed by the cleared" );
+  }
+ delete c;
+
+ // no map, and "*" for no map
+ for( std::string tail : { "" , " *" } ) {
+  c = from_text( "MetaBlockSolverConfig 2  1 FakeSolver  0" + tail );
+  m = dynamic_cast< MetaBlockSolverConfig * >( c );
+  expect( m && ( ! m->get_map() ) , "MetaBlockSolverConfig: no map" );
+  delete c;
+  }
+
+ // an entry that is not a BlockSolverConfig
+ expect( throws< std::invalid_argument >( [ & ]() {
+          delete from_text( "MetaBlockSolverConfig 2  0  0\n" + map_head +
+			    "1  AbstractBlock SimpleConfiguration<int> 1\n" );
+	  } ) , "MetaBlockSolverConfig: an entry of the wrong type throws" );
+
+ std::cout << "MetaBlockSolverConfig: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+/* A MetaBlockConfig configures the Block it is apply()-ed to with its own
+ * fields and the descendants with the map, through copies, so that the map
+ * is unchanged and can be apply()-ed again. */
+
+static void test_MetaBlockConfig( void )
+{
+ const std::string slots = " *  *  *  *  *  *  *  *  * ";
+ const std::string map_head =
+                "SimpleConfiguration<std::map<std::string,Configuration*>> ";
+ auto c = from_text( "MetaBlockConfig 1 2" + slots +
+		     "SimpleConfiguration<int> 3\n" + map_head +
+		     "1  AbstractBlock BlockConfig 1 2" + slots +
+		     "SimpleConfiguration<int> 7\n" );
+ auto m = dynamic_cast< MetaBlockConfig * >( c );
+ expect( m && m->get_map() && ( m->get_map()->f_value.size() == 1 ) ,
+	 "MetaBlockConfig: the map is read" );
+ if( ! m ) {
+  delete c;
+  return;
+  }
+
+ auto extra_of = []( Block * b ) {
+  auto bc = b->get_BlockConfig();
+  auto sc = bc ? dynamic_cast< SimpleConfiguration< int > * >(
+				     bc->f_extra_Configuration ) : nullptr;
+  return( sc ? sc->f_value : -1 );
+  };
+
+ for( int round = 0 ; round < 2 ; ++round ) {
+  AbstractBlock root;
+  auto child = new AbstractBlock( & root );
+  root.add_nested_Block( child );
+  auto grand = new AbstractBlock( child );
+  child->add_nested_Block( grand );
+
+  auto k = m->clone();
+  k->apply( & root );
+  delete k;
+  expect( ( extra_of( & root ) == 3 ) && ( extra_of( child ) == 7 ) &&
+	  ( extra_of( grand ) == 7 ) ,
+	  "MetaBlockConfig: own fields on the Block, map on descendants" );
+  }
+
+ auto n = nc_as< MetaBlockConfig >( *m );
+ expect( n && n->get_map() && n->get_map()->f_value.count( "AbstractBlock" ) ,
+	 "MetaBlockConfig: the map goes through netCDF" );
+ delete n;
+ delete m;
+
+ expect( throws< std::invalid_argument >( [ & ]() {
+          delete from_text( "MetaBlockConfig 1 2" + slots + "*\n" + map_head +
+			    "1  AbstractBlock SimpleConfiguration<int> 1\n" );
+	  } ) , "MetaBlockConfig: an entry of the wrong type throws" );
+
+ std::cout << "MetaBlockConfig: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
 /* The "*file" of the text format inside a meta-configuration: a .txt file,
  * the Configuration in a given position of a netCDF file, and '*'. */
 
@@ -2674,6 +2827,8 @@ int main( void )
  test_pairs_and_vectors();
  test_nested();
  test_meta_configuration();
+ test_MetaBlockSolverConfig();
+ test_MetaBlockConfig();
  test_includes();
  test_ComputeConfig_copy();
  test_ComputeConfig_apply();

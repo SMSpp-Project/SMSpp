@@ -116,6 +116,7 @@
 #include "Solver.h"
 
 #include <boost/bimap.hpp>
+#include <list>
 #include <netcdf>
 #include <span>
 #include <type_traits>
@@ -9585,6 +9586,57 @@ class BlockConfig : public Configuration {
 /*--------------------------------------------------------------------------*/
 /** @defgroup Block_FUNCTIONS Block-related functions.
  *  @{ */
+
+/// calls a function on the Block of a tree, by classname()
+/** Calls f( b , c ) on each descendant b of \p block, and on \p block itself
+ * if \p root is true, where c is the Configuration associated with
+ * b->classname() in \p map, or that associated with the special key "*"
+ * (if any) when b->classname() is not a key of \p map; a Block with no
+ * Configuration, or a nullptr one, is skipped. This is how a "meta"
+ * Configuration, i.e., a
+ *
+ *   SimpleConfiguration< std::map< std::string , Configuration * > >
+ *
+ * is dispatched over a tree of Block [see MetaBlockConfig and
+ * MetaBlockSolverConfig]. The visit is father-first, and the sub-Block of a
+ * Block are looked up only after f() has been called on it, since
+ * configuring a Block may change them [see Block::set_structure()]. */
+
+template< class F >
+void for_each_by_classname(
+		     Block * block ,
+		     const std::map< std::string , Configuration * > & map ,
+		     F f , bool root = true )
+{
+ if( ( ! block ) || map.empty() )
+  return;
+
+ const auto dflt = map.find( "*" );
+ auto visit = [ & ]( Block * b ) {
+  auto it = map.find( b->classname() );
+  if( it == map.end() )
+   it = dflt;
+  if( ( it != map.end() ) && it->second )
+   f( b , it->second );
+  };
+
+ std::list< Block * > BFS;
+ if( root )
+  BFS.push_back( block );
+ else
+  for( auto el : block->get_nested_Blocks() )
+   BFS.push_back( el );
+
+ while( ! BFS.empty() ) {
+  auto b = BFS.front();
+  BFS.pop_front();
+  visit( b );
+  for( auto el : b->get_nested_Blocks() )
+   BFS.push_back( el );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
 
 /// deserialize a Block (*) out of a given group
 /** Deserialize a Block (*) , out of the given \p group and into \p data.

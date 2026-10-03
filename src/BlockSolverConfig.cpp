@@ -22,6 +22,8 @@
 
 #include <algorithm>
 
+#include <cctype>
+
 #include "BlockInspection.h"
 
 #include "BlockSolverConfig.h"
@@ -44,6 +46,8 @@ using namespace SMSpp_di_unipi_it;
 SMSpp_insert_in_factory_cpp_0( BlockSolverConfig );
 
 SMSpp_insert_in_factory_cpp_0( RBlockSolverConfig );
+
+SMSpp_insert_in_factory_cpp_0( MetaBlockSolverConfig );
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- AUXILIARY FUNCTIONS --------------------------*/
@@ -855,6 +859,147 @@ void RBlockSolverConfig::load( std::istream & input )
    }
   }
  }  // end( RBlockSolverConfig::load )
+
+/*--------------------------------------------------------------------------*/
+/*------------------ METHODS of MetaBlockSolverConfig ----------------------*/
+/*--------------------------------------------------------------------------*/
+
+void MetaBlockSolverConfig::set_map( MapConfig * map )
+{
+ if( map )
+  for( const auto & [ key , val ] : map->f_value )
+   if( val && ( ! dynamic_cast< BlockSolverConfig * >( val ) ) ) {
+    delete map;
+    throw( std::invalid_argument( "MetaBlockSolverConfig::set_map: entry "
+				  + key + " is not a BlockSolverConfig" ) );
+    }
+
+ delete f_map;
+ f_map = map;
+
+ }  // end( MetaBlockSolverConfig::set_map )
+
+/*--------------------------------------------------------------------------*/
+
+void MetaBlockSolverConfig::deserialize( const netCDF::NcGroup & group )
+{
+ BlockSolverConfig::deserialize( group );
+
+ auto mg = group.getGroup( "map" );
+ if( mg.isNull() ) {
+  set_map( nullptr );
+  return;
+  }
+
+ auto cfg = new_Configuration( mg );
+ auto map = dynamic_cast< MapConfig * >( cfg );
+ if( cfg && ( ! map ) ) {
+  delete cfg;
+  throw( std::invalid_argument( "MetaBlockSolverConfig::deserialize: map "
+				"is not a map from classname to Configuration"
+				) );
+  }
+ set_map( map );
+
+ }  // end( MetaBlockSolverConfig::deserialize( group ) )
+
+/*--------------------------------------------------------------------------*/
+
+void MetaBlockSolverConfig::apply( Block * block ,
+			      const std::unordered_set< Block * > * ignored )
+{
+ if( ! block )
+  return;
+
+ BlockSolverConfig::apply( block , ignored );
+
+ if( ( ! f_map ) || f_map->f_value.empty() )
+  return;
+
+ // the descendants, father-first
+ for_each_by_classname( block , f_map->f_value ,
+			[ ignored ]( Block * b , Configuration * c ) {
+			 static_cast< BlockSolverConfig * >( c )->apply(
+								 b , ignored );
+			 } , false );
+ }  // end( MetaBlockSolverConfig::apply )
+
+/*--------------------------------------------------------------------------*/
+
+void MetaBlockSolverConfig::serialize( netCDF::NcGroup & group ) const
+{
+ BlockSolverConfig::serialize( group );
+
+ if( f_map ) {
+  auto mg = group.addGroup( "map" );
+  f_map->serialize( mg );
+  }
+ }  // end( MetaBlockSolverConfig::serialize( group ) )
+
+/*--------------------------------------------------------------------------*/
+
+void MetaBlockSolverConfig::print( std::ostream & output ) const
+{
+ BlockSolverConfig::print( output );
+
+ output << "BlockSolverConfig of the descendants, by classname" << std::endl;
+ if( f_map )
+  output << *f_map;
+ else
+  output << "nullptr" << std::endl;
+ output << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void MetaBlockSolverConfig::load( std::istream & input )
+{
+ static const std::string sre(
+			   "MetaBlockSolverConfig::load: stream read error" );
+
+ BlockSolverConfig::load( input );
+
+ if( advance( input ) ) {  // nothing more: no map
+  set_map( nullptr );
+  return;
+  }
+
+ // with no Solver names, BlockSolverConfig::load() stops before the number
+ // of ComputeConfig, which the map, never starting with a digit, cannot be
+ // confused with: read it, and the ComputeConfig, here
+ if( v_SolverNames.empty() &&
+     std::isdigit( static_cast< unsigned char >( input.peek() ) ) ) {
+  Index k;
+  input >> k;
+  checkfail( input , sre );
+  v_SolverNames.resize( k );
+  v_SolverConfigs.assign( k , nullptr );
+  for( Index i = 0 ; i < k ; ++i ) {
+   auto cfg = Configuration::deserialize( input );
+   if( cfg && ( ! ( v_SolverConfigs[ i ] =
+		    dynamic_cast< ComputeConfig * >( cfg ) ) ) ) {
+    delete cfg;
+    throw( std::invalid_argument( "MetaBlockSolverConfig::load: not a "
+				  "ComputeConfig " + std::to_string( i ) ) );
+    }
+   }
+  }
+
+ if( advance( input ) ) {  // nothing more: no map
+  set_map( nullptr );
+  return;
+  }
+
+ auto cfg = Configuration::deserialize( input );  // '*' is nullptr
+ auto map = dynamic_cast< MapConfig * >( cfg );
+ if( cfg && ( ! map ) ) {
+  delete cfg;
+  throw( std::invalid_argument( "MetaBlockSolverConfig::load: map is not "
+				"a map from classname to Configuration" ) );
+  }
+ set_map( map );
+
+ }  // end( MetaBlockSolverConfig::load )
 
 /*--------------------------------------------------------------------------*/
 /*------------------ End File BlockSolverConfig.cpp ------------------------*/

@@ -36,7 +36,7 @@ using namespace SMSpp_di_unipi_it::BlockConfigHandlers;
 /*----------------------------- STATIC MEMBERS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
-// register all seven *BlockConfig to the Configuration factory
+// register all eight *BlockConfig to the Configuration factory
 
 SMSpp_insert_in_factory_cpp_0( RBlockConfig );
 
@@ -51,6 +51,8 @@ SMSpp_insert_in_factory_cpp_0( ORBlockConfig );
 SMSpp_insert_in_factory_cpp_0( OCBlockConfig );
 
 SMSpp_insert_in_factory_cpp_0( OCRBlockConfig );
+
+SMSpp_insert_in_factory_cpp_0( MetaBlockConfig );
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- AUXILIARY FUNCTIONS --------------------------*/
@@ -682,6 +684,118 @@ BlockConfig * OCRBlockConfig::get_right_BlockConfig( const Block * block )
  return( OCRBC );
 
  }  // end( OCRBlockConfig::get_right_BlockConfig )
+
+/*--------------------------------------------------------------------------*/
+/*---------------------- METHODS of MetaBlockConfig ------------------------*/
+/*--------------------------------------------------------------------------*/
+
+void MetaBlockConfig::set_map( MapConfig * map )
+{
+ if( map )
+  for( const auto & [ key , val ] : map->f_value )
+   if( val && ( ! dynamic_cast< BlockConfig * >( val ) ) ) {
+    delete map;
+    throw( std::invalid_argument( "MetaBlockConfig::set_map: entry " + key
+				  + " is not a BlockConfig" ) );
+    }
+
+ delete f_map;
+ f_map = map;
+
+ }  // end( MetaBlockConfig::set_map )
+
+/*--------------------------------------------------------------------------*/
+
+void MetaBlockConfig::deserialize( const netCDF::NcGroup & group )
+{
+ BlockConfig::deserialize( group );
+
+ auto mg = group.getGroup( "map" );
+ if( mg.isNull() ) {
+  set_map( nullptr );
+  return;
+  }
+
+ auto cfg = new_Configuration( mg );
+ auto map = dynamic_cast< MapConfig * >( cfg );
+ if( cfg && ( ! map ) ) {
+  delete cfg;
+  throw( std::invalid_argument( "MetaBlockConfig::deserialize: map is not "
+				"a map from classname to Configuration" ) );
+  }
+ set_map( map );
+
+ }  // end( MetaBlockConfig::deserialize( group ) )
+
+/*--------------------------------------------------------------------------*/
+
+void MetaBlockConfig::apply( Block * block , bool deleteold )
+{
+ if( ! block )
+  return;
+
+ BlockConfig::apply( block , deleteold );
+
+ if( ( ! f_map ) || f_map->f_value.empty() )
+  return;
+
+ // the descendants, father-first; apply() moves the sub-Configuration
+ // away, hence a copy of each BlockConfig is used
+ for_each_by_classname( block , f_map->f_value ,
+			[ deleteold ]( Block * b , Configuration * c ) {
+			 auto bc = static_cast< BlockConfig * >( c )->clone();
+			 bc->apply( b , deleteold );
+			 delete bc;
+			 } , false );
+ }  // end( MetaBlockConfig::apply )
+
+/*--------------------------------------------------------------------------*/
+
+void MetaBlockConfig::serialize( netCDF::NcGroup & group ) const
+{
+ BlockConfig::serialize( group );
+
+ if( f_map ) {
+  auto mg = group.addGroup( "map" );
+  f_map->serialize( mg );
+  }
+ }  // end( MetaBlockConfig::serialize( group ) )
+
+/*--------------------------------------------------------------------------*/
+
+void MetaBlockConfig::print( std::ostream & output ) const
+{
+ BlockConfig::print( output );
+
+ output << "BlockConfig of the descendants, by classname" << std::endl;
+ if( f_map )
+  output << *f_map;
+ else
+  output << "nullptr" << std::endl;
+ output << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void MetaBlockConfig::load( std::istream & input )
+{
+ BlockConfig::load( input );
+
+ if( advance( input ) ) {  // nothing more: no map
+  set_map( nullptr );
+  return;
+  }
+
+ auto cfg = Configuration::deserialize( input );  // '*' is nullptr
+ auto map = dynamic_cast< MapConfig * >( cfg );
+ if( cfg && ( ! map ) ) {
+  delete cfg;
+  throw( std::invalid_argument( "MetaBlockConfig::load: map is not a map "
+				"from classname to Configuration" ) );
+  }
+ set_map( map );
+
+ }  // end( MetaBlockConfig::load )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- End File RBlockConfig.cpp --------------------------*/

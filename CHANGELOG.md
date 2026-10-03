@@ -116,6 +116,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `clear_reverse_local_branching()` removes them all. `remove_vars()` drops
   them all as well, and writes again the one around the centre
 
+- `MetaBlockSolverConfig` and `MetaBlockConfig`: a BlockSolverConfig and a
+  BlockConfig that, besides configuring the Block they are applied to with
+  their own fields, carry a map from `classname()` to the
+  BlockSolverConfig / BlockConfig of the descendants of that Block, `"*"`
+  being that of the classnames not in the map. The map is a
+  `SimpleConfiguration< std::map< std::string , Configuration * > >`,
+  written after the usual fields (or as `*filename`); clearing the
+  `MetaBlockSolverConfig` clears those of the map too, so that it removes
+  all the Solver it has registered
+
+- `for_each_by_classname()`, which dispatches such a map over a tree of
+  Block, father-first, looking up the sub-Block of a Block only after it
+  has been configured, since configuring it may change them
+
+- `LagBFunction::set_lazy_inner_BlockSolverConfig()`: a BlockSolverConfig
+  for the inner Block that the LagBFunction applies, in additive mode, the
+  first time it is computed, so that an inner Block that is never computed
+  (say, an easy component of a BundleSolver) gets no Solver;
+  `lazy_inner_BlockSolverConfig_pending()` tells whether that has happened
+
 - `MasterProblemBlock::add_easy_coupling( easy_id , j , local_i )`, the
   reverse of `drop_easy_coupling()`: the easy component gets the terms of
   its Lagrangian term on the coordinate j, already in the master, in the
@@ -565,6 +585,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rather than 0: the Lagrangian costs of the following `compute()` were
   computed without it, and `cleanup_inner_objective()` brought back 0 in
   place of it (e.g., the weight of the clauses added to a sub-`SATBlock`)
+
+- the MasterProblemBlock saves the dual values of the easy components after
+  having asked them to the Solver of the master, and also in the dual form
+  of the master: before, it saved whatever their rows held, which in the
+  dual form was never written
+
+- the inner Block of a LagBFunction issues its Modification even when no
+  Solver is registered to it, as the LagBFunction needs them to keep its
+  costs up to date: before, a change of the inner Block made before its
+  first Solver was registered did not reach the LagBFunction
 
 - `MasterProblemBlock::add_vars()` in the displacement form of the dual
   gives the easy components the x_bar part of the new coordinates in the
