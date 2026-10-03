@@ -193,7 +193,8 @@ LagBFunction::LagBFunction( Block * innerblock , Observer * observer )
    f_active_dirty( true ) , f_lazy_eval( false ) , f_max_glob( 0 ) ,
    LastSolution( 0 ) , VarSol( true ) , f_yb( -INF ) ,
    f_play_dumb( false ) , f_dirty_Lc( false ) , f_c_changed( false ) ,
-   f_Lc( -1 ) , LPMaxSz( 0 ) , f_BSC( nullptr ) , f_CC( nullptr ) ,
+   f_Lc( -1 ) , LPMaxSz( 0 ) , f_BSC( nullptr ) , f_lBSC( nullptr ) ,
+   f_lBSC_on( false ) , f_CC( nullptr ) ,
    f_CC_changed( false ) , f_BS( nullptr ) , f_id( this )
 {
  // set the pointer to the sub-Block (B) - - - - - - - - - - - - - - - - - - -
@@ -266,6 +267,11 @@ void LagBFunction::set_inner_block( Block * innerblock , bool deleteold )
  v_Block.resize( 1 );
  v_Block.front() = innerblock;
  innerblock->set_f_Block( this );
+
+ // the LagBFunction "is always listening" [see anyone_there()]: tell it to
+ // the inner Block, which otherwise issues no Modification until a Solver
+ // is registered to it
+ innerblock->anyone_there( true );
 
  // ensure the Objective of the inner Block is defined (and therefore the
  // Variable need to) because LagBFunction checks it
@@ -542,6 +548,23 @@ void LagBFunction::set_ComputeConfig( const ComputeConfig * scfg )
  ThinComputeInterface::set_ComputeConfig( scfg );
 
  }  // end( LagBFunction::set_ComputeConfig )
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::set_lazy_inner_BlockSolverConfig( BlockSolverConfig * bsc )
+{
+ if( f_lBSC ) {
+  // if it has been applied, the clear()-ed copy removes the Solver it has
+  // registered to the inner Block
+  if( f_lBSC_on && ( ! v_Block.empty() ) )
+   f_lBSC->apply( v_Block.front() );
+  delete f_lBSC;
+  }
+
+ f_lBSC = bsc;
+ f_lBSC_on = false;
+
+ }  // end( LagBFunction::set_lazy_inner_BlockSolverConfig )
 
 /*--------------------------------------------------------------------------*/
 
@@ -2193,6 +2216,19 @@ void LagBFunction::delete_linearizations( Subset && which , bool ordered ,
 
 int LagBFunction::compute( bool changedvars )
 {
+ // if a BlockSolverConfig is waiting for the first compute(), apply it now
+ // [see set_lazy_inner_BlockSolverConfig()]
+ if( lazy_inner_BlockSolverConfig_pending() && ( ! v_Block.empty() ) ) {
+  auto inner = v_Block.front();
+  const auto nslv = inner->get_registered_solvers().size();
+  f_lBSC->set_diff( BlockSolverConfig::eAddMode );
+  f_lBSC->apply( inner );
+  f_lBSC->clear();
+  f_lBSC_on = true;
+  if( inner->get_registered_solvers().size() > nslv )
+   set_par( intInnrSlvr , int( nslv ) );
+  }
+
  auto is = inner_Solver();
  if( ! is )          // there is no inner Solver
   return( kError );  // that's clearly an error
@@ -3465,6 +3501,10 @@ void LagBFunction::guts_of_destructor( bool deleteinner )
  // clear() all the LagBFunction - - - - - - - - - - - - - - - - - - - - - - -
 
  clear();
+
+ // remove the Solver registered by the BlockSolverConfig given with
+ // set_lazy_inner_BlockSolverConfig(), if any, before those of f_BSC
+ set_lazy_inner_BlockSolverConfig( nullptr );
 
  // cleanup and possibly delete the inner Block - - - - - - - - - - - - - - -
 

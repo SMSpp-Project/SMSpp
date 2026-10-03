@@ -1321,6 +1321,43 @@ class LagBFunction : public C05Function , public Block
  void set_ComputeConfig( const ComputeConfig * scfg = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
+ /// give a BlockSolverConfig for the inner Block, applied at first compute()
+ /** Gives the LagBFunction a BlockSolverConfig for the inner Block that is
+  * not apply()-ed now, but only the first time compute() is called; thus,
+  * if the LagBFunction is never compute()-d (say, because its inner Block
+  * is handled by the caller in some other way) no Solver is ever registered
+  * to the inner Block. The LagBFunction takes ownership of bsc.
+  *
+  * When compute() applies it, bsc is apply()-ed in additive mode
+  * [see BlockSolverConfig::eAddMode], so that the Solver it names are
+  * registered in addition to those the inner Block may already have, and
+  * intInnrSlvr is set to the first Solver it has registered. bsc is then
+  * kept clear()-ed, and apply()-ing it removes exactly the Solver it has
+  * registered [see BlockSolverConfig::apply()]: this is done when the
+  * LagBFunction is destroyed, its inner Block changes, or this method is
+  * called again. In particular, calling it with nullptr un-does the current
+  * one, if it has been applied, and deletes it.
+  *
+  * Note that parameters of the inner Solver that are set by index (i.e.,
+  * those with index >= intLastLagBFPar) before the BlockSolverConfig is
+  * applied are lost, because there is no inner Solver to translate the
+  * index yet; parameters set by name are kept and passed to the inner Solver
+  * by the first compute(). */
+
+ void set_lazy_inner_BlockSolverConfig( BlockSolverConfig * bsc );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// tells if a BlockSolverConfig is waiting for the first compute()
+ /** Returns true if a BlockSolverConfig has been given with
+  * set_lazy_inner_BlockSolverConfig() and compute() has not been called
+  * since, i.e., if the Solver that it names are not registered to the inner
+  * Block yet. */
+
+ bool lazy_inner_BlockSolverConfig_pending( void ) const {
+  return( f_lBSC && ( ! f_lBSC_on ) );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// load a LagBFunction out of an istream - not implemented yet
 
  void load( std::istream & input , char frmt = 0 ) override {
@@ -3077,6 +3114,10 @@ class LagBFunction : public C05Function , public Block
  int LPMaxSz;         ///< maximum size of the "local pool"
 
  BlockSolverConfig * f_BSC;  ///< a BlockSolverConfig for the inner Block
+
+ BlockSolverConfig * f_lBSC; ///< the one applied at the first compute()
+
+ bool f_lBSC_on;             ///< true if f_lBSC has been applied
 
  ComputeConfig * f_CC;       ///< a ComputeConfig for the inner Solver
 
