@@ -5964,9 +5964,22 @@ int MasterProblemBlock::solve_master( void )
      EasyPrimal[ k ] = std::make_unique< ColVariableSolution >();
     EasyPrimal[ k ]->read( EasyCmps_SB[ k ] );
     }
+   // In the primal linearized PFB representation the bundle multipliers are
+   // the dual values of the cut constraints, rather than explicit theta
+   // variables. Bundle management and aggregation therefore need both sides
+   // of the QP solution, as does saving the duals of the easy components
+   // below, in either form. A master with integer coordinates has none
+   // [see set_integer()].
+   // Under the trust region the dual MP has no z to give the step d*
+   // with: that is the dual value of its coupling rows [see get_d_vector()].
+   const bool easy_duals = f_keep_easy_duals && ( ! EasyCmps_SB.empty() );
+   if( ( ( IsPrimal || easy_duals ) && ( ! f_has_integer ) ) ||
+       ( ( ! IsPrimal ) && ( StblType == kTrustRegion ) ) )
+    if( auto * cda = dynamic_cast< CDASolver * >( slv ) )
+     cda->get_dual_solution( nullptr );
    // and the duals of their rows, with them the reduced costs of their
    // columns, if whoever drives the MP has said that it wants them
-   if( f_keep_easy_duals ) {
+   if( easy_duals ) {
     EasyDual.resize( EasyCmps_SB.size() );
     for( std::size_t k = 0 ; k < EasyCmps_SB.size() ; ++k ) {
      if( ! EasyDual[ k ] )
@@ -5974,17 +5987,6 @@ int MasterProblemBlock::solve_master( void )
      EasyDual[ k ]->read( EasyCmps_SB[ k ] );
      }
     }
-   // In the primal linearized PFB representation the bundle multipliers are
-   // the dual values of the cut constraints, rather than explicit theta
-   // variables. Bundle management and aggregation therefore need both sides
-   // of the QP solution. A master with integer coordinates has none
-   // [see set_integer()].
-   // Under the trust region the dual MP has no z to give the step d*
-   // with: that is the dual value of its coupling rows [see get_d_vector()].
-   if( ( IsPrimal && ( ! f_has_integer ) ) ||
-       ( ( ! IsPrimal ) && ( StblType == kTrustRegion ) ) )
-    if( auto * cda = dynamic_cast< CDASolver * >( slv ) )
-     cda->get_dual_solution( nullptr );
    }
   catch( const std::runtime_error & ) {
    return( Solver::kError );
