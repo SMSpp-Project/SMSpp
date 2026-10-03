@@ -32,6 +32,7 @@
 # macros to be exported - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 SMS++OBJ = $(SMS++SDR)/obj/AbstractBlock.o \
+	$(SMS++SDR)/obj/AbstractChange.o \
     $(SMS++SDR)/obj/Change.o \
 	$(SMS++SDR)/obj/BendersBFunction.o \
 	$(SMS++SDR)/obj/BendersBlock.o \
@@ -81,6 +82,7 @@ SMS++H = $(SMS++SDR)/include/AbstractBlock.h \
 	$(SMS++SDR)/include/C15Function.h \
 	$(SMS++SDR)/include/CDASolver.h \
 	$(SMS++SDR)/include/Change.h \
+	$(SMS++SDR)/include/AbstractChange.h \
 	$(SMS++SDR)/include/ChangeSolver.h \
 	$(SMS++SDR)/include/ColRowSolution.h \
 	$(SMS++SDR)/include/ColVariable.h \
@@ -131,6 +133,11 @@ intBlockINC = $(SMS++SDR)/include/Block.h $(SMS++SDR)/include/Configuration.h \
 $(SMS++SDR)/obj/Change.o: $(SMS++SDR)/src/Change.cpp \
 	$(SMS++SDR)/include/Change.h
 	$(CC) -c $(SMS++SDR)/src/Change.cpp -o $@ $(SMS++INC) $(SW)
+
+$(SMS++SDR)/obj/AbstractChange.o: $(SMS++SDR)/src/AbstractChange.cpp \
+	$(SMS++SDR)/include/AbstractChange.h $(SMS++SDR)/include/Change.h \
+	$(SMS++SDR)/include/AbstractPath.h
+	$(CC) -c $(SMS++SDR)/src/AbstractChange.cpp -o $@ $(SMS++INC) $(SW)
 
 $(SMS++SDR)/obj/AbstractBlock.o: $(SMS++SDR)/src/AbstractBlock.cpp \
 	$(SMS++SDR)/include/AbstractBlock.h $(intBlockINC) \

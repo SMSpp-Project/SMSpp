@@ -1306,8 +1306,14 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
      if( feas )
       feas = check_Solution( g_pool[ i ].sol );
      if( ! feas ) {              // if not
-      delete g_pool[ i ].sol;  // eliminate it
-      g_pool[ i ].sol = nullptr;
+      // the handlers of eColumnPurged may take the Solution before it is
+      // eliminated [see release_current_purged_solution()]
+      f_purged = std::exchange( g_pool[ i ] , gpool_el{} );
+      for( auto & handler : v_purged_handlers )
+       if( handler )
+	handler();
+      delete f_purged.sol;     // eliminate it (if still there)
+      f_purged = gpool_el{};
       which.push_back( i );      // recall its name
       LastSolution = g_pool.size();
       // say that no Solution is saved in the Block, since the name is now
@@ -1838,6 +1844,43 @@ bool LagBFunction::compute_new_linearization( const bool diagonal )
  return( newlin );
 
  }  // end( LagBFunction::compute_new_linearization )
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::restore_purged_solutions( v_gpool_el && sols ,
+					     ModParam issueMod )
+{
+ Subset added;
+ Index pos = 0;
+ for( auto & el : sols ) {
+  if( ! el.sol )
+   continue;
+
+  // the first free position of the global pool
+  while( ( pos < g_pool.size() ) && g_pool[ pos ].sol )
+   ++pos;
+  if( pos == g_pool.size() )
+   throw( std::logic_error( "LagBFunction::restore_purged_solutions: the "
+			    "global pool is full" ) );
+
+  g_pool[ pos ] = std::move( el );
+  el = gpool_el{};
+  added.push_back( pos );
+  if( pos + 1 > f_max_glob )
+   f_max_glob = pos + 1;
+  ++pos;
+  }
+
+ // tell the Observer (if any) about all of them at once
+ if( added.empty() || ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod ) ) )
+  return;
+
+ f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
+  this , C05FunctionMod::GlobalPoolAdded , std::move( added ) , 0 , 0 ) ,
+			       Observer::par2chnl( issueMod ) );
+
+ }  // end( LagBFunction::restore_purged_solutions )
 
 /*--------------------------------------------------------------------------*/
 
