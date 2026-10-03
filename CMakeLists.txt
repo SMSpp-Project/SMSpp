@@ -199,6 +199,7 @@ set_target_properties(${modName} PROPERTIES
 # Note: do not GLOB files here.
 target_sources(${modName} PRIVATE
         src/AbstractBlock.cpp
+        src/AbstractChange.cpp
         src/Change.cpp
         src/BoxSolver.cpp
         src/CDASolver.cpp

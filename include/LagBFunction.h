@@ -33,6 +33,10 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <limits>
+
+#include <utility>
+
 #include "Block.h"
 
 #include "C05Function.h"
@@ -638,6 +642,27 @@ class LagBFunction : public C05Function , public Block
   private:
 
   v_dual_pair::const_iterator itr_;
+  };
+
+/*--------------------------------------------------------------------------*/
+ /// public enum for the events of LagBFunction
+ /** Public enum describing the events that LagBFunction handles itself,
+  * rather than passing them to its inner Solver [see set_event_handler()]:
+  *
+  * - eColumnPurged: a Solution of the global pool has to be deleted because
+  *   it is no longer feasible for the inner Block (say, a variable has been
+  *   fixed to a value different from the one it has there); the handlers are
+  *   called before the deletion, and one of them may take the Solution with
+  *   release_current_purged_solution() to give it back later with
+  *   restore_purged_solutions() (say, when the variable is unfixed).
+  *
+  * The values follow those of ThinComputeInterface, which no Solver extends
+  * at the moment; were the inner Solver to define events of its own, the
+  * two lists would have to be told apart. */
+
+ enum event_type_LagBF {
+  eColumnPurged = e_last_event_type ,  ///< a Solution leaves the global pool
+  eLastLagBFEvent                      ///< first event for derived classes
   };
 
 /*--------------------------------------------------------------------------*/
@@ -1352,11 +1377,24 @@ class LagBFunction : public C05Function , public Block
  * Since LagBFunction basically only acts as a "front end" for the "inner
  * Solver" that actually compute()s the Lagrangian function, it does not
  * handle the events itself; rather, it passes them through to the "true"
- * Solver.
+ * Solver, save those of event_type_LagBF, which concern the global pool of
+ * the LagBFunction itself.
  *
  *  @{ */
 
  EventID set_event_handler( int type , EventHandler && event ) override {
+  if( type == eColumnPurged ) {  // a free position, or a new one
+   EventID id = 0;
+   while( ( id < v_purged_handlers.size() ) && v_purged_handlers[ id ] )
+    ++id;
+   if( id == std::numeric_limits< EventID >::max() )
+    throw( std::invalid_argument( "LagBFunction::set_event_handler: too "
+				  "many handlers of eColumnPurged" ) );
+   if( id == v_purged_handlers.size() )
+    v_purged_handlers.emplace_back();
+   v_purged_handlers[ id ] = std::move( event );
+   return( id );
+   }
   if( auto is = inner_Solver() )
    return( is->set_event_handler( type , std::move( event ) ) );
   throw( std::logic_error(
@@ -1366,12 +1404,43 @@ class LagBFunction : public C05Function , public Block
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  void reset_event_handler( int type , EventID id ) override {
+  if( type == eColumnPurged ) {
+   if( ( id >= v_purged_handlers.size() ) || ( ! v_purged_handlers[ id ] ) )
+    throw( std::invalid_argument( "LagBFunction::reset_event_handler: "
+				  "wrong handler of eColumnPurged" ) );
+   v_purged_handlers[ id ] = EventHandler();
+   while( ( ! v_purged_handlers.empty() ) && ( ! v_purged_handlers.back() ) )
+    v_purged_handlers.pop_back();
+   return;
+   }
   if( auto is = inner_Solver() )
    is->reset_event_handler( type , id );
   else
    throw( std::logic_error(
     "LagBFunction::reset_event_handler: inner Solver not available yet" ) );
   }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// take the Solution that is being purged from the global pool
+ /** To be called by a handler of eColumnPurged: returns the element of the
+  * global pool that is being deleted, whose Solution then belongs to the
+  * caller; a second call (or one outside the handler) returns an element
+  * with no Solution. */
+
+ gpool_el release_current_purged_solution( void ) noexcept {
+  return( std::exchange( f_purged , gpool_el{} ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// put back in the global pool the given (purged) Solution
+ /** Puts each element of \p sols with a Solution in a free position of the
+  * global pool, the LagBFunction taking ownership of the Solution, and
+  * tells the Observer (if any, and as \p issueMod says) about all of them
+  * with one C05FunctionMod of type GlobalPoolAdded. Throws if the global
+  * pool has not enough free positions. */
+
+ void restore_purged_solutions( v_gpool_el && sols ,
+				ModParam issueMod = eModBlck );
 
 /** @} ---------------------------------------------------------------------*/
 /*----------------- METHODS FOR MANAGING THE "IDENTITY" --------------------*/
@@ -2964,6 +3033,11 @@ class LagBFunction : public C05Function , public Block
   * LagPairs[ j ].second contains (a pointer to) a LinearFunction that
   * contains the Lagrangian term g_i(x) = A_i x + b_i. Note that the
   * LagBFunction is the Observer of all these LinearFunction. */
+
+ std::vector< EventHandler > v_purged_handlers;
+ ///< the handlers of eColumnPurged, empty where a handler has been reset
+
+ gpool_el f_purged;     ///< the element being purged [see eColumnPurged]
 
  v_gpool_el g_pool;     ///< the global pool
                         /**< g_pool has the size of the global pool;

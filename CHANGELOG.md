@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `AbstractChange`, a Change of the abstract representation of a Block (the
+  objective coefficient, the integrality, the fixing and the bounds of a
+  ColVariable, the sense of an Objective), each element identified by an
+  AbstractPath
+
+- the event `eColumnPurged` of `LagBFunction`, whose handlers are called
+  before a Solution of the global pool that is no longer feasible for the
+  inner Block is deleted, and may take it with
+  `release_current_purged_solution()`; `restore_purged_solutions()` puts
+  them back, telling the Observer with one Modification of type
+  `GlobalPoolAdded`
+
 - `MasterProblemBlock::add_easy_coupling( easy_id , j , local_i )`, the
   reverse of `drop_easy_coupling()`: the easy component gets the terms of
   its Lagrangian term on the coordinate j, already in the master, in the
