@@ -444,6 +444,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `LagBFunction` gives the variables that an inner `Block` adds to its
+  `Objective` after the registration, as the original cost in
+  `CostMatrix`, the coefficient they have entered the `Objective` with
+  rather than 0: the Lagrangian costs of the following `compute()` were
+  computed without it, and `cleanup_inner_objective()` brought back 0 in
+  place of it (e.g., the weight of the clauses added to a sub-`SATBlock`)
+
 - `MasterProblemBlock::add_vars()` in the displacement form of the dual
   gives the easy components the x_bar part of the new coordinates in the
   Objective, which `set_x_bar()` updates from then on; without it, the

@@ -4837,6 +4837,7 @@ void LagBFunction::update_CostMatrix_ModVarsAddd( Index h ,
  // Objective may well reference Variable owned by other nested sub-Block
 
  m_column & CM = CostMatrix[ h ];
+ std::vector< bool > stealthy( vars.size() , false );
 
  if( v_tmpCP.empty() || v_tmpCP[ h ].empty() ) {
   // there are no variables to be "stealthily" added to obj, hence
@@ -4867,9 +4868,30 @@ void LagBFunction::update_CostMatrix_ModVarsAddd( Index h ,
      tmpCP.erase( tmpCP.begin() + i );
      CM[ first + j ] = std::move( CM[ first + nv + j ] );
      CM.erase( CM.begin() + first + nv + i );
+     stealthy[ j ] = true;
      break;
     }
  }
+
+ // the original cost of each new variable is the coefficient it has entered
+ // the Objective with, but for those the LagBFunction itself has added
+ const auto fn = v_Obj[ h ]->get_function();
+ for( Index j = 0 ; j < vars.size() ; ++j ) {
+  if( stealthy[ j ] )
+   continue;
+  if( v_ObjIsQuad[ h ] ) {
+   const auto qf = static_cast< p_QF >( fn );
+   const auto k = qf->is_active( vars[ j ] );
+   if( k < qf->get_num_active_var() )
+    CM[ first + j ].first = qf->get_linear_coefficient( k );
+   }
+  else {
+   const auto lf = static_cast< p_LF >( fn );
+   const auto k = lf->is_active( vars[ j ] );
+   if( k < lf->get_num_active_var() )
+    CM[ first + j ].first = lf->get_coefficient( k );
+   }
+  }
 }  // end( LagBFunction::update_CostMatrix_ModVarsAddd )
 
 /*--------------------------------------------------------------------------*/
