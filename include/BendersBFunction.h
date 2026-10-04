@@ -2875,6 +2875,19 @@ void print( std::ostream & output ) override {
  void send_nuclear_modification( const Observer::ChnlName chnl = 0 );
 
 /*--------------------------------------------------------------------------*/
+ /// what to do when only the sides of Constraint of the sub-Block change
+ /** Called when \p mod only changes, of the sub-Block, the sides of some
+  * Constraint that are not among those this BendersBFunction handles [see
+  * Modification::changes_only_sides()]: the dual solutions of the global
+  * pool stay dual feasible, the g part of the linearizations stays valid and
+  * only their constants have to be computed again. The value of the
+  * Function moves the way the region of the sub-Block does, when it moves
+  * one way only [see get_behaviour()], and unpredictably otherwise. */
+
+ void sides_changed( const Modification & mod ,
+		     const Observer::ChnlName chnl = 0 );
+
+/*--------------------------------------------------------------------------*/
  /// keeps the entries of the global pool that survive removed RowConstraint
  /** Called when dynamic Constraint have been removed from the sub-Block, with
   * the Modification that says so, whose removed Constraint are still alive

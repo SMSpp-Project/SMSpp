@@ -828,6 +828,22 @@ class RowConstraintMod : public ConstraintMod {
 			    bool cB = true )
   : ConstraintMod( cnst , mod , cB ) {}
 
+/*--------------------------------------------------------------------------*/
+ /// returns what the Modification changes [see Modification::ModConcern]
+ /** A change of the LHS, of the RHS or of both is one of the sides, which
+  * may make the region grow or shrink; the types that the derived classes
+  * add (the Function of a FRowConstraint, the Variable of a
+  * OneVarConstraint) are changes of the coefficients. */
+
+ [[nodiscard]] ModConcern changes( void ) const override {
+  if( ( f_type == eChgLHS ) || ( f_type == eChgRHS ) ||
+      ( f_type == eChgBTS ) )
+   return( eModCnsSide | eRegnShrink | eRegnGrow );
+  if( f_type >= eRowConstModLastParam )
+   return( eModCnsCoef | eRegnShrink | eRegnGrow );
+  return( ConstraintMod::changes() );
+  }
+
  ~RowConstraintMod() override = default;  ///< destructor: does nothing
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/

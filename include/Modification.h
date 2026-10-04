@@ -389,8 +389,10 @@ class Modification {
   *                Block and its Solver know (a physical Modification);
   * - eModVarData  the data of existing Variable: bounds, type, fixing;
   * - eModVarSet   the set of the Variable: some are added or removed;
-  * - eModCnsData  the data of existing Constraint: sides, coefficients,
-  *                Function;
+  * - eModCnsSide  the sides of existing Constraint (relaxing or enforcing
+  *                one included);
+  * - eModCnsCoef  the coefficients, or the Function, of existing
+  *                Constraint;
   * - eModCnsSet   the set of the Constraint: some are added or removed;
   * - eModObj      the Objective;
   *
@@ -404,7 +406,13 @@ class Modification {
   *
   * Hence, all the effect bits set (eEffAny) is the "anything may happen"
   * that is always correct, if hardly informative, while an effect bit not set
-  * is a guarantee. The masks eModAbst (all the abstract kinds), eModAnything
+  * is a guarantee. A physical Modification may also say, with the other bits
+  * of kind, what it changes in terms of the model (a change of the
+  * capacities of a MCFBlock is that of the sides of its Constraint, say),
+  * which those who do not read its physical representation can use; it is
+  * physical all the same [see is_physical()]. The sides and the coefficients
+  * of the Constraint are told apart because a dual solution stays feasible
+  * when only the former change [see changes_only_sides()]. The masks eModAbst (all the abstract kinds), eModAnything
   * (all the kinds) and eModAll (all the bits) serve the standard cases. The
   * bits are to be read through the static methods below (is_physical(),
   * may_shrink_region(), lower_bound_stays_valid(), ...) rather than tested
@@ -415,18 +423,19 @@ class Modification {
  static constexpr ModConcern eModPhys    =    1;  ///< physical
  static constexpr ModConcern eModVarData =    2;  ///< data of Variable
  static constexpr ModConcern eModVarSet  =    4;  ///< Variable added/removed
- static constexpr ModConcern eModCnsData =    8;  ///< data of Constraint
- static constexpr ModConcern eModCnsSet  =   16;  ///< Constraint added/removed
- static constexpr ModConcern eModObj     =   32;  ///< the Objective
- static constexpr ModConcern eRegnShrink =   64;  ///< region may shrink
- static constexpr ModConcern eRegnGrow   =  128;  ///< region may grow
- static constexpr ModConcern eObjUp      =  256;  ///< objective may increase
- static constexpr ModConcern eObjDown    =  512;  ///< objective may decrease
+ static constexpr ModConcern eModCnsSide =    8;  ///< sides of Constraint
+ static constexpr ModConcern eModCnsCoef =   16;  ///< coefficients of them
+ static constexpr ModConcern eModCnsSet  =   32;  ///< Constraint added/removed
+ static constexpr ModConcern eModObj     =   64;  ///< the Objective
+ static constexpr ModConcern eRegnShrink =  128;  ///< region may shrink
+ static constexpr ModConcern eRegnGrow   =  256;  ///< region may grow
+ static constexpr ModConcern eObjUp      =  512;  ///< objective may increase
+ static constexpr ModConcern eObjDown    = 1024;  ///< objective may decrease
 
- static constexpr ModConcern eModAbst     =   62;  ///< all the abstract kinds
- static constexpr ModConcern eModAnything =   63;  ///< all the kinds
- static constexpr ModConcern eEffAny      =  960;  ///< any effect
- static constexpr ModConcern eModAll      = 1023;  ///< all the bits
+ static constexpr ModConcern eModAbst     =  126;  ///< all the abstract kinds
+ static constexpr ModConcern eModAnything =  127;  ///< all the kinds
+ static constexpr ModConcern eEffAny      = 1920;  ///< any effect
+ static constexpr ModConcern eModAll      = 2047;  ///< all the bits
 
 /*--------------------------------------------------------------------------*/
  /// returns what the Modification changes [see ModConcern]
@@ -453,7 +462,7 @@ class Modification {
 
  /// true if the Modification is abstract
  static constexpr bool is_abstract( ModConcern c ) {
-  return( c & eModAbst );
+  return( ( ! ( c & eModPhys ) ) && ( c & eModAbst ) );
   }
 
  /// true if the Modification changes the data or the set of the Variable
@@ -463,7 +472,15 @@ class Modification {
 
  /// true if the Modification changes the data or the set of the Constraint
  static constexpr bool changes_constraints( ModConcern c ) {
-  return( c & ( eModCnsData | eModCnsSet ) );
+  return( c & ( eModCnsSide | eModCnsCoef | eModCnsSet ) );
+  }
+
+ /// true if the Modification changes nothing but the sides of Constraint
+ /** True if, of the model, the Modification only changes the sides of some
+  * Constraint (relaxing or enforcing them included): then a dual solution
+  * of before is still dual feasible, and only its value changes. */
+ static constexpr bool changes_only_sides( ModConcern c ) {
+  return( ( c & eModAbst ) == eModCnsSide );
   }
 
  /// true if the Modification changes the Objective
@@ -545,6 +562,10 @@ class Modification {
 
  [[nodiscard]] bool changes_structure( void ) const {
   return( changes_structure( changes() ) );
+  }
+
+ [[nodiscard]] bool changes_only_sides( void ) const {
+  return( changes_only_sides( changes() ) );
   }
 
  [[nodiscard]] bool may_shrink_region( void ) const {

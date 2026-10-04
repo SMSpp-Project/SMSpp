@@ -269,6 +269,29 @@ static std::shared_ptr< T > the_mod( FakeSolver * fake )
  }
 
 /*--------------------------------------------------------------------------*/
+/// a physical Modification of a Block that says what it changes
+
+class SaysMod : public Modification
+{
+ public:
+
+ SaysMod( Block * b , ModConcern c ) : f_block( b ) , f_c( c ) {}
+
+ [[nodiscard]] Block * get_Block( void ) const override { return( f_block ); }
+
+ [[nodiscard]] ModConcern changes( void ) const override { return( f_c ); }
+
+ protected:
+
+ void print( std::ostream & output ) const override {
+  output << "SaysMod" << std::endl;
+  }
+
+ Block * f_block;
+ ModConcern f_c;
+ };
+
+/*--------------------------------------------------------------------------*/
 /*--------------------------------- TESTS ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -411,6 +434,63 @@ static void test_rows_bookkeeping( void )
 	 f.bbf->get_constraints().empty() && f.bbf->get_sides().empty() );
 
  std::cout << "rows bookkeeping: done" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+/* A change of the sides of a Constraint of the inner Block that the
+ * BendersBFunction does not handle keeps the global pool, the dual solutions
+ * staying feasible, and only the constants of the linearizations change
+ * (AlphaChanged), moving the value the way the region moves when it moves
+ * one way only; a change of the coefficients is the "nuclear" FunctionMod
+ * [see Modification::changes_only_sides()]. */
+
+static void test_sides_of_other_rows( void )
+{
+ using M = Modification;
+ Fixture f( { { 1 , 2 } , { 0 , -1 } } , { 1 , 0.5 } , { 0 , 1 } ,
+	    { BBF::eRHS , BBF::eLHS } );
+ // the inner Block has its Solver, as it has when it is used, so that its
+ // Modification are issued and reach the BendersBFunction
+ f.attach_BoxSolver();
+ f.fake->get_Modification_list().clear();
+
+ // the RHS of the third row of the inner Block, which is not a row of A
+ f.c[ 2 ]->set_rhs( 3 , eModBlck );
+ {
+  auto mod = the_mod< C05FunctionMod >( f.fake );
+  assert( mod->type() == C05FunctionMod::AlphaChanged );
+  assert( std::isnan( mod->shift() ) );
+  }
+
+ // a physical Modification of the inner Block saying that it only changes
+ // sides, shrinking the region: the value of a min can only increase
+ f.bbf->add_Modification( std::make_shared< SaysMod >( f.inner ,
+		M::eModPhys | M::eModCnsSide | M::eRegnShrink ) , 0 );
+ {
+  auto mod = the_mod< C05FunctionMod >( f.fake );
+  assert( mod->type() == C05FunctionMod::AlphaChanged );
+  assert( mod->shift() == Inf< double >() );
+  }
+
+ // and growing it: the value can only decrease
+ f.bbf->add_Modification( std::make_shared< SaysMod >( f.inner ,
+		M::eModPhys | M::eModCnsSide | M::eRegnGrow ) , 0 );
+ {
+  auto mod = the_mod< C05FunctionMod >( f.fake );
+  assert( mod->shift() == - Inf< double >() );
+  }
+
+ // one that changes coefficients too is the nuclear FunctionMod
+ f.bbf->add_Modification( std::make_shared< SaysMod >( f.inner ,
+		M::eModPhys | M::eModCnsSide | M::eModCnsCoef |
+		M::eRegnShrink ) , 0 );
+ {
+  auto mod = the_mod< FunctionMod >( f.fake );
+  assert( ! std::dynamic_pointer_cast< C05FunctionMod >( mod ) );
+  assert( std::isnan( mod->shift() ) );
+  }
+
+ std::cout << "sides of other rows: done" << std::endl;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -669,6 +749,7 @@ int main( int argc , char ** argv )
 {
  test_rows_bookkeeping();
  test_rows_with_no_variable();
+ test_sides_of_other_rows();
  test_sides_and_value( eBoxLinear );
  test_sides_and_value( eBoxQuad );
  test_BendersBlock_round_trip();

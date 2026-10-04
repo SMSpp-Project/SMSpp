@@ -2327,11 +2327,11 @@ static void test_changes( void )
  // it shrinks it, changing its sides may do either
  FRowConstraint c;
  assert( ConstraintMod( & c , ConstraintMod::eRelaxConst ).changes() ==
-	 ( M::eModCnsData | M::eRegnGrow ) );
+	 ( M::eModCnsSide | M::eRegnGrow ) );
  assert( ConstraintMod( & c , ConstraintMod::eEnforceConst ).changes() ==
-	 ( M::eModCnsData | M::eRegnShrink ) );
+	 ( M::eModCnsSide | M::eRegnShrink ) );
  assert( RowConstraintMod( & c , RowConstraintMod::eChgRHS ).changes() ==
-	 ( M::eModCnsData | M::eRegnShrink | M::eRegnGrow ) );
+	 ( M::eModCnsSide | M::eRegnShrink | M::eRegnGrow ) );
 
  // the Objective: the region stays, the objective may move either way
  FRealObjective o;
@@ -2383,13 +2383,19 @@ static void test_changes( void )
  assert( M::is_abstract( M::eModObj ) && ( ! M::is_physical( M::eModObj ) ) );
  assert( M::changes_variables( M::eModVarSet ) &&
 	 M::changes_variables( M::eModVarData ) &&
-	 ( ! M::changes_variables( M::eModCnsData ) ) );
+	 ( ! M::changes_variables( M::eModCnsSide ) ) );
  assert( M::changes_constraints( M::eModCnsSet ) &&
 	 ( ! M::changes_constraints( M::eModObj ) ) );
  assert( M::changes_objective( M::eModObj ) &&
 	 ( ! M::changes_objective( M::eModVarData ) ) );
  assert( M::changes_structure( M::eModVarSet ) &&
 	 ( ! M::changes_structure( M::eModVarData ) ) );
+ assert( M::changes_only_sides( M::eModCnsSide | M::eRegnShrink ) &&
+	 M::changes_only_sides( M::eModPhys | M::eModCnsSide ) &&
+	 ( ! M::changes_only_sides( M::eModCnsSide | M::eModCnsCoef ) ) &&
+	 ( ! M::changes_only_sides( M::eModPhys | M::eEffAny ) ) );
+ assert( M::is_physical( M::eModPhys | M::eModCnsSide ) &&
+	 ( ! M::is_abstract( M::eModPhys | M::eModCnsSide ) ) );
 
  // a region that only shrinks keeps the lower bounds, one that only grows
  // the upper bounds, and an objective that may decrease keeps neither of
