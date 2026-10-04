@@ -21,6 +21,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   them back, telling the Observer with one Modification of type
   `GlobalPoolAdded`
 
+- `Modification::is_physical()`, `may_shrink_region()` and the other readers
+  of a ModConcern are also methods of the Modification itself (e.g.,
+  `mod->is_physical()`), which read `changes()`; `LagBFunction` decides
+  through them what to do with a Modification of the inner Block it does
+  not recognise, which it used to ignore: one that may shrink the feasible
+  region has the global pool checked, an abstract one that changes the
+  Objective is reported as unknown, any other is ignored
+
 - `Solution::adapt()` adapts a Solution to a Modification of its Block, and
   answers whether it is unchanged, adapted or no longer valid: it drops the
   values of the removed dynamic Variable or Constraint it holds values of

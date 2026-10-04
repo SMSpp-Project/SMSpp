@@ -4150,15 +4150,27 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
  if( dynamic_cast< const BlockMod * >( mod ) )
   return( 64 );
 
+ // any other Modification - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- return( 0 );  // ignore any other Modification (BAD!!)
- // indeed, the safe return value would be 128: if I don't understand it,
- // it can wreak arbitrary havok. but this would be severely over-reacting
- // in many cases, so we avoid it for the time being
- //
- // yet another example about why we should be adding some "semantic"
- // information to Modification that give an idea of the kind of change that
- // they can exert on the model
+ // what it does to the inner Block is what it says of itself [see
+ // Modification::changes()]. One that may shrink the feasible region may
+ // take away the feasibility of the Solution in the global pool, which have
+ // then to be checked, as for an arbitrary change of the inner Block (64);
+ // among these, the physical Modification of the inner Block, which say so
+ // until the Block says more of them. An abstract one that changes the
+ // Objective in a way not dealt with above is reported as unknown (128),
+ // the pool being checked anyway; the Objective changed by a physical one is
+ // seen through the abstract Objective, which the inner Block keeps in step
+ // and whose Modification are dealt with above. Any other cannot take away
+ // the feasibility of the pool, and nothing has to be done.
+
+ if( mod->may_shrink_region() )
+  return( 64 );
+
+ if( mod->is_abstract() && mod->changes_objective() )
+  return( char( 128 ) );
+
+ return( 0 );
 
  }  // end( LagBFunction::guts_of_guts_of_add_Modification )
 

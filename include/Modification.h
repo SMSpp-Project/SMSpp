@@ -517,6 +517,58 @@ class Modification {
 
 /** @} ---------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
+ /** @name What the Modification changes
+  * The same as the static methods above, asked to the Modification itself,
+  * e.g., mod->is_physical(): they read changes(), so that whoever asks
+  * neither sees the bits nor depends on how they are encoded.
+  *  @{ */
+
+ [[nodiscard]] bool is_physical( void ) const {
+  return( is_physical( changes() ) );
+  }
+
+ [[nodiscard]] bool is_abstract( void ) const {
+  return( is_abstract( changes() ) );
+  }
+
+ [[nodiscard]] bool changes_variables( void ) const {
+  return( changes_variables( changes() ) );
+  }
+
+ [[nodiscard]] bool changes_constraints( void ) const {
+  return( changes_constraints( changes() ) );
+  }
+
+ [[nodiscard]] bool changes_objective( void ) const {
+  return( changes_objective( changes() ) );
+  }
+
+ [[nodiscard]] bool changes_structure( void ) const {
+  return( changes_structure( changes() ) );
+  }
+
+ [[nodiscard]] bool may_shrink_region( void ) const {
+  return( may_shrink_region( changes() ) );
+  }
+
+ [[nodiscard]] bool may_grow_region( void ) const {
+  return( may_grow_region( changes() ) );
+  }
+
+ [[nodiscard]] bool solution_stays_feasible( void ) const {
+  return( solution_stays_feasible( changes() ) );
+  }
+
+ [[nodiscard]] bool lower_bound_stays_valid( void ) const {
+  return( lower_bound_stays_valid( changes() ) );
+  }
+
+ [[nodiscard]] bool upper_bound_stays_valid( void ) const {
+  return( upper_bound_stays_valid( changes() ) );
+  }
+
+/** @} ---------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
  /// returns true if the :Block needs to process this Modification
  /** This method must return true if the Modification "has not been seen by
   * the Block already", i.e., it has not been issued by the :Block itself
