@@ -17,6 +17,11 @@
  * points where the minimizer is not unique, and over the copy of the global
  * pool that a State holds.
  *
+ * A LagBFunction with intInnrSlvr -1 is checked not to use the Solver the
+ * inner Block has, and to take as inner Solver the first one that the
+ * BlockSolverConfig of its ComputeConfig registers, read from
+ * LagBFCfg-Box.txt.
+ *
  * A second set of tests checks the by-column representation of the
  * Lagrangian term that the Lagrangian costs c_j + y A^j are computed from,
  * as get_A_by_col() gives it, after the Lagrangian pairs are set (once and
@@ -49,6 +54,7 @@
 
 #include <cmath>
 #include <iostream>
+#include <stdexcept>
 #include <vector>
 
 // last, so that the headers above are read as the library was compiled
@@ -507,6 +513,62 @@ static void test_state_copy( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* A LagBFunction told that it has no inner Solver (intInnrSlvr -1) does not
+ * use the BoxSolver the inner Block has, and compute() throws; the
+ * BlockSolverConfig of a ComputeConfig then registers a second BoxSolver,
+ * which becomes the inner Solver, and the value is that of the closed form.
+ * The ComputeConfig is read from LagBFCfg-Box.txt. */
+
+static void test_no_inner_Solver( void )
+{
+ Fixture f;
+ f.lbf->set_dual_pairs( v_dual_pair( { f.pair( 0 , 0 ) , f.pair( 1 , 1 ) } ) );
+ const std::vector< double > yv = { -1 , 0.25 };
+ f.set_y( yv );
+
+ f.lbf->set_par( LagBFunction::intInnrSlvr , -1 );
+ expect( f.lbf->get_int_par( LagBFunction::intInnrSlvr ) == -1 ,
+	 "intInnrSlvr set to -1 reads " +
+	 std::to_string( f.lbf->get_int_par( LagBFunction::intInnrSlvr ) ) );
+
+ bool thrown = false;
+ try {
+  f.lbf->compute();
+  }
+ catch( const std::logic_error & ) {
+  thrown = true;
+  }
+ expect( thrown , "compute() with intInnrSlvr -1 does not throw, although "
+	 "the inner Block has a Solver" );
+
+ auto c = Configuration::deserialize( "LagBFCfg-Box.txt" );
+ auto cc = dynamic_cast< ComputeConfig * >( c );
+ if( ! cc ) {
+  expect( false , "LagBFCfg-Box.txt is not a ComputeConfig" );
+  delete c;
+  return;
+  }
+
+ f.lbf->set_ComputeConfig( cc );
+ delete cc;
+ expect( f.lbf->get_int_par( LagBFunction::intInnrSlvr ) == 1 ,
+	 "after the ComputeConfig registers a second Solver, intInnrSlvr is " +
+	 std::to_string( f.lbf->get_int_par( LagBFunction::intInnrSlvr ) ) +
+	 ", expected 1" );
+
+ const int status = f.lbf->compute();
+ expect( status == Solver::kOK , "compute() with the Solver of the "
+	 "ComputeConfig returns " + std::to_string( status ) );
+ const double expected = closed_form( yv , { 0 , 1 } );
+ expect( equal( f.lbf->get_value() , expected ) ,
+	 "with the Solver of the ComputeConfig l( y ) = " +
+	 std::to_string( f.lbf->get_value() ) + ", expected " +
+	 std::to_string( expected ) );
+
+ std::cout << "no inner Solver: done" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------------------*/
 /*------------------- THE COLUMNS OF THE LAGRANGIAN TERM -------------------*/
@@ -835,6 +897,7 @@ int main( int argc , char ** argv )
  test_set_dual_pairs_twice();
  test_values_and_kinks();
  test_state_copy();
+ test_no_inner_Solver();
  test_columns_set_dual_pairs();
  test_columns_set_dual_pairs_twice();
  test_columns_remove_all();

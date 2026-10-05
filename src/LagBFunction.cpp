@@ -520,9 +520,18 @@ void LagBFunction::set_ComputeConfig( const ComputeConfig * scfg )
     // remains, clear()-ed, as the cleanup object: having done the apply()
     // itself, it records the registered Solver and its cleared apply()
     // removes exactly them [see BlockSolverConfig::apply()]
+    const auto nslv = inner_block->get_registered_solvers().size();
     f_BSC = BSC->clone();
     f_BSC->apply( inner_block );
     f_BSC->clear();
+
+    // a LagBFunction told that it has no inner Solver [see intInnrSlvr]
+    // uses the first of those that this BlockSolverConfig has added, if
+    // any; this is not done by set_par(), which would add a ComputeConfig
+    // to f_BSC, that has just been clear()-ed to un-do what it has done
+    if( ( InnrSlvr == Inf< Index >() ) &&
+	( inner_block->get_registered_solvers().size() > nslv ) )
+     InnrSlvr = nslv;
     }
    }
   else {  // scfg->f_extra_Configuration is nullptr

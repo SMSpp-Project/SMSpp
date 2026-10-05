@@ -164,7 +164,8 @@ add_executable(LagBFunction_unit_test tests_LagBFunction.cpp)
 target_link_libraries(LagBFunction_unit_test PRIVATE SMS++::SMS++)
 smspp_install(LagBFunction_unit_test)
 add_test(NAME LagBFunction_unit_test
-         COMMAND LagBFunction_unit_test)
+         COMMAND LagBFunction_unit_test
+         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_executable(BendersBFunction_unit_test tests_BendersBFunction.cpp)
 target_link_libraries(BendersBFunction_unit_test PRIVATE SMS++::SMS++)

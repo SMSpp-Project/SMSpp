@@ -139,7 +139,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `LagBFunction::intInnrSlvr` set to -1 means that the LagBFunction has no
   inner Solver, whatever Solver its inner Block has: `compute()` then
   throws, rather than returning `kError` as it does when the inner Block
-  has no Solver at all
+  has no Solver at all, until a BlockSolverConfig that the LagBFunction
+  applies itself (that of `set_ComputeConfig()` or the lazy one) registers
+  some, the first of which then becomes the inner Solver
 
 - `MasterProblemBlock::add_easy_coupling( easy_id , j , local_i )`, the
   reverse of `drop_easy_coupling()`: the easy component gets the terms of

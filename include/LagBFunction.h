@@ -896,7 +896,11 @@ class LagBFunction : public C05Function , public Block
   *                list of registered Solver in the inner Block; the default
   *                is 0 (first position), and a negative value means that
   *                the LagBFunction has no inner Solver, whatever Solver the
-  *                inner Block has, so that compute() throws [see compute()];
+  *                inner Block has, so that compute() throws [see compute()],
+  *                until a BlockSolverConfig that it apply()-es itself (that
+  *                of set_ComputeConfig() or that of
+  *                set_lazy_inner_BlockSolverConfig()) registers some, the
+  *                first of which then becomes the inner one;
   *
   * - intNoSol: if nonzero, it is taken to mean that the inner Block will not
   *             produce workable Solution objects and therefore that
