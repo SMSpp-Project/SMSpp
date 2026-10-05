@@ -2721,6 +2721,13 @@ double MasterProblemBlock::get_FiBLambda( int k ) const
    value += ( f_x_bar[ j ] + d[ j ] ) * gi->get_value();
    }
 
+  // For positive mass, the homogeneous inner solution gives lambda times
+  // the original easy value. Recover its unit-size value without changing
+  // the master solution.
+  const double lambda_value = get_lambda();
+  if( lambda_value > 0.0 )
+   value /= lambda_value;
+
   // A concave maximisation is represented as the minimisation of -F: return
   // the easy value in those same internal units.
   return( IsConvex ? - value : value );
