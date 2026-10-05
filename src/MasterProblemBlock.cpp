@@ -1095,10 +1095,11 @@ void MasterProblemBlock::generate_primal_objective( void )
 
 void MasterProblemBlock::CreateDualMP( stabilization_type Stbl )
 {
- // kTrustRegion and kUpperLower are reserved enumerators with no
- // implementation yet; reject them up front. kNone is handled below
- // by the natural flow (no proximal quadratic term, no level row).
- if( Stbl == kTrustRegion || Stbl == kUpperLower )
+ // kUpperLower is a reserved enumerator with no implementation yet; reject
+ // it up front. kNone is handled below by the natural flow (no proximal
+ // quadratic term, no level row), and so is kTrustRegion, whose radius only
+ // moves the sides of the box [see primal_box()].
+ if( Stbl == kUpperLower )
   throw( std::logic_error(
        "MasterProblemBlock::CreateDualMP: stabilization type " +
        std::to_string( int( Stbl ) ) +
@@ -1106,6 +1107,8 @@ void MasterProblemBlock::CreateDualMP( stabilization_type Stbl )
 
  StblType = Stbl;
  IsPrimal = false;
+ if( Stbl == kTrustRegion )  // no lazy reference [see set_xref_tol()]
+  f_xref_tol = 0.0;
  // Pure level starts with the same proximal seed used by the primal form. The
  // flag is cleared by remove_initial_level_objective() once a level is known.
  f_dual_level_probe_active = ( Stbl == kLevel );
@@ -1271,7 +1274,16 @@ void MasterProblemBlock::generate_dual_abstract_variables( void )
  Var_z.clear();
  Var_z_idx.clear();
  add_dynamic_variable( Var_z , "MPB_z" );
+ // with the trust region there is no term in z to bound it, and a free z
+ // would make the coupling rows void: z is fixed to 0, and the coupling rows
+ // then ask the multipliers s^+ / s^- of the box, which the trust region is
+ // part of, to balance the aggregate [see get_z_vector()]
  std::list< ColVariable > new_z( NumVars );
+ if( StblType == kTrustRegion )
+  for( auto & zj : new_z ) {
+   zj.set_value( 0.0 );
+   zj.is_fixed( true , eNoMod );
+   }
  append_indexed_group( new_z , Var_z_idx , [ this ]( auto & additions ) {
   add_dynamic_variables( Var_z , additions , eNoMod );
   } );
@@ -1281,7 +1293,8 @@ void MasterProblemBlock::generate_dual_abstract_variables( void )
  // box side is finite (L_t - (x_bar)_t for s^+, U_t - (x_bar)_t for s^-).
  // The box belongs to the physical representation and may already have been
  // stored in f_L / f_U before abstract variables are generated, so initialize
- // the fixed status from that state. Missing sides stay fixed to 0.
+ // the fixed status from that state, intersected with the trust region if
+ // any [see primal_box()]. Missing sides stay fixed to 0.
  Var_s_plus.clear();
  Var_s_plus_idx.clear();
  Var_s_minus.clear();
@@ -1294,8 +1307,10 @@ void MasterProblemBlock::generate_dual_abstract_variables( void )
  auto plus_it = new_s_plus.begin();
  auto minus_it = new_s_minus.begin();
  for( int j = 0 ; j < NumVars ; ++j ) {
-  const bool has_L = ! f_L.empty() && std::isfinite( f_L[ j ] );
-  const bool has_U = ! f_U.empty() && std::isfinite( f_U[ j ] );
+  double lhs , rhs;
+  primal_box( Index( j ) , lhs , rhs );
+  const bool has_L = std::isfinite( lhs );
+  const bool has_U = std::isfinite( rhs );
 
   plus_it->is_positive( true , eNoMod );
   plus_it->set_value( 0.0 );
@@ -1555,30 +1570,30 @@ void MasterProblemBlock::generate_dual_objective( void )
 
  // : the box slacks s^+ / s^- contribute
  //     + s^+ ( L - x_bar ) - s^- ( U - x_bar )
- // in the textbook eMax form. Coefficients are initialized from the physical
- // box state f_L / f_U if already available, and set_box() / set_x_bar()
- // refresh them later.
+ // in the textbook eMax form, where under #kTrustRegion the box is
+ // intersected with the trust region [see primal_box()], whose radius is
+ // then the only stabilization of the master. Coefficients are initialized
+ // from the physical box state f_L / f_U if already available, and
+ // set_box() / set_x_bar() / set_t() refresh them later.
  s_plus_obj_idx.clear();
  s_minus_obj_idx.clear();
  s_plus_obj_idx.reserve( NumVars );
  s_minus_obj_idx.reserve( NumVars );
  if( NumVars > 0 ) {
-  const bool iterate = ( f_v2_form != 0 );
+  std::vector< double > lower( NumVars ) , upper( NumVars );
+  for( int j = 0 ; j < NumVars ; ++j )
+   primal_box( Index( j ) , lower[ j ] , upper[ j ] );
   for( int j = 0 ; j < NumVars ; ++j ) {
-   const double xj = ( ( ! iterate ) && j < int( f_x_bar.size() ) )
-                     ? f_x_bar[ j ] : 0.0;
-   const bool has_L = ! f_L.empty() && std::isfinite( f_L[ j ] );
+   const bool has_L = std::isfinite( lower[ j ] );
    s_plus_obj_idx.push_back( int( triples.size() ) );
    triples.emplace_back( Var_s_plus_idx[ j ] ,
-                         has_L ? sgn * ( f_L[ j ] - xj ) : 0.0 , 0.0 );
+                         has_L ? sgn * lower[ j ] : 0.0 , 0.0 );
    }
   for( int j = 0 ; j < NumVars ; ++j ) {
-   const double xj = ( ( ! iterate ) && j < int( f_x_bar.size() ) )
-                     ? f_x_bar[ j ] : 0.0;
-   const bool has_U = ! f_U.empty() && std::isfinite( f_U[ j ] );
+   const bool has_U = std::isfinite( upper[ j ] );
    s_minus_obj_idx.push_back( int( triples.size() ) );
    triples.emplace_back( Var_s_minus_idx[ j ] ,
-                         has_U ? - sgn * ( f_U[ j ] - xj ) : 0.0 , 0.0 );
+                         has_U ? - sgn * upper[ j ] : 0.0 , 0.0 );
    }
   }
 
@@ -2096,6 +2111,27 @@ double MasterProblemBlock::get_dual_norm_squared( void ) const
             []( double zj ) {
              return( zj * zj );
              } ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+double MasterProblemBlock::get_conjugate_stabilization( double t ) const
+{
+ const auto z = get_z_vector();
+
+ // the conjugate of the indicator of the inf-norm ball of radius t
+ if( StblType == kTrustRegion )
+  return( t * std::transform_reduce(
+                 z.cbegin() , z.cend() , 0.0 , std::plus<>() ,
+                 []( double zj ) {
+                  return( std::abs( zj ) );
+                  } ) );
+
+ return( t / 2.0 * std::transform_reduce(
+                      z.cbegin() , z.cend() , 0.0 , std::plus<>() ,
+                      []( double zj ) {
+                       return( zj * zj );
+                       } ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2851,6 +2887,59 @@ double MasterProblemBlock::get_FiBLambda( int k ) const
 std::vector< double > MasterProblemBlock::get_z_vector( void ) const
 {
  std::vector< double > out;
+ if( IsPrimal && ( StblType == kTrustRegion ) ) {
+  // The trust region has no term in z: what the master tells of the
+  // aggregate on coordinate j is the part of the multiplier of the side of
+  // the box d*_j lies on that belongs to the trust region [see
+  // trust_region_side()], i.e., by stationarity, the aggregate of the rows
+  // where the side is the one of the trust region, and 0 where it is the
+  // one of [ L , U ], whose normal cone the aggregate then belongs to. Its
+  // sign is the one of the side, d*_j on the lower side meaning that the
+  // aggregate pushes it down, i.e., z*_j > 0 as in d* = - t z*.
+  // The aggregate is b plus the bundle aggregates plus the absorbed
+  // rows of the BendersBFunction, all from the dual values of rows: those
+  // of the bounds of the Variable are not used, since a Solver may give
+  // the reduced cost of a Variable whose bound is not the one d*_j is on.
+  out = get_d_vector();
+  std::vector< double > agg( NumVars , 0.0 );
+  if( int( f_linear_part.size() ) == NumVars )
+   agg = f_linear_part;
+  for( int k = 0 ; k < int( HardCmps.size() ) ; ++k ) {
+   const auto zk = get_aggregated_subgradient( k );
+   for( int j = 0 ; j < std::min( NumVars , int( zk.size() ) ) ; ++j )
+    agg[ j ] += zk[ j ];
+   }
+  // the dual value is the coefficient of the row in the Lagrangian of a
+  // minimization, hence of the opposite sign in a maximization
+  const double sgn = IsConvex ? 1.0 : -1.0;
+  for( const auto & row : EasyBBFRows ) {
+   const double pi = sgn * row.cns->get_dual();
+   if( pi == 0.0 )
+    continue;
+   for( int j = 0 ; j < std::min( NumVars , int( row.A_row.size() ) ) ; ++j )
+    agg[ j ] += pi * row.A_row[ j ];
+   }
+
+  for( Index j = 0 ; j < Index( NumVars ) ; ++j ) {
+   double lhs , rhs;
+   primal_box( j , lhs , rhs );
+   if( f_v2_form ) {  // the box is in the frame of x, d* is not
+    lhs -= f_x_bar[ j ];
+    rhs -= f_x_bar[ j ];
+    }
+   const double dj = out[ j ];
+   const double tol = 1e-9 * std::max( { 1.0 , std::abs( lhs ) ,
+                                         std::abs( rhs ) } );
+   if( std::isfinite( lhs ) && ( dj <= lhs + tol ) )
+    out[ j ] = trust_region_side( j , true ) ? std::abs( agg[ j ] ) : 0.0;
+   else if( std::isfinite( rhs ) && ( dj >= rhs - tol ) )
+    out[ j ] = trust_region_side( j , false ) ? - std::abs( agg[ j ] ) : 0.0;
+   else  // inside the box the aggregate is 0 by stationarity
+    out[ j ] = 0.0;
+   }
+  return( out );
+  }
+
  if( IsPrimal ) {
   // In primal form, stationarity of the stabilized master gives
   // z* + d*/t = 0. This recovers the complete essential subgradient,
@@ -2888,6 +2977,21 @@ std::vector< double > MasterProblemBlock::get_z_vector( void ) const
 
  if( normalize_level_z && eta <= 0.0 ) {
   out.assign( Var_z.size() , 0.0 );
+  return( out );
+  }
+
+ // Under the trust region Var_z is fixed to 0, and the coupling rows have
+ // the multipliers s^+ - s^- of the box balance the aggregate: z* is the
+ // part of them that belongs to the trust region [see trust_region_side()]
+ if( StblType == kTrustRegion ) {
+  for( Index j = 0 ; j < Var_z_idx.size() ; ++j ) {
+   double zj = 0.0;
+   if( trust_region_side( j , true ) )
+    zj += Var_s_plus_idx[ j ]->get_value();
+   if( trust_region_side( j , false ) )
+    zj -= Var_s_minus_idx[ j ]->get_value();
+   out.push_back( normalize_level_z ? zj / eta : zj );
+   }
   return( out );
   }
 
@@ -2975,6 +3079,20 @@ std::vector< double > MasterProblemBlock::get_d_vector( void ) const
   // d* = -eta z* = -Var_z rather than the proximal -t z* identity.
   for( const auto & zj : Var_z )
    out.push_back( - zj.get_value() );
+  return( out );
+  }
+
+ // dual MP, trust region: d* is the dual value of the coupling rows, in
+ // the frame of x in the iterate form; the dual value is the coefficient of
+ // the row in the Lagrangian of a minimization, i.e., the opposite of d* if
+ // the master is a maximization (a concave C05Function)
+ if( StblType == kTrustRegion ) {
+  const double sgn = IsConvex ? 1.0 : -1.0;
+  Index j = 0;
+  for( const auto & row : CouplingCns ) {
+   out.push_back( sgn * row.get_dual() - ( f_v2_form ? f_x_bar[ j ] : 0.0 ) );
+   ++j;
+   }
   return( out );
   }
 
@@ -3210,8 +3328,8 @@ double MasterProblemBlock::get_aggregated_alpha( int k ) const
  for( int kk = 0 ; kk < int( HardCmps.size() ) ; ++kk )
   total += contrib( kk );
 
- if( ( StblType == kLevel || StblType == kDoublyStabilized ) &&
-     ! EasyCmps.empty() ) {
+ if( ( StblType == kLevel || StblType == kDoublyStabilized ||
+       StblType == kTrustRegion ) && ! EasyCmps.empty() ) {
   // BundleSolver adds the easy reference values to Sigma. Supply the
   // opposite affine values at x_bar, evaluated at the current master
   // solution; these are already included in the proximal objective above.
@@ -3268,15 +3386,20 @@ double MasterProblemBlock::get_aggregated_alpha( int k ) const
  // centre must include their slacks too. These belong only to the total
  // essential objective, not to any individual component's aggregate cut.
  // Omitting them can falsely certify optimality when a large t makes z
- // small even though the master step reaches a distant box boundary.
+ // small even though the master step reaches a distant box boundary. Under
+ // the trust region a multiplier may belong to it rather than to the box:
+ // that part is z* [see get_z_vector()], and its term -t | z*_j | is the
+ // stabilization, not an error [see get_conjugate_stabilization()].
  double box_error = 0.0;
  const auto n = std::min( { f_x_bar.size() , Var_s_plus.size() ,
                            Var_s_minus.size() } );
  for( std::size_t j = 0 ; j < n ; ++j ) {
-  if( j < f_L.size() && std::isfinite( f_L[ j ] ) )
+  if( j < f_L.size() && std::isfinite( f_L[ j ] ) &&
+      ( ! trust_region_side( Index( j ) , true ) ) )
    box_error += Var_s_plus_idx[ j ]->get_value() *
                 ( f_x_bar[ j ] - f_L[ j ] );
-  if( j < f_U.size() && std::isfinite( f_U[ j ] ) )
+  if( j < f_U.size() && std::isfinite( f_U[ j ] ) &&
+      ( ! trust_region_side( Index( j ) , false ) ) )
    box_error += Var_s_minus_idx[ j ]->get_value() *
                 ( f_U[ j ] - f_x_bar[ j ] );
   }
@@ -3540,10 +3663,11 @@ void MasterProblemBlock::set_C( double C )
 void MasterProblemBlock::primal_box( Index j , double & lhs ,
                                      double & rhs ) const
 {
- lhs = ( f_L.empty() || ( ! std::isfinite( f_L[ j ] ) ) ) ? - Inf< double >()
-                                                          : f_L[ j ];
- rhs = ( f_U.empty() || ( ! std::isfinite( f_U[ j ] ) ) ) ? Inf< double >()
-                                                          : f_U[ j ];
+ // a coordinate being appended may not have its box yet
+ lhs = ( ( j >= f_L.size() ) || ( ! std::isfinite( f_L[ j ] ) ) )
+       ? - Inf< double >() : f_L[ j ];
+ rhs = ( ( j >= f_U.size() ) || ( ! std::isfinite( f_U[ j ] ) ) )
+       ? Inf< double >() : f_U[ j ];
  const double xj = j < f_x_bar.size() ? f_x_bar[ j ] : 0.0;
 
  // the trust region || x - x_bar ||_inf <= t [see #kTrustRegion]
@@ -3558,6 +3682,22 @@ void MasterProblemBlock::primal_box( Index j , double & lhs ,
   if( std::isfinite( rhs ) )
    rhs -= xj;
   }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool MasterProblemBlock::trust_region_side( Index j , bool lower ) const
+{
+ if( ( StblType != kTrustRegion ) || ( ! std::isfinite( t_stab ) ) )
+  return( false );
+
+ const double xj = j < f_x_bar.size() ? f_x_bar[ j ] : 0.0;
+ if( lower )
+  return( f_L.empty() || ( ! std::isfinite( f_L[ j ] ) ) ||
+          ( xj - t_stab >= f_L[ j ] ) );
+
+ return( f_U.empty() || ( ! std::isfinite( f_U[ j ] ) ) ||
+         ( xj + t_stab <= f_U[ j ] ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -3581,25 +3721,29 @@ void MasterProblemBlock::refresh_box_coordinate( Index j ,
   return;
 
  const double sgn = IsConvex ? -1.0 : 1.0;
- const bool iterate = ( f_v2_form != 0 );
- const double xj = ( ( ! iterate ) && j < f_x_bar.size() )
-                   ? f_x_bar[ j ] : 0.0;
+ double lower , upper;
+ primal_box( j , lower , upper );
 
- const double lower = f_L.empty() ? - Inf< double >() : f_L[ j ];
+ // a side turns finite or infinite when the box does or, under
+ // #kTrustRegion, when t does, possibly after the master has been loaded:
+ // only then the Solver has to be told
+ auto set_side = [ issueMod ]( ColVariable * s , bool finite ) {
+  if( s->is_fixed() != finite )
+   return;
+  if( ! finite )
+   s->set_value( 0.0 );
+  s->is_fixed( ! finite , issueMod );
+  };
+
  const bool has_L = std::isfinite( lower );
- Var_s_plus_idx[ j ]->is_fixed( ! has_L , eNoMod );
- if( ! has_L )
-  Var_s_plus_idx[ j ]->set_value( 0.0 );
+ set_side( Var_s_plus_idx[ j ] , has_L );
  dqf->modify_term( DQuadFunction::Index( s_plus_obj_idx[ j ] ) ,
-                   has_L ? sgn * ( lower - xj ) : 0.0 , 0.0 , issueMod );
+                   has_L ? sgn * lower : 0.0 , 0.0 , issueMod );
 
- const double upper = f_U.empty() ? Inf< double >() : f_U[ j ];
  const bool has_U = std::isfinite( upper );
- Var_s_minus_idx[ j ]->is_fixed( ! has_U , eNoMod );
- if( ! has_U )
-  Var_s_minus_idx[ j ]->set_value( 0.0 );
+ set_side( Var_s_minus_idx[ j ] , has_U );
  dqf->modify_term( DQuadFunction::Index( s_minus_obj_idx[ j ] ) ,
-                   has_U ? - sgn * ( upper - xj ) : 0.0 , 0.0 , issueMod );
+                   has_U ? - sgn * upper : 0.0 , 0.0 , issueMod );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -4229,21 +4373,15 @@ void MasterProblemBlock::set_x_bar( const std::vector< double > & x_bar )
  // s^+_j carries sgn*(L_j - x_bar_j) and s^-_j carries -sgn*(U_j - x_bar_j),
  // both moving with the stability centre; in the iterate form the box stays
  // invariant ( s^+_j = sgn*L_j, s^-_j = -sgn*U_j ) because x_bar lives in the
- // Var_z linear coefficient instead. Entries with a non-finite bound keep
- // their fixed-to-0 slack and 0 coefficient
+ // Var_z linear coefficient instead, unless it is intersected with the trust
+ // region, which moves with the centre in both forms. Entries with a
+ // non-finite bound keep their fixed-to-0 slack and 0 coefficient
  if( ( int( s_plus_obj_idx.size() ) == NumVars ) &&
      ( int( s_minus_obj_idx.size() ) == NumVars ) &&
-     ( ! f_L.empty() || ! f_U.empty() ) )
-  for( int j = 0 ; j < NumVars ; ++j ) {
-   const double xj = ( ( ! iterate ) && j < int( f_x_bar.size() ) )
-                     ? f_x_bar[ j ] : 0.0;
-   const bool has_L = ! f_L.empty() && std::isfinite( f_L[ j ] );
-   dqf->modify_term( DQuadFunction::Index( s_plus_obj_idx[ j ] ) ,
-                     has_L ? sgn * ( f_L[ j ] - xj ) : 0.0 , 0.0 );
-   const bool has_U = ! f_U.empty() && std::isfinite( f_U[ j ] );
-   dqf->modify_term( DQuadFunction::Index( s_minus_obj_idx[ j ] ) ,
-                     has_U ? - sgn * ( f_U[ j ] - xj ) : 0.0 , 0.0 );
-   }
+     ( ( ! f_L.empty() ) || ( ! f_U.empty() ) ||
+       ( StblType == kTrustRegion ) ) )
+  for( int j = 0 ; j < NumVars ; ++j )
+   refresh_box_coordinate( Index( j ) , dqf , eModBlck );
 
  // Displacement form has no explicit x_bar * z term. Restore its exact easy
  // component part directly as x_bar * g^k(u^k), using the cached sparse map
@@ -4570,7 +4708,14 @@ void MasterProblemBlock::append_coordinate_state( int n , ModParam issueMod )
     }
    }
   else {
+   // as in generate_dual_abstract_variables(): under the trust region z is
+   // fixed to 0, and the box of the new coordinates is the trust region
    std::list< ColVariable > new_z( n );
+   if( StblType == kTrustRegion )
+    for( auto & zj : new_z ) {
+     zj.set_value( 0.0 );
+     zj.is_fixed( true , eNoMod );
+     }
    append_indexed_group( new_z , Var_z_idx ,
                          [ this , issueMod ]( auto & additions ) {
     add_dynamic_variables( Var_z , additions , issueMod );
@@ -4580,13 +4725,15 @@ void MasterProblemBlock::append_coordinate_state( int n , ModParam issueMod )
    std::list< ColVariable > new_s_minus( n );
    auto plus = new_s_plus.begin();
    auto minus = new_s_minus.begin();
-   for( int j = 0 ; j < n ; ++j , ++plus , ++minus ) {
+   for( int j = old_n ; j < new_n ; ++j , ++plus , ++minus ) {
+    double lhs , rhs;
+    primal_box( Index( j ) , lhs , rhs );
     plus->is_positive( true , eNoMod );
     plus->set_value( 0.0 );
-    plus->is_fixed( true , eNoMod );
+    plus->is_fixed( ! std::isfinite( lhs ) , eNoMod );
     minus->is_positive( true , eNoMod );
     minus->set_value( 0.0 );
-    minus->is_fixed( true , eNoMod );
+    minus->is_fixed( ! std::isfinite( rhs ) , eNoMod );
     }
    append_indexed_group( new_s_plus , Var_s_plus_idx ,
                          [ this , issueMod ]( auto & additions ) {
@@ -4787,20 +4934,22 @@ void MasterProblemBlock::append_coordinate_objective( int first , int n ,
   triples.emplace_back( Var_z_idx[ j ] , linear , quad );
   }
 
+ std::vector< double > lower( n ) , upper( n );
+ for( int j = first ; j < last ; ++j )
+  primal_box( Index( j ) , lower[ j - first ] , upper[ j - first ] );
+
  const int s_plus_offset = int( triples.size() );
  for( int j = first ; j < last ; ++j ) {
-  const double xj = iterate ? 0.0 : f_x_bar[ j ];
-  const bool has_L = ! f_L.empty() && std::isfinite( f_L[ j ] );
+  const double lhs = lower[ j - first ];
   triples.emplace_back( Var_s_plus_idx[ j ] ,
-                        has_L ? sgn * ( f_L[ j ] - xj ) : 0.0 , 0.0 );
+                        std::isfinite( lhs ) ? sgn * lhs : 0.0 , 0.0 );
   }
 
  const int s_minus_offset = int( triples.size() );
  for( int j = first ; j < last ; ++j ) {
-  const double xj = iterate ? 0.0 : f_x_bar[ j ];
-  const bool has_U = ! f_U.empty() && std::isfinite( f_U[ j ] );
+  const double rhs = upper[ j - first ];
   triples.emplace_back( Var_s_minus_idx[ j ] ,
-                        has_U ? - sgn * ( f_U[ j ] - xj ) : 0.0 , 0.0 );
+                        std::isfinite( rhs ) ? - sgn * rhs : 0.0 , 0.0 );
   }
 
  dqf->add_variables( std::move( triples ) , issueMod );
@@ -5634,6 +5783,51 @@ int MasterProblemBlock::solve_master( void )
   const bool has_linear = std::any_of( f_linear_part.begin() ,
                                        f_linear_part.end() ,
                                        []( double c ) { return( c != 0 ); } );
+
+  /* With the trust region the stabilization is the box, and the solution
+   * of min { l.d : d in the box } is the side opposite to the sign of l
+   * (0 where l is), with multiplier | l_j | on that side: the primal MP
+   * writes d, whose side gives z* = l [see get_z_vector()], the dual one,
+   * whose z is fixed to 0, the multipliers s^+ - s^- = l of the box and
+   * the dual values of the coupling rows, which give d [see
+   * get_d_vector()]. */
+  if( StblType == kTrustRegion ) {
+   // the step on coordinate i, and the point it leads to in the frame of
+   // the Variable (x in the iterate form, d in the displacement one)
+   auto step = [ this , has_linear ]( Index i ) {
+    const double li = has_linear ? f_linear_part[ i ] : 0.0;
+    double lhs , rhs;
+    primal_box( i , lhs , rhs );
+    const double side = li > 0.0 ? lhs : ( li < 0.0 ? rhs : Inf< double >() );
+    const double xi = f_v2_form ? f_x_bar[ i ] : 0.0;
+    return( std::isfinite( side ) ? side - xi : 0.0 );
+    };
+   const auto frame = [ this ]( Index i ) {
+    return( f_v2_form ? f_x_bar[ i ] : 0.0 );
+    };
+
+   // a side that is infinite (t is) keeps its multiplier fixed to 0
+   const auto set_mult = []( ColVariable * s , double value ) {
+    if( ! s->is_fixed() )
+     s->set_value( value );
+    };
+
+   if( IsPrimal )
+    for( Index i = 0 ; i < Var_d_idx.size() ; ++i )
+     Var_d_idx[ i ]->set_value( frame( i ) + step( i ) );
+   else {
+    Index i = 0;
+    for( auto & row : CouplingCns ) {
+     const double li = has_linear ? f_linear_part[ i ] : 0.0;
+     set_mult( Var_s_plus_idx[ i ] , std::max( li , 0.0 ) );
+     set_mult( Var_s_minus_idx[ i ] , std::max( - li , 0.0 ) );
+     row.set_dual( ( IsConvex ? 1.0 : -1.0 ) * ( frame( i ) + step( i ) ) );
+     ++i;
+     }
+    }
+   return( Solver::kOK );
+   }
+
   if( IsPrimal )
    for( int i = 0 ; i < int( Var_d_idx.size() ) ; ++i )
     Var_d_idx[ i ]->set_value( ( f_v2_form ? f_x_bar[ i ] : 0.0 )
@@ -5691,7 +5885,10 @@ int MasterProblemBlock::solve_master( void )
    // variables. Bundle management and aggregation therefore need both sides
    // of the QP solution. A master with integer coordinates has none
    // [see set_integer()].
-   if( IsPrimal && ( ! f_has_integer ) )
+   // Under the trust region the dual MP has no z to give the step d*
+   // with: that is the dual value of its coupling rows [see get_d_vector()].
+   if( ( IsPrimal && ( ! f_has_integer ) ) ||
+       ( ( ! IsPrimal ) && ( StblType == kTrustRegion ) ) )
     if( auto * cda = dynamic_cast< CDASolver * >( slv ) )
      cda->get_dual_solution( nullptr );
    }
@@ -5890,6 +6087,20 @@ void MasterProblemBlock::set_t( double t )
   }
  auto dqf = dynamic_cast< DQuadFunction * >( obj->get_function() );
  if( ! dqf ) {
+  issue_t_mod();
+  return;
+  }
+
+ // t is the radius of the trust region, which lives in the coefficients of
+ // the box multipliers: two per variable, in one channel as below
+ if( StblType == kTrustRegion ) {
+  if( ( int( s_plus_obj_idx.size() ) == NumVars ) &&
+      ( int( s_minus_obj_idx.size() ) == NumVars ) ) {
+   auto tpar = open_if_needed( eNoBlck , 2 * NumVars );
+   for( int j = 0 ; j < NumVars ; ++j )
+    refresh_box_coordinate( Index( j ) , dqf , tpar );
+   close_if_needed( tpar , 2 * NumVars );
+   }
   issue_t_mod();
   return;
   }
