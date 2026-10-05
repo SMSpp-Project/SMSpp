@@ -593,6 +593,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   computed without it, and `cleanup_inner_objective()` brought back 0 in
   place of it (e.g., the weight of the clauses added to a sub-`SATBlock`)
 
+- the LagBFunction reads the parameters of its inner Solver (`get_*_par()`
+  and `get_dflt_*_par()`) at the index that the inner Solver gives them:
+  they translated it the wrong way, adding the offset that they had to take
+  away, so that they read another parameter or none, and an inner Solver
+  with parameters of its own threw at the first that it did not have
+
+- `LagBFunction::set_ComputeConfig( nullptr )` takes the LagBFunction back
+  to its defaults: it read the parameters of the null ComputeConfig, and
+  `set_default_inner_BlockSolverConfig()` now un-registers the Solver that
+  the BlockSolverConfig of the last ComputeConfig has registered, while it
+  touched none, since a BlockSolverConfig built from the inner Block and
+  clear()-ed only removes the Solver that it has registered itself
+
+- setting `intInnrSlvr` of a LagBFunction no longer adds a ComputeConfig
+  with no Solver name to the clear()-ed copy of its BlockSolverConfig,
+  which then tried to create a Solver "" when the LagBFunction was
+  destroyed, i.e., whenever a ComputeConfig gave both a BlockSolverConfig
+  and `intInnrSlvr`
+
 - the MasterProblemBlock saves the dual values of the easy components after
   having asked them to the Solver of the master, and also in the dual form
   of the master: before, it saved whatever their rows held, which in the

@@ -526,12 +526,10 @@ void LagBFunction::set_ComputeConfig( const ComputeConfig * scfg )
     f_BSC->clear();
 
     // a LagBFunction told that it has no inner Solver [see intInnrSlvr]
-    // uses the first of those that this BlockSolverConfig has added, if
-    // any; this is not done by set_par(), which would add a ComputeConfig
-    // to f_BSC, that has just been clear()-ed to un-do what it has done
+    // uses the first of those that this BlockSolverConfig has added, if any
     if( ( InnrSlvr == Inf< Index >() ) &&
 	( inner_block->get_registered_solvers().size() > nslv ) )
-     InnrSlvr = nslv;
+     set_par( intInnrSlvr , int( nslv ) );
     }
    }
   else {  // scfg->f_extra_Configuration is nullptr
@@ -549,9 +547,10 @@ void LagBFunction::set_ComputeConfig( const ComputeConfig * scfg )
  // note that the inner Solver may be changing and some other parameters
  // actually are parameters of the inner Solver; thus, ensure that the
  // change in InnrSlvr is acted upon first
- for( const auto & pair : scfg->int_pars )
-  if( pair.first == "intInnrSlvr" )
-   set_par( intInnrSlvr , pair.second );
+ if( scfg )
+  for( const auto & pair : scfg->int_pars )
+   if( pair.first == "intInnrSlvr" )
+    set_par( intInnrSlvr , pair.second );
 
  // now do all the rest
  ThinComputeInterface::set_ComputeConfig( scfg );
@@ -615,21 +614,9 @@ void LagBFunction::set_par( idx_type par , int value )
     }
    g_pool.resize( value );
    break;
-  case( intInnrSlvr ): { // intInnrSlvr - - - - - - - - - - - - - - - - - -
+  case( intInnrSlvr ):  // intInnrSlvr - - - - - - - - - - - - - - - - - - -
    // a negative value means no inner Solver at all [see intInnrSlvr]
-   const Index ni = ( value < 0 ) ? Inf< Index >() : Index( value );
-   if( InnrSlvr != ni ) {
-    InnrSlvr = ni;
-    // ensure there is a ComputeConfig in diff mode ready, if a
-    // BlockSolverConfig of the inner Block has been given at all
-    while( f_BSC && ( InnrSlvr < Inf< Index >() ) &&
-           ( f_BSC->num_ComputeConfig() <= InnrSlvr ) ) {
-     auto cc = new ComputeConfig;
-     cc->set_diff( true );
-     f_BSC->add_ComputeConfig( "" , cc );
-     }
-    }
-   }
+   InnrSlvr = ( value < 0 ) ? Inf< Index >() : Index( value );
    break;
   case( intNoSol ):  // intNoSol - - - - - - - - - - - - - - - - - - - - - -
    if( ( value > 0 ) && ( NoSol == false ) ) {
@@ -5159,11 +5146,14 @@ void LagBFunction::set_default_inner_BlockConfig( void )
 
 void LagBFunction::set_default_inner_BlockSolverConfig( void )
 {
- if( auto ib = get_inner_block() ) {
-  auto solver_config = new RBlockSolverConfig( ib );
-  solver_config->clear();
-  solver_config->apply( ib );
-  delete solver_config;
+ // f_BSC is the clear()-ed copy of the BlockSolverConfig of the last
+ // set_ComputeConfig(), whose apply() un-registers and deletes exactly the
+ // Solver that it had registered [see set_ComputeConfig()]
+ if( f_BSC ) {
+  if( auto ib = get_inner_block() )
+   f_BSC->apply( ib );
+  delete f_BSC;
+  f_BSC = nullptr;
   }
  }
 

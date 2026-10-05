@@ -517,7 +517,9 @@ static void test_state_copy( void )
  * use the BoxSolver the inner Block has, and compute() throws; the
  * BlockSolverConfig of a ComputeConfig then registers a second BoxSolver,
  * which becomes the inner Solver, and the value is that of the closed form.
- * The ComputeConfig is read from LagBFCfg-Box.txt. */
+ * The ComputeConfig is read from LagBFCfg-Box.txt. The parameters of the
+ * inner Solver are then read through the LagBFunction, and
+ * set_ComputeConfig( nullptr ) takes everything back to the defaults. */
 
 static void test_no_inner_Solver( void )
 {
@@ -564,6 +566,30 @@ static void test_no_inner_Solver( void )
 	 "with the Solver of the ComputeConfig l( y ) = " +
 	 std::to_string( f.lbf->get_value() ) + ", expected " +
 	 std::to_string( expected ) );
+
+ // the parameters of the inner Solver are read through the LagBFunction
+ // at the indices that int_par_is() gives them
+ const auto is = f.inner->get_registered_solvers().back();
+ const auto ip = f.lbf->int_par_is( is->get_num_int_par() - 1 );
+ expect( f.lbf->get_dflt_int_par( ip ) ==
+	 is->get_dflt_int_par( is->get_num_int_par() - 1 ) ,
+	 "the default of the last int parameter of the inner Solver read "
+	 "through the LagBFunction differs" );
+ expect( f.lbf->get_int_par( ip ) ==
+	 is->get_int_par( is->get_num_int_par() - 1 ) ,
+	 "the last int parameter of the inner Solver read through the "
+	 "LagBFunction differs" );
+
+ // set_ComputeConfig( nullptr ) takes the LagBFunction back to its
+ // defaults, and the inner Block back to the BoxSolver of the fixture
+ f.lbf->set_ComputeConfig( nullptr );
+ expect( f.lbf->get_int_par( LagBFunction::intInnrSlvr ) == 0 ,
+	 "set_ComputeConfig( nullptr ) leaves intInnrSlvr at " +
+	 std::to_string( f.lbf->get_int_par( LagBFunction::intInnrSlvr ) ) );
+ expect( f.inner->get_registered_solvers().size() == 1 ,
+	 "set_ComputeConfig( nullptr ) leaves " +
+	 std::to_string( f.inner->get_registered_solvers().size() ) +
+	 " Solver on the inner Block, expected the 1 of the fixture" );
 
  std::cout << "no inner Solver: done" << std::endl;
  }

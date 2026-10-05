@@ -2181,7 +2181,7 @@ class LagBFunction : public C05Function , public Block
    return( C05Function::get_dflt_int_par( par ) );
 
   if( auto is = inner_Solver() )
-   return( is->get_dflt_int_par( int_par_is( par ) ) );
+   return( is->get_dflt_int_par( int_par_lbf( par ) ) );
   else
    return( Inf< int >() );
   }
@@ -2196,7 +2196,7 @@ class LagBFunction : public C05Function , public Block
    return( C05Function::get_dflt_dbl_par( par ) );
 
   if( auto is = inner_Solver() )
-   return( is->get_dflt_dbl_par( dbl_par_is( par ) ) );
+   return( is->get_dflt_dbl_par( dbl_par_lbf( par ) ) );
   else
    return( Inf< double >() );
   }
@@ -2214,7 +2214,7 @@ class LagBFunction : public C05Function , public Block
    return( C05Function::get_dflt_str_par( par ) );
 
   if( auto is = inner_Solver() )
-   return( is->get_dflt_str_par( str_par_is( par ) ) );
+   return( is->get_dflt_str_par( str_par_lbf( par ) ) );
   else
    return( _empty );
   }
@@ -2229,7 +2229,7 @@ class LagBFunction : public C05Function , public Block
    return( C05Function::get_dflt_vint_par( par ) );
 
   if( auto is = inner_Solver() )
-   return( is->get_dflt_vint_par( vint_par_is( par ) ) );
+   return( is->get_dflt_vint_par( vint_par_lbf( par ) ) );
   else
    return( _empty );
   }
@@ -2244,7 +2244,7 @@ class LagBFunction : public C05Function , public Block
    return( C05Function::get_dflt_vdbl_par( par ) );
 
   if( auto is = inner_Solver() )
-   return( is->get_dflt_vdbl_par( vdbl_par_is( par ) ) );
+   return( is->get_dflt_vdbl_par( vdbl_par_lbf( par ) ) );
   else
    return( _empty );
   }
@@ -2260,7 +2260,7 @@ class LagBFunction : public C05Function , public Block
    return( C05Function::get_dflt_vstr_par( par ) );
 
   if( auto is = inner_Solver() )
-   return( is->get_dflt_vstr_par( vstr_par_is( par ) ) );
+   return( is->get_dflt_vstr_par( vstr_par_lbf( par ) ) );
   else
    return( _empty );
   }
@@ -2270,7 +2270,7 @@ class LagBFunction : public C05Function , public Block
  [[nodiscard]] int get_int_par( idx_type par ) const override {
   if( ( par < intLastAlgParTCI ) || ( par >= intLastLagBFPar ) ) {
    if( auto is = inner_Solver() )
-    return( is->get_int_par( int_par_is( par ) ) );
+    return( is->get_int_par( int_par_lbf( par ) ) );
    else
     return( C05Function::get_dflt_int_par( par ) );
    }
@@ -2297,7 +2297,7 @@ class LagBFunction : public C05Function , public Block
 
   if( ( par < dblLastAlgParTCI ) || ( par >= dblLastLagBFPar ) ) {
    if( auto is = inner_Solver() )
-    return( is->get_dbl_par( dbl_par_is( par ) ) );
+    return( is->get_dbl_par( dbl_par_lbf( par ) ) );
    else
     return( C05Function::get_dflt_dbl_par( par ) );
    }
@@ -2323,7 +2323,7 @@ class LagBFunction : public C05Function , public Block
    return( f_chk_cfg_name );
 
   if( auto is = inner_Solver() )
-   return( is->get_str_par( str_par_is( par ) ) );
+   return( is->get_str_par( str_par_lbf( par ) ) );
   else
    return( C05Function::get_dflt_str_par( par ) );
   }
@@ -2333,7 +2333,7 @@ class LagBFunction : public C05Function , public Block
  [[nodiscard]] const std::vector< int > & get_vint_par( idx_type par )
   const override {
   if( auto is = inner_Solver() )
-   return( is->get_vint_par( vint_par_is( par ) ) );
+   return( is->get_vint_par( vint_par_lbf( par ) ) );
   else
    return( C05Function::get_dflt_vint_par( par ) );
   }
@@ -2343,7 +2343,7 @@ class LagBFunction : public C05Function , public Block
  [[nodiscard]] const std::vector< double > & get_vdbl_par( idx_type par )
   const override {
   if( auto is = inner_Solver() )
-   return( is->get_vdbl_par( vdbl_par_is( par ) ) );
+   return( is->get_vdbl_par( vdbl_par_lbf( par ) ) );
   else
    return( C05Function::get_dflt_vdbl_par( par ) );
   }
@@ -2353,7 +2353,7 @@ class LagBFunction : public C05Function , public Block
  [[nodiscard]] const std::vector< std::string > & get_vstr_par( idx_type par )
   const override {
   if( auto is = inner_Solver() )
-   return( is->get_vstr_par( vstr_par_is( par ) ) );
+   return( is->get_vstr_par( vstr_par_lbf( par ) ) );
   else
    return( C05Function::get_dflt_vstr_par( par ) );
   }
@@ -2939,6 +2939,11 @@ class LagBFunction : public C05Function , public Block
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// reset the BlockSolverConfig of the inner Block to the default one
+ /** Un-registers and deletes the Solver that the BlockSolverConfig of the
+  * last set_ComputeConfig() has registered to the inner Block, and only
+  * them: those that are there for any other reason, the lazy
+  * BlockSolverConfig included [see set_lazy_inner_BlockSolverConfig()],
+  * are left where they are. */
 
  void set_default_inner_BlockSolverConfig( void );
 
