@@ -111,6 +111,11 @@ static void append_indexed_group( std::list< T > & additions ,
 
 void MasterProblemBlock::clear()
 {
+ // Drop the links while the borrowed size variables and Var_lambda still
+ // exist; the easy inner Blocks remain owned by their Function Blocks.
+ EasySizeCns.clear();
+ EasySizeVars.clear();
+
  // Easy-component inner Blocks are only registered, not owned, by MPB. Remove
  // each registration and restore its Function Block as father before dropping
  // the bookkeeping. Each pointer deliberately remains in its owner's v_Block
@@ -227,8 +232,8 @@ void MasterProblemBlock::clear()
  Var_v_hard.clear();
  Var_z_idx.clear();
  Var_z.clear();
- Var_lambda.set_value( 0.0 );
  Var_lambda.is_fixed( false , eNoMod );
+ Var_lambda.set_value( 0.0 );
  Var_s_plus_idx.clear();
  Var_s_plus.clear();
  Var_s_minus_idx.clear();
@@ -582,22 +587,9 @@ void MasterProblemBlock::configure(
          "MasterProblemBlock::configure: easy component " +
          std::to_string( k ) + " is a LagBFunction with no inner Block" ) );
 
-   /* IMPORTANT NOTE: In the dual version, the per-row stationarity
-    * constraints of each easy components would read:
-    *
-    *       E^k_i u^k + lambda * e^k_i = 0
-    *
-    * However, in the current implementation we simply register the inner
-    * block of the LagBFunction to *this, directly importing the constraints
-    *
-    *       E^k_i u^k + e^k_i = 0
-    *
-    * Adding the contribution of \lambda would require "hacking" the internal
-    * representation of LagBFunction, hence contradicting the general idea
-    * of SMS++. For this reason, if easy components are available in the dual
-    * master problem, we simply force \lambda = 1, making the two formulations
-    * equivalent. Hopefully, this will be addressed in the future with some
-    * copy or scaling mechanism. */
+   // The inner Block owns its scaling representation. During dual
+   // generation, any size variable it exposes is linked to Var_lambda.
+   // If one easy Block exposes none, lambda stays fixed to 1.
 
    // Register inner in the MPB tree and make MPB its father, but deliberately
    // keep the pointer in LagBFunction::v_Block. This lets the master Solver
@@ -1212,23 +1204,32 @@ void MasterProblemBlock::generate_dual_abstract_variables( void )
  // installed below; the per-PFB rows are owned by the PFB sub-Blocks
  // themselves.
  //
- // NOTE: when easy components are considered, \lambda is fixed to 1 (see
- // MasterProblemBlock.353 for further details). This means that the above
- // equation reads
- //
- //      r = omega.
- //
- // Therefore the global lower-bound multiplier r and the level multiplier
- // omega can only appear in a perfectly balanced way. In particular, if
- // omega is absent or fixed to zero, then r is forced to zero as well,
- // so the global lower bound cannot contribute through its dual multiplier.
+ // An easy inner Block may expose its own size variable tau_k. Link
+ // every such variable to lambda in generate_dual_abstract_constraints().
+ // If any easy component has no size variable, keep the unit-mass fallback:
+ // lambda = 1, hence r - omega = 0 in proximal / doubly stabilized mode,
+ // and r - omega = -1 in pure level. The available tau_k are then 1 too.
+ // LagBFunction has already generated its inner abstract variables.
+ EasySizeVars.clear();
+ EasySizeVars.reserve( EasyCmps_SB.size() );
+ for( auto * inner : EasyCmps_SB ) {
+  auto * size_var = inner->get_size_variable();
+  if( ! size_var )
+   continue;
+  auto * tau = dynamic_cast< ColVariable * >( size_var );
+  if( ! tau )
+   throw( std::invalid_argument(
+        "MasterProblemBlock::generate_dual_abstract_variables: "
+        "easy size variable is not a ColVariable" ) );
+  EasySizeVars.push_back( tau );
+  }
 
- if( NoEasyCmps > 0 ){
-  Var_lambda.set_value( 1 );
+ Var_lambda.is_fixed( false , eNoMod );
+ Var_lambda.is_positive( true , eNoMod );
+ if( EasySizeVars.size() != std::size_t( NoEasyCmps ) ) {
+  Var_lambda.set_value( 1.0 );
   Var_lambda.is_fixed( true , eNoMod );
- }
- else
-  Var_lambda.is_positive( true , eNoMod );
+  }
 
  // Var_r is the dual multiplier of the global LB row. It is structurally
  // present in every stabilization type, but only carries an objective
@@ -1370,6 +1371,20 @@ void MasterProblemBlock::generate_dual_abstract_constraints( void )
      new LinearFunction( std::move( norm_terms ) ) , eNoMod );
   add_static_constraint( NormalizationCns , "MPB_norm" );
   }
+
+ // ---- easy-component size links: tau_k - lambda = 0 -------------------
+ // Keep these links also in the unit-mass fallback, so that every scalable
+ // easy component is evaluated at the same unit scale as the unscaled ones.
+ EasySizeCns.resize( EasySizeVars.size() );
+ for( std::size_t k = 0 ; k < EasySizeVars.size() ; ++k ) {
+  auto & row = EasySizeCns[ k ];
+  row.set_both( 0.0 , eNoMod );
+  row.set_function( new LinearFunction( {
+                       { EasySizeVars[ k ] , 1.0 } ,
+                       { & Var_lambda , -1.0 } } ) , eNoMod );
+  }
+ if( ! EasySizeCns.empty() )
+  add_static_constraint( EasySizeCns , "MPB_easy_size" );
 
  // ---- coupling rows ) -----------------
  //

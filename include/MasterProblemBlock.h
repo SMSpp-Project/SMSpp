@@ -358,6 +358,16 @@ class MasterProblemBlock : public Block {
   * them in add_Modification(), notifies the retained Function Block owner and
   * then forwards them normally along the master Block tree.
   *
+  * In the dual MP, each easy inner Block is asked for get_size_variable()
+  * when the abstract variables are generated. Each non-null result must be
+  * a ColVariable and receives a master row tau_k = lambda. If every easy
+  * component provides one, lambda is nonnegative and unfixed; if any does
+  * not, lambda is fixed to 1, including through the links the size variables
+  * that are available. The inner Block must already express the required
+  * scaling through its variable; MPB neither rewrites its rows nor changes
+  * that variable's bounds. The variables remain owned by their inner Blocks
+  * and the master removes its links on clear(). The primal MP is unaffected.
+  *
   * The optional \p ignored_blocks list is forwarded to the inner Solver
   * via Solver::set_excluded_blocks(), telling it which registered
   * sub-Block subtrees have to be skipped.
@@ -1856,6 +1866,10 @@ class MasterProblemBlock : public Block {
  ///< sub-Blocks of the "easy" components; these are non-owning registrations
  ///< and remain owned by the corresponding Function Block in EasyCmps_Owner
 
+ std::vector< ColVariable * > EasySizeVars;
+ ///< borrowed size variables exposed by easy inner Blocks in the dual MP;
+ ///< only non-null variables are stored, each linked to Var_lambda
+
  std::vector< Block * > HardCmps;  ///< sub-Blocks of the "hard" components
 
  std::vector< Block * > v_stale_hard;
@@ -2004,6 +2018,9 @@ class MasterProblemBlock : public Block {
                                    ///< sum_k lambda_k + r - omega = NoHardCmps
                                    ///< (one +1 lambda_k coefficient per hard
                                    ///< component, see Var_lambdas)
+
+ std::vector< FRowConstraint > EasySizeCns;
+ ///< master-owned rows tau_k - lambda = 0, one per entry of EasySizeVars
 
  std::list< FRowConstraint > CouplingCns;
                                    ///< dynamic coupling rows z_j = b_j
