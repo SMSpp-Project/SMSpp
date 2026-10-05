@@ -136,6 +136,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (say, an easy component of a BundleSolver) gets no Solver;
   `lazy_inner_BlockSolverConfig_pending()` tells whether that has happened
 
+- `LagBFunction::intInnrSlvr` set to -1 means that the LagBFunction has no
+  inner Solver, whatever Solver its inner Block has: `compute()` then
+  throws, rather than returning `kError` as it does when the inner Block
+  has no Solver at all
+
 - `MasterProblemBlock::add_easy_coupling( easy_id , j , local_i )`, the
   reverse of `drop_easy_coupling()`: the easy component gets the terms of
   its Lagrangian term on the coordinate j, already in the master, in the

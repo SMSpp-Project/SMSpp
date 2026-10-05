@@ -606,17 +606,21 @@ void LagBFunction::set_par( idx_type par , int value )
     }
    g_pool.resize( value );
    break;
-  case( intInnrSlvr ):  // intInnrSlvr - - - - - - - - - - - - - - - - - - -
-   if( InnrSlvr != Index( value ) ) {
-    InnrSlvr = Index( value );
+  case( intInnrSlvr ): { // intInnrSlvr - - - - - - - - - - - - - - - - - -
+   // a negative value means no inner Solver at all [see intInnrSlvr]
+   const Index ni = ( value < 0 ) ? Inf< Index >() : Index( value );
+   if( InnrSlvr != ni ) {
+    InnrSlvr = ni;
     // ensure there is a ComputeConfig in diff mode ready, if a
     // BlockSolverConfig of the inner Block has been given at all
-    while( f_BSC && ( f_BSC->num_ComputeConfig() <= InnrSlvr ) ) {
+    while( f_BSC && ( InnrSlvr < Inf< Index >() ) &&
+           ( f_BSC->num_ComputeConfig() <= InnrSlvr ) ) {
      auto cc = new ComputeConfig;
      cc->set_diff( true );
      f_BSC->add_ComputeConfig( "" , cc );
      }
     }
+   }
    break;
   case( intNoSol ):  // intNoSol - - - - - - - - - - - - - - - - - - - - - -
    if( ( value > 0 ) && ( NoSol == false ) ) {
@@ -2273,8 +2277,8 @@ int LagBFunction::compute( bool changedvars )
   }
 
  auto is = inner_Solver();
- if( ! is )          // there is no inner Solver
-  return( kError );  // that's clearly an error
+ if( ! is )  // there is no inner Solver [see intInnrSlvr]
+  throw( std::logic_error( "LagBFunction::compute: no inner Solver" ) );
 
  // if required, check if b == 0 or not- - - - - - - - - - - - - - - - - - - -
  if( f_yb == INF ) {

@@ -194,6 +194,11 @@ namespace SMSpp_di_unipi_it
  *     BECOME INVALID, OR TO CHANGE IF INFORMATION PRODUCED IN THE LAST
  *     compute() (FUNCTION VALUES, LINEARIZATIONS, ...) IS STILL TO BE
  *     RETRIEVED.
+ *     IF InnrSlvr IS SET TO -1, THE LagBFunction HAS NO INNER Solver AT ALL
+ *     (WHATEVER Solver ARE ATTACHED TO THE INNER Block) AND compute() THROWS
+ *     std::logic_error; THIS IS MEANT FOR A LagBFunction THAT IS NEVER
+ *     SUPPOSED TO BE COMPUTED, E.G., BECAUSE ITS INNER Block IS "EASY" AND
+ *     IS DIRECTLY HANDLED BY WHOEVER USES THE LagBFunction.
  *
  * It should, however, in principle be possible to change the Solver at every
  * call of compute(), provided this is done "right before the call".
@@ -889,7 +894,9 @@ class LagBFunction : public C05Function , public Block
   *
   * - intInnrSlvr: the index of the inner Solver, i.e., its position in the
   *                list of registered Solver in the inner Block; the default
-  *                is 0 (first position);
+  *                is 0 (first position), and a negative value means that
+  *                the LagBFunction has no inner Solver, whatever Solver the
+  *                inner Block has, so that compute() throws [see compute()];
   *
   * - intNoSol: if nonzero, it is taken to mean that the inner Block will not
   *             produce workable Solution objects and therefore that
@@ -2267,7 +2274,8 @@ class LagBFunction : public C05Function , public Block
   switch( par ) {
    case( intLPMaxSz ):         return( LPMaxSz );
    case( intGPMaxSz ):         return( g_pool.size() );
-   case( intInnrSlvr ):        return( InnrSlvr );
+   case( intInnrSlvr ):
+    return( InnrSlvr == Inf< Index >() ? -1 : int( InnrSlvr ) );
    case( intNoSol ):           return( NoSol ? 1 : 0 );
    case( intChkState ):        return( ChkState ? 1 : 0 );
    case( intPushCostToOwner ): return( PushCostToOwner ? 1 : 0 );
@@ -2972,6 +2980,9 @@ class LagBFunction : public C05Function , public Block
 
   auto & rs = v_Block.front()->get_registered_solvers();
   if( rs.empty() )
+   return( nullptr );
+
+  if( InnrSlvr == Inf< Index >() )  // no inner Solver [see intInnrSlvr]
    return( nullptr );
 
   if( rs.size() > InnrSlvr ) {
