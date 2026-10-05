@@ -1324,34 +1324,34 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
    update_f_max_glob();
    }
 
-  // if nobody is listening (assuming issueMod == eModBlck)
-  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( eModBlck ) ) )
-   return;  // all done
-  
-  // issue a LagBFunctionMod: if some linearizations have been removed it has
-  // type() == GlobalPoolRemoved, otherwise it has type() == NothingChanged
-  // note: the explicit definition of type here was originally avoided by
-  //       having the ? expression directly in the constructor, but this
-  //       meant that the same expression had a check if which was nonempty
-  //       and a std-move of which that could make it empty, i.e., the
-  //       perfect example of an expression with side-effects whose result
-  //       depended on the order of the sub-expressions and therefore was
-  //       compiler-dependent, meaning extremely-hard-to-find errors 
-  auto type = which.empty() ? C05FunctionMod::NothingChanged
-                            : C05FunctionMod::GlobalPoolRemoved;
+  // if somebody is listening (assuming issueMod == eModBlck), issue a
+  // LagBFunctionMod; the Modification is forwarded to the father anyway
+  if( f_Observer && f_Observer->issue_mod( eModBlck ) ) {
+   // issue a LagBFunctionMod: if some linearizations have been removed it has
+   // type() == GlobalPoolRemoved, otherwise it has type() == NothingChanged
+   // note: the explicit definition of type here was originally avoided by
+   //       having the ? expression directly in the constructor, but this
+   //       meant that the same expression had a check if which was nonempty
+   //       and a std-move of which that could make it empty, i.e., the
+   //       perfect example of an expression with side-effects whose result
+   //       depended on the order of the sub-expressions and therefore was
+   //       compiler-dependent, meaning extremely-hard-to-find errors
+   auto type = which.empty() ? C05FunctionMod::NothingChanged
+                             : C05FunctionMod::GlobalPoolRemoved;
 
-  // in both cases it has shift() == NaN, since even if by chance none of the
-  // existing linearizations is affected (but this may simply be because
-  // there is none) the value of the function in general has changed
-  // unpredictably if all linearizations have been removed, then pass an
-  // empty Subset
-  if( cnt == which.size() )
-   which.clear();
- 
-  f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
-				    this , type , std::move( which ) , what ,
-				    C05FunctionMod::NaNshift , true ) ,
-				chnl );
+   // in both cases it has shift() == NaN, since even if by chance none of the
+   // existing linearizations is affected (but this may simply be because
+   // there is none) the value of the function in general has changed
+   // unpredictably if all linearizations have been removed, then pass an
+   // empty Subset
+   if( cnt == which.size() )
+    which.clear();
+
+   f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
+				     this , type , std::move( which ) , what ,
+				     C05FunctionMod::NaNshift , true ) ,
+				 chnl );
+   }
 
   }  // end( if( checking is required ) )
 

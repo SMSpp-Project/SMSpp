@@ -505,6 +505,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- a Modification of the inner Block that has `LagBFunction` check its
+  global pool is forwarded to the father of the `LagBFunction` also when
+  nobody listens to the `LagBFunction`, which it was not
+
 - `LagBFunction` gives the variables that an inner `Block` adds to its
   `Objective` after the registration, as the original cost in
   `CostMatrix`, the coefficient they have entered the `Objective` with
