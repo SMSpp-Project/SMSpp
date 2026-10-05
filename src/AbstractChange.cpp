@@ -220,6 +220,11 @@ Change * AbstractChange::apply( Block * block , bool doUndo ,
    if( doUndo )
     ret = pv->is_fixed() ? undo( eFixX , { pv->get_value() } )
 	                 : undo( eUnfixX , {} );
+   // a Variable fixed at another value is unfixed first: its value cannot
+   // change while it is fixed [see ColVariable::set_value()], and whoever
+   // reads the fixings is told of both steps
+   if( pv->is_fixed() && ( pv->get_value() != value ) )
+    pv->is_fixed( false , issueAMod );
    pv->set_value( value );
    pv->is_fixed( true , issueAMod );
    break;
