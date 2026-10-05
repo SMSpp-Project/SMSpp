@@ -2725,8 +2725,11 @@ double MasterProblemBlock::get_FiBLambda( int k ) const
   // the original easy value. Recover its unit-size value without changing
   // the master solution.
   const double lambda_value = get_lambda();
-  if( lambda_value > 0.0 )
-   value /= lambda_value;
+  if( ! ( lambda_value > 0.0 ) )
+   throw( std::logic_error(
+        "MasterProblemBlock::get_FiBLambda: easy-component value "
+        "reconstruction requires positive lambda" ) );
+  value /= lambda_value;
 
   // A concave maximisation is represented as the minimisation of -F: return
   // the easy value in those same internal units.
@@ -3206,6 +3209,60 @@ double MasterProblemBlock::get_aggregated_alpha( int k ) const
  double total = 0.0;
  for( int kk = 0 ; kk < int( HardCmps.size() ) ; ++kk )
   total += contrib( kk );
+
+ if( ( StblType == kLevel || StblType == kDoublyStabilized ) &&
+     ! EasyCmps.empty() ) {
+  // BundleSolver adds the easy reference values to Sigma. Supply the
+  // opposite affine values at x_bar, evaluated at the current master
+  // solution; these are already included in the proximal objective above.
+  // Match the normalization of the hard and box contributions. Without
+  // global-LB mixing this mass is lambda (also omega in pure level).
+  const double mass = uses_pure_level_aggregation()
+                      ? get_level_multiplier() : get_lambda();
+  if( ! ( mass > 0.0 ) )
+   throw( std::logic_error(
+        "MasterProblemBlock::get_aggregated_alpha: easy-component "
+        "contribution requires positive aggregate mass" ) );
+
+  double easy_value = 0.0;
+  std::function< void( Block * ) > add_objectives =
+   [ & easy_value , & add_objectives ]( Block * block ) {
+    if( ! block )
+     return;
+
+    if( auto * obj = dynamic_cast< RealObjective * >(
+                                              block->get_objective() ) ) {
+     obj->compute();
+     easy_value += obj->value();
+     }
+
+    for( auto * sub_block : block->get_nested_Blocks() )
+     add_objectives( sub_block );
+    };
+
+  for( Index easy_k = 0 ; easy_k < EasyCmps.size() ; ++easy_k ) {
+   if( easy_k >= EasyCmps_SB.size() )
+    throw( std::logic_error(
+         "MasterProblemBlock::get_aggregated_alpha: missing easy Block" ) );
+
+   add_objectives( EasyCmps_SB[ easy_k ] );
+   auto * lbf = EasyCmps[ easy_k ];
+   for( Index i = 0 ; i < lbf->get_num_active_var() ; ++i ) {
+    const Index j = easy_local_to_global( easy_k , i );
+    auto * gi = lbf->get_Lagrangian_term( i );
+    if( j >= f_x_bar.size() || ! gi )
+     throw( std::logic_error(
+          "MasterProblemBlock::get_aggregated_alpha: invalid easy "
+          "Lagrangian term" ) );
+
+    gi->compute();
+    easy_value += f_x_bar[ j ] * gi->get_value();
+    }
+   }
+
+  // Use the same internal minimization units as get_FiBLambda(k).
+  total -= ( IsConvex ? - easy_value : easy_value ) / mass;
+  }
 
  // The aggregate residual includes the box normals, so its error at the
  // centre must include their slacks too. These belong only to the total
