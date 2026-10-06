@@ -2862,14 +2862,18 @@ double MasterProblemBlock::get_FiBLambda( int k ) const
   if( ! has_model_row( k ) )
    return( Inf< double >() );
 
+  // v*[k] = < z*[k] , d* > - Sigma*[k]; with the trust region d* is not a
+  // multiple of z*, and it is read as it is [see get_d_vector()]
   const double sigma_k = get_aggregated_alpha( k );
   const auto zk = get_aggregated_subgradient( k );
-  const auto zt = get_z_vector();
+  const auto zt = ( StblType == kTrustRegion ) ? get_d_vector()
+                                               : get_z_vector();
   double dot = 0.0;
   const std::size_t n = std::min( zk.size() , zt.size() );
   for( std::size_t j = 0 ; j < n ; ++j )
    dot += zk[ j ] * zt[ j ];
-  return( - sigma_k - step_scale * dot );
+  return( ( StblType == kTrustRegion ) ? dot - sigma_k
+                                       : - sigma_k - step_scale * dot );
   }
 
  for( int kk = 0 ; kk < int( HardCmps.size() ) ; ++kk )
@@ -2877,7 +2881,13 @@ double MasterProblemBlock::get_FiBLambda( int k ) const
    return( Inf< double >() );
 
  // total v* = -( Sigma + step_scale ||z*||^2 ), with step_scale equal to
- // t in proximal mode and eta in pure-level mode.
+ // t in proximal mode and eta in pure-level mode; with the trust region the
+ // stabilization contributes t || z* ||_1 instead [see
+ // get_conjugate_stabilization()]
+ if( StblType == kTrustRegion )
+  return( - ( get_aggregated_alpha( -1 ) +
+              get_lambda() * get_conjugate_stabilization( t_stab ) ) );
+
  return( - ( get_aggregated_alpha( -1 ) +
              step_scale * get_dual_norm_squared() ) );
  }
@@ -3165,8 +3175,11 @@ void MasterProblemBlock::sensitivity_analysis( double & vl ,
   vc = 0.0;
   return;
   }
- const auto nz2 = get_dual_norm_squared();
- vl = - nz2 / 2.0;
+ // v* as a function of t is - Sigma* - D*_t( z* ), which is linear in t
+ // with slope - || z* ||_1 under the trust region [see
+ // get_conjugate_stabilization()]
+ vl = ( StblType == kTrustRegion ) ? - get_conjugate_stabilization( 1.0 )
+                                   : - get_dual_norm_squared() / 2.0;
  vc = get_FiBLambda() - vl * t_stab;
  }
 

@@ -18,7 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   absorbed rows of a `BendersBFunction`, rather than from the reduced costs
   of the Variable. `get_conjugate_stabilization( t )` returns D*_t( z* ),
   i.e., t || z* ||_1 under the trust region and ( t / 2 ) || z* ||_2^2
-  otherwise
+  otherwise; under the trust region the predicted decrease of the dual MP is
+  - ( Sigma* + t || z* ||_1 ), that of a component < z*_k , d* > - Sigma*_k,
+  and the slope given by `sensitivity_analysis()` - || z* ||_1
 
 - `AbstractChange`, a Change of the abstract representation of a Block (the
   objective coefficient, the integrality, the fixing and the bounds of a

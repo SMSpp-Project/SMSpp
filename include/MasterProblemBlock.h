@@ -1202,6 +1202,8 @@ class MasterProblemBlock : public Block {
   * the current t_stab, the implementation returns
   *   vl = - || z* ||^2 / 2
   *   vc = v*(t_stab) - vl * t_stab           (linear extrapolation)
+  * Under #kTrustRegion the stabilization contributes - t || z* ||_1, which
+  * is linear in t, and vl = - || z* ||_1.
   * In the primal MP both are set to 0 (the sensitivity is not yet implemented
   * there). */
 
