@@ -387,7 +387,10 @@ class Modification {
   *
   * - eModPhys     the physical representation of a Block, which only the
   *                Block and its Solver know (a physical Modification);
-  * - eModVarData  the data of existing Variable: bounds, type, fixing;
+  * - eModVarData  the data of existing Variable that a continuous
+  *                relaxation also sees: bounds, sign, fixing;
+  * - eModVarType  the integrality of existing Variable, which only those
+  *                that keep the Variable integer are to see;
   * - eModVarSet   the set of the Variable: some are added or removed;
   * - eModCnsSide  the sides of existing Constraint (relaxing or enforcing
   *                one included);
@@ -422,20 +425,21 @@ class Modification {
 
  static constexpr ModConcern eModPhys    =    1;  ///< physical
  static constexpr ModConcern eModVarData =    2;  ///< data of Variable
- static constexpr ModConcern eModVarSet  =    4;  ///< Variable added/removed
- static constexpr ModConcern eModCnsSide =    8;  ///< sides of Constraint
- static constexpr ModConcern eModCnsCoef =   16;  ///< coefficients of them
- static constexpr ModConcern eModCnsSet  =   32;  ///< Constraint added/removed
- static constexpr ModConcern eModObj     =   64;  ///< the Objective
- static constexpr ModConcern eRegnShrink =  128;  ///< region may shrink
- static constexpr ModConcern eRegnGrow   =  256;  ///< region may grow
- static constexpr ModConcern eObjUp      =  512;  ///< objective may increase
- static constexpr ModConcern eObjDown    = 1024;  ///< objective may decrease
+ static constexpr ModConcern eModVarType =    4;  ///< integrality of them
+ static constexpr ModConcern eModVarSet  =    8;  ///< Variable added/removed
+ static constexpr ModConcern eModCnsSide =   16;  ///< sides of Constraint
+ static constexpr ModConcern eModCnsCoef =   32;  ///< coefficients of them
+ static constexpr ModConcern eModCnsSet  =   64;  ///< Constraint added/removed
+ static constexpr ModConcern eModObj     =  128;  ///< the Objective
+ static constexpr ModConcern eRegnShrink =  256;  ///< region may shrink
+ static constexpr ModConcern eRegnGrow   =  512;  ///< region may grow
+ static constexpr ModConcern eObjUp      = 1024;  ///< objective may increase
+ static constexpr ModConcern eObjDown    = 2048;  ///< objective may decrease
 
- static constexpr ModConcern eModAbst     =  126;  ///< all the abstract kinds
- static constexpr ModConcern eModAnything =  127;  ///< all the kinds
- static constexpr ModConcern eEffAny      = 1920;  ///< any effect
- static constexpr ModConcern eModAll      = 2047;  ///< all the bits
+ static constexpr ModConcern eModAbst     =  254;  ///< all the abstract kinds
+ static constexpr ModConcern eModAnything =  255;  ///< all the kinds
+ static constexpr ModConcern eEffAny      = 3840;  ///< any effect
+ static constexpr ModConcern eModAll      = 4095;  ///< all the bits
 
 /*--------------------------------------------------------------------------*/
  /// returns what the Modification changes [see ModConcern]
@@ -465,9 +469,18 @@ class Modification {
   return( ( ! ( c & eModPhys ) ) && ( c & eModAbst ) );
   }
 
- /// true if the Modification changes the data or the set of the Variable
+ /// true if the Modification changes the data, the integrality or the set
+ /// of the Variable
  static constexpr bool changes_variables( ModConcern c ) {
-  return( c & ( eModVarData | eModVarSet ) );
+  return( c & ( eModVarData | eModVarType | eModVarSet ) );
+  }
+
+ /// true if the Modification changes the integrality of some Variable
+ /** True if some Variable becomes integer or continuous, which changes the
+  * problem but not its continuous relaxation: a Solver of the latter can
+  * leave eModVarType out of what it reads [see Solver::concerned_by()]. */
+ static constexpr bool changes_integrality( ModConcern c ) {
+  return( c & eModVarType );
   }
 
  /// true if the Modification changes the data or the set of the Constraint
@@ -550,6 +563,10 @@ class Modification {
 
  [[nodiscard]] bool changes_variables( void ) const {
   return( changes_variables( changes() ) );
+  }
+
+ [[nodiscard]] bool changes_integrality( void ) const {
+  return( changes_integrality( changes() ) );
   }
 
  [[nodiscard]] bool changes_constraints( void ) const {

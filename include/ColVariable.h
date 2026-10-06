@@ -481,6 +481,29 @@ class ColVariable : public Variable
  [[nodiscard]] var_type get_type( void ) const { return( f_state / 2 ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// what a change of the state of the ColVariable changes
+ /** Returns what a change of the state of the ColVariable changes [see
+  * Variable::state_changes()]: the integrality is eModVarType, becoming
+  * integer shrinking the region and becoming continuous making it grow,
+  * while the fixing and the sign and unitary bounds are eModVarData, as the
+  * base class says, since a continuous relaxation sees them. */
+
+ [[nodiscard]] Modification::ModConcern state_changes(
+		   var_type old_state , var_type new_state ) const override {
+  constexpr var_type intb = 2;  // the integrality bit [see is_integer()]
+  if( ( old_state & intb ) == ( new_state & intb ) )
+   return( Variable::state_changes( old_state , new_state ) );
+
+  const Modification::ModConcern type = Modification::eModVarType |
+   ( is_integer( new_state ) ? Modification::eRegnShrink
+			     : Modification::eRegnGrow );
+  if( ( old_state & ~intb ) == ( new_state & ~intb ) )
+   return( type );
+  return( type | Variable::state_changes( old_state & ~intb ,
+					  new_state & ~intb ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method to tell whether a state is that of an integer-valued ColVariable
 
  static bool is_integer( var_type state ) {

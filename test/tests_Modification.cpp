@@ -2311,17 +2311,34 @@ static void test_changes( void )
  r.block->add_static_variable( *x , "x" );
 
  // the data of a Variable: fixing it shrinks the region, unfixing it makes
- // it grow, changing its type may do either
+ // it grow, changing its sign may do either; its integrality is a kind of
+ // its own, becoming integer shrinking the region and continuous making it
+ // grow, and when it changes with something else both kinds are said
  const var_type free = 0 , fixed = 1;
  const var_type integer = var_type( ColVariable::kInteger * 2 );
+ const var_type nonneg = var_type( ColVariable::kNonNegative * 2 );
+ const var_type natural = var_type( ColVariable::kNatural * 2 );
  assert( VariableMod( x , free , fixed ).changes() ==
 	 ( M::eModVarData | M::eRegnShrink ) );
  assert( VariableMod( x , fixed , free ).changes() ==
 	 ( M::eModVarData | M::eRegnGrow ) );
  assert( VariableMod( x , free , integer ).changes() ==
+	 ( M::eModVarType | M::eRegnShrink ) );
+ assert( VariableMod( x , integer , free ).changes() ==
+	 ( M::eModVarType | M::eRegnGrow ) );
+ assert( VariableMod( x , free , nonneg ).changes() ==
 	 ( M::eModVarData | M::eRegnShrink | M::eRegnGrow ) );
+ assert( VariableMod( x , free , natural ).changes() ==
+	 ( M::eModVarType | M::eModVarData | M::eRegnShrink | M::eRegnGrow ) );
  assert( VariableMod( x , free , var_type( integer + 1 ) ).changes() ==
-	 ( M::eModVarData | M::eRegnShrink | M::eRegnGrow ) );
+	 ( M::eModVarType | M::eModVarData | M::eRegnShrink ) );
+ assert( VariableMod( x , var_type( integer + 1 ) , integer ).changes() ==
+	 ( M::eModVarData | M::eRegnGrow ) );
+ assert( M::changes_integrality( M::eModVarType ) &&
+	 M::changes_variables( M::eModVarType ) &&
+	 ( ! M::changes_integrality( M::eModVarData ) ) );
+ assert( VariableMod( x , free , integer ).changes_integrality() &&
+	 ( ! VariableMod( x , free , fixed ).changes_integrality() ) );
 
  // the data of a Constraint: relaxing it makes the region grow, enforcing
  // it shrinks it, changing its sides may do either
@@ -2447,6 +2464,16 @@ static void test_concerned( void )
  x->is_fixed( true , eModBlck );
  assert( r.got().size() == 1 );
  assert( reads->get_Modification_list().size() == 1 );
+
+ // making it integer reaches only the first: the other is the Solver of a
+ // continuous relaxation, which reads the data of the Variable but not their
+ // integrality
+ r.clear();
+ reads->get_Modification_list().clear();
+ x->is_integer( true , eModBlck );
+ assert( r.got().size() == 1 );
+ assert( reads->get_Modification_list().empty() );
+ x->is_integer( false , eNoMod );
 
  r.clear();
  reads->get_Modification_list().clear();

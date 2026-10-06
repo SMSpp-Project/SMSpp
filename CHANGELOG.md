@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- the ModConcern tells the integrality of the Variable (`eModVarType`,
+  `changes_integrality()`) from their other data (`eModVarData`: fixing,
+  bounds, sign), so that the Solver of a continuous relaxation can leave the
+  former out of what it reads; what a change of the state of a Variable
+  means is said by the Variable itself (`Variable::state_changes()`), and
+  `ColVariable` tells which of its bits is the integrality
+
 - the ModConcern tells the sides of the Constraint (`eModCnsSide`, relaxing
   and enforcing included) from their coefficients (`eModCnsCoef`), since a
   dual solution stays feasible when only the former change

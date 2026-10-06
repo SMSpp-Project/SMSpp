@@ -273,6 +273,31 @@ class Variable
 
  virtual void is_fixed( bool fixed , c_ModParam issueMod = eModBlck );
 
+/*--------------------------------------------------------------------------*/
+ /// what a change of the state of the Variable changes
+ /** Returns what a change of the state of the Variable from old_state to
+  * new_state changes [see Modification::ModConcern], which is what its
+  * VariableMod says. Fixing the Variable, and nothing else, shrinks the
+  * region, and unfixing it, and nothing else, makes it grow, both being
+  * eModVarData; the other bits of the state are those of the derived class,
+  * whose meaning the base class does not know, and a change of them is
+  * taken as eModVarData with either effect. A derived class that knows what
+  * its bits mean says more, e.g., which of them is the integrality
+  * (eModVarType). */
+
+ [[nodiscard]] virtual Modification::ModConcern state_changes(
+                          var_type old_state , var_type new_state ) const {
+  constexpr var_type fix = 1;  // the LSB of the state [see is_fixed()]
+  if( ( old_state & ~fix ) == ( new_state & ~fix ) ) {
+   if( is_fixed( new_state ) && ! is_fixed( old_state ) )
+    return( Modification::eModVarData | Modification::eRegnShrink );
+   if( is_fixed( old_state ) && ! is_fixed( new_state ) )
+    return( Modification::eModVarData | Modification::eRegnGrow );
+   }
+  return( Modification::eModVarData | Modification::eRegnShrink |
+	  Modification::eRegnGrow );
+  }
+
 /** @} ---------------------------------------------------------------------*/
 /*------------- METHODS FOR READING THE DATA OF THE Variable ---------------*/
 /*--------------------------------------------------------------------------*/
@@ -513,23 +538,12 @@ class VariableMod : public AModification
 /*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
  /// returns what the Modification changes [see Modification::ModConcern]
- /** The data of a Variable, which leaves the objective as it is at every
-  * point: fixing the Variable, and nothing else, shrinks the region, and
-  * unfixing it, and nothing else, makes it grow; the other bits of the state
-  * are those of the derived class, whose meaning the base class does not
-  * know, and a change of them may have either effect. */
+ /** The state of a Variable, which leaves the objective as it is at every
+  * point: what its change means is said by the Variable itself [see
+  * Variable::state_changes()]. */
 
  [[nodiscard]] ModConcern changes( void ) const override {
-  constexpr var_type fix = 1;  // the LSB of the state [see is_fixed()]
-  if( ( f_old_state & ~fix ) == ( f_new_state & ~fix ) ) {
-   if( Variable::is_fixed( f_new_state ) &&
-       ! Variable::is_fixed( f_old_state ) )
-    return( eModVarData | eRegnShrink );
-   if( Variable::is_fixed( f_old_state ) &&
-       ! Variable::is_fixed( f_new_state ) )
-    return( eModVarData | eRegnGrow );
-   }
-  return( eModVarData | eRegnShrink | eRegnGrow );
+  return( f_variable->state_changes( f_old_state , f_new_state ) );
   }
 
 /*--------------------------------------------------------------------------*/
