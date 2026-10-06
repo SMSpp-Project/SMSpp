@@ -42,6 +42,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - ( Sigma* + t || z* ||_1 ), that of a component < z*_k , d* > - Sigma*_k,
   and the slope given by `sensitivity_analysis()` - || z* ||_1
 
+- the return code `kCutOff` of `Solver`, placed after `kStopIter` and hence
+  in [ `kOK` , `kError` ): the Solver stopped because the cutoff given by
+  `dblUpCutOff` or `dblLwCutOff` was reached, so it has something to
+  report but not a certified optimal solution
+
 - `AbstractChange`, a Change of the abstract representation of a Block (the
   objective coefficient, the integrality, the fixing and the bounds of a
   ColVariable, the sense of an Objective), each element identified by an

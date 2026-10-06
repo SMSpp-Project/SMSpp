@@ -246,6 +246,18 @@ class Solver : public ThinComputeInterface
   * universe) given enough resources, unless an error occurs, but not all
   * problems are decidable and therefore allow an exact Solver. */
 
+  kCutOff ,  ///< stopped because a cutoff has been reached
+             /**< The Solver has obtained a value beyond one of the cutoffs
+              * [see dblUpCutOff and dblLwCutOff], and has stopped there
+  * since this is what it has been asked for: either a solution at least as
+  * good as the cutoff, which may be not optimal, or a bound proving that no
+  * solution can be that good, which says that the problem is "as good as
+  * unfeasible" to whoever set it. This is *not* a certificate of optimality
+  * (cf. kOK): get_ub() and get_lb() tell which of the two cutoffs has been
+  * reached, and by how much. Being in [ kOK , kError ), as kStopTime and
+  * kStopIter are, the code is read as "stopped with something to report" by
+  * whoever only checks that range. */
+
   kBlockLocked = kError + 1 ,  ///< could not acquire the lock on the Block
                   /**< compute() needed to lock the Block to work, but
                    * acquiring the lock was unsuccessful and the Solver does
