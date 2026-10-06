@@ -28,6 +28,8 @@
 /*--------------------------------------------------------------------------*/
 
 #include "AbstractBlock.h"
+#include "AbstractChange.h"
+#include "AbstractPath.h"
 #include "BoxSolver.h"
 #include "Change.h"
 #include "DataMapping.h"
@@ -502,6 +504,42 @@ static void test_Change( void )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- BoxSolver --------------------------------*/
+/*--------------------------------------------------------------------------*/
+/// eFixX on a Variable fixed at another value, and the undo of both
+
+static void test_AbstractChange_fix( void )
+{
+ auto block = block_with_x( 2 );
+ auto & x = x_of( block );
+ const AbstractPath path( & x[ 0 ] , block );
+
+ auto u1 = AbstractChange( AbstractChange::eFixX , { 1 } , { path } )
+            .apply( block , true );
+ expect( x[ 0 ].is_fixed() && equal( x[ 0 ].get_value() , 1 ) ,
+	 "eFixX: free, fixed at 1" );
+
+ Change * u2 = nullptr;
+ expect( ! throws< std::exception >( [ & ]() {
+	  u2 = AbstractChange( AbstractChange::eFixX , { 2 } , { path } )
+	        .apply( block , true ); } ) ,
+	 "eFixX: fixed at 1, fixed again at 2" );
+ expect( x[ 0 ].is_fixed() && equal( x[ 0 ].get_value() , 2 ) ,
+	 "eFixX: fixed at 2" );
+
+ if( u2 ) {
+  delete u2->apply( block );
+  delete u2;
+  }
+ expect( x[ 0 ].is_fixed() && equal( x[ 0 ].get_value() , 1 ) ,
+	 "eFixX: the undo fixes it back at 1" );
+
+ delete u1->apply( block );
+ delete u1;
+ expect( ! x[ 0 ].is_fixed() , "eFixX: the undo of the first unfixes it" );
+
+ delete block;
+ }
+
 /*--------------------------------------------------------------------------*/
 /// a box model: ColVariable with a BoxConstraint each, a separable Objective
 
@@ -1136,6 +1174,7 @@ int main( int argc , char ** argv )
  test_GlobalInformation();
  test_DataMapping();
  test_Change();
+ test_AbstractChange_fix();
  test_BoxSolver_LP();
  test_BoxSolver_QP();
  test_BoxSolver_duals();

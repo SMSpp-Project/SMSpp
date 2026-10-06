@@ -28,7 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `AbstractChange`, a Change of the abstract representation of a Block (the
   objective coefficient, the integrality, the fixing and the bounds of a
   ColVariable, the sense of an Objective), each element identified by an
-  AbstractPath
+  AbstractPath; fixing a ColVariable that is fixed at another value unfixes
+  it first, so that the Block is told of both steps
 
 - the event `eColumnPurged` of `LagBFunction`, whose handlers are called
   before a Solution of the global pool that is no longer feasible for the
