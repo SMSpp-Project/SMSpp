@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `Block::set_owned_size_variable()`, which declares a Variable that the
+  Block has created, and with which it has written its Constraint, as the
+  column of its size parameter; the base `get_size_variable()` returns it
+
 - the ModConcern tells the integrality of the Variable (`eModVarType`,
   `changes_integrality()`) from their other data (`eModVarData`: fixing,
   bounds, sign), so that the Solver of a continuous relaxation can leave the

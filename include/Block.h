@@ -6579,27 +6579,28 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
  /// the Variable of this Block standing for its size parameter
  /** The Variable of this Block carrying its size parameter, and nullptr if
-  * this Block has none. This Block owns that column and writes it into its
-  * own data; what the caller receives is the column itself, to bound it, to
-  * read its value, or to write it into a coupling of its own. */
+  * this Block has none; the base class returns the one declared with
+  * set_owned_size_variable(). This Block owns that column and writes it
+  * into its own data; what the caller receives is the column itself, to
+  * bound it, to read its value, or to write it into a coupling of its own. */
 
  virtual Variable * get_size_variable( void ) const {
   return( f_size_variable );
   }
 
 /*--------------------------------------------------------------------------*/
-/// declares the Variable owned by this Block as its size variable
-/**
- * Stores an already-created Variable as this Block's size variable.
- * This does not modify constraints and is separate from
- * set_size_variable(), which handles a Variable supplied by another Block.
- *
- * Passing nullptr removes the declaration. The Variable lifetime remains
- * managed by the Block's variable groups.
- */
-void set_owned_size_variable( Variable * size_var ) {
+ /// declares a Variable of this Block as the one of its size parameter
+ /** Makes \p size_var, a Variable that this Block has already created and
+  * that its groups of Variable own, the one returned by get_size_variable();
+  * nullptr withdraws the declaration. Nothing else changes: the Constraint
+  * of this Block are expected to be written with that column already (e.g.,
+  * a right-hand side b written as b * size_var), and the Variable is neither
+  * created nor deleted here. It is the counterpart, for a column of this
+  * Block, of set_size_variable(), which takes a column of another Block. */
+
+ void set_owned_size_variable( Variable * size_var ) {
   f_size_variable = size_var;
-}
+  }
 
 /*--------------------------------------------------------------------------*/
  /// gives this Block the Variable of its size parameter
@@ -7965,8 +7966,7 @@ void set_owned_size_variable( Variable * size_var ) {
 
  unsigned int f_channel;   ///< the "default GroupModification channel"
 
- /// the internally owned Variable representing this Block's size
- Variable * f_size_variable = nullptr;
+ Variable * f_size_variable = nullptr;  ///< see set_owned_size_variable()
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
