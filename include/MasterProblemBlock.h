@@ -783,6 +783,25 @@ class MasterProblemBlock : public Block {
  [[nodiscard]] double get_dual_norm_squared( void ) const;
 
 /*--------------------------------------------------------------------------*/
+ /// returns D*_t( z* ), the conjugate of the stabilizing term at z*
+ /** Returns the value at the aggregate z* of get_z_vector() of the conjugate
+  * of the stabilizing term with parameter \p t, i.e., what the master
+  * promises at most in the dual of a step of size \p t:
+  *
+  *  - \f$ t \| z^* \|_1 \f$ under #kTrustRegion, whose stabilizing term
+  *    is the indicator of \f$ \| d \|_\infty \le t \f$;
+  *
+  *  - \f$ ( t / 2 ) \| z^* \|_2^2 \f$ under every other stabilization,
+  *    whose term is (or, under the level ones, is measured as) the
+  *    quadratic one.
+  *
+  * \p t needs not be the current parameter of the master, e.g., a solver
+  * may ask it for a larger "optimality" t to build its stopping test.
+  * Meaningful only after solve_master(). */
+
+ [[nodiscard]] double get_conjugate_stabilization( double t ) const;
+
+/*--------------------------------------------------------------------------*/
  /// add a new linearization (g, alpha_raw) at slot \p slot of bundle B^k
  /** Appends one new linearization to the bundle B^k of the k-th "hard"
   * component, occupying the persistent NDOFi-style "slot" \p slot of that
@@ -1087,8 +1106,13 @@ class MasterProblemBlock : public Block {
   * variant). In the dual MP Var_z is returned directly for proximal/doubly
   * stabilization, but in pure level it is divided by eta because the dual
   * stationarity vector stores eta z*. In the primal MP z* is reconstructed
-  * from the solved displacement and the active stabilization. Meaningful only
-  * after solve_master(). */
+  * from the solved displacement and the active stabilization. Under
+  * #kTrustRegion the master has no term in z, and z* is the part of the
+  * multipliers of the box that belongs to the trust region rather than to
+  * the box [ L , U ]: on coordinate j it is the aggregate of the bundle if
+  * d*_j lies on a side of the trust region, 0 if it lies on a side of
+  * [ L , U ] (the aggregate is then in the normal cone of the latter).
+  * Meaningful only after solve_master(). */
 
  [[nodiscard]] std::vector< double > get_z_vector( void ) const;
 
@@ -1108,8 +1132,9 @@ class MasterProblemBlock : public Block {
  /** NDOFi counterpart of Master->Readd(). In the translated primal MP the step
   * d is stored directly in Var_d. In the raw primal MP Var_d stores absolute x
   * and the call returns x - x_bar. In the dual MP the proximal identity is
-  * d* = -t z*; in pure level Var_z stores eta z*, so d* = -Var_z. Meaningful
-  * only after solve_master(). */
+  * d* = -t z*; in pure level Var_z stores eta z*, so d* = -Var_z. Under
+  * #kTrustRegion there is no such identity, and d* is the dual value of the
+  * coupling rows. Meaningful only after solve_master(). */
 
  [[nodiscard]] std::vector< double > get_d_vector( void ) const;
 
@@ -1177,6 +1202,8 @@ class MasterProblemBlock : public Block {
   * the current t_stab, the implementation returns
   *   vl = - || z* ||^2 / 2
   *   vc = v*(t_stab) - vl * t_stab           (linear extrapolation)
+  * Under #kTrustRegion the stabilization contributes - t || z* ||_1, which
+  * is linear in t, and vl = - || z* ||_1.
   * In the primal MP both are set to 0 (the sensitivity is not yet implemented
   * there). */
 
@@ -1320,10 +1347,14 @@ class MasterProblemBlock : public Block {
   * x_ref is re-aligned to x_bar ( paying the per-cut shift once ) only when
   * || x_bar - x_ref ||_inf > tol. The master Problem is UNCHANGED for any tol
   * ( exact identity ); tol only trades the per-serious-step cost against the
-  * per-cut constant magnitude. tol == 0 is a strict no-op. */
+  * per-cut constant magnitude. tol == 0 is a strict no-op. The dual MP
+  * under #kTrustRegion has Var_z fixed to 0, hence no place for the
+  * residual: there tol is always 0. */
 
- void set_xref_tol( double tol ) noexcept
-  { f_xref_tol = ( tol > 0.0 ) ? tol : 0.0; }
+ void set_xref_tol( double tol ) noexcept {
+  f_xref_tol = ( ( tol > 0.0 ) &&
+                 ( IsPrimal || ( StblType != kTrustRegion ) ) ) ? tol : 0.0;
+  }
 
 /*--------------------------------------------------------------------------*/
  /// read back the cached reference value F_k( x_bar )
@@ -2265,6 +2296,13 @@ class MasterProblemBlock : public Block {
                     ///< the box of coordinate j of the primal MP: [ L , U ]
                     ///< intersected with the trust region, in the frame of
                     ///< the Variable
+
+ bool trust_region_side( Index j , bool lower ) const;
+                    ///< true if the lower (upper) side of the box of
+                    ///< coordinate j is the one of the trust region, i.e.,
+                    ///< under #kTrustRegion with a finite t, and not
+                    ///< farther than the side of [ L , U ]; a tie goes to
+                    ///< the trust region, so that z* is not underestimated
 
  void refresh_box_coordinate( Index j , DQuadFunction * dqf ,
                               ModParam issueMod = eModBlck );

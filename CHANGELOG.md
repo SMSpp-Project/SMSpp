@@ -29,6 +29,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   constants of its linearizations being computed again (`AlphaChanged`,
   `sides_changed()`), instead of sending the "nuclear" Modification
 
+- `MasterProblemBlock` implements the trust region (`kTrustRegion`) in the
+  dual MP too: the box of the multipliers s^+ / s^- is the box [ L , U ]
+  intersected with { x : || x - x_bar ||_inf <= t }, Var_z is fixed to 0,
+  and the MP is linear; z* is the part of the multipliers that belongs to
+  the trust region, and d* the dual value of the coupling rows. In the
+  primal MP z* is read from the dual values of the rows, the cuts and the
+  absorbed rows of a `BendersBFunction`, rather than from the reduced costs
+  of the Variable. `get_conjugate_stabilization( t )` returns D*_t( z* ),
+  i.e., t || z* ||_1 under the trust region and ( t / 2 ) || z* ||_2^2
+  otherwise; under the trust region the predicted decrease of the dual MP is
+  - ( Sigma* + t || z* ||_1 ), that of a component < z*_k , d* > - Sigma*_k,
+  and the slope given by `sensitivity_analysis()` - || z* ||_1
+
 - `AbstractChange`, a Change of the abstract representation of a Block (the
   objective coefficient, the integrality, the fixing and the bounds of a
   ColVariable, the sense of an Objective), each element identified by an
@@ -520,6 +533,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - a Modification of the inner Block that has `LagBFunction` check its
   global pool is forwarded to the father of the `LagBFunction` also when
   nobody listens to the `LagBFunction`, which it was not
+
+- the box of a coordinate that turns finite or infinite after the master
+  has been loaded, e.g., because the trust region t does, tells the Solver
+  of the master that its multiplier is free or fixed
 
 - `LagBFunction` gives the variables that an inner `Block` adds to its
   `Objective` after the registration, as the original cost in
