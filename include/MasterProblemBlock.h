@@ -1636,11 +1636,17 @@ class MasterProblemBlock : public Block {
  int solve_master( void );
 
 /*--------------------------------------------------------------------------*/
- /// manage the one-shot proximal objective used to seed pure level
+ /// manage the proximal objective used to seed or restart pure level
 
  [[nodiscard]] bool has_initial_level_objective( void ) const;
 
  void remove_initial_level_objective( void );
+
+ /// Restore the proximal probe after the driver invalidates the level target.
+ /** Keeps the bundle and coordinate frame, but restores unit normalization
+  * and t-dependent curvature until a new finite level has been initialized.
+  * The driver must disable the obsolete level before calling this method. */
+ void restore_initial_level_objective( void );
 
  [[nodiscard]] bool uses_pure_level_aggregation( void ) const {
   return( StblType == kLevel && ! has_initial_level_objective() );

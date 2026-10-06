@@ -5445,6 +5445,55 @@ void MasterProblemBlock::remove_initial_level_objective( void )
 
 /*--------------------------------------------------------------------------*/
 
+void MasterProblemBlock::restore_initial_level_objective( void )
+{
+ if( StblType != kLevel || has_initial_level_objective() )
+  return;
+
+ if( ! IsPrimal ) {
+  // Reverse the transition to the projection master. With no level row,
+  // zero normalization would otherwise admit lambda = omega = 0, from
+  // which no normalized aggregate (especially an easy one) can be read.
+  f_dual_level_probe_active = true;
+  if( f_abs_rep & k_mpb_built_cnst ) {
+   NormalizationCns.set_lhs( 1.0 , eNoBlck );
+   NormalizationCns.set_rhs( 1.0 , eNoBlck );
+   }
+  set_f_lev( f_lev );  // fix omega and remove its objective coefficient
+  set_t( t_stab );    // restore the proximal quadratic in the current frame
+  return;
+  }
+
+ auto * obj = dynamic_cast< FRealObjective * >( get_objective() );
+ auto * dqf = obj ? dynamic_cast< DQuadFunction * >( obj->get_function() )
+                  : nullptr;
+ if( ! dqf )
+  return;  // generate_primal_objective() will create the initial probe
+
+ // Removing the probe zeros, rather than deletes, its model terms. Locate
+ // them by variable: coordinate additions/removals may have moved them.
+ level_model_obj_idx = int( dqf->get_num_active_var() );
+ level_model_obj_num = 0;
+ for( auto * block : HardCmps ) {
+  auto * pfb = dynamic_cast< PolyhedralFunctionBlock * >( block );
+  if( ! pfb )
+   continue;
+  const auto idx = dqf->is_active( pfb->get_v() );
+  if( idx >= dqf->get_num_active_var() )
+   throw( std::logic_error(
+       "MasterProblemBlock::restore_initial_level_objective: missing "
+       "model objective term" ) );
+  if( level_model_obj_num == 0 )
+   level_model_obj_idx = int( idx );
+  ++level_model_obj_num;
+  dqf->modify_term( idx , 1.0 , 0.0 , eNoBlck );
+  }
+ f_primal_objective_dirty = true;
+ refresh_primal_objective();
+}
+
+/*--------------------------------------------------------------------------*/
+
 void MasterProblemBlock::refresh_primal_objective( void )
 {
  if( ! IsPrimal || ! f_primal_objective_dirty )
