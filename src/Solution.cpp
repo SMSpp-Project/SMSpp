@@ -18,6 +18,10 @@
 
 #include "Solution.h"
 
+#include "ColVariable.h"
+#include "FRowConstraint.h"
+#include "OneVarConstraint.h"
+
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -37,6 +41,115 @@ SMSpp_insert_in_factory_cpp_0( Solution );
 
 /*--------------------------------------------------------------------------*/
 /*---------------------------- METHODS of Solution -------------------------*/
+/*--------------------------------------------------------------------------*/
+/*------------------------- LOCAL FUNCTIONS --------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+namespace {
+
+/// tells which elements of type C a Modification says have been removed
+/** Writes in cell the address of the cell of the group of dynamic elements
+ * of type C they were removed from and in positions the positions they had
+ * in it, an empty positions meaning the whole cell. Returns false if the
+ * Modification is not one that removes elements of type C saying which. */
+
+template< class C >
+bool removed_of( const Modification & mod , const void * & cell ,
+		 Block::Subset & positions )
+{
+ if( const auto tmod =
+     dynamic_cast< const BlockModRmvRngd< C > * >( & mod ) ) {
+  cell = static_cast< const void * >( & tmod->whc() );
+  const auto & rng = tmod->range();
+  positions.clear();
+  for( Block::Index i = rng.first ; i < rng.second ; ++i )
+   positions.push_back( i );
+  return( true );
+  }
+
+ if( const auto tmod =
+     dynamic_cast< const BlockModRmvSbst< C > * >( & mod ) ) {
+  cell = static_cast< const void * >( & tmod->whc() );
+  positions = tmod->subset();
+  return( true );
+  }
+
+ return( false );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// as removed_of(), for the dynamic Constraint of the core
+
+bool removed_rows( const Modification & mod , const void * & cell ,
+		   Block::Subset & positions )
+{
+ return( removed_of< FRowConstraint >( mod , cell , positions ) ||
+	 removed_of< BoxConstraint >( mod , cell , positions ) ||
+	 removed_of< LB0Constraint >( mod , cell , positions ) ||
+	 removed_of< UB0Constraint >( mod , cell , positions ) ||
+	 removed_of< LBConstraint >( mod , cell , positions ) ||
+	 removed_of< UBConstraint >( mod , cell , positions ) ||
+	 removed_of< NNConstraint >( mod , cell , positions ) ||
+	 removed_of< NPConstraint >( mod , cell , positions ) ||
+	 removed_of< ZOConstraint >( mod , cell , positions ) );
+ }
+
+}  // end( unnamed namespace )
+
+/*--------------------------------------------------------------------------*/
+/*--------------------------- METHODS OF Solution --------------------------*/
+/*--------------------------------------------------------------------------*/
+
+Solution::adapt_result Solution::adapt( const Block * const block ,
+					const Modification & mod ,
+					std::vector< double > & dropped )
+{
+ // a GroupModification, one sub-Modification at a time
+ if( const auto gmod = dynamic_cast< const GroupModification * >( & mod ) ) {
+  adapt_result res = kUnchanged;
+  for( const auto & sub : gmod->sub_Modifications() ) {
+   std::vector< double > sub_dropped;
+   const auto r = adapt( block , *sub , sub_dropped );
+   if( r == kInvalid )
+    return( kInvalid );
+   if( r == kAdapted ) {
+    res = kAdapted;
+    dropped.insert( dropped.end() , sub_dropped.begin() ,
+		    sub_dropped.end() );
+    }
+   }
+  return( res );
+  }
+
+ // after a NModification nothing of the Solution can be trusted
+ if( dynamic_cast< const NModification * >( & mod ) )
+  return( kInvalid );
+
+ const auto c = mod.changes();
+ const auto holds = adapts();
+
+ // a physical Modification that this Solution reads
+ if( Modification::is_physical( c ) ) {
+  if( ! Modification::is_physical( holds ) )
+   return( kUnchanged );
+  return( drop_physical_values( block , & mod , dropped ) ? kAdapted
+	                                                    : kInvalid );
+  }
+
+ // removed dynamic Variable or Constraint that this Solution holds values of
+ const void * cell = nullptr;
+ Block::Subset positions;
+ if( ( ( holds & Modification::eModVarSet ) &&
+       removed_of< ColVariable >( mod , cell , positions ) ) ||
+     ( ( holds & Modification::eModCnsSet ) &&
+       removed_rows( mod , cell , positions ) ) )
+  return( drop_dynamic_values( block , cell , positions , dropped ) ?
+	  kAdapted : kInvalid );
+
+ return( kUnchanged );
+
+ }  // end( Solution::adapt )
+
 /*--------------------------------------------------------------------------*/
 
 Solution * Solution::deserialize( const std::string & filename )

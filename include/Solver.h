@@ -1964,6 +1964,20 @@ class Solver : public ThinComputeInterface
 /** @name Changing the data of the model
  *  @{ */
 
+ /// the kinds of Modification the Solver reads [see Modification::changes()]
+ /** Returns the kinds of Modification [see Modification::ModConcern] that
+  * the Solver reads, of which only the "kind" bits matter: the Block passes
+  * the Solver only the Modification of those kinds [see
+  * Modification::is_of_concern()]. The base class reads all the kinds, which
+  * is what every Solver did before saying it; a Solver that, say, is only
+  * interested in the physical representation of its Block returns eModPhys,
+  * and is spared the abstract Modification. */
+
+ [[nodiscard]] virtual Modification::ModConcern concerned_by( void ) const {
+  return( Modification::eModAnything );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// add a new Modification to the list
  /** This method must be used by the Block (or any of its components:
   * Variables, Constraints, Objective Function) to pass the (shared) pointer

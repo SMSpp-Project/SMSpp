@@ -5510,6 +5510,25 @@ class Block : public Observer {
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the kinds of Modification the Block reads itself
+ /** Returns the kinds of Modification [see Modification::ModConcern] that
+  * the Block wants to see anyway, typically those of the objects of its
+  * abstract representation whose abstract Modification it has to follow to
+  * keep its physical representation in step. The base class wants none. */
+
+ [[nodiscard]] virtual Modification::ModConcern concerned_by( void ) const {
+  return( 0 );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the kinds of Modification read by anyone listening to the Block
+ /** The "or" of what the Block reads itself [see concerned_by()], of what
+  * its Solver read [see Solver::concerned_by()], and of what is read by
+  * anyone listening to its father; it is computed walking up the tree. */
+
+ [[nodiscard]] Modification::ModConcern concerned( void ) const override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// tell a Block if someone "listening to" its father
  /** This method has to be called by the father Block to inform each of his
   * sons whether or not there is someone "listening to him", and therefore
@@ -8410,6 +8429,20 @@ class BlockModAD : public AModification
   */
 
  virtual bool is_added( void ) const = 0;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns what the Modification changes [see Modification::ModConcern]
+ /** The set of the Variable or of the Constraint. Adding Variable makes the
+  * region grow, a solution of before staying feasible with the new Variable
+  * at 0, and removing them shrinks it, as fixing them at 0 would; adding
+  * Constraint shrinks the region, and removing them makes it grow. In all
+  * cases the objective is the same as before at every point of before. */
+
+ [[nodiscard]] ModConcern changes( void ) const override {
+  if( is_variable() )
+   return( eModVarSet | ( is_added() ? eRegnGrow : eRegnShrink ) );
+  return( eModCnsSet | ( is_added() ? eRegnShrink : eRegnGrow ) );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// stores the pointers to the affected Variable into the given vector

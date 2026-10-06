@@ -23,7 +23,11 @@
  * the range or subset, the elements added or removed), and the edge cases:
  * a call that changes nothing, empty and full Range, Range at the
  * boundaries, empty Subset (which for the removing methods means "all"),
- * unordered Subset, adding nothing and removing everything.
+ * unordered Subset, adding nothing and removing everything. Finally, it
+ * checks what changes() says of the Modification of the core and what the
+ * static methods of Modification read from it, and that a Block passes a
+ * Solver only the kinds of Modification it reads [see
+ * Solver::concerned_by()], and what Solution::adapt() answers to them.
  *
  * \author Donato Meoli \n
  *         Dipartimento di Informatica \n
@@ -48,6 +52,7 @@
 #include "BendersBFunction.h"
 #include "C05SumFunction.h"
 #include "ColVariable.h"
+#include "ColVariableSolution.h"
 #include "DQuadFunction.h"
 #include "FakeSolver.h"
 #include "FRealObjective.h"
@@ -150,6 +155,52 @@ struct Case
  std::function< bool( void ) > before;
  std::function< bool( void ) > after;
  std::function< void( const sp_Mod & ) > check;
+ };
+
+/*--------------------------------------------------------------------------*/
+/// a FakeSolver that reads only some kinds of Modification
+
+class ReadsSolver : public FakeSolver
+{
+ public:
+
+ explicit ReadsSolver( Modification::ModConcern reads ) : f_reads( reads ) {}
+
+ [[nodiscard]] Modification::ModConcern concerned_by( void ) const override {
+  return( f_reads );
+  }
+
+ Modification::ModConcern f_reads;
+ };
+
+/*--------------------------------------------------------------------------*/
+/// a :Solution that says nothing of what it holds
+
+class GenericSolution : public Solution
+{
+ public:
+
+ GenericSolution( void ) : Solution() {}
+ };
+
+/*--------------------------------------------------------------------------*/
+/// a physical Modification that says nothing more of itself
+
+class PhysMod : public Modification
+{
+ public:
+
+ explicit PhysMod( Block * b ) : f_block( b ) {}
+
+ [[nodiscard]] Block * get_Block( void ) const override { return( f_block ); }
+
+ protected:
+
+ void print( std::ostream & output ) const override {
+  output << "PhysMod" << std::endl;
+  }
+
+ Block * f_block;
  };
 
 /*--------------------------------------------------------------------------*/
@@ -2247,6 +2298,312 @@ static void test_active_list( void )
 /*----------------------------------- MAIN ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+/*--------------------------------------------------------------------------*/
+/* What changes() says of the Modification of the core, both built directly
+ * and issued by the Block, and what the static methods of Modification read
+ * from a ModConcern [see Modification::ModConcern]. */
+
+static void test_changes( void )
+{
+ using M = Modification;
+ Rig r;
+ auto x = new ColVariable;
+ r.block->add_static_variable( *x , "x" );
+
+ // the data of a Variable: fixing it shrinks the region, unfixing it makes
+ // it grow, changing its sign may do either; its integrality is a kind of
+ // its own, becoming integer shrinking the region and continuous making it
+ // grow, and when it changes with something else both kinds are said
+ const var_type free = 0 , fixed = 1;
+ const var_type integer = var_type( ColVariable::kInteger * 2 );
+ const var_type nonneg = var_type( ColVariable::kNonNegative * 2 );
+ const var_type natural = var_type( ColVariable::kNatural * 2 );
+ assert( VariableMod( x , free , fixed ).changes() ==
+	 ( M::eModVarData | M::eRegnShrink ) );
+ assert( VariableMod( x , fixed , free ).changes() ==
+	 ( M::eModVarData | M::eRegnGrow ) );
+ assert( VariableMod( x , free , integer ).changes() ==
+	 ( M::eModVarType | M::eRegnShrink ) );
+ assert( VariableMod( x , integer , free ).changes() ==
+	 ( M::eModVarType | M::eRegnGrow ) );
+ assert( VariableMod( x , free , nonneg ).changes() ==
+	 ( M::eModVarData | M::eRegnShrink | M::eRegnGrow ) );
+ assert( VariableMod( x , free , natural ).changes() ==
+	 ( M::eModVarType | M::eModVarData | M::eRegnShrink | M::eRegnGrow ) );
+ assert( VariableMod( x , free , var_type( integer + 1 ) ).changes() ==
+	 ( M::eModVarType | M::eModVarData | M::eRegnShrink ) );
+ assert( VariableMod( x , var_type( integer + 1 ) , integer ).changes() ==
+	 ( M::eModVarData | M::eRegnGrow ) );
+ assert( M::changes_integrality( M::eModVarType ) &&
+	 M::changes_variables( M::eModVarType ) &&
+	 ( ! M::changes_integrality( M::eModVarData ) ) );
+ assert( VariableMod( x , free , integer ).changes_integrality() &&
+	 ( ! VariableMod( x , free , fixed ).changes_integrality() ) );
+
+ // the data of a Constraint: relaxing it makes the region grow, enforcing
+ // it shrinks it, changing its sides may do either
+ FRowConstraint c;
+ assert( ConstraintMod( & c , ConstraintMod::eRelaxConst ).changes() ==
+	 ( M::eModCnsSide | M::eRegnGrow ) );
+ assert( ConstraintMod( & c , ConstraintMod::eEnforceConst ).changes() ==
+	 ( M::eModCnsSide | M::eRegnShrink ) );
+ assert( RowConstraintMod( & c , RowConstraintMod::eChgRHS ).changes() ==
+	 ( M::eModCnsSide | M::eRegnShrink | M::eRegnGrow ) );
+
+ // the Objective: the region stays, the objective may move either way
+ FRealObjective o;
+ assert( ObjectiveMod( & o , ObjectiveMod::eSetMax ).changes() ==
+	 ( M::eModObj | M::eObjUp | M::eObjDown ) );
+
+ // physical: any effect; nuclear: everything
+ assert( PhysMod( r.block ).changes() == ( M::eModPhys | M::eEffAny ) );
+ assert( NBModification( r.block ).changes() == M::eModAll );
+
+ // the set of the dynamic Variable and Constraint, as the Block issues it
+ auto vars = new std::list< ColVariable >;
+ r.block->add_dynamic_variable( *vars , "y" );
+ auto rows = new std::list< FRowConstraint >;
+ r.block->add_dynamic_constraint( *rows , "c" );
+
+ auto one = [ & ]( std::function< void( void ) > call , M::ModConcern mc ) {
+  r.clear();
+  call();
+  assert( r.got().size() == 1 );
+  assert( r.got().front()->changes() == mc );
+  };
+
+ one( [ & ]() {
+       std::list< ColVariable > n( 2 );
+       add_d( r.block , *vars , n , eModBlck );
+       } , M::eModVarSet | M::eRegnGrow );
+ one( [ & ]() { rmv_d( r.block , *vars , Range( 0 , 1 ) , eModBlck ); } ,
+      M::eModVarSet | M::eRegnShrink );
+ one( [ & ]() {
+       std::list< FRowConstraint > n( 2 );
+       add_d( r.block , *rows , n , eModBlck );
+       } , M::eModCnsSet | M::eRegnShrink );
+ one( [ & ]() { rmv_d( r.block , *rows , Range( 0 , 1 ) , eModBlck ); } ,
+      M::eModCnsSet | M::eRegnGrow );
+
+ // a GroupModification says the or of what its sub-Modification say
+ one( [ & ]() {
+       auto chnl = r.block->open_channel();
+       x->is_fixed( true , Observer::make_par( eModBlck , chnl ) );
+       std::list< FRowConstraint > n( 1 );
+       add_d( r.block , *rows , n , Observer::make_par( eModBlck , chnl ) );
+       r.block->close_channel( chnl );
+       } , M::eModVarData | M::eModCnsSet | M::eRegnShrink );
+
+ // the static methods
+ const auto phys = M::ModConcern( M::eModPhys | M::eEffAny );
+ assert( M::is_physical( phys ) && ( ! M::is_abstract( phys ) ) );
+ assert( M::is_abstract( M::eModObj ) && ( ! M::is_physical( M::eModObj ) ) );
+ assert( M::changes_variables( M::eModVarSet ) &&
+	 M::changes_variables( M::eModVarData ) &&
+	 ( ! M::changes_variables( M::eModCnsSide ) ) );
+ assert( M::changes_constraints( M::eModCnsSet ) &&
+	 ( ! M::changes_constraints( M::eModObj ) ) );
+ assert( M::changes_objective( M::eModObj ) &&
+	 ( ! M::changes_objective( M::eModVarData ) ) );
+ assert( M::changes_structure( M::eModVarSet ) &&
+	 ( ! M::changes_structure( M::eModVarData ) ) );
+ assert( M::changes_only_sides( M::eModCnsSide | M::eRegnShrink ) &&
+	 M::changes_only_sides( M::eModPhys | M::eModCnsSide ) &&
+	 ( ! M::changes_only_sides( M::eModCnsSide | M::eModCnsCoef ) ) &&
+	 ( ! M::changes_only_sides( M::eModPhys | M::eEffAny ) ) );
+ assert( M::is_physical( M::eModPhys | M::eModCnsSide ) &&
+	 ( ! M::is_abstract( M::eModPhys | M::eModCnsSide ) ) );
+
+ // a region that only shrinks keeps the lower bounds, one that only grows
+ // the upper bounds, and an objective that may decrease keeps neither of
+ // the lower bounds
+ const auto shrink = M::ModConcern( M::eModCnsSet | M::eRegnShrink );
+ const auto grow = M::ModConcern( M::eModVarSet | M::eRegnGrow );
+ const auto obj = M::ModConcern( M::eModObj | M::eObjUp | M::eObjDown );
+ assert( M::lower_bound_stays_valid( shrink ) &&
+	 ( ! M::upper_bound_stays_valid( shrink ) ) &&
+	 ( ! M::solution_stays_feasible( shrink ) ) &&
+	 M::may_shrink_region( shrink ) && ( ! M::may_grow_region( shrink ) ) );
+ assert( M::upper_bound_stays_valid( grow ) &&
+	 ( ! M::lower_bound_stays_valid( grow ) ) &&
+	 M::solution_stays_feasible( grow ) );
+ assert( M::solution_stays_feasible( obj ) &&
+	 ( ! M::lower_bound_stays_valid( obj ) ) &&
+	 ( ! M::upper_bound_stays_valid( obj ) ) );
+ assert( ! M::lower_bound_stays_valid( M::eModAll ) );
+ assert( ! M::upper_bound_stays_valid( M::eModAll ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* What a Block passes to a Solver that reads only some kinds of
+ * Modification [see Solver::concerned_by()], and what concerned() and
+ * anyone_there_for() say on a Block, on its son, and with and without
+ * Solver. */
+
+static void test_concerned( void )
+{
+ using M = Modification;
+ Rig r;
+ auto x = new ColVariable;
+ r.block->add_static_variable( *x , "x" );
+ auto rows = new std::list< FRowConstraint >;
+ r.block->add_dynamic_constraint( *rows , "c" );
+ auto son = new AbstractBlock( r.block );
+ r.block->add_nested_Block( son );
+
+ // the FakeSolver of the Rig reads all the kinds, the other only the data
+ // of the Variable
+ auto reads = new ReadsSolver( M::eModVarData );
+ r.block->register_Solver( reads );
+ assert( r.block->concerned() == M::eModAnything );
+ assert( son->concerned() == M::eModAnything );
+
+ // fixing a Variable reaches both, adding a Constraint only the first
+ r.clear();
+ reads->get_Modification_list().clear();
+ x->is_fixed( true , eModBlck );
+ assert( r.got().size() == 1 );
+ assert( reads->get_Modification_list().size() == 1 );
+
+ // making it integer reaches only the first: the other is the Solver of a
+ // continuous relaxation, which reads the data of the Variable but not their
+ // integrality
+ r.clear();
+ reads->get_Modification_list().clear();
+ x->is_integer( true , eModBlck );
+ assert( r.got().size() == 1 );
+ assert( reads->get_Modification_list().empty() );
+ x->is_integer( false , eNoMod );
+
+ r.clear();
+ reads->get_Modification_list().clear();
+ {
+  std::list< FRowConstraint > n( 1 );
+  add_d( r.block , *rows , n , eModBlck );
+  }
+ assert( r.got().size() == 1 );
+ assert( reads->get_Modification_list().empty() );
+
+ // a GroupModification reaches whoever reads one of its sub-Modification
+ r.clear();
+ reads->get_Modification_list().clear();
+ {
+  auto chnl = r.block->open_channel();
+  x->is_fixed( false , Observer::make_par( eModBlck , chnl ) );
+  std::list< FRowConstraint > n( 1 );
+  add_d( r.block , *rows , n , Observer::make_par( eModBlck , chnl ) );
+  r.block->close_channel( chnl );
+  }
+ assert( r.got().size() == 1 );
+ assert( reads->get_Modification_list().size() == 1 );
+
+ // without the FakeSolver of the Rig, only the data of the Variable are read,
+ // by the Block and by its son alike
+ r.listen( false );
+ assert( r.block->concerned() == M::eModVarData );
+ assert( son->concerned() == M::eModVarData );
+ assert( r.block->anyone_there_for( M::eModVarData ) );
+ assert( ! r.block->anyone_there_for( M::eModCnsSet ) );
+ assert( son->anyone_there_for( M::eModVarData | M::eModCnsSet ) );
+ assert( r.block->issue_mod( eNoBlck , M::eModVarData ) );
+ assert( ! r.block->issue_mod( eNoBlck , M::eModCnsSet ) );
+ assert( r.block->issue_mod( eModBlck , M::eModCnsSet ) );
+ assert( ! r.block->issue_pmod( eNoBlck , M::eModPhys ) );
+
+ // with no Solver at all, nobody reads anything
+ r.block->unregister_Solver( reads , true );
+ assert( r.block->concerned() == 0 );
+ assert( son->concerned() == 0 );
+ assert( ! son->anyone_there_for( M::eModAnything ) );
+ r.listen( true );
+ }
+
+/*--------------------------------------------------------------------------*/
+/* What Solution::adapt() answers: a ColVariableSolution drops the value of
+ * a removed dynamic Variable and is unchanged by what does not touch what it
+ * holds, a NModification invalidates it, a GroupModification combines the
+ * answers, and a :Solution that says nothing of itself cannot be adapted to
+ * a removal. */
+
+static void test_adapt( void )
+{
+ Rig r;
+ auto x = new ColVariable;
+ r.block->add_static_variable( *x , "x" );
+ auto vars = new std::list< ColVariable >;
+ r.block->add_dynamic_variable( *vars , "y" );
+ auto rows = new std::list< FRowConstraint >;
+ r.block->add_dynamic_constraint( *rows , "c" );
+ {
+  std::list< ColVariable > n( 3 );
+  add_d( r.block , *vars , n , eNoMod );
+  std::list< FRowConstraint > m( 2 );
+  add_d( r.block , *rows , m , eNoMod );
+  }
+ double val = 1;
+ for( auto & v : *vars )
+  v.set_value( val++ );
+
+ ColVariableSolution sol;
+ sol.read( r.block );
+ std::vector< double > dropped;
+
+ // the last Modification the Block issued, after the given call
+ auto last = [ & ]( std::function< void( void ) > call ) {
+  r.clear();
+  call();
+  assert( r.got().size() == 1 );
+  return( r.got().front() );
+  };
+
+ // the dynamic Variable in the middle goes, and its value with it
+ auto rmv = last( [ & ]() {
+		   rmv_d( r.block , *vars , Range( 1 , 2 ) , eModBlck ); } );
+ assert( sol.adapt( r.block , *rmv , dropped ) == Solution::kAdapted );
+ assert( ( dropped.size() == 1 ) && ( dropped[ 0 ] == 2 ) );
+ sol.write( r.block );
+ assert( ( vars->front().get_value() == 1 ) &&
+	 ( vars->back().get_value() == 3 ) );
+
+ // a Constraint that goes, the fixing of a Variable and a physical
+ // Modification do not touch what a ColVariableSolution holds
+ dropped.clear();
+ auto rmc = last( [ & ]() {
+		   rmv_d( r.block , *rows , Range( 0 , 1 ) , eModBlck ); } );
+ assert( sol.adapt( r.block , *rmc , dropped ) == Solution::kUnchanged );
+ auto fix = last( [ & ]() { x->is_fixed( true , eModBlck ); } );
+ assert( sol.adapt( r.block , *fix , dropped ) == Solution::kUnchanged );
+ assert( sol.adapt( r.block , PhysMod( r.block ) , dropped ) ==
+	 Solution::kUnchanged );
+ assert( dropped.empty() );
+
+ // after a NModification nothing of the Solution can be trusted
+ assert( sol.adapt( r.block , NBModification( r.block ) , dropped ) ==
+	 Solution::kInvalid );
+
+ // a GroupModification: a removal and a fixing make an adapted Solution
+ auto grp = last( [ & ]() {
+		   auto chnl = r.block->open_channel();
+		   x->is_fixed( false , Observer::make_par( eModBlck , chnl ) );
+		   rmv_d( r.block , *vars , Range( 0 , 1 ) ,
+			  Observer::make_par( eModBlck , chnl ) );
+		   r.block->close_channel( chnl );
+		   } );
+ assert( sol.adapt( r.block , *grp , dropped ) == Solution::kAdapted );
+ assert( ( dropped.size() == 1 ) && ( dropped[ 0 ] == 1 ) );
+
+ // a :Solution that says nothing of itself cannot be adapted to a removal,
+ // and is unchanged by the rest
+ GenericSolution gen;
+ dropped.clear();
+ auto rmv2 = last( [ & ]() {
+		    rmv_d( r.block , *vars , Range( 0 , 1 ) , eModBlck ); } );
+ assert( gen.adapt( r.block , *rmv2 , dropped ) == Solution::kInvalid );
+ assert( gen.adapt( r.block , *fix , dropped ) == Solution::kUnchanged );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 int main( void )
 {
  test_ColVariable();
@@ -2261,6 +2618,9 @@ int main( void )
  test_dry_run_LagBFunction();
  test_dry_run_BendersBFunction();
  test_dry_run_C05SumFunction();
+ test_changes();
+ test_concerned();
+ test_adapt();
 
  std::cout << "Modification_test: all tests passed" << std::endl;
  return( 0 );

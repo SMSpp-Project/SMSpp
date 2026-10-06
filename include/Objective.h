@@ -463,6 +463,16 @@ class ObjectiveMod : public AModification
 
 /*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
+ /// returns what the Modification changes [see Modification::ModConcern]
+ /** The Objective, i.e., its sense or (in a derived class) its Function,
+  * which leaves the region as it is and may move the objective either way. */
+
+ [[nodiscard]] ModConcern changes( void ) const override {
+  return( eModObj | eObjUp | eObjDown );
+  }
+
+/*--------------------------------------------------------------------------*/
+
  /// returns the Block to which the Objective belongs
 
  [[nodiscard]] Block * get_Block() const override {

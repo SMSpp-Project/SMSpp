@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- the ModConcern tells the integrality of the Variable (`eModVarType`,
+  `changes_integrality()`) from their other data (`eModVarData`: fixing,
+  bounds, sign), so that the Solver of a continuous relaxation can leave the
+  former out of what it reads; what a change of the state of a Variable
+  means is said by the Variable itself (`Variable::state_changes()`), and
+  `ColVariable` tells which of its bits is the integrality
+
+- the ModConcern tells the sides of the Constraint (`eModCnsSide`, relaxing
+  and enforcing included) from their coefficients (`eModCnsCoef`), since a
+  dual solution stays feasible when only the former change
+  (`changes_only_sides()`), and a physical Modification may also say what it
+  changes in terms of the model; `BendersBFunction` keeps its global pool
+  when only the sides of Constraint it does not handle change, the
+  constants of its linearizations being computed again (`AlphaChanged`,
+  `sides_changed()`), instead of sending the "nuclear" Modification
+
 - `AbstractChange`, a Change of the abstract representation of a Block (the
   objective coefficient, the integrality, the fixing and the bounds of a
   ColVariable, the sense of an Objective), each element identified by an
@@ -20,6 +36,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `release_current_purged_solution()`; `restore_purged_solutions()` puts
   them back, telling the Observer with one Modification of type
   `GlobalPoolAdded`
+
+- `Modification::is_physical()`, `may_shrink_region()` and the other readers
+  of a ModConcern are also methods of the Modification itself (e.g.,
+  `mod->is_physical()`), which read `changes()`; `LagBFunction` decides
+  through them what to do with a Modification of the inner Block it does
+  not recognise, which it used to ignore: one that may shrink the feasible
+  region has the global pool checked, an abstract one that changes the
+  Objective is reported as unknown, any other is ignored
+
+- `Solution::adapt()` adapts a Solution to a Modification of its Block, and
+  answers whether it is unchanged, adapted or no longer valid: it drops the
+  values of the removed dynamic Variable or Constraint it holds values of
+  (`drop_dynamic_values()`) and of what a physical Modification it reads
+  removes (`drop_physical_values()`), a `NModification` invalidates it and a
+  `GroupModification` is adapted to one sub-Modification at a time;
+  `Solution::adapts()` says the kinds whose elements a Solution holds values
+  of (`ColVariableSolution` the Variable, `RowConstraintSolution` the
+  Constraint, `ColRowSolution` both, the base class anything). The global
+  pools of `LagBFunction` and of `BendersBFunction` call it
+
+- `Solver::concerned_by()` says the kinds of Modification a Solver reads
+  (all of them in the base class), and a Block passes its Solver only those
+  of a kind they read (`Modification::is_of_concern()`);
+  `Block::concerned_by()` says those the Block reads itself (none in the
+  base class), `Observer::concerned()` the kinds read by anyone listening
+  (for a Block, the "or" over its Solver and its ancestors), and
+  `anyone_there_for()`, `issue_mod()` and `issue_pmod()` with a kind tell
+  whether a Modification of that kind has to be issued at all
+
+- `Modification::changes()` says what a Modification changes and what effect
+  it may have on the problem, as a `ModConcern` bit mask: the kind
+  (`eModPhys`, the data or the set of the Variable, `eModVarData` and
+  `eModVarSet`, the data or the set of the Constraint, `eModCnsData` and
+  `eModCnsSet`, and the Objective, `eModObj`) and the possible effects
+  (`eRegnShrink`, `eRegnGrow`, `eObjUp`, `eObjDown`), read through static
+  methods (`is_physical()`, `lower_bound_stays_valid()`, ...); a physical
+  Modification says "any effect", an abstract one "anything abstract, any
+  effect", and `VariableMod`, `ConstraintMod`, `ObjectiveMod`, `BlockModAD`,
+  `FunctionModVars`, `NModification` and `GroupModification` say what they
+  know. `Modification_test` checks them
 
 - `MasterProblemBlock::add_easy_coupling( easy_id , j , local_i )`, the
   reverse of `drop_easy_coupling()`: the easy component gets the terms of
@@ -455,6 +511,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   from the `PolyhedralFunctionBlock_test` battery of the tests repository
 
 ### Fixed
+
+- a Modification of the inner Block that has `LagBFunction` check its
+  global pool is forwarded to the father of the `LagBFunction` also when
+  nobody listens to the `LagBFunction`, which it was not
 
 - `LagBFunction` gives the variables that an inner `Block` adds to its
   `Objective` after the registration, as the original cost in

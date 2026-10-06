@@ -1851,8 +1851,8 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
        * BendersBFunction, it must be updated. */
       f_constraints_are_updated = false;
       }
-     else  // this BendersBFunction may change unpredictably.
-      send_nuclear_modification( chnl );
+     else  // only the constants of the linearizations change
+      sides_changed( *tmod , chnl );
 
      return;
      }
@@ -1992,11 +1992,55 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
    * - NModification
    *
    * - Unknown modification
+   *
+   * unless what it says of itself [see Modification::changes()] is that,
+   * of the model of the sub-Block, it only changes the sides of some
+   * Constraint (a physical Modification saying so included): then the dual
+   * solutions of the global pool are kept [see sides_changed()].
    */
+
+ if( mod->changes_only_sides() ) {
+  sides_changed( *mod , chnl );
+  return;
+  }
 
  send_nuclear_modification( chnl );
 
  }  // end( BendersBFunction::add_Modification )
+
+/*--------------------------------------------------------------------------*/
+
+void BendersBFunction::sides_changed( const Modification & mod ,
+				      const Observer::ChnlName chnl )
+{
+ // the dual solutions stay dual feasible: only the constants of the
+ // linearizations have to be computed again
+ global_pool.reset_linearization_constants();
+
+ if( ! f_Observer )
+  return;
+
+ // the value moves the way the region does, if it moves one way only
+ auto shift = C05FunctionMod::NaNshift;
+ if( mod.may_shrink_region() != mod.may_grow_region() ) {
+  const auto blck = mod.get_Block();
+  const auto sense = blck ? Objective::of_type( blck->get_objective_sense() )
+                          : Objective::eUndef;
+  if( sense != Objective::eUndef ) {
+   const auto behaviour = get_behaviour( sense , mod.may_shrink_region() );
+   if( behaviour == function_value_behaviour::increase )
+    shift = Inf< FunctionValue >();
+   else
+    if( behaviour == function_value_behaviour::decrease )
+     shift = - Inf< FunctionValue >();
+   }
+  }
+
+ f_Observer->add_Modification( std::make_shared< C05FunctionMod >(
+				this , C05FunctionMod::AlphaChanged , Subset() ,
+				shift ) , chnl );
+
+ }  // end( BendersBFunction::sides_changed )
 
 /*--------------------------------------------------------------------------*/
 /*------------ METHODS FOR Saving THE DATA OF THE BendersBFunction ---------*/
@@ -3128,10 +3172,12 @@ bool BendersBFunction::keep_pool_after_removal( const Modification * mod ,
   if( ! solution )
    continue;
 
+  // the Solution drops what it held for those rows [see Solution::adapt()];
+  // one that holds no dual values cannot say what they were
   std::vector< double > dropped;
-  if( ! solution->drop_dynamic_values( v_Block.front() , cell , positions ,
-				       dropped ) )
-   return( false );  // it cannot say what it held for those rows
+  if( solution->adapt( v_Block.front() , *mod , dropped ) !=
+      Solution::kAdapted )
+   return( false );
 
   /* The dual variable of a removed row is gone: what is left satisfies the
    * dual constraints only if the multiplier of that row was zero, which is

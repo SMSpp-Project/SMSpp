@@ -118,6 +118,12 @@ public:
 /** @} ---------------------------------------------------------------------*/
 /*-------- METHODS DESCRIBING THE BEHAVIOR OF A ColVariableSolution --------*/
 /*--------------------------------------------------------------------------*/
+ /// a ColVariableSolution holds values of the Variable [see adapts()]
+ [[nodiscard]] Modification::ModConcern adapts( void ) const override {
+  return( Modification::eModVarSet );
+  }
+
+/*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a ColVariableSolution
  *  @{ */
 

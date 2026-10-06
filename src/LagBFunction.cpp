@@ -1292,13 +1292,13 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
      ++cnt;
 
      // the values of the Variable that are gone go with them, and an entry
-     // that cannot let them go does not fit the inner Block any more
+     // that cannot let them go does not fit the inner Block any more [see
+     // Solution::adapt()]
      bool feas = true;
      if( rmvd ) {
       std::vector< double > dropped;
-      feas = g_pool[ i ].sol->drop_dynamic_values( v_Block.front() ,
-						   rmvd_cell ,
-						   rmvd_positions , dropped );
+      feas = ( g_pool[ i ].sol->adapt( v_Block.front() , *mod , dropped ) !=
+	       Solution::kInvalid );
       }
 
      // check it's still a feasible solution/direction: the Solution says
@@ -1324,34 +1324,34 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
    update_f_max_glob();
    }
 
-  // if nobody is listening (assuming issueMod == eModBlck)
-  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( eModBlck ) ) )
-   return;  // all done
-  
-  // issue a LagBFunctionMod: if some linearizations have been removed it has
-  // type() == GlobalPoolRemoved, otherwise it has type() == NothingChanged
-  // note: the explicit definition of type here was originally avoided by
-  //       having the ? expression directly in the constructor, but this
-  //       meant that the same expression had a check if which was nonempty
-  //       and a std-move of which that could make it empty, i.e., the
-  //       perfect example of an expression with side-effects whose result
-  //       depended on the order of the sub-expressions and therefore was
-  //       compiler-dependent, meaning extremely-hard-to-find errors 
-  auto type = which.empty() ? C05FunctionMod::NothingChanged
-                            : C05FunctionMod::GlobalPoolRemoved;
+  // if somebody is listening (assuming issueMod == eModBlck), issue a
+  // LagBFunctionMod; the Modification is forwarded to the father anyway
+  if( f_Observer && f_Observer->issue_mod( eModBlck ) ) {
+   // issue a LagBFunctionMod: if some linearizations have been removed it has
+   // type() == GlobalPoolRemoved, otherwise it has type() == NothingChanged
+   // note: the explicit definition of type here was originally avoided by
+   //       having the ? expression directly in the constructor, but this
+   //       meant that the same expression had a check if which was nonempty
+   //       and a std-move of which that could make it empty, i.e., the
+   //       perfect example of an expression with side-effects whose result
+   //       depended on the order of the sub-expressions and therefore was
+   //       compiler-dependent, meaning extremely-hard-to-find errors
+   auto type = which.empty() ? C05FunctionMod::NothingChanged
+                             : C05FunctionMod::GlobalPoolRemoved;
 
-  // in both cases it has shift() == NaN, since even if by chance none of the
-  // existing linearizations is affected (but this may simply be because
-  // there is none) the value of the function in general has changed
-  // unpredictably if all linearizations have been removed, then pass an
-  // empty Subset
-  if( cnt == which.size() )
-   which.clear();
- 
-  f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
-				    this , type , std::move( which ) , what ,
-				    C05FunctionMod::NaNshift , true ) ,
-				chnl );
+   // in both cases it has shift() == NaN, since even if by chance none of the
+   // existing linearizations is affected (but this may simply be because
+   // there is none) the value of the function in general has changed
+   // unpredictably if all linearizations have been removed, then pass an
+   // empty Subset
+   if( cnt == which.size() )
+    which.clear();
+
+   f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
+				     this , type , std::move( which ) , what ,
+				     C05FunctionMod::NaNshift , true ) ,
+				 chnl );
+   }
 
   }  // end( if( checking is required ) )
 
@@ -4150,15 +4150,27 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
  if( dynamic_cast< const BlockMod * >( mod ) )
   return( 64 );
 
+ // any other Modification - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- return( 0 );  // ignore any other Modification (BAD!!)
- // indeed, the safe return value would be 128: if I don't understand it,
- // it can wreak arbitrary havok. but this would be severely over-reacting
- // in many cases, so we avoid it for the time being
- //
- // yet another example about why we should be adding some "semantic"
- // information to Modification that give an idea of the kind of change that
- // they can exert on the model
+ // what it does to the inner Block is what it says of itself [see
+ // Modification::changes()]. One that may shrink the feasible region may
+ // take away the feasibility of the Solution in the global pool, which have
+ // then to be checked, as for an arbitrary change of the inner Block (64);
+ // among these, the physical Modification of the inner Block, which say so
+ // until the Block says more of them. An abstract one that changes the
+ // Objective in a way not dealt with above is reported as unknown (128),
+ // the pool being checked anyway; the Objective changed by a physical one is
+ // seen through the abstract Objective, which the inner Block keeps in step
+ // and whose Modification are dealt with above. Any other cannot take away
+ // the feasibility of the pool, and nothing has to be done.
+
+ if( mod->may_shrink_region() )
+  return( 64 );
+
+ if( mod->is_abstract() && mod->changes_objective() )
+  return( char( 128 ) );
+
+ return( 0 );
 
  }  // end( LagBFunction::guts_of_guts_of_add_Modification )
 
