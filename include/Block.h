@@ -6565,8 +6565,22 @@ class Block : public Observer {
   * read its value, or to write it into a coupling of its own. */
 
  virtual Variable * get_size_variable( void ) const {
-  return( nullptr );
+  return( f_size_variable );
   }
+
+/*--------------------------------------------------------------------------*/
+/// declares the Variable owned by this Block as its size variable
+/**
+ * Stores an already-created Variable as this Block's size variable.
+ * This does not modify constraints and is separate from
+ * set_size_variable(), which handles a Variable supplied by another Block.
+ *
+ * Passing nullptr removes the declaration. The Variable lifetime remains
+ * managed by the Block's variable groups.
+ */
+void set_owned_size_variable( Variable * size_var ) {
+  f_size_variable = size_var;
+}
 
 /*--------------------------------------------------------------------------*/
  /// gives this Block the Variable of its size parameter
@@ -7931,6 +7945,9 @@ class Block : public Observer {
   * vector is preferred to, say, a std::map for the lower memory overhead. */
 
  unsigned int f_channel;   ///< the "default GroupModification channel"
+
+ /// the internally owned Variable representing this Block's size
+ Variable * f_size_variable = nullptr;
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
