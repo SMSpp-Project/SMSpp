@@ -947,6 +947,14 @@ void MasterProblemBlock::generate_primal_abstract_constraints( void )
   add_dynamic_constraints( Bounds_d , additions , eNoMod );
   } );
 
+ // the local branching on the binary coordinates [see set_local_branching()]
+ LBranchCns.clear();
+ RevLBranchCns.clear();
+ f_lbranch_x_bar.clear();
+ add_dynamic_constraint( LBranchCns , "MPB_lbranch" );
+ add_dynamic_constraint( RevLBranchCns , "MPB_rev_lbranch" );
+ refresh_local_branching( eNoMod , true );
+
  // Now handle each hard component
  for( int k = 0 ; k < NoHardCmps ; ++k ) {
   auto * pfb = dynamic_cast< PolyhedralFunctionBlock * >( HardCmps[ k ] );
@@ -3683,8 +3691,10 @@ void MasterProblemBlock::primal_box( Index j , double & lhs ,
        ? Inf< double >() : f_U[ j ];
  const double xj = j < f_x_bar.size() ? f_x_bar[ j ] : 0.0;
 
- // the trust region || x - x_bar ||_inf <= t [see #kTrustRegion]
- if( ( StblType == kTrustRegion ) && std::isfinite( t_stab ) ) {
+ // the trust region || x - x_bar ||_inf <= t [see #kTrustRegion], which
+ // leaves the binary coordinates to the local branching if there is one
+ if( ( StblType == kTrustRegion ) && std::isfinite( t_stab ) &&
+     ( ! ( std::isfinite( f_kappa ) && is_binary( j ) ) ) ) {
   lhs = std::max( lhs , xj - t_stab );
   rhs = std::min( rhs , xj + t_stab );
   }
@@ -3821,6 +3831,8 @@ void MasterProblemBlock::set_box( const std::vector< double > & L ,
    refresh_box_coordinate( j , nullptr , make_par( eModBlck , chnl ) );
   close_channel( chnl );
   issue_box_modifications();
+  // which coordinates are binary may have changed
+  refresh_local_branching( eModBlck );
   return;
   }
 
@@ -4309,6 +4321,9 @@ void MasterProblemBlock::set_x_bar( const std::vector< double > & x_bar )
     Bounds_d_idx[ j ]->set_lhs( lhs );
     Bounds_d_idx[ j ]->set_rhs( rhs );
     }
+
+  // and so does the local branching
+  refresh_local_branching( eModBlck );
 
   for( auto & row : EasyBBFRows ) {
    double coupling = row.b_i;
@@ -5341,6 +5356,21 @@ void MasterProblemBlock::remove_vars( const int * subset , int sz )
      pf.remove_variables( names() , true , cpar );
     }
 
+  // the local branching constraints speak of the coordinates being removed:
+  // all of them go, and the one around the centre is written again below
+  // for the coordinates that are left
+  if( IsPrimal && cnst_built ) {
+   if( ! LBranchCns.empty() )
+    remove_dynamic_constraints( LBranchCns ,
+                                Range( 0 , Index( LBranchCns.size() ) ) ,
+                                cpar );
+   if( ! RevLBranchCns.empty() )
+    remove_dynamic_constraints( RevLBranchCns ,
+                                Range( 0 , Index( RevLBranchCns.size() ) ) ,
+                                cpar );
+   f_lbranch_x_bar.clear();
+   }
+
   if( IsPrimal && cnst_built ) {
    if( level_lf ) {
     if( level_positions.size() == level_lf->get_num_active_var() )
@@ -5469,6 +5499,8 @@ void MasterProblemBlock::remove_vars( const int * subset , int sz )
     dqf->modify_term( DQuadFunction::Index( easy_obj_idx[ h ] ) ,
                       coeff , 0.0 , cpar );
     }
+
+  refresh_local_branching( cpar );
   }
  catch( ... ) {
   close_channel( chnl );
@@ -6071,7 +6103,158 @@ void MasterProblemBlock::set_integer( std::vector< bool > integer )
  f_integer = std::move( integer );
  f_has_integer = any;
 
+ // which coordinates are binary may have changed
+ refresh_local_branching( anyone_there() ? eModBlck : eNoMod );
+
  }  // end( MasterProblemBlock::set_integer )
+
+/*--------------------------------------------------------------------------*/
+
+bool MasterProblemBlock::is_binary( Index j ) const
+{
+ return( ( j < f_integer.size() ) && f_integer[ j ] &&
+         ( j < f_L.size() ) && ( f_L[ j ] == 0 ) &&
+         ( j < f_U.size() ) && ( f_U[ j ] == 1 ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+MasterProblemBlock::Index MasterProblemBlock::get_num_binary( void ) const
+{
+ Index n = 0;
+ for( Index j = 0 ; j < Index( NumVars ) ; ++j )
+  if( is_binary( j ) )
+   ++n;
+ return( n );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void MasterProblemBlock::local_branching_row( FRowConstraint & row ,
+                                              bool reverse )
+{
+ // Delta( x , x_bar ) = sum_{x_bar_j = 1} ( 1 - x_j ) + sum_{x_bar_j = 0} x_j
+ LinearFunction::v_coeff_pair terms;
+ double ones = 0;
+ for( Index j = 0 ; j < Index( NumVars ) ; ++j ) {
+  if( ! is_binary( j ) )
+   continue;
+  if( ( j < f_x_bar.size() ) && ( f_x_bar[ j ] >= 0.5 ) ) {
+   terms.emplace_back( Var_d_idx[ j ] , -1.0 );
+   ++ones;
+   }
+  else
+   terms.emplace_back( Var_d_idx[ j ] , 1.0 );
+  }
+
+ row.set_function( new LinearFunction( std::move( terms ) , ones ) ,
+                   eNoMod );
+ if( reverse ) {
+  row.set_lhs( f_kappa + 1 , eNoMod );
+  row.set_rhs( Inf< double >() , eNoMod );
+  }
+ else {
+  row.set_lhs( - Inf< double >() , eNoMod );
+  row.set_rhs( f_kappa , eNoMod );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void MasterProblemBlock::refresh_local_branching( ModParam issueMod ,
+                                                  bool building )
+{
+ if( ( ! IsPrimal ) ||
+     ( ( ! building ) && ( ! ( f_abs_rep & k_mpb_built_cnst ) ) ) )
+  return;
+
+ // the binary part of the centre the constraint is written for
+ std::vector< double > xb( NumVars , -1 );
+ bool any = false;
+ for( Index j = 0 ; j < Index( NumVars ) ; ++j )
+  if( is_binary( j ) ) {
+   xb[ j ] = ( ( j < f_x_bar.size() ) && ( f_x_bar[ j ] >= 0.5 ) ) ? 1 : 0;
+   any = true;
+   }
+
+ const bool want = std::isfinite( f_kappa ) && any;
+
+ // the coefficients change with the centre: the old constraint goes
+ if( ( ! LBranchCns.empty() ) &&
+     ( ( ! want ) || ( xb != f_lbranch_x_bar ) ) ) {
+  remove_dynamic_constraints( LBranchCns , Range( 0 , 1 ) , issueMod );
+  f_lbranch_x_bar.clear();
+  }
+
+ if( ! want )
+  return;
+
+ if( LBranchCns.empty() ) {
+  std::list< FRowConstraint > row( 1 );
+  local_branching_row( row.front() , false );
+  add_dynamic_constraints( LBranchCns , row , issueMod );
+  f_lbranch_x_bar = std::move( xb );
+  }
+ else
+  LBranchCns.front().set_rhs( f_kappa , issueMod );
+
+ }  // end( MasterProblemBlock::refresh_local_branching )
+
+/*--------------------------------------------------------------------------*/
+
+void MasterProblemBlock::set_local_branching( double kappa )
+{
+ if( std::isfinite( kappa ) && ( ( ! IsPrimal ) || ( ! f_v2_form ) ) )
+  throw( std::logic_error( "MasterProblemBlock::set_local_branching: only "
+                           "the primal MP in raw form has the x as "
+                           "Variable" ) );
+
+ if( kappa == f_kappa )
+  return;
+
+ const bool was = std::isfinite( f_kappa );
+ f_kappa = kappa;
+ const auto mod = anyone_there() ? eModBlck : eNoMod;
+
+ // the trust region leaves the binary coordinates to the local branching
+ // only while there is one [see primal_box()]
+ if( ( was != std::isfinite( kappa ) ) && ( StblType == kTrustRegion ) &&
+     ( int( Bounds_d.size() ) == NumVars ) )
+  for( Index j = 0 ; j < Index( NumVars ) ; ++j )
+   if( is_binary( j ) )
+    refresh_box_coordinate( j , nullptr , mod );
+
+ refresh_local_branching( mod );
+
+ }  // end( MasterProblemBlock::set_local_branching )
+
+/*--------------------------------------------------------------------------*/
+
+void MasterProblemBlock::add_reverse_local_branching( void )
+{
+ if( ( ! IsPrimal ) || ( ! ( f_abs_rep & k_mpb_built_cnst ) ) ||
+     ( ! std::isfinite( f_kappa ) ) || ( get_num_binary() == 0 ) )
+  return;
+
+ std::list< FRowConstraint > row( 1 );
+ local_branching_row( row.front() , true );
+ add_dynamic_constraints( RevLBranchCns , row ,
+                          anyone_there() ? eModBlck : eNoMod );
+
+ }  // end( MasterProblemBlock::add_reverse_local_branching )
+
+/*--------------------------------------------------------------------------*/
+
+void MasterProblemBlock::clear_reverse_local_branching( void )
+{
+ if( RevLBranchCns.empty() )
+  return;
+
+ remove_dynamic_constraints( RevLBranchCns ,
+                             Range( 0 , Index( RevLBranchCns.size() ) ) ,
+                             anyone_there() ? eModBlck : eNoMod );
+
+ }  // end( MasterProblemBlock::clear_reverse_local_branching )
 
 /*--------------------------------------------------------------------------*/
 

@@ -1566,6 +1566,70 @@ class MasterProblemBlock : public Block {
  [[nodiscard]] bool has_integer( void ) const { return( f_has_integer ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// set the radius of the local branching on the binary coordinates
+ /** Sets to \p kappa the radius of the local branching on the binary
+  * coordinates of the primal MP, i.e., the integer ones [see set_integer()]
+  * whose box is [ 0 , 1 ] [see set_box()]: with B their set and
+  * \f$ \bar{x} \f$ the stability centre [see set_x_bar()], the master gets
+  * the constraint
+  * \f[
+  *   \Delta( x , \bar{x} ) = \sum_{j \in B : \bar{x}_j = 1} ( 1 - x_j ) +
+  *                         \sum_{j \in B : \bar{x}_j = 0} x_j \leq \kappa
+  *   \; ,
+  * \f]
+  * which limits to \p kappa the number of binary coordinates that differ
+  * from those of \f$ \bar{x} \f$, as in the stabilized Benders' method of
+  * Baena, Castro and Frangioni (Manag. Sci. 66, 2020), and the trust region
+  * [see #kTrustRegion] no longer restricts them, so that the trust region
+  * acts on the general integer and continuous coordinates and the local
+  * branching on the binary ones. The constraint follows the centre, and
+  * \p kappa == Inf< double >(), the default, removes it. It can be called
+  * both before and after the abstract representation is generated, and
+  * only the primal MP in raw form has it, as set_integer(). */
+
+ void set_local_branching( double kappa );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the radius of the local branching [see set_local_branching()]
+
+ [[nodiscard]] double get_local_branching( void ) const {
+  return( f_kappa );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the number of binary coordinates [see set_local_branching()]
+
+ [[nodiscard]] Index get_num_binary( void ) const;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// exclude from the master the current region of the local branching
+ /** Adds to the master the reverse local branching constraint
+  * \f$ \Delta( x , \bar{x} ) \geq \kappa + 1 \f$ for the current
+  * stability centre and radius [see set_local_branching()], which excludes
+  * the region the local branching constraint allows. It is meant for a
+  * region that has been explored, i.e., where the master has proven that
+  * nothing is better than the centre: the constraint stays when the centre
+  * moves, and all of them go when clear_reverse_local_branching() is called
+  * or some coordinate is removed [see remove_vars()]. Since it says nothing
+  * about the coordinates that are not binary, the region it excludes has
+  * been explored only if they have not been restricted while doing it. It
+  * does nothing if the radius is infinite or no coordinate is binary. */
+
+ void add_reverse_local_branching( void );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// remove all the reverse local branching constraints
+
+ void clear_reverse_local_branching( void );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the number of reverse local branching constraints
+
+ [[nodiscard]] Index get_num_reverse_local_branching( void ) const {
+  return( RevLBranchCns.size() );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// the lower bound on the optimal value of the last master solved
  /** Returns the lower bound on the optimal value of the master that its
   * Solver gives, get_lb() of the Solver, after the last solve_master(): it
@@ -1673,10 +1737,15 @@ class MasterProblemBlock : public Block {
 
  void remove_initial_level_objective( void );
 
- /// Restore the proximal probe after the driver invalidates the level target.
- /** Keeps the bundle and coordinate frame, but restores unit normalization
-  * and t-dependent curvature until a new finite level has been initialized.
-  * The driver must disable the obsolete level before calling this method. */
+ /// give the MP back the one-shot proximal objective of pure level
+ /** Undoes remove_initial_level_objective(): the proximal probe is back,
+  * with the unit normalization and the curvature in t, while the bundle and
+  * the coordinate frame are kept; the driver must disable the obsolete level
+  * before calling it. In the primal MP the model terms are back in the
+  * Objective together with the proximal term, so that with t ==
+  * Inf< double >() [see set_t()] and no finite level [see set_f_lev()] the
+  * master is the cutting-plane one again, whose value is a lower bound. It
+  * does nothing if the Objective is already the initial one. */
  void restore_initial_level_objective( void );
 
  [[nodiscard]] bool uses_pure_level_aggregation( void ) const {
@@ -2077,6 +2146,15 @@ class MasterProblemBlock : public Block {
 
  bool f_has_integer = false;  ///< true if any entry of f_integer is
 
+ double f_kappa = Inf< double >();  ///< radius of the local branching
+
+ std::list< FRowConstraint > LBranchCns;     ///< the local branching
+                                             ///< constraint, if any
+ std::list< FRowConstraint > RevLBranchCns;  ///< the reverse ones
+
+ std::vector< double > f_lbranch_x_bar;  ///< the centre LBranchCns is
+                                         ///< written for
+
  bool f_primal_objective_dirty = false;
                     ///< whether the primal objective must be synchronized
                     ///< before the next actual master solve
@@ -2291,6 +2369,19 @@ class MasterProblemBlock : public Block {
  void refresh_primal_level_linear_part( const Subset & subset );
                     ///< refresh a subset of b coefficients in the primal
                     ///< level row
+
+ [[nodiscard]] bool is_binary( Index j ) const;
+                    ///< whether coordinate j is integer with box [ 0 , 1 ]
+
+ void local_branching_row( FRowConstraint & row , bool reverse );
+                    ///< write in row Delta( x , x_bar ) <= kappa, or
+                    ///< >= kappa + 1 if reverse [see set_local_branching()]
+
+ void refresh_local_branching( ModParam issueMod , bool building = false );
+                    ///< make the local branching constraint agree with
+                    ///< kappa, the binary coordinates and the centre;
+                    ///< building tells that the abstract constraints are
+                    ///< being generated
 
  void primal_box( Index j , double & lhs , double & rhs ) const;
                     ///< the box of coordinate j of the primal MP: [ L , U ]
