@@ -2435,6 +2435,79 @@ static void test_changes( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* What an FRowConstraint and an FRealObjective read of the Modification of
+ * their Function [see Observer::concerned()], and what a LinearFunction
+ * issues as a consequence under eNoBlck: the changes of the set of its
+ * Variable always, so that they keep registering themselves with the
+ * Variable, those of its values only if the Block reads the coefficients
+ * of the Constraint or the Objective, respectively. */
+
+static void test_function_concerned( void )
+{
+ using M = Modification;
+ Rig r;
+ auto x = new std::vector< ColVariable >( 3 );
+ r.block->add_static_variable( *x , "x" );
+ auto X = [ x ]( Index i ) { return( & ( *x )[ i ] ); };
+ auto rf = new LinearFunction( { { X( 0 ) , 1 } } );
+ auto c = new FRowConstraint( nullptr , 0 , 1 , rf );
+ r.block->add_static_constraint( *c , "c" );
+ auto of = new LinearFunction( { { X( 0 ) , 1 } } );
+ auto obj = new FRealObjective( nullptr , of );
+ r.objective = obj;
+ r.block->set_objective( obj , eNoMod );
+
+ // the FakeSolver of the Rig reads everything, hence so do they
+ assert( c->concerned() == ( M::eModVarSet | M::eModCnsCoef ) );
+ assert( obj->concerned() == ( M::eModVarSet | M::eModObj ) );
+
+ // with nobody listening, the set of the Variable only, and yet they are
+ // always there, for it
+ r.listen( false );
+ assert( c->concerned() == M::eModVarSet );
+ assert( obj->concerned() == M::eModVarSet );
+ assert( c->anyone_there() && obj->anyone_there() );
+
+ // a Solver that reads the set of the Variable only: a change of values
+ // under eNoBlck is not issued, while an added Variable is, and the
+ // FRowConstraint and the FRealObjective register themselves with it
+ auto vars = new ReadsSolver( M::eModVarSet );
+ r.block->register_Solver( vars );
+ auto & vgot = vars->get_Modification_list();
+ rf->modify_coefficient( 0 , 2 , eNoBlck );
+ of->modify_coefficient( 0 , 2 , eNoBlck );
+ assert( vgot.empty() );
+ assert( ( rf->get_coefficient( 0 ) == 2 ) &&
+	 ( of->get_coefficient( 0 ) == 2 ) );
+ rf->add_variable( X( 1 ) , 3 , eNoBlck );
+ assert( X( 1 )->is_active( c ) != Inf< Index >() );
+ assert( vgot.size() == 1 );
+ vgot.clear();
+ of->add_variable( X( 2 ) , 1 , eNoBlck );
+ assert( X( 2 )->is_active( obj ) != Inf< Index >() );
+ assert( vgot.size() == 1 );
+ vgot.clear();
+
+ // a Solver that reads the coefficients of the Constraint: a change of
+ // values of the Function of the FRowConstraint is issued and reaches it
+ // alone, one of the Function of the FRealObjective is still not issued
+ auto coef = new ReadsSolver( M::eModCnsCoef );
+ r.block->register_Solver( coef );
+ auto & cgot = coef->get_Modification_list();
+ assert( c->concerned() == ( M::eModVarSet | M::eModCnsCoef ) );
+ assert( obj->concerned() == M::eModVarSet );
+ rf->modify_coefficient( 0 , 4 , eNoBlck );
+ assert( ( cgot.size() == 1 ) && vgot.empty() );
+ cgot.clear();
+ of->modify_coefficient( 0 , 4 , eNoBlck );
+ assert( cgot.empty() && vgot.empty() );
+
+ r.block->unregister_Solver( coef , true );
+ r.block->unregister_Solver( vars , true );
+ r.listen( true );
+ }
+
+/*--------------------------------------------------------------------------*/
 /* What a Block passes to a Solver that reads only some kinds of
  * Modification [see Solver::concerned_by()], and what concerned() and
  * anyone_there_for() say on a Block, on its son, and with and without
@@ -2620,6 +2693,7 @@ int main( void )
  test_dry_run_C05SumFunction();
  test_changes();
  test_concerned();
+ test_function_concerned();
  test_adapt();
 
  std::cout << "Modification_test: all tests passed" << std::endl;

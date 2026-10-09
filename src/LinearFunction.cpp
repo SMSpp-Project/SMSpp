@@ -255,7 +255,7 @@ void LinearFunction::add_variables( v_coeff_pair && vars ,
   }
 
  // if noone is there or not listening
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod , eModFVars ) ) )
   return;  // all done
 
  Vec_p_Var vptr( added->size() );
@@ -287,7 +287,7 @@ void LinearFunction::add_variable( ColVariable * var , Coefficient coeff ,
  v_pairs.push_back( std::make_pair( var , coeff ) );
 
  // if noone is there or not listening
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod , eModFVars ) ) )
   return;  // all done
 
  // a linear function is additive ==> strongly quasi-additive
@@ -317,7 +317,8 @@ void LinearFunction::modify_coefficient( Index i , Coefficient coeff ,
  auto diff = coeff - v_pairs[ i ].second;
  v_pairs[ i ].second = coeff;
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , eModFValues ) ) )
   return; // no one is there: all done
 
  f_Observer->add_Modification( std::make_shared< C05FunctionModLinRngd >(
@@ -357,7 +358,7 @@ void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
 
  auto NCit = NCoef.begin();
 
- if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+ if( f_Observer && f_Observer->issue_mod( issueMod , eModFValues ) ) {
   // somebody is there: meanwhile, prepare data for the Modification
 
   Vec_p_Var vp( nms.size() );
@@ -408,7 +409,7 @@ void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
  auto strtit = v_pairs.begin() + range.first;
  const auto stopit = v_pairs.begin() + range.second;
 
- if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+ if( f_Observer && f_Observer->issue_mod( issueMod , eModFValues ) ) {
   // somebody is there: meanwhile, prepare data for the Modification
 
   Vec_p_Var vp( range.second - range.first );
@@ -450,7 +451,7 @@ void LinearFunction::remove_variable( Index i , ModParam issueMod )
  auto var = ( *itv ).first;
  v_pairs.erase( itv );       // erase it
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod , eModFVars ) ) )
   return;
 
  // a linear function is additive ==> strongly quasi-additive
@@ -475,7 +476,7 @@ void LinearFunction::remove_variables( Range range , ModParam issueMod )
 
  if( ( range.first == 0 ) && ( range.second >= v_pairs.size() ) ) {
   // removing *all* variable
-  if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+  if( f_Observer && f_Observer->issue_mod( issueMod , eModFVars ) ) {
    // an Observer is there: copy the names of deleted Variable (all of them)
    Vec_p_Var vars( v_pairs.size() );
 
@@ -502,7 +503,7 @@ void LinearFunction::remove_variables( Range range , ModParam issueMod )
  const auto strtit = v_pairs.begin() + range.first;
  const auto stopit = v_pairs.begin() + range.second;
 
- if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+ if( f_Observer && f_Observer->issue_mod( issueMod , eModFVars ) ) {
   // somebody is there: meanwhile, prepare data for the Modification
 
   Vec_p_Var vars( range.second - range.first );
@@ -533,7 +534,7 @@ void LinearFunction::remove_variables( Subset && nms , bool ordered ,
   return;
 
  if( nms.empty() ) {      // removing *all* variable
-  if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+  if( f_Observer && f_Observer->issue_mod( issueMod , eModFVars ) ) {
    // an Observer is there: copy the names of deleted Variable (all of them)
    Vec_p_Var vars( v_pairs.size() );
 
@@ -568,7 +569,7 @@ void LinearFunction::remove_variables( Subset && nms , bool ordered ,
  auto vi = *it;    // first element to be eliminated
  auto curr = v_pairs.begin() + vi;   // position where to move stuff
 
- if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+ if( f_Observer && f_Observer->issue_mod( issueMod , eModFVars ) ) {
   // somebody is there: meanwhile, prepare data for the Modification
   // (as it will be destroyed during the process)
 
@@ -628,7 +629,7 @@ void LinearFunction::set_constant_term( FunctionValue constant_term ,
  if( f_constant_term == constant_term )  // actually nothing to change
   return;                                // cowardly (and silently) return
 
- if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+ if( f_Observer && f_Observer->issue_mod( issueMod , eModFValues ) ) {
   const FunctionValue delta = constant_term - f_constant_term;
   f_constant_term = constant_term;
 

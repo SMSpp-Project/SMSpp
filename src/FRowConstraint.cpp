@@ -225,6 +225,17 @@ void FRowConstraint::remove_variables( Subset && nms , bool ordered ,
 /*------------- METHODS DESCRIBING THE BEHAVIOR OF AN Observer -------------*/
 /*--------------------------------------------------------------------------*/
 
+Modification::ModConcern FRowConstraint::concerned( void ) const
+{
+ const auto block = get_Block() ? get_Block()->concerned()
+                    : Modification::ModConcern( 0 );
+ return( Modification::eModVarSet |
+         ( Modification::is_of_concern( Modification::eModCnsCoef , block ) ?
+           Modification::eModCnsCoef : 0 ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 void FRowConstraint::add_Modification( sp_Mod mod , c_ChnlName chnl )
 {
  // first check if mod is some :FunctionModVars, and if it is- - - - - - - - -
