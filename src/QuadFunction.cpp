@@ -343,7 +343,7 @@ void QuadFunction::add_variables( v_coeff_triple && vars ,
  }
 
  // if noone is there or not listening
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod , eModFVars ) ) )
   return;
 
  // Firstly prepare the diagonal terms for modification
@@ -392,7 +392,8 @@ void QuadFunction::add_nd_term( ColVariable * var1 , ColVariable * var2 ,
   // a time
   mat_nd.insert( std::max( i , j ) , std::min( i , j ) ) = quad_coeff;
 
-  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+  if( ( ! f_Observer ) ||
+      ( ! f_Observer->issue_mod( issueMod , eModFValues ) ) )
    return; // noone is there: all done
 
   Coefficient od_term = quad_coeff;
@@ -439,7 +440,8 @@ void QuadFunction::modify_term( Index i , Index j ,
 
  my_convexity = Unknown;
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , eModFValues ) ) )
   return; // noone is there: all done
 
  // the Modification carries the difference, which is what its readers add

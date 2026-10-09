@@ -157,6 +157,17 @@ void FRealObjective::remove_variables( Subset && nms, bool ordered,
 
 /*--------------------------------------------------------------------------*/
 
+Modification::ModConcern FRealObjective::concerned( void ) const
+{
+ const auto block = f_Block ? f_Block->concerned()
+                    : Modification::ModConcern( 0 );
+ return( Modification::eModVarSet |
+         ( Modification::is_of_concern( Modification::eModObj , block ) ?
+           Modification::eModObj : 0 ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 void FRealObjective::add_Modification( sp_Mod mod , c_ChnlName chnl ) {
  // first check if mod is some :FunctionModVars, and if it is- - - - - - - - -
  // register/unregister this FRowConstraint with the added/removed Variable

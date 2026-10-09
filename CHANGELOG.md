@@ -516,6 +516,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its sized form under a size Variable, and takes a physical Modification as
   one with nothing to do; `mirror()` copies whether a Constraint is relaxed
 
+- an FRowConstraint and an FRealObjective say what they read of the
+  Modification of their Function (`concerned()`): the changes of the set of
+  its Variable always, those of its values only if their Block reads the
+  coefficients of the Constraint or the Objective; `LinearFunction`,
+  `DQuadFunction` and `QuadFunction` ask `issue_mod()` with the kind
+  (`Function::eModFVars`, `Function::eModFValues`), so that under eNoBlck
+  they do not build a change of values that nobody reads, and a
+  `FunctionMod` says `eModFValues` in `changes()`
+
 - the feasibility checks of `Block::is_feasible()` and
   `Block::is_sol_feasible()` without a Configuration, neither given nor in
   the BlockConfig, accept the relative violation `Block::DefaultFeasTol`
