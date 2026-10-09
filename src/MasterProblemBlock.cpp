@@ -2841,9 +2841,10 @@ double MasterProblemBlock::get_FiBLambda( int k ) const
  // not the aggregated linearization error Sigma_k. In the proximal case
  // d* = -t z*, while in the pure-level case Var_z stores eta z* and hence
  // d* = -eta z*. The scalar below is therefore the displacement mass that
- // converts the normalized aggregate z* into the actual step.
+ // converts the normalized aggregate z* into the actual step [see
+ // aggregate_mass()].
  const double step_scale = uses_pure_level_aggregation()
-                           ? get_level_multiplier() : t_stab * get_lambda();
+                           ? aggregate_mass() : t_stab * aggregate_mass();
  auto has_model_row = [ this ]( int kk ) -> bool {
   if( kk < 0 || kk >= int( HardCmps.size() ) )
    return( false );
@@ -2985,11 +2986,10 @@ std::vector< double > MasterProblemBlock::get_z_vector( void ) const
    std::fill( out.begin() , out.end() , 0.0 );
   return( out );
   }
- // the rows of a component share the mass lambda, which the level row
- // makes larger than one: what the driver of the master reads has to be the
- // convex combination, hence the division
- const double eta = uses_pure_level_aggregation() ? get_level_multiplier()
-                                                  : get_lambda();
+ // the rows share the mass lambda + r, which the level row makes larger
+ // than one: what the driver of the master reads has to be the convex
+ // combination, hence the division [see aggregate_mass()]
+ const double eta = aggregate_mass();
  const bool normalize_level_z = ( eta != 1.0 );
  out.reserve( Var_z.size() );
 
@@ -3252,7 +3252,7 @@ double MasterProblemBlock::get_aggregated_alpha( int k ) const
  // b[i] is stored in the physical PolyhedralFunction units. The multiplier
  // must therefore also be expressed in physical units. get_row_multiplier()
  // hides both the active PFB representation and any internal row scaling.
- auto contrib = [ this ]( int kk ) -> double {
+ auto contrib = [ this ]( int kk , bool normalize = true ) -> double {
   if( kk < 0 || kk >= int( HardCmps.size() ) )
    return( 0.0 );
 
@@ -3303,6 +3303,9 @@ double MasterProblemBlock::get_aggregated_alpha( int k ) const
       std::isfinite( f_LB_raw[ kk ] ) )
    s += get_gamma( kk ) * ( f_F_at_x_bar[ kk ] - f_LB_raw[ kk ] );
 
+  if( ! normalize )
+   return( s );
+
   if( const double mass = uses_pure_level_aggregation()
                           ? get_level_multiplier() : get_lambda() ;
       mass != 1.0 )
@@ -3345,19 +3348,24 @@ double MasterProblemBlock::get_aggregated_alpha( int k ) const
   return( signed_obj - 0.5 * t_stab * get_dual_norm_squared() );
   }
 
+ // the total is summed as it is in the master and divided at the end by
+ // the mass of all the rows [see aggregate_mass()]: those of the components
+ // and the global lower bound row, which has no subgradient but has its
+ // linearization error F( x_bar ) - LB, i.e., - LB_xbar
+ const double mass = aggregate_mass();
  double total = 0.0;
  for( int kk = 0 ; kk < int( HardCmps.size() ) ; ++kk )
-  total += contrib( kk );
+  total += contrib( kk , false );
+
+ if( ( ! Var_r.is_fixed() ) && std::isfinite( f_global_LB_xbar ) )
+  total -= get_r() * f_global_LB_xbar;
 
  if( ( StblType == kLevel || StblType == kDoublyStabilized ||
        StblType == kTrustRegion ) && ! EasyCmps.empty() ) {
   // BundleSolver adds the easy reference values to Sigma. Supply the
   // opposite affine values at x_bar, evaluated at the current master
   // solution; these are already included in the proximal objective above.
-  // Match the normalization of the hard and box contributions. Without
-  // global-LB mixing this mass is lambda (also omega in pure level).
-  const double mass = uses_pure_level_aggregation()
-                      ? get_level_multiplier() : get_lambda();
+  // They are normalized with the hard and box contributions.
   if( ! ( mass > 0.0 ) )
    throw( std::logic_error(
         "MasterProblemBlock::get_aggregated_alpha: easy-component "
@@ -3400,7 +3408,7 @@ double MasterProblemBlock::get_aggregated_alpha( int k ) const
    }
 
   // Use the same internal minimization units as get_FiBLambda(k).
-  total -= ( IsConvex ? - easy_value : easy_value ) / mass;
+  total -= ( IsConvex ? - easy_value : easy_value );
   }
 
  // The aggregate residual includes the box normals, so its error at the
@@ -3425,13 +3433,10 @@ double MasterProblemBlock::get_aggregated_alpha( int k ) const
                 ( f_U[ j ] - f_x_bar[ j ] );
   }
 
- // Match the normalization of the component errors and residual in pure
- // level mode. Proximal objective recovery above already includes the box.
- if( const double mass = uses_pure_level_aggregation()
-                         ? get_level_multiplier() : get_lambda() ;
-     mass != 1.0 )
-  box_error = ( mass > 0.0 ) ? box_error / mass : 0.0;
+ // Proximal objective recovery above already includes the box.
  total += box_error;
+ if( mass != 1.0 )
+  total = ( mass > 0.0 ) ? total / mass : 0.0;
 
  return( total );
 }
@@ -4046,15 +4051,17 @@ void MasterProblemBlock::set_global_LB( double LB )
  // Var_r is meaningful only when LB is finite: unfix it now (it was
  // pinned to 0 in CreateDualMP), or re-pin it to 0 if LB has gone
  // back to -infinity. See the matching comment in CreateDualMP for
- // the rationale on the master normalization
+ // the rationale on the master normalization. As for Var_omega in
+ // set_f_lev(), the Solver of the master is told, as it may have loaded
+ // the master with Var_r still pinned
  if( finite ) {
   if( Var_r.is_fixed() )
-   Var_r.is_fixed( false , eNoMod );
+   Var_r.is_fixed( false , eNoBlck );
   }
  else {
   Var_r.set_value( 0 );
   if( ! Var_r.is_fixed() )
-   Var_r.is_fixed( true , eNoMod );
+   Var_r.is_fixed( true , eNoBlck );
   }
 
  if( anyone_there() )
