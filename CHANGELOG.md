@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `MasterProblemBlock::aggregate_mass()`, the mass the aggregate of the
+  dual master is divided by: lambda + r, i.e., that of the rows of the
+  components and of the global lower bound row, or that of the level row in
+  the pure level form
+
 - `Block::set_owned_size_variable()`, which declares a Variable that the
   Block has created, and with which it has written its Constraint, as the
   column of its size parameter; the base `get_size_variable()` returns it
@@ -591,6 +596,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `BundleSolver` kept solving a stale copy of the component after a change
   of its costs, demands or bounds, declaring unbounded an instance that
   has an optimum
+
+- `MasterProblemBlock::set_global_LB()` tells the Solver of the master that
+  the multiplier r of the global lower bound row is freed (or pinned to 0
+  again), as `set_f_lev()` does with that of the level row: a Solver that
+  had loaded the master with r pinned kept it so, and a global lower bound
+  set after that had no effect. With r free, the dual
+  master divides its aggregate by the mass of all its rows, lambda + r [see
+  `aggregate_mass()`], rather than by lambda alone, and the aggregated
+  linearization error summed row by row has the term r ( F( x_bar ) - LB )
+  of the global lower bound row: with lambda, z* and the errors of the rows
+  were divided by 1 - r while the error read off the proximal objective was
+  not, so that the model value of the step (`get_FiBLambda()`) came out
+  positive and huge as soon as r was. With r = 0 nothing changes
 
 - a Modification of the inner Block that has `LagBFunction` check its
   global pool is forwarded to the father of the `LagBFunction` also when

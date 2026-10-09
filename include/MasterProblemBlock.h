@@ -1794,6 +1794,25 @@ class MasterProblemBlock : public Block {
  [[nodiscard]] double get_r( void ) const { return( Var_r.get_value() ); }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the mass the aggregate of the dual master is divided by
+ /** The rows of each component share the mass lambda, the global lower
+  * bound row, which is the horizontal linearization at LB, takes r, and
+  * lambda + r = 1 + omega, the level row making it larger than one: the
+  * aggregate subgradient z* and the aggregated linearization error Sigma*
+  * that get_z_vector() and get_aggregated_alpha() give are those of all
+  * these rows, divided by lambda + r so that they are a convex combination,
+  * hence a certificate on the maximum of the function and the global lower
+  * bound. In the pure level form the mass is that of the level row [see
+  * uses_pure_level_aggregation()]. Meaningful only after solve_master() and
+  * only in the dual MP form. */
+
+ [[nodiscard]] double aggregate_mass( void ) const {
+  if( uses_pure_level_aggregation() )
+   return( get_level_multiplier() );
+  return( get_lambda() + ( Var_r.is_fixed() ? 0.0 : get_r() ) );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// returns the current optimal value of omega
  /** omega is the dual multiplier of the level/X row. Fixed to 0 under
   * #kProximal. Meaningful only after solve_master(). */
