@@ -643,6 +643,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   variable of a `PolyhedralFunctionBlock`; the `_unit_test` keeps it apart
   from the `PolyhedralFunctionBlock_test` battery of the tests repository
 
+### Removed
+
+- `Block::access_static_variable()` and its three companions: nobody calls
+  them, the abstract copy of a Block asking its groups, and there is no
+  boost::any left to hand out
+
 ### Fixed
 
 - `PolyhedralFunction::modify_bound()` takes the all-0 linearization of the
@@ -1307,6 +1313,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Block::map_forward_solution()` and `Block::map_forward_Modification()`
   serves the AbstractBlock that has mirrored the Block, so that every Block
   has a R3 Block of itself without having had to write a line for it
+
+- `Block::access_static_variable()` and its three companions, which give the
+  group of Variable or Constraint as the boost::any holding it, so that code
+  building a Block out of another one can install a group whose type it only
+  knows at run time
 
 - `ThinComputeInterface::print_parameters()`, which prints the name, the
   current value and the default one of every parameter, walking the six
