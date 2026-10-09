@@ -397,7 +397,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   size parameter that is a datum goes through the methods factory instead.
   `PolyhedralFunctionBlock` takes one, the multiplier of `set_lambda()`,
   before or after its abstract representation exists, and keeps its
-  coefficient in step with the global scale, in place
+  coefficient in step with the global scale, in place, which
+  `PolyhedralFunctionBlock_unit_test` checks
 
 - the methods factory takes the data of a setter as a `std::span` as well
   (`MF_dbl_sp`, `MF_int_sp` and the `MS_sp_*` signatures), which lets the
@@ -638,11 +639,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   'B' selecting a nested Block that is not there, which was only an
   `assert()`
 
-- `SizeVariable_test` is renamed `PolyhedralFunctionBlock_unit_test`, and its
-  source `tests_PolyhedralFunctionBlock.cpp`, since what it tests is the size
-  variable of a `PolyhedralFunctionBlock`; the `_unit_test` keeps it apart
-  from the `PolyhedralFunctionBlock_test` battery of the tests repository
-
 ### Removed
 
 - `Block::access_static_variable()` and its three companions: nobody calls
@@ -849,12 +845,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   one, a Solver reading the wrong one having rebuilt the row it did not have
   to and left the one it had to alone
 
-- the test of the size variable asked the global scale of the epigraph to
-  move when one row a thousand times larger than the others is added, which
-  is what the scale of the median of the row measures is there not to do;
-  it now asks it to stay where it is, and to move once enough large rows are
-  there for the median to be among them
-
 - `Block::remove_dynamic_constraints()`, asked for the whole list with an
   empty subset and with no Modification to be issued, removed each Constraint
   from its active Variable twice, and the second time threw "remove_active()
@@ -979,11 +969,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its classname, which the factory needs to read it back, and a nullptr in it
   is written as a missing group and read back as nullptr, rather than
   dereferenced
-
-- `ComputeConfig::deserialize()`, the `deserialize()` of a matrix of
-  `std::string` in `SMSTypedefs.h` and `AbstractBlock::deserialize()` for the
-  text of the model read a netCDF string through the `char *` netCDF
-  allocates, and free it, rather than into the address of a `std::string`
 
 - `ComputeConfig::set_par()` of a vector parameter that is not there yet
   writes into the new entry, rather than past the end of the list
@@ -1218,16 +1203,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   +`, throws, while it leaked it
 
 - every string of a netCDF file is read with the new `get_var_values()` of
-  SMSTypedefs.h, which reads the `char *` that the netCDF library allocates
-  for each string, copies it and gives it back with `nc_free_string()`, and
-  which the `deserialize()` helpers of the scalars, of the vectors, of the
-  multi-dimensional arrays and of the matrices use too: besides the names
-  and values of the parameters of `ComputeConfig`, so are read the keys of
-  the meta-configuration, the name of the group of each Constraint of a
-  `CBlockConfig`, the ids of the sub-Block of `RBlockConfig` and of
-  `RBlockSolverConfig`, which were read into the `std::string` objects
-  themselves, and the name of each Solver of `BlockSolverConfig`, which
-  leaked
+  SMSTypedefs.h, which reads the `char *` that the netCDF library allocates for
+  each string, copies it and gives it back with `nc_free_string()`, and which
+  the `deserialize()` helpers of the scalars, of the vectors, of the
+  multi-dimensional arrays and of the matrices use too: so are read the names
+  and values of the parameters of `ComputeConfig`, the text of the model of an
+  `AbstractBlock`, the keys of the meta-configuration, the name of the group of
+  each Constraint of a `CBlockConfig` and the ids of the sub-Block of
+  `RBlockConfig` and of `RBlockSolverConfig`, which were read into the
+  `std::string` objects themselves, and the name of each Solver of
+  `BlockSolverConfig`, which leaked
 
 - the extra slot of the body of a `*file.txt +` override is optional also
   inside a meta-configuration: `ComputeConfig::merge_overrides()` leaves in
