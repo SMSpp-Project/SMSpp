@@ -320,8 +320,8 @@ class MasterProblemBlock : public Block {
  /** clear() resets MasterProblemBlock to an "empty" state: all per-component
   * bookkeeping is forgotten, every size field goes back to 0 and the MP type
   * information is reset. Non-owning easy-component inner-Block registrations
-  * are detached first and restored to their owning Function Blocks. A
-  * subsequent SetDim() + CreateEmptyMP() rebuilds the MP. */
+  * are detached first and restored to the father they had [see configure()].
+  * A subsequent SetDim() + CreateEmptyMP() rebuilds the MP. */
 
  void clear();
 
@@ -355,8 +355,15 @@ class MasterProblemBlock : public Block {
   * removed from the Function Block's own sub-Block list. The Function Block
   * therefore retains ownership and direct access, while modifications from
   * the inner Block propagate through MasterProblemBlock. The latter intercepts
-  * them in add_Modification(), notifies the retained Function Block owner and
-  * then forwards them normally along the master Block tree.
+  * them in add_Modification(), notifies the father the inner Block had when
+  * it was registered and then forwards them normally along the master Block
+  * tree. That father is the Function Block, unless the MasterProblemBlock of
+  * another Solver attached to the same Block has registered the inner Block
+  * before: then it is that MasterProblemBlock, which does the same in turn,
+  * so that the Modification reach the master Solver of each of them and
+  * finally the Function Block. clear() gives the inner Block back the father
+  * it had, or has the MasterProblemBlock that registered it next record that
+  * father in its place.
   *
   * In the dual MP, each easy inner Block is asked for get_size_variable()
   * when the abstract variables are generated. Each non-null result must be
@@ -1893,11 +1900,13 @@ class MasterProblemBlock : public Block {
   * method instead of the owning Function Block's add_Modification().
   *
   * This override restores the logical two-way dispatch: each Modification from
-  * an easy-component subtree is first passed to the retained Function Block
-  * owner, allowing it to update its caches and issue the corresponding
-  * Function Modification; the original Modification is then passed to
-  * Block::add_Modification() with \p chnl so the master Solver and master
-  * ancestors receive it normally.
+  * an easy-component subtree is first passed to the father the inner Block
+  * had when it was registered, i.e., the Function Block, allowing it to
+  * update its caches and issue the corresponding Function Modification, or
+  * the MasterProblemBlock of another Solver that had registered the inner
+  * Block before, which does the same; the original Modification is then
+  * passed to Block::add_Modification() with \p chnl so the master Solver and
+  * master ancestors receive it normally.
   *
   * The owner notification deliberately uses its default channel. The owner and
   * MasterProblemBlock belong to different Block-tree branches while
@@ -1964,13 +1973,15 @@ class MasterProblemBlock : public Block {
 
  // - - - - - - - - -  pointers to the per-component sub-Blocks - - - - - - - -
 
- std::vector< Block * > EasyCmps_Owner;
- ///< Function Blocks that own the corresponding entries of EasyCmps_SB;
- ///< retained so clear() can restore each inner Block's original father
+ std::vector< Block * > EasyCmps_Father;
+ ///< the fathers that the entries of EasyCmps_SB had when registered: the
+ ///< Function Block that owns each, or the MasterProblemBlock of another
+ ///< Solver that had registered it before; add_Modification() passes them
+ ///< the Modification of the inner Block, clear() gives it back to them
 
  std::vector< Block * > EasyCmps_SB;
  ///< sub-Blocks of the "easy" components; these are non-owning registrations
- ///< and remain owned by the corresponding Function Block in EasyCmps_Owner
+ ///< and remain owned by the Function Block of the component
 
  std::vector< ColVariable * > EasySizeVars;
  ///< borrowed size variables exposed by easy inner Blocks in the dual MP;
