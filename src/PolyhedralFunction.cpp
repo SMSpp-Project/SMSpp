@@ -2270,6 +2270,15 @@ void PolyhedralFunction::modify_bound( FunctionValue newbound ,
  // they are still valid
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) ) {
   reset_aggregate_linearizations();
+  #if( EXPLICIT_BOUND )
+   // the bound has been eliminated: so is it from the global pool
+   if( wasset && ( ! is_bound_set() ) ) {
+    for( Index i = 0 ; i < f_max_glob ; ++i )
+     if( ! v_glob[ i ] )
+      v_glob[ i ] = Inf< int >();
+    update_f_max_glob();
+    }
+  #endif
   return;
   }
 
@@ -2312,10 +2321,12 @@ void PolyhedralFunction::modify_bound( FunctionValue newbound ,
       if( ! v_glob[ i ] )
        which.push_back( i );
      }
-    else  // the bound has been eliminated
+    else  // the bound has been eliminated: so is it from the global pool
      for( Index i = 0 ; i < f_max_glob ; ++i )
-      if( ! v_glob[ i ] )
+      if( ! v_glob[ i ] ) {
+       v_glob[ i ] = Inf< int >();
        whiche.push_back( i );
+       }
     }
 
    update_f_max_glob();

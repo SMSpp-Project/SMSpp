@@ -1433,7 +1433,11 @@ class PolyhedralFunction : public C05Function {
   *        current value the function has necessarily increased, otherwise
   *        necessarily decreased (if it is == it has not changed and the
   *        method does nothing), hence the shift() is either +INFshift or
-  *        -INFshift accordingly. */  
+  *        -INFshift accordingly.
+  *
+  * When the bound is eliminated, its all-0 linearization leaves the global
+  * pool, also if no Modification is issued; if they are, a separate
+  * C05FunctionMod with type() == GlobalPoolRemoved says so. */
 
  void modify_bound( FunctionValue newbound , ModParam issueMod = eModBlck );
 

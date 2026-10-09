@@ -807,6 +807,50 @@ static void test_global_pool_Mod( void )
 
 /*--------------------------------------------------------------------------*/
 
+static void test_bound_leaves_global_pool( void )
+{
+ // the all-0 linearization of the bound, stored in the global pool, leaves
+ // it when the bound is eliminated, whether this is said to a Solver or not,
+ // so that a Solver reading the pool anew [see is_linearization_there()]
+ // does not find a linearization whose constant is - INF
+ for( bool issue : { true , false } ) {
+  Model m( { { 1 , 0 } } , { 0 } , -1 );
+  m.f->set_par( PF::intGPMaxSz , 1 );
+  auto & x = *m.x;
+  const std::string c = issue ? " (with Modification)" : " (eNoMod)";
+
+  x[ 0 ].set_value( -5 );  // the bound is the max
+  x[ 1 ].set_value( 0 );
+  m.f->compute();
+  m.f->store_linearization( 0 );
+  check( m.f->is_linearization_there( 0 ) &&
+	 eq( m.f->get_linearization_constant( 0 ) , -1 ) &&
+	 ( coeffs( *m.f , 0 ) == PF::RealVector( { 0 , 0 } ) ) ,
+	 "the bound stored in the global pool" + c );
+
+  m.mods().clear();
+  if( issue )
+   m.f->modify_bound( - INF );
+  else
+   m.f->modify_bound( - INF , eNoMod );
+
+  check( ! m.f->is_linearization_there( 0 ) ,
+	 "the eliminated bound leaves the global pool" + c );
+
+  if( issue ) {
+   bool removed = false;
+   for( auto & mod : m.mods() )
+    if( auto cmod = std::dynamic_pointer_cast< C05FunctionMod >( mod ) )
+     if( ( cmod->type() == C05FunctionMod::GlobalPoolRemoved ) &&
+	 ( cmod->which() == PF::Subset( { 0 } ) ) )
+      removed = true;
+   check( removed , "the eliminated bound: GlobalPoolRemoved, which { 0 }" );
+   }
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
 static void test_variables_Mod( void )
 {
  // add_variable() issues a C05FunctionModVarsAddd, remove_variable[s] a
@@ -2541,6 +2585,7 @@ int main( void )
  test_modify_constants_Mod();
  test_modify_bound_Mod();
  test_global_pool_Mod();
+ test_bound_leaves_global_pool();
  test_variables_Mod();
  test_remove_last_variable();
  test_remove_variables_subset();

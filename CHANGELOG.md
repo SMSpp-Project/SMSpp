@@ -636,6 +636,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `PolyhedralFunction::modify_bound()` takes the all-0 linearization of the
+  bound out of the global pool when the bound is eliminated (set to - INF
+  for a convex function, + INF for a concave one), also when no
+  Modification is issued: the pool kept it, with the infinite bound as its
+  constant, so that a Solver reading the pool anew, as `BundleSolver` does
+  when it is registered again to the Block, put a linearization with an
+  infinite constant in its bundle and returned a wrong value
+
 - the Modification of the inner Block of an easy component reach the master
   Solver of every `MasterProblemBlock` that has registered it, so that two
   `BundleSolver` with easy components can be attached to the same Block:
