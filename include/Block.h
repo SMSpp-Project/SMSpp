@@ -6607,7 +6607,9 @@ class Block : public Observer {
  /// gives this Block the Variable of its size parameter
  /** \p size_var belongs to another Block, normally the father, and this
   * Block writes it into its own data. Returns false if this Block takes no
-  * such Variable, in which case nothing has changed.
+  * such Variable, in which case nothing has changed. nullptr takes back the
+  * Variable given before, the data going back to their unsized form, if
+  * the Block can do that, and returns false otherwise.
   *
   * It excludes get_size_variable(): a Block that answers non-nullptr there
   * owns that column already. The single ModParam is the abstract one, for

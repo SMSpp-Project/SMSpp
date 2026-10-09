@@ -132,6 +132,7 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include "AbstractBlock.h"
 #include "Block.h"
 #include "C05Function.h"
 #include "ColVariable.h"
@@ -358,15 +359,50 @@ class MasterProblemBlock : public Block {
   * them in add_Modification(), notifies the retained Function Block owner and
   * then forwards them normally along the master Block tree.
   *
-  * In the dual MP, each easy inner Block is asked for get_size_variable()
-  * when the abstract variables are generated. Each non-null result must be
-  * a ColVariable and receives a master row tau_k = lambda. If every easy
-  * component provides one, lambda is nonnegative and unfixed; if any does
-  * not, lambda is fixed to 1, including through the links the size variables
-  * that are available. The inner Block must already express the required
-  * scaling through its variable; MPB neither rewrites its rows nor changes
-  * that variable's bounds. The variables remain owned by their inner Blocks
-  * and the master removes its links on clear(). The primal MP is unaffected.
+  * In the dual MP the mass lambda of the lower model can differ from 1 only
+  * if the feasible set of every easy component is scaled by it, which is
+  * done by a size Variable of the inner Block [see Block::get_size_variable()
+  * and Block::set_size_variable()], never by scaling coefficients. When the
+  * abstract variables are generated, each easy inner Block is asked, in this
+  * order:
+  *
+  * - get_size_variable(): a non-null result is a size Variable tau_k that
+  *   the inner Block owns and its rows are already written with; it must be
+  *   a ColVariable, and it receives a master row tau_k = lambda;
+  *
+  * - set_size_variable( lambda , eNoMod ): if it answers true the inner
+  *   Block has written lambda itself into its rows, and no row is needed.
+  *   The master is being built, and a full reload of it follows, which is
+  *   why no Modification is issued. lambda is given as it is, rather than a
+  *   column of the component tied to it, so that a new configure() on the
+  *   same inner Block passes it the Variable it already has;
+  *
+  * - otherwise, if asked [see use_easy_mirrors()], the master builds a
+  *   copy of the inner Block [see
+  *   AbstractBlock::mirror()] and gives it lambda [see
+  *   AbstractBlock::set_size_variable()], and the copy is in the master in
+  *   place of the inner Block, which is not touched: its Modification are
+  *   written in the copy, its solutions are written back into it, and if
+  *   one of its Modification is one that the copy cannot follow the inner
+  *   Block goes back in the master, unscaled, and lambda is fixed to 1
+  *   [see EasyMirror].
+  *
+  * A component for which the three answer no (the third when no copy is
+  * asked for, or when the copy is not faithful or has something that
+  * cannot be scaled) cannot be scaled. If every easy component can, lambda
+  * is nonnegative and free, and the global lower bound [see
+  * set_global_LB()] can be used; otherwise lambda is fixed to 1,
+  * which also fixes to 1 the size Variable of the components that can be
+  * scaled, through their rows or directly, and the global lower bound has
+  * no effect. The same holds when the scaling is not wanted [see
+  * use_easy_size_variables()], in which case neither set_size_variable() is
+  * called nor any copy is made. No per-component lower bound exists for the
+  * easy components.
+  * MPB never changes the bounds of a size Variable. The owned variables
+  * remain owned by their inner Blocks, and the master removes its rows on
+  * clear(); an inner Block given lambda keeps it in its rows after clear(),
+  * since Block::set_size_variable() has no way of taking it back. The
+  * primal MP is unaffected.
   *
   * The optional \p ignored_blocks list is forwarded to the inner Solver
   * via Solver::set_excluded_blocks(), telling it which registered
@@ -517,8 +553,10 @@ class MasterProblemBlock : public Block {
   *
   * @param Stbl       the stabilization scheme, see #stabilization_type;
   * @param NoCmps     total number of components (NoTotCmps);
-  * @param DoEasyCmp  bit-wise flag controlling the easy-component handling
-  *                   (it is forwarded to each LagBFunction sub-Block);
+  * @param DoEasyCmp  bit-wise flag controlling the easy-component handling,
+  *                   with the encoding of intDoEasy of BundleSolver; bit 4
+  *                   (+16) is use_easy_size_variables( false ), and bit 5
+  *                   (+32) use_easy_mirrors( true );
   * @param NoEasy     number of "easy" components;
   * @param IsEasy     boolean vector of length \p NoCmps such that
   *                   <tt>IsEasy[k] == true</tt> iff component \p k is
@@ -762,6 +800,35 @@ class MasterProblemBlock : public Block {
   * has been asked to give back. */
 
  void keep_easy_duals( bool yes ) { f_keep_easy_duals = yes; }
+
+/*--------------------------------------------------------------------------*/
+ /// says whether the easy components are to be scaled by a size Variable
+ /** In the dual MP the mass lambda of the lower model may differ from 1
+  * only if every easy component is scaled with it, through a size Variable
+  * of its inner Block or of a copy of it [see configure()]. With \p yes
+  * false no inner Block is given lambda and no copy is made: lambda is
+  * fixed to 1 even if every easy component could be scaled, the global
+  * lower bound has no effect, and the MP is the one without lambda, which
+  * may be cheaper to solve. A size Variable that an
+  * inner Block owns is still tied to lambda, its rows being written with
+  * it, and is therefore at 1 too. It is read when the abstract Variable of
+  * the dual MP are generated, i.e., by the next configure(); the default is
+  * true. */
+
+ void use_easy_size_variables( bool yes ) { f_use_easy_size = yes; }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// says whether an easy component may be scaled through a copy
+ /** An easy component whose inner Block neither owns a size Variable nor
+  * takes one may be scaled through a copy of the inner Block, sized by
+  * lambda, that the master has in its place [see configure() and
+  * EasyMirror]; with \p yes false, the default, no copy is made and such a
+  * component is not scaled, so that lambda is fixed to 1. It has no effect
+  * if the scaling is not wanted [see use_easy_size_variables()], and it is
+  * read when the abstract Variable of the dual MP are generated, i.e., by
+  * the next configure(). */
+
+ void use_easy_mirrors( bool yes ) { f_use_easy_mirror = yes; }
 
 /*--------------------------------------------------------------------------*/
  /// writes back into the k-th easy component the duals of the last solve
@@ -1928,6 +1995,60 @@ class MasterProblemBlock : public Block {
  protected:
 
 /*--------------------------------------------------------------------------*/
+/*--------------------------- PROTECTED METHODS ----------------------------*/
+/*--------------------------------------------------------------------------*/
+ /// the Block that is in the master for the k-th easy component
+ /** Its sized copy if it has one [see EasyMirror], else its inner Block. */
+
+ [[nodiscard]] Block * easy_block( Index k ) const {
+  return( ( k < EasyMirror.size() ) && EasyMirror[ k ] ? EasyMirror[ k ]
+                                                       : EasyCmps_SB[ k ] );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the ColVariable that is in the master for \p u of the k-th component
+ /** The copy of \p u if the k-th easy component has a copy in the master
+  * [see EasyMirror] and \p u has a copy there, else \p u itself. */
+
+ [[nodiscard]] ColVariable * easy_var( Index k , ColVariable * u ) const {
+  if( ( k < EasyMirror.size() ) && EasyMirror[ k ] )
+   if( auto c = EasyMirror[ k ]->mirror_of( u ) )
+    return( c );
+  return( u );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// puts in the master a sized copy of the k-th easy inner Block
+ /** Builds the copy of the k-th easy inner Block, sizes it by lambda, and
+  * puts it in the master in place of the inner Block [see EasyMirror];
+  * returns false, with the master as it was, if the copy is not faithful or
+  * cannot be sized. */
+
+ bool mirror_easy( Index k );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// puts back the k-th easy inner Block in the master, in place of its copy
+ /** Called when the copy cannot follow a Modification of the inner Block
+  * [see AbstractBlock::mirror_forward_Modification()]: the inner Block is
+  * put in the master, the terms the master has on the ColVariable of the
+  * copy are zeroed and written again on those of the inner Block, the
+  * copy is left in the master with its rows relaxed and its Objective
+  * zeroed, lambda is fixed to 1, and the master is reloaded as a whole. */
+
+ void mirror_fallback( Index k );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// writes in the copies the Modification of the inner Blocks they copy
+ /** Returns what of \p mod remains for the Solver of the master, i.e.,
+  * \p mod without the Modification issued by an easy inner Block that has
+  * a copy in the master [see EasyMirror], which are written in the copy
+  * instead, the changes of the copy issuing their own Modification on
+  * channel \p chnl; nullptr if nothing remains, as when a group that has
+  * both kinds has had the others sent on one by one. */
+
+ sp_Mod forward_to_mirrors( const sp_Mod & mod , ChnlName chnl );
+
+/*--------------------------------------------------------------------------*/
 /*---------------------------- PROTECTED FIELDS  ---------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1973,14 +2094,29 @@ class MasterProblemBlock : public Block {
  ///< and remain owned by the corresponding Function Block in EasyCmps_Owner
 
  std::vector< ColVariable * > EasySizeVars;
- ///< borrowed size variables exposed by easy inner Blocks in the dual MP;
- ///< only non-null variables are stored, each linked to Var_lambda
+ ///< borrowed size variables owned by easy inner Blocks in the dual MP
+ ///< [see Block::get_size_variable()], each linked to Var_lambda; the
+ ///< inner Blocks given Var_lambda itself are not here [see configure()]
 
  std::vector< Block * > HardCmps;  ///< sub-Blocks of the "hard" components
 
+ std::vector< AbstractBlock * > EasyMirror;
+ ///< the sized copy of each easy inner Block that has one, else nullptr
+ /**< An easy inner Block that neither owns a size Variable nor takes one
+  * is copied [see AbstractBlock::mirror()], and the copy, sized by lambda
+  * [see AbstractBlock::set_size_variable()], is in the master in its place:
+  * the inner Block keeps the master as father, its Modification are written
+  * in the copy [see add_Modification()], and the solutions of the copy are
+  * written back into it [see restore_easy_primal()]. A Modification that
+  * the copy cannot follow puts the inner Block back in the master in place
+  * of the copy, unscaled [see mirror_fallback()]. The copies are allocated
+  * here, and released as the Block of the hard components are [see
+  * v_stale_hard]. */
+
  std::vector< Block * > v_stale_hard;
- ///< the Block of the hard components of the incarnations gone by
- /**< The Block of the hard components are allocated by the master itself
+ ///< the Block allocated here of the incarnations gone by
+ /**< The Block of the hard components, and the copies of the easy ones
+  * [see EasyMirror], are allocated by the master itself
   * [see CreatePrimalMP() and CreateDualMP()], so it is the master that has
   * to release them; they cannot be released when the master is cleared,
   * though, because a Solver registered on the master keeps the Variable of
@@ -1996,6 +2132,14 @@ class MasterProblemBlock : public Block {
 
  bool f_keep_easy_duals = false;
  ///< true if the duals of the easy components are saved at each solve
+
+ bool f_use_easy_size = true;
+
+ bool f_use_easy_mirror = false;
+ ///< true if an easy component may be scaled through a copy of its inner
+ ///< Block [see use_easy_mirrors()]
+ ///< true if the easy components are scaled by a size Variable when they
+ ///< can be [see use_easy_size_variables()]
 
  std::vector< std::unique_ptr< ColVariableSolution > > EasyPrimal;
  ///< the values of the ColVariable of each easy component at the last

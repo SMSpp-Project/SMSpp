@@ -22,10 +22,13 @@
 
 #include "BlockInspection.h"
 
+#include <algorithm>
 #include <iomanip>
 #include <map>
 #include <memory>
+#include <set>
 #include <sstream>
+#include <type_traits>
 
 
 #include "ColVariable.h"
@@ -3077,6 +3080,8 @@ Function * AbstractBlock::mirror_Function( const Function * fnct )
 
 void AbstractBlock::mirror_variables( Block * src , AbstractBlock * dst )
 {
+ f_b_map[ src ] = dst;
+
  /* The type of a ColVariable carries everything about it but the fixing,
   * which is a state of its own and goes with the value it fixes it at. */
 
@@ -3164,6 +3169,8 @@ void AbstractBlock::mirror_constraints( Block * src , AbstractBlock * dst )
   d.set_function( nf , eNoMod );
   d.set_lhs( s.get_lhs() , eNoMod );
   d.set_rhs( s.get_rhs() , eNoMod );
+  if( s.is_relaxed() )
+   d.relax( true , eNoMod );
   f_c_map[ & s ] = & d;
   };
 
@@ -3175,6 +3182,8 @@ void AbstractBlock::mirror_constraints( Block * src , AbstractBlock * dst )
   d.set_Block( dst );
   d.set_variable( var_of( static_cast< ColVariable * >(
                                          s.get_active_var( 0 ) ) ) , eNoMod );
+  if( s.is_relaxed() )
+   d.relax( true , eNoMod );
   f_c_map[ & s ] = & d;
   };
 
@@ -3308,115 +3317,810 @@ void AbstractBlock::mirror_write( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/*---------------------- SIZING THE COPY OF A BLOCK ------------------------*/
+/*--------------------------------------------------------------------------*/
 
-bool AbstractBlock::mirror_Function_changed( const Function * fnct )
+namespace {
+
+using RHSValue = RowConstraint::RHSValue;
+
+const RHSValue RINF = Inf< RHSValue >();
+
+/*--------------------------------------------------------------------------*/
+// whether the type of a OneVarConstraint lets one set its lower / upper side
+
+bool lower_settable( const OneVarConstraint * c )
 {
- /* Which Constraint, or Objective, the Function belongs to is not said by
-  * the Modification: it is the Observer of the Function. The copy of the
-  * Function is rebuilt whole, which costs the length of the row and spares
-  * the reading of which coefficients the Modification carries, there being
-  * one such Modification per change and not per coefficient. */
+ return( dynamic_cast< const BoxConstraint * >( c ) ||
+         dynamic_cast< const LBConstraint * >( c ) ||
+         dynamic_cast< const UB0Constraint * >( c ) );
+ }
 
- if( ! fnct )
-  return( false );
+bool upper_settable( const OneVarConstraint * c )
+{
+ return( dynamic_cast< const BoxConstraint * >( c ) ||
+         dynamic_cast< const UBConstraint * >( c ) ||
+         dynamic_cast< const LB0Constraint * >( c ) );
+ }
 
- auto obs = fnct->get_Observer();
+/*--------------------------------------------------------------------------*/
+// sets the two sides of a RowConstraint in the order that never has the
+// lower above the upper in between
 
- if( auto cns = dynamic_cast< const FRowConstraint * >( obs ) ) {
-  auto dst = dynamic_cast< FRowConstraint * >( mirror_of( cns ) );
-  if( ! dst )
-   return( false );
-  auto nf = mirror_Function( fnct );
-  if( ! nf )
-   return( false );
-  dst->set_function( nf , eNoMod , true );
+void set_sides( RowConstraint * c , RHSValue l , RHSValue u , ModParam par )
+{
+ if( ( c->get_lhs() == l ) && ( c->get_rhs() == u ) )
+  return;
+ if( l == u )
+  c->set_both( l , par );
+ else
+  if( l <= c->get_rhs() ) {
+   c->set_lhs( l , par );
+   c->set_rhs( u , par );
+   }
+  else {
+   c->set_rhs( u , par );
+   c->set_lhs( l , par );
+   }
+ }
+
+/*--------------------------------------------------------------------------*/
+// sets the sides of a OneVarConstraint that its type lets one set
+
+void set_bound_sides( OneVarConstraint * c , RHSValue l , RHSValue u ,
+                      ModParam par )
+{
+ const bool ls = lower_settable( c );
+ const bool us = upper_settable( c );
+ if( ls && us )
+  set_sides( c , l , u , par );
+ else
+  if( ls ) {
+   if( c->get_lhs() != l )
+    c->set_lhs( l , par );
+   }
+  else
+   if( us && ( c->get_rhs() != u ) )
+    c->set_rhs( u , par );
+ }
+
+/*--------------------------------------------------------------------------*/
+// true if the sized copy of a bound has to be on a ColVariable of its own:
+// with its sides 0 kept and the others infinite it would have no finite side
+// left, which some Solver take as a side all the same, or it has a nonzero
+// side that its type does not let one change
+
+bool needs_own_variable( const OneVarConstraint * c )
+{
+ const RHSValue l = c->get_lhs();
+ const RHSValue u = c->get_rhs();
+ if( ( ( l != 0 ) && ( l > -RINF ) && ( ! lower_settable( c ) ) ) ||
+     ( ( u != 0 ) && ( u < RINF ) && ( ! upper_settable( c ) ) ) )
   return( true );
-  }
-
- if( dynamic_cast< const FRealObjective * >( obs ) ) {
-  auto dst = dynamic_cast< FRealObjective * >( get_objective() );
-  if( ! dst )
-   return( false );
-  auto nf = mirror_Function( fnct );
-  if( ! nf )
-   return( false );
-  dst->set_function( nf , eNoMod , true );
-  return( true );
-  }
-
- return( false );
+ return( ( l != 0 ) && ( u != 0 ) );
  }
 
 /*--------------------------------------------------------------------------*/
 
-bool AbstractBlock::mirror_forward_Modification( c_p_Mod mod )
+void set_relaxed( Constraint * c , bool relaxed , ModParam par )
+{
+ if( c->is_relaxed() != relaxed )
+  c->relax( relaxed , par );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool is_registered( ColVariable * x , ThinVarDepInterface * owner )
+{
+ const auto & act = x->active_stuff();
+ return( std::binary_search( act.begin() , act.end() , owner ) );
+ }
+
+}  // end( namespace )
+
+/*--------------------------------------------------------------------------*/
+
+LinearFunction::v_coeff_pair AbstractBlock::mirror_terms(
+                                                  const LinearFunction * lf )
+{
+ LinearFunction::v_coeff_pair terms;
+ terms.reserve( lf->get_v_var().size() + 1 );
+ for( auto & [ x , a ] : lf->get_v_var() ) {
+  auto it = f_v_map.find( x );
+  terms.emplace_back( it != f_v_map.end() ? it->second : x , a );
+  }
+ return( terms );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void AbstractBlock::sync_linear( LinearFunction * lf ,
+                                 ThinVarDepInterface * owner ,
+                                 const LinearFunction::v_coeff_pair & want ,
+                                 double cnst , ModParam par )
+{
+ std::map< ColVariable * , double > w;
+ for( auto & [ x , a ] : want )
+  w[ x ] += a;
+
+ auto var = [ lf ]( Index i ) {
+  return( static_cast< ColVariable * >( lf->get_active_var( i ) ) );
+  };
+
+ // first the terms that go
+ Subset rmv;
+ std::vector< ColVariable * > gone;
+ for( Index i = 0 ; i < lf->get_num_active_var() ; ++i )
+  if( w.find( var( i ) ) == w.end() ) {
+   rmv.push_back( i );
+   gone.push_back( var( i ) );
+   }
+ if( ! rmv.empty() ) {
+  if( auto row = dynamic_cast< FRowConstraint * >( owner ) )
+   row->remove_variables( std::move( rmv ) , true , par );
+  else
+   lf->remove_variables( std::move( rmv ) , true , par );
+  }
+
+ // then the coefficients that change
+ Subset idx;
+ LinearFunction::Vec_FunctionValue cf;
+ for( Index i = 0 ; i < lf->get_num_active_var() ; ++i ) {
+  const double a = w[ var( i ) ];
+  if( lf->get_coefficient( i ) != a ) {
+   idx.push_back( i );
+   cf.push_back( a );
+   }
+  }
+ if( ! idx.empty() )
+  lf->modify_coefficients( std::move( cf ) , std::move( idx ) , true , par );
+
+ // then the terms that come
+ LinearFunction::v_coeff_pair add;
+ for( auto & [ x , a ] : w )
+  if( lf->is_active( x ) >= lf->get_num_active_var() )
+   add.emplace_back( x , a );
+ if( ! add.empty() )
+  lf->add_variables( std::move( add ) , par );
+
+ if( lf->get_constant_term() != cnst )
+  lf->set_constant_term( cnst , par );
+
+ // the owner registers itself with a Variable coming in, or going away,
+ // only when it receives the Modification, which par may not ask for
+ if( owner ) {
+  for( auto x : gone )
+   if( ( lf->is_active( x ) >= lf->get_num_active_var() ) &&
+       is_registered( x , owner ) )
+    x->remove_active( owner );
+  for( Index i = 0 ; i < lf->get_num_active_var() ; ++i )
+   if( ! is_registered( var( i ) , owner ) )
+    var( i )->add_active( owner );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void AbstractBlock::size_rows( const void * key ,
+                               std::vector< std::tuple<
+                                LinearFunction::v_coeff_pair ,
+                                double , double > > && rows ,
+                               bool relaxed , ModParam par )
+{
+ auto hit = f_size_help.find( key );
+ if( ( hit == f_size_help.end() ) && rows.empty() )
+  return;
+
+ auto & have = f_size_help[ key ];
+
+ // the rows that are there too many go
+ if( have.size() > rows.size() ) {
+  std::vector< std::list< FRowConstraint >::iterator > its;
+  for( auto i = rows.size() ; i < have.size() ; ++i )
+   for( auto it = f_size_list->begin() ; it != f_size_list->end() ; ++it )
+    if( & *it == have[ i ] ) {
+     its.push_back( it );
+     break;
+     }
+  have.resize( rows.size() );
+  remove_dynamic_constraints( *f_size_list , its , par );
+  }
+
+ // the rows that are there are written in place
+ for( std::size_t i = 0 ; i < have.size() ; ++i ) {
+  auto row = have[ i ];
+  auto & [ terms , l , u ] = rows[ i ];
+  sync_linear( static_cast< LinearFunction * >( row->get_function() ) ,
+               row , terms , 0 , par );
+  set_sides( row , l , u , par );
+  set_relaxed( row , relaxed , par );
+  }
+
+ // the rows that are missing come
+ if( rows.size() > have.size() ) {
+  std::list< FRowConstraint > tmp;
+  for( auto i = have.size() ; i < rows.size() ; ++i ) {
+   auto & [ terms , l , u ] = rows[ i ];
+   tmp.emplace_back();
+   auto & row = tmp.back();
+   row.set_function( new LinearFunction( std::move( terms ) ) , eNoMod );
+   row.set_lhs( l , eNoMod );
+   row.set_rhs( u , eNoMod );
+   if( relaxed )
+    row.relax( true , eNoMod );
+   }
+  for( auto & row : tmp )
+   have.push_back( & row );
+  add_dynamic_constraints( *f_size_list , tmp , par );
+  }
+
+ if( have.empty() )
+  f_size_help.erase( key );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ColVariable * AbstractBlock::size_dummy( const void * key , bool want ,
+                                        ModParam par )
+{
+ auto it = f_size_dummy.find( key );
+ if( want ) {
+  if( it != f_size_dummy.end() )
+   return( it->second );
+  std::list< ColVariable > tmp( 1 );
+  auto d = & tmp.front();
+  add_dynamic_variables( *f_size_vars , tmp , par );
+  f_size_dummy[ key ] = d;
+  return( d );
+  }
+
+ if( it == f_size_dummy.end() )
+  return( nullptr );
+ for( auto vit = f_size_vars->begin() ; vit != f_size_vars->end() ; ++vit )
+  if( & *vit == it->second ) {
+   remove_dynamic_variable( *f_size_vars , vit , par , par );
+   break;
+   }
+ f_size_dummy.erase( it );
+ return( nullptr );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool AbstractBlock::size_constraint( const Constraint * src , ModParam par )
+{
+ auto srow = dynamic_cast< const RowConstraint * >( src );
+ if( ! srow )
+  return( false );
+ auto cit = f_c_map.find( srow );
+ if( cit == f_c_map.end() )
+  return( false );
+
+ auto * v = f_size_var;
+ using Rows = std::vector< std::tuple< LinearFunction::v_coeff_pair ,
+                                       double , double > >;
+
+ // a bound: in the sized form its sides 0 stay, being the same at any
+ // size, while the others are rows of the size group; the copy keeps the
+ // sides 0 and has the others infinite, unless that leaves it with no
+ // finite side or with a nonzero side its type does not let one change, in
+ // which case it is on a ColVariable of its own, which nothing else uses
+ // [see size_dummy()], and all its finite sides are rows. Where it is is
+ // decided the first time, a Solver not being told of a OneVarConstraint
+ // that changes its ColVariable
+ if( auto sb = dynamic_cast< const OneVarConstraint * >( src ) ) {
+  auto db = static_cast< OneVarConstraint * >( cit->second );
+  auto sx = static_cast< ColVariable * >( sb->get_active_var( 0 ) );
+  auto xit = f_v_map.find( sx );
+  auto x = xit != f_v_map.end() ? xit->second : sx;
+
+  if( ! v ) {
+   if( db->get_active_var( 0 ) != x )
+    db->set_variable( x , par );
+   size_dummy( src , false , par );
+   f_size_onx.erase( src );
+   set_bound_sides( db , sb->get_lhs() , sb->get_rhs() , par );
+   set_relaxed( db , sb->is_relaxed() , par );
+   size_rows( src , {} , false , par );
+   return( true );
+   }
+
+  const RHSValue l = sb->get_lhs();
+  const RHSValue u = sb->get_rhs();
+  bool own = f_size_dummy.count( src );
+  if( ( ! own ) && ( ! f_size_onx.count( src ) ) ) {
+   own = needs_own_variable( sb );
+   if( ! own )
+    f_size_onx.insert( src );
+   }
+
+  if( own ) {
+   auto dummy = size_dummy( src , true , par );
+   if( db->get_active_var( 0 ) != dummy )
+    db->set_variable( dummy , par );
+   set_bound_sides( db , l , u , par );
+   }
+  else
+   set_bound_sides( db , ( l == 0 ) ? 0 : -RINF , ( u == 0 ) ? 0 : RINF ,
+                    par );
+  set_relaxed( db , sb->is_relaxed() , par );
+
+  // the rows of the sides, the sides 0 only if the copy is not on x
+  const bool lr = ( l > -RINF ) && ( own || ( l != 0 ) );
+  const bool ur = ( u < RINF ) && ( own || ( u != 0 ) );
+  Rows rows;
+  if( lr && ur && ( l == u ) )
+   rows.emplace_back( LinearFunction::v_coeff_pair( { { x , 1 } ,
+                                                       { v , - l } } ) ,
+                      0 , 0 );
+  else {
+   if( lr )
+    rows.emplace_back( LinearFunction::v_coeff_pair( { { x , 1 } ,
+                                                        { v , - l } } ) ,
+                       0 , RINF );
+   if( ur )
+    rows.emplace_back( LinearFunction::v_coeff_pair( { { x , 1 } ,
+                                                        { v , - u } } ) ,
+                       -RINF , 0 );
+   }
+  size_rows( src , std::move( rows ) , sb->is_relaxed() , par );
+  return( true );
+  }
+
+ auto sr = dynamic_cast< const FRowConstraint * >( src );
+ auto dr = dynamic_cast< FRowConstraint * >( cit->second );
+ if( ( ! sr ) || ( ! dr ) )
+  return( false );
+
+ auto slf = dynamic_cast< const LinearFunction * >( sr->get_function() );
+ auto dlf = dynamic_cast< LinearFunction * >( dr->get_function() );
+ if( ( ! slf ) || ( ! dlf ) ) {
+  // a row that is not linear is written again whole, which no Solver of
+  // the copy hears of, and it cannot be sized
+  if( v || ( Observer::par2mod( par ) != eNoMod ) )
+   return( false );
+  auto nf = mirror_Function( sr->get_function() );
+  if( ! nf )
+   return( false );
+  dr->set_function( nf , eNoMod , true );
+  set_sides( dr , sr->get_lhs() , sr->get_rhs() , eNoMod );
+  set_relaxed( dr , sr->is_relaxed() , eNoMod );
+  return( true );
+  }
+
+ auto terms = mirror_terms( slf );
+
+ if( ! v ) {
+  sync_linear( dlf , dr , terms , slf->get_constant_term() , par );
+  set_sides( dr , sr->get_lhs() , sr->get_rhs() , par );
+  set_relaxed( dr , sr->is_relaxed() , par );
+  size_rows( src , {} , false , par );
+  return( true );
+  }
+
+ // l <= a x + c <= u is ( l - c ) v <= a x <= ( u - c ) v
+ const double c = slf->get_constant_term();
+ const RHSValue l = sr->get_lhs() > -RINF ? sr->get_lhs() - c : -RINF;
+ const RHSValue u = sr->get_rhs() < RINF ? sr->get_rhs() - c : RINF;
+
+ Rows rows;
+ RHSValue ml = -RINF;
+ RHSValue mu = RINF;
+ if( ( l > -RINF ) && ( u < RINF ) ) {
+  if( l != u ) {  // a ranged row: the lower side is a row of the size group
+   auto lower = terms;
+   lower.emplace_back( v , - l );
+   rows.emplace_back( std::move( lower ) , 0 , RINF );
+   }
+  terms.emplace_back( v , - u );
+  ml = l == u ? 0 : -RINF;
+  mu = 0;
+  }
+ else
+  if( u < RINF ) {
+   terms.emplace_back( v , - u );
+   mu = 0;
+   }
+  else
+   if( l > -RINF ) {
+    terms.emplace_back( v , - l );
+    ml = 0;
+    }
+
+ sync_linear( dlf , dr , terms , 0 , par );
+ set_sides( dr , ml , mu , par );
+ set_relaxed( dr , sr->is_relaxed() , par );
+ size_rows( src , std::move( rows ) , sr->is_relaxed() , par );
+ return( true );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool AbstractBlock::size_variable( const ColVariable * src , ModParam par )
+{
+ auto it = f_v_map.find( src );
+ if( it == f_v_map.end() )
+  return( false );
+ auto dst = it->second;
+ auto * v = f_size_var;
+ const auto t = src->get_type();
+
+ if( ! v ) {
+  if( dst->get_type() != t )
+   dst->set_type( t , par );
+  if( src->is_fixed() ) {
+   dst->set_value( src->get_value() );
+   if( ! dst->is_fixed() )
+    dst->is_fixed( true , par );
+   }
+  else
+   if( dst->is_fixed() )
+    dst->is_fixed( false , par );
+  size_rows( src , {} , false , par );
+  return( true );
+  }
+
+ if( src->is_integer() )
+  return( false );
+
+ // the bounds -1 / 1 of a unitary type are rows, and the copy has the type
+ // without them; a fixed value c is the row x - c v = 0
+ const auto st = ColVariable::var_type( t & ~ ColVariable::var_type( 8 ) );
+ if( dst->get_type() != st )
+  dst->set_type( st , par );
+ if( dst->is_fixed() )
+  dst->is_fixed( false , par );
+
+ std::vector< std::tuple< LinearFunction::v_coeff_pair , double , double > >
+  rows;
+ if( src->is_fixed() )
+  rows.emplace_back( LinearFunction::v_coeff_pair(
+                      { { dst , 1 } , { v , - src->get_value() } } ) , 0 , 0 );
+ else
+  if( t & 8 ) {
+   if( ! ( t & 2 ) )
+    rows.emplace_back( LinearFunction::v_coeff_pair( { { dst , 1 } ,
+                                                        { v , 1 } } ) ,
+                       0 , RINF );
+   if( ! ( t & 4 ) )
+    rows.emplace_back( LinearFunction::v_coeff_pair( { { dst , 1 } ,
+                                                        { v , -1 } } ) ,
+                       -RINF , 0 );
+   }
+ size_rows( src , std::move( rows ) , false , par );
+ return( true );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool AbstractBlock::size_objective( const Block * src , ModParam par )
+{
+ auto dst = mirror_of_Block( src );
+ if( ! dst )
+  return( false );
+ auto sobj = src->get_objective();
+ if( ! sobj )
+  return( true );
+
+ auto sfo = dynamic_cast< const FRealObjective * >( sobj );
+ auto dfo = dynamic_cast< FRealObjective * >( dst->get_objective() );
+ if( ( ! sfo ) || ( ! dfo ) )
+  return( false );
+
+ if( dfo->get_sense() != sfo->get_sense() )
+  dfo->set_sense( sfo->get_sense() , par );
+
+ auto slf = dynamic_cast< const LinearFunction * >( sfo->get_function() );
+ auto dlf = dynamic_cast< LinearFunction * >( dfo->get_function() );
+ if( ( ! slf ) || ( ! dlf ) ) {
+  if( f_size_var || ( Observer::par2mod( par ) != eNoMod ) )
+   return( false );
+  auto nf = mirror_Function( sfo->get_function() );
+  if( ! nf )
+   return( false );
+  dfo->set_function( nf , eNoMod , true );
+  return( true );
+  }
+
+ // the constant term c0 is the term c0 v
+ auto terms = mirror_terms( slf );
+ double c0 = slf->get_constant_term();
+ if( f_size_var ) {
+  terms.emplace_back( f_size_var , c0 );
+  c0 = 0;
+  }
+ sync_linear( dlf , dfo , terms , c0 , par );
+ return( true );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool AbstractBlock::size_all( ModParam par )
+{
+ for( auto & el : f_c_map )
+  if( ! size_constraint( el.first , par ) )
+   return( false );
+ for( auto & el : f_v_map )
+  if( ! size_variable( el.first , par ) )
+   return( false );
+ for( auto & el : f_b_map )
+  if( ! size_objective( el.first , par ) )
+   return( false );
+ return( true );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool AbstractBlock::set_size_variable( Variable * size_var ,
+                                       c_ModParam issueAMod )
+{
+ auto v = dynamic_cast< ColVariable * >( size_var );
+ if( size_var && ( ! v ) )
+  return( false );
+ if( ! f_mirrored )
+  return( false );
+ if( v == f_size_var )
+  return( v != nullptr );
+ if( v && f_size_var )
+  return( false );
+
+ if( v ) {
+  // check first that everything can be scaled, so that a refusal changes
+  // nothing
+  if( ! v_issues.empty() )
+   return( false );
+  for( auto & el : f_c_map ) {
+   if( auto sr = dynamic_cast< const FRowConstraint * >( el.first ) )
+    if( ! dynamic_cast< const LinearFunction * >( sr->get_function() ) )
+     return( false );
+   }
+  for( auto & el : f_v_map )
+   if( el.first->is_integer() )
+    return( false );
+  for( auto & el : f_b_map )
+   if( auto obj = el.first->get_objective() ) {
+    auto fo = dynamic_cast< const FRealObjective * >( obj );
+    if( ( ! fo ) ||
+        ( ! dynamic_cast< const LinearFunction * >( fo->get_function() ) ) )
+     return( false );
+    }
+
+  if( ! f_size_list ) {
+   f_size_list = new std::list< FRowConstraint >;
+   add_dynamic_constraint( *f_size_list , "size" );
+   f_size_vars = new std::list< ColVariable >;
+   add_dynamic_variable( *f_size_vars , "size" );
+   }
+  }
+
+ f_size_var = v;
+ if( ! size_all( issueAMod ) )
+  throw( std::logic_error( "AbstractBlock::set_size_variable: the copy "
+                           "cannot be written in the form it has checked" ) );
+ return( true );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void AbstractBlock::mirror_write_duals( void )
+{
+ for( auto & [ src , dst ] : f_c_map ) {
+  double dual = dst->get_dual();
+  auto it = f_size_help.find( src );
+  if( it != f_size_help.end() )
+   for( auto row : it->second )
+    dual += row->get_dual();
+  const_cast< RowConstraint * >( src )->set_dual( dual );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool AbstractBlock::mirror_added( const BlockModAD * mod , ModParam par )
+{
+ if( mod->is_variable() ) {
+  // a Variable of the copy that goes may be used outside of the copy
+  if( ! mod->is_added() )
+   return( false );
+
+  std::vector< Variable * > vars;
+  mod->get_elements( vars );
+  for( auto var : vars ) {
+   auto s = dynamic_cast< ColVariable * >( var );
+   if( ! s )
+    return( false );
+   if( f_v_map.count( s ) )
+    continue;
+   auto db = mirror_of_Block( s->get_Block() );
+   auto group = s->get_Group();
+   if( ( ! db ) || ( ! group ) )
+    return( false );
+   auto list = db->get_dynamic_variable< ColVariable >( group->get_index() );
+   if( ! list )
+    return( false );
+
+   std::list< ColVariable > tmp( 1 );
+   auto d = & tmp.front();
+   d->set_type( s->get_type() , eNoMod );
+   d->set_value( s->get_value() );
+   db->add_dynamic_variables( *list , tmp , par );
+   f_v_map[ s ] = d;
+   f_v_rmap[ d ] = s;
+   if( ! size_variable( s , par ) )
+    return( false );
+   }
+  return( true );
+  }
+
+ std::vector< Constraint * > cnsts;
+ mod->get_elements( cnsts );
+
+ // the concrete type of a Constraint says which std::list it is in
+ auto by_type = [ & ]( Constraint * c , auto && f ) -> int {
+  auto tryt = [ & ]( auto tag ) -> int {
+   using T = typename decltype( tag )::type;
+   auto t = dynamic_cast< T * >( c );
+   return( t ? f( t ) : 0 );
+   };
+  int r;
+  if( ( r = tryt( std::type_identity< FRowConstraint >{} ) ) ||
+      ( r = tryt( std::type_identity< BoxConstraint >{} ) ) ||
+      ( r = tryt( std::type_identity< LB0Constraint >{} ) ) ||
+      ( r = tryt( std::type_identity< UB0Constraint >{} ) ) ||
+      ( r = tryt( std::type_identity< LBConstraint >{} ) ) ||
+      ( r = tryt( std::type_identity< UBConstraint >{} ) ) ||
+      ( r = tryt( std::type_identity< NNConstraint >{} ) ) ||
+      ( r = tryt( std::type_identity< NPConstraint >{} ) ) ||
+      ( r = tryt( std::type_identity< ZOConstraint >{} ) ) )
+   return( r );
+  return( -1 );
+  };
+
+ if( mod->is_added() ) {
+  for( auto c : cnsts ) {
+   auto rc = dynamic_cast< RowConstraint * >( c );
+   if( ( ! rc ) || f_c_map.count( rc ) )
+    continue;
+   auto db = mirror_of_Block( c->get_Block() );
+   auto group = c->get_Group();
+   if( ( ! db ) || ( ! group ) )
+    return( false );
+
+   const int r = by_type( c , [ & ]( auto s ) -> int {
+    using T = std::remove_pointer_t< decltype( s ) >;
+    auto list = db->get_dynamic_constraint< T >( group->get_index() );
+    if( ! list )
+     return( -1 );
+    std::list< T > tmp( 1 );
+    auto d = & tmp.front();
+    if constexpr( std::is_same_v< T , FRowConstraint > ) {
+     auto nf = mirror_Function( s->get_function() );
+     if( ! nf )
+      return( -1 );
+     d->set_function( nf , eNoMod );
+     d->set_lhs( s->get_lhs() , eNoMod );
+     d->set_rhs( s->get_rhs() , eNoMod );
+     }
+    else {
+     // under a size Variable the copy goes on its own ColVariable from
+     // the start [see size_constraint()]
+     auto sx = static_cast< ColVariable * >( s->get_active_var( 0 ) );
+     auto xit = f_v_map.find( sx );
+     auto x = xit != f_v_map.end() ? xit->second : sx;
+     if( f_size_var ) {
+      if( needs_own_variable( s ) )
+       x = size_dummy( s , true , par );
+      else
+       f_size_onx.insert( s );
+      }
+     d->set_variable( x , eNoMod );
+     set_bound_sides( d , s->get_lhs() , s->get_rhs() , eNoMod );
+     }
+    if( s->is_relaxed() )
+     d->relax( true , eNoMod );
+    db->add_dynamic_constraints( *list , tmp , par );
+    f_c_map[ s ] = d;
+    return( 1 );
+    } );
+   if( ( r <= 0 ) || ( ! size_constraint( c , par ) ) )
+    return( false );
+   }
+  return( true );
+  }
+
+ // removed: the copy goes, with the rows of the size group it has
+ for( auto c : cnsts ) {
+  auto rc = dynamic_cast< RowConstraint * >( c );
+  auto cit = rc ? f_c_map.find( rc ) : f_c_map.end();
+  if( cit == f_c_map.end() )
+   return( false );
+  auto dst = cit->second;
+  auto db = dynamic_cast< AbstractBlock * >( dst->get_Block() );
+  auto group = dst->get_Group();
+  if( ( ! db ) || ( ! group ) )
+   return( false );
+  size_rows( rc , {} , false , par );
+  f_c_map.erase( cit );
+
+  const int r = by_type( dst , [ & ]( auto d ) -> int {
+   using T = std::remove_pointer_t< decltype( d ) >;
+   auto list = db->get_dynamic_constraint< T >( group->get_index() );
+   if( ! list )
+    return( -1 );
+   for( auto it = list->begin() ; it != list->end() ; ++it )
+    if( & *it == d ) {
+     db->remove_dynamic_constraint( *list , it , par );
+     return( 1 );
+     }
+   return( -1 );
+   } );
+  if( r <= 0 )
+   return( false );
+  size_dummy( rc , false , par );
+  f_size_onx.erase( rc );
+  }
+ return( true );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool AbstractBlock::mirror_forward_Modification( c_p_Mod mod ,
+                                                 ModParam issueMod )
 {
  if( ( ! f_mirrored ) || ( ! mod ) )
   return( false );
 
  if( auto gm = dynamic_cast< const GroupModification * >( mod ) ) {
   for( auto & sm : gm->sub_Modifications() )
-   if( ! mirror_forward_Modification( sm.get() ) )
+   if( ! mirror_forward_Modification( sm.get() , issueMod ) )
     return( false );
   return( true );
   }
 
- // the coefficients of a Function, whatever kind of change it is
+ // everything changed, which only mirror() can follow
+ if( dynamic_cast< const NBModification * >( mod ) )
+  return( false );
+
+ // a physical Modification says nothing about the abstract representation
+ if( ! dynamic_cast< const AModification * >( mod ) )
+  return( true );
+
+ // the coefficients of a Function, or its Variable: the Constraint or the
+ // Objective it belongs to is the Observer of the Function
+ const Function * fnct = nullptr;
  if( auto fm = dynamic_cast< const FunctionMod * >( mod ) )
-  return( mirror_Function_changed( fm->function() ) );
-
- // a side of a RowConstraint
- if( auto cm = dynamic_cast< const RowConstraintMod * >( mod ) ) {
-  auto src = dynamic_cast< RowConstraint * >( cm->constraint() );
-  if( ! src )
-   return( false );
-  auto dst = mirror_of( src );
-  if( ! dst )
-   return( false );
-
-  switch( cm->type() ) {
-   case( RowConstraintMod::eChgLHS ):
-    dst->set_lhs( src->get_lhs() , eNoMod );
-    break;
-   case( RowConstraintMod::eChgRHS ):
-    dst->set_rhs( src->get_rhs() , eNoMod );
-    break;
-   case( RowConstraintMod::eChgBTS ):
-    dst->set_lhs( src->get_lhs() , eNoMod );
-    dst->set_rhs( src->get_rhs() , eNoMod );
-    break;
-   default:
-    return( false );
-   }
-
-  return( true );
+  fnct = fm->function();
+ else
+  if( auto fvm = dynamic_cast< const FunctionModVars * >( mod ) )
+   fnct = fvm->function();
+ if( fnct ) {
+  auto obs = fnct->get_Observer();
+  if( auto cns = dynamic_cast< const FRowConstraint * >( obs ) )
+   return( size_constraint( cns , issueMod ) );
+  if( auto obj = dynamic_cast< const FRealObjective * >( obs ) )
+   return( size_objective( obj->get_Block() , issueMod ) );
+  return( false );
   }
+
+ // the sides, the relaxing or the Variable of a Constraint
+ if( auto cm = dynamic_cast< const ConstraintMod * >( mod ) )
+  return( size_constraint( cm->constraint() , issueMod ) );
 
  // the type or the fixing of a ColVariable
  if( auto vm = dynamic_cast< const VariableMod * >( mod ) ) {
   auto src = dynamic_cast< const ColVariable * >( vm->variable() );
-  if( ! src )
-   return( false );
-  auto dst = mirror_of( src );
-  if( ! dst )
-   return( false );
-  dst->set_type( src->get_type() , eNoMod );
-  dst->is_fixed( src->is_fixed() , eNoMod );
-  if( src->is_fixed() )
-   dst->set_value( src->get_value() );
-  return( true );
+  return( src && size_variable( src , issueMod ) );
   }
 
  // the sense of the Objective
- if( auto om = dynamic_cast< const ObjectiveMod * >( mod ) ) {
-  auto dst = get_objective();
-  if( ( ! dst ) || ( ! om->of() ) )
-   return( false );
-  dst->set_sense( om->of()->get_sense() , eNoMod );
-  return( true );
-  }
+ if( auto om = dynamic_cast< const ObjectiveMod * >( mod ) )
+  return( om->of() && size_objective( om->of()->get_Block() , issueMod ) );
 
- return( false );   // a change of the shape, or one this does not know
+ // dynamic Constraint or Variable
+ if( auto am = dynamic_cast< const BlockModAD * >( mod ) )
+  return( mirror_added( am , issueMod ) );
+
+ return( false );   // one this does not know
  }
 
 /*--------------------------------------------------------------------------*/
