@@ -117,31 +117,53 @@ void MasterProblemBlock::clear()
  EasySizeVars.clear();
 
  // Easy-component inner Blocks are only registered, not owned, by MPB. Remove
- // each registration and restore its Function Block as father before dropping
- // the bookkeeping. Each pointer deliberately remains in its owner's v_Block
- // throughout the period in which MPB is its father.
+ // each registration and give the inner Block back the father it had when
+ // it was registered before dropping the bookkeeping. Each pointer
+ // deliberately remains in its owner's v_Block throughout the period in
+ // which MPB is its father.
  const auto num_registered =
-  std::min( EasyCmps_Owner.size() , EasyCmps_SB.size() );
+  std::min( EasyCmps_Father.size() , EasyCmps_SB.size() );
  for( Index i = 0 ; i < num_registered ; ++i ) {
-  auto * owner = EasyCmps_Owner[ i ];
+  auto * father = EasyCmps_Father[ i ];
   auto * inner = EasyCmps_SB[ i ];
-  if( ! owner || ! inner )
+  if( ! inner )
    continue;
 
   auto it = std::find( v_Block.begin() , v_Block.end() , inner );
   if( it != v_Block.end() )
    v_Block.erase( it );
 
-  if( inner->get_f_Block() != this )
+  if( inner->get_f_Block() != this ) {
+   // the master problem of another Solver has registered inner after this
+   // one, and passes the Modification of inner to the father it found,
+   // i.e., to this one or to one registered in between: the one that
+   // passes them to this one has to pass them to its father instead
+   for( auto * b = inner->get_f_Block() ; b ; ) {
+    auto * mpb = dynamic_cast< MasterProblemBlock * >( b );
+    if( ! mpb )
+     break;
+    auto jt = std::find( mpb->EasyCmps_SB.begin() , mpb->EasyCmps_SB.end() ,
+                         inner );
+    if( jt == mpb->EasyCmps_SB.end() )
+     break;
+    auto & next = mpb->EasyCmps_Father[ std::distance(
+                                         mpb->EasyCmps_SB.begin() , jt ) ];
+    if( next == this ) {
+     next = father;
+     break;
+     }
+    b = next;
+    }
    continue;
+   }
 
   // Drop the listener inherited from MPB, then establish the one inherited
-  // from the owning Function Block (if any). A Solver registered directly on
-  // inner keeps anyone_there() true independently of these inherited flags.
+  // from the father (if any). A Solver registered directly on inner keeps
+  // anyone_there() true independently of these inherited flags.
   if( anyone_there() )
    inner->anyone_there( false );
-  inner->set_f_Block( owner );
-  if( owner->anyone_there() )
+  inner->set_f_Block( father );
+  if( father && father->anyone_there() )
    inner->anyone_there( true );
   }
 
@@ -167,7 +189,7 @@ void MasterProblemBlock::clear()
  // Forget all per-component lookup tables. Easy inner Blocks remain owned by
  // their LagBFunction or BendersBFunction.
  EasyCmps.clear();
- EasyCmps_Owner.clear();
+ EasyCmps_Father.clear();
  EasyCmps_SB.clear();
  EasyPrimal.clear();
  EasyDual.clear();
@@ -267,27 +289,26 @@ void MasterProblemBlock::clear()
 
 void MasterProblemBlock::add_Modification( sp_Mod mod , ChnlName chnl )
 {
- // Return the retained owner of the easy-component subtree containing origin.
- // Walking the father chain identifies the direct MPB child even when the
- // Modification originates in a deeper descendant of the easy inner Block.
+ // Return the father that the inner Block of the easy-component subtree
+ // containing origin had when it was registered: its Function Block, or the
+ // master problem of another Solver that registered it before. Walking the
+ // father chain finds the inner Block even when the Modification originates
+ // in a deeper descendant of it, and even when the inner Block has been
+ // registered after this one by another master problem, which then passes
+ // the Modification here.
  const auto easy_owner = [ this ]( Block * origin ) -> Block * {
-  if( ! origin )
-   return( nullptr );
-
-  auto * root = origin;
-  while( root && root != this && root->get_f_Block() != this )
-   root = root->get_f_Block();
-
-  if( ! root || root == this )
-   return( nullptr );
-
-  const auto it = std::find( EasyCmps_SB.begin() , EasyCmps_SB.end() , root );
-  if( it == EasyCmps_SB.end() )
-   return( nullptr );
-
-  const auto i = std::distance( EasyCmps_SB.begin() , it );
-  return( i < std::distance( EasyCmps_Owner.begin() , EasyCmps_Owner.end() )
-          ? EasyCmps_Owner[ i ] : nullptr );
+  for( auto * root = origin ; root && root != this ;
+       root = root->get_f_Block() ) {
+   const auto it = std::find( EasyCmps_SB.begin() , EasyCmps_SB.end() ,
+                              root );
+   if( it != EasyCmps_SB.end() ) {
+    const auto i = std::distance( EasyCmps_SB.begin() , it );
+    return( i < std::distance( EasyCmps_Father.begin() ,
+                               EasyCmps_Father.end() )
+            ? EasyCmps_Father[ i ] : nullptr );
+    }
+   }
+  return( nullptr );
   };
 
  // A group can arrive here when a channel defined below MPB is closed. Keep
@@ -393,7 +414,7 @@ void MasterProblemBlock::SetDim( int MxBSz , int NVars ,
  // multipliers gamma^k live inside each PolyhedralFunctionBlock sub-Block
  // (its own f_gamma) and are therefore *not* materialized here.
  EasyCmps.reserve( NoEasyCmps );
- EasyCmps_Owner.reserve( NoEasyCmps );
+ EasyCmps_Father.reserve( NoEasyCmps );
  EasyCmps_SB.reserve( NoEasyCmps );
  EasyLocal2Global.reserve( NoEasyCmps );
  HardCmps.reserve( NoHardCmps );
@@ -595,17 +616,20 @@ void MasterProblemBlock::configure(
    // keep the pointer in LagBFunction::v_Block. This lets the master Solver
    // see the inner model and makes inner Modification propagate through MPB
    // while LagBFunction retains ownership and direct access to its inner
-   // Block.
-   const bool owner_was_listening =
-    inner->get_f_Block() == lbf && lbf->anyone_there();
-   if( owner_was_listening )
+   // Block. The father inner has now is recorded, and add_Modification()
+   // passes it the Modification: it is LagBFunction, or the master problem
+   // of another Solver that has registered inner before, which then passes
+   // them to its own recorded father, so that each master Solver sees them.
+   auto * father = inner->get_f_Block();
+   const bool father_was_listening = father && father->anyone_there();
+   if( father_was_listening )
     inner->anyone_there( false );
    add_nested_Block( inner );
-   if( owner_was_listening )
+   if( father_was_listening )
     inner->anyone_there( true );
 
    EasyCmps.push_back( lbf );
-   EasyCmps_Owner.push_back( lbf );
+   EasyCmps_Father.push_back( father );
    EasyCmps_SB.push_back( inner );
    continue;
    }
@@ -627,16 +651,17 @@ void MasterProblemBlock::configure(
 
    // As for LagBFunction, register inner in the MPB tree without removing it
    // from BendersBFunction::v_Block. BendersBFunction retains ownership and
-   // direct access while inner Modifications propagate through MPB.
-   const bool owner_was_listening =
-    inner->get_f_Block() == bbf && bbf->anyone_there();
-   if( owner_was_listening )
+   // direct access while inner Modifications propagate through MPB to the
+   // father inner had, BendersBFunction or another master problem.
+   auto * father = inner->get_f_Block();
+   const bool father_was_listening = father && father->anyone_there();
+   if( father_was_listening )
     inner->anyone_there( false );
    add_nested_Block( inner );
-   if( owner_was_listening )
+   if( father_was_listening )
     inner->anyone_there( true );
 
-   EasyCmps_Owner.push_back( bbf );
+   EasyCmps_Father.push_back( father );
    EasyCmps_SB.push_back( inner );
    continue;
    }

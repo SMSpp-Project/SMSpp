@@ -578,6 +578,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- the Modification of the inner Block of an easy component reach the master
+  Solver of every `MasterProblemBlock` that has registered it, so that two
+  `BundleSolver` with easy components can be attached to the same Block:
+  each `MasterProblemBlock` records the father the inner Block had when it
+  registered it, i.e., the `LagBFunction` or `BendersBFunction`, or the
+  `MasterProblemBlock` of another Solver that had registered it before, and
+  passes it the Modification, while `clear()` gives the inner Block back to
+  that father or has the next `MasterProblemBlock` record it in its place.
+  Before, each passed them straight to the Function, so that only the
+  master that had registered the inner Block last saw them, and the other
+  `BundleSolver` kept solving a stale copy of the component after a change
+  of its costs, demands or bounds, declaring unbounded an instance that
+  has an optimum
+
 - a Modification of the inner Block that has `LagBFunction` check its
   global pool is forwarded to the father of the `LagBFunction` also when
   nobody listens to the `LagBFunction`, which it was not
