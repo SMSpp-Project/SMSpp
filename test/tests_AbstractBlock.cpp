@@ -1241,6 +1241,284 @@ static void test_mirror_of_an_empty_Block( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* A mirror sized by a ColVariable v of another Block [see
+ * AbstractBlock::set_size_variable()] is the mirrored Block scaled by v: a
+ * point x feasible for the original makes v x feasible for the copy, and the
+ * copy follows the changes of the original [see
+ * AbstractBlock::mirror_forward_Modification()]. Checked on rows of every
+ * kind (equality, ranged, one-sided), on bounds, on a unitary and a fixed
+ * ColVariable, on the constant of the Objective, on dynamic Constraint and
+ * ColVariable added and removed, and on what the copy has to refuse. */
+
+/// an AbstractBlock that hands every Modification it is sent to a copy
+
+class ToMirror : public AbstractBlock
+{
+ public:
+
+ void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override {
+  f_ok = f_ok && f_copy->mirror_forward_Modification( mod.get() );
+  }
+
+ AbstractBlock * f_copy = nullptr;  ///< the copy that follows
+ bool f_ok = true;                  ///< false once the copy could not
+ };
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// true if the current values of the Variable of b satisfy all of it
+
+static bool holds( Block * b )
+{
+ bool ok = true;
+ auto check = [ & ok ]( const auto & groups ) {
+  for( auto & group : groups )
+   if( group )
+    group->for_each( [ & ok ]( Constraint & c ) {
+     auto r = dynamic_cast< RowConstraint * >( & c );
+     if( ( ! r ) || r->is_relaxed() )
+      return;
+     r->compute();
+     if( r->abs_viol() > 1e-9 )
+      ok = false;
+     } );
+  };
+ check( b->get_static_constraint_groups() );
+ check( b->get_dynamic_constraint_groups() );
+ auto bounds = [ & ok ]( const auto & groups ) {
+  for( auto & group : groups )
+   if( group )
+    group->for_each( [ & ok ]( Variable & v ) {
+     auto x = dynamic_cast< ColVariable * >( & v );
+     if( x && ( ( x->get_value() < x->get_lb() - 1e-9 ) ||
+                ( x->get_value() > x->get_ub() + 1e-9 ) ) )
+      ok = false;
+     } );
+  };
+ bounds( b->get_static_variable_groups() );
+ bounds( b->get_dynamic_variable_groups() );
+ return( ok );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// the coefficient of var in the row, 0 if it is not there
+
+static double coeff_of( const RowConstraint * row , const ColVariable * var )
+{
+ auto fr = static_cast< const FRowConstraint * >( row );
+ auto lf = static_cast< LinearFunction * >( fr->get_function() );
+ const auto i = lf->is_active( var );
+ return( i < lf->get_num_active_var() ? lf->get_coefficient( i ) : 0 );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+static void test_sized_mirror( void )
+{
+ const double INF = Inf< double >();
+ ToMirror father;
+ auto orig = new AbstractBlock( & father );
+ father.add_nested_Block( orig );
+ orig->anyone_there( true );  // its Modification go to father
+
+ // x0 >= 0, 0 <= x1 <= 1, x2 free, x3 fixed to 0.5
+ auto x = new std::vector< ColVariable >( 4 );
+ (*x)[ 0 ].set_type( ColVariable::kNonNegative , eNoMod );
+ (*x)[ 1 ].set_type( ColVariable::kPosUnitary , eNoMod );
+ (*x)[ 3 ].set_value( 0.5 );
+ (*x)[ 3 ].is_fixed( true , eNoMod );
+ orig->add_static_variable( *x , "x" );
+ auto dv = new std::list< ColVariable >;
+ orig->add_dynamic_variable( *dv , "dv" );
+
+ // x0 + x1 = 1, -1 <= x0 - x2 <= 2, x2 <= 3, x0 + x2 + x3 >= 1
+ auto rows = new std::vector< FRowConstraint >( 4 );
+ auto row = [ & ]( int i , LinearFunction::v_coeff_pair && t , double l ,
+                   double u ) {
+  (*rows)[ i ].set_function( new LinearFunction( std::move( t ) ) , eNoMod );
+  (*rows)[ i ].set_lhs( l , eNoMod );
+  (*rows)[ i ].set_rhs( u , eNoMod );
+  };
+ row( 0 , { { & (*x)[ 0 ] , 1 } , { & (*x)[ 1 ] , 1 } } , 1 , 1 );
+ row( 1 , { { & (*x)[ 0 ] , 1 } , { & (*x)[ 2 ] , -1 } } , -1 , 2 );
+ row( 2 , { { & (*x)[ 2 ] , 1 } } , -INF , 3 );
+ row( 3 , { { & (*x)[ 0 ] , 1 } , { & (*x)[ 2 ] , 1 } , { & (*x)[ 3 ] , 1 } } ,
+      1 , INF );
+ orig->add_static_constraint( *rows , "r" );
+
+ // -2 <= x2 <= 4, x0 <= 5
+ auto box = new std::vector< BoxConstraint >( 1 );
+ (*box)[ 0 ].set_variable( & (*x)[ 2 ] , eNoMod );
+ (*box)[ 0 ].set_lhs( -2 , eNoMod );
+ (*box)[ 0 ].set_rhs( 4 , eNoMod );
+ orig->add_static_constraint( *box , "box" );
+ auto ub = new std::vector< UBConstraint >( 1 );
+ (*ub)[ 0 ].set_variable( & (*x)[ 0 ] , eNoMod );
+ (*ub)[ 0 ].set_rhs( 5 , eNoMod );
+ orig->add_static_constraint( *ub , "ub" );
+ auto dc = new std::list< FRowConstraint >;
+ orig->add_dynamic_constraint( *dc , "dc" );
+
+ // x0 + 2 x1 + 3
+ auto obj = new FRealObjective( orig , new LinearFunction(
+                  { { & (*x)[ 0 ] , 1 } , { & (*x)[ 1 ] , 2 } } , 3 ) );
+ orig->set_objective( obj , eNoMod );
+
+ // the size Variable, of another Block
+ AbstractBlock other;
+ auto vv = new std::vector< ColVariable >( 1 );
+ other.add_static_variable( *vv , "v" );
+ auto v = & (*vv)[ 0 ];
+
+ // an AbstractBlock that is not a mirror refuses
+ assert( ! orig->set_size_variable( v ) );
+
+ AbstractBlock copy;
+ copy.mirror( orig );
+ father.f_copy = & copy;
+ assert( copy.set_size_variable( v , eNoMod ) );
+ assert( copy.set_size_variable( v , eNoMod ) );  // the same: nothing
+ assert( ! copy.set_size_variable( & (*x)[ 2 ] ) );  // another one
+
+ auto cx = [ & ]( int i ) { return( copy.mirror_of( & (*x)[ i ] ) ); };
+ auto cr = [ & ]( int i ) { return( copy.mirror_of( & (*rows)[ i ] ) ); };
+
+ // the point ( 0.5 , 0.5 , 0.5 , 0.5 ) is feasible for the original, twice
+ // it is feasible for the copy at v = 2, and so is x1 = 1.5, which the
+ // unitary bound would forbid at size 1; x3 is twice its fixed value
+ for( int i = 0 ; i < 4 ; ++i )
+  (*x)[ i ].set_value( 0.5 );
+ assert( holds( orig ) );
+ v->set_value( 2 );
+ cx( 0 )->set_value( 0.5 );
+ cx( 1 )->set_value( 1.5 );
+ cx( 2 )->set_value( 1 );
+ cx( 3 )->set_value( 1 );
+ assert( holds( & copy ) );
+ cx( 3 )->set_value( 0.5 );
+ assert( ! holds( & copy ) );
+ cx( 3 )->set_value( 1 );
+ cx( 1 )->set_value( 2.5 );
+ cx( 0 )->set_value( -0.5 );
+ assert( ! holds( & copy ) );
+ cx( 1 )->set_value( 1.5 );
+ cx( 0 )->set_value( 0.5 );
+
+ // the rows: sides to 0, v with minus the side, a second row for the
+ // ranged one
+ assert( coeff_of( cr( 0 ) , v ) == -1 );
+ assert( ( cr( 0 )->get_lhs() == 0 ) && ( cr( 0 )->get_rhs() == 0 ) );
+ assert( coeff_of( cr( 1 ) , v ) == -2 );
+ assert( coeff_of( cr( 2 ) , v ) == -3 );
+ assert( coeff_of( cr( 3 ) , v ) == -1 );
+ assert( ( cr( 3 )->get_lhs() == 0 ) && ( cr( 3 )->get_rhs() == INF ) );
+
+ // the Objective: the constant is the term of v, and the value doubles
+ auto cobj = static_cast< FRealObjective * >( copy.get_objective() );
+ auto clf = static_cast< LinearFunction * >( cobj->get_function() );
+ assert( clf->get_constant_term() == 0 );
+ assert( clf->get_coefficient( clf->is_active( v ) ) == 3 );
+
+ // the changes of the original are written in the copy, sized
+ (*rows)[ 0 ].set_both( 3 );
+ assert( father.f_ok && ( coeff_of( cr( 0 ) , v ) == -3 ) );
+ (*rows)[ 2 ].set_rhs( INF );
+ assert( father.f_ok && ( coeff_of( cr( 2 ) , v ) == 0 ) );
+ assert( cr( 2 )->get_rhs() == INF );
+ (*rows)[ 2 ].set_rhs( 3 );
+ assert( father.f_ok && ( coeff_of( cr( 2 ) , v ) == -3 ) );
+ static_cast< LinearFunction * >( (*rows)[ 1 ].get_function() )->
+                                         modify_coefficient( 1 , -4 );
+ assert( father.f_ok && ( coeff_of( cr( 1 ) , cx( 2 ) ) == -4 ) );
+ assert( coeff_of( cr( 1 ) , v ) == -2 );
+ (*rows)[ 3 ].relax( true );
+ assert( father.f_ok && cr( 3 )->is_relaxed() );
+ (*rows)[ 3 ].relax( false );
+ assert( father.f_ok && ( ! cr( 3 )->is_relaxed() ) );
+ static_cast< LinearFunction * >( obj->get_function() )->
+                                                set_constant_term( 5 );
+ assert( father.f_ok );
+ assert( clf->get_coefficient( clf->is_active( v ) ) == 5 );
+ assert( clf->get_constant_term() == 0 );
+
+ // the bound of x2 is 2 * 4 = 8: x2 = 7 is within it, and out of it once
+ // the bound is 3
+ (*rows)[ 0 ].set_both( 1 );
+ (*rows)[ 1 ].set_lhs( -INF );
+ (*rows)[ 1 ].set_rhs( INF );
+ (*rows)[ 2 ].set_rhs( INF );
+ assert( father.f_ok );
+ cx( 2 )->set_value( 7 );
+ assert( holds( & copy ) );
+ (*box)[ 0 ].set_rhs( 3 );
+ assert( father.f_ok && ( ! holds( & copy ) ) );
+ (*box)[ 0 ].set_rhs( 4 );
+ assert( father.f_ok && holds( & copy ) );
+ cx( 2 )->set_value( 1 );
+
+ // x1 loses its unitary type, x3 its fixing: the rows go
+ (*x)[ 1 ].set_type( ColVariable::kNonNegative );
+ assert( father.f_ok );
+ cx( 1 )->set_value( 5 );
+ cx( 0 )->set_value( -3 );
+ assert( ! holds( & copy ) );  // x0 >= 0
+ cx( 0 )->set_value( 0.5 );
+ cx( 1 )->set_value( 1.5 );
+ (*x)[ 3 ].is_fixed( false );
+ assert( father.f_ok );
+ cx( 3 )->set_value( 0.7 );
+ assert( holds( & copy ) );
+ cx( 3 )->set_value( 1 );
+
+ // a dynamic Constraint added, sized, and removed
+ {
+  std::list< FRowConstraint > tmp( 1 );
+  tmp.front().set_function( new LinearFunction(
+                            { { & (*x)[ 0 ] , 1 } } ) , eNoMod );
+  tmp.front().set_rhs( 0.2 , eNoMod );
+  tmp.front().set_lhs( -INF , eNoMod );
+  auto added = & tmp.front();
+  orig->add_dynamic_constraints( *dc , tmp );
+  assert( father.f_ok );
+  assert( copy.mirror_of( added ) );
+  assert( coeff_of( copy.mirror_of( added ) , v ) == -0.2 );
+  assert( ! holds( & copy ) );  // x0 = 0.5 > 2 * 0.2
+  orig->remove_dynamic_constraint( *dc , dc->begin() );
+  assert( father.f_ok && ( ! copy.mirror_of( added ) ) );
+  assert( holds( & copy ) );
+  }
+
+ // a dynamic ColVariable added has its copy, one removed cannot be
+ {
+  std::list< ColVariable > tmp( 1 );
+  auto added = & tmp.front();
+  orig->add_dynamic_variables( *dv , tmp );
+  assert( father.f_ok && copy.mirror_of( added ) );
+  orig->remove_dynamic_variable( *dv , dv->begin() );
+  assert( ! father.f_ok );
+  father.f_ok = true;
+  }
+
+ // the duals of the copy go back, those of the rows of the size group
+ // summed to the one they stand for
+ cr( 0 )->set_dual( 1.5 );
+ copy.mirror_write_duals();
+ assert( (*rows)[ 0 ].get_dual() == 1.5 );
+
+ // without the size Variable the copy is the plain copy again
+ assert( copy.set_size_variable( nullptr , eNoMod ) );
+ assert( coeff_of( cr( 0 ) , v ) == 0 );
+ assert( ( cr( 0 )->get_lhs() == 1 ) && ( cr( 0 )->get_rhs() == 1 ) );
+ assert( clf->get_constant_term() == 5 );
+ assert( clf->is_active( v ) >= clf->get_num_active_var() );
+ for( int i = 0 ; i < 4 ; ++i )
+  cx( i )->set_value( (*x)[ i ].get_value() );
+ assert( holds( & copy ) );
+
+ father.f_copy = nullptr;
+ std::cout << "sized mirror: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
 /* The edges of add_dynamic_*() and remove_dynamic_*(), for Variable and for
  * Constraint alike: adding nothing, adding to an empty list, a Range that is
  * empty (anywhere, even reversed or on an empty list), one to the end, one
@@ -1650,6 +1928,7 @@ int main( int argc , char ** argv )
  test_serialize_no_objective();
  test_set_objective_replaces();
  test_mirror_of_an_empty_Block();
+ test_sized_mirror();
  test_read_lp_of_an_empty_model();
  test_read_lp_edges();
  test_read_lp_malformed();

@@ -14,6 +14,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   components and of the global lower bound row, or that of the level row in
   the pure level form
 
+- in the dual `MasterProblemBlock` an easy component whose inner Block owns
+  no size Variable is given lambda by `Block::set_size_variable()`, and is
+  scaled by it if the Block takes it; if it does not, and
+  `MasterProblemBlock::use_easy_mirrors( true )` (bit 5, +32, of the
+  `DoEasyCmp` of `CreateEmptyMP()`) asks for it, the master puts in its
+  place a copy of it (`AbstractBlock::mirror()`) sized by lambda, writes in
+  the copy the Modification of the inner Block, and the solutions of the
+  copy back into it, and puts the inner Block back, unscaled, if one of its
+  Modification is one the copy cannot follow. lambda is free, and with it
+  the global lower bound enters the master, when every easy component is
+  scaled in one of the three ways, and fixed to 1 otherwise, as by
+  default for an inner Block that neither owns nor takes a size Variable.
+  `MasterProblemBlock::use_easy_size_variables( false )`, i.e., bit 4 (+16)
+  of the `DoEasyCmp` of `CreateEmptyMP()`, fixes lambda to 1 and neither
+  gives lambda to an inner Block nor makes copies, for the cheaper master
+  without it
+
+- `AbstractBlock::set_size_variable()`: a mirror takes a size Variable v and
+  writes into itself the mirrored Block scaled by v, every row
+  l <= a x <= u being l v <= a x <= u v (with a second row for a ranged
+  one), the finite nonzero sides of the OneVarConstraint (whose copy keeps
+  its sides 0, or is moved onto a ColVariable of its own), the bounds
+  -1 / 1 of the unitary ColVariable and the value of a fixed ColVariable
+  being rows, and the constant of the Objective the term
+  of v; nullptr takes it away. An AbstractBlock that is not a mirror does
+  not take one, its setters comparing a new value with the current one,
+  which would be the scaled one; `Block::set_size_variable( nullptr )` is
+  documented as taking back the Variable given, if the Block can.
+  `AbstractBlock::mirror_write_duals()` writes the dual values of the copy
+  into the mirrored Block
+
+- `AbstractBlock_test` checks the sized mirror
+  (`AbstractBlock::set_size_variable()`): feasibility of the scaled points,
+  the rows, bounds, unitary and fixed ColVariable and the constant of the
+  Objective written with the size Variable, the changes of the original
+  followed, dynamic Constraint and ColVariable added and removed, the duals
+  written back, and the copy unsized again
+
 - `Block::set_owned_size_variable()`, which declares a Variable that the
   Block has created, and with which it has written its Constraint, as the
   column of its size parameter; the base `get_size_variable()` returns it
@@ -462,6 +500,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   inner Block to write it, which it restored as the original ones
 
 ### Changed
+
+- `AbstractBlock::mirror_forward_Modification()` takes how the copy issues
+  the Modification of its changes (eNoMod by default, as before), follows
+  also the Variable added to or removed from a Function, the relaxing and
+  enforcing of a Constraint, the Variable of a OneVarConstraint changed, and
+  the dynamic Constraint added or removed and the dynamic ColVariable added,
+  changes the copy in place rather than replacing its Functions, writes it in
+  its sized form under a size Variable, and takes a physical Modification as
+  one with nothing to do; `mirror()` copies whether a Constraint is relaxed
 
 - the feasibility checks of `Block::is_feasible()` and
   `Block::is_sol_feasible()` without a Configuration, neither given nor in

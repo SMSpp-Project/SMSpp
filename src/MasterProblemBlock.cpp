@@ -157,15 +157,28 @@ void MasterProblemBlock::clear()
    continue;
    }
 
-  // Drop the listener inherited from MPB, then establish the one inherited
-  // from the father (if any). A Solver registered directly on inner keeps
+  // Drop the listener inherited from MPB, or set when a copy of it was in
+  // the master [see mirror_easy()], then establish the one inherited from
+  // the father (if any). A Solver registered directly on inner keeps
   // anyone_there() true independently of these inherited flags.
-  if( anyone_there() )
+  if( anyone_there() || ( ( i < EasyMirror.size() ) && EasyMirror[ i ] ) )
    inner->anyone_there( false );
   inner->set_f_Block( father );
   if( father && father->anyone_there() )
    inner->anyone_there( true );
   }
+
+ // The copies of the easy inner Blocks [see EasyMirror] go as the Block of
+ // the hard components below
+ for( auto * mirror : EasyMirror ) {
+  if( ! mirror )
+   continue;
+  auto it = std::find( v_Block.begin() , v_Block.end() , mirror );
+  if( it != v_Block.end() )
+   v_Block.erase( it );
+  v_stale_hard.push_back( mirror );
+  }
+ EasyMirror.clear();
 
  // The PolyhedralFunctionBlock of the hard components are allocated here
  // [see CreatePrimalMP() / CreateDualMP()], so they go with the rest. They
@@ -370,6 +383,16 @@ void MasterProblemBlock::add_Modification( sp_Mod mod , ChnlName chnl )
   };
 
  notify_owner( notify_owner , mod );
+
+ // An easy inner Block that has a copy in the master is not known to the
+ // Solver of the master: its Modification are written in the copy, whose
+ // own Modification come here and go on [see EasyMirror]
+ if( std::any_of( EasyMirror.begin() , EasyMirror.end() ,
+                  []( auto * m ) { return( m != nullptr ); } ) ) {
+  mod = forward_to_mirrors( mod , chnl );
+  if( ! mod )
+   return;
+  }
 
  // Independently preserve the standard master-tree channel and Solver
  // dispatch. In particular, the owner notification above must not consume the
@@ -609,8 +632,9 @@ void MasterProblemBlock::configure(
          std::to_string( k ) + " is a LagBFunction with no inner Block" ) );
 
    // The inner Block owns its scaling representation. During dual
-   // generation, any size variable it exposes is linked to Var_lambda.
-   // If one easy Block exposes none, lambda stays fixed to 1.
+   // generation, the size variable it owns is linked to Var_lambda, or it
+   // is given Var_lambda itself; if one easy Block takes neither, lambda
+   // stays fixed to 1.
 
    // Register inner in the MPB tree and make MPB its father, but deliberately
    // keep the pointer in LagBFunction::v_Block. This lets the master Solver
@@ -730,6 +754,8 @@ void MasterProblemBlock::CreateEmptyMP( stabilization_type Stbl , int NoCmps ,
 
  StblType  = Stbl;
  DoEasy    = DoEasyCmp;
+ f_use_easy_size = ! ( DoEasy & 16 );
+ f_use_easy_mirror = DoEasy & 32;
  IsEasyCmp = std::move( IsEasy );
 
  // the dual form is the only viable choice as soon as there is at least
@@ -1240,29 +1266,46 @@ void MasterProblemBlock::generate_dual_abstract_variables( void )
  // installed below; the per-PFB rows are owned by the PFB sub-Blocks
  // themselves.
  //
- // An easy inner Block may expose its own size variable tau_k. Link
- // every such variable to lambda in generate_dual_abstract_constraints().
- // If any easy component has no size variable, keep the unit-mass fallback:
- // lambda = 1, hence r - omega = 0 in proximal / doubly stabilized mode,
- // and r - omega = -1 in pure level. The available tau_k are then 1 too.
- // LagBFunction has already generated its inner abstract variables.
+ // An easy component is scaled by lambda either through a size variable
+ // tau_k its inner Block owns, linked to lambda in
+ // generate_dual_abstract_constraints(), or by giving its inner Block
+ // lambda itself, which the Block writes into its rows, or else, if asked,
+ // by putting in the master a copy of the inner Block sized by lambda [see
+ // configure()]. The last two are not tried if the scaling is not wanted.
+ // If any easy
+ // component is not scaled, keep the unit-mass fallback: lambda = 1, hence
+ // r - omega = 0 in proximal / doubly stabilized mode, and r - omega = -1
+ // in pure level. The available tau_k are then 1 too, and so is lambda in
+ // the rows of the inner Blocks that have taken it. LagBFunction has
+ // already generated its inner abstract variables, so the rows exist and
+ // are rewritten; the master is reloaded as a whole after configure(),
+ // hence no Modification.
  EasySizeVars.clear();
  EasySizeVars.reserve( EasyCmps_SB.size() );
- for( auto * inner : EasyCmps_SB ) {
-  auto * size_var = inner->get_size_variable();
-  if( ! size_var )
-   continue;
-  auto * tau = dynamic_cast< ColVariable * >( size_var );
-  if( ! tau )
-   throw( std::invalid_argument(
-        "MasterProblemBlock::generate_dual_abstract_variables: "
-        "easy size variable is not a ColVariable" ) );
-  EasySizeVars.push_back( tau );
+ EasyMirror.assign( EasyCmps_SB.size() , nullptr );
+ std::size_t n_scaled = 0;
+ for( Index k = 0 ; k < EasyCmps_SB.size() ; ++k ) {
+  auto * inner = EasyCmps_SB[ k ];
+  if( auto * size_var = inner->get_size_variable() ) {
+   auto * tau = dynamic_cast< ColVariable * >( size_var );
+   if( ! tau )
+    throw( std::invalid_argument(
+         "MasterProblemBlock::generate_dual_abstract_variables: "
+         "easy size variable is not a ColVariable" ) );
+   EasySizeVars.push_back( tau );
+   ++n_scaled;
+   }
+  else
+   if( f_use_easy_size &&
+       ( inner->set_size_variable( & Var_lambda , eNoMod ) ||
+         ( f_use_easy_mirror && mirror_easy( k ) ) ) )
+    ++n_scaled;
   }
 
  Var_lambda.is_fixed( false , eNoMod );
  Var_lambda.is_positive( true , eNoMod );
- if( EasySizeVars.size() != std::size_t( NoEasyCmps ) ) {
+ if( ( NoEasyCmps > 0 ) &&
+     ( ( ! f_use_easy_size ) || ( n_scaled != std::size_t( NoEasyCmps ) ) ) ) {
   Var_lambda.set_value( 1.0 );
   Var_lambda.is_fixed( true , eNoMod );
   }
@@ -1654,7 +1697,8 @@ void MasterProblemBlock::generate_dual_objective( void )
           "a LinearFunction" ) );
 
     for( Function::Index h = 0 ; h < gi->get_num_active_var() ; ++h ) {
-     auto * u = static_cast< ColVariable * >( gi->get_active_var( h ) );
+     auto * u = easy_var( easy_id , static_cast< ColVariable * >(
+                                                  gi->get_active_var( h ) ) );
      auto it = std::find( EasyObjVars.begin() , EasyObjVars.end() , u );
      std::size_t pos;
      if( it == EasyObjVars.end() ) {
@@ -1905,7 +1949,8 @@ void MasterProblemBlock::add_LBF_to_coupling_rows(
    // hence the easy-component subgradient is -g_i(u) and we append +g_i(u).
    const double easy_sign = IsConvex ? 1.0 : -1.0;
    for( Function::Index h = 0 ; h < gi->get_num_active_var() ; ++h ) {
-    auto * u = static_cast< ColVariable * >( gi->get_active_var( h ) );
+    auto * u = easy_var( easy_id , static_cast< ColVariable * >(
+                                                  gi->get_active_var( h ) ) );
     const double a = gi->get_coefficient( h );
 
     // Append the new term to the coupling constraint terms associated
@@ -1934,8 +1979,8 @@ void MasterProblemBlock::drop_easy_coupling( Index easy_id , Index j )
   throw( std::logic_error( "MasterProblemBlock::drop_easy_coupling: global "
                            "index outside master dimension" ) );
 
- // true if var belongs to the inner Block of the easy component
- const Block * inner = EasyCmps[ easy_id ]->get_inner_block();
+ // true if var belongs to the Block of the easy component in the master
+ const Block * inner = easy_block( easy_id );
  const auto of_the_component = [ inner ]( const Variable * var ) {
   for( auto b = var->get_Block() ; b ; b = b->get_f_Block() )
    if( b == inner )
@@ -2012,7 +2057,8 @@ void MasterProblemBlock::add_easy_coupling( Index easy_id , Index j ,
  try {
   LinearFunction::v_coeff_pair added;
   for( Function::Index h = 0 ; h < gi->get_num_active_var() ; ++h ) {
-   auto * u = static_cast< ColVariable * >( gi->get_active_var( h ) );
+   auto * u = easy_var( easy_id , static_cast< ColVariable * >(
+                                                  gi->get_active_var( h ) ) );
    const double a = easy_sign * gi->get_coefficient( h );
    const auto idx = lf->is_active( u );
    if( idx < lf->get_num_active_var() )
@@ -2051,7 +2097,8 @@ void MasterProblemBlock::add_easy_objective_terms( Index easy_id , Index j ,
                            "expected DQuadFunction and LinearFunction" ) );
 
  for( Function::Index h = 0 ; h < gi->get_num_active_var() ; ++h ) {
-  auto * u = static_cast< ColVariable * >( gi->get_active_var( h ) );
+  auto * u = easy_var( easy_id , static_cast< ColVariable * >(
+                                                  gi->get_active_var( h ) ) );
   auto it = std::find( EasyObjVars.begin() , EasyObjVars.end() , u );
   const auto pos = std::size_t( std::distance( EasyObjVars.begin() , it ) );
   if( it == EasyObjVars.end() ) {  // a Variable with no correction yet
@@ -2120,7 +2167,9 @@ bool MasterProblemBlock::restore_easy_primal( int k )
 {
  if( ( k < 0 ) || ( k >= int( EasyPrimal.size() ) ) || ( ! EasyPrimal[ k ] ) )
   return( false );
- EasyPrimal[ k ]->write( EasyCmps_SB[ k ] );
+ EasyPrimal[ k ]->write( easy_block( k ) );
+ if( ( Index( k ) < EasyMirror.size() ) && EasyMirror[ k ] )
+  EasyMirror[ k ]->mirror_write();
  return( true );
  }
 
@@ -2130,8 +2179,189 @@ bool MasterProblemBlock::restore_easy_dual( int k )
 {
  if( ( k < 0 ) || ( k >= int( EasyDual.size() ) ) || ( ! EasyDual[ k ] ) )
   return( false );
- EasyDual[ k ]->write( EasyCmps_SB[ k ] );
+ EasyDual[ k ]->write( easy_block( k ) );
+ if( ( Index( k ) < EasyMirror.size() ) && EasyMirror[ k ] )
+  EasyMirror[ k ]->mirror_write_duals();
  return( true );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool MasterProblemBlock::mirror_easy( Index k )
+{
+ auto * inner = EasyCmps_SB[ k ];
+ auto * mirror = new AbstractBlock( this );
+ mirror->set_name( "sized copy of " + std::string( inner->name() ) );
+ mirror->mirror( inner );
+ if( ! mirror->set_size_variable( & Var_lambda , eNoMod ) ) {
+  delete mirror;
+  return( false );
+  }
+
+ // the copy takes the place of the inner Block in the master, the inner
+ // Block keeping the master as father, so that its Modification come here
+ auto it = std::find( v_Block.begin() , v_Block.end() , inner );
+ if( it != v_Block.end() )
+  *it = mirror;
+ else
+  v_Block.push_back( mirror );
+ EasyMirror[ k ] = mirror;
+
+ // the copy is listened to as the master is, while every Modification of
+ // the inner Block has to come here, the copy having to follow it
+ if( anyone_there() )
+  mirror->anyone_there( true );
+ inner->anyone_there( true );
+ return( true );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void MasterProblemBlock::mirror_fallback( Index k )
+{
+ auto * mirror = EasyMirror[ k ];
+ auto * inner = EasyCmps_SB[ k ];
+ if( ! mirror )
+  return;
+ EasyMirror[ k ] = nullptr;
+
+ // the inner Block is in the master again; the copy stays there too, as the
+ // master has terms on its ColVariable, but bounds nothing and costs nothing
+ v_Block.push_back( inner );
+
+ std::function< void( Block * ) > mute = [ & mute ]( Block * b ) {
+  auto relax_all = []( const auto & groups ) {
+   for( auto & group : groups )
+    if( group )
+     group->for_each( []( Constraint & c ) {
+      if( dynamic_cast< FRowConstraint * >( & c ) )
+       c.relax( true , eNoMod );
+      } );
+   };
+  relax_all( b->get_static_constraint_groups() );
+  relax_all( b->get_dynamic_constraint_groups() );
+  if( auto fo = dynamic_cast< FRealObjective * >( b->get_objective() ) )
+   if( auto lf = dynamic_cast< LinearFunction * >( fo->get_function() ) ) {
+    LinearFunction::Vec_FunctionValue zeros( lf->get_num_active_var() , 0 );
+    lf->modify_coefficients( std::move( zeros ) ,
+                             Range( 0 , lf->get_num_active_var() ) ,
+                             eNoMod );
+    lf->set_constant_term( 0 , eNoMod );
+    }
+  for( auto * sb : b->get_nested_Blocks() )
+   mute( sb );
+  };
+ mute( mirror );
+
+ // the ColVariable of the inner Block that a ColVariable of the copy is
+ // the copy of, nullptr if it is not one
+ auto back = [ mirror ]( Variable * x ) -> ColVariable * {
+  auto o = mirror->mirrored_of( static_cast< ColVariable * >( x ) );
+  return( const_cast< ColVariable * >( o ) );
+  };
+
+ // the terms of the coupling rows on the copy are zeroed, and written on
+ // the inner Block
+ for( auto & row : CouplingCns ) {
+  auto lf = static_cast< LinearFunction * >( row.get_function() );
+  LinearFunction::v_coeff_pair added;
+  Subset idx;
+  for( Index h = 0 ; h < lf->get_num_active_var() ; ++h )
+   if( auto o = back( lf->get_active_var( h ) ) ) {
+    const double a = lf->get_coefficient( h );
+    if( a == 0 )
+     continue;
+    idx.push_back( h );
+    const auto i = lf->is_active( o );
+    if( i < lf->get_num_active_var() )
+     lf->modify_coefficient( i , lf->get_coefficient( i ) + a , eNoMod );
+    else
+     added.emplace_back( o , a );
+    }
+  if( ! idx.empty() ) {
+   LinearFunction::Vec_FunctionValue zeros( idx.size() , 0 );
+   lf->modify_coefficients( std::move( zeros ) , std::move( idx ) , true ,
+                            eNoMod );
+   }
+  for( auto & [ o , a ] : added ) {
+   lf->add_variable( o , a , eNoMod );
+   o->add_active( & row );
+   }
+  }
+
+ // as are the terms of the Objective in the displacement form, which are
+ // added at the end so that the positions of the others do not change
+ if( ! easy_obj_idx.empty() ) {
+  auto obj = dynamic_cast< FRealObjective * >( get_objective() );
+  auto dqf = obj ? dynamic_cast< DQuadFunction * >( obj->get_function() )
+                 : nullptr;
+  for( std::size_t h = 0 ; dqf && ( h < EasyObjVars.size() ) ; ++h )
+   if( auto o = back( EasyObjVars[ h ] ) ) {
+    const auto old = DQuadFunction::Index( easy_obj_idx[ h ] );
+    const double lin = dqf->get_linear_coefficient( old );
+    dqf->modify_term( old , 0.0 , 0.0 , eNoMod );
+    EasyObjVars[ h ] = o;
+    easy_obj_idx[ h ] = int( dqf->get_num_active_var() );
+    dqf->add_variable( o , lin , 0.0 , eNoMod );
+    o->add_active( obj );
+    }
+  }
+
+ // the inner Block is not sized, hence lambda cannot be free any longer
+ Var_lambda.set_value( 1.0 );
+ Var_lambda.is_fixed( true , eNoMod );
+
+ if( anyone_there() )
+  Block::add_Modification( std::make_shared< NBModification >( this ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+sp_Mod MasterProblemBlock::forward_to_mirrors(
+                                         const sp_Mod & mod , ChnlName chnl )
+{
+ static constexpr Index none = std::numeric_limits< Index >::max();
+
+ // the copy, if any, of the easy inner Block a Modification comes from
+ const auto copy_of = [ this ]( const Block * origin ) -> Index {
+  auto root = origin;
+  while( root && ( root != this ) && ( root->get_f_Block() != this ) )
+   root = root->get_f_Block();
+  if( ( ! root ) || ( root == this ) )
+   return( none );
+  for( Index k = 0 ; k < EasyCmps_SB.size() ; ++k )
+   if( ( EasyCmps_SB[ k ] == root ) && ( k < EasyMirror.size() ) &&
+       EasyMirror[ k ] )
+    return( k );
+  return( none );
+  };
+
+ const auto group = std::dynamic_pointer_cast< GroupModification >( mod );
+ if( ! group ) {
+  const auto k = copy_of( mod->get_Block() );
+  if( k == none )
+   return( mod );
+  if( ! EasyMirror[ k ]->mirror_forward_Modification( mod.get() ,
+                                              make_par( eModBlck , chnl ) ) )
+   mirror_fallback( k );
+  return( nullptr );
+  }
+
+ // what of a group is not for a copy goes on piece by piece
+ std::vector< sp_Mod > rest;
+ bool all = true;
+ for( const auto & submod : group->sub_Modifications() ) {
+  auto r = forward_to_mirrors( submod , chnl );
+  if( r != submod )
+   all = false;
+  if( r )
+   rest.push_back( std::move( r ) );
+  }
+ if( all )
+  return( mod );
+ for( auto & r : rest )
+  Block::add_Modification( r , chnl );
+ return( nullptr );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2773,7 +3003,7 @@ double MasterProblemBlock::get_FiBLambda( int k ) const
      add_objectives( sub_block );
     };
 
-  add_objectives( EasyCmps_SB[ easy_k ] );
+  add_objectives( easy_block( easy_k ) );
 
   const auto d = get_d_vector();
   auto * lbf = EasyCmps[ easy_k ];
@@ -3417,7 +3647,7 @@ double MasterProblemBlock::get_aggregated_alpha( int k ) const
     throw( std::logic_error(
          "MasterProblemBlock::get_aggregated_alpha: missing easy Block" ) );
 
-   add_objectives( EasyCmps_SB[ easy_k ] );
+   add_objectives( easy_block( easy_k ) );
    auto * lbf = EasyCmps[ easy_k ];
    for( Index i = 0 ; i < lbf->get_num_active_var() ; ++i ) {
     const Index j = easy_local_to_global( easy_k , i );
@@ -5990,11 +6220,15 @@ int MasterProblemBlock::solve_master( void )
    // the easy components are Blocks of the model, which others may write
    // into before the solution is asked for: what the MP has written there
    // is saved [see restore_easy_primal()]
+   // the copy of an easy inner Block writes its solution into it, which is
+   // where the Lagrangian terms read it [see EasyMirror]
    EasyPrimal.resize( EasyCmps_SB.size() );
    for( std::size_t k = 0 ; k < EasyCmps_SB.size() ; ++k ) {
     if( ! EasyPrimal[ k ] )
      EasyPrimal[ k ] = std::make_unique< ColVariableSolution >();
-    EasyPrimal[ k ]->read( EasyCmps_SB[ k ] );
+    EasyPrimal[ k ]->read( easy_block( k ) );
+    if( ( k < EasyMirror.size() ) && EasyMirror[ k ] )
+     EasyMirror[ k ]->mirror_write();
     }
    // In the primal linearized PFB representation the bundle multipliers are
    // the dual values of the cut constraints, rather than explicit theta
@@ -6016,7 +6250,7 @@ int MasterProblemBlock::solve_master( void )
     for( std::size_t k = 0 ; k < EasyCmps_SB.size() ; ++k ) {
      if( ! EasyDual[ k ] )
       EasyDual[ k ] = std::make_unique< RowConstraintSolution >();
-     EasyDual[ k ]->read( EasyCmps_SB[ k ] );
+     EasyDual[ k ]->read( easy_block( k ) );
      }
     }
    }
