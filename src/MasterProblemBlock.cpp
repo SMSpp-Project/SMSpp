@@ -204,6 +204,7 @@ void MasterProblemBlock::clear()
  EasyCmps.clear();
  EasyCmps_Father.clear();
  EasyCmps_SB.clear();
+ EasyGivenLambda.clear();
  EasyPrimal.clear();
  EasyDual.clear();
  EasyObjVars.clear();
@@ -1283,6 +1284,7 @@ void MasterProblemBlock::generate_dual_abstract_variables( void )
  EasySizeVars.clear();
  EasySizeVars.reserve( EasyCmps_SB.size() );
  EasyMirror.assign( EasyCmps_SB.size() , nullptr );
+ EasyGivenLambda.assign( EasyCmps_SB.size() , false );
  std::size_t n_scaled = 0;
  for( Index k = 0 ; k < EasyCmps_SB.size() ; ++k ) {
   auto * inner = EasyCmps_SB[ k ];
@@ -1295,11 +1297,37 @@ void MasterProblemBlock::generate_dual_abstract_variables( void )
    EasySizeVars.push_back( tau );
    ++n_scaled;
    }
-  else
-   if( f_use_easy_size &&
-       ( inner->set_size_variable( & Var_lambda , eNoMod ) ||
-         ( f_use_easy_mirror && mirror_easy( k ) ) ) )
+  else {
+   // an inner Block that writes lambda in its rows belongs to the master of
+   // one Solver only: the column of one master cannot be in the rows the
+   // master of another Solver solves, and Block::set_size_variable() has
+   // no way of taking it back. Hence, lambda is not given to an inner Block
+   // that the master of another Solver has registered too, and the inner
+   // Block that the master of another Solver has given its lambda cannot be
+   // used here at all
+   auto * shared = dynamic_cast< MasterProblemBlock * >(
+                                                    EasyCmps_Father[ k ] );
+   if( shared ) {
+    const auto it = std::find( shared->EasyCmps_SB.begin() ,
+                               shared->EasyCmps_SB.end() , inner );
+    const auto j = std::distance( shared->EasyCmps_SB.begin() , it );
+    if( ( it != shared->EasyCmps_SB.end() ) &&
+        ( j < std::ptrdiff_t( shared->EasyGivenLambda.size() ) ) &&
+        shared->EasyGivenLambda[ j ] )
+     throw( std::logic_error(
+         "MasterProblemBlock::generate_dual_abstract_variables: the inner "
+         "Block of an easy component has taken lambda of the master of "
+         "another Solver as its size Variable, and cannot be shared" ) );
+    }
+   if( f_use_easy_size && ( ! shared ) &&
+       inner->set_size_variable( & Var_lambda , eNoMod ) ) {
+    EasyGivenLambda[ k ] = true;
     ++n_scaled;
+    }
+   else
+    if( f_use_easy_size && f_use_easy_mirror && mirror_easy( k ) )
+     ++n_scaled;
+   }
   }
 
  Var_lambda.is_fixed( false , eNoMod );

@@ -2123,6 +2123,12 @@ class MasterProblemBlock : public Block {
  ///< sub-Blocks of the "easy" components; these are non-owning registrations
  ///< and remain owned by the Function Block of the component
 
+ std::vector< bool > EasyGivenLambda;
+ ///< EasyGivenLambda[ k ] == true iff the inner Block EasyCmps_SB[ k ] has
+ ///< taken lambda of this master as its size Variable [see
+ ///< Block::set_size_variable()], hence writes this master's column in its
+ ///< rows and cannot be used by the master of another Solver
+
  std::vector< ColVariable * > EasySizeVars;
  ///< borrowed size variables owned by easy inner Blocks in the dual MP
  ///< [see Block::get_size_variable()], each linked to Var_lambda; the

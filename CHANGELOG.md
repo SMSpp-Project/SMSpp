@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- the inner Block of an easy component that has taken lambda of a
+  `MasterProblemBlock` as its size Variable belongs to that master only:
+  the master of another Solver does not give it its own lambda, and throws
+  if it finds it sized by another master, since the column of one master
+  cannot be in the rows that another one solves
+
 - `MasterProblemBlock::aggregate_mass()`, the mass the aggregate of the
   dual master is divided by: lambda + r, i.e., that of the rows of the
   components and of the global lower bound row, or that of the level row in
