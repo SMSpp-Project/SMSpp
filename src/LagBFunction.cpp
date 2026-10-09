@@ -52,6 +52,7 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <numeric>
 #include <queue>
 
 #include "BlockSolverConfig.h"
@@ -62,6 +63,8 @@
 
 #include "LagBFunction.h"
 
+#include "AbstractPath.h"
+
 #include "RBlockConfig.h"
 
 /*--------------------------------------------------------------------------*/
@@ -69,6 +72,45 @@
 /*--------------------------------------------------------------------------*/
 
 using namespace SMSpp_di_unipi_it;
+
+/*--------------------------------------------------------------------------*/
+/*-------------------------- LOCAL FUNCTIONS -------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+namespace {
+
+/// tells which dynamic Variable a Modification says have been removed
+/** Writes in cell the address of the cell of the group of dynamic Variable
+ * they were removed from and in positions the positions they had in it, with
+ * all telling that the whole cell went. Returns false if the Modification is
+ * not one that removes ColVariable saying which ones. */
+
+bool rmvd_vars( const Modification * mod , const void * & cell ,
+		Block::Subset & positions , bool & all )
+{
+ if( const auto tmod =
+     dynamic_cast< const BlockModRmvRngd< ColVariable > * >( mod ) ) {
+  cell = static_cast< const void * >( & tmod->whc() );
+  const auto & rng = tmod->range();
+  positions.clear();
+  for( Block::Index i = rng.first ; i < rng.second ; ++i )
+   positions.push_back( i );
+  all = false;
+  return( true );
+  }
+
+ if( const auto tmod =
+     dynamic_cast< const BlockModRmvSbst< ColVariable > * >( mod ) ) {
+  cell = static_cast< const void * >( & tmod->whc() );
+  positions = tmod->subset();
+  all = positions.empty();   // an empty subset means all of them
+  return( true );
+  }
+
+ return( false );
+ }
+
+}  // end( unnamed namespace )
 
 /*--------------------------------------------------------------------------*/
 /*----------------------------- STATIC MEMBERS -----------------------------*/
@@ -151,7 +193,8 @@ LagBFunction::LagBFunction( Block * innerblock , Observer * observer )
    f_active_dirty( true ) , f_lazy_eval( false ) , f_max_glob( 0 ) ,
    LastSolution( 0 ) , VarSol( true ) , f_yb( -INF ) ,
    f_play_dumb( false ) , f_dirty_Lc( false ) , f_c_changed( false ) ,
-   f_Lc( -1 ) , LPMaxSz( 0 ) , f_BSC( nullptr ) , f_CC( nullptr ) ,
+   f_Lc( -1 ) , LPMaxSz( 0 ) , f_BSC( nullptr ) , f_lBSC( nullptr ) ,
+   f_lBSC_on( false ) , f_CC( nullptr ) ,
    f_CC_changed( false ) , f_BS( nullptr ) , f_id( this )
 {
  // set the pointer to the sub-Block (B) - - - - - - - - - - - - - - - - - - -
@@ -172,6 +215,7 @@ LagBFunction::~LagBFunction( void )
 {
  guts_of_destructor();
  delete f_BS;
+ delete f_chk_cfg;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -180,6 +224,8 @@ void LagBFunction::clear( void )
 {
  // delete all the Lagrangian terms (and the ColVariable with them)
  clear_lp();
+ v_readA.clear();
+ v_readb.clear();
 
  // delete the auxiliary data structure for computing the Lagrangian costs
  CostMatrix.clear();
@@ -202,6 +248,10 @@ void LagBFunction::clear( void )
 
 void LagBFunction::set_inner_block( Block * innerblock , bool deleteold )
 {
+ // the terms deserialize() has read are on the Variable of the old one
+ v_readA.clear();
+ v_readb.clear();
+
  // if there is an existing inner Block, cleanup it
  if( ! v_Block.empty() ) {
   if( ! deleteold ) {
@@ -217,6 +267,11 @@ void LagBFunction::set_inner_block( Block * innerblock , bool deleteold )
  v_Block.resize( 1 );
  v_Block.front() = innerblock;
  innerblock->set_f_Block( this );
+
+ // the LagBFunction "is always listening" [see anyone_there()]: tell it to
+ // the inner Block, which otherwise issues no Modification until a Solver
+ // is registered to it
+ innerblock->anyone_there( true );
 
  // ensure the Objective of the inner Block is defined (and therefore the
  // Variable need to) because LagBFunction checks it
@@ -328,6 +383,8 @@ void LagBFunction::set_inner_block( Block * innerblock , bool deleteold )
 void LagBFunction::set_dual_pairs( v_dual_pair && dp )
 {
  clear_lp();       // ensure we are starting from a "tabula rasa"
+ v_readA.clear();  // what deserialize() has read is replaced as well
+ v_readb.clear();
  for( auto & tmp : v_tmpCP )
   tmp.clear();     // no terms to be stealthily added to obj yet
 
@@ -386,6 +443,28 @@ void LagBFunction::set_dual_pairs( v_dual_pair && dp )
 
 /*--------------------------------------------------------------------------*/
 
+void LagBFunction::set_variables( std::vector< ColVariable * > && y )
+{
+ if( y.size() != v_readA.size() )
+  throw( std::invalid_argument( "LagBFunction::set_variables: " +
+				std::to_string( y.size() ) + " ColVariable "
+				"for " + std::to_string( v_readA.size() ) +
+				" Lagrangian terms read by deserialize()" ) );
+ if( y.empty() )
+  return;
+
+ v_dual_pair dp;
+ dp.reserve( y.size() );
+ for( Index i = 0 ; i < y.size() ; ++i )
+  dp.emplace_back( y[ i ] , new LinearFunction( std::move( v_readA[ i ] ) ,
+						v_readb[ i ] ) );
+
+ set_dual_pairs( std::move( dp ) );  // which clears v_readA and v_readb
+
+ }  // end( LagBFunction::set_variables )
+
+/*--------------------------------------------------------------------------*/
+
 void LagBFunction::set_ComputeConfig( const ComputeConfig * scfg )
 {
  auto inner_block = get_inner_block();
@@ -441,9 +520,16 @@ void LagBFunction::set_ComputeConfig( const ComputeConfig * scfg )
     // remains, clear()-ed, as the cleanup object: having done the apply()
     // itself, it records the registered Solver and its cleared apply()
     // removes exactly them [see BlockSolverConfig::apply()]
+    const auto nslv = inner_block->get_registered_solvers().size();
     f_BSC = BSC->clone();
     f_BSC->apply( inner_block );
     f_BSC->clear();
+
+    // a LagBFunction told that it has no inner Solver [see intInnrSlvr]
+    // uses the first of those that this BlockSolverConfig has added, if any
+    if( ( InnrSlvr == Inf< Index >() ) &&
+	( inner_block->get_registered_solvers().size() > nslv ) )
+     set_par( intInnrSlvr , int( nslv ) );
     }
    }
   else {  // scfg->f_extra_Configuration is nullptr
@@ -461,14 +547,32 @@ void LagBFunction::set_ComputeConfig( const ComputeConfig * scfg )
  // note that the inner Solver may be changing and some other parameters
  // actually are parameters of the inner Solver; thus, ensure that the
  // change in InnrSlvr is acted upon first
- for( const auto & pair : scfg->int_pars )
-  if( pair.first == "intInnrSlvr" )
-   set_par( intInnrSlvr , pair.second );
+ if( scfg )
+  for( const auto & pair : scfg->int_pars )
+   if( pair.first == "intInnrSlvr" )
+    set_par( intInnrSlvr , pair.second );
 
  // now do all the rest
  ThinComputeInterface::set_ComputeConfig( scfg );
 
  }  // end( LagBFunction::set_ComputeConfig )
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::set_lazy_inner_BlockSolverConfig( BlockSolverConfig * bsc )
+{
+ if( f_lBSC ) {
+  // if it has been applied, the clear()-ed copy removes the Solver it has
+  // registered to the inner Block
+  if( f_lBSC_on && ( ! v_Block.empty() ) )
+   f_lBSC->apply( v_Block.front() );
+  delete f_lBSC;
+  }
+
+ f_lBSC = bsc;
+ f_lBSC_on = false;
+
+ }  // end( LagBFunction::set_lazy_inner_BlockSolverConfig )
 
 /*--------------------------------------------------------------------------*/
 
@@ -511,15 +615,8 @@ void LagBFunction::set_par( idx_type par , int value )
    g_pool.resize( value );
    break;
   case( intInnrSlvr ):  // intInnrSlvr - - - - - - - - - - - - - - - - - - -
-   if( InnrSlvr != Index( value ) ) {
-    InnrSlvr = Index( value );
-    // ensure there is a ComputeConfig in diff mode ready
-    while( f_BSC->num_ComputeConfig() <= InnrSlvr ) {
-     auto cc = new ComputeConfig;
-     cc->set_diff( true );
-     f_BSC->add_ComputeConfig( "" , cc );
-     }
-    }
+   // a negative value means no inner Solver at all [see intInnrSlvr]
+   InnrSlvr = ( value < 0 ) ? Inf< Index >() : Index( value );
    break;
   case( intNoSol ):  // intNoSol - - - - - - - - - - - - - - - - - - - - - -
    if( ( value > 0 ) && ( NoSol == false ) ) {
@@ -604,33 +701,81 @@ void LagBFunction::set_par( idx_type par , double value )
 
 void LagBFunction::deserialize( const netCDF::NcGroup & group )
 {
- throw( std::logic_error( "LagBFunction::deserialize not implemented yet" ) );
-
  guts_of_destructor();  // cleanup whatever is there now
 
  // ensure f_CC is there (it is deleted in guts_of)
  init_CC();
 
- f_c_changed = false;   // Lagrangian costs are still == to original costs
- f_dirty_Lc = ! LagPairs.empty();  // ... hence they have to be updated,
-                                   // unless the Lagrangian term is empty
- f_yb = INF;            // have to check if b == 0 or not
- f_Lc = -1;             // the Lipschitz constant must be computed
-
  // now the inner Block - - - - - - - - - - - - - - - - - - - - - - - - - - -
- netCDF::NcGroup sb = group.getGroup( "B" );
+
+ netCDF::NcGroup sb = group.getGroup( "Block" );
  if( sb.isNull() )
-  throw( std::invalid_argument( "no inner Block provided" ) );
+  throw( std::invalid_argument( "LagBFunction::deserialize: the group Block "
+				"is missing" ) );
 
- v_Block.push_back( new_Block( sb , this ) );
+ auto inner = new_Block( sb , this );
+ if( ! inner )
+  throw( std::invalid_argument( "LagBFunction::deserialize: the group Block "
+				"does not describe a Block" ) );
 
- // now the Lagrangian term < y , g( x ) >- - - - - - - - - - - - - - - - - -
- //!! not implemented yet
+ set_inner_block( inner );
 
- // call the method of Block- - - - - - - - - - - - - - - - - - - - - - - - -
- // inside this the NBModification, the "nuclear option",  is issued
+ // now the Lagrangian term < y , g( x ) > = < y , A x + b > - - - - - - - - -
+ // the g_i( x ) wait for their y [see set_variables()]
 
- Block::deserialize( group );
+ auto nvd = group.getDim( "NumVar" );
+ const Index n = nvd.isNull() ? 0 : nvd.getSize();
+ auto nzd = group.getDim( "NumNonzero" );
+ const Index nnz = nzd.isNull() ? 0 : nzd.getSize();
+
+ std::vector< Index > nnz_at_row( n , 0 );
+ std::vector< double > A;
+ std::vector< AbstractPath > paths;
+ if( nnz ) {
+  SMSpp_di_unipi_it::deserialize( group , "NumNonzeroAtRow" , n , nnz_at_row ,
+				  false );
+  SMSpp_di_unipi_it::deserialize( group , "A" , nnz , A , false );
+  paths = AbstractPath::vector_deserialize( group.getGroup( "AbstractPath" ) );
+  if( paths.size() != nnz )
+   throw( std::invalid_argument( "LagBFunction::deserialize: the group "
+				 "AbstractPath does not have NumNonzero "
+				 "paths" ) );
+  if( std::accumulate( nnz_at_row.begin() , nnz_at_row.end() , Index( 0 ) )
+      != nnz )
+   throw( std::invalid_argument( "LagBFunction::deserialize: "
+				 "NumNonzeroAtRow does not add up to "
+				 "NumNonzero" ) );
+  }
+
+ std::vector< double > b;
+ if( ! SMSpp_di_unipi_it::deserialize( group , "b" , n , b ) )
+  b.assign( n , 0 );
+
+ v_readA.assign( n , {} );
+ for( Index i = 0 , k = 0 ; i < n ; ++i ) {
+  v_readA[ i ].reserve( nnz_at_row[ i ] );
+  for( Index l = 0 ; l < nnz_at_row[ i ] ; ++l , ++k ) {
+   auto x = paths[ k ].get_element< ColVariable >( inner );
+   if( ! x )
+    throw( std::invalid_argument( "LagBFunction::deserialize: the path " +
+				  std::to_string( k ) + " does not lead to a "
+				  "ColVariable of the inner Block" ) );
+   v_readA[ i ].emplace_back( x , A[ k ] );
+   }
+  }
+ v_readb = std::move( b );
+
+ // the name, as Block::deserialize() reads it- - - - - - - - - - - - - - - -
+ // Block::deserialize() is not called since it issues an NBModification,
+ // which a LagBFunction does not take from itself: as set_inner_block() and
+ // set_dual_pairs(), this is supposed to be called before the LagBFunction
+ // gets an Observer
+
+ netCDF::NcGroupAtt gname = group.getAtt( "name" );
+ if( gname.isNull() )
+  f_name.clear();
+ else
+  gname.getValues( f_name );
 
  }  // end( LagBFunction::deserialize )
 
@@ -640,6 +785,9 @@ void LagBFunction::deserialize( const netCDF::NcGroup & group )
 
 void LagBFunction::add_dual_pairs( v_dual_pair && dp , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( dp.empty() )  // adding nothing
   return;          // cowardly (and silently) return
 
@@ -689,6 +837,9 @@ void LagBFunction::add_dual_pairs( v_dual_pair && dp , ModParam issueMod )
 
 void LagBFunction::remove_variable( Index i , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( i >= LagPairs.size() )
   throw( std::invalid_argument( "LagBFunction::remove_variable: wrong index"
 				) );
@@ -764,6 +915,9 @@ void LagBFunction::remove_variable( Index i , ModParam issueMod )
 
 void LagBFunction::remove_variables( Range range , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  range.second = std::min( range.second , Index( LagPairs.size() ) );
  if( range.second <= range.first )  // actually nothing to remove
   return;                           // cowardly (and silently) return
@@ -901,6 +1055,9 @@ void LagBFunction::remove_variables( Range range , ModParam issueMod )
 void LagBFunction::remove_variables( Subset && nms , bool ordered ,
 				     ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( nms.empty() ) {  // removing all Variables
   if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
    // an Observer is there: copy the names of deleted Variables (all of them)
@@ -1132,6 +1289,19 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
   Index cnt = 0;  // how many linearizations are there
   Subset which;   // which ones get eliminated
 
+  /* If dynamic Variable of the inner Block have been removed, what each
+   * Solution of the global pool holds for them has to go with them: the
+   * values that are left would otherwise be written on the Variable that
+   * have taken their place, and the check would be made on a point that is
+   * nobody's [see Solution::drop_dynamic_values()]. A Solution that cannot
+   * drop them is not checked but deleted, since what it holds only fits the
+   * inner Block as it was. */
+  const void * rmvd_cell = nullptr;
+  Subset rmvd_positions;
+  bool rmvd_all = false;
+  const bool rmvd = rmvd_vars( mod.get() , rmvd_cell , rmvd_positions ,
+			       rmvd_all );
+
   // only run the elimination loop if Solution are there, otherwise assume
   // the worst and remove everything
   if( NoSol ) {
@@ -1144,13 +1314,29 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
     if( g_pool[ i ].sol ) {  // a Solution is there
      ++cnt;
 
-     // check it's still a feasible solution/direction: the Block is told
-     // which of the two it is being handed and answers with one method
-     const bool feas = check_Solution( g_pool[ i ].sol ,
-                                       g_pool[ i ].varsol );
+     // the values of the Variable that are gone go with them, and an entry
+     // that cannot let them go does not fit the inner Block any more [see
+     // Solution::adapt()]
+     bool feas = true;
+     if( rmvd ) {
+      std::vector< double > dropped;
+      feas = ( g_pool[ i ].sol->adapt( v_Block.front() , *mod , dropped ) !=
+	       Solution::kInvalid );
+      }
+
+     // check it's still a feasible solution/direction: the Solution says
+     // which of the two it is and the Block answers with one method
+     if( feas )
+      feas = check_Solution( g_pool[ i ].sol );
      if( ! feas ) {              // if not
-      delete g_pool[ i ].sol;  // eliminate it
-      g_pool[ i ].sol = nullptr;
+      // the handlers of eColumnPurged may take the Solution before it is
+      // eliminated [see release_current_purged_solution()]
+      f_purged = std::exchange( g_pool[ i ] , gpool_el{} );
+      for( auto & handler : v_purged_handlers )
+       if( handler )
+	handler();
+      delete f_purged.sol;     // eliminate it (if still there)
+      f_purged = gpool_el{};
       which.push_back( i );      // recall its name
       LastSolution = g_pool.size();
       // say that no Solution is saved in the Block, since the name is now
@@ -1161,34 +1347,34 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
    update_f_max_glob();
    }
 
-  // if nobody is listening (assuming issueMod == eModBlck)
-  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( eModBlck ) ) )
-   return;  // all done
-  
-  // issue a LagBFunctionMod: if some linearizations have been removed it has
-  // type() == GlobalPoolRemoved, otherwise it has type() == NothingChanged
-  // note: the explicit definition of type here was originally avoided by
-  //       having the ? expression directly in the constructor, but this
-  //       meant that the same expression had a check if which was nonempty
-  //       and a std-move of which that could make it empty, i.e., the
-  //       perfect example of an expression with side-effects whose result
-  //       depended on the order of the sub-expressions and therefore was
-  //       compiler-dependent, meaning extremely-hard-to-find errors 
-  auto type = which.empty() ? C05FunctionMod::NothingChanged
-                            : C05FunctionMod::GlobalPoolRemoved;
+  // if somebody is listening (assuming issueMod == eModBlck), issue a
+  // LagBFunctionMod; the Modification is forwarded to the father anyway
+  if( f_Observer && f_Observer->issue_mod( eModBlck ) ) {
+   // issue a LagBFunctionMod: if some linearizations have been removed it has
+   // type() == GlobalPoolRemoved, otherwise it has type() == NothingChanged
+   // note: the explicit definition of type here was originally avoided by
+   //       having the ? expression directly in the constructor, but this
+   //       meant that the same expression had a check if which was nonempty
+   //       and a std-move of which that could make it empty, i.e., the
+   //       perfect example of an expression with side-effects whose result
+   //       depended on the order of the sub-expressions and therefore was
+   //       compiler-dependent, meaning extremely-hard-to-find errors
+   auto type = which.empty() ? C05FunctionMod::NothingChanged
+                             : C05FunctionMod::GlobalPoolRemoved;
 
-  // in both cases it has shift() == NaN, since even if by chance none of the
-  // existing linearizations is affected (but this may simply be because
-  // there is none) the value of the function in general has changed
-  // unpredictably if all linearizations have been removed, then pass an
-  // empty Subset
-  if( cnt == which.size() )
-   which.clear();
- 
-  f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
-				    this , type , std::move( which ) , what ,
-				    C05FunctionMod::NaNshift , true ) ,
-				chnl );
+   // in both cases it has shift() == NaN, since even if by chance none of the
+   // existing linearizations is affected (but this may simply be because
+   // there is none) the value of the function in general has changed
+   // unpredictably if all linearizations have been removed, then pass an
+   // empty Subset
+   if( cnt == which.size() )
+    which.clear();
+
+   f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
+				     this , type , std::move( which ) , what ,
+				     C05FunctionMod::NaNshift , true ) ,
+				 chnl );
+   }
 
   }  // end( if( checking is required ) )
 
@@ -1222,21 +1408,57 @@ void LagBFunction::print( std::ostream & output , char vlvl ) const
 
 void LagBFunction::serialize( netCDF::NcGroup & group ) const
 {
- throw( std::logic_error( "LagBFunction::serialize not implemented yet" ) );
+ if( v_Block.size() != 1 )
+  throw( std::logic_error( "LagBFunction::serialize: exactly one inner Block "
+			   "expected" ) );
 
  // call the method of Block- - - - - - - - - - - - - - - - - - - - - - - - -
 
  Block::serialize( group );
 
- // now the Lagrangian term < y , g(x) >- - - - - - - - - - - - - - - - - - -
- //!! not implemented yet
+ // now the Lagrangian term < y , g( x ) > = < y , A x + b > - - - - - - - - -
+ // the one of LagPairs, or else the one read and waiting for its y
+
+ const auto inner = v_Block.front();
+ std::vector< Index > nnz_at_row;
+ std::vector< double > A;
+ std::vector< double > b;
+ std::vector< AbstractPath > paths;
+
+ auto add_row = [ & ]( const LinearFunction::v_coeff_pair & terms ,
+		       double constant ) {
+  nnz_at_row.push_back( terms.size() );
+  for( const auto & [ x , a ] : terms ) {
+   A.push_back( a );
+   paths.emplace_back( x , inner );
+   }
+  b.push_back( constant );
+  };
+
+ if( ! LagPairs.empty() )
+  for( const auto & dp : LagPairs ) {
+   const auto lf = static_cast< p_LF >( dp.second );
+   add_row( lf->get_v_var() , lf->get_constant_term() );
+   }
+ else
+  for( Index i = 0 ; i < v_readA.size() ; ++i )
+   add_row( v_readA[ i ] , v_readb[ i ] );
+
+ auto nvd = group.addDim( "NumVar" , b.size() );
+ SMSpp_di_unipi_it::serialize( group , "b" , netCDF::NcDouble() , nvd , b );
+
+ if( ! A.empty() ) {
+  auto nzd = group.addDim( "NumNonzero" , A.size() );
+  SMSpp_di_unipi_it::serialize( group , "NumNonzeroAtRow" , netCDF::NcUint() ,
+				nvd , nnz_at_row );
+  SMSpp_di_unipi_it::serialize( group , "A" , netCDF::NcDouble() , nzd , A );
+  auto pg = group.addGroup( "AbstractPath" );
+  AbstractPath::serialize( paths , pg );
+  }
 
  // now the inner Block - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( v_Block.size() != 1 )
-  throw( std::invalid_argument( "exactly one sub-Block expected" ) );
-
- netCDF::NcGroup sb = group.addGroup( "B" );
+ netCDF::NcGroup sb = group.addGroup( "Block" );
 
  if( ! f_c_changed ) {  // if the costs are still the original ones
   v_Block.front()->serialize( sb );  // just do it
@@ -1257,7 +1479,8 @@ void LagBFunction::serialize( netCDF::NcGroup & group ) const
 
  bool owned = v_Block.front()->is_owned_by( f_id );
  if( ( ! owned ) && ( ! v_Block.front()->lock( f_id ) ) )
-  throw( std::logic_error( "cannot lock inner Block" ) );
+  throw( std::logic_error( "LagBFunction::serialize: cannot lock the inner "
+			   "Block" ) );
 
  // The costs saved in (obj_B) are the Lagrangian ones. Hence, we need
  // to restore the original ones before serializing (B).
@@ -1266,10 +1489,14 @@ void LagBFunction::serialize( netCDF::NcGroup & group ) const
  // to (temporarily) change a field of the class inside a const method
  const_cast< LagBFunction * >( this )->f_play_dumb = true;
 
+ // the Lagrangian costs of each Objective, to be put back afterwards
+ std::vector< Vec_FunctionValue > LagCoef( v_Obj.size() );
+
  for( Index h = 0 ; h < v_Obj.size() ; ++h ) {
   auto * f = v_Obj[ h ]->get_function();
 
-  Vec_FunctionValue NCoef1, NCoef2;
+  Vec_FunctionValue NCoef1;
+  auto & NCoef2 = LagCoef[ h ];
 
   if( auto * lf = dynamic_cast< p_LF >( f ) ) {
    const auto & ov_pair = lf->get_v_var();
@@ -1308,27 +1535,11 @@ void LagBFunction::serialize( netCDF::NcGroup & group ) const
  for( Index h = 0 ; h < v_Obj.size() ; ++h ) {
   auto * f = v_Obj[ h ]->get_function();
 
-  Vec_FunctionValue NCoef;
-
-  if( auto * lf = dynamic_cast< p_LF >( f ) ) {
-   const auto & ov_pair = lf->get_v_var();
-   const auto nv = lf->get_num_active_var();
-   NCoef.resize( nv );
-   for( Index i = 0 ; i < nv ; ++i )
-    NCoef[ i ] = ov_pair[ i ].second;
-
-   lf->modify_coefficients( std::move( NCoef ) );
-   }
+  if( auto * lf = dynamic_cast< p_LF >( f ) )
+   lf->modify_coefficients( std::move( LagCoef[ h ] ) );
   else
-   if( auto * qf = dynamic_cast< p_QF >( f ) ) {
-    const auto & ov_triples = qf->get_v_var();
-    const auto nv = qf->get_num_active_var();
-    NCoef.resize( nv );
-    for( Index i = 0 ; i < nv ; ++i )
-     NCoef[ i ] = std::get< 1 >( ov_triples[ i ] );
-
-    qf->modify_linear_coefficients( std::move( NCoef ) );
-    }
+   if( auto * qf = dynamic_cast< p_QF >( f ) )
+    qf->modify_linear_coefficients( std::move( LagCoef[ h ] ) );
   }
 
  // back to normal operations
@@ -1362,6 +1573,12 @@ void LagBFunction::put_State( const State & state )
  if( s.f_max_glob > g_pool.size() )
   g_pool.resize( s.f_max_glob );
 
+ // an entry of the global pool is not one of those that are put in it, and
+ // an undefined LastSolution stays so in a global pool that has grown [see
+ // set_par( intGPMaxSz )]: either way, the Block holds no entry of it
+ if( LastSolution < Inf< Index >() )
+  LastSolution = g_pool.size();
+
  // copy the important linearization information
  zLC = s.zLC;
 
@@ -1391,9 +1608,10 @@ void LagBFunction::put_State( const State & state )
     if( s.g_pool[ i ].sol ) {
      // if it's still a feasible solution/direction, copy it: the Block is
      // told which of the two it is being handed and answers with one method
-     if( check_Solution( s.g_pool[ i ].sol , s.g_pool[ i ].varsol ) ) {
+     if( check_Solution( s.g_pool[ i ].sol ) ) {
       gpit->sol = s.g_pool[ i ].sol->clone();  // clone() the Solution in
       gpit->varsol = s.g_pool[ i ].varsol;
+      gpit->sol->is_direction( ! gpit->varsol );
       gpit->value = s.g_pool[ i ].value;            // eager/lazy constant
       gpit->convexified = s.g_pool[ i ].convexified;
       gpit->conv_active.clear();                    // cache: rebuilt lazily
@@ -1408,6 +1626,7 @@ void LagBFunction::put_State( const State & state )
     if( s.g_pool[ i ].sol ) {
      gpit->sol = s.g_pool[ i ].sol->clone();  // clone() the Solution in
      gpit->varsol = s.g_pool[ i ].varsol;
+     gpit->sol->is_direction( ! gpit->varsol );
      gpit->value = s.g_pool[ i ].value;            // eager/lazy constant
      gpit->convexified = s.g_pool[ i ].convexified;
      gpit->conv_active.clear();                    // cache: rebuilt lazily
@@ -1453,6 +1672,12 @@ void LagBFunction::put_State( State && state )
  if( s.f_max_glob > g_pool.size() )
   g_pool.resize( s.f_max_glob );
 
+ // an entry of the global pool is not one of those that are put in it, and
+ // an undefined LastSolution stays so in a global pool that has grown [see
+ // set_par( intGPMaxSz )]: either way, the Block holds no entry of it
+ if( LastSolution < Inf< Index >() )
+  LastSolution = g_pool.size();
+
  // move the important linearization information
  zLC = std::move( s.zLC );
 
@@ -1482,10 +1707,11 @@ void LagBFunction::put_State( State && state )
     if( s.g_pool[ i ].sol ) {
      // if it's still a feasible solution/direction, copy it: the Block is
      // told which of the two it is being handed and answers with one method
-     if( check_Solution( s.g_pool[ i ].sol , s.g_pool[ i ].varsol ) ) {
+     if( check_Solution( s.g_pool[ i ].sol ) ) {
       gpit->sol = s.g_pool[ i ].sol;  // move the Solution in
       s.g_pool[ i ].sol = nullptr;      // delete it from the State
       gpit->varsol = s.g_pool[ i ].varsol;
+      gpit->sol->is_direction( ! gpit->varsol );
       gpit->value = s.g_pool[ i ].value;            // eager/lazy constant
       gpit->convexified = s.g_pool[ i ].convexified;
       gpit->conv_active.clear();                    // cache: rebuilt lazily
@@ -1501,6 +1727,7 @@ void LagBFunction::put_State( State && state )
      gpit->sol = s.g_pool[ i ].sol;  // move the Solution in
      s.g_pool[ i ].sol = nullptr;      // delete it from the State
      gpit->varsol = s.g_pool[ i ].varsol;
+     gpit->sol->is_direction( ! gpit->varsol );
      gpit->value = s.g_pool[ i ].value;            // eager/lazy constant
      gpit->convexified = s.g_pool[ i ].convexified;
      gpit->conv_active.clear();                    // cache: rebuilt lazily
@@ -1559,6 +1786,19 @@ void LagBFunction::serialize_State( netCDF::NcGroup & group ,
  
   ( group.addVar( "LagBFunction_Type" , netCDF::NcByte() , gs )
     ).putVar( { 0 } , {  f_max_glob } , typ.data() );
+
+  // the constant and the convexified flag of each entry, as
+  // LagBFunctionState::serialize() writes them: 0 and false for an empty one
+  std::vector< double > val( f_max_glob );
+  std::vector< int > cvx( f_max_glob );
+  for( Index i = 0 ; i < f_max_glob ; ++i ) {
+   val[ i ] = g_pool[ i ].sol ? g_pool[ i ].value : 0;
+   cvx[ i ] = ( g_pool[ i ].sol && g_pool[ i ].convexified ) ? 1 : 0;
+   }
+  ( group.addVar( "LagBFunction_Value" , netCDF::NcDouble() , gs ) ).putVar(
+				      { 0 } , { f_max_glob } , val.data() );
+  ( group.addVar( "LagBFunction_Convexified" , netCDF::NcByte() , gs )
+    ).putVar( { 0 } , { f_max_glob } , cvx.data() );
 
   for( Index i = 0 ; i < f_max_glob ; ++i ) {
    if( ! g_pool[ i ].sol )
@@ -1630,8 +1870,48 @@ bool LagBFunction::compute_new_linearization( const bool diagonal )
 
 /*--------------------------------------------------------------------------*/
 
+void LagBFunction::restore_purged_solutions( v_gpool_el && sols ,
+					     ModParam issueMod )
+{
+ Subset added;
+ Index pos = 0;
+ for( auto & el : sols ) {
+  if( ! el.sol )
+   continue;
+
+  // the first free position of the global pool
+  while( ( pos < g_pool.size() ) && g_pool[ pos ].sol )
+   ++pos;
+  if( pos == g_pool.size() )
+   throw( std::logic_error( "LagBFunction::restore_purged_solutions: the "
+			    "global pool is full" ) );
+
+  g_pool[ pos ] = std::move( el );
+  el = gpool_el{};
+  added.push_back( pos );
+  if( pos + 1 > f_max_glob )
+   f_max_glob = pos + 1;
+  ++pos;
+  }
+
+ // tell the Observer (if any) about all of them at once
+ if( added.empty() || ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod ) ) )
+  return;
+
+ f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
+  this , C05FunctionMod::GlobalPoolAdded , std::move( added ) , 0 , 0 ) ,
+			       Observer::par2chnl( issueMod ) );
+
+ }  // end( LagBFunction::restore_purged_solutions )
+
+/*--------------------------------------------------------------------------*/
+
 void LagBFunction::store_linearization( Index name , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( name >= g_pool.size() )
   throw( std::logic_error(
 	 "LagBFunction::store_linearization: invalid linearization name" ) );
@@ -1656,6 +1936,8 @@ void LagBFunction::store_linearization( Index name , ModParam issueMod )
   }
 
  g_pool[ name ].varsol = VarSol;  // record the Solution type
+ if( ! NoSol )                    // and the Solution is told what it holds
+  g_pool[ name ].sol->is_direction( ! VarSol );
  // reset the slot in case it previously held a convexified linearization; the
  // epigraphic correction (if any) is computed right below
  g_pool[ name ].convexified = false;
@@ -1731,6 +2013,9 @@ void LagBFunction::store_linearization( Index name , ModParam issueMod )
 void LagBFunction::store_combination_of_linearizations(
 	c_LinearCombination & coefficients , Index name , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( name >= g_pool.size() )
   throw( std::logic_error( "max size of global pool already exceed" ) );
 
@@ -1756,7 +2041,10 @@ void LagBFunction::store_combination_of_linearizations(
  auto first = coefficients[ 0 ].first;
  auto convex_combination = ( g_pool[ first ].sol
 			     )->scale( coefficients[ 0 ].second );
- bool type = g_pool[ first ].varsol;  // diagonal unless already vertical
+ // the combination is diagonal as soon as one of its constituents is, the
+ // vertical ones entering it with conic multipliers; it is vertical only if
+ // all of them are
+ bool type = g_pool[ first ].varsol;
 
  // for all other Solutions in the pool
  for( Index i = 1 ; i < coefficients.size() ; ++i ) {
@@ -1773,9 +2061,8 @@ void LagBFunction::store_combination_of_linearizations(
   // add the new term to the convex combination
   convex_combination->sum( g_pool[ pos ].sol , mult );
 
-  // if the convex combination even contains a single direction
-  if( ! g_pool[ pos ].varsol )
-   type = false;  // then it is a direction
+  if( g_pool[ pos ].varsol )
+   type = true;
   }
 
  // BEFORE overwriting slot 'name' (it may itself be one of the constituents),
@@ -1836,6 +2123,8 @@ void LagBFunction::store_combination_of_linearizations(
   }
 
  g_pool[ name ].varsol = type;             // store the type
+ if( g_pool[ name ].sol )                  // and the Solution is told it
+  g_pool[ name ].sol->is_direction( ! type );
  g_pool[ name ].conv_active = std::move( comb_ca );  // empty if not combinable
 
  if( name == LastSolution )    // if this was the Solution in the inner Block
@@ -1873,6 +2162,9 @@ void LagBFunction::store_combination_of_linearizations(
 
 void LagBFunction::delete_linearization( Index name , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( ( name >= g_pool.size() ) || ( ! g_pool[ name ].sol ) )
   throw( std::invalid_argument(
 	 "LagBFunction::delete_linearization: invalid linearization name" ) );
@@ -1902,6 +2194,9 @@ void LagBFunction::delete_linearization( Index name , ModParam issueMod )
 void LagBFunction::delete_linearizations( Subset && which , bool ordered ,
 					  ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( which.empty() ) {  // delete them all
   if( NoSol )
    for( Index i = 0 ; i < f_max_glob ; ++i )
@@ -1964,9 +2259,22 @@ void LagBFunction::delete_linearizations( Subset && which , bool ordered ,
 
 int LagBFunction::compute( bool changedvars )
 {
+ // if a BlockSolverConfig is waiting for the first compute(), apply it now
+ // [see set_lazy_inner_BlockSolverConfig()]
+ if( lazy_inner_BlockSolverConfig_pending() && ( ! v_Block.empty() ) ) {
+  auto inner = v_Block.front();
+  const auto nslv = inner->get_registered_solvers().size();
+  f_lBSC->set_diff( BlockSolverConfig::eAddMode );
+  f_lBSC->apply( inner );
+  f_lBSC->clear();
+  f_lBSC_on = true;
+  if( inner->get_registered_solvers().size() > nslv )
+   set_par( intInnrSlvr , int( nslv ) );
+  }
+
  auto is = inner_Solver();
- if( ! is )          // there is no inner Solver
-  return( kError );  // that's clearly an error
+ if( ! is )  // there is no inner Solver [see intInnrSlvr]
+  throw( std::logic_error( "LagBFunction::compute: no inner Solver" ) );
 
  // if required, check if b == 0 or not- - - - - - - - - - - - - - - - - - - -
  if( f_yb == INF ) {
@@ -2031,12 +2339,25 @@ int LagBFunction::compute( bool changedvars )
   // objective, the sorted positions j coupled to a multiplier (non-empty
   // CostMatrix[h][j].second). Cached; rebuilt only on f_active_dirty, so the
   // per-compute loop below iterates O(|coupled|) and not O(#vars).
+  // A position that has lost its last multiplier [see remove_variable()]
+  // still carries in the Objective the Lagrangian cost last written there:
+  // it is kept until the loop below has put its original cost back, which
+  // the next rebuild sees, dropping it
   if( f_active_dirty ) {
    v_active.assign( CostMatrix.size() , Subset() );
    for( Index h = 0 ; h < CostMatrix.size() ; ++h ) {
     const auto & cm = CostMatrix[ h ];
+    auto * fn = v_Obj[ h ]->get_function();
+    const Index nv = ! v_ObjIsQuad[ h ]
+                      ? static_cast< p_LF >( fn )->get_num_active_var()
+                      : static_cast< p_QF >( fn )->get_num_active_var();
     for( Index i = 0 ; i < cm.size() ; ++i )
-     if( ! cm[ i ].second.empty() )
+     if( ( ! cm[ i ].second.empty() ) ||
+         ( ( i < nv ) &&
+           ( ( ! v_ObjIsQuad[ h ]
+               ? static_cast< p_LF >( fn )->get_v_var()[ i ].second
+               : std::get< 1 >( static_cast< p_QF >( fn )->get_v_var()[ i ] ) )
+             != cm[ i ].first ) ) )
       v_active[ h ].push_back( i );
     }
    f_active_dirty = false;
@@ -3224,6 +3545,10 @@ void LagBFunction::guts_of_destructor( bool deleteinner )
 
  clear();
 
+ // remove the Solver registered by the BlockSolverConfig given with
+ // set_lazy_inner_BlockSolverConfig(), if any, before those of f_BSC
+ set_lazy_inner_BlockSolverConfig( nullptr );
+
  // cleanup and possibly delete the inner Block - - - - - - - - - - - - - - -
 
  if( ! v_Block.empty() ) {  // ... if any
@@ -3865,15 +4190,27 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
  if( dynamic_cast< const BlockMod * >( mod ) )
   return( 64 );
 
+ // any other Modification - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- return( 0 );  // ignore any other Modification (BAD!!)
- // indeed, the safe return value would be 128: if I don't understand it,
- // it can wreak arbitrary havok. but this would be severely over-reacting
- // in many cases, so we avoid it for the time being
- //
- // yet another example about why we should be adding some "semantic"
- // information to Modification that give an idea of the kind of change that
- // they can exert on the model
+ // what it does to the inner Block is what it says of itself [see
+ // Modification::changes()]. One that may shrink the feasible region may
+ // take away the feasibility of the Solution in the global pool, which have
+ // then to be checked, as for an arbitrary change of the inner Block (64);
+ // among these, the physical Modification of the inner Block, which say so
+ // until the Block says more of them. An abstract one that changes the
+ // Objective in a way not dealt with above is reported as unknown (128),
+ // the pool being checked anyway; the Objective changed by a physical one is
+ // seen through the abstract Objective, which the inner Block keeps in step
+ // and whose Modification are dealt with above. Any other cannot take away
+ // the feasibility of the pool, and nothing has to be done.
+
+ if( mod->may_shrink_region() )
+  return( 64 );
+
+ if( mod->is_abstract() && mod->changes_objective() )
+  return( char( 128 ) );
+
+ return( 0 );
 
  }  // end( LagBFunction::guts_of_guts_of_add_Modification )
 
@@ -4595,6 +4932,7 @@ void LagBFunction::update_CostMatrix_ModVarsAddd( Index h ,
  // Objective may well reference Variable owned by other nested sub-Block
 
  m_column & CM = CostMatrix[ h ];
+ std::vector< bool > stealthy( vars.size() , false );
 
  if( v_tmpCP.empty() || v_tmpCP[ h ].empty() ) {
   // there are no variables to be "stealthily" added to obj, hence
@@ -4625,9 +4963,30 @@ void LagBFunction::update_CostMatrix_ModVarsAddd( Index h ,
      tmpCP.erase( tmpCP.begin() + i );
      CM[ first + j ] = std::move( CM[ first + nv + j ] );
      CM.erase( CM.begin() + first + nv + i );
+     stealthy[ j ] = true;
      break;
     }
  }
+
+ // the original cost of each new variable is the coefficient it has entered
+ // the Objective with, but for those the LagBFunction itself has added
+ const auto fn = v_Obj[ h ]->get_function();
+ for( Index j = 0 ; j < vars.size() ; ++j ) {
+  if( stealthy[ j ] )
+   continue;
+  if( v_ObjIsQuad[ h ] ) {
+   const auto qf = static_cast< p_QF >( fn );
+   const auto k = qf->is_active( vars[ j ] );
+   if( k < qf->get_num_active_var() )
+    CM[ first + j ].first = qf->get_linear_coefficient( k );
+   }
+  else {
+   const auto lf = static_cast< p_LF >( fn );
+   const auto k = lf->is_active( vars[ j ] );
+   if( k < lf->get_num_active_var() )
+    CM[ first + j ].first = lf->get_coefficient( k );
+   }
+  }
 }  // end( LagBFunction::update_CostMatrix_ModVarsAddd )
 
 /*--------------------------------------------------------------------------*/
@@ -4720,8 +5079,16 @@ void LagBFunction::update_CostMatrix_ModVarsSbst( Index h ,
  // still to be added, because if they are still to be added they cannot
  // have been deleted
 
- if( vars.empty() || sbst.empty() )
+ if( vars.empty() )
   return;
+
+ // an empty subset means that all the Variable have been removed, the i-th
+ // of vars() having been the i-th of the Objective [see FunctionModVarsSbst],
+ // which is the range version with the whole range
+ if( sbst.empty() ) {
+  update_CostMatrix_ModVarsRngd( h , vars , Range( 0 , vars.size() ) );
+  return;
+  }
 
  // the index of the modified Objective is provided by the caller: it cannot
  // be recovered here from the Variable in the Modification, since an inner
@@ -4779,11 +5146,14 @@ void LagBFunction::set_default_inner_BlockConfig( void )
 
 void LagBFunction::set_default_inner_BlockSolverConfig( void )
 {
- if( auto ib = get_inner_block() ) {
-  auto solver_config = new RBlockSolverConfig( ib );
-  solver_config->clear();
-  solver_config->apply( ib );
-  delete solver_config;
+ // f_BSC is the clear()-ed copy of the BlockSolverConfig of the last
+ // set_ComputeConfig(), whose apply() un-registers and deletes exactly the
+ // Solver that it had registered [see set_ComputeConfig()]
+ if( f_BSC ) {
+  if( auto ib = get_inner_block() )
+   f_BSC->apply( ib );
+  delete f_BSC;
+  f_BSC = nullptr;
   }
  }
 
@@ -4870,6 +5240,8 @@ void LagBFunctionState::deserialize( const netCDF::NcGroup & group )
    int ti;
    nct.getVar( { i } , &ti );
    g_pool[ i ].varsol = ( ti != 0 );
+   if( g_pool[ i ].sol )  // a State written before the Solution carried it
+    g_pool[ i ].sol->is_direction( ti == 0 );
 
    if( ! ncv.isNull() )
     ncv.getVar( { i } , &( g_pool[ i ].value ) );

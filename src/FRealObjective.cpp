@@ -37,6 +37,9 @@ using namespace SMSpp_di_unipi_it;
 void FRealObjective::set_function( Function * const function ,
                                    ModParam issueMod , bool deleteold )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( function == f_function )  // changing nothing
   return;                      // all done
 
@@ -82,6 +85,9 @@ void FRealObjective::set_function( Function * const function ,
 /*--------------------------------------------------------------------------*/
 
 void FRealObjective::remove_variable( Index i, ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  /* FRealObjective typically relies on FunctionModVars to know if something
   * has happened to the Variable of the Function and register/unregister
   * itself from them. However, in this case it knows beforehand what is
@@ -91,7 +97,7 @@ void FRealObjective::remove_variable( Index i, ModParam issueMod ) {
  if( ! f_function )
   return;
 
- if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
+ if( f_Block && f_Block->issue_mod( issueMod ) )
   f_function->remove_variable( i, issueMod );
  else {
   // unregistration can preceed removal, since the Function completely
@@ -104,15 +110,21 @@ void FRealObjective::remove_variable( Index i, ModParam issueMod ) {
 /*--------------------------------------------------------------------------*/
 
 void FRealObjective::remove_variables( Range range, ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( ! f_function )
   return;
 
- if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
+ if( f_Block && f_Block->issue_mod( issueMod ) )
   f_function->remove_variables( range, issueMod );
  else {
   // unregistration can preceed removal, since the Function completely
-  // ignores this information
-  for( Index i = range.first; i < range.second; )
+  // ignores this information; the Range is cut to the active Variable, as
+  // the Function does
+  range.second = std::min( range.second ,
+			   f_function->get_num_active_var() );
+  for( Index i = range.first ; i < range.second ; )
    f_function->get_active_var( i++ )->remove_active( this );
   f_function->remove_variables( range, eNoMod );
  }
@@ -122,19 +134,37 @@ void FRealObjective::remove_variables( Range range, ModParam issueMod ) {
 
 void FRealObjective::remove_variables( Subset && nms, bool ordered,
                                        ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( ! f_function )
   return;
 
- if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
-  f_function->remove_variables( std::move( nms ), ordered, issueMod );
+ if( f_Block && f_Block->issue_mod( issueMod ) )
+  f_function->remove_variables( std::move( nms ) , ordered , issueMod );
  else {
   // unregistration can preceed removal, since the Function completely
-  // ignores this information
-  for( auto i : nms )
-   f_function->get_active_var( i++ )->remove_active( this );
+  // ignores this information; the empty Subset means all the Variable
+  if( nms.empty() )
+   for( Index i = 0 ; i < f_function->get_num_active_var() ; ++i )
+    f_function->get_active_var( i )->remove_active( this );
+  else
+   for( auto i : nms )
+    f_function->get_active_var( i )->remove_active( this );
   f_function->remove_variables( std::move( nms ), ordered, eNoMod );
  }
 }  // end( FRealObjective::remove_variables( subset ) )
+
+/*--------------------------------------------------------------------------*/
+
+Modification::ModConcern FRealObjective::concerned( void ) const
+{
+ const auto block = f_Block ? f_Block->concerned()
+                    : Modification::ModConcern( 0 );
+ return( Modification::eModVarSet |
+         ( Modification::is_of_concern( Modification::eModObj , block ) ?
+           Modification::eModObj : 0 ) );
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -186,8 +216,11 @@ void FRealObjective::add_Modification( sp_Mod mod , c_ChnlName chnl ) {
  guts_of_aM( mod );  // now the actual call to the "guts of"
 
  // finally, dispatch to add_Modification() of the Block - - - - - - - - - - -
+ // if any, and either listening or concerned by the Modification: an
+ // "abstract" Modification issued with eModBlck must reach the Block even if
+ // no Solver is there, for it to keep the "physical" representation in synch
 
- if( f_Block && f_Block->anyone_there() )  // ... if any, and listening
+ if( f_Block && ( f_Block->anyone_there() || mod->concerns_Block() ) )
   f_Block->add_Modification( mod , chnl );
 
  }  // end( FRealObjective::add_Modification )

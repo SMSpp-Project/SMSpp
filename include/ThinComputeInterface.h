@@ -2389,6 +2389,14 @@ class ComputeConfig : public Configuration
   * present in the ComputeConfig are replaced; new ones are appended;
   * the rest is preserved.
   *
+  * The extra-Configuration slot is optional: if the stream ends, or the
+  * next token is neither a '*' nor the name of a Configuration in the
+  * factory (e.g., it is the next key of the meta-configuration that
+  * contains this one), the extra Configuration is kept and the token is
+  * left in the stream. This requires a stream that can be repositioned
+  * (a file or a string); in one that cannot, whatever follows is read as
+  * the extra slot.
+  *
   * Used by Configuration::deserialize(std::istream &) to implement the
   * `* base.txt + <body>` cascade-override syntax. */
 
@@ -2587,7 +2595,7 @@ class ComputeConfig : public Configuration
 
   if( it == vint_pars.end() ) {
    vint_pars.emplace_back( std::move( name ) , std::vector< int >() );
-   it = (vint_pars.end())--;
+   it = std::prev( vint_pars.end() );
    }
 
   if( pos >= decltype( pos )( it->second.size() ) )
@@ -2638,7 +2646,7 @@ class ComputeConfig : public Configuration
 
   if( it == vdbl_pars.end() ) {
    vdbl_pars.emplace_back( std::move( name ) , std::vector< double >() );
-   it = (vdbl_pars.end())--;
+   it = std::prev( vdbl_pars.end() );
    }
 
   if( pos >= decltype( pos )( it->second.size() ) )
@@ -2690,7 +2698,7 @@ class ComputeConfig : public Configuration
 
   if( it == vstr_pars.end() ) {
    vstr_pars.emplace_back( std::move( name ) , std::vector< std::string >() );
-   it = (vstr_pars.end())--;
+   it = std::prev( vstr_pars.end() );
    }
 
   if( pos >= decltype( pos )( it->second.size() ) )

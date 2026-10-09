@@ -132,14 +132,16 @@ namespace SMSpp_di_unipi_it
  *   PolyhedralFunctionModRngd or a PolyhedralFunctionModSbst being issued,
  *   with shift() == NANshift (the function has changed "unpredictably"),
  *   type() == AllLinearizationChanged (all the linearizations may have
- *   changed, although actually only a subset of them has) and PFtype() ==
- *   ModifyRows.
+ *   changed, although actually only a subset of them has) if any of the
+ *   modified rows is in the global pool, NothingChanged otherwise, and
+ *   PFtype() == ModifyRows.
  *
  * - Changes of elements of b (either one, or a range or a subset of them)
  *   only, which results in either a PolyhedralFunctionModRngd or a 
  *   PolyhedralFunctionModSbst being issued, with type() == AlphaChanged (all
  *   the alphas may have changed, although actually only a subset of them
- *   has) and PFtype() == ModifyCnst. As for with shift(), it may be
+ *   has) if any of the modified rows is in the global pool, NothingChanged
+ *   otherwise, and PFtype() == ModifyCnst. As for with shift(), it may be
  *   == NANshift, but also to +-INFshift if the elements of b have changed
  *   "monotonically".
 
@@ -167,7 +169,8 @@ namespace SMSpp_di_unipi_it
  *   global pool may disappear. Even worse, and aggregated linearization may
  *   have been constructed out of the ones that are deleted, and there is no
  *   way of saying it in general. Hence, the PolyhedralFunctionMod* will
- *   have type() = C05FunctionMod::AlphaChanged; if
+ *   have type() = C05FunctionMod::GlobalPoolRemoved, with which() the names
+ *   that leave the global pool, if
  *
  *   = any of the deleted rows are present in the global pool;
  *
@@ -378,6 +381,7 @@ class PolyhedralFunction : public C05Function {
     f_loc_pool_sz( 1 ) , f_next( 0 ) ,  f_max_glob( 0 ) , f_inf_idx( 0 ) ,
     f_n_vert( 0 ) , f_n_violated( 0 )
  {
+  AAccMlt = C05Function::get_dflt_dbl_par( dblAAccMlt );
   v_ord.resize( 1 );
   v_ord[ 0 ] = 0;
   set_variables( std::move( x ) );
@@ -486,8 +490,8 @@ class PolyhedralFunction : public C05Function {
   *
   * In the former case, the PolyhedralFunction is in a "well defined state"
   * at all times: after the call to set_variables() everything is there, only
-  * A is empty and therefore the function is identically - INF if convex,
-  * + INF if concave (maximization / minimization over an empty set). In the
+  * A is empty and therefore the function is identically + INF if convex,
+  * - INF if concave (see the GENERAL NOTES of PolyhedralFunction). In the
   * latter case, however, the data is there, except that the
   * PolyhedralFunction has no input Variable; the object is in a
   * not-fully-consistent defined state. Having an Observer (then, Solver)
@@ -559,8 +563,8 @@ class PolyhedralFunction : public C05Function {
 
     v_glob.resize( value , Inf< int >() );  // resize v_glob
 
-    if( f_max_glob >= Index( value ) ) {  // some linearizations are lost
-     f_max_glob = value ? value - 1 : 0;  // value could be 0 ...
+    if( f_max_glob > Index( value ) ) {  // some linearizations are lost
+     f_max_glob = value;
 
      update_f_max_glob();
 
@@ -588,6 +592,7 @@ class PolyhedralFunction : public C05Function {
   switch( par ) {
    case( dblAAccMlt ):
     AAccMlt = value;
+    break;
    case( dblRAccLin ):
    case( dblAAccLin ):
     break;
@@ -713,9 +718,10 @@ class PolyhedralFunction : public C05Function {
 
   // finite state: only diagonal linearizations are available, and they
   // are v_ord[ 0 .. get_nrows() - f_n_vert ] (bound + diagonal rows
-  // sorted by value)
+  // sorted by value); if the bound is not set, the last of them is the
+  // flat one at -/+ INF, which is not a linearization
   if( ( ! diagonal ) || ( v_A.empty() && ( ! is_bound_set() ) ) ||
-      ( f_next + 1 > get_nrows() - f_n_vert ) )
+      ( f_next + 1 + ( is_bound_set() ? 0 : 1 ) > get_nrows() - f_n_vert ) )
    return( false );
 
   ++f_next;
@@ -731,7 +737,7 @@ class PolyhedralFunction : public C05Function {
 /*--------------------------------------------------------------------------*/
 
  bool is_linearization_there( Index name ) const override {
-  return( v_glob[ name ] < Inf< int >() );
+  return( ( name < v_glob.size() ) && ( v_glob[ name ] < Inf< int >() ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -741,8 +747,10 @@ class PolyhedralFunction : public C05Function {
   if( name >= v_glob.size() )
    return( false );
   int gn = v_glob[ name ];
-  if( ( gn == Inf< int >() ) || ( gn <= 0 ) )
-   return( false );           // empty / bound / aggregated: never vertical
+  if( ( gn == Inf< int >() ) || ( ! gn ) )
+   return( false );           // empty / bound: never vertical
+  if( gn < 0 )                // aggregated: vertical if all its pieces were
+   return( ( Index( - gn - 1 ) < v_avert.size() ) && v_avert[ - gn - 1 ] );
   return( is_row_vertical( Index( gn - 1 ) ) );
   }
 
@@ -847,6 +855,12 @@ class PolyhedralFunction : public C05Function {
   * - The variable "PolyFunction_b", of type double and indexed over the
   *   dimension NumRow, which contains the vector b. The variable is only
   *   optional if NumRow == 0.
+  *
+  * - The variable "PolyFunction_Vert", of type netCDF::NcUbyte and indexed
+  *   over the dimension NumRow, whose i-th entry is nonzero if the i-th
+  *   row is vertical (see set_PolyhedralFunction()) and zero if it is
+  *   diagonal. The variable is optional, if it is not provided all the rows
+  *   are diagonal; serialize() only writes it if some row is vertical.
   *
   * - The dimension "PolyFunction_sign" (actually a bool), which contains the
   *   "verse" of the PolyhedralFunction, i.e., true for a convex max-function
@@ -1244,8 +1258,9 @@ class PolyhedralFunction : public C05Function {
   *        issued, as described in Observer::make_par(). Note that shift() ==
   *        NANshift (the function has changed "unpredictably"),  type() ==
   *        AllLinearizationChanged (all the linearizations may have changed,
-  *        although actually only a subset of them has) and PFtype() ==
-  *        ModifyRows. */  
+  *        although actually only a subset of them has) if any of the
+  *        modified rows is in the global pool, NothingChanged otherwise, and
+  *        PFtype() == ModifyRows. */  
 
  void modify_rows( MultiVector && nA , c_RealVector & nb , Range range ,
 		   ModParam issueMod = eModBlck ,
@@ -1279,8 +1294,9 @@ class PolyhedralFunction : public C05Function {
   *        issued, as described in Observer::make_par(). Note that shift() ==
   *        NANshift (the function has changed "unpredictably"),  type() ==
   *        AllLinearizationChanged (all the linearizations may have changed,
-  *        although actually only a subset of them has) and PFtype() ==
-  *        ModifyRows. */  
+  *        although actually only a subset of them has) if any of the
+  *        modified rows is in the global pool, NothingChanged otherwise, and
+  *        PFtype() == ModifyRows. */  
 
  void modify_rows( MultiVector && nA , c_RealVector & nb , Subset && rows ,
 		   bool ordered = false , ModParam issueMod = eModBlck ,
@@ -1304,8 +1320,9 @@ class PolyhedralFunction : public C05Function {
   *        issued, as described in Observer::make_par(). Note that shift() ==
   *        NANshift (the function has changed "unpredictably"),  type() ==
   *        AllLinearizationChanged (all the linearizations may have changed,
-  *        although actually only a subset of them has) and PFtype() ==
-  *        ModifyRows. */  
+  *        although actually only a subset of them has) if any of the
+  *        modified rows is in the global pool, NothingChanged otherwise, and
+  *        PFtype() == ModifyRows. */  
 
  void modify_row( Index i , RealVector && Ai , FunctionValue bi ,
 		  ModParam issueMod = eModBlck ,
@@ -1416,7 +1433,11 @@ class PolyhedralFunction : public C05Function {
   *        current value the function has necessarily increased, otherwise
   *        necessarily decreased (if it is == it has not changed and the
   *        method does nothing), hence the shift() is either +INFshift or
-  *        -INFshift accordingly. */  
+  *        -INFshift accordingly.
+  *
+  * When the bound is eliminated, its all-0 linearization leaves the global
+  * pool, also if no Modification is issued; if they are, a separate
+  * C05FunctionMod with type() == GlobalPoolRemoved says so. */
 
  void modify_bound( FunctionValue newbound , ModParam issueMod = eModBlck );
 
@@ -1480,10 +1501,9 @@ class PolyhedralFunction : public C05Function {
   * all rows that are not explicitly deleted:
   *
   * @param range contains the indices of the rows to be deleted, hence
-  *        range.second < get_b().size(); note that if range.second ==
-  *        get_b().size() - 1 == get_A.size(), then also the "virtual"
-  *        all-0 row corresponding to the global lower/upper bound is deleted,
-  *        which means that the bound is reset to +/- INF as appropriate.
+  *        range.second <= get_A().size(); the global lower/upper bound is
+  *        not touched (see modify_bound(), or delete_rows( Subset ) with
+  *        the index get_A().size()).
   *
   * @param issueMod which decides if and how the PolyhedralFunctionModRngd is
   *        issued, as described in Observer::make_par().
@@ -1493,8 +1513,9 @@ class PolyhedralFunction : public C05Function {
   * lnearizations in the global pool may disappear. Even worse, and aggregated
   * linearization may have been constructed out of the ones that are deleted,
   * and there is no way of saying it in general. Hence, the
-  * PolyhedralFunctionModRngd will have type() = C05FunctionMod::AlphaChanged
-  * if:
+  * PolyhedralFunctionModRngd will have type() =
+  * C05FunctionMod::GlobalPoolRemoved, with which() the names that leave the
+  * global pool, if:
   *
   * - any of the deleted rows are present in the global pool;
   *
@@ -1538,8 +1559,9 @@ class PolyhedralFunction : public C05Function {
   * lnearizations in the global pool may disappear. Even worse, and aggregated
   * linearization may have been constructed out of the ones that are deleted,
   * and there is no way of saying it in general. Hence, the
-  * PolyhedralFunctionModSbst will have type() = C05FunctionMod::AlphaChanged
-  * if:
+  * PolyhedralFunctionModSbst will have type() =
+  * C05FunctionMod::GlobalPoolRemoved, with which() the names that leave the
+  * global pool, if:
   *
   * - any of the deleted rows are present in the global pool;
   *
@@ -1718,6 +1740,10 @@ class PolyhedralFunction : public C05Function {
  MultiVector v_aA;    ///< the A matrix for aggregated linearizations
  
  RealVector v_ab;     ///< the b vector for aggregated linearizations
+
+ std::vector< bool > v_avert;
+ ///< which aggregated linearizations are vertical, i.e., combine vertical
+ ///  ones only [see store_combination_of_linearizations()]
 
  FunctionValue f_value;   ///< the value of the function
 
@@ -2150,6 +2176,7 @@ class PolyhedralFunctionState : public State
   v_glob = pf->v_glob;
   v_aA = pf->v_aA;
   v_ab = pf->v_ab;
+  v_avert = pf->v_avert;
   f_imp_coeff = pf->f_imp_coeff;
   }
 
@@ -2199,6 +2226,12 @@ class PolyhedralFunctionState : public State
   *   (RHS of the aggregated rows. The variable is only optional if
   *   PolyFunction_NumRow == 0.
   *
+  * - The variable "PolyFunction_aVert", of type netCDF::NcUbyte and indexed
+  *   over the dimension PolyFunction_ANumRow, whose i-th entry is nonzero
+  *   if the i-th aggregated row is vertical and zero if it is diagonal. The
+  *   variable is optional, if it is not provided all the aggregated rows
+  *   are diagonal.
+  *
   * - The dimension "PolyFunction_ImpCoeffNum" containing the number of
   *   elements of the important coefficients. The dimension is optional, if
   *   it is not provided than 0 (no important coefficients) is assumed.
@@ -2243,6 +2276,9 @@ class PolyhedralFunctionState : public State
  
  PolyhedralFunction::RealVector v_ab;
  ///< the b vector for aggregated linearizations
+
+ std::vector< bool > v_avert;
+ ///< which aggregated linearizations are vertical
 
  PolyhedralFunction::LinearCombination f_imp_coeff;
  ///< coefficients of the important lineariration

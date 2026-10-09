@@ -702,13 +702,14 @@ is_feasible( boost::multi_array< T , K > & constraints ,
   *         given tolerance. */
 
  template< template< class ... > class C ,
-           template< class ... > class D , class T >
+           template< class ... > class D , class T ,
+           class ... DA , class ... CA >
  static std::enable_if_t< std::is_base_of_v< RowConstraint , T > , bool >
- is_feasible( const C< D< T > > & constraints , double tolerance = 1e-10 ,
-              bool rel_viol = true ) {
+ is_feasible( C< D< T , DA ... > , CA ... > & constraints ,
+              double tolerance = 1e-10 , bool rel_viol = true ) {
   // if empty, std::all_of returns true, i.e., the solution is feasible
   return std::all_of( constraints.begin() , constraints.end() ,
-                      [ tolerance , rel_viol ]( const auto & l_constraints ) {
+                      [ tolerance , rel_viol ]( auto & l_constraints ) {
                        return RowConstraint::is_feasible
                         ( l_constraints , tolerance , rel_viol );
                       } );
@@ -744,7 +745,7 @@ is_feasible( boost::multi_array< T , K > & constraints ,
 
  template< template< class ... > class C , class T , std::size_t K >
  static std::enable_if_t< std::is_base_of_v< RowConstraint , T > , bool >
- is_feasible( const boost::multi_array< C< T > , K > & constraints ,
+ is_feasible( boost::multi_array< C< T > , K > & constraints ,
               double tolerance = 1e-10 , bool rel_viol = true ) {
   auto n = constraints.num_elements();
   auto l_constraints = constraints.data();
@@ -769,7 +770,7 @@ is_feasible( boost::multi_array< T , K > & constraints ,
 
  /// print information about the RowConstraint on an ostream
  void print( std::ostream & output ) const override {
-  output << "RowConstraint [" << this << "] of Block [" << f_Block
+  output << "RowConstraint [" << this << "] of Block [" << get_Block()
          << "] with " << get_num_active_var() << " active variables"
 	 << std::endl;
   }
@@ -826,6 +827,22 @@ class RowConstraintMod : public ConstraintMod {
  explicit RowConstraintMod( RowConstraint * cnst , int mod = eChgLHS ,
 			    bool cB = true )
   : ConstraintMod( cnst , mod , cB ) {}
+
+/*--------------------------------------------------------------------------*/
+ /// returns what the Modification changes [see Modification::ModConcern]
+ /** A change of the LHS, of the RHS or of both is one of the sides, which
+  * may make the region grow or shrink; the types that the derived classes
+  * add (the Function of a FRowConstraint, the Variable of a
+  * OneVarConstraint) are changes of the coefficients. */
+
+ [[nodiscard]] ModConcern changes( void ) const override {
+  if( ( f_type == eChgLHS ) || ( f_type == eChgRHS ) ||
+      ( f_type == eChgBTS ) )
+   return( eModCnsSide | eRegnShrink | eRegnGrow );
+  if( f_type >= eRowConstModLastParam )
+   return( eModCnsCoef | eRegnShrink | eRegnGrow );
+  return( ConstraintMod::changes() );
+  }
 
  ~RowConstraintMod() override = default;  ///< destructor: does nothing
 

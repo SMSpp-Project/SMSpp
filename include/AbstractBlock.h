@@ -45,9 +45,14 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <list>
 #include <map>
+#include <set>
+#include <tuple>
 
 #include "Block.h"
+
+#include "LinearFunction.h"
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
@@ -59,6 +64,8 @@ namespace SMSpp_di_unipi_it
  class ColVariable;     // forward declaration, only pointers are needed here
 
  class RowConstraint;   // forward declaration, only pointers are needed here
+
+ class FRowConstraint;  // forward declaration, only pointers are needed here
 
  class Function;        // forward declaration, only pointers are needed here
 
@@ -114,10 +121,9 @@ namespace SMSpp_di_unipi_it
  * when there is any Solver attached to the AbstractBlock, but only during
  * the initial construction phase. Yet, during the destructor of
  * AbstractBlock, the corresponding Variable / Constraint / Objective have
- * to be destroyed. This requires the( pointer to the)m to be fetched out of
- * the corresponding std::vector< boost::any >, which can only be done by
- * knowing their exact type; whence the need of specifying exactly which
- * types are handled by the class.
+ * to be destroyed. This is done through their groups, each of which has
+ * been told how to dispose of its container when it was registered, so
+ * that the destructor need not know the type of any of them.
  *
  * Note that, conversely, add_dynamic_constraint*s*() and
  * add_dynamic_variable*s*() (the methods for adding/removing stuff from an
@@ -197,8 +203,8 @@ namespace SMSpp_di_unipi_it
  * deserialize(). However, the add_X_Y() and set_X_Y() methods of Block
  * allow the derived class to "slip its group before the already present
  * ones", and therefore the derived class can ensure that the right set of
- * groups is reserved. Note that, unlike the std::vector< boost::any >
- * implementing the groups that are private, the v_Block vector of the
+ * groups is reserved. Note that, unlike the vectors of groups of Variable
+ * and Constraint, that are private, the v_Block vector of the
  * sub-Block is protected and therefore can be freely manipulated by
  * derived classes. Yet, doing all this right is entirely the responsibility
  * of the derived classes themselves. */
@@ -521,14 +527,6 @@ class AbstractBlock : public Block
 
  using Block::remove_dynamic_constraint;
 
- using Block::access_static_variable;
-
- using Block::access_dynamic_variable;
-
- using Block::access_static_constraint;
-
- using Block::access_dynamic_constraint;
-
 /** @} ---------------------------------------------------------------------*/
 /*-------------------- Mirroring the abstract representation ---------------*/
 /*--------------------------------------------------------------------------*/
@@ -632,6 +630,15 @@ class AbstractBlock : public Block
 
  void mirror_write( void );
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// copies the dual values of the copy into the mirrored Block
+ /** Writes into each RowConstraint of the mirrored Block the dual value of
+  * its copy; under a size Variable [see set_size_variable()] the dual value
+  * of a bound, or of a ranged row, is the sum of those of the rows it has
+  * become. */
+
+ void mirror_write_duals( void );
+
 /*--------------------------------------------------------------------------*/
  /// applies to the copy a Modification issued by the mirrored Block
  /** Applies to the copy the change that \p mod describes, so that the two
@@ -639,14 +646,67 @@ class AbstractBlock : public Block
   * could not, which the caller has to take as "the copy is stale", the
   * alternative being a copy that is silently a different problem.
   *
-  * What is handled is what changes the abstract representation without
-  * changing its shape, i.e., the coefficients of a LinearFunction or of a
-  * DQuadFunction, the sides of a RowConstraint, the type and the fixing of a
-  * ColVariable, and the sense of an Objective. A change of the shape, i.e.,
-  * a dynamic Variable or Constraint added or removed, is not: mirror() has
-  * to be called again. */
+  * What is handled is the coefficients of a LinearFunction, or of a
+  * DQuadFunction, the Variable it has (FunctionMod and FunctionModVars), the
+  * sides of a RowConstraint and the Variable of a OneVarConstraint, the
+  * relaxing and enforcing of a Constraint, the type and the fixing of a
+  * ColVariable, the sense of an Objective, and dynamic Constraint added to
+  * or removed from a std::list, as well as dynamic ColVariable added to one.
+  * A dynamic Variable removed is not, since the copy of it may be used
+  * outside of the copy, nor are a group made of a boost::multi_array or the
+  * "nuclear" NBModification: mirror() has to be called again. A
+  * Modification that is not an abstract one says nothing about the abstract
+  * representation, and there is nothing to do for it.
+  *
+  * Under a size Variable the copy is changed in its sized form [see
+  * set_size_variable()]. \p issueMod says how the copy issues the
+  * Modification of its own changes: the default eNoMod is for a copy that
+  * nobody solves while it changes, eModBlck for one that a Solver has
+  * loaded, as when the copy is part of a bigger problem. */
 
- bool mirror_forward_Modification( c_p_Mod mod );
+ bool mirror_forward_Modification( c_p_Mod mod , ModParam issueMod = eNoMod );
+
+/*--------------------------------------------------------------------------*/
+ /// gives this AbstractBlock the Variable of its size parameter
+ /** A mirror [see mirror()] takes the size Variable v, a ColVariable of
+  * another Block, and writes into itself the mirrored Block scaled by v:
+  * every row l <= a x <= u becomes l v <= a x <= u v, i.e., a x - u v <= 0
+  * and a x - l v >= 0 (the two being one row when l == u or a side is
+  * infinite, and a second row being added when they are not), every finite
+  * nonzero side of a OneVarConstraint becomes such a row and the copy has
+  * it infinite, its sides 0 staying as they are (and if that would leave
+  * it with no finite side, or its type does not let one change the side,
+  * the copy is on a ColVariable of its own that nothing else uses, and all
+  * its finite sides are rows), the
+  * bounds -1 / 1 of a unitary ColVariable become rows and the ColVariable
+  * takes the type without them, a ColVariable fixed to c is unfixed and
+  * given the row x - c v = 0, and the constant c0 of an Objective becomes
+  * the term c0 v. The added rows and ColVariable are in the last dynamic
+  * group of each kind of this AbstractBlock. The mirrored Block
+  * is not touched, and its Modification are written in the copy in this
+  * form [see mirror_forward_Modification()]. Calling it again with the same
+  * Variable changes nothing, and nullptr takes the Variable away, the copy
+  * becoming the plain copy of the mirrored Block again.
+  *
+  * It returns false, changing nothing, if this AbstractBlock is not a
+  * mirror, if it already has another size Variable, if mirror() has left
+  * issues, or if the mirrored Block has something that cannot be scaled:
+  * a row or an Objective whose Function is not a LinearFunction, or an
+  * integer ColVariable. An AbstractBlock that is not a
+  * mirror refuses, its Constraint being the data that whoever holds them
+  * changes with setters that compare the new value with the current one,
+  * which in a sized form would be the scaled one: whoever wants it sized
+  * sizes a mirror of it. \p issueAMod says which Modification are issued. */
+
+ bool set_size_variable( Variable * size_var ,
+                         c_ModParam issueAMod = eNoBlck ) override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the size Variable given to this AbstractBlock, nullptr if none
+
+ [[nodiscard]] ColVariable * get_given_size_variable( void ) const {
+  return( f_size_var );
+  }
 
 /** @} ---------------------------------------------------------------------*/
 /*----------------- Methods for checking the AbstractBlock -----------------*/
@@ -731,13 +791,12 @@ class AbstractBlock : public Block
   *
   * - ...
   *
-  * These are very generic checks that should be done at the level of Block,
-  * but they can not because it is not possible to just "extract Variable"
-  * or "extract Constraint" from the "abstract representation": one can only
-  * extract :Variable (say, ColVariable) or :Constraint (say, FRowConstraint).
-  * This is a very bad consequence of the initial design choice about using
-  * boost::any, and one of the reasons why these will be put to the wall when
-  * the revolution will come. */
+  * These are very generic checks, that only use the interface of Variable,
+  * Constraint and Objective, and that could be done at the level of Block,
+  * since a group hands out its elements as Variable or Constraint whatever
+  * their actual type [see BaseGroup::for_each_as()]. Here they also check
+  * that the Variable and Constraint are of the types that AbstractBlock
+  * handles, throwing if they are not. */
 
  void is_correct( void );
 
@@ -796,6 +855,64 @@ class AbstractBlock : public Block
   * and asks everyone to print itself. */
 
  void print( std::ostream & output , char vlvl = 0 ) const override;
+
+/*--------------------------------------------------------------------------*/
+ /// writes the model in the LP format read_lp() reads
+ /** Writes what the Block holds as an LP file: the Objective, the rows that
+  * are FRowConstraint on a LinearFunction, the bounds the ColVariable have of
+  * their own and those the :OneVarConstraint put on them, and the columns
+  * that are integer. Each column and each row is named after the group it
+  * sits in and where it sits in it [see inspection::name_of()], with the
+  * indices joined by underscores so that the name is one the format accepts.
+  *
+  * What travels is the model and not the way it is grouped: an LP file has
+  * no notion of groups, so reading back what this writes gives one group of
+  * columns and one of rows, as read_lp() builds them.
+  *
+  * A column with an upper bound and no lower bound is written as
+  * -infinity <= x <= u, since a lower bound that is not written is 0 to the
+  * format, and every column is written in the Objective with its cost, even
+  * when this is zero, so that read_lp(), which numbers the columns in the
+  * order it first meets them, gives them back in the order they have in the
+  * Block. */
+
+ void write_lp( std::ostream & output ) const;
+
+/*--------------------------------------------------------------------------*/
+ /// writes the model in the MPS format read_mps() reads
+ /** Writes what the Block holds as an MPS file, saying the same things
+  * write_lp() says and in the same names, with the two differences the
+  * format makes: a row with both sides finite and different is one row with
+  * its second side in RANGES rather than two rows, and a row whose two sides
+  * are both infinite is left out, the format having no way of saying it.
+  *
+  * What travels is the model and not the way it is grouped, exactly as with
+  * write_lp(). */
+
+ void write_mps( std::ostream & output ) const;
+
+/*--------------------------------------------------------------------------*/
+ /// writes the rows a dual ray of this Block says cannot hold together
+ /** When a CDASolver answers kInfeasible it can be asked for the unbounded
+  * dual direction that proves it, and get_dual_direction() writes that ray
+  * into this Block, each Constraint holding its own multiplier [see
+  * CDASolver::get_dual_direction() and RowConstraint::get_dual()]. This
+  * writes the rows whose multiplier is larger than \p eps in absolute value,
+  * each with its multiplier and with the name its group gives it: the
+  * combination of them the multipliers give is the one that says something
+  * that cannot be, which is what one wants to look at when a model comes
+  * back unfeasible and the question is which rows are fighting each other.
+  * The bounds of a column are written the same way, a model being able to be
+  * unfeasible because of what a column is allowed to be with no row of it
+  * saying anything.
+  *
+  * What is written is the certificate the Solver has left, not the smallest
+  * set of rows with that property: the rows named here are unfeasible
+  * together, but they need not be irreducibly so. Calling this before a ray
+  * has been written in the Block says so rather than writing a wrong
+  * answer. */
+
+ void write_is( std::ostream & output , double eps = 0 ) const;
 
 /*--------------------------------------------------------------------------*/
  /// serialize the AbstractBlock (recursively) to a netCDF NcGroup
@@ -861,9 +978,80 @@ class AbstractBlock : public Block
  void mirror_constraints( Block * src , AbstractBlock * dst );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// rebuilds in the copy the Function that \p fnct is in the original
+ /// writes the copy of a Constraint of the mirrored Block, sized if v is
+ /** Writes the copy of \p src as it has to be, i.e., the plain copy without
+  * a size Variable and the sized form with it [see set_size_variable()],
+  * changing only what differs and issuing the Modification as \p par says;
+  * false if \p src has no copy or cannot be written. */
 
- bool mirror_Function_changed( const Function * fnct );
+ bool size_constraint( const Constraint * src , ModParam par );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// as size_constraint(), for a ColVariable of the mirrored Block
+
+ bool size_variable( const ColVariable * src , ModParam par );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// as size_constraint(), for the Objective of a Block of the mirrored tree
+
+ bool size_objective( const Block * src , ModParam par );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// as size_constraint(), for the whole mirrored Block
+
+ bool size_all( ModParam par );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// writes the rows that stand for \p key in the size group
+ /** Each element of \p rows is the LinearFunction of a row, as pairs of a
+  * ColVariable of the copy (or the size Variable) and a coefficient, with
+  * its two sides; the rows of \p key in the size group become those, the
+  * ones that are there being changed in place, the others added or
+  * removed, and all of them relaxed if \p relaxed. */
+
+ void size_rows( const void * key ,
+                 std::vector< std::tuple< LinearFunction::v_coeff_pair ,
+                                          double , double > > && rows ,
+                 bool relaxed , ModParam par );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the ColVariable of the size group that the copy of a bound is on
+ /** Under a size Variable the copy of a bound that cannot stay on the copy
+  * of the ColVariable it bounds [see size_constraint()] bounds one of its
+  * own, which nothing else uses, its sides being rows of the size group.
+  * With \p want it gives the one of \p key, made if there is none; without
+  * it removes it, and returns nullptr. */
+
+ ColVariable * size_dummy( const void * key , bool want , ModParam par );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// writes \p want into the LinearFunction \p lf of \p owner, in place
+ /** Removes, changes and adds the terms of \p lf so that they are \p want
+  * and its constant term is \p cnst, issuing the Modification as \p par
+  * says, and keeps \p owner registered in the active Variable of \p lf
+  * whatever \p par is. */
+
+ static void sync_linear( LinearFunction * lf , ThinVarDepInterface * owner ,
+                          const LinearFunction::v_coeff_pair & want ,
+                          double cnst , ModParam par );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the terms of \p lf written on the Variable of the copy
+
+ LinearFunction::v_coeff_pair mirror_terms( const LinearFunction * lf );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the copy of the Block \p src of the mirrored tree, nullptr if none
+
+ AbstractBlock * mirror_of_Block( const Block * src ) const {
+  auto it = f_b_map.find( src );
+  return( it == f_b_map.end() ? nullptr : it->second );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// writes in the copy a Constraint or Variable added to the mirrored Block
+
+ bool mirror_added( const BlockModAD * mod , ModParam par );
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
@@ -895,6 +1083,27 @@ class AbstractBlock : public Block
  /// the copy of each RowConstraint of the mirrored Block
  std::map< const RowConstraint * , RowConstraint * > f_c_map;
 
+ /// the copy of each Block of the mirrored tree, the root included
+ std::map< const Block * , AbstractBlock * > f_b_map;
+
+ ColVariable * f_size_var = nullptr;  ///< the size Variable, if any
+
+ /// the rows the size Variable adds [see set_size_variable()]
+ std::list< FRowConstraint > * f_size_list = nullptr;
+
+ /// the rows of f_size_list that stand for each object of the mirrored Block
+ std::map< const void * , std::vector< FRowConstraint * > > f_size_help;
+
+ /// the ColVariable that the copies of the bounds are on [see size_dummy()]
+ std::list< ColVariable > * f_size_vars = nullptr;
+
+ /// the ColVariable of f_size_vars of each bound of the mirrored Block
+ std::map< const void * , ColVariable * > f_size_dummy;
+
+ /// the bounds of the mirrored Block whose sized copy is on the copy of
+ /// their ColVariable [see size_constraint()]
+ std::set< const void * > f_size_onx;
+
  std::vector< std::string > v_issues;  ///< what mirror() could not reproduce
 
 /*--------------------------------------------------------------------------*/
@@ -902,6 +1111,42 @@ class AbstractBlock : public Block
 /*--------------------------------------------------------------------------*/
 
  private:
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- WHAT THE TWO WRITERS SHARE -----------------------*/
+/*--------------------------------------------------------------------------*/
+ /// a column of a model file: the ColVariable and the name it goes by
+ using f_column = std::pair< ColVariable * , std::string >;
+
+ /// a row of a model file: the FRowConstraint and the name it goes by
+ using f_row = std::pair< FRowConstraint * , std::string >;
+
+ /// the two bounds a column of a model file has
+ using f_bound = std::pair< double , double >;
+
+/*--------------------------------------------------------------------------*/
+ /// the columns and the rows of the model, named and in storage order
+ /** Fills \p columns with every ColVariable of this Block and \p rows with
+  * every FRowConstraint of it, each with the name its group gives it written
+  * the way a model file takes it, the indices joined by underscores. Both
+  * come in storage order, so that writing the same Block twice gives the
+  * same file. */
+
+ void file_model( std::vector< f_column > & columns ,
+		  std::vector< f_row > & rows ) const;
+
+/*--------------------------------------------------------------------------*/
+ /// the bounds of each of \p columns, in the same order
+ /** Fills \p bounds with the two bounds of each of \p columns: the ones the
+  * ColVariable has of its own, tightened by every :OneVarConstraint of this
+  * Block that is written on it. */
+
+ void file_bounds( const std::vector< f_column > & columns ,
+		   std::vector< f_bound > & bounds ) const;
+
+/*--------------------------------------------------------------------------*/
+/*------------------------------ MPS READER --------------------------------*/
+/*--------------------------------------------------------------------------*/
 
  /// Loads the block from a MPS file
  void read_mps( std::istream & file );
@@ -927,6 +1172,15 @@ class AbstractBlock : public Block
  void sec_reached( int * actual_sec , std::string word );
 
  /// Loads the block from an LP file
+ /** Reads the linear or quadratic Objective, the rows, the Bounds, Generals
+  * and Binaries sections of an LP file; the columns are numbered in the
+  * order they are first met, a column may be named in the Bounds, Generals
+  * or Binaries section alone, and a number with no column after it is a
+  * constant (of the Objective, or moved to the side of a row). A column
+  * that has no line in the Bounds section has the default bounds of the
+  * format, 0 <= x <= +inf. Anything the reader does not expect where it
+  * is, and the end of the file before the End section, throws
+  * std::invalid_argument. */
  void read_lp( std::istream & file );
 
 /*--------------------------------------------------------------------------*/

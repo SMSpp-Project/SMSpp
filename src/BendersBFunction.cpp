@@ -43,6 +43,61 @@
 using namespace SMSpp_di_unipi_it;
 
 /*--------------------------------------------------------------------------*/
+/*-------------------------- LOCAL FUNCTIONS -------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+namespace {
+
+/// tells which RowConstraint of type C a Modification says have been removed
+/** Writes in cell the address of the cell of the group of dynamic Constraint
+ * they were removed from and in positions the positions they had in it, with
+ * all telling that the whole cell went. Returns false if the Modification is
+ * not one that removes RowConstraint of type C saying which ones. */
+
+template< class C >
+bool rmvd_rows_of( const Modification * mod , const void * & cell ,
+		   Block::Subset & positions , bool & all )
+{
+ if( const auto tmod = dynamic_cast< const BlockModRmvRngd< C > * >( mod ) ) {
+  cell = static_cast< const void * >( & tmod->whc() );
+  const auto & rng = tmod->range();
+  positions.clear();
+  for( Block::Index i = rng.first ; i < rng.second ; ++i )
+   positions.push_back( i );
+  all = false;
+  return( true );
+  }
+
+ if( const auto tmod = dynamic_cast< const BlockModRmvSbst< C > * >( mod ) ) {
+  cell = static_cast< const void * >( & tmod->whc() );
+  positions = tmod->subset();
+  all = positions.empty();   // an empty subset means all of them
+  return( true );
+  }
+
+ return( false );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// as rmvd_rows_of(), for each concrete :RowConstraint of the core
+
+bool rmvd_rows( const Modification * mod , const void * & cell ,
+		Block::Subset & positions , bool & all )
+{
+ return( rmvd_rows_of< FRowConstraint >( mod , cell , positions , all ) ||
+	 rmvd_rows_of< BoxConstraint >( mod , cell , positions , all ) ||
+	 rmvd_rows_of< LB0Constraint >( mod , cell , positions , all ) ||
+	 rmvd_rows_of< UB0Constraint >( mod , cell , positions , all ) ||
+	 rmvd_rows_of< LBConstraint >( mod , cell , positions , all ) ||
+	 rmvd_rows_of< UBConstraint >( mod , cell , positions , all ) ||
+	 rmvd_rows_of< NNConstraint >( mod , cell , positions , all ) ||
+	 rmvd_rows_of< NPConstraint >( mod , cell , positions , all ) ||
+	 rmvd_rows_of< ZOConstraint >( mod , cell , positions , all ) );
+ }
+
+}  // end( unnamed namespace )
+
+/*--------------------------------------------------------------------------*/
 /*----------------------------- STATIC MEMBERS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -72,7 +127,7 @@ BendersBFunction::BendersBFunction( Block * inner_block , VarVector && x ,
  // default parameter values
  LinComp = get_dflt_int_par( intLinComp );
  AAccMlt = get_dflt_dbl_par( dblAAccMlt );
- f_inner_solver_index = get_dflt_dbl_par( intSolverIndex );
+ f_inner_solver_index = get_dflt_int_par( intSolverIndex );
  set_par( intGPMaxSz , C05Function::get_dflt_int_par( intGPMaxSz ) );
  }
 
@@ -136,14 +191,20 @@ BendersBFunction::~BendersBFunction()
 
 void BendersBFunction::deserialize( const netCDF::NcGroup & group ,
                                     ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
 
- c_Index nvar = get_num_active_var();
 
  auto ncDim_NumVar = group.getDim( "NumVar" );
 
  if( ncDim_NumVar.isNull() )
   throw( std::logic_error( "BendersBFunction::deserialize: "
                            "NumVar dimension is required." ) );
+
+ // with no active Variable, their number is the one the group says, and
+ // set_variables() will have to give as many; otherwise, the two must agree
+ const Index nvar = v_x.empty() ? ncDim_NumVar.getSize()
+                                : get_num_active_var();
 
  if( ncDim_NumVar.getSize() != nvar )
   throw( std::invalid_argument( "BendersBFunction::deserialize: matrix A has "
@@ -237,8 +298,15 @@ void BendersBFunction::deserialize( const netCDF::NcGroup & group ,
     Index k = 0;
     for( Index i = 0 ; i < nrow ; ++i ) {
      for( Index l = 0 ; l < num_nonzero_at_row[ i ] ; ++l , ++k ) {
+      if( k >= nnz )
+       throw( std::logic_error( "BendersBFunction::deserialize: "
+                                "'NumNonzeroAtRow' adds up to more than "
+                                "'NumNonzero'." ) );
       auto j = column[ k ];
-      ncVar_A.getVar( { k } , & v_A[ i ][ j ] );
+      if( j >= nvar )
+       throw( std::logic_error( "BendersBFunction::deserialize: 'Column' "
+                                "has an entry larger than 'NumVar'." ) );
+      ncVar_A.getVar( { k } , & tA[ i ][ j ] );
      }
     }
    }
@@ -288,8 +356,24 @@ void BendersBFunction::deserialize( const netCDF::NcGroup & group ,
  std::vector< RowConstraint * > constraints;
  constraints.resize( v_paths_to_constraints.size() , nullptr );
 
- set_mapping( std::move( tA ) , std::move( tb ) ,
-              std::move( constraints ) , std::move( sides ) , issueMod );
+ if( v_x.empty() && ( nvar > 0 ) && ( ! tA.empty() ) ) {
+  // the mapping is there before the Variable it is on, which set_mapping()
+  // does not accept: it is stored as set_mapping() would store it
+  v_A = std::move( tA );
+  v_b = std::move( tb );
+  v_constraints = std::move( constraints );
+  v_sides = std::move( sides );
+  f_constraints_are_updated = false;
+
+  if( f_Observer && f_Observer->issue_mod( issueMod ) )
+   f_Observer->add_Modification( std::make_shared< FunctionMod >(
+                                  this , FunctionMod::NaNshift ,
+                                  Observer::par2concern( issueMod ) ) ,
+                                 Observer::par2chnl( issueMod ) );
+  }
+ else
+  set_mapping( std::move( tA ) , std::move( tb ) ,
+               std::move( constraints ) , std::move( sides ) , issueMod );
 
  Block::deserialize( group );
 
@@ -398,6 +482,8 @@ void BendersBFunction::put_State( const State & state ) {
 
  global_pool.clone( s.global_pool );
 
+ f_last_solution = Inf< Index >();  // the pool is not the one it was
+
  if( ! f_Observer )
   return;
 
@@ -432,6 +518,8 @@ void BendersBFunction::put_State( State && state ) {
  const bool global_pool_was_empty = global_pool.empty();
 
  global_pool.clone( std::move( s.global_pool ) );
+
+ f_last_solution = Inf< Index >();  // the pool is not the one it was
 
  if( ! f_Observer )
   return;
@@ -518,6 +606,9 @@ void BendersBFunction::set_mapping( MultiVector && A , RealVector && b ,
                                     ConstraintVector && constraints ,
                                     ConstraintSideVector && sides ,
                                     ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
 
  if( constraints.size() != b.size() )
   throw( std::invalid_argument( "BendersBFunction::set_mapping: the number of "
@@ -568,6 +659,9 @@ void BendersBFunction::set_mapping( MultiVector && A , RealVector && b ,
 
 void BendersBFunction::add_variables( VarVector && nx , MultiVector && nA ,
                                       ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  const auto nn = nx.size();
  if( ! nn )  // actually nothing to add
   return;    // cowardly (and silently) return
@@ -622,6 +716,9 @@ void BendersBFunction::add_variables( VarVector && nx , MultiVector && nA ,
 
 void BendersBFunction::add_variable( ColVariable * const var ,
                                      c_RealVector & Aj , ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( var == nullptr )  // actually nothing to add
   return;              // cowardly (and silently) return
 
@@ -657,6 +754,9 @@ void BendersBFunction::add_variable( ColVariable * const var ,
 
 void BendersBFunction::remove_variable( Index i , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( i >= v_x.size() )
   throw( std::logic_error( "BendersBFunction::remove_variable: invalid "
                            "Variable index " + std::to_string( i ) + "." ) );
@@ -685,6 +785,9 @@ void BendersBFunction::remove_variable( Index i , ModParam issueMod )
 
 void BendersBFunction::remove_variables( Range range , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  range.second = std::min( range.second , Index( v_x.size() ) );
  if( range.second <= range.first )
   return;
@@ -766,6 +869,9 @@ static void compact( std::vector< T > & x ,
 void BendersBFunction::remove_variables( Subset && nms , bool ordered ,
                                          ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( nms.empty() ) {      // removing *all* Variables
 
   if( v_x.empty() )       // there is no Variable to be removed
@@ -830,6 +936,9 @@ void BendersBFunction::remove_variables( Subset && nms , bool ordered ,
 
 void BendersBFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
                                     Range range , ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  range.second = std::min( range.second , Index( v_A.size() ) );
  if( range.second <= range.first )
   return;
@@ -879,6 +988,9 @@ void BendersBFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
 void BendersBFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
                                     Subset && rows , bool ordered ,
                                     ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( rows.empty() )  // actually nothing to modify
   return;            // cowardly (and silently) return
 
@@ -931,6 +1043,9 @@ void BendersBFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
 void BendersBFunction::modify_row( c_Index i , RealVector && Ai ,
                                    c_FunctionValue bi ,
                                    ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( i >= v_A.size() )
   throw( std::invalid_argument( "BendersBFunction::modify_row: row " +
                                 std::to_string( i ) + " does not exist." ) );
@@ -969,6 +1084,8 @@ void BendersBFunction::modify_row( c_Index i , RealVector && Ai ,
 void BendersBFunction::modify_constants( MF_dbl_it nb , Range range ,
 					 c_ModParam issuePMod ,
 					 c_ModParam issueAMod ) {
+ if( ! Observer::not_dry_run( issueAMod ) )  // a dry run changes nothing
+  return;
 
  range.second = std::min( range.second , Index( v_b.size() ) );
  if( range.second <= range.first )
@@ -1011,6 +1128,9 @@ void BendersBFunction::modify_constants( MF_dbl_it nb , Range range ,
 
 void BendersBFunction::modify_constants( c_RealVector & nb , Range range ,
                                          ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  modify_constants( nb.cbegin() , range , issueMod , issueMod );
 }  // end( BendersBFunction::modify_constants( range ) )
 
@@ -1021,6 +1141,9 @@ void BendersBFunction::modify_constants( MF_dbl_it nb , Subset && rows ,
 					 c_ModParam issuePMod ,
 					 c_ModParam issueAMod )
 {
+ if( ! Observer::not_dry_run( issueAMod ) )  // a dry run changes nothing
+  return;
+
  if( rows.empty() )  // actually nothing to modify
   return;            // cowardly (and silently) return
 
@@ -1068,6 +1191,9 @@ void BendersBFunction::modify_constants( MF_dbl_it nb , Subset && rows ,
 void BendersBFunction::modify_constants( c_RealVector & nb , Subset && rows ,
 					 bool ordered , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  modify_constants( nb.cbegin() , std::move( rows ) , ordered ,
                    issueMod , issueMod );
 }  // end( BendersBFunction::modify_constants )
@@ -1076,6 +1202,9 @@ void BendersBFunction::modify_constants( c_RealVector & nb , Subset && rows ,
 
 void BendersBFunction::modify_constant( c_Index i , c_FunctionValue bi ,
                                         ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( i >= v_A.size() )
   throw( std::invalid_argument( "BendersBFunction::modify_constant: row " +
                                 std::to_string( i ) + " does not exist." ) );
@@ -1114,6 +1243,9 @@ void BendersBFunction::add_rows( MultiVector && nA , c_RealVector & nb ,
                                  const ConstraintVector & nc ,
                                  const ConstraintSideVector & ns ,
                                  ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  const auto k = nA.size();
  if( k != nb.size() )
   throw( std::invalid_argument( "BendersBFunction::add_rows: nA and nb must "
@@ -1182,6 +1314,9 @@ void BendersBFunction::add_rows( MultiVector && nA , c_RealVector & nb ,
 void BendersBFunction::add_row( RealVector && Ai , FunctionValue bi ,
                                 RowConstraint * ci , ConstraintSide si ,
                                 ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( Ai.size() != v_x.size() )
   throw( std::invalid_argument( "BendersBFunction::add_row: given row Ai "
                                 "has wrong size." ) );
@@ -1225,6 +1360,9 @@ void BendersBFunction::add_row( RealVector && Ai , FunctionValue bi ,
 /*--------------------------------------------------------------------------*/
 
 void BendersBFunction::delete_rows( Range range , ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  range.second = std::min( range.second , Index( v_b.size() ) );
  if( range.second <= range.first )
   return;
@@ -1279,6 +1417,9 @@ void BendersBFunction::delete_rows( Range range , ModParam issueMod ) {
 
 void BendersBFunction::delete_rows( Subset && rows , bool ordered ,
                                     ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( rows.empty() )  // actually nothing to remove
   return;            // cowardly (and silently) returning
 
@@ -1300,21 +1441,33 @@ void BendersBFunction::delete_rows( Subset && rows , bool ordered ,
 
  auto mod_type = C05FunctionMod::AllEntriesChanged;
 
- // mark stuff to be killed in v_A[] and v_b[]
+ // mark stuff to be killed in v_b[]
  for( auto idx : rows ) {
   if( v_b[ idx ] != FunctionValue( 0 ) )
     mod_type = C05FunctionMod::AllLinearizationChanged;
 
-  v_A[ idx ].clear();
   v_b[ idx ] = std::numeric_limits< FunctionValue >::quiet_NaN();
   v_constraints[ idx ] = nullptr;
   v_sides[ idx ] = ConstraintSide::eNone;
  }
 
- // kill stuff in v_A[]
- v_A.erase( std::remove_if( v_A.begin() + rows.front() , v_A.end() ,
-                            []( RealVector & ai ) { return( ai.empty() ); } ) ,
-            v_A.end() );
+ // kill stuff in v_A[]: the rows are found by position, since with no
+ // active Variable every row of A is empty
+ {
+  auto rit = rows.begin();
+  Index k = rows.front();
+  for( Index i = rows.front() ; i < v_A.size() ; ++i ) {
+   if( ( rit != rows.end() ) && ( *rit == i ) ) {
+    while( ( rit != rows.end() ) && ( *rit == i ) )  // repeated indices
+     ++rit;
+    continue;
+    }
+   if( k != i )
+    v_A[ k ] = std::move( v_A[ i ] );
+   ++k;
+   }
+  v_A.resize( k );
+ }
 
  // kill stuff in v_b[]
  v_b.erase( std::remove_if( v_b.begin() + rows.front() , v_b.end() ,
@@ -1354,6 +1507,9 @@ void BendersBFunction::delete_rows( Subset && rows , bool ordered ,
 /*--------------------------------------------------------------------------*/
 
 void BendersBFunction::delete_row( c_Index i , ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( i >= v_b.size() )
   throw( std::invalid_argument( "BendersBFunction::delete_row: given row " +
                                 std::to_string( i ) + " does not exist." ) );
@@ -1395,6 +1551,9 @@ void BendersBFunction::delete_row( c_Index i , ModParam issueMod ) {
 /*--------------------------------------------------------------------------*/
 
 void BendersBFunction::delete_rows( ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  v_A.clear();   // delete original rows
  v_b.clear();
  remove_constraints();
@@ -1565,6 +1724,10 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
  if( f_ignore_modifications )
   return;
 
+ // whatever changes, what the sub-Block holds is no longer known to be the
+ // linearization of the global pool that was written in it
+ f_last_solution = Inf< Index >();
+
  // GroupModification - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  if( const auto tmod = std::dynamic_pointer_cast< GroupModification >( mod ) ) {
@@ -1688,8 +1851,8 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
        * BendersBFunction, it must be updated. */
       f_constraints_are_updated = false;
       }
-     else  // this BendersBFunction may change unpredictably.
-      send_nuclear_modification( chnl );
+     else  // only the constants of the linearizations change
+      sides_changed( *tmod , chnl );
 
      return;
      }
@@ -1765,12 +1928,34 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
                                    chnl );
    }
   else {
-   /* Constraints were added or removed. Since these Constraints must not be
-    * any of those handled by this BendersBFunction, dual solutions are still
-    * feasible. We now check how the behaviour of this BendersBFunction
-    * changes. */
+   /* Constraints were added to or removed from the sub-Block, and they are
+    * none of those this BendersBFunction handles. Adding one adds a dual
+    * variable, which is dual feasible at zero, hence the dual solutions in
+    * the global pool survive it. Removing one takes a dual variable away,
+    * and what is left of a dual solution satisfies the dual constraints only
+    * if the multiplier of that row was zero: the row is still alive inside
+    * the Modification while it is being processed, hence the entries of the
+    * pool that have a zero there are kept, dropping the multiplier that is
+    * gone, and only the others are deleted; if this cannot be done at all,
+    * the pool goes whole, as it used to. The value of the Function changes
+    * as get_behaviour() says in either case. */
 
    auto behaviour = get_behaviour( tmod );
+
+   if( ! tmod->is_added() ) {
+    Subset which;   // the entries of the pool that do not survive
+
+    if( ! keep_pool_after_removal( mod.get() , which ) )
+     global_pool.invalidate();
+    else
+     if( ( ! which.empty() ) && f_Observer &&
+	 f_Observer->issue_mod( eModBlck ) )
+      f_Observer->add_Modification( std::make_shared< BendersBFunctionMod >(
+		       this , C05FunctionMod::GlobalPoolRemoved ,
+		       std::move( which ) , 0 ,
+		       Observer::par2concern( eModBlck ) ) , chnl );
+    }
+
    if( behaviour == function_value_behaviour::unknown )
     send_nuclear_modification( chnl );
    else
@@ -1807,11 +1992,55 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
    * - NModification
    *
    * - Unknown modification
+   *
+   * unless what it says of itself [see Modification::changes()] is that,
+   * of the model of the sub-Block, it only changes the sides of some
+   * Constraint (a physical Modification saying so included): then the dual
+   * solutions of the global pool are kept [see sides_changed()].
    */
+
+ if( mod->changes_only_sides() ) {
+  sides_changed( *mod , chnl );
+  return;
+  }
 
  send_nuclear_modification( chnl );
 
  }  // end( BendersBFunction::add_Modification )
+
+/*--------------------------------------------------------------------------*/
+
+void BendersBFunction::sides_changed( const Modification & mod ,
+				      const Observer::ChnlName chnl )
+{
+ // the dual solutions stay dual feasible: only the constants of the
+ // linearizations have to be computed again
+ global_pool.reset_linearization_constants();
+
+ if( ! f_Observer )
+  return;
+
+ // the value moves the way the region does, if it moves one way only
+ auto shift = C05FunctionMod::NaNshift;
+ if( mod.may_shrink_region() != mod.may_grow_region() ) {
+  const auto blck = mod.get_Block();
+  const auto sense = blck ? Objective::of_type( blck->get_objective_sense() )
+                          : Objective::eUndef;
+  if( sense != Objective::eUndef ) {
+   const auto behaviour = get_behaviour( sense , mod.may_shrink_region() );
+   if( behaviour == function_value_behaviour::increase )
+    shift = Inf< FunctionValue >();
+   else
+    if( behaviour == function_value_behaviour::decrease )
+     shift = - Inf< FunctionValue >();
+   }
+  }
+
+ f_Observer->add_Modification( std::make_shared< C05FunctionMod >(
+				this , C05FunctionMod::AlphaChanged , Subset() ,
+				shift ) , chnl );
+
+ }  // end( BendersBFunction::sides_changed )
 
 /*--------------------------------------------------------------------------*/
 /*------------ METHODS FOR Saving THE DATA OF THE BendersBFunction ---------*/
@@ -1876,6 +2105,11 @@ void BendersBFunction::serialize( netCDF::NcGroup & group ) const {
 /*--------------------------------------------------------------------------*/
 
 int BendersBFunction::compute( bool changedvars ) {
+
+ // solving the sub-Block changes what it holds without any Modification
+ // being issued, hence whatever linearization of the global pool was written
+ // in it is no longer what it holds
+ f_last_solution = Inf< Index >();
 
  if( ( ! changedvars ) && f_constraints_are_updated )
   // TODO We need another flag telling whether the sub-Block has changed since
@@ -2047,6 +2281,9 @@ Function::FunctionValue BendersBFunction::get_value( void ) {
  * in the global pool of linearizations by calling this method. */
 
 void BendersBFunction::store_linearization( Index name , ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( name >= global_pool.size() )
   throw( std::invalid_argument( "BendersBFunction::store_linearization: "
                                 "invalid global pool name: " +
@@ -2067,7 +2304,7 @@ void BendersBFunction::store_linearization( Index name , ModParam issueMod ) {
  // get_linearization_coefficients() takes care of the inverted-row case.
  if( f_diagonal_linearization_required ) {
   if( solver->has_dual_solution() )
-   solver->get_dual_solution( f_get_dual_solution_config );
+   fetch_dual_solution( solver , f_get_dual_solution_config );
   }
  else {
   if( solver->has_dual_direction() )
@@ -2088,6 +2325,9 @@ void BendersBFunction::store_linearization( Index name , ModParam issueMod ) {
  global_pool.store( Inf< FunctionValue >() , solution , name ,
                     f_diagonal_linearization_required );
 
+ // the sub-Block holds what has just been stored under this name
+ f_last_solution = name;
+
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
 
@@ -2105,8 +2345,14 @@ void BendersBFunction::store_combination_of_linearizations(
 		            c_LinearCombination & coefficients , Index name ,
 			    ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  global_pool.store_combination_of_linearizations( coefficients , name ,
                                                   AAccMlt );
+
+ if( name == f_last_solution )    // the entry the sub-Block held is gone
+  f_last_solution = Inf< Index >();
 
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
@@ -2123,7 +2369,13 @@ void BendersBFunction::store_combination_of_linearizations(
 
 void BendersBFunction::delete_linearization( const Index name ,
                                              ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  global_pool.delete_linearization( name );
+
+ if( name == f_last_solution )    // the entry the sub-Block held is gone
+  f_last_solution = Inf< Index >();
 
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
@@ -2139,7 +2391,16 @@ void BendersBFunction::delete_linearization( const Index name ,
 
 void BendersBFunction::delete_linearizations( Subset && which , bool ordered ,
                                               ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  global_pool.delete_linearizations( which , ordered );
+
+ // the entry the sub-Block held may be among those gone
+ if( which.empty() ||
+     ( std::find( which.begin() , which.end() , f_last_solution ) !=
+       which.end() ) )
+  f_last_solution = Inf< Index >();
 
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
@@ -2166,7 +2427,9 @@ void BendersBFunction::write_dual_solution( Index name ) {
   // associated with the Constraint handled by this BendersBFunction are being
   // required.
 
-  // TODO check whether the solution has already been written into the Block
+  // what the Solver writes in the sub-Block is its own dual solution, hence
+  // no linearization of the global pool is there any longer
+  f_last_solution = Inf< Index >();
 
   // Guard each call: if the Solver cannot provide the requested dual info
   // (typical when infeasibility was detected without producing a dual
@@ -2174,7 +2437,7 @@ void BendersBFunction::write_dual_solution( Index name ) {
   // caller falls back to synthesizing the cut from inverted-bound rows.
   if( f_diagonal_linearization_required ) {
    if( solver->has_dual_solution() )
-    solver->get_dual_solution( f_get_dual_solution_partial_config );
+    fetch_dual_solution( solver , f_get_dual_solution_partial_config );
    }
   else {
    if( solver->has_dual_direction() )
@@ -2196,6 +2459,35 @@ bool ignore_constraint( RowConstraint * constraint ) {
   return( true );
  return( false );
 }
+
+/*--------------------------------------------------------------------------*/
+
+void BendersBFunction::fetch_dual_solution( CDASolver * solver ,
+                                            Configuration * config )
+{
+ // the linearization is made of the dual values of the Constraint in which
+ // the Variable of the mapping appear: a Solver that gives the dual solution
+ // of only a part of the sub-Block (say, a LagrangianDualSolver whose
+ // components are solved by a dynamic programming) leaves some of them with
+ // whatever value they had, and the linearization would not be valid. Each
+ // of them is therefore set to NaN before, and has to be written by now
+ for( auto c : v_constraints )
+  if( c && ( ! ignore_constraint( c ) ) )
+   c->set_dual( std::numeric_limits< RowConstraint::RHSValue >::quiet_NaN() );
+
+ solver->get_dual_solution( config );
+
+ for( auto c : v_constraints )
+  if( c && ( ! ignore_constraint( c ) ) && std::isnan( c->get_dual() ) )
+   throw( std::logic_error( "BendersBFunction::fetch_dual_solution: the "
+                            "Solver of the sub-Block gives no dual value of "
+                            "a Constraint in which the Variable of the "
+                            "mapping appear (as a LagrangianDualSolver does "
+                            "when that Constraint is inside a component "
+                            "solved by a dynamic programming or a MILP), "
+                            "hence no valid linearization" ) );
+
+ }  // end( BendersBFunction::fetch_dual_solution )
 
 /*--------------------------------------------------------------------------*/
 
@@ -2528,27 +2820,12 @@ Function::FunctionValue BendersBFunction::compute_linearization_constant() {
   for( auto * sub_block : block->get_nested_Blocks() )
    Q.push( sub_block );
 
-  for( const auto & i : block->get_static_constraints() )
-   un_any_const_static( i , update_alpha , un_any_type< FRowConstraint >() )
-    || un_any_const_static( i , update_alpha , un_any_type< BoxConstraint >() )
-    || un_any_const_static( i , update_alpha , un_any_type< ZOConstraint >() )
-    || un_any_const_static( i , update_alpha , un_any_type< LB0Constraint >() )
-    || un_any_const_static( i , update_alpha , un_any_type< UB0Constraint >() )
-    || un_any_const_static( i , update_alpha , un_any_type< LBConstraint >() )
-    || un_any_const_static( i , update_alpha , un_any_type< UBConstraint >() )
-    || un_any_const_static( i , update_alpha , un_any_type< NNConstraint >() )
-    || un_any_const_static( i , update_alpha , un_any_type< NPConstraint >() );
-
-  for( const auto & i : block->get_dynamic_constraints() )
-   un_any_const_dynamic( i , update_alpha , un_any_type< FRowConstraint >() )
-    || un_any_const_dynamic( i , update_alpha , un_any_type< BoxConstraint >() )
-    || un_any_const_dynamic( i , update_alpha , un_any_type< ZOConstraint >() )
-    || un_any_const_dynamic( i , update_alpha , un_any_type< LB0Constraint >() )
-    || un_any_const_dynamic( i , update_alpha , un_any_type< UB0Constraint >() )
-    || un_any_const_dynamic( i , update_alpha , un_any_type< LBConstraint >() )
-    || un_any_const_dynamic( i , update_alpha , un_any_type< UBConstraint >() )
-    || un_any_const_dynamic( i , update_alpha , un_any_type< NNConstraint >() )
-    || un_any_const_dynamic( i , update_alpha , un_any_type< NPConstraint >() );
+  block->for_each_constraint_group( [ & update_alpha ]
+				   ( const BaseGroup & group ) {
+    for_each_as_any_of< FRowConstraint , BoxConstraint , ZOConstraint ,
+			LB0Constraint , UB0Constraint , LBConstraint ,
+			UBConstraint , NNConstraint , NPConstraint >(
+						   group , update_alpha ); } );
  }
 
  return( alpha );
@@ -2567,9 +2844,12 @@ void BendersBFunction::write_dual_solution_from_global_pool( Index name ) {
                                 "global_pool: linearization with name " +
                                 std::to_string( name ) + " was not found." ) );
 
- // TODO check whether the solution has already been written into the Block
+ if( name == f_last_solution )  // the sub-Block holds it already
+  return;                       // nothing to do
 
+ // the Solution holds the dual values [see intGPMaxSz]
  solution->write( v_Block.front() );
+ f_last_solution = name;        // and recall what it holds
 }  // end( BendersBFunction::write_dual_solution_from_global_pool )
 
 /*--------------------------------------------------------------------------*/
@@ -2868,6 +3148,55 @@ BendersBFunction::get_behaviour( std::shared_ptr< ConstraintMod > mod ) {
 
 /*--------------------------------------------------------------------------*/
 
+bool BendersBFunction::keep_pool_after_removal( const Modification * mod ,
+						Subset & which )
+{
+ const void * cell = nullptr;
+ Subset positions;
+ bool all = false;
+
+ if( ! rmvd_rows( mod , cell , positions , all ) )
+  return( false );   // the Modification does not say which rows went
+
+ if( ( ! all ) && positions.empty() )
+  return( true );    // no row went, the pool is untouched
+
+ if( v_Block.empty() )
+  return( false );
+
+ for( Index i = 0 ; i < global_pool.size() ; ++i ) {
+  if( ! global_pool.is_linearization_there( i ) )
+   continue;
+
+  auto solution = global_pool.get_solution( i );
+  if( ! solution )
+   continue;
+
+  // the Solution drops what it held for those rows [see Solution::adapt()];
+  // one that holds no dual values cannot say what they were
+  std::vector< double > dropped;
+  if( solution->adapt( v_Block.front() , *mod , dropped ) !=
+      Solution::kAdapted )
+   return( false );
+
+  /* The dual variable of a removed row is gone: what is left satisfies the
+   * dual constraints only if the multiplier of that row was zero, which is
+   * what a simplex basis gives exactly. Anything else, a multiplier that a
+   * barrier leaves small but nonzero included, is taken for nonzero, and the
+   * entry goes. */
+  if( std::any_of( dropped.begin() , dropped.end() ,
+		   []( double d ) { return( d != 0 ); } ) ) {
+   global_pool.delete_linearization( i );
+   which.push_back( i );
+   }
+  }
+
+ return( true );
+
+ }  // end( BendersBFunction::keep_pool_after_removal )
+
+/*--------------------------------------------------------------------------*/
+
 void BendersBFunction::send_nuclear_modification
 ( const Observer::ChnlName chnl ) {
  // "nuclear modification" for Function: everything changed
@@ -3127,10 +3456,9 @@ void BendersBFunction::GlobalPool::store_combination_of_linearizations(
  auto constant = coeff * linearization_constants[ linearization_name ];
 
  FunctionValue coeff_sum_diagonal = 0;
- if( is_diagonal[ linearization_name ] )
+ bool diagonal_linearization = is_diagonal[ linearization_name ];
+ if( diagonal_linearization )
   coeff_sum_diagonal = coeff;
-
- bool diagonal_linearization = false;
 
  for( ++it ; it != coefficients.end() ; ++it ) {
   linearization_name = it->first;
@@ -3352,6 +3680,10 @@ void BendersBFunction::GlobalPool::clone( const GlobalPool & global_pool ) {
             global_pool.linearization_constants.cend() ,
             linearization_constants.begin() );
 
+ // the places past those of the given GlobalPool hold no linearization
+ std::fill( linearization_constants.begin() + global_pool.size() ,
+            linearization_constants.end() , NaN );
+
  important_linearization_lin_comb =
   global_pool.important_linearization_lin_comb;
 
@@ -3384,11 +3716,8 @@ void BendersBFunction::GlobalPool::clone( GlobalPool && global_pool ) {
  important_linearization_lin_comb =
   std::move( global_pool.important_linearization_lin_comb );
 
- auto this_solution = solutions.begin();
- for( auto & given_solution : global_pool.solutions ) {
-  *this_solution++ = given_solution;
-  given_solution = nullptr;
- }
+ solutions = std::move( global_pool.solutions );
+ global_pool.solutions.clear();
 
  // Possibly resize this GlobalPool so that it has at least the same size it
  // had before.

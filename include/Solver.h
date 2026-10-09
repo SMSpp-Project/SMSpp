@@ -246,6 +246,18 @@ class Solver : public ThinComputeInterface
   * universe) given enough resources, unless an error occurs, but not all
   * problems are decidable and therefore allow an exact Solver. */
 
+  kCutOff ,  ///< stopped because a cutoff has been reached
+             /**< The Solver has obtained a value beyond one of the cutoffs
+              * [see dblUpCutOff and dblLwCutOff], and has stopped there
+  * since this is what it has been asked for: either a solution at least as
+  * good as the cutoff, which may be not optimal, or a bound proving that no
+  * solution can be that good, which says that the problem is "as good as
+  * unfeasible" to whoever set it. This is *not* a certificate of optimality
+  * (cf. kOK): get_ub() and get_lb() tell which of the two cutoffs has been
+  * reached, and by how much. Being in [ kOK , kError ), as kStopTime and
+  * kStopIter are, the code is read as "stopped with something to report" by
+  * whoever only checks that range. */
+
   kBlockLocked = kError + 1 ,  ///< could not acquire the lock on the Block
                   /**< compute() needed to lock the Block to work, but
                    * acquiring the lock was unsuccessful and the Solver does
@@ -585,6 +597,26 @@ class Solver : public ThinComputeInterface
    throw( std::invalid_argument( classname +
 				 " not present in Solver factory" ) );
   return( ( it->second )() );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// tells whether the factory holds a :Solver with the given name
+ /** Tells whether the factory holds a :Solver with the given name, i.e.,
+  * whether new_Solver() would construct one rather than throwing. Which
+  * :Solver are in the factory depends on which modules the program is built
+  * with, and on the external libraries each of them has found: whoever
+  * applies a configuration that names the :Solver of a module that is not
+  * there can then leave that one out, and say so, rather than dying on it.
+  * The name is normalised as new_Solver() normalises it, hence the same
+  * spellings work here.
+  *
+  * @param classname The name of the :Solver class asked about. */
+
+ static bool has_Solver( const std::string & classname ) {
+  const std::string classname_( SMSpp_classname_normalise(
+					        std::string( classname ) ) );
+  return( Solver::f_factory().find( classname_ ) !=
+	  Solver::f_factory().end() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1944,6 +1976,20 @@ class Solver : public ThinComputeInterface
 /** @name Changing the data of the model
  *  @{ */
 
+ /// the kinds of Modification the Solver reads [see Modification::changes()]
+ /** Returns the kinds of Modification [see Modification::ModConcern] that
+  * the Solver reads, of which only the "kind" bits matter: the Block passes
+  * the Solver only the Modification of those kinds [see
+  * Modification::is_of_concern()]. The base class reads all the kinds, which
+  * is what every Solver did before saying it; a Solver that, say, is only
+  * interested in the physical representation of its Block returns eModPhys,
+  * and is spared the abstract Modification. */
+
+ [[nodiscard]] virtual Modification::ModConcern concerned_by( void ) const {
+  return( Modification::eModAnything );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// add a new Modification to the list
  /** This method must be used by the Block (or any of its components:
   * Variables, Constraints, Objective Function) to pass the (shared) pointer

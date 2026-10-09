@@ -30,6 +30,7 @@
 
 #include "Block.h"
 
+#include <stdexcept>
 #include <vector>
 
 /*--------------------------------------------------------------------------*/
@@ -323,7 +324,10 @@ class Solution
   *
   *      THIS IS THE METHOD TO BE IMPLEMENTED BY DERIVED CLASSES
   *
-  * and in fact it does nothing in the base class. */
+  * and in fact it does nothing in the base class: what the base class has to
+  * read, i.e., whether this Solution holds a direction, new_Solution() reads
+  * out of the group itself [see is_direction()], so that a :Solution need not
+  * know it is there. */
 
  virtual void deserialize( const netCDF::NcGroup & group ) {};
 
@@ -381,6 +385,127 @@ class Solution
  virtual void write( Block * const block ) {};
 
 /*--------------------------------------------------------------------------*/
+ /// tells this Solution that some dynamic Constraint are no longer there
+ /** Tells this Solution that the dynamic Constraint that were in the given
+  * positions of the given cell of a group of the given Block, which is the
+  * Block of this Solution or one nested in it, have been removed from it. A
+  * Solution that holds one value per Constraint, as the dual values of the
+  * RowConstraint are, drops the values of those, so that the ones that are
+  * left keep matching the Constraint that are left, writes them in \p
+  * dropped and returns true; whoever has to know if they were significant,
+  * as whoever holds a dual solution and sees a row go has to, reads them
+  * there. The method in the base class returns false, which says that this
+  * Solution cannot do it, be it because it holds nothing per Constraint or
+  * because it cannot find them, and therefore that what it holds is only
+  * good for the Block as it was.
+  *
+  * @param block the Block, or nested Block, that held the Constraint
+  *
+  * @param cell the address of the cell, i.e., of the std::list, of the group
+  *        of dynamic Constraint of \p block they were removed from
+  *
+  * @param positions the positions that the removed Constraint had in that
+  *        cell, in any order; if empty, the whole cell was removed
+  *
+  * @param dropped the values that have been dropped, one per position and in
+  *        the order of \p positions, zero for a position beyond what this
+  *        Solution holds */
+
+ virtual bool drop_dynamic_values( const Block * const block ,
+				  const void * cell ,
+				  const Block::Subset & positions ,
+				  std::vector< double > & dropped ) {
+  return( false );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// tells this Solution that a physical Modification removed what it holds
+ /** The physical counterpart of drop_dynamic_values(): tells this Solution
+  * that the physical Modification \p mod of the given Block, which is the
+  * Block of this Solution or one nested in it, has removed some of the
+  * elements this Solution holds values of, as the arcs a MCFBlock removes
+  * are of the flows of its MCFSolution. The Modification says which, in the
+  * terms of the physical representation, which only the :Solution of that
+  * Block knows how to read; it drops their values, so that the ones that are
+  * left keep matching the elements that are left, writes them in \p dropped
+  * and returns true. The method in the base class returns false, which says
+  * that this Solution cannot do it, be it because it holds nothing of what
+  * \p mod removes or because it does not know that Modification.
+  *
+  * @param block the Block, or nested Block, that issued \p mod
+  *
+  * @param mod the physical Modification that removed the elements
+  *
+  * @param dropped the values that have been dropped, one per removed element
+  *        and in the order the Modification gives them */
+
+ virtual bool drop_physical_values( const Block * const block ,
+				    const Modification * const mod ,
+				    std::vector< double > & dropped ) {
+  return( false );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// what adapt() did to the Solution
+ enum adapt_result {
+  kUnchanged = 0 ,  ///< the Solution is as it was, and still fits the Block
+  kAdapted ,        ///< the Solution has been changed to fit the Block
+  kInvalid          ///< the Solution does not fit the Block any more
+  };
+
+/*--------------------------------------------------------------------------*/
+ /// the kinds of Modification whose elements this Solution holds values of
+ /** Returns the kinds of Modification [see Modification::ModConcern] whose
+  * elements this Solution holds values of, and that therefore adapt() has
+  * to look at when they change: eModVarSet for a Solution that holds values
+  * of the Variable, eModCnsSet for one that holds values of the Constraint,
+  * eModPhys for one that drops the values of the physical elements a
+  * physical Modification removes [see drop_physical_values()]. The base
+  * class does not know what a :Solution holds, and says it may hold values
+  * of anything: since it drops nothing, adapt() then answers kInvalid to any
+  * removal, which is the safe answer for a :Solution that does not say
+  * more. */
+
+ [[nodiscard]] virtual Modification::ModConcern adapts( void ) const {
+  return( Modification::eModVarSet | Modification::eModCnsSet |
+	  Modification::eModPhys );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// adapts the Solution to a Modification of its Block
+ /** Tells the Solution that the Block \p block, which is its Block or one
+  * nested in it, has undergone the Modification \p mod, so that whoever
+  * keeps a Solution while the Block changes under it (the global pool of
+  * LagBFunction and of BendersBFunction, say) only has to pass it the
+  * Modification it receives. The Solution answers in three ways [see
+  * adapt_result]:
+  *
+  * - the Modification removes dynamic Variable (Constraint) that this
+  *   Solution holds values of [see adapts()]: it drops those values [see
+  *   drop_dynamic_values()], writes them in \p dropped and answers
+  *   kAdapted, or, if it cannot, kInvalid;
+  *
+  * - the Modification is a physical one that this Solution reads: it drops
+  *   the values of what it removes [see drop_physical_values()] and answers
+  *   kAdapted, or kInvalid if it cannot;
+  *
+  * - the Modification is a NModification, after which nothing of what the
+  *   Solution holds can be trusted: kInvalid;
+  *
+  * - any other Modification (the data of the Variable, of the Constraint or
+  *   of the Objective, added elements, removed elements this Solution holds
+  *   nothing of) leaves its values as they are: kUnchanged, and whether they
+  *   are still feasible is for is_sol_feasible() to say, not for adapt().
+  *
+  * A GroupModification is adapted to one sub-Modification at a time, the
+  * answer being kInvalid if any of them is, kAdapted if any of them is and
+  * kUnchanged otherwise, and the values dropped being appended in order. */
+
+ virtual adapt_result adapt( const Block * const block ,
+			     const Modification & mod ,
+			     std::vector< double > & dropped );
+
+/*--------------------------------------------------------------------------*/
  /// tells whether this Solution holds a solution or a direction
  /** Returns true if what this Solution holds is not a solution but a
   * direction, i.e., a ray of the feasible region of the Block along which
@@ -388,10 +513,29 @@ class Solution
   * makes for what the Variable hold, and made here so that whoever receives
   * a Solution knows which of the two it has in hand.
   *
+  * What a Solution holds is decided when it is read out of a Block, or by
+  * whoever produces it without passing from one [see Solver::get_Solution()],
+  * and it travels with it: clone() (the empty one too), scale() and the
+  * (de)serialization keep it as it is, while a sum() is a direction only if
+  * every Solution in it is one, a solution plus a ray being a solution [see
+  * sum()].
+  *
   * The default is false, a Solution being a solution unless the :Solution of
   * a Block that has rays says otherwise. */
 
- [[nodiscard]] virtual bool is_direction( void ) const { return( false ); }
+ [[nodiscard]] virtual bool is_direction( void ) const {
+  return( f_direction );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// tells this Solution that it holds a direction, or that it does not
+ /** Tells this Solution that what it holds is a direction if yesno is true,
+  * and a solution if it is false; this is what is_direction() reports from
+  * then on. Whoever fills a Solution has to say so: read() takes it from
+  * Block::is_direction(), and a Solver that writes a Solution of its own
+  * has to say it here. */
+
+ virtual void is_direction( bool yesno ) { f_direction = yesno; }
 
 /*--------------------------------------------------------------------------*/
  /// returns a scaled version of this Solution
@@ -604,6 +748,12 @@ class Solution
 
  virtual void serialize( netCDF::NcGroup & group ) const {
   group.putAtt( "type" , classname() );
+
+  // what this Solution holds travels with it: the attribute is only written
+  // for a direction, so that a Solution says nothing more than it used to
+  // and whoever reads an older one finds a solution, as it was
+  if( f_direction )
+   group.putAtt( "direction" , netCDF::NcInt() , 1 );
   }
 
 /** @} ---------------------------------------------------------------------*/
@@ -691,6 +841,11 @@ class Solution
 /** @} ---------------------------------------------------------------------*/
 /*-------------------------- PROTECTED FIELDS ------------------------------*/
 /*--------------------------------------------------------------------------*/
+
+ protected:
+
+ bool f_direction = false;
+ ///< true if what this Solution holds is a direction [see is_direction()]
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/

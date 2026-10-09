@@ -12,7 +12,12 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni
+ * \author Donato Meoli \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \copyright &copy; by Antonio Frangioni,
+ *                      Donato Meoli
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -498,8 +503,11 @@ class PolyhedralFunctionBlock : public AbstractBlock
   *               1 / sqrt( max( 1 , || A_i ||_inf , | b_i | ) );
   *
   * - bit 3 = 1 : global epigraph scaling is enabled. One shared factor is
-  *               computed with the same formula, using the maximum over
-  *               all rows. In the primal representation an extra internal
+  *               computed with the same formula, using the median over
+  *               all rows (not the maximum, so that a single row far out
+  *               of scale does not push all the others below the
+  *               tolerances of the solver). In the primal representation
+  *               an extra internal
   *               ColVariable stores the scaled epigraph value. It is linked
   *               to the physical epigraph variable by an equality, so the
   *               scaling remains invisible outside this Block.
@@ -507,7 +515,7 @@ class PolyhedralFunctionBlock : public AbstractBlock
   * The two scaling modes can be enabled independently or together. Local
   * factors are fixed when each row enters the representation. The global
   * factor is monitored in batches: PFB caches each row measure
-  * max( 1 , || A_i ||_inf , | b_i | ), keeps their maximum, and changes the
+  * max( 1 , || A_i ||_inf , | b_i | ), takes their median, and changes the
   * shared factor to the inverse square root of this measure only when it
   * drifts by more than two orders of magnitude from the value used for the
   * previous scaling. When the factor changes, PFB preserves the existing
@@ -715,9 +723,35 @@ class PolyhedralFunctionBlock : public AbstractBlock
   * - calling this method more than once with the *same* lambda is a no-op
   *   (lambda is added only if not already present); each PolyhedralFunction-
   *   Block can however have multiple distinct lambda's registered, one
-  *   per global-LB-style coupling it participates in. */
+  *   per global-LB-style coupling it participates in.
+  *
+  * This is the size variable of this Block [see set_size_variable()], and
+  * the method is set_size_variable( lambda , eNoMod ) with the checks it
+  * always had: it throws where set_size_variable() returns false. */
 
  void set_lambda( ColVariable * lambda );
+
+/*--------------------------------------------------------------------------*/
+ /// gives this Block the Variable of its size parameter
+ /** The size parameter of a PolyhedralFunctionBlock is the shared multiplier
+  * lambda of set_lambda(), owned by the father: it is written into the
+  * normalization constraint of the dual representation, with coefficient
+  * -1 / global_scale, the sides of that constraint going to 0, and the
+  * global rescaling keeps that coefficient in step, in place.
+  *
+  * It may be called before generate_abstract_variables(), in which case
+  * the Variable is stored and written in when the normalization constraint
+  * is built, generate_abstract_constraints() throwing if the
+  * representation chosen is not the dual one; or after
+  * generate_abstract_constraints(), in which case it returns false unless
+  * the representation is the dual one, and the Variable is added to the
+  * normalization constraint in place, the Modification being issued as
+  * \p issueAMod says. It returns false if \p size_var is not a
+  * ColVariable, and passing a Variable that is there already changes
+  * nothing. */
+
+ bool set_size_variable( Variable * size_var ,
+                         c_ModParam issueAMod = eNoBlck ) override;
 
 /*--------------------------------------------------------------------------*/
  /// add this block's coupling terms to a list of external constraints
@@ -755,8 +789,11 @@ class PolyhedralFunctionBlock : public AbstractBlock
   * - this method must be called *after* generate_abstract_variables() has
   *   built the f_theta list (i.e. with the "dual representation" active);
   *
-  * - this method is meant to be called *at most once*: the assumption is
-  *   that the list of external constraints is set once and for all.
+  * - this method is meant to be called *at most once*. The list object is
+  *   retained by reference and may subsequently grow; when it does, the
+  *   owner must append the new constraints before adding the corresponding
+  *   active Variable to the PolyhedralFunction, so that the dual Modification
+  *   handler can populate the new coupling rows.
   *
   * - the LinearFunction of each provided FRowConstraint must already
   *   exist (so that this method can simply add the new coefficients to
@@ -1064,9 +1101,12 @@ class PolyhedralFunctionBlock : public AbstractBlock
   * guts_of_add_Modification_PF(), while the latter by the protected method
   * guts_of_add_Modification_LR(); see their comments for details.
   *
-  * TODO: define and handle an appropriate GroupModification to manage
-  *       addition and removal of Variables from the LinearFunction inside
-  *       the FRowConstraint
+  * In the "linearized dual" representation a row of PF() is a column of the
+  * abstract representation, i.e., one new Variable plus one coefficient in
+  * each row the Variable appears in; all the Modification of such a change
+  * are issued inside a VariableGroupMod, so that a Solver having a column
+  * operation of its own can use it rather than reading the change one row
+  * at a time [see MILPSolver::process_group_modification()].
   *
   * Note that while PolyhedralFunctionBlock regards itself as "leaf" Block,
   * i.e., it does not handle any sub-Block, these may actually can be there;
@@ -1107,16 +1147,26 @@ class PolyhedralFunctionBlock : public AbstractBlock
 
   mod->concerns_Block( false );  // recall it's been checked already
 
-  auto tmod = std::dynamic_pointer_cast< const FunctionMod >( mod );
-  if( tmod && ( tmod->function() == & PF() ) ) {
+  // FunctionMod and FunctionModVars are sibling classes deriving from
+  // AModification. In particular, C05FunctionModVarsAddd cannot be caught
+  // by a cast to FunctionMod, so identify the affected Function through
+  // either branch before dispatching Modifications produced by PF().
+  Function * modified_function = nullptr;
+  if( auto fmod = std::dynamic_pointer_cast< const FunctionMod >( mod ) )
+   modified_function = fmod->function();
+  else if( auto vmod =
+              std::dynamic_pointer_cast< const FunctionModVars >( mod ) )
+   modified_function = vmod->function();
+
+  if( modified_function == & PF() ) {
    // if the Modification comes from the PolyhedralFunction; it will
    // generate a (bunch of) Modification(s) in the abstract
    // representation, and this Modification itself will also remain to
    // serves a the "physical" Modification) unless the Modification
    // causes a NBModification to be issued, in which case it is useless
    const bool reissued_nb = is_dual()
-      ? guts_of_add_Modification_PF_dual( tmod.get() , chnl )
-      : guts_of_add_Modification_PF( tmod.get() , chnl );
+      ? guts_of_add_Modification_PF_dual( mod.get() , chnl )
+      : guts_of_add_Modification_PF( mod.get() , chnl );
    if( reissued_nb )
     return;
    }
@@ -1208,13 +1258,13 @@ class PolyhedralFunctionBlock : public AbstractBlock
   * This assumption drastically simplifies some of the logic here. Hence,
   * derived classes must ensure they do not mess up with this property.
   *
-  * The method returns true if and only if the FunctionMod produced by the
+  * The method returns true if and only if the Modification produced by the
   * PolyhedralFunction is the "nuclear Modification for Function" that
   * causes a NBModification to be issued by PolyhedralFunctionBlock; in this
   * case, and in this case only, forwarding the original Modification is
   * pointless because the whole of the Block has been changed, */
 
- bool guts_of_add_Modification_PF( const FunctionMod * mod , ChnlName chnl );
+ bool guts_of_add_Modification_PF( c_p_Mod mod , ChnlName chnl );
 
 /*--------------------------------------------------------------------------*/
  /// process a Modification produced by the "linearized" representation
@@ -1267,13 +1317,15 @@ class PolyhedralFunctionBlock : public AbstractBlock
   * representation (f_theta dynamic variables, f_normcns normalization
   * constraint, the FRealObjective LinearFunction and, when registered, the
   * f_coupling external coupling constraints).
+  * Strongly quasi-additive Variable additions are supported when the external
+  * owner has already appended the corresponding coupling rows; removals still
+  * require higher-level coordination.
   *
   * The return value has the same semantics as guts_of_add_Modification_PF:
   * true means a NBModification was issued (so the caller should not
   * forward the original Modification any further), false otherwise. */
 
- bool guts_of_add_Modification_PF_dual( const FunctionMod * mod ,
-                                        ChnlName chnl );
+ bool guts_of_add_Modification_PF_dual( c_p_Mod mod , ChnlName chnl );
 
 /*--------------------------------------------------------------------------*/
  /// dual abstract -> PF: counterpart of guts_of_add_Modification_LR

@@ -119,6 +119,12 @@ public:
 /** @} ---------------------------------------------------------------------*/
 /*------- METHODS DESCRIBING THE BEHAVIOR OF A RowConstraintSolution -------*/
 /*--------------------------------------------------------------------------*/
+ /// a RowConstraintSolution holds values of the Constraint [see adapts()]
+ [[nodiscard]] Modification::ModConcern adapts( void ) const override {
+  return( Modification::eModCnsSet );
+  }
+
+/*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a RowConstraintSolution
  *  @{ */
 
@@ -199,6 +205,20 @@ public:
                      const double factor );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// drops the dual values of dynamic RowConstraint that have been removed
+ /** Drops the dual values of the RowConstraint that were in the given
+  * positions of the given cell of a group of dynamic Constraint of the given
+  * Block, which is the Block of this RowConstraintSolution or one nested in
+  * it: the cell is searched for by its address, in this Solution and then in
+  * the nested ones, and what is left of the values of that cell keeps
+  * matching the RowConstraint that are left in it
+  * [see Solution::drop_dynamic_values()]. */
+
+ bool drop_dynamic_values( const Block * const block , const void * cell ,
+			  const Block::Subset & positions ,
+			  std::vector< double > & dropped ) override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// adds a multiple of the given Solution to this Solution
  /** This method adds a multiple of the dual values of the RowConstraint
   * stored in the Solution provided as argument to the values stored in this
@@ -216,75 +236,30 @@ public:
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the dual values of the *static* Constraint
  /** Method for reading the dual values of the *static* Constraint of the
-  * Block associated with this Solution. It returns a vector of boost::any, in
-  * which each element is supposed to contain only one among:
-  *
-  * - a pointer to a single double;
-  *
-  * - a pointer to a std::vector of double;
-  *
-  * - a pointer to a boost::multi_array< double , K >;
-  *
-  * This vector of boost::any is structured in the same way the vector
-  * v_s_Constraint of static Constraint is structured in the associated
-  * Block. This means that the i-th element of this vector is associated with
-  * the i-th element of v_s_Constraint. If the i-th element of v_s_Constraint
-  * is
-  *
-  * - a pointer to a single RowConstraint, then the i-th element of this
-  *   vector is a pointer to a single double which is the dual value of that
-  *   RowConstraint;
-  *
-  * - a pointer to a std::vector of any class derived from RowConstraint or a
-  *   pointer to a std::vector of pointers to RowConstraint, then the i-th
-  *   element of this vector is a pointer to a std::vector of double which are
-  *   the dual values of those RowConstraint;
-  *
-  * - a pointer to a boost::multi_array< V , K > or a pointer to a
-  *   boost::multi_array< V * , K >, where V is any class derived from
-  *   RowConstraint, then the i-th element of this vector is a pointer to a
-  *   boost::multi_array< double , K >, which stores the dual values of those
-  *   RowConstraint. */
+  * Block associated with this Solution. The i-th entry of the returned vector
+  * corresponds to the i-th group of static Constraint of the Block, and holds
+  * the dual values of its RowConstraint in storage order: for a
+  * boost::multi_array this is the order of its data(), and for a group whose
+  * cells are std::vector it is cell by cell. The group may hold the
+  * RowConstraint or pointers to them. */
 
- c_Vec_any & get_static_constraint_dual_values( void ) const {
+ const std::vector< std::vector< double > > &
+ get_static_constraint_dual_values( void ) const {
   return( static_constraint_dual_values );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the dual values of the *dynamic* Constraint
  /** Method for reading the dual values of the *dynamic* Constraint of the
-  * Block associated with this Solution. It returns a vector of boost::any,
-  * each element of which is supposed to contain only one among:
-  *
-  * - a pointer to a std::vector< double >;
-  *
-  * - a pointer to a std::vector< std::vector< double > >;
-  *
-  * - a pointer to a boost::multi_array< std::vector< double > , K >;
-  *
-  * This vector of boost::any is structured in the same way the vector
-  * v_d_Constraint of dynamic Constraint is structured in the associated
-  * Block. This means that the i-th element of this vector is associated with
-  * the i-th element of v_d_Constraint. If the i-th element of v_d_Constraint
-  * is
-  *
-  * - a pointer to a std::list of any class derived from RowConstraint or a
-  *   pointer to a std::list of pointers to RowConstraint, then the i-th
-  *   element of this vector is a pointer to a std::vector of double which
-  *   are the dual values of those RowConstraint;
-  *
-  * - a pointer to a std::vector of std::list< V > or a pointer to a std::vector
-  *   of std::list< V * >, where V is any class derived from RowConstraint, then
-  *   the i-th element of this vector is a pointer to a std::vector of
-  *   std::vector< double > which are the dual values of those RowConstraint;
-  *
-  * - a pointer to a boost::multi_array< std::list< V > , K > or a pointer to a
-  *   boost::multi_array< std::list< V * > , K >, where V is any class derived
-  *   from RowConstraint, then the i-th element of this vector is a pointer to a
-  *   boost::multi_array< std::vector< double > , K >, which stores the dual
-  *   values of those RowConstraint. */
+  * Block associated with this Solution. The i-th entry of the returned vector
+  * corresponds to the i-th group of dynamic Constraint of the Block, and has
+  * one std::vector of double per cell of its grid, in storage order, holding
+  * the dual values of the RowConstraint of the std::list of that cell in list
+  * order. The vector of a cell may be longer than the list, if the list was
+  * longer when the values were read. */
 
- c_Vec_any & get_dynamic_constraint_dual_values( void ) const {
+ const std::vector< std::vector< std::vector< double > > > &
+ get_dynamic_constraint_dual_values( void ) const {
   return( dynamic_constraint_dual_values );
   }
 
@@ -325,9 +300,13 @@ protected:
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
+ /// reads (if read) or writes the dual values of the static Constraint
+
  void apply_static( const Block * const block , const bool read );
 
 /*--------------------------------------------------------------------------*/
+
+ /// reads (if read) or writes the dual values of the dynamic Constraint
 
  void apply_dynamic
  ( const Block * const block , const bool read ,
@@ -355,11 +334,9 @@ protected:
 
 /*--------------------------------------------------------------------------*/
 
- /// delete all vectors created for this Solution
- /** This method deletes every object currently "stored" in the vectors
-  * static_constraint_dual_values and
-  * dynamic_constraint_dual_values. Moreover, these two vectors and the vector
-  * nested_solutions of nested Solutions are resized to 0. */
+ /// empties the structure of this Solution
+ /** This method resizes to 0 the vectors static_constraint_dual_values,
+  * dynamic_constraint_dual_values and nested_solutions. */
 
  void delete_vectors();
 
@@ -397,15 +374,12 @@ protected:
 /*---------------------------- PRIVATE FIELDS ------------------------------*/
 /*--------------------------------------------------------------------------*/
 
- Vec_any static_constraint_dual_values;
- ///< the dual values of the static Constraint
- /**< vector of pointers to [multi/single dimensional arrays of]
-  * [pointers to] [classes derived from] Constraint */
+ std::vector< std::vector< double > > static_constraint_dual_values;
+ ///< the dual values of the static Constraint, one vector per group
 
- Vec_any dynamic_constraint_dual_values;
- ///< the dual values of the dynamic Constraint
- /**< vector of pointers to [multi/single dimensional arrays of]
-  * [pointers to] [classes derived from] RowConstraint */
+ std::vector< std::vector< std::vector< double > > >
+  dynamic_constraint_dual_values;
+ ///< the dual values of the dynamic Constraint, one vector per cell per group
 
  Vec_RowConstraintSolution nested_solutions;
  ///< vector of RowConstraintSolutions of the nested Blocks

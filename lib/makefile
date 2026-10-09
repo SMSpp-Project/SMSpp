@@ -32,6 +32,7 @@
 # macros to be exported - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 SMS++OBJ = $(SMS++SDR)/obj/AbstractBlock.o \
+	$(SMS++SDR)/obj/AbstractChange.o \
     $(SMS++SDR)/obj/Change.o \
 	$(SMS++SDR)/obj/BendersBFunction.o \
 	$(SMS++SDR)/obj/BendersBlock.o \
@@ -40,6 +41,7 @@ SMS++OBJ = $(SMS++SDR)/obj/AbstractBlock.o \
 	$(SMS++SDR)/obj/BoxSolver.o \
 	$(SMS++SDR)/obj/CDASolver.o \
 	$(SMS++SDR)/obj/C05Function.o \
+	$(SMS++SDR)/obj/C05SumFunction.o \
 	$(SMS++SDR)/obj/ColRowSolution.o \
 	$(SMS++SDR)/obj/ColVariable.o \
 	$(SMS++SDR)/obj/ColVariableSolution.o \
@@ -53,6 +55,7 @@ SMS++OBJ = $(SMS++SDR)/obj/AbstractBlock.o \
 	$(SMS++SDR)/obj/Function.o \
 	$(SMS++SDR)/obj/LagBFunction.o \
 	$(SMS++SDR)/obj/LinearFunction.o \
+	$(SMS++SDR)/obj/MasterProblemBlock.o \
 	$(SMS++SDR)/obj/Objective.o \
 	$(SMS++SDR)/obj/OneVarConstraint.o \
 	$(SMS++SDR)/obj/PolyhedralFunction.o \
@@ -75,9 +78,11 @@ SMS++H = $(SMS++SDR)/include/AbstractBlock.h \
 	$(SMS++SDR)/include/BlockSolverConfig.h \
 	$(SMS++SDR)/include/BoxSolver.h \
 	$(SMS++SDR)/include/C05Function.h \
+	$(SMS++SDR)/include/C05SumFunction.h \
 	$(SMS++SDR)/include/C15Function.h \
 	$(SMS++SDR)/include/CDASolver.h \
 	$(SMS++SDR)/include/Change.h \
+	$(SMS++SDR)/include/AbstractChange.h \
 	$(SMS++SDR)/include/ChangeSolver.h \
 	$(SMS++SDR)/include/ColRowSolution.h \
 	$(SMS++SDR)/include/ColVariable.h \
@@ -95,6 +100,7 @@ SMS++H = $(SMS++SDR)/include/AbstractBlock.h \
 	$(SMS++SDR)/include/LagBFunction.h \
 	$(SMS++SDR)/include/LinearFunction.h \
 	$(SMS++SDR)/include/Modification.h \
+	$(SMS++SDR)/include/MasterProblemBlock.h \
 	$(SMS++SDR)/include/Objective.h \
 	$(SMS++SDR)/include/Observer.h \
 	$(SMS++SDR)/include/OneVarConstraint.h \
@@ -127,6 +133,11 @@ intBlockINC = $(SMS++SDR)/include/Block.h $(SMS++SDR)/include/Configuration.h \
 $(SMS++SDR)/obj/Change.o: $(SMS++SDR)/src/Change.cpp \
 	$(SMS++SDR)/include/Change.h
 	$(CC) -c $(SMS++SDR)/src/Change.cpp -o $@ $(SMS++INC) $(SW)
+
+$(SMS++SDR)/obj/AbstractChange.o: $(SMS++SDR)/src/AbstractChange.cpp \
+	$(SMS++SDR)/include/AbstractChange.h $(SMS++SDR)/include/Change.h \
+	$(SMS++SDR)/include/AbstractPath.h
+	$(CC) -c $(SMS++SDR)/src/AbstractChange.cpp -o $@ $(SMS++INC) $(SW)
 
 $(SMS++SDR)/obj/AbstractBlock.o: $(SMS++SDR)/src/AbstractBlock.cpp \
 	$(SMS++SDR)/include/AbstractBlock.h $(intBlockINC) \
@@ -195,6 +206,13 @@ $(SMS++SDR)/obj/C05Function.o: $(SMS++SDR)/src/C05Function.cpp \
 	$(SMS++SDR)/include/ThinComputeInterface.h \
 	$(SMS++SDR)/include/ThinVarDepInterface.h
 	$(CC) -c $(SMS++SDR)/src/C05Function.cpp -o $@ $(SMS++INC) $(SW)
+
+$(SMS++SDR)/obj/C05SumFunction.o: $(SMS++SDR)/src/C05SumFunction.cpp \
+	$(SMS++SDR)/include/C05SumFunction.h \
+	$(SMS++SDR)/include/C05Function.h \
+	$(SMS++SDR)/include/ColVariable.h $(SMS++SDR)/include/Observer.h \
+	$(SMS++SDR)/include/Solver.h
+	$(CC) -c $(SMS++SDR)/src/C05SumFunction.cpp -o $@ $(SMS++INC) $(SW)
 
 $(SMS++SDR)/obj/Configuration.o: $(SMS++SDR)/src/Configuration.cpp \
 	$(SMS++SDR)/include/Configuration.h $(SMS++SDR)/include/SMSTypedefs.h
@@ -342,6 +360,24 @@ $(SMS++SDR)/obj/PolyhedralFunctionBlock.o: $(intBlockINC) \
 	$(CC) -c $(SMS++SDR)/src/PolyhedralFunctionBlock.cpp -o \
 	$@ $(SMS++INC) $(SW)
 
+$(SMS++SDR)/obj/MasterProblemBlock.o: $(intBlockINC) \
+	$(SMS++SDR)/src/MasterProblemBlock.cpp \
+	$(SMS++SDR)/include/MasterProblemBlock.h \
+	$(SMS++SDR)/include/BendersBFunction.h \
+	$(SMS++SDR)/include/BlockSolverConfig.h \
+	$(SMS++SDR)/include/C05Function.h $(SMS++SDR)/include/ColVariable.h \
+	$(SMS++SDR)/include/ColVariableSolution.h \
+	$(SMS++SDR)/include/DQuadFunction.h \
+	$(SMS++SDR)/include/FRealObjective.h \
+	$(SMS++SDR)/include/FRowConstraint.h \
+	$(SMS++SDR)/include/LagBFunction.h \
+	$(SMS++SDR)/include/LinearFunction.h \
+	$(SMS++SDR)/include/OneVarConstraint.h \
+	$(SMS++SDR)/include/PolyhedralFunctionBlock.h \
+	$(SMS++SDR)/include/QuadFunction.h $(SMS++SDR)/include/Solver.h
+	$(CC) -c $(SMS++SDR)/src/MasterProblemBlock.cpp -o \
+	$@ $(SMS++INC) $(SW)
+
 $(SMS++SDR)/obj/RBlockConfig.o: $(SMS++SDR)/src/RBlockConfig.cpp \
 	$(SMS++SDR)/include/RBlockConfig.h $(intBlockINC)
 	$(CC) -c $(SMS++SDR)/src/RBlockConfig.cpp -o $@ $(SMS++INC) $(SW)
@@ -373,7 +409,9 @@ $(SMS++SDR)/obj/Solver.o: $(SMS++SDR)/src/Solver.cpp $(intBlockINC) \
 	$(CC) -c $(SMS++SDR)/src/Solver.cpp -o $@ $(SMS++INC) $(SW)
 
 $(SMS++SDR)/obj/Solution.o: $(SMS++SDR)/src/Solution.cpp $(intBlockINC) \
-	$(SMS++SDR)/include/Solution.h
+	$(SMS++SDR)/include/Solution.h $(SMS++SDR)/include/ColVariable.h \
+	$(SMS++SDR)/include/FRowConstraint.h \
+	$(SMS++SDR)/include/OneVarConstraint.h
 	$(CC) -c $(SMS++SDR)/src/Solution.cpp -o $@ $(SMS++INC) $(SW)
 
 $(SMS++SDR)/obj/Variable.o: $(SMS++SDR)/src/Variable.cpp \

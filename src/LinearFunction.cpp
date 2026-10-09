@@ -200,15 +200,25 @@ void LinearFunction::map_active( c_Vec_p_Var & vars , Subset & map ,
  if( map.size() < vars.size() )
   map.resize( vars.size() );
 
- if( ordered )
+ if( ordered ) {
+  // each of vars has to be found among the "active" ones, which may be more
+  std::vector< bool > found( vars.size() , false );
+  Index nfound = 0;
   for( Index i = 0 ; i < v_pairs.size() ; ++i ) {
    auto itvi = std::lower_bound( vars.begin() , vars.end() ,
                                  v_pairs[ i ].first );
-   if( itvi != vars.end() )
-    map[ std::distance( vars.begin() , itvi ) ] = i;
-   else
-    throw( std::invalid_argument( "LinearFunction::map_active: "
-                                  "some Variable is not active" ) );
+   if( ( itvi != vars.end() ) && ( *itvi == v_pairs[ i ].first ) ) {
+    const auto k = std::distance( vars.begin() , itvi );
+    map[ k ] = i;
+    if( ! found[ k ] ) {
+     found[ k ] = true;
+     ++nfound;
+     }
+    }
+   }
+  if( nfound < vars.size() )
+   throw( std::invalid_argument( "LinearFunction::map_active: "
+                                 "some Variable is not active" ) );
   }
  else {
   auto it = map.begin();
@@ -229,6 +239,9 @@ void LinearFunction::map_active( c_Vec_p_Var & vars , Subset & map ,
 void LinearFunction::add_variables( v_coeff_pair && vars ,
 				                                ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( vars.empty() )  // actually nothing to add
   return;            // cowardly (and silently) return
 
@@ -242,7 +255,7 @@ void LinearFunction::add_variables( v_coeff_pair && vars ,
   }
 
  // if noone is there or not listening
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod , eModFVars ) ) )
   return;  // all done
 
  Vec_p_Var vptr( added->size() );
@@ -265,13 +278,16 @@ void LinearFunction::add_variables( v_coeff_pair && vars ,
 
 void LinearFunction::add_variable( ColVariable * var , Coefficient coeff ,
                                    ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( var == nullptr )  // actually nothing to add
   return;              // cowardly (and silently) return
 
  v_pairs.push_back( std::make_pair( var , coeff ) );
 
  // if noone is there or not listening
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod , eModFVars ) ) )
   return;  // all done
 
  // a linear function is additive ==> strongly quasi-additive
@@ -288,6 +304,9 @@ void LinearFunction::add_variable( ColVariable * var , Coefficient coeff ,
 void LinearFunction::modify_coefficient( Index i , Coefficient coeff ,
                                          ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( i >= v_pairs.size() )
   throw( std::invalid_argument( "LinearFunction::modify_coefficient: invalid"
                                 " index: " + std::to_string( i ) ) );
@@ -298,7 +317,8 @@ void LinearFunction::modify_coefficient( Index i , Coefficient coeff ,
  auto diff = coeff - v_pairs[ i ].second;
  v_pairs[ i ].second = coeff;
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , eModFValues ) ) )
   return; // no one is there: all done
 
  f_Observer->add_Modification( std::make_shared< C05FunctionModLinRngd >(
@@ -316,6 +336,9 @@ void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
                                           Subset && nms , bool ordered ,
                                           ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( nms.empty() )
   return;
 
@@ -323,18 +346,25 @@ void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
   throw( std::invalid_argument( "LinearFunction::modify_coefficients: NCoef"
                                 ".size < nms.size" ) );
 
+ // all the indices are checked before anything is changed
+ for( auto i : nms )
+  if( i >= v_pairs.size() )
+   throw( std::invalid_argument( "LinearFunction::modify_coefficients: "
+                                 "invalid index: " + std::to_string( i ) ) );
+
+ // the part of NCoef past nms is not used, and the one used becomes the
+ // vector of the changes in the Modification
+ NCoef.resize( nms.size() );
+
  auto NCit = NCoef.begin();
 
- if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+ if( f_Observer && f_Observer->issue_mod( issueMod , eModFValues ) ) {
   // somebody is there: meanwhile, prepare data for the Modification
 
   Vec_p_Var vp( nms.size() );
   auto vpit = vp.begin();
 
   for( auto i : nms ) {
-   if( i >= v_pairs.size() )
-    throw( std::invalid_argument( "LinearFunction::modify_coefficients: "
-                                  "invalid index: " + std::to_string( i ) ) );
    *( vpit++ ) = v_pairs[ i ].first;
    auto di = *NCit - v_pairs[ i ].second;
    v_pairs[ i ].second = *NCit;
@@ -350,12 +380,8 @@ void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
                                 Observer::par2chnl( issueMod ) );
   }
  else  // noone is there: just do it
-  for( auto i : nms ) {
-   if( i >= v_pairs.size() )
-    throw( std::invalid_argument( "LinearFunction::modify_coefficients: "
-                                  "invalid index: " + std::to_string( i ) ) );
+  for( auto i : nms )
    v_pairs[ i ].second = *( NCit++ );
-   }
 
  }  // end( LinearFunction::modify_coefficients( subset ) )
 
@@ -364,6 +390,9 @@ void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
 void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
                                           Range range , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  range.second = std::min( range.second , c_Index( v_pairs.size() ) );
  if( range.second <= range.first )
   return;
@@ -372,11 +401,15 @@ void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
   throw( std::invalid_argument( "LinearFunction::modify_coefficients: NCoef"
                                 ".size is too small" ) );
 
+ // the part of NCoef past the (cut) range is not used, and the one used
+ // becomes the vector of the changes in the Modification
+ NCoef.resize( range.second - range.first );
+
  auto NCit = NCoef.begin();
  auto strtit = v_pairs.begin() + range.first;
  const auto stopit = v_pairs.begin() + range.second;
 
- if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+ if( f_Observer && f_Observer->issue_mod( issueMod , eModFValues ) ) {
   // somebody is there: meanwhile, prepare data for the Modification
 
   Vec_p_Var vp( range.second - range.first );
@@ -407,6 +440,9 @@ void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
 
 void LinearFunction::remove_variable( Index i , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( v_pairs.size() <= i )
   throw( std::logic_error( "LinearFunction::remove_variable: there is no "
                            "Variable with index " + std::to_string( i ) ) );
@@ -415,7 +451,7 @@ void LinearFunction::remove_variable( Index i , ModParam issueMod )
  auto var = ( *itv ).first;
  v_pairs.erase( itv );       // erase it
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod , eModFVars ) ) )
   return;
 
  // a linear function is additive ==> strongly quasi-additive
@@ -431,13 +467,16 @@ void LinearFunction::remove_variable( Index i , ModParam issueMod )
 
 void LinearFunction::remove_variables( Range range , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  range.second = std::min( range.second , Index( v_pairs.size() ) );
  if( range.second <= range.first )
   return;
 
  if( ( range.first == 0 ) && ( range.second >= v_pairs.size() ) ) {
   // removing *all* variable
-  if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+  if( f_Observer && f_Observer->issue_mod( issueMod , eModFVars ) ) {
    // an Observer is there: copy the names of deleted Variable (all of them)
    Vec_p_Var vars( v_pairs.size() );
 
@@ -464,7 +503,7 @@ void LinearFunction::remove_variables( Range range , ModParam issueMod )
  const auto strtit = v_pairs.begin() + range.first;
  const auto stopit = v_pairs.begin() + range.second;
 
- if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+ if( f_Observer && f_Observer->issue_mod( issueMod , eModFVars ) ) {
   // somebody is there: meanwhile, prepare data for the Modification
 
   Vec_p_Var vars( range.second - range.first );
@@ -491,8 +530,11 @@ void LinearFunction::remove_variables( Range range , ModParam issueMod )
 void LinearFunction::remove_variables( Subset && nms , bool ordered ,
                                        ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( nms.empty() ) {      // removing *all* variable
-  if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+  if( f_Observer && f_Observer->issue_mod( issueMod , eModFVars ) ) {
    // an Observer is there: copy the names of deleted Variable (all of them)
    Vec_p_Var vars( v_pairs.size() );
 
@@ -527,7 +569,7 @@ void LinearFunction::remove_variables( Subset && nms , bool ordered ,
  auto vi = *it;    // first element to be eliminated
  auto curr = v_pairs.begin() + vi;   // position where to move stuff
 
- if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+ if( f_Observer && f_Observer->issue_mod( issueMod , eModFVars ) ) {
   // somebody is there: meanwhile, prepare data for the Modification
   // (as it will be destroyed during the process)
 
@@ -581,10 +623,13 @@ void LinearFunction::remove_variables( Subset && nms , bool ordered ,
 void LinearFunction::set_constant_term( FunctionValue constant_term ,
                                         ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( f_constant_term == constant_term )  // actually nothing to change
   return;                                // cowardly (and silently) return
 
- if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+ if( f_Observer && f_Observer->issue_mod( issueMod , eModFValues ) ) {
   const FunctionValue delta = constant_term - f_constant_term;
   f_constant_term = constant_term;
 

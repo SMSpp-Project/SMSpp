@@ -37,6 +37,7 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <cstdint>
 #include <list>
 #include <vector>
 #include <array>
@@ -57,6 +58,7 @@ namespace SMSpp_di_unipi_it {
 class Block;       // forward definition
 class Variable;    // forward definition
 class Constraint;  // forward definition
+class BaseGroup;   // forward definition
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
@@ -124,8 +126,8 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
 
  explicit Constraint( Block * my_block = nullptr ) : ThinComputeInterface() ,
                                                      ThinVarDepInterface() ,
-                                                     f_Block( my_block ) ,
-                                                     f_is_relaxed( false ) {}
+                                                     f_is_relaxed( false ) ,
+  f_owner( reinterpret_cast< std::uintptr_t >( my_block ) ) {}
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor: it cannot be used, but it is not deleted
@@ -134,7 +136,7 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
   * :Constraint. */
 
  Constraint( const Constraint & ) : ThinComputeInterface() ,
-                                    ThinVarDepInterface() {
+                                    ThinVarDepInterface() , f_owner( 0 ) {
   throw( std::logic_error( "copy constructor of Constraint invoked" ) );
   }
 
@@ -142,6 +144,15 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
  /// destructor of Constraint: it is virtual, and empty
 
  ~Constraint() override = default;
+
+/*--------------------------------------------------------------------------*/
+ /// the Constraint is cleared by the method of the base class
+ /** The static clear() below, which clear a whole collection of Constraint,
+  * would otherwise hide the virtual clear() of ThinVarDepInterface: a
+  * Constraint & would then have no clear() taking no argument, which is what
+  * code working in terms of the base classes needs. */
+
+ using ThinVarDepInterface::clear;
 
 /*--------------------------------------------------------------------------*/
  /// clear a std::vector of Constraint
@@ -231,9 +242,29 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
  /// set the pointer to the Block to which the Constraint belongs
  /** Method to set the pointer to the Block to which the Constraint belongs.
   * If the pointer is not provided in the constructor, it should be called
-  * before any other method of the class. */
+  * before any other method of the class. If the Constraint is in a group of
+  * \p fblock already this does nothing, so that a :Block setting its own
+  * Constraint to itself does not take them out of their groups; any other
+  * Block takes the Constraint out of its group. */
 
- void set_Block( Block * fblock ) { f_Block = fblock; }
+ void set_Block( Block * fblock ) {
+  if( ( f_owner & 1 ) && ( group_Block() == fblock ) )
+   return;
+  f_owner = reinterpret_cast< std::uintptr_t >( fblock );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// set the group of the Block to which the Constraint belongs
+ /** Called by the Block when it registers a group the Constraint is an
+  * element of [see Block::add_static_constraint() and the like], and when it
+  * drops that group, in which case \p group is nullptr and the Constraint
+  * keeps the Block of the group it leaves. The Block of the Constraint is
+  * then the Block of its group. */
+
+ void set_Group( BaseGroup * group ) {
+  f_owner = group ? ( reinterpret_cast< std::uintptr_t >( group ) | 1 )
+                  : reinterpret_cast< std::uintptr_t >( get_Block() );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// method to relax or enforce the Constraint
@@ -256,7 +287,23 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
 
  /// returns the pointer to the Block to which the Constraint belongs
  [[nodiscard]] Block * get_Block( void ) const override {
-  return( f_Block );
+  return( ( f_owner & 1 ) ? group_Block()
+                          : reinterpret_cast< Block * >( f_owner ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the group the Constraint is an element of, nullptr if none
+ /** Returns the group of its Block the Constraint has been registered in,
+  * which says the index of the group in the Block and, with
+  * inspection::index_in_group(), the position of the Constraint in it;
+  * nullptr if the Constraint is in no group, as it is before its Block
+  * registers it or after the Block drops the group, or if it is reached
+  * through a group that holds pointers to it [see BaseGroup::is_indirect()]. */
+
+ [[nodiscard]] BaseGroup * get_Group( void ) const {
+  return( ( f_owner & 1 ) ?
+          reinterpret_cast< BaseGroup * >( f_owner & ~std::uintptr_t( 1 ) ) :
+          nullptr );
   }
 
 /** @} ---------------------------------------------------------------------*/
@@ -348,7 +395,7 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
   * Constraint belongs [see Block.h]. */
 
  virtual void print( std::ostream & output ) const {
-  output << "Constraint [" << this << "] of Block [" << f_Block
+  output << "Constraint [" << this << "] of Block [" << get_Block()
          << "] with " << get_num_active_var() << " active variables"
          << std::endl;
  }
@@ -357,19 +404,29 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
- Block * f_Block;   ///< pointer to the Block which the Constraint belongs to
-
  bool f_is_relaxed; ///< true if the Constraint is relaxed
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
 /*--------------------------------------------------------------------------*/
 
-// private:
+ private:
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
+ /// the Block of the group of the Constraint, which is known to have one
+
+ [[nodiscard]] Block * group_Block( void ) const;
+
+/*--------------------------------------------------------------------------*/
+/*--------------------------- PRIVATE FIELDS -------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ std::uintptr_t f_owner;  ///< the group of the Constraint, or its Block
+ /**< The group [see BaseGroup] the Constraint is an element of, with the
+  * lowest bit set, or, if it is in none, the Block it belongs to, possibly
+  * nullptr: both are aligned, so the lowest bit is free to tell them. */
 
 /*--------------------------------------------------------------------------*/
 
@@ -416,6 +473,23 @@ class ConstraintMod : public AModification {
  ~ConstraintMod() override = default;  ///< destructor: does nothing
 
 /*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+
+ /// returns what the Modification changes [see Modification::ModConcern]
+ /** The data of a Constraint, which leaves the objective as it is: relaxing
+  * the Constraint makes the region grow, enforcing it shrinks it, both
+  * being changes of its sides, and any other change of a derived class,
+  * which does not say more, may be of the sides or of the coefficients and
+  * may do either. */
+
+ [[nodiscard]] ModConcern changes( void ) const override {
+  if( f_type == eRelaxConst )
+   return( eModCnsSide | eRegnGrow );
+  if( f_type == eEnforceConst )
+   return( eModCnsSide | eRegnShrink );
+  return( eModCnsSide | eModCnsCoef | eRegnShrink | eRegnGrow );
+  }
+
+/*--------------------------------------------------------------------------*/
 
  /// returns the Block to which the Constraint belongs
 

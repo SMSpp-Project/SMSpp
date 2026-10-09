@@ -151,6 +151,25 @@ class Observer {
  [[nodiscard]] virtual bool anyone_there( void ) const = 0;
 
 /*--------------------------------------------------------------------------*/
+ /// the kinds of Modification that whoever is listening reads
+ /** Returns the kinds of Modification [see Modification::ModConcern] that
+  * whoever is listening to this Observer reads. The base class says all of
+  * them if anyone_there(), and none otherwise; a Block says the "or" of
+  * what it reads itself and of what its Solver and those of its ancestors
+  * read [see Block::concerned()]. */
+
+ [[nodiscard]] virtual Modification::ModConcern concerned( void ) const {
+  return( anyone_there() ? Modification::eModAnything : 0 );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// true if anyone listening reads a Modification that changes \p what
+ [[nodiscard]] bool anyone_there_for( Modification::ModConcern what ) const {
+  return( anyone_there() &&
+	  Modification::is_of_concern( what , concerned() ) );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// notify this Observer about a Modification
  /** This method notifies this Observer about a Modification.
   *
@@ -469,8 +488,10 @@ class Observer {
   * set by the amododification_type enum [see Modification.h]:
   *
   * - eDryRun   the change that the method is supposed to perform, which would
-  *             result in a Modification would be issued, must *not* be done;
-  *             as a consequence, no Modification should be issued. Allowing
+  *             result in a Modification being issued, must *not* be done;
+  *             the method returns without changing anything, neither in the
+  *             object nor in whatever the change would be forwarded to, and
+  *             as a consequence no Modification is issued. Allowing
   *             to call a method and actually not doing the change that the
   *             method should do is useful in particular for methods that
   *             change both the "abstract" and the "physical" representation
@@ -497,7 +518,7 @@ class Observer {
   * Furthermore, it is necessary to specify to which channel the Modification
   * is sent. This information can be "packed" into one single parameter, which
   * is what this method does: iM is the parameter containing one of the above
-  * three values, and chnl the "name" of the channel. It is guaranteed that
+  * four values, and chnl the "name" of the channel. It is guaranteed that
   * make_par( iM , 0 ) == iM, so this method is only needed when sending to
   * a non-default channel. */
 
@@ -551,7 +572,27 @@ class Observer {
   * static. */
 
  [[nodiscard]] bool issue_pmod( ModParam issueMod ) const {
-  return( par2mod( issueMod ) && anyone_there() );
+  return( ( par2mod( issueMod ) >= eNoBlck ) && anyone_there() );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// as issue_mod(), but only if the Modification is read by anyone
+ /** As issue_mod( issueMod ), except that under eNoBlck the Modification is
+  * issued only if anyone listening reads its kind \p what [see
+  * anyone_there_for()]; eModBlck still issues it anyway, since the Block
+  * itself has to see it. */
+
+ [[nodiscard]] bool issue_mod( ModParam issueMod ,
+			       Modification::ModConcern what ) const {
+  return( ( par2mod( issueMod ) == eModBlck ) ||
+	  ( ( par2mod( issueMod ) == eNoBlck ) && anyone_there_for( what ) ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// as issue_pmod(), but only if the Modification is read by anyone
+ [[nodiscard]] bool issue_pmod( ModParam issueMod ,
+				Modification::ModConcern what ) const {
+  return( ( par2mod( issueMod ) >= eNoBlck ) && anyone_there_for( what ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -631,9 +672,14 @@ class Observer {
    retval = f_next_chnl++;
    }
   else {
-   auto rit = v_free_chnl.rend();
+   // the highest free name, which is the one release_channel_name() below
+   // reabsorbs first: rend() is the past-the-end of the reverse range, so
+   // dereferencing it read outside the set and .base() erased the first
+   // element rather than the last one. The idiom is the one already used
+   // below: rbegin(), and std::next( rit ).base() to erase what it points at
+   auto rit = v_free_chnl.rbegin();
    retval = *rit;
-   v_free_chnl.erase( rit.base() );
+   v_free_chnl.erase( std::next( rit ).base() );
    }
   
   f_ch_lock.clear( std::memory_order_release );  // release lock

@@ -70,10 +70,9 @@ namespace SMSpp_di_unipi_it {
  * dynamically. In order to achieve this, the FRealObjective checks the
  * Modification issued by the Function for FunctionModVars ones. As a
  * consequence, the FRealObjective "is always listening" to the Function
- * even if its Block has no registered Solver. This may lead to Modification
- * of the Function to be issued even if there is in fact no-one "listening".
- * Hopefully this potential inefficiency will be fixed later on by some
- * mechanism allowing a finer control on which Modification are "listened to".
+ * even if its Block has no registered Solver; which of the Modification of
+ * the Function it reads is said by concerned(), so that a Function that
+ * asks for the kind does not issue those that nobody reads.
  */
 
 class FRealObjective : public RealObjective , public Observer {
@@ -165,13 +164,13 @@ class FRealObjective : public RealObjective , public Observer {
   * However, for the latter to happen, the :FunctionModVars must be issued
   * by the Function even if there is no Solver "listening" to the Block of
   * this FRealObjective. To force this to happen, the FRealObjective "is
-  * always listening". This may lead to Modification of the Function to be
-  * issued even if there is in fact no-one "listening" to them, Hopefully
-  * this potential inefficiency will be fixed later on by some mechanism
-  * allowing a finer control on which Modification are "listened to".
+  * always listening", to the changes of the set of the Variable at least
+  * [see concerned()].
   *
   * The parameter issueMod decides if and how the FRealObjectiveMod is
-  * issued, as described in Observer::make_par(). */
+  * issued, as described in Observer::make_par(); under eDryRun nothing is
+  * done, hence function does not become property of the FRealObjective and
+  * the old Function is not deleted. */
 
  void set_function( Function * function = nullptr ,
                     ModParam issueMod = eModBlck , bool deleteold = true );
@@ -184,9 +183,8 @@ class FRealObjective : public RealObjective , public Observer {
 
  /// returns the Block to which this Observer belongs/
  /** FRealObjective is an Observer, and it belongs to the Block to which it
-  * belongs as a Constraint. However, note that FRealObjective::get_Block()
-  * is virtual while Constraint::get_Block() is not, hence the former has to
-  * be explicitly implemented in terms of the latter. */
+  * belongs as an Objective. It inherits get_Block() from both Observer and
+  * Objective, hence it has to say which one answers, and it is the latter. */
 
  [[nodiscard]] Block * get_Block( void ) const override {
   return( Objective::get_Block() );
@@ -566,16 +564,25 @@ class FRealObjective : public RealObjective , public Observer {
   * register/unregister itself from them. For this to happen, the
   * FunctionModVars must be issued by the Function even if there is no Solver
   * "listening" to the Block of this c. To force this to happen,
-  * the FRealObjective "is always listening". This may lead to Modification
-  * of the Function to be issued even if there is in fact no-one "listening"
-  * to them. Hopefully this potential inefficiency will be fixed later on by
-  * some mechanism allowing a finer control on which Modification are
-  * "listened to". */
+  * the FRealObjective "is always listening"; which of the Modification of the
+  * Function it reads, hence which ones a Function that asks for the kind
+  * issues when nobody is listening to the Block, is said by concerned(). */
 
  [[nodiscard]] bool anyone_there( void ) const override {
   // return( f_Block ? f_Block->anyone_there() : false );
   return( true );
   }
+
+/*--------------------------------------------------------------------------*/
+ /// what the FRealObjective reads of the Modification of its Function
+ /** Returns what the FRealObjective reads of the Modification of its
+  * Function [see Observer::concerned()]: the changes of the set of its
+  * Variable (Modification::eModVarSet), always, since it needs them to
+  * register itself with the Variable whatever its Block reads, and the
+  * changes of the values of the Function (Modification::eModObj) only if
+  * its Block reads the Objective. */
+
+ [[nodiscard]] Modification::ModConcern concerned( void ) const override;
 
 /*--------------------------------------------------------------------------*/
  /// mostly just dispatch to add_Modification() of the Block (if any)

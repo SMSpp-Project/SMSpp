@@ -25,6 +25,7 @@
 /*--------------------------------------------------------------------------*/
 
 #include <iterator>
+#include <vector>
 #include "Modification.h"
 
 /*--------------------------------------------------------------------------*/
@@ -220,14 +221,21 @@ class ThinVarDepInterface {
 
   // standard assignment, note the clone()
   iterator & operator=( iterator & itr ) {
-   itr_ = itr.itr_->clone();
+   if( this != & itr ) {  // the old one is deleted, after the clone()
+    auto tmp = itr.itr_->clone();
+    delete itr_;
+    itr_ = tmp;
+    }
    return( *this );
    }
 
   // standard move assignment
   iterator & operator=( iterator && itr ) {
-   itr_ = itr.itr_;
-   itr.itr_ = nullptr;
+   if( this != & itr ) {  // the old one is deleted
+    delete itr_;
+    itr_ = itr.itr_;
+    itr.itr_ = nullptr;
+    }
    return( *this );
    }
 
@@ -299,14 +307,21 @@ class ThinVarDepInterface {
 
   // standard assignment, note the clone()
   const_iterator & operator=( const_iterator & itr ) {
-   itr_ = itr.itr_->clone();
+   if( this != & itr ) {  // the old one is deleted, after the clone()
+    auto tmp = itr.itr_->clone();
+    delete itr_;
+    itr_ = tmp;
+    }
    return( *this );
    }
 
   // standard move assignment
   const_iterator & operator=( const_iterator && itr ) {
-   itr_ = itr.itr_;
-   itr.itr_ = nullptr;
+   if( this != & itr ) {  // the old one is deleted
+    delete itr_;
+    itr_ = itr.itr_;
+    itr.itr_ = nullptr;
+    }
    return( *this );
    }
 
@@ -602,17 +617,23 @@ class ThinVarDepInterface {
    map.resize( vars.size() );
 
   if( ordered ) {
-   Index found = 0;
+   // each of vars has to be found among the "active" ones, which may be more
+   std::vector< bool > found( vars.size() , false );
+   Index nfound = 0;
    for( Index i = 0 ; i < get_num_active_var() ; ++i ) {
     auto vi = get_active_var( i );
     auto itvi = std::lower_bound( vars.begin() , vars.end() , vi );
-    if( itvi != vars.end() ) {
-     map[ std::distance( vars.begin(), itvi ) ] = i;
-     ++found;
+    if( ( itvi != vars.end() ) && ( *itvi == vi ) ) {
+     const auto k = std::distance( vars.begin() , itvi );
+     map[ k ] = i;
+     if( ! found[ k ] ) {
+      found[ k ] = true;
+      ++nfound;
+      }
      }
     }
 
-   if( found < vars.size() )
+   if( nfound < vars.size() )
     throw( std::invalid_argument( "map_active: some Variable is not active"
 				  ) );
    }
@@ -959,8 +980,9 @@ class ThinVarDepInterface {
   if( range.second <= range.first )  // empty range
    return;                           // silently (and cowardly) return
 
-  if( range.second >= get_num_active_var() )
-   throw( std::invalid_argument( "remove_variables: invalid range" ) );
+  if( range.second > get_num_active_var() )
+   throw( std::invalid_argument(
+               "ThinVarDepInterface::remove_variables: invalid range" ) );
 
   // note: the removal loop goes backward, since eliminating a variable
   //       changes the "names" of all the variable with larger name

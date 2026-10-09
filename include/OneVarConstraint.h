@@ -53,6 +53,9 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <algorithm>
+#include <cmath>
+
 #include "ColVariable.h"
 
 #include "RowConstraint.h"
@@ -366,52 +369,6 @@ class OneVarConstraint : public RowConstraint {
   set_variable( nullptr , issueMod );
   }
 
-/*--------------------------------------------------------------------------*/
-
-#define un_any_thing_OneVarConstraint_static( my_thing , f )                \
- [&]( const boost::any & _any ) -> bool {                                   \
-  if( un_any_thing_static( BoxConstraint , _any , f ) )                     \
-   return( true );                                                          \
-  if( un_any_thing_static( LB0Constraint , _any , f ) )                     \
-   return( true );                                                          \
-  if( un_any_thing_static( UB0Constraint , _any , f ) )                     \
-   return( true );                                                          \
-  if( un_any_thing_static( LBConstraint , _any , f ) )                      \
-   return( true );                                                          \
-  if( un_any_thing_static( UBConstraint , _any , f ) )                      \
-   return( true );                                                          \
-  if( un_any_thing_static( NNConstraint , _any , f ) )                      \
-   return( true );                                                          \
-  if( un_any_thing_static( NPConstraint , _any , f ) )                      \
-   return( true );                                                          \
-  if( un_any_thing_static( ZOConstraint , _any , f ) )                      \
-   return( true );                                                          \
-  return( false );                                                          \
-  }( my_thing )
-
-/*--------------------------------------------------------------------------*/
-
-#define un_any_thing_OneVarConstraint_dynamic( my_thing , f )               \
- [&]( const boost::any & _any ) -> bool {                                   \
-  if( un_any_thing_dynamic( BoxConstraint , _any , f ) )                    \
-   return( true );                                                          \
-  if( un_any_thing_dynamic( LB0Constraint , _any , f ) )                    \
-   return( true );                                                          \
-  if( un_any_thing_dynamic( UB0Constraint , _any , f ) )                    \
-   return( true );                                                          \
-  if( un_any_thing_dynamic( LBConstraint , _any , f ) )                     \
-   return( true );                                                          \
-  if( un_any_thing_dynamic( UBConstraint , _any , f ) )                     \
-   return( true );                                                          \
-  if( un_any_thing_dynamic( NNConstraint , _any , f ) )                     \
-   return( true );                                                          \
-  if( un_any_thing_dynamic( NPConstraint , _any , f ) )                     \
-   return( true );                                                          \
-  if( un_any_thing_dynamic( ZOConstraint , _any , f ) )                     \
-   return( true );                                                          \
-  return( false );                                                          \
-  }( my_thing )
-
 /** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -426,7 +383,7 @@ class OneVarConstraint : public RowConstraint {
 
  /// print information about the OneVarConstraint on an ostream
  void print( std::ostream & output ) const override {
-  output << "OneVarConstraint [" << this << "] of Block [" << f_Block
+  output << "OneVarConstraint [" << this << "] of Block [" << get_Block()
          << "] with ColVariable [" << f_variable << "]" << std::endl;
   }
 
@@ -545,7 +502,7 @@ class BoxConstraint : public OneVarConstraint {
 
  /// print information about the BoxConstraint on an ostream
  void print( std::ostream & output ) const override {
-  output << "BoxConstraint [" << this << "] of Block [" << f_Block
+  output << "BoxConstraint [" << this << "] of Block [" << get_Block()
          << "] with ColVariable [" << f_variable << "], LHS = "
          << f_lhs << ", RHS = " << f_rhs << std::endl;
   }
@@ -661,7 +618,7 @@ class LB0Constraint : public OneVarConstraint {
 
  /// print information about the LB0Constraint on an ostream
  void print( std::ostream & output ) const final {
-  output << "LB0Constraint [" << this << "] of Block [" << f_Block
+  output << "LB0Constraint [" << this << "] of Block [" << get_Block()
          << "] with ColVariable [" << f_variable << "], RHS = "
          << f_rhs << std::endl;
   }
@@ -776,7 +733,7 @@ class UB0Constraint : public OneVarConstraint {
 
  /// print information about the OneVarConstraint on an ostream
  void print( std::ostream & output ) const override {
-  output << "UB0Constraint [" << this << "] of Block [" << f_Block
+  output << "UB0Constraint [" << this << "] of Block [" << get_Block()
          << "] with ColVariable [" << f_variable << "], LHS = "
          << f_lhs << std::endl;
   }
@@ -884,33 +841,31 @@ class LBConstraint : public OneVarConstraint {
     @{ */
 
  [[nodiscard]] bool feasible( void ) const final {
-  return( ( f_lhs <= -RHSINF ) || ( f_variable->get_value() >= f_lhs ) );
+  return( ( f_lhs <= -RHSINF ) || ( OneVarConstraint::lb() >= f_lhs ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
  [[nodiscard]] RHSValue abs_viol( void ) const final {
   if( f_lhs <= -RHSINF )
-   return( -RHSINF );
+   return( 0 );
 
-  c_RHSValue val = f_variable->get_value();
-  return( val <= -RHSINF ? RHSINF : f_lhs - val );
+  c_RHSValue val = OneVarConstraint::lb();
+  return( val <= -RHSINF ? RHSINF : std::max( RHSValue( 0 ) , f_lhs - val ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
  [[nodiscard]] RHSValue rel_viol( void ) const final {
   if( f_lhs <= -RHSINF )
-   return( -RHSINF );
+   return( 0 );
 
-  c_RHSValue val = f_variable->get_value();
-  if( val >= RHSINF )
-   return( -RHSINF );
-
+  c_RHSValue val = OneVarConstraint::lb();
   if( val <= -RHSINF )
    return( RHSINF );
 
-  return( f_lhs == 0 ? f_lhs - val : ( f_lhs - val ) / std::abs( f_lhs ) );
+  return( std::max( RHSValue( 0 ) , f_lhs - val ) /
+	  std::max( RHSValue( 1 ) , std::abs( f_lhs ) ) );
   }
 
 /** @} ---------------------------------------------------------------------*/
@@ -927,7 +882,7 @@ class LBConstraint : public OneVarConstraint {
 
  /// print information about the LBConstraint on an ostream
  void print( std::ostream & output ) const override {
-  output << "LBConstraint [" << this << "] of Block [" << f_Block
+  output << "LBConstraint [" << this << "] of Block [" << get_Block()
          << "] with ColVariable [" << f_variable << "], LHS = "
          << f_lhs << std::endl;
   }
@@ -1037,33 +992,31 @@ class UBConstraint : public OneVarConstraint {
     @{ */
 
  [[nodiscard]] bool feasible( void ) const final {
-  return( ( f_rhs >= RHSINF ) || ( f_variable->get_value() <= f_rhs ) );
+  return( ( f_rhs >= RHSINF ) || ( OneVarConstraint::ub() <= f_rhs ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
  [[nodiscard]] RHSValue abs_viol( void ) const final {
   if( f_rhs >= RHSINF )
-   return( -RHSINF );
+   return( 0 );
 
-  c_RHSValue val = f_variable->get_value();
-  return( val >= RHSINF ? RHSINF : val - f_rhs );
+  c_RHSValue val = OneVarConstraint::ub();
+  return( val >= RHSINF ? RHSINF : std::max( RHSValue( 0 ) , val - f_rhs ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
  [[nodiscard]] RHSValue rel_viol( void ) const final {
   if( f_rhs >= RHSINF )
-   return( -RHSINF );
+   return( 0 );
 
-  c_RHSValue val = f_variable->get_value();
-  if( val <= -RHSINF )
-   return( -RHSINF );
+  c_RHSValue val = OneVarConstraint::ub();
+  if( val >= RHSINF )
+   return( RHSINF );
 
-  if( val <= -RHSINF )
-   return( Inf< double >() );
-
-  return( f_rhs == 0 ? val - f_rhs : ( val - f_rhs ) / std::abs( f_rhs ) );
+  return( std::max( RHSValue( 0 ) , val - f_rhs ) /
+	  std::max( RHSValue( 1 ) , std::abs( f_rhs ) ) );
   }
 
 /** @} ---------------------------------------------------------------------*/
@@ -1080,7 +1033,7 @@ class UBConstraint : public OneVarConstraint {
 
  /// print information about the UBConstraint on an ostream
  void print( std::ostream & output ) const override {
-  output << "UBConstraint [" << this << "] of Block [" << f_Block
+  output << "UBConstraint [" << this << "] of Block [" << get_Block()
          << "] with ColVariable [" << f_variable << "], RHS = "
          << f_rhs << std::endl;
   }
@@ -1184,14 +1137,13 @@ class NNConstraint : public OneVarConstraint {
     @{ */
 
  [[nodiscard]] bool feasible( void ) const final {
-  return( f_variable->get_value() >= 0 );
+  return( OneVarConstraint::lb() >= 0 );
   }
 
 /*--------------------------------------------------------------------------*/
 
  [[nodiscard]] RHSValue abs_viol( void ) const final {
-  c_RHSValue val = f_variable->get_value();
-  return( val <= -RHSINF ? RHSINF : -val );
+  return( std::max( RHSValue( 0 ) , - OneVarConstraint::lb() ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1212,7 +1164,7 @@ class NNConstraint : public OneVarConstraint {
 
  /// print information about the NNConstraint on an ostream
  void print( std::ostream & output ) const override {
-  output << "NNConstraint [" << this << "] of Block [" << f_Block
+  output << "NNConstraint [" << this << "] of Block [" << get_Block()
          << "] with ColVariable [" << f_variable << "]" << std::endl;
   }
 
@@ -1307,14 +1259,13 @@ class NPConstraint : public OneVarConstraint {
     @{ */
 
  [[nodiscard]] bool feasible( void ) const final {
-  return( f_variable->get_value() <= 0 );
+  return( OneVarConstraint::ub() <= 0 );
   }
 
 /*--------------------------------------------------------------------------*/
 
  [[nodiscard]] RHSValue abs_viol( void ) const final {
-  c_RHSValue val = f_variable->get_value();
-  return( val >= RHSINF ? RHSINF : val );
+  return( std::max( RHSValue( 0 ) , OneVarConstraint::ub() ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1335,7 +1286,7 @@ class NPConstraint : public OneVarConstraint {
 
  /// print information about the NPConstraint on an ostream
  void print( std::ostream & output ) const override {
-  output << "NPConstraint [" << this << "] of Block [" << f_Block
+  output << "NPConstraint [" << this << "] of Block [" << get_Block()
          << "] with ColVariable [" << f_variable << "]" << std::endl;
   }
 
@@ -1429,15 +1380,15 @@ class ZOConstraint : public OneVarConstraint {
     @{ */
 
  [[nodiscard]] bool feasible( void ) const final {
-  c_RHSValue val = f_variable->get_value();
+  c_RHSValue val = OneVarConstraint::lb();
   return( ( val >= 0 ) && ( val <= 1 ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
  [[nodiscard]] RHSValue abs_viol( void ) const final {
-  c_RHSValue val = f_variable->get_value();
-  return( std::max( -val , val - 1 ) );
+  c_RHSValue val = OneVarConstraint::lb();
+  return( std::max( { RHSValue( 0 ) , -val , val - 1 } ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1458,7 +1409,7 @@ class ZOConstraint : public OneVarConstraint {
 
  /// print information about the ZOConstraint on an ostream
  void print( std::ostream & output ) const override {
-  output << "ZOConstraint [" << this << "] of Block [" << f_Block
+  output << "ZOConstraint [" << this << "] of Block [" << get_Block()
          << "] with ColVariable [" << f_variable << "]" << std::endl;
   }
 

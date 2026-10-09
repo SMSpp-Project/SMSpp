@@ -36,6 +36,9 @@ using namespace SMSpp_di_unipi_it;
 void FRowConstraint::set_function( Function * const function ,
                                    ModParam issueMod , bool deleteold )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( function == f_function )  // changing nothing
   return;                      // all done
 
@@ -68,8 +71,8 @@ void FRowConstraint::set_function( Function * const function ,
   }
 
  // if so instructed, issue the FRowConstraintMod
- if( f_Block && f_Block->issue_mod( issueMod ) )
-  f_Block->add_Modification( std::make_shared< FRowConstraintMod >(
+ if( get_Block() && get_Block()->issue_mod( issueMod ) )
+  get_Block()->add_Modification( std::make_shared< FRowConstraintMod >(
                               this , FRowConstraintMod::eFunctionChanged ,
                               Observer::par2concern( issueMod ) ) ,
                              Observer::par2chnl( issueMod ) );
@@ -80,15 +83,18 @@ void FRowConstraint::set_function( Function * const function ,
 
 void FRowConstraint::set_rhs( c_RHSValue rhs_value , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( f_rhs == rhs_value )  // actually doing nothing
   return;                  // cowardly (and silently) return
 
  f_rhs = rhs_value;        // change the value
 
- if( ( ! f_Block ) || ( ! f_Block->issue_mod( issueMod ) ) )
+ if( ( ! get_Block() ) || ( ! get_Block()->issue_mod( issueMod ) ) )
   return;
 
- f_Block->add_Modification( std::make_shared< RowConstraintMod >(
+ get_Block()->add_Modification( std::make_shared< RowConstraintMod >(
                              this , RowConstraintMod::eChgRHS ,
                              Observer::par2concern( issueMod ) ) ,
                             Observer::par2chnl( issueMod ) );
@@ -98,15 +104,18 @@ void FRowConstraint::set_rhs( c_RHSValue rhs_value , ModParam issueMod )
 
 void FRowConstraint::set_lhs( c_RHSValue lhs_value , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( f_lhs == lhs_value )  // actually doing nothing
   return;                  // cowardly (and silently) return
 
  f_lhs = lhs_value;        // change the value
 
- if( ( ! f_Block ) || ( ! f_Block->issue_mod( issueMod ) ) )
+ if( ( ! get_Block() ) || ( ! get_Block()->issue_mod( issueMod ) ) )
   return;
 
- f_Block->add_Modification( std::make_shared< RowConstraintMod >(
+ get_Block()->add_Modification( std::make_shared< RowConstraintMod >(
                              this , RowConstraintMod::eChgLHS ,
                              Observer::par2concern( issueMod ) ) ,
                             Observer::par2chnl( issueMod ) );
@@ -116,16 +125,19 @@ void FRowConstraint::set_lhs( c_RHSValue lhs_value , ModParam issueMod )
 
 void FRowConstraint::set_both( c_RHSValue both_value , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( ( f_rhs == both_value ) && ( f_lhs == both_value ) )  // doing nothing
   return;                                 // cowardly (and silently) return
 
  f_lhs = both_value;
  f_rhs = both_value;
 
- if( ( ! f_Block ) || ( ! f_Block->issue_mod( issueMod ) ) )
+ if( ( ! get_Block() ) || ( ! get_Block()->issue_mod( issueMod ) ) )
   return;
 
- f_Block->add_Modification( std::make_shared< RowConstraintMod >(
+ get_Block()->add_Modification( std::make_shared< RowConstraintMod >(
                              this , RowConstraintMod::eChgBTS ,
                              Observer::par2concern( issueMod ) ) ,
                             Observer::par2chnl( issueMod ) );
@@ -137,6 +149,9 @@ void FRowConstraint::set_both( c_RHSValue both_value , ModParam issueMod )
 
 void FRowConstraint::remove_variable( Index i , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  /* FRowConstraint typically relies on FunctionModVars to know if something
   * has happened to the Variable of the Function and register/unregister
   * itself from them. However, in this case it knows beforehand what is
@@ -146,7 +161,7 @@ void FRowConstraint::remove_variable( Index i , ModParam issueMod )
  if( ! f_function )
   return;
 
- if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
+ if( get_Block() && get_Block()->issue_mod( issueMod ) )
   f_function->remove_variable( i , issueMod );
  else {
   // unregistration can preceed removal, since the Function completely
@@ -160,14 +175,20 @@ void FRowConstraint::remove_variable( Index i , ModParam issueMod )
 
 void FRowConstraint::remove_variables( Range range , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( ! f_function )
   return;
 
- if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
+ if( get_Block() && get_Block()->issue_mod( issueMod ) )
   f_function->remove_variables( range, issueMod );
  else {
   // unregistration can preceed removal, since the Function completely
-  // ignores this information
+  // ignores this information; the Range is cut to the active Variable, as
+  // the Function does
+  range.second = std::min( range.second ,
+			   f_function->get_num_active_var() );
   for( Index i = range.first ; i < range.second ; )
    f_function->get_active_var( i++ )->remove_active( this );
   f_function->remove_variables( range, eNoMod );
@@ -179,22 +200,40 @@ void FRowConstraint::remove_variables( Range range , ModParam issueMod )
 void FRowConstraint::remove_variables( Subset && nms , bool ordered ,
                                        ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( ! f_function )
   return;
 
- if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
+ if( get_Block() && get_Block()->issue_mod( issueMod ) )
   f_function->remove_variables( std::move( nms ) , ordered , issueMod );
  else {
   // unregistration can preceed removal, since the Function completely
-  // ignores this information
-  for( auto i : nms )
-   f_function->get_active_var( i++ )->remove_active( this );
+  // ignores this information; the empty Subset means all the Variable
+  if( nms.empty() )
+   for( Index i = 0 ; i < f_function->get_num_active_var() ; ++i )
+    f_function->get_active_var( i )->remove_active( this );
+  else
+   for( auto i : nms )
+    f_function->get_active_var( i )->remove_active( this );
   f_function->remove_variables( std::move( nms ) , ordered , eNoMod );
   }
  }  // end( FRowConstraint::remove_variables( subset ) )
 
 /*--------------------------------------------------------------------------*/
 /*------------- METHODS DESCRIBING THE BEHAVIOR OF AN Observer -------------*/
+/*--------------------------------------------------------------------------*/
+
+Modification::ModConcern FRowConstraint::concerned( void ) const
+{
+ const auto block = get_Block() ? get_Block()->concerned()
+                    : Modification::ModConcern( 0 );
+ return( Modification::eModVarSet |
+         ( Modification::is_of_concern( Modification::eModCnsCoef , block ) ?
+           Modification::eModCnsCoef : 0 ) );
+ }
+
 /*--------------------------------------------------------------------------*/
 
 void FRowConstraint::add_Modification( sp_Mod mod , c_ChnlName chnl )
@@ -246,9 +285,12 @@ void FRowConstraint::add_Modification( sp_Mod mod , c_ChnlName chnl )
  guts_of_aM( mod );  // now the actual call to the "guts of"
 
  // finally, dispatch to add_Modification() of the Block - - - - - - - - - - -
+ // if any, and either listening or concerned by the Modification: an
+ // "abstract" Modification issued with eModBlck must reach the Block even if
+ // no Solver is there, for it to keep the "physical" representation in synch
 
- if( f_Block && f_Block->anyone_there() )  // ... if any, and listening
-  f_Block->add_Modification( mod , chnl );
+ if( get_Block() && ( get_Block()->anyone_there() || mod->concerns_Block() ) )
+  get_Block()->add_Modification( mod , chnl );
 
  }  // end( FRowConstraint::add_Modification )
 

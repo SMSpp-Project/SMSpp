@@ -241,10 +241,12 @@ void QuadFunction::get_hessian_approximation( SparseHessian & hessian ) const {
  std::vector< Eigen::Triplet< FunctionValue > > tripletList;
  tripletList.reserve( num_active_var + 2 * mat_nd.nonZeros() );
  int index = 0;
- for( const auto & triple : v_triples )
+ for( const auto & triple : v_triples ) {
   tripletList.push_back(
    Eigen::Triplet< FunctionValue >( index , index , 2 * std::get< 2 >( triple )
    ) );
+  ++index;
+ }
 
  // now shove in the off_diagonal terms
  for( int k = 0 ; k < mat_nd.outerSize() ; ++k ) {
@@ -256,7 +258,7 @@ void QuadFunction::get_hessian_approximation( SparseHessian & hessian ) const {
     Eigen::Triplet< FunctionValue >( it.col() , it.row() , it.value() ) );
   }
  }
- hessian.setZero();
+ hessian.resize( num_active_var , num_active_var );  // also zeroes it
  hessian.reserve(
   Eigen::VectorXi::Constant( num_active_var + 2 * mat_nd.nonZeros() , 1 ) );
  hessian.setFromTriplets( tripletList.begin() , tripletList.end() );
@@ -295,6 +297,9 @@ void QuadFunction::get_hessian_approximation( DenseHessian & hessian ) const {
 void QuadFunction::add_variables( v_coeff_triple && vars ,
                                   v_off_diag_term && v_nd_var ,
                                   ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  // It is probably best to manage adding of variable all at this level and
  // not rely too much on parent functionalities
  if( vars.empty() && v_nd_var.empty() ) // actually nothing to add
@@ -338,7 +343,7 @@ void QuadFunction::add_variables( v_coeff_triple && vars ,
  }
 
  // if noone is there or not listening
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod , eModFVars ) ) )
   return;
 
  // Firstly prepare the diagonal terms for modification
@@ -364,6 +369,9 @@ void QuadFunction::add_variables( v_coeff_triple && vars ,
 
 void QuadFunction::add_nd_term( ColVariable * var1 , ColVariable * var2 ,
                                 Coefficient quad_coeff , ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  // We will check if both variables exists in which case the coefficient gets
  // added. (Maybe we want a numeric zero check...)
 
@@ -374,7 +382,7 @@ void QuadFunction::add_nd_term( ColVariable * var1 , ColVariable * var2 ,
   Index i = DQuadFunction::is_active( var1 );
   Index j = DQuadFunction::is_active( var2 );
 
-  if( ( std::min( i , j ) < 0 ) ||
+  if( ( std::min( i , j ) < 0 ) || ( i == j ) ||
    ( std::max( i , j ) >= DQuadFunction::get_num_active_var() ) ) {
    throw( std::logic_error( "Only non-diagonal coefficients of existing "
     "variables can be specified" ) );
@@ -384,12 +392,15 @@ void QuadFunction::add_nd_term( ColVariable * var1 , ColVariable * var2 ,
   // a time
   mat_nd.insert( std::max( i , j ) , std::min( i , j ) ) = quad_coeff;
 
-  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+  if( ( ! f_Observer ) ||
+      ( ! f_Observer->issue_mod( issueMod , eModFValues ) ) )
    return; // noone is there: all done
 
   Coefficient od_term = quad_coeff;
-  Subset var_idxs = { std::max( i , j ) , std::min( i , j ) };
-  Vec_p_Var vars = { var1 , var2 };
+  // the Subset is said to be ordered, hence it is increasing, and vars[ k ]
+  // is the Variable of var_idxs[ k ]
+  Subset var_idxs = { std::min( i , j ) , std::max( i , j ) };
+  Vec_p_Var vars = { i < j ? var1 : var2 , i < j ? var2 : var1 };
 
   f_Observer->add_Modification(
    std::make_shared< QuadFunctionModSbst >(
@@ -409,25 +420,37 @@ void QuadFunction::add_nd_term( ColVariable * var1 , ColVariable * var2 ,
 void QuadFunction::modify_term( Index i , Index j ,
                                 Coefficient quad_nd_coeff ,
                                 ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( ( std::min( i , j ) < 0 ) ||
   ( std::max( i , j ) >= DQuadFunction::get_num_active_var() ) ) {
   throw( std::invalid_argument( "QuadFunction::modify_term: invalid "
    "index: " + std::to_string( i ) + " , " +
    std::to_string( j ) ) );
  }
+ if( i == j )  // the diagonal belongs to DQuadFunction::modify_term()
+  throw( std::invalid_argument( "QuadFunction::modify_term: i == j == " +
+                                std::to_string( i ) +
+                                " is not a non-diagonal term" ) );
  // Observe that this insertion is highly inefficient if done one coeff at a time
- mat_nd.coeffRef( std::max( i , j ) , std::min( i , j ) ) = quad_nd_coeff;
+ auto & coeff = mat_nd.coeffRef( std::max( i , j ) , std::min( i , j ) );
+ const Coefficient old_coeff = coeff;
+ coeff = quad_nd_coeff;
 
  my_convexity = Unknown;
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , eModFValues ) ) )
   return; // noone is there: all done
 
- Coefficient od_term = quad_nd_coeff;
- Subset var_idxs = { std::max( i , j ) , std::min( i , j ) };
+ // the Modification carries the difference, which is what its readers add
+ Coefficient od_term = quad_nd_coeff - old_coeff;
+ // the Subset is said to be ordered, hence it is increasing
+ Subset var_idxs = { std::min( i , j ) , std::max( i , j ) };
  Vec_p_Var vars = {
-  std::get< 0 >( v_triples[ std::max( i , j ) ] ) ,
-  std::get< 0 >( v_triples[ std::min( i , j ) ] )
+  std::get< 0 >( v_triples[ std::min( i , j ) ] ) ,
+  std::get< 0 >( v_triples[ std::max( i , j ) ] )
  };
 
  f_Observer->add_Modification(
@@ -443,6 +466,9 @@ void QuadFunction::modify_term( Index i , Index j ,
 /*--------------------------------------------------------------------------*/
 
 void QuadFunction::remove_variable( Index i , ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( DQuadFunction::get_num_active_var() <= i )
   throw( std::logic_error( "less than i Variable are active" ) );
 
@@ -486,6 +512,9 @@ void QuadFunction::remove_variable( Index i , ModParam issueMod ) {
 /*--------------------------------------------------------------------------*/
 
 void QuadFunction::remove_variables( Range range , ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  range.second = std::min( range.second , Index( v_triples.size() ) );
  if( range.second <= range.first )
   return;
@@ -518,6 +547,9 @@ void QuadFunction::remove_variables( Range range , ModParam issueMod ) {
 
 void QuadFunction::remove_variables( Subset && nms , bool ordered ,
                                      ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( nms.empty() ) {   // removing *all* the Variable
   my_convexity = Unknown;
   mat_nd.setZero();

@@ -158,6 +158,22 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface
  using c_Vec_FunctionValue = const Vec_FunctionValue;
 
 /*--------------------------------------------------------------------------*/
+ /// the kinds of the Modification a Function issues
+ /** What the Modification a Function issues are about, which a Function
+  * asks its Observer before building one [see Observer::issue_mod()]:
+  * eModFVars for those changing the set of its Variable (FunctionModVars),
+  * which an FRowConstraint or FRealObjective always reads, and eModFValues
+  * for those changing its values (FunctionMod), which are the coefficients
+  * of a Constraint or the Objective depending on where the Function is, the
+  * Function not knowing which. */
+
+ static constexpr Modification::ModConcern eModFVars =
+  Modification::eModVarSet;
+
+ static constexpr Modification::ModConcern eModFValues =
+  Modification::eModCnsCoef | Modification::eModObj;
+
+/*--------------------------------------------------------------------------*/
  /// public enum for the int algorithmic parameters of Function
  /** Public enum "extending" int_par_type_TCI to describe the different
   * algorithmic parameters of "int" type that any Function should reasonably
@@ -912,6 +928,18 @@ class FunctionMod : public AModification
  [[nodiscard]] Block * get_Block( void ) const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns what the Modification changes [see Modification::ModConcern]
+ /** The values of the Function, which are the coefficients of a Constraint
+  * when the Function is that of an FRowConstraint and the Objective when it
+  * is that of an FRealObjective: the Function does not know which, hence it
+  * says both, so that whoever reads either sees it; the effect on the
+  * problem may be any. */
+
+ [[nodiscard]] ModConcern changes( void ) const override {
+  return( Function::eModFValues | eEffAny );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to (the pointer to) the affected Constraint
 
  [[nodiscard]] Function * function( void ) const { return( f_function ); }
@@ -1205,6 +1233,17 @@ class FunctionModVars : public AModification
  /// returns the Block to which the Observer of the Function belongs
 
  [[nodiscard]] Block * get_Block( void ) const override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns what the Modification changes [see Modification::ModConcern]
+ /** The set of the Variable that the Function depends upon, which is what
+  * an FRowConstraint or an FRealObjective has to see to keep the list of
+  * its active Variable; the effect on the problem depends on where the
+  * Function is, and it may be any. */
+
+ [[nodiscard]] ModConcern changes( void ) const override {
+  return( eModVarSet | eEffAny );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to (the pointer to) the affected Function

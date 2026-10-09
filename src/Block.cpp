@@ -422,12 +422,16 @@ int Block::get_objective_sense( void ) const
 
 void Block::set_objective( Objective * newOF , c_ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  f_Objective = newOF;
  newOF->set_Block( this );
 
  if( issue_mod( issueMod ) )
   add_Modification( std::make_shared< BlockMod >(
-   this , Observer::par2concern( issueMod ) ) );
+   this , Observer::par2concern( issueMod ) ) ,
+		    Observer::par2chnl( issueMod ) );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -444,25 +448,43 @@ static bool check_Solution( Block * blck , Solution * sol , Check && check )
  if( ! sol )
   return( false );
 
+ // a direction can only be checked as one, and only a Block that knows what
+ // a direction of its own is can be told that its Variable hold one: one
+ // that does not cannot tell, and what cannot be told is not declared
+ // feasible [see Block::has_directions()]
+ if( sol->is_direction() && ( ! blck->has_directions() ) )
+  return( false );
+
  auto current = blck->get_Solution( nullptr , false );
+ if( ! current )
+  throw( std::logic_error( "Block::check_Solution: the state of the Block "
+                           "cannot be saved, and writing the Solution in it "
+                           "to check it would lose what it holds" ) );
 
  // a Solution that holds a direction has to be checked as one; the Block
  // may have been told so already by whoever has the two apart, which is why
  // the flag is only ever raised here and put back as it was found
  const bool wasdir = blck->is_direction();
- if( sol->is_direction() && ( ! wasdir ) && blck->has_directions() )
+ if( sol->is_direction() && ( ! wasdir ) )
   blck->is_direction( true );
 
- sol->write( blck );
- const bool answer = check();
+ // a Solution that gives a fixed Variable another value than the one it is
+ // fixed at is not feasible, and writing it stops there [see
+ // ColVariable::set_value()]: what has been written is put back all the same
+ bool answer = false;
+ try {
+  sol->write( blck );
+  answer = check();
+  }
+ catch( const std::domain_error & ) {
+  answer = false;
+  }
 
  if( blck->is_direction() != wasdir )
   blck->is_direction( wasdir );
 
- if( current ) {
-  current->write( blck );
-  delete current;
-  }
+ current->write( blck );
+ delete current;
 
  return( answer );
  }
@@ -512,6 +534,19 @@ void Block::anyone_there( bool isthere )
    el->anyone_there( false );
   }
  }  // end( Block::anyone_there )
+
+/*--------------------------------------------------------------------------*/
+
+Modification::ModConcern Block::concerned( void ) const
+{
+ Modification::ModConcern c = concerned_by();
+ for( auto slvr : v_Solver )
+  c |= slvr->concerned_by();
+ if( f_Block )
+  c |= f_Block->concerned();
+ return( c );
+
+ }  // end( Block::concerned )
 
 /*--------------------------------------------------------------------------*/
 
@@ -595,8 +630,14 @@ void Block::add_Modification( sp_Mod mod , ChnlName chnl )
  if( f_Block )                                // if there is a father
   f_Block->add_Modification( mod , chnl );    // pass it above (on chnl)
 
- for( Solver * slv : v_Solver )               // if there is any Solver
-  slv->add_Modification( mod );               // also pass it to them
+ // the Solver, if any, that read the kind of the Modification are passed
+ // it as well [see Solver::concerned_by()]
+ if( ! v_Solver.empty() ) {
+  const auto c = mod->changes();
+  for( Solver * slv : v_Solver )
+   if( Modification::is_of_concern( c , slv->concerned_by() ) )
+    slv->add_Modification( mod );
+  }
 
  }  // end( Block::add_Modification )
 
@@ -605,12 +646,18 @@ void Block::add_Modification( sp_Mod mod , ChnlName chnl )
 Observer::ChnlName Block::open_channel( ChnlName chnl ,
 					GroupModification * gmpmod )
 {
- if( ! gmpmod )                    // if a GroupModification is not provided
-  gmpmod = new GroupModification;  // create one
+ // if a GroupModification is not provided create one, which is owned
+ // here until it is given to a channel, so that an error does not leak it
+ std::unique_ptr< GroupModification > own;
+ if( ! gmpmod ) {
+  own.reset( new GroupModification );
+  gmpmod = own.get();
+  }
 
  if( ! chnl ) {  // opening a new channel
   chnl = Observer::new_channel_name();
   v_GroupMod.push_back( std::pair( chnl , gmpmod ) );
+  own.release();
   return( chnl );
   }
 
@@ -627,6 +674,7 @@ Observer::ChnlName Block::open_channel( ChnlName chnl ,
 
    // add the new GroupModification to the current channel
    GMit->second->add( std::shared_ptr< GroupModification >( gmpmod ) );
+   own.release();
 
    // the current channel becomes the new GroupModification
    GMit->second = gmpmod;
@@ -642,6 +690,7 @@ Observer::ChnlName Block::open_channel( ChnlName chnl ,
 				" not found" ) );
 
  f_Block->open_channel( chnl , gmpmod );  // try to find it in the father
+ own.release();
 
  return( chnl );  // unless exception is thrown, it has been found
 
@@ -649,7 +698,7 @@ Observer::ChnlName Block::open_channel( ChnlName chnl ,
 
 /*--------------------------------------------------------------------------*/
 
-void Block::close_channel( ChnlName chnl , bool force )
+void Block::close_channel( ChnlName chnl , bool force , bool discard )
 {
  if( ! chnl )
   throw( std::invalid_argument( "cannot close default channel" ) );
@@ -668,28 +717,44 @@ void Block::close_channel( ChnlName chnl , bool force )
     if( chnl == f_channel )  // if it was the default channel
      f_channel = 0;          // reset it
 
+    // the outermost GroupModification of the channel is the one shipped:
+    // the nested ones are already owned by the one they are nested into
+    auto root = GMit->second;
+
     // if concerns_Block() of the current GroupModification is true, ensure
     // that the concerns_Block() of is also true up until the top
-    if( GMit->second->concerns_Block() )
-     while( father ) {
-      father->concerns_Block( true );
-      father = father->father();
-      }
+    const bool concerns = root->concerns_Block();
+    while( root->father() ) {
+     root = root->father();
+     if( concerns )
+      root->concerns_Block( true );
+     }
 
-    // finally pass the GroupModification to the Block, on the (possibly
-    // freshly reset) default channel
-    Block::add_Modification( std::shared_ptr< GroupModification
-			                      >( GMit->second ) );
     Observer::release_channel_name( chnl );  // give back the channel name
     v_GroupMod.erase( GMit );                // delete the local channel
+
+    // finally pass the GroupModification to the Block, on the (possibly
+    // freshly reset) default channel, or delete it (with all the tree)
+    if( discard )
+     delete root;
+    else
+     Block::add_Modification( std::shared_ptr< GroupModification >( root ) );
     }
    else {
     // the channel is not in "root mode" and closure is not forced, just
     // un-nest the GroupModification by one level
-    // if concerns_Block() of the current GroupModification is true, ensure
-    // that the concerns_Block() of father is also true
-    if( GMit->second->concerns_Block() )
-     father->concerns_Block( true );
+    if( discard ) {
+     // the current GroupModification is the last element of its father,
+     // since after it has been nested only it has been added to
+     auto & subs = father->v_sub_Modifications;
+     if( ( ! subs.empty() ) && ( subs.back().get() == GMit->second ) )
+      subs.pop_back();
+     }
+    else
+     // if concerns_Block() of the current GroupModification is true, ensure
+     // that the concerns_Block() of father is also true
+     if( GMit->second->concerns_Block() )
+      father->concerns_Block( true );
 
     GMit->second = father; // move back the channel to being the father
     }
@@ -705,9 +770,52 @@ void Block::close_channel( ChnlName chnl , bool force )
 				" not found" ) );
 
  // pass the message up to the father
- f_Block->close_channel( chnl , force );
+ f_Block->close_channel( chnl , force , discard );
 
  }  // end( Block::close_channel )
+
+/*--------------------------------------------------------------------------*/
+
+void Block::clear_channel( ChnlName chnl )
+{
+ if( ! chnl )
+  throw( std::invalid_argument( "Block::clear_channel: cannot clear the "
+				"default channel" ) );
+
+ for( Block * blck = this ; blck ; blck = blck->f_Block ) {
+  auto GMit = std::find_if( blck->v_GroupMod.begin() , blck->v_GroupMod.end() ,
+			    [ chnl ]( auto & a ) { return( a.first == chnl ); } );
+  if( GMit != blck->v_GroupMod.end() ) {
+   GMit->second->clear();
+   return;
+   }
+  }
+
+ throw( std::invalid_argument( "Block::clear_channel: " +
+			       std::to_string( chnl ) + " not found" ) );
+
+ }  // end( Block::clear_channel )
+
+/*--------------------------------------------------------------------------*/
+
+void Block::set_default_channel( ChnlName chnl )
+{
+ // 0 is always fine, any other name has to be an open channel of this Block
+ // or of an ancestor, the only ones a Modification of this Block can reach
+ if( chnl )
+  for( const Block * blck = this ; ; blck = blck->f_Block ) {
+   if( ! blck )
+    throw( std::invalid_argument( "Block::set_default_channel: " +
+				  std::to_string( chnl ) +
+				  " is not an open channel" ) );
+   if( std::any_of( blck->v_GroupMod.begin() , blck->v_GroupMod.end() ,
+		    [ chnl ]( auto & a ) { return( a.first == chnl ); } ) )
+    break;
+   }
+
+ f_channel = chnl;
+
+ }  // end( Block::set_default_channel )
 
 /*--------------------------------------------------------------------------*/
 /*------------ METHODS FOR LOADING, PRINTING & SAVING THE Block ------------*/
@@ -772,69 +880,20 @@ void Block::print( std::ostream & output , char vlvl ) const
   return;
 
  output << std::endl << classname() << " with: ";
- output << std::endl << v_s_Variable.size() << " groups of static Variable, "
-        << v_d_Variable.size() << " groups of dynamic Variable, "
-        << std::endl << v_s_Constraint.size()
+ output << std::endl << v_s_Variable_groups.size()
+        << " groups of static Variable, "
+        << v_d_Variable_groups.size() << " groups of dynamic Variable, "
+        << std::endl << v_s_Constraint_groups.size()
 	<< " groups of static Constraint, "
-        << v_d_Constraint.size() << " groups of dynamic Constraint, "
+        << v_d_Constraint_groups.size() << " groups of dynamic Constraint, "
         << std::endl << v_Block.size() << " nested Blocks, and "
         << v_Solver.size() << " registered Solvers"
         << std::endl;
 
  if( ! vlvl ) {
-  /*
-  // the static Constraints of the Block- - - - - - - - - - - - - - - - - - -
-  output << "Static Constraints:" << std::endl;
-  for( unsigned int i = 0 ; i < v_s_Constraint.size() ; ++i ) {
-   output << i;
-   if( ! v_s_Constraint_names[ i ].empty() )
-    output << " (" << v_s_Constraint_names[ i ] << "): ";
-   else
-    output << ": ";
-
-   un_any_static_constraint( v_s_Constraint[ i ] , { output << *var; } );
-   output << std::endl;
-   }
-
-  // the static Variables of the Block- - - - - - - - - - - - - - - - - - - -
-  output << "Static Variables:" << std::endl;
-  for( unsigned int i = 0 ; i < v_s_Variable.size() ; ++i ) {
-   output << i;
-   if( ! v_s_Variable_names[ i ].empty() )
-    output << " (" << v_s_Variable_names[ i ] << "): ";
-   else
-    output << ": ";
-
-   un_any_static_Variable( v_s_Variable[ i ] , { output << *var; } );
-   output << std::endl;
-   }
-
-  // the dynamic Constraints of the Block- - - - - - - - - - - - - - - - - -
-  output << "Dynamic Constraints:" << std::endl;
-  for( unsigned int i = 0 ; i < v_d_Constraint.size() ; ++i ) {
-   output << i;
-   if( ! v_d_Constraint_names[ i ].empty() )
-    output << " (" << v_d_Constraint_names[ i ] << "): ";
-   else
-    output << ": ";
-
-   un_any_static_Constraint( v_d_Constraint[ i ] , { output << *var; } );
-   output << std::endl;
-   }
-
-  // the dynamic Variables of the Block - - - - - - - - - - - - - - - - - - -
-  output << "Dynamic Variables:" << std::endl;
-  for( unsigned int i = 0 ; i < v_d_Variable.size() ; ++i ) {
-   output << i;
-   if( ! v_d_Variable_names[ i ].empty() )
-    output << " (" << v_d_Variable_names[ i ] << "): ";
-   else
-    output << ": ";
-
-   un_any_static_Variable( v_d_Variable[ i ] , { output << *var; } );
-   output << std::endl;
-   }
-  */
+  // what a Block holds of its own is printed by whoever knows what it is:
+  // the groups say the type and the shape of the Variable and of the
+  // Constraint, and AbstractBlock::print() walks them
 
   // the inner Blocks - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   output << std::endl << "Nested Blocks:" << std::endl;
@@ -889,6 +948,54 @@ Block::MF_int_sbst_map & Block::methods_int_sbst_factory( void )
  return( f );
  }
 
+Block::MF_sp_dbl_rngd_map & Block::methods_sp_dbl_rngd_factory( void )
+{
+ static MF_sp_dbl_rngd_map f;
+ return( f );
+ }
+
+Block::MF_sp_int_rngd_map & Block::methods_sp_int_rngd_factory( void )
+{
+ static MF_sp_int_rngd_map f;
+ return( f );
+ }
+
+Block::MF_sp_dbl_sbst_map & Block::methods_sp_dbl_sbst_factory( void )
+{
+ static MF_sp_dbl_sbst_map f;
+ return( f );
+ }
+
+Block::MF_sp_int_sbst_map & Block::methods_sp_int_sbst_factory( void )
+{
+ static MF_sp_int_sbst_map f;
+ return( f );
+ }
+
+Block::MF_qry_dbl_rngd_map & Block::queries_dbl_rngd_factory( void )
+{
+ static MF_qry_dbl_rngd_map f;
+ return( f );
+ }
+
+Block::MF_qry_dbl_sbst_map & Block::queries_dbl_sbst_factory( void )
+{
+ static MF_qry_dbl_sbst_map f;
+ return( f );
+ }
+
+Block::MF_qry_int_rngd_map & Block::queries_int_rngd_factory( void )
+{
+ static MF_qry_int_rngd_map f;
+ return( f );
+ }
+
+Block::MF_qry_int_sbst_map & Block::queries_int_sbst_factory( void )
+{
+ static MF_qry_int_sbst_map f;
+ return( f );
+ }
+
 /*--------------------------------------------------------------------------*/
 
 std::string & block_filename_prefix( void )
@@ -908,6 +1015,8 @@ const std::string & Block::get_filename_prefix( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/*------------------- METHODS FOR KEEPING THE GROUPS -----------------------*/
+/*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -915,6 +1024,8 @@ void Block::remove_constraint_from_variables( Constraint * constraint )
 {
  for( Constraint::Index i = 0 ; i < constraint->get_num_active_var() ; )
   constraint->get_active_var( i++ )->remove_active( constraint );
+
+ constraint->set_Group( nullptr );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -922,14 +1033,22 @@ void Block::remove_constraint_from_variables( Constraint * constraint )
 void Block::remove_variable_from_stuff( Variable * const variable ,
                                         int issueindMod )
 {
+ // removing the Variable from a stuff takes that stuff out of the active
+ // list of the Variable, which is the list being walked: the position only
+ // moves on when the stuff has stayed in it
  for( Variable::Index i = 0 ; i < variable->get_num_active() ; ) {
-  auto si = variable->get_active( i++ );
+  const auto n = variable->get_num_active();
+  auto si = variable->get_active( i );
   auto ivar = si->is_active( variable );
   if( ivar >= si->get_num_active_var() )
    throw( std::logic_error( "inconsistency between active lists" ) );
 
   si->remove_variable( ivar , issueindMod );
+  if( variable->get_num_active() == n )
+   ++i;
   }
+
+ variable->set_Group( nullptr );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -944,9 +1063,12 @@ BlockConfig::BlockConfig( const BlockConfig & old ) : BlockConfig()
 
 /*--------------------------------------------------------------------------*/
 
-BlockConfig::BlockConfig( BlockConfig && old )
+BlockConfig::BlockConfig( BlockConfig && old ) : BlockConfig()
 {
  f_diff = old.f_diff;
+ f_structure_Configuration = old.f_structure_Configuration;
+ old.f_structure_Configuration = nullptr;
+
  f_static_constraints_Configuration = old.f_static_constraints_Configuration;
  old.f_static_constraints_Configuration = nullptr;
 
@@ -997,45 +1119,52 @@ void BlockConfig::get( Block * block )
 
 void BlockConfig::serialize( netCDF::NcFile & f , int type ) const
 {
- if( type == eConfigFile ) {
+ if( type != eProbFile ) {
   Configuration::serialize( f , type );
   return;
   }
 
- auto cg = ( f.addGroup( "Config_" + std::to_string( f.getGroupCount() )
- ) ).addGroup( "BlockConfig" );
+ auto cg = add_Prob_group( f , "BlockConfig" );
  serialize( cg );
 
  }  // end( BlockConfig::serialize( file ) )
 
 /*--------------------------------------------------------------------------*/
 
+/// print one slot of a BlockConfig as BlockConfig::load() reads it
+
+static void print_slot( std::ostream & output , const Configuration * config ,
+			const char * name )
+{
+ if( config )
+  output << config->classname() << " " << *config;
+ else
+  output << "*";
+ output << "  # " << name << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+
 void BlockConfig::print( std::ostream & output ) const
 {
- output << private_name();
- if( f_diff ) output << "[diff]";
- output << ": " << std::endl;
- if( f_structure_Configuration )
-  output << *f_structure_Configuration;
- if( f_static_constraints_Configuration )
-  output << *f_static_constraints_Configuration;
- if( f_dynamic_constraints_Configuration )
-  output << *f_dynamic_constraints_Configuration;
- if( f_static_variables_Configuration )
-  output << *f_static_variables_Configuration;
- if( f_dynamic_variables_Configuration )
-  output << *f_dynamic_variables_Configuration;
- if( f_objective_Configuration )
-  output << *f_objective_Configuration;
- if( f_is_feasible_Configuration )
-  output << *f_is_feasible_Configuration;
- if( f_is_optimal_Configuration )
-  output << *f_is_optimal_Configuration;
- if( f_solution_Configuration )
-  output << *f_solution_Configuration;
- if( f_extra_Configuration )
-  output << *f_extra_Configuration;
- output << std::endl;
+ // the format that load() reads, each slot on a line with its name as a
+ // comment, a '*' for the empty ones
+ output << f_diff << " " << f_txt_version
+	<< "  # differential, version of the format" << std::endl;
+ print_slot( output , f_structure_Configuration , "structure" );
+ print_slot( output , f_static_constraints_Configuration ,
+	     "static constraints" );
+ print_slot( output , f_dynamic_constraints_Configuration ,
+	     "dynamic constraints" );
+ print_slot( output , f_static_variables_Configuration ,
+	     "static variables" );
+ print_slot( output , f_dynamic_variables_Configuration ,
+	     "dynamic variables" );
+ print_slot( output , f_objective_Configuration , "objective" );
+ print_slot( output , f_is_feasible_Configuration , "is_feasible" );
+ print_slot( output , f_is_optimal_Configuration , "is_optimal" );
+ print_slot( output , f_solution_Configuration , "solution" );
+ print_slot( output , f_extra_Configuration , "extra" );
 
  }  // end( BlockConfig::print )
 

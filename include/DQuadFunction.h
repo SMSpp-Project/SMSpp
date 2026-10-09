@@ -516,7 +516,7 @@ class DQuadFunction : public C15Function {
   for( const auto & triple : v_triples ) {
    auto variable_value = std::get< 0 >( triple )->get_value();
    auto quadratic_coefficient_value = std::get< 2 >( triple );
-   quadratic_term += variable_value * quadratic_coefficient_value *
+   quadratic_term += variable_value * variable_value *
                      quadratic_coefficient_value;
    }
 
@@ -1197,8 +1197,9 @@ class DQuadFunctionModSbst : public C05FunctionModSbst
 			   Vec_p_Var && vars , Subset && subset , bool ordered = false ,
 			   Subset && which = {} , FunctionValue shift = NaNshift , 
          bool cB = true )
-  : C05FunctionModSbst( f , type , std::move( vars ) , std::move( subset ) , 
-      ordered , std::move( which ) , shift , cB ) , 
+  : C05FunctionModSbst( f , type , std::move( vars ) ,
+                        sort_by_index( subset , vars , coeff , ordered ) ,
+                        ordered , std::move( which ) , shift , cB ) ,
     f_coeff( std::move( coeff ) ) {}
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
@@ -1216,6 +1217,40 @@ class DQuadFunctionModSbst : public C05FunctionModSbst
  protected:
 
 /*-------------------------- PROTECTED METHODS -----------------------------*/
+
+ /// sorts subset by increasing index, and vars and coeff along with it
+ /** The base C05FunctionModSbst sorts subset and vars when they are not
+  * ordered, but it does not know of coeff: they are therefore sorted here,
+  * all three together, before the base is constructed, so that coeff[ i ]
+  * stays that of vars[ i ]. Returns subset, to be moved into the base. */
+
+ static Subset && sort_by_index( Subset & subset , Vec_p_Var & vars ,
+                                 DQuadFunction::v_coeff_pair & coeff ,
+                                 bool ordered ) {
+  if( ( ! ordered ) && ( subset.size() > 1 ) &&
+      ( vars.size() == subset.size() ) && ( coeff.size() == subset.size() ) ) {
+   // the base sorts them again, finding them already sorted
+   std::vector< Index > perm( subset.size() );
+   std::iota( perm.begin() , perm.end() , 0 );
+   std::sort( perm.begin() , perm.end() , [ & subset ]( Index a , Index b ) {
+    return( subset[ a ] < subset[ b ] );
+    } );
+   Subset ts( subset.size() );
+   Vec_p_Var tv( vars.size() );
+   DQuadFunction::v_coeff_pair tc( coeff.size() );
+   for( Index i = 0 ; i < perm.size() ; ++i ) {
+    ts[ i ] = subset[ perm[ i ] ];
+    tv[ i ] = vars[ perm[ i ] ];
+    tc[ i ] = coeff[ perm[ i ] ];
+    }
+   subset = std::move( ts );
+   vars = std::move( tv );
+   coeff = std::move( tc );
+   }
+  return( std::move( subset ) );
+  }
+
+/*--------------------------------------------------------------------------*/
 
  /// print the DQuadFunctionModSbst
 

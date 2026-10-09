@@ -33,6 +33,10 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <limits>
+
+#include <utility>
+
 #include "Block.h"
 
 #include "C05Function.h"
@@ -190,6 +194,11 @@ namespace SMSpp_di_unipi_it
  *     BECOME INVALID, OR TO CHANGE IF INFORMATION PRODUCED IN THE LAST
  *     compute() (FUNCTION VALUES, LINEARIZATIONS, ...) IS STILL TO BE
  *     RETRIEVED.
+ *     IF InnrSlvr IS SET TO -1, THE LagBFunction HAS NO INNER Solver AT ALL
+ *     (WHATEVER Solver ARE ATTACHED TO THE INNER Block) AND compute() THROWS
+ *     std::logic_error; THIS IS MEANT FOR A LagBFunction THAT IS NEVER
+ *     SUPPOSED TO BE COMPUTED, E.G., BECAUSE ITS INNER Block IS "EASY" AND
+ *     IS DIRECTLY HANDLED BY WHOEVER USES THE LagBFunction.
  *
  * It should, however, in principle be possible to change the Solver at every
  * call of compute(), provided this is done "right before the call".
@@ -641,6 +650,27 @@ class LagBFunction : public C05Function , public Block
   };
 
 /*--------------------------------------------------------------------------*/
+ /// public enum for the events of LagBFunction
+ /** Public enum describing the events that LagBFunction handles itself,
+  * rather than passing them to its inner Solver [see set_event_handler()]:
+  *
+  * - eColumnPurged: a Solution of the global pool has to be deleted because
+  *   it is no longer feasible for the inner Block (say, a variable has been
+  *   fixed to a value different from the one it has there); the handlers are
+  *   called before the deletion, and one of them may take the Solution with
+  *   release_current_purged_solution() to give it back later with
+  *   restore_purged_solutions() (say, when the variable is unfixed).
+  *
+  * The values follow those of ThinComputeInterface, which no Solver extends
+  * at the moment; were the inner Solver to define events of its own, the
+  * two lists would have to be told apart. */
+
+ enum event_type_LagBF {
+  eColumnPurged = e_last_event_type ,  ///< a Solution leaves the global pool
+  eLastLagBFEvent                      ///< first event for derived classes
+  };
+
+/*--------------------------------------------------------------------------*/
  /// public enum for the int algorithmic parameters
  /** Public enum describing the different algorithmic parameters of int type
   * that LagBFunction has in addition to these of C05Function. The value
@@ -699,12 +729,19 @@ class LagBFunction : public C05Function , public Block
 /*--------------------------------------------------------------------------*/
  /// public enum for the string algorithmic parameters
  /** Public enum describing the different algorithmic parameters of string
-  * type that LagBFunction has in addition to these of C05Function (currently,
-  * none). The value strLastLagBFPar is provided so that the list can be
-  * easily further extended by derived classes. */
+  * type that LagBFunction has in addition to these of C05Function. The value
+  * strLastLagBFPar is provided so that the list can be easily further
+  * extended by derived classes. */
 
  enum str_par_type_LagBF {
-  strLastLagBFPar = strLastParC05F
+  strChkCfg = strLastParC05F ,  ///< the Configuration of the pool check
+  /**< The name of the file of the Configuration that is passed to
+   * is_sol_feasible() of the inner Block when an entry of the global pool is
+   * checked [see check_Solution()], i.e., typically the tolerance of the
+   * check; empty (the default) means none, i.e., the one of the BlockConfig
+   * of the inner Block, or else Block::DefaultFeasTol. */
+
+  strLastLagBFPar
   ///< first allowed new string parameter for derived classes
   /**< Convenience value for easily allow derived classes to extend the set
    * of string algorithmic parameters. */
@@ -820,6 +857,23 @@ class LagBFunction : public C05Function , public Block
  void set_dual_pairs( v_dual_pair && dp );
 
 /*--------------------------------------------------------------------------*/
+ /// gives the y of the Lagrangian term that deserialize() has read
+ /** The netCDF format of a LagBFunction [see serialize()] has the functions
+  * g_i( x ) of its Lagrangian term < y , g( x ) >, but not the ColVariable y,
+  * which are not the LagBFunction's: after deserialize() the LagBFunction
+  * has no active Variable, as a BendersBFunction or a PolyhedralFunction
+  * that is read has none, and this method gives them, y[ i ] being the
+  * multiplier of the i-th function read. It then does what set_dual_pairs()
+  * does, and as it issues no Modification either.
+  *
+  * \p y must have as many elements as the functions deserialize() has read
+  * and not been given the y of yet (none, if set_dual_pairs() or
+  * set_inner_block() has been called after deserialize()), or else
+  * std::invalid_argument is thrown. */
+
+ void set_variables( std::vector< ColVariable * > && y );
+
+/*--------------------------------------------------------------------------*/
  /// set a given int numerical parameter (see set_ComputeConfig())
  /** Set the int numerical parameters of the LagBFunction, which mostly (but
   * not exclusively) means setting those of the inner Solver used to
@@ -840,7 +894,13 @@ class LagBFunction : public C05Function , public Block
   *
   * - intInnrSlvr: the index of the inner Solver, i.e., its position in the
   *                list of registered Solver in the inner Block; the default
-  *                is 0 (first position);
+  *                is 0 (first position), and a negative value means that
+  *                the LagBFunction has no inner Solver, whatever Solver the
+  *                inner Block has, so that compute() throws [see compute()],
+  *                until a BlockSolverConfig that it apply()-es itself (that
+  *                of set_ComputeConfig() or that of
+  *                set_lazy_inner_BlockSolverConfig()) registers some, the
+  *                first of which then becomes the inner one;
   *
   * - intNoSol: if nonzero, it is taken to mean that the inner Block will not
   *             produce workable Solution objects and therefore that
@@ -948,13 +1008,14 @@ class LagBFunction : public C05Function , public Block
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set a given string parameter (see set_ComputeConfig())
- /** Since LagBFunction does not have any string parameter itself, nor there
-  * currently is any string parameter of C05Function that needs to be
-  * translated to a parameter of the inner Solver, this method can only be
-  * used to set the string parameters of the inner Solver. */
+ /** Sets strChkCfg, reading the Configuration from the file it names, or
+  * else a string parameter of the inner Solver. */
 
  void set_par( idx_type par , std::string && value ) override {
-  // note: assumes no string params in C05Function & LagBFunction
+  if( par == strChkCfg ) {
+   set_chk_cfg( std::move( value ) );
+   return;
+   }
   if( auto is = inner_Solver() )
    add_par( is->str_par_idx2str( str_par_lbf( par ) ) , std::move( value ) );
   }
@@ -1296,6 +1357,43 @@ class LagBFunction : public C05Function , public Block
  void set_ComputeConfig( const ComputeConfig * scfg = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
+ /// give a BlockSolverConfig for the inner Block, applied at first compute()
+ /** Gives the LagBFunction a BlockSolverConfig for the inner Block that is
+  * not apply()-ed now, but only the first time compute() is called; thus,
+  * if the LagBFunction is never compute()-d (say, because its inner Block
+  * is handled by the caller in some other way) no Solver is ever registered
+  * to the inner Block. The LagBFunction takes ownership of bsc.
+  *
+  * When compute() applies it, bsc is apply()-ed in additive mode
+  * [see BlockSolverConfig::eAddMode], so that the Solver it names are
+  * registered in addition to those the inner Block may already have, and
+  * intInnrSlvr is set to the first Solver it has registered. bsc is then
+  * kept clear()-ed, and apply()-ing it removes exactly the Solver it has
+  * registered [see BlockSolverConfig::apply()]: this is done when the
+  * LagBFunction is destroyed, its inner Block changes, or this method is
+  * called again. In particular, calling it with nullptr un-does the current
+  * one, if it has been applied, and deletes it.
+  *
+  * Note that parameters of the inner Solver that are set by index (i.e.,
+  * those with index >= intLastLagBFPar) before the BlockSolverConfig is
+  * applied are lost, because there is no inner Solver to translate the
+  * index yet; parameters set by name are kept and passed to the inner Solver
+  * by the first compute(). */
+
+ void set_lazy_inner_BlockSolverConfig( BlockSolverConfig * bsc );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// tells if a BlockSolverConfig is waiting for the first compute()
+ /** Returns true if a BlockSolverConfig has been given with
+  * set_lazy_inner_BlockSolverConfig() and compute() has not been called
+  * since, i.e., if the Solver that it names are not registered to the inner
+  * Block yet. */
+
+ bool lazy_inner_BlockSolverConfig_pending( void ) const {
+  return( f_lBSC && ( ! f_lBSC_on ) );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// load a LagBFunction out of an istream - not implemented yet
 
  void load( std::istream & input , char frmt = 0 ) override {
@@ -1308,6 +1406,15 @@ class LagBFunction : public C05Function , public Block
 
 /*--------------------------------------------------------------------------*/
 
+ /// de-serialize a LagBFunction out of netCDF::NcGroup
+ /** De-serialize a LagBFunction out of netCDF::NcGroup, in the format
+  * described in serialize(). Whatever the LagBFunction had is removed first,
+  * the inner Block included, and the functions g_i( x ) of the Lagrangian
+  * term are read but kept waiting for their y: the LagBFunction has no
+  * active Variable until set_variables() gives them. As set_inner_block()
+  * and set_dual_pairs(), this is supposed to be called before the
+  * LagBFunction gets an Observer, as it issues no Modification. */
+
  void deserialize( const netCDF::NcGroup & group ) override;
 
 /** @} ---------------------------------------------------------------------*/
@@ -1318,11 +1425,24 @@ class LagBFunction : public C05Function , public Block
  * Since LagBFunction basically only acts as a "front end" for the "inner
  * Solver" that actually compute()s the Lagrangian function, it does not
  * handle the events itself; rather, it passes them through to the "true"
- * Solver.
+ * Solver, save those of event_type_LagBF, which concern the global pool of
+ * the LagBFunction itself.
  *
  *  @{ */
 
  EventID set_event_handler( int type , EventHandler && event ) override {
+  if( type == eColumnPurged ) {  // a free position, or a new one
+   EventID id = 0;
+   while( ( id < v_purged_handlers.size() ) && v_purged_handlers[ id ] )
+    ++id;
+   if( id == std::numeric_limits< EventID >::max() )
+    throw( std::invalid_argument( "LagBFunction::set_event_handler: too "
+				  "many handlers of eColumnPurged" ) );
+   if( id == v_purged_handlers.size() )
+    v_purged_handlers.emplace_back();
+   v_purged_handlers[ id ] = std::move( event );
+   return( id );
+   }
   if( auto is = inner_Solver() )
    return( is->set_event_handler( type , std::move( event ) ) );
   throw( std::logic_error(
@@ -1332,12 +1452,43 @@ class LagBFunction : public C05Function , public Block
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  void reset_event_handler( int type , EventID id ) override {
+  if( type == eColumnPurged ) {
+   if( ( id >= v_purged_handlers.size() ) || ( ! v_purged_handlers[ id ] ) )
+    throw( std::invalid_argument( "LagBFunction::reset_event_handler: "
+				  "wrong handler of eColumnPurged" ) );
+   v_purged_handlers[ id ] = EventHandler();
+   while( ( ! v_purged_handlers.empty() ) && ( ! v_purged_handlers.back() ) )
+    v_purged_handlers.pop_back();
+   return;
+   }
   if( auto is = inner_Solver() )
    is->reset_event_handler( type , id );
   else
    throw( std::logic_error(
     "LagBFunction::reset_event_handler: inner Solver not available yet" ) );
   }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// take the Solution that is being purged from the global pool
+ /** To be called by a handler of eColumnPurged: returns the element of the
+  * global pool that is being deleted, whose Solution then belongs to the
+  * caller; a second call (or one outside the handler) returns an element
+  * with no Solution. */
+
+ gpool_el release_current_purged_solution( void ) noexcept {
+  return( std::exchange( f_purged , gpool_el{} ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// put back in the global pool the given (purged) Solution
+ /** Puts each element of \p sols with a Solution in a free position of the
+  * global pool, the LagBFunction taking ownership of the Solution, and
+  * tells the Observer (if any, and as \p issueMod says) about all of them
+  * with one C05FunctionMod of type GlobalPoolAdded. Throws if the global
+  * pool has not enough free positions. */
+
+ void restore_purged_solutions( v_gpool_el && sols ,
+				ModParam issueMod = eModBlck );
 
 /** @} ---------------------------------------------------------------------*/
 /*----------------- METHODS FOR MANAGING THE "IDENTITY" --------------------*/
@@ -1444,32 +1595,48 @@ class LagBFunction : public C05Function , public Block
    throw( std::invalid_argument( "LagBFunction: Solution not stored" ) );
   if( ( i >= f_max_glob ) || ( !  g_pool[ i ].sol ) )
    throw( std::invalid_argument( "global_pool_to_block: invalid index" ) );
-  if( i == LastSolution )  // already there
-   return;                 // nothing to do
+
+  /* The entry is written even if LastSolution says it is the one the Block
+   * holds: what LastSolution records is the last entry this LagBFunction has
+   * written there, and the Variable of the inner Block can have been written
+   * by anyone else in the meantime (another Solver attached to an ancestor,
+   * a heuristic, whoever reads a solution), none of which the LagBFunction
+   * is told about. Skipping the write on that ground leaves in the Block a
+   * point that is not the one asked for, and a caller reconstructing a
+   * solution out of the components gets a mixture of two. */
+
   g_pool[ i ].sol->write( v_Block.front() );
   LastSolution = i;  // and recall what's there
   }
 
 /*--------------------------------------------------------------------------*/
  /// checks a Solution of the global pool against the inner Block
- /** Asks the inner Block if what sol holds is still feasible for it. The
-  * parameter varsol tells whether that is a solution or a direction, which
-  * the Block has to be told before it is asked, one method answering for
-  * both cases; note that the Solution need not be written in the Block,
-  * whether it is being the Block's business [see Block::is_sol_feasible()
-  * and Block::is_sol_feasible_physical()]. */
+ /** Asks the inner Block if what sol holds is still feasible for it. Whether
+  * that is a solution or a direction sol says itself [see
+  * Solution::is_direction()], one method answering for both cases; note that
+  * the Solution need not be written in the Block, whether it is being the
+  * Block's business [see Block::is_sol_feasible() and
+  * Block::is_sol_feasible_physical()].
+  *
+  * An entry that cannot be checked is declared not feasible: a Block that
+  * does not know what a direction of its own is cannot say anything about
+  * one [see Block::has_directions()], and keeping an entry that may be
+  * wrong costs a wrong answer, while dropping one that was right costs the
+  * work of finding it again. */
 
- bool check_Solution( Solution * sol , bool varsol ) {
+ bool check_Solution( Solution * sol ) {
   auto blck = v_Block.front();
-  if( ( ! varsol ) && ( ! blck->has_directions() ) )
-   // the entry is a direction and the Block does not know what one of its
-   // own is: it is not saying that the direction is no longer one, it is
-   // saying that it cannot tell, and an entry that cannot be checked is
-   // kept rather than thrown away
-   return( true );
-  blck->is_direction( ! varsol );
-  const bool feas = blck->is_sol_feasible( sol );
-  blck->is_direction( false );
+  if( sol->is_direction() && ( ! blck->has_directions() ) )
+   return( false );
+  const bool feas = blck->is_sol_feasible( sol , f_chk_cfg );
+
+  // a Block that is not physical answers by writing sol in its Variable and
+  // putting back what was there, which is only as complete as the Solution
+  // it hands out: what the Block holds is no longer known to be the entry
+  // that was written in it
+  if( ! blck->is_sol_feasible_physical() )
+   LastSolution = g_pool.size();
+
   return( feas );
   }
 
@@ -1591,10 +1758,47 @@ class LagBFunction : public C05Function , public Block
   * being both a Function and a Block, the netCDF::NcGroup will have to have
   * the "standard format of a :Block", meaning whatever is managed by the
   * serialize() method of the base Block class, plus the
-  * LagBFunction-specific data with the following format:
+  * LagBFunction-specific data with the following format, which writes the
+  * Lagrangian term < y , g( x ) > as g( x ) = A x + b with A in the sparse
+  * format of the matrix of a BendersBFunction, the columns being given by
+  * AbstractPath rather than by index:
   *
-  *     TO BE DONE
-  */
+  * - The dimension "NumVar" containing the number n of Lagrangian terms,
+  *   i.e., of rows of A, i.e., of active Variable y. This dimension is
+  *   optional; if it is not provided, then 0 is assumed. As for any
+  *   :Function, the active Variable y themselves are not part of the format
+  *   [see set_variables()].
+  *
+  * - The dimension "NumNonzero" containing the number of the coefficients
+  *   of A, i.e., of the terms of the n LinearFunction g_i( x ) together.
+  *   This dimension is optional; if it is not provided, then 0 is assumed.
+  *
+  * - The variable "NumNonzeroAtRow", of type netCDF::NcUint and indexed over
+  *   the dimension "NumVar": NumNonzeroAtRow[ i ] is the number of terms of
+  *   g_i( x ). This variable is optional only if NumNonzero == 0.
+  *
+  * - The variable "A", of type netCDF::NcDouble and indexed over the
+  *   dimension "NumNonzero", containing the coefficients of the terms, those
+  *   of g_0( x ) first, then those of g_1( x ), and so on. This variable is
+  *   optional only if NumNonzero == 0.
+  *
+  * - The group "AbstractPath", containing the description of a vector of
+  *   NumNonzero AbstractPath [see AbstractPath::serialize()]: the k-th is
+  *   the path to the ColVariable of the k-th term, taken with respect to the
+  *   inner Block (i.e., the inner Block is the reference Block of the path).
+  *   This group is optional only if NumNonzero == 0.
+  *
+  * - The variable "b", of type netCDF::NcDouble and indexed over the
+  *   dimension "NumVar", containing the constant terms of the g_i( x ). This
+  *   variable is optional; if it is not provided, then b = 0 is assumed.
+  *
+  * - The group "Block", containing the description of the inner Block, with
+  *   the costs of its Objective being the original ones, i.e., without the
+  *   Lagrangian term. This group is mandatory.
+  *
+  * The Lagrangian term written is the one of set_dual_pairs() [or
+  * set_variables()], or else the one deserialize() has read that has not
+  * been given its y yet. */
 
  void serialize( netCDF::NcGroup & group ) const override;
 
@@ -1977,7 +2181,7 @@ class LagBFunction : public C05Function , public Block
    return( C05Function::get_dflt_int_par( par ) );
 
   if( auto is = inner_Solver() )
-   return( is->get_dflt_int_par( int_par_is( par ) ) );
+   return( is->get_dflt_int_par( int_par_lbf( par ) ) );
   else
    return( Inf< int >() );
   }
@@ -1992,7 +2196,7 @@ class LagBFunction : public C05Function , public Block
    return( C05Function::get_dflt_dbl_par( par ) );
 
   if( auto is = inner_Solver() )
-   return( is->get_dflt_dbl_par( dbl_par_is( par ) ) );
+   return( is->get_dflt_dbl_par( dbl_par_lbf( par ) ) );
   else
    return( Inf< double >() );
   }
@@ -2003,11 +2207,14 @@ class LagBFunction : public C05Function , public Block
   const override {
   static const std::string _empty;
 
+  if( par == strChkCfg )
+   return( _empty );
+
   if( par < strLastLagBFPar )
    return( C05Function::get_dflt_str_par( par ) );
 
   if( auto is = inner_Solver() )
-   return( is->get_dflt_str_par( str_par_is( par ) ) );
+   return( is->get_dflt_str_par( str_par_lbf( par ) ) );
   else
    return( _empty );
   }
@@ -2022,7 +2229,7 @@ class LagBFunction : public C05Function , public Block
    return( C05Function::get_dflt_vint_par( par ) );
 
   if( auto is = inner_Solver() )
-   return( is->get_dflt_vint_par( vint_par_is( par ) ) );
+   return( is->get_dflt_vint_par( vint_par_lbf( par ) ) );
   else
    return( _empty );
   }
@@ -2037,7 +2244,7 @@ class LagBFunction : public C05Function , public Block
    return( C05Function::get_dflt_vdbl_par( par ) );
 
   if( auto is = inner_Solver() )
-   return( is->get_dflt_vdbl_par( vdbl_par_is( par ) ) );
+   return( is->get_dflt_vdbl_par( vdbl_par_lbf( par ) ) );
   else
    return( _empty );
   }
@@ -2053,7 +2260,7 @@ class LagBFunction : public C05Function , public Block
    return( C05Function::get_dflt_vstr_par( par ) );
 
   if( auto is = inner_Solver() )
-   return( is->get_dflt_vstr_par( vstr_par_is( par ) ) );
+   return( is->get_dflt_vstr_par( vstr_par_lbf( par ) ) );
   else
    return( _empty );
   }
@@ -2063,7 +2270,7 @@ class LagBFunction : public C05Function , public Block
  [[nodiscard]] int get_int_par( idx_type par ) const override {
   if( ( par < intLastAlgParTCI ) || ( par >= intLastLagBFPar ) ) {
    if( auto is = inner_Solver() )
-    return( is->get_int_par( int_par_is( par ) ) );
+    return( is->get_int_par( int_par_lbf( par ) ) );
    else
     return( C05Function::get_dflt_int_par( par ) );
    }
@@ -2071,7 +2278,8 @@ class LagBFunction : public C05Function , public Block
   switch( par ) {
    case( intLPMaxSz ):         return( LPMaxSz );
    case( intGPMaxSz ):         return( g_pool.size() );
-   case( intInnrSlvr ):        return( InnrSlvr );
+   case( intInnrSlvr ):
+    return( InnrSlvr == Inf< Index >() ? -1 : int( InnrSlvr ) );
    case( intNoSol ):           return( NoSol ? 1 : 0 );
    case( intChkState ):        return( ChkState ? 1 : 0 );
    case( intPushCostToOwner ): return( PushCostToOwner ? 1 : 0 );
@@ -2089,7 +2297,7 @@ class LagBFunction : public C05Function , public Block
 
   if( ( par < dblLastAlgParTCI ) || ( par >= dblLastLagBFPar ) ) {
    if( auto is = inner_Solver() )
-    return( is->get_dbl_par( dbl_par_is( par ) ) );
+    return( is->get_dbl_par( dbl_par_lbf( par ) ) );
    else
     return( C05Function::get_dflt_dbl_par( par ) );
    }
@@ -2111,8 +2319,11 @@ class LagBFunction : public C05Function , public Block
 
  [[nodiscard]] const std::string & get_str_par( idx_type par )
   const override {
+  if( par == strChkCfg )
+   return( f_chk_cfg_name );
+
   if( auto is = inner_Solver() )
-   return( is->get_str_par( str_par_is( par ) ) );
+   return( is->get_str_par( str_par_lbf( par ) ) );
   else
    return( C05Function::get_dflt_str_par( par ) );
   }
@@ -2122,7 +2333,7 @@ class LagBFunction : public C05Function , public Block
  [[nodiscard]] const std::vector< int > & get_vint_par( idx_type par )
   const override {
   if( auto is = inner_Solver() )
-   return( is->get_vint_par( vint_par_is( par ) ) );
+   return( is->get_vint_par( vint_par_lbf( par ) ) );
   else
    return( C05Function::get_dflt_vint_par( par ) );
   }
@@ -2132,7 +2343,7 @@ class LagBFunction : public C05Function , public Block
  [[nodiscard]] const std::vector< double > & get_vdbl_par( idx_type par )
   const override {
   if( auto is = inner_Solver() )
-   return( is->get_vdbl_par( vdbl_par_is( par ) ) );
+   return( is->get_vdbl_par( vdbl_par_lbf( par ) ) );
   else
    return( C05Function::get_dflt_vdbl_par( par ) );
   }
@@ -2142,7 +2353,7 @@ class LagBFunction : public C05Function , public Block
  [[nodiscard]] const std::vector< std::string > & get_vstr_par( idx_type par )
   const override {
   if( auto is = inner_Solver() )
-   return( is->get_vstr_par( vstr_par_is( par ) ) );
+   return( is->get_vstr_par( vstr_par_lbf( par ) ) );
   else
    return( C05Function::get_dflt_vstr_par( par ) );
   }
@@ -2184,6 +2395,9 @@ class LagBFunction : public C05Function , public Block
 
  [[nodiscard]] idx_type str_par_str2idx( const std::string & name )
   const override {
+  if( name == "strChkCfg" )
+   return( strChkCfg );
+
   if( auto is = inner_Solver() )
    return( str_par_lbf( is->str_par_str2idx( name ) ) );
   else
@@ -2256,6 +2470,10 @@ class LagBFunction : public C05Function , public Block
 
  [[nodiscard]] const std::string & str_par_idx2str( idx_type idx )
   const override {
+  static const std::string _chk = "strChkCfg";
+  if( idx == strChkCfg )
+   return( _chk );
+
   if( auto is = inner_Solver() )
    return( is->str_par_idx2str( str_par_is( idx ) ) );
   else
@@ -2537,11 +2755,17 @@ class LagBFunction : public C05Function , public Block
  *  @{ */
 
 // delete all the Lagrangian terms (and the ColVariable with them)
+// the columns of CostMatrix stay, aligned with the Objective, but they no
+// longer refer to any multiplier
 
  void clear_lp( void ) {
   for( const auto & dp : LagPairs )
    delete dp.second;
   LagPairs.clear();
+  for( auto & CMh : CostMatrix )
+   for( auto & col : CMh )
+    col.second.clear();
+  f_active_dirty = true;
   f_Lc = -1;
   }
 
@@ -2715,6 +2939,11 @@ class LagBFunction : public C05Function , public Block
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// reset the BlockSolverConfig of the inner Block to the default one
+ /** Un-registers and deletes the Solver that the BlockSolverConfig of the
+  * last set_ComputeConfig() has registered to the inner Block, and only
+  * them: those that are there for any other reason, the lazy
+  * BlockSolverConfig included [see set_lazy_inner_BlockSolverConfig()],
+  * are left where they are. */
 
  void set_default_inner_BlockSolverConfig( void );
 
@@ -2762,6 +2991,9 @@ class LagBFunction : public C05Function , public Block
   if( rs.empty() )
    return( nullptr );
 
+  if( InnrSlvr == Inf< Index >() )  // no inner Solver [see intInnrSlvr]
+   return( nullptr );
+
   if( rs.size() > InnrSlvr ) {
    auto rsit = rs.begin();
    std::advance( rsit , InnrSlvr );
@@ -2790,6 +3022,23 @@ class LagBFunction : public C05Function , public Block
  bool PushCostToOwner;  ///< true if sub-Block objectives are changed
 
  double f_cost_tol;     ///< rel. cost-change tolerance (dblCostTol)
+
+ std::string f_chk_cfg_name;           ///< the file of strChkCfg
+ Configuration * f_chk_cfg = nullptr;  ///< the Configuration it holds
+
+ /// sets strChkCfg, reading the Configuration from the file it names
+ void set_chk_cfg( std::string && name ) {
+  delete f_chk_cfg;
+  f_chk_cfg = nullptr;
+  f_chk_cfg_name = std::move( name );
+  if( ! f_chk_cfg_name.empty() ) {
+   f_chk_cfg = Configuration::deserialize( f_chk_cfg_name );
+   if( ! f_chk_cfg )
+    throw( std::invalid_argument( "LagBFunction::set_par: cannot read the "
+				  "Configuration of strChkCfg from " +
+				  f_chk_cfg_name ) );
+   }
+  }
 
  std::vector< Subset > v_active;  ///< per objective, the sorted positions j
                                   /**< with CostMatrix[ h ][ j ].second
@@ -2822,6 +3071,18 @@ class LagBFunction : public C05Function , public Block
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
+ std::vector< LinearFunction::v_coeff_pair > v_readA;
+                        ///< the terms of the g_i( x ) read by deserialize()
+                        /**< The terms of the functions g_i( x ) that
+			 * deserialize() has read and set_variables() has not
+  * been given the y of yet, each term on a ColVariable of the inner Block;
+  * empty otherwise. */
+
+ std::vector< double > v_readb;
+                        ///< the constants of the g_i( x ) of v_readA
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
  v_dual_pair LagPairs;  ///< vector of Lagrangian dual pairs
                         /**< LagPairs has an element j for each active
 			 * ColVariable y[ j ] of the LagBFunction:
@@ -2829,6 +3090,11 @@ class LagBFunction : public C05Function , public Block
   * LagPairs[ j ].second contains (a pointer to) a LinearFunction that
   * contains the Lagrangian term g_i(x) = A_i x + b_i. Note that the
   * LagBFunction is the Observer of all these LinearFunction. */
+
+ std::vector< EventHandler > v_purged_handlers;
+ ///< the handlers of eColumnPurged, empty where a handler has been reset
+
+ gpool_el f_purged;     ///< the element being purged [see eColumnPurged]
 
  v_gpool_el g_pool;     ///< the global pool
                         /**< g_pool has the size of the global pool;
@@ -2942,6 +3208,10 @@ class LagBFunction : public C05Function , public Block
  int LPMaxSz;         ///< maximum size of the "local pool"
 
  BlockSolverConfig * f_BSC;  ///< a BlockSolverConfig for the inner Block
+
+ BlockSolverConfig * f_lBSC; ///< the one applied at the first compute()
+
+ bool f_lBSC_on;             ///< true if f_lBSC has been applied
 
  ComputeConfig * f_CC;       ///< a ComputeConfig for the inner Solver
 

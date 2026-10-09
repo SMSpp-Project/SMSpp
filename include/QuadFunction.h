@@ -166,7 +166,7 @@ class QuadFunction : public DQuadFunction {
     //           << mat_nd.cols() << "\n";
     if( ( std::min( std::get< 0 >( v_nd_var[ i ] ) ,
 		    std::get< 1 >( v_nd_var[ i ]) ) < 0 ) ||
-	( std::min( std::get< 0 > ( v_nd_var[ i ] ) ,
+	( std::max( std::get< 0 > ( v_nd_var[ i ] ) ,
 		    std::get< 1 >( v_nd_var[ i ] ) ) >= mat_nd.rows() ) )
      throw( std::invalid_argument(
 			  "Invalid tuplet provided : out of bounds : " +
@@ -450,8 +450,8 @@ class QuadFunction : public DQuadFunction {
  /// modify a single existing non-diagonal quadratic term
  /** for
   * the i-th and j-th "active" Variables; 
-  * if neither i nor j are valid indexes, exception is
-  * thrown. 
+  * if either i or j is not a valid index, or i == j (the diagonal term is
+  * changed by DQuadFunction::modify_term()), exception is thrown. 
   *
   * The parameter issueMod decides if and how the C05FunctionModRngd is
   * issued, as described in Observer::make_par(). */

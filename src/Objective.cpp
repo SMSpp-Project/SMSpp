@@ -34,6 +34,9 @@ using namespace SMSpp_di_unipi_it;
 /*--------------------------------------------------------------------------*/
 
 void Objective::set_sense( int new_sense, c_ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( new_sense == f_sense )  // actually doing nothing
   return;                    // cowardly (and silently) return
 

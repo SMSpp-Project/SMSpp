@@ -322,7 +322,7 @@ void ComputeConfig::deserialize( const netCDF::NcGroup & group )
   int_pars.resize( num );
   for( size_t i = 0; i < num ; ++i ) {
    std::vector< size_t > idx = { i };
-   names.getVar( idx , &( int_pars[ i ].first ) );
+   get_var_values( names , &( int_pars[ i ].first ) , idx , { 1 } );
    vals.getVar( idx , &( int_pars[ i ].second ) );
    }
   }
@@ -342,7 +342,7 @@ void ComputeConfig::deserialize( const netCDF::NcGroup & group )
   dbl_pars.resize( num );
   for( size_t i = 0 ; i < num ; ++i ) {
    std::vector< size_t > idx = { i };
-   names.getVar( idx , &( dbl_pars[ i ].first ) );
+   get_var_values( names , &( dbl_pars[ i ].first ) , idx , { 1 } );
    vals.getVar( idx , &( dbl_pars[ i ].second ) );
    }
   }
@@ -362,8 +362,8 @@ void ComputeConfig::deserialize( const netCDF::NcGroup & group )
   str_pars.resize( num );
   for( size_t i = 0 ; i < num ; ++i ) {
    std::vector< size_t > idx = { i };
-   names.getVar( idx , &( str_pars[ i ].first ) );
-   vals.getVar( idx , &( str_pars[ i ].second ) );
+   get_var_values( names , &( str_pars[ i ].first ) , idx , { 1 } );
+   get_var_values( vals , &( str_pars[ i ].second ) , idx , { 1 } );
    }
   }
 
@@ -381,7 +381,7 @@ void ComputeConfig::deserialize( const netCDF::NcGroup & group )
 
   vint_pars.resize( num );
   for( size_t i = 0 ; i < num ; ++i ) {
-   names.getVar( { i } , &( vint_pars[ i ].first ) );
+   get_var_values( names , &( vint_pars[ i ].first ) , { i } , { 1 } );
    vint_pars[ i ].second = std::move( tmp[ i ] );
    }
   }
@@ -400,7 +400,7 @@ void ComputeConfig::deserialize( const netCDF::NcGroup & group )
 
   vdbl_pars.resize( num );
   for( size_t i = 0 ; i < num ; ++i ) {
-   names.getVar( { i } , &( vdbl_pars[ i ].first ) );
+   get_var_values( names , &( vdbl_pars[ i ].first ) , { i } , { 1 } );
    vdbl_pars[ i ].second = std::move( tmp[ i ] );
    }
   }
@@ -419,7 +419,7 @@ void ComputeConfig::deserialize( const netCDF::NcGroup & group )
 
   vstr_pars.resize( num );
   for( size_t i = 0 ; i < num ; ++i ) {
-   names.getVar( { i } , &( vstr_pars[ i ].first ) );
+   get_var_values( names , &( vstr_pars[ i ].first ) , { i } , { 1 } );
    vstr_pars[ i ].second = std::move( tmp[ i ] );
    }
   }
@@ -686,8 +686,7 @@ void ComputeConfig::load( std::istream & input )
   f_extra_Configuration = nullptr;
   }
 
- clear();
- f_diff = true;
+ clear();  // f_diff = f_relax = false if the stream ends before the flags
 
  static const std::string sre( "ComputeConfig::load: stream read error" );
  if( advance( input , sre ) )
@@ -887,11 +886,30 @@ void ComputeConfig::merge_overrides( std::istream & input )
   }
 
  // extra Configuration slot is optional in an override block: if the
- // stream is exhausted (or the next non-whitespace token belongs to the
- // enclosing container), the base's extra is preserved. Otherwise the
- // override's extra wholesale replaces it.
+ // stream is exhausted, or the next token is neither a '*' nor the name of
+ // a Configuration in the factory (and so belongs to the enclosing
+ // container, e.g., it is the next key of a meta-configuration), the
+ // base's extra is preserved and the token is left in the stream.
+ // Otherwise the override's extra wholesale replaces it. The token can be
+ // looked at only in a stream that can be repositioned; in one that
+ // cannot, whatever follows is taken as the extra slot.
  if( advance( input ) )
   return;
+
+ if( input.peek() != input.widen( '*' ) ) {
+  const auto pos = input.tellg();
+  if( pos != std::istream::pos_type( -1 ) ) {
+   std::string next;
+   input >> next;
+   checkfail( input , sre );
+   input.seekg( pos );
+   checkfail( input , sre );
+   if( Configuration::f_factory().find( SMSpp_classname_normalise(
+				 std::move( next ) ) ) ==
+       Configuration::f_factory().end() )
+    return;
+   }
+  }
 
  if( f_extra_Configuration ) {
   delete f_extra_Configuration;

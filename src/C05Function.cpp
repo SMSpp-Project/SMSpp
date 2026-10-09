@@ -34,6 +34,9 @@ using namespace SMSpp_di_unipi_it;
 void C05Function::delete_linearizations( Subset && which , bool ordered ,
                                          c_ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  Index n = get_int_par( intGPMaxSz );
 
  if( which.empty() ) {  // delete them all

@@ -21,6 +21,7 @@
 /*--------------------------------------------------------------------------*/
 
 #include "Block.h"
+#include "Group.h"
 #include "Variable.h"
 
 /*--------------------------------------------------------------------------*/
@@ -33,8 +34,18 @@ using namespace SMSpp_di_unipi_it;
 /*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+Block * Variable::group_Block( void ) const
+{
+ return( get_Group()->get_Block() );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 void Variable::is_fixed( bool fixed , c_ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( fixed == is_fixed() )  // actually doing nothing
   return;                   // cowardly (and silently) return
 
@@ -44,10 +55,10 @@ void Variable::is_fixed( bool fixed , c_ModParam issueMod )
  else
   f_state = f_state & ~var_type( 1 );
 
- if( ( ! f_Block ) || ( ! f_Block->issue_mod( issueMod ) ) )
+ if( ( ! get_Block() ) || ( ! get_Block()->issue_mod( issueMod ) ) )
   return;
 
- f_Block->add_Modification( std::make_shared< VariableMod >(
+ get_Block()->add_Modification( std::make_shared< VariableMod >(
                              this , old_state , f_state ,
                              Observer::par2concern( issueMod ) ) ,
                             Observer::par2chnl( issueMod ) );

@@ -111,11 +111,15 @@
 
 #include "SMSTypedefs.h"
 #include "Configuration.h"
+#include "Group.h"
 #include "Observer.h"
 #include "Solver.h"
 
 #include <boost/bimap.hpp>
+#include <list>
 #include <netcdf>
+#include <span>
+#include <type_traits>
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
@@ -198,9 +202,9 @@ typedef Vec_Block::iterator Vec_Block_it;
  * arranged in any number of "groups", each of which can be a
  * multi-dimensional array with (in principle) an arbitrary number of
  * dimensions. For dynamic Variable/Constraint, only the last dimension can
- * by varying. Block relies onto boost::any to be able to handle vector of
- * variables with an arbitrary number of indices, and to boost::multi_array
- * to implement them. Tools are provided so that both (multi-dimensional
+ * by varying. A group is a typed view over the container the :Block holds
+ * [see BaseGroup], which is what lets a vector of Variable with an arbitrary
+ * number of indices be handled; boost::multi_array implements them. Tools are provided so that both (multi-dimensional
  * vectors of lists of) *any possible derived class* from
  * Variable/Constraint, as well as (multi-dimensional vectors of lists of)
  * *pointers* to *any possible derived class* from Variable/Constraint, can
@@ -568,14 +572,15 @@ class Block : public Observer {
  *
  * The "methods factory" (more properly, methods factor*ies*) is a map between
  * strings and pointer to functions that could be used, for example, to modify
- * the data of a given :Block. There are in principle as many factories as
- * there are function types, although a factory only exists if someone
- * registers at least a function in it (cf. register_methods()). However, for
- * the methods factories to be useful, only relatively few different function
- * types should reasonably be used, so that some high degree of modularity is
- * achieved between different :Block. This is why the base Block class defines
- * (and hardly ever uses) a bunch of types that are intended to provide the
- * basis for most of the functions in the interface of derived classes:
+ * or interrogate the data of a given :Block. There are in principle as many
+ * factories as there are function types, although a factory only exists if
+ * someone registers at least a function in it (cf. register_methods()).
+ * However, for the methods factories to be useful, only relatively few
+ * different function types should reasonably be used, so that some high
+ * degree of modularity is achieved between different :Block. This is why the
+ * base Block class defines (and hardly ever uses) a bunch of types that are
+ * intended to provide the basis for most of the functions in the interface of
+ * derived classes:
  *
  * - Index, an index into any internal data structure;
  *
@@ -590,6 +595,15 @@ class Block : public Observer {
  *
  * - MF_int_it, a const_iterator into a std::vector< int >;
  *
+ * - MF_dbl_sp, a std::span< const double >;
+ *
+ * - MF_int_sp, a std::span< const int >;
+ *
+ * - MF_dbl_msp, a std::span< double >, through which a function writes data
+ *   out;
+ *
+ * - MF_int_msp, a std::span< int >, the same for int;
+ *
  * Also defined here are types useful for the registration process itself:
  *
  * - FunctionType (variadic template), a std::function with the function type
@@ -598,12 +612,25 @@ class Block : public Observer {
  * - MemberFunctionType (variadic template), the type of the class member
  *   functions corresponding to the type dictated by FunctionType;
  *
+ * - QueryType (variadic template), the same as FunctionType for a function
+ *   that only interrogates the Block: a const Block * in front and no
+ *   ModParam;
+ *
+ * - ConstMemberFunctionType (variadic template), the type of the class member
+ *   functions corresponding to the type dictated by QueryType;
+ *
  * - arg_packer_helper and arg_packer (variadic template), helper types for
  *   template shenanigans for methods factory;
  *
- * - The six types MS[_D]_S with D in { dbl , int } (or not there) and S in
- *   { rngd , sbst } representing six standard parameter type lists for
- *   functions to be inserted in the methods factory.
+ * - the types MS[_D]_S with D in { dbl , int } (or not there) and S in
+ *   { rngd , sbst } representing the standard parameter type lists for
+ *   functions to be inserted in the methods factory;
+ *
+ * - the MS_sp_D_S with D in { dbl , int }, the same lists with the data as
+ *   a span;
+ *
+ * - the MS_qry_D_S with D in { dbl , int } and S in { rngd , sbst }, the
+ *   lists for a getter writing its answer through a mutable span.
  *  @{ */
 
  /// an index in any internal data structure of the Block
@@ -617,6 +644,15 @@ class Block : public Observer {
  /// an "infinite Range", i.e., [ 0 , INF ), i.e., "everything"
  static constexpr auto INFRange = Range( 0 , Inf< Index >() );
 
+ /// the tolerance of the feasibility checks when no Configuration gives one
+ /** The tolerance that is_feasible() and is_sol_feasible() use when neither
+  * the Configuration they are given nor the BlockConfig of the Block gives
+  * one: a relative violation (i.e., scaled by the magnitude of the sides of
+  * the Constraint) a few orders of magnitude above the machine precision,
+  * so that a point that is feasible up to rounding (say, an optimal one on
+  * an active Constraint) is not declared infeasible by a few ulp. */
+ static constexpr double DefaultFeasTol = 1e-12;
+
  /// a vector of indices for the "subset" functions in the methods factory
  using Subset = std::vector< Index >;
  using c_Subset = const Subset;               ///< a const Subset
@@ -629,6 +665,18 @@ class Block : public Observer {
 
  /// iterator for int data received by the functions in the methods factory
  using MF_int_it = std::vector< int >::const_iterator;
+
+ /// span for double data received by the functions in the methods factory
+ using MF_dbl_sp = std::span< const double >;
+
+ /// span for int data received by the functions in the methods factory
+ using MF_int_sp = std::span< const int >;
+
+ /// span through which the functions in the methods factory write data out
+ using MF_dbl_msp = std::span< double >;
+
+ /// span through which the methods factory functions write int data out
+ using MF_int_msp = std::span< int >;
 
  /// typedef for functions to be added to the methods factory
  /** Items added to the methods factory should typically be (pointers to)
@@ -652,6 +700,27 @@ class Block : public Observer {
  template< class dBlock , typename ... Args >
  using MemberFunctionType =
   void ( dBlock::* )( Args ... , ModParam , ModParam );
+
+ /// typedef for functions interrogating a Block, for the methods factory
+ /** Items added to a "query" methods factory should typically be (pointers
+  * to) std::functions (usually adapter functions for some :Block const
+  * member function) that take a const Block * first, and after it as many
+  * parameters as they want; unlike in FunctionType there is no ModParam. */
+
+ template< typename ... Args >
+ using QueryType =
+  std::function< void( const Block * , Args ... ) >;
+
+ /// typedef for class member functions interrogating a Block
+ /** The class member functions (whose adapters are to be) added to a "query"
+  * methods factory should be const and take as many parameters as they want,
+  * and be functions of some \p dBlock derived from Block; it is clearly "the
+  * same parameter type list" as QueryType< Args > (with the same Args) for a
+  * function of the given \p dBlock. */
+
+ template< class dBlock , typename ... Args >
+ using ConstMemberFunctionType =
+  void ( dBlock::* )( Args ... ) const;
 
  /// helper type for template shenanigans for methods factory
  template< typename ... >
@@ -679,11 +748,35 @@ class Block : public Observer {
  /// type for ( int , subset ) functions
  using MS_int_sbst = arg_packer< MF_int_it , Subset && , bool >;
 
+ /// type for ( double , range ) functions, span form
+ using MS_sp_dbl_rngd = arg_packer< MF_dbl_sp , Range >;
+
+ /// type for ( int , range ) functions, span form
+ using MS_sp_int_rngd = arg_packer< MF_int_sp , Range >;
+
+ /// type for ( double , subset ) functions, span form
+ using MS_sp_dbl_sbst = arg_packer< MF_dbl_sp , Subset && , bool >;
+
+ /// type for ( int , subset ) functions, span form
+ using MS_sp_int_sbst = arg_packer< MF_int_sp , Subset && , bool >;
+
+ /// type for ( double , range ) queries
+ using MS_qry_dbl_rngd = arg_packer< MF_dbl_msp , Range >;
+
+ /// type for ( double , subset ) queries
+ using MS_qry_dbl_sbst = arg_packer< MF_dbl_msp , c_Subset & , bool >;
+
+ /// type for ( int , range ) queries
+ using MS_qry_int_rngd = arg_packer< MF_int_msp , Range >;
+
+ /// type for ( int , subset ) queries
+ using MS_qry_int_sbst = arg_packer< MF_int_msp , c_Subset & , bool >;
+
  /// typedef for the bimap used by one methods factory
  template< class F >
  using MethodsFactoryMap = boost::bimap< std::string , F * >;
 
- /// canonical factory types for the six standard method signatures
+ /// canonical factory types for the standard method signatures
  using MF_rngd_map = MethodsFactoryMap< FunctionType< Range > >;
  using MF_dbl_rngd_map = MethodsFactoryMap< FunctionType< MF_dbl_it , Range > >;
  using MF_int_rngd_map = MethodsFactoryMap< FunctionType< MF_int_it , Range > >;
@@ -693,6 +786,26 @@ class Block : public Observer {
   MF_dbl_it , Subset && , bool > >;
  using MF_int_sbst_map = MethodsFactoryMap< FunctionType<
   MF_int_it , Subset && , bool > >;
+
+ /// the same data-carrying signatures in their span form
+ using MF_sp_dbl_rngd_map = MethodsFactoryMap< FunctionType<
+  MF_dbl_sp , Range > >;
+ using MF_sp_int_rngd_map = MethodsFactoryMap< FunctionType<
+  MF_int_sp , Range > >;
+ using MF_sp_dbl_sbst_map = MethodsFactoryMap< FunctionType<
+  MF_dbl_sp , Subset && , bool > >;
+ using MF_sp_int_sbst_map = MethodsFactoryMap< FunctionType<
+  MF_int_sp , Subset && , bool > >;
+
+ /// canonical factory types for the standard query signatures
+ using MF_qry_dbl_rngd_map = MethodsFactoryMap< QueryType<
+  MF_dbl_msp , Range > >;
+ using MF_qry_dbl_sbst_map = MethodsFactoryMap< QueryType<
+  MF_dbl_msp , c_Subset & , bool > >;
+ using MF_qry_int_rngd_map = MethodsFactoryMap< QueryType<
+  MF_int_msp , Range > >;
+ using MF_qry_int_sbst_map = MethodsFactoryMap< QueryType<
+  MF_int_msp , c_Subset & , bool > >;
 
 /** @} ---------------------------------------------------------------------*/
 
@@ -724,18 +837,22 @@ class Block : public Observer {
   * important to notice that all indices mentioned here belong to zero-based
   * numbered sequences, i.e., sequences whose first element is 0.
   *
-  * A static group of Constraint can be one of three types:
+  * A static group of Constraint can be one of five types:
   *
   * 1. It is a single Constraint;
   *
   * 2. It is a vector of Constraint;
   *
-  * 3. It is a multidimensional array of Constraint.
+  * 3. It is a multidimensional array of Constraint;
+  *
+  * 4. It is a vector of vectors of Constraint;
+  *
+  * 5. It is a multidimensional array of vectors of Constraint.
   *
   * In the first case, in which the group is a single Constraint, the index of
   * the Constraint is 0. In the second case, in which the group is a vector of
   * Constraint, the index of the Constraint is simply its position in that
-  * vector. In the last case, in which the group is a multidimensional array
+  * vector. In the third case, in which the group is a multidimensional array
   * of Constraint, the index of the Constraint is its position in the
   * vectorized multidimensional array in row-major layout. For instance, if
   * the multidimensional array has two dimensions with sizes m and n,
@@ -747,6 +864,15 @@ class Block : public Observer {
   * \f[
   *   \sum_{r = 0}^{k-1} ( \prod_{s = r + 1}^{k-1} n_s ) i_r
   * \f]
+  *
+  * In the last two cases, in which the cells of the group are vectors of
+  * Constraint, whose lengths need not be the same, the index of the
+  * Constraint at position j of the k-th cell is given by
+  * \f[
+  *    j + \sum_{t = 0}^{k-1} s_t
+  * \f]
+  * where s_t is the number of Constraint in the t-th cell: the same rule as
+  * the one of a dynamic group whose cells are lists, i.e., storage order.
   *
   * A dynamic group of Constraint can be one of three types:
   *
@@ -3003,26 +3129,13 @@ class Block : public Observer {
 /** @name Methods for reading the Block's Variables and Constraints
  *  @{ */
 
- /// reading the *static* Constraint of the Block
- /** Method for reading the *static* Constraint of the Block. It returns a
-  * vector of boost::any, each element of which is supposed to contain only
-  * one among:
-  *
-  * - nothing (empty() returns true), which means that the corresponding
-  *   "group" of static Constraint has not been constructed [see
-  *   generate_abstract_constraints()];
-  *
-  * - a pointer to a single Constraint (p_Const in Constraint.h) or to any
-  *   class derived from Constraint;
-  *
-  * - a pointer to a std::vector of any class derived from Constraint
-  *   (obviously you can't make a std::vector of the base Constraint class,
-  *   which is why pointers to Constraint are also allowed, see below);
-  *
-  * - a pointer to a boost::multi_array< C , K >, where C is any class derived
-  *   from Constraint (obviously you can't make a multi_array of the base
-  *   Constraint class), in principle with any K (but the limit for K may be
-  *   dictated by un_any_static() and un_any_thing() in SMSTypedefs.h);
+ /// the groups of static Constraint of the Block
+ /** One group for each group of static Constraint the :Block has registered,
+  * in the order they were registered. A group is nullptr when that group
+  * has not been constructed yet [see generate_abstract_constraints()]; otherwise it
+  * says the type of its elements, its shape and its name, and gives
+  * access to the elements without knowing the type of the container that
+  * holds them [see BaseGroup].
   *
   * Note that this is the "abstract representation" of the Block, which is
   * why these are all pointers. It is assumed that the actual [vectors or
@@ -3061,15 +3174,15 @@ class Block : public Observer {
   * change (except for addition/deletion of dynamic Constraint and changes in
   * the Constraint that are handled by the appropriate Modification). */
 
- c_Vec_any & get_static_constraints( void ) const {
-  return( v_s_Constraint );
+ const Vec_Group & get_static_constraint_groups( void ) const {
+  return( v_s_Constraint_groups );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the number of groups of static Constraint
 
  Index get_number_static_constraints( void ) const {
-  return( v_s_Constraint.size() );
+  return( v_s_Constraint_groups.size() );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3082,9 +3195,7 @@ class Block : public Observer {
  template< class Const >
  std::enable_if_t< std::is_base_of_v< Constraint , Const > , Const * >
  get_static_constraint( Index i ) const {
-  if( i >= v_s_Constraint.size() )
-   return( nullptr );
-  return( boost::any_cast< Const * >( v_s_Constraint[ i ] ) );
+  return( group_container< Const >( v_s_Constraint_groups , i ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3097,12 +3208,7 @@ class Block : public Observer {
  template< class Const >
  std::enable_if_t< std::is_base_of_v< Constraint , Const > , Const * >
  get_static_constraint( const std::string & name ) const {
-  auto it = std::find( v_s_Constraint_names.begin(),
-                       v_s_Constraint_names.end(), name );
-  if( it == v_s_Constraint_names.end() )
-   return( nullptr );
-  return( boost::any_cast< Const * >(
-   v_s_Constraint[ std::distance( v_s_Constraint_names.begin(), it ) ] ) );
+  return( group_container< Const >( v_s_Constraint_groups , name ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3115,9 +3221,7 @@ class Block : public Observer {
  template< class Const >
  std::enable_if_t< std::is_base_of_v< Constraint , Const > ,
   std::vector< Const > * > get_static_constraint_v( Index i ) const {
-  if( i >= v_s_Constraint.size() )
-   return( nullptr );
-  return( boost::any_cast< std::vector< Const > * >( v_s_Constraint[ i ] ) );
+  return( group_container< std::vector< Const > >( v_s_Constraint_groups , i ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3131,12 +3235,7 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Constraint , Const > ,
   std::vector< Const > * >
  get_static_constraint_v( const std::string & name ) const {
-  auto it = std::find( v_s_Constraint_names.begin(),
-                       v_s_Constraint_names.end(), name );
-  if( it == v_s_Constraint_names.end() )
-   return( nullptr );
-  return( boost::any_cast< std::vector< Const > * >(
-   v_s_Constraint[ std::distance( v_s_Constraint_names.begin(), it ) ] ) );
+  return( group_container< std::vector< Const > >( v_s_Constraint_groups , name ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3149,10 +3248,7 @@ class Block : public Observer {
  template< class Const , unsigned short K >
  std::enable_if_t< std::is_base_of_v< Constraint , Const > ,
   boost::multi_array< Const , K > * > get_static_constraint( Index i ) const {
-  if( i >= v_s_Constraint.size() )
-   return( nullptr );
-  return( boost::any_cast< boost::multi_array< Const , K > * >(
-                                                    v_s_Constraint[ i ] ) );
+  return( group_container< boost::multi_array< Const , K > >( v_s_Constraint_groups , i ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3166,35 +3262,17 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Constraint , Const > ,
   boost::multi_array< Const , K > * >
  get_static_constraint( const std::string & name ) const {
-  auto it = std::find( v_s_Constraint_names.begin(),
-                       v_s_Constraint_names.end(), name );
-  if( it == v_s_Constraint_names.end() )
-   return( nullptr );
-  return( boost::any_cast< boost::multi_array< Const , K > * >(
-   v_s_Constraint[ std::distance( v_s_Constraint_names.begin(), it ) ] ) );
+  return( group_container< boost::multi_array< Const , K > >( v_s_Constraint_groups , name ) );
   }
 
 /*--------------------------------------------------------------------------*/
- /// reading the *static* Variable of the Block
- /** Method for reading the *static* Variable of the Block. It returns a
-  * vector of boost::any, each element of which is supposed to contain only
-  * one among:
-  *
-  * - nothing (empty() returns true), which means that the corresponding
-  *   "group" of static Variable has not been constructed [see
-  *   generate_abstract_variables()];
-  *
-  * - a pointer to a single Variable (p_Var in Variable.h) or to any
-  *   class derived from Variable;
-  *
-  * - a pointer to a std::vector of any class derived from Variable
-  *   (obviously you can't make a std::vector of the base Variable class,
-  *   which is why pointers to Variable are also allowed, see below);
-  *
-  * - a pointer to a boost::multi_array< V , K >, where V is any class derived
-  *   from Variable (obviously you can't make a multi_array of the base
-  *   Variable class), in principle with any K (but the limit for K may be
-  *   dictated by un_any_static() and un_any_thing() in SMSTypedefs.h);
+ /// the groups of static Variable of the Block
+ /** One group for each group of static Variable the :Block has registered,
+  * in the order they were registered. A group is nullptr when that group
+  * has not been constructed yet [see generate_abstract_variables()]; otherwise it
+  * says the type of its elements, its shape and its name, and gives
+  * access to the elements without knowing the type of the container that
+  * holds them [see BaseGroup].
   *
   * Note that this is the "abstract representation" of the Block, which is
   * why these are all pointers. It is assumed that the actual [vectors or
@@ -3234,13 +3312,17 @@ class Block : public Observer {
   * for addition/deletion of dynamic Variable and changes in the Variable
   * that are handled by the appropriate Modification). */
 
- c_Vec_any & get_static_variables( void ) const { return( v_s_Variable ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ const Vec_Group & get_static_variable_groups( void ) const {
+  return( v_s_Variable_groups );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the number of groups of static Variable
 
  Index get_number_static_variables( void ) const {
-  return( v_s_Variable.size() );
+  return( v_s_Variable_groups.size() );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3253,9 +3335,7 @@ class Block : public Observer {
  template< class Var >
  std::enable_if_t< std::is_base_of_v< Variable, Var > , Var * >
  get_static_variable( Index i ) const {
-  if( i >= v_s_Variable.size() )
-   return( nullptr );
-  return( boost::any_cast< Var * >( v_s_Variable[ i ] ) );
+  return( group_container< Var >( v_s_Variable_groups , i ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3268,12 +3348,7 @@ class Block : public Observer {
  template< class Var >
  std::enable_if_t< std::is_base_of_v< Variable, Var > , Var * >
  get_static_variable( const std::string & name ) const {
-  auto it = std::find( v_s_Variable_names.begin() ,
-                       v_s_Variable_names.end() , name );
-  if( it == v_s_Variable_names.end() )
-   return( nullptr );
-  return( boost::any_cast< Var * >(
-   v_s_Variable[ std::distance( v_s_Variable_names.begin(), it ) ] ) );
+  return( group_container< Var >( v_s_Variable_groups , name ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3286,9 +3361,7 @@ class Block : public Observer {
  template< class Var >
  std::enable_if_t< std::is_base_of_v< Variable, Var > ,
   std::vector< Var > * > get_static_variable_v( Index i ) const {
-  if( i >= v_s_Variable.size() )
-   return( nullptr );
-  return( boost::any_cast< std::vector< Var > * >( v_s_Variable[ i ] ) );
+  return( group_container< std::vector< Var > >( v_s_Variable_groups , i ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3301,12 +3374,7 @@ class Block : public Observer {
  template< class Var >
  std::enable_if_t< std::is_base_of_v< Variable , Var > , std::vector< Var > * >
  get_static_variable_v( const std::string & name ) const {
-  auto it = std::find( v_s_Variable_names.begin() ,
-                       v_s_Variable_names.end() , name );
-  if( it == v_s_Variable_names.end() )
-   return( nullptr );
-  return( boost::any_cast< std::vector< Var > * >(
-   v_s_Variable[ std::distance( v_s_Variable_names.begin(), it ) ] ) );
+  return( group_container< std::vector< Var > >( v_s_Variable_groups , name ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3320,10 +3388,7 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Variable , Var > ,
   boost::multi_array< Var , K > * >
  get_static_variable( Index i ) const {
-  if( i >= v_s_Variable.size() )
-   return( nullptr );
-  return( boost::any_cast< boost::multi_array< Var, K > * >(
-                                                      v_s_Variable[ i ] ) );
+  return( group_container< boost::multi_array< Var, K > >( v_s_Variable_groups , i ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3337,34 +3402,17 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Variable, Var > ,
   boost::multi_array< Var , K > * >
  get_static_variable( const std::string & name ) const {
-  auto it = std::find( v_s_Variable_names.begin() ,
-                       v_s_Variable_names.end() , name );
-  if( it == v_s_Variable_names.end() )
-   return( nullptr );
-  return( boost::any_cast< boost::multi_array< Var, K > * >(
-   v_s_Variable[ std::distance( v_s_Variable_names.begin(), it ) ] ) );
+  return( group_container< boost::multi_array< Var, K > >( v_s_Variable_groups , name ) );
   }
 
 /*--------------------------------------------------------------------------*/
- /// reading the *dynamic* Constraint of the Block
- /** Method for reading the *dynamic* Constraint of the Block. It returns a
-  * vector of boost::any, each element of which is supposed to contain only
-  * one among:
-  *
-  * - nothing (empty() returns true), which means that the corresponding
-  *   "group" of dynamic Constraint has not been constructed [see
-  *   generate_dynamic_constraints()];
-  *
-  * - a pointer to a single std::list< C >, where class C is derived from
-  *   Constraint (obviously you can't make a std::list of the base Constraint
-  *   class, which is why pointers to Constraint are also allowed, see below);
-  *
-  * - a pointer to a std::vector< std::list< C > >, where class C is derived
-  *   from Constraint;
-  *
-  * - a pointer to a boost::multi_array< std::list< C > , K >,  where class C is
-  *   derived from Constraint, in principle with any K (but the limit for K
-  *   may be dictated by un_any_static() and un_any_thing() in SMSTypedefs.h);
+ /// the groups of dynamic Constraint of the Block
+ /** One group for each group of dynamic Constraint the :Block has registered,
+  * in the order they were registered. A group is nullptr when that group
+  * has not been constructed yet [see generate_abstract_constraints()]; otherwise it
+  * says the type of its elements, its shape and its name, and gives
+  * access to the elements without knowing the type of the container that
+  * holds them [see BaseGroup].
   *
   * Note that this is the "abstract representation" of the Block, which is
   * why these are all pointers. It is assumed that the actual [vector or
@@ -3432,15 +3480,15 @@ class Block : public Observer {
   * which means that there should be no need to call this method again in
   * order to "incorporate" this new information. */
 
- c_Vec_any & get_dynamic_constraints( void ) const {
-  return( v_d_Constraint );
+ const Vec_Group & get_dynamic_constraint_groups( void ) const {
+  return( v_d_Constraint_groups );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the number of groups of dynamic Constraint
 
  Index get_number_dynamic_constraints( void ) const {
-  return( v_d_Constraint.size() );
+  return( v_d_Constraint_groups.size() );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3453,9 +3501,7 @@ class Block : public Observer {
  template< class Const >
  std::enable_if_t< std::is_base_of_v< Constraint , Const > ,
   std::list< Const > * > get_dynamic_constraint( Index i ) const {
-  if( i >= v_d_Constraint.size() )
-   return( nullptr );
-  return( boost::any_cast< std::list< Const > * >( v_d_Constraint[ i ] ) );
+  return( group_container< std::list< Const > >( v_d_Constraint_groups , i ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3469,12 +3515,7 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Constraint , Const > ,
   std::list< Const > * >
  get_dynamic_constraint( const std::string & name ) const {
-  auto it = std::find( v_d_Constraint_names.begin() ,
-                       v_d_Constraint_names.end() , name );
-  if( it == v_d_Constraint_names.end() )
-   return( nullptr );
-  return( boost::any_cast< std::list< Const > * >(
-   v_d_Constraint[ std::distance( v_d_Constraint_names.begin(), it ) ] ) );
+  return( group_container< std::list< Const > >( v_d_Constraint_groups , name ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3488,10 +3529,7 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Constraint , Const > ,
   std::vector< std::list< Const > > * >
  get_dynamic_constraint_v( Index i ) const {
-  if( i >= v_d_Constraint.size() )
-   return( nullptr );
-  return( boost::any_cast< std::vector< std::list< Const > > * >(
-                                                     v_d_Constraint[ i ] ) );
+  return( group_container< std::vector< std::list< Const > > >( v_d_Constraint_groups , i ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3505,12 +3543,7 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Constraint , Const > ,
   std::vector< std::list< Const > > * >
  get_dynamic_constraint_v( const std::string & name ) const {
-  auto it = std::find( v_d_Constraint_names.begin() ,
-                       v_d_Constraint_names.end() , name );
-  if( it == v_d_Constraint_names.end() )
-   return( nullptr );
-  return( boost::any_cast< std::vector< std::list< Const > > * >(
-   v_d_Constraint[ std::distance( v_d_Constraint_names.begin(), it ) ] ) );
+  return( group_container< std::vector< std::list< Const > > >( v_d_Constraint_groups , name ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3524,10 +3557,7 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Constraint , Const > ,
   boost::multi_array< std::list< Const > , K > * >
  get_dynamic_constraint( Index i ) const {
-  if( i >= v_d_Constraint.size() )
-   return( nullptr );
-  return( boost::any_cast< boost::multi_array< std::list< Const > , K > * >(
-						     v_d_Constraint[ i ] ) );
+  return( group_container< boost::multi_array< std::list< Const > , K > >( v_d_Constraint_groups , i ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3542,34 +3572,17 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Constraint , Const > ,
   boost::multi_array< std::list< Const > , K > * >
  get_dynamic_constraint( const std::string & name ) const {
-  auto it = std::find( v_d_Constraint_names.begin() ,
-                       v_d_Constraint_names.end() , name );
-  if( it == v_d_Constraint_names.end() )
-   return( nullptr );
-  return( boost::any_cast< boost::multi_array< std::list< Const > , K > * >(
-   v_d_Constraint[ std::distance( v_d_Constraint_names.begin() , it ) ] ) );
+  return( group_container< boost::multi_array< std::list< Const > , K > >( v_d_Constraint_groups , name ) );
   }
 
 /*--------------------------------------------------------------------------*/
- /// reading the *dynamic* Variable of the Block
- /** Method for reading the *dynamic* Variable of the Block. It returns a
-  * vector of boost::any, each element of which is supposed to contain only
-  * one among:
-  *
-  * - nothing (empty() returns true), which means that the corresponding
-  *   "group" of dynamic Variable has not been constructed [see
-  *   generate_dynamic_variables()];
-  *
-  * - a pointer to a single std::list< V >, where class V is derived from
-  *   Variable (obviously you can't make a std::list of the base Variable
-  *   class, which is why pointers to Variable are also allowed, see below);
-  *
-  * - a pointer to a std::vector< std::list< V > >, where class V is derived
-  *   from Variable;
-  *
-  * - a pointer to a boost::multi_array< std::list< V > , K >,  where class V is
-  *   derived from Variable, in principle with any K (but the limit for K
-  *   may be dictated by un_any_static() and un_any_thing() in SMSTypedefs.h);
+ /// the groups of dynamic Variable of the Block
+ /** One group for each group of dynamic Variable the :Block has registered,
+  * in the order they were registered. A group is nullptr when that group
+  * has not been constructed yet [see generate_abstract_variables()]; otherwise it
+  * says the type of its elements, its shape and its name, and gives
+  * access to the elements without knowing the type of the container that
+  * holds them [see BaseGroup].
   *
   * Note that this is the "abstract representation" of the Block, which is
   * why these are all pointers. It is assumed that the actual [vector or
@@ -3638,13 +3651,44 @@ class Block : public Observer {
   * which means that there should be no need to call this method again in
   * order to "incorporate" this new information. */
 
- c_Vec_any & get_dynamic_variables( void ) const { return( v_d_Variable ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ const Vec_Group & get_dynamic_variable_groups( void ) const {
+  return( v_d_Variable_groups );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// calls f() on each group of Variable of the Block, static ones first
+ /** Calls f( group ) on each group of Variable of the Block, the static ones
+  * first and then the dynamic ones, skipping the empty slots, so that a
+  * caller that treats the two alike does not have to walk the two vectors
+  * itself. */
+
+ template< class F >
+ void for_each_variable_group( F f ) const {
+  for( auto groups : { & v_s_Variable_groups , & v_d_Variable_groups } )
+   for( const auto & group : *groups )
+    if( group )
+     f( std::as_const( *group ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// calls f() on each group of Constraint of the Block, static ones first
+ /** The Constraint counterpart of the previous method. */
+
+ template< class F >
+ void for_each_constraint_group( F f ) const {
+  for( auto groups : { & v_s_Constraint_groups , & v_d_Constraint_groups } )
+   for( const auto & group : *groups )
+    if( group )
+     f( std::as_const( *group ) );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the number of groups of dynamic Variable
 
  Index get_number_dynamic_variables( void ) const {
-  return( v_s_Variable.size() );
+  return( v_s_Variable_groups.size() );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3657,9 +3701,7 @@ class Block : public Observer {
  template< class Var >
  std::enable_if_t< std::is_base_of_v< Variable , Var > , std::list< Var > * >
  get_dynamic_variable( Index i ) const {
-  if( i >= v_d_Variable.size() )
-   return( nullptr );
-  return( boost::any_cast< std::list< Var > * >( v_d_Variable[ i ] ) );
+  return( group_container< std::list< Var > >( v_d_Variable_groups , i ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3672,12 +3714,7 @@ class Block : public Observer {
  template< class Var >
  std::enable_if_t< std::is_base_of_v< Variable, Var > , std::list< Var > * >
  get_dynamic_variable( const std::string & name ) const {
-  auto it = std::find( v_d_Variable_names.begin() ,
-                       v_d_Variable_names.end() , name );
-  if( it == v_d_Variable_names.end() )
-   return( nullptr );
-  return( boost::any_cast< std::list< Var > * >(
-       v_d_Variable[ std::distance( v_d_Variable_names.begin() , it ) ] ) );
+  return( group_container< std::list< Var > >( v_d_Variable_groups , name ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3691,10 +3728,7 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Variable , Var > ,
   std::vector< std::list< Var > > * >
  get_dynamic_variable_v( Index i ) const {
-  if( i >= v_d_Variable.size() )
-   return( nullptr );
-  return( boost::any_cast< std::vector< std::list< Var > > * >(
-                                                      v_d_Variable[ i ] ) );
+  return( group_container< std::vector< std::list< Var > > >( v_d_Variable_groups , i ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3708,12 +3742,7 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Variable , Var > ,
   std::vector< std::list< Var > > * >
  get_dynamic_variable_v( const std::string & name ) const {
-  auto it = std::find( v_d_Variable_names.begin() ,
-                       v_d_Variable_names.end() , name );
-  if( it == v_d_Variable_names.end() )
-   return( nullptr );
-  return( boost::any_cast< std::vector< std::list< Var > > * >(
-       v_d_Variable[ std::distance( v_d_Variable_names.begin() , it ) ] ) );
+  return( group_container< std::vector< std::list< Var > > >( v_d_Variable_groups , name ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3727,10 +3756,7 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Variable , Var > ,
   boost::multi_array< std::list< Var > , K > * >
  get_dynamic_variable( Index i ) const {
-  if( i >= v_d_Variable.size() )
-   return( nullptr );
-  return( boost::any_cast< boost::multi_array< std::list< Var > , K > * >(
-						      v_d_Variable[ i ] ) );
+  return( group_container< boost::multi_array< std::list< Var > , K > >( v_d_Variable_groups , i ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3745,12 +3771,7 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Variable , Var > ,
   boost::multi_array< std::list< Var > , K > * >
  get_dynamic_variable( const std::string & name ) const {
-  auto it = std::find( v_d_Variable_names.begin() ,
-                       v_d_Variable_names.end() , name );
-  if( it == v_d_Variable_names.end() )
-   return( nullptr );
-  return( boost::any_cast< boost::multi_array< std::list< Var > , K > * >(
-         v_d_Variable[ std::distance( v_d_Variable_names.begin() , it ) ] ) );
+  return( group_container< boost::multi_array< std::list< Var > , K > >( v_d_Variable_groups , name ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -3758,18 +3779,13 @@ class Block : public Observer {
  /** Returns a const reference to the vector storing the names of the
   * different groups of static Constraints of the Block */
 
- c_Vec_string & get_s_const_name( void ) const {
-  return( v_s_Constraint_names );
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the name of the i-th group of static Constraint, "" if none
 
  const std::string & get_s_const_name( Index i ) const {
   static const std::string _empty;
-  if( i >= v_s_Constraint_names.size() )
+  if( ( i >= v_s_Constraint_groups.size() ) || ( ! v_s_Constraint_groups[ i ] ) )
    return( _empty );
-  return( v_s_Constraint_names[ i ] );
+  return( v_s_Constraint_groups[ i ]->get_name() );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3779,9 +3795,11 @@ class Block : public Observer {
   * is returned. */
 
  Index get_s_const_index( const std::string & name ) const {
-  auto it = std::find( v_s_Constraint_names.begin() ,
-                       v_s_Constraint_names.end() , name );
-  return( std::distance( v_s_Constraint_names.begin() , it ) );
+  Index i = 0;
+  for( ; i < v_s_Constraint_groups.size() ; ++i )
+   if( v_s_Constraint_groups[ i ] && ( v_s_Constraint_groups[ i ]->get_name() == name ) )
+    break;
+  return( i );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3789,18 +3807,13 @@ class Block : public Observer {
  /** Returns a const reference to the vector storing the names of the
   * different groups of static Variables of the Block */
 
- c_Vec_string & get_s_var_name( void ) const {
-  return( v_s_Variable_names );
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the name of the i-th group of static Variable, "" if none
 
  const std::string & get_s_var_name( Index i ) const {
   static const std::string _empty;
-  if( i >= v_s_Variable_names.size() )
+  if( ( i >= v_s_Variable_groups.size() ) || ( ! v_s_Variable_groups[ i ] ) )
    return( _empty );
-  return( v_s_Variable_names[ i ] );
+  return( v_s_Variable_groups[ i ]->get_name() );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3810,9 +3823,11 @@ class Block : public Observer {
   * is returned. */
 
  Index get_s_var_index( const std::string & name ) const {
-  auto it = std::find( v_s_Variable_names.begin() ,
-                       v_s_Variable_names.end() , name );
-  return( std::distance( v_s_Variable_names.begin() , it ) );
+  Index i = 0;
+  for( ; i < v_s_Variable_groups.size() ; ++i )
+   if( v_s_Variable_groups[ i ] && ( v_s_Variable_groups[ i ]->get_name() == name ) )
+    break;
+  return( i );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3820,18 +3835,13 @@ class Block : public Observer {
  /** Returns a const reference to the vector storing the names of the
   * different groupa of dynamic Constraints of the Block */
 
- c_Vec_string & get_d_const_name( void ) const {
-  return( v_d_Constraint_names );
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the name of the i-th group of dynamic Constraint, "" if none
 
  const std::string & get_d_const_name( Index i ) const {
   static const std::string _empty;
-  if( i >= v_d_Constraint_names.size() )
+  if( ( i >= v_d_Constraint_groups.size() ) || ( ! v_d_Constraint_groups[ i ] ) )
    return( _empty );
-  return( v_d_Constraint_names[ i ] );
+  return( v_d_Constraint_groups[ i ]->get_name() );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3841,9 +3851,11 @@ class Block : public Observer {
   * is returned. */
 
  Index get_d_const_index( const std::string & name ) const {
-  auto it = std::find( v_d_Constraint_names.begin() ,
-                       v_d_Constraint_names.end() , name );
-  return( std::distance( v_d_Constraint_names.begin() , it ) );
+  Index i = 0;
+  for( ; i < v_d_Constraint_groups.size() ; ++i )
+   if( v_d_Constraint_groups[ i ] && ( v_d_Constraint_groups[ i ]->get_name() == name ) )
+    break;
+  return( i );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3851,18 +3863,13 @@ class Block : public Observer {
  /** Returns a const reference to the vector storing the names of the
   * different groups of dynamic Variables of the Block */
 
- c_Vec_string & get_d_var_name( void ) const {
-  return( v_d_Variable_names );
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the name of the i-th group of dynamic Variable, "" if none
 
  const std::string & get_d_var_name( Index i ) const {
   static const std::string _empty;
-  if( i >= v_d_Variable_names.size() )
+  if( ( i >= v_d_Variable_groups.size() ) || ( ! v_d_Variable_groups[ i ] ) )
    return( _empty );
-  return( v_d_Variable_names[ i ] );
+  return( v_d_Variable_groups[ i ]->get_name() );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3872,9 +3879,11 @@ class Block : public Observer {
   * is returned. */
 
  Index get_d_var_index( const std::string & name ) const {
-  auto it = std::find( v_d_Variable_names.begin() ,
-                       v_d_Variable_names.end() , name );
-  return( std::distance( v_d_Variable_names.begin() , it ) );
+  Index i = 0;
+  for( ; i < v_d_Variable_groups.size() ; ++i )
+   if( v_d_Variable_groups[ i ] && ( v_d_Variable_groups[ i ]->get_name() == name ) )
+    break;
+  return( i );
   }
 
 /** @} ---------------------------------------------------------------------*/
@@ -4000,14 +4009,16 @@ class Block : public Observer {
   * Constraint, unlike that of a Variable, is supposed to un-register it
   * from all the Variable that it is active in. To avoid this
   *
-  *     ALL DELETED Constraint ARE clear()-ED WITHIN THE METHOD
+  *     ALL DELETED Constraint ARE clear()-ED BEFORE BEING DESTROYED
   *
-  * This means that the list of Variable that the Constraint was active in
-  * is immediately cleared (without re-warning the Variable, who have just
-  * been). As a consequence,
+  * which means that the list of Variable that the Constraint was active in
+  * is cleared without re-warning the Variable, who have just been. If the
+  * BlockModRmv is not issued this happens within the method; if it is, it
+  * happens in the destructor of the BlockModRmv. As a consequence,
   *
-  *     WHOMEVER HANDLES THE ISSUED BlockModRmv (IF ANY) CANNOT RELY ON
-  *     THAT INFORMATION, SINCE IT WILL NO LONGER BE THERE
+  *     WHOMEVER HANDLES THE ISSUED BlockModRmv (IF ANY) CAN STILL READ
+  *     THE Variable THAT EACH REMOVED Constraint WAS ACTIVE IN, BUT THESE
+  *     Variable NO LONGER LIST THE Constraint AMONG THEIR ACTIVE STUFF
   *
   * Note that when the Constraint is removed from the Variable, no
   * Modification is issued (see Variable::remove_active()); thus, calling
@@ -4133,7 +4144,11 @@ class Block : public Observer {
   * ThinVarDepInterface::remove_variable() will be called, and this in
   * principle issues a Modification on its own. The further parameter
   * issueindMod is provided to control this, with the usual format described
-  * in Observer::make_par().
+  * in Observer::make_par(). Under issueMod == eDryRun nothing at all is done,
+  * whatever issueindMod is; under issueindMod == eDryRun the Variable are
+  * removed from the list but not from the "stuff" they are active in, which
+  * is only right if they are no longer there, for otherwise the "stuff" is
+  * left with pointers to destroyed Variable.
   *
   * Modification are crucial to maintaining the coherence between the Block
   * and the Solver: hence, choosing to disable them should be a very well
@@ -4461,9 +4476,9 @@ class Block : public Observer {
   * means that if the method is called with fsbc = nullptr then the
   * corresponding configuration from the BlockConfig() is used. If the
   * BlockConfig is not set (nullptr) or the corresponding field is not set
-  * (nullptr), this is assumed to mean "all Constraint must be satisfied
-  * exactly", which may be possible in some cases (say, a numerical
-  * Constraint only producing "small" integer numbers).
+  * (nullptr), the Constraint must be satisfied up to the relative violation
+  * DefaultFeasTol, i.e., exactly but for rounding, which a point computed
+  * in floating point may need even on "small" integer data.
   *
   * The method is given a default implementation working for those Blocks for
   * which feasibility is never an issue, in the sense that they are feasible
@@ -4522,7 +4537,11 @@ class Block : public Observer {
   * The method is given a default implementation that goes through the
   * Variable of the Block: what they hold is saved, sol is written in, the
   * check is done by is_feasible( true , fsbc ) and what was there is put
-  * back. This makes the method available for any :Block, at the price of
+  * back; a sol that holds a direction, however, is declared not feasible
+  * unless the Block knows what a direction of its own is [see
+  * has_directions()], since a Block that does not cannot tell a ray of its
+  * own from one that is not, and what cannot be told is not declared
+  * feasible. This makes the method available for any :Block, at the price of
   * requiring the "abstract representation" to exist and of touching the
   * Variable while it runs; is_sol_feasible_physical() is what tells the two
   * cases apart. A :Block that can read its own :Solution directly is
@@ -5492,6 +5511,25 @@ class Block : public Observer {
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the kinds of Modification the Block reads itself
+ /** Returns the kinds of Modification [see Modification::ModConcern] that
+  * the Block wants to see anyway, typically those of the objects of its
+  * abstract representation whose abstract Modification it has to follow to
+  * keep its physical representation in step. The base class wants none. */
+
+ [[nodiscard]] virtual Modification::ModConcern concerned_by( void ) const {
+  return( 0 );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the kinds of Modification read by anyone listening to the Block
+ /** The "or" of what the Block reads itself [see concerned_by()], of what
+  * its Solver read [see Solver::concerned_by()], and of what is read by
+  * anyone listening to its father; it is computed walking up the tree. */
+
+ [[nodiscard]] Modification::ModConcern concerned( void ) const override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// tell a Block if someone "listening to" its father
  /** This method has to be called by the father Block to inform each of his
   * sons whether or not there is someone "listening to him", and therefore
@@ -5571,11 +5609,48 @@ class Block : public Observer {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
- void close_channel( ChnlName chnl , bool force = false ) override;
+ void close_channel( ChnlName chnl , bool force = false ) override {
+  close_channel( chnl , force , false );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /// close a channel, possibly discarding what has been sent to it
+ /** Same as close_channel( chnl , force ) if \p discard == false. If
+  * \p discard == true the level that close_channel( chnl , force ) would
+  * finalize is deleted instead: in "root mode", or if \p force == true, the
+  * outermost GroupModification of the channel is deleted rather than
+  * shipped, and the channel is closed; otherwise the current (inner)
+  * GroupModification is removed from its father GroupModification, and
+  * addition resumes there. Either way, nobody receives anything. As
+  * close_channel( chnl , force ), this is passed up to the ancestor that
+  * has defined the channel, and it is an error if none has. */
+
+ void close_channel( ChnlName chnl , bool force , bool discard );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /// empty the current GroupModification of a channel
+ /** Deletes all the Modification sent to the open channel chnl since the
+  * current level of the channel has been opened (the nested
+  * GroupModification it holds comprised), which is then left open and
+  * empty, and has concerns_Block() == false; the outer levels of the channel
+  * are not touched. Nobody receives anything. This allows one to issue an
+  * unbounded sequence of Modification that is known to have no net effect
+  * without them piling up in the channel. As close_channel(), this is passed
+  * up to the ancestor that has defined the channel, and it is an error if
+  * none has, or if chnl == 0. */
+
+ void clear_channel( ChnlName chnl );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
- void set_default_channel( ChnlName chnl = 0 ) override { f_channel = chnl; }
+ void set_default_channel( ChnlName chnl = 0 ) override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /// returns the "default" channel [see set_default_channel()]
+
+ [[nodiscard]] ChnlName get_default_channel( void ) const {
+  return( f_channel );
+  }
 
 /** @} ---------------------------------------------------------------------*/
 /*---------------------- Methods for handling Solver -----------------------*/
@@ -5822,9 +5897,9 @@ class Block : public Observer {
  *
  * is called. The adapter function simply static_cast< dBlock >()-s the
  * Block * and invokes the given function. Similarly,
- * get_method_fs< dBlock , Args >() and
- * get_method_name_fs< dBlock , Args >() are provided to search into the
- * corresponding FunctionType< Args > methods factories.
+ * get_method_fs< Args >() and get_method_name_fs< Args >() are provided to
+ * search into the corresponding FunctionType< Args > methods factories, and
+ * get_query_fs< Args >() into the QueryType< Args > ones.
  *
  * A further level of support comes by defining some "general parameter type
  * lists" that functions in the methods factory should have. These should be
@@ -5846,16 +5921,20 @@ class Block : public Observer {
  *
  * - MF_int_it, a const_iterator into a std::vector< int >;
  *
- * These are thought to form the basis of "most" data-changing member
- * functions in any :Block class. In particular, six parameter type lists
- * are defined based on these, which have the form (clearly compatible with
- * the above types)
+ * - MF_dbl_sp and MF_int_sp, the same data as spans, and MF_dbl_msp and
+ *   MF_int_msp, the mutable spans a getter writes its answer through;
+ *
+ * These are thought to form the basis of "most" data-changing and
+ * data-reading member functions in any :Block class. In particular,
+ * parameter type lists are defined based on these; those of a setter have
+ * the form (clearly compatible with the above types)
  *
  *     my_method_name( [ < data > , ] < slice > , ModParam , ModParam )
  *
  * where:
  *
- * - data is either not there, or a MF_dbl_it, or a MF_int_it;
+ * - data is either not there, or one of MF_dbl_it, MF_int_it, MF_dbl_sp
+ *   and MF_int_sp;
  *
  * - slice indicates a subset of the data, in two possible forms:
  *
@@ -5872,6 +5951,8 @@ class Block : public Observer {
  *     by increasing index on call (if not it can be ordered inside: anyway
  *     the Subset is &&, meaning that it is expected to be "consumed" by the
  *     function, e.g. to be shipped to some appropriate form of Modification).
+ *     A getter does not consume the Subset, and takes a c_Subset &
+ *     instead.
  *
  *   Note that, if present, the provided  MF_X_it (call it "iter") must
  *   point to a std::vector< X > at least as long (after the position
@@ -5879,11 +5960,21 @@ class Block : public Observer {
  *   the X value *( iter + h ) has to be taken as the new value for the
  *   data structure in the :Block corresponding to the h-th Index in slice.
  *
- * These parameter type lists are "encoded" in the predefined six types
+ *   If the data travels in a span, the span is the same "at least as long"
+ *   buffer, and one shorter than the slice is an error the function can
+ *   report instead of reading past the end. A getter writing through a
+ *   mutable span writes the h-th value for the h-th Index in slice.
+ *
+ *   Those of a getter have the same form, with a mutable span as data,
+ *   MF_dbl_msp or MF_int_msp, and no ModParam.
+ *
+ * These parameter type lists are "encoded" in the predefined types
  * MS[_D]_S with D in { dbl , int } (or not there) and S in { rngd , sbst },
- * representing (in obvious ways) the six possible interfaces. Specific
- * versions of register_method(), get_method() and get_method_name() are
- * provided which take a final
+ * representing (in obvious ways) the possible interfaces; the MS_sp_D_S,
+ * with D in { dbl , int }, are the same ones with the data as a span, and
+ * the MS_qry_D_S, with the same D, those of a getter writing through a
+ * mutable span. Specific versions of register_method(), get_method_fs(),
+ * get_method_name_fs() and get_query_fs() are provided which take a final
  *
  *     MS[_D]_S::args()
  *
@@ -5896,7 +5987,7 @@ class Block : public Observer {
  *   register_method(), get_method() and get_method_name() are just a tiny
  *   bit easier to use;
  *
- * - gently nudge the user into adopting, as far as possible, these six
+ * - gently nudge the user into adopting, as far as possible, these
  *   parameter type lists for (as many as possible of) the data-changing
  *   functions of her :Block; this makes it straightforward to then register
  *   them in the methods factories, which greatly increases the value of the
@@ -6008,6 +6099,87 @@ class Block : public Observer {
  * the :Block owner in static_initialization() once and for all, the
  * possibility is always left open that some registration may happen outside
  * it.
+ *
+ * Several writers may act on the same datum, in no fixed order. Because of
+ * this
+ *
+ *     A SETTER RECOMPUTES THE DATA IT OWNS WHOLE, OUT OF THE FIELDS THE
+ *     :Block HOLDS, AND NEVER INCREMENTS WHAT IT FINDS THERE
+ *
+ * the point being that an increment reads what is there before writing, so
+ * its outcome depends on which writer acted last, whereas a recomputation
+ * depends on the fields alone. Those fields therefore have to keep the base
+ * datum, and whatever a getter reads back is assembled out of them and out
+ * of the solve, never out of values a setter has already transformed: an
+ * implementation that had written the transformed values over the base ones
+ * would apply the transformation twice.
+ *
+ * Note that what a setter writes arrives as a change of the "physical
+ * representation" of the :Block, the "abstract" one, if it has been
+ * constructed, having to be updated with it.
+ *
+ * A :Block registers here what has to be read back as well, under names of
+ * its own choosing. A getter that reads state requires that state, and the
+ * :Block registering it must declare which. Say a sensitivity built out of
+ * the multipliers of the rows carrying a parameter, and out of the primal
+ * solution as well wherever the parameter multiplies the coefficient of a
+ * Variable rather than a constant term: it needs the sub-tree solved, and
+ * by a Solver that makes those values available; read anywhere else it
+ * gives back what the previous solve left, with nothing marking it as
+ * wrong.
+ *
+ * Such a getter requires not only that the sub-tree be solved, but that the
+ * solve ended where the answer assumes it did. Where it ended infeasible a
+ * Solver giving dual information has an unbounded dual direction to offer,
+ * not the multipliers of an optimum, and out of that comes no derivative --
+ * the value of this Block is not finite there -- but the coefficients of a
+ * condition that any feasible choice of the parameters has to satisfy.
+ * Whether a getter answers at all there, and with which of the two, is for
+ * the :Block registering it to declare.
+ *
+ * How the value is assembled is the :Block's own business.
+ *
+ * The setter families are all shaped for writing, so reading needs a shape
+ * of its own, obtained by mirroring them. For the ( double , range ) case
+ * that is, in the Types group above,
+ *
+ *     MF_dbl_msp        the mutable span to write the answer out through
+ *     QueryType         FunctionType with a const Block * and no ModParam
+ *     ConstMemberFunctionType   what the wrapper adapts to it
+ *     MS_qry_dbl_rngd   the parameter list, mirroring MS_dbl_rngd
+ *     MF_qry_dbl_rngd_map       the map holding this family's entries
+ *
+ * plus the single copy of that map owned by the core, declared as
+ * queries_dbl_rngd_factory() and defined once in Block.cpp, and the
+ * specialization of methods_factory_accessor on
+ * QueryType< MF_dbl_msp , Range > that makes the signature standard;
+ * without it nothing compiles.
+ *
+ * The ( double , subset ) family is obtained the same way from MS_dbl_sbst,
+ * and is there together with the first because a :Block may have to answer
+ * two consumers about disjoint subsets of its parameters. The integer
+ * twins, MS_qry_int_rngd and MS_qry_int_sbst, mirror MS_int_rngd and
+ * MS_int_sbst on MF_int_msp, for a :Block whose parameter is a count and
+ * answers with the count rather than with a double that happens to be
+ * integral. Any further family comes from the setter family it mirrors.
+ *
+ * A consumer that has to know whether a :Block supports an operation asks
+ * this factory, and the name either resolves or it does not: a :Block
+ * registers a name exactly when it supports what that name promises. No
+ * method is run to obtain the answer.
+ *
+ * A call can still be refused: a value outside what the :Block can
+ * represent, a state a getter requires and does not find. That is reported
+ * by throwing, as everywhere else here. The two cases do not overlap: a
+ * name that is not there says the operation is not supported, an exception
+ * out of a name that is there says that this one call is wrong.
+ *
+ * That a setter and the getter mirroring it address the same parameters, in
+ * the same number and order, is a convention like the naming one: the
+ * factory is one map per signature, keyed by an arbitrary string, and
+ * nothing in it describes the components, so position is the only
+ * correspondence. Nothing checks it either, the number of parameters being
+ * known only when the function is called.
  *  @{ */
 
  /// register a new function in the methods factory
@@ -6128,6 +6300,35 @@ class Block : public Observer {
   }
 
 /*--------------------------------------------------------------------------*/
+ /// register a new query in the methods factory
+ /** As the register_method() taking a MemberFunctionType, but the adapter
+  * static_cast<> to a const dBlock * and there is no ModParam. */
+
+ template< class dBlock , typename ... Args >
+ static std::enable_if_t< std::is_base_of_v< Block , dBlock > , void >
+ register_method( std::string && name ,
+                  ConstMemberFunctionType< dBlock , Args... > fnct ) {
+  register_method( std::move( name ),
+                   new QueryType< Args... >(
+                    [ fnct ]( const Block * blck , Args && ... args ) {
+                     std::invoke( fnct,
+                                  static_cast< const dBlock * >( blck ),
+                                  std::forward< Args >( args )... );
+                    } ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// as the above, with the parameter type list given by an arg_packer_helper
+
+ template< class dBlock , typename ... Args >
+ static void register_method(
+                  std::string && name ,
+                  ConstMemberFunctionType< dBlock , Args... > fnct ,
+                  arg_packer_helper< Args... > ) {
+  register_method< dBlock, Args... >( std::move( name ) , fnct );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// returns the function with the given name in the methods factory
  /** This function returns a pointer to the function associated with the given
   * \p name in the methods factory specified by the template function type F.
@@ -6165,7 +6366,9 @@ class Block : public Observer {
   * the given \p name in the methods factory corresponding to the function
   * type F implied by the variadic template parameter Args. Basically, this
   * function is equivalent to get_method< F > with
-  * F == FunctionType< Args... >.
+  * F == FunctionType< Args... >. A query has one of its own,
+  * get_query_fs(); for any other function type get_method< F > has to be
+  * used directly.
   *
   * Suppose, for example, that the methods factory has a function associated
   * with the name "NetworkBlock::set_arc_weight" that has the typical "double,
@@ -6187,7 +6390,7 @@ class Block : public Observer {
   * @param name The name associated with the function. */
 
  template< typename... Args >
- static const FunctionType< Args... > *
+ static FunctionType< Args... > *
  get_method_fs( const std::string & name ) {
   return( get_method< FunctionType< Args... > >( name ) );
   }
@@ -6221,9 +6424,65 @@ class Block : public Observer {
   *             parameter type list of the function to be retrieved. */
 
  template< typename... Args >
- static const FunctionType< Args... > *
+ static FunctionType< Args... > *
  get_method_fs( const std::string & name , arg_packer_helper< Args... > ) {
   return( get_method< FunctionType< Args... > >( name ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the query with the given name in the methods factory
+ /** This template function returns a pointer to the adapter function with
+  * the given \p name in the methods factory corresponding to the query type
+  * implied by the variadic template parameter Args. It is to a getter what
+  * get_method_fs() is to a setter: basically, this function is equivalent
+  * to get_method< F > with F == QueryType< Args... >.
+  *
+  * Suppose, for example, that the methods factory has a query associated
+  * with the name "NetworkBlock::get_arc_weight" that has the typical
+  * "double, Range" reading interface, i.e., a #MF_dbl_msp parameter and a
+  * #Range parameter, and no ModParam. This has been inserted in the
+  * interface under the guise of a QueryType< MF_dbl_msp , Range > pointer.
+  * Thus, to invoke such a function one should do
+  *
+  *     auto qry = get_query_fs< MF_dbl_msp , Range >(
+  *                                        "NetworkBlock::get_arc_weight" );
+  *     std::invoke( *qry , NB , answer , range );
+  *
+  * where NB is a pointer to a NetworkBlock object, answer is a #MF_dbl_msp
+  * spanning a buffer at least as long as how many elements there are in
+  * range, and range is a #Range.
+  *
+  * The pointer comes back non-const, as get_method< F >() gives it, so that
+  * get_method_name() can give the name back from it.
+  *
+  * @param name The name associated with the function. */
+
+ template< typename... Args >
+ static QueryType< Args... > *
+ get_query_fs( const std::string & name ) {
+  return( get_method< QueryType< Args... > >( name ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the query with the given name in the methods factory
+ /** This function returns a pointer to the adapter function associated with
+  * the given \p name in the methods factory implied by the second dummy
+  * parameter, which for a query is one of the MS_qry_D_S parameter type
+  * lists. With the query of get_query_fs() above,
+  *
+  *     auto qry = get_query_fs( "NetworkBlock::get_arc_weight" ,
+  *                              MS_qry_dbl_rngd::args() );
+  *     std::invoke( *qry , NB , answer , range );
+  *
+  * @param name The name associated with the function.
+  *
+  * @param void Dummy arg_packer_helper< Args... > parameter to specify the
+  *             parameter type list of the query to be retrieved. */
+
+ template< typename... Args >
+ static QueryType< Args... > *
+ get_query_fs( const std::string & name , arg_packer_helper< Args... > ) {
+  return( get_method< QueryType< Args... > >( name ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -6255,7 +6514,7 @@ class Block : public Observer {
 
  template< typename... Args >
  static const std::string & get_method_name_fs(
-				     const FunctionType< Args... > * fnct ) {
+		std::type_identity_t< FunctionType< Args... > > * fnct ) {
   return( get_method_name< FunctionType< Args... > >( fnct ) );
   }
 
@@ -6273,9 +6532,103 @@ class Block : public Observer {
 
  template< typename... Args >
  static const std::string & get_method_name_fs(
-				       const FunctionType< Args... > * fnct ,
+		std::type_identity_t< FunctionType< Args... > > * fnct ,
 				       arg_packer_helper< Args... > ) {
   return( get_method_name< FunctionType< Args... > >( fnct ) );
+  }
+
+/** @} ---------------------------------------------------------------------*/
+/*-------------------------- Sizing of this Block --------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Sizing of this Block
+ *
+ * A :Block may be sized: a parameter k of it multiplies some of its data,
+ * one or more rows A_i x <= b_i becoming A_i x <= k b_i, or a cost of the
+ * Objective becoming k times itself. Which data carry k, and how many, is
+ * the :Block's own business, and nothing here distinguishes sizing all of
+ * this Block from sizing a part of it. The :Block applies k itself, writing
+ * it into its own data, so that whoever holds a coupling keeps reading the
+ * same Variable with the same coefficients, and a Solver sees ordinary
+ * Variable, Function and Constraint, with nothing to know about k.
+ *
+ * What k is depends on how the problem is assembled, and whoever assembles
+ * it configures the consumer accordingly:
+ *
+ * - a datum, not a column of the model being solved: it arrives from
+ *   outside, and the :Block writes it into its data through the setters it
+ *   registers in the methods factory [see Methods for handling the methods
+ *   factory], the Modification being the ordinary ones. No Solver of this
+ *   Block optimizes over k: whoever chooses it solves a problem of its own
+ *   in which k is the unknown, and may read back through the query
+ *   families, say, the bounds of the values the :Block can represent, or a
+ *   sensitivity of the value of this Block to k. Whether a sensitivity
+ *   describes only the neighbourhood of the current point or bounds the
+ *   value function as a whole is nowhere in the signature, and is for the
+ *   :Block to say;
+ *
+ * - a column, which a Solver optimizes over like any other: one this Block
+ *   owns is declared by get_size_variable(), one it is given, normally by
+ *   its father, is passed by set_size_variable(). In both cases the :Block
+ *   writes the column into its own rows, and there is nothing to read back.
+ *
+ * Nothing here answers "which of the two are you": a consumer asks for what
+ * it wants and each channel refuses by itself, a name that is not in the
+ * methods factory, a false from set_size_variable(), a nullptr from
+ * get_size_variable().
+ *  @{ */
+
+/*--------------------------------------------------------------------------*/
+ /// the Variable of this Block standing for its size parameter
+ /** The Variable of this Block carrying its size parameter, and nullptr if
+  * this Block has none; the base class returns the one declared with
+  * set_owned_size_variable(). This Block owns that column and writes it
+  * into its own data; what the caller receives is the column itself, to
+  * bound it, to read its value, or to write it into a coupling of its own. */
+
+ virtual Variable * get_size_variable( void ) const {
+  return( f_size_variable );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// declares a Variable of this Block as the one of its size parameter
+ /** Makes \p size_var, a Variable that this Block has already created and
+  * that its groups of Variable own, the one returned by get_size_variable();
+  * nullptr withdraws the declaration. Nothing else changes: the Constraint
+  * of this Block are expected to be written with that column already (e.g.,
+  * a right-hand side b written as b * size_var), and the Variable is neither
+  * created nor deleted here. It is the counterpart, for a column of this
+  * Block, of set_size_variable(), which takes a column of another Block. */
+
+ void set_owned_size_variable( Variable * size_var ) {
+  f_size_variable = size_var;
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// gives this Block the Variable of its size parameter
+ /** \p size_var belongs to another Block, normally the father, and this
+  * Block writes it into its own data. Returns false if this Block takes no
+  * such Variable, in which case nothing has changed. nullptr takes back the
+  * Variable given before, the data going back to their unsized form, if
+  * the Block can do that, and returns false otherwise.
+  *
+  * It excludes get_size_variable(): a Block that answers non-nullptr there
+  * owns that column already. The single ModParam is the abstract one, for
+  * the regime in which the Constraint of this Block exist already and this
+  * call rewrites them; a :Block that instead stores the pointer and
+  * generates its Constraint afterwards changes a datum that nobody but it
+  * reads, the column having a meaning only once it is in a row.
+  *
+  * When it may be called is for the :Block to say, with a floor that every
+  * :Block meets: at construction, before generate_abstract_variables() has
+  * been called, where nothing abstract exists yet and the ModParam carries
+  * nothing. A later call is allowed, and is what the ModParam is for: the
+  * rows that exist are rewritten and the abstract Modification is issued. A
+  * caller has no guarantee of that, so a :Block meant to be usable on a
+  * live instance has to take the call late. */
+
+ virtual bool set_size_variable( Variable * size_var ,
+                                 c_ModParam issueAMod = eNoBlck ) {
+  return( false );
   }
 
 /** @} ---------------------------------------------------------------------*/
@@ -6771,33 +7124,25 @@ class Block : public Observer {
 /** @name Protected methods for handling the "abstract representation"
  *
  * The following methods are the only ones that derived classes can use to
- * manipulate the four vectors v_s_Constraint, v_s_Variable, v_d_Constraint,
- * v_s_Variable, that are purposely *private*. This ensures that only pointers
- * of the right type can be found there; these being vectors of boost::any, it
- * would be very easy for derived classes to accidentally put there pointers
- * of the wrong type. Also, the methods ensure that the v_X_Y_names vectors
- * are kept of the same size as the corresponding v_X_Y ones. The add methods
- * accept an optional string to be put in the proper v_X_Y_names vector as an
- * arbitrary name for the new stuff; the v_X_Y_names vectors are protected,
- * so derived classes can mess up with them later at their leisure).
+ * manipulate the four vectors of groups, that are purposely *private*: the
+ * group of a container is built by the method that registers it, so what is
+ * there always says correctly what it views. The add methods accept an
+ * optional string, which is the name of the new group and is what
+ * get_s_const_name() and its three fellows give back.
  *
  * There are two forms of the methods, for each of four combinations of
  *  X = "s" or "d" and Y = "Constraint" and "Variable":
  *
- * - add_X_Y( stuff [ , name , front ] ) that adds a new position to the
- *   corresponding vector of boost::any and puts a pointer to "stuff" there,
- *   (checking if the type is right), adds a new position to the corresponding
- *   std::vector< std::string > of names and puts "name" (if any) there;
- *   the optional parameter front tells, if false (default value), that the
- *   new position is added at the back of the std::vector-s, while if true
- *   that the new position is added at the front. Note that a form of the
- *   methods exist with "no stuff" (i.e., add_X_Y( [ name , front ] )) that
- *   just creates an empty slot in the vector of boost::any.
+ * - add_X_Y( stuff [ , name , front ] ) that adds a new group viewing
+ *   "stuff", with "name" (if any) as its name; the optional parameter front
+ *   tells, if false (default value), that the new group is added at the back
+ *   of the vector, while if true that it is added at the front. Note that a
+ *   form of the methods exist with "no stuff" (i.e., add_X_Y( [ name ,
+ *   front ] )) that just creates an empty slot.
  *
- * - set_X_Y( Index , stuff [ , name ] ) that puts "stuff" in the position
- *   "Index" of the corresponding vector of boost::any (assumed existing,
- *   otherwise exception is thrown), and of course "name" (if any) in the
- *   same position to the corresponding std::vector< std::string > of names.
+ * - set_X_Y( Index , stuff [ , name ] ) that puts the group viewing "stuff",
+ *   named "name" (if any), in the position "Index" of the corresponding
+ *   vector (assumed existing, otherwise exception is thrown).
  *   Note that the current content of both vectors in that position is
  *   overwritten without any check, so it's the caller responsibility to
  *   ensure that nothing bad happens (like, erasing the only existing
@@ -6809,8 +7154,13 @@ class Block : public Observer {
  * case in which this happens in different steps (say, a :Block class does
  * a part of it, but a further derived class does another part).
  *
- * For sake of consistency, set_Block( this ) is called on every new added
- * element; users may set another Block later at their own risk.
+ * For sake of consistency, every new added element is told the group it is
+ * now in [see Variable::set_Group() and Constraint::set_Group()], which also
+ * makes this Block its Block; users may set another Block later at their own
+ * risk, which takes the element out of its group. Replacing or resetting a
+ * group takes its elements out of it, and so does removing a dynamic
+ * element; hence, a container has still to be there, possibly empty, when
+ * its group is replaced or reset.
  *
  * Similar methods are provided to handle the set of sub-Block. Although
  * currently v_Block is protected and derived classes can manipulate it
@@ -6853,32 +7203,32 @@ class Block : public Observer {
  /// removes any existing static Constraint; to be used with care
 
  void reset_static_constraints( void ) {
-  v_s_Constraint.clear();
-  v_s_Constraint_names.clear();
+  leave_groups( v_s_Constraint_groups );
+  v_s_Constraint_groups.clear();
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// removes any existing static Variable; to be used with care
 
  void reset_static_variables( void ) {
-  v_s_Variable.clear();
-  v_s_Variable_names.clear();
+  leave_groups( v_s_Variable_groups );
+  v_s_Variable_groups.clear();
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// removes any existing dynamic Constraint; to be used with care
 
  void reset_dynamic_constraints( void ) {
-  v_d_Constraint.clear();
-  v_d_Constraint_names.clear();
+  leave_groups( v_d_Constraint_groups );
+  v_d_Constraint_groups.clear();
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// removes any existing dynamic Variable; to be used with care
 
  void reset_dynamic_variables( void ) {
-  v_d_Variable.clear();
-  v_d_Variable_names.clear();
+  leave_groups( v_d_Variable_groups );
+  v_d_Variable_groups.clear();
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -6890,15 +7240,7 @@ class Block : public Observer {
  /// empty slot
 
  void add_static_constraint( std::string && name = "" , bool front = false ) {
-  if( front ) {
-   v_s_Constraint.insert( v_s_Constraint.begin(), boost::any() );
-   v_s_Constraint_names.insert( v_s_Constraint_names.begin() ,
-                                std::move( name ) );
-   }
-  else {
-   v_s_Constraint.push_back( boost::any() );
-   v_s_Constraint_names.emplace_back( std::move( name ) );
-   }
+  add_group( v_s_Constraint_groups , nullptr , front );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -6909,16 +7251,8 @@ class Block : public Observer {
  add_static_constraint( Const & newc , std::string && name = "" ,
                         bool front = false ) {
   newc.set_Block( this );
-  Const * cnewc = &newc;
-  if( front ) {
-   v_s_Constraint.insert( v_s_Constraint.begin() , cnewc );
-   v_s_Constraint_names.insert( v_s_Constraint_names.begin() ,
-                                std::move( name ) );
-   }
-  else {
-   v_s_Constraint.push_back( cnewc );
-   v_s_Constraint_names.emplace_back( std::move( name ) );
-   }
+  add_group( v_s_Constraint_groups , make_own_group( newc , this , 0 , name ) ,
+             front );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -6928,13 +7262,12 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
  set_static_constraint( Index i , Const & newc ,
                         std::string && name = "" ) {
-  if( i >= v_s_Constraint.size() )
-   throw( std::invalid_argument( "wrong index into v_s_Constraint" ) );
+  if( i >= v_s_Constraint_groups.size() )
+   throw( std::invalid_argument( "wrong index into v_s_Constraint_groups" ) );
 
   newc.set_Block( this );
-  Const * cnewc = &newc;
-  v_s_Constraint[ i ] = cnewc;
-  v_s_Constraint_names[ i ] = std::move( name );
+  set_group( v_s_Constraint_groups , i ,
+             make_own_group( newc , this , i , name ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -6947,16 +7280,8 @@ class Block : public Observer {
   for( auto & c : newc )
    c.set_Block( this );
 
-  std::vector< Const > * cnewc = &newc;
-  if( front ) {
-   v_s_Constraint.insert( v_s_Constraint.begin() , cnewc );
-   v_s_Constraint_names.insert( v_s_Constraint_names.begin(),
-                                std::move( name ) );
-   }
-  else {
-   v_s_Constraint.push_back( cnewc );
-   v_s_Constraint_names.emplace_back( std::move( name ) );
-   }
+  add_group( v_s_Constraint_groups , make_own_group( newc , this , 0 , name ) ,
+             front );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -6966,15 +7291,14 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
  set_static_constraint( Index i , std::vector< Const > & newc ,
                         std::string && name = "" ) {
-  if( i >= v_s_Constraint.size() )
-   throw( std::invalid_argument( "wrong index into v_s_Constraint" ) );
+  if( i >= v_s_Constraint_groups.size() )
+   throw( std::invalid_argument( "wrong index into v_s_Constraint_groups" ) );
 
   for( auto & c : newc )
    c.set_Block( this );
 
-  std::vector< Const > * cnewc = &newc;
-  v_s_Constraint[ i ] = cnewc;
-  v_s_Constraint_names[ i ] = std::move( name );
+  set_group( v_s_Constraint_groups , i ,
+             make_own_group( newc , this , i , name ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -6988,16 +7312,8 @@ class Block : public Observer {
    for( auto & j : c )
     j.set_Block( this );
 
-  std::vector< std::vector< Const > > * cnewc = &newc;
-  if( front ) {
-   v_s_Constraint.insert( v_s_Constraint.begin(), cnewc );
-   v_s_Constraint_names.insert( v_s_Constraint_names.begin() ,
-                                std::move( name ) );
-  }
-  else {
-   v_s_Constraint.push_back( cnewc );
-   v_s_Constraint_names.emplace_back( std::move( name ) );
-  }
+  add_group( v_s_Constraint_groups , make_own_group( newc , this , 0 , name ) ,
+             front );
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -7008,16 +7324,15 @@ class Block : public Observer {
  set_static_constraint( Index i ,
                         std::vector< std::vector< Const > > & newc ,
                         std::string && name = "" ) {
-  if( i >= v_s_Constraint.size() )
-   throw( std::invalid_argument( "wrong index into v_s_Constraint" ) );
+  if( i >= v_s_Constraint_groups.size() )
+   throw( std::invalid_argument( "wrong index into v_s_Constraint_groups" ) );
 
   for( auto & c : newc )
    for( auto & j : c )
     j.set_Block( this );
 
-  std::vector< std::vector< Const > > * cnewc = &newc;
-  v_s_Constraint[ i ] = cnewc;
-  v_s_Constraint_names[ i ] = std::move( name );
+  set_group( v_s_Constraint_groups , i ,
+             make_own_group( newc , this , i , name ) );
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -7030,16 +7345,8 @@ class Block : public Observer {
   for( auto i = newc.data() ; i < ( newc.data() + newc.num_elements() ) ; )
    ( i++ )->set_Block( this );
 
-  boost::multi_array< Const, K > * cnewc = &newc;
-  if( front ) {
-   v_s_Constraint.insert( v_s_Constraint.begin(), cnewc );
-   v_s_Constraint_names.insert( v_s_Constraint_names.begin() ,
-                                std::move( name ) );
-   }
-  else {
-   v_s_Constraint.push_back( cnewc );
-   v_s_Constraint_names.emplace_back( std::move( name ) );
-   }
+  add_group( v_s_Constraint_groups , make_own_group( newc , this , 0 , name ) ,
+             front );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -7049,15 +7356,14 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
  set_static_constraint( Index i , boost::multi_array< Const , K > & newc ,
                         std::string && name = "" ) {
-  if( i >= v_s_Constraint.size() )
-   throw( std::invalid_argument( "wrong index into v_s_Constraint" ) );
+  if( i >= v_s_Constraint_groups.size() )
+   throw( std::invalid_argument( "wrong index into v_s_Constraint_groups" ) );
 
   for( auto & c : newc )
    c.set_Block( this );
 
-  boost::multi_array< Const, K > * cnewc = &newc;
-  v_s_Constraint[ i ] = cnewc;
-  v_s_Constraint_names[ i ] = std::move( name );
+  set_group( v_s_Constraint_groups , i ,
+             make_own_group( newc , this , i , name ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -7071,16 +7377,8 @@ class Block : public Observer {
    for( auto & c : *i )
     c.set_Block( this );
 
-  boost::multi_array< std::vector< Const > , K > * cnewc = &newc;
-  if( front ) {
-   v_s_Constraint.insert( v_s_Constraint.begin(), cnewc );
-   v_s_Constraint_names.insert( v_s_Constraint_names.begin(),
-                                std::move( name ) );
-   }
-  else {
-   v_s_Constraint.push_back( cnewc );
-   v_s_Constraint_names.emplace_back( std::move( name ) );
-   }
+  add_group( v_s_Constraint_groups , make_own_group( newc , this , 0 , name ) ,
+             front );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -7091,75 +7389,22 @@ class Block : public Observer {
  set_static_constraint( Index i ,
                         boost::multi_array< std::vector< Const > , K > & newc ,
                         std::string && name = "" ) {
-  if( i >= v_s_Constraint.size() )
-   throw( std::invalid_argument( "wrong index into v_s_Constraint" ) );
+  if( i >= v_s_Constraint_groups.size() )
+   throw( std::invalid_argument( "wrong index into v_s_Constraint_groups" ) );
 
   for( auto c = newc.data(); c < ( newc.data() + newc.num_elements() ); ++c )
    for( auto & j : *c )
     j.set_Block( this );
 
-  v_s_Constraint[ i ] = &newc;
-  v_s_Constraint_names[ i ] = std::move( name );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// the i-th group of static Variable, to be written into
- /** The i-th group of static Variable as the boost::any holding it, so that
-  * it can be written into. This is what code building a Block out of another
-  * one needs, the type of a group being known there only at run time: a
-  * Block that knows the type of its own groups uses the typed
-  * set_static_variable() instead, which also tells each Variable which Block
-  * it belongs to, as whoever writes here has to do. */
-
- boost::any & access_static_variable( Index i ) {
-  if( i >= v_s_Variable.size() )
-   throw( std::invalid_argument( "wrong index into v_s_Variable" ) );
-  return( v_s_Variable[ i ] );
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// the i-th group of dynamic Variable, to be written into
- /** See access_static_variable(). */
-
- boost::any & access_dynamic_variable( Index i ) {
-  if( i >= v_d_Variable.size() )
-   throw( std::invalid_argument( "wrong index into v_d_Variable" ) );
-  return( v_d_Variable[ i ] );
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// the i-th group of static Constraint, to be written into
- /** See access_static_variable(). */
-
- boost::any & access_static_constraint( Index i ) {
-  if( i >= v_s_Constraint.size() )
-   throw( std::invalid_argument( "wrong index into v_s_Constraint" ) );
-  return( v_s_Constraint[ i ] );
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// the i-th group of dynamic Constraint, to be written into
- /** See access_static_variable(). */
-
- boost::any & access_dynamic_constraint( Index i ) {
-  if( i >= v_d_Constraint.size() )
-   throw( std::invalid_argument( "wrong index into v_d_Constraint" ) );
-  return( v_d_Constraint[ i ] );
+  set_group( v_s_Constraint_groups , i ,
+             make_own_group( newc , this , i , name ) );
   }
 
 /*--------------------------------------------------------------------------*/
  /// empty slot
 
  void add_static_variable( std::string && name = "" , bool front = false ) {
-  if( front ) {
-   v_s_Variable.insert( v_s_Variable.begin() , boost::any() );
-   v_s_Variable_names.insert( v_s_Variable_names.begin(),
-                              std::move( name ) );
-   }
-  else {
-   v_s_Variable.push_back( boost::any() );
-   v_s_Variable_names.emplace_back( std::move( name ) );
-   }
+  add_group( v_s_Variable_groups , nullptr , front );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -7170,16 +7415,8 @@ class Block : public Observer {
  add_static_variable( Var & newv , std::string && name = "" ,
                       bool front = false ) {
   newv.set_Block( this );
-  Var * cnewv = &newv;
-  if( front ) {
-   v_s_Variable.insert( v_s_Variable.begin() , cnewv );
-   v_s_Variable_names.insert( v_s_Variable_names.begin() ,
-                              std::move( name ) );
-   }
-  else {
-   v_s_Variable.push_back( cnewv );
-   v_s_Variable_names.emplace_back( std::move( name ) );
-   }
+  add_group( v_s_Variable_groups , make_own_group( newv , this , 0 , name ) ,
+             front );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -7188,13 +7425,12 @@ class Block : public Observer {
  template< class Var >
  std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
  set_static_variable( Index i , Var & newv , std::string && name = "" ) {
-  if( i >= v_s_Variable.size() )
-   throw( std::invalid_argument( "wrong index into v_s_Variable" ) );
+  if( i >= v_s_Variable_groups.size() )
+   throw( std::invalid_argument( "wrong index into v_s_Variable_groups" ) );
 
   newv.set_Block( this );
-  Var * cnewv = &newv;
-  v_s_Variable[ i ] = cnewv;
-  v_s_Variable_names[ i ] = std::move( name );
+  set_group( v_s_Variable_groups , i ,
+             make_own_group( newv , this , i , name ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -7207,16 +7443,8 @@ class Block : public Observer {
   for( auto & v : newv )
    v.set_Block( this );
 
-  std::vector< Var > * cnewv = &newv;
-  if( front ) {
-   v_s_Variable.insert( v_s_Variable.begin(), cnewv );
-   v_s_Variable_names.insert( v_s_Variable_names.begin() ,
-                              std::move( name ) );
-   }
-  else {
-   v_s_Variable.push_back( cnewv );
-   v_s_Variable_names.emplace_back( std::move( name ) );
-   }
+  add_group( v_s_Variable_groups , make_own_group( newv , this , 0 , name ) ,
+             front );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -7226,15 +7454,14 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
  set_static_variable( Index i , std::vector< Var > & newv ,
                       std::string && name = "" ) {
-  if( i >= v_s_Variable.size() )
-   throw( std::invalid_argument( "wrong index into v_s_Variable" ) );
+  if( i >= v_s_Variable_groups.size() )
+   throw( std::invalid_argument( "wrong index into v_s_Variable_groups" ) );
 
   for( auto & v : newv )
    v.set_Block( this );
 
-  std::vector< Var > * cnewv = &newv;
-  v_s_Variable[ i ] = cnewv;
-  v_s_Variable_names[ i ] = std::move( name );
+  set_group( v_s_Variable_groups , i ,
+             make_own_group( newv , this , i , name ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -7248,16 +7475,8 @@ class Block : public Observer {
    for( auto & j : v )
     j.set_Block( this );
 
-  std::vector< std::vector< Var > > * cnewv = &newv;
-  if( front ) {
-   v_s_Variable.insert( v_s_Variable.begin(), cnewv );
-   v_s_Variable_names.insert( v_s_Variable_names.begin() ,
-                              std::move( name ) );
-   }
-  else {
-   v_s_Variable.push_back( cnewv );
-   v_s_Variable_names.emplace_back( std::move( name ) );
-   }
+  add_group( v_s_Variable_groups , make_own_group( newv , this , 0 , name ) ,
+             front );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -7268,16 +7487,30 @@ class Block : public Observer {
  set_static_variable( Index i ,
                       std::vector< std::vector< Var > > & newv ,
                       std::string && name = "" ) {
-  if( i >= v_s_Variable.size() )
-   throw( std::invalid_argument( "wrong index into v_s_Variable" ) );
+  if( i >= v_s_Variable_groups.size() )
+   throw( std::invalid_argument( "wrong index into v_s_Variable_groups" ) );
 
   for( auto & v : newv )
    for( auto & j : v )
     j.set_Block( this );
 
-  std::vector< std::vector< Var > > * cnewv = &newv;
-  v_s_Variable[ i ] = cnewv;
-  v_s_Variable_names[ i ] = std::move( name );
+  set_group( v_s_Variable_groups , i ,
+             make_own_group( newv , this , i , name ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// std::vector of std::vector of (...) Variable
+
+ template< class Var >
+ std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
+ add_static_variable( std::vector< std::vector< Var > > & newv ,
+                      std::string && name = "" , bool front = false ) {
+  for( auto & v : newv )
+   for( auto & j : v )
+    j.set_Block( this );
+
+  add_group( v_s_Variable_groups , make_own_group( newv , this , 0 , name ) ,
+             front );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -7290,16 +7523,8 @@ class Block : public Observer {
   for( auto i = newv.data() ; i < ( newv.data() + newv.num_elements() ) ; )
    ( i++ )->set_Block( this );
 
-  boost::multi_array< Var, K > * cnewv = &newv;
-  if( front ) {
-   v_s_Variable.insert( v_s_Variable.begin() , cnewv );
-   v_s_Variable_names.insert( v_s_Variable_names.begin() ,
-                              std::move( name ) );
-   }
-  else {
-   v_s_Variable.push_back( cnewv );
-   v_s_Variable_names.emplace_back( std::move( name ) );
-   }
+  add_group( v_s_Variable_groups , make_own_group( newv , this , 0 , name ) ,
+             front );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -7309,15 +7534,14 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
  set_static_variable( Index i , boost::multi_array< Var , K > & newv ,
                       std::string && name = "" ) {
-  if( i >= v_s_Variable.size() )
-   throw( std::invalid_argument( "wrong index into v_s_Variable" ) );
+  if( i >= v_s_Variable_groups.size() )
+   throw( std::invalid_argument( "wrong index into v_s_Variable_groups" ) );
 
   for( auto & v : newv )
    v.set_Block( this );
 
-  boost::multi_array< Var , K > * cnewv = &newv;
-  v_s_Variable[ i ] = cnewv;
-  v_s_Variable_names[ i ] = std::move( name );
+  set_group( v_s_Variable_groups , i ,
+             make_own_group( newv , this , i , name ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -7331,16 +7555,8 @@ class Block : public Observer {
    for( auto & v : *i )
     v.set_Block( this );
 
-  boost::multi_array< std::vector< Var > , K > * cnewv = &newv;
-  if( front ) {
-   v_s_Variable.insert( v_s_Variable.begin(), cnewv );
-   v_s_Variable_names.insert( v_s_Variable_names.begin(),
-                              std::move( name ) );
-   }
-  else {
-   v_s_Variable.push_back( cnewv );
-   v_s_Variable_names.emplace_back( std::move( name ) );
-   }
+  add_group( v_s_Variable_groups , make_own_group( newv , this , 0 , name ) ,
+             front );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -7351,30 +7567,22 @@ class Block : public Observer {
  set_static_variable( Index i ,
                       boost::multi_array< std::vector< Var > , K > & newv ,
                       std::string && name = "" ) {
-  if( i >= v_s_Variable.size() )
-   throw( std::invalid_argument( "wrong index into v_s_Variable" ) );
+  if( i >= v_s_Variable_groups.size() )
+   throw( std::invalid_argument( "wrong index into v_s_Variable_groups" ) );
 
   for( auto v = newv.data(); v < ( newv.data() + newv.num_elements() ); ++v )
    for( auto & j : *v )
     j.set_Block( this );
 
-  v_s_Variable[ i ] = &newv;
-  v_s_Variable_names[ i ] = std::move( name );
+  set_group( v_s_Variable_groups , i ,
+             make_own_group( newv , this , i , name ) );
   }
 
 /*--------------------------------------------------------------------------*/
  /// empty slot
 
  void add_dynamic_constraint( std::string && name = "", bool front = false ) {
-  if( front ) {
-   v_d_Constraint.insert( v_d_Constraint.begin(), boost::any() );
-   v_d_Constraint_names.insert( v_d_Constraint_names.begin(),
-                                std::move( name ) );
-   }
-  else {
-   v_d_Constraint.push_back( boost::any() );
-   v_d_Constraint_names.emplace_back( std::move( name ) );
-   }
+  add_group( v_d_Constraint_groups , nullptr , front );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -7387,16 +7595,8 @@ class Block : public Observer {
   for( auto & c : newc )
    c.set_Block( this );
 
-  std::list< Const > * cnewc = &newc;
-  if( front ) {
-   v_d_Constraint.insert( v_d_Constraint.begin(), cnewc );
-   v_d_Constraint_names.insert( v_d_Constraint_names.begin(),
-                                std::move( name ) );
-   }
-  else {
-   v_d_Constraint.push_back( cnewc );
-   v_d_Constraint_names.emplace_back( std::move( name ) );
-   }
+  add_group( v_d_Constraint_groups , make_own_group( newc , this , 0 , name ) ,
+             front );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -7406,15 +7606,14 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
  set_dynamic_constraint( Index i , std::list< Const > & newc ,
                          std::string && name = "" ) {
-  if( i >= v_d_Constraint.size() )
-   throw( std::invalid_argument( "wrong index into v_d_Constraint" ) );
+  if( i >= v_d_Constraint_groups.size() )
+   throw( std::invalid_argument( "wrong index into v_d_Constraint_groups" ) );
 
   for( auto & c : newc )
    c.set_Block( this );
 
-  std::list< Const > * cnewc = &newc;
-  v_d_Constraint[ i ] = cnewc;
-  v_d_Constraint_names[ i ] = std::move( name );
+  set_group( v_d_Constraint_groups , i ,
+             make_own_group( newc , this , i , name ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -7428,16 +7627,8 @@ class Block : public Observer {
    for( auto & j : c )
     j.set_Block( this );
 
-  std::vector< std::list< Const > > * cnewc = &newc;
-  if( front ) {
-   v_d_Constraint.insert( v_d_Constraint.begin(), cnewc );
-   v_d_Constraint_names.insert( v_d_Constraint_names.begin() ,
-                                std::move( name ) );
-   }
-  else {
-   v_d_Constraint.push_back( cnewc );
-   v_d_Constraint_names.emplace_back( std::move( name ) );
-   }
+  add_group( v_d_Constraint_groups , make_own_group( newc , this , 0 , name ) ,
+             front );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -7448,16 +7639,15 @@ class Block : public Observer {
  set_dynamic_constraint( Index i ,
                          std::vector< std::list< Const > > & newc ,
                          std::string && name = "" ) {
-  if( i >= v_d_Constraint.size() )
-   throw( std::invalid_argument( "wrong index into v_d_Constraint" ) );
+  if( i >= v_d_Constraint_groups.size() )
+   throw( std::invalid_argument( "wrong index into v_d_Constraint_groups" ) );
 
   for( auto & c : newc )
    for( auto & j : c )
     j.set_Block( this );
 
-  std::vector< std::list< Const > > * cnewc = &newc;
-  v_d_Constraint[ i ] = cnewc;
-  v_d_Constraint_names[ i ] = std::move( name );
+  set_group( v_d_Constraint_groups , i ,
+             make_own_group( newc , this , i , name ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -7471,16 +7661,8 @@ class Block : public Observer {
    for( auto & c : *i )
     c.set_Block( this );
 
-  boost::multi_array< std::list< Const > , K > * cnewc = &newc;
-  if( front ) {
-   v_d_Constraint.insert( v_d_Constraint.begin() , cnewc );
-   v_d_Constraint_names.insert( v_d_Constraint_names.begin(),
-                                std::move( name ) );
-   }
-  else {
-   v_d_Constraint.push_back( cnewc );
-   v_d_Constraint_names.emplace_back( std::move( name ) );
-   }
+  add_group( v_d_Constraint_groups , make_own_group( newc , this , 0 , name ) ,
+             front );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -7491,31 +7673,22 @@ class Block : public Observer {
  set_dynamic_constraint( Index i ,
                          boost::multi_array< std::list< Const > , K > & newc ,
                          std::string && name = "" ) {
-  if( i >= v_d_Constraint.size() )
-   throw( std::invalid_argument( "wrong index into v_d_Constraint" ) );
+  if( i >= v_d_Constraint_groups.size() )
+   throw( std::invalid_argument( "wrong index into v_d_Constraint_groups" ) );
 
   for( auto & c : newc )
    for( auto & j : c )
     j.set_Block( this );
 
-  boost::multi_array< std::list< Const >, K > * cnewc = &newc;
-  v_d_Constraint[ i ] = cnewc;
-  v_d_Constraint_names[ i ] = std::move( name );
+  set_group( v_d_Constraint_groups , i ,
+             make_own_group( newc , this , i , name ) );
   }
 
 /*--------------------------------------------------------------------------*/
  /// empty slot
 
  void add_dynamic_variable( std::string && name = "" , bool front = false ) {
-  if( front ) {
-   v_d_Variable.insert( v_d_Variable.begin() , boost::any() );
-   v_d_Variable_names.insert( v_d_Variable_names.begin() ,
-                              std::move( name ) );
-   }
-  else {
-   v_d_Variable.push_back( boost::any() );
-   v_d_Variable_names.emplace_back( std::move( name ) );
-   }
+  add_group( v_d_Variable_groups , nullptr , front );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -7528,16 +7701,8 @@ class Block : public Observer {
   for( auto & v : newv )
    v.set_Block( this );
 
-  std::list< Var > * cnewv = &newv;
-  if( front ) {
-   v_d_Variable.insert( v_d_Variable.begin() , cnewv );
-   v_d_Variable_names.insert( v_d_Variable_names.begin() ,
-                              std::move( name ) );
-   }
-  else {
-   v_d_Variable.push_back( cnewv );
-   v_d_Variable_names.emplace_back( std::move( name ) );
-   }
+  add_group( v_d_Variable_groups , make_own_group( newv , this , 0 , name ) ,
+             front );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -7547,15 +7712,14 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Variable, Var > , void >
  set_dynamic_variable( Index i , std::list< Var > & newv ,
                        std::string && name = "" ) {
-  if( i >= v_d_Variable.size() )
-   throw( std::invalid_argument( "wrong index into v_d_Variable" ) );
+  if( i >= v_d_Variable_groups.size() )
+   throw( std::invalid_argument( "wrong index into v_d_Variable_groups" ) );
 
   for( auto & v : newv )
    v.set_Block( this );
 
-  std::list< Var > * cnewv = &newv;
-  v_d_Variable[ i ] = cnewv;
-  v_d_Variable_names[ i ] = std::move( name );
+  set_group( v_d_Variable_groups , i ,
+             make_own_group( newv , this , i , name ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -7569,16 +7733,8 @@ class Block : public Observer {
    for( auto & j : v )
     j.set_Block( this );
 
-  std::vector< std::list< Var > > * cnewv = &newv;
-  if( front ) {
-   v_d_Variable.insert( v_d_Variable.begin() , cnewv );
-   v_d_Variable_names.insert( v_d_Variable_names.begin() ,
-                              std::move( name ) );
-   }
-  else {
-   v_d_Variable.push_back( cnewv );
-   v_d_Variable_names.emplace_back( std::move( name ) );
-   }
+  add_group( v_d_Variable_groups , make_own_group( newv , this , 0 , name ) ,
+             front );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -7589,16 +7745,15 @@ class Block : public Observer {
  set_dynamic_variable( Index i ,
                        std::vector< std::list< Var > > & newv ,
                        std::string && name = "" ) {
-  if( i >= v_d_Variable.size() )
-   throw( std::invalid_argument( "wrong index into v_d_Variable" ) );
+  if( i >= v_d_Variable_groups.size() )
+   throw( std::invalid_argument( "wrong index into v_d_Variable_groups" ) );
 
   for( auto & v : newv )
    for( auto & j : v )
     j.set_Block( this );
 
-  std::vector< std::list< Var > > * cnewv = &newv;
-  v_d_Variable[ i ] = cnewv;
-  v_d_Variable_names[ i ] = std::move( name );
+  set_group( v_d_Variable_groups , i ,
+             make_own_group( newv , this , i , name ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -7612,16 +7767,8 @@ class Block : public Observer {
    for( auto & v : *i )
     v.set_Block( this );
 
-  boost::multi_array< std::list< Var > , K > * cnewv = &newv;
-  if( front ) {
-   v_d_Variable.insert( v_d_Variable.begin(), cnewv );
-   v_d_Variable_names.insert( v_d_Variable_names.begin() ,
-                              std::move( name ) );
-   }
-  else {
-   v_d_Variable.push_back( cnewv );
-   v_d_Variable_names.emplace_back( std::move( name ) );
-   }
+  add_group( v_d_Variable_groups , make_own_group( newv , this , 0 , name ) ,
+             front );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -7632,16 +7779,15 @@ class Block : public Observer {
  set_dynamic_variable( Index i ,
                        boost::multi_array< std::list< Var > , K > & newv ,
                        std::string && name = "" ) {
-  if( i >= v_d_Variable.size() )
-   throw( std::invalid_argument( "wrong index into v_d_Variable" ) );
+  if( i >= v_d_Variable_groups.size() )
+   throw( std::invalid_argument( "wrong index into v_d_Variable_groups" ) );
 
   for( auto & v : newv )
    for( auto & j : v )
     j.set_Block( this );
 
-  boost::multi_array< std::list< Var >, K > * cnewv = &newv;
-  v_d_Variable[ i ] = cnewv;
-  v_d_Variable_names[ i ] = std::move( name );
+  set_group( v_d_Variable_groups , i ,
+             make_own_group( newv , this , i , name ) );
   }
 
 /** @} ---------------------------------------------------------------------*/
@@ -7750,6 +7896,22 @@ class Block : public Observer {
 
  static MF_int_sbst_map & methods_int_sbst_factory( void );
 
+ static MF_sp_dbl_rngd_map & methods_sp_dbl_rngd_factory( void );
+
+ static MF_sp_int_rngd_map & methods_sp_int_rngd_factory( void );
+
+ static MF_sp_dbl_sbst_map & methods_sp_dbl_sbst_factory( void );
+
+ static MF_sp_int_sbst_map & methods_sp_int_sbst_factory( void );
+
+ static MF_qry_dbl_rngd_map & queries_dbl_rngd_factory( void );
+
+ static MF_qry_dbl_sbst_map & queries_dbl_sbst_factory( void );
+
+ static MF_qry_int_rngd_map & queries_int_rngd_factory( void );
+
+ static MF_qry_int_sbst_map & queries_int_sbst_factory( void );
+
 /** @} ---------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -7794,30 +7956,6 @@ class Block : public Observer {
 
  std::string f_name;            ///< the string name of the Block
 
- Vec_string v_s_Constraint_names;   ///< the names of the static Constraints
- /**< vector to store the name of the different types of static constraints of
-  * the Block. v_s_Constraint_names[ i ] (if nonempty) is the name of the set
-  * of static Constraints v_s_Constraint[ i ]; hence, the two vectors must
-  * have the same size. */
-
- Vec_string v_s_Variable_names;     ///< the names of the static Variables
- /**< vector to store the name of the different types of static variables of
-  * the Block. v_s_Variable_names[ i ] (if nonempty) is the name of the set of
-  * static Variables v_s_Variable[ i ]; hence, the two vectors must have the
-  * same size. */
-
- Vec_string v_d_Constraint_names;   ///< the names of the dynamic Constraints
- /**< vector to store the name of the different types of dynamic constraints
-  * of the Block. v_d_Constraint_names[ i ] (if nonempty) is the name of the
-  * set of dynamic Constraints v_d_Constraint[ i ]; hence, the two vectors
-  * must have the same size. */
-
- Vec_string v_d_Variable_names;     ///< the names of the dynamic Variables
- /**< vector to store the name of the different types of dynamic variables of
-  * the Block. v_d_Variable_names[ i ] (if nonempty) is the name of the set
-  * of dynamic Variable v_d_Variable[ i ]; hence, the two vectors must have
-  * the same size. */
-
  BlockConfig * f_BlockConfig;        ///< the BlockConfig for this Block
 
  std::vector< std::pair< ChnlName , GroupModification * > > v_GroupMod;
@@ -7831,6 +7969,8 @@ class Block : public Observer {
 
  unsigned int f_channel;   ///< the "default GroupModification channel"
 
+ Variable * f_size_variable = nullptr;  ///< see set_owned_size_variable()
+
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -7840,19 +7980,178 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
+ /// builds the group of a container, and says how to make another one of it
+ /** The group of \p container, which also carries the way to build a
+  * container of the same type and shape in another Block: this is where the
+  * type of the container is known, and therefore the only place that can say
+  * it. A container of pointers is left without one, its elements belonging to
+  * somebody else. */
+
+ template< class C >
+ std::unique_ptr< BaseGroup > make_own_group( C & container , Block * block ,
+					      Index index ,
+					      const std::string & name ) {
+  using S = typename group_form< C >::item_type;
+  auto group = make_group( container , block , index , name );
+  if constexpr( ! std::is_pointer_v< S > ) {
+   group->set_cloner( & Block::clone_group_into< C > );
+   group->template for_each_as< S >(
+    [ g = group.get() ]( S & element ) { element.set_Group( g ); } );
+   }
+  return( group );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// takes the elements of \p group out of it, leaving them to its Block
+ /** The elements that are still in \p group, which a container registered
+  * again elsewhere is not, are told that they are in no group [see
+  * Variable::set_Group()], and keep the Block of the group; a group that
+  * holds pointers has not told its elements anything, and is left alone. */
+
+ static void leave_group( const BaseGroup * group ) {
+  if( ( ! group ) || group->is_indirect() )
+   return;
+
+  if( group->get_kind() == BaseGroup::eVariable )
+   group->for_each( [ group ]( Variable & v ) {
+    if( v.get_Group() == group )
+     v.set_Group( nullptr );
+    } );
+  else
+   group->for_each( [ group ]( Constraint & c ) {
+    if( c.get_Group() == group )
+     c.set_Group( nullptr );
+    } );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// takes the elements of all \p groups out of them [see leave_group()]
+
+ static void leave_groups( const Vec_Group & groups ) {
+  for( const auto & group : groups )
+   leave_group( group.get() );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// the group among \p groups one of whose cells is \p cell, nullptr if none
+
+ static BaseGroup * group_of_cell( const Vec_Group & groups ,
+				   const void * cell ) {
+  for( const auto & group : groups )
+   if( group && ( ! group->is_indirect() ) && group->has_cell( cell ) )
+    return( group.get() );
+  return( nullptr );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// registers in \p dst a container of the same type and shape as \p container
+
+ template< class C >
+ static void clone_group_into( void * container , Block * dst ,
+			       std::string name ) {
+  using form = group_form< C >;
+  using T = std::remove_pointer_t< typename form::item_type >;
+
+  auto copy = form::clone( * static_cast< C * >( container ) );
+
+  // the copy belongs to the Block it is registered in, which is told how to
+  // dispose of it: nobody else knows the type of that container
+  auto own = []( const Vec_Group & groups , C * c ) {
+   groups.back()->set_storage_deleter( [ c ]( void ) { delete c; } );
+   };
+
+  if constexpr( std::is_base_of_v< Variable , T > ) {
+   if constexpr( form::layout == BaseGroup::eDynamic ) {
+    dst->add_dynamic_variable( *copy , std::move( name ) );
+    own( dst->get_dynamic_variable_groups() , copy );
+    }
+   else {
+    dst->add_static_variable( *copy , std::move( name ) );
+    own( dst->get_static_variable_groups() , copy );
+    }
+   }
+  else {
+   if constexpr( form::layout == BaseGroup::eDynamic ) {
+    dst->add_dynamic_constraint( *copy , std::move( name ) );
+    own( dst->get_dynamic_constraint_groups() , copy );
+    }
+   else {
+    dst->add_static_constraint( *copy , std::move( name ) );
+    own( dst->get_static_constraint_groups() , copy );
+    }
+   }
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// registers a group in front of or after those of its kind
+ /** The groups after it change index, and are told so. */
+
+ void add_group( Vec_Group & groups , std::unique_ptr< BaseGroup > group ,
+		 bool front ) {
+  Index k = groups.size();
+  if( front ) {
+   groups.insert( groups.begin() , std::move( group ) );
+   k = 0;
+   }
+  else
+   groups.push_back( std::move( group ) );
+  for( ; k < groups.size() ; ++k )
+   if( groups[ k ] )
+    groups[ k ]->set_Block( this , k );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// replaces the i-th group of its kind
+
+ void set_group( Vec_Group & groups , Index i ,
+		 std::unique_ptr< BaseGroup > group ) {
+  leave_group( groups[ i ].get() );
+  groups[ i ] = std::move( group );
+  if( groups[ i ] )
+   groups[ i ]->set_Block( this , i );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// the container of the i-th group of \p groups, if it is a C
+ /** Answers nullptr if there is no i-th group, if it is empty, or if what it
+  * views is not a C, which is what the typed accessors of the Block promise
+  * when they say that nullptr comes back if anything goes wrong. */
+
+ template< class C >
+ static C * group_container( const Vec_Group & groups , Index i ) {
+  if( i >= groups.size() )
+   return( nullptr );
+  return( groups[ i ] ? groups[ i ]->template get_container_as< C >()
+	              : nullptr );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// the container of the group of \p groups called \p name, if it is a C
+
+ template< class C >
+ static C * group_container( const Vec_Group & groups ,
+			     const std::string & name ) {
+  for( const auto & group : groups )
+   if( group && ( group->get_name() == name ) )
+    return( group->template get_container_as< C >() );
+  return( nullptr );
+  }
+
+/*--------------------------------------------------------------------------*/
  // Definition of Block::private_name() (pure virtual)
 
  virtual const std::string & private_name( void ) const = 0;
 
 /*--------------------------------------------------------------------------*/
 /** This method removes the given Constraint from each Variable that
- * is active in it. */
+ * is active in it, and takes it out of its group, it being removed. */
 
  void remove_constraint_from_variables( Constraint * constraint );
 
 /*--------------------------------------------------------------------------*/
 /** This method removes the given Variable from all Constraints and Objectives
- * in which it is active. The removal of a Variable from a Constraint or
+ * in which it is active, and takes it out of its group, it being removed.
+ * The removal of a Variable from a Constraint or
  * Objective typically results in a Modification being issued, which may be
  * wasteful in some cases; to avoid this one could "just" use issueindMod ==
  * eNoMod, although this has to be done with great care [see the comments to
@@ -7865,7 +8164,23 @@ class Block : public Observer {
 /// returns the bimap associated with the methods of type F
 /** This method returns the bimap implementing the "methods factory" for the
  * methods of type F. This is where the pointer to the methods (and their
- * names) in the methods factory are stored. */
+ * names) in the methods factory are stored.
+ *
+ * The detour taken here has two halves, and both matter. That
+ * methods_factory_accessor is only declared here, and defined nowhere but
+ * in its specializations, makes a type F that is none of the standard
+ * families a compile error rather than a factory of its own: a primary
+ * template with a body would give any F an empty map, and a lookup in it
+ * would answer nullptr with nothing said.
+ *
+ * Each specialization defers to a function whose body is in Block.cpp,
+ * rather than holding the map itself, so that the map is one per family for
+ * the whole program. A function-local static inside a template in this
+ * header would be one only insofar as the linker collapses the copies the
+ * modules instantiate, which holds within one program but not necessarily
+ * across shared libraries; and the two ends of this factory are in
+ * different modules by construction, one :Block registering a name and
+ * another one looking it up. */
 
  template< class F >
  struct methods_factory_accessor;
@@ -7885,21 +8200,19 @@ class Block : public Observer {
  Objective * f_Objective;     ///< the objective function of the Block
  /**< A pointer to the objective function of the Block */
 
- Vec_any v_s_Constraint;        ///< the static Constraints of the Block
- /**< vector of pointers to [multi/single dimensional arrays of]
-  * [pointers to] [classes derived from] Constraint */
+ Vec_Group v_s_Constraint_groups;  ///< the groups of static Constraint
+ /**< One group for each group of static Constraint the :Block has
+  * registered, in the order they were registered; it views the container
+  * the :Block holds, and is nullptr for a slot declared and not filled. */
 
- Vec_any v_s_Variable;          ///< the static Variables of the Block
- /**< vector of pointers to [multi/single dimensional arrays of]
-  * [pointers to] [classes derived from] Variable */
+ Vec_Group v_s_Variable_groups;    ///< the groups of static Variable
+ /**< as v_s_Constraint_groups, for the static Variable */
 
- Vec_any v_d_Constraint;        ///< the dynamic Constraints of the Block
- /**< vector of pointers to [multi/single dimensional arrays of]
-  * [pointers to] lists of [classes derived from] Constraint */
+ Vec_Group v_d_Constraint_groups;  ///< the groups of dynamic Constraint
+ /**< as v_s_Constraint_groups, for the dynamic Constraint */
 
- Vec_any v_d_Variable;          ///< the dynamic Variables of the Block
- /**< vector of pointers to [multi/single dimensional arrays of]
-  * [pointers to] lists of [classes derived from] Variable */
+ Vec_Group v_d_Variable_groups;    ///< the groups of dynamic Variable
+ /**< as v_s_Constraint_groups, for the dynamic Variable */
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -7950,6 +8263,70 @@ struct Block::methods_factory_accessor<
  Block::FunctionType< Block::MF_int_it , Block::Subset && , bool > > {
  static Block::MF_int_sbst_map & get( void ) {
   return( Block::methods_int_sbst_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor<
+ Block::FunctionType< Block::MF_dbl_sp , Block::Range > > {
+ static Block::MF_sp_dbl_rngd_map & get( void ) {
+  return( Block::methods_sp_dbl_rngd_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor<
+ Block::FunctionType< Block::MF_int_sp , Block::Range > > {
+ static Block::MF_sp_int_rngd_map & get( void ) {
+  return( Block::methods_sp_int_rngd_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor<
+ Block::FunctionType< Block::MF_dbl_sp , Block::Subset && , bool > > {
+ static Block::MF_sp_dbl_sbst_map & get( void ) {
+  return( Block::methods_sp_dbl_sbst_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor<
+ Block::FunctionType< Block::MF_int_sp , Block::Subset && , bool > > {
+ static Block::MF_sp_int_sbst_map & get( void ) {
+  return( Block::methods_sp_int_sbst_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor<
+ Block::QueryType< Block::MF_dbl_msp , Block::Range > > {
+ static Block::MF_qry_dbl_rngd_map & get( void ) {
+  return( Block::queries_dbl_rngd_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor<
+ Block::QueryType< Block::MF_dbl_msp , Block::c_Subset & , bool > > {
+ static Block::MF_qry_dbl_sbst_map & get( void ) {
+  return( Block::queries_dbl_sbst_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor<
+ Block::QueryType< Block::MF_int_msp , Block::Range > > {
+ static Block::MF_qry_int_rngd_map & get( void ) {
+  return( Block::queries_int_rngd_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor<
+ Block::QueryType< Block::MF_int_msp , Block::c_Subset & , bool > > {
+ static Block::MF_qry_int_sbst_map & get( void ) {
+  return( Block::queries_int_sbst_factory() );
  }
 };
 
@@ -8055,6 +8432,20 @@ class BlockModAD : public AModification
   */
 
  virtual bool is_added( void ) const = 0;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns what the Modification changes [see Modification::ModConcern]
+ /** The set of the Variable or of the Constraint. Adding Variable makes the
+  * region grow, a solution of before staying feasible with the new Variable
+  * at 0, and removing them shrinks it, as fixing them at 0 would; adding
+  * Constraint shrinks the region, and removing them makes it grow. In all
+  * cases the objective is the same as before at every point of before. */
+
+ [[nodiscard]] ModConcern changes( void ) const override {
+  if( is_variable() )
+   return( eModVarSet | ( is_added() ? eRegnGrow : eRegnShrink ) );
+  return( eModCnsSet | ( is_added() ? eRegnShrink : eRegnGrow ) );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// stores the pointers to the affected Variable into the given vector
@@ -8939,7 +9330,11 @@ class BlockConfig : public Configuration {
 
  /// extends Configuration::serialize( netCDF::NcFile , type ) to eProbFile
  /** Since a BlockConfig knows it is a BlockConfig, it "knows its place" in
-  * an eProbFile netCDF SMS++ file. */
+  * an eProbFile netCDF SMS++ file: the group "BlockConfig" of a "Prob_<i>"
+  * group, that of the last Block written if it has no BlockConfig yet and a
+  * new one otherwise [see Configuration::add_Prob_group()]. For any other
+  * type of file this is Configuration::serialize( netCDF::NcFile , type ).
+  */
 
  void serialize( netCDF::NcFile & f , int type ) const override;
 
@@ -9051,6 +9446,14 @@ class BlockConfig : public Configuration {
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 
  /// print the BlockConfig
+ /** Prints the BlockConfig in the format that load() reads, without the
+  * classname in front (as for any Configuration): the differential flag
+  * and f_txt_version, then each of the ten Configuration on a line of its
+  * own, as its classname followed by what its print() writes or as a '*'
+  * if it is not there, with the name of the slot as a comment. What is
+  * printed can be read back as long as the Configuration in it print
+  * themselves in the format their load() reads. */
+
  void print( std::ostream & output ) const override;
 
 /*--------------------------------------------------------------------------*/
@@ -9186,6 +9589,57 @@ class BlockConfig : public Configuration {
 /** @defgroup Block_FUNCTIONS Block-related functions.
  *  @{ */
 
+/// calls a function on the Block of a tree, by classname()
+/** Calls f( b , c ) on each descendant b of \p block, and on \p block itself
+ * if \p root is true, where c is the Configuration associated with
+ * b->classname() in \p map, or that associated with the special key "*"
+ * (if any) when b->classname() is not a key of \p map; a Block with no
+ * Configuration, or a nullptr one, is skipped. This is how a "meta"
+ * Configuration, i.e., a
+ *
+ *   SimpleConfiguration< std::map< std::string , Configuration * > >
+ *
+ * is dispatched over a tree of Block [see MetaBlockConfig and
+ * MetaBlockSolverConfig]. The visit is father-first, and the sub-Block of a
+ * Block are looked up only after f() has been called on it, since
+ * configuring a Block may change them [see Block::set_structure()]. */
+
+template< class F >
+void for_each_by_classname(
+		     Block * block ,
+		     const std::map< std::string , Configuration * > & map ,
+		     F f , bool root = true )
+{
+ if( ( ! block ) || map.empty() )
+  return;
+
+ const auto dflt = map.find( "*" );
+ auto visit = [ & ]( Block * b ) {
+  auto it = map.find( b->classname() );
+  if( it == map.end() )
+   it = dflt;
+  if( ( it != map.end() ) && it->second )
+   f( b , it->second );
+  };
+
+ std::list< Block * > BFS;
+ if( root )
+  BFS.push_back( block );
+ else
+  for( auto el : block->get_nested_Blocks() )
+   BFS.push_back( el );
+
+ while( ! BFS.empty() ) {
+  auto b = BFS.front();
+  BFS.pop_front();
+  visit( b );
+  for( auto el : b->get_nested_Blocks() )
+   BFS.push_back( el );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
 /// deserialize a Block (*) out of a given group
 /** Deserialize a Block (*) , out of the given \p group and into \p data.
  * This is done by calling Block::new_Block() on the given \p group if
@@ -9275,8 +9729,14 @@ std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
 Block::add_dynamic_constraints( std::list< Const > & list ,
                                 std::list< Const > & newlist ,
                                 ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( newlist.empty() )  // actually no Constraint to add
   return;               // cowardly (and silently) return
+
+ // the group of the list, which the new Constraint join
+ auto group = group_of_cell( v_d_Constraint_groups , & list );
 
  if( issue_mod( issueMod ) ) {
   // initialize the vector of pointer to added Constraint
@@ -9285,6 +9745,8 @@ Block::add_dynamic_constraints( std::list< Const > & list ,
   auto it = names.begin();
   for( auto & el : newlist ) {  // all the new Constraint
    el.set_Block( this );        // now belong to this Block
+   if( group )                  // ... and to the group of the list
+    el.set_Group( group );
    *(it++) = &el;             // keep their names
    }
 
@@ -9298,8 +9760,11 @@ Block::add_dynamic_constraints( std::list< Const > & list ,
 		    Observer::par2chnl( issueMod ) );
   }
  else {
-  for( auto & el : newlist )    // all the new Constraint
+  for( auto & el : newlist ) {  // all the new Constraint
    el.set_Block( this );        // now belong to this Block
+   if( group )                  // ... and to the group of the list
+    el.set_Group( group );
+   }
 
   list.splice( list.end(), newlist );  // add them at the end
   }
@@ -9312,8 +9777,14 @@ std::enable_if_t< std::is_base_of_v< Variable, Var > , void >
 Block::add_dynamic_variables( std::list< Var > & list ,
                               std::list< Var > & newlist ,
                               ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( newlist.empty() )  // actually no Variable to add
   return;               // cowardly (and silently) return
+
+ // the group of the list, which the new Variable join
+ auto group = group_of_cell( v_d_Variable_groups , & list );
 
  if( issue_mod( issueMod ) ) {
   // initialize the vector of pointer to added Constraint
@@ -9322,6 +9793,8 @@ Block::add_dynamic_variables( std::list< Var > & list ,
   auto it = names.begin();
   for( auto & el : newlist ) {  // all the new Variable
    el.set_Block( this );        // now belong to this Block
+   if( group )                  // ... and to the group of the list
+    el.set_Group( group );
    *(it++) = &el;               // keep their names
    }
 
@@ -9335,8 +9808,11 @@ Block::add_dynamic_variables( std::list< Var > & list ,
 		    Observer::par2chnl( issueMod ) );
   }
  else {
-  for( auto & el : newlist )    // all the new Variable
+  for( auto & el : newlist ) {  // all the new Variable
    el.set_Block( this );        // now belong to this Block
+   if( group )                  // ... and to the group of the list
+    el.set_Group( group );
+   }
 
   list.splice( list.end(), newlist );  // add them at the end
   }
@@ -9351,6 +9827,9 @@ Block::remove_dynamic_constraints( std::list< Const > & list ,
                                                 std::list< Const >::iterator
                                                 > & rmvd ,
                                    ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( rmvd.empty() )  // actually no Constraints to remove
   return;            // cowardly (and silently) return
 
@@ -9428,6 +9907,9 @@ std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
 Block::remove_dynamic_constraint( std::list< Const > & list ,
                                   typename std::list< Const >::iterator rmvd ,
                                   ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( list.empty() )
   throw( std::invalid_argument( "removing from empty list" ) );
 
@@ -9481,6 +9963,9 @@ template< class Const >
 std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
 Block::remove_dynamic_constraints( std::list< Const > & list ,
                                    Range range , ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( range.second <= range.first )  // actually no Constraints to remove
   return;                           // cowardly (and silently) return
 
@@ -9548,6 +10033,9 @@ std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
 Block::remove_dynamic_constraints( std::list< Const > & list ,
                                    Subset && subset , bool ordered ,
                                    ModParam issueMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( subset.empty() ) {  // completely cleanup the list
   if( list.empty() )     // which is empty already
    return;               // cowardly (and silently) return
@@ -9571,8 +10059,10 @@ Block::remove_dynamic_constraints( std::list< Const > & list ,
 		     Observer::par2chnl( issueMod ) );
    }
   else {                           // nobody is listening, just do it
+   // ... which means the Constraint need be clear()-ed now, while they have
+   // already been removed from their active Variable above
    for( auto & c : list )
-    remove_constraint_from_variables( &c );
+    c.clear();
    list.clear();
    }
 
@@ -9676,6 +10166,9 @@ Block::remove_dynamic_variables( std::list< Var > & list ,
                                               std::list< Var >::iterator
                                               > & rmvd ,
                                  ModParam issueMod , ModParam issueindMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( rmvd.empty() )  // actually no Variables to remove
   return;            // cowardly (and silently) return
 
@@ -9748,6 +10241,9 @@ std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
 Block::remove_dynamic_variable( std::list< Var > & list ,
                                 typename std::list< Var >::iterator rmvd ,
                                 ModParam issueMod , ModParam issueindMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( list.empty() )
   throw( std::invalid_argument( "removing from empty list" ) );
 
@@ -9795,6 +10291,9 @@ template< class Var >
 std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
 Block::remove_dynamic_variables( std::list< Var > & list , Range range ,
                                  ModParam issueMod , ModParam issueindMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( range.second <= range.first )  // actually no Constraints to remove
   return;                           // cowardly (and silently) return
 
@@ -9855,6 +10354,9 @@ std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
 Block::remove_dynamic_variables( std::list< Var > & list ,
                                  Subset && subset , bool ordered ,
                                  ModParam issueMod , ModParam issueindMod ) {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( subset.empty() ) {  // completely cleanup the list
   if( list.empty() )     // which is empty already
    return;               // cowardly (and silently) return

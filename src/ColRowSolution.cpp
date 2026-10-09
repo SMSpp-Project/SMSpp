@@ -39,12 +39,21 @@ SMSpp_insert_in_factory_cpp_0( ColRowSolution );
 /*--------------------------------------------------------------------------*/
 
 void ColRowSolution::deserialize( const netCDF::NcGroup & group ) {
- throw( std::logic_error( "ColRowSolution::deserialize not ready yet" ) );
+ // the two halves live in two groups of their own, so that each of them is
+ // written exactly as it is when it travels alone
+ auto vg = group.getGroup( "VariableSolution" );
+ if( ! vg.isNull() )
+  f_variable_solution.deserialize( vg );
+
+ auto cg = group.getGroup( "ConstraintSolution" );
+ if( ! cg.isNull() )
+  f_constraint_solution.deserialize( cg );
 }
 
 /*--------------------------------------------------------------------------*/
 
 void ColRowSolution::read( const Block * const block ) {
+ f_direction = block->is_direction();
  f_variable_solution.read( block );
  f_constraint_solution.read( block );
 }
@@ -62,7 +71,11 @@ void ColRowSolution::serialize( netCDF::NcGroup & group ) const {
  // always call the method of the base class first
  Solution::serialize( group );
 
- throw( std::logic_error( " ColRowSolution::serialize not ready yet" ) );
+ auto vg = group.addGroup( "VariableSolution" );
+ f_variable_solution.serialize( vg );
+
+ auto cg = group.addGroup( "ConstraintSolution" );
+ f_constraint_solution.serialize( cg );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -74,6 +87,9 @@ void ColRowSolution::sum( const Solution * solution, double multiplier ) {
  if( ! other_solution )
   throw( std::invalid_argument( "ColRowSolution::sum: given Solution "
                                 "must be a ColRowSolution" ) );
+
+ // the sum is a direction only if every Solution in it is one
+ f_direction = f_direction && other_solution->f_direction;
 
  f_variable_solution.sum( & other_solution->get_variable_solution() ,
                           multiplier );
@@ -96,6 +112,8 @@ ColRowSolution * ColRowSolution::clone( bool empty ) const {
 
  if( ! empty )
   cloned_solution->scale( this , 1.0 );
+ else  // an empty clone says what this holds all the same
+  cloned_solution->is_direction( f_direction );
 
  return( cloned_solution );
 }
@@ -104,6 +122,7 @@ ColRowSolution * ColRowSolution::clone( bool empty ) const {
 
 void ColRowSolution::scale( const ColRowSolution * const solution ,
                             const double factor ) {
+ f_direction = solution->f_direction;  // scaling a direction gives one
  f_variable_solution.scale( & solution->get_variable_solution() , factor );
  f_constraint_solution.scale( & solution->get_constraint_solution() , factor );
 }

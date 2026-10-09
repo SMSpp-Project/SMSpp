@@ -89,11 +89,13 @@ void DQuadFunction::get_hessian_approximation( SparseHessian & hessian ) const
  tripletList.reserve( num_active_var );
 
  int index = 0;
- for( const auto & triple : v_triples )
+ for( const auto & triple : v_triples ) {
   tripletList.push_back(
    Eigen::Triplet< FunctionValue >( index , index, 2 * std::get< 2 >( triple )
 				  ) );
- hessian.setZero();
+  ++index;
+  }
+ hessian.resize( num_active_var , num_active_var );  // also zeroes it
  hessian.reserve( Eigen::VectorXi::Constant( num_active_var , 1 ) );
  hessian.setFromTriplets( tripletList.begin() , tripletList.end() );
  }
@@ -238,16 +240,26 @@ void DQuadFunction::map_active( c_Vec_p_Var & vars , Subset & map ,
  if( map.size() < vars.size() )
    map.resize( vars.size() );
 
- if( ordered )
+ if( ordered ) {
+  // each of vars has to be found among the "active" ones, which may be more
+  std::vector< bool > found( vars.size() , false );
+  Index nfound = 0;
   for( Index i = 0 ; i < v_triples.size() ; ++i ) {
-   auto itvi = std::lower_bound( vars.begin() , vars.end() ,
-				 std::get< 0 >( v_triples[ i ] ) );
-   if( itvi != vars.end() )
-    map[ std::distance( vars.begin() , itvi ) ] = i;
-   else
-    throw( std::invalid_argument( "DQuadFunction::map_active: "
-				  "some Variable is not active" ) );
+   const auto var = std::get< 0 >( v_triples[ i ] );
+   auto itvi = std::lower_bound( vars.begin() , vars.end() , var );
+   if( ( itvi != vars.end() ) && ( *itvi == var ) ) {
+    const auto k = std::distance( vars.begin() , itvi );
+    map[ k ] = i;
+    if( ! found[ k ] ) {
+     found[ k ] = true;
+     ++nfound;
+     }
+    }
    }
+  if( nfound < vars.size() )
+   throw( std::invalid_argument( "DQuadFunction::map_active: "
+				 "some Variable is not active" ) );
+  }
  else {
   auto it = map.begin();
   for( auto var : vars ) {
@@ -267,6 +279,9 @@ void DQuadFunction::map_active( c_Vec_p_Var & vars , Subset & map ,
 void DQuadFunction::add_variables( v_coeff_triple && vars ,
 				   ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( vars.empty() )  // actually nothing to add
   return;            // cowardly (and silently) return
 
@@ -280,7 +295,7 @@ void DQuadFunction::add_variables( v_coeff_triple && vars ,
   }
 
  // if noone is there or not listening
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod , eModFVars ) ) )
   return;  // all done
 
  Vec_p_Var vptr( added->size() );
@@ -306,13 +321,16 @@ void DQuadFunction::add_variable( ColVariable * var , Coefficient lin_coeff ,
 				  Coefficient quad_coeff ,
 				  ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( var == nullptr )  // actually nothing to add
   return;              // cowardly (and silently) return
 
  v_triples.push_back( std::make_tuple( var , lin_coeff , quad_coeff ) );
 
  // if noone is there or not listening
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod , eModFVars ) ) )
   return;  // all done
 
  // a diagonal quadratic function is additive ==> strongly quasi-additive
@@ -333,6 +351,9 @@ void DQuadFunction::modify_term( Index i , Coefficient lin_coeff ,
                                  Coefficient quad_coeff ,
 				 ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( i >= v_triples.size() )
   throw( std::invalid_argument( "DQuadFunction::modify_term: invalid "
                                 "index: " + std::to_string( i ) ) );
@@ -350,7 +371,8 @@ void DQuadFunction::modify_term( Index i , Coefficient lin_coeff ,
  std::get< 1 >( v_triples[ i ] ) = lin_coeff;   // modify linear coefficient
  std::get< 2 >( v_triples[ i ] ) = quad_coeff;  // modify quadratic coeff.
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , eModFValues ) ) )
   return;  // noone is there: all done
 
  f_Observer->add_Modification( std::make_shared< DQuadFunctionModRngd >(
@@ -369,6 +391,9 @@ void DQuadFunction::modify_term( Index i , Coefficient lin_coeff ,
 void DQuadFunction::modify_linear_coefficient( Index i , Coefficient coeff ,
                                                ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( i >= v_triples.size() )
   throw( std::invalid_argument( "DQuadFunction::modify_linear_coefficient: "
                                 "invalid index: " + std::to_string( i ) ) );
@@ -379,7 +404,8 @@ void DQuadFunction::modify_linear_coefficient( Index i , Coefficient coeff ,
  auto diff = coeff - std::get< 1 >( v_triples[ i ] );
  std::get< 1 >( v_triples[ i ] ) = coeff;  // modify the linear coefficient
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , eModFValues ) ) )
   return;  // noone is there: all done
 
  f_Observer->add_Modification( std::make_shared< C05FunctionModLinRngd >(
@@ -397,10 +423,19 @@ void DQuadFunction::modify_terms( c_v_coeff_it NQuadCoef ,
 				  c_v_coeff_it NLinCoef , Subset && nms ,
 				  bool ordered , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( nms.empty() )
   return;
 
- if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+ // all the indices are checked before anything is changed
+ for( auto i : nms )
+  if( i >= v_triples.size() )
+   throw( std::invalid_argument( "DQuadFunction::modify_terms: invalid "
+                                 "index: " + std::to_string( i ) ) );
+
+ if( f_Observer && f_Observer->issue_mod( issueMod , eModFValues ) ) {
   // somebody is there: meanwhile, prepare data for the Modification
 
   Vec_p_Var vp( nms.size() );
@@ -409,9 +444,6 @@ void DQuadFunction::modify_terms( c_v_coeff_it NQuadCoef ,
   auto vcit = vcoef.begin();
 
   for( auto i : nms ) {
-   if( i >= v_triples.size() )
-    throw( std::invalid_argument( "DQuadFunction::modify_terms: invalid "
-                                  "index: " + std::to_string( i ) ) );
    *(vpit++) = std::get< 0 >( v_triples[ i ] );
    
    // Create the delta coefficients for linear and quadratic terms
@@ -434,9 +466,6 @@ void DQuadFunction::modify_terms( c_v_coeff_it NQuadCoef ,
   }
  else  // noone is there: just do it
   for( auto i : nms ) {
-   if( i >= v_triples.size() )
-    throw( std::invalid_argument( "DQuadFunction::modify_terms: invalid "
-                                  "index: " + std::to_string( i ) ) );
    std::get< 1 >( v_triples[ i ] ) = *(NLinCoef++);   // modify quad. coeff.
    std::get< 2 >( v_triples[ i ] ) = *(NQuadCoef++);  // modify linear coeff.
    }
@@ -449,26 +478,36 @@ void DQuadFunction::modify_linear_coefficients( Vec_FunctionValue && NCoef ,
                                                 Subset && nms , bool ordered ,
                                                 ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( nms.empty() )
   return;
 
  if( NCoef.size() < nms.size() )
   throw( std::invalid_argument( "DQuadFunction::modify_linear_coefficients: "
                                 "NCoef.size < nms.size" ) );
+
+ // all the indices are checked before anything is changed
+ for( auto i : nms )
+  if( i >= v_triples.size() )
+   throw( std::invalid_argument(
+	   "DQuadFunction::modify_linear_coefficients: invalid index " +
+	   std::to_string( i ) ) );
+
+ // the part of NCoef past nms is not used, and the one used becomes the
+ // vector of the changes in the Modification
+ NCoef.resize( nms.size() );
+
  auto NCit = NCoef.begin();
  
- if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+ if( f_Observer && f_Observer->issue_mod( issueMod , eModFValues ) ) {
   // somebody is there: meanwhile, prepare data for the Modification
 
   Vec_p_Var vp( nms.size() );
   auto vpit = vp.begin();
 
   for( auto i : nms ) {
-   if( i >= v_triples.size() )
-    throw( std::invalid_argument(
-	    "DQuadFunction::modify_linear_coefficients: invalid index " +
-	    std::to_string( i ) ) );
-
    *(vpit++) = std::get< 0 >( v_triples[ i ] );
    auto di = *NCit - std::get< 1 >( v_triples[ i ] );
    std::get< 1 >( v_triples[ i ] ) = *NCit;
@@ -484,14 +523,8 @@ void DQuadFunction::modify_linear_coefficients( Vec_FunctionValue && NCoef ,
                                 Observer::par2chnl( issueMod ) );
   }
  else  // noone is there: just do it
-  for( auto i : nms ) {
-   if( i >= v_triples.size() )
-    throw( std::invalid_argument(
-	    "DQuadFunction::modify_linear_coefficients: invalid index " +
-	    std::to_string( i ) ) );
-
+  for( auto i : nms )
    std::get< 1 >( v_triples[ i ] ) = *(NCit++);
-   }
 
  }  // end( DQuadFunction::modify_linear_coefficients( subset ) )
 
@@ -501,6 +534,9 @@ void DQuadFunction::modify_terms( c_v_coeff_it NQuadCoef ,
 				  c_v_coeff_it NLinCoef ,
 				  Range range , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  range.second = std::min( range.second , c_Index( v_triples.size() ) );
  if( range.second <= range.first )
   return;
@@ -508,7 +544,7 @@ void DQuadFunction::modify_terms( c_v_coeff_it NQuadCoef ,
  auto strtit = v_triples.begin() + range.first;
  const auto stopit = v_triples.begin() + range.second;
 
- if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+ if( f_Observer && f_Observer->issue_mod( issueMod , eModFValues ) ) {
   // somebody is there: meanwhile, prepare data for the Modification
 
   Vec_p_Var vp( range.second - range.first );
@@ -551,6 +587,9 @@ void DQuadFunction::modify_linear_coefficients( Vec_FunctionValue && NCoef ,
 						Range range ,
 						ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  range.second = std::min( range.second , c_Index( v_triples.size() ) );
  if( range.second <= range.first )
   return;
@@ -559,11 +598,15 @@ void DQuadFunction::modify_linear_coefficients( Vec_FunctionValue && NCoef ,
   throw( std::invalid_argument( "DQuadFunction::modify_linear_coefficients: "
                                 "NCoef.size too small" ) );
 
+ // the part of NCoef past the (cut) range is not used, and the one used
+ // becomes the vector of the changes in the Modification
+ NCoef.resize( range.second - range.first );
+
  auto NCit = NCoef.begin();
  auto strtit = v_triples.begin() + range.first;
  const auto stopit = v_triples.begin() + range.second;
 
- if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+ if( f_Observer && f_Observer->issue_mod( issueMod , eModFValues ) ) {
   // somebody is there: meanwhile, prepare data for the Modification
 
   Vec_p_Var vp( range.second - range.first );
@@ -593,6 +636,9 @@ void DQuadFunction::modify_linear_coefficients( Vec_FunctionValue && NCoef ,
 
 void DQuadFunction::remove_variable( Index i , ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( v_triples.size() <= i )
   throw( std::logic_error( "less than i Variable are active" ) );
 
@@ -600,7 +646,7 @@ void DQuadFunction::remove_variable( Index i , ModParam issueMod )
  auto var = std::get< 0 >( *itv );
  v_triples.erase( itv );       // erase it
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod , eModFVars ) ) )
   return;
 
  // a diagonal quadratic function is additive ==> strongly quasi-additive
@@ -616,13 +662,16 @@ void DQuadFunction::remove_variable( Index i , ModParam issueMod )
 
 void DQuadFunction::remove_variables( Range range, ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  range.second = std::min( range.second , Index( v_triples.size() ) );
  if( range.second <= range.first )
   return;
 
  if( ( range.first == 0 ) && ( range.second >= v_triples.size() ) ) {
   // removing *all* variable
-  if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+  if( f_Observer && f_Observer->issue_mod( issueMod , eModFVars ) ) {
    // an Observer is there: copy the names of deleted Variable (all of them)
    Vec_p_Var vars( v_triples.size() );
 
@@ -633,7 +682,7 @@ void DQuadFunction::remove_variables( Range range, ModParam issueMod )
 
   // now issue the Modification: note that the subset is empty
   // a diagonal quadratic function is additive ==> strongly quasi-additive
-  if( f_Observer && f_Observer->issue_mod( issueMod ) )
+  if( f_Observer && f_Observer->issue_mod( issueMod , eModFVars ) )
    f_Observer->add_Modification( std::make_shared< C05FunctionModVarsSbst >(
                                   this , std::move( vars ) , Subset() , true ,
                                   0 , Observer::par2concern( issueMod ) ) ,
@@ -649,12 +698,12 @@ void DQuadFunction::remove_variables( Range range, ModParam issueMod )
  const auto strtit = v_triples.begin() + range.first;
  const auto stopit = v_triples.begin() + range.second;
 
- if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+ if( f_Observer && f_Observer->issue_mod( issueMod , eModFVars ) ) {
   // somebody is there: meanwhile, prepare data for the Modification
 
   Vec_p_Var vars( range.second - range.first );
   auto vpit = vars.begin();
-  for( auto tmpit = strtit ; strtit < stopit ; )
+  for( auto tmpit = strtit ; tmpit < stopit ; )
    *(vpit++) = std::get< 0 >( *(tmpit++) );
 
   v_triples.erase( strtit , stopit );
@@ -676,8 +725,11 @@ void DQuadFunction::remove_variables( Range range, ModParam issueMod )
 void DQuadFunction::remove_variables( Subset && nms , bool ordered ,
 				      ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( nms.empty() ) {      // removing *all* variable
-  if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+  if( f_Observer && f_Observer->issue_mod( issueMod , eModFVars ) ) {
    // an Observer is there: copy the names of deleted Variable (all of them)
    Vec_p_Var vars( v_triples.size() );
 
@@ -688,7 +740,7 @@ void DQuadFunction::remove_variables( Subset && nms , bool ordered ,
 
   // now issue the Modification: note that the subset is empty
   // a diagonal quadratic function is additive ==> strongly quasi-additive
-  if( f_Observer && f_Observer->issue_mod( issueMod ) )
+  if( f_Observer && f_Observer->issue_mod( issueMod , eModFVars ) )
    f_Observer->add_Modification( std::make_shared< C05FunctionModVarsSbst >(
                                   this , std::move( vars ) , Subset() , true ,
                                   0 , Observer::par2concern( issueMod ) ) ,
@@ -712,7 +764,7 @@ void DQuadFunction::remove_variables( Subset && nms , bool ordered ,
  auto vi = *it;    // first element to be eliminated
  auto curr = v_triples.begin() + vi;   // position where to move stuff
 
- if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+ if( f_Observer && f_Observer->issue_mod( issueMod , eModFVars ) ) {
   // somebody is there: meanwhile, prepare data for the Modification
   // (as it will be destroyed during the process)
 
@@ -766,10 +818,13 @@ void DQuadFunction::remove_variables( Subset && nms , bool ordered ,
 void DQuadFunction::set_constant_term( FunctionValue constant_term ,
 				       ModParam issueMod )
 {
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
  if( f_constant_term == constant_term )  // actually nothing to change
   return;                                // cowardly (and silently) return
 
- if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+ if( f_Observer && f_Observer->issue_mod( issueMod , eModFValues ) ) {
   const FunctionValue delta = constant_term - f_constant_term;
   f_constant_term = constant_term;
 

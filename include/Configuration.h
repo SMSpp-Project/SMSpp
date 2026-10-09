@@ -256,8 +256,13 @@ class Configuration
   * - if \p idx >= 0, then the BlockConfig in the "Prob_<idx>" group is
   *   returned;
   *
-  * - if \p idx z 0, then the BlockSolver in the "Prob_(- <idx> + 1)" group
-  *   is returned.
+  * - if \p idx < 0, then the BlockSolver in the "Prob_<- idx - 1>" group
+  *   is returned, i.e., \p idx == -1 gives that of "Prob_0", \p idx == -2
+  *   that of "Prob_1", and so on.
+  *
+  * If the "Prob_<i>" group has no such child, the child "BlockConfig" or
+  * "SolverConfig", respectively, of the group "Config_<i>" is taken, which
+  * is where some eProbFile have them [see get_Prob_group()].
   *
   * Once the appropriate group is selected, the :Configuration is loaded from
   * it with a call to new_Configuration( netCDF::NcGroup & ); see the
@@ -361,8 +366,8 @@ class Configuration
   *     string.
   *
   *   = The characters immediately following '*' form an empty string (which
-  *     means that '*' is immediately followed by whitespaces or comments):
-  *     then, nullptr is returned;
+  *     means that '*' is immediately followed by whitespaces, comments or
+  *     the end of the stream): then, nullptr is returned;
   *
   * - Or the first character that is found after any whitespace and comment
   *   is not '*', in which case it has to be the first character of a
@@ -666,6 +671,32 @@ class Configuration
   * Use Idiom" that solves the "static initialization order problem". */
 
  static ConfigurationFactoryMap & f_factory( void );
+
+/*--------------------------------------------------------------------------*/
+ /// the group of an eProbFile where a BlockConfig or BlockSolver is written
+ /** Returns a new child group with name \p name ("BlockConfig" or
+  * "BlockSolver") of a "Prob_<i>" group of the eProbFile \p f: of the last
+  * one, "Prob_<n - 1>" with n the number of groups of \p f, if it has no
+  * child with that name yet (so that the BlockConfig and the BlockSolver
+  * written right after a Block go in the problem of that Block), and of a
+  * new "Prob_<n>" otherwise. */
+
+ static netCDF::NcGroup add_Prob_group( netCDF::NcFile & f ,
+					const std::string & name );
+
+/*--------------------------------------------------------------------------*/
+ /// the group of an eProbFile where a BlockConfig or BlockSolver is read
+ /** Returns the child group with name \p name ("BlockConfig" or
+  * "BlockSolver") of the group "Prob_<idx>" of the eProbFile \p f. If it
+  * is not there, the child group with name \p alt_name of the group
+  * "Config_<idx>" is returned, which is where some eProbFile have it
+  * ("BlockConfig" and "SolverConfig", respectively); a null group if
+  * neither is there. */
+
+ static netCDF::NcGroup get_Prob_group( const netCDF::NcFile & f ,
+					unsigned int idx ,
+					const std::string & name ,
+					const std::string & alt_name );
 
 /*--------------------------------------------------------------------------*/
  /// empty placeholder for class-specific static initialization
@@ -1107,7 +1138,8 @@ void deserialize( const netCDF::NcGroup & group ,
  * given \p group and into \p data. This is supposed to be represented by
  * the dimension with name \p size giving the size of the container, plus
  * by as many sub-groups of \p group with name <name>0, <name>1, ..., each
- * one containing one of the Configuration. */
+ * one containing one of the Configuration; the sub-group of a nullptr is
+ * not created, and it is read back as nullptr. */
 
 template< template< class ... > class C >
 void serialize( netCDF::NcGroup & group , const C< Configuration * > & data ,
@@ -1117,8 +1149,11 @@ void serialize( netCDF::NcGroup & group , const C< Configuration * > & data ,
  group.addDim( size , data.size() );
  size_t i = 0;
  for( auto el : data ) {
-  auto gr = group.addGroup( name + std::to_string( i++ ) );
-  el->serialize( gr );
+  if( el ) {
+   auto gr = group.addGroup( name + std::to_string( i ) );
+   el->serialize( gr );
+   }
+  ++i;
   }
  }
 
@@ -1271,12 +1306,14 @@ void SimpleConfiguration< std::vector< Configuration * >
 template<>
 inline void SimpleConfiguration< std::vector< Configuration * >
  >::serialize( netCDF::NcGroup & group ) const {
+ Configuration::serialize( group );
  SMSpp_di_unipi_it::serialize< std::vector >( group , f_value );
  }
 
 template<>
 inline void SimpleConfiguration< std::vector< Configuration * >
  >::deserialize( const netCDF::NcGroup & group ) {
+ Configuration::deserialize( group );
  SMSpp_di_unipi_it::deserialize< std::vector >( group , f_value );
  }
 

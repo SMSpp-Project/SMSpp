@@ -49,6 +49,20 @@ static constexpr auto INF = Inf< BoxSolver::OFValue >();
 /*------------------------------- FUNCTIONS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+namespace {
+
+/*--------------------------------------------------------------------------*/
+/// throws for a group of Variable that are not ColVariable
+
+[[noreturn]] void throw_not_ColVariable( const BaseGroup & group )
+{
+ throw( std::invalid_argument( std::string( "BoxSolver: " ) +
+			       ( group.is_dynamic() ? "dynamic" : "static" ) +
+			       " variable not a ColVariable" ) );
+ }
+
+}  // end( unnamed namespace )
+
 /*--------------------------------------------------------------------------*/
 /*----------------------------- STATIC MEMBERS -----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -118,32 +132,17 @@ int BoxSolver::compute( bool changedvars )
    // [Col]Variable, check they are feasible and if required give them any
    // feasible value
 
-   auto f = std::bind( & BoxSolver::process_variable_bnds , this ,
-		       std::placeholders::_1 );
+   const auto f = [ this ]( ColVariable & var ) {
+    process_variable_bnds( var ); };
 
-   for( auto bk : f_desc ) {
-    // process static variables
-    for( const auto & el : bk->get_static_variables() ) {
-     if( un_any_const_static( el , f , un_any_type< ColVariable >() ) ) {
-      if( f_state != kUnEval )  // infeasible
-       goto endgame;
-      continue;
-      }
-     throw( std::invalid_argument(
-		       "BoxSolver: static variable not a ColVariable" ) );
-     }
+   for( auto bk : f_desc )
+    bk->for_each_variable_group( [ this , & f ]( const BaseGroup & g ) {
+      if( ! g.for_each_as< ColVariable >( f ) )
+       throw_not_ColVariable( g );
+      } );
 
-    // process dynamic variables
-    for( const auto & el : bk->get_dynamic_variables() ) {
-     if( un_any_const_dynamic( el , f , un_any_type< ColVariable >() ) ) {
-      if( f_state != kUnEval )  // infeasible
-       goto endgame;
-      continue;
-      }
-     throw( std::invalid_argument(
-		       "BoxSolver: dynamic variable not a ColVariable" ) );
-     }
-    }  // end( for( all involved Block ) )
+   if( f_state != kUnEval )  // infeasible
+    goto endgame;
    }  // end( ! f_feas )
 
   // second phase: look at only the ColVariable active in the alternative
@@ -215,8 +214,7 @@ int BoxSolver::compute( bool changedvars )
 	   "BoxSolver: alternative Objective Function type not supported" ) );
   }
  else {            // do it for the standard Objective - - - - - - - - - - - -
-  auto f = std::bind( & BoxSolver::process_variable , this ,
-		      std::placeholders::_1 );
+  const auto f = [ this ]( ColVariable & var ) { process_variable( var ); };
 
   for( auto bk : f_desc ) {
    // deal with the constant in the Objective
@@ -226,27 +224,13 @@ int BoxSolver::compute( bool changedvars )
     f_min_val += ct;
     }
 
-   // process static variables
-   for( const auto & el : bk->get_static_variables() ) {
-    if( un_any_const_static( el , f , un_any_type< ColVariable >() ) ) {
-     if( f_state != kUnEval )  // infeasible
-      goto endgame;
-     continue;
-     }
-    throw( std::invalid_argument(
-		       "BoxSolver: static variable not a ColVariable" ) );
-    }
+   bk->for_each_variable_group( [ this , & f ]( const BaseGroup & g ) {
+     if( ! g.for_each_as< ColVariable >( f ) )
+      throw_not_ColVariable( g );
+     } );
 
-   // process dynamic variables
-   for( const auto & el : bk->get_dynamic_variables() ) {
-    if( un_any_const_dynamic( el , f , un_any_type< ColVariable >() ) ) {
-     if( f_state != kUnEval )  // infeasible
-      goto endgame;
-     continue;
-     }
-    throw( std::invalid_argument(
-		       "BoxSolver: dynamic variable not a ColVariable" ) );
-    }
+   if( f_state != kUnEval )  // infeasible
+    goto endgame;
    }  // end( for( all involved Block ) )
   }  // end( else( do it for the standard Objective )- - - - - - - - - - - - -
 
@@ -270,6 +254,8 @@ int BoxSolver::compute( bool changedvars )
   f_sol_comp = f_sol & 3;
   }
  else {
+  f_max_val = -INF;  // the max over an empty set
+  f_min_val = INF;   // the min over an empty set
   f_feas = false;
   f_sol_comp = 0;  // no solution available
   }
@@ -289,25 +275,20 @@ void BoxSolver::get_var_solution( Configuration *solc )
  if( ! has_var_solution() )
   throw( std::logic_error( "BoxSolver: Variable solution not available" ) );
 
- if( f_sol_comp & 1 )  // the solution is there already
-  return;
+ // the solution is written each time it is asked for, even if compute()
+ // wrote it already, since something else may have written the ColVariable
+ // since then
 
  if( f_altobj ) {  // do it for an alternative Objective - - - - - - - - - - -
   if( ! f_feas ) {
    // first phase: if a feasible solution is not already there, look at all
    // [Col]Variable and give them any feasible value
-   auto f = std::bind( & BoxSolver::process_variable_bnds , this ,
-		       std::placeholders::_1 );
+   const auto f = [ this ]( ColVariable & var ) {
+    process_variable_bnds( var ); };
 
    for( auto bk : f_desc ) {
-    // process static variables
-    for( const auto & el : bk->get_static_variables() )
-     un_any_const_static( el , f , un_any_type< ColVariable >() );
-
-    // process dynamic variables
-    for( const auto & el : bk->get_dynamic_variables() )
-     un_any_const_dynamic( el , f , un_any_type< ColVariable >() );
-
+    bk->for_each_variable_group( [ & f ]( const BaseGroup & g ) {
+      g.for_each_as< ColVariable >( f ); } );
     }  // end( for( all involved Block ) )
 
    f_feas = true;  // now this is done
@@ -353,18 +334,12 @@ void BoxSolver::get_var_solution( Configuration *solc )
 		"BoxSolver: alternative Objective Function not supported" ) );
   }
  else {            // do it for the standard Objective - - - - - - - - - - - -
-  auto f = std::bind( & BoxSolver::process_variable_sol , this ,
-		      std::placeholders::_1 );
+  const auto f = [ this ]( ColVariable & var ) {
+   process_variable_sol( var ); };
 
   for( auto bk : f_desc ) {
-   // process static variables
-   for( const auto & el : bk->get_static_variables() )
-    un_any_const_static( el , f , un_any_type< ColVariable >() );
-
-   // process dynamic variables
-   for( const auto & el : bk->get_dynamic_variables() )
-    un_any_const_dynamic( el , f , un_any_type< ColVariable >() );
-
+   bk->for_each_variable_group( [ & f ]( const BaseGroup & g ) {
+     g.for_each_as< ColVariable >( f ); } );
    }  // end( for( all involved Block ) )
 
   f_feas = true;  // a feasible solution is there
@@ -384,51 +359,20 @@ void BoxSolver::get_dual_solution( Configuration *solc )
 
  // produce reduced costs - - - - - - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- if( ( f_sol & 2 ) && ( ! ( f_sol_comp & 2 ) ) ) {
+ // the dual values are written each time they are asked for, whatever
+ // intPDSol says compute() writes, since something else may have written
+ // the dual values of the Constraint since then
+ {
   const auto f = []( OneVarConstraint & c ) { c.set_dual( 0 ); };
 
   if( f_altobj ) {  // do it for an alternative Objective - - - - - - - - - -
    // first phase: zero-out all reduced costs
 
-   for( auto bk : f_desc ) {
-    // process static constraints
-    for( const auto & el : bk->get_static_constraints() ) {
-     if( un_any_const_static( el , f , un_any_type< BoxConstraint >() ) )
-      continue;
-     if( un_any_const_static( el , f , un_any_type< LB0Constraint >() ) )
-      continue;
-     if( un_any_const_static( el , f , un_any_type< UB0Constraint >() ) )
-      continue;
-     if( un_any_const_static( el , f , un_any_type< LBConstraint >() ) )
-      continue;
-     if( un_any_const_static( el , f , un_any_type< UBConstraint >() ) )
-      continue;
-     if( un_any_const_static( el , f , un_any_type< NNConstraint >() ) )
-      continue;
-     if( un_any_const_static( el , f , un_any_type< NPConstraint >() ) )
-      continue;
-     un_any_const_static( el , f , un_any_type< ZOConstraint >() );
-     }
-
-    // process dynamic constraints
-    for( const auto & el : bk->get_dynamic_constraints() ) {
-     if( un_any_const_dynamic( el , f , un_any_type< BoxConstraint >() ) )
-      continue;
-     if( un_any_const_dynamic( el , f , un_any_type< LB0Constraint >() ) )
-      continue;
-     if( un_any_const_dynamic( el , f , un_any_type< UB0Constraint >() ) )
-      continue;
-     if( un_any_const_dynamic( el , f , un_any_type< LBConstraint >() ) )
-      continue;
-     if( un_any_const_dynamic( el , f , un_any_type< UBConstraint >() ) )
-      continue;
-     if( un_any_const_dynamic( el , f , un_any_type< NNConstraint >() ) )
-      continue;
-     if( un_any_const_dynamic( el , f , un_any_type< NPConstraint >() ) )
-      continue;
-     un_any_const_dynamic( el , f , un_any_type< ZOConstraint >() );
-     }
-    }  // end( for( all involved Block ) )
+   for( auto bk : f_desc )
+    bk->for_each_constraint_group( [ & f ]( const BaseGroup & g ) {
+      for_each_as_any_of< BoxConstraint , LB0Constraint , UB0Constraint ,
+			  LBConstraint , UBConstraint , NNConstraint ,
+			  NPConstraint , ZOConstraint >( g , f ); } );
 
    // second phase: look at only the ColVariable active in the alternative
    // Objective Function and do the actual reduced cost computation
@@ -474,18 +418,12 @@ void BoxSolver::get_dual_solution( Configuration *solc )
 		"BoxSolver: alternative Objective Functionnot supported" ) );
    }
   else {            // do it for the standard Objective- - - - - - - - - - - -
-   auto f = std::bind( & BoxSolver::process_variable_dual , this ,
-		       std::placeholders::_1 );
+   const auto f = [ this ]( ColVariable & var ) {
+    process_variable_dual( var ); };
 
    for( auto bk : f_desc ) {
-    // process static variables
-    for( const auto & el : bk->get_static_variables() )
-     un_any_const_static( el , f , un_any_type< ColVariable >() );
-
-    // process dynamic variables
-    for( const auto & el : bk->get_dynamic_variables() )
-     un_any_const_dynamic( el , f , un_any_type< ColVariable >() );
-
+    bk->for_each_variable_group( [ & f ]( const BaseGroup & g ) {
+      g.for_each_as< ColVariable >( f ); } );
     }  // end( for( all involved Block ) )
    }  // end( else( do it for the standard Objective )- - - - - - - - - - - -
 
@@ -494,19 +432,14 @@ void BoxSolver::get_dual_solution( Configuration *solc )
 
  // produce other dual values - - - - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- if( ( f_sol & 4 ) && ( ! ( f_sol_comp & 4 ) ) ) {
+ // the Constraint that are not box ones are ignored, i.e., relaxed, hence
+ // their dual value is 0
+ {
   const auto f = []( FRowConstraint & c ) { c.set_dual( 0 ); };
 
-  for( auto bk : f_desc ) {
-  // process static constraints
-   for( const auto & el : bk->get_static_constraints() )
-    un_any_const_static( el , f , un_any_type< FRowConstraint >() );
-
-   // process dynamic constraints
-   for( const auto & el : bk->get_dynamic_constraints() )
-    un_any_const_dynamic( el , f , un_any_type< FRowConstraint >() );
-
-   }  // end( for( all involved Block ) )
+  for( auto bk : f_desc )
+   bk->for_each_constraint_group( [ & f ]( const BaseGroup & g ) {
+     g.for_each_as< FRowConstraint >( f ); } );
 
   f_sol_comp |= 4;
   } 
@@ -529,14 +462,8 @@ void BoxSolver::get_var_direction( Configuration * dirc )
   const auto f = []( ColVariable & var ) { var.set_value( 0 ); };
 
   for( auto bk : f_desc ) {
-   // process static variables
-   for( const auto & el : bk->get_static_variables() )
-    un_any_const_static( el , f , un_any_type< ColVariable >() );
-
-   // process dynamic variables
-   for( const auto & el : bk->get_dynamic_variables() )
-    un_any_const_dynamic( el , f , un_any_type< ColVariable >() );
-
+   bk->for_each_variable_group( [ & f ]( const BaseGroup & g ) {
+     g.for_each_as< ColVariable >( f ); } );
    }  // end( for( all involved Block ) )
 
   // second phase: look at only the ColVariable active in the alternative
@@ -580,18 +507,12 @@ void BoxSolver::get_var_direction( Configuration * dirc )
 		"BoxSolver: alternative Objective Function not supported" ) );
   }
  else {            // do it for the standard Objective - - - - - - - - - - - -
-  auto f = std::bind( & BoxSolver::process_variable_dir , this ,
-		      std::placeholders::_1 );
+  const auto f = [ this ]( ColVariable & var ) {
+   process_variable_dir( var ); };
 
   for( auto bk : f_desc ) {
-   // process static variables
-   for( const auto & el : bk->get_static_variables() )
-    un_any_const_static( el , f , un_any_type< ColVariable >() );
-
-   // process dynamic variables
-   for( const auto & el : bk->get_dynamic_variables() )
-    un_any_const_dynamic( el , f , un_any_type< ColVariable >() );
-
+   bk->for_each_variable_group( [ & f ]( const BaseGroup & g ) {
+     g.for_each_as< ColVariable >( f ); } );
    }  // end( for( all involved Block ) )
   }  // end( else( do it for the standard Objective )- - - - - - - - - - - - -
 
@@ -612,6 +533,7 @@ void BoxSolver::add_Modification( sp_Mod & mod )
  // changing the sense
  if( std::dynamic_pointer_cast< const ObjectiveMod >( mod ) ) {
   f_sense = -1;  // check it has to be set
+  reset();       // and the solution of the other sense is no longer there
   return;
   }
 
@@ -1235,7 +1157,7 @@ void BoxSolver::sol_variable( ColVariable & var , VarValue l ,
     if( f_sol & 1 )
      var.set_value( u );            // primal solution
     if( cu )
-     cu->set_dual( b );             // dual solution
+     cu->set_dual( - b );             // dual solution
     }
    // the opposite problem
    if( l == -INF )                  // if the lower bound is -INF
@@ -1257,7 +1179,7 @@ void BoxSolver::sol_variable( ColVariable & var , VarValue l ,
     if( f_sol & 1 )
      var.set_value( l );            // primal solution
     if( cl )
-     cl->set_dual( b );             // dual solution
+     cl->set_dual( - b );             // dual solution
     }
    // the opposite problem
    if( u == INF )                   // if the upper bound is INF
@@ -1280,8 +1202,8 @@ void BoxSolver::sol_variable( ColVariable & var , VarValue l ,
      f_min_val += b * l;            // add the contribution
     if( f_sol & 1 )
      var.set_value( l );            // primal solution
-    if( cu )
-     cu->set_dual( b );             // dual solution
+    if( cl )
+     cl->set_dual( - b );             // dual solution
     }
    // the opposite problem
    if( u == INF )                   // if the upper bound is INF
@@ -1302,8 +1224,8 @@ void BoxSolver::sol_variable( ColVariable & var , VarValue l ,
      f_min_val += b * u;            // add the contribution
     if( f_sol & 1 )
      var.set_value( u );            // primal solution
-    if( cl )
-     cl->set_dual( b );             // dual solution
+    if( cu )
+     cu->set_dual( - b );             // dual solution
     }
    // the opposite problem
    if( l == -INF )                  // if the lower bound is -INF
@@ -1359,13 +1281,13 @@ void BoxSolver::sol_variable( ColVariable & var , VarValue l ,
     if( x > u ) {
      x = u;
      if( cu )
-      cu->set_dual( 2 * a * x + b );  // dual solution
+      cu->set_dual( - 2 * a * x - b );  // dual solution
      }
     else
      if( x < l ) {
       x = l;
       if( cl )
-       cl->set_dual( 2 * a * x + b );  // dual solution
+       cl->set_dual( - 2 * a * x - b );  // dual solution
       }
 
     vxmax = q( x );
@@ -1519,7 +1441,7 @@ void BoxSolver::process_variable( ColVariable & var )
   // variables not belonging to f_Block are fixed
   if( ! is_mine( var ) ) {
    auto x = var.get_value();
-   auto dv = a * ( a * x + b );
+   auto dv = x * ( a * x + b );
    f_max_val += dv;
    f_min_val += dv;
    return;
@@ -1553,7 +1475,7 @@ void BoxSolver::process_variable( ColVariable & var )
   // variables not belonging to f_Block are fixed
   if( ! is_mine( var ) ) {
    auto x = var.get_value();
-   auto dv = a * ( a * x + b );
+   auto dv = x * ( a * x + b );
    f_max_val += dv;
    f_min_val += dv;
    return;
@@ -1614,35 +1536,22 @@ void BoxSolver::process_variable_sol( ColVariable & var )
 void BoxSolver::process_var_sol( ColVariable & var , VarValue l ,
 				 VarValue u , OFValue b )
 {
+ // on an unbounded variable any feasible value is given, "close to 0", as
+ // compute() does: the problem is then kUnbounded, which is when a solution
+ // is still there [see has_var_solution()]
  if( f_sense == 1 ) {               // maximization
-  if( b > 0 ) {                     // with b > 0
-   if( u == INF )                   // if the upper bound is +INF
-    throw( std::invalid_argument(
-		"BoxSolver::get_var_solution: unexpected unboundedness" ) );
-   var.set_value( u );              // primal solution
-   }
-  else {                            // [maximization] with b < 0
-   if( l == -INF )                  // if the lower bound is -INF
-    throw( std::invalid_argument(
-		"BoxSolver::get_var_solution: unexpected unboundedness" ) );
-   var.set_value( l );              // primal solution
-   }
+  if( b > 0 )                       // with b > 0
+   var.set_value( u == INF ? std::max( l , VarValue( 0 ) ) : u );
+  else                              // [maximization] with b < 0
+   var.set_value( l == -INF ? std::min( u , VarValue( 0 ) ) : l );
   return;
   }
 
  // minimization
- if( b > 0 ) {                     // with b > 0
-  if( l == -INF )                  // if the lower bound is -INF
-   throw( std::invalid_argument(
-		"BoxSolver::get_var_solution: unexpected unboundedness" ) );
-  var.set_value( l );              // primal solution
-  }
- else {                            // [minimization] with b < 0
-  if( u == INF )                   // if the upper bound is INF
-   throw( std::invalid_argument(
-		"BoxSolver::get_var_solution: unexpected unboundedness" ) );
-  var.set_value( u );              // primal solution
-  }
+ if( b > 0 )                       // with b > 0
+  var.set_value( l == -INF ? std::min( u , VarValue( 0 ) ) : l );
+ else                              // [minimization] with b < 0
+  var.set_value( u == INF ? std::max( l , VarValue( 0 ) ) : u );
  }  // end( BoxSolver::process_var_sol( b ) )
 
 /*--------------------------------------------------------------------------*/
@@ -1670,11 +1579,10 @@ void BoxSolver::process_var_sol( ColVariable & var , VarValue l , VarValue u ,
    var.set_value( x );
    }
   else {                            // [maximization] with a > 0
-   if( ( l == -INF ) || ( u == INF ) )
-    throw( std::invalid_argument(
-		"BoxSolver::get_var_solution: unexpected unboundedness" ) );
-
-   var.set_value( q( l ) > q( u ) ? l : u );
+   if( ( l == -INF ) || ( u == INF ) )  // unbounded: any feasible value
+    var.set_value( std::max( l , std::min( u , VarValue( 0 ) ) ) );
+   else
+    var.set_value( q( l ) > q( u ) ? l : u );
    }
 
   return;  // the quadratic maximization case has been dealt with
@@ -1696,10 +1604,10 @@ void BoxSolver::process_var_sol( ColVariable & var , VarValue l , VarValue u ,
   var.set_value( x );
   }
  else {                            // [minimization] with a < 0
-  if( ( l == -INF ) || ( u == INF ) )
-   throw( std::invalid_argument(
-		"BoxSolver::get_var_solution: unexpected unboundedness" ) );
-  var.set_value( q( l ) < q( u ) ? l : u );
+  if( ( l == -INF ) || ( u == INF ) )  // unbounded: any feasible value
+   var.set_value( std::max( l , std::min( u , VarValue( 0 ) ) ) );
+  else
+   var.set_value( q( l ) < q( u ) ? l : u );
   }
  }  // end( BoxSolver::process_var_sol( a , b ) )
 
@@ -1794,21 +1702,31 @@ void BoxSolver::process_var_dual( ColVariable & var ,
 				  OneVarConstraint * cl ,
 				  OneVarConstraint * cu )
 {
+ // a bound that is not tight at the optimum has dual value 0, and so have
+ // both when the cost is 0: the tight one, if any, is written below
+ if( cl )
+  cl->set_dual( 0 );
+ if( cu )
+  cu->set_dual( 0 );
+ if( b == 0 )
+  return;
+
  if( f_sense == 1 ) {               // maximization
   if( b > 0 ) {                     // with b > 0
    if( u == INF )                   // if the upper bound is +INF
     throw( std::invalid_argument(
 	       "BoxSolver::get_dual_solution: unexpected unboundedness" ) );
    if( cu )
-    cu->set_dual( b );              // dual solution
+    cu->set_dual( - b );              // dual solution
    }
   else {                            // [maximization] with b < 0
    if( l == -INF )                  // if the lower bound is -INF
     throw( std::invalid_argument(
 	       "BoxSolver::get_dual_solution: unexpected unboundedness" ) );
    if( cl )
-    cl->set_dual( b );              // dual solution
+    cl->set_dual( - b );              // dual solution
    }
+  return;  // the linear maximization case has been dealt with
   }
 
  // minimization
@@ -1816,15 +1734,15 @@ void BoxSolver::process_var_dual( ColVariable & var ,
   if( l == -INF )                  // if the lower bound is -INF
    throw( std::invalid_argument(
 	       "BoxSolver::get_dual_solution: unexpected unboundedness" ) );
-  if( cu )
-   cu->set_dual( b );              // dual solution
+  if( cl )
+   cl->set_dual( - b );              // dual solution
   }
  else {                            // [minimization] with b < 0
   if( u == INF )                   // if the upper bound is INF
    throw( std::invalid_argument(
 	       "BoxSolver::get_dual_solution: unexpected unboundedness" ) );
-  if( cl )
-   cl->set_dual( b );              // dual solution
+  if( cu )
+   cu->set_dual( - b );              // dual solution
   }
  }  // end( BoxSolver::process_var_dual( b ) )
 
@@ -1841,18 +1759,28 @@ void BoxSolver::process_var_dual( ColVariable & var ,
  OFValue x = - b / ( 2 * a );
  auto q = [ & ]( OFValue y ) -> OFValue { return( ( a * y + b ) * y ); };
  
+ // a bound that is not tight at the optimum has dual value 0: in the convex
+ // cases below both are set so, and the tight one, if any, is written after
+ auto zero_duals = [ & ]() {
+  if( cl )
+   cl->set_dual( 0 );
+  if( cu )
+   cu->set_dual( 0 );
+  };
+
  if( f_sense == 1 ) {               // maximization
   if( a < 0 ) {                     // with a < 0
+    zero_duals();
     if( x > u ) {
      x = u;
      if( cu )
-      cu->set_dual( 2 * a * x + b );  // dual solution
+      cu->set_dual( - 2 * a * x - b );  // dual solution
      }
     else
      if( x < l ) {
       x = l;
       if( cl )
-       cl->set_dual( 2 * a * x + b );  // dual solution
+       cl->set_dual( - 2 * a * x - b );  // dual solution
       }
    }
 
@@ -1862,6 +1790,7 @@ void BoxSolver::process_var_dual( ColVariable & var ,
 
  // deal with the quadratic minimization case
  if( a > 0 ) {                        // with a > 0
+  zero_duals();
   if( x > u ) {
    x = u;
    if( cu )
