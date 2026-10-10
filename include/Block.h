@@ -3983,6 +3983,11 @@ class Block : public Observer {
   *     ORDERED; THAT IS, THE *rmvd[ i ] MUST BE FOUND IN THE LIST BEFORE
   *     *rmvd[ i + 1 ] FOR ALL i
   *
+  * In that case rmvd is checked as a whole before anything is changed: if
+  * an iterator does not point into list, or they are not ordered, then
+  * std::invalid_argument is thrown and list, the Block and the items of
+  * the list are left exactly as they were.
+  *
   * The parameter issueMod decides if and how the BlockModRmv is issued, as
   * described in Observer::make_par().
   *
@@ -4104,6 +4109,11 @@ class Block : public Observer {
   *     IF THE BlockModRmv* IS ISSUED, THEN THE ITERATORS IN rmvd MUST BE
   *     ORDERED; THAT IS, THE *rmvd[ i ] MUST BE FOUND IN THE LIST BEFORE
   *     *rmvd[ i + 1 ] FOR ALL i
+  *
+  * In that case rmvd is checked as a whole before anything is changed: if
+  * an iterator does not point into list, or they are not ordered, then
+  * std::invalid_argument is thrown and list, the Block and the items of
+  * the list are left exactly as they were.
   *
   * The parameter issueMod decides if and how the BlockModRmv is issued, as
   * described in Observer::make_par().
@@ -8002,6 +8012,35 @@ class Block : public Observer {
   }
 
 /*--------------------------------------------------------------------------*/
+ /// the positions in \p list of the items the iterators in \p rmvd point to
+ /** Returns the positions in \p list of the items the iterators in \p rmvd
+  * point to, which must be in the order of the list; throws
+  * std::invalid_argument if one of them is not found in \p list, or they
+  * are not in its order, having changed nothing. This is what the
+  * remove_dynamic_*() taking iterators check before touching the list. */
+
+ template< class T >
+ static Subset removed_positions( const std::list< T > & list ,
+				  const std::vector< typename
+				  std::list< T >::iterator > & rmvd ) {
+  Subset subset( rmvd.size() );
+  Index i = 0;
+  auto rit = rmvd.begin();
+  auto sit = subset.begin();
+  for( auto lit = list.begin() ;
+       ( lit != list.end() ) && ( rit != rmvd.end() ) ; ++lit , ++i )
+   if( &( *lit ) == &( *( *rit ) ) ) {
+    ++rit;
+    *(sit++) = i;  // record position
+    }
+
+  if( rit != rmvd.end() )
+   throw( std::invalid_argument( "invalid or unordered removed list" ) );
+
+  return( subset );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// takes the elements of \p group out of it, leaving them to its Block
  /** The elements that are still in \p group, which a container registered
   * again elsewhere is not, are told that they are in no group [see
@@ -9836,6 +9875,14 @@ Block::remove_dynamic_constraints( std::list< Const > & list ,
  if( list.empty() )
   throw( std::invalid_argument( "removing from empty list" ) );
 
+ const bool listening = issue_mod( issueMod );
+
+ // if somebody is listening, the names of the Constraint are found first,
+ // thereby checking that rmvd is correct before anything is changed
+ Subset subset;
+ if( listening )
+  subset = removed_positions( list , rmvd );
+
  // note that each Constraint is removed from its active Variable, but it
  // is not clear()-ed now: if a Modification is issued, the list of active
  // Variable remaining available may help the :Solver to manage it, and
@@ -9843,29 +9890,17 @@ Block::remove_dynamic_constraints( std::list< Const > & list ,
  for( const auto const_it : rmvd )
   remove_constraint_from_variables( &( *const_it ) );
 
- if( issue_mod( issueMod ) ) {  // somebody is listening
+ if( listening ) {  // somebody is listening
   std::list< Const > removed;
-  Subset subset( rmvd.size() );
 
-  // remove all the Constraint (whose iterators are found) in rmvd and add
-  // them to the removed list; note that by using splice() the address of
-  // the actual Constraints objects is not changed. meanwhile also construct
-  // the list of names, thereby checking that rmvd is correct
-  Index i = 0;
-  auto rit = rmvd.begin();
+  // remove all the Constraint in rmvd and add them to the removed list;
+  // note that by using splice() the address of the actual Constraints
+  // objects is not changed
+  for( auto el : rmvd )
+   removed.splice( removed.end() , list , el );
+
+  Index i;
   auto sit = subset.begin();
-  for( auto lit = list.begin() ;
-       ( lit != list.end() ) && ( rit != rmvd.end() ) ; ++i )
-   if( &( *lit ) == &( *( *rit ) ) ) {
-    ++lit;  // increment the iterator before removing
-    removed.splice( removed.end(), list, *(rit++) );  // move element
-    *(sit++) = i;                                       // record position
-    }
-   else
-    ++lit;
-
-  if( rit != rmvd.end() )
-   throw( std::invalid_argument( "invalid or unordered removed list" ) );
 
   // now check if this actually was a range
   bool isr = true;
@@ -9913,31 +9948,34 @@ Block::remove_dynamic_constraint( std::list< Const > & list ,
  if( list.empty() )
   throw( std::invalid_argument( "removing from empty list" ) );
 
+ const bool listening = issue_mod( issueMod );
+
+ // if somebody is listening, the name of the Constraint is found first,
+ // thereby checking that it is correct before anything is changed
+ Index i = 0;
+ if( listening ) {
+  auto lit = list.begin();
+  for( ; lit != list.end() ; ++lit , ++i )
+   if( &( *lit ) == &( *rmvd ) )
+    break;
+
+  if( lit == list.end() )
+   throw( std::invalid_argument( "invalid removed iterator" ) );
+  }
+
  // note that the Constraint is removed from its active Variable, but it
  // is not clear()-ed now: if a Modification is issued, the list of active
  // Variable remaining available may help the :Solver to manage it, and
  // clear()-ing will be done in the Modification destructor
  remove_constraint_from_variables( &( *rmvd ) );
 
- if( issue_mod( issueMod ) ) {  // somebody is listening
+ if( listening ) {  // somebody is listening
   std::list< Const > removed;
 
   // remove the Constraint pointed by rmvd and add it the removed list; note
   // that by using splice() the address of the actual Constraint object is
-  // not changed. meanwhile also find its name, thereby checking that it is
-  // correct
-
-  Index i = 0;
-  auto lit = list.begin();
-  auto initial_el = list.size();
-  for( ; lit != list.end() ; ++lit , ++i )
-   if( &( *lit ) == &( *rmvd ) ) {
-    removed.splice( removed.end() , list , rmvd );
-    break;
-    }
-
-  if( i == initial_el )
-   throw( std::invalid_argument( "invalid removed iterator" ) );
+  // not changed
+  removed.splice( removed.end() , list , rmvd );
 
   // now issue the BlockModRmv*
   if( list.empty() )
@@ -10175,32 +10213,28 @@ Block::remove_dynamic_variables( std::list< Var > & list ,
  if( list.empty() )
   throw( std::invalid_argument( "removing from empty list" ) );
 
+ const bool listening = issue_mod( issueMod );
+
+ // if somebody is listening, the names of the Variable are found first,
+ // thereby checking that rmvd is correct before anything is changed
+ Subset subset;
+ if( listening )
+  subset = removed_positions( list , rmvd );
+
  for( const auto & var_it : rmvd )
   remove_variable_from_stuff( &( *var_it ) , issueindMod );
 
- if( issue_mod( issueMod ) ) {  // somebody is listening
+ if( listening ) {  // somebody is listening
   std::list< Var > removed;
-  Subset subset( rmvd.size() );
 
-  // remove all the Variable (whose iterators are found) in rmvd and add
-  // them to the removed list; note that by using splice() the address of
-  // the actual Variable objects is not changed. meanwhile also construct
-  // the list of names, thereby checking that rmvd is correct
-  Index i = 0;
-  auto rit = rmvd.begin();
+  // remove all the Variable in rmvd and add them to the removed list; note
+  // that by using splice() the address of the actual Variable objects is
+  // not changed
+  for( auto el : rmvd )
+   removed.splice( removed.end() , list , el );
+
+  Index i;
   auto sit = subset.begin();
-  for( auto lit = list.begin() ;
-       ( lit != list.end() ) && ( rit != rmvd.end() ) ; ++i )
-   if( &( *lit ) == &( *( *rit ) ) ) {
-    ++lit;  // increment the iterator before removing
-    removed.splice( removed.end(), list, *(rit++) );  // move element
-    *(sit++) = i;                                       // record position
-    }
-   else
-    ++lit;
-
-  if( rit != rmvd.end() )
-   throw( std::invalid_argument( "invalid or unordered removed list" ) );
 
   // now check if this actually was a range
   bool isr = true;
@@ -10247,26 +10281,30 @@ Block::remove_dynamic_variable( std::list< Var > & list ,
  if( list.empty() )
   throw( std::invalid_argument( "removing from empty list" ) );
 
+ const bool listening = issue_mod( issueMod );
+
+ // if somebody is listening, the name of the Variable is found first,
+ // thereby checking that it is correct before anything is changed
+ Index i = 0;
+ if( listening ) {
+  auto lit = list.begin();
+  for( ; lit != list.end() ; ++lit , ++i )
+   if( &( *lit ) == &( *rmvd ) )
+    break;
+
+  if( lit == list.end() )
+   throw( std::invalid_argument( "invalid removed iterator" ) );
+  }
+
  remove_variable_from_stuff( &( *rmvd ) , issueindMod );
 
- if( issue_mod( issueMod ) ) {  // somebody is listening
+ if( listening ) {  // somebody is listening
   std::list< Var > removed;
 
   // remove the Variable pointed by rmvd and add it the removed list; note
   // that by using splice() the address of the actual Variable object is
-  // not changed. meanwhile also find its name, thereby checking that it is
-  // correct
-
-  Index i = 0;
-  auto lit = list.begin();
-  for( ; lit != list.end() ; ++lit , ++i )
-   if( &( *lit ) == &( *rmvd ) ) {
-    removed.splice( removed.end() , list , rmvd );
-    break;
-    }
-
-  if( lit == list.end() )
-   throw( std::invalid_argument( "invalid removed iterator" ) );
+  // not changed
+  removed.splice( removed.end() , list , rmvd );
 
   // now issue the BlockModRmv*
   if( list.empty() )

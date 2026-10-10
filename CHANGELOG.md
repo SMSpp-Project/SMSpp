@@ -16,6 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   like `RowConstraint::is_feasible()` already did, next to the specific
   overloads for the containers of the groups of a Block, which are kept
 
+### Fixed
+
+- `Block::remove_dynamic_constraints()` and `remove_dynamic_variables()`
+  taking iterators, and `remove_dynamic_constraint()` /
+  `remove_dynamic_variable()`, check the iterators before changing anything
+  when the Modification is issued: unordered ones, or one not in the list,
+  throw `std::invalid_argument` with the list, its items and what they are
+  active in left as they were, rather than half-spliced
+
 ## [0.8.0] - 2026-10-09
 
 ### Added
