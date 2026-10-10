@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `Constraint::clear()` and `ColVariable::is_feasible()` of any container
+  of the items, of any container of containers of them and of a
+  `boost::multi_array` of containers of them (e.g., a `std::deque`, a
+  `std::deque` of `std::vector`, a `boost::multi_array` of `std::deque`),
+  like `RowConstraint::is_feasible()` already did, next to the specific
+  overloads for the containers of the groups of a Block, which are kept
+
 ## [0.8.0] - 2026-10-09
 
 ### Added

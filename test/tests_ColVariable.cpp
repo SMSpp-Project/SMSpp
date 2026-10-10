@@ -20,6 +20,9 @@
 #include "SMSTypedefs.h"
 
 #include <cmath>
+#include <deque>
+#include <list>
+#include <vector>
 #include <stdexcept>
 
 // last, so that the headers above are read as the library was compiled
@@ -259,6 +262,79 @@ void test_fixed_value()
  }
 
 /*--------------------------------------------------------------------------*/
+// ColVariable::is_feasible() of the collections that none of the specific
+// overloads takes, whose items are any container: a std::deque, a std::deque
+// of std::vector, a std::list of std::list and a boost::multi_array of
+// std::deque. The empty collection and the one of empty collections are
+// feasible, the one with an infeasible ColVariable is not, wherever it is,
+// whether the ColVariable are fixed or not, and the tolerance is the one
+// given
+
+static void test_is_feasible_collections( void )
+{
+ // a binary ColVariable with value v, fixed if fix
+ auto bin = []( ColVariable & var , double v , bool fix ) {
+  var.set_type( ColVariable::kBinary );
+  var.set_value( v );
+  var.is_fixed( fix );
+  };
+
+ {  // a std::deque
+  std::deque< ColVariable > d;
+  assert( ColVariable::is_feasible( d ) );
+  d.resize( 3 );
+  bin( d[ 0 ] , 1 , true );
+  bin( d[ 1 ] , 0 , false );
+  bin( d[ 2 ] , 1 + 1e-6 , false );
+  assert( ! ColVariable::is_feasible( d ) );
+  assert( ColVariable::is_feasible( d , 1e-5 ) );
+  d[ 2 ].set_value( 1 );
+  assert( ColVariable::is_feasible( d ) );
+  d[ 0 ].is_fixed( false );
+  d[ 0 ].set_value( 0.5 );
+  d[ 0 ].is_fixed( true );
+  assert( ! ColVariable::is_feasible( d ) );
+  }
+
+ {  // a std::deque of std::vector
+  std::deque< std::vector< ColVariable > > d;
+  assert( ColVariable::is_feasible( d ) );
+  d.resize( 3 );
+  assert( ColVariable::is_feasible( d ) );
+  d[ 2 ].resize( 2 );  // d[ 0 ] and d[ 1 ] stay empty
+  bin( d[ 2 ][ 0 ] , 1 , true );
+  bin( d[ 2 ][ 1 ] , 2 , false );
+  assert( ! ColVariable::is_feasible( d ) );
+  d[ 2 ][ 1 ].set_value( 0 );
+  assert( ColVariable::is_feasible( d ) );
+  }
+
+ {  // a std::list of std::list
+  std::list< std::list< ColVariable > > l;
+  assert( ColVariable::is_feasible( l ) );
+  l.resize( 2 );
+  assert( ColVariable::is_feasible( l ) );
+  l.front().resize( 1 );
+  bin( l.front().front() , -1 , false );
+  assert( ! ColVariable::is_feasible( l ) );
+  l.front().front().set_value( 1 );
+  assert( ColVariable::is_feasible( l ) );
+  }
+
+ {  // a boost::multi_array of std::deque
+  boost::multi_array< std::deque< ColVariable > , 2 > m;
+  assert( ColVariable::is_feasible( m ) );
+  m.resize( boost::extents[ 2 ][ 3 ] );
+  assert( ColVariable::is_feasible( m ) );
+  m[ 1 ][ 2 ].resize( 2 );
+  bin( m[ 1 ][ 2 ][ 0 ] , 0 , true );
+  bin( m[ 1 ][ 2 ][ 1 ] , 0.25 , false );
+  assert( ! ColVariable::is_feasible( m ) );
+  assert( ColVariable::is_feasible( m , 0.3 ) );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
 
 int main( int argc , char ** argv )
 {
@@ -266,6 +342,7 @@ int main( int argc , char ** argv )
  test_fixed_value();
  test_every_type();
  test_single_point_types();
+ test_is_feasible_collections();
  return( 0 );
 }
 

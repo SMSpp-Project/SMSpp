@@ -233,6 +233,55 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
   constraints.resize( shape );
  }
 
+/*--------------------------------------------------------------------------*/
+ /// clear a collection of Constraint
+ /** Clears each Constraint of the collection, and then empties it; the
+  * collection can be any sequence container having clear(), e.g., a
+  * std::deque. The more specific std::vector and std::list above are
+  * preferred when they apply. */
+ template< template< class ... > class C , class T >
+ static std::enable_if_t< std::is_base_of_v< Constraint , T > , void >
+ clear( C< T > & constraints ) {
+  for( auto & constraint : constraints )
+   constraint.clear();
+  constraints.clear();
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// clear a collection of collections of Constraint
+ /** Clears each inner collection of Constraint, with the clear() above that
+  * takes it, and then empties the outer collection; both can be any
+  * sequence container having clear(), e.g., a std::deque. The more specific
+  * std::vector of std::vector and std::vector of std::list above are
+  * preferred when they apply. */
+ template< template< class ... > class C ,
+           template< class ... > class D , class T ,
+           class ... DA , class ... CA >
+ static std::enable_if_t< std::is_base_of_v< Constraint , T > , void >
+ clear( C< D< T , DA ... > , CA ... > & constraints ) {
+  for( auto & d_constraints : constraints )
+   Constraint::clear( d_constraints );
+  constraints.clear();
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// clear a K-D boost::multi_array of collections of Constraint
+ /** Clears each collection of Constraint in the boost::multi_array, with the
+  * clear() above that takes it, and then resizes the boost::multi_array to
+  * have no element; the collections can be any sequence container having
+  * clear(), e.g., a std::deque. The more specific boost::multi_array of
+  * std::vector and of std::list above are preferred when they apply. */
+ template< template< class ... > class C , class T , std::size_t K >
+ static std::enable_if_t< std::is_base_of_v< Constraint , T > , void >
+ clear( boost::multi_array< C< T > , K > & constraints ) {
+  auto c_constraints = constraints.data();
+  auto n = constraints.num_elements();
+  for( decltype( n ) i = 0 ; i < n ; ++i , ++c_constraints )
+   Constraint::clear( *c_constraints );
+  std::array< int , K > shape = {}; // for int, {} will zero-initialize
+  constraints.resize( shape );
+ }
+
 /** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/

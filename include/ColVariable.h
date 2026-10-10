@@ -474,6 +474,61 @@ class ColVariable : public Variable
  }
 
 /*--------------------------------------------------------------------------*/
+/// verifies whether the given collection of ColVariable is feasible
+/** The collection can be any container, e.g., a std::deque; the more
+ * specific std::vector and std::list above are preferred when they apply. */
+
+ template< template< class ... > class C , class T >
+ static std::enable_if_t< std::is_base_of_v< ColVariable , T > , bool >
+ is_feasible( const C< T > & variables , double tolerance = 1e-10 ) {
+  // if empty, std::all_of returns true, i.e., the solution is feasible
+  return( std::all_of( variables.begin() , variables.end() ,
+                       [ tolerance ]( const auto & variable ) {
+                        return( variable.is_feasible( tolerance ) );
+                       } ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// verifies whether the given collection of collections of ColVariable is
+/// feasible
+/** Both collections can be any container, e.g., a std::deque; the more
+ * specific std::vector of std::vector and of std::list above are preferred
+ * when they apply. */
+
+ template< template< class ... > class C ,
+           template< class ... > class D , class T ,
+           class ... DA , class ... CA >
+ static std::enable_if_t< std::is_base_of_v< ColVariable , T > , bool >
+ is_feasible( const C< D< T , DA ... > , CA ... > & variables ,
+              double tolerance = 1e-10 ) {
+  // if empty, std::all_of returns true, i.e., the solution is feasible
+  return( std::all_of( variables.begin() , variables.end() ,
+                       [ tolerance ]( const auto & d_variables ) {
+                        return( ColVariable::is_feasible( d_variables ,
+                                                          tolerance ) );
+                       } ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// verifies whether the given K-D boost::multi_array of collections of
+/// ColVariable is feasible
+/** The collections can be any container, e.g., a std::deque; the more
+ * specific boost::multi_array of std::vector and of std::list above are
+ * preferred when they apply. */
+
+ template< template< class ... > class C , class T , std::size_t K >
+ static std::enable_if_t< std::is_base_of_v< ColVariable , T > , bool >
+ is_feasible( const boost::multi_array< C< T > , K > & variables ,
+              double tolerance = 1e-10 ) {
+  auto n = variables.num_elements();
+  auto c_variables = variables.data();
+  for( decltype( n ) i = 0 ; i < n ; ++i , ++c_variables )
+   if( ! ColVariable::is_feasible( *c_variables , tolerance ) )
+    return( false );
+  return( true );
+ }
+
+/*--------------------------------------------------------------------------*/
  /// method to get the type of the ColVariable
  /** Returns the "type" of the ColVariable, encoded accordingly to the enum
   * col_var_type. */
