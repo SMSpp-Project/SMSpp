@@ -2592,6 +2592,117 @@ static void test_concerned( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* What a LagBFunction reads of its inner Block [see
+ * LagBFunction::concerned_by()], and what it does with each kind of
+ * Modification of the inner Block, decided by what the Modification says of
+ * itself: one that only makes the feasible region grow keeps the global
+ * pool, one that may shrink it has the pool checked, which under intNoSol
+ * empties it, and the what() of the LagBFunctionMod says why; a change of
+ * the Objective keeps the pool and only changes the constant terms. The
+ * Constraint of the inner Block has finite sides and its Function is
+ * shifted upwards, which may violate it. */
+
+static void test_LagBFunction_concerned( void )
+{
+ using M = Modification;
+ Rig r;
+ std::vector< ColVariable > y( 1 );                     // the multiplier
+ auto inner = new AbstractBlock;
+ auto z = new std::vector< ColVariable >( 2 );
+ inner->add_static_variable( *z , "z" );
+ auto Z = [ z ]( Index i ) { return( & ( *z )[ i ] ); };
+ auto rf = new LinearFunction( { { Z( 0 ) , 1 } , { Z( 1 ) , 1 } } );
+ auto c = new FRowConstraint( nullptr , 0 , 1 , rf );
+ inner->add_static_constraint( *c , "c" );
+ auto of = new LinearFunction( { { Z( 0 ) , 1 } , { Z( 1 ) , 2 } } );
+ auto iobj = new FRealObjective( inner , of );
+ inner->set_objective( iobj , eNoMod );
+
+ auto lbf = new LagBFunction( inner );
+ LagBFunction::v_dual_pair dp;
+ dp.emplace_back( & y[ 0 ] , new LinearFunction(
+				   v_coeff_pair{ { Z( 0 ) , 1 } } , 2 ) );
+ lbf->set_dual_pairs( std::move( dp ) );
+ lbf->set_par( LagBFunction::intNoSol , 1 );
+ lbf->set_par( LagBFunction::intGPMaxSz , 3 );
+ lbf->register_Observer( r.block );
+
+ // the pool holds linearization 0 again, and nothing has been received
+ auto refill = [ & ]() {
+  if( ! lbf->is_linearization_there( 0 ) )
+   lbf->store_combination_of_linearizations( { { 0 , 1 } } , 0 , eNoMod );
+  r.clear();
+  };
+
+ // the "or" of the what() of the LagBFunctionMod received
+ auto what = [ & ]() {
+  int w = 0;
+  for( const auto & mod : r.got() )
+   if( auto lmod = std::dynamic_pointer_cast< LagBFunctionMod >( mod ) )
+    w |= lmod->what();
+  return( w );
+  };
+
+ // with no Solver on the inner Block, it reads what the LagBFunction reads,
+ // hence an abstract Modification of its Constraint is not issued under
+ // eNoBlck, while one of its Objective or of its Variable is
+ const M::ModConcern lbf_reads = M::eModPhys | M::eModObj | M::eModVarSet |
+                                 M::eModVarData | M::eModVarType;
+ assert( inner->concerned() == lbf_reads );
+ assert( ! inner->issue_mod( eNoBlck , M::eModCnsSide ) );
+ assert( ! inner->issue_mod( eNoBlck , M::eModCnsCoef | M::eModCnsSet ) );
+ assert( inner->issue_mod( eNoBlck , M::eModObj ) );
+ assert( inner->issue_mod( eNoBlck , M::eModVarData ) );
+
+ // relaxing the Constraint makes the region grow: the pool stays
+ refill();
+ c->relax( true , eModBlck );
+ assert( lbf->is_linearization_there( 0 ) );
+ assert( what() == 0 );
+
+ // enforcing it may shrink the region: only its sides have changed
+ refill();
+ c->relax( false , eModBlck );
+ assert( ! lbf->is_linearization_there( 0 ) );
+ assert( what() == 2 );
+
+ // the Function of the Constraint shifted upwards with a finite RHS: its
+ // coefficients have changed
+ refill();
+ rf->modify_coefficient( 0 , 2 , eModBlck );
+ assert( ! lbf->is_linearization_there( 0 ) );
+ assert( what() == 4 );
+
+ // fixing a Variable may shrink the region, unfixing it makes it grow
+ refill();
+ Z( 1 )->is_fixed( true , eModBlck );
+ assert( ! lbf->is_linearization_there( 0 ) );
+ assert( what() == 8 );
+ refill();
+ Z( 1 )->is_fixed( false , eModBlck );
+ assert( lbf->is_linearization_there( 0 ) );
+ assert( what() == 0 );
+
+ // a physical Modification of the inner Block may do anything
+ refill();
+ inner->add_Modification( std::make_shared< BlockMod >( inner ) );
+ assert( ! lbf->is_linearization_there( 0 ) );
+ assert( what() == 64 );
+
+ // a change of the Objective keeps the pool, and says so
+ refill();
+ of->modify_coefficient( 1 , 3 , eModBlck );
+ assert( lbf->is_linearization_there( 0 ) );
+ assert( what() == 1 );
+
+ r.clear();
+ lbf->register_Observer( nullptr );
+ delete lbf;
+ iobj->set_Block( nullptr );
+ delete iobj;
+ }
+
+/*--------------------------------------------------------------------------*/
 /* What Solution::adapt() answers: a ColVariableSolution drops the value of
  * a removed dynamic Variable and is unchanged by what does not touch what it
  * holds, a NModification invalidates it, a GroupModification combines the
@@ -2689,6 +2800,7 @@ int main( void )
  test_removed_Variable_in_stuff();
  test_dry_run();
  test_dry_run_LagBFunction();
+ test_LagBFunction_concerned();
  test_dry_run_BendersBFunction();
  test_dry_run_C05SumFunction();
  test_changes();

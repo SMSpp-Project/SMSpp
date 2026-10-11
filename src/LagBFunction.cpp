@@ -3873,26 +3873,10 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 
    }  // end( if( from the Objective of a further sub-Block ) )
 
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  // here comes the last and final case: f belongs to some [FRow]Constraint
-  // if the Function has changed unpredictably, then there is no way one
-  // can guarantee that the previous Solutions have remained feasible
-  if( std::isnan( tmod->shift() ) )
-   return( 4 );
-
-  // if the Constraint is a [F]RowConstraint, it is surely not violated
-  // if shift() > 0 and RHS == +INF or shift() < 0 and LHS == -INF,
-  // otherwise in principle it can be violated and we need to check
-  if( auto cnsobs = dynamic_cast< FRowConstraint * >( f->get_Observer() ) )
-   if( ( ( tmod->shift() > 0 ) && ( cnsobs->get_rhs() <  INF ) ) ||
-       ( ( tmod->shift() < 0 ) && ( cnsobs->get_lhs() > -INF ) ) ) {
-    f_Lc = -1;    // yet, the Lipschitz constant must be recomputed
-    return( 0 );
-    }
-
-  // this is a Function that has changed in some way we don't understand:
-  // take the safe route and re-check feasibility
-  return( 4 );
+  // what remains is the Function of some Constraint, which is dealt with
+  // below as any other Modification that does not come from an Objective
+  // [see Modification::changes()], since the abstract representation of
+  // the Constraint of the inner Block may well not be there
 
   }  // end( FunctionMod )
 
@@ -4098,119 +4082,50 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
    }  // end( if( from the Objective of a further sub-Block ) )
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  // here comes the last and final case: f belongs to some constraint
-  // in theory, adding Variable should not violate the Constraint ...
-  // but this is only true if, say, the Constraint is linear and the
-  // [Col]Variable are allowed to take the value 0. since we have no
-  // way of knowing whether or not this is true, we have to assume it is not
-  return( 4 );
+  // what remains is the Function of some Constraint, dealt with below as
+  // for FunctionMod
 
   }  // end( FunctionModVars )
 
- // VariableMod: some variables of (B) changed the status- - - - - - - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- if( const auto tmod = dynamic_cast< const VariableMod * >( mod ) ) {
-  const auto xj = dynamic_cast< const ColVariable * >( tmod->variable() );
-
-  if( ! xj )     // unknown variable type
-   return( 8 );  // no clue what is happening, take the worst case
-
-  // check the current state of the ColVariable against its previous state:
-  // if the change of state increased the set of values that the ColVariable
-  // can have then return 0 (nothing has to be done), otherwise return 8
-  // (feasibility has to be checked)
-  if( ( ( xj->is_fixed() == xj->is_fixed( tmod->old_state() ) ) ||
-	( ( ! xj->is_fixed() ) && xj->is_fixed( tmod->old_state() ) ) )
-      && ( ( xj->is_integer() == xj->is_integer( tmod->old_state() ) ) ||
-	   ( ( ! xj->is_integer() ) && xj->is_integer( tmod->old_state() ) ) )
-      && ( ( xj->is_positive() == xj->is_positive( tmod->old_state() ) ) ||
-	   ( ( ! xj->is_positive() ) && xj->is_positive( tmod->old_state() ) )
-	   )
-      && ( ( xj->is_negative() == xj->is_negative( tmod->old_state() ) ) ||
-	   ( ( ! xj->is_negative() ) && xj->is_negative( tmod->old_state() ) )
-	   )
-      && ( ( xj->is_unitary() == xj->is_unitary( tmod->old_state() ) ) ||
-	   ( ( ! xj->is_unitary() ) && xj->is_unitary( tmod->old_state() ) ) )
-      ) {
-   f_Lc = -1;    // the Lipschitz constant must be computed
-   return( 0 );
-   }
-  else
-   return( 8 );
-
-  }  // end( VariableMod )
-
- // RowConstraintMod: the LHS/RHS of some constraints of (B) changed - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- if( const auto tmod = dynamic_cast< const RowConstraintMod * >( mod ) ) {
-  // return true if the RHS and/or LHS have changed
-  // TODO: if the RHS increases or the LHS decreases in fact the feasible
-  //       region has increased and in fact false should be returned, but so
-  //       far there is no way to detect this since we don't have access to
-  //       the previous value; some work should be done on RowConstraintMod
-  if( ( tmod->type() == RowConstraintMod::eChgLHS ) ||
-      ( tmod->type() == RowConstraintMod::eChgRHS ) ||
-      ( tmod->type() == RowConstraintMod::eChgBTS ) )
-   return( 2 );
-  // otherwise do nothing, as the case is dealt with next
-  }
-
- // ConstraintMod: some constraints of (B) relaxed/enforced- - - - - - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- if( const auto tmod = dynamic_cast< const ConstraintMod * >( mod ) ) {
-  // return true if a Constraint has been enforced, since this reduces the
-  // feasible region, and false if a Constraint has been relaxed, since this
-  // enlarges the feasible region
-  f_Lc = -1;  // the Lipschitz constant must be computed
-  return( tmod->type() == ConstraintMod::eEnforceConst ? 16 : 0 );
-  }
-
- // BlockModAD - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- // BlockModAD: is_variable() && is_added() keep feasibility
- // BlockModAD: ( ! is_variable() ) && ( ! is_added() ) keep feasibility
- // THIS IS CORRECT BASED ON THE DEFINITION OF DYNAMIC Variable/Constraint IN
- // A Block, WHICH STATES THAT:
- // Similarly, dynamic Variable are "there even they are
- // not there": all dynamic Variable not explicitly generated are assumed to
- // be there in the Block set at their default value (most often, zero), and
- // it is assumed that this does not change the fact that the (explicitly
- // constructed part of the) solution is feasible.
- // THUS, GENERATING DYNAMIC Variable CANNOT MAKE A Solution UNFEASIBLE. A
- // FORTIORI NOR CAN DELETING A DYNAMIC Constraint
- if( const auto tmod = dynamic_cast< const BlockModAD * >( mod ) ) {
-  f_Lc = -1;  // the Lipschitz constant must be computed
-  return( ( tmod->is_variable() && ( ! tmod->is_added() ) ) ||
-	  ( ( ! tmod->is_variable() ) && tmod->is_added() ) ? 32 : 0 );
-  }
-
- // BlockMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- // arbitrary changes of (B) may violate the feasibility
- if( dynamic_cast< const BlockMod * >( mod ) )
-  return( 64 );
-
  // any other Modification - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- // what it does to the inner Block is what it says of itself [see
- // Modification::changes()]. One that may shrink the feasible region may
- // take away the feasibility of the Solution in the global pool, which have
- // then to be checked, as for an arbitrary change of the inner Block (64);
- // among these, the physical Modification of the inner Block, which say so
- // until the Block says more of them. An abstract one that changes the
- // Objective in a way not dealt with above is reported as unknown (128),
- // the pool being checked anyway; the Objective changed by a physical one is
- // seen through the abstract Objective, which the inner Block keeps in step
- // and whose Modification are dealt with above. Any other cannot take away
- // the feasibility of the pool, and nothing has to be done.
+ // What any Modification that does not come from an Objective does to the
+ // inner Block is what it says of itself [see Modification::changes()]:
+ // this holds for the physical ones and for the abstract ones of the
+ // Variable and of the Constraint alike, the latter possibly not being
+ // there at all since the inner Block may have no abstract representation
+ // of its Constraint. One that changes the feasible region changes the
+ // Lipschitz constant, which has then to be computed again. One that may
+ // shrink the region may take away the feasibility of the Solution in the
+ // global pool, which have then to be checked; the returned value says what
+ // has changed with the encoding of LagBFunctionMod::what(), a change that
+ // says nothing more being reported as an arbitrary one (64). An abstract
+ // Modification that changes the Objective in a way not dealt with above is
+ // reported as unknown (128), the pool being checked anyway; the Objective
+ // changed by a physical one is seen through the abstract Objective, which
+ // the inner Block keeps in step and whose Modification are dealt with
+ // above. Any other cannot take away the feasibility of the pool, and
+ // nothing has to be done.
 
- if( mod->may_shrink_region() )
-  return( 64 );
+ if( mod->may_shrink_region() || mod->may_grow_region() )
+  f_Lc = -1;
 
- if( mod->is_abstract() && mod->changes_objective() )
-  return( char( 128 ) );
+ if( ! mod->may_shrink_region() )
+  return( mod->is_abstract() && mod->changes_objective() ? char( 128 ) : 0 );
 
- return( 0 );
+ char what = 0;
+ if( mod->is_physical() )
+  what |= 64;
+ if( mod->changes_structure() )
+  what |= 32;
+ else {
+  if( mod->changes_variables() )
+   what |= 8;
+  if( mod->changes_constraints() )
+   what |= mod->changes_only_sides() ? 2 : 4;
+  }
+
+ return( what ? what : char( 64 ) );
 
  }  // end( LagBFunction::guts_of_guts_of_add_Modification )
 

@@ -1742,6 +1742,35 @@ class LagBFunction : public C05Function , public Block
 
  [[nodiscard]] bool anyone_there( void ) const override { return( true ); }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the kinds of Modification of the inner Block the LagBFunction reads
+ /** The LagBFunction reads of the inner Block only what it needs to keep its
+  * data structures up to date [see anyone_there()], so that what nobody
+  * else reads need not be issued [see Observer::issue_mod()]:
+  *
+  * - the abstract Modification of the Objective (eModObj), which keep the
+  *   CostMatrix in step, and those of the set of the Variable (eModVarSet),
+  *   which the Function of the Objective issues when its Variable change;
+  *
+  * - the physical Modification (eModPhys), which say how the feasible
+  *   region of the inner Block changes, since the abstract representation
+  *   of its Constraint may not be there;
+  *
+  * - the Modification of the Variable (eModVarData and eModVarType), whose
+  *   fixing and integrality may take away the feasibility of the Solution
+  *   in the global pool.
+  *
+  * The abstract Modification of the Constraint are not read, hence an
+  * inner Block that has no other use for them need not issue them; those
+  * that come anyway are dealt with through what they say of themselves
+  * [see Modification::changes()]. */
+
+ [[nodiscard]] Modification::ModConcern concerned_by( void ) const override {
+  return( Modification::eModPhys | Modification::eModObj |
+	  Modification::eModVarSet | Modification::eModVarData |
+	  Modification::eModVarType );
+  }
+
 /** @} ---------------------------------------------------------------------*/
 /*---------- METHODS FOR PRINING/SAVING THE DATA OF THE LagBFunction -------*/
 /*--------------------------------------------------------------------------*/
@@ -3287,27 +3316,34 @@ class LagBFunction : public C05Function , public Block
  *       objective (if any) has changed so that the function values have only
  *       been shifted by a constant.
  *
- *   1 = the LHS/RHS of some Constraint in the inner Block (possibly
- *       comprised the bounds on the ColVariable implemented via the
- *       OneVarConstraint, but not the "inherent" ones) have changed.
+ *   1 = only the sides of some Constraint in the inner Block have changed
+ *       (possibly comprised the bounds on the ColVariable implemented via
+ *       the OneVarConstraint, but not the "inherent" ones), or a relaxed
+ *       Constraint has been enforced.
  *
- *   2 = the coefficients in some of the Constraint in the inner Block have
- *       changed.
+ *   2 = the coefficients, or anything else besides the sides, of some of
+ *       the Constraint in the inner Block have changed.
  *
  *   3 = some Variable in the inner Block has changed state (fixed/unfixed,
  *       changed type ...) in a way that can take away feasibility
  *
- *   4 = some previously relaxed Constraint in the inner Block has been
- *       enforced (relaxing cannot take away feasibility and therefore is
- *       not an issue)
+ *   4 = not used.
  *
- *   5 = some dynamic Variable has been removed or some dynamic Constraint
- *       has been added (it is assumed that adding Variable or removing
- *       Constraint cannot take away feasibility and therefore is not an
- *       issue)
+ *   5 = some Variable or Constraint has been added or removed in a way
+ *       that can take away feasibility, e.g., some dynamic Variable has been
+ *       removed or some dynamic Constraint has been added (it is assumed
+ *       that adding Variable or removing Constraint cannot take away
+ *       feasibility and therefore is not an issue)
  *
- *   6 = some other arbitrary change in a Block (a BlockMod), that can
- *       therefore take away feasibility
+ *   6 = some physical or otherwise arbitrary change of the inner Block that
+ *       can take away feasibility
+ *
+ *   7 = the Objective of the inner Block has changed in a way that the
+ *       LagBFunction does not know, e.g., its sense
+ *
+ * Bits 1 to 6 are decided by what the original Modification says of itself
+ * [see Modification::changes()], not by its type, and they are set only if
+ * the Modification may shrink the feasible region.
  *
  * Note that a single LagBFunctionMod may have more than one bit set to 1
  * (and surely it has at least one of them), since multiple original
