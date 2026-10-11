@@ -523,7 +523,7 @@ void MasterProblemBlock::register_Solver(
 
 void MasterProblemBlock::configure(
                           bool primal ,
-                          int max_bundle_size ,
+                          int max_cuts_per_cmp ,
                           int num_vars ,
                           int num_hard_cmps ,
                           const std::vector< C05Function * > &
@@ -537,7 +537,7 @@ void MasterProblemBlock::configure(
                                                           easy_local2global )
 {
  // - - - sanity checks - - - - - - - - - - - - - - - - - - - - - - - - - -
- if( max_bundle_size < 0 || num_vars < 0 || num_hard_cmps < 0 )
+ if( max_cuts_per_cmp < 0 || num_vars < 0 || num_hard_cmps < 0 )
   throw( std::invalid_argument(
        "MasterProblemBlock::configure: negative size" ) );
  if( hard_cmp_scaling < 0 || hard_cmp_scaling > 3 )
@@ -551,7 +551,7 @@ void MasterProblemBlock::configure(
  // - - - sizes / form / stabilisation - - - - - - - - - - - - - - - - - - -
  // SetDim() starts from a clean slate (it calls clear()) and re-initialises
  // MaxBSize / NumVars / NoTotCmps / NoEasyCmps / NoHardCmps
- SetDim( max_bundle_size , num_vars , n_total , n_easy );
+ SetDim( max_cuts_per_cmp , num_vars , n_total , n_easy );
  EasyLBFCns.resize( n_total );
 
  // record the per-global-k easy/hard flag so the per-cmp getters
@@ -5332,7 +5332,7 @@ void MasterProblemBlock::add_vars( int n ,
     if( slot < int( supplied.size() ) && ! supplied[ slot ].empty() )
      throw( std::invalid_argument(
           "MasterProblemBlock::add_vars: coefficients supplied for an "
-          "empty bundle slot" ) );
+          "empty cut slot" ) );
     continue;
     }
    if( loc >= nr || seen[ loc ] )
@@ -5352,7 +5352,7 @@ void MasterProblemBlock::add_vars( int n ,
        ++slot )
    if( ! supplied[ slot ].empty() )
     throw( std::invalid_argument(
-         "MasterProblemBlock::add_vars: bundle slot out of range" ) );
+         "MasterProblemBlock::add_vars: cut slot out of range" ) );
   }
 
  const auto chnl = open_channel();

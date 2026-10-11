@@ -420,7 +420,7 @@ class MasterProblemBlock : public Block {
   *                          only LagBFunction. Any other C05Function
   *                          type, or a mismatch with \p primal, makes
   *                          configure() throw.
-  * @param max_bundle_size   maximum number of items (subgradients +
+  * @param max_cuts_per_cmp  maximum number of items (subgradients +
   *                          feasibility cuts) kept per hard component;
   *                          stored in #MaxBSize.
   * @param num_vars          number of optimization variables in the
@@ -462,7 +462,7 @@ class MasterProblemBlock : public Block {
   *        enables global epigraph scaling. Thus 0 = none, 1 = local only,
   *        2 = global only, 3 = both. */
  void configure( bool primal ,
-                 int max_bundle_size ,
+                 int max_cuts_per_cmp ,
                  int num_vars ,
                  int num_hard_cmps ,
                  const std::vector< C05Function * > & easy_components ,
