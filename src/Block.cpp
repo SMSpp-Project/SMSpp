@@ -27,6 +27,7 @@
 #include "AbstractBlock.h"
 #include "Block.h"
 #include "Constraint.h"
+#include "NcMemFile.h"
 #include "Objective.h"
 #include "Solution.h"
 #include "Variable.h"
@@ -243,6 +244,47 @@ Block::almost_deserialize( const netCDF::NcFile & f , unsigned int idx ,
  return( std::pair( netCDF::NcGroup() , nullptr )  );
 
  }  // end( Block::almost_deserialize( netCDF::NcFile ) )
+
+/*--------------------------------------------------------------------------*/
+
+Block * Block::deserialize( std::span< const unsigned char > image ,
+			    unsigned int idx , Block * father ,
+			    std::function< void( Block * ) > * f )
+{
+ try {
+  NcMemFile file( image );
+  return( Block::deserialize( file , idx , father , f ) );
+  }
+ catch( netCDF::exceptions::NcException & e ) {
+  std::cerr << "netCDF error " << e.what() << " in deserialize( image )"
+	    << std::endl;
+  }
+ catch( std::exception & e ) {
+  std::cerr << "error " << e.what() << " in deserialize( image )"
+	    << std::endl;
+  }
+ catch( ... ) {
+  std::cerr << "unknown error in deserialize( image )" << std::endl;
+  }
+
+ return( nullptr );
+
+ }  // end( Block::deserialize( image ) )
+
+/*--------------------------------------------------------------------------*/
+
+void Block::serialize( std::vector< unsigned char > & image , int type )
+ const
+{
+ if( ( type != eProbFile ) && ( type != eBlockFile ) )
+  throw( std::invalid_argument(
+		     "Block::serialize: invalid SMS++ netCDF file type" ) );
+
+ NcMemFile f;
+ f.putAtt( "SMS++_file_type" , netCDF::NcInt() , type );
+ serialize( f , type );
+ f.close( image );
+ }  // end( Block::serialize( image ) )
 
 /*--------------------------------------------------------------------------*/
 

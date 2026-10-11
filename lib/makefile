@@ -56,6 +56,7 @@ SMS++OBJ = $(SMS++SDR)/obj/AbstractBlock.o \
 	$(SMS++SDR)/obj/LagBFunction.o \
 	$(SMS++SDR)/obj/LinearFunction.o \
 	$(SMS++SDR)/obj/MasterProblemBlock.o \
+	$(SMS++SDR)/obj/NcMemFile.o \
 	$(SMS++SDR)/obj/Objective.o \
 	$(SMS++SDR)/obj/OneVarConstraint.o \
 	$(SMS++SDR)/obj/PolyhedralFunction.o \
@@ -101,6 +102,7 @@ SMS++H = $(SMS++SDR)/include/AbstractBlock.h \
 	$(SMS++SDR)/include/LinearFunction.h \
 	$(SMS++SDR)/include/Modification.h \
 	$(SMS++SDR)/include/MasterProblemBlock.h \
+	$(SMS++SDR)/include/NcMemFile.h \
 	$(SMS++SDR)/include/Objective.h \
 	$(SMS++SDR)/include/Observer.h \
 	$(SMS++SDR)/include/OneVarConstraint.h \
@@ -178,8 +180,12 @@ $(SMS++SDR)/obj/BendersBlock.o: $(SMS++SDR)/src/BendersBlock.cpp \
 
 $(SMS++SDR)/obj/Block.o: $(SMS++SDR)/src/Block.cpp $(intBlockINC) \
 	$(SMS++SDR)/include/Constraint.h $(SMS++SDR)/include/Objective.h \
-	$(SMS++SDR)/include/Variable.h
+	$(SMS++SDR)/include/Variable.h $(SMS++SDR)/include/NcMemFile.h
 	$(CC) -c $(SMS++SDR)/src/Block.cpp -o $@ $(SMS++INC) $(SW)
+
+$(SMS++SDR)/obj/NcMemFile.o: $(SMS++SDR)/src/NcMemFile.cpp \
+	$(SMS++SDR)/include/NcMemFile.h
+	$(CC) -c $(SMS++SDR)/src/NcMemFile.cpp -o $@ $(SMS++INC) $(SW)
 
 $(SMS++SDR)/obj/BlockSolverConfig.o: $(SMS++SDR)/src/BlockSolverConfig.cpp \
 	$(SMS++SDR)/include/BlockSolverConfig.h $(intBlockINC)

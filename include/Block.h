@@ -1247,6 +1247,37 @@ class Block : public Observer {
 			    Block * father = nullptr );
 
 /*--------------------------------------------------------------------------*/
+ /// de-serialize a :Block out of the image of an SMS++ netCDF file
+ /** Second-level de-serialization method: does the same as
+  * deserialize( netCDF::NcFile , unsigned int ) on the SMS++ netCDF file
+  * whose image (its bytes) is \p image, as written by
+  * serialize( std::vector< unsigned char > & ) or read from a file, without
+  * the file being on disk. The bytes are read where they are, without being
+  * copied, and are not needed after the method returns. Anything going
+  * wrong (\p image is not a netCDF file, or any of the reasons for which
+  * deserialize( netCDF::NcFile , unsigned int ) fails) results in nullptr
+  * being returned.
+  *
+  * Together with serialize( std::vector< unsigned char > & ), this gives a
+  * copy of a :Block as it is now, the changes made to it after it was
+  * loaded included, without passing through the filesystem:
+  *
+  *      std::vector< unsigned char > image;
+  *      myBlock->serialize( image );
+  *      auto copy = Block::deserialize( image );
+  *
+  * where myBlock is a Block *; through a pointer to a :Block, which
+  * re-defines serialize( netCDF::NcGroup & ) and so hides the other forms,
+  * the call is myBlock->Block::serialize( image ), as for the filename.
+  *
+  * The in-memory netCDF files need netCDF-C 4.6.2 or later, see
+  * NcMemFile.h. */
+
+ static Block * deserialize( std::span< const unsigned char > image ,
+			     unsigned int idx = 0 , Block * father = nullptr ,
+			     std::function< void( Block * ) > * f = nullptr );
+
+/*--------------------------------------------------------------------------*/
  /// de-serialize a :Block out of netCDF::NcGroup, returns it
  /** Third-level de-serialization method: takes a netCDF::NcGroup supposedly
   * containing  (all the information describing) a :Block (either "directly"
@@ -6948,6 +6979,29 @@ class Block : public Observer {
 
   serialize( f , type );
   }
+
+/*--------------------------------------------------------------------------*/
+ /// serialize a Block (recursively) to the image of a netCDF file
+ /** Top-level method to serialize a Block (recursively) to an SMS++ netCDF
+  * file of type \p type held in memory, whose image (its bytes) replaces
+  * the content of \p image: the same as serialize( std::string , int ,
+  * bool ) with \p image in place of the file, except that an image cannot
+  * be appended to [see NcMemFile.h], so the new file holds the Block alone.
+  * Several Block go in the same image by writing them, with
+  * serialize( netCDF::NcFile & , int ), in the same NcMemFile before closing
+  * it. The image is a netCDF-4 file that deserialize( std::span< const
+  * unsigned char > , unsigned int ) reads back, and that can also be written
+  * to disk and read by deserialize( std::string ), although its bytes need
+  * not be those that serialize( std::string , int , bool ) writes [see
+  * NcMemFile.h]; with the same libraries, the same Block gives the same
+  * bytes. If anything goes wrong, exception is thrown and \p image is left
+  * as it was.
+  *
+  * The in-memory netCDF files need netCDF-C 4.6.2 or later, see
+  * NcMemFile.h. */
+
+ void serialize( std::vector< unsigned char > & image ,
+		 int type = eProbFile ) const;
 
 /*--------------------------------------------------------------------------*/
  /// serialize a Block (recursively) to an open netCDF file
