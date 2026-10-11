@@ -34,6 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   function has no active Variable yet, e.g., in a PolyhedralFunctionBlock
   just deserialized, which was written back with no column and so lost A
 
+- `Block::serialize( std::string , int , false )` throws if the file is there
+  and cannot be opened for appending, leaving it as it was, rather than
+  writing a new file over it; a file that is not there is still created
+
 ## [0.8.0] - 2026-10-09
 
 ### Added

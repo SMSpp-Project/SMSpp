@@ -45,6 +45,7 @@
 #include <chrono>
 #include <cmath>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <limits>
 #include <map>
@@ -1207,6 +1208,66 @@ static void test_constants( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* serialize( std::string , int , false ) appends to the file, creating it if
+ * it is not there, and throws if it is there and cannot be appended to,
+ * leaving it as it was rather than writing over it. */
+
+static void test_append_to_file( void )
+{
+ const auto fn = ( std::filesystem::temp_directory_path() /
+		   ( "smspp_NetCDF_test_append_" + std::to_string(
+       std::chrono::steady_clock::now().time_since_epoch().count() ) +
+		     ".nc4" ) ).string();
+
+ AbstractBlock a;
+ auto x = new std::vector< ColVariable >( 1 );
+ a.add_static_variable( *x , "x" );
+ a.set_objective( new FRealObjective( & a , linear( *x , { 2 } ) ) ,
+		  eNoMod );
+ AbstractBlock b;
+ auto y = new std::vector< ColVariable >( 2 );
+ b.add_static_variable( *y , "y" );
+ b.set_objective( new FRealObjective( & b , linear( *y , { 1 , 3 } ) ) ,
+		  eNoMod );
+
+ // not there: created
+ std::filesystem::remove( fn );
+ a.Block::serialize( fn , eBlockFile , false );
+ b.Block::serialize( fn , eBlockFile , false );
+ {
+  netCDF::NcFile f( fn , netCDF::NcFile::read );
+  auto r0 = Block::deserialize( f , 0 );
+  auto r1 = Block::deserialize( f , 1 );
+  assert( r0 && same( model_of( *r0 ) , model_of( a ) ) );
+  assert( r1 && same( model_of( *r1 ) , model_of( b ) ) );
+  assert( ! Block::deserialize( f , 2 ) );
+  delete r0;
+  delete r1;
+  }
+
+ // there and not a netCDF file: an exception, and the file as it was
+ {
+  std::ofstream out( fn , std::ios::trunc );
+  out << "not a netCDF file" << std::endl;
+  }
+ bool thrown = false;
+ try { a.Block::serialize( fn , eBlockFile , false ); }
+ catch( std::runtime_error & e ) {
+  thrown = ( std::string( e.what() ).rfind( "Block::serialize: " , 0 ) == 0 );
+  }
+ assert( thrown );
+ {
+  std::ifstream in( fn );
+  std::string line;
+  std::getline( in , line );
+  assert( line == "not a netCDF file" );
+  }
+
+ std::filesystem::remove( fn );
+ std::cout << "appending to a file: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
 /*----------------------------------- MAIN ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1220,6 +1281,7 @@ int main( void )
  test_benders_state();
  test_lagrangian_function();
  test_constants();
+ test_append_to_file();
 
  std::filesystem::remove( nc_file() );
 
