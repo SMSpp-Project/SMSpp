@@ -502,6 +502,15 @@ static void test_polyhedral_function_block( void )
   check_pf( rpf , pf );
   assert( rpf.get_A()[ 0 ].size() == 3 );
 
+  // what has been read, with no Variable given to it yet, is written as it
+  // was read: the columns of A are those of the matrix
+  auto again = dynamic_cast< PolyhedralFunctionBlock * >(
+						      round_trip( *read ) );
+  assert( again );
+  check_pf( again->get_PolyhedralFunction() , pf );
+  assert( again->get_PolyhedralFunction().get_A()[ 0 ].size() == 3 );
+  delete again;
+
   // the Variable are not part of the format: those given afterwards must
   // be as many as the columns of A
   rpf.set_variables( { & x[ 0 ] , & x[ 1 ] , & x[ 2 ] } );

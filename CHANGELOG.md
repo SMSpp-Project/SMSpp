@@ -30,6 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   every netCDF round trip of an AbstractBlock, and a row with a constant
   term was read back as a different row
 
+- `PolyhedralFunction::serialize()` writes the columns of A also when the
+  function has no active Variable yet, e.g., in a PolyhedralFunctionBlock
+  just deserialized, which was written back with no column and so lost A
+
 ## [0.8.0] - 2026-10-09
 
 ### Added

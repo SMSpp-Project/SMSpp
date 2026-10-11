@@ -829,7 +829,9 @@ Function::FunctionValue PolyhedralFunction::get_linearization_constant(
 
 void PolyhedralFunction::serialize( netCDF::NcGroup & group ) const
 {
- c_Index nvar = get_num_active_var();
+ // the columns of A, which are there also when the Variable are not
+ c_Index nvar = get_num_active_var() ? get_num_active_var() :
+  ( v_A.empty() ? 0 : v_A.front().size() );
 
  netCDF::NcDim nv = group.addDim( "PolyFunction_NumVar" , nvar );
 
