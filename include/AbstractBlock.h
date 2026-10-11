@@ -874,7 +874,9 @@ class AbstractBlock : public Block
   * format, and every column is written in the Objective with its cost, even
   * when this is zero, so that read_lp(), which numbers the columns in the
   * order it first meets them, gives them back in the order they have in the
-  * Block. */
+  * Block. The constant term of the Objective, and that of a row, is written
+  * after the terms, where read_lp() reads it: in the Objective it stays, in
+  * a row it is moved to the sides. */
 
  void write_lp( std::ostream & output ) const;
 

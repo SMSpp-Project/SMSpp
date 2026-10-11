@@ -1122,6 +1122,82 @@ static void test_lagrangian_function( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* The constant terms of an AbstractBlock: that of the Objective, positive,
+ * negative and alone, comes back as it is; that of a row comes back moved to
+ * its sides, the row being the same. */
+
+static void test_constants( void )
+{
+ for( double c0 : { 0.25 , -3.5 } ) {
+  AbstractBlock block;
+  auto x = new std::vector< ColVariable >( 2 );
+  block.add_static_variable( *x , "x" );
+  block.set_objective( new FRealObjective( & block ,
+					   linear( *x , { 1 , -2 } , c0 ) ) ,
+		       eNoMod );
+  auto read = round_trip( block );
+  assert( read && same( model_of( *read ) , model_of( block ) ) );
+  assert( model_of( *read ).obj_const == c0 );
+  delete read;
+  }
+
+ // a constant and no term: every cost is zero
+ {
+  AbstractBlock block;
+  auto x = new std::vector< ColVariable >( 2 );
+  block.add_static_variable( *x , "x" );
+  block.set_objective( new FRealObjective( & block ,
+					   linear( *x , { 0 , 0 } , 7 ) ) ,
+		       eNoMod );
+  auto read = round_trip( block );
+  assert( read && same( model_of( *read ) , model_of( block ) ) );
+  assert( model_of( *read ).obj_const == 7 );
+  delete read;
+  }
+
+ // 1 <= x0 + x1 + 2 <= 5 is -1 <= x0 + x1 <= 3, and x0 - 0.5 = 1 is x0 = 1.5
+ {
+  AbstractBlock block;
+  auto x = new std::vector< ColVariable >( 2 );
+  block.add_static_variable( *x , "x" );
+  auto rows = new std::vector< FRowConstraint >( 2 );
+  ( *rows )[ 0 ].set_function( linear( *x , { 1 , 1 } , 2 ) );
+  ( *rows )[ 0 ].set_lhs( 1 );
+  ( *rows )[ 0 ].set_rhs( 5 );
+  ( *rows )[ 1 ].set_function( linear( *x , { 1 , 0 } , -0.5 ) );
+  ( *rows )[ 1 ].set_both( 1 );
+  block.add_static_constraint( *rows , "r" );
+  block.set_objective( new FRealObjective( & block ,
+					   linear( *x , { 1 , 1 } ) ) ,
+		       eNoMod );
+
+  auto read = round_trip( block );
+  assert( read );
+  const auto m = model_of( *read );
+  assert( m.rows.size() == 3 );
+  using Row = Model::Row;
+  const std::vector< std::pair< Index , double > > both{ { 0 , 1 } ,
+							 { 1 , 1 } };
+  const std::vector< std::pair< Index , double > > first{ { 0 , 1 } };
+  std::vector< Row > expected{ { both , -1 , Inf< double >() } ,
+			       { both , - Inf< double >() , 3 } ,
+			       { first , 1.5 , 1.5 } };
+  std::sort( expected.begin() , expected.end() );
+  assert( m.rows == expected );
+  read->for_each_constraint_group( [ & ]( const BaseGroup & g ) {
+    for( Index i = 0 ; i < g.get_num_elements() ; ++i )
+     if( auto r = dynamic_cast< const FRowConstraint * >(
+						    g.get_Constraint( i ) ) )
+      assert( static_cast< const LinearFunction * >( r->get_function() )
+	      ->get_constant_term() == 0 );
+    } );
+  delete read;
+  }
+
+ std::cout << "constant terms of an AbstractBlock: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
 /*----------------------------------- MAIN ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1134,6 +1210,7 @@ int main( void )
  test_benders_function();
  test_benders_state();
  test_lagrangian_function();
+ test_constants();
 
  std::filesystem::remove( nc_file() );
 

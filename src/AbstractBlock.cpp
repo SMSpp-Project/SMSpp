@@ -666,9 +666,19 @@ void AbstractBlock::write_lp( std::ostream & output ) const
    output << "0";   // format wants something there, the constant 0
   };
 
- auto write_linear = [ & write_terms , & terms_of ](
+ // the constant term of a LinearFunction after its terms, if it is not 0
+ auto write_constant = [ & output ]( const LinearFunction * f ) {
+  const double c = f->get_constant_term();
+  if( c == 0 )
+   return;
+  output << ( c < 0 ? " - " : " + " );
+  put_double( output , std::abs( c ) );
+  };
+
+ auto write_linear = [ & write_terms , & terms_of , & write_constant ](
 					       const LinearFunction * f ) {
   write_terms( terms_of( f ) );
+  write_constant( f );
   };
 
  // the Objective - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -698,6 +708,8 @@ void AbstractBlock::write_lp( std::ostream & output ) const
    terms.emplace_back( var , ( it == cost.end() ) ? 0 : it->second );
    }
   write_terms( terms );
+  if( obj )
+   write_constant( linear_of( obj->get_function() , "the Objective" ) );
   }
  output << std::endl;
 

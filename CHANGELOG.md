@@ -25,6 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   throw `std::invalid_argument` with the list, its items and what they are
   active in left as they were, rather than half-spliced
 
+- `AbstractBlock::write_lp()` writes the constant term of the Objective and
+  of the rows, which it left out: the constant of the Objective was lost in
+  every netCDF round trip of an AbstractBlock, and a row with a constant
+  term was read back as a different row
+
 ## [0.8.0] - 2026-10-09
 
 ### Added
