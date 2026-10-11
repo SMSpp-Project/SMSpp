@@ -121,7 +121,10 @@ Unit tests for the core SMS++ library. Each test is registered as a separate
   empty cases included, the LP files `read_lp()` has to refuse, and those of
   the `State` of the `PolyhedralFunction`, of the `BendersBFunction` and of
   the `LagBFunction`, both the one of `get_State()` and the one written by
-  `serialize_State()`.
+  `serialize_State()`; and the round trip of a `Block` with nested `Block`
+  through the image of a netCDF file in memory (`NcMemFile`), against the
+  one through a file on disk, before and after its data are changed, with
+  several `Block` in one image and with what is not an image.
 
 These are built and run through CMake / ctest (there is no makefile here);
 all of them passing is a good sign that no regressions have been introduced
