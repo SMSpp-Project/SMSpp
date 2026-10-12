@@ -972,6 +972,18 @@ Block::MF_sp_int_sbst_map & Block::methods_sp_int_sbst_factory( void )
  return( f );
  }
 
+Block::MF_sp_dbl2_rngd_map & Block::methods_sp_dbl2_rngd_factory( void )
+{
+ static MF_sp_dbl2_rngd_map f;
+ return( f );
+ }
+
+Block::MF_sp_dbl2_sbst_map & Block::methods_sp_dbl2_sbst_factory( void )
+{
+ static MF_sp_dbl2_sbst_map f;
+ return( f );
+ }
+
 Block::MF_qry_dbl_rngd_map & Block::queries_dbl_rngd_factory( void )
 {
  static MF_qry_dbl_rngd_map f;
@@ -993,6 +1005,18 @@ Block::MF_qry_int_rngd_map & Block::queries_int_rngd_factory( void )
 Block::MF_qry_int_sbst_map & Block::queries_int_sbst_factory( void )
 {
  static MF_qry_int_sbst_map f;
+ return( f );
+ }
+
+Block::MF_qry_dbl2_rngd_map & Block::queries_dbl2_rngd_factory( void )
+{
+ static MF_qry_dbl2_rngd_map f;
+ return( f );
+ }
+
+Block::MF_qry_dbl2_sbst_map & Block::queries_dbl2_sbst_factory( void )
+{
+ static MF_qry_dbl2_sbst_map f;
  return( f );
  }
 

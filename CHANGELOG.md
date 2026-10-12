@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- the methods factory has families that take two values per Index, each in
+  a span of its own, for the setters (`MS_sp_dbl2_rngd` and
+  `MS_sp_dbl2_sbst`) and for the queries (`MS_qry_dbl2_rngd` and
+  `MS_qry_dbl2_sbst`), which lets a Block whose items have two parameters of
+  the same kind
+
 - `Constraint::clear()` and `ColVariable::is_feasible()` of any container
   of the items, of any container of containers of them and of a
   `boost::multi_array` of containers of them (e.g., a `std::deque`, a

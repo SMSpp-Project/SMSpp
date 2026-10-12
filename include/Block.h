@@ -761,6 +761,13 @@ class Block : public Observer {
  /// type for ( int , subset ) functions, span form
  using MS_sp_int_sbst = arg_packer< MF_int_sp , Subset && , bool >;
 
+ /// type for ( double , double , range ) functions, span form
+ using MS_sp_dbl2_rngd = arg_packer< MF_dbl_sp , MF_dbl_sp , Range >;
+
+ /// type for ( double , double , subset ) functions, span form
+ using MS_sp_dbl2_sbst = arg_packer< MF_dbl_sp , MF_dbl_sp , Subset && ,
+                                     bool >;
+
  /// type for ( double , range ) queries
  using MS_qry_dbl_rngd = arg_packer< MF_dbl_msp , Range >;
 
@@ -772,6 +779,13 @@ class Block : public Observer {
 
  /// type for ( int , subset ) queries
  using MS_qry_int_sbst = arg_packer< MF_int_msp , c_Subset & , bool >;
+
+ /// type for ( double , double , range ) queries
+ using MS_qry_dbl2_rngd = arg_packer< MF_dbl_msp , MF_dbl_msp , Range >;
+
+ /// type for ( double , double , subset ) queries
+ using MS_qry_dbl2_sbst = arg_packer< MF_dbl_msp , MF_dbl_msp , c_Subset & ,
+                                      bool >;
 
  /// typedef for the bimap used by one methods factory
  template< class F >
@@ -798,6 +812,12 @@ class Block : public Observer {
  using MF_sp_int_sbst_map = MethodsFactoryMap< FunctionType<
   MF_int_sp , Subset && , bool > >;
 
+ /// two values per Index, in two spans
+ using MF_sp_dbl2_rngd_map = MethodsFactoryMap< FunctionType<
+  MF_dbl_sp , MF_dbl_sp , Range > >;
+ using MF_sp_dbl2_sbst_map = MethodsFactoryMap< FunctionType<
+  MF_dbl_sp , MF_dbl_sp , Subset && , bool > >;
+
  /// canonical factory types for the standard query signatures
  using MF_qry_dbl_rngd_map = MethodsFactoryMap< QueryType<
   MF_dbl_msp , Range > >;
@@ -807,6 +827,10 @@ class Block : public Observer {
   MF_int_msp , Range > >;
  using MF_qry_int_sbst_map = MethodsFactoryMap< QueryType<
   MF_int_msp , c_Subset & , bool > >;
+ using MF_qry_dbl2_rngd_map = MethodsFactoryMap< QueryType<
+  MF_dbl_msp , MF_dbl_msp , Range > >;
+ using MF_qry_dbl2_sbst_map = MethodsFactoryMap< QueryType<
+  MF_dbl_msp , MF_dbl_msp , c_Subset & , bool > >;
 
 /** @} ---------------------------------------------------------------------*/
 
@@ -5979,12 +6003,18 @@ class Block : public Observer {
  *   Those of a getter have the same form, with a mutable span as data,
  *   MF_dbl_msp or MF_int_msp, and no ModParam.
  *
+ *   An item of the slice may carry two values instead of one, say a unit
+ *   with two sizes: a setter then takes two MF_dbl_sp, the h-th value of
+ *   each for the h-th Index in slice, and a getter two MF_dbl_msp, written
+ *   the same way. These come only with spans.
+ *
  * These parameter type lists are "encoded" in the predefined types
  * MS[_D]_S with D in { dbl , int } (or not there) and S in { rngd , sbst },
  * representing (in obvious ways) the possible interfaces; the MS_sp_D_S,
  * with D in { dbl , int }, are the same ones with the data as a span, and
  * the MS_qry_D_S, with the same D, those of a getter writing through a
- * mutable span. Specific versions of register_method(), get_method_fs(),
+ * mutable span; MS_sp_dbl2_S and MS_qry_dbl2_S are the setter and the
+ * getter with two values per Index. Specific versions of register_method(), get_method_fs(),
  * get_method_name_fs() and get_query_fs() are provided which take a final
  *
  *     MS[_D]_S::args()
@@ -7923,6 +7953,10 @@ class Block : public Observer {
 
  static MF_sp_int_sbst_map & methods_sp_int_sbst_factory( void );
 
+ static MF_sp_dbl2_rngd_map & methods_sp_dbl2_rngd_factory( void );
+
+ static MF_sp_dbl2_sbst_map & methods_sp_dbl2_sbst_factory( void );
+
  static MF_qry_dbl_rngd_map & queries_dbl_rngd_factory( void );
 
  static MF_qry_dbl_sbst_map & queries_dbl_sbst_factory( void );
@@ -7930,6 +7964,10 @@ class Block : public Observer {
  static MF_qry_int_rngd_map & queries_int_rngd_factory( void );
 
  static MF_qry_int_sbst_map & queries_int_sbst_factory( void );
+
+ static MF_qry_dbl2_rngd_map & queries_dbl2_rngd_factory( void );
+
+ static MF_qry_dbl2_sbst_map & queries_dbl2_sbst_factory( void );
 
 /** @} ---------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
@@ -8348,6 +8386,23 @@ struct Block::methods_factory_accessor<
 
 template<>
 struct Block::methods_factory_accessor<
+ Block::FunctionType< Block::MF_dbl_sp , Block::MF_dbl_sp , Block::Range > > {
+ static Block::MF_sp_dbl2_rngd_map & get( void ) {
+  return( Block::methods_sp_dbl2_rngd_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor<
+ Block::FunctionType< Block::MF_dbl_sp , Block::MF_dbl_sp , Block::Subset && ,
+                      bool > > {
+ static Block::MF_sp_dbl2_sbst_map & get( void ) {
+  return( Block::methods_sp_dbl2_sbst_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor<
  Block::QueryType< Block::MF_dbl_msp , Block::Range > > {
  static Block::MF_qry_dbl_rngd_map & get( void ) {
   return( Block::queries_dbl_rngd_factory() );
@@ -8375,6 +8430,23 @@ struct Block::methods_factory_accessor<
  Block::QueryType< Block::MF_int_msp , Block::c_Subset & , bool > > {
  static Block::MF_qry_int_sbst_map & get( void ) {
   return( Block::queries_int_sbst_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor<
+ Block::QueryType< Block::MF_dbl_msp , Block::MF_dbl_msp , Block::Range > > {
+ static Block::MF_qry_dbl2_rngd_map & get( void ) {
+  return( Block::queries_dbl2_rngd_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor<
+ Block::QueryType< Block::MF_dbl_msp , Block::MF_dbl_msp , Block::c_Subset & ,
+                   bool > > {
+ static Block::MF_qry_dbl2_sbst_map & get( void ) {
+  return( Block::queries_dbl2_sbst_factory() );
  }
 };
 
