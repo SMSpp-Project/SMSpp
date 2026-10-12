@@ -2683,7 +2683,12 @@ static void test_LagBFunction_concerned( void )
  assert( lbf->is_linearization_there( 0 ) );
  assert( what() == 0 );
 
- // a physical Modification of the inner Block may do anything
+ // a physical Modification of the inner Block may do anything, and so may
+ // an abstract one that says all the abstract kinds, as a BlockMod
+ refill();
+ inner->add_Modification( std::make_shared< PhysMod >( inner ) );
+ assert( ! lbf->is_linearization_there( 0 ) );
+ assert( what() == 64 );
  refill();
  inner->add_Modification( std::make_shared< BlockMod >( inner ) );
  assert( ! lbf->is_linearization_there( 0 ) );

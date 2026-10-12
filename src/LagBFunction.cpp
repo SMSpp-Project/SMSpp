@@ -4098,7 +4098,8 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
  // Lipschitz constant, which has then to be computed again. One that may
  // shrink the region may take away the feasibility of the Solution in the
  // global pool, which have then to be checked; the returned value says what
- // has changed with the encoding of LagBFunctionMod::what(), a change that
+ // has changed with the encoding of LagBFunctionMod::what(), a physical
+ // one, one that says all the abstract kinds (as a BlockMod) and one that
  // says nothing more being reported as an arbitrary one (64). An abstract
  // Modification that changes the Objective in a way not dealt with above is
  // reported as unknown (128), the pool being checked anyway; the Objective
@@ -4113,9 +4114,11 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
  if( ! mod->may_shrink_region() )
   return( mod->is_abstract() && mod->changes_objective() ? char( 128 ) : 0 );
 
+ const auto abst = Modification::eModAbst;
+ if( mod->is_physical() || ( ( mod->changes() & abst ) == abst ) )
+  return( 64 );
+
  char what = 0;
- if( mod->is_physical() )
-  what |= 64;
  if( mod->changes_structure() )
   what |= 32;
  else {
