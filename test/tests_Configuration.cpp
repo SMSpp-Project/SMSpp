@@ -566,7 +566,9 @@ static void test_deserialize_stream( void )
 /*--------------------------------------------------------------------------*/
 /* The "[idx]" at the end of a netCDF filename selects the Configuration of
  * an eConfigFile, the one appended by serialize( ... , false ) being the
- * second; a position that is not in the file gives nullptr. */
+ * second; a position that is not in the file gives nullptr. Appending to a
+ * file that is not there creates it, and to one that is not a netCDF file
+ * throws and leaves it as it was. */
 
 static void test_netCDF_positions( void )
 {
@@ -598,6 +600,34 @@ static void test_netCDF_positions( void )
  // a file type that is not one of a Configuration is refused
  assert( throws< std::invalid_argument >( [ & ]() {
     write_nc( first , fn , eBlockFile ); } ) );
+
+ // replace == false on a file that is not there creates it
+ std::filesystem::remove( fn );
+ write_nc( first , fn , eConfigFile , false );
+ c0 = Configuration::deserialize( fn );
+ assert( c0 && ( value_of< int >( c0 ) == 1 ) );
+ delete c0;
+
+ // and on a file that is there and cannot be appended to throws, leaving
+ // it as it was rather than writing over it
+ {
+  std::ofstream out( fn , std::ios::trunc );
+  out << "not a netCDF file" << std::endl;
+  }
+ bool thrown = false;
+ try { write_nc( first , fn , eConfigFile , false ); }
+ catch( std::runtime_error & e ) {
+  thrown = ( std::string( e.what() ).rfind( "Configuration::serialize: " ,
+					    0 ) == 0 );
+  }
+ assert( thrown );
+ {
+  std::ifstream in( fn );
+  std::string line;
+  std::getline( in , line );
+  assert( line == "not a netCDF file" );
+  }
+ std::filesystem::remove( fn );
 
  std::cout << "positions in a netCDF file: OK" << std::endl;
  }

@@ -28,6 +28,8 @@
 
 #include "SMSTypedefs.h"
 
+#include <filesystem>
+
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -522,7 +524,10 @@ class Configuration
   * default) any existing content of the file is overwritten and the
   * Configuration is saved as *the first one* in the newly created file, while
   * if  \p replace == false the file is opened for appending and the
-  * Configuration is saved after the last one currently present (if any).
+  * Configuration is saved after the last one currently present (if any); if
+  * the file is not there it is created, while if it is there but cannot be
+  * opened for appending (say, it is not a netCDF-4 file) exception is thrown
+  * and the file is left as it was.
   *
   * The base class implementation opens the netCDF file, creates the required
   * attribute "SMS++_file_type" (if the file is created anew, otherwise it is
@@ -539,10 +544,15 @@ class Configuration
    throw( std::invalid_argument( "invalid SMS++ netCDF file type" ) );
 
   netCDF::NcFile f;
-  if( ! replace ) {
+  if( ( ! replace ) && std::filesystem::exists( filename ) ) {
    try { f.open( filename , netCDF::NcFile::write ); }
-   catch( netCDF::exceptions::NcException & e ) { replace = true; }
+   catch( netCDF::exceptions::NcException & e ) {
+    throw( std::runtime_error( "Configuration::serialize: cannot open " +
+			       filename + " for appending: " + e.what() ) );
+    }
    }
+  else
+   replace = true;
   if( replace ) {
    f.open( filename , netCDF::NcFile::replace );
    f.putAtt( "SMS++_file_type", netCDF::NcInt(), type );

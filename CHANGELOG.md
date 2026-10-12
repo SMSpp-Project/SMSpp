@@ -38,6 +38,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and cannot be opened for appending, leaving it as it was, rather than
   writing a new file over it; a file that is not there is still created
 
+- `Configuration::serialize( std::string , int , false )`, likewise, throws
+  if the file is there and cannot be opened for appending, rather than
+  writing a new file over it
+
 ## [0.8.0] - 2026-10-09
 
 ### Added
