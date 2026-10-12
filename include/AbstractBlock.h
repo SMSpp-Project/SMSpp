@@ -448,6 +448,23 @@ class AbstractBlock : public Block
   return( f_lb_cond == conditional ? f_lb : - Inf< double >() );
   }
 
+/*--------------------------------------------------------------------------*/
+ /// the kinds of Modification read by anyone listening to the AbstractBlock
+ /** As Block::concerned(), except that whoever reads the physical
+  * Modification also reads all the abstract ones: in AbstractBlock the
+  * abstract representation is the physical representation, hence a change
+  * of its Variable, Constraint or Objective only shows as an abstract
+  * Modification. Note that the sub-Block of an AbstractBlock see the
+  * result as what is read by anyone listening to their father [see
+  * Block::concerned()]. */
+
+ [[nodiscard]] Modification::ModConcern concerned( void ) const override {
+  auto c = Block::concerned();
+  if( c & Modification::eModPhys )
+   c |= Modification::eModAbst;
+  return( c );
+  }
+
 /** @} ---------------------------------------------------------------------*/
 /*----- Methods for adding/removing (dynamic) Variables and Constraints ----*/
 /*--------------------------------------------------------------------------*/

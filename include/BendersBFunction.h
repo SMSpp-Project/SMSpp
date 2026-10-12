@@ -1767,6 +1767,43 @@ class BendersBFunction : public C05Function , public Block {
 
  void add_Modification( sp_Mod mod , Observer::ChnlName chnl = 0 ) override;
 
+/*--------------------------------------------------------------------------*/
+ /// the kinds of Modification of the sub-Block the BendersBFunction reads
+ /** The BendersBFunction reads of the sub-Block what may change the dual
+  * solutions of its global pool and the Constraint it handles:
+  *
+  * - the physical Modification (eModPhys), which say how the model of the
+  *   sub-Block changes, its Objective included;
+  *
+  * - the abstract Modification of the Constraint (eModCnsSide, eModCnsCoef
+  *   and eModCnsSet), since the Constraint it handles are in the abstract
+  *   representation, and so are the dynamic ones;
+  *
+  * - those of the Variable (eModVarSet, eModVarData and eModVarType).
+  *
+  * The abstract Modification of the Objective are not read, hence a
+  * sub-Block that has no other use for them need not issue them; an
+  * AbstractBlock reads them anyway, its abstract representation being its
+  * physical one [see AbstractBlock::concerned()]. */
+
+ [[nodiscard]] Modification::ModConcern concerned_by( void ) const override {
+  return( Modification::eModAnything & ~ Modification::eModObj );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the kinds of Modification read by anyone listening to the sub-Block
+ /** What the BendersBFunction reads itself [see concerned_by()] and what
+  * its Solver read: unlike in Block::concerned(), the father is left out,
+  * since the Modification of the sub-Block stop at the BendersBFunction
+  * [see add_Modification()]. */
+
+ [[nodiscard]] Modification::ModConcern concerned( void ) const override {
+  auto c = concerned_by();
+  for( auto slvr : v_Solver )
+   c |= slvr->concerned_by();
+  return( c );
+  }
+
 /** @} ---------------------------------------------------------------------*/
 /*------------ METHODS FOR Saving THE DATA OF THE BendersBFunction ---------*/
 /*--------------------------------------------------------------------------*/
@@ -2913,10 +2950,6 @@ void print( std::ostream & output ) override {
 
  function_value_behaviour get_behaviour( std::shared_ptr< BlockModAD > mod );
 
-/*--------------------------------------------------------------------------*/
- /// returns the behaviour of this Function considering the given Modification
-
- function_value_behaviour get_behaviour( std::shared_ptr< ConstraintMod > mod );
 
 /*--------------------------------------------------------------------------*/
  /// returns the behaviour of this Function considering the given Modification

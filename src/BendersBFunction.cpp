@@ -1736,181 +1736,44 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
   return;
   }
 
- // FunctionMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // the Constraint handled by this BendersBFunction - - - - - - - - - - - - -
+ /* These are in the abstract representation of the sub-Block, and their
+  * sides are written by the BendersBFunction itself: a change of their sides
+  * only means that they have to be written again, the removal of Variable
+  * from them keeps the dual solutions feasible but changes the value, and
+  * any other change of them may take away the feasibility of the dual
+  * solutions in the global pool. */
 
- if( const auto tmod = std::dynamic_pointer_cast< FunctionMod >( mod ) ) {
+ Constraint * cnst = nullptr;
+ if( const auto tmod = std::dynamic_pointer_cast< ConstraintMod >( mod ) )
+  cnst = tmod->constraint();
+ else
+  if( const auto tmod = std::dynamic_pointer_cast< FunctionMod >( mod ) )
+   cnst = dynamic_cast< Constraint * >( tmod->function()->get_Observer() );
+  else
+   if( const auto tmod = std::dynamic_pointer_cast< FunctionModVars >( mod ) )
+    cnst = dynamic_cast< Constraint * >( tmod->function()->get_Observer() );
 
-  auto observer = tmod->function()->get_Observer();
+ if( cnst && has_constraint( cnst ) ) {
+  if( const auto tmod = std::dynamic_pointer_cast< RowConstraintMod >( mod ) )
+   if( ( tmod->type() == RowConstraintMod::eChgRHS ) ||
+       ( tmod->type() == RowConstraintMod::eChgLHS ) ||
+       ( tmod->type() == RowConstraintMod::eChgBTS ) ) {
+    f_constraints_are_updated = false;
+    return;
+    }
 
-  if( const auto constraint = dynamic_cast< Constraint * >( observer ) ) {
-   if( this->has_constraint( constraint ) )
-    send_nuclear_modification( chnl );
-   else {
-    /* Dual solutions are still feasible and linearizations are still
-     * valid. However, the value of this BendersBFunction changes
-     * unpredictably. */
+  if( const auto tmod = std::dynamic_pointer_cast< FunctionModVars >( mod ) )
+   if( ! tmod->added() ) {
     if( f_Observer )
      f_Observer->add_Modification( std::make_shared< FunctionMod >(
-      this , FunctionMod::NaNshift ) , chnl );
+				    this , FunctionMod::NaNshift ) , chnl );
+    return;
     }
-   }
-  else {
-   /* Send a "nuclear Function Modification" considering the Observer is:
-   *
-   * - An Objective. Dual solutions may become infeasible and the value of
-   *   this BendersBFunction may change unpredictably.
-   *
-   * - Unknown.
-   */
-   send_nuclear_modification( chnl );
-   }
-  return;
-  }
 
- // FunctionModVars - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
- if( const auto tmod = std::dynamic_pointer_cast< FunctionModVars >( mod ) ) {
-
-  auto observer = tmod->function()->get_Observer();
-
-  if( const auto constraint = dynamic_cast< Constraint * >( observer ) ) {
-   if( this->has_constraint( constraint ) ) {
-    // The Constraint is being handled by this BendersBFunction.
-    if( tmod->added() ) {
-     /* Variables were added to the Constraint. Dual solutions may become
-      * infeasible and the value of this BendersBFunction may change
-      * unpredictably. */
-     send_nuclear_modification( chnl );
-     }
-    else {
-     /* Variables were removed from the Constraint. Dual solutions are still
-      * feasible but the value of this BendersBFunction may change
-      * unpredictably. */
-     if( f_Observer )
-      f_Observer->add_Modification( std::make_shared< FunctionMod >(
-       this , FunctionMod::NaNshift ) , chnl );
-     }
-    }
-   else {
-    // The Constraint is not being handled by this BendersBFunction.
-    /* Dual solutions are still feasible and linearizations are still
-     * valid. However, the value of this BendersBFunction may change
-     * unpredictably. */
-    if( f_Observer )
-     f_Observer->add_Modification( std::make_shared< FunctionMod >(
-      this , FunctionMod::NaNshift ) , chnl );
-    }
-   }
-  else {
-   /* Send a "nuclear Function Modification" considering the Observer is:
-    *
-    * - An Objective. Variables were added to the Constraint. Dual solutions
-    *   may become infeasible and the value of this BendersBFunction may
-    *   change unpredictably.
-    *
-    * - Unknown.
-    */
-   send_nuclear_modification( chnl );
-   }
-  return;
-  }
-
- // ConstraintMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
- if( const auto tmod = std::dynamic_pointer_cast< ConstraintMod >( mod ) ) {
-
-  if( tmod->type() == ConstraintMod::eRelaxConst ||
-      tmod->type() == ConstraintMod::eEnforceConst ) {
-
-   auto behaviour = get_behaviour( tmod );
-   if( behaviour == function_value_behaviour::unknown )
-    send_nuclear_modification( chnl );
-   else
-    if( behaviour == function_value_behaviour::increase && f_Observer )
-     f_Observer->add_Modification( std::make_shared< FunctionMod >(
-                                    this , Inf< FunctionValue >() ) ,
-                                   chnl );
-    else
-     if( behaviour == function_value_behaviour::decrease && f_Observer )
-      f_Observer->add_Modification( std::make_shared< FunctionMod >(
-                                     this , -Inf< FunctionValue >() ) ,
-                                    chnl );
-   return;
-   }
-
-  // actually a RowConstraintMod
-
-  if( const auto tmod = std::dynamic_pointer_cast< RowConstraintMod >( mod ) ) {
-   switch( tmod->type() ) {
-    case( RowConstraintMod::eChgRHS ):
-    case( RowConstraintMod::eChgLHS ):
-    case( RowConstraintMod::eChgBTS ): {
-     if( this->has_constraint( tmod->constraint() ) ) {
-      /* Dual solution is still feasible and linearizations are still
-       * valid. But since this Constraint is being handled by this
-       * BendersBFunction, it must be updated. */
-      f_constraints_are_updated = false;
-      }
-     else  // only the constants of the linearizations change
-      sides_changed( *tmod , chnl );
-
-     return;
-     }
-    default:  // unknown modification
-     send_nuclear_modification( chnl );
-    }
-   return;
-   }
-
-  // actually a FRowConstraintMod
-
-  if( const auto tmod = std::dynamic_pointer_cast< FRowConstraintMod >( mod ) ) {
-   if( tmod->type() == FRowConstraintMod::eFunctionChanged ) {
-    // Pointer to the Function has changed
-    if( this->has_constraint( tmod->constraint() ) )
-     /* Dual solutions may not be feasible and this BendersBFunction may
-      * change unpredictably. */
-     send_nuclear_modification( chnl );
-    else
-     /* Dual solutions are still feasible and linearizations are still
-      * valid. However, the value of this BendersBFunction changes
-      * unpredictably. */
-     if( f_Observer )
-      f_Observer->add_Modification( std::make_shared< FunctionMod >(
-                                     this , FunctionMod::NaNshift ) ,
-                                    chnl );
-    }
-   else  // unknown modification
-    send_nuclear_modification( chnl );
-
-   return;
-   }
-
-  // actually a OneVarConstraintMod
-
-  if( const auto tmod =
-                    std::dynamic_pointer_cast< OneVarConstraintMod >( mod ) ) {
-
-   if( tmod->type() == OneVarConstraintMod::eVariableChanged ) {
-    // Pointer to the Variable of a OneVarConstraint has changed.
-    if( ! this->has_constraint( tmod->constraint() ) ) {
-     /* Dual solutions are still feasible and linearizations are still
-      * valid. However, the value of this BendersBFunction changes
-      * unpredictably. */
-     if( f_Observer )
-      f_Observer->add_Modification( std::make_shared< FunctionMod >(
-                                     this , FunctionMod::NaNshift ) ,
-                                    chnl );
-     return;
-     }
-    }
-   }
-
-  // unknown modification
   send_nuclear_modification( chnl );
   return;
-
-  }  // end ConstraintMod - - - - - - - - - - - - - - - - - - - - - - - - - -
+  }
 
  // BlockModAD- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -1973,31 +1836,15 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
   return;
   }
 
- /* If all else fails, send a "nuclear Function Modification" considering the
-  * Modification is:
-   *
-   * - VariableMod
-   *
-   *   The type of a Variable has changed. Dual solutions may become
-   *   infeasible and the value of this BendersBFunction may change
-   *   unpredictably.
-   *
-   * - ObjectiveMod
-   *
-   *   An Objective has changed. Dual solutions may become infeasible and this
-   *   BendersBFunction may change unpredictably.
-   *
-   * - BlockMod
-   *
-   * - NModification
-   *
-   * - Unknown modification
-   *
-   * unless what it says of itself [see Modification::changes()] is that,
-   * of the model of the sub-Block, it only changes the sides of some
-   * Constraint (a physical Modification saying so included): then the dual
-   * solutions of the global pool are kept [see sides_changed()].
-   */
+ // any other Modification - - - - - - - - - - - - - - - - - - - - - - - - -
+ /* What any other Modification does to the sub-Block is what it says of
+  * itself [see Modification::changes()], whatever it is and whether or not
+  * the sub-Block has an abstract representation of what it changes. If, of
+  * the model of the sub-Block, it only changes the sides of some Constraint
+  * (a physical Modification saying so, and a Constraint relaxed or
+  * enforced, included), the dual solutions of the global pool stay
+  * feasible [see sides_changed()]; any other change may take away their
+  * feasibility, and a "nuclear Function Modification" is sent. */
 
  if( mod->changes_only_sides() ) {
   sides_changed( *mod , chnl );
@@ -3118,32 +2965,6 @@ BendersBFunction::get_behaviour( std::shared_ptr< BlockModAD > mod ) {
   }
  }
  return( behaviour );
-}  // end( BendersBFunction::get_behaviour )
-
-/*--------------------------------------------------------------------------*/
-
-BendersBFunction::function_value_behaviour
-BendersBFunction::get_behaviour( std::shared_ptr< ConstraintMod > mod ) {
-
- if( mod->type() != ConstraintMod::eRelaxConst &&
-     mod->type() != ConstraintMod::eEnforceConst )
-  return( function_value_behaviour::unknown );
-
- retrieve_constraints();
-
- auto modified_constraint = mod->constraint();
-
- for( const auto constraint : v_constraints ) {
-  /* If the affected Constraint is present in this BendersBFunction, the
-   * behaviour is unpredictable. */
-  if( modified_constraint == constraint )
-   return( function_value_behaviour::unknown );
- }
-
- return( get_behaviour
-  ( Objective::of_type
-     ( modified_constraint->get_Block()->get_objective_sense() ) ,
-    ( mod->type() == ConstraintMod::eEnforceConst ) ) );
 }  // end( BendersBFunction::get_behaviour )
 
 /*--------------------------------------------------------------------------*/

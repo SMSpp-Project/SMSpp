@@ -494,6 +494,53 @@ static void test_sides_of_other_rows( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* What the BendersBFunction reads of the inner Block [see
+ * BendersBFunction::concerned_by()]: all but the abstract Objective, and not
+ * what is read by the Solver of its father, since the Modification of the
+ * inner Block stop at it; an inner AbstractBlock reads all the abstract
+ * kinds anyway, its abstract representation being its physical one. A
+ * Constraint relaxed or enforced, which the BendersBFunction does not
+ * handle, only changes sides, and the value moves the way the region does;
+ * a change of the sides of one it handles only means that they have to be
+ * written again, and nothing is issued. */
+
+static void test_concerned( void )
+{
+ using M = Modification;
+ Fixture f( { { 1 , 2 } , { 0 , -1 } } , { 1 , 0.5 } , { 0 , 1 } ,
+	    { BBF::eRHS , BBF::eLHS } );
+
+ assert( f.bbf->concerned_by() == ( M::eModAnything & ~ M::eModObj ) );
+ assert( f.bbf->concerned() == f.bbf->concerned_by() );
+ assert( f.inner->concerned() == M::eModAnything );
+
+ f.attach_BoxSolver();
+ f.fake->get_Modification_list().clear();
+
+ // the third row of the inner Block, which is not a row of A, relaxed: the
+ // region grows, and the value of a min can only decrease
+ f.c[ 2 ]->relax( true , eModBlck );
+ {
+  auto mod = the_mod< C05FunctionMod >( f.fake );
+  assert( mod->type() == C05FunctionMod::AlphaChanged );
+  assert( mod->shift() == - Inf< double >() );
+  }
+
+ // and enforced again: the value can only increase
+ f.c[ 2 ]->relax( false , eModBlck );
+ {
+  auto mod = the_mod< C05FunctionMod >( f.fake );
+  assert( mod->shift() == Inf< double >() );
+  }
+
+ // the RHS of the first row, which is a row of A, changed from outside
+ f.c[ 0 ]->set_rhs( 7 , eModBlck );
+ assert( f.fake->get_Modification_list().empty() );
+
+ std::cout << "concerned: done" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
 /* A mapping with no active Variable, i.e., each row of A empty and M( x ) = b
  * constant: deleting two rows out of three by subset leaves the third one in
  * A as in b. */
@@ -750,6 +797,7 @@ int main( int argc , char ** argv )
  test_rows_bookkeeping();
  test_rows_with_no_variable();
  test_sides_of_other_rows();
+ test_concerned();
  test_sides_and_value( eBoxLinear );
  test_sides_and_value( eBoxQuad );
  test_BendersBlock_round_trip();

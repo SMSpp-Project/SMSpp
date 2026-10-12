@@ -105,6 +105,21 @@ class RecBlock : public AbstractBlock
  };
 
 /*--------------------------------------------------------------------------*/
+/// an AbstractBlock that stands for a Block with a physical representation
+/** Whoever reads its physical Modification does not read its abstract ones
+ * as well, as for a Block whose model is not its abstract representation
+ * [see AbstractBlock::concerned()]. */
+
+class PhysBlock : public AbstractBlock
+{
+ public:
+
+ [[nodiscard]] Modification::ModConcern concerned( void ) const override {
+  return( Block::concerned() );
+  }
+ };
+
+/*--------------------------------------------------------------------------*/
 /// the Block under test, with the FakeSolver that records what it receives
 
 struct Rig
@@ -2607,7 +2622,7 @@ static void test_LagBFunction_concerned( void )
  using M = Modification;
  Rig r;
  std::vector< ColVariable > y( 1 );                     // the multiplier
- auto inner = new AbstractBlock;
+ auto inner = new PhysBlock;
  auto z = new std::vector< ColVariable >( 2 );
  inner->add_static_variable( *z , "z" );
  auto Z = [ z ]( Index i ) { return( & ( *z )[ i ] ); };
@@ -2644,15 +2659,26 @@ static void test_LagBFunction_concerned( void )
   };
 
  // with no Solver on the inner Block, it reads what the LagBFunction reads,
- // hence an abstract Modification of its Constraint is not issued under
- // eNoBlck, while one of its Objective or of its Variable is
- const M::ModConcern lbf_reads = M::eModPhys | M::eModObj | M::eModVarSet |
-                                 M::eModVarData | M::eModVarType;
+ // hence an abstract Modification of the sides or of the coefficients of its
+ // Constraint is not issued under eNoBlck, while one of its Objective, of
+ // its Variable or of the set of its Constraint is
+ const M::ModConcern lbf_reads = M::eModPhys | M::eModObj | M::eModCnsSet |
+                                 M::eModVarSet | M::eModVarData |
+                                 M::eModVarType;
  assert( inner->concerned() == lbf_reads );
  assert( ! inner->issue_mod( eNoBlck , M::eModCnsSide ) );
- assert( ! inner->issue_mod( eNoBlck , M::eModCnsCoef | M::eModCnsSet ) );
+ assert( ! inner->issue_mod( eNoBlck , M::eModCnsCoef ) );
+ assert( inner->issue_mod( eNoBlck , M::eModCnsSet ) );
  assert( inner->issue_mod( eNoBlck , M::eModObj ) );
  assert( inner->issue_mod( eNoBlck , M::eModVarData ) );
+
+ // an AbstractBlock in its place would read all the abstract kinds, since
+ // its abstract representation is its physical one
+ {
+  auto ab = new AbstractBlock( lbf );
+  assert( ab->concerned() == M::eModAnything );
+  delete ab;
+  }
 
  // relaxing the Constraint makes the region grow: the pool stays
  refill();

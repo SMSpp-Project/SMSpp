@@ -1754,21 +1754,26 @@ class LagBFunction : public C05Function , public Block
   *
   * - the physical Modification (eModPhys), which say how the feasible
   *   region of the inner Block changes, since the abstract representation
-  *   of its Constraint may not be there;
+  *   of its static Constraint may not be there;
+  *
+  * - those of the set of the Constraint (eModCnsSet), since the dynamic
+  *   Constraint, e.g., the cuts, are only in the abstract representation;
   *
   * - the Modification of the Variable (eModVarData and eModVarType), whose
   *   fixing and integrality may take away the feasibility of the Solution
   *   in the global pool.
   *
-  * The abstract Modification of the Constraint are not read, hence an
-  * inner Block that has no other use for them need not issue them; those
-  * that come anyway are dealt with through what they say of themselves
-  * [see Modification::changes()]. */
+  * The abstract Modification of the sides and of the coefficients of the
+  * Constraint are not read, hence an inner Block that has no other use for
+  * them need not issue them; those that come anyway are dealt with through
+  * what they say of themselves [see Modification::changes()]. An inner
+  * AbstractBlock reads them anyway, its abstract representation being its
+  * physical one [see AbstractBlock::concerned()]. */
 
  [[nodiscard]] Modification::ModConcern concerned_by( void ) const override {
   return( Modification::eModPhys | Modification::eModObj |
-	  Modification::eModVarSet | Modification::eModVarData |
-	  Modification::eModVarType );
+	  Modification::eModCnsSet | Modification::eModVarSet |
+	  Modification::eModVarData | Modification::eModVarType );
   }
 
 /** @} ---------------------------------------------------------------------*/
