@@ -887,6 +887,9 @@ class AbstractBlock : public Block
   * format makes: a row with both sides finite and different is one row with
   * its second side in RANGES rather than two rows, and a row whose two sides
   * are both infinite is left out, the format having no way of saying it.
+  * The constant term of a row is moved to its sides, and that of the
+  * Objective is written as minus the right-hand side of the objective row,
+  * which is how the solvers write it and how read_mps() reads it.
   *
   * What travels is the model and not the way it is grouped, exactly as with
   * write_lp(). */

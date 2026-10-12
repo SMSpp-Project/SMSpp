@@ -468,6 +468,93 @@ static void test_mps_round_trip( void )
  assert( thrice.str() == twice.str() );
  }
 
+
+/*--------------------------------------------------------------------------*/
+/* The constant terms in an MPS file: that of the Objective is minus the
+ * right-hand side of the objective row, as the solvers write it, and that of
+ * a row is moved to its sides. Written and read back, the Objective keeps
+ * its constant and the rows are the same rows with no constant; an MPS file
+ * written elsewhere with a right-hand side on the objective row is read. */
+
+static void test_mps_constants( void )
+{
+ AbstractBlock block;
+ auto cols = new std::vector< ColVariable >( 3 );
+ block.add_static_variable( *cols , "x" );
+
+ auto rows = new std::vector< FRowConstraint >( 2 );
+ {
+  LinearFunction::v_coeff_pair p;
+  p.push_back( { & ( *cols )[ 0 ] , 1.0 } );
+  p.push_back( { & ( *cols )[ 1 ] , 1.0 } );
+  ( *rows )[ 0 ].set_function( new LinearFunction( std::move( p ) , 2 ) );
+  ( *rows )[ 0 ].set_lhs( 1 );       // 1 <= x0 + x1 + 2 <= 5
+  ( *rows )[ 0 ].set_rhs( 5 );
+ }
+ {
+  LinearFunction::v_coeff_pair p;
+  p.push_back( { & ( *cols )[ 2 ] , 1.0 } );
+  ( *rows )[ 1 ].set_function( new LinearFunction( std::move( p ) , -0.5 ) );
+  ( *rows )[ 1 ].set_both( 1 );      // x2 - 0.5 = 1
+ }
+ block.add_static_constraint( *rows , "r" );
+
+ LinearFunction::v_coeff_pair o;
+ o.push_back( { & ( *cols )[ 0 ] , 1.0 } );
+ block.set_objective( new FRealObjective( & block ,
+				new LinearFunction( std::move( o ) , 2.5 ) ) ,
+		      eNoMod );
+
+ std::ostringstream written;
+ block.write_mps( written );
+ const auto mps = written.str();
+ assert( mps.find( "RHS  obj  -2.5" ) != std::string::npos );
+
+ AbstractBlock again;
+ std::istringstream in( mps );
+ again.load( in , 'M' );
+
+ auto of = static_cast< const LinearFunction * >(
+	     static_cast< const FRealObjective * >( again.get_objective() )
+	     ->get_function() );
+ assert( of->get_constant_term() == 2.5 );
+
+ std::vector< double > lhs , rhs , cnst;
+ again.get_static_constraint_groups()[ 0 ]->for_each_as< FRowConstraint >(
+  [ & ]( FRowConstraint & c ) {
+   lhs.push_back( c.get_lhs() );
+   rhs.push_back( c.get_rhs() );
+   cnst.push_back( static_cast< const LinearFunction * >(
+				 c.get_function() )->get_constant_term() );
+   } );
+ assert( ( lhs.size() == 2 ) && ( cnst[ 0 ] == 0 ) && ( cnst[ 1 ] == 0 ) );
+ assert( ( lhs[ 0 ] == -1 ) && ( rhs[ 0 ] == 3 ) );
+ assert( ( lhs[ 1 ] == 1.5 ) && ( rhs[ 1 ] == 1.5 ) );
+
+ // a file written elsewhere, with its own names and the right-hand side
+ // of the objective row next to that of a row on the same line
+ const std::string other =
+  "NAME          other\n"
+  "ROWS\n"
+  " N  COST\n"
+  " L  c1\n"
+  "COLUMNS\n"
+  "    y  COST  1  c1  1\n"
+  "RHS\n"
+  "    B  c1  4  COST  -3\n"
+  "ENDATA\n";
+ AbstractBlock third;
+ std::istringstream in2( other );
+ third.load( in2 , 'M' );
+ auto of3 = static_cast< const LinearFunction * >(
+	     static_cast< const FRealObjective * >( third.get_objective() )
+	     ->get_function() );
+ assert( of3->get_constant_term() == 3 );
+ third.get_static_constraint_groups()[ 0 ]->for_each_as< FRowConstraint >(
+  []( FRowConstraint & c ) { assert( c.get_rhs() == 4 ); } );
+
+ std::cout << "constant terms in an MPS file: OK" << std::endl;
+ }
 /*--------------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------------------*/
@@ -1915,6 +2002,7 @@ int main( int argc , char ** argv )
  test_solution_round_trip();
  test_lp_round_trip();
  test_mps_round_trip();
+ test_mps_constants();
  test_is();
  test_writers_edge_cases();
  test_is_edge_cases();

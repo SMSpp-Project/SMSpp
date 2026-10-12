@@ -915,13 +915,28 @@ void AbstractBlock::write_mps( std::ostream & output ) const
 
  // the right-hand sides and the ranges- - - - - - - - - - - - - - - - - - -
 
+ // the constant term of a row is moved to its sides, and that of the
+ // Objective is written as minus the right-hand side of the objective row,
+ // as the solvers write and read it
+
  output << "RHS" << std::endl;
+ if( obj ) {
+  const double c0 = linear_of( obj->get_function() , "the Objective" )
+				       ->get_constant_term();
+  if( c0 != 0 ) {
+   output << "    RHS  " << row_name( -1 ) << "  ";
+   put_double( output , - c0 );
+   output << std::endl;
+   }
+  }
  for( Index r = 0 ; r < kept.size() ; ++r ) {
   const auto * row = rows[ kept[ r ] ].first;
+  const double c = linear_of( row->get_function() , "the row " +
+			      rows[ kept[ r ] ].second )->get_constant_term();
   const double value = ( sense_of( row ) == 'G' ) ? double( row->get_lhs() )
 						  : double( row->get_rhs() );
   output << "    RHS  " << rows[ kept[ r ] ].second << "  ";
-  put_double( output , value );
+  put_double( output , value - c );
   output << std::endl;
   }
 
@@ -1330,6 +1345,7 @@ void AbstractBlock::read_mps( std::istream & file )
  std::string bnd_name; // Only one BOUNDS vector is supported
  std::vector< double > rhs;
  std::vector< double > rng;
+ double of_const = 0;  // the constant of the Objective
 
  std::string word;
  auto max = std::numeric_limits< std::streamsize >::max();
@@ -1571,28 +1587,29 @@ void AbstractBlock::read_mps( std::istream & file )
   std::string row;
   std::string value;
 
+  // the right-hand side of the objective row is minus the constant of the
+  // Objective, as the solvers write and read it
+  auto set_rhs = [ & ]( const std::string & row , std::string & value ) {
+   if( row == of_name ) {
+    of_const = - dbl_val( value );
+    return;
+    }
+   auto it = std::find( row_names.begin(), row_names.end(), row );
+   if( it == row_names.end() )
+    throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
+   rhs[ std::distance( row_names.begin(), it ) ] = dbl_val( value );
+   };
+
   // First name/value pair
   file >> row;
   file >> value;
-  auto it = std::find( row_names.begin(), row_names.end(), row );
-  if( it != row_names.end() ) {
-   auto j = std::distance( row_names.begin(), it );
-   rhs[ j ] = dbl_val( value );
-  } else {
-   throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
-  }
+  set_rhs( row , value );
 
   // Optional second name/value pair
   if( file.peek() != file.widen( '\n' ) ) {
    file >> row;
    file >> value;
-   it = std::find( row_names.begin(), row_names.end(), row );
-   if( it != row_names.end() ) {
-    auto j = std::distance( row_names.begin(), it );
-    rhs[ j ] = dbl_val( value );
-   } else {
-    throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
-   }
+   set_rhs( row , value );
   }
   file.ignore( max, '\n' );
  }
@@ -1757,6 +1774,9 @@ void AbstractBlock::read_mps( std::istream & file )
   throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
 
  of->set_sense( of_sense , eNoMod );
+ if( of_const != 0 )
+  static_cast< LinearFunction * >( of->get_function() )->set_constant_term(
+							 of_const , eNoMod );
 
  // Reset and set abstract representation
  reset_static_constraints();

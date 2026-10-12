@@ -42,6 +42,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   if the file is there and cannot be opened for appending, rather than
   writing a new file over it
 
+- `AbstractBlock::write_mps()` writes the constant term of the Objective, as
+  minus the right-hand side of the objective row (as the solvers write it),
+  and moves that of a row to its sides; `read_mps()` reads the right-hand
+  side of the objective row, which it refused, as the constant term of the
+  Objective
+
 ## [0.8.0] - 2026-10-09
 
 ### Added
