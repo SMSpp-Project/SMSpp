@@ -50,7 +50,8 @@ void Constraint::relax( bool relax_it, c_ModParam issueMod ) {
 
  f_is_relaxed = relax_it;        // relaxed/enforce it
 
- if( ( ! get_Block() ) || ( ! get_Block()->issue_mod( issueMod ) ) )
+ if( ( ! get_Block() ) ||
+     ( ! get_Block()->issue_mod( issueMod , Modification::eModCnsSide ) ) )
   return;
 
  get_Block()->add_Modification(

@@ -57,7 +57,8 @@ void C05Function::delete_linearizations( Subset && which , bool ordered ,
     delete_linearization( i , eNoMod );
   }
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , Function::eModFValues ) ) )
   return;
 
  f_Observer->add_Modification( std::make_shared< C05FunctionMod >(

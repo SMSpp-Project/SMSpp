@@ -415,9 +415,13 @@ class Modification {
   * which those who do not read its physical representation can use; it is
   * physical all the same [see is_physical()]. The sides and the coefficients
   * of the Constraint are told apart because a dual solution stays feasible
-  * when only the former change [see changes_only_sides()]. The masks eModAbst (all the abstract kinds), eModAnything
-  * (all the kinds) and eModAll (all the bits) serve the standard cases. The
-  * bits are to be read through the static methods below (is_physical(),
+  * when only the former change [see changes_only_sides()]. The masks
+  * eModAbst (all the abstract kinds), eModAnything (all the kinds) and
+  * eModAll (all the bits) serve the standard cases, and ePhysObj, ePhysSides,
+  * ePhysCns and ePhysVars those of a physical Modification that only changes
+  * the Objective, the sides of the Constraint, the Constraint (sides and
+  * coefficients) and the data of the Variable, respectively, in either
+  * direction. The bits are to be read through the static methods below (is_physical(),
   * may_shrink_region(), lower_bound_stays_valid(), ...) rather than tested
   * one by one, so that the encoding can change without anyone noticing. */
 
@@ -440,6 +444,18 @@ class Modification {
  static constexpr ModConcern eModAnything =  255;  ///< all the kinds
  static constexpr ModConcern eEffAny      = 3840;  ///< any effect
  static constexpr ModConcern eModAll      = 4095;  ///< all the bits
+
+ /// a physical Modification of the Objective only
+ static constexpr ModConcern ePhysObj   = eModPhys | eModObj | eObjUp |
+                                          eObjDown;
+ /// a physical Modification of the sides of the Constraint only
+ static constexpr ModConcern ePhysSides = eModPhys | eModCnsSide |
+                                          eRegnShrink | eRegnGrow;
+ /// a physical Modification of the Constraint, sides and coefficients
+ static constexpr ModConcern ePhysCns   = ePhysSides | eModCnsCoef;
+ /// a physical Modification of the data of the Variable only
+ static constexpr ModConcern ePhysVars  = eModPhys | eModVarData |
+                                          eRegnShrink | eRegnGrow;
 
 /*--------------------------------------------------------------------------*/
  /// returns what the Modification changes [see ModConcern]

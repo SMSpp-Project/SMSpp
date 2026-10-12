@@ -817,7 +817,8 @@ void LagBFunction::add_dual_pairs( v_dual_pair && dp , ModParam issueMod )
  LagPairs.insert( LagPairs.end() , std::make_move_iterator( dp.begin() ) ,
 		                   std::make_move_iterator( dp.end() ) );
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , Function::eModFVars ) ) )
   return;
 
  // construct the set of added Variable for the C05FunctionModVarsAddd
@@ -899,7 +900,8 @@ void LagBFunction::remove_variable( Index i , ModParam issueMod )
  delete itv->second;
  LagPairs.erase( itv );       // now erase it
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , Function::eModFVars ) ) )
   return;
 
  // a Lagrangian function is strongly quasi-additive: shift() == 0
@@ -924,7 +926,7 @@ void LagBFunction::remove_variables( Range range , ModParam issueMod )
 
  if( ( ! range.first ) && ( range.second >= LagPairs.size() ) ) {
   // removing *all* variables
-  if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+  if( f_Observer && f_Observer->issue_mod( issueMod , Function::eModFVars ) ) {
    // an Observer is there: copy the names of deleted Variables (all of them)
    Vec_p_Var vars( LagPairs.size() );
 
@@ -1007,7 +1009,7 @@ void LagBFunction::remove_variables( Range range , ModParam issueMod )
  f_Lc = -1;  // the Lipschitz constant must be computed
 
  // now actually eliminate the rows from LagPairs - - - - - - - - - - - - - -
- if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+ if( f_Observer && f_Observer->issue_mod( issueMod , Function::eModFVars ) ) {
   // somebody is there: meanwhile, prepare data for the Modification
 
   Vec_p_Var vars( range.second - range.first );
@@ -1059,7 +1061,7 @@ void LagBFunction::remove_variables( Subset && nms , bool ordered ,
   return;
 
  if( nms.empty() ) {  // removing all Variables
-  if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+  if( f_Observer && f_Observer->issue_mod( issueMod , Function::eModFVars ) ) {
    // an Observer is there: copy the names of deleted Variables (all of them)
    Vec_p_Var vars( LagPairs.size() );
 
@@ -1161,7 +1163,7 @@ void LagBFunction::remove_variables( Subset && nms , bool ordered ,
  for( auto idx : nms )
   delete LagPairs[ idx ].second;
 
- if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+ if( f_Observer && f_Observer->issue_mod( issueMod , Function::eModFVars ) ) {
   // somebody is there: meanwhile, prepare data for the Modification
   // (as it will be destroyed during the process)
 
@@ -1896,7 +1898,7 @@ void LagBFunction::restore_purged_solutions( v_gpool_el && sols ,
 
  // tell the Observer (if any) about all of them at once
  if( added.empty() || ( ! f_Observer ) ||
-     ( ! f_Observer->issue_mod( issueMod ) ) )
+     ( ! f_Observer->issue_mod( issueMod , Function::eModFValues ) ) )
   return;
 
  f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
@@ -1997,7 +1999,8 @@ void LagBFunction::store_linearization( Index name , ModParam issueMod )
 
  // if necessary, issue the Modification - - - - - - - - - - - - - - - - - - -
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , Function::eModFValues ) ) )
   return;
   
  f_Observer->add_Modification( std::make_shared< C05FunctionMod >(
@@ -2147,7 +2150,8 @@ void LagBFunction::store_combination_of_linearizations(
   g_pool[ name ].convexified = true;
   }
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , Function::eModFValues ) ) )
   return;
 
  f_Observer->add_Modification( std::make_shared< C05FunctionMod >(
@@ -2178,7 +2182,8 @@ void LagBFunction::delete_linearization( Index name , ModParam issueMod )
 
  update_f_max_glob();
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , Function::eModFValues ) ) )
   return;
   
  f_Observer->add_Modification( std::make_shared< C05FunctionMod >(
@@ -2212,7 +2217,7 @@ void LagBFunction::delete_linearizations( Subset && which , bool ordered ,
   if( LastSolution< Inf< Index >() )  // LastSolution was in the global pool
    LastSolution = g_pool.size();     // it is no longer valid
 
-  if( f_Observer && f_Observer->issue_mod( issueMod ) )
+  if( f_Observer && f_Observer->issue_mod( issueMod , Function::eModFValues ) )
    f_Observer->add_Modification( std::make_shared< C05FunctionMod >(
                                   this , C05FunctionMod::GlobalPoolRemoved ,
                                   std::move( which ) , 0 ,
@@ -2244,7 +2249,8 @@ void LagBFunction::delete_linearizations( Subset && which , bool ordered ,
 
  update_f_max_glob();
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , Function::eModFValues ) ) )
   return;
   
  f_Observer->add_Modification( std::make_shared< C05FunctionMod >(

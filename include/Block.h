@@ -9786,7 +9786,7 @@ Block::add_dynamic_constraints( std::list< Const > & list ,
  // the group of the list, which the new Constraint join
  auto group = group_of_cell( v_d_Constraint_groups , & list );
 
- if( issue_mod( issueMod ) ) {
+ if( issue_mod( issueMod , Modification::eModCnsSet ) ) {
   // initialize the vector of pointer to added Constraint
   Index first = list.size();
   auto names = std::vector< Const * >( newlist.size() );
@@ -9834,7 +9834,7 @@ Block::add_dynamic_variables( std::list< Var > & list ,
  // the group of the list, which the new Variable join
  auto group = group_of_cell( v_d_Variable_groups , & list );
 
- if( issue_mod( issueMod ) ) {
+ if( issue_mod( issueMod , Modification::eModVarSet ) ) {
   // initialize the vector of pointer to added Constraint
   Index first = list.size();
   auto names = std::vector< Var * >( newlist.size() );
@@ -9884,7 +9884,7 @@ Block::remove_dynamic_constraints( std::list< Const > & list ,
  if( list.empty() )
   throw( std::invalid_argument( "removing from empty list" ) );
 
- const bool listening = issue_mod( issueMod );
+ const bool listening = issue_mod( issueMod , Modification::eModCnsSet );
 
  // if somebody is listening, the names of the Constraint are found first,
  // thereby checking that rmvd is correct before anything is changed
@@ -9957,7 +9957,7 @@ Block::remove_dynamic_constraint( std::list< Const > & list ,
  if( list.empty() )
   throw( std::invalid_argument( "removing from empty list" ) );
 
- const bool listening = issue_mod( issueMod );
+ const bool listening = issue_mod( issueMod , Modification::eModCnsSet );
 
  // if somebody is listening, the name of the Constraint is found first,
  // thereby checking that it is correct before anything is changed
@@ -10047,7 +10047,7 @@ Block::remove_dynamic_constraints( std::list< Const > & list ,
  for( auto it = sit ; it != eit ; ++it )
   remove_constraint_from_variables( &( *it ) );
 
- if( issue_mod( issueMod ) ) {  // somebody is listening
+ if( issue_mod( issueMod , Modification::eModCnsSet ) ) {
   std::list< Const > removed;
 
   // remove all the Constraint in the range and add them to the removed list
@@ -10094,7 +10094,7 @@ Block::remove_dynamic_constraints( std::list< Const > & list ,
   for( auto & c : list )
    remove_constraint_from_variables( &c );
 
-  if( issue_mod( issueMod ) ) {  // somebody is listening
+  if( issue_mod( issueMod , Modification::eModCnsSet ) ) {
    std::list< Const > removed;
 
    // remove all the Constraint add them to the removed list
@@ -10150,7 +10150,7 @@ Block::remove_dynamic_constraints( std::list< Const > & list ,
   ? std::prev( list.end(), list.size() - pos )
   : std::next( list.begin(), pos );
 
- if( issue_mod( issueMod ) ) {  // somebody is listening
+ if( issue_mod( issueMod , Modification::eModCnsSet ) ) {
   std::list< Const > removed;
 
   // remove each Constraint in the subset and add them to the removed
@@ -10222,7 +10222,7 @@ Block::remove_dynamic_variables( std::list< Var > & list ,
  if( list.empty() )
   throw( std::invalid_argument( "removing from empty list" ) );
 
- const bool listening = issue_mod( issueMod );
+ const bool listening = issue_mod( issueMod , Modification::eModVarSet );
 
  // if somebody is listening, the names of the Variable are found first,
  // thereby checking that rmvd is correct before anything is changed
@@ -10290,7 +10290,7 @@ Block::remove_dynamic_variable( std::list< Var > & list ,
  if( list.empty() )
   throw( std::invalid_argument( "removing from empty list" ) );
 
- const bool listening = issue_mod( issueMod );
+ const bool listening = issue_mod( issueMod , Modification::eModVarSet );
 
  // if somebody is listening, the name of the Variable is found first,
  // thereby checking that it is correct before anything is changed
@@ -10372,7 +10372,7 @@ Block::remove_dynamic_variables( std::list< Var > & list , Range range ,
  for( auto it = sit ; it != eit ; ++it )
   remove_variable_from_stuff( &( *it ) , issueindMod );
 
- if( issue_mod( issueMod ) ) {  // somebody is listening
+ if( issue_mod( issueMod , Modification::eModVarSet ) ) {
   std::list< Var > removed;
 
   // remove all the Variable in the range and add them to the removed list
@@ -10412,7 +10412,7 @@ Block::remove_dynamic_variables( std::list< Var > & list ,
   for( auto & v : list )
    remove_variable_from_stuff( &v, issueindMod );
 
-  if( issue_mod( issueMod ) ) {  // somebody is listening
+  if( issue_mod( issueMod , Modification::eModVarSet ) ) {
    std::list< Var > removed;
 
    // remove all the Constraint add them to the removed list
@@ -10463,7 +10463,7 @@ Block::remove_dynamic_variables( std::list< Var > & list ,
   ? std::prev( list.end(), list.size() - pos )
   : std::next( list.begin(), pos );
 
- if( issue_mod( issueMod ) ) {  // somebody is listening
+ if( issue_mod( issueMod , Modification::eModVarSet ) ) {
   std::list< Var > removed;
 
   // remove all the Variable in the subset and add them to the removed

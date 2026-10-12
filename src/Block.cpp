@@ -428,7 +428,7 @@ void Block::set_objective( Objective * newOF , c_ModParam issueMod )
  f_Objective = newOF;
  newOF->set_Block( this );
 
- if( issue_mod( issueMod ) )
+ if( issue_mod( issueMod , Modification::eModAbst ) )
   add_Modification( std::make_shared< BlockMod >(
    this , Observer::par2concern( issueMod ) ) ,
 		    Observer::par2chnl( issueMod ) );

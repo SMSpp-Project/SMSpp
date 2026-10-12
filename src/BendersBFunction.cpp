@@ -365,7 +365,7 @@ void BendersBFunction::deserialize( const netCDF::NcGroup & group ,
   v_sides = std::move( sides );
   f_constraints_are_updated = false;
 
-  if( f_Observer && f_Observer->issue_mod( issueMod ) )
+  if( f_Observer && f_Observer->issue_mod( issueMod , Function::eModFValues ) )
    f_Observer->add_Modification( std::make_shared< FunctionMod >(
                                   this , FunctionMod::NaNshift ,
                                   Observer::par2concern( issueMod ) ) ,
@@ -644,7 +644,8 @@ void BendersBFunction::set_mapping( MultiVector && A , RealVector && b ,
 
  f_constraints_are_updated = false;
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , Function::eModFValues ) ) )
   return;
 
  // "nuclear modification" for Function: everything changed
@@ -698,7 +699,8 @@ void BendersBFunction::add_variables( VarVector && nx , MultiVector && nA ,
 
  f_constraints_are_updated = false;
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , Function::eModFVars ) ) )
   return;  // noone is listening: all done
 
  Vec_p_Var vars( nn );
@@ -737,7 +739,8 @@ void BendersBFunction::add_variable( ColVariable * const var ,
 
  f_constraints_are_updated = false;
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , Function::eModFVars ) ) )
   return;
 
  // now issue the Modification
@@ -768,7 +771,8 @@ void BendersBFunction::remove_variable( Index i , ModParam issueMod )
 
  f_constraints_are_updated = false;
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , Function::eModFVars ) ) )
   return;
 
  // now issue the Modification
@@ -807,7 +811,7 @@ void BendersBFunction::remove_variables( Range range , ModParam issueMod )
 
   // now issue the Modification
   // a Benders function is strongly quasi-additive
-  if( f_Observer && f_Observer->issue_mod( issueMod ) )
+  if( f_Observer && f_Observer->issue_mod( issueMod , Function::eModFVars ) )
    f_Observer->add_Modification( std::make_shared< C05FunctionModVarsRngd >(
 				      this , std::move( vars ) , range , 0 ,
 				      Observer::par2concern( issueMod ) ) ,
@@ -825,7 +829,7 @@ void BendersBFunction::remove_variables( Range range , ModParam issueMod )
  const auto strtit = v_x.begin() + range.first;
  const auto stopit = v_x.begin() + range.second;
 
- if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+ if( f_Observer && f_Observer->issue_mod( issueMod , Function::eModFVars ) ) {
   // somebody is there: meanwhile, prepare data for the Modification
 
   Vec_p_Var vars( range.second - range.first );
@@ -890,7 +894,7 @@ void BendersBFunction::remove_variables( Subset && nms , bool ordered ,
 
   // now issue the Modification: note that the subset is empty
   // a BendersBFunction is strongly quasi-additive, and nms is ordered
-  if( f_Observer && f_Observer->issue_mod( issueMod ) )
+  if( f_Observer && f_Observer->issue_mod( issueMod , Function::eModFVars ) )
    f_Observer->add_Modification( std::make_shared< C05FunctionModVarsSbst >(
 				 this , std::move( vars ) , Subset() , true ,
 				 0 , Observer::par2concern( issueMod ) ) ,
@@ -912,7 +916,7 @@ void BendersBFunction::remove_variables( Subset && nms , bool ordered ,
 
  f_constraints_are_updated = false;
 
- if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+ if( f_Observer && f_Observer->issue_mod( issueMod , Function::eModFVars ) ) {
   Vec_p_Var vars( nms.size() );
   auto its = vars.begin();
   for( auto nm : nms )
@@ -970,7 +974,8 @@ void BendersBFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
 
  global_pool.reset_linearization_constants();
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , Function::eModFValues ) ) )
   return;                  // noone is there: all done
 
  // issue the BendersBFunctionModRngd
@@ -1024,7 +1029,8 @@ void BendersBFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
 
  global_pool.reset_linearization_constants();
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , Function::eModFValues ) ) )
   return;                  // noone is there: all done
 
  // issue the BendersBFunctionModSbst; note that rows is ordered
@@ -1065,7 +1071,8 @@ void BendersBFunction::modify_row( c_Index i , RealVector && Ai ,
 
  global_pool.reset_linearization_constants();
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , Function::eModFValues ) ) )
   return;                  // noone is there: all done
 
  // issue the BendersBFunctionModRngd
@@ -1110,7 +1117,8 @@ void BendersBFunction::modify_constants( MF_dbl_it nb , Range range ,
 
  global_pool.reset_linearization_constants();
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueAMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueAMod , Function::eModFValues ) ) )
   return;                  // noone is there: all done
 
  // issue the BendersBFunctionModRngd
@@ -1171,7 +1179,8 @@ void BendersBFunction::modify_constants( MF_dbl_it nb , Subset && rows ,
 
  global_pool.reset_linearization_constants();
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueAMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueAMod , Function::eModFValues ) ) )
   return;                  // noone is there: all done
 
  // issue the BendersBFunctionModSbst: note that ordered is unmodified
@@ -1222,7 +1231,8 @@ void BendersBFunction::modify_constant( c_Index i , c_FunctionValue bi ,
 
  global_pool.reset_linearization_constants();
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , Function::eModFValues ) ) )
   return;                  // noone is there: all done
 
  // issue the BendersBFunctionModRngd
@@ -1296,7 +1306,8 @@ void BendersBFunction::add_rows( MultiVector && nA , c_RealVector & nb ,
   global_pool.reset_linearization_constants();
  }
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , Function::eModFValues ) ) )
   return;                  // noone is there: all done
 
  // issue the BendersBFunctionModAddd
@@ -1345,7 +1356,8 @@ void BendersBFunction::add_row( RealVector && Ai , FunctionValue bi ,
   global_pool.reset_linearization_constants();
  }
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , Function::eModFValues ) ) )
   return;                  // noone is there: all done
 
  // issue the BendersBFunctionModAddd
@@ -1400,7 +1412,8 @@ void BendersBFunction::delete_rows( Range range , ModParam issueMod ) {
 
  f_constraints_are_updated = false;
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , Function::eModFValues ) ) )
   return;                  // noone is there: all done
 
  // issue the BendersBFunctionModRngd
@@ -1490,7 +1503,8 @@ void BendersBFunction::delete_rows( Subset && rows , bool ordered ,
 
  f_constraints_are_updated = false;
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , Function::eModFValues ) ) )
   return;                  // noone is there: all done
 
  // issue the BendersBFunctionModSbst; rows is ordered
@@ -1534,7 +1548,8 @@ void BendersBFunction::delete_row( c_Index i , ModParam issueMod ) {
 
  f_constraints_are_updated = false;
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , Function::eModFValues ) ) )
   return;                  // noone is there: all done
 
  // issue the BendersBFunctionModRngd
@@ -1562,7 +1577,8 @@ void BendersBFunction::delete_rows( ModParam issueMod ) {
  global_pool.invalidate();
  f_constraints_are_updated = false;
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , Function::eModFValues ) ) )
   return;                  // noone is there: all done
 
  // "nuclear modification" for Function: everything changed
@@ -2175,7 +2191,8 @@ void BendersBFunction::store_linearization( Index name , ModParam issueMod ) {
  // the sub-Block holds what has just been stored under this name
  f_last_solution = name;
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , Function::eModFValues ) ) )
   return;
 
  f_Observer->add_Modification( std::make_shared< BendersBFunctionMod >(
@@ -2201,7 +2218,8 @@ void BendersBFunction::store_combination_of_linearizations(
  if( name == f_last_solution )    // the entry the sub-Block held is gone
   f_last_solution = Inf< Index >();
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , Function::eModFValues ) ) )
   return;
 
  f_Observer->add_Modification( std::make_shared< BendersBFunctionMod >(
@@ -2224,7 +2242,8 @@ void BendersBFunction::delete_linearization( const Index name ,
  if( name == f_last_solution )    // the entry the sub-Block held is gone
   f_last_solution = Inf< Index >();
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , Function::eModFValues ) ) )
   return;
 
  f_Observer->add_Modification( std::make_shared< BendersBFunctionMod >(
@@ -2249,7 +2268,8 @@ void BendersBFunction::delete_linearizations( Subset && which , bool ordered ,
        which.end() ) )
   f_last_solution = Inf< Index >();
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , Function::eModFValues ) ) )
   return;
 
  f_Observer->add_Modification( std::make_shared< BendersBFunctionMod >(

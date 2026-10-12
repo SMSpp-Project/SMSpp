@@ -2607,6 +2607,72 @@ static void test_concerned( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* The modifying methods of the core ask issue_mod() with the kind of the
+ * Modification they would issue [see Observer::issue_mod()]: with the only
+ * Solver reading the sides of the Constraint, under eNoBlck a change of the
+ * sides and a Constraint relaxed are issued and reach it, while a Variable
+ * fixed or made integer, the sense of the Objective, a coefficient of a
+ * Constraint and a dynamic Constraint added are done but not issued; under
+ * eModBlck they are issued anyway, the Block seeing them and the Solver
+ * not. */
+
+static void test_issue_by_kind( void )
+{
+ using M = Modification;
+ Rig r;
+ auto x = new std::vector< ColVariable >( 2 );
+ r.block->add_static_variable( *x , "x" );
+ auto X = [ x ]( Index i ) { return( & ( *x )[ i ] ); };
+ auto rf = new LinearFunction( { { X( 0 ) , 1 } } );
+ auto c = new FRowConstraint( nullptr , 0 , 1 , rf );
+ r.block->add_static_constraint( *c , "c" );
+ auto rows = new std::list< FRowConstraint >;
+ r.block->add_dynamic_constraint( *rows , "d" );
+ auto obj = new FRealObjective( nullptr , new LinearFunction(
+						   { { X( 0 ) , 1 } } ) );
+ r.objective = obj;
+ r.block->set_objective( obj , eNoMod );
+
+ r.listen( false );
+ auto sides = new ReadsSolver( M::eModCnsSide );
+ r.block->register_Solver( sides );
+ auto & got = sides->get_Modification_list();
+ r.clear();
+
+ c->set_rhs( 2 , eNoBlck );
+ assert( ( got.size() == 1 ) && ( r.seen().size() == 1 ) );
+ got.clear();
+ r.clear();
+ c->relax( true , eNoBlck );
+ assert( ( got.size() == 1 ) && ( r.seen().size() == 1 ) );
+ got.clear();
+ r.clear();
+ c->relax( false , eNoMod );
+
+ X( 1 )->is_fixed( true , eNoBlck );
+ assert( X( 1 )->is_fixed() );
+ X( 1 )->is_integer( true , eNoBlck );
+ assert( X( 1 )->is_integer() );
+ obj->set_sense( Objective::eMax , eNoBlck );
+ assert( obj->get_sense() == Objective::eMax );
+ rf->modify_coefficient( 0 , 3 , eNoBlck );
+ assert( rf->get_coefficient( 0 ) == 3 );
+ {
+  std::list< FRowConstraint > n( 1 );
+  add_d( r.block , *rows , n , eNoBlck );
+  }
+ assert( rows->size() == 1 );
+ assert( got.empty() && r.seen().empty() );
+
+ X( 1 )->is_fixed( false , eModBlck );
+ assert( got.empty() && ( r.seen().size() == 1 ) );
+ r.clear();
+
+ r.block->unregister_Solver( sides , true );
+ r.listen( true );
+ }
+
+/*--------------------------------------------------------------------------*/
 /* What a LagBFunction reads of its inner Block [see
  * LagBFunction::concerned_by()], and what it does with each kind of
  * Modification of the inner Block, decided by what the Modification says of
@@ -2832,6 +2898,7 @@ int main( void )
  test_dry_run();
  test_dry_run_LagBFunction();
  test_LagBFunction_concerned();
+ test_issue_by_kind();
  test_dry_run_BendersBFunction();
  test_dry_run_C05SumFunction();
  test_changes();

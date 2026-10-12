@@ -250,7 +250,8 @@ void C05SumFunction::add_Modification( sp_Mod mod , ChnlName chnl )
 void C05SumFunction::issue_pool_Modification( int type , Subset && which ,
                                               ModParam issueMod )
 {
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , Function::eModFValues ) ) )
   return;
 
  f_Observer->add_Modification( std::make_shared< C05FunctionMod >( this ,
