@@ -921,7 +921,7 @@ class FunctionMod : public AModification
 
  ~FunctionMod() override = default;  ///< destructor
 
-/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+/*-------------------- PUBLIC METHODS OF THE CLASS -------------------------*/
 
  /// returns the Block to which the Observer of the Function belongs
 
@@ -1228,7 +1228,7 @@ class FunctionModVars : public AModification
 
  ~FunctionModVars() override = default;  ///< destructor: does nothing
 
-/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+/*-------------------- PUBLIC METHODS OF THE CLASS -------------------------*/
 
  /// returns the Block to which the Observer of the Function belongs
 
@@ -1399,7 +1399,7 @@ class FunctionModVarsAddd : public FunctionModVars {
 
  ~FunctionModVarsAddd() override = default;  ///< destructor: does nothing
 
-/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+/*-------------------- PUBLIC METHODS OF THE CLASS -------------------------*/
 
  /// accessor to the index obtained by the first added Variable
 
@@ -1507,7 +1507,7 @@ class FunctionModVarsRngd : public FunctionModVars
 
  ~FunctionModVarsRngd() override = default;  ///< destructor: does nothing
 
-/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+/*-------------------- PUBLIC METHODS OF THE CLASS -------------------------*/
 
  /// accessor to the range of the deleted Variable
 
@@ -1632,7 +1632,7 @@ class FunctionModVarsSbst : public FunctionModVars {
 
  ~FunctionModVarsSbst() override = default;  ///< destructor: does nothing
 
-/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+/*-------------------- PUBLIC METHODS OF THE CLASS -------------------------*/
 
  /// accessor to the subset of the deleted Variable
 

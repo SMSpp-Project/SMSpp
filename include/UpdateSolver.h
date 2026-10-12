@@ -65,7 +65,7 @@ class UpdateSolver : public Solver {
 public:
 
 /*--------------------------------------------------------------------------*/
-/*---------------- CONSTRUCTING AND DESTRUCTING UpdateSolver -----------------*/
+/*---------------- CONSTRUCTING AND DESTRUCTING UpdateSolver ---------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructing and destructing UpdateSolver
  *  @{ */
@@ -259,7 +259,7 @@ public:
 
  };   // end( class UpdateSolver )
 
-/** @} end( group( UpdateSolver_CLASSES ) ) ----------------------------------*/
+/** @} end( group( UpdateSolver_CLASSES ) ) --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 }  // end( namespace SMSpp_di_unipi_it )

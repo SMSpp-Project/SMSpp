@@ -2272,7 +2272,7 @@ class ComputeConfig : public Configuration
 
  ~ComputeConfig() override { delete f_extra_Configuration; }
 
-/*------------------------------- CLONE -----------------------------------*/
+/*------------------------------- CLONE ------------------------------------*/
  /// clone method
 
  [[nodiscard]] ComputeConfig * clone( void ) const override {
@@ -2717,7 +2717,7 @@ class ComputeConfig : public Configuration
 
  void reset_par( const std::string & name , char type = 'i' );
 
-/*--------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
+/*--------------------- PUBLIC FIELDS OF THE CLASS -------------------------*/
 
  /// list of pairs < string , int > for integer-valued parameters
  std::vector< std::pair< std::string, int > > int_pars;

@@ -702,7 +702,7 @@ void C05SumFunction::set_ComputeConfig( const ComputeConfig * scfg )
  }
 
 /*--------------------------------------------------------------------------*/
-/*----------- METHODS FOR HANDLING THE "ACTIVE" Variable ------------------*/
+/*----------- METHODS FOR HANDLING THE "ACTIVE" Variable -------------------*/
 /*--------------------------------------------------------------------------*/
 
 void C05SumFunction::remove_variable( Index i , ModParam issueMod )

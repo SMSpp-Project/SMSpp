@@ -32,7 +32,7 @@
 using namespace SMSpp_di_unipi_it;
 
 /*--------------------------------------------------------------------------*/
-/*--------- METHODS DESCRIBING THE BEHAVIOR OF THE QuadFunction -----------*/
+/*--------- METHODS DESCRIBING THE BEHAVIOR OF THE QuadFunction ------------*/
 /*--------------------------------------------------------------------------*/
 
 int QuadFunction::compute( bool changedvars ) {
@@ -286,12 +286,12 @@ void QuadFunction::get_hessian_approximation( DenseHessian & hessian ) const {
 /*--------------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------------------*/
-/*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE QuadFunction --------*/
+/*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE QuadFunction ---------*/
 /*--------------------------------------------------------------------------*/
 
 
 /*--------------------------------------------------------------------------*/
-/*-------------- METHODS FOR MODIFYING THE QuadFunction -------------------*/
+/*-------------- METHODS FOR MODIFYING THE QuadFunction --------------------*/
 /*--------------------------------------------------------------------------*/
 
 void QuadFunction::add_variables( v_coeff_triple && vars ,
@@ -632,5 +632,5 @@ void QuadFunction::identify_convexity( void ) {
 }
 
 /*--------------------------------------------------------------------------*/
-/*----------------------- End File QuadFunction.cpp -----------------------*/
+/*----------------------- End File QuadFunction.cpp ------------------------*/
 /*--------------------------------------------------------------------------*/

@@ -984,7 +984,7 @@ class DQuadFunction : public C15Function {
  };  // end( class( DQuadFunction ) )
 
 /*--------------------------------------------------------------------------*/
-/*------------------- Class DQuadFunctionModVarsAddd ----------------------*/
+/*------------------- Class DQuadFunctionModVarsAddd -----------------------*/
 /*--------------------------------------------------------------------------*/
 /// class to describe "nicely" adding Variable of a DQuadFunction
 /** Derived class from C05FunctionModVarsAddd to describe adding "active"
@@ -1302,7 +1302,7 @@ class DQuadFunctionModSbst : public C05FunctionModSbst
  };  // end( class( DQuadFunctionModSbst ) )
 
 /*--------------------------------------------------------------------------*/
-/** @} end( group( DQuadFunction_CLASSES ) ) ------------------------------*/
+/** @} end( group( DQuadFunction_CLASSES ) ) -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------------------*/

@@ -8474,7 +8474,7 @@ class BlockMod : public AModification
 
  virtual ~BlockMod() = default;   ///< destructor, does nothing
 
-/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+/*-------------------- PUBLIC METHODS OF THE CLASS -------------------------*/
 
  /// accessor to the pointer to the Block to which the Modification refers
 
@@ -8536,7 +8536,7 @@ class BlockModAD : public AModification
 
  virtual ~BlockModAD() = default;  ///< destructor, does nothing
 
-/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+/*-------------------- PUBLIC METHODS OF THE CLASS -------------------------*/
 
  /// returns true if a Variable is involved, false if a Constraint is involved
  /** Returns true if a Variable is involved, false if a Constraint is
@@ -8685,7 +8685,7 @@ class BlockModAdd : public BlockModAD
 
  virtual ~BlockModAdd() = default;
 
-/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+/*-------------------- PUBLIC METHODS OF THE CLASS -------------------------*/
 
  Block * get_Block( void ) const override {
   return( add_vec[ 0 ]->get_Block() );
@@ -8874,7 +8874,7 @@ class BlockModRmv : public BlockModAD {
    }
   }
 
-/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+/*-------------------- PUBLIC METHODS OF THE CLASS -------------------------*/
 
  Block * get_Block() const override {
   return( f_rmvd.front().get_Block() );
@@ -9013,7 +9013,7 @@ class BlockModRmvRngd : public BlockModRmv< ConstOrVar >
 
  virtual ~BlockModRmvRngd() = default;
 
-/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+/*-------------------- PUBLIC METHODS OF THE CLASS -------------------------*/
  /// accessor to the range
 
  Block::c_Range & range( void ) const { return( f_range ); }
@@ -9120,7 +9120,7 @@ class BlockModRmvSbst : public BlockModRmv< ConstOrVar >
 
  virtual ~BlockModRmvSbst() = default;
 
-/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+/*-------------------- PUBLIC METHODS OF THE CLASS -------------------------*/
  /// accessor to the range
 
  Block::c_Subset & subset( void ) const { return( f_subset ); }
@@ -9436,7 +9436,7 @@ class BlockConfig : public Configuration {
   move( f_extra_Configuration , bc->f_extra_Configuration );
  }
 
-/*------------------------------- CLONE -----------------------------------*/
+/*------------------------------- CLONE ------------------------------------*/
 
  BlockConfig * clone( void ) const override {
   return( new BlockConfig( *this ) );

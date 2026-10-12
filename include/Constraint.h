@@ -521,7 +521,7 @@ class ConstraintMod : public AModification {
 
  ~ConstraintMod() override = default;  ///< destructor: does nothing
 
-/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+/*-------------------- PUBLIC METHODS OF THE CLASS -------------------------*/
 
  /// returns what the Modification changes [see Modification::ModConcern]
  /** The data of a Constraint, which leaves the objective as it is: relaxing

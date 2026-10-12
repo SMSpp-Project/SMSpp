@@ -1642,7 +1642,7 @@ class C05FunctionMod : public FunctionMod
 
  ~C05FunctionMod() override = default;  ///< destructor: does nothing
 
-/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+/*-------------------- PUBLIC METHODS OF THE CLASS -------------------------*/
 
  /// accessor to the type of modification
 
@@ -1837,7 +1837,7 @@ class C05FunctionModRngd : public C05FunctionMod
 
  ~C05FunctionModRngd() override = default;  ///< destructor: does nothing
 
-/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+/*-------------------- PUBLIC METHODS OF THE CLASS -------------------------*/
 
  /// accessor to the vector of pointers to affected Variable
 
@@ -1972,7 +1972,7 @@ class C05FunctionModSbst : public C05FunctionMod
 
  ~C05FunctionModSbst() override = default;  ///< destructor: does nothing
 
-/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+/*-------------------- PUBLIC METHODS OF THE CLASS -------------------------*/
 
  /// accessor to the vector of pointers to affected Variable
 
@@ -2598,7 +2598,7 @@ class C05FunctionModLin : public FunctionMod
 
  ~C05FunctionModLin() override = default;  ///< destructor: does nothing
 
-/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+/*-------------------- PUBLIC METHODS OF THE CLASS -------------------------*/
 
  /// accessor to the vector of pointers to affected Variable
 
@@ -2704,7 +2704,7 @@ class C05FunctionModLinRngd : public C05FunctionModLin
 
  ~C05FunctionModLinRngd() override = default;  ///< destructor: does nothing
 
-/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+/*-------------------- PUBLIC METHODS OF THE CLASS -------------------------*/
 
  /// accessor to the range of the deleted Variable
 
@@ -2807,7 +2807,7 @@ class C05FunctionModLinSbst : public C05FunctionModLin
 
  ~C05FunctionModLinSbst() override = default;  ///< destructor: does nothing
 
-/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+/*-------------------- PUBLIC METHODS OF THE CLASS -------------------------*/
 
  /// accessor to the subset of the affected Variable
 

@@ -332,7 +332,7 @@ public:
    std::vector< std::unique_ptr< SimpleDataMappingBase > > & data_mappings ,
    Block * block_reference );
 
-/** @} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------ METHODS DESCRIBING THE BEHAVIOR OF THE SimpleDataMappingBase ------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of the SimpleDataMappingBase

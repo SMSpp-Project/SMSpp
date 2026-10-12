@@ -535,7 +535,7 @@ class VariableMod : public AModification
 
  ~VariableMod() override = default;  ///< destructor: does nothing
 
-/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+/*-------------------- PUBLIC METHODS OF THE CLASS -------------------------*/
 
  /// returns what the Modification changes [see Modification::ModConcern]
  /** The state of a Variable, which leaves the objective as it is at every

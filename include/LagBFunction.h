@@ -3386,7 +3386,7 @@ class LagBFunctionMod : public C05FunctionMod {
 
  virtual ~LagBFunctionMod() { }  ///< destructor: does nothing
 
-/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+/*-------------------- PUBLIC METHODS OF THE CLASS -------------------------*/
 
  /// accessor to the what value
 

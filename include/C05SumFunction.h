@@ -212,7 +212,7 @@ class C05SumFunction : public C05Function , public Observer
   };
 
 /*--------------------------------------------------------------------------*/
-/*--------------- CONSTRUCTING AND DESTRUCTING C05SumFunction ------------*/
+/*--------------- CONSTRUCTING AND DESTRUCTING C05SumFunction --------------*/
 /*--------------------------------------------------------------------------*/
 
  /// constructor: the members, and the union of their "active" Variable
@@ -348,7 +348,7 @@ class C05SumFunction : public C05Function , public Observer
   }
 
 /*--------------------------------------------------------------------------*/
-/*----------- METHODS FOR HANDLING THE "ACTIVE" Variable ------------------*/
+/*----------- METHODS FOR HANDLING THE "ACTIVE" Variable -------------------*/
 /*--------------------------------------------------------------------------*/
 
  [[nodiscard]] Block * get_Block( void ) const override {

@@ -407,7 +407,7 @@ class RowConstraint : public Constraint
  /// pure virtual method to get the LHS of the RowConstraint
  [[nodiscard]] virtual RHSValue get_lhs( void ) const = 0;
 
-/** @} --------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF A RowConstraint -----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a RowConstraint

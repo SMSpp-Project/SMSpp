@@ -1458,7 +1458,7 @@ class MasterProblemBlock : public Block {
  void set_box( const std::vector< double > & L ,
                const std::vector< double > & U );
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify the box on a contiguous range of coordinates
  /** Installs the values in \p L and \p U on the left-closed, right-open
   * interval [ range.first , range.second ). Each nonempty vector must have
@@ -1473,7 +1473,7 @@ class MasterProblemBlock : public Block {
  void set_box( std::vector< double > L , std::vector< double > U ,
                Range range );
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify the box on an arbitrary subset of coordinates
  /** Installs L[ i ] and U[ i ] on coordinate subset[ i ]. Each nonempty
   * value vector must have subset.size() entries. An empty \p L
@@ -1599,7 +1599,7 @@ class MasterProblemBlock : public Block {
 
  void set_zeroth_quadratic( const std::vector< double > & rho );
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// declare which coordinates of the primal MP are integer
  /** Declares coordinate j of the master integer if \p integer[ j ] is true,
   * so that the master Solver, if it does not relax the integer Variable,
@@ -1626,12 +1626,12 @@ class MasterProblemBlock : public Block {
 
  void set_integer( std::vector< bool > integer );
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// true if any coordinate of the primal MP is integer [see set_integer()]
 
  [[nodiscard]] bool has_integer( void ) const { return( f_has_integer ); }
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set the radius of the local branching on the binary coordinates
  /** Sets to \p kappa the radius of the local branching on the binary
   * coordinates of the primal MP, i.e., the integer ones [see set_integer()]
@@ -1655,19 +1655,19 @@ class MasterProblemBlock : public Block {
 
  void set_local_branching( double kappa );
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// the radius of the local branching [see set_local_branching()]
 
  [[nodiscard]] double get_local_branching( void ) const {
   return( f_kappa );
   }
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// the number of binary coordinates [see set_local_branching()]
 
  [[nodiscard]] Index get_num_binary( void ) const;
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// exclude from the master the current region of the local branching
  /** Adds to the master the reverse local branching constraint
   * \f$ \Delta( x , \bar{x} ) \geq \kappa + 1 \f$ for the current
@@ -1683,19 +1683,19 @@ class MasterProblemBlock : public Block {
 
  void add_reverse_local_branching( void );
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// remove all the reverse local branching constraints
 
  void clear_reverse_local_branching( void );
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// the number of reverse local branching constraints
 
  [[nodiscard]] Index get_num_reverse_local_branching( void ) const {
   return( RevLBranchCns.size() );
   }
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// the lower bound on the optimal value of the last master solved
  /** Returns the lower bound on the optimal value of the master that its
   * Solver gives, get_lb() of the Solver, after the last solve_master(): it
@@ -1708,7 +1708,7 @@ class MasterProblemBlock : public Block {
 
  [[nodiscard]] double get_master_bound( void ) const;
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify the linear part on a contiguous range of coordinates
  /** Installs b[ i ] on coordinate range.first + i for the left-closed,
   * right-open interval [ range.first , range.second ). The size of \p b must
@@ -1718,7 +1718,7 @@ class MasterProblemBlock : public Block {
 
  void set_linear_part( std::vector< double > b , Range range );
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify the linear part on an arbitrary subset of coordinates
  /** Installs b[ i ] on coordinate subset[ i ]. The size of \p b must equal
   * subset.size(), and all indices must be valid and distinct. If \p ordered
@@ -2876,7 +2876,7 @@ class MasterProblemSbstMod : public MasterProblemMod
  };  // end( class MasterProblemSbstMod )
 
 /*--------------------------------------------------------------------------*/
-/*--------------- CLASS MasterProblemLowerBoundMod ------------------------*/
+/*--------------- CLASS MasterProblemLowerBoundMod -------------------------*/
 /*--------------------------------------------------------------------------*/
 /// physical Modification carrying a new master lower-bound value
 /** The target is either one hard component or the aggregate global lower
@@ -2932,7 +2932,7 @@ class MasterProblemLowerBoundMod : public MasterProblemMod
 
  };  // end( class MasterProblemLowerBoundMod )
 
-/** @} end( group( MasterProblemBlock_CLASSES ) ) ---------------------------*/
+/** @} end( group( MasterProblemBlock_CLASSES ) ) --------------------------*/
 
 }  // end( namespace SMSpp_di_unipi_it )
 

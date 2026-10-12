@@ -1,5 +1,5 @@
 /*--------------------------------------------------------------------------*/
-/*------------------------- File QuadFunction.h ---------------------------*/
+/*------------------------- File QuadFunction.h ----------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
  * Header file for the *concrete* class QuadFunction, which implements
@@ -44,7 +44,7 @@
 namespace SMSpp_di_unipi_it {
 
 /*--------------------------------------------------------------------------*/
-/*------------------------- CLASS QuadFunction ----------------------------*/
+/*------------------------- CLASS QuadFunction -----------------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -221,7 +221,7 @@ class QuadFunction : public DQuadFunction {
 
 
 /** @} ---------------------------------------------------------------------*/
-/*----------- METHODS FOR READING THE DATA OF THE QuadFunction ------------*/
+/*----------- METHODS FOR READING THE DATA OF THE QuadFunction -------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the QuadFunction
     @{ */
@@ -273,7 +273,7 @@ class QuadFunction : public DQuadFunction {
   }
 
 /** @} ---------------------------------------------------------------------*/
-/*--------- METHODS DESCRIBING THE BEHAVIOR OF THE QuadFunction -----------*/
+/*--------- METHODS DESCRIBING THE BEHAVIOR OF THE QuadFunction ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of the QuadFunction
  *  @{ */
@@ -383,7 +383,7 @@ class QuadFunction : public DQuadFunction {
 /*--------------------------------------------------------------------------*/
 
 /** @} ---------------------------------------------------------------------*/
-/*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE QuadFunction --------*/
+/*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE QuadFunction ---------*/
 /*--------------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------------------*/
@@ -394,7 +394,7 @@ class QuadFunction : public DQuadFunction {
 
 
 /** @} ---------------------------------------------------------------------*/
-/*-------------- METHODS FOR MODIFYING THE QuadFunction -------------------*/
+/*-------------- METHODS FOR MODIFYING THE QuadFunction --------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for modifying the QuadFunction
  *  @{ */
@@ -619,7 +619,7 @@ class QuadFunction : public DQuadFunction {
  };  // end( class( QuadFunction ) )
 
 /*--------------------------------------------------------------------------*/
-/*------------------- Class QuadFunctionModVarsAddd ----------------------*/
+/*------------------- Class QuadFunctionModVarsAddd ------------------------*/
 /*--------------------------------------------------------------------------*/
 /// class to describe "nicely" adding Variable of a QuadFunction
 /** Derived class from DQuadFunctionModVarsAddd to describe adding "active"
@@ -829,5 +829,5 @@ class QuadFunctionModSbst : public C05FunctionModSbst
 #endif  /* QuadFunction.h included */
 
 /*--------------------------------------------------------------------------*/
-/*--------------------- End File QuadFunction.h ---------------------------*/
+/*--------------------- End File QuadFunction.h ----------------------------*/
 /*--------------------------------------------------------------------------*/

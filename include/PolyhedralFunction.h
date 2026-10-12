@@ -1928,7 +1928,7 @@ class PolyhedralFunctionModAddd : public PolyhedralFunctionMod
 
  virtual ~PolyhedralFunctionModAddd() = default;  ///< default destructor
 
-/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+/*-------------------- PUBLIC METHODS OF THE CLASS -------------------------*/
 
  /// accessor to the number of added rows
 
@@ -2004,7 +2004,7 @@ class PolyhedralFunctionModRngd : public PolyhedralFunctionMod
 
  virtual ~PolyhedralFunctionModRngd() = default;  ///< default destructor
 
-/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+/*-------------------- PUBLIC METHODS OF THE CLASS -------------------------*/
 
  /// accessor to the specific sub-type of PolyhedralFunctionMod
 
@@ -2093,7 +2093,7 @@ class PolyhedralFunctionModSbst : public PolyhedralFunctionMod
 
  virtual ~PolyhedralFunctionModSbst() = default;  ///< default destructor
 
-/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+/*-------------------- PUBLIC METHODS OF THE CLASS -------------------------*/
 
  /// accessor to the specific sub-type of PolyhedralFunctionMod
 

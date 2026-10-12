@@ -667,7 +667,7 @@ class Configuration
 
  virtual void load( std::istream & input ) = 0;
 
-/** @} --------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /** @name Protected methods for handling static fields
  *
  * These methods allow derived classes to partake into static initialization

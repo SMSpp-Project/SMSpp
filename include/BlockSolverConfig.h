@@ -587,7 +587,7 @@ class BlockSolverConfig : public Configuration {
   v_SolverNames.clear();
   }
 
-/*------------------------------- CLONE -----------------------------------*/
+/*------------------------------- CLONE ------------------------------------*/
 
  [[nodiscard]] BlockSolverConfig * clone( void ) const override {
   return( new BlockSolverConfig( *this ) );
@@ -1193,7 +1193,7 @@ class RBlockSolverConfig : public BlockSolverConfig {
     config->clear();
   }
 
-/*------------------------------- CLONE -----------------------------------*/
+/*------------------------------- CLONE ------------------------------------*/
 
  [[nodiscard]] RBlockSolverConfig * clone( void ) const override {
   return( new RBlockSolverConfig( *this ) );
@@ -1534,7 +1534,7 @@ class MetaBlockSolverConfig : public BlockSolverConfig {
    f_map->clear();
   }
 
-/*------------------------------- CLONE -----------------------------------*/
+/*------------------------------- CLONE ------------------------------------*/
 
  [[nodiscard]] MetaBlockSolverConfig * clone( void ) const override {
   return( new MetaBlockSolverConfig( *this ) );
