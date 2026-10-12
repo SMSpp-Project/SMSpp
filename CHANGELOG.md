@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- the cascade override `*file +` of a `SimpleConfiguration<std::map<
+  std::string,Configuration*>>` and of a
+  `SimpleConfiguration<std::vector<Configuration*>>`: the body is a count
+  and as many entries, which for the map replace or add the value of their
+  key, a `*` value removing it, and for the vector are appended, so that a
+  meta-configuration or a list can be written as the delta of another one
+  [see `SimpleConfiguration::merge_overrides()`]
+
 - the methods factory has families that take two values per Index, each in
   a span of its own, for the setters (`MS_sp_dbl2_rngd` and
   `MS_sp_dbl2_sbst`) and for the queries (`MS_qry_dbl2_rngd` and

@@ -443,7 +443,9 @@ class Configuration
   * override body that follows the `+` marker and applies it on top.
   *
   * The default implementation throws — only Configurations that carry
-  * named parameters (e.g. ComputeConfig) sensibly support a partial
+  * named parameters (e.g. ComputeConfig) or several Configuration (the
+  * SimpleConfiguration of a std::map< std::string , Configuration * > and
+  * of a std::vector< Configuration * >) sensibly support a partial
   * override. Concrete subclasses that opt in must:
   *   - consume from \p input *exactly* the same number of tokens that a
   *     full inline body of that Configuration would consume;
@@ -1049,6 +1051,27 @@ class SimpleConfiguration : public Configuration
 			  "SimpleConfiguration::load: stream read error" ) );
   }
 
+/*--------------------------------------------------------------------------*/
+ /// merge the body that follows "*file +" onto this SimpleConfiguration
+ /** A SimpleConfiguration that holds a single value has nothing to merge
+  * [see Configuration::merge_overrides()], and the default throws. Two
+  * that hold several Configuration do:
+  *
+  * - a SimpleConfiguration< std::map< std::string , Configuration * > >
+  *   reads a count and as many pairs "key Configuration" as in load(),
+  *   each of which replaces the value of that key, deleting the old one,
+  *   or adds the key; a "*" (nullptr) value removes the key instead;
+  *
+  * - a SimpleConfiguration< std::vector< Configuration * > > reads a count
+  *   and as many Configuration, which are appended to the vector.
+  *
+  * Since the body starts with its count, exactly the items it announces are
+  * read, and the override can be written inside a container. */
+
+ void merge_overrides( std::istream & input ) override {
+  Configuration::merge_overrides( input );
+  }
+
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
 
  private:
@@ -1390,6 +1413,14 @@ void SimpleConfiguration< std::map< std::string , Configuration * >
 template<>
 void SimpleConfiguration< std::map< std::string , Configuration * >
                           >::print( std::ostream & output ) const;
+
+template<>
+void SimpleConfiguration< std::map< std::string , Configuration * >
+                          >::merge_overrides( std::istream & input );
+
+template<>
+void SimpleConfiguration< std::vector< Configuration * >
+                          >::merge_overrides( std::istream & input );
 
 /** @} end( group( SimpleConfiguration_SPECIALIZATIONS ) ) */
 /*--------------------------------------------------------------------------*/

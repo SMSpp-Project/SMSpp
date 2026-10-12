@@ -890,6 +890,59 @@ void SimpleConfiguration< std::map< std::string , Configuration * >
   }
  }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::map< std::string , Configuration * >
+                          >::merge_overrides( std::istream & input )
+{
+ static const std::string sre( "SimpleConfiguration< std::map< std::string "
+                               ", Configuration * > >::merge_overrides: "
+                               "stream read error" );
+ size_t k = 0;
+ input >> eatcomments >> k;
+ if( input.fail() )
+  throw( std::invalid_argument( sre ) );
+
+ while( k-- ) {
+  std::string key;
+  input >> eatcomments >> key;
+  if( input.fail() )
+   throw( std::invalid_argument( sre ) );
+  auto c = Configuration::deserialize( input );
+
+  auto it = f_value.find( key );
+  if( it != f_value.end() ) {
+   delete it->second;
+   if( c )
+    it->second = c;
+   else
+    f_value.erase( it );
+   }
+  else
+   if( c )
+    f_value[ key ] = c;
+  }
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::vector< Configuration * >
+                          >::merge_overrides( std::istream & input )
+{
+ static const std::string sre( "SimpleConfiguration< std::vector< "
+                               "Configuration * > >::merge_overrides: "
+                               "stream read error" );
+ size_t k = 0;
+ input >> eatcomments >> k;
+ if( input.fail() )
+  throw( std::invalid_argument( sre ) );
+
+ while( k-- )
+  f_value.push_back( Configuration::deserialize( input ) );
+ }
+
 /*--------------------------------------------------------------------------*/
 
 std::string & config_filename_prefix( void )

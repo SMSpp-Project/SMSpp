@@ -1018,6 +1018,101 @@ static void test_ComputeConfig_override_in_a_container( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* "*file +" on a map from strings to Configuration *: the pairs of the body
+ * replace the values of their keys or add them, a "*" value removes its
+ * key, the other keys are kept [see SimpleConfiguration::merge_overrides()];
+ * the body reads exactly its count, hence it can be followed by the next
+ * Configuration of a container. */
+
+static void test_map_override( void )
+{
+ write_file( "tests_Configuration_map.txt" ,
+	     "SimpleConfiguration<std::map<std::string,Configuration*>>\n"
+	     "3\n"
+	     "alpha SimpleConfiguration<int> 1\n"
+	     "beta  SimpleConfiguration<int> 2\n"
+	     "gamma SimpleConfiguration<double> 2.5\n" );
+
+ auto c = from_text( "*tests_Configuration_map.txt +\n"
+		     "3\n"
+		     "beta  SimpleConfiguration<int> 20   # replaced\n"
+		     "gamma *                             # removed\n"
+		     "delta SimpleConfiguration<int> 4    # added\n" );
+ auto m = dynamic_cast< MapConf * >( c );
+ expect( m , "map override gives a map" );
+ if( m ) {
+  expect( m->f_value.size() == 3 , "map override: alpha, beta and delta" );
+  expect( m->f_value.count( "alpha" ) && m->f_value.at( "alpha" ) &&
+	  ( value_of< int >( m->f_value.at( "alpha" ) ) == 1 ) ,
+	  "map override: alpha kept" );
+  expect( m->f_value.count( "beta" ) && m->f_value.at( "beta" ) &&
+	  ( value_of< int >( m->f_value.at( "beta" ) ) == 20 ) ,
+	  "map override: beta replaced" );
+  expect( ! m->f_value.count( "gamma" ) , "map override: gamma removed" );
+  expect( m->f_value.count( "delta" ) && m->f_value.at( "delta" ) &&
+	  ( value_of< int >( m->f_value.at( "delta" ) ) == 4 ) ,
+	  "map override: delta added" );
+  }
+ delete c;
+
+ // in a container, the next Configuration is read as the next one
+ c = from_text( "SimpleConfiguration<std::pair<Configuration*,"
+		"Configuration*>>\n"
+		"*tests_Configuration_map.txt + 1 alpha SimpleConfiguration<int> 9\n"
+		"SimpleConfiguration<int> 5\n" );
+ auto p = dynamic_cast< PairConf * >( c );
+ expect( p , "map override in a pair gives a pair" );
+ if( p ) {
+  auto first = dynamic_cast< MapConf * >( p->f_value.first );
+  expect( first && ( first->f_value.size() == 3 ) &&
+	  ( value_of< int >( first->f_value.at( "alpha" ) ) == 9 ) ,
+	  "map override in a pair: alpha replaced, the others kept" );
+  expect( p->f_value.second &&
+	  ( value_of< int >( p->f_value.second ) == 5 ) ,
+	  "map override in a pair: the second read after it" );
+  }
+ delete c;
+
+ std::cout << "SimpleConfiguration< std::map< std::string , "
+	   << "Configuration * > > cascade override: done" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+/* "*file +" on a vector of Configuration *: the Configuration of the body
+ * are appended to those of the file, the body reading exactly its count. */
+
+static void test_vector_override( void )
+{
+ write_file( "tests_Configuration_vec.txt" ,
+	     "SimpleConfiguration<std::vector<Configuration*>>\n"
+	     "2  SimpleConfiguration<int> 1  SimpleConfiguration<int> 2\n" );
+
+ auto c = from_text( "*tests_Configuration_vec.txt +\n"
+		     "2  SimpleConfiguration<int> 3  *\n" );
+ auto v = dynamic_cast< VecConf * >( c );
+ expect( v && ( v->f_value.size() == 4 ) && v->f_value[ 0 ] &&
+	 ( value_of< int >( v->f_value[ 0 ] ) == 1 ) && v->f_value[ 2 ] &&
+	 ( value_of< int >( v->f_value[ 2 ] ) == 3 ) && ( ! v->f_value[ 3 ] ) ,
+	 "vector override: { 1 , 2 } + { 3 , nullptr }" );
+ delete c;
+
+ // an empty body leaves it as it is, and the next one is read after it
+ c = from_text( "SimpleConfiguration<std::pair<Configuration*,"
+		"Configuration*>>\n"
+		"*tests_Configuration_vec.txt + 0\n"
+		"SimpleConfiguration<int> 5\n" );
+ auto p = dynamic_cast< PairConf * >( c );
+ auto first = p ? dynamic_cast< VecConf * >( p->f_value.first ) : nullptr;
+ expect( first && ( first->f_value.size() == 2 ) && p->f_value.second &&
+	 ( value_of< int >( p->f_value.second ) == 5 ) ,
+	 "vector override of no element in a pair" );
+ delete c;
+
+ std::cout << "SimpleConfiguration< std::vector< Configuration * > > "
+	   << "cascade override: done" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
 /*------------------------ TESTS OF BlockConfig ----------------------------*/
 /*--------------------------------------------------------------------------*/
 /* The text format: the flag, the version, then the ten slots in order; the
@@ -2842,6 +2937,8 @@ int main( void )
  test_ComputeConfig_set_par();
  test_ComputeConfig_override();
  test_ComputeConfig_override_in_a_container();
+ test_map_override();
+ test_vector_override();
 
  test_BlockConfig_load();
  test_BlockConfig_get_apply();
