@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `RelaxationSolver::bound_shift()`: after Modification that only change
+  the Objective [see `classify()`], how much the bound of the current node
+  of a retained enumeration tree may have worsened, so that a node whose
+  shifted bound still cannot improve the incumbent stays fenced without
+  being solved again; the default (+infinity) re-evaluates it as before
+
 - `Constraint::clear()` and `ColVariable::is_feasible()` of any container
   of the items, of any container of containers of them and of a
   `boost::multi_array` of containers of them (e.g., a `std::deque`, a

@@ -267,13 +267,45 @@ class RelaxationSolver : public virtual ChangeSolver
   * enumeration tree built on this RelaxationSolver [see mod_effect]: e.g.,
   * an eModObjective change leaves every infeasibility certificate valid,
   * so a reoptimizing enumeration only needs to re-evaluate the part of the
-  * fenced frontier that was pruned by bound. This is problem-specific
-  * knowledge, which is why it lives here and NOT in the enumerative Solver
-  * driving this one: the default implementation conservatively claims that
-  * the Modification invalidates everything. */
+  * fenced frontier that was pruned by bound (and possibly not all of it,
+  * see bound_shift()). This is problem-specific knowledge, which is why it
+  * lives here and NOT in the enumerative Solver driving this one: the
+  * default implementation conservatively claims that the Modification
+  * invalidates everything. */
 
  [[nodiscard]] virtual int classify( const sp_Mod & mod ) {
   return( eModEverything );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// how much the bound of the current node may have worsened
+ /** Called by a reoptimizing enumeration when all the Modification since
+  * its previous solve have been classified eModObjective [see classify()],
+  * at a node of the retained tree whose relaxation bound \f$ z \f$ was
+  * computed before them, and before the relaxation is solved again there:
+  * it returns a \f$ \delta \f$ such that \f$ z - \delta \f$ (for a
+  * minimization) or \f$ z + \delta \f$ (for a maximization) is still a
+  * valid bound for the node under the new objective, so that the node can
+  * stay fenced, with no new solve, if this bound still cannot improve the
+  * incumbent. For instance, for a minimization over binary variables whose
+  * costs go from \f$ c \f$ to \f$ c + \Delta c \f$, with \f$ F_0 \f$ and
+  * \f$ F_1 \f$ the variables fixed to 0 and to 1 at the node, one has
+  * \f[
+  *  \delta = - \sum_{j \in F_1} \Delta c_j
+  *           - \sum_{j \notin F_0 \cup F_1} \min\{ 0 , \Delta c_j \} ,
+  * \f]
+  * since the minimum of \f$ \Delta c x \f$ over the box of the node is a
+  * lower bound on its minimum over the region of the node; this holds for
+  * any relaxation bound computed with the same data, Lagrangian ones
+  * included. The cost is meant to be much smaller than that of compute(),
+  * say O( n ). The relaxation not having been solved since the
+  * Modification arrived, whatever of them is needed here can be recorded
+  * by classify(), which is called on each of them before any other method
+  * of this RelaxationSolver. The default implementation returns +infinity,
+  * i.e., no information, and the node is then re-evaluated. */
+
+ [[nodiscard]] virtual Solver::OFValue bound_shift( void ) {
+  return( Inf< Solver::OFValue >() );
   }
 
 /*--------------------------------------------------------------------------*/
