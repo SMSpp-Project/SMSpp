@@ -1317,7 +1317,10 @@ void MasterProblemBlock::generate_dual_abstract_variables( void )
      throw( std::logic_error(
          "MasterProblemBlock::generate_dual_abstract_variables: the inner "
          "Block of an easy component has taken lambda of the master of "
-         "another Solver as its size Variable, and cannot be shared" ) );
+         "another Solver as its size Variable, and cannot be shared: an "
+         "easy component that the masters of more Solvers register cannot "
+         "be scaled by any of them (set bit 4 of intDoEasy in all of "
+         "them)" ) );
     }
    if( f_use_easy_size && ( ! shared ) &&
        inner->set_size_variable( & Var_lambda , eNoMod ) ) {
