@@ -22,6 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   like `RowConstraint::is_feasible()` already did, next to the specific
   overloads for the containers of the groups of a Block, which are kept
 
+### Removed
+
+- `RelaxationSolver::classify()` and its `mod_effect`: what a Modification
+  does to the problem is said by the Modification itself
+  [see `Modification::changes()`], which an enumerative Solver can read
+  without asking the RelaxationSolver
+
 ### Fixed
 
 - `Block::remove_dynamic_constraints()` and `remove_dynamic_variables()`
