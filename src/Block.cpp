@@ -27,8 +27,8 @@
 #include "AbstractBlock.h"
 #include "Block.h"
 #include "Constraint.h"
-#include "NcMemFile.h"
 #include "Objective.h"
+#include "SMSnetCDF.h"
 #include "Solution.h"
 #include "Variable.h"
 

@@ -40,9 +40,9 @@
 #include "FRowConstraint.h"
 #include "LagBFunction.h"
 #include "LinearFunction.h"
-#include "NcMemFile.h"
 #include "OneVarConstraint.h"
 #include "PolyhedralFunctionBlock.h"
+#include "SMSnetCDF.h"
 
 #include <algorithm>
 #include <chrono>
