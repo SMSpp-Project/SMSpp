@@ -22,13 +22,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   like `RowConstraint::is_feasible()` already did, next to the specific
   overloads for the containers of the groups of a Block, which are kept
 
-- `NcMemFile`, a `netCDF::NcFile` held in memory, created empty or opened
-  read-only on the bytes of a netCDF-4 file, whose `close( Image & )` gives
-  those bytes (netCDF-C 4.6.2 or later); `Block::serialize(
-  std::vector< unsigned char > & , int )` and `Block::deserialize(
-  std::span< const unsigned char > , unsigned int , Block * )`, which write
-  a Block to such an image and read it back, e.g., to copy a Block as it is
-  now, its changes included, without passing through the filesystem
+- `NcMemFile` (in `SMSnetCDF.h`), a `netCDF::NcFile` held in memory, created
+  empty or opened read-only on the bytes of a netCDF-4 file, whose `close(
+  Image & )` gives those bytes (netCDF-C 4.6.2 or later);
+  `Block::serialize( std::vector< unsigned char > & , int )` and
+  `Block::deserialize( std::span< const unsigned char > , unsigned int ,
+  Block * )`, which write a Block to such an image and read it back, e.g.,
+  to copy a Block as it is now, its changes included, without passing
+  through the filesystem
+
+### Changed
+
+- `SMSTypedefs.h` keeps the type definitions and includes three new headers
+  with the rest of what it held, moved there unchanged: `SMSFactory.h`, the
+  macros that insert a class in its factory; `SMSStreams.h`, the
+  `operator<<()`, `operator>>()` and `eatcomments` of pairs, containers and
+  `boost::multi_array`; `SMSnetCDF.h`, the functions that serialize and
+  deserialize to/from netCDF groups, and `NcMemFile`. Including
+  `SMSTypedefs.h` gives all of them as before
 
 ### Removed
 

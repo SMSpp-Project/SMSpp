@@ -105,8 +105,22 @@ RowConstraint.cpp
 - Block.h
 - RowConstraint.h
 
-SMSTypedefs.h
+SMSFactory.h
 - nil
+
+SMSnetCDF.h
+- SMSTypedefs.h
+
+SMSnetCDF.cpp
+- SMSnetCDF.h
+
+SMSStreams.h
+- nil
+
+SMSTypedefs.h
+- SMSFactory.h
+- SMSStreams.h
+- SMSnetCDF.h
 
 Solution.h
 - nil

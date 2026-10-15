@@ -1271,7 +1271,7 @@ class Block : public Observer {
   * the call is myBlock->Block::serialize( image ), as for the filename.
   *
   * The in-memory netCDF files need netCDF-C 4.6.2 or later, see
-  * NcMemFile.h. */
+  * SMSnetCDF.h. */
 
  static Block * deserialize( std::span< const unsigned char > image ,
 			     unsigned int idx = 0 , Block * father = nullptr ,
@@ -6986,19 +6986,19 @@ class Block : public Observer {
   * file of type \p type held in memory, whose image (its bytes) replaces
   * the content of \p image: the same as serialize( std::string , int ,
   * bool ) with \p image in place of the file, except that an image cannot
-  * be appended to [see NcMemFile.h], so the new file holds the Block alone.
+  * be appended to [see SMSnetCDF.h], so the new file holds the Block alone.
   * Several Block go in the same image by writing them, with
   * serialize( netCDF::NcFile & , int ), in the same NcMemFile before closing
   * it. The image is a netCDF-4 file that deserialize( std::span< const
   * unsigned char > , unsigned int ) reads back, and that can also be written
   * to disk and read by deserialize( std::string ), although its bytes need
   * not be those that serialize( std::string , int , bool ) writes [see
-  * NcMemFile.h]; with the same libraries, the same Block gives the same
+  * SMSnetCDF.h]; with the same libraries, the same Block gives the same
   * bytes. If anything goes wrong, exception is thrown and \p image is left
   * as it was.
   *
   * The in-memory netCDF files need netCDF-C 4.6.2 or later, see
-  * NcMemFile.h. */
+  * SMSnetCDF.h. */
 
  void serialize( std::vector< unsigned char > & image ,
 		 int type = eProbFile ) const;

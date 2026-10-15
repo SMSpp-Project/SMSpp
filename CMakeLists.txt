@@ -222,7 +222,6 @@ target_sources(${modName} PRIVATE
         src/LagBFunction.cpp
         src/LinearFunction.cpp
         src/MasterProblemBlock.cpp
-        src/NcMemFile.cpp
         src/Objective.cpp
         src/OneVarConstraint.cpp
         src/PolyhedralFunction.cpp
@@ -230,6 +229,7 @@ target_sources(${modName} PRIVATE
         src/RowConstraintSolution.cpp
         src/PolyhedralFunctionBlock.cpp
         src/QuadFunction.cpp
+        src/SMSnetCDF.cpp
         src/Solution.cpp
         src/Solver.cpp
         src/ThinComputeInterface.cpp
