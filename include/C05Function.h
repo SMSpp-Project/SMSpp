@@ -2311,11 +2311,9 @@ class C05FunctionModVarsAddd : public FunctionModVarsAddd
  *
  *     PREVIOUSLY COMPUTED LINEARIZATION INFORMATION CAN BE SALVAGED
  *
- * This class is actually identical to its base FunctionModVarsRngd; it does
- * not add any information to it. However, by being a different class it
- * allows to encode information regarding the impact that changes in the set
- * of "active" Variable have on the *linearization*, that are specific to
- * C05Function. In particular, issuing a C05FunctionModVarsRngd is intended
+ * This class encodes information about how changes in the set of "active"
+ * Variable affect the *linearization* of a C05Function. In particular,
+ * issuing a C05FunctionModVarsRngd is intended
  * to signal that the modification to the C05Function is *strongly*
  * quasi-additive; see the comments to C05FunctionModVarsAddd. If the
  * modification is *not strongly* quasi-additive, the C05Function only has
@@ -2335,6 +2333,12 @@ class C05FunctionModVarsAddd : public FunctionModVarsAddd
  *     IT CAN BE EXPECTED THAT THE C05FunctionMod BE ISSUED BEFORE THE
  *     FunctionModVarsRngd, AS WORKING ON AN "EMPTY" GLOBAL POOL SHOULD
  *     BE CHEAPER.
+ *
+ * The modification may also carry the changes in the linear coefficients
+ * of the removed Variable; see has_linear_delta() and linear_delta(). This
+ * information is optional and independent of shift. The original constructor
+ * leaves it unavailable, so existing producers and consumers need not use it.
+ * A linear delta alone does not describe the removal of nonlinear terms.
  */
 
 class C05FunctionModVarsRngd : public FunctionModVarsRngd
@@ -2351,9 +2355,41 @@ class C05FunctionModVarsRngd : public FunctionModVarsRngd
                          bool cB = true )
   : FunctionModVarsRngd( f , std::move( vars ) , range , shift , cB ) {}
 
+ /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// constructor with the changes in the removed linear coefficients
+ /** delta[ i ] is the change in the linear coefficient of vars[ i ] in f
+  * at the time of removal: if its old coefficient was c_i, delta[ i ] is
+  * -c_i. These are contributions of f only, not coefficients summed over
+  * other functions. delta must have the same size as vars and is moved into
+  * the modification. All other arguments retain their original meaning. */
+
+ C05FunctionModVarsRngd( C05Function * f , Vec_p_Var && vars ,
+                         c_Range & range , FunctionValue shift , bool cB ,
+                         Vec_FunctionValue && delta )
+  : FunctionModVarsRngd( f , std::move( vars ) , range , shift , cB ) ,
+    v_linear_delta( std::move( delta ) ) , f_has_linear_delta( true ) {
+  if( v_linear_delta.size() != v_vars.size() )
+   throw( std::invalid_argument( "vars and linear delta sizes do not match" ) );
+  }
+
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
  ~C05FunctionModVarsRngd() override = default;  ///< destructor: does nothing
+
+/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+
+ /// true if the removed linear coefficient changes were supplied
+ [[nodiscard]] bool has_linear_delta( void ) const {
+  return( f_has_linear_delta );
+  }
+
+ /// the linear coefficient changes, in the same order as vars()
+ /** Returns an empty vector when no delta was supplied. Use
+  * has_linear_delta() to distinguish unavailable information from a supplied
+  * empty vector. A supplied zero entry is a known zero change. */
+ [[nodiscard]] c_Vec_FunctionValue & linear_delta( void ) const {
+  return( v_linear_delta );
+  }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -2387,6 +2423,11 @@ class C05FunctionModVarsRngd : public FunctionModVarsRngd
          << f_range.second << " ]" << std::endl;
   }
 
+/*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
+
+ Vec_FunctionValue v_linear_delta;  ///< optional linear coefficient changes
+ bool f_has_linear_delta = false;   ///< whether the changes were supplied
+
 /*--------------------------------------------------------------------------*/
 
  };  // end( class( C05FunctionModVarsRngd ) )
@@ -2400,11 +2441,9 @@ class C05FunctionModVarsRngd : public FunctionModVarsRngd
  *
  *     PREVIOUSLY COMPUTED LINEARIZATION INFORMATION CAN BE SALVAGED
  *
- * This class is actually identical to its base FunctionModVarsSbst; it does
- * not add any information to it. However, by being a different class it
- * allows to encode information regarding the impact that changes in the set
- * of "active" Variable have on the *linearization*, that are specific to
- * C05Function. In particular, issuing a FunctionModVarsSbst is intended to
+ * This class encodes information about how changes in the set of "active"
+ * Variable affect the *linearization* of a C05Function. In particular,
+ * issuing a C05FunctionModVarsSbst is intended to
  * signal that the modification to the C05Function is *strongly*
  * quasi-additive; see the comments to C05FunctionModVarsAddd. If the
  * modification is *not strongly* quasi-additive, the C05Function only has
@@ -2424,6 +2463,11 @@ class C05FunctionModVarsRngd : public FunctionModVarsRngd
  *     IT CAN BE EXPECTED THAT THE C05FunctionMod BE ISSUED BEFORE THE
  *     FunctionModVarsSbst, AS WORKING ON AN "EMPTY" GLOBAL POOL SHOULD
  *     BE CHEAPER.
+ *
+ * As for C05FunctionModVarsRngd, an optional linear delta may be supplied.
+ * The original constructor leaves it unavailable. When present, its entries
+ * correspond to vars(), including when an empty subset denotes removal of
+ * all Variable. The delta does not replace shift or describe nonlinear terms.
  */
 
 class C05FunctionModVarsSbst : public FunctionModVarsSbst
@@ -2441,9 +2485,38 @@ class C05FunctionModVarsSbst : public FunctionModVarsSbst
   : FunctionModVarsSbst( f , std::move( vars ) , std::move( subset ) ,
                          ordered , shift , cB ) {}
 
+ /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// constructor with the changes in the removed linear coefficients
+ /** delta[ i ] is minus the old linear coefficient of vars[ i ] in f, as
+  * for C05FunctionModVarsRngd. delta must have the same size as vars, even
+  * when subset is empty (all Variable are removed). If ordered is false,
+  * subset, vars and delta are reordered together. */
+
+ C05FunctionModVarsSbst( C05Function * f , Vec_p_Var && vars ,
+                         Subset && subset , bool ordered ,
+                         FunctionValue shift , bool cB ,
+                         Vec_FunctionValue && delta )
+  : C05FunctionModVarsSbst( f , prepare_linear_delta( std::move( vars ) ,
+       std::move( subset ) , ordered , std::move( delta ) , shift , cB ) ) {}
+
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
  ~C05FunctionModVarsSbst() override = default;  ///< destructor: does nothing
+
+/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+
+ /// true if the removed linear coefficient changes were supplied
+ [[nodiscard]] bool has_linear_delta( void ) const {
+  return( f_has_linear_delta );
+  }
+
+ /// the linear coefficient changes, in the same order as vars()
+ /** Returns an empty vector when no delta was supplied. Use
+  * has_linear_delta() to distinguish unavailable information from a supplied
+  * empty vector. A supplied zero entry is a known zero change. */
+ [[nodiscard]] c_Vec_FunctionValue & linear_delta( void ) const {
+  return( v_linear_delta );
+  }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -2475,6 +2548,55 @@ class C05FunctionModVarsSbst : public FunctionModVarsSbst
 
   output << ") deleting " << v_subset.size() << " variables" << std::endl;
   }
+
+/*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
+
+ Vec_FunctionValue v_linear_delta;  ///< optional linear coefficient changes
+ bool f_has_linear_delta = false;   ///< whether the changes were supplied
+
+/*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
+
+ private:
+
+ // Sort all three vectors before the base constructor can reorder vars.
+ struct LinearDeltaData {
+  Vec_p_Var vars;
+  Subset subset;
+  Vec_FunctionValue delta;
+  FunctionValue shift;
+  bool concerns;
+  };
+
+ static LinearDeltaData prepare_linear_delta( Vec_p_Var && vars ,
+       Subset && subset , bool ordered , Vec_FunctionValue && delta ,
+       FunctionValue shift , bool cB ) {
+  if( vars.size() != delta.size() )
+   throw( std::invalid_argument( "vars and linear delta sizes do not match" ) );
+  if( ( ! subset.empty() ) && ( vars.size() != subset.size() ) )
+   throw( std::invalid_argument( "vars and subset sizes do not match" ) );
+  if( ( ! ordered ) && ( ! subset.empty() ) && ( vars.size() > 1 ) ) {
+   using IdxVarDelta = std::tuple< Index , Variable * , FunctionValue >;
+   std::vector< IdxVarDelta > tmp( vars.size() );
+   for( Index i = 0 ; i < vars.size() ; ++i )
+    tmp[ i ] = IdxVarDelta( subset[ i ] , vars[ i ] , delta[ i ] );
+   std::sort( tmp.begin() , tmp.end() , []( auto & a , auto & b ) {
+    return( std::get< 0 >( a ) < std::get< 0 >( b ) );
+    } );
+   for( Index i = 0 ; i < vars.size() ; ++i ) {
+    subset[ i ] = std::get< 0 >( tmp[ i ] );
+    vars[ i ] = std::get< 1 >( tmp[ i ] );
+    delta[ i ] = std::get< 2 >( tmp[ i ] );
+    }
+   }
+  return( LinearDeltaData{ std::move( vars ) , std::move( subset ) ,
+                          std::move( delta ) , shift , cB } );
+  }
+
+ C05FunctionModVarsSbst( C05Function * f , LinearDeltaData && data )
+  : FunctionModVarsSbst( f , std::move( data.vars ) ,
+                         std::move( data.subset ) , true , data.shift ,
+                         data.concerns ) ,
+    v_linear_delta( std::move( data.delta ) ) , f_has_linear_delta( true ) {}
 
 /*--------------------------------------------------------------------------*/
 
