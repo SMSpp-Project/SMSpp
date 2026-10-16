@@ -2741,15 +2741,19 @@ static void test_FunctionMod_changes( void )
 					  M::eObjDown ) );
   }
 
- // in a GroupModification, each FunctionMod says what its Observer knows
+ // on a channel, the GroupModification says what its FunctionMod say
  {
   r.clear();
-  auto cmod = std::make_shared< FunctionMod >( rf , 1 );
-  auto group = std::make_shared< GroupModification >();
-  group->add( cmod );
-  c->add_Modification( group );
-  assert( cmod->changes() == ( C | S | G ) );
-  assert( group->changes() == ( C | S | G ) );
+  auto chnl = r.block->open_channel();
+  c->add_Modification( std::make_shared< FunctionMod >( rf , 1 ) , chnl );
+  obj->add_Modification( std::make_shared< FunctionMod >( of , -1 ) ,
+			 chnl );
+  r.block->close_channel( chnl );
+  assert( r.got().size() == 1 );
+  auto group = std::dynamic_pointer_cast< GroupModification >(
+						       r.got().front() );
+  assert( group && ( group->sub_Modifications().size() == 2 ) );
+  assert( group->changes() == ( C | S | G | M::eModObj | M::eObjDown ) );
   r.clear();
   }
 
