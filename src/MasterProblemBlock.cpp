@@ -771,8 +771,8 @@ void MasterProblemBlock::CreateEmptyMP( stabilization_type Stbl , int NoCmps ,
 
  StblType  = Stbl;
  DoEasy    = DoEasyCmp;
- f_use_easy_size = ! ( DoEasy & 16 );
- f_use_easy_mirror = DoEasy & 32;
+ f_use_easy_size = ! ( DoEasy & 8 );
+ f_use_easy_mirror = DoEasy & 16;
  IsEasyCmp = std::move( IsEasy );
 
  // the dual form is the only viable choice as soon as there is at least
@@ -1349,7 +1349,7 @@ void MasterProblemBlock::generate_dual_abstract_variables( void )
          "Block of an easy component has taken lambda of the master of "
          "another Solver as its size Variable, and cannot be shared: an "
          "easy component that the masters of more Solvers register cannot "
-         "be scaled by any of them (set bit 4 of intDoEasy in all of "
+         "be scaled by any of them (set bit 3 of intDoEasy in all of "
          "them)" ) );
     }
    if( f_use_easy_size && ( ! shared ) &&

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `MasterProblemBlock::CreateEmptyMP()` reads bit 3 (+8) of `DoEasyCmp` as
+  `use_easy_size_variables( false )` and bit 4 (+16) as
+  `use_easy_mirrors( true )`, as `intDoEasy` of BundleSolver now does
+  (formerly bits 4 and 5)
+
 ### Added
 
 - `AbstractBlock::mirror()` keeps the size Variable of the mirrored Block:

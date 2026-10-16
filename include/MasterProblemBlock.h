@@ -557,8 +557,8 @@ class MasterProblemBlock : public Block {
   * @param Stbl       the stabilization scheme, see #stabilization_type;
   * @param NoCmps     total number of components (NoTotCmps);
   * @param DoEasyCmp  bit-wise flag controlling the easy-component handling,
-  *                   stored in #DoEasy: bit 4 (+16) is
-  *                   use_easy_size_variables( false ), bit 5 (+32) is
+  *                   stored in #DoEasy: bit 3 (+8) is
+  *                   use_easy_size_variables( false ), bit 4 (+16) is
   *                   use_easy_mirrors( true ), and the other bits are not
   *                   read by MasterProblemBlock;
   * @param NoEasy     number of "easy" components;
