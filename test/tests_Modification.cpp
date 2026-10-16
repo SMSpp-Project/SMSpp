@@ -2673,6 +2673,107 @@ static void test_issue_by_kind( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* What a FunctionMod says of itself once its Function is that of an
+ * FRowConstraint or of an FRealObjective, which read its shift() [see
+ * FunctionMod::set_changes()]: upwards the RHS becomes harder to satisfy and
+ * the LHS easier, downwards the opposite, NaN both, nothing for a side at
+ * infinity or a relaxed Constraint; the objective moves the way of the
+ * shift, whatever the sense. Then a Solver that reads only the Objective
+ * no longer receives the FunctionMod of a Constraint, and one that reads
+ * only the coefficients of the Constraint that of the Objective. */
+
+static void test_FunctionMod_changes( void )
+{
+ using M = Modification;
+ static constexpr double NaN = FunctionMod::NaNshift;
+ Rig r;
+ auto x = new std::vector< ColVariable >( 1 );
+ r.block->add_static_variable( *x , "x" );
+ auto rf = new LinearFunction( { { & ( *x )[ 0 ] , 1 } } );
+ auto c = new FRowConstraint( nullptr , 0 , 1 , rf );
+ r.block->add_static_constraint( *c , "c" );
+ auto of = new LinearFunction( { { & ( *x )[ 0 ] , 1 } } );
+ auto obj = new FRealObjective( nullptr , of );
+ r.objective = obj;
+ r.block->set_objective( obj , eNoMod );
+
+ // what the FunctionMod with the given shift says after the Observer
+ auto says = [ & ]( Observer * o , Function * f , double shift ) {
+  r.clear();
+  const auto mod = std::make_shared< FunctionMod >( f , shift );
+  assert( mod->changes() == ( Function::eModFValues | M::eEffAny ) );
+  o->add_Modification( mod );
+  assert( ( r.got().size() == 1 ) && ( r.got().front() == mod ) );
+  r.clear();
+  return( mod->changes() );
+  };
+
+ const auto S = M::eRegnShrink;
+ const auto G = M::eRegnGrow;
+ const auto C = M::eModCnsCoef;
+
+ for( auto [ lhs , rhs ] : { std::pair( 0.0 , 1.0 ) , std::pair( 0.0 , INF ) ,
+			     std::pair( -INF , 1.0 ) , std::pair( -INF , INF ) } ) {
+  c->set_lhs( lhs , eNoMod );
+  c->set_rhs( rhs , eNoMod );
+  const bool l = ( lhs > -INF );
+  const bool u = ( rhs < INF );
+  for( double up : { 1.0 , INF } )
+   assert( says( c , rf , up ) == ( C | ( u ? S : 0 ) | ( l ? G : 0 ) ) );
+  for( double down : { -1.0 , -INF } )
+   assert( says( c , rf , down ) == ( C | ( l ? S : 0 ) | ( u ? G : 0 ) ) );
+  assert( says( c , rf , NaN ) == ( C | ( ( l || u ) ? S | G : 0 ) ) );
+  assert( says( c , rf , 0 ) == C );
+  }
+
+ c->set_lhs( 0 , eNoMod );
+ c->set_rhs( 1 , eNoMod );
+ c->relax( true , eNoMod );
+ for( double s : { 1.0 , -1.0 , NaN } )
+  assert( says( c , rf , s ) == C );
+ c->relax( false , eNoMod );
+
+ for( auto sense : { Objective::eMin , Objective::eMax } ) {
+  obj->set_sense( sense , eNoMod );
+  assert( says( obj , of , 1 ) == ( M::eModObj | M::eObjUp ) );
+  assert( says( obj , of , -INF ) == ( M::eModObj | M::eObjDown ) );
+  assert( says( obj , of , NaN ) == ( M::eModObj | M::eObjUp |
+					  M::eObjDown ) );
+  }
+
+ // in a GroupModification, each FunctionMod says what its Observer knows
+ {
+  r.clear();
+  auto cmod = std::make_shared< FunctionMod >( rf , 1 );
+  auto group = std::make_shared< GroupModification >();
+  group->add( cmod );
+  c->add_Modification( group );
+  assert( cmod->changes() == ( C | S | G ) );
+  assert( group->changes() == ( C | S | G ) );
+  r.clear();
+  }
+
+ // a Solver reading only the Objective, and one reading only the
+ // coefficients of the Constraint
+ auto objs = new ReadsSolver( M::eModObj );
+ auto coefs = new ReadsSolver( M::eModCnsCoef );
+ r.block->register_Solver( objs );
+ r.block->register_Solver( coefs );
+ c->add_Modification( std::make_shared< FunctionMod >( rf , 1 ) );
+ assert( objs->get_Modification_list().empty() );
+ assert( coefs->get_Modification_list().size() == 1 );
+ coefs->get_Modification_list().clear();
+ obj->add_Modification( std::make_shared< FunctionMod >( of , 1 ) );
+ assert( objs->get_Modification_list().size() == 1 );
+ assert( coefs->get_Modification_list().empty() );
+ objs->get_Modification_list().clear();
+ r.clear();
+ r.block->unregister_Solver( objs , true );
+ r.block->unregister_Solver( coefs , true );
+
+ }
+
+/*--------------------------------------------------------------------------*/
 /* What a LagBFunction reads of its inner Block [see
  * LagBFunction::concerned_by()], and what it does with each kind of
  * Modification of the inner Block, decided by what the Modification says of
@@ -2785,6 +2886,20 @@ static void test_LagBFunction_concerned( void )
  inner->add_Modification( std::make_shared< BlockMod >( inner ) );
  assert( ! lbf->is_linearization_there( 0 ) );
  assert( what() == 64 );
+
+ // the Function of the Constraint shifted by a constant with the RHS at
+ // +INF: upwards the region can only grow, and the pool stays, downwards it
+ // may shrink
+ c->set_rhs( INF , eNoMod );
+ refill();
+ c->add_Modification( std::make_shared< FunctionMod >( rf , 1 ) );
+ assert( lbf->is_linearization_there( 0 ) );
+ assert( what() == 0 );
+ refill();
+ c->add_Modification( std::make_shared< FunctionMod >( rf , -1 ) );
+ assert( ! lbf->is_linearization_there( 0 ) );
+ assert( what() == 4 );
+ c->set_rhs( 1 , eNoMod );
 
  // a change of the Objective keeps the pool, and says so
  refill();
@@ -2899,6 +3014,7 @@ int main( void )
  test_dry_run_LagBFunction();
  test_LagBFunction_concerned();
  test_issue_by_kind();
+ test_FunctionMod_changes();
  test_dry_run_BendersBFunction();
  test_dry_run_C05SumFunction();
  test_changes();

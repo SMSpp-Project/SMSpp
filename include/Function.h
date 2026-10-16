@@ -931,13 +931,25 @@ class FunctionMod : public AModification
  /// returns what the Modification changes [see Modification::ModConcern]
  /** The values of the Function, which are the coefficients of a Constraint
   * when the Function is that of an FRowConstraint and the Objective when it
-  * is that of an FRealObjective: the Function does not know which, hence it
-  * says both, so that whoever reads either sees it; the effect on the
-  * problem may be any. */
+  * is that of an FRealObjective. The Function does not know which, hence
+  * the FunctionMod it issues says both, with any effect on the problem;
+  * the Observer of the Function, which knows where the Function is, reads
+  * shift() and says what the change does to the feasible region or to the
+  * objective before passing the FunctionMod on [see set_changes()]. */
 
  [[nodiscard]] ModConcern changes( void ) const override {
-  return( Function::eModFValues | eEffAny );
+  return( f_changes );
   }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// sets what the Modification changes [see changes()]
+ /** Called by the Observer of the Function, e.g., an FRowConstraint or an
+  * FRealObjective, before the FunctionMod goes on to the Block, with what
+  * the shift() of the values of the Function means where the Function is:
+  * which side of the Constraint it makes harder or easier to satisfy, or
+  * which way it moves the objective. */
+
+ void set_changes( ModConcern c ) { f_changes = c; }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to (the pointer to) the affected Constraint
@@ -1005,6 +1017,9 @@ class FunctionMod : public AModification
  Function * f_function;   ///< pointer to the modified Function
 
  FunctionValue f_shift;  ///< how the value of the function has changed
+
+ /// what the Modification changes [see changes()]
+ ModConcern f_changes = Function::eModFValues | eEffAny;
 
 /*--------------------------------------------------------------------------*/
 

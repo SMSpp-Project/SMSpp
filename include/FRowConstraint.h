@@ -622,7 +622,11 @@ class FRowConstraint : public RowConstraint, public Observer {
   * Block (if any). However, it also checks if mod is a FunctionModVars
   * (which is why the FRowConstraint "is always listening", see
   * anyone_there(), and in case register/unregister itself with the
-  * added/removed Variable. */
+  * added/removed Variable. If mod is a FunctionMod, it says what the shift
+  * of the Function does to the feasible region [see
+  * FunctionMod::set_changes()]: shifted upwards, the region may shrink if
+  * the RHS is finite and grow if the LHS is, downwards the opposite, and
+  * nothing happens to the region while the FRowConstraint is relaxed. */
 
  void add_Modification( sp_Mod mod , c_ChnlName chnl = 0 ) override;
 

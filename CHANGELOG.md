@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `FunctionMod::set_changes()`: an `FRowConstraint` and an `FRealObjective`
+  say what the `shift()` of their Function does before passing a
+  `FunctionMod` on to the Block. Shifted upwards, the region of an
+  `FRowConstraint` may shrink if its RHS is finite and grow if its LHS is,
+  downwards the opposite, with only `eModCnsCoef` and no effect while it is
+  relaxed; the objective of an `FRealObjective` moves the way of the shift,
+  with only `eModObj`. Hence a `LagBFunction` keeps its pool when the
+  Function of a Constraint with RHS at +INF is shifted upwards, and a Solver
+  that reads only the Objective no longer receives the `FunctionMod` of a
+  Constraint, nor one reading the Constraint that of the Objective
+
 - `AbstractBlock::mirror()` keeps the size Variable of the mirrored Block:
   the copy owns the copy of one the Block owns, and keeps one an
   `AbstractBlock` had been given, whose rows it has already sized, taking no
