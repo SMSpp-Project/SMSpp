@@ -892,6 +892,46 @@ class Solver : public ThinComputeInterface
 
  [[nodiscard]] bool is_excluded( Block * b ) const;
 
+/*--------------------------------------------------------------------------*/
+ /// declare Block whose Objective the Solver must IGNORE
+ /** Installs a set of Block of the tree rooted at the Block (to be) attached
+  * via set_Block() whose Objective the Solver does not load, while their
+  * Variable and Constraint, and their sub-Block, are loaded as usual (unless
+  * they are excluded via set_excluded_blocks()). The Objective sense of such
+  * a Block is ignored too, and so are the Modification of its Objective,
+  * i.e., any ObjectiveMod coming from it and any FunctionMod or
+  * FunctionModVars of the Function of its Objective. The intended use is a
+  * Block that is hosted inside a larger one because of what it constrains,
+  * while what it minimizes is handled by somebody else.
+  *
+  * Unlike set_excluded_blocks(), the set is not about subtrees: only the
+  * Block in it lose their Objective, not their descendants. As for
+  * set_excluded_blocks(), the set is copied, it can be given before or after
+  * set_Block() (a :Solver may then need to load the problem again), and
+  * passing nullptr clears it. The base class maintains the set but does not
+  * use it: it is the :Solver that reads the Objective of the Block that has
+  * to consult it, via is_objective_excluded(). */
+
+ virtual void set_excluded_objectives(
+                       const std::unordered_set< Block * > * ignored
+                                                              = nullptr );
+
+/*--------------------------------------------------------------------------*/
+ /// returns the set of Block whose Objective the Solver was told to ignore
+
+ [[nodiscard]] const std::unordered_set< Block * > &
+                                    get_excluded_objectives( void ) const
+  { return( f_excluded_obj ); }
+
+/*--------------------------------------------------------------------------*/
+ /// true iff the Objective of the Block \p b is to be ignored
+ /** Returns true iff \p b is in the set given by set_excluded_objectives();
+  * the descendants of \p b are not concerned. Returns false for nullptr. */
+
+ [[nodiscard]] bool is_objective_excluded( const Block * b ) const {
+  return( b && f_excluded_obj.count( const_cast< Block * >( b ) ) );
+  }
+
 /** @} ---------------------------------------------------------------------*/
 /*----------------- METHODS FOR MANAGING THE "IDENTITY" --------------------*/
 /*--------------------------------------------------------------------------*/
@@ -2348,6 +2388,10 @@ class Solver : public ThinComputeInterface
  ///< The base class maintains the set but does NOT use it: it is the
  ///< :Solver author's responsibility to consult it (via is_excluded())
  ///< where the Block tree is walked.
+
+ std::unordered_set< Block * > f_excluded_obj;
+ ///< the Block whose Objective the Solver must ignore, their Variable and
+ ///< Constraint being loaded [see set_excluded_objectives()]
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/

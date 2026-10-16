@@ -1551,6 +1551,47 @@ class MasterProblemBlock : public Block {
   { return( Index( f_lc_A.size() ) ); }
 
 /*--------------------------------------------------------------------------*/
+ /// host in the primal MP the Block whose Variable are the coordinates
+ /** Makes \p block a sub-Block of the primal MP, as the inner Block of an
+  * easy component is, so that the Solver of the MP has all its Variable and
+  * Constraint, of any type and structure, and receives their Modification
+  * through the usual channel; \p x[ j ] is the ColVariable of \p block
+  * that is the coordinate j of the point the caller is minimising on. The
+  * MP then has the rows
+  *
+  *     x_j - d_j = x_bar_j        ( x_j - d_j = 0 in raw form )
+  *
+  * binding each of them to the Variable of the MP, with the sides following
+  * the stability centre [see set_x_bar()], so that the feasible set of the
+  * MP is the projection onto the coordinates of the one \p block defines,
+  * the other Variable of \p block being free to take whatever value it
+  * needs. What \p block minimises is not part of the MP: its Objective is
+  * given to Solver::set_excluded_objectives(), its sub-Block to
+  * Solver::set_excluded_blocks(), of the Solver of the MP, which may have
+  * to load the problem again (an NBModification is issued). Whether integer
+  * Variable of \p block keep being so in the MP is for the configuration of
+  * that Solver to say.
+  *
+  * The multipliers of the rows belong to the normal cone of the feasible
+  * set, and are treated as those of the linear constraints are [see
+  * set_linear_constraints()]. \p block stays owned by its owner, and gets
+  * back the father it had when it is no longer hosted, i.e., when this is
+  * called with nullptr or another Block, or by clear().
+  *
+  * Calling it again with the same \p block replaces the rows; an empty \p
+  * x removes them and keeps \p block hosted, which is what the caller does
+  * while the coordinates change, since remove_vars() throws while the rows
+  * are there, and add_vars() does not give the new coordinates a row. Only
+  * the primal MP can host a Block, the dual one would need its
+  * dualization. */
+
+ void set_hosted_Block( Block * block , std::vector< ColVariable * > x );
+
+ /// the Block hosted in the MP, nullptr if none [see set_hosted_Block()]
+
+ [[nodiscard]] Block * get_hosted_Block( void ) const { return( f_host ); }
+
+/*--------------------------------------------------------------------------*/
  /// set the upper centre u_bar of an #kUpperLower stabilization
  /** Companion of #set_x_bar to be used under #kUpperLower stabilization
   * (which is currently a reserved-but-not-implemented type, see
@@ -2384,6 +2425,24 @@ class MasterProblemBlock : public Block {
  std::list< FRowConstraint > LinCns;  ///< the linear constraints in the
                                       ///< primal MP, one per row of f_lc_A
 
+ Block * f_host = nullptr;         ///< the hosted Block, if any [see
+                                   ///< set_hosted_Block()]
+ Block * f_host_father = nullptr;  ///< the father f_host had when hosted,
+                                   ///< to which add_Modification() passes
+                                   ///< its Modification
+ std::vector< ColVariable * > f_host_x;  ///< the coordinates in f_host
+
+ std::list< FRowConstraint > HostCns;  ///< the rows x_j - d_j = x_bar_j,
+                                       ///< one per coordinate, if any
+
+ std::unordered_set< Block * > f_host_obj;  ///< { f_host }, or empty, the
+                                            ///< Block whose Objective the
+                                            ///< Solver of the MP ignores
+
+ std::vector< Block * > f_host_ignored;  ///< the sub-Block of f_host that
+                                         ///< have been added to
+                                         ///< f_ignored_blocks
+
  std::list< ColVariable > Var_mu_plus;   ///< the multipliers of the left-hand
                                          ///< sides of the linear constraints
                                          ///< in the dual MP, one per row
@@ -2631,6 +2690,20 @@ class MasterProblemBlock : public Block {
                     ///< the centre: those of LinCns in the primal MP, the
                     ///< objective coefficients of their multipliers in the
                     ///< dual one
+
+ void build_host_constraints( ModParam issueMod );
+                    ///< replace the rows of HostCns with those binding
+                    ///< f_host_x to the Variable of the MP
+
+ void refresh_host_sides( ModParam issueMod );
+                    ///< make the sides of HostCns follow the centre
+
+ void unhost_Block( void );
+                    ///< give f_host back to its father, and drop what
+                    ///< hosting it has added [see set_hosted_Block()]
+
+ void send_exclusions( void );
+                    ///< tell the Solver of the MP what it has to ignore
 
  void add_dual_linear_constraints( ModParam issueMod );
                     ///< give the dual MP the multipliers of the linear

@@ -116,6 +116,9 @@ void MasterProblemBlock::clear()
  EasySizeCns.clear();
  EasySizeVars.clear();
 
+ // the hosted Block, as the easy ones below, is only registered
+ unhost_Block();
+
  // Easy-component inner Blocks are only registered, not owned, by MPB. Remove
  // each registration and give the inner Block back the father it had when
  // it was registered before dropping the bookkeeping. Each pointer
@@ -261,6 +264,7 @@ void MasterProblemBlock::clear()
  Bounds_d.clear();
  Bounds_v_hard.clear();
  LinCns.clear();
+ HostCns.clear();
  f_lc_A.clear();
  f_lc_l.clear();
  f_lc_u.clear();
@@ -319,6 +323,8 @@ void MasterProblemBlock::add_Modification( sp_Mod mod , ChnlName chnl )
  const auto easy_owner = [ this ]( Block * origin ) -> Block * {
   for( auto * root = origin ; root && root != this ;
        root = root->get_f_Block() ) {
+   if( root == f_host )
+    return( f_host_father );
    const auto it = std::find( EasyCmps_SB.begin() , EasyCmps_SB.end() ,
                               root );
    if( it != EasyCmps_SB.end() ) {
@@ -506,6 +512,10 @@ void MasterProblemBlock::register_Solver( std::string && solv_cfg_filename )
  MPBSC->apply( this , ignored );
  MPBSC->clear();
  delete MPBSC;
+
+ // and the Objective of the hosted Block, if any, is not of the MP
+ if( f_host )
+  send_exclusions();
 
  }  // end( MasterProblemBlock::register_Solver )
 
@@ -1021,6 +1031,11 @@ void MasterProblemBlock::generate_primal_abstract_constraints( void )
  LinCns.clear();
  add_dynamic_constraint( LinCns , "MPB_lin" );
  build_linear_constraints( eNoMod );
+
+ // the rows binding the hosted Block [see set_hosted_Block()]
+ HostCns.clear();
+ add_dynamic_constraint( HostCns , "MPB_host" );
+ build_host_constraints( eNoMod );
 
  // Now handle each hard component
  for( int k = 0 ; k < NoHardCmps ; ++k ) {
@@ -3261,6 +3276,12 @@ std::vector< double > MasterProblemBlock::get_z_vector( void ) const
     ++i;
     }
    }
+  // and so are the rows binding the hosted Block, where d_j has -1
+  if( HostCns.size() == Index( NumVars ) ) {
+   Index j = 0;
+   for( const auto & row : HostCns )
+    agg[ j++ ] -= sgn * row.get_dual();
+   }
 
   for( Index j = 0 ; j < Index( NumVars ) ; ++j ) {
    double lhs , rhs;
@@ -4673,6 +4694,7 @@ void MasterProblemBlock::set_x_bar( const std::vector< double > & x_bar )
   // absorbed BendersBFunction rows
   refresh_local_branching( eModBlck );
   refresh_linear_constraint_sides( eModBlck );
+  refresh_host_sides( eModBlck );
   refresh_easy_BBF_sides( eModBlck );
 
   return;
@@ -5533,6 +5555,12 @@ void MasterProblemBlock::remove_vars( const int * subset , int sz )
     throw( std::logic_error( "MasterProblemBlock::remove_vars: coordinate " +
                              std::to_string( term.first ) + " is in a "
                              "linear constraint" ) );
+
+ // the rows binding the hosted Block are the caller's to remove first
+ // [see set_hosted_Block()]
+ if( ! HostCns.empty() )
+  throw( std::logic_error( "MasterProblemBlock::remove_vars: the hosted "
+                           "Block is bound to the coordinates" ) );
 
  if( ( cnst_built || obj_built ) && ! vars_built )
   throw( std::logic_error(
@@ -6767,6 +6795,172 @@ void MasterProblemBlock::refresh_linear_constraint_sides( ModParam issueMod )
   }
 
  }  // end( MasterProblemBlock::refresh_linear_constraint_sides )
+
+/*--------------------------------------------------------------------------*/
+
+void MasterProblemBlock::set_hosted_Block( Block * block ,
+                                           std::vector< ColVariable * > x )
+{
+ static const std::string _prfx = "MasterProblemBlock::set_hosted_Block: ";
+
+ if( block && ( ! IsPrimal ) )
+  throw( std::logic_error( _prfx + "only the primal MP can host a Block" ) );
+ if( block && ( ! x.empty() ) && ( int( x.size() ) != NumVars ) )
+  throw( std::invalid_argument( _prfx + "x must have NumVars entries, or "
+                                "none" ) );
+ if( std::find( x.begin() , x.end() , nullptr ) != x.end() )
+  throw( std::invalid_argument( _prfx + "a coordinate has no ColVariable" ) );
+ if( ( ! block ) && ( ! x.empty() ) )
+  throw( std::invalid_argument( _prfx + "coordinates without a Block" ) );
+
+ const ModParam issueMod = anyone_there() ? eModBlck : eNoMod;
+
+ // the old rows go first, while the Variable they have are still there
+ f_host_x.clear();
+ build_host_constraints( issueMod );
+
+ if( block != f_host ) {
+  unhost_Block();
+
+  if( block ) {
+   // as for an easy component [see configure()], block is registered in
+   // the tree of the MP and keeps being owned by whoever owns it, and the
+   // father it has is recorded, to which add_Modification() passes its
+   // Modification
+   auto * father = block->get_f_Block();
+   const bool father_was_listening = father && father->anyone_there();
+   if( father_was_listening )
+    block->anyone_there( false );
+   add_nested_Block( block );
+   if( father_was_listening )
+    block->anyone_there( true );
+
+   f_host = block;
+   f_host_father = father;
+   f_host_obj.insert( block );
+   for( auto * sb : block->get_nested_Blocks() )
+    if( f_ignored_blocks.insert( sb ).second )
+     f_host_ignored.push_back( sb );
+   }
+
+  send_exclusions();
+
+  // what the MP is made of has changed under its Solver
+  if( anyone_there() )
+   Block::add_Modification( std::make_shared< NBModification >( this ) );
+  }
+
+ f_host_x = std::move( x );
+ if( f_abs_rep & k_mpb_built_cnst )
+  build_host_constraints( issueMod );
+
+ }  // end( MasterProblemBlock::set_hosted_Block )
+
+/*--------------------------------------------------------------------------*/
+
+void MasterProblemBlock::build_host_constraints( ModParam issueMod )
+{
+ if( ! HostCns.empty() )
+  remove_dynamic_constraints( HostCns , Range( 0 , Index( HostCns.size() ) ) ,
+                              issueMod );
+
+ if( ( ! f_host ) || f_host_x.empty() ||
+     ( int( Var_d_idx.size() ) != NumVars ) )
+  return;
+
+ std::list< FRowConstraint > rows( f_host_x.size() );
+ Index j = 0;
+ for( auto & row : rows ) {
+  LinearFunction::v_coeff_pair terms;
+  terms.reserve( 2 );
+  terms.emplace_back( f_host_x[ j ] , 1.0 );
+  terms.emplace_back( Var_d_idx[ j ] , -1.0 );
+  row.set_function( new LinearFunction( std::move( terms ) ) , eNoMod );
+  row.set_both( ( f_v2_form || ( j >= f_x_bar.size() ) ) ? 0.0
+                                                          : f_x_bar[ j ] ,
+                eNoMod );
+  ++j;
+  }
+
+ add_dynamic_constraints( HostCns , rows , issueMod );
+
+ }  // end( MasterProblemBlock::build_host_constraints )
+
+/*--------------------------------------------------------------------------*/
+
+void MasterProblemBlock::refresh_host_sides( ModParam issueMod )
+{
+ if( f_v2_form || ( HostCns.size() != f_x_bar.size() ) )
+  return;
+
+ Index j = 0;
+ for( auto & row : HostCns ) {
+  if( row.get_rhs() != f_x_bar[ j ] )
+   row.set_both( f_x_bar[ j ] , issueMod );
+  ++j;
+  }
+
+ }  // end( MasterProblemBlock::refresh_host_sides )
+
+/*--------------------------------------------------------------------------*/
+
+void MasterProblemBlock::unhost_Block( void )
+{
+ if( ! f_host )
+  return;
+
+ auto it = std::find( v_Block.begin() , v_Block.end() , f_host );
+ if( it != v_Block.end() )
+  v_Block.erase( it );
+
+ if( f_host->get_f_Block() != this ) {
+  // the MP of another Solver has hosted it after this one, and passes its
+  // Modification to the father it found, i.e., to this one or to one
+  // hosting it in between: the one that passes them to this one has to
+  // pass them to the father of this one instead
+  for( auto * b = f_host->get_f_Block() ; b ; ) {
+   auto * mpb = dynamic_cast< MasterProblemBlock * >( b );
+   if( ( ! mpb ) || ( mpb->f_host != f_host ) )
+    break;
+   if( mpb->f_host_father == this ) {
+    mpb->f_host_father = f_host_father;
+    break;
+    }
+   b = mpb->f_host_father;
+   }
+  }
+ else {
+  // the listener inherited from the MP goes, the one of the father comes
+  // back; a Solver registered on the Block keeps it listening anyway
+  if( anyone_there() )
+   f_host->anyone_there( false );
+  f_host->set_f_Block( f_host_father );
+  if( f_host_father && f_host_father->anyone_there() )
+   f_host->anyone_there( true );
+  }
+
+ for( auto * sb : f_host_ignored )
+  f_ignored_blocks.erase( sb );
+ f_host_ignored.clear();
+ f_host_obj.clear();
+ f_host_x.clear();
+ f_host = nullptr;
+ f_host_father = nullptr;
+
+ }  // end( MasterProblemBlock::unhost_Block )
+
+/*--------------------------------------------------------------------------*/
+
+void MasterProblemBlock::send_exclusions( void )
+{
+ for( auto * solver : get_registered_solvers() ) {
+  solver->set_excluded_blocks( f_ignored_blocks.empty() ? nullptr
+                                                        : & f_ignored_blocks );
+  solver->set_excluded_objectives( f_host_obj.empty() ? nullptr
+                                                      : & f_host_obj );
+  }
+
+ }  // end( MasterProblemBlock::send_exclusions )
 
 /*--------------------------------------------------------------------------*/
 

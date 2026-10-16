@@ -100,6 +100,16 @@ void Solver::set_excluded_blocks(
 
 /*--------------------------------------------------------------------------*/
 
+void Solver::set_excluded_objectives(
+                          const std::unordered_set< Block * > * ignored )
+{
+ f_excluded_obj.clear();
+ if( ignored )
+  f_excluded_obj = *ignored;
+ }
+
+/*--------------------------------------------------------------------------*/
+
 bool Solver::is_excluded( Block * b ) const
 {
  if( f_excluded.empty() || ! b )

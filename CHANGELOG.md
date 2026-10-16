@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `Solver::set_excluded_objectives()`, `get_excluded_objectives()` and
+  `is_objective_excluded()`: the Block whose Objective a Solver must ignore,
+  their Variable and Constraint being loaded, next to the sub-Block it must
+  ignore altogether [see `set_excluded_blocks()`]
+
+- `MasterProblemBlock::set_hosted_Block()`: the primal master hosts a Block
+  as a sub-Block it does not own, so that its Solver has all the Constraint of
+  the Block, of any type, and gets their Modification through the usual
+  channel; the rows x_j - d_j = x_bar_j (x_j - d_j = 0 in raw form) bind the
+  coordinates of the Block to the Variable of the master, the sides following
+  the stability centre, so that the feasible set is the projection of the one
+  of the Block. The Objective and the sub-Block of the hosted Block are given
+  to the Solver of the master to be ignored, and the multipliers of the rows
+  enter the aggregate as those of the linear constraints do
+
 - `MasterProblemBlock::set_linear_constraints()`: the linear constraints l <=
   A x <= u on the variables of the master problem, which the primal master
   has as rows on its Variable, with the sides following the stability centre
