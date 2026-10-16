@@ -3330,6 +3330,16 @@ void AbstractBlock::mirror( Block * blck )
 
  mirror_variables( blck , this );
  mirror_constraints( blck , this );
+
+ // the size Variable of blck stays what it is: one it owns has its copy
+ // here, one it has been given is outside of the subtree and used as it is
+ if( auto sv = dynamic_cast< ColVariable * >( blck->get_size_variable() ) ) {
+  if( auto cv = mirror_of( sv ) )
+   set_owned_size_variable( cv );
+  }
+ else
+  if( auto ab = dynamic_cast< AbstractBlock * >( blck ) )
+   f_size_kept = ab->get_given_size_variable();
  }
 
 /*--------------------------------------------------------------------------*/
@@ -3891,6 +3901,13 @@ bool AbstractBlock::set_size_variable( Variable * size_var ,
   return( false );
  if( ! f_mirrored )
   return( false );
+
+ // the size Variable kept from the mirrored Block, or owned, is the only
+ // one [see mirror()]
+ if( get_size_variable() )
+  return( false );
+ if( f_size_kept )
+  return( v == f_size_kept );
  if( v == f_size_var )
   return( v != nullptr );
  if( v && f_size_var )

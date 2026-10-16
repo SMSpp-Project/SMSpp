@@ -1606,6 +1606,63 @@ static void test_sized_mirror( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* The size Variable of the mirrored Block stays what it is [see
+ * AbstractBlock::mirror()]: the copy of a sized copy keeps the size Variable
+ * that one was given, the copy of a Block owning one owns its copy, and two
+ * copies of the same unsized Block can be given different ones. */
+
+static void test_mirror_keeps_size_variable( void )
+{
+ AbstractBlock other;
+ auto vv = new std::vector< ColVariable >( 2 );
+ other.add_static_variable( *vv , "v" );
+ auto v = & (*vv)[ 0 ];
+ auto w = & (*vv)[ 1 ];
+
+ // x0 + x1 <= 1
+ AbstractBlock orig;
+ auto x = new std::vector< ColVariable >( 2 );
+ orig.add_static_variable( *x , "x" );
+ auto rows = new std::vector< FRowConstraint >( 1 );
+ (*rows)[ 0 ].set_function( new LinearFunction(
+                   { { & (*x)[ 0 ] , 1 } , { & (*x)[ 1 ] , 1 } } ) , eNoMod );
+ (*rows)[ 0 ].set_lhs( - Inf< double >() , eNoMod );
+ (*rows)[ 0 ].set_rhs( 1 , eNoMod );
+ orig.add_static_constraint( *rows , "r" );
+
+ // two copies of the same Block, each with a size Variable of its own
+ AbstractBlock sized , other_sized;
+ sized.mirror( & orig );
+ other_sized.mirror( & orig );
+ assert( sized.set_size_variable( v , eNoMod ) );
+ assert( other_sized.set_size_variable( w , eNoMod ) );
+ assert( coeff_of( sized.mirror_of( & (*rows)[ 0 ] ) , v ) == -1 );
+ assert( coeff_of( other_sized.mirror_of( & (*rows)[ 0 ] ) , w ) == -1 );
+
+ // the copy of the sized copy keeps v, and takes no other one
+ AbstractBlock copy;
+ copy.mirror( & sized );
+ assert( copy.get_given_size_variable() == v );
+ assert( copy.set_size_variable( v , eNoMod ) );
+ assert( ! copy.set_size_variable( w , eNoMod ) );
+ assert( ! copy.set_size_variable( nullptr , eNoMod ) );
+ const auto * crow = copy.mirror_of( sized.mirror_of( & (*rows)[ 0 ] ) );
+ assert( coeff_of( crow , v ) == -1 );
+
+ // the copy of a Block owning its size Variable owns the copy of it
+ AbstractBlock owner;
+ auto s = new std::vector< ColVariable >( 1 );
+ owner.add_static_variable( *s , "s" );
+ owner.set_owned_size_variable( & (*s)[ 0 ] );
+ AbstractBlock owned;
+ owned.mirror( & owner );
+ assert( owned.get_size_variable() == owned.mirror_of( & (*s)[ 0 ] ) );
+ assert( ! owned.set_size_variable( v , eNoMod ) );
+
+ std::cout << "mirror keeps the size Variable: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
 /* The edges of add_dynamic_*() and remove_dynamic_*(), for Variable and for
  * Constraint alike: adding nothing, adding to an empty list, a Range that is
  * empty (anywhere, even reversed or on an empty list), one to the end, one
@@ -2017,6 +2074,7 @@ int main( int argc , char ** argv )
  test_set_objective_replaces();
  test_mirror_of_an_empty_Block();
  test_sized_mirror();
+ test_mirror_keeps_size_variable();
  test_read_lp_of_an_empty_model();
  test_read_lp_edges();
  test_read_lp_malformed();

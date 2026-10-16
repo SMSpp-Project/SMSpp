@@ -593,6 +593,16 @@ class AbstractBlock : public Block
   * relaxation is not always an acceptable answer, which is why the list is
   * there rather than silently empty.
   *
+  * The size Variable of \p blck [see Block::get_size_variable() and
+  * set_size_variable()], if any, stays what it is in the copy: one that \p
+  * blck owns has its copy here, which becomes the one this AbstractBlock
+  * owns, and one that an AbstractBlock \p blck has been given lives outside
+  * of the mirrored subtree, hence it is used as it is, the copy having the
+  * rows of \p blck already sized by it; in both cases the copy takes no
+  * other size Variable. A copy of a Block that has none can be given one
+  * afterwards, which is then the copy's own and need not be the one of any
+  * other copy of the same Block.
+  *
   * The AbstractBlock must be empty, and it is an error to mirror twice. */
 
  void mirror( Block * blck );
@@ -706,7 +716,8 @@ class AbstractBlock : public Block
   * becoming the plain copy of the mirrored Block again.
   *
   * It returns false, changing nothing, if this AbstractBlock is not a
-  * mirror, if it already has another size Variable, if mirror() has left
+  * mirror, if it already has another size Variable, given or kept from the
+  * mirrored Block [see mirror()], or owns one, if mirror() has left
   * issues, or if the mirrored Block has something that cannot be scaled:
   * a row or an Objective whose Function is not a LinearFunction, or an
   * integer ColVariable. An AbstractBlock that is not a
@@ -720,9 +731,11 @@ class AbstractBlock : public Block
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// the size Variable given to this AbstractBlock, nullptr if none
+ /** The one given by set_size_variable(), or the one the mirrored Block had
+  * been given and the copy keeps [see mirror()]. */
 
  [[nodiscard]] ColVariable * get_given_size_variable( void ) const {
-  return( f_size_var );
+  return( f_size_var ? f_size_var : f_size_kept );
   }
 
 /** @} ---------------------------------------------------------------------*/
@@ -1109,6 +1122,10 @@ class AbstractBlock : public Block
  std::map< const Block * , AbstractBlock * > f_b_map;
 
  ColVariable * f_size_var = nullptr;  ///< the size Variable, if any
+
+ ColVariable * f_size_kept = nullptr;
+ ///< the size Variable the mirrored AbstractBlock had been given, with which
+ ///< its rows, and hence those of the copy, are sized [see mirror()]
 
  /// the rows the size Variable adds [see set_size_variable()]
  std::list< FRowConstraint > * f_size_list = nullptr;

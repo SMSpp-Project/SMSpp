@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `AbstractBlock::mirror()` keeps the size Variable of the mirrored Block:
+  the copy owns the copy of one the Block owns, and keeps one an
+  `AbstractBlock` had been given, whose rows it has already sized, taking no
+  other one in either case; a copy of an unsized Block can still be given one
+  of its own, which need not be the one of another copy of the same Block
+
 - `Solver::set_excluded_objectives()`, `get_excluded_objectives()` and
   `is_objective_excluded()`: the Block whose Objective a Solver must ignore,
   their Variable and Constraint being loaded, next to the sub-Block it must
