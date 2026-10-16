@@ -260,6 +260,10 @@ void MasterProblemBlock::clear()
  Bounds_d_idx.clear();
  Bounds_d.clear();
  Bounds_v_hard.clear();
+ LinCns.clear();
+ f_lc_A.clear();
+ f_lc_l.clear();
+ f_lc_u.clear();
  NormalizationCns.set_function( nullptr , eNoMod );
  LevelCns.set_function( nullptr , eNoMod );
 
@@ -274,6 +278,8 @@ void MasterProblemBlock::clear()
  Var_s_plus.clear();
  Var_s_minus_idx.clear();
  Var_s_minus.clear();
+ Var_mu_plus.clear();
+ Var_mu_minus.clear();
  slot_to_local.clear();
 
  /* The containers are empty now, but the Block still has a group registered
@@ -817,6 +823,8 @@ void MasterProblemBlock::generate_abstract_constraints( Configuration * stcc )
   generate_dual_abstract_constraints();
 
  f_abs_rep |= k_mpb_built_cnst;
+
+ add_dual_linear_constraints( eNoMod );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -842,6 +850,8 @@ void MasterProblemBlock::generate_objective( Configuration * objc )
   generate_dual_objective();
 
  f_abs_rep |= k_mpb_built_obj;
+
+ add_dual_linear_constraints( eNoMod );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -1006,6 +1016,11 @@ void MasterProblemBlock::generate_primal_abstract_constraints( void )
  add_dynamic_constraint( LBranchCns , "MPB_lbranch" );
  add_dynamic_constraint( RevLBranchCns , "MPB_rev_lbranch" );
  refresh_local_branching( eNoMod , true );
+
+ // the linear constraints [see set_linear_constraints()]
+ LinCns.clear();
+ add_dynamic_constraint( LinCns , "MPB_lin" );
+ build_linear_constraints( eNoMod );
 
  // Now handle each hard component
  for( int k = 0 ; k < NoHardCmps ; ++k ) {
@@ -1436,6 +1451,15 @@ void MasterProblemBlock::generate_dual_abstract_variables( void )
                        [ this ]( auto & additions ) {
   add_dynamic_variables( Var_s_minus , additions , eNoMod );
   } );
+
+ // ---- mu^+ / mu^- multipliers of the linear constraints -------------------
+ // Filled when the representation is complete [see
+ // add_dual_linear_constraints()]
+
+ Var_mu_plus.clear();
+ Var_mu_minus.clear();
+ add_dynamic_variable( Var_mu_plus  , "MPB_mu_plus"  );
+ add_dynamic_variable( Var_mu_minus , "MPB_mu_minus" );
 
  // Now handle each hard component
  for( int k = 0 ; k < NoHardCmps ; ++k ) {
@@ -3224,6 +3248,19 @@ std::vector< double > MasterProblemBlock::get_z_vector( void ) const
    for( int j = 0 ; j < std::min( NumVars , int( row.A_row.size() ) ) ; ++j )
     agg[ j ] += pi * row.A_row[ j ];
    }
+  // the linear constraints are rows of the feasible set, not of the model:
+  // what is balanced against the box is the aggregate plus their part of
+  // the normal cone, i.e., A_i times their multiplier
+  if( LinCns.size() == f_lc_A.size() ) {
+   Index i = 0;
+   for( const auto & row : LinCns ) {
+    const double pi = sgn * row.get_dual();
+    if( pi != 0.0 )
+     for( const auto & [ j , a ] : f_lc_A[ i ] )
+      agg[ j ] += pi * a;
+    ++i;
+    }
+   }
 
   for( Index j = 0 ; j < Index( NumVars ) ; ++j ) {
    double lhs , rhs;
@@ -3718,6 +3755,23 @@ double MasterProblemBlock::get_aggregated_alpha( int k ) const
       ( ! trust_region_side( Index( j ) , false ) ) )
    box_error += Var_s_minus_idx[ j ]->get_value() *
                 ( f_U[ j ] - f_x_bar[ j ] );
+  }
+
+ // and so do the linear constraints, whose multipliers are those of a box
+ // with A_i in place of e_j
+ if( Var_mu_plus.size() == f_lc_A.size() ) {
+  auto plus = Var_mu_plus.begin();
+  auto minus = Var_mu_minus.begin();
+  for( Index i = 0 ; i < f_lc_A.size() ; ++i , ++plus , ++minus ) {
+   double ax = 0.0;
+   for( const auto & [ j , a ] : f_lc_A[ i ] )
+    if( j < f_x_bar.size() )
+     ax += a * f_x_bar[ j ];
+   if( std::isfinite( f_lc_l[ i ] ) )
+    box_error += plus->get_value() * ( ax - f_lc_l[ i ] );
+   if( std::isfinite( f_lc_u[ i ] ) )
+    box_error += minus->get_value() * ( f_lc_u[ i ] - ax );
+   }
   }
 
  // Proximal objective recovery above already includes the box.
@@ -4615,26 +4669,12 @@ void MasterProblemBlock::set_x_bar( const std::vector< double > & x_bar )
     Bounds_d_idx[ j ]->set_rhs( rhs );
     }
 
-  // and so does the local branching
+  // and so do the local branching, the linear constraints and the
+  // absorbed BendersBFunction rows
   refresh_local_branching( eModBlck );
+  refresh_linear_constraint_sides( eModBlck );
+  refresh_easy_BBF_sides( eModBlck );
 
-  for( auto & row : EasyBBFRows ) {
-   double coupling = row.b_i;
-   for( int j = 0 ; j < NumVars ; ++j )
-    coupling += row.A_row[ j ] * x_bar[ j ];
-   switch( row.side ) {
-    case( BendersBFunction::eLHS ):
-     row.cns->set_lhs( coupling , eNoMod );
-     break;
-    case( BendersBFunction::eRHS ):
-     row.cns->set_rhs( coupling , eNoMod );
-     break;
-    case( BendersBFunction::eBoth ):
-     row.cns->set_lhs( coupling , eNoMod );
-     row.cns->set_rhs( coupling , eNoMod );
-     break;
-    }
-   }
   return;
   }
 
@@ -4703,6 +4743,9 @@ void MasterProblemBlock::set_x_bar( const std::vector< double > & x_bar )
        ( StblType == kTrustRegion ) ) )
   for( int j = 0 ; j < NumVars ; ++j )
    refresh_box_coordinate( Index( j ) , dqf , eModBlck );
+
+ // and so do the sides of the linear constraints
+ refresh_linear_constraint_sides( eModBlck );
 
  // Displacement form has no explicit x_bar * z term. Restore its exact easy
  // component part directly as x_bar * g^k(u^k), using the cached sparse map
@@ -5481,6 +5524,16 @@ void MasterProblemBlock::remove_vars( const int * subset , int sz )
  check_size( f_U , true , "upper bounds" );
  check_size( f_rho , true , "quadratic coefficients" );
 
+ // a linear constraint on a coordinate that goes would lose a term, i.e.,
+ // be a different constraint, which only its owner can write
+ for( const auto & row : f_lc_A )
+  for( const auto & term : row )
+   if( std::binary_search( removed.begin() , removed.end() ,
+                           int( term.first ) ) )
+    throw( std::logic_error( "MasterProblemBlock::remove_vars: coordinate " +
+                             std::to_string( term.first ) + " is in a "
+                             "linear constraint" ) );
+
  if( ( cnst_built || obj_built ) && ! vars_built )
   throw( std::logic_error(
        "MasterProblemBlock::remove_vars: built constraints or objective "
@@ -5770,19 +5823,17 @@ void MasterProblemBlock::remove_vars( const int * subset , int sz )
                          removed.begin() );
    }
 
+  // the linear constraints have none of the removed coordinates (see
+  // above), so their rows and sides stay: only the names of the others move
+  for( auto & row : f_lc_A )
+   for( auto & term : row )
+    term.first -= Index( std::lower_bound( removed.begin() , removed.end() ,
+                                          int( term.first ) ) -
+                         removed.begin() );
+
   // Refresh only the easy rows/objective coefficients that depend on the
   // projected reference; all other surviving objective terms retain theirs.
-  for( auto & row : EasyBBFRows ) {
-   double side = row.b_i;
-   for( int j = 0 ; j < new_n ; ++j )
-    side += row.A_row[ j ] * f_x_bar[ j ];
-   if( row.side == BendersBFunction::eLHS ||
-       row.side == BendersBFunction::eBoth )
-    row.cns->set_lhs( side , cpar );
-   if( row.side == BendersBFunction::eRHS ||
-       row.side == BendersBFunction::eBoth )
-    row.cns->set_rhs( side , cpar );
-   }
+  refresh_easy_BBF_sides( cpar );
   if( dqf && ( ! easy_obj_idx.empty() ) )
    for( std::size_t h = 0 ; h < EasyObjCoeffs.size() ; ++h ) {
     double coeff = 0.0;
@@ -6150,7 +6201,10 @@ int MasterProblemBlock::solve_master( void )
  // first cuts through add_cut() and call solve_master again. This does not
  // apply when exact easy components are present: their objective and
  // coupling terms already make the master non-empty and must be optimized.
- if( is_bundle_empty() && ( NoEasyCmps == 0 ) ) {
+ // Nor does it with linear constraints, which the step has to satisfy: the
+ // master is solved, and the caller gives the empty components their
+ // fictitious bound [see set_fictitious_LB()] for it to be bounded.
+ if( is_bundle_empty() && ( NoEasyCmps == 0 ) && f_lc_A.empty() ) {
   /* With every B^k empty the cutting-plane model is empty and the master
    * reduces to the stabilization alone,
    *
@@ -6552,6 +6606,359 @@ void MasterProblemBlock::clear_reverse_local_branching( void )
                              anyone_there() ? eModBlck : eNoMod );
 
  }  // end( MasterProblemBlock::clear_reverse_local_branching )
+
+/*--------------------------------------------------------------------------*/
+
+void MasterProblemBlock::set_linear_constraints( std::vector< LinearRow > A ,
+                                                 std::vector< double > l ,
+                                                 std::vector< double > u )
+{
+ static const std::string _prfx =
+                         "MasterProblemBlock::set_linear_constraints: ";
+
+ if( ( l.size() != A.size() ) || ( u.size() != A.size() ) )
+  throw( std::invalid_argument( _prfx + "A, l and u must have the same "
+                                "number of rows" ) );
+
+ for( auto & row : A ) {
+  std::sort( row.begin() , row.end() );
+  for( Index h = 0 ; h < row.size() ; ++h ) {
+   if( row[ h ].first >= Index( NumVars ) )
+    throw( std::invalid_argument( _prfx + "coordinate " +
+                                  std::to_string( row[ h ].first ) +
+                                  " out of range" ) );
+   if( h && ( row[ h ].first == row[ h - 1 ].first ) )
+    throw( std::invalid_argument( _prfx + "coordinate " +
+                                  std::to_string( row[ h ].first ) +
+                                  " twice in the same row" ) );
+   }
+  }
+
+ const ModParam issueMod = anyone_there() ? eModBlck : eNoMod;
+
+ // the multipliers of the old rows go first, while f_lc_A still says where
+ // they are
+ if( ! IsPrimal )
+  remove_dual_linear_constraints( issueMod );
+
+ f_lc_A = std::move( A );
+ f_lc_l = std::move( l );
+ f_lc_u = std::move( u );
+
+ if( IsPrimal ) {
+  if( f_abs_rep & k_mpb_built_cnst )
+   build_linear_constraints( issueMod );
+  }
+ else
+  add_dual_linear_constraints( issueMod );
+
+ }  // end( MasterProblemBlock::set_linear_constraints )
+
+/*--------------------------------------------------------------------------*/
+
+void MasterProblemBlock::linear_constraint_sides( Index i , double & lhs ,
+                                                  double & rhs ) const
+{
+ lhs = f_lc_l[ i ];
+ rhs = f_lc_u[ i ];
+
+ // in raw form the Variable is x, in displacement form it is x - x_bar
+ if( f_v2_form )
+  return;
+
+ double ax = 0;
+ for( const auto & [ j , a ] : f_lc_A[ i ] )
+  if( j < f_x_bar.size() )
+   ax += a * f_x_bar[ j ];
+
+ if( lhs > - Inf< double >() )
+  lhs -= ax;
+ if( rhs < Inf< double >() )
+  rhs -= ax;
+
+ }  // end( MasterProblemBlock::linear_constraint_sides )
+
+/*--------------------------------------------------------------------------*/
+
+void MasterProblemBlock::build_linear_constraints( ModParam issueMod )
+{
+ if( ! LinCns.empty() )
+  remove_dynamic_constraints( LinCns , Range( 0 , Index( LinCns.size() ) ) ,
+                              issueMod );
+
+ if( f_lc_A.empty() )
+  return;
+
+ std::list< FRowConstraint > rows( f_lc_A.size() );
+ Index i = 0;
+ for( auto & row : rows ) {
+  LinearFunction::v_coeff_pair terms;
+  terms.reserve( f_lc_A[ i ].size() );
+  for( const auto & [ j , a ] : f_lc_A[ i ] )
+   terms.emplace_back( Var_d_idx[ j ] , a );
+  row.set_function( new LinearFunction( std::move( terms ) ) , eNoMod );
+
+  double lhs , rhs;
+  linear_constraint_sides( i++ , lhs , rhs );
+  row.set_lhs( lhs , eNoMod );
+  row.set_rhs( rhs , eNoMod );
+  }
+
+ add_dynamic_constraints( LinCns , rows , issueMod );
+
+ }  // end( MasterProblemBlock::build_linear_constraints )
+
+/*--------------------------------------------------------------------------*/
+
+void MasterProblemBlock::refresh_linear_constraint_sides( ModParam issueMod )
+{
+ if( f_v2_form )
+  return;
+
+ if( ! IsPrimal ) {
+  if( Var_mu_plus.size() != f_lc_A.size() )
+   return;
+  auto * obj = dynamic_cast< FRealObjective * >( get_objective() );
+  auto * dqf = obj ? dynamic_cast< DQuadFunction * >( obj->get_function() )
+                   : nullptr;
+  if( ! dqf )
+   return;
+
+  const double sgn = IsConvex ? -1.0 : 1.0;
+  auto plus = Var_mu_plus.begin();
+  auto minus = Var_mu_minus.begin();
+  for( Index i = 0 ; i < f_lc_A.size() ; ++i , ++plus , ++minus ) {
+   double lhs , rhs;
+   linear_constraint_sides( i , lhs , rhs );
+   if( std::isfinite( lhs ) )
+    dqf->modify_term( dqf->is_active( & *plus ) , sgn * lhs , 0.0 ,
+                      issueMod );
+   if( std::isfinite( rhs ) )
+    dqf->modify_term( dqf->is_active( & *minus ) , - sgn * rhs , 0.0 ,
+                      issueMod );
+   }
+  return;
+  }
+
+ if( LinCns.size() != f_lc_A.size() )
+  return;
+
+ Index i = 0;
+ for( auto & row : LinCns ) {
+  double lhs , rhs;
+  linear_constraint_sides( i++ , lhs , rhs );
+  if( lhs == rhs ) {
+   if( ( row.get_lhs() != lhs ) || ( row.get_rhs() != rhs ) )
+    row.set_both( lhs , issueMod );
+   continue;
+   }
+
+  // the side moving towards the other one goes second, so that the row is
+  // never seen with lhs > rhs
+  if( lhs > row.get_rhs() ) {
+   row.set_rhs( rhs , issueMod );
+   row.set_lhs( lhs , issueMod );
+   continue;
+   }
+  if( row.get_lhs() != lhs )
+   row.set_lhs( lhs , issueMod );
+  if( row.get_rhs() != rhs )
+   row.set_rhs( rhs , issueMod );
+  }
+
+ }  // end( MasterProblemBlock::refresh_linear_constraint_sides )
+
+/*--------------------------------------------------------------------------*/
+
+void MasterProblemBlock::add_dual_linear_constraints( ModParam issueMod )
+{
+ if( IsPrimal || f_lc_A.empty() || ( ! Var_mu_plus.empty() ) ||
+     ( ( f_abs_rep & k_mpb_built_mask ) != k_mpb_built_mask ) )
+  return;
+
+ auto * obj = dynamic_cast< FRealObjective * >( get_objective() );
+ auto * dqf = obj ? dynamic_cast< DQuadFunction * >( obj->get_function() )
+                  : nullptr;
+ if( ( ! dqf ) || ( int( CouplingCns.size() ) != NumVars ) )
+  throw( std::logic_error( "MasterProblemBlock::add_dual_linear_constraints:"
+                           " inconsistent dual MP" ) );
+
+ // the multiplier of an infinite side is fixed to 0
+ const Index m = f_lc_A.size();
+ std::vector< double > lhs( m ) , rhs( m );
+ std::list< ColVariable > plus( m ) , minus( m );
+ auto pit = plus.begin();
+ auto mit = minus.begin();
+ for( Index i = 0 ; i < m ; ++i , ++pit , ++mit ) {
+  linear_constraint_sides( i , lhs[ i ] , rhs[ i ] );
+  for( auto [ mu , finite ] : { std::pair( & *pit ,
+                                           std::isfinite( lhs[ i ] ) ) ,
+                                std::pair( & *mit ,
+                                           std::isfinite( rhs[ i ] ) ) } ) {
+   mu->is_positive( true , eNoMod );
+   mu->set_value( 0.0 );
+   mu->is_fixed( ! finite , eNoMod );
+   }
+  }
+ add_dynamic_variables( Var_mu_plus , plus , issueMod );
+ add_dynamic_variables( Var_mu_minus , minus , issueMod );
+
+ // row i is the box with A_i in place of e_j: mu^+_i and mu^-_i enter the
+ // coupling rows as s^+_j and s^-_j do, times A_i, and the objective with
+ // the sides as they do with the bounds
+ std::vector< LinearFunction::v_coeff_pair > terms( NumVars );
+ DQuadFunction::v_coeff_triple triples;
+ triples.reserve( 2 * m );
+ const double sgn = IsConvex ? -1.0 : 1.0;
+ pit = Var_mu_plus.begin();
+ mit = Var_mu_minus.begin();
+ for( Index i = 0 ; i < m ; ++i , ++pit , ++mit ) {
+  for( const auto & [ j , a ] : f_lc_A[ i ] ) {
+   terms[ j ].emplace_back( & *pit , a );
+   terms[ j ].emplace_back( & *mit , - a );
+   }
+  triples.emplace_back( & *pit , std::isfinite( lhs[ i ] ) ? sgn * lhs[ i ]
+                                                          : 0.0 , 0.0 );
+  triples.emplace_back( & *mit , std::isfinite( rhs[ i ] ) ? - sgn * rhs[ i ]
+                                                          : 0.0 , 0.0 );
+  }
+
+ // without a Modification the row would not know of the new Variable, its
+ // LinearFunction is then replaced [see
+ // PolyhedralFunctionBlock::set_conjugate_constraint()]
+ auto cpl = CouplingCns.begin();
+ for( int j = 0 ; j < NumVars ; ++j , ++cpl ) {
+  if( terms[ j ].empty() )
+   continue;
+  auto * lf = static_cast< LinearFunction * >( cpl->get_function() );
+  if( issueMod != eNoMod ) {
+   lf->add_variables( std::move( terms[ j ] ) , issueMod );
+   continue;
+   }
+  const auto & old = lf->get_v_var();
+  LinearFunction::v_coeff_pair merged( old.begin() , old.end() );
+  merged.insert( merged.end() , terms[ j ].begin() , terms[ j ].end() );
+  const auto cst = lf->get_constant_term();
+  cpl->set_function( new LinearFunction( std::move( merged ) , cst ) ,
+                     eNoMod );
+  }
+
+ dqf->add_variables( std::move( triples ) , issueMod );
+
+ // the Objective registers its new Variable when it gets the Modification;
+ // without it, it is done here, or their removal would find them unknown to
+ // it [see remove_dual_linear_constraints()]
+ if( issueMod == eNoMod )
+  for( auto * mus : { & Var_mu_plus , & Var_mu_minus } )
+   for( auto & mu : *mus )
+    mu.add_active( obj );
+
+ }  // end( MasterProblemBlock::add_dual_linear_constraints )
+
+/*--------------------------------------------------------------------------*/
+
+void MasterProblemBlock::remove_dual_linear_constraints( ModParam issueMod )
+{
+ if( IsPrimal || Var_mu_plus.empty() )
+  return;
+
+ auto * obj = dynamic_cast< FRealObjective * >( get_objective() );
+ auto * dqf = obj ? dynamic_cast< DQuadFunction * >( obj->get_function() )
+                  : nullptr;
+ if( ( ! dqf ) || ( int( CouplingCns.size() ) != NumVars ) ||
+     ( Var_mu_plus.size() != f_lc_A.size() ) )
+  throw( std::logic_error( "MasterProblemBlock::"
+                           "remove_dual_linear_constraints: inconsistent "
+                           "dual MP" ) );
+
+ // the positions of the multipliers in the coupling rows of the coordinates
+ // of each row, and in the objective
+ std::vector< Subset > in_row( NumVars );
+ Subset in_obj;
+ in_obj.reserve( 2 * f_lc_A.size() );
+ std::vector< LinearFunction * > cpl_of;
+ cpl_of.reserve( NumVars );
+ for( auto & row : CouplingCns )
+  cpl_of.push_back( static_cast< LinearFunction * >( row.get_function() ) );
+ auto plus = Var_mu_plus.begin();
+ auto minus = Var_mu_minus.begin();
+ for( Index i = 0 ; i < f_lc_A.size() ; ++i , ++plus , ++minus )
+  for( auto * mu : { & *plus , & *minus } ) {
+   in_obj.push_back( dqf->is_active( mu ) );
+   for( const auto & term : f_lc_A[ i ] )
+    in_row[ term.first ].push_back( cpl_of[ term.first ]->is_active( mu ) );
+   }
+
+ // without a Modification the row would not know that the Variable have
+ // gone, its LinearFunction is then replaced [see
+ // add_dual_linear_constraints()]
+ auto cpl = CouplingCns.begin();
+ for( int j = 0 ; j < NumVars ; ++j , ++cpl ) {
+  auto & pos = in_row[ j ];
+  if( pos.empty() )
+   continue;
+  std::sort( pos.begin() , pos.end() );
+  auto * lf = static_cast< LinearFunction * >( cpl->get_function() );
+  if( issueMod != eNoMod ) {
+   lf->remove_variables( std::move( pos ) , true , issueMod );
+   continue;
+   }
+  const auto & old = lf->get_v_var();
+  LinearFunction::v_coeff_pair kept;
+  kept.reserve( old.size() - pos.size() );
+  for( Index h = 0 , p = 0 ; h < old.size() ; ++h )
+   if( ( p < pos.size() ) && ( pos[ p ] == h ) )
+    ++p;
+   else
+    kept.push_back( old[ h ] );
+  const auto cst = lf->get_constant_term();
+  cpl->set_function( new LinearFunction( std::move( kept ) , cst ) ,
+                     eNoMod );
+  }
+
+ std::sort( in_obj.begin() , in_obj.end() );
+ dqf->remove_variables( std::move( in_obj ) , true , issueMod );
+
+ // they are in nothing any more, which the Block need not check
+ remove_dynamic_variables( Var_mu_plus ,
+                           Range( 0 , Index( Var_mu_plus.size() ) ) ,
+                           issueMod , eDryRun );
+ remove_dynamic_variables( Var_mu_minus ,
+                           Range( 0 , Index( Var_mu_minus.size() ) ) ,
+                           issueMod , eDryRun );
+
+ }  // end( MasterProblemBlock::remove_dual_linear_constraints )
+
+/*--------------------------------------------------------------------------*/
+
+void MasterProblemBlock::refresh_easy_BBF_sides( ModParam issueMod )
+{
+ // in iterate form the Variable is x and the side is b_i, in displacement
+ // form it is x - x_bar and the side is A_i x_bar + b_i
+ for( auto & row : EasyBBFRows ) {
+  double side = row.b_i;
+  if( ! f_v2_form )
+   for( std::size_t j = 0 ;
+        j < std::min( row.A_row.size() , f_x_bar.size() ) ; ++j )
+    side += row.A_row[ j ] * f_x_bar[ j ];
+
+  switch( row.side ) {
+   case( BendersBFunction::eLHS ):
+    if( row.cns->get_lhs() != side )
+     row.cns->set_lhs( side , issueMod );
+    break;
+   case( BendersBFunction::eRHS ):
+    if( row.cns->get_rhs() != side )
+     row.cns->set_rhs( side , issueMod );
+    break;
+   case( BendersBFunction::eBoth ):
+    if( ( row.cns->get_lhs() != side ) || ( row.cns->get_rhs() != side ) )
+     row.cns->set_both( side , issueMod );
+    break;
+   }
+  }
+
+ }  // end( MasterProblemBlock::refresh_easy_BBF_sides )
 
 /*--------------------------------------------------------------------------*/
 

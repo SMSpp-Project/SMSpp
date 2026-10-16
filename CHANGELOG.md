@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `MasterProblemBlock::set_linear_constraints()`: the linear constraints l <=
+  A x <= u on the variables of the master problem, which the primal master
+  has as rows on its Variable, with the sides following the stability centre
+  in the displacement form; their multipliers are part of z* = - d* / t, and
+  hence of the aggregated linearization error, and under the trust region
+  they are balanced against the box as the rows of the easy
+  `BendersBFunction` are. With them `solve_master()` solves the master even
+  when every bundle is empty, the step having to satisfy them, and the caller
+  gives the empty components their fictitious bound. The dual master has
+  their multipliers, as it has those of the box: two non-negative Variable
+  per row in the coupling rows, with the sides in the objective; setting them
+  again replaces the old ones, whose multipliers leave the dual master.
+  `remove_vars()` refuses to remove a coordinate that is in one of them
+
 - the methods factory has families that take two values per Index, each in
   a span of its own, for the setters (`MS_sp_dbl2_rngd` and
   `MS_sp_dbl2_sbst`) and for the queries (`MS_qry_dbl2_rngd` and
@@ -30,6 +44,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   without asking the RelaxationSolver
 
 ### Fixed
+
+- `MasterProblemBlock`: the rows of an easy `BendersBFunction` absorbed in
+  the primal master keep their sides b_i in the iterate form, where the
+  Variable is x, rather than moving them to A_i x_bar + b_i as in the
+  displacement form, and a change of the stability centre now issues the
+  Modification of the sides, which a Solver attached to the master did not
+  see
 
 - `Block::remove_dynamic_constraints()` and `remove_dynamic_variables()`
   taking iterators, and `remove_dynamic_constraint()` /

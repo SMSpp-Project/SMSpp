@@ -1500,6 +1500,57 @@ class MasterProblemBlock : public Block {
   { return( f_U ); }
 
 /*--------------------------------------------------------------------------*/
+ /// a row of linear constraints: the ( coordinate , coefficient ) pairs
+
+ using LinearRow = std::vector< std::pair< Index , double > >;
+
+ /// set the linear constraints  l <= A x <= u  on the optimization variables
+ /** Installs the linear constraints
+  *
+  *     l_i <= A_i x <= u_i
+  *
+  * on the optimization variable x, i.e., on the point the caller is
+  * minimising on, as set_box() installs its box; row i is \p A[ i ], the
+  * ( coordinate , coefficient ) pairs of its nonzeros, and its sides are
+  * \p l[ i ] and \p u[ i ], each possibly infinite. The rows replace
+  * whatever rows had been set before, and an empty \p A removes them all.
+  *
+  * Only the primal MP has them, as rows on its Variable: as they are in raw
+  * form, and in displacement form in terms of the step d = x - x_bar, i.e.,
+  * as
+  *
+  *     l_i - A_i x_bar <= A_i d <= u_i - A_i x_bar
+  *
+  * with the sides following the stability centre [see set_x_bar()]. Their
+  * multipliers belong to the normal cone of the feasible set, hence to the
+  * aggregate z* = - d* / t, and by complementary slackness their part of
+  * < z* , d* > is their linearization error at x_bar, which therefore gets
+  * into the aggregated one [see get_aggregated_alpha()].
+  *
+  * The dual MP has their multipliers instead, as it has those of the box:
+  * row i gets two non-negative Variable mu^+_i and mu^-_i, which enter the
+  * coupling rows with coefficients A_i and - A_i, and the objective with
+  * the sides above, + mu^+_i l_i - mu^-_i u_i in the textbook max form (in
+  * the frame of the Variable, hence following x_bar in displacement form),
+  * a multiplier of an infinite side being fixed to 0. Their part of the
+  * aggregated linearization error is mu^+_i ( A_i x_bar - l_i ) + mu^-_i (
+  * u_i - A_i x_bar ), as for the box. Setting them again replaces the old
+  * ones, whose multipliers leave the dual MP.
+  *
+  * The coordinates are those of x, in [ 0 , NumVars ), and the rows are
+  * kept across add_vars(), while remove_vars() throws if any of them has a
+  * coordinate being removed. */
+
+ void set_linear_constraints( std::vector< LinearRow > A ,
+                              std::vector< double > l ,
+                              std::vector< double > u );
+
+ /// the number of linear constraints [see set_linear_constraints()]
+
+ [[nodiscard]] Index get_num_linear_constraints( void ) const
+  { return( Index( f_lc_A.size() ) ); }
+
+/*--------------------------------------------------------------------------*/
  /// set the upper centre u_bar of an #kUpperLower stabilization
  /** Companion of #set_x_bar to be used under #kUpperLower stabilization
   * (which is currently a reserved-but-not-implemented type, see
@@ -2326,6 +2377,19 @@ class MasterProblemBlock : public Block {
  std::vector< double > f_lbranch_x_bar;  ///< the centre LBranchCns is
                                          ///< written for
 
+ std::vector< LinearRow > f_lc_A;  ///< the rows of the linear constraints
+ std::vector< double > f_lc_l;     ///< their lower sides
+ std::vector< double > f_lc_u;     ///< and their upper ones
+
+ std::list< FRowConstraint > LinCns;  ///< the linear constraints in the
+                                      ///< primal MP, one per row of f_lc_A
+
+ std::list< ColVariable > Var_mu_plus;   ///< the multipliers of the left-hand
+                                         ///< sides of the linear constraints
+                                         ///< in the dual MP, one per row
+
+ std::list< ColVariable > Var_mu_minus;  ///< and those of the right-hand ones
+
  bool f_primal_objective_dirty = false;
                     ///< whether the primal objective must be synchronized
                     ///< before the next actual master solve
@@ -2553,6 +2617,32 @@ class MasterProblemBlock : public Block {
                     ///< kappa, the binary coordinates and the centre;
                     ///< building tells that the abstract constraints are
                     ///< being generated
+
+ void linear_constraint_sides( Index i , double & lhs , double & rhs ) const;
+                    ///< the sides of the i-th linear constraint in the
+                    ///< frame of the Variable [see set_linear_constraints()]
+
+ void build_linear_constraints( ModParam issueMod );
+                    ///< replace the rows of LinCns with the current
+                    ///< linear constraints
+
+ void refresh_linear_constraint_sides( ModParam issueMod );
+                    ///< make the sides of the linear constraints follow
+                    ///< the centre: those of LinCns in the primal MP, the
+                    ///< objective coefficients of their multipliers in the
+                    ///< dual one
+
+ void add_dual_linear_constraints( ModParam issueMod );
+                    ///< give the dual MP the multipliers of the linear
+                    ///< constraints, once its representation is complete
+
+ void remove_dual_linear_constraints( ModParam issueMod );
+                    ///< take the multipliers of the linear constraints out
+                    ///< of the dual MP, as f_lc_A says they are
+
+ void refresh_easy_BBF_sides( ModParam issueMod );
+                    ///< make the sides of the absorbed BendersBFunction
+                    ///< rows follow the centre (displacement form only)
 
  void primal_box( Index j , double & lhs , double & rhs ) const;
                     ///< the box of coordinate j of the primal MP: [ L , U ]
