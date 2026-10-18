@@ -7,13 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- `MasterProblemBlock::CreateEmptyMP()` reads bit 3 (+8) of `DoEasyCmp` as
-  `use_easy_size_variables( false )` and bit 4 (+16) as
-  `use_easy_mirrors( true )`, as `intDoEasy` of BundleSolver now does
-  (formerly bits 4 and 5)
-
 ### Added
 
 - `FunctionMod::set_changes()`: an `FRowConstraint` and an `FRealObjective`
@@ -74,6 +67,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `std::deque` of `std::vector`, a `boost::multi_array` of `std::deque`),
   like `RowConstraint::is_feasible()` already did, next to the specific
   overloads for the containers of the groups of a Block, which are kept
+
+### Changed
+
+- `MasterProblemBlock::CreateEmptyMP()` reads bit 3 (+8) of `DoEasyCmp` as
+  `use_easy_size_variables( false )` and bit 4 (+16) as
+  `use_easy_mirrors( true )`, as `intDoEasy` of BundleSolver now does
+  (formerly bits 4 and 5)
 
 ### Removed
 
