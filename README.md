@@ -95,6 +95,31 @@ find_package(SMS++)
 target_link_libraries(<my_target> SMS++::SMS++)
 ```
 
+### The C++20 module
+
+With CMake the library can also be built as the C++20 module `smspp`, so
+that a source file writes `import smspp;` in place of the `#include` of the
+headers. The module is built on request, with the option
+`SMSpp_BUILD_MODULE`, since it needs CMake 3.28 or later, the Ninja (or
+Visual Studio) generator and a compiler that scans the dependencies of the
+modules (Clang 16, GCC 14, MSVC 19.34 or later):
+
+```sh
+cmake -G Ninja -DSMSpp_BUILD_MODULE=ON ..
+cmake --build .
+```
+
+and a CMake project uses it with:
+
+```cmake
+find_package(SMS++)
+target_link_libraries(<my_target> SMS++::SMS++_module)
+```
+
+A module does not export macros, so a file that uses those of the factory
+(`SMSFactory.h`) still includes that header. The makefiles do not build the
+module.
+
 ### Running the tests with CMake
 
 Some unit tests will be built with the library. Launch `ctest` from

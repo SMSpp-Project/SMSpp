@@ -98,7 +98,7 @@ typedef const c_Vec_string::const_iterator c_Vec_string_it;
 /// Inf< T >() = infinity value for T
 
 template< typename T >
-static constexpr T Inf( void ) noexcept {
+constexpr T Inf( void ) noexcept {
  return( std::numeric_limits< T >::has_infinity ?
           std::numeric_limits< T >::infinity() :
           std::numeric_limits< T >::max() );

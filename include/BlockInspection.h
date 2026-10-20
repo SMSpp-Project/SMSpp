@@ -61,7 +61,7 @@ namespace SMSpp_di_unipi_it::inspection
   * class finds out which type the elements of a group really are. */
 
  template< class C , class F >
- static bool for_each_concrete( F f )
+ inline bool for_each_concrete( F f )
  {
   if constexpr( std::is_base_of_v< Variable , C > )
    return( f( static_cast< ColVariable * >( nullptr ) ) );
@@ -86,7 +86,7 @@ namespace SMSpp_di_unipi_it::inspection
   * before it, whatever the cells hold. */
 
  template< class C >
- static Index index_in_group( const BaseGroup & group , const C * element )
+ inline Index index_in_group( const BaseGroup & group , const C * element )
  {
   using T = std::remove_const_t< C >;
   Index found = Inf< Index >();
@@ -169,7 +169,7 @@ namespace SMSpp_di_unipi_it::inspection
   * i-th element is just "<name>[ i ]". \p fmt says which characters play the
   * part of the brackets [see name_format]. */
 
- static std::string name_of_cell( const BaseGroup & group , Index cell ,
+ inline std::string name_of_cell( const BaseGroup & group , Index cell ,
 				  Index position = Inf< Index >() ,
 				  name_format fmt = {} )
  {
@@ -198,7 +198,7 @@ namespace SMSpp_di_unipi_it::inspection
   * grid is read once for the whole group and not once per element. */
 
  template< class T , class F >
- static bool for_each_named_as( const BaseGroup & group , F f ,
+ inline bool for_each_named_as( const BaseGroup & group , F f ,
 				name_format fmt = {} )
  {
   std::string base = group.get_name();
@@ -254,7 +254,7 @@ namespace SMSpp_di_unipi_it::inspection
   * none of them, having called \p f no times. */
 
  template< class... T , class F >
- static bool for_each_named_as_any_of( const BaseGroup & group , F f )
+ inline bool for_each_named_as_any_of( const BaseGroup & group , F f )
  {
   return( ( for_each_named_as< T >( group , f ) || ... ) );
   }
@@ -267,7 +267,7 @@ namespace SMSpp_di_unipi_it::inspection
   * address of the element alone cannot give. */
 
  template< class C >
- static std::string name_in_group( const BaseGroup & group ,
+ inline std::string name_in_group( const BaseGroup & group ,
 				   const C * element )
  {
   using T = std::remove_const_t< C >;
@@ -307,7 +307,7 @@ namespace SMSpp_di_unipi_it::inspection
   * in the same way. */
 
  template< class C >
- static C * element_at( const BaseGroup & group , Index index )
+ inline C * element_at( const BaseGroup & group , Index index )
  {
   using T = std::remove_const_t< C >;
 
@@ -347,7 +347,7 @@ namespace SMSpp_di_unipi_it::inspection
  /** Returns the index of the given Block in the list of sub-Block of its
   * father, or Inf< Index >() if it has no father. */
 
- static Index get_block_index( const Block * block )
+ inline Index get_block_index( const Block * block )
  {
   auto father = block->get_f_Block();
   if( father ) {
@@ -365,7 +365,7 @@ namespace SMSpp_di_unipi_it::inspection
   * one of its Constraint otherwise, the static ones if \p is_static. */
 
  template< class T >
- static const Vec_Group & get_groups( const Block * block , bool is_static )
+ inline const Vec_Group & get_groups( const Block * block , bool is_static )
  {
   if constexpr( std::is_base_of_v< Variable , T > )
    return( is_static ? block->get_static_variable_groups()
@@ -381,7 +381,7 @@ namespace SMSpp_di_unipi_it::inspection
   * first and then dynamic, and gives the name the group it is in gives it. */
 
  template< class C >
- static std::string name_of( const Block * block , const C * element )
+ inline std::string name_of( const Block * block , const C * element )
  {
   using T = std::remove_const_t< C >;
   if( ( ! block ) || ( ! element ) )
@@ -405,9 +405,9 @@ namespace SMSpp_di_unipi_it::inspection
  /** The sentence a caller puts in the message when it is given the index, or
   * the name, of a group that is not there. */
 
- inline static std::string describe_groups( const Block * block ,
-					    bool is_static ,
-					    bool is_variable )
+ inline std::string describe_groups( const Block * block ,
+				     bool is_static ,
+				     bool is_variable )
  {
   const Vec_Group & groups = is_variable
    ? ( is_static ? block->get_static_variable_groups()
@@ -440,7 +440,7 @@ namespace SMSpp_di_unipi_it::inspection
   * that long. */
 
  template< class T >
- static T * get_element( const Block * block , bool is_static ,
+ inline T * get_element( const Block * block , bool is_static ,
                          Index group_index , Index element_index )
  {
   if constexpr( ( ! std::is_base_of_v< Variable , T > ) &&
@@ -465,7 +465,7 @@ namespace SMSpp_di_unipi_it::inspection
  /// returns how many elements of type \p T the given group of \p block holds
 
  template< class T >
- static Index get_element_size( const Block * block , bool is_static ,
+ inline Index get_element_size( const Block * block , bool is_static ,
                                 Index group_index )
  {
   if constexpr( ( ! std::is_base_of_v< Variable , T > ) &&
@@ -505,7 +505,7 @@ namespace SMSpp_di_unipi_it::inspection
   * looked for in all the groups of its Block. */
 
  template< class T >
- static std::tuple< bool , Index , Index > get_element_index( T * element )
+ inline std::tuple< bool , Index , Index > get_element_index( T * element )
  {
   if constexpr( ( ! std::is_base_of_v< Variable , T > ) &&
 		( ! std::is_base_of_v< Constraint , T > ) )
@@ -544,7 +544,7 @@ namespace SMSpp_di_unipi_it::inspection
  /** The groups of Constraint are numbered with the static ones first and the
   * dynamic ones after them, which is what a Block::ConstraintID says. */
 
- static Constraint * get_Constraint( const Block * const block ,
+ inline Constraint * get_Constraint( const Block * const block ,
                                      const Block::ConstraintID id )
  {
   const auto & statics = block->get_static_constraint_groups();
@@ -611,7 +611,7 @@ namespace SMSpp_di_unipi_it::inspection
   * the identifiers can be given back to get_Constraint(). */
 
  template< class P1 , class P2 >
- static void fill_ComputeConfig_Constraint( Block * block ,
+ inline void fill_ComputeConfig_Constraint( Block * block ,
 			      std::vector< ComputeConfig * > & configs ,
                               std::vector< std::pair< P1 , P2 > > & ids )
  {

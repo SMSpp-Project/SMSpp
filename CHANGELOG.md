@@ -77,6 +77,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to copy a Block as it is now, its changes included, without passing
   through the filesystem
 
+- the C++20 module `smspp` (`src/SMSpp.cppm`), which exports every name
+  that the headers declare at namespace scope, so that a source file can
+  write `import smspp;` in place of the `#include` of the headers; it is
+  built with the CMake option `SMSpp_BUILD_MODULE` (CMake 3.28, Ninja, Clang
+  16 or GCC 14 or later) as the target `SMS++::SMS++_module`, and
+  `cmake/smspp_module_exports.py` rewrites it from the AST of the headers
+
 ### Changed
 
 - `SMSTypedefs.h` keeps the type definitions and includes three new headers
@@ -91,6 +98,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `use_easy_size_variables( false )` and bit 4 (+16) as
   `use_easy_mirrors( true )`, as `intDoEasy` of BundleSolver now does
   (formerly bits 4 and 5)
+
+- the functions of `BlockInspection.h` and `Inf()` of `SMSTypedefs.h` are
+  `inline` instead of `static`, so that each translation unit no longer gets
+  a copy of its own and a module can export them
 
 ### Removed
 

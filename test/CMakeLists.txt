@@ -185,4 +185,12 @@ smspp_install(NetCDF_test)
 add_test(NAME NetCDF_test
          COMMAND NetCDF_test)
 
+if (SMSpp_BUILD_MODULE)
+    add_executable(Module_test tests_Module.cpp)
+    target_link_libraries(Module_test PRIVATE SMS++::SMS++_module)
+    smspp_install(Module_test)
+    add_test(NAME Module_test
+             COMMAND Module_test)
+endif ()
+
 # --------------------------------------------------------------------------- #

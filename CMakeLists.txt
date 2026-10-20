@@ -273,6 +273,32 @@ endif ()
 # the library with this notation.
 add_library(${modNamespace}::${modName} ALIAS ${modName})
 
+# ----- C++20 module -------------------------------------------------------- #
+# The module smspp (src/SMSpp.cppm) exports the names of all the headers, so
+# that a translation unit can write "import smspp;" in place of including
+# them. It is built only on request, since it needs CMake 3.28 or later, the
+# Ninja or Visual Studio generator and a compiler that scans the module
+# dependencies (Clang 16, GCC 14, MSVC 19.34 or later).
+option(SMSpp_BUILD_MODULE "Build the C++20 module smspp" OFF)
+
+if (SMSpp_BUILD_MODULE)
+    if (CMAKE_VERSION VERSION_LESS 3.28)
+        message(FATAL_ERROR "SMSpp_BUILD_MODULE needs CMake 3.28 or later")
+    endif ()
+    # the scan of the module dependencies, which cmake_policy(VERSION 3.15)
+    # above would leave off
+    cmake_policy(SET CMP0155 NEW)
+
+    add_library(${modName}_module)
+    target_sources(${modName}_module PUBLIC
+            FILE_SET CXX_MODULES
+            BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/src
+            FILES src/SMSpp.cppm)
+    target_compile_features(${modName}_module PUBLIC cxx_std_20)
+    target_link_libraries(${modName}_module PUBLIC ${modName})
+    add_library(${modNamespace}::${modName}_module ALIAS ${modName}_module)
+endif ()
+
 # ----- Subdirectories ------------------------------------------------------ #
 if (BUILD_TESTING)
     add_subdirectory(test)
@@ -291,6 +317,17 @@ install(TARGETS ${modName}
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} # .dll
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} # .so .dylib
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}) # .lib
+
+# Install the module, whose interface is compiled again by each importer
+if (SMSpp_BUILD_MODULE)
+    install(TARGETS ${modName}_module
+            EXPORT ${modName}Targets
+            RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            FILE_SET CXX_MODULES
+            DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${modNamespace}/modules)
+endif ()
 
 # Install the headers
 install(DIRECTORY include/
