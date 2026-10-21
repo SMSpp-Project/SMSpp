@@ -112,11 +112,11 @@ namespace SMSpp_di_unipi_it {
  *
  * Indeed:
  *
- * - L() is "active" at \bar{x}: \L( \bar{x} ) = f( \bar{x} );
+ * - L() is "active" at \bar{x}: L( \bar{x} ) = f( \bar{x} );
  *
  * - it supports Gr(f) from below, i.e.,
  *
- *     f( y ) >= \f( \bar{x} ) + g ( y - \bar{x} ) for all y  ,
+ *     f( y ) >= f( \bar{x} ) + g ( y - \bar{x} ) for all y  ,
  *
  *   as it can be seen by just expanding:
  *

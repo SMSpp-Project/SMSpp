@@ -1883,7 +1883,7 @@ void print( std::ostream & output ) override {
   *   nonzero entries of the matrix. In this case, A[k] is the value of the
   *   k-th nonzero entry, whose column index is given by Column[k]. The
   *   nonzero elements of the matrix are given in left-to-right top-to-bottom
-  *   (``row-major'') order. If the dimension "NumNonzero" is not present,
+  *   ("row-major") order. If the dimension "NumNonzero" is not present,
   *   then "A" is indexed over both the "NumRow" and "NumVar" dimensions (in
   *   this order); it contains the (row-major) representation of the matrix
   *   A. This variable is optional only if NumRow == 0.
@@ -1895,10 +1895,10 @@ void print( std::ostream & output ) override {
   *
   * - The variable "ConstraintSide", of type netCDF::NcChar and indexed over
   *   the dimension "NumRow", indicating, at position i, which side of the
-  *   i-th Constraint is affected. The possible values are `L' for the
-  *   left-hand (or lower bound) side, `R' for the right-hand (or upper bound)
-  *   side, and `B' for both sides. This variable is optional. If it is not
-  *   provided, then all entries of this array are assumed to be `B'.
+  *   i-th Constraint is affected. The possible values are 'L' for the
+  *   left-hand (or lower bound) side, 'R' for the right-hand (or upper bound)
+  *   side, and 'B' for both sides. This variable is optional. If it is not
+  *   provided, then all entries of this array are assumed to be 'B'.
   *
   * - The group "AbstractPath" containing the description of a vector of
   *   AbstractPath to the affected RowConstraints. The number of AbstractPath

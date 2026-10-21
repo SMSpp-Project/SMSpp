@@ -422,8 +422,8 @@ class QuadFunction : public DQuadFunction {
   * become property of the QuadFunction object.
   * 
   * We also add the non-diagonal terms, if any, this can be empty ;
-  * The added variables come with ``absolute indexes", in particular cross terms with
-  * existing variables can be specified
+  * The added variables come with "absolute indexes", in particular cross
+  * terms with existing variables can be specified
   * 
   *
   * The parameter issueMod decides if and how the C05FunctionModVars is

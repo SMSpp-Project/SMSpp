@@ -91,7 +91,7 @@
  * For the underlying theory and notation, the reader is referred to:
  *
  *  A. Frangioni, E. Gorgone "Generalized Bundle Methods for Sum-Functions
- *  with ``Easy'' Components: Applications to Multicommodity Network Design"
+ *  with 'Easy' Components: Applications to Multicommodity Network Design"
  *  Mathematical Programming 145(1), 133 - 161, 2014
  *
  * available at

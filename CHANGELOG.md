@@ -115,6 +115,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- the documentation of `C05Function.h`, `BendersBFunction.h`,
+  `MasterProblemBlock.h` and `QuadFunction.h`: a `\f(` written for f( and
+  the TeX quotes `` ``x'' `` opened a formula or a code span that Doxygen
+  never closed, so that it dropped the rest of the file (the class
+  `C05Function` was missing from the reference) or put the comments in
+  the types of the methods
+
 - `AbstractBlock::read_lp()` gives a column fixed in the Bounds section
   (`x = v`, or equal lower and upper bounds) the value v: it was fixed at
   the default value 0, and a MILPSolver took 0 as both its bounds
