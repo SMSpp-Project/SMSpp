@@ -87,8 +87,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   deserialize to/from netCDF groups, and `NcMemFile`. Including
   `SMSTypedefs.h` gives all of them as before
 
-### Changed
-
 - `MasterProblemBlock::CreateEmptyMP()` reads bit 3 (+8) of `DoEasyCmp` as
   `use_easy_size_variables( false )` and bit 4 (+16) as
   `use_easy_mirrors( true )`, as `intDoEasy` of BundleSolver now does
