@@ -116,9 +116,14 @@ find_package(SMS++)
 target_link_libraries(<my_target> SMS++::SMS++_module)
 ```
 
+Every other SMS++ module has a C++20 module of its own, built with the same
+option: `smspp.ucblock`, `smspp.milpsolver` and so on (the name of the
+module in lowercase), as the target `SMS++::<module>_module`, which
+re-exports the modules of those it depends on, `smspp` in the end.
+
 A module does not export macros, so a file that uses those of the factory
 (`SMSFactory.h`) still includes that header. The makefiles do not build the
-module.
+modules.
 
 ### Running the tests with CMake
 

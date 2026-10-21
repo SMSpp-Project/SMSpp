@@ -82,7 +82,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   write `import smspp;` in place of the `#include` of the headers; it is
   built with the CMake option `SMSpp_BUILD_MODULE` (CMake 3.28, Ninja, Clang
   16 or GCC 14 or later) as the target `SMS++::SMS++_module`, and
-  `cmake/smspp_module_exports.py` rewrites it from the AST of the headers
+  `cmake/smspp_module_exports.py` writes it from the AST of the headers, as
+  it writes the module of any other SMS++ module (which re-exports those it
+  depends on, with the names of an optional library inside an `#if` and the
+  headers of another library left out)
 
 ### Changed
 

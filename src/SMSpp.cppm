@@ -9,8 +9,8 @@
  *     import smspp;
  *
  * in place of the #include of the headers. The macros (e.g., those of the
- * factory in SMSFactory.h) are not exported by a module, so a file that
- * uses them still includes the header that defines them.
+ * factory in SMSFactory.h) are not exported by a module, so a file that uses
+ * them still includes the header that defines them.
  *
  * This file is written by cmake/smspp_module_exports.py, which reads the
  * names from the AST of the headers: it is not to be edited by hand.
@@ -19,11 +19,15 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \author Donato Meoli \n
+ * \author Rafael Durbano Lobato \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Donato Meoli
+ * \author Kostas Tavlaridis-Gyparakis \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*------------------------- GLOBAL MODULE FRAGMENT -------------------------*/
@@ -444,9 +448,6 @@ export namespace SMSpp_di_unipi_it {
 
 export namespace SMSpp_di_unipi_it {
  namespace SMSpp_type_traits {
-
-  // SMSFactory.h
-  using SMSpp_di_unipi_it::SMSpp_type_traits::t;
  }
 }
 
