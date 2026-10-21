@@ -1154,21 +1154,22 @@ static void test_read_lp_of_an_empty_model( void )
 /* What read_lp() does with what write_lp() writes at its edges: constants in
  * the Objective and in a row, which the first carries as its constant term
  * and the second moves to its side; a column whose lower bound is -infinity
- * and whose upper one is finite; a column that is only named among the
- * Generals. */
+ * and whose upper one is finite; a column fixed by "w = v", which takes the
+ * value v; a column that is only named among the Generals. */
 
 static void test_read_lp_edges( void )
 {
  const std::string lp =
   "\\ a comment\n"
   "Maximize\n"
-  " obj: 2 x + 3 - y\n"
+  " obj: 2 x + 3 - y + w\n"
   "Subject To\n"
   " r: 0 <= 4\n"
   " s: x + 1 >= 3\n"
   "Bounds\n"
   " -infinity <= x <= 5\n"
   " y free\n"
+  " w = 2.5\n"
   "Generals\n"
   " z\n"
   "End\n";
@@ -1180,13 +1181,13 @@ static void test_read_lp_edges( void )
  const auto & sv = block.get_static_variable_groups();
  const auto & sc = block.get_static_constraint_groups();
  assert( sv.size() == 1 );
- assert( sv[ 0 ]->get_num_elements() == 3 );    // x , y and z
+ assert( sv[ 0 ]->get_num_elements() == 4 );    // x , y , w and z
  assert( sc[ 0 ]->get_num_elements() == 2 );
 
  auto obj = dynamic_cast< FRealObjective * >( block.get_objective() );
  assert( obj && ( obj->get_sense() == Objective::eMax ) );
  auto lf = dynamic_cast< LinearFunction * >( obj->get_function() );
- assert( lf && ( lf->get_num_active_var() == 2 ) );
+ assert( lf && ( lf->get_num_active_var() == 3 ) );
  assert( lf->get_linearization_constant() == 3 );
 
  std::vector< std::pair< double , double > > sides;
@@ -1207,6 +1208,15 @@ static void test_read_lp_edges( void )
  sv[ 0 ]->for_each_as< ColVariable >( [ & integer ]( ColVariable & v ) {
    integer = integer || v.is_integer(); } );
  assert( integer );
+
+ // w = 2.5 fixes w at 2.5, not at the default value of a ColVariable
+ int fixed = 0;
+ sv[ 0 ]->for_each_as< ColVariable >( [ & fixed ]( ColVariable & v ) {
+   if( v.is_fixed() ) {
+    assert( v.get_value() == 2.5 );
+    ++fixed;
+    } } );
+ assert( fixed == 1 );
 
  // and the bound -infinity <= x <= 5 is written so that it is read so
  std::ostringstream again;

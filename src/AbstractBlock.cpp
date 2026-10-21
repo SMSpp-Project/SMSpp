@@ -2777,8 +2777,10 @@ void AbstractBlock::read_lp( std::istream & file )
   b.set_lhs( lb , eNoMod );
   b.set_rhs( ub , eNoMod );
    
-  if( lb == ub )
+  if( lb == ub ) {  // a fixed column has its value
+   ( *cols )[ j ].set_value( lb );
    ( *cols )[ j ].is_fixed( true, eNoMod );
+   }
 
   sec_reached( &current_section , word );
   }

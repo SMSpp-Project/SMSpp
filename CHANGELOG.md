@@ -115,6 +115,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `AbstractBlock::read_lp()` gives a column fixed in the Bounds section
+  (`x = v`, or equal lower and upper bounds) the value v: it was fixed at
+  the default value 0, and a MILPSolver took 0 as both its bounds
+
 - `LagBFunction::set_inner_block()` throws, naming the class of the Block,
   when a Block of the inner Block has an Objective that is neither linear
   nor quadratic, e.g., a `PolyhedralFunctionBlock` in its natural
