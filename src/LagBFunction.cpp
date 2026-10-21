@@ -304,8 +304,20 @@ void LagBFunction::set_inner_block( Block * innerblock , bool deleteold )
    v_BlockBFS.push_back( curr );
    Block2Idx[ curr ] = h;
 
-   FRealObjective * obj = static_cast< FRealObjective * >(
+   FRealObjective * obj = dynamic_cast< FRealObjective * >(
 						     curr->get_objective() );
+   // the Lagrangian costs are written in the linear coefficients of the
+   // Objective of each Block: a Function that has none, e.g., the
+   // PolyhedralFunction of a PolyhedralFunctionBlock in its natural
+   // representation, has to be linearized by the BlockConfig of the Block
+   if( ( ! obj ) ||
+       ( ( ! dynamic_cast< const p_LF >( obj->get_function() ) ) &&
+         ( ! dynamic_cast< const p_QF >( obj->get_function() ) ) ) )
+    throw( std::invalid_argument(
+	       "LagBFunction::set_inner_block: the Objective of a " +
+	       curr->classname() + " in the inner Block is neither a linear "
+	       "nor a quadratic FRealObjective (a PolyhedralFunctionBlock has "
+	       "to be in its linearized representation)" ) );
    v_Obj.push_back( obj );
 
    bool isQuad = dynamic_cast< const p_QF >( obj->get_function() ) != nullptr;

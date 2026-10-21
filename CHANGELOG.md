@@ -112,6 +112,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `LagBFunction::set_inner_block()` throws, naming the class of the Block,
+  when a Block of the inner Block has an Objective that is neither linear
+  nor quadratic, e.g., a `PolyhedralFunctionBlock` in its natural
+  representation, which it used to read as a `LinearFunction`, with a
+  segmentation fault
 - `MasterProblemBlock`: the rows of an easy `BendersBFunction` absorbed in
   the primal master keep their sides b_i in the iterate form, where the
   Variable is x, rather than moving them to A_i x_bar + b_i as in the
