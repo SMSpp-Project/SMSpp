@@ -768,6 +768,12 @@ class Block : public Observer {
  using MS_sp_dbl2_sbst = arg_packer< MF_dbl_sp , MF_dbl_sp , Subset && ,
                                      bool >;
 
+ /// type for ( double ) functions, a scalar with no slice
+ using MS_dbl = arg_packer< double >;
+
+ /// type for ( double , double ) functions, a pair of scalars with no slice
+ using MS_dbl2 = arg_packer< double , double >;
+
  /// type for ( double , range ) queries
  using MS_qry_dbl_rngd = arg_packer< MF_dbl_msp , Range >;
 
@@ -786,6 +792,12 @@ class Block : public Observer {
  /// type for ( double , double , subset ) queries
  using MS_qry_dbl2_sbst = arg_packer< MF_dbl_msp , MF_dbl_msp , c_Subset & ,
                                       bool >;
+
+ /// type for ( double ) queries, a scalar with no slice
+ using MS_qry_dbl = arg_packer< double & >;
+
+ /// type for ( double , double ) queries, a pair of scalars with no slice
+ using MS_qry_dbl2 = arg_packer< double & , double & >;
 
  /// typedef for the bimap used by one methods factory
  template< class F >
@@ -818,6 +830,10 @@ class Block : public Observer {
  using MF_sp_dbl2_sbst_map = MethodsFactoryMap< FunctionType<
   MF_dbl_sp , MF_dbl_sp , Subset && , bool > >;
 
+ /// a scalar, or a pair of scalars, with no slice
+ using MF_dbl_map = MethodsFactoryMap< FunctionType< double > >;
+ using MF_dbl2_map = MethodsFactoryMap< FunctionType< double , double > >;
+
  /// canonical factory types for the standard query signatures
  using MF_qry_dbl_rngd_map = MethodsFactoryMap< QueryType<
   MF_dbl_msp , Range > >;
@@ -831,6 +847,9 @@ class Block : public Observer {
   MF_dbl_msp , MF_dbl_msp , Range > >;
  using MF_qry_dbl2_sbst_map = MethodsFactoryMap< QueryType<
   MF_dbl_msp , MF_dbl_msp , c_Subset & , bool > >;
+ using MF_qry_dbl_map = MethodsFactoryMap< QueryType< double & > >;
+ using MF_qry_dbl2_map = MethodsFactoryMap< QueryType< double & ,
+                                                      double & > >;
 
 /** @} ---------------------------------------------------------------------*/
 
@@ -6039,6 +6058,12 @@ class Block : public Observer {
  *   each for the h-th Index in slice, and a getter two MF_dbl_msp, written
  *   the same way. These come only with spans.
  *
+ *   A parameter that is a single scalar, say the size of a unit, comes with
+ *   no slice at all: a setter ( double , ModParam , ModParam ), MS_dbl, and
+ *   a getter writing it into a double &, MS_qry_dbl; MS_dbl2 and
+ *   MS_qry_dbl2 are the same for a pair of scalars, say the two sizes of a
+ *   unit.
+ *
  * These parameter type lists are "encoded" in the predefined types
  * MS[_D]_S with D in { dbl , int } (or not there) and S in { rngd , sbst },
  * representing (in obvious ways) the possible interfaces; the MS_sp_D_S,
@@ -8011,6 +8036,10 @@ class Block : public Observer {
 
  static MF_sp_dbl2_sbst_map & methods_sp_dbl2_sbst_factory( void );
 
+ static MF_dbl_map & methods_dbl_factory( void );
+
+ static MF_dbl2_map & methods_dbl2_factory( void );
+
  static MF_qry_dbl_rngd_map & queries_dbl_rngd_factory( void );
 
  static MF_qry_dbl_sbst_map & queries_dbl_sbst_factory( void );
@@ -8022,6 +8051,10 @@ class Block : public Observer {
  static MF_qry_dbl2_rngd_map & queries_dbl2_rngd_factory( void );
 
  static MF_qry_dbl2_sbst_map & queries_dbl2_sbst_factory( void );
+
+ static MF_qry_dbl_map & queries_dbl_factory( void );
+
+ static MF_qry_dbl2_map & queries_dbl2_factory( void );
 
 /** @} ---------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
@@ -8501,6 +8534,36 @@ struct Block::methods_factory_accessor<
                    bool > > {
  static Block::MF_qry_dbl2_sbst_map & get( void ) {
   return( Block::queries_dbl2_sbst_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor< Block::FunctionType< double > > {
+ static Block::MF_dbl_map & get( void ) {
+  return( Block::methods_dbl_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor<
+ Block::FunctionType< double , double > > {
+ static Block::MF_dbl2_map & get( void ) {
+  return( Block::methods_dbl2_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor< Block::QueryType< double & > > {
+ static Block::MF_qry_dbl_map & get( void ) {
+  return( Block::queries_dbl_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor<
+ Block::QueryType< double & , double & > > {
+ static Block::MF_qry_dbl2_map & get( void ) {
+  return( Block::queries_dbl2_factory() );
  }
 };
 

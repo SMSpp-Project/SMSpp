@@ -61,6 +61,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `MS_qry_dbl2_sbst`), which lets a Block whose items have two parameters of
   the same kind
 
+- the methods factory has families for a parameter that is a single scalar,
+  or a pair of scalars, with no slice: the setters `MS_dbl` and `MS_dbl2`,
+  ( double [ , double ] , ModParam , ModParam ), and the queries
+  `MS_qry_dbl` and `MS_qry_dbl2`, writing into ( double & [ , double & ] ),
+  say for the size of a unit, which has no Index to give
+
 - `Constraint::clear()` and `ColVariable::is_feasible()` of any container
   of the items, of any container of containers of them and of a
   `boost::multi_array` of containers of them (e.g., a `std::deque`, a

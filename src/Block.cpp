@@ -1062,6 +1062,30 @@ Block::MF_qry_dbl2_sbst_map & Block::queries_dbl2_sbst_factory( void )
  return( f );
  }
 
+Block::MF_dbl_map & Block::methods_dbl_factory( void )
+{
+ static MF_dbl_map f;
+ return( f );
+ }
+
+Block::MF_dbl2_map & Block::methods_dbl2_factory( void )
+{
+ static MF_dbl2_map f;
+ return( f );
+ }
+
+Block::MF_qry_dbl_map & Block::queries_dbl_factory( void )
+{
+ static MF_qry_dbl_map f;
+ return( f );
+ }
+
+Block::MF_qry_dbl2_map & Block::queries_dbl2_factory( void )
+{
+ static MF_qry_dbl2_map f;
+ return( f );
+ }
+
 /*--------------------------------------------------------------------------*/
 
 std::string & block_filename_prefix( void )
