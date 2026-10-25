@@ -1,0 +1,120 @@
+##############################################################################
+############################### makefile-mod #################################
+##############################################################################
+#                                                                            #
+#   makefile of the C++20 modules of SMS++                                   #
+#                                                                            #
+#   Every SMS++ module may have a C++20 module, whose interface src/*.cppm   #
+#   includes the headers and exports their names (e.g., smspp for the core,  #
+#   smspp.ucblock for UCBlock), so that a source can write "import smspp;"   #
+#   in place of the #include. This makefile gives the rules that compile the #
+#   interface into the module file (a .pcm) and into an object that goes     #
+#   with the other ones of the module. The modules are built only if         #
+#   $(SMSppMOD) is not empty (e.g., make SMSppMOD=1), with clang++ 16 or     #
+#   later; otherwise, or with another compiler (which is reported by a       #
+#   warning), nothing here does anything, and every makefile builds what it  #
+#   built without them. g++, up to 15 at least, does not build them: it      #
+#   refuses the entities of internal linkage (e.g., Eigen::Dynamic) that the #
+#   headers of Eigen and Boost expose to the templates of a module.          #
+#                                                                            #
+#   All the module files go to a single directory, $(SMS++SDR)/obj, where    #
+#   clang++ finds any of them by its name: whatever compiles a module or     #
+#   imports one only needs $(SMSppMODSW), which is added to $(SMS++INC) and  #
+#   hence reaches all the -I of the modules using the core.                  #
+#                                                                            #
+#   A module defines its rules in its makefile, after its *H, with           #
+#                                                                            #
+#     $(eval $(call SMSppMODrule,<pfx>,<dir>,<Name>,<module>,<imports>))     #
+#                                                                            #
+#   where <pfx> is the prefix of its macros (e.g., UCBck), <dir> its source  #
+#   directory, <Name> the name of its src/<Name>.cppm, <module> the name of  #
+#   the module and <imports> the $(*MOD) of the modules it imports; a sixth  #
+#   argument, if any, is added to the options of the compiler (e.g., the -D  #
+#   that select the optional headers). The interface depends on $(<pfx>H)    #
+#   and on <imports>, and it is compiled with the -I, -D and -U of           #
+#   $(<pfx>INC), taken when the rule runs, i.e., with all those that the     #
+#   makefile-c of the module adds: not with its other options (e.g., the     #
+#   -fopenmp of some source, which no header needs), since a module file     #
+#   is only imported where it was compiled with the same ones.               #
+#   This defines $(<pfx>MOD), the module file, adds the object               #
+#   <dir>/obj/<Name>_module.o to $(<pfx>OBJ) and the module file to          #
+#   $(<pfx>H), so that whatever depends on the headers of the module is      #
+#   compiled after it, and cleans both. A makefile that treats the module as #
+#   a pre-built library (makefile-inc) declares instead, after having        #
+#   cleared $(<pfx>H),                                                       #
+#                                                                            #
+#     $(eval $(call SMSppMODlib,<pfx>,<module>))                             #
+#                                                                            #
+#   which defines $(<pfx>MOD) as made with $(<pfx>OBJ), and puts it in       #
+#   $(<pfx>H), so that whatever imports it is compiled after it.             #
+#                                                                            #
+#   Input:  $(CC)          = compiler command                                #
+#           $(SW)          = compiler options                                #
+#           $(SMS++SDR)    = the directory where the core SMS++ source is    #
+#           $(SMSppMOD)    = not empty if the modules are to be built        #
+#                                                                            #
+#   Output: $(SMSppMODDIR) = the directory of the module files               #
+#           $(SMSppMODSW)  = the options of whatever compiles or imports a   #
+#                            module                                          #
+#           SMSppMODrule, SMSppMODlib = the rules above                      #
+#                                                                            #
+#                              Antonio Frangioni                             #
+#                         Dipartimento di Informatica                        #
+#                             Universita' di Pisa                            #
+#                                                                            #
+##############################################################################
+
+# the compiler, and whether it builds the modules - - - - - - - - - - - - - -
+
+ifneq ($(SMSppMOD),)
+    SMSppMODclang := $(findstring clang,$(shell $(CC) --version 2>/dev/null))
+    SMSppMODver := $(firstword $(subst ., ,$(shell $(CC) -dumpversion)))
+    ifneq ($(and $(SMSppMODclang),$(shell test "$(SMSppMODver)" -ge 16 \
+	2>/dev/null && echo ok)),ok)
+        $(warning SMSppMOD is turned off: $(CC) $(SMSppMODver) does not \
+	build the modules (clang++ 16 or later is needed))
+        override SMSppMOD :=
+    endif
+endif
+
+# macros to be exported - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+SMSppMODDIR = $(SMS++SDR)/obj
+
+ifneq ($(SMSppMOD),)
+    SMSppMODSW = -fprebuilt-module-path=$(SMSppMODDIR)
+endif
+
+# the rules of a module - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+define SMSppMODrule
+ifneq ($$(SMSppMOD),)
+$(1)MOD = $$(SMSppMODDIR)/$(strip $(4)).pcm
+$(1)OBJ += $(strip $(2))/obj/$(strip $(3))_module.o
+
+$(strip $(2))/obj/$(strip $(3))_module.o: \
+	$(strip $(2))/src/$(strip $(3)).cppm $$($(1)H) $(5)
+	$$(CC) -x c++-module -c $$< -fmodule-output=$$($(1)MOD) -o $$@ \
+	$$(filter -I% -D% -U%,$$($(1)INC) $$(SMS++INC)) $$(SMSppMODSW) $(6) $$(SW)
+
+$$($(1)MOD): $(strip $(2))/obj/$(strip $(3))_module.o ;
+
+$(1)H += $$($(1)MOD)
+endif
+
+# the module is cleaned also by a make without $$(SMSppMOD)
+clean::
+	rm -f $(strip $(2))/obj/$(strip $(3))_module.o \
+	$$(SMSppMODDIR)/$(strip $(4)).pcm
+endef
+
+define SMSppMODlib
+ifneq ($$(SMSppMOD),)
+$(1)MOD = $$(SMSppMODDIR)/$(strip $(2)).pcm
+$(1)H += $$($(1)MOD)
+
+$$($(1)MOD): $$($(1)OBJ)
+endif
+endef
+
+########################## End of makefile-mod ###############################

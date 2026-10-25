@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `lib/makefile-mod`, the makefile of the C++20 modules: with `SMSppMOD`
+  not empty (e.g., `make SMSppMOD=1`) and clang++ 16 or later, the makefile
+  of the core and those of the modules compile their interface into a
+  module file, all of them in `obj/` of the core, and into an object that
+  goes with the other ones; `SMSppMODrule` and `SMSppMODlib` are the rules
+  that the makefile of a module expands with one line, and
+  `test/makefile-Module` builds the test that imports `smspp`
+
+- `cmake/CheckModule.cmake`, installed with the package configuration file,
+  which includes it: `smspp_check_module()` turns `SMSpp_BUILD_MODULE` off
+  in the calling directory, with a warning that says why, when the C++20
+  module cannot be built (a CMake older than 3.28, a generator other than
+  Ninja 1.11 or Visual Studio, a compiler other than Clang 16 with
+  `clang-scan-deps` or MSVC 19.34 or later, or a module it imports that is
+  not there); the core and every module call it before building their
+  module
+
 - `FunctionMod::set_changes()`: an `FRowConstraint` and an `FRealObjective`
   say what the `shift()` of their Function does before passing a
   `FunctionMod` on to the Block. Shifted upwards, the region of an
@@ -87,13 +104,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that the headers declare at namespace scope, so that a source file can
   write `import smspp;` in place of the `#include` of the headers; it is
   built with the CMake option `SMSpp_BUILD_MODULE` (CMake 3.28, Ninja, Clang
-  16 or GCC 14 or later) as the target `SMS++::SMS++_module`, and
+  16 or later) as the target `SMS++::SMS++_module`, and
   `cmake/smspp_module_exports.py` writes it from the AST of the headers, as
   it writes the module of any other SMS++ module (which re-exports those it
   depends on, with the names of an optional library inside an `#if` and the
   headers of another library left out)
 
 ### Changed
+
+- `SMSpp_BUILD_MODULE` no longer stops the configuration when the C++20
+  module cannot be built: it is turned off with a warning, and the build
+  goes on with the headers; with GCC the module is not built, since GCC (up
+  to 15 at least) refuses the entities of internal linkage (e.g.,
+  `Eigen::Dynamic`) that the headers of Eigen and Boost expose to the
+  templates of a module
 
 - `SMSTypedefs.h` keeps the type definitions and includes three new headers
   with the rest of what it held, moved there unchanged: `SMSFactory.h`, the
@@ -113,6 +137,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a copy of its own and a module can export them
 
 ### Removed
+
+- the bytecode of `cmake/smspp_module_exports.py`, which had been
+  committed by mistake; `__pycache__/` is ignored
 
 - `RelaxationSolver::classify()` and its `mod_effect`: what a Modification
   does to the problem is said by the Modification itself

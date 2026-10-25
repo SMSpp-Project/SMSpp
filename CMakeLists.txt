@@ -297,13 +297,14 @@ add_library(${modNamespace}::${modName} ALIAS ${modName})
 # that a translation unit can write "import smspp;" in place of including
 # them. It is built only on request, since it needs CMake 3.28 or later, the
 # Ninja or Visual Studio generator and a compiler that scans the module
-# dependencies (Clang 16, GCC 14, MSVC 19.34 or later).
+# dependencies and accepts the headers of Eigen and Boost in a module (Clang
+# 16 or MSVC 19.34 or later); where these are missing, the option is turned
+# off with a warning [see CheckModule.cmake].
 option(SMSpp_BUILD_MODULE "Build the C++20 module smspp" OFF)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CheckModule.cmake)
+smspp_check_module()
 
 if (SMSpp_BUILD_MODULE)
-    if (CMAKE_VERSION VERSION_LESS 3.28)
-        message(FATAL_ERROR "SMSpp_BUILD_MODULE needs CMake 3.28 or later")
-    endif ()
     # the scan of the module dependencies, which cmake_policy(VERSION 3.15)
     # above would leave off
     cmake_policy(SET CMP0155 NEW)
@@ -387,6 +388,11 @@ install(FILES
 # party developers should provide for them.
 file(GLOB findMods ${CMAKE_CURRENT_LIST_DIR}/cmake/Find*)
 install(FILES ${findMods}
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${modName})
+
+# Install the check of the C++20 modules, which the configuration file
+# includes for the modules that find the core with find_package().
+install(FILES ${CMAKE_CURRENT_LIST_DIR}/cmake/CheckModule.cmake
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${modName})
 
 # Install the README and LICENSE files.

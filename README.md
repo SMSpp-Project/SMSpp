@@ -102,7 +102,13 @@ that a source file writes `import smspp;` in place of the `#include` of the
 headers. The module is built on request, with the option
 `SMSpp_BUILD_MODULE`, since it needs CMake 3.28 or later, the Ninja (or
 Visual Studio) generator and a compiler that scans the dependencies of the
-modules (Clang 16, GCC 14, MSVC 19.34 or later):
+modules and accepts the headers of Eigen and Boost in a module: Clang 16
+or later, with `clang-scan-deps` (which Debian and Ubuntu ship in
+`clang-tools`), or MSVC 19.34 or later. GCC, up to 15 at least, refuses the
+entities of internal linkage (e.g., `Eigen::Dynamic`) that those headers
+expose to the templates of a module. Where any of these is missing, the
+option is turned off with a warning that says why, and the library is
+built as without it:
 
 ```sh
 cmake -G Ninja -DSMSpp_BUILD_MODULE=ON ..
@@ -122,8 +128,19 @@ module in lowercase), as the target `SMS++::<module>_module`, which
 re-exports the modules of those it depends on, `smspp` in the end.
 
 A module does not export macros, so a file that uses those of the factory
-(`SMSFactory.h`) still includes that header. The makefiles do not build the
-modules.
+(`SMSFactory.h`) still includes that header.
+
+The makefiles build the modules too, with clang++ 16 or later, when
+`SMSppMOD` is not empty:
+
+```sh
+make SMSppMOD=1
+```
+
+All the module files go to `obj/` of the core, and a source that imports a
+module is compiled with the `*INC` of the makefiles as usual
+[see `lib/makefile-mod`]; `test/makefile-Module` builds the test that
+imports `smspp`.
 
 ### Running the tests with CMake
 

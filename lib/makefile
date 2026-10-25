@@ -29,6 +29,10 @@
 #                                                                            #
 ##############################################################################
 
+# the C++20 modules, if they are to be built [see makefile-mod]- - - - - - -
+
+include $(SMS++SDR)/lib/makefile-mod
+
 # macros to be exported - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 SMS++OBJ = $(SMS++SDR)/obj/AbstractBlock.o \
@@ -69,7 +73,7 @@ SMS++OBJ = $(SMS++SDR)/obj/AbstractBlock.o \
 	$(SMS++SDR)/obj/Variable.o
 #	$(SMS++SDR)/obj/RowConstraint.o \
 
-SMS++INC := $(SMS++INC) -I$(SMS++SDR)/include
+SMS++INC := $(SMS++INC) -I$(SMS++SDR)/include $(SMSppMODSW)
 
 SMS++H = $(SMS++SDR)/include/AbstractBlock.h \
 	$(SMS++SDR)/include/AbstractPath.h \
@@ -120,6 +124,10 @@ SMS++H = $(SMS++SDR)/include/AbstractBlock.h \
 	$(SMS++SDR)/include/ThinVarDepInterface.h \
 	$(SMS++SDR)/include/UpdateSolver.h \
 	$(SMS++SDR)/include/Variable.h
+
+# the C++20 module smspp - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+$(eval $(call SMSppMODrule,SMS++,$(SMS++SDR),SMSpp,smspp))
 
 # clean - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 

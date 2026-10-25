@@ -65,3 +65,6 @@ ehthumbs.db
 .directory
 .fuse_hidden*
 .nfs*
+
+# Python bytecode
+__pycache__/
