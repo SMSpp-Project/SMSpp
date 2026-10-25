@@ -3230,6 +3230,10 @@ double MasterProblemBlock::get_FiBLambda( int k ) const
 
 std::vector< double > MasterProblemBlock::get_z_vector( void ) const
 {
+ if( uses_pure_level_aggregation() &&
+     ( ! ( get_level_multiplier() > 0.0 ) ||
+       ! std::isfinite( get_level_multiplier() ) ) )
+  throw( std::domain_error( "MasterProblemBlock: no normalized level aggregate" ) );
  std::vector< double > out;
  if( IsPrimal && ( StblType == kTrustRegion ) ) {
   // The trust region has no term in z: what the master tells of the
@@ -3369,6 +3373,10 @@ std::vector< double > MasterProblemBlock::get_z_vector( void ) const
 std::vector< double >
 MasterProblemBlock::get_aggregated_subgradient( int k ) const
 {
+ if( uses_pure_level_aggregation() &&
+     ( ! ( get_level_multiplier() > 0.0 ) ||
+       ! std::isfinite( get_level_multiplier() ) ) )
+  throw( std::domain_error( "MasterProblemBlock: no normalized level aggregate" ) );
  // The abstract multiplier is stored differently in the two linearized PFB
  // representations: as the dual value of a cut constraint in the primal one,
  // and as an explicit theta variable in the dual one.
@@ -3485,6 +3493,52 @@ double MasterProblemBlock::get_level_multiplier( void ) const
 
 /*--------------------------------------------------------------------------*/
 
+bool MasterProblemBlock::aggregate_is_valid( double tolerance ) const
+{
+ if( ! uses_pure_level_aggregation() )
+  return( true );
+ const double eta = get_level_multiplier();
+ if( ! ( eta > 0.0 ) || ! std::isfinite( eta ) ||
+     ! std::isfinite( tolerance ) || tolerance < 0.0 )
+  return( false );
+
+ // Normalize before summing: eta itself may legitimately be very large.
+ const double r = IsPrimal || Var_r.is_fixed() ? 0.0 : get_r() / eta;
+ if( ! std::isfinite( r ) || r < - tolerance )
+  return( false );
+ for( int k = 0 ; k < int( HardCmps.size() ) ; ++k ) {
+  const auto * pfb = dynamic_cast< const PolyhedralFunctionBlock * >( HardCmps[ k ] );
+  if( ! pfb )
+   return( false );
+  auto & pf = const_cast< PolyhedralFunctionBlock * >( pfb )->get_PolyhedralFunction();
+  double sum = r;
+  for( PolyhedralFunction::Index i = 0 ; i < pf.get_nrows() ; ++i ) {
+   const double weight = pfb->get_row_multiplier( i ) / eta;
+   if( ! std::isfinite( weight ) || weight < - tolerance )
+    return( false );
+   if( ! pf.is_row_vertical( i ) )
+    sum += weight;
+   }
+  // In primal form get_gamma() is inferred from the simplex identity. It
+  // represents a real row only when the component has a horizontal bound.
+  if( ! IsPrimal || std::isfinite( pf.get_global_bound() ) ) {
+   const double gamma = get_gamma( k ) / eta;
+   if( ! std::isfinite( gamma ) || gamma < - tolerance )
+    return( false );
+   sum += gamma;
+   }
+  if( ! std::isfinite( sum ) || std::abs( sum - 1.0 ) > tolerance )
+   return( false );
+  }
+ const auto d = get_d_vector();
+ for( const auto dj : d )
+  if( ! std::isfinite( dj ) || ! std::isfinite( dj / eta ) )
+   return( false );
+ return( true );
+}
+
+/*--------------------------------------------------------------------------*/
+
 double MasterProblemBlock::get_Gid_aggregate( void ) const
 {
  // Once get_z_vector() and get_d_vector() have translated the concrete master
@@ -3565,6 +3619,10 @@ void MasterProblemBlock::set_alphas_bulk( int k ,
 
 double MasterProblemBlock::get_aggregated_alpha( int k ) const
 {
+ if( uses_pure_level_aggregation() &&
+     ( ! ( get_level_multiplier() > 0.0 ) ||
+       ! std::isfinite( get_level_multiplier() ) ) )
+  throw( std::domain_error( "MasterProblemBlock: no normalized level aggregate" ) );
  if( IsPrimal ) {
   // The primal master directly provides d* and the model decrease v*. For
   // every component the aggregate-cut identity is

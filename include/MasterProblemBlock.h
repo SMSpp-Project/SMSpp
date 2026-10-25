@@ -1910,6 +1910,13 @@ class MasterProblemBlock : public Block {
   return( StblType == kLevel && ! has_initial_level_objective() );
   }
 
+ /// Whether the current pure-level solution supplies a normalized aggregate.
+ /** A solved projection with zero level multiplier can be perfectly feasible
+  * without defining an aggregate. Test this before consuming aggregate
+  * quantities. The tolerance concerns normalized multiplier identities, not
+  * the size of the aggregate subgradient. Non-level masters return true. */
+ [[nodiscard]] bool aggregate_is_valid( double tolerance = 1e-7 ) const;
+
 /*--------------------------------------------------------------------------*/
  /// returns the current optimal value of the global multiplier lambda
  /** lambda is the master-side non-negative dual multiplier paired with the
