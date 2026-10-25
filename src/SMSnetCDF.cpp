@@ -41,6 +41,10 @@
  #define SMSpp_NC_MEMIO 0
 #endif
 
+#ifdef SMSpp_HAVE_HDF5
+ #include <H5Epublic.h>
+#endif
+
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -80,6 +84,15 @@ NcMemFile::NcMemFile( std::span< const unsigned char > image )
 #if SMSpp_NC_MEMIO
  if( image.empty() )
   throw( std::invalid_argument( "NcMemFile::NcMemFile: empty image" ) );
+
+ #ifdef SMSpp_HAVE_HDF5
+  // netCDF turns off the printing of the errors of HDF5 only in the thread
+  // that first uses it, while a thread-safe HDF5 keeps it per thread: in
+  // another thread (say, one of those of an InvestmentFunction, each reading
+  // a copy of an SDDPBlock) every attribute that netCDF looks for and does
+  // not find (the _Quantize ones of each variable) would print an error
+  H5Eset_auto2( H5E_DEFAULT , nullptr , nullptr );
+ #endif
 
  // the bytes of the caller, never written, reallocated or freed
  NC_memio info;

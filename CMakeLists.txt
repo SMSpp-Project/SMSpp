@@ -75,6 +75,18 @@ if (NOT netCDFCxx_FOUND)
     find_package(netCDFCxx REQUIRED)
 endif ()
 
+# HDF5, which netCDF reads its files with, only to turn off the printing of
+# its errors in the threads that read an image in memory [see NcMemFile]:
+# without it the reading is the same, with the errors in the log
+find_package(HDF5 COMPONENTS C QUIET)
+set(SMSpp_HDF5 ${HDF5_FOUND})
+# a static library carries it to whoever links it [see SMS++Config.cmake.in]
+if (SMSpp_HDF5 AND NOT BUILD_SHARED_LIBS)
+    set(SMSpp_HDF5_DEPENDENCY ON)
+else ()
+    set(SMSpp_HDF5_DEPENDENCY OFF)
+endif ()
+
 if (MSVC)
     find_library(GETOPT_LIBRARY getopt)
 endif ()
@@ -267,6 +279,13 @@ target_link_libraries(${modName} PUBLIC
 
 if (MSVC)
     target_link_libraries(${modName} PUBLIC ${GETOPT_LIBRARY})
+endif ()
+
+if (SMSpp_HDF5)
+    target_compile_definitions(${modName} PRIVATE SMSpp_HAVE_HDF5)
+    target_include_directories(${modName} PRIVATE ${HDF5_C_INCLUDE_DIRS}
+                               ${HDF5_INCLUDE_DIRS})
+    target_link_libraries(${modName} PRIVATE ${HDF5_C_LIBRARIES})
 endif ()
 
 # This alias is defined so that executables in this same project can use

@@ -121,6 +121,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `NcMemFile` no longer lets HDF5 print an error for each attribute
+  that netCDF looks for and does not find when an image is read in a thread
+  other than the first one using netCDF (the copies of an `SDDPBlock` in
+  the threads of an `InvestmentFunction` printed hundreds of them): netCDF
+  turns the printing off only in its first thread, while a thread-safe
+  HDF5 keeps it per thread. HDF5 is an optional dependency, found by
+  CMake, and without it nothing changes but the log
+
 - the documentation of `C05Function.h`, `BendersBFunction.h`,
   `MasterProblemBlock.h` and `QuadFunction.h`: a `\f(` written for f( and
   the TeX quotes `` ``x'' `` opened a formula or a code span that Doxygen

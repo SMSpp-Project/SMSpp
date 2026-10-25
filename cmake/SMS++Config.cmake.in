@@ -42,6 +42,12 @@ if (NOT netCDFCxx_FOUND)
     find_package(netCDFCxx REQUIRED)
 endif ()
 
+# the HDF5 the library was built with, which a static library carries to
+# whoever links it [see NcMemFile]
+if (@SMSpp_HDF5_DEPENDENCY@)
+    find_dependency(HDF5 COMPONENTS C)
+endif ()
+
 list(REMOVE_AT CMAKE_MODULE_PATH -1)
 
 # ----- Import target ------------------------------------------------------- #
