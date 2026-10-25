@@ -134,6 +134,11 @@ AbstractBlock::~AbstractBlock()
  if( ( ! is_Objective_reserved() ) && get_objective() )
   get_objective()->clear();
 
+ // and delete the one this Block made, by read_lp(), read_mps() or
+ // mirror(), even if it has been replaced since: one given to it with
+ // set_objective() is deleted by whoever made it [see Block::set_objective()]
+ delete_own_obj();
+
  // now delete all the inner Block
  for( Index i = get_first_inner_Block() ; i < v_Block.size() ; ++i )
   delete v_Block[ i ];
@@ -156,6 +161,20 @@ AbstractBlock::~AbstractBlock()
  dispose_of( get_static_variable_groups() , get_first_static_Variable() );
  dispose_of( get_dynamic_variable_groups() , get_first_dynamic_Variable() );
 
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void AbstractBlock::delete_own_obj( void )
+{
+ if( ! f_own_obj )
+  return;
+
+ // cleared first, as the Objective of the Block is in the destructor, so
+ // that deleting it does not touch Variable that may be gone already
+ f_own_obj->clear();
+ delete f_own_obj;
+ f_own_obj = nullptr;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1778,12 +1797,15 @@ void AbstractBlock::read_mps( std::istream & file )
   static_cast< LinearFunction * >( of->get_function() )->set_constant_term(
 							 of_const , eNoMod );
 
- // Reset and set abstract representation
- reset_static_constraints();
- reset_static_variables();
+ // Reset and set abstract representation: the Objective and the
+ // containers that a model read before this one made go with it
+ delete_own_obj();
+ reset_static_constraints( true );
+ reset_static_variables( true );
  reset_objective();
 
  set_objective( of, eNoMod );
+ f_own_obj = of;
  add_static_variable( *cols );
  add_static_constraint( *rows );
  add_static_constraint( *bounds );
@@ -2820,12 +2842,15 @@ void AbstractBlock::read_lp( std::istream & file )
  else
   throw( syntax( "\"" + word + "\" out of place" ) );
 
- // Reset and set abstract representation
- reset_static_constraints();
- reset_static_variables();
+ // Reset and set abstract representation: the Objective and the
+ // containers that a model read before this one made go with it
+ delete_own_obj();
+ reset_static_constraints( true );
+ reset_static_variables( true );
  reset_objective();
 
- set_objective( of.release() , eNoMod );
+ f_own_obj = of.release();
+ set_objective( f_own_obj , eNoMod );
  add_static_variable( *cols );
  add_static_constraint( *rows );
  add_static_constraint( *bounds );
@@ -3295,6 +3320,7 @@ void AbstractBlock::mirror_constraints( Block * src , AbstractBlock * dst )
    auto nobj = new FRealObjective( dst , nf );
    nobj->set_sense( obj->get_sense() , eNoMod );
    dst->set_objective( nobj , eNoMod );
+   dst->f_own_obj = nobj;
    }
   else
    v_issues.push_back( "the Objective of " + src->name() + " cannot be "
@@ -3939,8 +3965,10 @@ bool AbstractBlock::set_size_variable( Variable * size_var ,
   if( ! f_size_list ) {
    f_size_list = new std::list< FRowConstraint >;
    add_dynamic_constraint( *f_size_list , "size" );
+   own_storage( get_dynamic_constraint_groups().back() , f_size_list );
    f_size_vars = new std::list< ColVariable >;
    add_dynamic_variable( *f_size_vars , "size" );
+   own_storage( get_dynamic_variable_groups().back() , f_size_vars );
    }
   }
 

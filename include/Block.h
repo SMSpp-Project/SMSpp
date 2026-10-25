@@ -7329,17 +7329,29 @@ class Block : public Observer {
 
 /*--------------------------------------------------------------------------*/
  /// removes any existing static Constraint; to be used with care
+ /** With \p dispose, the containers of the groups that this Block owns
+  * [see BaseGroup::set_storage_deleter()] are deleted too. */
 
- void reset_static_constraints( void ) {
+ void reset_static_constraints( bool dispose = false ) {
   leave_groups( v_s_Constraint_groups );
+  if( dispose )
+   for( const auto & group : v_s_Constraint_groups )
+    if( group )
+     group->delete_storage();
   v_s_Constraint_groups.clear();
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// removes any existing static Variable; to be used with care
+ /** With \p dispose, the containers of the groups that this Block owns
+  * [see BaseGroup::set_storage_deleter()] are deleted too. */
 
- void reset_static_variables( void ) {
+ void reset_static_variables( bool dispose = false ) {
   leave_groups( v_s_Variable_groups );
+  if( dispose )
+   for( const auto & group : v_s_Variable_groups )
+    if( group )
+     group->delete_storage();
   v_s_Variable_groups.clear();
   }
 

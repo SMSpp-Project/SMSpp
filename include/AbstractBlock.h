@@ -136,7 +136,8 @@ namespace SMSpp_di_unipi_it
  * representation*: there is no other reference to the Variable/Constraint
  * save that in those data structures. Hence, the destructor of AbstractBlock
  * (unlike that of Block) takes care of (clear()-ing first, and) destroying
- * (then) all the "abstract" Constraint/Variable (and the Objective).
+ * (then) all the "abstract" Constraint/Variable, and the Objective if it
+ * made it itself [see f_own_obj].
  * Similarly, the pointers to the inner Block in the v_Block vector are
  * likely the only live references to these Block, and therefore they are
  * destroyed in the AbstractBlock destructor.
@@ -308,7 +309,8 @@ class AbstractBlock : public Block
  /// destructor of AbstractBlock, destroys the abstract representation
  /** The destructor of AbstractBlock (unlike that of Block) takes care of
   * (clear()-ing first, and) destroying (then) all the "abstract"
-  * Constraint/Variable (and the Objective). Similarly, the pointers to the
+  * Constraint/Variable, and the Objective if it made it itself [see
+  * f_own_obj]. Similarly, the pointers to the
   * inner Block in the v_Block vector are likely the only live references to
   * these Block, and therefore they are destroyed in the AbstractBlock
   * destructor.
@@ -1013,6 +1015,11 @@ class AbstractBlock : public Block
  void mirror_constraints( Block * src , AbstractBlock * dst );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// clears and deletes the Objective this Block made, if any
+
+ void delete_own_obj( void );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// writes the copy of a Constraint of the mirrored Block, sized if v is
  /** Writes the copy of \p src as it has to be, i.e., the plain copy without
   * a size Variable and the sized form with it [see set_size_variable()],
@@ -1104,6 +1111,8 @@ class AbstractBlock : public Block
  Index f_1st_dyn_cnst;    ///< the first available group of dynamic Constraint
 
  bool f_res_obj;          ///< if the Objective is not available
+
+ Objective * f_own_obj = nullptr;  ///< the Objective it made, which it deletes
 
  bool f_is_direction = false;  ///< if the Variable hold a direction
 

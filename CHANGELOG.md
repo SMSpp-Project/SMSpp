@@ -148,6 +148,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `AbstractBlock` no longer leaks the `Objective` it makes in `read_lp()`,
+  `read_mps()` and `mirror()`, which it now deletes in its destructor and
+  when a model is read over another, nor the two lists of the size
+  `Variable` of `set_size_variable()`, nor the containers of a model read
+  over another one: `reset_static_constraints()` and
+  `reset_static_variables()` of `Block` take `dispose`, false by default,
+  which deletes the containers the `Block` owns too
+
 - `NcMemFile` no longer lets HDF5 print an error for each attribute
   that netCDF looks for and does not find when an image is read in a thread
   other than the first one using netCDF (the copies of an `SDDPBlock` in
