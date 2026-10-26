@@ -225,12 +225,12 @@ add_library(${modNamespace}::${modName} ALIAS ${modName})
 # ----- C++20 module -------------------------------------------------------- #
 # The module smspp (src/SMSpp.cppm) exports the names of all the headers, so
 # that a translation unit can write "import smspp;" in place of including
-# them. It is built only on request, since it needs CMake 3.28 or later, the
-# Ninja or Visual Studio generator and a compiler that scans the module
-# dependencies and accepts the headers of Eigen and Boost in a module (Clang
-# 16 or MSVC 19.34 or later); where these are missing, the option is turned
-# off with a warning [see CheckModule.cmake].
-option(SMSpp_BUILD_MODULE "Build the C++20 module smspp" OFF)
+# them. It needs CMake 3.28 or later, the Ninja or Visual Studio generator
+# and a compiler that scans the module dependencies and accepts the headers
+# of Eigen and Boost in a module (Clang 16 or MSVC 19.34 or later): unless
+# SMSpp_BUILD_MODULE says otherwise, it is built where these are there and
+# the compiler is Clang, and where they are missing an SMSpp_BUILD_MODULE=ON
+# is turned off with a warning [see CheckModule.cmake].
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CheckModule.cmake)
 smspp_check_module()
 
