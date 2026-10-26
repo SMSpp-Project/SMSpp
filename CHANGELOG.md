@@ -169,6 +169,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `BendersBFunction::get_linearization_coefficients()` with a
+  `SparseVector` and a `Subset` gave the coefficients with the opposite sign
+  of those of the other three forms; the unit test compares the four forms
+
 - `expected_dims()` and `expected_vars()` of `Block`, `AbstractBlock`,
   `PolyhedralFunctionBlock`, `PolyhedralFunction` and `AbstractPath` are
   declared also with `NDEBUG`, which only turns off the check of

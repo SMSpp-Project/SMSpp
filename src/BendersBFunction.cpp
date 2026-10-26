@@ -2541,7 +2541,7 @@ void BendersBFunction::get_linearization_coefficients
    continue;
 
   for( auto i : subset )
-   g.coeffRef( i ) += dual_value * v_A[ j ][ i ];
+   g.coeffRef( i ) += - dual_value * v_A[ j ][ i ];
  }
 }  // end( BendersBFunction::get_linearization_coefficients( sv, subset ) )
 

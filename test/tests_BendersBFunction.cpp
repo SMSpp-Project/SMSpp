@@ -625,6 +625,19 @@ static void test_sides_and_value( InnerKind kind )
 	  where + "linearization coefficients ( " + std::to_string( g[ 0 ] ) +
 	  " , " + std::to_string( g[ 1 ] ) + " ), expected ( " +
 	  std::to_string( g0 ) + " , " + std::to_string( g1 ) + " )" );
+  // the other three forms give the same coefficients
+  BBF::SparseVector sg;
+  f.bbf->get_linearization_coefficients( sg );
+  const Block::Subset both = { 0 , 1 };
+  double gs[ 2 ];
+  f.bbf->get_linearization_coefficients( gs , both );
+  BBF::SparseVector ssg;
+  f.bbf->get_linearization_coefficients( ssg , both );
+  expect( equal( sg.coeff( 0 ) , g0 ) && equal( sg.coeff( 1 ) , g1 ) &&
+	  equal( gs[ 0 ] , g0 ) && equal( gs[ 1 ] , g1 ) &&
+	  equal( ssg.coeff( 0 ) , g0 ) && equal( ssg.coeff( 1 ) , g1 ) ,
+	  where + "the coefficients differ among the forms of "
+	  "get_linearization_coefficients()" );
   const double alpha = f.bbf->get_linearization_constant();
   expect( equal( alpha + g[ 0 ] * x[ 0 ] + g[ 1 ] * x[ 1 ] , phi ) ,
 	  where + "the linearization is not exact at x: constant " +
