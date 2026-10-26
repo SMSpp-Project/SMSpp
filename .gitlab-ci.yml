@@ -33,6 +33,40 @@ build:
       - tools/*
       - CMakeLists.txt
 
+# The makefiles, which have to keep building what CMake builds: they need the
+# extlib/ of the umbrella, and FastFlow, which CMake would fetch, hence the
+# umbrella is cloned with this commit of the core in it [see ci/makefile of
+# the umbrella]. The second build is with clang++ and the C++20 module, and
+# runs the test that imports it.
+makefiles:
+  stage: build
+  script:
+    - git clone --quiet --depth 1 --branch develop
+                https://gitlab.com/smspp/smspp-project.git /tmp/umbrella
+    - rm -rf /tmp/umbrella/SMS++ && cp -a "$CI_PROJECT_DIR" /tmp/umbrella/SMS++
+    - git clone --quiet --depth 1 https://github.com/fastflow/fastflow.git
+                /tmp/fastflow
+    - cd /tmp/umbrella
+    - make -f ci/makefile -j$(nproc) MODULE=SMS++ FastFlow_ROOT=/tmp/fastflow
+    - make -f ci/makefile clean-all
+    - make -f ci/makefile -j$(nproc) MODULE=SMS++ CC=clang++ SMSppMOD=1
+           FastFlow_ROOT=/tmp/fastflow
+    - cd SMS++/test
+    - make -f makefile-Module -j$(nproc) CC=clang++
+           FastFlow_ROOT=/tmp/fastflow
+    - ./Module_test
+  only:
+    refs:
+      - develop
+      - tags
+    changes:
+      - cmake/*
+      - include/*
+      - lib/makefile*
+      - src/*
+      - test/*
+      - .gitlab-ci.yml
+
 test:
   stage: test
   script:

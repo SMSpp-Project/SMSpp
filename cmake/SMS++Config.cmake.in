@@ -57,7 +57,9 @@ endif ()
 
 set(@modName@_LIBRARIES @modNamespace@::@modName@)
 
-# the check of the C++20 modules, called by the modules that use this one
+# the check of the C++20 modules and the fetch of FastFlow, called by the
+# modules that use this one
 include("${@modName@_CMAKE_DIR}/CheckModule.cmake")
+include("${@modName@_CMAKE_DIR}/FastFlow.cmake")
 
 # --------------------------------------------------------------------------- #

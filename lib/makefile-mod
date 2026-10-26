@@ -28,19 +28,23 @@
 #                                                                            #
 #   where <pfx> is the prefix of its macros (e.g., UCBck), <dir> its source  #
 #   directory, <Name> the name of its src/<Name>.cppm, <module> the name of  #
-#   the module and <imports> the $(*MOD) of the modules it imports; a sixth  #
-#   argument, if any, is added to the options of the compiler (e.g., the -D  #
-#   that select the optional headers). The interface depends on $(<pfx>H)    #
-#   and on <imports>, and it is compiled with the -I, -D and -U of           #
-#   $(<pfx>INC), taken when the rule runs, i.e., with all those that the     #
-#   makefile-c of the module adds: not with its other options (e.g., the     #
-#   -fopenmp of some source, which no header needs), since a module file     #
-#   is only imported where it was compiled with the same ones.               #
-#   This defines $(<pfx>MOD), the module file, adds the object               #
-#   <dir>/obj/<Name>_module.o to $(<pfx>OBJ) and the module file to          #
-#   $(<pfx>H), so that whatever depends on the headers of the module is      #
-#   compiled after it, and cleans both. A makefile that treats the module as #
-#   a pre-built library (makefile-inc) declares instead, after having        #
+#   the module and <imports> the prefixes of the modules it imports (e.g.,   #
+#   MILPS BAXSLV); a sixth argument, if any, is added to the options of the  #
+#   compiler (e.g., the -D that select the optional headers). The interface  #
+#   depends on $(<pfx>H) and on the module files of <imports>, and it is     #
+#   compiled with the -I, -D and -U of $(<pfx>INC) and of the *INC of the    #
+#   modules it imports, and of those they import, and so on, taken when the  #
+#   rule runs: so it finds the headers of its dependencies also when the     #
+#   basic makefile of the module is included, whose *INC has only its own    #
+#   directory, as when its makefile-c is, which adds the others. It is not   #
+#   compiled with the other options (e.g., the -fopenmp of some source,      #
+#   which no header needs), since a module file is only imported where it    #
+#   was compiled with the same ones.                                         #
+#   This defines $(<pfx>MOD), the module file, and $(<pfx>IMP), <imports>,   #
+#   adds the object <dir>/obj/<Name>_module.o to $(<pfx>OBJ) and the module  #
+#   file to $(<pfx>H), so that whatever depends on the headers of the module #
+#   is compiled after it, and cleans both. A makefile that treats the module #
+#   as a pre-built library (makefile-inc) declares instead, after having     #
 #   cleared $(<pfx>H),                                                       #
 #                                                                            #
 #     $(eval $(call SMSppMODlib,<pfx>,<module>))                             #
@@ -52,6 +56,7 @@
 #           $(SW)          = compiler options                                #
 #           $(SMS++SDR)    = the directory where the core SMS++ source is    #
 #           $(SMSppMOD)    = not empty if the modules are to be built        #
+#           $(SMSppCLANG)  = not empty if $(CC) is clang++ [see makefile-OS] #
 #                                                                            #
 #   Output: $(SMSppMODDIR) = the directory of the module files               #
 #           $(SMSppMODSW)  = the options of whatever compiles or imports a   #
@@ -67,9 +72,8 @@
 # the compiler, and whether it builds the modules - - - - - - - - - - - - - -
 
 ifneq ($(SMSppMOD),)
-    SMSppMODclang := $(findstring clang,$(shell $(CC) --version 2>/dev/null))
     SMSppMODver := $(firstword $(subst ., ,$(shell $(CC) -dumpversion)))
-    ifneq ($(and $(SMSppMODclang),$(shell test "$(SMSppMODver)" -ge 16 \
+    ifneq ($(and $(SMSppCLANG),$(shell test "$(SMSppMODver)" -ge 16 \
 	2>/dev/null && echo ok)),ok)
         $(warning SMSppMOD is turned off: $(CC) $(SMSppMODver) does not \
 	build the modules (clang++ 16 or later is needed))
@@ -81,6 +85,9 @@ endif
 
 SMSppMODDIR = $(SMS++SDR)/obj
 
+# the *INC of the modules of the prefixes $(1) and of those they import
+SMSppMODinc = $(foreach p,$(1),$($(p)INC) $(call SMSppMODinc,$($(p)IMP)))
+
 ifneq ($(SMSppMOD),)
     SMSppMODSW = -fprebuilt-module-path=$(SMSppMODDIR)
 endif
@@ -90,12 +97,15 @@ endif
 define SMSppMODrule
 ifneq ($$(SMSppMOD),)
 $(1)MOD = $$(SMSppMODDIR)/$(strip $(4)).pcm
+$(1)IMP = $(strip $(5))
 $(1)OBJ += $(strip $(2))/obj/$(strip $(3))_module.o
 
 $(strip $(2))/obj/$(strip $(3))_module.o: \
-	$(strip $(2))/src/$(strip $(3)).cppm $$($(1)H) $(5)
+	$(strip $(2))/src/$(strip $(3)).cppm $$($(1)H) \
+	$$(foreach p,$(5),$$($$(p)MOD))
 	$$(CC) -x c++-module -c $$< -fmodule-output=$$($(1)MOD) -o $$@ \
-	$$(filter -I% -D% -U%,$$($(1)INC) $$(SMS++INC)) $$(SMSppMODSW) $(6) $$(SW)
+	$$(filter -I% -D% -U%,$$(call SMSppMODinc,$(1)) $$(SMS++INC)) \
+	$$(SMSppMODSW) $(6) $$(SW)
 
 $$($(1)MOD): $(strip $(2))/obj/$(strip $(3))_module.o ;
 

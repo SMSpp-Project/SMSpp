@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- the job `makefiles` of the pipeline builds the core with its makefiles,
+  with g++ and then with clang++ and the C++20 module, and runs
+  `Module_test` [see `ci/makefile` of the umbrella]
+
+- `cmake/FastFlow.cmake`, installed and included by the package
+  configuration file: `smspp_fetch_fastflow()` fetches FastFlow once, with
+  the MSVC patch, for the core and for a module built alone, which an
+  installed core does not give it
+
+- `SMSppCLANG`, `SMSppSWERR` and `SMSppSWDBG` in `lib/makefile-OS`: whether
+  `$(CC)` is clang++, asked when first needed, and the options that stop at
+  the first error and give the debugging information, which clang++ and g++
+  spell differently; the makefiles of the tests and of the tools take them,
+  and build also with g++
+
 - `lib/makefile-mod`, the makefile of the C++20 modules: with `SMSppMOD`
   not empty (e.g., `make SMSppMOD=1`) and clang++ 16 or later, the makefile
   of the core and those of the modules compile their interface into a
@@ -111,6 +126,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   headers of another library left out)
 
 ### Changed
+
+- `SMSppMODrule` of `lib/makefile-mod` takes the prefixes of the modules
+  that a module imports (e.g., `MILPS BAXSLV`) in place of their module
+  files, and compiles the interface with the `*INC` of those modules and
+  of the ones they import, so that it finds the headers of its
+  dependencies also when the basic makefile of the module is included
 
 - `SMSpp_BUILD_MODULE` no longer stops the configuration when the C++20
   module cannot be built: it is turned off with a warning, and the build

@@ -8,12 +8,19 @@
 #  and UNAME_P which identify the architecture for which the project is      #
 #  being compiled, so that other makefiles can rely on these to              #
 #  automatically adapt without a need for the user to manually edit them.    #
+#  It also gives the options that clang++ and g++ spell differently, so      #
+#  that the same switches serve either of them.                              #
 #                                                                            #
-#   Input:  none                                                             #
+#   Input:  $(CC)       = compiler command, looked at when the options are   #
+#                         first used, i.e., also if it is defined later      #
 #                                                                            #
-#   Output: $(UNAME_S) = the name of the current operating system            #
-#           $(UNAME_P) = the name of the underlying architecture             #
-#           (x86, arm, ...)                                                  #
+#   Output: $(UNAME_S)    = the name of the current operating system         #
+#           $(UNAME_P)    = the name of the underlying architecture          #
+#                           (x86, arm, ...)                                  #
+#           $(SMSppCLANG) = not empty if $(CC) is clang++                    #
+#           $(SMSppSWERR) = the option that stops at the first error         #
+#           $(SMSppSWDBG) = the option of the debugging information for      #
+#                           the debugger of the compiler (lldb, gdb)         #
 #                                                                            #
 #                              Antonio Frangioni                             #
 #                                 Donato Meoli                               #
@@ -58,5 +65,16 @@ else
     #    CCFLAGS += -D ARM
     #endif
 endif
+
+# the options that clang++ and g++ spell differently - - - - - - - - - - - -
+# whether $(CC) is clang++ is asked the first time that it is needed, when
+# $(CC) has its final value, and then remembered
+
+SMSppCLANG = $(eval SMSppCLANG := $$(findstring clang,$$(shell $$(CC) \
+	--version 2>/dev/null)))$(SMSppCLANG)
+
+SMSppSWERR = $(if $(SMSppCLANG),-ferror-limit=1,-fmax-errors=1)
+
+SMSppSWDBG = $(if $(SMSppCLANG),-glldb,-ggdb)
 
 ############################# End of makefile ################################
