@@ -99,21 +99,23 @@ target_link_libraries(<my_target> SMS++::SMS++)
 
 With CMake the library can also be built as the C++20 module `smspp`, so
 that a source file writes `import smspp;` in place of the `#include` of the
-headers. The module is built on request, with the option
-`SMSpp_BUILD_MODULE`, since it needs CMake 3.28 or later, the Ninja (or
-Visual Studio) generator and a compiler that scans the dependencies of the
-modules and accepts the headers of Eigen and Boost in a module: Clang 16
-or later, with `clang-scan-deps` (which Debian and Ubuntu ship in
-`clang-tools`), or MSVC 19.34 or later. GCC, up to 15 at least, refuses the
-entities of internal linkage (e.g., `Eigen::Dynamic`) that those headers
-expose to the templates of a module. Where any of these is missing, the
-option is turned off with a warning that says why, and the library is
-built as without it:
+headers. The module needs CMake 3.28 or later, the Ninja (or Visual
+Studio) generator and a compiler that scans the dependencies of the modules
+and accepts the headers of Eigen and Boost in a module: Clang 16 or later,
+with `clang-scan-deps` (which Debian and Ubuntu ship in `clang-tools`), or
+MSVC 19.34 or later. GCC, up to 15 at least, refuses the entities of
+internal linkage (e.g., `Eigen::Dynamic`) that those headers expose to the
+templates of a module. Unless the option `SMSpp_BUILD_MODULE` is given, the
+module is built where all of these are there and the compiler is Clang:
 
 ```sh
-cmake -G Ninja -DSMSpp_BUILD_MODULE=ON ..
+cmake -G Ninja -DCMAKE_CXX_COMPILER=clang++ ..
 cmake --build .
 ```
+
+`-DSMSpp_BUILD_MODULE=OFF` leaves it out, and `-DSMSpp_BUILD_MODULE=ON`
+asks for it also with MSVC; where something is missing, an `ON` is turned
+off with a warning that says why, and the library is built as without it.
 
 and a CMake project uses it with:
 
@@ -130,8 +132,8 @@ re-exports the modules of those it depends on, `smspp` in the end.
 A module does not export macros, so a file that uses those of the factory
 (`SMSFactory.h`) still includes that header.
 
-The makefiles build the modules too, with clang++ 16 or later, when
-`SMSppMOD` is not empty:
+The makefiles build the modules too, with clang++ 16 or later, but only on
+request, when `SMSppMOD` is not empty:
 
 ```sh
 make SMSppMOD=1

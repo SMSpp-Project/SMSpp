@@ -35,58 +35,21 @@
 
 module;
 
-#include "AbstractBlock.h"
 #include "AbstractChange.h"
-#include "AbstractPath.h"
-#include "BendersBFunction.h"
 #include "BendersBlock.h"
-#include "Block.h"
-#include "BlockInspection.h"
 #include "BlockSolverConfig.h"
 #include "BoxSolver.h"
-#include "C05Function.h"
 #include "C05SumFunction.h"
-#include "C15Function.h"
-#include "CDASolver.h"
-#include "Change.h"
 #include "ChangeSolver.h"
 #include "ColRowSolution.h"
-#include "ColVariable.h"
-#include "ColVariableSolution.h"
-#include "Configuration.h"
-#include "Constraint.h"
-#include "DQuadFunction.h"
 #include "DataMapping.h"
-#include "FRealObjective.h"
-#include "FRowConstraint.h"
 #include "FakeSolver.h"
-#include "Function.h"
-#include "GlobalInformation.h"
-#include "Group.h"
 #include "LagBFunction.h"
 #include "LinearConstraint.h"
-#include "LinearFunction.h"
 #include "MasterProblemBlock.h"
-#include "Modification.h"
-#include "Objective.h"
-#include "Observer.h"
-#include "OneVarConstraint.h"
-#include "PolyhedralFunction.h"
-#include "PolyhedralFunctionBlock.h"
 #include "QuadFunction.h"
 #include "RBlockConfig.h"
-#include "RowConstraint.h"
-#include "RowConstraintSolution.h"
-#include "SMSFactory.h"
-#include "SMSStreams.h"
-#include "SMSTypedefs.h"
-#include "SMSnetCDF.h"
-#include "Solution.h"
-#include "Solver.h"
-#include "ThinComputeInterface.h"
-#include "ThinVarDepInterface.h"
 #include "UpdateSolver.h"
-#include "Variable.h"
 
 /*--------------------------------------------------------------------------*/
 /*----------------------------- MODULE PURVIEW -----------------------------*/
@@ -151,6 +114,9 @@ export namespace SMSpp_di_unipi_it {
  using SMSpp_di_unipi_it::C05FunctionModVarsAddd;
  using SMSpp_di_unipi_it::C05FunctionModVarsRngd;
  using SMSpp_di_unipi_it::C05FunctionModVarsSbst;
+
+ // C05SumFunction.h
+ using SMSpp_di_unipi_it::C05SumFunction;
 
  // C15Function.h
  using SMSpp_di_unipi_it::C15Function;
@@ -443,11 +409,6 @@ export namespace SMSpp_di_unipi_it {
   using SMSpp_di_unipi_it::BlockConfigHandlers::CHandler;
   using SMSpp_di_unipi_it::BlockConfigHandlers::OHandler;
   using SMSpp_di_unipi_it::BlockConfigHandlers::RHandler;
- }
-}
-
-export namespace SMSpp_di_unipi_it {
- namespace SMSpp_type_traits {
  }
 }
 

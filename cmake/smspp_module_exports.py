@@ -19,13 +19,32 @@
 # --optional <header>=<macro>: both its #include and its names are then       #
 # inside an #if defined( <macro> ), which CMake defines when the library is   #
 # there. To be run whenever a header gains or loses a name.                   #
+#                                                                             #
+# The global module fragment includes only the headers that no other header   #
+# of the module includes, which bring in the others; the names are read from  #
+# all of them anyway.                                                         #
+#                                                                             #
+# An interface already written says how it was made (its name, the modules    #
+# it imports, its optional and excluded headers), so it can be written again  #
+# from itself, with the flags with which a build compiles it, read from the   #
+# compile_commands.json of a build with Clang, Ninja and SMSpp_BUILD_MODULE:  #
+#                                                                             #
+#   python3 cmake/smspp_module_exports.py --clang clang++ \                   #
+#           --compdb build/compile_commands.json --update */src/*.cppm        #
+#                                                                             #
+# where the names of an optional header whose library is not in the build     #
+# are kept as they are. With --check the interfaces are not written: the      #
+# differences are printed, and the exit status is 1 if there are any.         #
 ###############################################################################
 
 import argparse
 import collections
+import difflib
 import fnmatch
 import json
 import os
+import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -39,21 +58,24 @@ EXPORTED = { "CXXRecordDecl", "ClassTemplateDecl", "EnumDecl",
              "VarTemplateDecl" }
 
 
+def run_on( command , headers ):
+    """Runs command on a translation unit that includes the given headers.
+    The unit is alone in a directory of its own, since an #include "..." is
+    looked for first in the directory of the file that has it."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tu = os.path.join( tmp , "tu.cpp" )
+        with open( tu , "w" ) as f:
+            for h in headers:
+                f.write( f'#include "{h}"\n' )
+        return subprocess.run( command + [ tu ] , capture_output = True )
+
+
 def dump_ast( clang , root , headers , flags ):
     """Returns the JSON AST of a translation unit that includes the given
     headers of root/include."""
     inc = os.path.join( root , "include" )
-    with tempfile.NamedTemporaryFile( "w" , suffix = ".cpp" ,
-                                      delete = False ) as tu:
-        for h in headers:
-            tu.write( f'#include "{h}"\n' )
-    try:
-        out = subprocess.run( [ clang , "-std=c++20" , "-fsyntax-only" ,
-                                "-I" + inc , *flags , "-Xclang" ,
-                                "-ast-dump=json" , tu.name ] ,
-                              capture_output = True )
-    finally:
-        os.unlink( tu.name )
+    out = run_on( [ clang , "-std=c++20" , "-fsyntax-only" , "-I" + inc ,
+                    *flags , "-Xclang" , "-ast-dump=json" ] , headers )
     if out.returncode:
         errors = [ l for l in out.stderr.decode().splitlines()
                    if "error" in l ]
@@ -142,7 +164,8 @@ def collect( ast , inc ):
     walk( ast.get( "inner" , [] ) , [] )
     for key , name in declared - defined:
         names[ key ].pop( name , None )
-    return names , internal
+    # a namespace whose classes are only declared in advance has no names
+    return { k : v for k , v in names.items() if v } , internal
 
 
 BANNER = "/*" + "-" * 74 + "*/"
@@ -176,8 +199,8 @@ def doc_lines( name , what , script ):
     """Returns the lines of the @file comment that say what the module is,
     wrapped at 79 columns."""
     def para( text ):
-        return [ " * " + l for l in textwrap.wrap( text , 75 ,
-                                                     break_on_hyphens = False ) ]
+        return [ " * " + l for l in
+                 textwrap.wrap( text , 75 , break_on_hyphens = False ) ]
     deps = "" if name == "smspp" else \
            ", together with the modules it depends on"
     out = para( f"Interface of the C++20 module {name}, which exports every "
@@ -195,9 +218,49 @@ def doc_lines( name , what , script ):
     return out
 
 
-def write_module( root , name , out_file , imports , optional , headers ,
-                  names , authors , what , excluded ):
-    """Writes the interface of the module name to root/out_file."""
+def includes_of( clang , root , present , optional , flags ):
+    """Returns the headers of root/include that the global module fragment
+    includes: the optional ones, each in its #if, and among the others those
+    that no other of them includes, plus any that these do not bring in after
+    all (e.g., one included only inside an #if), as the dependencies that
+    clang finds say."""
+    inc = os.path.join( root , "include" )
+    plain = [ h for h in present if h not in optional ]
+    included = set()
+    for h in plain:
+        for l in open( os.path.join( inc , h ) , errors = "replace" ):
+            m = re.match( r'\s*#\s*include\s*"([^"]+)"' , l )
+            if m and ( m.group( 1 ) != h ):
+                included.add( m.group( 1 ) )
+    tops = [ h for h in plain if h not in included ]
+    while True:
+        reached = reached_by( clang , inc , tops , flags )
+        missing = [ h for h in plain
+                    if ( h not in tops ) and ( h not in reached ) ]
+        if not missing:
+            break
+        tops.append( missing[ 0 ] )
+    return sorted( tops + [ h for h in optional if h in
+                            os.listdir( inc ) ] )
+
+
+def reached_by( clang , inc , headers , flags ):
+    """Returns the names of the headers of inc that a translation unit
+    including the given ones reads."""
+    out = run_on( [ clang , "-std=c++20" , "-M" , "-I" + inc , *flags ] ,
+                  headers )
+    if out.returncode:
+        sys.exit( "the dependencies of the headers cannot be found:\n  " +
+                  out.stderr.decode()[ :2000 ] )
+    deps = out.stdout.decode().replace( "\\\n" , " " ).split()
+    inc = os.path.realpath( inc )
+    return { os.path.basename( d ) for d in deps
+             if os.path.dirname( os.path.realpath( d ) ) == inc }
+
+
+def interface( name , out_file , imports , optional , includes , names ,
+               authors , what , excluded ):
+    """Returns the text of the interface of the module name."""
     base = os.path.basename( out_file )
     script = "cmake/smspp_module_exports.py" if name == "smspp" else \
              "SMS++/cmake/smspp_module_exports.py"
@@ -212,7 +275,7 @@ def write_module( root , name , out_file , imports , optional , headers ,
     out += [ " */" ,
              BANNER , title( "GLOBAL MODULE FRAGMENT" ) , BANNER , "" ,
              "module;" , "" ]
-    for h in headers:
+    for h in includes:
         if h in optional:
             out += [ f"#if defined( {optional[ h ]} )" , f' #include "{h}"' ,
                      "#endif" ]
@@ -244,8 +307,119 @@ def write_module( root , name , out_file , imports , optional , headers ,
             out.append( " " * depth + "}" )
         out.append( "" )
     out += [ BANNER , title( f"End File {base}" ) , BANNER ]
-    with open( os.path.join( root , out_file ) , "w" ) as f:
-        f.write( "\n".join( out ) + "\n" )
+    return "\n".join( out ) + "\n"
+
+
+def read_interface( path ):
+    """Returns how the interface in path was made: its name, the modules it
+    imports, its optional headers with their macros, its excluded headers,
+    the lines of its authors and the names that it exports, as
+    { namespace : { name : header } }."""
+    text = open( path ).read()
+    lines = text.split( "\n" )
+    name = re.search( r"^export module (\S+);" , text , re.M ).group( 1 )
+    imports = re.findall( r"^export import (\S+);" , text , re.M )
+    optional = dict( ( h , m ) for m , h in re.findall(
+        r'^#if defined\( (\w+) \)\n #include "([^"]+)"' , text , re.M ) )
+    end = lines.index( " */" )
+    doc = " ".join( l[ 3: ] for l in lines[ :end ] if l.startswith( " * " ) )
+    m = re.search( r"The headers (.*?) are not in this module" , doc )
+    excluded = m.group( 1 ).split( ", " ) if m else []
+    first = next( ( i for i in range( end ) if "\\author" in lines[ i ] ) ,
+                  None )
+    authors = [ " *" ] + lines[ first : end ] if first is not None else []
+    names = collections.defaultdict( dict )
+    ns , header = [] , ""
+    for l in lines:
+        m = re.match( r"^\s*(?:export )?namespace (\S+) \{$" , l )
+        if m:
+            ns.append( m.group( 1 ) )
+            continue
+        if re.match( r"^\s*\}$" , l ) and ns:
+            ns.pop()
+            continue
+        m = re.match( r"^\s*// (\S+\.h)$" , l )
+        if m:
+            header = m.group( 1 )
+            continue
+        m = re.match( r"^\s*using (\S+);$" , l )
+        if m:
+            names[ "::".join( ns ) ][ m.group( 1 ).split( "::" )[ -1 ] ] = \
+                header
+    return name , imports , optional , excluded , authors , names
+
+
+def flags_from( compdb , path ):
+    """Returns the -I, -isystem, -D and -std flags with which the
+    compile_commands.json compdb compiles the file path."""
+    path = os.path.realpath( path )
+    for e in json.load( open( compdb ) ):
+        f = e[ "file" ]
+        if not os.path.isabs( f ):
+            f = os.path.join( e[ "directory" ] , f )
+        if os.path.realpath( f ) != path:
+            continue
+        args = e.get( "arguments" ) or shlex.split( e[ "command" ] )
+        out , i = [] , 1
+        while i < len( args ):
+            a = args[ i ]
+            if a in ( "-isystem" , "-I" , "-D" ) and ( i + 1 < len( args ) ):
+                out += [ a , args[ i + 1 ] ]
+                i += 2
+                continue
+            if a.startswith( ( "-I" , "-isystem" , "-D" , "-std=" ) ):
+                out.append( a )
+            i += 1
+        return out
+    return None
+
+
+def make( clang , root , out_file , name , imports , optional , excluded ,
+          authors , flags , kept = None ):
+    """Returns the interface out_file of the module name of root, with names of
+    optional headers whose macro is not among the flags taken from kept,
+    the names of an interface written before."""
+    inc = os.path.join( root , "include" )
+    exc = sorted( h for h in os.listdir( inc ) if h.endswith( ".h" ) and
+                  any( fnmatch.fnmatch( h , e ) for e in excluded ) )
+    headers = sorted( h for h in os.listdir( inc )
+                      if h.endswith( ".h" ) and ( h not in exc ) )
+    # an optional header whose macro is not among the flags is not there
+    defined = set()
+    for i , f in enumerate( flags ):
+        if f == "-D" and ( i + 1 < len( flags ) ):
+            defined.add( flags[ i + 1 ].split( "=" )[ 0 ] )
+        elif f.startswith( "-D" ):
+            defined.add( f[ 2: ].split( "=" )[ 0 ] )
+    present = [ h for h in headers
+                if ( h not in optional ) or ( optional[ h ] in defined ) ]
+    names , internal = collect( dump_ast( clang , root , present , flags ) ,
+                                inc )
+    if internal:
+        sys.exit( "names with internal linkage, which a module cannot "
+                  "export:\n  " + "\n  ".join( internal ) )
+    if kept:
+        absent = { h for h in optional if h not in present }
+        for ns , d in kept.items():
+            for n , h in d.items():
+                if h in absent:
+                    names.setdefault( ns , {} )[ n ] = h
+
+    what = "SMS++" if name == "smspp" else os.path.basename( root )
+    if authors is None:
+        if name == "smspp":
+            authors = authors_of( os.path.join( inc , "Block.h" ) )
+        else:
+            # the header named as the module, or else the first that has them
+            authors = []
+            for h in [ what + ".h" ] + headers:
+                if os.path.exists( os.path.join( inc , h ) ):
+                    authors = authors_of( os.path.join( inc , h ) )
+                    if authors:
+                        break
+    includes = includes_of( clang , root , present , optional , flags )
+    return interface( name , out_file , imports , optional ,
+                      includes , names , authors , what , sorted( excluded ) )
 
 
 def main():
@@ -274,42 +448,60 @@ def main():
                      help = "the header whose @file comment gives the "
                             "authors (default: the one named as the module "
                             "directory)" )
+    ap.add_argument( "--update" , nargs = "*" , metavar = "CPPM" ,
+                     help = "interfaces to write again from themselves, "
+                            "with the flags from --compdb" )
+    ap.add_argument( "--compdb" ,
+                     help = "the compile_commands.json of a build of the "
+                            "modules with Clang and Ninja" )
+    ap.add_argument( "--check" , action = "store_true" ,
+                     help = "with --update, prints the differences instead "
+                            "of writing the interfaces" )
     ap.add_argument( "flags" , nargs = "*" )
     args = ap.parse_args()
 
-    root = os.path.abspath( args.root )
-    inc = os.path.join( root , "include" )
-    excluded = sorted( h for h in os.listdir( inc ) if h.endswith( ".h" ) and
-                       any( fnmatch.fnmatch( h , e ) for e in args.exclude ) )
-    headers = sorted( h for h in os.listdir( inc )
-                      if h.endswith( ".h" ) and ( h not in excluded ) )
-    optional = dict( o.split( "=" , 1 ) for o in args.optional )
-    # an optional header whose macro is not among the flags is not there
-    defined = { f[ 2: ].split( "=" )[ 0 ] for f in args.flags
-                if f.startswith( "-D" ) }
-    present = [ h for h in headers
-                if ( h not in optional ) or ( optional[ h ] in defined ) ]
-    names , internal = collect( dump_ast( args.clang , root , present ,
-                                          args.flags ) , inc )
-    if internal:
-        sys.exit( "names with internal linkage, which a module cannot "
-                  "export:\n  " + "\n  ".join( internal ) )
+    if args.update is None:
+        root = os.path.abspath( args.root )
+        authors = None
+        if args.authors:
+            authors = authors_of( os.path.join( root , "include" ,
+                                                args.authors ) )
+        text = make( args.clang , root , args.out , args.name , args.imports ,
+                     dict( o.split( "=" , 1 ) for o in args.optional ) ,
+                     args.exclude , authors , args.flags )
+        with open( os.path.join( root , args.out ) , "w" ) as f:
+            f.write( text )
+        return
 
-    what = "SMS++" if args.name == "smspp" else os.path.basename( root )
-    if args.authors:
-        authors = authors_of( os.path.join( inc , args.authors ) )
-    elif args.name == "smspp":
-        authors = authors_of( os.path.join( inc , "Block.h" ) )
-    else:
-        # the header named as the module, or else the first that has them
-        authors = []
-        for h in [ what + ".h" ] + headers:
-            if os.path.exists( os.path.join( inc , h ) ):
-                authors = authors_of( os.path.join( inc , h ) )
-                if authors:
-                    break
-    write_module( root , args.name , args.out , args.imports , optional ,
-                  headers , names , authors , what , sorted( args.exclude ) )
+    if not args.compdb:
+        sys.exit( "--update needs --compdb" )
+    differ = False
+    for cppm in args.update:
+        cppm = os.path.abspath( cppm )
+        flags = flags_from( args.compdb , cppm )
+        if flags is None:
+            print( f"{cppm}: not in {args.compdb}, skipped" )
+            continue
+        root = os.path.dirname( os.path.dirname( cppm ) )
+        name , imports , optional , excluded , authors , kept = \
+            read_interface( cppm )
+        text = make( args.clang , root , cppm , name , imports , optional ,
+                     excluded , authors , flags , kept )
+        old = open( cppm ).read()
+        if text == old:
+            continue
+        if args.check:
+            differ = True
+            sys.stdout.writelines( difflib.unified_diff(
+                old.splitlines( True ) , text.splitlines( True ) ,
+                cppm , cppm + " (written again)" ) )
+        else:
+            with open( cppm , "w" ) as f:
+                f.write( text )
+            print( f"{cppm}: written again" )
+    if differ:
+        sys.exit( "the interfaces above are not those that the headers "
+                  "give: write them again with --update" )
 
 
 if __name__ == "__main__":

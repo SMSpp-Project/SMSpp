@@ -1,11 +1,17 @@
 # --------------------------------------------------------------------------- #
 # CheckModule.cmake                                                           #
 #                                                                             #
-# Checks whether the C++20 module of an SMS++ module can be built, and turns  #
-# SMSpp_BUILD_MODULE off in the calling directory, with a warning that says   #
-# why, if it cannot: a build asked for the module then goes on without it,    #
-# using the headers as when the option is OFF, instead of failing halfway.    #
-# The module needs                                                            #
+# Decides whether the C++20 modules of SMS++ are built, and checks whether    #
+# the one of an SMS++ module can be. SMSpp_BUILD_MODULE is                    #
+#   - ON or OFF, if it is given (e.g., -DSMSpp_BUILD_MODULE=ON);              #
+#   - otherwise ON where the toolchain builds the modules and the compiler    #
+#     is Clang, and OFF elsewhere, MSVC included, where the modules are       #
+#     built only on request.                                                  #
+# Where a module cannot be built, smspp_check_module() turns                  #
+# SMSpp_BUILD_MODULE off in the calling directory, and the build goes on      #
+# without it, using the headers as when the option is OFF, instead of         #
+# failing halfway: with a warning that says why if the module was asked for,  #
+# with a status message if it was not. The module needs                       #
 #   - CMake 3.28 or later;                                                    #
 #   - the Ninja generator (Ninja 1.11 or later) or a Visual Studio one;       #
 #   - a compiler whose module dependencies CMake can scan and that accepts    #
@@ -30,11 +36,8 @@
 #         ...                                                                 #
 # --------------------------------------------------------------------------- #
 
-function(smspp_check_module)
-    if (NOT SMSpp_BUILD_MODULE)
-        return()
-    endif ()
-
+# sets out to why the toolchain cannot build the modules, or to "" if it can
+function(_smspp_module_toolchain out)
     set(_why "")
     if (CMAKE_VERSION VERSION_LESS 3.28)
         set(_why "CMake ${CMAKE_VERSION} is older than 3.28")
@@ -68,6 +71,27 @@ dependencies (Clang 16 or MSVC 19.34 is needed)")
 for Clang, is not there (e.g., it is in clang-tools on Debian and Ubuntu)")
         endif ()
     endif ()
+    set(${out} "${_why}" PARENT_SCOPE)
+endfunction()
+
+# the default: ON with Clang, where the toolchain builds the modules
+if ((NOT DEFINED SMSpp_BUILD_MODULE) OR ("${SMSpp_BUILD_MODULE}" STREQUAL ""))
+    set(SMSpp_BUILD_MODULE_AUTO TRUE)
+    _smspp_module_toolchain(_smspp_why)
+    if ((CMAKE_CXX_COMPILER_ID STREQUAL "Clang") AND (NOT _smspp_why))
+        set(SMSpp_BUILD_MODULE ON)
+    else ()
+        set(SMSpp_BUILD_MODULE OFF)
+    endif ()
+    unset(_smspp_why)
+endif ()
+
+function(smspp_check_module)
+    if (NOT SMSpp_BUILD_MODULE)
+        return()
+    endif ()
+
+    _smspp_module_toolchain(_why)
 
     if (NOT _why AND PROJECT_IS_TOP_LEVEL)
         foreach (_target IN LISTS ARGN)
@@ -80,7 +104,10 @@ for Clang, is not there (e.g., it is in clang-tools on Debian and Ubuntu)")
 
     if (_why)
         get_property(_said GLOBAL PROPERTY SMSpp_MODULE_OFF_REASONS)
-        if (_why IN_LIST _said)
+        if (SMSpp_BUILD_MODULE_AUTO)
+            message(STATUS "SMSpp_BUILD_MODULE is OFF for ${PROJECT_NAME}: \
+${_why}")
+        elseif (_why IN_LIST _said)
             message(STATUS "SMSpp_BUILD_MODULE is OFF for ${PROJECT_NAME}")
         else ()
             message(WARNING "SMSpp_BUILD_MODULE is turned OFF for \

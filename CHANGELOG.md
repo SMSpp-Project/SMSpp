@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `cmake/smspp_module_exports.py --update <interfaces>` writes the
+  interface of a C++20 module again from itself, which says how it was made
+  (the name, the modules it imports, the optional and the excluded
+  headers), with the flags read from the `compile_commands.json` given by
+  `--compdb`; with `--check` it prints the differences instead, and fails
+  if there are any, which the nightly job of the modules of the umbrella
+  does after building them
+
 - the job `makefiles` of the pipeline builds the core with its makefiles,
   with g++ and then with clang++ and the C++20 module, and runs
   `Module_test` [see `ci/makefile` of the umbrella]
@@ -127,6 +135,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `SMSpp_BUILD_MODULE` is ON by default where the C++20 modules can be built
+  and the compiler is Clang, and OFF elsewhere (MSVC included, where they are
+  built on request): `cmake/CheckModule.cmake` decides it when it is first
+  included, if the option is not given, and then turns off a module that
+  cannot be built with a status message, keeping the warning for an `ON`
+  that was asked for; the makefiles build the modules only on request, as
+  before
+
+- the global module fragment of an interface written by
+  `cmake/smspp_module_exports.py` includes only the headers that no other
+  header of the module includes, e.g., 15 of the 52 of the core in
+  `src/SMSpp.cppm`, while the names are read from all of them as before
+
 - `SMSppMODrule` of `lib/makefile-mod` takes the prefixes of the modules
   that a module imports (e.g., `MILPS BAXSLV`) in place of their module
   files, and compiles the interface with the `*INC` of those modules and
@@ -168,6 +189,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   without asking the RelaxationSolver
 
 ### Fixed
+
+- `src/SMSpp.cppm` exports `C05SumFunction`, which it did not since the
+  header was added after the interface was written
+
+- `cmake/smspp_module_exports.py` writes the translation unit that it
+  compiles in a directory of its own, since an `#include "..."` is looked
+  for first in the directory of the file that has it, and a header with the
+  name of one of the module left in the temporary directory was taken in its
+  place; it no longer writes an empty namespace, where the only names were
+  classes declared in advance, which made the interface of MILPSolver depend
+  on the backends of the build
 
 - `AbstractBlock` no longer leaks the `Objective` it makes in `read_lp()`,
   `read_mps()` and `mirror()`, which it now deletes in its destructor and
