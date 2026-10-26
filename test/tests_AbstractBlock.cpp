@@ -1228,6 +1228,40 @@ static void test_read_lp_edges( void )
 
 /*--------------------------------------------------------------------------*/
 
+/* The power of a quadratic term may be written with blanks around its ^, as
+ * x ^2 (the form written by Gurobi), x ^ 2 or x^ 2: read_lp() reads them all
+ * as x^2. */
+
+static void test_read_lp_powers( void )
+{
+ auto value = []( const std::string & quad ) {
+  const std::string lp = "Minimize\n obj: x + y + [ " + quad + " ] / 2\n"
+   "Subject To\n r: x + y + z >= 1\nEnd\n";
+  AbstractBlock block;
+  std::istringstream in( lp );
+  block.load( in , 'L' );
+  const auto & sv = block.get_static_variable_groups();
+  assert( sv[ 0 ]->get_num_elements() == 3 );
+  double v = 1;
+  sv[ 0 ]->for_each_as< ColVariable >( [ & v ]( ColVariable & x ) {
+    x.set_value( v++ ); } );
+  auto obj = dynamic_cast< FRealObjective * >( block.get_objective() );
+  auto qf = dynamic_cast< DQuadFunction * >( obj->get_function() );
+  assert( qf && ( qf->get_num_active_var() == 3 ) );
+  qf->compute( true );
+  return( qf->get_value() );
+  };
+
+ const double ref = value( "2 x^2 + 4 y^2 + 6 z^2" );
+ assert( ref == 1 + 2 + 1 + 8 + 27 );           // x = 1 , y = 2 , z = 3
+ assert( value( "2 x ^2 + 4 y ^2 + 6 z ^2" ) == ref );
+ assert( value( "2 x ^ 2 + 4 y^ 2 + 6 z ^2" ) == ref );
+
+ std::cout << "read_lp of x ^2 , x ^ 2 and x^ 2: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+
 /* Input that is not an LP file, or one that ends before its End, is refused
  * with an exception that says who refuses it, and does not keep read_lp()
  * reading forever. */
@@ -2087,6 +2121,7 @@ int main( int argc , char ** argv )
  test_mirror_keeps_size_variable();
  test_read_lp_of_an_empty_model();
  test_read_lp_edges();
+ test_read_lp_powers();
  test_read_lp_malformed();
  test_dynamic_edges();
 

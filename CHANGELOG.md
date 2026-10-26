@@ -177,6 +177,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `reset_static_variables()` of `Block` take `dispose`, false by default,
   which deletes the containers the `Block` owns too
 
+- `AbstractBlock::read_lp()` reads the power of a quadratic term with blanks
+  around its `^`, as in `x ^2` (the form written by Gurobi, which it refused
+  saying that `""` cannot be the name of a column), `x ^ 2` and `x^ 2`
+
 - `NcMemFile` no longer lets HDF5 print an error for each attribute
   that netCDF looks for and does not find when an image is read in a thread
   other than the first one using netCDF (the copies of an `SDDPBlock` in
