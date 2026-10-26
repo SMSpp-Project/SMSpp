@@ -39,6 +39,7 @@ module;
 #include "BendersBlock.h"
 #include "BlockSolverConfig.h"
 #include "BoxSolver.h"
+#include "BranchingRule.h"
 #include "C05SumFunction.h"
 #include "ChangeSolver.h"
 #include "ColRowSolution.h"
@@ -102,6 +103,15 @@ export namespace SMSpp_di_unipi_it {
 
  // BoxSolver.h
  using SMSpp_di_unipi_it::BoxSolver;
+
+ // BranchingRule.h
+ using SMSpp_di_unipi_it::BranchCandidate;
+ using SMSpp_di_unipi_it::BranchEstimator;
+ using SMSpp_di_unipi_it::BranchingFeatures;
+ using SMSpp_di_unipi_it::LearnedBranching;
+ using SMSpp_di_unipi_it::LearnedPseudoCosts;
+ using SMSpp_di_unipi_it::PseudoCosts;
+ using SMSpp_di_unipi_it::StrongBranching;
 
  // C05Function.h
  using SMSpp_di_unipi_it::C05Function;

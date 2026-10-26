@@ -144,6 +144,7 @@ target_sources(${modName} PRIVATE
         src/AbstractChange.cpp
         src/Change.cpp
         src/BoxSolver.cpp
+        src/BranchingRule.cpp
         src/CDASolver.cpp
         src/Block.cpp
         src/BlockSolverConfig.cpp

@@ -142,7 +142,8 @@ smspp_install(Solution_test)
 add_test(NAME Solution_test
          COMMAND Solution_test)
 
-add_executable(PolyhedralFunctionBlock_unit_test tests_PolyhedralFunctionBlock.cpp)
+add_executable(PolyhedralFunctionBlock_unit_test
+               tests_PolyhedralFunctionBlock.cpp)
 target_link_libraries(PolyhedralFunctionBlock_unit_test PRIVATE SMS++::SMS++)
 smspp_install(PolyhedralFunctionBlock_unit_test)
 add_test(NAME PolyhedralFunctionBlock_unit_test
@@ -172,6 +173,12 @@ target_link_libraries(BendersBFunction_unit_test PRIVATE SMS++::SMS++)
 smspp_install(BendersBFunction_unit_test)
 add_test(NAME BendersBFunction_unit_test
          COMMAND BendersBFunction_unit_test)
+
+add_executable(BranchingRule_unit_test tests_BranchingRule.cpp)
+target_link_libraries(BranchingRule_unit_test PRIVATE SMS++::SMS++)
+smspp_install(BranchingRule_unit_test)
+add_test(NAME BranchingRule_unit_test
+         COMMAND BranchingRule_unit_test)
 
 add_executable(Misc_unit_test tests_Misc.cpp)
 target_link_libraries(Misc_unit_test PRIVATE SMS++::SMS++)

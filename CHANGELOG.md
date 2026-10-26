@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `BranchingRule.h`, the components with which a `RelaxationSolver` can
+  choose the variable to branch upon and estimate the children of a
+  branching, knowing nothing of the enumerative Solver that uses it nor of
+  the relaxation: `BranchCandidate`, a candidate described by its values in
+  the point of the candidates and in a second point, its block, its
+  position and its cost (the variable being known to the RelaxationSolver
+  only, by an index), `BranchingFeatures`, its fractionality and its eight
+  features, `StrongBranching`, the product score out of the bounds of the
+  two children that the RelaxationSolver computes, with the CSV of its
+  data, `LearnedBranching`, a perceptron on the features read from a file,
+  `BranchEstimator`, the interface of a RelaxationSolver that estimates the
+  best value under each child, `PseudoCosts`, the pseudocosts of the
+  candidates and the estimates of the children of Benichou et al. (1971),
+  and `LearnedPseudoCosts`, the priors of the pseudocosts read from a file
+  of two `LearnedBranching` models; `BranchingRule_unit_test` checks them
+
 - `cmake/smspp_module_exports.py --update <interfaces>` writes the
   interface of a C++20 module again from itself, which says how it was made
   (the name, the modules it imports, the optional and the excluded

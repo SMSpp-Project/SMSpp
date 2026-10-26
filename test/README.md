@@ -109,6 +109,11 @@ Unit tests for the core SMS++ library. Each test is registered as a separate
   the rows added, modified and deleted with the Modification they issue, the
   sides written by `compute()` over a box inner Block solved by `BoxSolver`,
   and the serialization with the matrix in dense and sparse form.
+- `BranchingRule_unit_test` covers the components of `BranchingRule.h`
+  against values computed by hand: the features of the candidates, the
+  product score of strong branching (ties, empty children, both senses, its
+  CSV), the perceptron read from a file, the pseudocosts with the estimates
+  they give and their learned priors, and the files that are not a model.
 - `Misc_unit_test` covers `GlobalInformation`, `SimpleDataMapping`, `Change`
   and `GroupChange`, `BoxSolver` (box LPs and QPs in both senses, empty
   boxes, unbounded directions, dual values), `UpdateSolver`, and what the

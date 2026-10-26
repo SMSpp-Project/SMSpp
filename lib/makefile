@@ -43,6 +43,7 @@ SMS++OBJ = $(SMS++SDR)/obj/AbstractBlock.o \
 	$(SMS++SDR)/obj/Block.o \
 	$(SMS++SDR)/obj/BlockSolverConfig.o \
 	$(SMS++SDR)/obj/BoxSolver.o \
+	$(SMS++SDR)/obj/BranchingRule.o \
 	$(SMS++SDR)/obj/CDASolver.o \
 	$(SMS++SDR)/obj/C05Function.o \
 	$(SMS++SDR)/obj/C05SumFunction.o \
@@ -82,6 +83,7 @@ SMS++H = $(SMS++SDR)/include/AbstractBlock.h \
 	$(SMS++SDR)/include/Block.h \
 	$(SMS++SDR)/include/BlockSolverConfig.h \
 	$(SMS++SDR)/include/BoxSolver.h \
+	$(SMS++SDR)/include/BranchingRule.h \
 	$(SMS++SDR)/include/C05Function.h \
 	$(SMS++SDR)/include/C05SumFunction.h \
 	$(SMS++SDR)/include/C15Function.h \
@@ -219,6 +221,10 @@ $(SMS++SDR)/obj/BoxSolver.o: $(SMS++SDR)/src/BoxSolver.cpp $(intBlockINC) \
 	$(SMS++SDR)/include/ThinVarDepInterface.h \
 	$(SMS++SDR)/include/Variable.h
 	$(CC) -c $(SMS++SDR)/src/BoxSolver.cpp -o $@ $(SMS++INC) $(SW)
+
+$(SMS++SDR)/obj/BranchingRule.o: $(SMS++SDR)/src/BranchingRule.cpp \
+	$(SMS++SDR)/include/BranchingRule.h
+	$(CC) -c $(SMS++SDR)/src/BranchingRule.cpp -o $@ $(SMS++INC) $(SW)
 
 $(SMS++SDR)/obj/C05Function.o: $(SMS++SDR)/src/C05Function.cpp \
 	$(SMS++SDR)/include/C05Function.h $(SMS++SDR)/include/Function.h \
