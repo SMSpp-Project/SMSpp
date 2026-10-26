@@ -417,7 +417,6 @@ class PolyhedralFunctionBlock : public AbstractBlock
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
  /// extends Block::expected_dims()
 
  std::vector< std::string > expected_dims( void ) const override {
@@ -436,8 +435,6 @@ class PolyhedralFunctionBlock : public AbstractBlock
   ret.insert( ret.end() , pfev.begin() , pfev.end() );
   return( ret );
   }
-
-#endif
 
 /*--------------------------------------------------------------------------*/
  /// the destructor actually destroys the abstract representation

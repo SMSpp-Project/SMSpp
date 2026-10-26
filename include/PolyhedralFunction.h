@@ -438,7 +438,6 @@ class PolyhedralFunction : public C05Function {
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
  /// mimics Block::expected_dims()
 
  virtual std::vector< std::string > expected_dims( void ) const;
@@ -447,8 +446,6 @@ class PolyhedralFunction : public C05Function {
  /// mimics UnitBlock::expected_vars()
 
  virtual std::vector< std::string > expected_vars( void ) const;
-
-#endif
 
 /*--------------------------------------------------------------------------*/
  /// destructor: it is virtual, and empty

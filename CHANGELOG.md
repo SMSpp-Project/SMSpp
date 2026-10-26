@@ -169,6 +169,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `expected_dims()` and `expected_vars()` of `Block`, `AbstractBlock`,
+  `PolyhedralFunctionBlock`, `PolyhedralFunction` and `AbstractPath` are
+  declared also with `NDEBUG`, which only turns off the check of
+  `Block::deserialize()` that calls them: `NDEBUG` changed the virtual
+  table of `Block`, so that an object compiled with it linked with one
+  compiled without called the wrong virtual method (e.g., a
+  `BlockSolverConfig` attached no Solver)
+
 - `AbstractBlock` no longer leaks the `Objective` it makes in `read_lp()`,
   `read_mps()` and `mirror()`, which it now deletes in its destructor and
   when a model is read over another, nor the two lists of the size

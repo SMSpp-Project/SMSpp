@@ -1597,8 +1597,9 @@ class Block : public Observer {
  *
  *   std::vector< std::string > expected_vars( void )
  *
- * are only declared if NDEBUG is defined. They are invoked, under the same
- * condition, inside Block::deserialize( const netCDF::NcGroup & ) to check
+ * are always declared, so that the virtual table of Block is the same
+ * whether NDEBUG is defined or not. They are invoked, only if NDEBUG is not
+ * defined, inside Block::deserialize( const netCDF::NcGroup & ) to check
  * the list of dimensions and variables that are expected to be found in
  * the netCDF::NcGroup, and complain if *un*expected ones are found in there.
  * This may (but not necessarily is) be a warning for some error.
@@ -1625,8 +1626,6 @@ class Block : public Observer {
  * of expected variables / dimensions.
  *  @{ */
 
-#ifndef NDEBUG
-
  virtual std::vector< std::string > expected_dims( void ) const {
   static const std::vector< std::string > _empty;
   return( _empty );
@@ -1637,8 +1636,6 @@ class Block : public Observer {
   static const std::vector< std::string > _empty;
   return( _empty );
   }
-
-#endif
 
 /** @} ---------------------------------------------------------------------*/
 /*----------------- Methods for acquiring/releasing the Block --------------*/

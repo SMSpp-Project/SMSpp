@@ -293,7 +293,6 @@ class AbstractBlock : public Block
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
  /// extends Block::expected_dims()
 
  std::vector< std::string > expected_dims( void ) const override;
@@ -302,8 +301,6 @@ class AbstractBlock : public Block
  /// extends Block::expected_vars()
 
  virtual std::vector< std::string > expected_vars( void ) const override;
-
-#endif
 
 /*--------------------------------------------------------------------------*/
  /// destructor of AbstractBlock, destroys the abstract representation

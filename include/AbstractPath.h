@@ -1956,7 +1956,6 @@ public:
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
  /// mimics Block::expected_dims()
 
  virtual std::vector< std::string > expected_dims( void ) const {
@@ -1975,8 +1974,6 @@ public:
     element_index_name , element_range_name , subset_size_name , subset_name };
   return( ed );
   }
-
-#endif
 
 /*--------------------------------------------------------------------------*/
 
