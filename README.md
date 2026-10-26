@@ -19,7 +19,7 @@ you can see:
 
 - The [SMS++ Project website](https://smspp.gitlab.io/)
 
-- The [SMS++ API Reference](https://smspp.gitlab.io/smspp-project/)
+- The [SMS++ API reference](https://smspp.gitlab.io/smspp-project/)
 
 - The [SMS++ Project Wiki](https://gitlab.com/smspp/smspp-project/-/wikis/home)
 
