@@ -4,9 +4,10 @@
 #                                                                             #
 # Writes the interface of the C++20 module of an SMS++ module: it reads the   #
 # AST of the headers in <root>/include (dumped by clang) and exports, with a  #
-# using-declaration, every name that they declare at namespace scope. The     #
-# core is the module "smspp", whose interface is src/SMSpp.cppm; any other    #
-# module also re-exports the modules it depends on ("export import"), e.g.:   #
+# using-declaration, every name that they declare in the namespace            #
+# SMSpp_di_unipi_it, its nested ones included. The core is the module         #
+# "smspp", whose interface is src/SMSpp.cppm; any other module also           #
+# re-exports the modules it depends on ("export import"), e.g.:               #
 #                                                                             #
 #   python3 cmake/smspp_module_exports.py --clang clang++ -- -Ibuild \        #
 #           -I/usr/include/eigen3 -I<fastflow>                                #
@@ -70,18 +71,35 @@ def run_on( command , headers ):
         return subprocess.run( command + [ tu ] , capture_output = True )
 
 
+# the namespace of the names that a module exports; the AST is dumped only
+# for it, since that of the whole translation unit, the standard library,
+# Boost and Eigen included, takes some gigabytes
+NAMESPACE = "SMSpp_di_unipi_it"
+
+
 def dump_ast( clang , root , headers , flags ):
-    """Returns the JSON AST of a translation unit that includes the given
-    headers of root/include."""
+    """Returns the JSON AST of the blocks of NAMESPACE in a translation unit
+    that includes the given headers of root/include."""
     inc = os.path.join( root , "include" )
     out = run_on( [ clang , "-std=c++20" , "-fsyntax-only" , "-I" + inc ,
-                    *flags , "-Xclang" , "-ast-dump=json" ] , headers )
+                    *flags , "-Xclang" , "-ast-dump=json" , "-Xclang" ,
+                    "-ast-dump-filter=" + NAMESPACE ] , headers )
     if out.returncode:
         errors = [ l for l in out.stderr.decode().splitlines()
                    if "error" in l ]
         sys.exit( "the headers do not compile together:\n  " +
                   "\n  ".join( errors[ :10 ] ) )
-    return json.loads( out.stdout )
+    # one JSON object for each block of the namespace, one after the other
+    text , dec , pos , blocks = out.stdout.decode() , json.JSONDecoder() , \
+                                0 , []
+    while True:
+        while ( pos < len( text ) ) and text[ pos ].isspace():
+            pos += 1
+        if pos == len( text ):
+            break
+        block , pos = dec.raw_decode( text , pos )
+        blocks.append( block )
+    return { "inner" : blocks }
 
 
 def collect( ast , inc ):
