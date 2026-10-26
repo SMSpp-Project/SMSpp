@@ -123,7 +123,7 @@ class Solution
 
  public:
 
-/** @} ---------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 /*----------------- CONSTRUCTING AND DESTRUCTING Solution ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructing and destructing Solution
@@ -551,11 +551,11 @@ class Solution
   * some Block may correspond to combinatorial problems whose solutions are
   * essentially combinatorial objects (paths/cuts on a graph ...), for which
   * "scaling" makes little sense. Yet, these problems are typically also
-  * represented in terms of subspaces of \R^n, and therefore one might
-  * expect scaling to be possible. However, it is clear that scaling may
-  * destroy some of the properties that solutions have: for instance, a
-  * path in a graph can be represented by means of a predecessor function,
-  * but a scaled path can not -- in the sense that it needs at least another
+  * represented in terms of subspaces of \f$ \mathbb{R}^n \f$, and therefore
+  * one might expect scaling to be possible. However, it is clear that scaling
+  * may destroy some of the properties that solutions have: for instance, a
+  * path in a graph can be represented by means of a predecessor function, but
+  * a scaled path can not -- in the sense that it needs at least another
   * information, the scaling factor, or to be transformed into a different
   * format, such as the amount of "flow" going on each arc of the graph.
   *

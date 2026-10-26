@@ -357,7 +357,7 @@ class Variable
 /** @} ---------------------------------------------------------------------*/
 /*--------- METHODS FOR HANDLING "STUFF" THE Variable IS ACTIVE IN ---------*/
 /*--------------------------------------------------------------------------*/
-/** @Name Methods for handling the set of "stuff" the Variable is active in
+/** @name Methods for handling the set of "stuff" the Variable is active in
  *  @{ */
 
  virtual void add_active( ThinVarDepInterface * stuff ) = 0;

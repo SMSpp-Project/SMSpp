@@ -673,8 +673,8 @@ class ThinVarDepInterface {
   * "close to the original one to the left (because some Variable with
   * smaller index has been deleted), and otherwise close to the end of the
   * set of active Variable (because the Variable has been deleted and then
-  * re-added)". This should be O( #vars ) if the set of indices has not
-  * changed, but it can be O( #vars * get_num_active_var() ) (as map_active()
+  * re-added)". This should be O( \#vars ) if the set of indices has not
+  * changed, but it can be O( \#vars * get_num_active_var() ) (as map_active()
   * is) in the worst case where everything changed. 
   *
   * This method is not pure virtual: the base ThinVarDepInterface provides 
@@ -765,8 +765,8 @@ class ThinVarDepInterface {
   * "close to the original one to the left (because some Variable with
   * smaller index has been deleted), and otherwise close to the end of the
   * set of active Variable (because the Variable has been deleted and then
-  * re-added)". This should be O( #vars ) if the set of indices has not
-  * changed, but it can be O( #vars * get_num_active_var() ) (as map_active()
+  * re-added)". This should be O( \#vars ) if the set of indices has not
+  * changed, but it can be O( \#vars * get_num_active_var() ) (as map_active()
   * is) in the worst case where everything changed. 
   *
   * This method is not pure virtual: the base ThinVarDepInterface provides 

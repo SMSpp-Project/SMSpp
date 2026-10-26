@@ -2582,7 +2582,7 @@ class ComputeConfig : public Configuration
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set one entry of the given vector-of-integer numerical parameter
- /** Set the entry specified by \pos of the vector-of-integer numerical
+ /** Set the entry specified by \p pos of the vector-of-integer numerical
   * parameter specified by \p name. If the parameter is not in the
   * corresponding list it is added, and if \p pos is not a valid position
   * then it is extended (all the un-specified positions being empty). */
@@ -2633,7 +2633,7 @@ class ComputeConfig : public Configuration
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set one entry of the given vector-of-float numerical parameter
- /** Set the entry specified by \pos of the vector-of-float numerical
+ /** Set the entry specified by \p pos of the vector-of-float numerical
   * parameter specified by \p name. If the parameter is not in the
   * corresponding list it is added, and if \p pos is not a valid position
   * then it is extended (all the un-specified positions being empty). */
@@ -2684,7 +2684,7 @@ class ComputeConfig : public Configuration
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set one entry of the given vector-of-string parameter
- /** Set the entry specified by \pos of the vector-of-string parameter
+ /** Set the entry specified by \p pos of the vector-of-string parameter
   * specified by \p name. If the parameter is not in the corresponding list
   * it is added, and if \p pos is not a valid position then it is extended
   * (all the un-specified positions being empty). */
@@ -2813,7 +2813,7 @@ class ComputeConfig : public Configuration
   * the description of a :Configuration object for the "extra" Configuration
   * of the ComputeConfig, loaded with Configuration::deserialize(
   * std::istream ) and therefore with all the corresponding input options,
-  * like '*' for nullptr and "*<filename>" for loading it out of a different
+  * like '*' for nullptr and "\*\<filename\>" for loading it out of a different
   * file.
   *
   * If the stream cleanly eof()-s after before reading each one of the
@@ -2911,7 +2911,7 @@ class State {
 
  public:
 
-/** @} ---------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 /*------------------ CONSTRUCTING AND DESTRUCTING State --------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructing and destructing State
@@ -3131,7 +3131,7 @@ class State {
 /*------------ METHODS FOR LOADING, PRINTING & SAVING THE State ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for printing the State
- */
+ *  @{ */
 
  /// friend operator<<(), dispatching to virtual protected print()
  /** Not really a method, but a friend operator<<() that just dispatches the
@@ -3303,7 +3303,7 @@ class State {
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
-/** @} ---------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 

@@ -253,7 +253,7 @@ class AbstractBlock : public Block
  void load( std::istream & input , char frmt = 0 ) override;
 
 /*--------------------------------------------------------------------------*/
- /// de-serialize the current :AbstractBlock out of netCDF::NcGroup
+ /// de-serialize the current AbstractBlock out of netCDF::NcGroup
  /** The AbstractBlock de-serializes itself out of a .lp/.mps representation
   * stored in a netCDF::NcGroup. The method of the base AbstractBlock class 
   * only handles the "arbitrary" part, i.e., that after the "reserved" one
@@ -299,7 +299,7 @@ class AbstractBlock : public Block
  std::vector< std::string > expected_dims( void ) const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// extends UnitBlock::expected_vars()
+ /// extends Block::expected_vars()
 
  virtual std::vector< std::string > expected_vars( void ) const override;
 
@@ -744,7 +744,7 @@ class AbstractBlock : public Block
 /*----------------- Methods for checking the AbstractBlock -----------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for checking solution information in the AbstractBlock
- **/
+ *  @{ */
 
  /// returns true if the current solution is (approximately) feasible
  /** Returns true if the solution encoded in the current value of the Variable
@@ -772,8 +772,8 @@ class AbstractBlock : public Block
   *   relative and zero for absolute violation);
   *
   * - Otherwise, if #f_BlockConfig is not nullptr,
-  *   #f_BlockConfig->f_is_feasible_Configuration is not nullptr and it is a
-  *   pointer to either a SimpleConfiguration< double > or to a
+  *   `f_BlockConfig->f_is_feasible_Configuration` is not nullptr and it is
+  *   a pointer to either a SimpleConfiguration< double > or to a
   *   SimpleConfiguration< std::pair< double , int > >, then the values of the
   *   parameters are obtained analogously as above;
   *

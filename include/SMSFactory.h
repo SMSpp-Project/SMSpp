@@ -90,7 +90,7 @@ namespace SMSpp_di_unipi_it
  * If this happens, it is because the code inserting it in the factory has not
  * been included due to having been aggressively optimised out by the linker.
  * In this case, one must either forcibly include an object of the specific
- * type in the final main (which requires also #include-ing the corresponding
+ * type in the final main (which requires also \#include-ing the corresponding
  * headers, and it is therefore best avoided), or use options of the linker
  * that disable this optimization; at the time of writing this is
  * "--no-as-needed" for g++ (to be passed as "-Wl,--no-as-needed" if the
@@ -340,7 +340,7 @@ inline std::string && SMSpp_classname_normalise( std::string && str ) {
  * Finally, we remark that stripping the class name from whitespaces and
  * parentheses is done during the initialization of the static const
  * std::string my_name variable of _private_name() by using a lambda that is
- * defined and immediately called on #ClassName. This operation hence happens
+ * defined and immediately called on ClassName. This operation hence happens
  * *at runtime*, although only once the first time that _private_name() is
  * called (which is immediately as the class is registered in the factory).
  * This is slightly inefficient since the stripping should rather happen at

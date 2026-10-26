@@ -1294,10 +1294,10 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
  * std::vector< std::vector< T > >. This is obtained in the netCDF by having
  * two distinct netCDF::NcVars: a one-dimensional T array val[] (whose name is
  * \p name), and a one-dimensional int array start[] (whose name is \p
- * start_name). The length of start[] gives the number of rows in \p array;
+ * start_name). The length of start[] gives the number of rows in \p matrix;
  * the elements of start[] are supposed to be non-negative, ordered in
  * non-decreasing sense, and smaller than the number of elements of val[].
- * Then, the i-th row of \p array will contain the elements found in val[]
+ * Then, the i-th row of \p matrix will contain the elements found in val[]
  * with indices in the closed-open interval [ start[ i ] , start[ i + 1 ] ),
  * except for the last row for which start[ i + 1 ] is undefined and the total
  * number of elements in val[] is used instead. Note that one typically expect
@@ -1315,15 +1315,15 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
  * @param[in] start_name The name of the one-dimensional netCDF::NcVar (whose
  *                       type is compatible with T) within the given \p group
  *                       which tells how the elements of name are subdivided
- *            between the rows of \p array; start_name is optional if \p name
+ *            between the rows of \p matrix; start_name is optional if \p name
  *            is not found in \p group;
  *
- * @param[out] array A reference to the std::vector< std::vector< T > > to
- *                   be deserialized;
+ * @param[out] matrix A reference to the std::vector< std::vector< T > > to
+ *                    be deserialized;
  *
  * @param[in] optional A bool stating if it is allowed for \p name not to be
  *                     a netCDF::NcVar in \p group, in which case an empty \p
- *                     array is returned as opposed to throwing exception.
+ *                     matrix is returned as opposed to throwing exception.
  *                     Default is true.
  *
  * @return true if the desired variable was deserialized; false, otherwise. */

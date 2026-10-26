@@ -257,17 +257,17 @@ class DQuadFunction : public C15Function {
  /// constructor of DQuadFunction, taking the data describing it
  /** Constructor of DQuadFunction. It accepts:
   *
-  * @param v_var, a && to a vector of triples < ColVariable * , Coefficient ,
+  * @param v_var a && to a vector of triples < ColVariable * , Coefficient ,
   *        Coefficient >, with the first coefficient being that of the linear
   *        term and the second being that of the quadratic term of the
   *        function corresponding to the given ColVariable; as the &&
   *        tells, vars is "consumed" by the constructor and its resources
   *        become property of the LinearFunction object.
   *
-  * @param ct, a FunctionValue providing the value of the constant term of the
+  * @param ct a FunctionValue providing the value of the constant term of the
   *        function;
   *
-  * @param observer, a pointer to the Observer of this DQuadFunction.
+  * @param observer a pointer to the Observer of this DQuadFunction.
   *
   * All inputs have a default ({}, 0, and nullptr, respectively) so that this
   * can be used as the void constructor.

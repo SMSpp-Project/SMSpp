@@ -240,7 +240,8 @@ inline std::istream & eatcomments( std::istream & is ) {
  * out pointers. Elements are separated by whitespaces and comments (see
  * eatcomments above). This creates a problem with dense vectors/lists of
  * std::strings, because there is no way in which one can have any of their
- * elements to be empty; if this is the case, use the sparse input instead. */
+ * elements to be empty; if this is the case, use the sparse input instead.
+ *  @{ */
 
 template< class T1 , class T2 >
 std::istream & operator>>( std::istream & is , std::pair< T1 , T2 > & p ) {

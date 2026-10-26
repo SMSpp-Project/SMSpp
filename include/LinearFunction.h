@@ -225,15 +225,15 @@ class LinearFunction : public C15Function
  /// constructor of LinearFunction, taking the data describing it
  /** Constructor of LinearFunction. It accepts:
   *
-  * @param vars, a && to a vector of pairs < ColVariable * , Coefficient >
+  * @param vars a && to a vector of pairs < ColVariable * , Coefficient >
   *        representing the linear expression of the function; as the &&
   *        tells, vars is "consumed" by the constructor and its resources
   *        become property of the LinearFunction object.
   *
-  * @param ct, a FunctionValue providing the value of the constant term of the
+  * @param ct a FunctionValue providing the value of the constant term of the
   *        function (which is affine rather than, strictly speaking, linear);
   *
-  * @param observer, a pointer to the Observer of this LinearFunction.
+  * @param observer a pointer to the Observer of this LinearFunction.
   *
   * Important note:
   *

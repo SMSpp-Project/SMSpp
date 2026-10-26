@@ -87,13 +87,15 @@ namespace SMSpp_di_unipi_it
  *    This will be the one, and only, inner Block of LagBFunction (when
  *    "seen" as a Block).
  *
- * 2) A vector of pairs defining the Lagrangian term: < y , g(x) > =
- *    [ < y_i , g_i(x) > ]_{ i \in I }. The vector-valued function g(x) =
- *    [ g_i( x ) ]_{ i \in I } is defined in the same Variable x as B, and
- *    it should be thought as [a part of] the "complicating constraints" of
- *    some original problem
+ * 2) A vector of pairs defining the Lagrangian term:
+ *    \f$ \langle y , g(x) \rangle =
+ *    [ \langle y_i , g_i(x) \rangle ]_{ i \in I } \f$. The vector-valued
+ *    function \f$ g(x) = [ g_i( x ) ]_{ i \in I } \f$ is defined in the same
+ *    Variable x as B, and it should be thought as [a part of] the
+ *    "complicating constraints" of some original problem
  *
- *      (O)  max { c(x) [+ ...] : g(x) [+ ...] [<]=[>] 0 , x \in X [, ...] }
+ *      \f[ (O) \quad \max \{ c(x) [+ \ldots] : g(x) [+ \ldots] \; [<]=[>] \;
+ *          0 \,,\, x \in X [, \ldots] \} \f]
  *
  *    that are relaxed to make it easier. The "[...]" are meant to convey the
  *    fact that (O) may have other groups of variables besides x, but when
@@ -110,7 +112,7 @@ namespace SMSpp_di_unipi_it
  *    on whether g(x) is the original constraint or is opposite (- g(x)).
  *    LagBFunction assumes that the right choices regarding to the signs are
  *    done by whomever constructed the g(x) it is passed and takes no
- *    responsibility for this. The vector y = [ y_i ]_{ i \in I } of
+ *    responsibility for this. The vector \f$ y = [ y_i ]_{ i \in I } \f$ of
  *    Lagrangian multipliers, real-valued Variable (ColVariable) each one
  *    associated to one of the complicating terms g_i(x), must *not* be of
  *    Variable of the LagBFunction seen as a Block, because they are
@@ -122,8 +124,9 @@ namespace SMSpp_di_unipi_it
  *    LagBFunction.
  *
  * 3) A list of pairs of relaxed functions and their Lagrangian multipliers:
- *    { ( y_i , g_i( x ) ) }_{ i \in \bar{I} } which handle the dynamic
- *    generation/removal which handle the dynamic relaxation of constraints.
+ *    \f$ \{ ( y_i , g_i( x ) ) \}_{ i \in \bar{I} } \f$ which handle the
+ *    dynamic generation/removal which handle the dynamic relaxation of
+ *    constraints.
  *
  * Note that the LagBFunction is not supposed to have any Constraint or
  * Variable in itself, that is, besides "x" and "x in X"  (respectively) that
@@ -131,7 +134,9 @@ namespace SMSpp_di_unipi_it
  *
  * With these elements, LagBFunction represents the Lagrangian function
  *
- *   (L_y)   l( y ) = max { c( x ) + \sum_{ i \in I } y_i g_i( x ) : x \in X }
+ *   \f[ (L_y) \quad
+ *       l( y ) = \max \{ c( x ) + \sum_{ i \in I } y_i g_i( x ) : x \in X \}
+ *   \f]
  *
  * The function l(y) is convex in y (concave if (B) is a minimization
  * problem), since it is the pointwise maximum of (possibly, infinitely
@@ -218,10 +223,10 @@ namespace SMSpp_di_unipi_it
  * (implementation decisions) that somewhat further limit the kind of
  * Block that can be used as (B):
  *
- * - THE LAGRANGIAN TERM c( x ) + \sum_{ i \in I } y_i g_i(x) FOR FIXED VALUE
- *   OF y_i AND LINEAR c( x ), g_i( x ) BECOMES EITHER A LinearFunction OR A
- *   DQuadFunction (DEPENDING ON WHAT IT WAS ORIGINALLY) THAT IS WRITTEN IN
- *   THE OBJECTIVE OF (B).
+ * - THE LAGRANGIAN TERM \f$ c( x ) + \sum_{ i \in I } y_i g_i(x) \f$ FOR
+ *   FIXED VALUE OF y_i AND LINEAR c( x ), g_i( x ) BECOMES EITHER A
+ *   LinearFunction OR A DQuadFunction (DEPENDING ON WHAT IT WAS ORIGINALLY)
+ *   THAT IS WRITTEN IN THE OBJECTIVE OF (B).
  *
  *   The first, obvious consequence is that (B) must necessarily have an
  *   "abstract") Objective that is a FRealObjective whose Function is either
@@ -350,8 +355,8 @@ namespace SMSpp_di_unipi_it
  * - the Objective of the LagBFunction is empty
  *
  * - the Objective of (B) is that corresponding to the last value of
- *   \bar{y} on which compute() has been called (in the linear case,
- *   c^\bar{y} x).
+ *   \f$ \bar{y} \f$ on which compute() has been called (in the linear case,
+ *   \f$ c^{\bar{y}} x \f$).
  *
  * Thus, this violates the intended mathematical definition of Block. Yet,
  * this is acceptable in the following two scenarios. When the LagBFunction
@@ -364,19 +369,20 @@ namespace SMSpp_di_unipi_it
  * case they will know exactly what to do with it. In other words, even if
  * the Objective of the LagBFunction (seen as a Block) is empty, such a
  * Solver, which is *not* general-purpose but specialized for the case, will
- * be able to "pretend" to see the right term c(x) + \sum_{i \in I} y_i g_i(x)
- * in there. Thus, while it will not be possible to use a LagBFunction as
- * "any" Block to be passed to "any" general-purpose Solver, the most
- * important use cases for it are covered.
+ * be able to "pretend" to see the right term
+ * \f$ c(x) + \sum_{i \in I} y_i g_i(x) \f$ in there. Thus, while it will not
+ * be possible to use a LagBFunction as "any" Block to be passed to "any"
+ * general-purpose Solver, the most important use cases for it are covered.
  *
  * It would actually be possible to make the "abstract representation" of the
  * LagBFunction to exactly match its intended mathematical semantic. To do
  * that, one should (in the linear case, for notational simplicity):
  *
- * - set the Objective of the LagBFunction as c x + y A x - c^\bar{y} x
+ * - set the Objective of the LagBFunction as
+ *   \f$ c x + y A x - c^{\bar{y}} x \f$
  *   (a BiLinearFunction);
  *
- * - keep the Objective of (B) to c^\bar{y} x.
+ * - keep the Objective of (B) to \f$ c^{\bar{y}} x \f$.
  *
  * Since the Objective of the son is (implicitly) summed to that of the
  * father, this would work being the f_sense of Objective of both LagBFunction
@@ -811,7 +817,7 @@ class LagBFunction : public C05Function , public Block
   *
   * The constructor does not accept an array of dual pair, which consists of
   * a pair of a relaxed constraint g_i(x) and its Lagrangian multiplier y_i,
-  * for i \in I. The assumption makes sure that, before saving the
+  * for \f$ i \in I \f$. The assumption makes sure that, before saving the
   * Lagrangian multipliers, the Observer has been registered. */
 
  LagBFunction( Block * innerblock = nullptr , Observer * observer = nullptr );
@@ -1572,8 +1578,9 @@ class LagBFunction : public C05Function , public Block
 
 /*--------------------------------------------------------------------------*/
  /// remove a subset of Lagrangian terms from the LagBFunction
- /** Remove the Lagrangian terms < y_i , g_i( x ) > with i \in subset from
-  * the LagBFunction, i.e., the corresponding subset of the "active" Variable.
+ /** Remove the Lagrangian terms \f$ \langle y_i , g_i( x ) \rangle \f$ with
+  * i in subset from the LagBFunction, i.e., the corresponding subset of the
+  * "active" Variable.
   * If \p nms.empty(), then *all* the Lagrangian terms ("active" Variable) are
   * removed. \p ordered tells if \p nms is already ordered in increasing
   * sense.
@@ -2079,8 +2086,8 @@ class LagBFunction : public C05Function , public Block
   * it returns a (const) pointer to a std::pair< Coefficient , v_mon_pair >.
   * The coefficient is the original cost c_j of the [Col]Variable.
   * v_mon_pair is a vector of std::pair< Index , Coefficient > describing the
-  * linear function y A^j = \sum_i y_i a_{ij}, where the Index is j (the
-  * index of y_i as an active Variable of the LagBFunction), while the
+  * linear function \f$ y A^j = \sum_i y_i a_{ij} \f$, where the Index is j
+  * (the index of y_i as an active Variable of the LagBFunction), while the
   * Coefficient is a_{ij}.
   *
   * Note that if xj is actually not a [Col]Variable of the inner Block, the
@@ -3190,9 +3197,9 @@ class LagBFunction : public C05Function , public Block
 		       * Variable of the inner Block:
  * - Inf : the Solution is the last one from the local pool
  *
- * - \in [ 0 , g_pool.size() ): is the index of a Solution of the global pool
+ * - in [ 0 , g_pool.size() ): is the index of a Solution of the global pool
  *
- * - \in [ g_pool.size() , INF ): the Solution is not significant
+ * - in [ g_pool.size() , INF ): the Solution is not significant
  *
  * It of course only makes sense if NoSol == false. */
 

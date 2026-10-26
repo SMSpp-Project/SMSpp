@@ -85,49 +85,55 @@ namespace SMSpp_di_unipi_it {
  *     (g in the comments) AND A SINGLE REAL SCALAR (\alpha in the comments),
  *     AND THEREFORE IS A LINEAR (AFFINE) FUNCTION L(x) = g x + \alpha
  *
- * Linearization are therefore objects in the graphical space \R^{n + 1}
- * of pairs ( x , v ), where x belongs to the input space (which is assumed
- * to be \R^n, i.e., each Variable holds a single real value) and v \in R is
- * the function value; indeed, Gr(f) = \{ ( x , f(x) ) : x \in \R^n \} (the
- * graph of f) is an object in \R^{n + 1}. However, like function values
- * linearizations are usually computed at specific points x \in \R^n. Often,
- * but not always, the computation of linearizations is a (more or less
- * cheap) by-product of the evaluation of the Function. A convenient example
- * of this behaviour is that of a structured optimization problem
+ * Linearizations are therefore objects in the graphical space
+ * \f$ \mathbb{R}^{n + 1} \f$ of pairs ( x , v ), where x belongs to the input
+ * space (which is assumed to be \f$ \mathbb{R}^n \f$, i.e., each Variable
+ * holds a single real value) and \f$ v \in \mathbb{R} \f$ is the function
+ * value; indeed,
+ * \f$ Gr(f) = \{ ( x , f(x) ) : x \in \mathbb{R}^n \} \f$ (the graph of f) is
+ * an object in \f$ \mathbb{R}^{n + 1} \f$. However, like function values
+ * linearizations are usually computed at specific points
+ * \f$ x \in \mathbb{R}^n \f$. Often, but not always, the computation of
+ * linearizations is a (more or less cheap) by-product of the evaluation of the
+ * Function. A convenient example of this behaviour is that of a structured
+ * optimization problem
  *
- *   (P)  max \{ c u : A u = b , u \in U \}
+ *   \f[ (P) \quad \max \{ c u : A u = b \,,\, u \in U \} \f]
  *
  * and of its (convex) Lagrangian function
  *
- *   (P( x ))  f( x ) = max \{ c u + x ( b - A u ) : u \in U \}
+ *   \f[ (P( x )) \quad f( x ) = \max \{ c u + x ( b - A u ) : u \in U \} \f]
  *
- * Given some \bar{x}, any optimal solution u^* of P( \bar{x} ) provides
- * the pair
+ * Given some \f$ \bar{x} \f$, any optimal solution u^* of
+ * \f$ P( \bar{x} ) \f$ provides the pair
  *
- *    ( g , \alpha ) = ( b - A u^* , c u^* )
+ *    \f[ ( g , \alpha ) = ( b - A u^* , c u^* ) \f]
  *
  * which defines the "best possible" linearization
  *
- *    L( x ) = \alpha + g x = c u^* + x ( b - A u^* )
+ *    \f[ L( x ) = \alpha + g x = c u^* + x ( b - A u^* ) \f]
  *
  * Indeed:
  *
- * - L() is "active" at \bar{x}: L( \bar{x} ) = f( \bar{x} );
+ * - L() is "active" at \f$ \bar{x} \f$:
+ *   \f$ L( \bar{x} ) = f( \bar{x} ) \f$;
  *
  * - it supports Gr(f) from below, i.e.,
  *
- *     f( y ) >= f( \bar{x} ) + g ( y - \bar{x} ) for all y  ,
+ *     \f[ f( y ) \geq f( \bar{x} ) + g ( y - \bar{x} )
+ *         \quad \text{for all } y \,, \f]
  *
  *   as it can be seen by just expanding:
  *
- *     f( y ) \geq c u^* + \bar{x} ( b - A u^* )
- *                       + ( y - \bar{x} ) ( b - A u^* ) =
- *               = c u^* + y ( b - A u^* )
+ *     \f[ f( y ) \geq c u^* + \bar{x} ( b - A u^* )
+ *                       + ( y - \bar{x} ) ( b - A u^* )
+ *                 = c u^* + y ( b - A u^* ) \f]
  *
  *   (the inequality being obviously true since u^* is a feasible, but
  *   not necessarily optimal, solution of P( y ));
  *
- * - if u^* is *unique*, then f is differentiable at x and g = \Nabla f(x).
+ * - if u^* is *unique*, then f is differentiable at x and
+ *   \f$ g = \nabla f(x) \f$.
  *
  * So, obtaining u^*, which is crucial for computing f(x), gives for free as
  * a by-product the best possible linearization. However:
@@ -137,11 +143,12 @@ namespace SMSpp_di_unipi_it {
  *   Gr(f) everywhere, i.e., at points y arbitrarily far from x;
  *
  * - conversely, multiple linearizations may be produced at some x. For
- *   instance, even if u^* is unique, any \eps-optimal solution u' of P(x)
- *   produces a linearization ( g', \alpha' ) = L( u' ) which is an
- *   \eps-subgradient of f, i.e., \alpha' \geq f(x) - \eps (by the very
- *   definition of \eps-optimal solution) and f(y) >= \alpha' + g' ( y - x )
- *   for all y.
+ *   instance, even if u^* is unique, any \f$ \epsilon \f$-optimal solution
+ *   u' of P(x) produces a linearization \f$ ( g', \alpha' ) = L( u' ) \f$
+ *   which is an \f$ \epsilon \f$-subgradient of f, i.e.,
+ *   \f$ \alpha' \geq f(x) - \epsilon \f$ (by the very definition of
+ *   \f$ \epsilon \f$-optimal solution) and
+ *   \f$ f(y) \geq \alpha' + g' ( y - x ) \f$ for all y.
  *
  * Thus, one linearization may in fact "refer to multiple points", and,
  * conversely, "a single point may provide multiple linearizations". This
@@ -154,30 +161,32 @@ namespace SMSpp_di_unipi_it {
  * pool is to be populated with linearizations "significant at x". The
  * specific concept is left intentionally vague, but examples are:
  *
- * - for a convex function, the \eps-subdifferential, i.e., the set of
- *   \eps-subgradients at x (see above);
+ * - for a convex function, the \f$ \epsilon \f$-subdifferential, i.e., the
+ *   set of \f$ \epsilon \f$-subgradients at x (see above);
  *
- * - for a concave function, the set of \eps-supergradients [the same thing
- *   with properly inverted signs];
+ * - for a concave function, the set of \f$ \epsilon \f$-supergradients [the
+ *   same thing with properly inverted signs];
  *
  * - for a reasonably regular function (say, continuous and differentiable
  *   almost everywhere), either the Goldstein or the Clarke
- *   \eps-subdifferential, which are something like the closed convex hull
- *   of the set of vectors obtained as limits of \Nabla f(x_i) as x_i goes
- *   to x, or to any point in a ball of radius \eps around x.
+ *   \f$ \epsilon \f$-subdifferential, which are something like the closed
+ *   convex hull of the set of vectors obtained as limits of
+ *   \f$ \nabla f(x_i) \f$ as x_i goes to x, or to any point in a ball of
+ *   radius \f$ \epsilon \f$ around x.
  *
  * Note that whenever useful, as in this case, with a little abuse of
  * notation we refer to only the g part of the linearization as "the
  * linearization". This, for instance, allows to say that, if the Function
- * is differentiable at x and \eps = 0, all the three examples collapse to
- * \Nabla f(x) as the only possible linearization.
+ * is differentiable at x and \f$ \epsilon = 0 \f$, all the three examples
+ * collapse to \f$ \nabla f(x) \f$ as the only possible linearization.
  *
  * We purposely refrain from giving a more formal definition as the above
  * examples are only meant to convey the general idea that there is a set of
- * "linearizations relevant up to a number \eps", which is what the interface
- * supports. Specific algorithms will have specific requirements on the
- * Function (say, convex) which will typically imply requirements on the set
- * in question (say, is the \eps-subdifferential), but since there are
+ * "linearizations relevant up to a number \f$ \epsilon \f$", which is what
+ * the interface supports. Specific algorithms will have specific
+ * requirements on the Function (say, convex) which will typically imply
+ * requirements on the set in question (say, is the
+ * \f$ \epsilon \f$-subdifferential), but since there are
  * several possible variants this is left for further specifications: the
  * C05Function aims at capturing all these cases.
  *
@@ -186,13 +195,15 @@ namespace SMSpp_di_unipi_it {
  * combinations of linearizations are important. It should be apparent why
  * this is necessary: proving (approximate) optimality/stationariety of a
  * point x^* (even in the simple case where there are no constraints or other
- * components in the objective function) amounts at proving that 0 \in \R^n
- * belongs to the corresponding set of linearizations (\eps-subdifferential).
- * In general, even if called at such a x^* the C05Function cannot be expected
- * to produce the 0 linearization; this is why proving (approximate)
- * optimality/stationariety of x^* typically boils down to producing a set
- * of linearizations g_i at points x_i "close" to x^* and then proving that
- * 0 \in conv( { g_i } ). Thus, the interface has to cater for:
+ * components in the objective function) amounts at proving that
+ * \f$ 0 \in \mathbb{R}^n \f$ belongs to the corresponding set of
+ * linearizations (\f$ \epsilon \f$-subdifferential). In general, even if
+ * called at such a x^* the C05Function cannot be expected to produce the 0
+ * linearization; this is why proving (approximate) optimality/stationariety
+ * of x^* typically boils down to producing a set of linearizations g_i at
+ * points x_i "close" to x^* and then proving that
+ * \f$ 0 \in \mathrm{conv}( \{ g_i \} ) \f$. Thus, the interface has to cater
+ * for:
  *
  * - collecting and storing in a "long-term memory" (the global pool, as
  *   opposed to the short-term memory of the local pool) linearizations
@@ -211,24 +222,25 @@ namespace SMSpp_di_unipi_it {
  *     CHANGING THE GLOBAL POOL AMOUNTS AT CHANGING THE C05Function
  *
  * in the same sense as adding a dynamic Variable/Constraint amount at
- * changing a Block: even if the mathematical entity reprsented by the
+ * changing a Block: even if the mathematical entity represented by the
  * C05Function / Block has remained the same, its available (partial)
  * representation is different. Hence, Modification have to properly signal
  * changes in the global pool.
  *
  * In particular, there is usually "one important convex combination" that
  * is very relevant for algorithmic purposes. This can be clearly seen in
- * the Lagrangian function example: for a point x^* to be \eps-optimal for
- * the minimization of f (the Lagrangian Dual), one must collect a set of
- * \eps-subgradients g_i such that 0 \in conv( { g_i } ). It is immediate to
- * realize that this corresponds to a set of \eps-optimal solutions u_i to
- * P(x^*) such that u^* = \sum_i u_i \theta_i, for appropriate convex
- * multipliers \theta_i, is such that A u^* = b. If U in (P) is a convex
- * set then such an u^* is an optimal solution to (P), otherwise u^* is the
- * optimal solution of the relaxation of (P) substituting U with conv( U ).
- * In all cases, u^* can be a relevant object to construct. For instance, u^*
- * can be used to to separation of constraints (in case the A u = b ones are
- * very many, so that an active-set strategy is necessary), or to guide
+ * the Lagrangian function example: for a point x^* to be
+ * \f$ \epsilon \f$-optimal for the minimization of f (the Lagrangian Dual),
+ * one must collect a set of \f$ \epsilon \f$-subgradients g_i such that
+ * \f$ 0 \in \mathrm{conv}( \{ g_i \} ) \f$. It is immediate to realize that
+ * this corresponds to a set of \f$ \epsilon \f$-optimal solutions u_i to
+ * P(x^*) such that \f$ u^* = \sum_i u_i \theta_i \f$, for appropriate
+ * convex multipliers \f$ \theta_i \f$, is such that A u^* = b. If U in (P) is
+ * a convex set then such an u^* is an optimal solution to (P), otherwise u^*
+ * is the optimal solution of the relaxation of (P) substituting U with conv( U
+ * ). In all cases, u^* can be a relevant object to construct. For instance,
+ * u^* can be used to do separation of constraints (in case the A u = b ones
+ * are very many, so that an active-set strategy is necessary), or to guide
  * heuristics or branching operations (if the set U included integrality
  * constraints, so that the Lagrangian Dual of (P) is only a relaxation).
  *
@@ -296,13 +308,14 @@ namespace SMSpp_di_unipi_it {
  * A final important detail is that there can be two types of linearizations:
  * "diagonal" and "vertical". Diagonal linearizations are the previously
  * illustrated ones; the name comes from picturing the ( x , v ) space
- * \R^{n+1} as having the x component on the horizontal axis and the v
- * component as the vertical one (the typical arrangement for the graphical
- * space of a function). Then, a linearization ( g , \alpha ) typically
+ * \f$ \mathbb{R}^{n+1} \f$ as having the x component on the horizontal axis
+ * and the v component as the vertical one (the typical arrangement for the
+ * graphical space of a function). Then, a linearization
+ * \f$ ( g , \alpha ) \f$ typically
  * corresponds to a line approximating f in the neighbourhood of some x. If,
  * say, f is convex, this corresponds to a linear constraint
  *
- *       ( 1 , - g ) ( v , x ) >= \alpha       (*)
+ *       \f[ ( 1 , - g ) ( v , x ) \geq \alpha \qquad (*) \f]
  *
  * which is globally valid for the graph of f (actually, the epigraph).
  * The corresponding line in the ( x , v ) space either intersects the x axis
@@ -310,43 +323,44 @@ namespace SMSpp_di_unipi_it {
  * orthogonal to it. Thus, there is an entirely different form of lines in
  * the graphical space, those corresponding of linear constraints of the form
  *
- *       ( 0 , - g ) ( v , x ) >= \alpha       (**)
+ *       \f[ ( 0 , - g ) ( v , x ) \geq \alpha \qquad (**) \f]
  *
  * These may still be valid for the (epi)graph of f. This is in particular
  * the case for convex functions evaluated outside of their domain, i.e., at
- * points y s.t. f(y) = +\infty. In some cases, it is possible for the
+ * points y s.t. \f$ f(y) = +\infty \f$. In some cases, it is possible for the
  * function to compute a "vertical" linearization (**) which is valid for
  * all ( x , v ) in the (epi)graph of f but that "cuts off" y, i.e.,
  * such that 0 < g y + alpha. This is true for instance in the Lagrangian
  * case P(x) where U is an unbounded set, say a convex one: then, P(x) is
  * unbounded below if there is some v in the recession cone of U such that
- * ( c + x A ) v > 0. This immediately implies that f(y) = +\inf for all y
- * with the same property, i.e., that the constraint c v + x ( A v ) <= 0
+ * ( c + x A ) v > 0. This immediately implies that \f$ f(y) = +\infty \f$ for
+ * all y with the same property, i.e., that the constraint c v + x ( A v ) <= 0
  * is valid for the (epi)graph of f. Since v is typically constructed by
  * whatever algorithm is used to solve P(x) in order to prove that it is
  * unbounded above, the corresponding vertical linearization of the form (**)
  * can be returned by the C05Function. Note that, customarily, a solution
- * algorithm would also compute a feasible solution u \in U together with v,
- * and therefore can return both a diagonal and a vertical linearization,
- * which the interface allows. In the parlance of Benders' decomposition,
- * diagonal linearizations are "optimality cuts" and vertical linearizations
- * are "feasibility cuts". However, the concept is possibly general.
+ * algorithm would also compute a feasible solution \f$ u \in U \f$ together
+ * with v, and therefore can return both a diagonal and a vertical
+ * linearization, which the interface allows. In the parlance of Benders'
+ * decomposition, diagonal linearizations are "optimality cuts" and vertical
+ * linearizations are "feasibility cuts". However, the concept is possibly
+ * general.
  *
  * Note that the signs of the inequalities are tied to the convexity of the
  * function; that is, for a concave function (*) becomes
  *
- *       ( 1 , - g ) ( v , x ) <= \alpha
+ *       \f[ ( 1 , - g ) ( v , x ) \leq \alpha \f]
  *
  * Hence, although not strictly necessary, it makes sense to assume that
  * (**) analogously becomes
  *
- *       ( 0 , - g ) ( v , x ) <= \alpha
+ *       \f[ ( 0 , - g ) ( v , x ) \leq \alpha \f]
  *
- * (in other words, both g and \alpha are multipled by -1, which is precisely
- * what happens if the concave function f() is changed in sign to become the
- * convex -f()). For neither convex nor concave functions neither version of
- * (*) is a valid inequality for the epi/ipograph, hence the discussion does
- * not make sense.
+ * (in other words, both g and \f$ \alpha \f$ are multiplied by -1, which is
+ * precisely what happens if the concave function f() is changed in sign to
+ * become the convex -f()). For neither convex nor concave functions neither
+ * version of (*) is a valid inequality for the epi/ipograph, hence the
+ * discussion does not make sense.
  *
  * Note that, while typically combinations of "diagonal" linearizations need
  * be convex ones, combination of "vertical" linearizations can usually be
@@ -420,49 +434,55 @@ class C05Function : public Function {
   dblRAccLin = Function::dblLastParFun ,
   ///< maximum relative error in any linearization
   /**< The parameter for setting the relative accuracy of the linearizations.
-   * A linearization ( g , \alpha ) computed at the point x is "accurate" if
-   * the value of the linearization coincides with the value of the function
-   * at x, i.e., g x + \alpha = f(x). In general linearizations that are not
-   * "completely accurate" can still be useful: for instance, in the
-   * Lagrangian case an \eps-optimal solution to the Lagrangian problem gives
-   * rise to a valid linearization ( g , \alpha ) with \eps >=
-   * f( x ) - ( g x + \alpha ). Indeed, by convexity f( x ) >= g x + \alpha,
-   * and the term
+   * A linearization \f$ ( g , \alpha ) \f$ computed at the point x is
+   * "accurate" if the value of the linearization coincides with the value
+   * of the function at x, i.e., \f$ g x + \alpha = f(x) \f$. In general
+   * linearizations that are not "completely accurate" can still be useful:
+   * for instance, in the Lagrangian case an \f$ \epsilon \f$-optimal
+   * solution to the Lagrangian problem gives rise to a valid linearization
+   * \f$ ( g , \alpha ) \f$ with
+   * \f$ \epsilon \geq f( x ) - ( g x + \alpha ) \f$. Indeed, by convexity
+   * \f$ f( x ) \geq g x + \alpha \f$, and the term
    *
-   *    f( x ) - ( g x + \alpha ) >= 0
+   *    \f[ f( x ) - ( g x + \alpha ) \geq 0 \f]
    *
-   * is called the "linearization error" of ( g , \alpha ) at x. Whenever the
-   * linearization error is <= \eps the linearization is an \eps-subgradient
-   * of f at x, and \eps-optimal solutions of the Lagrangian problem are those
-   * which characterise \eps-subgradient. Such a linearization can be deemed
-   * "interesting" if \eps is "small", but not if \eps is "large". This
+   * is called the "linearization error" of \f$ ( g , \alpha ) \f$ at x.
+   * Whenever the linearization error is \f$ \leq \epsilon \f$ the
+   * linearization is an \f$ \epsilon \f$-subgradient of f at x, and
+   * \f$ \epsilon \f$-optimal solutions of the Lagrangian problem are those
+   * which characterise \f$ \epsilon \f$-subgradient. Such a linearization
+   * can be deemed "interesting" if \f$ \epsilon \f$ is "small", but not if
+   * \f$ \epsilon \f$ is "large". This
    * parameter instructs the C05Function not to bother reporting (and
    * therefore storing in the "local pool") any linearization having a
    * relative error with f(x) larger than dblRAccLin. This would generally
    * mean
    *
-   *  | f( x ) - ( g x + \alpha )  | <= dblRAccLin * max( | f( x ) | , 1 )
+   *  \f[ | f( x ) - ( g x + \alpha ) | \leq
+   *      \mathrm{dblRAccLin} \cdot \max \{ | f( x ) | , 1 \} \f]
    *
    * except that the value f( x ) may not be known exactly, with only lower
    * and/or upper bounds on it available. The actual formula therefore depends
    * on what information is actually available: for instance, in the
-   * Lagrangian case one knows that f( x ) >= g x + \alpha, and therefore
-   * typically an upper estimate ub >= f( x ) is used in the formula instead
-   * of f( x ). The default is 0, i.e., "only perfect linearizations are
+   * Lagrangian case one knows that \f$ f( x ) \geq g x + \alpha \f$, and
+   * therefore typically an upper estimate ub >= f( x ) is used in the formula
+   * instead of f( x ). The default is 0, i.e., "only perfect linearizations
+   * are
    * allowed". */
 
   dblAAccLin ,   ///< maximum absolute error in any reported solution
   /**< Similar to dblRAccLin but for an *absolute* accuracy; that is, a
    * linearization is deemed acceptable if
    *
-   *      | f( x ) - ( g x + \alpha ) | <= dblAAccLin
+   *      \f[ | f( x ) - ( g x + \alpha ) | \leq \mathrm{dblAAccLin} \f]
    *
    * except that the value f( x ) may not be known exactly, with only lower
    * and/or upper bounds on it available. The actual formula therefore depends
    * on what information is actually available: for instance, in the
-   * Lagrangian case one knows that f( x ) >= ( g x + \alpha ), and therefore
-   * typically an upper estimate ub >= f( x ) is used in the formula instead
-   * of f( x ). The default is 0, i.e., "only perfect linearizations are
+   * Lagrangian case one knows that \f$ f( x ) \geq ( g x + \alpha ) \f$, and
+   * therefore typically an upper estimate ub >= f( x ) is used in the formula
+   * instead of f( x ). The default is 0, i.e., "only perfect linearizations
+   * are
    * allowed". */
 
   dblAAccMlt ,   ///< maximum absolute error in the multipliers
@@ -798,22 +818,22 @@ class C05Function : public Function {
   * are convex sets. Thus, proving (approximate) optimality/stationariety of
   * a point x^* (even in the simple case where there are no constraints or
   * other components in the objective function) amounts at proving that
-  * 0 \in \R^n belongs to the corresponding set of linearizations
-  * (\eps-subdifferential). In general, even if called at such a x^* the
-  * C05Function cannot be expected to produce the 0 linearization; this is
-  * why proving (approximate) optimality/stationariety of x^* typically boils
-  * down to producing a set of linearizations g_i at points x_i "close" to
-  * x^* and then proving that 0 \in conv( { g_i } ). Such a "convexified
-  * linearization" is often a valid linearization as any one directly
-  * produced by the function, and therefore can be saved in the global pool
-  * as they are. Indeed, typically the "important linearization" (see
+  * \f$ 0 \in \mathbb{R}^n \f$ belongs to the corresponding set of
+  * linearizations (\f$ \epsilon \f$-subdifferential). In general, even if
+  * called at such a x^* the C05Function cannot be expected to produce the 0
+  * linearization; this is why proving (approximate) optimality/stationariety
+  * of x^* typically boils down to producing a set of linearizations g_i at
+  * points x_i "close" to x^* and then proving that
+  * \f$ 0 \in \mathrm{conv}( \{ g_i \} ) \f$. Such a "convexified
+  * linearization" is often a valid linearization as any one directly produced
+  * by the function, and therefore can be saved in the global pool as they are.
+  * Indeed, typically the "important linearization" (see
   * set_important_linearization()), which is basically the dual optimal
   * solution of any optimization problem involving the C05Function, is one of
-  * these. Yet, combinations of linearizations also have other algorithmic
-  * uses besides being "dual solutions": the may be used, for instance, to
-  * reduce the maximum size of the global pool by replacing many
-  * linearizations by just one "representing them all" (think conjugate
-  * subgradients).
+  * these. Yet, combinations of linearizations also have other algorithmic uses
+  * besides being "dual solutions": the may be used, for instance, to reduce
+  * the maximum size of the global pool by replacing many linearizations by
+  * just one "representing them all" (think conjugate subgradients).
   *
   * Note that the C05Function may freely decide to either store the
   * convexified linearization itself, or information allowing to compute it,
@@ -863,30 +883,33 @@ class C05Function : public Function {
   * is finished (but, possibly, even while it is running) may be useful.
   *
   * This can be clearly seen in the Lagrangian function example: for a point
-  * x^* to be \eps-optimal for the minimization of f (the Lagrangian Dual),
-  * one must collect a set of \eps-subgradients g_i such that
-  * 0 \in conv( { g_i } ). It is immediate to realize that this corresponds to
-  * a set of \eps-optimal solutions u_i to P(x^*) such that
-  * u^* = \sum_i u_i \theta_i, for appropriate convex multipliers \theta_i,
-  * is such that A u^* = b. If U in (P) is a convex set then such an u^* is
-  * an optimal solution to (P), otherwise u^* is the optimal solution of the
-  * relaxation of (P) substituting U with conv( U ). Any reasonable algorithm
-  * for solving the Lagrangian Dual should be able to conceptually produce
-  * such an object, i.e., the (convex) multipliers \theta_i, in order to stop.
-  * Once the multipliers are known, u^* can be *explicitly* stored by calling
-  * store_combination_of_linearizations(), which can be useful for algorithmic
-  * purposes. For instance, u^* can be used to do separation of constraints
-  * (say, in case the A u = b ones are very many, so that an active-set
-  * strategy is necessary), or to guide heuristics or branching operations (if
-  * the set U includes integrality constraints, so that the Lagrangian Dual of
-  * (P) is only a relaxation). For all this to be possible, u^* and/or the
-  * (convex) multipliers \theta_i must be available.
+  * x^* to be \f$ \epsilon \f$-optimal for the minimization of f (the
+  * Lagrangian Dual), one must collect a set of \f$ \epsilon \f$-subgradients
+  * g_i such that
+  * \f$ 0 \in \mathrm{conv}( \{ g_i \} ) \f$. It is immediate to realize that
+  * this corresponds to a set of \f$ \epsilon \f$-optimal solutions u_i to
+  * P(x^*) such that
+  * \f$ u^* = \sum_i u_i \theta_i \f$, for appropriate convex multipliers
+  * \f$ \theta_i \f$, is such that A u^* = b. If U in (P) is a convex set then
+  * such an u^* is an optimal solution to (P), otherwise u^* is the optimal
+  * solution of the relaxation of (P) substituting U with conv( U ). Any
+  * reasonable algorithm for solving the Lagrangian Dual should be able to
+  * conceptually produce such an object, i.e., the (convex) multipliers
+  * \f$ \theta_i \f$, in order to stop. Once the multipliers are known, u^* can
+  * be *explicitly* stored by calling store_combination_of_linearizations(),
+  * which can be useful for algorithmic purposes. For instance, u^* can be used
+  * to do separation of constraints (say, in case the A u = b ones are very
+  * many, so that an active-set strategy is necessary), or to guide heuristics
+  * or branching operations (if the set U includes integrality constraints, so
+  * that the Lagrangian Dual of (P) is only a relaxation). For all this to be
+  * possible, u^* and/or the (convex) multipliers \f$ \theta_i \f$ must be
+  * available.
   *
-  * The \p coefficients parameter just contains the encoding of the \theta_i
-  * multipliers, which the C05Function is supposed to store. Note that the
-  * C05Function itself has little use for the information, but it seems to be
-  * the most appropriate repository (since the information is tied to
-  * elements of the global pool, which is managed by the C05Function). Note
+  * The \p coefficients parameter just contains the encoding of the
+  * \f$ \theta_i \f$ multipliers, which the C05Function is supposed to store.
+  * Note that the C05Function itself has little use for the information, but it
+  * seems to be the most appropriate repository (since the information is tied
+  * to elements of the global pool, which is managed by the C05Function). Note
   * that
   *
   *     THE C05Function IS NOT ASSUMED TO CHECK IF LINEARIZATIONS
@@ -1280,12 +1303,12 @@ class C05Function : public Function {
   * and therefore all linearizations are the same).
   *
   * The method can be used, after that an appropriate Modification has been
-  * issued [see C05FunctionMod*], to get the value of \alpha for each of the
-  * linearizations stored in the global pool (for which it has been changed,
-  * as the C05FunctionMod* specifies). If a linearization has become
-  * invalid, the linearization should not be asked; if it is, the method
-  * should retur NaN (e.g. as what is reported by
-  * std::numeric_limits::quiet_NaN< FunctionValue >() or by
+  * issued [see C05FunctionMod*], to get the value of \f$ \alpha \f$ for each
+  * of the linearizations stored in the global pool (for which it has been
+  * changed, as the C05FunctionMod* specifies). If a linearization has become
+  * invalid, the linearization should not be asked; if it is, the method should
+  * retur NaN (e.g. as what is reported by std::numeric_limits::quiet_NaN<
+  * FunctionValue >() or by
   * std::numeric_limits::signaling_NaN< FunctionValue >()). */
 
  virtual FunctionValue get_linearization_constant(
@@ -1435,7 +1458,7 @@ class C05Function : public Function {
  * - NothingChanged
  *
  * This type of Modification states that the all the previously produced
- * linearizations, both g and \alpha, are still perfectly valid for the
+ * linearizations, both g and \f$ \alpha \f$, are still perfectly valid for the
  * changed C05Function. This may look weird at first, but there can be cases
  * where it happens. For instance, consider a (convex, finite) max-function
  *
@@ -1448,75 +1471,76 @@ class C05Function : public Function {
  * is added in the max. Clearly the new function is different from before, and
  * in general >= (thus, shift() == INFshift can be reported); however, all the
  * previous linearizations (that are lower linearizations of the epigraph of
- * the convex function) still remain perfectly valid \epsilon-subgradients
- * for the new f(), albeit in general with a larger \epsilon (but since the
- * linearization is given in terms of \alpha, which does not depend on the
- * actual function value, this is irrelevant). Another case is the one in
- * which the max-function is abruptly changed to be a min-function on exactly
- * the same data: albeit the function changes from convex to concave, and
- * clearly the function values change (in this case they become <=, which
- * means that shift() == - INFshift can be reported); still all the previously
- * computed linearizations remain valid without any change. The difference is
- * that when the function was convex they were (approximate) *sub*gradients,
- * i.e., *lower* linearizations of the *epi*graph; as the function is turned
- * into concave they become (approximate) *super*gradients, i.e., *upper*
- * linearizations of the *ipo*graph. Of course the Solver will have to be able
- * to deal with this, which is not necessarily obvious (in fact the Solver may
- * well refuse to and throw an exception instead), but still this can in
- * principle happen. Note that a similar occurrence happens in the Lagrangian
- * case (a non-necessarily-finite max function) if the verse of the objective
- * is reversed. In this case, which() must be empty().
+ * the convex function) still remain perfectly valid
+ * \f$ \epsilon \f$-subgradients for the new f(), albeit in general with a
+ * larger \f$ \epsilon \f$ (but since the linearization is given in terms of
+ * \f$ \alpha \f$, which does not depend on the actual function value, this is
+ * irrelevant). Another case is the one in which the max-function is abruptly
+ * changed to be a min-function on exactly the same data: albeit the function
+ * changes from convex to concave, and clearly the function values change (in
+ * this case they become <=, which means that shift() == - INFshift can be
+ * reported); still all the previously computed linearizations remain valid
+ * without any change. The difference is that when the function was convex they
+ * were (approximate) *sub*gradients, i.e., *lower* linearizations of the
+ * *epi*graph; as the function is turned into concave they become (approximate)
+ * *super*gradients, i.e., *upper* linearizations of the *ipo*graph. Of course
+ * the Solver will have to be able to deal with this, which is not necessarily
+ * obvious (in fact the Solver may well refuse to and throw an exception
+ * instead), but still this can in principle happen. Note that a similar
+ * occurrence happens in the Lagrangian case (a non-necessarily-finite max
+ * function) if the verse of the objective is reversed. In this case, which()
+ * must be empty().
  *
  * - AlphaChanged
  *
- * This type of Modification states that the constant (\alpha) of the
+ * This type of Modification states that the constant (\f$ \alpha \f$) of the
  * linearizations has changed. Note, however, that this does *not* mean that
- * *all the \alpha have changed in the same way*; this happens if the whole
- * function is shifted by a constant, which is what the original FunctionMod
- * is intended to convey. Rather, the idea is that each individual \alpha has
- * changed in its own way, *but all the g remained unchanged*. The idea is
- * that it is possible to query the value of \alpha for all the
- * linearizations that were stored in the global pool [see
- * get_linearization_constant()], thereby re-using all the corresponding
- * information to warm-start whatever algorithm one is using. Actually, the
- * C05Function may make life easier to the user and store in which() the
- * names of the linearizations that actually have changed. Since these may
- * be all (or too many to bother, or the C05Function may be "lazy"),
+ * *all the \f$ \alpha \f$ have changed in the same way*; this happens if the
+ * whole function is shifted by a constant, which is what the original
+ * FunctionMod is intended to convey. Rather, the idea is that each individual
+ * \f$ \alpha \f$ has changed in its own way, *but all the g remained
+ * unchanged*. The idea is that it is possible to query the value of
+ * \f$ \alpha \f$ for all the linearizations that were stored in the global
+ * pool [see get_linearization_constant()], thereby re-using all the
+ * corresponding information to warm-start whatever algorithm one is using.
+ * Actually, the C05Function may make life easier to the user and store in
+ * which() the names of the linearizations that actually have changed. Since
+ * these may be all (or too many to bother, or the C05Function may be "lazy"),
  * which.empty() has to be taken to mean "possibly all, so check them all".
  *
  * A case where this happens is the Lagrangian one, where each linearization
- * is attached to one solution u_i \in U, and the objective function c of (P)
- * changes to some c' different from c. Having stored u_i in the global pool,
- * it is possible to compute the new value of \alpha = c' u_i. Since the
- * objective is real-valued (as opposed to extended-real-valued, i.e., it
- * cannot evaluate to +INF, in fact encoding a violated constraint), every
- * u_i that was previously feasible still is, and therefore no linearization
- * is lost.
+ * is attached to one solution \f$ u_i \in U \f$, and the objective function c
+ * of (P) changes to some c' different from c. Having stored u_i in the global
+ * pool, it is possible to compute the new value of \f$ \alpha = c' u_i \f$.
+ * Since the objective is real-valued (as opposed to extended-real-valued,
+ * i.e., it cannot evaluate to +INF, in fact encoding a violated constraint),
+ * every u_i that was previously feasible still is, and therefore no
+ * linearization is lost.
  *
- * Note that one would expect that the change in the \alpha implies a change
- * in the values of the Function as well. If and how this actually happens
- * is encoded in shift() with the same encoding as in the base class
+ * Note that one would expect that the change in the \f$ \alpha \f$ implies a
+ * change in the values of the Function as well. If and how this actually
+ * happens is encoded in shift() with the same encoding as in the base class
  * FunctionMod. For the Lagrangian case, for instance, if u >= 0 and c' >= c
  * then the objective value can only increase, and therefore shift() ==
- * INFshift is the appropriate return value. If, instead, no sign pattern
- * can be established then std::isnan( shift() ) == true should be returned.
+ * INFshift is the appropriate return value. If, instead, no sign pattern can
+ * be established then std::isnan( shift() ) == true should be returned.
  *
  * - AllEntriesChanged
  *
  * This type of Modification states that all the entries of the g part of
  * all previously computed linearizations may have changed, *but all the
- * \alpha have remained unchanged*.
+ * \f$ \alpha \f$ have remained unchanged*.
  *
  * A case where this happens is the Lagrangian one, where each linearization
- * is attached to one solution u_i \in U, g_i = b - A u_i. If the constraint
- * A u = b change to completely unrelated (save for the size) A' u = b', then
- * all the corresponding g_i need to be recomputed, but the \alpha_i =
- * c u_i remains the same. It is then possible to query the new values of the
- * linearizations that were stored in the global pool [see
+ * is attached to one solution \f$ u_i \in U \f$, \f$ g_i = b - A u_i \f$. If
+ * the constraint A u = b change to completely unrelated (save for the size) A'
+ * u = b', then all the corresponding g_i need to be recomputed, but the
+ * \f$ \alpha_i = c u_i \f$ remains the same. It is then possible to query the
+ * new values of the linearizations that were stored in the global pool [see
  * get_linearization_coefficients()], thereby re-using all the corresponding
  * information to warm-start whatever algorithm one is using.
  *
- * Note that one would expect that the change in the \g implies a change in
+ * Note that one would expect that the change in the g implies a change in
  * the values of the Function as well. If and how this actually happens
  * is encoded in shift() with the same encoding as in the base class
  * FunctionMod. For the Lagrangian case, for instance, it is unlikely (but
@@ -1532,11 +1556,10 @@ class C05Function : public Function {
  *
  * This type of Modification is the logical union of both previous types:
  * for all of previously computed linearizations, both the g part and the
- * \alpha may have changed. This again typically implies that the function
- * values have changed as well, with shift() specifying how. It is then
- * possible to query the new values of the linearizations that were stored
- * in the global pool using the available methods as in the two previous
- * cases.
+ * \f$ \alpha \f$ may have changed. This again typically implies that the
+ * function values have changed as well, with shift() specifying how. It is
+ * then possible to query the new values of the linearizations that were stored
+ * in the global pool using the available methods as in the two previous cases.
  *
  * Again, the C05Function may make life easier to the user and store in
  * which() the names of the linearizations that actually have changed, with
@@ -1562,17 +1585,18 @@ class C05Function : public Function {
  * some linearizations had become invalid.
  *
  * A case where the latter happens is the Lagrangian one, where each
- * linearization is attached to one solution u_i \in U, and U itself changes
- * to some U' \neq U. Hence, each u_i is either feasible (u_i \in U') or not
- * (u_i \notin U'). In the first case nothing has to be done, as the
- * linearization remains valid (and its  \alpha = c u_i does not change), but
- * in the second case the linearization it is no longer valid and has to be
- * removed from the global pool. Note that this can easily have an effect
- * on the function value as well: for instance, if the feasible region U
- * becomes smaller (which is what typically happens after either branching
- * or cutting in a Branch-and-X approach in which the Lagrangian is providing
- * the bound), than the optimal value of the problem can only reduce, whence
- * shift() == INFshift is the appropriate return value.
+ * linearization is attached to one solution \f$ u_i \in U \f$, and U itself
+ * changes to some \f$ U' \neq U \f$. Hence, each u_i is either feasible
+ * (\f$ u_i \in U' \f$) or not (\f$ u_i \notin U' \f$). In the first case
+ * nothing has to be done, as the linearization remains valid (and its
+ * \f$ \alpha = c u_i \f$ does not change), but in the second case the
+ * linearization it is no longer valid and has to be removed from the global
+ * pool. Note that this can easily have an effect on the function value as
+ * well: for instance, if the feasible region U becomes smaller (which is what
+ * typically happens after either branching or cutting in a Branch-and-X
+ * approach in which the Lagrangian is providing the bound), than the optimal
+ * value of the problem can only reduce, whence shift() == INFshift is the
+ * appropriate return value.
  *
  * In this case, which().empty() is allowed, but it means *all linearization
  * in the global pool are deleted*, and it is therefore not something to be
@@ -1604,10 +1628,10 @@ class C05FunctionMod : public FunctionMod
  /** This enum specifies what kind of assumption can be made about any
   * previously produced linearization. */
  enum c05function_mod_type {
-  NothingChanged,           ///< both \alpha and g are still valid
-  AlphaChanged,             ///< all the \alpha have changed, but g has not
-  AllEntriesChanged,        ///< all the g have changed, but \alpha has not
-  AllLinearizationChanged,  ///< both \alpha and g have changed
+  NothingChanged,           ///< both \f$ \alpha \f$ and g are still valid
+  AlphaChanged,             ///< all the \f$ \alpha \f$ have changed, not g
+  AllEntriesChanged,        ///< all the g have changed, not \f$ \alpha \f$
+  AllLinearizationChanged,  ///< both \f$ \alpha \f$ and g have changed
   GlobalPoolAdded,          ///< linearizations added to the global pool
   GlobalPoolRemoved,        ///< linearizations removed from the global pool
   C05FunctionModLastParam
@@ -1755,25 +1779,27 @@ class C05FunctionMod : public FunctionMod
  *
  *   (P( x ))  f( x ) = max \{ c u + x ( b - A u ) : u \in U \}
  *
- * Linearizations are associated with feasible solutions \bar{u} \in U, as
+ * Linearizations are associated with feasible solutions \f$ \bar{u} \in U \f$,
+ * as
  *
- *   ( g , \alpha ) = ( b - A \bar{u} , c \bar{u} )
+ *   \f[ ( g , \alpha ) = ( b - A \bar{u} , c \bar{u} ) \f]
  *
- * A subset I \subset { 1 , ... , n } of the (indices of the) relaxed
- * constraints (hence, of the Lagrangian variables x_i) may be abruptly
+ * A subset \f$ I \subset \{ 1 , \ldots , n \} \f$ of the (indices of the)
+ * relaxed constraints (hence, of the Lagrangian variables x_i) may be abruptly
  * changed: the corresponding constraints A_I u = b_I become completely
- * unrelated ones A'_I u = b'_I. Yet, the entries corresponding to I in
- * (the g part of) a previous linearization corresponding to some \bar{u}
- * can be re-computed as g_I = b'_I - A'_I \bar{u} while keeping all the
- * rest unchanged. These entries can be recovered by calling
- * get_linearization_coefficients() provided that appropriate information
- * about that linearization (\bar{u}) has been saved in the global pool.
- * Note that in this case the subset I is a range [ start , stop ) [but see
- * the warning below about the fact that the indices may have not remained
- * valid], which justifies why get_linearization_coefficients() have the
- * corresponding parameters. The case where I is "any" subset of the indices
- * is dealt with by C05FunctionModSbst, but get_linearization_coefficients()
- * also have an appropriate parameter to handle that case.
+ * unrelated ones A'_I u = b'_I. Yet, the entries corresponding to I in (the g
+ * part of) a previous linearization corresponding to some
+ * \f$ \bar{u} \f$ can be re-computed as \f$ g_I = b'_I - A'_I \bar{u} \f$
+ * while keeping all the rest unchanged. These entries can be recovered by
+ * calling get_linearization_coefficients() provided that appropriate
+ * information about that linearization (\f$ \bar{u} \f$) has been saved in the
+ * global pool. Note that in this case the subset I is a range [ start , stop )
+ * [but see the warning below about the fact that the indices may have not
+ * remained valid], which justifies why get_linearization_coefficients() have
+ * the corresponding parameters. The case where I is "any" subset of the
+ * indices is dealt with by C05FunctionModSbst, but
+ * get_linearization_coefficients() also have an appropriate parameter to
+ * handle that case.
  *
  * The important remark that the range refers to the index that the Variable
  *
@@ -2126,16 +2152,16 @@ class C05FunctionModSbst : public C05FunctionMod
  *
  * with linearizations
  *
- *   ( g = [ g_x , g_y ] , \alpha ) =
- *         ( [ b - A \bar{u} , b' - A' \bar{u} ] , c \bar{u} )
+ *   \f[ ( g = [ g_x , g_y ] , \alpha ) =
+ *         ( [ b - A \bar{u} , b' - A' \bar{u} ] , c \bar{u} ) \f]
  *
- * The new part g_y = b' - A' \bar{u}  can be easily computed, provided
- * that the information \bar{u} is stored in the global pool, irrespectively
- * to the fact that \bar{u} was obtained or not at a point where y = 0.
- * Similarly, if constraints are removed (which is equivalent to setting the
- * corresponding x_i to 0) the g_y component can be erased without the g_x
- * one ceasing to be "valid", irrespectively to the fact that y be = 0 when
- * the new constraints are added.
+ * The new part \f$ g_y = b' - A' \bar{u} \f$ can be easily computed, provided
+ * that the information \f$ \bar{u} \f$ is stored in the global pool,
+ * irrespectively to the fact that \f$ \bar{u} \f$ was obtained or not at a
+ * point where y = 0. Similarly, if constraints are removed (which is
+ * equivalent to setting the corresponding x_i to 0) the g_y component can be
+ * erased without the g_x one ceasing to be "valid", irrespectively to the fact
+ * that y be = 0 when the new constraints are added.
  *
  * However, it has to be remarked that the concept of "valid" linearization
  * here is strongly tied to the fact that f() is convex, and therefore that
@@ -2154,12 +2180,12 @@ class C05FunctionModSbst : public C05FunctionMod
  *
  *     \nabla f( x ) = [ e^x ]
  *
- * Having computed a linearization at some point ( \bar{x} , \bar{y} ),
+ * Having computed a linearization at some point \f$ ( \bar{x} , \bar{y} ) \f$,
  * after the removal of y said linearization is reduced to
- * [ e^(  \bar{x} + \bar{y} ) ]. This is no longer a gradient in \bar{x}
- * (unless, of course \bar{y} = 0), but it is still an epsilon-subgradient
- * there for a proper \epsilon that could be easily computed if one had kept
- * proper information in the global pool.
+ * \f$ [ e^{ \bar{x} + \bar{y} } ] \f$. This is no longer a gradient in
+ * \f$ \bar{x} \f$ (unless, of course \f$ \bar{y} = 0 \f$), but it is still an
+ * epsilon-subgradient there for a proper \f$ \epsilon \f$ that could be easily
+ * computed if one had kept proper information in the global pool.
  *
  * It is unclear if similar tricks can be played without convexity. Indeed,
  * for the quasi-additive but nonconvex deletion
@@ -2186,13 +2212,13 @@ class C05FunctionModSbst : public C05FunctionMod
  * quasi-additive, the C05Function only has to rather issue a base
  * FunctionModVarsAddd. That is, upon receiving a FunctionModVarsAddd that
  * is *not* a C05FunctionModVarsAddd, a Solver has to assume that all
- * linearizations computed at points ( x , y ) where y \neq 0 have to be
- * considered as completely invalid, even in their g_x part. Of course
- * this means that C05FunctionModVarsAddd have to be "catched" before
- * FunctionModVarsAddd are (since a C05FunctionModVarsAddd will obviously
- * also "register" as a FunctionModVarsAddd). However, if this is true then
- * all the elements in the global pool have clearly became invalid: this
- * need be explicitly made apparent. That is:
+ * linearizations computed at points ( x , y ) where \f$ y \neq 0 \f$ have to
+ * be considered as completely invalid, even in their g_x part. Of course this
+ * means that C05FunctionModVarsAddd have to be "catched" before
+ * FunctionModVarsAddd are (since a C05FunctionModVarsAddd will obviously also
+ * "register" as a FunctionModVarsAddd). However, if this is true then all the
+ * elements in the global pool have clearly became invalid: this need be
+ * explicitly made apparent. That is:
  *
  *     IF A C05Function ISSUES A FunctionModVarsAddd THAT IS *NOT* A
  *     C05FunctionModVarsAddd, IMPLYING THAT ALL THE GLOBAL POOL HAS BECOME
@@ -2320,11 +2346,11 @@ class C05FunctionModVarsAddd : public FunctionModVarsAddd
  * to rather issue a base FunctionModVarsRngd. That is, upon receiving a
  * FunctionModVarsRngd that is *not* a C05FunctionModVarsRngd, a Solver has
  * to assume that all linearizations computed at points ( x , y ) where
- * y \neq 0 have to be considered as completely invalid, even in their g_x
- * part. Of course this means that C05FunctionModVarsRngd have to be
+ * \f$ y \neq 0 \f$ have to be considered as completely invalid, even in their
+ * g_x part. Of course this means that C05FunctionModVarsRngd have to be
  * "catched" before FunctionModVarsRngd are (since a C05FunctionModVarsRngd
- * will obviously also "register" as a FunctionModVarsRngd). However, as
- * for adding variables
+ * will obviously also "register" as a FunctionModVarsRngd). However, as for
+ * adding variables
  *
  *     IF A C05Function ISSUES A FunctionModVarsRngd THAT IS *NOT* A
  *     C05FunctionModVarsRngd, IMPLYING THAT ALL THE GLOBAL POOL HAS BECOME
@@ -2450,11 +2476,11 @@ class C05FunctionModVarsRngd : public FunctionModVarsRngd
  * to rather issue a base FunctionModVarsSbst. That is, upon receiving a
  * FunctionModVarsSbst that is *not* a C05FunctionModVarsSbst, a Solver has
  * to assume that all linearizations computed at points ( x , y ) where
- * y \neq 0 have to be considered as completely invalid, even in their g_x
- * part. Of course this means that C05FunctionModVarsSbst have to be
+ * \f$ y \neq 0 \f$ have to be considered as completely invalid, even in their
+ * g_x part. Of course this means that C05FunctionModVarsSbst have to be
  * "catched" before FunctionModVarsSbst are (since a C05FunctionModVarsSbst
- * will obviously also "register" as a FunctionModVarsSbst). However, as
- * for adding variables
+ * will obviously also "register" as a FunctionModVarsSbst). However, as for
+ * adding variables
  *
  *     IF A C05Function ISSUES A FunctionModVarsSbst THAT IS *NOT* A
  *     C05FunctionModVarsSbst, IMPLYING THAT ALL THE GLOBAL POOL HAS BECOME
@@ -2677,11 +2703,12 @@ class C05FunctionModVarsSbst : public FunctionModVarsSbst
  *
  * It should be remarked that this is a FunctionMod, and therefore it has a
  * shift() value. Clearly, the value *can't* be finite, as the value of the
- * shift for two different points \bar{x} and \bar{x}' is d \bar{x} and
- * d \bar{x}', which cannot be always equal. Thus, the expected value of
- * shift() should be NaN, except if the C05Function can infer something on
- * the sign; say, all Variable are non-negative and d >= 0, hence the shift
- * can only be positive and shift() = Inf< FunctionValue >() is appropriate.
+ * shift for two different points \f$ \bar{x} \f$ and \f$ \bar{x}' \f$ is
+ * \f$ d \bar{x} \f$ and
+ * \f$ d \bar{x}' \f$, which cannot be always equal. Thus, the expected value
+ * of shift() should be NaN, except if the C05Function can infer something on
+ * the sign; say, all Variable are non-negative and d >= 0, hence the shift can
+ * only be positive and shift() = Inf< FunctionValue >() is appropriate.
  *
  * Finally, note that this is intended as the base class of this kind of
  * Modification, since it provides the pointers but *not* indices of the

@@ -745,7 +745,7 @@ class Configuration
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
-/** @} ---------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1119,7 +1119,7 @@ inline void serialize( netCDF::NcGroup & group , const std::string & name ,
 /** Deserialize basically any STL container of Configuration (*) out of the
  * given \p group and into \p data. This is supposed to be represented by
  * the dimension with name \p size giving the size of the container, plus
- * by as many sub-groups of \p group with name <name>0, <name>1, ..., each
+ * by as many sub-groups of \p group with name \<name\>0, \<name\>1, ..., each
  * one containing one of the Configuration. */
 
 template< template< class ... > class C >
@@ -1147,7 +1147,7 @@ void deserialize( const netCDF::NcGroup & group ,
 /** Serialize basically any STL container of Configuration (*) into the
  * given \p group and into \p data. This is supposed to be represented by
  * the dimension with name \p size giving the size of the container, plus
- * by as many sub-groups of \p group with name <name>0, <name>1, ..., each
+ * by as many sub-groups of \p group with name \<name\>0, \<name\>1, ..., each
  * one containing one of the Configuration; the sub-group of a nullptr is
  * not created, and it is read back as nullptr. */
 

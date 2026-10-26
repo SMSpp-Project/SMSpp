@@ -1181,7 +1181,7 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
  /// de-serialize a :Block out of an open netCDF SMS++ file at given position
  /** Second-level de-serialization method: takes an open netCDF file, the
-  * index \pos of a Block into the file, and possibly a \p father, and
+  * index \p idx of a Block into the file, and possibly a \p father, and
   * returns the corresponding complete :Block object with the prescribed
   * father (if any).
   *
@@ -1622,7 +1622,8 @@ class Block : public Observer {
  *
  * These methods are public for the odd chance that a :Block uses a different
  * :Block without deriving from it and therefore it may want to know its list
- * of expected variables / dimensions. */
+ * of expected variables / dimensions.
+ *  @{ */
 
 #ifndef NDEBUG
 
@@ -2948,42 +2949,43 @@ class Block : public Observer {
   *
   *     (D)   min { f(y) : y \in Y }
   *
-  * that, besides weak duality (f(y) >= c(x) for each y \in Y and x \in X)
-  * also satisfies strong duality in the strongest possible sense: the
-  * optimal values of (P) and (D) are identical *even when they are plus or
-  * minus infinity", which means that (P) is empty <==> (D) is unbounded below
-  * and (D) is empty <==> (P) is unbounded above. In other words, (P) and (D)
-  * are completely equivalent in terms of optimal values; most often this
-  * means that any algorithm solving one actually solves the other as well.
-  * One can therefore equivalently consider Block a representation of (P) (a
-  * maximization problem) or of (D) (a minimization one). In this setting we
-  * may be able to derive a conditionally valid upper bound on both.
+  * that, besides weak duality (f(y) >= c(x) for each \f$ y \in Y \f$ and
+  * \f$ x \in X \f$) also satisfies strong duality in the strongest possible
+  * sense: the optimal values of (P) and (D) are identical *even when they are
+  * plus or minus infinity", which means that (P) is empty <==> (D) is
+  * unbounded below and (D) is empty <==> (P) is unbounded above. In other
+  * words, (P) and (D) are completely equivalent in terms of optimal values;
+  * most often this means that any algorithm solving one actually solves the
+  * other as well. One can therefore equivalently consider Block a
+  * representation of (P) (a maximization problem) or of (D) (a minimization
+  * one). In this setting we may be able to derive a conditionally valid upper
+  * bound on both.
   *
   * To do that we assume that we know an "easy" relaxation of (D) that is
   * surely nonempty
   *
   *     (D')   min { f(y) : y \in Y' }
   *
-  * For instance, one may know a compact box Y' = [ l , u ] such that
-  * l <= y <= u for all y \in Y. Now, let us assume that we can find a
-  * *globally valid* finite *upper* bound v on (D') (note that this is a
-  * minimization problem, so this is a bound on how *bad* a solution of (D)
-  * can ever be); for instance, we may be able to compute a linear upper
-  * approximation of f(y) which is valid on Y' (or f() may have been linear
-  * in the first place), which makes the computation of v trivial. Then, we
-  * know that v >= f(y) for all y \in Y (note, again, that (D) is a
-  * minimization problem). Now, let us assume that we find some x \in X such
-  * that c(x) > v: that is, we have found a valid lower bound on the optimal
-  * value of (D) which is greater than v. Then, (D) is empty as required by
-  * the definition of conditionally valid upper bound for a minimization
-  * problem (in this case, (D)). Indeed, assume there is any y \in Y: by weak
-  * duality f(y) >= c(x) > v, but on the other hand by construction v >= f(y),
-  * which yields the contradiction. Hence, (D) must be empty. But for the
-  * strong duality assumption, this means that (P) must be unbounded above.
-  * Thus, v is a conditionally valid upper bound also according to the
-  * definition given for a maximization problem (in this case, (P)): in fact,
-  * as soon as we find x \in X such that c(x) > v, we can conclude (by duality
-  * arguments) that (P) is unbounded above.
+  * For instance, one may know a compact box Y' = [ l , u ] such that l <= y <=
+  * u for all \f$ y \in Y \f$. Now, let us assume that we can find a *globally
+  * valid* finite *upper* bound v on (D') (note that this is a minimization
+  * problem, so this is a bound on how *bad* a solution of (D) can ever be);
+  * for instance, we may be able to compute a linear upper approximation of
+  * f(y) which is valid on Y' (or f() may have been linear in the first place),
+  * which makes the computation of v trivial. Then, we know that v >= f(y) for
+  * all \f$ y \in Y \f$ (note, again, that (D) is a minimization problem). Now,
+  * let us assume that we find some \f$ x \in X \f$ such that c(x) > v: that
+  * is, we have found a valid lower bound on the optimal value of (D) which is
+  * greater than v. Then, (D) is empty as required by the definition of
+  * conditionally valid upper bound for a minimization problem (in this case,
+  * (D)). Indeed, assume there is any \f$ y \in Y \f$: by weak duality f(y) >=
+  * c(x) > v, but on the other hand by construction v >= f(y), which yields the
+  * contradiction. Hence, (D) must be empty. But for the strong duality
+  * assumption, this means that (P) must be unbounded above. Thus, v is a
+  * conditionally valid upper bound also according to the definition given for
+  * a maximization problem (in this case, (P)): in fact, as soon as we find
+  * \f$ x \in X \f$ such that c(x) > v, we can conclude (by duality arguments)
+  * that (P) is unbounded above.
   *
   * Algorithmically, one can use such a construction to declare (D) empty when
   * it is solving it by dual methods, and the algorithm that is solving (P) is
@@ -6386,8 +6388,8 @@ class Block : public Observer {
   * @param fnct The pointer to the class member function whose adapter
   *             function is to be added to the corresponding methods factory.
   *
-  * @param void Dummy arg_packer_helper< Args... > parameter to specify the
-  *             parameter type list of the function to be registered. */
+  * The last, unnamed, parameter is a dummy arg_packer_helper< Args... > that
+  * specifies the parameter type list of the function to be registered. */
 
  template< class dBlock , typename ... Args >
  static void register_method( std::string && name ,
@@ -6517,8 +6519,8 @@ class Block : public Observer {
   *
   * @param name The name associated with the function.
   *
-  * @param void Dummy arg_packer_helper< Args... > parameter to specify
-  *             parameter type list of the function to be retrieved. */
+  * The last, unnamed, parameter is a dummy arg_packer_helper< Args... > that
+  * specifies the parameter type list of the function to be retrieved. */
 
  template< typename... Args >
  static FunctionType< Args... > *
@@ -6573,8 +6575,8 @@ class Block : public Observer {
   *
   * @param name The name associated with the function.
   *
-  * @param void Dummy arg_packer_helper< Args... > parameter to specify the
-  *             parameter type list of the query to be retrieved. */
+  * The last, unnamed, parameter is a dummy arg_packer_helper< Args... > that
+  * specifies the parameter type list of the query to be retrieved. */
 
  template< typename... Args >
  static QueryType< Args... > *
@@ -6623,9 +6625,9 @@ class Block : public Observer {
   *
   * @param fnct A pointer to the function whose associated name is desired.
   *
-  * @param void Dummy arg_packer_helper< Args... > parameter to specify the
-  *             parameter type list of the function whose associated name is
-  *             desired. */
+  * The last, unnamed, parameter is a dummy arg_packer_helper< Args... > that
+  * specifies the parameter type list of the function whose associated name
+  * is desired. */
 
  template< typename... Args >
  static const std::string & get_method_name_fs(
@@ -8785,15 +8787,15 @@ class BlockModAdd : public BlockModAD
  /// constructor, taking all the data of the Modification
  /** Constructor, taking:
   *
-  * @param the std::list< ConstOrVar > & whc, a reference to the list where
+  * @param whc the std::list< ConstOrVar > &, a reference to the list where
   *        the Constraint or Variable (of type ConstOrVar) have been added;
   *
-  * @param the std::vector< ConstOrVar * > && add, containing the pointers
+  * @param add the std::vector< ConstOrVar * > &&, containing the pointers
   *        to the Constraint or Variable (of type ConstOrVar) that have been
   *        added; as the "&&" suggests, the object becomes property of the
   *        BlockModAdd;
   *
-  * @param the bool cB, containing the "concerns" value.
+  * @param cB the bool, containing the "concerns" value.
   *
   * Note that a pointer to the affected Block can always be inferred from the
   * other information that the Modification contains, and therefore is not
@@ -8956,18 +8958,18 @@ class BlockModRmv : public BlockModAD {
  /// constructor, taking all the data of the Modification
  /** Constructor, taking:
   *
-  * @param the std::list< ConstOrVar > & whc, a reference to the list from
+  * @param whc the std::list< ConstOrVar > &, a reference to the list from
   *        which the Constraint or Variable (of type ConstOrVar) have been
   *        removed;
   *
-  * @param the std::list< ConstOrVar > && rmvd, containing the *actual*
+  * @param rmvd the std::list< ConstOrVar > &&, containing the *actual*
   *        Constraint or Variable (of type ConstOrVar) that have been
   *        removed from the std::list< ConstOrVar > & whc; as the "&&"
   *        suggests, the object becomes property of the BlockModRmv, which
   *        is crucial for proper timely disposal of the objects themselves
   *        (see comments to the destructor);
   *
-  * @param the bool cB, containing the "concerns" value.
+  * @param cB the bool, containing the "concerns" value.
   *
   * Note that a pointer to the affected Block can always be inferred from the
   * other information that the Modification contains, and therefore is not
@@ -9096,18 +9098,18 @@ class BlockModRmvRngd : public BlockModRmv< ConstOrVar >
  /// constructor, taking all the data of the Modification
  /** Constructor, taking:
   *
-  * @param the std::list< ConstOrVar > & whc, a reference to the list from
+  * @param whc the std::list< ConstOrVar > &, a reference to the list from
   *        which the Constraint or Variable (of type ConstOrVar) have been
   *        removed;
   *
-  * @param the std::list< ConstOrVar > && rmvd, containing the *actual*
+  * @param rmvd the std::list< ConstOrVar > &&, containing the *actual*
   *        Constraint or Variable (of type ConstOrVar) that have been
   *        removed from the std::list< ConstOrVar > & whc; as the "&&"
   *        suggests, the object becomes property of the BlockModRmv, which
   *        is crucial for proper timely disposal of the objects themselves
   *        (see comments to the destructor);
   *
-  * @param the Range range, containing the usual left-closed, right-open
+  * @param range the Range, containing the usual left-closed, right-open
   *        interval with the original names that the Constraint or Variable
   *        (of type ConstOrVar) in \p rmvd had before they were removed;
   *        note that
@@ -9119,7 +9121,7 @@ class BlockModRmvRngd : public BlockModRmv< ConstOrVar >
   *     AND range.second (EXCLUDED), AND OF COURSE ONE EXPECTS THE ORDER OF
   *     ELEMENTS IN rmvd TO BE THE ORIGINAL ORDER IN whc
   *
-  * @param the bool cB, containing the "concerns" value.
+  * @param cB the bool, containing the "concerns" value.
   *
   * Note that a pointer to the affected Block can always be inferred from the
   * other information that the Modification contains, and therefore is not
@@ -9199,18 +9201,18 @@ class BlockModRmvSbst : public BlockModRmv< ConstOrVar >
  /// constructor, taking all the data of the Modification
  /** Constructor, taking:
   *
-  * @param the std::list< ConstOrVar > & whc, a reference to the list from
+  * @param whc the std::list< ConstOrVar > &, a reference to the list from
   *        which the Constraint or Variable (of type ConstOrVar) have been
   *        removed;
   *
-  * @param the std::list< ConstOrVar > && rmvd, containing the *actual*
+  * @param rmvd the std::list< ConstOrVar > &&, containing the *actual*
   *        Constraint or Variable (of type ConstOrVar) that have been
   *        removed from the std::list< ConstOrVar > & whc; as the "&&"
   *        suggests, the object becomes property of the BlockModRmv, which
   *        is crucial for proper timely disposal of the objects themselves
   *        (see comments to the destructor);
   *
-  * @param the Subset subset, containing the original names that the
+  * @param subset the Subset, containing the original names that the
   *        Constraint or Variable (of type ConstOrVar) in \p rmvd had before
   *        they were removed; note that
   *
@@ -9226,7 +9228,7 @@ class BlockModRmvSbst : public BlockModRmv< ConstOrVar >
   *     subset IS ALLOWED TO BE EMPTY, MEANING THAT ALL THE Constraint OR
   *     Variable FROM THE LIST WHICH HAVE BEEN REMOVED.
   *
-  * @param the bool cB, containing the "concerns" value.
+  * @param cB the bool, containing the "concerns" value.
   *
   * Note that a pointer to the affected Block can always be inferred from the
   * other information that the Modification contains, and therefore is not
@@ -9725,7 +9727,7 @@ class BlockConfig : public Configuration {
   *
   *  information describing the corresponding :Configuration in the format
   *  accepted by Configuration::deserialize( std::istream ), with all the
-  *  corresponding input options, like '*' for  nullptr and "*<filename>"
+  *  corresponding input options, like '*' for  nullptr and "\*\<filename\>"
   *  for loading it out of a different file. */
 
  void load( std::istream & input ) override;
@@ -9827,7 +9829,7 @@ class BlockConfig : public Configuration {
 /*--------------------------------------------------------------------------*/
 /*------------------------- Block-RELATED TYPES ----------------------------*/
 /*--------------------------------------------------------------------------*/
-/** @defgroup Block_TYPES Type definitions in Block.h
+/** @addtogroup Block_TYPES
  *  @{ */
 
 
@@ -9927,7 +9929,7 @@ inline void serialize( netCDF::NcGroup & group , const Block * data ,
 /** Deserialize basically any STL container of Block (*) out of the given
  * \p group and into \p data. This is supposed to be represented by the
  * dimension with name \p size giving the size of the container, plus by as
- * many sub-groups of \p group with name <name>0, <name>1, ..., each one
+ * many sub-groups of \p group with name \<name\>0, \<name\>1, ..., each one
  * containing one of the Block. */
 
 template< template< class ... > class C >
@@ -9953,7 +9955,7 @@ void deserialize( const netCDF::NcGroup & group , C< Block * > & data ,
 /** Serialize basically any STL container of Block (*) into the given
  * \p group and into \p data. This is supposed to be represented by the
  * dimension with name \p size giving the size of the container, plus by as
- * many sub-groups of \p group with name <name>0, <name>1, ..., each one
+ * many sub-groups of \p group with name \<name\>0, \<name\>1, ..., each one
  * containing one of the Block. */
 
 template< template< class ... > class C >

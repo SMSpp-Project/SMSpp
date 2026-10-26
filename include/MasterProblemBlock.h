@@ -21,22 +21,32 @@
  * registered to MasterProblemBlock, typically a [MILP]Solver):
  *
  * - the **primal** form reads
- *
- *      min   b * d + \sum_k v^k + (1/2t) || d ||^2_2
- *      s.t.  v^k >= g^k_i * d + alpha^k_i        for each i in B^k       (P)
- *            v^k >= LB^k
+ *   \f[
+ *     \begin{array}{lll}
+ *       \min & b d + \sum_k v^k + \frac{1}{2t} \| d \|^2_2 & \\
+ *       \mbox{s.t.} & v^k \geq g^k_i d + \alpha^k_i
+ *                   & \forall i \in B^k \qquad (P) \\
+ *                   & v^k \geq LB^k &
+ *     \end{array}
+ *   \f]
  *
  *   where d is the step from the current stability center x_bar, v^k is
  *   the epigraph variable for component k, and (g^k_i, alpha^k_i) are the
  *   linearizations (cuts) of the k-th component, whose set is B^k;
  *
  * - the **dual** form reads
- *
- *      max   \sum_k \sum_i theta^k_i (c^k - x_bar A^k) u^k_i
- *            + x_bar z - (t/2) || z ||^2_2 - \sum_k \sum_i theta^k_i alpha^k_i
- *      s.t.  \sum_i theta^k_i + gamma^k = lambda          for each k     (D)
- *            z = b - \sum_k A^k ( \sum_i theta^k_i u^k_i )
- *            theta^k_i >= 0 ,  gamma^k >= 0 ,  lambda >= 0
+ *   \f[
+ *     \begin{array}{lll}
+ *       \max & \sum_k \sum_i \theta^k_i ( c^k - \bar{x} A^k ) u^k_i
+ *              + \bar{x} z - \frac{t}{2} \| z \|^2_2
+ *              - \sum_k \sum_i \theta^k_i \alpha^k_i & \\
+ *       \mbox{s.t.} & \sum_i \theta^k_i + \gamma^k = \lambda
+ *                   & \forall k \qquad (D) \\
+ *                   & z = b - \sum_k A^k ( \sum_i \theta^k_i u^k_i ) & \\
+ *                   & \theta^k_i \geq 0 \, , \; \gamma^k \geq 0 \, , \;
+ *                     \lambda \geq 0 &
+ *     \end{array}
+ *   \f]
  *
  *   plus the additional native u^k variables and constraints of any "easy"
  *   component k (its compact polyhedral description being directly inserted
@@ -60,7 +70,7 @@
  *   stabilizing quadratic term plus the linear part.
  *
  * Three stabilization schemes are supported, selected via the
- * #stabilization_type enum:
+ * MasterProblemBlock::stabilization_type enum:
  *
  * - **Proximal**: quadratic term (1/2t) || d ||^2_2 in (P), equivalently
  *   - (t/2) || z ||^2_2 in (D);
@@ -96,14 +106,14 @@
  *
  * available at
  *
- *  \link http://www.di.unipi.it/~frangio/abstracts.html#MP11c \endlink
+ *  http://www.di.unipi.it/~frangio/abstracts.html#MP11c
  *
  *  A. Frangioni "Generalized Bundle Methods"
  *  SIAM Journal on Optimization 13(1), 117 - 156, 2002
  *
  * available at
  *
- *  \link http://www.di.unipi.it/~frangio/abstracts.html#SIOPT02 \endlink
+ *  http://www.di.unipi.it/~frangio/abstracts.html#SIOPT02
  *
  * \author Antonio Frangioni \n
  *         Dipartimento di Informatica \n
@@ -642,7 +652,8 @@ class MasterProblemBlock : public Block {
   * BendersBFunction::get_A() / get_b() / get_constraints() /
   * get_sides()) is relaxed on the inner Block (LHS = -INF, RHS = +INF
   * on the corresponding RowConstraint, depending on its
-  * #ConstraintSide) and re-installed on *this* as an FRowConstraint
+  * BendersBFunction::ConstraintSide) and re-installed on *this* as an
+  * FRowConstraint
   *
   *      E_i( y ) - ( A x )_i  [<=, =, >=]  b_i
   *
@@ -1466,8 +1477,8 @@ class MasterProblemBlock : public Block {
   * removes that side of the box throughout the range.
   *
   * A changed lower side issues a MasterProblemRngdMod of type
-  * #MasterProblemMod::BoxLowerChanged carrying the new lower values; a
-  * changed upper side analogously issues #MasterProblemMod::BoxUpperChanged.
+  * MasterProblemMod::BoxLowerChanged carrying the new lower values; a
+  * changed upper side analogously issues MasterProblemMod::BoxUpperChanged.
   * Each Modification therefore carries one direct vector of new values. */
 
  void set_box( std::vector< double > L , std::vector< double > U ,
@@ -1805,7 +1816,7 @@ class MasterProblemBlock : public Block {
  /** Installs b[ i ] on coordinate range.first + i for the left-closed,
   * right-open interval [ range.first , range.second ). The size of \p b must
   * equal range.second - range.first. A real change issues a
-  * MasterProblemRngdMod of type #MasterProblemMod::LinearPartChanged,
+  * MasterProblemRngdMod of type MasterProblemMod::LinearPartChanged,
   * carrying the new values. */
 
  void set_linear_part( std::vector< double > b , Range range );
@@ -1816,7 +1827,7 @@ class MasterProblemBlock : public Block {
   * subset.size(), and all indices must be valid and distinct. If \p ordered
   * is false, the subset is sorted and \p b is reordered with it before the
   * change is applied. A real change issues a MasterProblemSbstMod of type
-  * #MasterProblemMod::LinearPartChanged carrying the sorted subset and its
+  * MasterProblemMod::LinearPartChanged carrying the sorted subset and its
   * aligned new values. */
 
  void set_linear_part( std::vector< double > b , Subset subset ,
@@ -2867,8 +2878,8 @@ class MasterProblemMod : public Modification
 /*--------------------------------------------------------------------------*/
 /// physical Modification carrying a new scalar master parameter value
 /** MasterProblemParamMod specializes MasterProblemMod for the inexpensive
- * scalar payloads associated with #MasterProblemMod::TChanged and
- * #MasterProblemMod::LevelChanged. Storing the value that was current when
+ * scalar payloads associated with MasterProblemMod::TChanged and
+ * MasterProblemMod::LevelChanged. Storing the value that was current when
  * the Modification was issued preserves that information even if the same
  * parameter changes again before an asynchronous Solver processes it. */
 

@@ -84,8 +84,8 @@ namespace SMSpp_di_unipi_it {
  *    the bound/sign/integrality constraints found in practical models, most
  *    notably that of binary values (the value being either 0 or 1).
  *
- * - A trivial implementation of the set of "active stuff" for this
- *   ColVariable as an ordered set of pointers to ThinVarDepInterface.
+ *  - A trivial implementation of the set of "active stuff" for this
+ *    ColVariable as an ordered set of pointers to ThinVarDepInterface.
  *
  * Important note: the "type" of the ColVariable is in fact a constraint on
  * its possible values; as such, it being a part of the ColVariable, rather

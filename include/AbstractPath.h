@@ -895,8 +895,8 @@ public:
   *
   * @param reference_block The pointer to the reference Block.
   *
-  * @return Returns the AbstractPath for the given target element \p t with
-  *         respect to the given \p reference_block.
+  * On return, this AbstractPath is the one of the given target element \p t
+  * with respect to the given \p reference_block.
   */
  template< class T >
  void build( const T * t , const Block * reference_block ) {
@@ -1116,15 +1116,15 @@ public:
 
  /// returns a pointer to the target element of the given AbstractPath
  /** This function returns a pointer to the object of type T that is the
-  * target element of the given \p path with respect to the given \p reference
-  * Block.
-  *
-  * @param path The AbstractPath to the target element with respect to the
-  *        given \p reference Block.
+  * target element of this AbstractPath with respect to the given \p
+  * reference Block.
   *
   * @param reference The pointer to the reference Block.
   *
-  * @param The pointer to the target element.
+  * @param offset The position of the element among those selected by the
+  *        last node of the path, when it selects more than one.
+  *
+  * @return The pointer to the target element.
   */
  template< class T >
  T * get_element( Block * reference , Index offset = 0 ) const {
@@ -1404,8 +1404,6 @@ public:
   * netCDF::NcGroup. Please refer to the comments to deserialize() for the
   * specification of the format of an AbstractPath.
   *
-  * @param path The AbstractPath to be serialized.
-  *
   * @param group The group in which the path will be serialized. */
 
  void serialize( netCDF::NcGroup & group ) const {
@@ -1654,7 +1652,7 @@ public:
   *
   * @param group The netCDF::NcGroup containing the path.
   *
-  * @return The AbstractPath corresponding to the given group. */
+  * On return, this AbstractPath is the one described by the given group. */
 
  void deserialize( const netCDF::NcGroup & group ) {
   deserialize( 0 , pre_deserialize( group ) );
@@ -1714,14 +1712,14 @@ public:
   }
 /*--------------------------------------------------------------------------*/
  /// deserializes a vector of AbstractPath
- /** This function deserializes a vector of (unique_ptr) AbstractPath and
-  * returns it. The format of the netCDF \p group is specified in
+ /** This function deserializes a vector of (unique_ptr) AbstractPath into
+  * \p paths. The format of the netCDF \p group is specified in
   * vector_deserialize( const netCDF::NcGroup & ).
   *
   * @param group The NcGroup that contains the description of the vector of
   *              AbstractPath to be deserialized.
   *
-  * @return A vector with the AbstractPaths. */
+  * @param paths The vector that, on return, holds the AbstractPaths. */
 
  static void vector_deserialize( const netCDF::NcGroup & group ,
 		  std::vector< std::unique_ptr< AbstractPath > > & paths ) {
@@ -1827,7 +1825,7 @@ public:
   * @param netCDFvars The struct containing the netCDF dimensions and
   *        variables describing the vector of AbstractPath.
   *
-  * @return The AbstractPath with index \p path_index. */
+  * On return, this AbstractPath is the one with index \p path_index. */
 
  void deserialize( Index path_index , const APnetCDF & netCDFvars ) {
 

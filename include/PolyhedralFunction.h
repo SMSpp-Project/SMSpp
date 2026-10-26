@@ -54,8 +54,8 @@ namespace SMSpp_di_unipi_it
  * simple implementation of a convex (or concave) Function defined by the
  * maximum (or minimum) of a "small" number of explicitly provided affine
  * forms. In other words, if the PolyhedralFunction depends on a set of n
- * ColVariable, its input data is a m \times n matrix A and a m \times 1
- * vector b (with m given and "small"), so that
+ * ColVariable, its input data is a \f$ m \times n \f$ matrix A and a
+ * \f$ m \times 1 \f$ vector b (with m given and "small"), so that
  * \f[
  *     pf( x ) = max \{ a_i x + b_i : i = 0, ... , m - 1 \}
  * \f]
@@ -1241,16 +1241,16 @@ class PolyhedralFunction : public C05Function {
  /// modify a range of rows of the linear mapping
  /** Modifies a range of rows of the linear mapping:
   *
-  * @param Range range contains the indices of the rows to be modified, hence
+  * @param range contains the indices of the rows to be modified, hence
   *        range.second < get_A().size();
   *
-  * @param nA, a MultiVector && with nA.size() == range.second - range.first,
+  * @param nA a MultiVector && with nA.size() == range.second - range.first,
   *        and exactly as many columns as the current A matrix; entry
   *        nA[ i ][ h ] is (obviously) meant to be the new coefficient for
   *        the h-th variable in row range.first + i; as the && implies, nA 
   *        becomes property of the PolyhedralFunction object;
   *
-  * @param the RealVector & nb, a vector of FunctionValue with nb.size() ==
+  * @param nb the RealVector &, a vector of FunctionValue with nb.size() ==
   *        range.second - range.first: entry nb[ i ] is (obviously) meant to
   *        be the new value of the constant term for row range.first + i;
   *
@@ -1270,23 +1270,23 @@ class PolyhedralFunction : public C05Function {
  /// modify a subset of rows of the linear mapping
  /** Modifies a subset of rows of the linear mapping:
   *
-  * @param Subset && rows contains the indices of the rows to be modified; all
+  * @param rows contains the indices of the rows to be modified; all
   *        entries must therefore be numbers in 0, ..., get_A().size() - 1;
   *        as the && tells, the vector becomes property of the
   *        PolyhedralFunction, to be dispatched to the issued
   *        PolyhedralFunctionModSbst (if any);
   *
-  * @param bool ordered tells if rows is already ordered by increasing index
+  * @param ordered tells if rows is already ordered by increasing index
   *        (if not it may be ordered inside, after all it becomes property
   *        of the PolyhedralFunction);
   *
-  * @param nA, a MultiVector && with nA.size() == rows.size() and exactly as
+  * @param nA a MultiVector && with nA.size() == rows.size() and exactly as
   *        many columns as the current A matrix; entry nA[ i ][ h ] is
   *        (obviously) meant to be the new coefficient for the h-th variable
   *        in row rows[ i ]; as the && implies, nA becomes property of the
   *        PolyhedralFunction object;
   *
-  * @param the RealVector & nb, a vector of FunctionValue with nb.size() ==
+  * @param nb the RealVector &, a vector of FunctionValue with nb.size() ==
   *        nms.size(): entry nb[ i ] is (obviously) meant to be the new value
   *        of the constant term for row rows[ i ];
   *
@@ -1332,10 +1332,10 @@ class PolyhedralFunction : public C05Function {
  /// modify only the constant term of a range of rows of the linear mapping
  /** Like modify_rows( range ), but modify the constant terms only.
   *
-  * @param Range range contains the indices of the rows to be modified, hence
+  * @param range contains the indices of the rows to be modified, hence
   *        range.second < get_A().size();
   * 
-  * @param the RealVector & nb, a vector of FunctionValue with nb.size() ==
+  * @param nb the RealVector &, a vector of FunctionValue with nb.size() ==
   *        range.second - range.first: entry nb[ i ] is (obviously) meant to
   *        be the new value of the constant term for row range.first + i;
   *
@@ -1360,7 +1360,7 @@ class PolyhedralFunction : public C05Function {
  /// modify only the constant term of a subset of rows of the linear mapping
  /** Like modify_rows( subset ), but modify the constant terms only.
   *
-  * @param Subset && rows contains the indices of the rows to be modified; all
+  * @param rows contains the indices of the rows to be modified; all
   *        entries must therefore be numbers in 0, ..., get_A().size() - 1;
   *        as the && tells, the vector becomes property of the
   *        PolyhedralFunction, to be dispatched to the issued
@@ -1423,7 +1423,7 @@ class PolyhedralFunction : public C05Function {
   *        functions, while newbound == Inf< FunctionValue >() (no upper
   *        bound) is permitted for concave functions;
   *
-  * @param issueMod, which decides if and how the PolyhedralFunctionModRngd is
+  * @param issueMod which decides if and how the PolyhedralFunctionModRngd is
   *        issued, as described in Observer::make_par(). Note that type() ==
   *        AlphaChanged (this is basically the change in one specific
   *        linearization) and PFtype() == ModifyCnst. To signal this very

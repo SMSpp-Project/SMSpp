@@ -154,22 +154,23 @@ namespace SMSpp_di_unipi_it {
  * maximization one and vice-versa, the interpretation of upper cutoffs and
  * lower cutoffs [see dblUpCutOff and dblLwCutOff in Solver.h] can be done
  * both in terms of the primal and of the dual problem. For instance, assume
- * an upper cutoff \eps is set for a minimization problem: the condition
+ * an upper cutoff \f$ \epsilon \f$ is set for a minimization problem: the
+ * condition
  *
- *   lb >= \eps
+ *   \f[ lb \geq \epsilon \f]
  *
  * means *both*:
  *
  * - for the primal problem, that is a minimization one, the condition says
  *   that a solution with objective function value at least as good as (i.e.,
- *   smaller than) \eps was needed, but it is now clear that this is never
- *   going to happen, so the problem is treated as being as being detected
- *   to be unfeasible and the algorithm can stop already;
+ *   smaller than) \f$ \epsilon \f$ was needed, but it is now clear that this
+ *   is never going to happen, so the problem is treated as being
+ *   detected to be unfeasible and the algorithm can stop already;
  *
  * - for the dual problem, that is a maximization one, the condition says
  *   that a solution with objective function value at least as good as (i.e.,
- *   greater than) \eps was needed; this has already been found, so the
- *   problem is treated as being solved already and the algorithm can stop.
+ *   greater than) \f$ \epsilon \f$ was needed; this has already been found, so
+ *   the problem is treated as being solved already and the algorithm can stop.
  *
  * Of course, this is symmetric if the primal is a maximization problem. */
 
@@ -240,13 +241,14 @@ class CDASolver : public Solver {
    * value of the *dual* problem has been found (note that this can be
    * obtained by means of the objective value of a feasible *primal*
    * solution, see get_ub()), a solution is deemed acceptable with the
-   * provided parameter \eps if
+   * provided parameter \f$ \epsilon \f$ if
    *
-   *    ub - lb <= \eps * max( abs( ub ) , abs( lb ) , 1 )
+   *    \f[ ub - lb \leq \epsilon \cdot \max \{ | ub | , | lb | , 1 \} \f]
    *
    * Note that if no ub is available, the above formula can be replaced with
    *
-   *    fbest - lb <= \eps * max( abs( fbest ) , abs( lb ) , 1 )
+   *    \f[ fbest - lb \leq \epsilon \cdot \max \{ | fbest | , | lb | , 1 \}
+   *    \f]
    *
    * where fbest is the value of the best (with largest objective value)
    * solution found so far. The roles of ub and lb are suitably reversed if
@@ -256,13 +258,13 @@ class CDASolver : public Solver {
   dblAAccDSol ,     ///< maximum absolute error in any dual solution
                     /**< Similar to dblRAccDSol but for an *absolute*
 		     * accuracy; that is, a dual solution is deemed
-   * acceptable with the provided parameter \eps if
+   * acceptable with the provided parameter \f$ \epsilon \f$ if
    *
-   *    ub - lb <= \eps
+   *    \f[ ub - lb \leq \epsilon \f]
    *
    * or
    *
-   *    fbest - lb <= \eps
+   *    \f[ fbest - lb \leq \epsilon \f]
    *
    * with the same notation as in dblRAccDSol and the same provisions about
    * the case of a maximization problem. The default is Inf< OFValue >. */
@@ -665,17 +667,18 @@ class CDASolver : public Solver {
   *
   * has a the linearity direction d = [ -1 , 1 ]. This means that A * d = 0;
   * hence, if there were any feasible solution x for (P) (which there is
-  * not), then x + \alpha * d would be feasible for all \alpha >= 0. Also,
+  * not), then \f$ x + \alpha d \f$ would be feasible for all
+  * \f$ \alpha \geq 0 \f$. Also,
   * c * d > 0 (for c = [ -1 , 0 ] the objective function vector of (P) =
   * right-hand side of (D)), hence (P) would be unbounded above, were it not
   * empty. Symmetrically, the direction v = [ 1 , 1 ] has the property that
   * v * A = 0 and v >= 0, which means that if there were any feasible
-  * solution y for (D) (which there is not), then y + \alpha * v would be
-  * feasible for all \alpha >= 0. Also, b * v < 0 (for b = [ -1 , 0 ] the
-  * objective function vector of (D) = right-hand side of (P)), which means
-  * that (D) would be unbounded below were it not empty. Thus, getting both
-  * primal and dual directions would be possible, although this is a rather
-  * "exotic" case.
+  * solution y for (D) (which there is not), then \f$ y + \alpha v \f$ would
+  * be feasible for all \f$ \alpha \geq 0 \f$. Also, b * v < 0 (for
+  * b = [ -1 , 0 ] the objective function vector of (D) = right-hand side of
+  * (P)), which means that (D) would be unbounded below were it not empty.
+  * Thus, getting both primal and dual directions would be possible,
+  * although this is a rather "exotic" case.
   *
   * The method is given a default implementation in the base CADSolver class
   * doing nothing, for solvers that cannot produce any unbounded dual

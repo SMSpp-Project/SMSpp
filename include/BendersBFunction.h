@@ -79,9 +79,9 @@ namespace SMSpp_di_unipi_it
  *    one, and only, sub-Block of BendersBFunction (when "seen" as a Block).
  *
  * 2) A matrix A with m rows and n columns, a vector b with m rows, and a
- *    vector of pairs [ ( C_i , S_i ) ]_{i \in I}, each pair being formed by a
- *    pointer C_i to a RowConstraint of Block B and a #ConstraintSide S_i,
- *    where I = {0, ..., m-1}.
+ *    vector of pairs \f$ [ ( C_i , S_i ) ]_{i \in I} \f$, each pair being
+ *    formed by a pointer C_i to a RowConstraint of Block B and a
+ *    #ConstraintSide S_i, where I = {0, ..., m-1}.
  *
  *    Problem (B) would typically be associated with an original problem
  *
@@ -128,8 +128,8 @@ namespace SMSpp_di_unipi_it
  *    RowConstraint. Moreover, if a RowConstraint in Block B has finite bounds
  *    that can be different from each other and are affected by the values of
  *    x, then it would be listed twice (once for each of its bounds). That is,
- *    there would be indices i, j \in I such that i != j and C_i = C_j, S_i =
- *    eLHS, and S_j = eRHS.
+ *    there would be indices \f$ i, j \in I \f$ such that i != j and
+ *    C_i = C_j, S_i = eLHS, and S_j = eRHS.
  *
  *        The vector of pairs [ ( C_i , S_i ) ]_{i \in I} must not contain
  *        duplicate entries (i.e., there must not exist indices i, j \in I
@@ -714,7 +714,7 @@ class BendersBFunction : public C05Function , public Block {
   *
   * @param par The parameter to be set.
   *
-  * @return The value of the parameter. */
+  * @param value The value of the parameter. */
 
  void set_par( idx_type par , int value ) override;
 
@@ -743,7 +743,7 @@ class BendersBFunction : public C05Function , public Block {
   *
   * @param par The parameter to be set.
   *
-  * @return The value of the parameter. */
+  * @param value The value of the parameter. */
 
  void set_par( idx_type par , double value ) override {
 
@@ -901,7 +901,7 @@ class BendersBFunction : public C05Function , public Block {
 /*--------- METHODS FOR HANDLING THE State OF THE BendersBFunction ---------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the State of the BendersBFunction
- */
+ *  @{ */
 
  State * get_State( void ) const override;
 

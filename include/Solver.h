@@ -353,12 +353,13 @@ class Solver : public ThinComputeInterface
   * accuracy required to the solution of the Block. This is
   * geared towards single-objective optimization problems, and it is defined
   * as follows: a solution for a *minimization* problem has a relative
-  * accuracy of \eps if a feasible (to within the required tolerance for each
-  * Block) solution has been obtained, an upper bound "ub" on its objective
-  * function value has been found [see get_ub()], a lower bound "lb" on the
-  * *optimal* value of the problem has been found [see get_lb()], and
+  * accuracy of \f$ \epsilon \f$ if a feasible (to within the required
+  * tolerance for each Block) solution has been obtained, an upper bound "ub"
+  * on its objective function value has been found [see get_ub()], a lower
+  * bound "lb" on the *optimal* value of the problem has been found [see
+  * get_lb()], and
   *
-  *    ub - lb <= \eps * max( abs( lb ) , 1 )
+  *    \f[ ub - lb \leq \epsilon \cdot \max \{ | lb | , 1 \} \f]
   *
   * The roles of ub and lb are suitably reversed for a maximization problem
   * [see the comments to get_ub(), get_lb() and Objective::set_sense()]. The
@@ -368,14 +369,14 @@ class Solver : public ThinComputeInterface
                  /**< The algorithmic parameter for setting the *absolute*
                   * accuracy required to the solution of the model. This is
   * geared towards single-objective optimization problems, and it is defined
-  * as follows: a solution for a *minimization* problem has a absolute
-  * accuracy of \eps if a feasible  (to within the required tolerance for
-  * each Block) solution has been obtained, an upper bound "ub" on its
-  * objective function value has been found [see get_ub()], a lower bound
-  * "lb" on the *optimal* value of the problem has been found [see get_lb()],
-  * and
+  * as follows: a solution for a *minimization* problem has an absolute
+  * accuracy of \f$ \epsilon \f$ if a feasible (to within the required
+  * tolerance for each Block) solution has been obtained, an upper bound "ub"
+  * on its objective function value has been found [see get_ub()], a lower
+  * bound "lb" on the *optimal* value of the problem has been found [see
+  * get_lb()], and
   *
-  *    ub - lb <= \eps
+  *    \f[ ub - lb \leq \epsilon \f]
   *
   * The roles of ub and lb are suitably reversed for a maximization problem
   * [see the comments to get_ub(), get_lb() and Objective::set_sense()]. The
@@ -388,19 +389,20 @@ class Solver : public ThinComputeInterface
   * telling the Solver "when enough is enough". In particular, if the Solver
   * obtains a certified lower bound "lb" on the optimal value such that
   *
-  *   lb >= \eps
+  *   \f[ lb \geq \epsilon \f]
   *
-  * with the provided parameter \eps, then it can stop. This is a
-  * *certificate* that the optimal value is at *least* \eps. For a
+  * with the provided parameter \f$ \epsilon \f$, then it can stop. This is a
+  * *certificate* that the optimal value is at *least* \f$ \epsilon \f$. For a
   * maximization problem the condition says: I actually needed a solution
   * with objective function value at least as good as (i.e., larger than)
-  * \eps, now that I have found one the problem is as good as solved to me.
-  * Hence this parameter is analogous to the maximum absolute accuracy (see
-  * dblAbsAcc), but "weaker" in that it does not not require any upper bound
-  * to work. For a minimization problem, instead, the condition says: I
-  * actually needed a solution with objective function value at least as
-  * good as (i.e., smaller than) \eps, now that I have know for sure that
-  * this is never going to happen the problem is as good as unfeasible to me.
+  * \f$ \epsilon \f$, now that I have found one the problem is as good as
+  * solved to me. Hence this parameter is analogous to the maximum absolute
+  * accuracy (see dblAbsAcc), but "weaker" in that it does not require any
+  * upper bound to work. For a minimization problem, instead, the condition
+  * says: I actually needed a solution with objective function value at least
+  * as good as (i.e., smaller than) \f$ \epsilon \f$, now that I know for
+  * sure that this is never going to happen the problem is as good as
+  * unfeasible to me.
   * The default is Inf< OFValue >(). */
 
   dblLwCutOff ,  ///< lower cutoff for stopping the algorithm
@@ -409,19 +411,20 @@ class Solver : public ThinComputeInterface
   * telling the Solver "when enough is enough". In particular, if the Solver
   * obtains a certified upper bound "ub" on the optimal value such that
   *
-  *   ub <= \eps
+  *   \f[ ub \leq \epsilon \f]
   *
-  * with the provided parameter \eps, then it can stop. This is a
-  * *certificate* that the optimal value is at *most* \eps. For a
+  * with the provided parameter \f$ \epsilon \f$, then it can stop. This is a
+  * *certificate* that the optimal value is at *most* \f$ \epsilon \f$. For a
   * minimization problem the condition says: I actually needed a solution
   * with objective function value at least as good as (i.e., smaller than)
-  * \eps, now that I have found one the problem is as good as solved to me.
-  * Hence this parameter is analogous to the maximum absolute accuracy (see
-  * dblAbsAcc), but "weaker" in that it does not not require any lower bound
-  * to work. For a maximization problem, instead, the condition says: I
-  * actually needed a solution with objective function value at least as
-  * good as (i.e., larger than) \eps, now that I have know for sure that
-  * this is never going to happen the problem is as good as unfeasible to me.
+  * \f$ \epsilon \f$, now that I have found one the problem is as good as
+  * solved to me. Hence this parameter is analogous to the maximum absolute
+  * accuracy (see dblAbsAcc), but "weaker" in that it does not require any
+  * lower bound to work. For a maximization problem, instead, the condition
+  * says: I actually needed a solution with objective function value at least
+  * as good as (i.e., larger than) \f$ \epsilon \f$, now that I know for
+  * sure that this is never going to happen the problem is as good as
+  * unfeasible to me.
   * The default is - Inf< OFValue >(). */
 
   dblRAccSol ,   ///< maximum relative error in any reported solution
@@ -432,13 +435,14 @@ class Solver : public ThinComputeInterface
   * minimization problem, the objective function value of a feasible solution
   * provides an upper bound "ub" on the optimal value. Assuming a lower bound
   * "lb" on the *optimal* value of the problem has been found [see get_lb()],
-  * a solution is deemed acceptable with the provided parameter \eps if
+  * a solution is deemed acceptable with the provided parameter
+  * \f$ \epsilon \f$ if
   *
-  *    ub - lb <= \eps * max( abs( ub ) , abs( lb ) , 1 )
+  *    \f[ ub - lb \leq \epsilon \cdot \max \{ | ub | , | lb | , 1 \} \f]
   *
   * Note that if no lb is available, the above formula can be replaced with
   *
-  *    ub - fbest <= \eps * max( abs( ub ) , abs( fbest ) , 1 )
+  *    \f[ ub - fbest \leq \epsilon \cdot \max \{ | ub | , | fbest | , 1 \} \f]
   *
   * where fbest is the value of the best (with smallest objective value)
   * solution found so far. The roles of ub and lb are suitably reversed for
@@ -447,13 +451,13 @@ class Solver : public ThinComputeInterface
   dblAAccSol ,   ///< maximum absolute error in any reported solution
                  /**< Similar to dblRAccSol but for an *absolute* accuracy;
                   * that is, a solution is deemed acceptable with the
-  * provided parameter \eps if
+  * provided parameter \f$ \epsilon \f$ if
   *
-  *    ub - lb <= \eps
+  *    \f[ ub - lb \leq \epsilon \f]
   *
   * or
   *
-  *    ub - fbest <= \eps
+  *    \f[ ub - fbest \leq \epsilon \f]
   *
   * with the same notation as in dblRAccSol and the same provisions about the
   * case of a maximization problem. The default is Inf< OFValue >(). */
@@ -999,7 +1003,8 @@ class Solver : public ThinComputeInterface
  *
  * Note that max_event_number() by default returns 0, which implies that the
  * :Solver does not support *any* event, and therefore that there is no need
- * to resize v_events. */
+ * to resize v_events.
+ *  @{ */
 
  /// returns the maximum number of event types supported by the :Solver
  /** Returns the maximum number of event types supported by the :Solver,

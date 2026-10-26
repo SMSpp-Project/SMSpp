@@ -120,7 +120,7 @@ class BlockSolverConfig;  // forward declaration
  * the current implementation of PolyhedralFunction, they are contained in the
  * unique pool of linearizations, and an appropriate vector is used to mark
  * the vertical ones. In fact, whenever there is no need to distinguish
- * between them we will just use B = B_D \cup B_V.
+ * between them we will just use \f$ B = B_D \cup B_V \f$.
  * 
  * Note that above
  *
@@ -150,9 +150,9 @@ class BlockSolverConfig;  // forward declaration
  *
  * - with the "linearized representation", the first group of static Variable
  *   contains a single ColVariable (v), the first group of dynamic Constraint
- *   contains the FRowConstraint (with LinearFunction inside, i.e.,
- *   v <op> a_i x + b_i OR a_j x + b_j \le 0, where <op> depends on if the
- *   PolyhedralFunction is convex or concave), and the  Objective is also
+ *   contains the FRowConstraint (with LinearFunction inside, i.e., v \<op\>
+ *   a_i x + b_i OR \f$ a_j x + b_j \le 0 \f$, where \<op\> depends on if the
+ *   PolyhedralFunction is convex or concave), and the Objective is also
  *   reserved (since it must be a FRealObjective with another LinearFunction
  *   inside, having nonzero coefficient only for v).
  *   Note that there is a choice here about b_i: it could be set
@@ -673,7 +673,8 @@ class PolyhedralFunctionBlock : public AbstractBlock
   * --------------------------------------------------------------------------
   *
   * If f_rep & 3 == 3, then we crete the objective function with the
-  * LinearFunction having as coeffcients -\theta_i b_i and \gamma LB. */
+  * LinearFunction having as coefficients \f$ -\theta_i b_i \f$ and
+  * \f$ \gamma LB \f$. */
 
  void generate_objective( Configuration *objc = nullptr ) override;
 
