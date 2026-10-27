@@ -65,16 +65,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   not there); the core and every module call it before building their
   module
 
-- `FunctionMod::set_changes()`: an `FRowConstraint` and an `FRealObjective`
-  say what the `shift()` of their Function does before passing a
-  `FunctionMod` on to the Block. Shifted upwards, the region of an
-  `FRowConstraint` may shrink if its RHS is finite and grow if its LHS is,
-  downwards the opposite, with only `eModCnsCoef` and no effect while it is
-  relaxed; the objective of an `FRealObjective` moves the way of the shift,
-  with only `eModObj`. Hence a `LagBFunction` keeps its pool when the
-  Function of a Constraint with RHS at +INF is shifted upwards, and a Solver
-  that reads only the Objective no longer receives the `FunctionMod` of a
-  Constraint, nor one reading the Constraint that of the Objective
+- `Modification::set_changes()`, which whoever forwards a Modification and
+  knows more of what it does than the one that issued it uses to say so: an
+  `FRowConstraint` and an `FRealObjective` say what the `shift()` of their
+  Function does before passing a `FunctionMod` on to the Block. Shifted
+  upwards, the region of an `FRowConstraint` may shrink if its RHS is finite
+  and grow if its LHS is, downwards the opposite, with only `eModCnsCoef` and
+  no effect while it is relaxed; the objective of an `FRealObjective` moves
+  the way of the shift, with only `eModObj`. Hence a `LagBFunction` keeps its
+  pool when the Function of a Constraint with RHS at +INF is shifted upwards,
+  and a Solver that reads only the Objective no longer receives the
+  `FunctionMod` of a Constraint, nor one reading the Constraint that of the
+  Objective
 
 - `AbstractBlock::mirror()` keeps the size Variable of the mirrored Block:
   the copy owns the copy of one the Block owns, and keeps one an
@@ -163,6 +165,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `cmake/smspp_module_exports.py` includes only the headers that no other
   header of the module includes, e.g., 15 of the 52 of the core in
   `src/SMSpp.cppm`, while the names are read from all of them as before
+
+- what a Modification changes is a field of `Modification`, which the
+  constructor takes and `changes()`, no longer virtual, returns: a derived
+  class passes its value to the constructor of its base, or sets it in its
+  own with `set_changes()`, instead of overriding `changes()`, and a
+  `GroupModification` keeps the or of its sub-Modification, and of those of
+  the GroupModification nested in it, as they are added
 
 - `SMSppMODrule` of `lib/makefile-mod` takes the prefixes of the modules
   that a module imports (e.g., `MILPS BAXSLV`) in place of their module

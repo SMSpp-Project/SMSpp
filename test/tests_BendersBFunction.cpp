@@ -275,11 +275,9 @@ class SaysMod : public Modification
 {
  public:
 
- SaysMod( Block * b , ModConcern c ) : f_block( b ) , f_c( c ) {}
+ SaysMod( Block * b , ModConcern c ) : Modification( c ) , f_block( b ) {}
 
  [[nodiscard]] Block * get_Block( void ) const override { return( f_block ); }
-
- [[nodiscard]] ModConcern changes( void ) const override { return( f_c ); }
 
  protected:
 
@@ -288,7 +286,6 @@ class SaysMod : public Modification
   }
 
  Block * f_block;
- ModConcern f_c;
  };
 
 /*--------------------------------------------------------------------------*/

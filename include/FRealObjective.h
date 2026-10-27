@@ -592,7 +592,7 @@ class FRealObjective : public RealObjective , public Observer {
   * anyone_there(), and in case register/unregister itself with the
   * added/removed Variable. If mod is a FunctionMod, it says which way the
   * shift of the Function moves the objective [see
-  * FunctionMod::set_changes()], whatever the sense of the Objective. */
+  * Modification::set_changes()], whatever the sense of the Objective. */
 
  void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override;
 

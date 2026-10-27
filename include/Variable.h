@@ -525,28 +525,21 @@ class VariableMod : public AModification
 
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
  /// constructor: takes the new state of the Variable and a pointer to it
+ /** What the Modification changes is said by the Variable itself [see
+  * Variable::state_changes()]: the state of a Variable, which leaves the
+  * objective as it is at every point. */
 
  VariableMod( Variable * var , var_type old_state , var_type new_state ,
 	      bool cB = true )
-  : AModification( cB ) , f_variable( var ) , f_old_state( old_state ) ,
-    f_new_state( new_state ) {}
+  : AModification( cB , var->state_changes( old_state , new_state ) ) ,
+    f_variable( var ) , f_old_state( old_state ) , f_new_state( new_state )
+  {}
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
  ~VariableMod() override = default;  ///< destructor: does nothing
 
 /*-------------------- PUBLIC METHODS OF THE CLASS -------------------------*/
-
- /// returns what the Modification changes [see Modification::ModConcern]
- /** The state of a Variable, which leaves the objective as it is at every
-  * point: what its change means is said by the Variable itself [see
-  * Variable::state_changes()]. */
-
- [[nodiscard]] ModConcern changes( void ) const override {
-  return( f_variable->state_changes( f_old_state , f_new_state ) );
-  }
-
-/*--------------------------------------------------------------------------*/
 
  /// returns the Block to which the Variable belongs
 

@@ -624,7 +624,7 @@ class FRowConstraint : public RowConstraint, public Observer {
   * anyone_there(), and in case register/unregister itself with the
   * added/removed Variable. If mod is a FunctionMod, it says what the shift
   * of the Function does to the feasible region [see
-  * FunctionMod::set_changes()]: shifted upwards, the region may shrink if
+  * Modification::set_changes()]: shifted upwards, the region may shrink if
   * the RHS is finite and grow if the LHS is, downwards the opposite, and
   * nothing happens to the region while the FRowConstraint is relaxed. */
 

@@ -2374,6 +2374,12 @@ static void test_changes( void )
  assert( PhysMod( r.block ).changes() == ( M::eModPhys | M::eEffAny ) );
  assert( NBModification( r.block ).changes() == M::eModAll );
 
+ // whoever forwards a Modification and knows more says it, whatever the
+ // class of the Modification
+ RowConstraintMod rmod( & c , RowConstraintMod::eChgRHS );
+ rmod.set_changes( M::eModCnsSide | M::eRegnShrink );
+ assert( rmod.changes() == ( M::eModCnsSide | M::eRegnShrink ) );
+
  // the set of the dynamic Variable and Constraint, as the Block issues it
  auto vars = new std::list< ColVariable >;
  r.block->add_dynamic_variable( *vars , "y" );
@@ -2408,6 +2414,16 @@ static void test_changes( void )
        add_d( r.block , *rows , n , Observer::make_par( eModBlck , chnl ) );
        r.block->close_channel( chnl );
        } , M::eModVarData | M::eModCnsSet | M::eRegnShrink );
+
+ // a nested GroupModification enters its father when it is still empty,
+ // and what its sub-Modification say reaches the father all the same
+ one( [ & ]() {
+       auto chnl = r.block->open_channel();
+       r.block->open_channel( chnl );
+       x->is_fixed( false , Observer::make_par( eModBlck , chnl ) );
+       r.block->close_channel( chnl );
+       r.block->close_channel( chnl );
+       } , M::eModVarData | M::eRegnGrow );
 
  // the static methods
  const auto phys = M::ModConcern( M::eModPhys | M::eEffAny );
@@ -2675,7 +2691,7 @@ static void test_issue_by_kind( void )
 /*--------------------------------------------------------------------------*/
 /* What a FunctionMod says of itself once its Function is that of an
  * FRowConstraint or of an FRealObjective, which read its shift() [see
- * FunctionMod::set_changes()]: upwards the RHS becomes harder to satisfy and
+ * Modification::set_changes()]: upwards the RHS becomes harder to satisfy and
  * the LHS easier, downwards the opposite, NaN both, nothing for a side at
  * infinity or a relaxed Constraint; the objective moves the way of the
  * shift, whatever the sense. Then a Solver that reads only the Objective

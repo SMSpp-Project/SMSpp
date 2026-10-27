@@ -511,11 +511,13 @@ class ConstraintMod : public AModification {
   * to encode the possible values of modification, the field f_type is of
   * type "int", and therefore so is the parameter of the constructor, in
   * order to allow derived classes to "extend" the set of possible types of
-  * modifications. */
+  * modifications. What the Modification changes follows from the type
+  * [see changes_of()]. */
 
  explicit ConstraintMod( Constraint * cnst , int mod = eRelaxConst,
                          bool cB = true )
-  : AModification( cB ) , f_constraint( cnst ) , f_type( mod ) {}
+  : AModification( cB , changes_of( mod ) ) , f_constraint( cnst ) ,
+    f_type( mod ) {}
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
@@ -523,17 +525,17 @@ class ConstraintMod : public AModification {
 
 /*-------------------- PUBLIC METHODS OF THE CLASS -------------------------*/
 
- /// returns what the Modification changes [see Modification::ModConcern]
+ /// what a ConstraintMod of type \p mod changes [see changes()]
  /** The data of a Constraint, which leaves the objective as it is: relaxing
   * the Constraint makes the region grow, enforcing it shrinks it, both
   * being changes of its sides, and any other change of a derived class,
   * which does not say more, may be of the sides or of the coefficients and
   * may do either. */
 
- [[nodiscard]] ModConcern changes( void ) const override {
-  if( f_type == eRelaxConst )
+ static constexpr ModConcern changes_of( int mod ) {
+  if( mod == eRelaxConst )
    return( eModCnsSide | eRegnGrow );
-  if( f_type == eEnforceConst )
+  if( mod == eEnforceConst )
    return( eModCnsSide | eRegnShrink );
   return( eModCnsSide | eModCnsCoef | eRegnShrink | eRegnGrow );
   }

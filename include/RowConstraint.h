@@ -822,26 +822,25 @@ class RowConstraintMod : public ConstraintMod {
 
 /*---------------------- CONSTRUCTOR & DESTRUCTOR --------------------------*/
 
- /// constructor: just calls that of ConstraintMod
+ /// constructor: calls that of ConstraintMod, with the changes() of the type
 
  explicit RowConstraintMod( RowConstraint * cnst , int mod = eChgLHS ,
 			    bool cB = true )
-  : ConstraintMod( cnst , mod , cB ) {}
+  : ConstraintMod( cnst , mod , cB ) { set_changes( changes_of( mod ) ); }
 
 /*--------------------------------------------------------------------------*/
- /// returns what the Modification changes [see Modification::ModConcern]
+ /// what a RowConstraintMod of type \p mod changes [see changes()]
  /** A change of the LHS, of the RHS or of both is one of the sides, which
   * may make the region grow or shrink; the types that the derived classes
   * add (the Function of a FRowConstraint, the Variable of a
   * OneVarConstraint) are changes of the coefficients. */
 
- [[nodiscard]] ModConcern changes( void ) const override {
-  if( ( f_type == eChgLHS ) || ( f_type == eChgRHS ) ||
-      ( f_type == eChgBTS ) )
+ static constexpr ModConcern changes_of( int mod ) {
+  if( ( mod == eChgLHS ) || ( mod == eChgRHS ) || ( mod == eChgBTS ) )
    return( eModCnsSide | eRegnShrink | eRegnGrow );
-  if( f_type >= eRowConstModLastParam )
+  if( mod >= eRowConstModLastParam )
    return( eModCnsCoef | eRegnShrink | eRegnGrow );
-  return( ConstraintMod::changes() );
+  return( ConstraintMod::changes_of( mod ) );
   }
 
  ~RowConstraintMod() override = default;  ///< destructor: does nothing

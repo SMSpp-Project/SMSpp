@@ -362,8 +362,6 @@ class Modification {
 
 /*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
- Modification( void ) = default;     ///< constructor: does nothing
-
  virtual ~Modification() = default;  ///< destructor: does nothing
 
 /*--------------------------------------------------------------------------*/
@@ -458,15 +456,35 @@ class Modification {
                                           eRegnShrink | eRegnGrow;
 
 /*--------------------------------------------------------------------------*/
- /// returns what the Modification changes [see ModConcern]
- /** Returns the ModConcern of the Modification. The base class, which is
-  * that of the physical Modification, says "physical, with any effect",
-  * which is always correct for them; a derived class says more when it
-  * knows more. */
+ /// constructor: takes what the Modification changes [see changes()]
+ /** Constructor of the class; it takes and sets the value returned by
+  * changes(), by default that of the physical Modification, "physical, with
+  * any effect", which is always correct for them. A derived class that
+  * knows more passes its own value. */
 
- [[nodiscard]] virtual ModConcern changes( void ) const {
-  return( eModPhys | eEffAny );
-  }
+ explicit Modification( ModConcern c = eModPhys | eEffAny )
+  : f_changes( c ) {}
+
+/*--------------------------------------------------------------------------*/
+ /// returns what the Modification changes [see ModConcern]
+ /** Returns the ModConcern of the Modification, as given to the constructor
+  * or later set by set_changes(). */
+
+ [[nodiscard]] ModConcern changes( void ) const { return( f_changes ); }
+
+/*--------------------------------------------------------------------------*/
+ /// sets what the Modification changes [see changes()]
+ /** Sets the value returned by changes(). This is for whoever forwards a
+  * Modification and knows more of what it does than the one that issued
+  * it: the Function that issues a FunctionMod does not know where it is,
+  * while an FRowConstraint or an FRealObjective that receives it knows
+  * which side of the Constraint, or which way the objective, the shift()
+  * of its values moves, and says so before passing it on. As for
+  * concerns_Block( bool ), the Modification is changed after it has been
+  * issued, hence this has to be done before it reaches anyone else, and the
+  * value set has to be correct for the Modification as it is. */
+
+ void set_changes( ModConcern c ) { f_changes = c; }
 
 /*--------------------------------------------------------------------------*/
  /** @name Reading a ModConcern
@@ -676,6 +694,10 @@ class Modification {
 
  virtual void print( std::ostream & output ) const = 0;
 
+/*--------------------------- PROTECTED FIELDS -----------------------------*/
+
+ ModConcern f_changes;  ///< what the Modification changes [see changes()]
+
 /*--------------------------------------------------------------------------*/
 
  };  // end( class( Modification ) )
@@ -697,22 +719,17 @@ class AModification : public Modification {
  public:
 
 /*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
- /// constructor: takes the value to be returned by concerns_Block()
+ /// constructor: takes the values to be returned by concerns_Block() and
+ /// changes()
  /** Constructor of the class; it takes and sets the value to be returned by
-  * concerns_Block() (true by default). */
+  * concerns_Block() (true by default) and the one to be returned by
+  * changes(), by default "some of the abstract representation, with any
+  * effect", which a derived class that knows more replaces with its own. */
 
- explicit AModification( bool cB = true ) : f_concerns_Block( cB ) {}
+ explicit AModification( bool cB = true , ModConcern c = eModAbst | eEffAny )
+  : Modification( c ) , f_concerns_Block( cB ) {}
 
  ~AModification() override = default;  ///< destructor: does nothing
-
-/*--------------------------------------------------------------------------*/
- /// returns what the Modification changes [see Modification::ModConcern]
- /** An abstract Modification changes some of the abstract representation,
-  * with any effect, unless a derived class says more. */
-
- [[nodiscard]] ModConcern changes( void ) const override {
-  return( eModAbst | eEffAny );
-  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the value stored in the f_concerns_Block field
@@ -777,15 +794,11 @@ class NModification : public Modification {
  public:
 
 /*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
- /// constructor: does nothing
+ /// constructor: the Modification changes everything [see changes()]
 
- NModification() : Modification() {}
+ NModification() : Modification( eModAll ) {}
 
  ~NModification() override = default;  ///< destructor: does nothing
-
-/*--------------------------------------------------------------------------*/
- /// returns what the Modification changes: everything
- [[nodiscard]] ModConcern changes( void ) const override { return( eModAll ); }
 
 /*--------------------------------------------------------------------------*/
 
@@ -898,10 +911,12 @@ class GroupModification : public AModification {
  /** Constructor of the class; takes (optionally) the "father" of the
   * GroupModification. The concerns_Block() value is initialized to false,
   * and (almost) automatically set to true if any of the Modification
-  * inserted in the GroupModification has concerns_Block() == true. */
+  * inserted in the GroupModification has concerns_Block() == true. The
+  * changes() value is initialized to 0, i.e., nothing changes, and grows
+  * with the or of those of the inserted Modification. */
 
  explicit GroupModification( GroupModification * father = nullptr )
-  : AModification( false ) , f_father( father ) {}
+  : AModification( false , 0 ) , f_father( father ) {}
 
  /// destructor: does nothing
  ~GroupModification() override = default;
@@ -915,15 +930,6 @@ class GroupModification : public AModification {
  [[nodiscard]] Block * get_Block( void ) const override {
   return( v_sub_Modifications.empty() ?
 	  nullptr : v_sub_Modifications.front()->get_Block() );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// returns what the Modification changes: the or of its sub-Modification
- [[nodiscard]] ModConcern changes( void ) const override {
-  ModConcern c = 0;
-  for( const auto & mod : v_sub_Modifications )
-   c |= mod->changes();
-  return( c );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -973,19 +979,26 @@ class GroupModification : public AModification {
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 
  /// add a new Modification to the v_sub_Modifications list
+ /** Besides concerns_Block(), the changes() of the GroupModification and of
+  * all its ancestors gets the or of those of \p mod, since a nested
+  * GroupModification is inserted in its father when it is still empty. */
 
  void add( const std::shared_ptr< Modification > & mod ) {
   if( mod->concerns_Block() )  // if the sub-Modification concerns the Block
    concerns_Block( true );     // then the whole GroupModification does
+  for( auto gm = this ; gm ; gm = gm->f_father )
+   gm->f_changes |= mod->changes();
   v_sub_Modifications.push_back( mod );
  }
 
 /*--------------------------------------------------------------------------*/
- /// delete all the sub-Modification, and set concerns_Block() to false
+ /// delete all the sub-Modification, set concerns_Block() to false and
+ /// changes() to 0
 
  void clear( void ) {
   v_sub_Modifications.clear();
   concerns_Block( false );
+  f_changes = 0;
  }
 
 /*--------------------------------------------------------------------------*/

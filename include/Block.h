@@ -8656,9 +8656,14 @@ class BlockModAD : public AModification
  public:
 
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
- /// constructor, taking the "concerns" value
+ /// constructor, taking what is involved and the "concerns" value
+ /** Constructor: takes whether Variable (\p var == true) or Constraint are
+  * involved, whether they are added (\p add == true) or removed, and the
+  * "concerns" value; what the Modification changes follows from the first
+  * two [see changes_of()]. */
 
- BlockModAD( bool cB = false ) : AModification( cB ) {}
+ BlockModAD( bool var , bool add , bool cB = false )
+  : AModification( cB , changes_of( var , add ) ) {}
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
@@ -8682,17 +8687,18 @@ class BlockModAD : public AModification
  virtual bool is_added( void ) const = 0;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// returns what the Modification changes [see Modification::ModConcern]
+ /// what adding (\p add == true) or removing Variable (\p var == true) or
+ /// Constraint changes [see changes()]
  /** The set of the Variable or of the Constraint. Adding Variable makes the
   * region grow, a solution of before staying feasible with the new Variable
   * at 0, and removing them shrinks it, as fixing them at 0 would; adding
   * Constraint shrinks the region, and removing them makes it grow. In all
   * cases the objective is the same as before at every point of before. */
 
- [[nodiscard]] ModConcern changes( void ) const override {
-  if( is_variable() )
-   return( eModVarSet | ( is_added() ? eRegnGrow : eRegnShrink ) );
-  return( eModCnsSet | ( is_added() ? eRegnShrink : eRegnGrow ) );
+ static constexpr ModConcern changes_of( bool var , bool add ) {
+  if( var )
+   return( eModVarSet | ( add ? eRegnGrow : eRegnShrink ) );
+  return( eModCnsSet | ( add ? eRegnShrink : eRegnGrow ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -8801,7 +8807,8 @@ class BlockModAdd : public BlockModAD
  BlockModAdd( std::list< ConstOrVar > & whc ,
               std::vector< ConstOrVar * > && add , Block::Index first ,
               bool cB = false )
-  : BlockModAD( cB ) , whc_list( whc ) , add_vec( std::move( add ) ) ,
+  : BlockModAD( std::is_base_of_v< Variable , ConstOrVar > , true , cB ) ,
+    whc_list( whc ) , add_vec( std::move( add ) ) ,
     f_first( first ) {
   static_assert( std::is_base_of< Variable , ConstOrVar >::value ||
                  std::is_base_of< Constraint , ConstOrVar >::value ,
@@ -8974,7 +8981,8 @@ class BlockModRmv : public BlockModAD {
 
  BlockModRmv( std::list< ConstOrVar > & whc ,
               std::list< ConstOrVar > && rmvd , bool cB = false )
-  : BlockModAD( cB ) , f_whc( whc ) , f_rmvd( std::move( rmvd ) ) {
+  : BlockModAD( std::is_base_of_v< Variable , ConstOrVar > , false , cB ) ,
+    f_whc( whc ) , f_rmvd( std::move( rmvd ) ) {
   static_assert( std::is_base_of< Variable , ConstOrVar >::value ||
                  std::is_base_of< Constraint , ConstOrVar >::value ,
                  "BlockModRmv: must inherit from Variable or Constraint" );

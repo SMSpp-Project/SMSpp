@@ -906,7 +906,8 @@ class FunctionMod : public AModification
 
  explicit FunctionMod( Function * f , FunctionValue shift = NaNshift ,
                        bool cB = true )
-  : AModification( cB ) , f_function( f ) , f_shift( shift ) {}
+  : AModification( cB , Function::eModFValues | eEffAny ) ,
+    f_function( f ) , f_shift( shift ) {}
 
  ///< constructor: takes a Function pointer and a shift
  /**< Constructor: takes a pointer to the affected Function and the value of
@@ -915,7 +916,16 @@ class FunctionMod : public AModification
   * a given point was f_v before this Modification, then the correct value is
   * now f_v + shift. If shift is Inf< FunctionValue >(), then it means that the
   * Function has been modified in an unpredictable way, so that any prior
-  * information regarding the Function can be disregarded. */
+  * information regarding the Function can be disregarded.
+  *
+  * What the Modification changes [see changes()] are the values of the
+  * Function, which are the coefficients of a Constraint when the Function
+  * is that of an FRowConstraint and the Objective when it is that of an
+  * FRealObjective. The Function does not know which, hence the FunctionMod
+  * it issues says both, with any effect on the problem; the Observer of the
+  * Function, which knows where the Function is, reads shift() and says what
+  * the change does to the feasible region or to the objective before
+  * passing the FunctionMod on [see Modification::set_changes()]. */
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
@@ -926,30 +936,6 @@ class FunctionMod : public AModification
  /// returns the Block to which the Observer of the Function belongs
 
  [[nodiscard]] Block * get_Block( void ) const override;
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// returns what the Modification changes [see Modification::ModConcern]
- /** The values of the Function, which are the coefficients of a Constraint
-  * when the Function is that of an FRowConstraint and the Objective when it
-  * is that of an FRealObjective. The Function does not know which, hence
-  * the FunctionMod it issues says both, with any effect on the problem;
-  * the Observer of the Function, which knows where the Function is, reads
-  * shift() and says what the change does to the feasible region or to the
-  * objective before passing the FunctionMod on [see set_changes()]. */
-
- [[nodiscard]] ModConcern changes( void ) const override {
-  return( f_changes );
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// sets what the Modification changes [see changes()]
- /** Called by the Observer of the Function, e.g., an FRowConstraint or an
-  * FRealObjective, before the FunctionMod goes on to the Block, with what
-  * the shift() of the values of the Function means where the Function is:
-  * which side of the Constraint it makes harder or easier to satisfy, or
-  * which way it moves the objective. */
-
- void set_changes( ModConcern c ) { f_changes = c; }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to (the pointer to) the affected Constraint
@@ -1017,9 +1003,6 @@ class FunctionMod : public AModification
  Function * f_function;   ///< pointer to the modified Function
 
  FunctionValue f_shift;  ///< how the value of the function has changed
-
- /// what the Modification changes [see changes()]
- ModConcern f_changes = Function::eModFValues | eEffAny;
 
 /*--------------------------------------------------------------------------*/
 
@@ -1232,12 +1215,18 @@ class FunctionModVars : public AModification
   * added, vars[ 1 ] the second, ... (this is logically speaking, and
   * regardless to the fact that a :Function may well implement a "add a
   * bunch of Variable in one blow" operation; still, any such operation must
-  * define what the addition order conceptually is). */
+  * define what the addition order conceptually is).
+  *
+  * What the Modification changes [see changes()] is the set of the Variable
+  * that the Function depends upon, which is what an FRowConstraint or an
+  * FRealObjective has to see to keep the list of its active Variable; the
+  * effect on the problem depends on where the Function is, and it may be
+  * any. */
 
  FunctionModVars( Function * f , Vec_p_Var && vars ,
                   FunctionValue shift = NaNshift , bool cB = true )
-  : AModification( cB ) , f_function( f ) , f_shift( shift ) ,
-    v_vars( std::move( vars ) ) {}
+  : AModification( cB , eModVarSet | eEffAny ) , f_function( f ) ,
+    f_shift( shift ) , v_vars( std::move( vars ) ) {}
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
@@ -1248,17 +1237,6 @@ class FunctionModVars : public AModification
  /// returns the Block to which the Observer of the Function belongs
 
  [[nodiscard]] Block * get_Block( void ) const override;
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// returns what the Modification changes [see Modification::ModConcern]
- /** The set of the Variable that the Function depends upon, which is what
-  * an FRowConstraint or an FRealObjective has to see to keep the list of
-  * its active Variable; the effect on the problem depends on where the
-  * Function is, and it may be any. */
-
- [[nodiscard]] ModConcern changes( void ) const override {
-  return( eModVarSet | eEffAny );
-  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to (the pointer to) the affected Function
