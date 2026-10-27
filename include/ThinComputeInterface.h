@@ -1805,9 +1805,9 @@ class ThinComputeInterface
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get the string name of the vector-of-int parameter with given index
- /** This method takes an int parameter index, i.e., the integer value in the
-  * range [ 0 , get_num_vint_par() ) that can be used in
-  * set_par( std::vector< int < &[&] ) and get_[dflt_]vint_par() to set/get
+ /** This method takes a vector-of-int parameter index, i.e., the integer
+  * value in the range [ 0 , get_num_vint_par() ) that can be used in
+  * set_par( std::vector< int > &[&] ) and get_[dflt_]vint_par() to set/get
   * it, and returns its "string name". The method is given a void
   * implementation (throwing exception), rather than being pure virtual, so
   * that derived classes not having any vector-of-int parameter do not have

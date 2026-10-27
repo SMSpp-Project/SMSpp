@@ -518,8 +518,9 @@ static void test_state_copy( void )
  * BlockSolverConfig of a ComputeConfig then registers a second BoxSolver,
  * which becomes the inner Solver, and the value is that of the closed form.
  * The ComputeConfig is read from LagBFCfg-Box.txt. The parameters of the
- * inner Solver are then read through the LagBFunction, and
- * set_ComputeConfig( nullptr ) takes everything back to the defaults. */
+ * inner Solver are then read through the LagBFunction, by index and by
+ * name, and set_ComputeConfig( nullptr ) takes everything back to the
+ * defaults. */
 
 static void test_no_inner_Solver( void )
 {
@@ -579,6 +580,32 @@ static void test_no_inner_Solver( void )
 	 is->get_int_par( is->get_num_int_par() - 1 ) ,
 	 "the last int parameter of the inner Solver read through the "
 	 "LagBFunction differs" );
+
+ // and so are their names, both ways: the last int and double parameters
+ // of the BoxSolver come after those of Solver, hence their indices in the
+ // LagBFunction are not the ones in the inner Solver
+ const auto & iname = is->int_par_idx2str( is->get_num_int_par() - 1 );
+ expect( f.lbf->int_par_str2idx( iname ) == ip ,
+	 "int_par_str2idx( \"" + iname + "\" ) of the LagBFunction is " +
+	 std::to_string( f.lbf->int_par_str2idx( iname ) ) + ", expected " +
+	 std::to_string( ip ) );
+ expect( f.lbf->int_par_idx2str( ip ) == iname ,
+	 "int_par_idx2str( " + std::to_string( ip ) + " ) of the "
+	 "LagBFunction is \"" + f.lbf->int_par_idx2str( ip ) +
+	 "\", expected \"" + iname + "\"" );
+ const auto dp = f.lbf->dbl_par_is( is->get_num_dbl_par() - 1 );
+ const auto & dname = is->dbl_par_idx2str( is->get_num_dbl_par() - 1 );
+ expect( f.lbf->dbl_par_str2idx( dname ) == dp ,
+	 "dbl_par_str2idx( \"" + dname + "\" ) of the LagBFunction is " +
+	 std::to_string( f.lbf->dbl_par_str2idx( dname ) ) + ", expected " +
+	 std::to_string( dp ) );
+ expect( f.lbf->dbl_par_idx2str( dp ) == dname ,
+	 "dbl_par_idx2str( " + std::to_string( dp ) + " ) of the "
+	 "LagBFunction is \"" + f.lbf->dbl_par_idx2str( dp ) +
+	 "\", expected \"" + dname + "\"" );
+ expect( f.lbf->int_par_str2idx( "intInnrSlvr" ) ==
+	 LagBFunction::intInnrSlvr ,
+	 "int_par_str2idx( \"intInnrSlvr\" ) is not intInnrSlvr" );
 
  // set_ComputeConfig( nullptr ) takes the LagBFunction back to its
  // defaults, and the inner Block back to the BoxSolver of the fixture

@@ -192,8 +192,8 @@ target_include_directories(
         ${modName} PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         # the build directory holds the generated ${modName}Config.h, so that
-        # dependents built in-tree can #include it (installed builds get it from
-        # the INSTALL_INTERFACE include dir, where it is installed)
+        # dependents built in-tree can #include it (installed builds get it
+        # from the INSTALL_INTERFACE include dir, where it is installed)
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
         $<INSTALL_INTERFACE:include/${modNamespace}>
         $<BUILD_INTERFACE:${fastflow_SOURCE_DIR}>)

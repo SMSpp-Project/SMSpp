@@ -380,8 +380,8 @@ class Solver : public ThinComputeInterface
   *
   * The roles of ub and lb are suitably reversed for a maximization problem
   * [see the comments to get_ub(), get_lb() and Objective::set_sense()]. The
-  * default is Inf< OFValue >(), which is intended to mean that the only working
-  * accuracy is the relative one. */
+  * default is Inf< OFValue >(), which is intended to mean that the only
+  * working accuracy is the relative one. */
 
   dblUpCutOff ,  ///< upper cutoff for stopping the algorithm
                  /**< The algorithmic parameter for setting the "upper cut
