@@ -877,23 +877,16 @@ class BendersBFunction : public C05Function , public Block {
 
  [[nodiscard]] idx_type int_par_str2idx( const std::string & name )
   const override {
-  if( name == "intLinComp" )
-   return( intLinComp );
-  if( name == "intSolverIndex" )
-   return( intSolverIndex );
-  return( C05Function::int_par_str2idx( name ) );
+  const auto i = par_str2idx< int_par_type_BendersBF >( name );
+  return( i < Inf< idx_type >() ? i : C05Function::int_par_str2idx( name ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
  [[nodiscard]] const std::string & int_par_idx2str( idx_type idx )
   const override {
-  static const std::vector< std::string > pars =
-   { "intLinComp" , "intSolverIndex"};
-
-  if( idx >= intLastParC05F && idx < intLastBendersBFPar )
-   return pars[ idx - intLastParC05F ];
-
+  if( const auto s = par_idx2str< int_par_type_BendersBF >( idx ) )
+   return( *s );
   return( C05Function::int_par_idx2str( idx ) );
   }
 

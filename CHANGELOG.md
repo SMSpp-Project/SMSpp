@@ -153,6 +153,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- the names of the algorithmic parameters are read off the enums that
+  declare them by the reflection of C++26: `ThinComputeInterface` has
+  `par_str2idx< E >()` and `par_idx2str< E >()`, which give the index of a
+  parameter of the enum `E` out of its name and the name out of the index
+  (the last enumerator of `E` excepted, which is the first value left to
+  the derived classes), and `ThinComputeInterface`, `Solver`, `CDASolver`,
+  `BoxSolver`, `Function`, `C05Function`, `BendersBFunction` and
+  `LagBFunction` use them in place of the tables of names written by hand,
+  with the same names; the core is built with C++26, and with GCC (16 or
+  later) with `-freflection`
+
 - `SMSpp_BUILD_MODULE` is ON by default where the C++20 modules can be built
   and the compiler is Clang, and OFF elsewhere (MSVC included, where they are
   built on request): `cmake/CheckModule.cmake` decides it when it is first

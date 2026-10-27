@@ -868,43 +868,33 @@ class CDASolver : public Solver {
 
  [[nodiscard]] idx_type int_par_str2idx( const std::string & name )
   const override {
-  return( name == "intMaxDSol" ? intMaxDSol
-	                       : Solver::int_par_str2idx( name ) );
+  const auto i = par_str2idx< int_par_type_CDAS >( name );
+  return( i < Inf< idx_type >() ? i : Solver::int_par_str2idx( name ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  [[nodiscard]] idx_type dbl_par_str2idx( const std::string & name )
   const override {
-  if( name == "dblRAccDSol" )
-   return( dblRAccDSol );
-  if( name == "dblAAccDSol" )
-   return( dblAAccDSol );
-  if( name == "dblFAccDSol" )
-   return( dblFAccDSol );
-
-  return( Solver::dbl_par_str2idx( name ) );
+  const auto i = par_str2idx< dbl_par_type_CDAS >( name );
+  return( i < Inf< idx_type >() ? i : Solver::dbl_par_str2idx( name ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
  [[nodiscard]] const std::string & int_par_idx2str( idx_type idx )
  const override {
-  static const std::string par = "intMaxDSol";
-
-  return( idx == intMaxDSol ? par : Solver::int_par_idx2str( idx ) );
+  if( const auto s = par_idx2str< int_par_type_CDAS >( idx ) )
+   return( *s );
+  return( Solver::int_par_idx2str( idx ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  [[nodiscard]] const std::string & dbl_par_idx2str( idx_type idx )
  const override {
-  static const std::vector< std::string > pars =
-   { "dblRAccDSol", "dblAAccDSol", "dblFAccDSol" };
-
-  if( ( idx >= dblRAccDSol ) && ( idx <= dblFAccDSol ) )
-   return( pars[ idx - dblRAccDSol ] );
-
+  if( const auto s = par_idx2str< dbl_par_type_CDAS >( idx ) )
+   return( *s );
   return( Solver::dbl_par_idx2str( idx ) );
   }
 

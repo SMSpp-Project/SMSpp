@@ -380,8 +380,8 @@ class Solver : public ThinComputeInterface
   *
   * The roles of ub and lb are suitably reversed for a maximization problem
   * [see the comments to get_ub(), get_lb() and Objective::set_sense()]. The
-  * default is Inf< OFValue >(), which is intended to mean that the only working
-  * accuracy is the relative one. */
+  * default is Inf< OFValue >(), which is intended to mean that the only
+  * working accuracy is the relative one. */
 
   dblUpCutOff ,  ///< upper cutoff for stopping the algorithm
                  /**< The algorithmic parameter for setting the "upper cut
@@ -1931,87 +1931,53 @@ class Solver : public ThinComputeInterface
 
  [[nodiscard]] idx_type int_par_str2idx( const std::string & name )
   const override {
-  // the (static const) map for int parameters names
-  static const std::map< std::string , idx_type > int_pars_map =
-  { { "intMaxIter",   Solver::intMaxIter },
-    { "intMaxThread", Solver::intMaxThread },
-    { "intEverykIt",  Solver::intEverykIt },
-    { "intMaxSol",    Solver::intMaxSol },
-    { "intLogVerb",   Solver::intLogVerb }
-    };
-
-  const auto it = int_pars_map.find( name );
-  if( it == int_pars_map.end() )
-   return( Inf< idx_type >() );
-  return( it->second );
+  const auto i = par_str2idx< int_par_type_S >( name );
+  return( i < Inf< idx_type >() ? i
+	                        : ThinComputeInterface::int_par_str2idx( name ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  [[nodiscard]] idx_type dbl_par_str2idx( const std::string & name )
   const override {
-  // the (static const) map for double parameters names
-  static const std::map< std::string , idx_type > dbl_pars_map =
-  { { "dblMaxTime",  Solver::dblMaxTime } ,
-    { "dblEveryTTm", Solver::dblEveryTTm } ,
-    { "dblRelAcc",   Solver::dblRelAcc } ,
-    { "dblAbsAcc",   Solver::dblAbsAcc } ,
-    { "dblUpCutOff", Solver::dblUpCutOff } ,
-    { "dblLwCutOff", Solver::dblLwCutOff } ,
-    { "dblRAccSol",  Solver::dblRAccSol } ,
-    { "dblAAccSol",  Solver::dblAAccSol } ,
-    { "dblFAccSol",  Solver::dblFAccSol }
-    };
-
- const auto it = dbl_pars_map.find( name );
- if( it == dbl_pars_map.end() )
-  return( Inf< idx_type >() );
- return( it->second );
- }
+  const auto i = par_str2idx< dbl_par_type_S >( name );
+  return( i < Inf< idx_type >() ? i
+	                        : ThinComputeInterface::dbl_par_str2idx( name ) );
+  }
 
 /*--------------------------------------------------------------------------*/
 
  [[nodiscard]] const std::string & int_par_idx2str( idx_type idx )
   const override {
-  static const std::array< std::string , 5 > int_pars_str = { "intMaxIter" ,
-   "intMaxThread" , "intEverykIt" , "intMaxSol" , "intLogVerb" };
-
-  if( idx >= intLastAlgPar )
-   throw( std::invalid_argument( "invalid int parameter name" ) );
-  return( int_pars_str[ idx ] );
+  if( const auto s = par_idx2str< int_par_type_S >( idx ) )
+   return( *s );
+  return( ThinComputeInterface::int_par_idx2str( idx ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  [[nodiscard]] const std::string & dbl_par_idx2str( idx_type idx )
   const override {
-  static const std::array< std::string , 9 > dbl_pars_str = { "dblMaxTime" ,
-   "dblEveryTTm" , "dblRelAcc" , "dblAbsAcc" , "dblUpCutOff" , "dblLwCutOff" ,
-   "dblRAccSol" , "dblAAccSol" , "dblFAccSol" };
-
-  if( idx >= dblLastAlgPar )
-   throw( std::invalid_argument( "invalid double parameter name" ) );
-  return( dbl_pars_str[ idx ] );
+  if( const auto s = par_idx2str< dbl_par_type_S >( idx ) )
+   return( *s );
+  return( ThinComputeInterface::dbl_par_idx2str( idx ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  [[nodiscard]] idx_type str_par_str2idx( const std::string & name )
   const override {
-  if( name == "strLogFileName" )
-   return( strLogFileName );
-
-  return( ThinComputeInterface::str_par_str2idx( name ) );
+  const auto i = par_str2idx< str_par_type_S >( name );
+  return( i < Inf< idx_type >() ? i
+	                        : ThinComputeInterface::str_par_str2idx( name ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  [[nodiscard]] const std::string & str_par_idx2str( idx_type idx )
   const override {
-  static const std::string _par = "strLogFileName";
-  if( idx == strLogFileName )
-   return( _par );
-
+  if( const auto s = par_idx2str< str_par_type_S >( idx ) )
+   return( *s );
   return( ThinComputeInterface::str_par_idx2str( idx ) );
   }
 

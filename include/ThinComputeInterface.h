@@ -28,7 +28,19 @@
 
 #include "Configuration.h"
 
+#include <meta>
+
+#include <string>
+
+#include <string_view>
+
 #include <thread>
+
+#include <type_traits>
+
+#include <utility>
+
+#include <vector>
 
 /*--------------------------------------------------------------------------*/
 /*----------------------------- NAMESPACE ----------------------------------*/
@@ -1688,12 +1700,12 @@ class ThinComputeInterface
   * parameter then its index - i.e., the integer value in the range
   * [ 0 , get_num_int_par() ) that can be used in set_par( int ) and
   * get_[dflt_]int_par() to set/get it - is returned, otherwise
-  * Inf< idx_type >() is returned. The method is given a "void"
-  * implementation "understanding no names", i.e., always returning
-  * Inf< idx_type >(). */
+  * Inf< idx_type >() is returned. The base class understands the names of
+  * the int parameters of its own enum, int_par_type_TCI [see par_str2idx()],
+  * and returns Inf< idx_type >() for any other name. */
 
  [[nodiscard]] virtual idx_type int_par_str2idx( const std::string & name )
-  const { return( Inf< idx_type >() ); }
+  const { return( par_str2idx< int_par_type_TCI >( name ) ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get the index of the double parameter with given string name
@@ -1701,25 +1713,25 @@ class ThinComputeInterface
   * parameter then its index - i.e., the integer value in the range
   * [ 0 , get_num_dbl_par() ) that can be used in set_par( double ) and
   * get_[dflt_]dbl_par() to set/get it - is returned, otherwise
-  * Inf< idx_type >() is returned. The method is given a "void"
-  * implementation "understanding no names", i.e., always returning
-  * Inf< idx_type >(). */
+  * Inf< idx_type >() is returned. The base class understands the names of
+  * the double parameters of its own enum, dbl_par_type_TCI
+  * [see par_str2idx()], and returns Inf< idx_type >() for any other name. */
 
  [[nodiscard]] virtual idx_type dbl_par_str2idx( const std::string & name )
-  const { return( Inf< idx_type >() ); }
+  const { return( par_str2idx< dbl_par_type_TCI >( name ) ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get the index of the string parameter with given string name
  /** This method takes a string: if \n name contains the name of a string
   * parameter then its index - i.e., the integer value in the range
-  * [ 0 , get_num_str_par() ) that can be used in set_par( std::string )
-  * and get_[dflt_]str_par() to set/get it - is returned, otherwise
-  * Inf< idx_type >() is returned. The method is given a "void"
-  * implementation "understanding no names", i.e., always returning
-  * Inf< idx_type >(). */
+  * [ 0 , get_num_str_par() ) that can be used in set_par( std::string ) and
+  * get_[dflt_]str_par() to set/get it - is returned, otherwise
+  * Inf< idx_type >() is returned. The base class understands the names of
+  * the string parameters of its own enum, str_par_type_TCI
+  * [see par_str2idx()], and returns Inf< idx_type >() for any other name. */
 
  [[nodiscard]] virtual idx_type str_par_str2idx( const std::string & name )
-  const { return( Inf< idx_type >() ); }
+  const { return( par_str2idx< str_par_type_TCI >( name ) ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get the index of the std::vector< int > parameter with given name
@@ -1727,12 +1739,13 @@ class ThinComputeInterface
   * vector-of-int parameter then its index - i.e., the integer value in the
   * range [ 0 , get_num_vint_par() ) that can be used in
   * set_par( std::vector< int > ) and get_[dflt_]vint_par() to set/get it -
-  * is returned, otherwise Inf< idx_type >() is returned. The method is
-  * given a "void" implementation "understanding no names", i.e., always
-  * returning Inf< idx_type >(). */
+  * is returned, otherwise Inf< idx_type >() is returned. The base class
+  * understands the names of the vector-of-int parameters of its own enum,
+  * vint_par_type_TCI [see par_str2idx()], and returns Inf< idx_type >() for
+  * any other name. */
 
  [[nodiscard]] virtual idx_type vint_par_str2idx( const std::string & name )
-  const { return( Inf< idx_type >() ); }
+  const { return( par_str2idx< vint_par_type_TCI >( name ) ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get the index of the std::vector< double > parameter with given name
@@ -1740,12 +1753,13 @@ class ThinComputeInterface
   * vector-of-double parameter then its index - i.e., the integer value in
   * the range [ 0 , get_num_vdbl_par() ) that can be used in
   * set_par( std::vector< double > ) and get_[dflt_]vdbl_par() to set/get it
-  * - is returned, otherwise Inf< idx_type >() is returned. The method is
-  * given a "void" implementation "understanding no names", i.e., always
-  * returning Inf< idx_type >(). */
+  * - is returned, otherwise Inf< idx_type >() is returned. The base class
+  * understands the names of the vector-of-double parameters of its own enum,
+  * vdbl_par_type_TCI [see par_str2idx()], and returns Inf< idx_type >() for
+  * any other name. */
 
  [[nodiscard]] virtual idx_type vdbl_par_str2idx( const std::string & name )
-  const { return( Inf< idx_type >() ); }
+  const { return( par_str2idx< vdbl_par_type_TCI >( name ) ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get the index of the std::vector< std::string > parameter named name
@@ -1754,23 +1768,28 @@ class ThinComputeInterface
   * the range [ 0 , get_num_vstr_par() ) that can be used in
   * set_par( std::vector< std::string > ) and get_[dflt_]vstr_par() to
   * set/get it - is returned, otherwise Inf< idx_type >() is returned. The
-  * method is given a "void" implementation "understanding no names", i.e.,
-  * always returning Inf< idx_type >(). */
+  * base class understands the names of the vector-of-string parameters of
+  * its own enum, vstr_par_type_TCI [see par_str2idx()], and returns
+  * Inf< idx_type >() for any other name. */
 
  [[nodiscard]] virtual idx_type vstr_par_str2idx( const std::string & name )
-  const { return( Inf< idx_type >() ); }
+  const { return( par_str2idx< vstr_par_type_TCI >( name ) ); }
 
 /*--------------------------------------------------------------------------*/
  /// get the string name of the int parameter with given index
  /** This method takes an int parameter index, i.e., the integer value in the
   * range [ 0 , get_num_int_par() ) that can be used in set_par( int ) and
   * get_[dflt_]int_par() to set/get it, and returns its "string name". The
-  * method is given a void implementation (throwing exception), rather than
-  * being pure virtual, so that derived classes not having any int parameter
-  * do not have to bother with implementing it. */
+  * base class gives the names of the int parameters of its own enum,
+  * int_par_type_TCI [see par_idx2str()], and throws std::invalid_argument
+  * for any other index, rather than being pure virtual, so that derived
+  * classes not having any int parameter do not have to bother with
+  * implementing it. */
 
  [[nodiscard]] virtual const std::string &
   int_par_idx2str( idx_type idx ) const {
+   if( const auto s = par_idx2str< int_par_type_TCI >( idx ) )
+    return( *s );
    throw( std::invalid_argument( "invalid int parameter name" ) );
    }
 
@@ -1779,42 +1798,52 @@ class ThinComputeInterface
  /** This method takes a double parameter index, i.e., the integer value in
   * the range [ 0 , get_num_dbl_par() ) that can be used in set_par( double )
   * and get_[dflt_]dbl_par() to set/get it, and returns its "string name".
-  * The method is given a void implementation (throwing exception), rather
-  * than being pure virtual, so that derived classes not having any double
-  * parameter do not have to bother with implementing it. */
+  * The base class gives the names of the double parameters of its own enum,
+  * dbl_par_type_TCI [see par_idx2str()], and throws std::invalid_argument
+  * for any other index, rather than being pure virtual, so that derived
+  * classes not having any double parameter do not have to bother with
+  * implementing it. */
 
  [[nodiscard]] virtual const std::string &
   dbl_par_idx2str( idx_type idx ) const {
+   if( const auto s = par_idx2str< dbl_par_type_TCI >( idx ) )
+    return( *s );
    throw( std::invalid_argument( "invalid double parameter name" ) );
    }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get the string name of the string parameter with given index
-/** This method takes a string parameter index, i.e., the integer value in
-  * the range [ 0 , get_num_str_par() ) that can be used in 
+ /** This method takes a string parameter index, i.e., the integer value in
+  * the range [ 0 , get_num_str_par() ) that can be used in
   * set_par( std::string ) and get_[dflt_]str_par() to set/get it, and
-  * returns its "string name". The method is given a void implementation
-  * (throwing exception), rather than being pure virtual, so that derived
-  * classes not having any double parameter do not have to bother with
-  * implementing it. */
+  * returns its "string name". The base class gives the names of the string
+  * parameters of its own enum, str_par_type_TCI [see par_idx2str()], and
+  * throws std::invalid_argument for any other index, rather than being pure
+  * virtual, so that derived classes not having any string parameter do not
+  * have to bother with implementing it. */
 
  [[nodiscard]] virtual const std::string &
   str_par_idx2str( idx_type idx ) const {
+   if( const auto s = par_idx2str< str_par_type_TCI >( idx ) )
+    return( *s );
    throw( std::invalid_argument( "invalid string parameter name" ) );
    }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get the string name of the vector-of-int parameter with given index
- /** This method takes an int parameter index, i.e., the integer value in the
-  * range [ 0 , get_num_vint_par() ) that can be used in
-  * set_par( std::vector< int < &[&] ) and get_[dflt_]vint_par() to set/get
-  * it, and returns its "string name". The method is given a void
-  * implementation (throwing exception), rather than being pure virtual, so
-  * that derived classes not having any vector-of-int parameter do not have
-  * to bother with implementing it. */
+ /** This method takes a vector-of-int parameter index, i.e., the integer
+  * value in the range [ 0 , get_num_vint_par() ) that can be used in
+  * set_par( std::vector< int > &[&] ) and get_[dflt_]vint_par() to set/get
+  * it, and returns its "string name". The base class gives the names of the
+  * vector-of-int parameters of its own enum, vint_par_type_TCI [see
+  * par_idx2str()], and throws std::invalid_argument for any other index,
+  * rather than being pure virtual, so that derived classes not having any
+  * vector-of-int parameter do not have to bother with implementing it. */
 
  [[nodiscard]] virtual const std::string &
   vint_par_idx2str( idx_type idx ) const {
+   if( const auto s = par_idx2str< vint_par_type_TCI >( idx ) )
+    return( *s );
    throw( std::invalid_argument( "invalid vector-of-int parameter name" ) );
    }
 
@@ -1822,14 +1851,18 @@ class ThinComputeInterface
  /// get the string name of the vector-of-double parameter with given index
  /** This method takes a vector-of-double parameter index, i.e., the integer
   * value in the range [ 0 , get_num_vdbl_par() ) that can be used in
-  * set_par( std::vector< double > &[&] ) and get_[dflt_]vdbl_par() to set/get
-  * it, and returns its "string name". The method is given a void
-  * implementation (throwing exception), rather than being pure virtual, so
-  * that derived classes not having any vector-of-double parameter do not
-  * have to bother with implementing it. */
+  * set_par( std::vector< double > &[&] ) and get_[dflt_]vdbl_par() to
+  * set/get it, and returns its "string name". The base class gives the names
+  * of the vector-of-double parameters of its own enum, vdbl_par_type_TCI
+  * [see par_idx2str()], and throws std::invalid_argument for any other
+  * index, rather than being pure virtual, so that derived classes not having
+  * any vector-of-double parameter do not have to bother with implementing
+  * it. */
 
  [[nodiscard]] virtual const std::string &
   vdbl_par_idx2str( idx_type idx ) const {
+   if( const auto s = par_idx2str< vdbl_par_type_TCI >( idx ) )
+    return( *s );
    throw( std::invalid_argument( "invalid vector-of-double parameter name" )
 	  );
    }
@@ -1837,15 +1870,19 @@ class ThinComputeInterface
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get the string name of the vector-of-string parameter with given index
  /** This method takes a vector-of-string parameter index, i.e., the integer
-  * value in the range [ 0 , get_num_vstr_par() ) that can be used in 
+  * value in the range [ 0 , get_num_vstr_par() ) that can be used in
   * set_par( std::vector< std::string > &[&] ) and get_[dflt_]vstr_par() to
-  * set/get it, and returns its "string name". The method is given a void
-  * implementation (throwing exception), rather than being pure virtual, so
-  * that derived classes not having any vector-of-string parameter do not
-  * have to bother with implementing it. */
+  * set/get it, and returns its "string name". The base class gives the names
+  * of the vector-of-string parameters of its own enum, vstr_par_type_TCI
+  * [see par_idx2str()], and throws std::invalid_argument for any other
+  * index, rather than being pure virtual, so that derived classes not having
+  * any vector-of-string parameter do not have to bother with implementing
+  * it. */
 
  [[nodiscard]] virtual const std::string &
   vstr_par_idx2str( idx_type idx ) const {
+   if( const auto s = par_idx2str< vstr_par_type_TCI >( idx ) )
+    return( *s );
    throw( std::invalid_argument( "invalid vector-of-string parameter name" )
 	  );
    }
@@ -2173,9 +2210,98 @@ class ThinComputeInterface
 /** @} ---------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
-// empty, this is a thin interface
+
+ protected:
 
 /*--------------------------------------------------------------------------*/
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name The names of the parameters, out of the enum that declares them
+ *
+ * The algorithmic parameters are declared by an enum per type and class
+ * (int_par_type_TCI, dbl_par_type_S, ...), each one starting from the last
+ * value of the enum of the base class and ending with a value that is no
+ * parameter, but the first one allowed to the derived classes; the name of
+ * a parameter is that of its enumerator. These methods read the names off
+ * the enum by the reflection of C++26, so that a class does not write them
+ * again in [int|dbl|...]_par_str2idx() and [int|dbl|...]_par_idx2str():
+ * its own parameters are dealt with by
+ *
+ *     const auto i = par_str2idx< int_par_type_S >( name );
+ *     return( i < Inf< idx_type >() ? i : Base::int_par_str2idx( name ) );
+ *
+ * and by
+ *
+ *     if( const auto s = par_idx2str< int_par_type_S >( idx ) )
+ *      return( *s );
+ *     return( Base::int_par_idx2str( idx ) );
+ *
+ * and the others by the base class.
+ *  @{ */
+
+ /// the names and the values of the parameters of the enum E
+ /** One pair per enumerator of E, in the order in which they are declared,
+  * but for the last one, which is no parameter but the first value allowed
+  * to the derived classes; the table is made at the first call. */
+
+ template< class E >
+ [[nodiscard]] static const std::vector< std::pair< std::string ,
+						    idx_type > > &
+ par_names( void ) {
+  static const auto names = make_par_names< E >();
+  return( names );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the table of par_names(), made out of the enumerators of E
+ /** The names and the values are read off the enum while compiling, the
+  * table of std::string is made at run time. */
+
+ template< class E >
+ [[nodiscard]] static std::vector< std::pair< std::string , idx_type > >
+ make_par_names( void ) {
+  static_assert( std::is_enum_v< E > , "par_names: E is not an enum" );
+
+  std::vector< std::pair< std::string , idx_type > > t;
+  template for( constexpr auto e :
+		std::define_static_array( std::meta::enumerators_of( ^^E ) ) ) {
+   constexpr std::string_view name = std::meta::identifier_of( e );
+   constexpr idx_type value = idx_type( [:e:] );
+   t.emplace_back( std::string( name ) , value );
+   }
+  if( ! t.empty() )
+   t.pop_back();       // the first value allowed to the derived classes
+  return( t );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the index of the parameter of the enum E named name
+ /** Inf< idx_type >() if no enumerator of E, the last one excepted, has
+  * that name, so that the caller can then ask the base class. */
+
+ template< class E >
+ [[nodiscard]] static idx_type par_str2idx( const std::string & name ) {
+  for( const auto & [ n , i ] : par_names< E >() )
+   if( n == name )
+    return( i );
+  return( Inf< idx_type >() );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the name of the parameter of the enum E of index idx
+ /** nullptr if no enumerator of E, the last one excepted, has that value,
+  * so that the caller can then ask the base class; the name lives as long
+  * as the program. */
+
+ template< class E >
+ [[nodiscard]] static const std::string * par_idx2str( idx_type idx ) {
+  for( const auto & [ n , i ] : par_names< E >() )
+   if( i == idx )
+    return( & n );
+  return( nullptr );
+  }
+
+/** @} ---------------------------------------------------------------------*/
 
  };   // end( class ThinComputeInterface )
 

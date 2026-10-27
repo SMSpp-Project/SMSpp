@@ -119,7 +119,12 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 # With the BUILD_SHARED_LIBS variable we can specify if the library will
 # be STATIC or SHARED, so no reason to do it now.
 add_library(${modName})
-target_compile_features(${modName} PUBLIC cxx_std_20)
+# The names of the algorithmic parameters are read off the enums that
+# declare them by the reflection of C++26 [see ThinComputeInterface.h],
+# which GCC 16 has with -freflection.
+target_compile_features(${modName} PUBLIC cxx_std_26)
+target_compile_options(${modName} PUBLIC
+        $<$<COMPILE_LANG_AND_ID:CXX,GNU>:-freflection>)
 
 # The name of the shared library carries the version of its binary interface,
 # which any minor release may change while the major version is 0, and then
@@ -245,7 +250,7 @@ if (SMSpp_BUILD_MODULE)
             FILE_SET CXX_MODULES
             BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/src
             FILES src/SMSpp.cppm)
-    target_compile_features(${modName}_module PUBLIC cxx_std_20)
+    target_compile_features(${modName}_module PUBLIC cxx_std_26)
     target_link_libraries(${modName}_module PUBLIC ${modName})
     add_library(${modNamespace}::${modName}_module ALIAS ${modName}_module)
 endif ()

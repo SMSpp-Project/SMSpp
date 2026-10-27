@@ -678,62 +678,20 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface
 
 /*--------------------------------------------------------------------------*/
 
- [[nodiscard]] idx_type int_par_str2idx( const std::string & name )
-  const override {
-  if( name == "intMaxIter" )
-   return( intMaxIter );
-  if( name == "intMaxThread" )
-   return( intMaxThread );
-  if( name == "intEverykIt" )
-   return( intEverykIt );
-
-  return( Inf< idx_type >() );
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
  [[nodiscard]] idx_type dbl_par_str2idx( const std::string & name )
   const override {
-  if( name == "dblMaxTime" )
-   return( dblMaxTime );
-  if( name == "dblEveryTTm" )
-   return( dblEveryTTm );
-  if( name == "dblRelAcc" )
-   return( dblRelAcc );
-  if( name == "dblAbsAcc" )
-   return( dblAbsAcc );
-  if( name == "dblUpCutOff" )
-   return( dblUpCutOff );
-  if( name == "dblLwCutOff" )
-   return( dblLwCutOff );
-
-  return( Inf< idx_type >() );
+  const auto i = par_str2idx< dbl_par_type_F >( name );
+  return( i < Inf< idx_type >() ? i
+	                        : ThinComputeInterface::dbl_par_str2idx( name ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
- [[nodiscard]] const std::string & int_par_idx2str( idx_type idx )
-  const override {
-  static const std::vector< std::string > pars = { "intMaxIter" ,
-						   "intMaxThread" ,
-						   "intEverykIt" };
-  if( ( idx >= intMaxIter ) && ( idx <= intEverykIt ) )
-   return( pars[ idx ] );
-
-  throw( std::invalid_argument( "invalid int parameter name" ) );
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
  [[nodiscard]] const std::string & dbl_par_idx2str( idx_type idx )
   const override {
-  static const std::vector< std::string > pars = { "dblMaxTime" ,
-  "dblEveryTTm" , "dblRelAcc" , "dblAbsAcc" , "dblUpCutOff" , "dblLwCutOff" };
-
-  if( ( idx >= dblMaxTime ) && ( idx <= dblLwCutOff ) )
-   return( pars[ idx ] );
-
-  throw( std::invalid_argument( "invalid double parameter name" ) );
+  if( const auto s = par_idx2str< dbl_par_type_F >( idx ) )
+   return( *s );
+  return( ThinComputeInterface::dbl_par_idx2str( idx ) );
   }
 
 /** @} ---------------------------------------------------------------------*/

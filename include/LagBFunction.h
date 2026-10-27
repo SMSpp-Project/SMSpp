@@ -2403,16 +2403,9 @@ class LagBFunction : public C05Function , public Block
 
  [[nodiscard]] idx_type int_par_str2idx( const std::string & name )
   const override {
-  if( name == "intInnrSlvr" )
-   return( intInnrSlvr );
-  if( name == "intNoSol" )
-   return( intNoSol );
-  if( name == "intChkState" )
-   return( intChkState );
-  if( name == "intPushCostToOwner" )
-   return( intPushCostToOwner );
-  if( name == "intPoolExtMem" )
-   return( intPoolExtMem );
+  if( const auto i = par_str2idx< int_par_type_LagBF >( name ) ;
+      i < Inf< idx_type >() )
+   return( i );
 
   if( auto is = inner_Solver() )
    return( int_par_lbf( is->int_par_str2idx( name ) ) );
@@ -2424,8 +2417,9 @@ class LagBFunction : public C05Function , public Block
 
  [[nodiscard]] idx_type dbl_par_str2idx( const std::string & name )
   const override {
-  if( name == "dblCostTol" )
-   return( dblCostTol );
+  if( const auto i = par_str2idx< dbl_par_type_LagBF >( name ) ;
+      i < Inf< idx_type >() )
+   return( i );
   if( auto is = inner_Solver() )
    return( dbl_par_lbf( is->dbl_par_str2idx( name ) ) );
   else
@@ -2436,8 +2430,9 @@ class LagBFunction : public C05Function , public Block
 
  [[nodiscard]] idx_type str_par_str2idx( const std::string & name )
   const override {
-  if( name == "strChkCfg" )
-   return( strChkCfg );
+  if( const auto i = par_str2idx< str_par_type_LagBF >( name ) ;
+      i < Inf< idx_type >() )
+   return( i );
 
   if( auto is = inner_Solver() )
    return( str_par_lbf( is->str_par_str2idx( name ) ) );
@@ -2479,12 +2474,8 @@ class LagBFunction : public C05Function , public Block
 
  [[nodiscard]] const std::string & int_par_idx2str( idx_type idx )
   const override {
-  static const std::array< std::string , 5 > pars =
-   { "intInnrSlvr", "intNoSol" , "intChkState" , "intPushCostToOwner" ,
-     "intPoolExtMem" };
-
-  if( ( idx >= intInnrSlvr ) && ( idx <= intPoolExtMem ) )
-   return( pars[ idx - intInnrSlvr ] );
+  if( const auto s = par_idx2str< int_par_type_LagBF >( idx ) )
+   return( *s );
 
   if( auto is = inner_Solver() )
    return( is->int_par_idx2str( int_par_is( idx ) ) );
@@ -2496,10 +2487,8 @@ class LagBFunction : public C05Function , public Block
 
  [[nodiscard]] const std::string & dbl_par_idx2str( idx_type idx )
   const override {
-  static const std::array< std::string , 1 > pars = { "dblCostTol" };
-
-  if( idx == dblCostTol )
-   return( pars[ idx - dblCostTol ] );
+  if( const auto s = par_idx2str< dbl_par_type_LagBF >( idx ) )
+   return( *s );
 
   if( auto is = inner_Solver() )
    return( is->dbl_par_idx2str( dbl_par_is( idx ) ) );
@@ -2511,9 +2500,8 @@ class LagBFunction : public C05Function , public Block
 
  [[nodiscard]] const std::string & str_par_idx2str( idx_type idx )
   const override {
-  static const std::string _chk = "strChkCfg";
-  if( idx == strChkCfg )
-   return( _chk );
+  if( const auto s = par_idx2str< str_par_type_LagBF >( idx ) )
+   return( *s );
 
   if( auto is = inner_Solver() )
    return( is->str_par_idx2str( str_par_is( idx ) ) );

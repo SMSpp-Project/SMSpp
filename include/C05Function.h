@@ -1369,39 +1369,24 @@ class C05Function : public Function {
 
  [[nodiscard]] idx_type int_par_str2idx( const std::string & name )
   const override {
-  if( name == "intLPMaxSz" )
-   return( intLPMaxSz );
-  if( name == "intGPMaxSz" )
-   return( intGPMaxSz );
-
-  return( Function::int_par_str2idx( name ) );
+  const auto i = par_str2idx< int_par_type_C05F >( name );
+  return( i < Inf< idx_type >() ? i : Function::int_par_str2idx( name ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  [[nodiscard]] idx_type dbl_par_str2idx( const std::string & name )
   const override {
-  if( name == "dblRAccLin" )
-   return( dblRAccLin );
-  if( name == "dblAAccLin" )
-   return( dblAAccLin );
-  if( name == "dblAAccMlt" )
-   return( dblAAccMlt );
-
-  return( Function::dbl_par_str2idx( name ) );
+  const auto i = par_str2idx< dbl_par_type_C05F >( name );
+  return( i < Inf< idx_type >() ? i : Function::dbl_par_str2idx( name ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
  [[nodiscard]] const std::string & int_par_idx2str( idx_type idx )
   const override {
-  static const std::vector< std::string > pars =
-                                              { "intLPMaxSz", "intGPMaxSz" };
-  if( idx == intLPMaxSz )
-   return( pars[ 0 ] );
-  if( idx == intGPMaxSz )
-   return( pars[ 1 ] );
-
+  if( const auto s = par_idx2str< int_par_type_C05F >( idx ) )
+   return( *s );
   return( Function::int_par_idx2str( idx ) );
   }
 
@@ -1409,15 +1394,8 @@ class C05Function : public Function {
 
  [[nodiscard]] const std::string & dbl_par_idx2str( idx_type idx )
   const override {
-  static const std::vector< std::string > pars =
-                             { "dblRAccLin" , "dblAAccLin" , "dblAAccMlt" };
-  if( idx == dblRAccLin )
-   return( pars[ 0 ] );
-  if( idx == dblAAccLin )
-   return( pars[ 1 ] );
-  if( idx == dblAAccMlt )
-   return( pars[ 2 ] );
-
+  if( const auto s = par_idx2str< dbl_par_type_C05F >( idx ) )
+   return( *s );
   return( Function::dbl_par_idx2str( idx ) );
   }
 

@@ -366,16 +366,17 @@ public:
 
  [[nodiscard]] idx_type int_par_str2idx( const std::string & name )
   const override {
-  return( name == "intPDSol" ? intPDSol
-	                     : CDASolver::int_par_str2idx( name ) );
+  const auto i = par_str2idx< int_par_type_BoxS >( name );
+  return( i < Inf< idx_type >() ? i : CDASolver::int_par_str2idx( name ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
  [[nodiscard]] const std::string & int_par_idx2str( idx_type idx )
   const override {
-  static std::string _parnm( "intPDSol" );
-  return( idx == intPDSol ? _parnm : CDASolver::int_par_idx2str( idx ) );
+  if( const auto s = par_idx2str< int_par_type_BoxS >( idx ) )
+   return( *s );
+  return( CDASolver::int_par_idx2str( idx ) );
   }
 
 /** @} ---------------------------------------------------------------------*/
