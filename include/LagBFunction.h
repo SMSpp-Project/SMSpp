@@ -2408,7 +2408,7 @@ class LagBFunction : public C05Function , public Block
    return( i );
 
   if( auto is = inner_Solver() )
-   return( int_par_lbf( is->int_par_str2idx( name ) ) );
+   return( int_par_is( is->int_par_str2idx( name ) ) );
   else
    return( C05Function::int_par_str2idx( name ) );
   }
@@ -2421,7 +2421,7 @@ class LagBFunction : public C05Function , public Block
       i < Inf< idx_type >() )
    return( i );
   if( auto is = inner_Solver() )
-   return( dbl_par_lbf( is->dbl_par_str2idx( name ) ) );
+   return( dbl_par_is( is->dbl_par_str2idx( name ) ) );
   else
    return( C05Function::dbl_par_str2idx( name ) );
   }
@@ -2435,7 +2435,7 @@ class LagBFunction : public C05Function , public Block
    return( i );
 
   if( auto is = inner_Solver() )
-   return( str_par_lbf( is->str_par_str2idx( name ) ) );
+   return( str_par_is( is->str_par_str2idx( name ) ) );
   else
    return( C05Function::str_par_str2idx( name ) );
   }
@@ -2445,7 +2445,7 @@ class LagBFunction : public C05Function , public Block
  [[nodiscard]] idx_type vint_par_str2idx( const std::string & name )
   const override {
   if( auto is = inner_Solver() )
-   return( vint_par_lbf( is->vint_par_str2idx( name ) ) );
+   return( vint_par_is( is->vint_par_str2idx( name ) ) );
   else
    return( C05Function::vint_par_str2idx( name ) );
   }
@@ -2455,7 +2455,7 @@ class LagBFunction : public C05Function , public Block
  [[nodiscard]] idx_type vdbl_par_str2idx( const std::string & name )
   const override {
   if( auto is = inner_Solver() )
-   return( vdbl_par_lbf( is->vdbl_par_str2idx( name ) ) );
+   return( vdbl_par_is( is->vdbl_par_str2idx( name ) ) );
   else
    return( C05Function::vdbl_par_str2idx( name ) );
   }
@@ -2465,7 +2465,7 @@ class LagBFunction : public C05Function , public Block
  [[nodiscard]] idx_type vstr_par_str2idx( const std::string & name )
   const override {
   if( auto is = inner_Solver() )
-   return( vstr_par_lbf( is->vstr_par_str2idx( name ) ) );
+   return( vstr_par_is( is->vstr_par_str2idx( name ) ) );
   else
    return( C05Function::vstr_par_str2idx( name ) );
   }
@@ -2478,7 +2478,7 @@ class LagBFunction : public C05Function , public Block
    return( *s );
 
   if( auto is = inner_Solver() )
-   return( is->int_par_idx2str( int_par_is( idx ) ) );
+   return( is->int_par_idx2str( int_par_lbf( idx ) ) );
   else
    return( C05Function::int_par_idx2str( idx ) );
   }
@@ -2491,7 +2491,7 @@ class LagBFunction : public C05Function , public Block
    return( *s );
 
   if( auto is = inner_Solver() )
-   return( is->dbl_par_idx2str( dbl_par_is( idx ) ) );
+   return( is->dbl_par_idx2str( dbl_par_lbf( idx ) ) );
   else
    return( C05Function::dbl_par_idx2str( idx ) );
   }
@@ -2504,7 +2504,7 @@ class LagBFunction : public C05Function , public Block
    return( *s );
 
   if( auto is = inner_Solver() )
-   return( is->str_par_idx2str( str_par_is( idx ) ) );
+   return( is->str_par_idx2str( str_par_lbf( idx ) ) );
   else
    return( C05Function::str_par_idx2str( idx ) );
   }
@@ -2514,7 +2514,7 @@ class LagBFunction : public C05Function , public Block
  [[nodiscard]] const std::string & vint_par_idx2str( idx_type idx )
   const override {
   if( auto is = inner_Solver() )
-   return( is->vint_par_idx2str( dbl_par_is( idx ) ) );
+   return( is->vint_par_idx2str( vint_par_lbf( idx ) ) );
   else
    return( C05Function::vint_par_idx2str( idx ) );
   }
@@ -2524,7 +2524,7 @@ class LagBFunction : public C05Function , public Block
  [[nodiscard]] const std::string & vdbl_par_idx2str( idx_type idx )
   const override {
   if( auto is = inner_Solver() )
-   return( is->vdbl_par_idx2str( vdbl_par_is( idx ) ) );
+   return( is->vdbl_par_idx2str( vdbl_par_lbf( idx ) ) );
   else
    return( C05Function::vdbl_par_idx2str( idx ) );
   }
@@ -2534,7 +2534,7 @@ class LagBFunction : public C05Function , public Block
  [[nodiscard]] const std::string & vstr_par_idx2str( idx_type idx )
   const override {
   if( auto is = inner_Solver() )
-   return( is->vstr_par_idx2str( vstr_par_is( idx ) ) );
+   return( is->vstr_par_idx2str( vstr_par_lbf( idx ) ) );
   else
    return( C05Function::vstr_par_idx2str( idx ) );
   }

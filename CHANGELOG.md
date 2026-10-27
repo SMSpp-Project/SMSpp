@@ -226,6 +226,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- the names of the parameters of the inner Solver that a `LagBFunction`
+  gives: `[int|dbl|...]_par_str2idx()` shifted the index of the inner
+  Solver the way that leads from the `LagBFunction` to it, and
+  `[int|dbl|...]_par_idx2str()` the other way round (the vector-of-int one
+  with the shift of the double parameters), so that a parameter of the
+  inner Solver that is not one of `Solver` (e.g., `intPDSol` of the
+  `BoxSolver`, 6 there and 11 in the `LagBFunction`) was named by the index
+  of another one, and a `ComputeConfig` of the `LagBFunction` setting it by
+  name set that other parameter (`intNoSol`); `LagBFunction_unit_test`
+  checks the names both ways
+
 - `BendersBFunction::get_linearization_coefficients()` with a
   `SparseVector` and a `Subset` gave the coefficients with the opposite sign
   of those of the other three forms; the unit test compares the four forms

@@ -1,3 +1,28 @@
+2026-10-27 [low] the reflection of C++26 for the factory and the parameters
+
+	Two pieces of boilerplate can go with the reflection of C++26
+	(std::meta), once the compilers have it widely enough (GCC 16 with
+	-freflection is the first one, Clang does not have it yet):
+
+	- the names of the algorithmic parameters, i.e., the methods
+	  [int|dbl|...]_par_str2idx() and [int|dbl|...]_par_idx2str() that
+	  every class with parameters writes by hand: the name of a parameter
+	  is that of its enumerator, so that ThinComputeInterface can read the
+	  names off the enum once and for all, and each class is left with two
+	  lines per type, its own enum first and the base class next. This is
+	  done for the core on the branch feature/cpp26 of SMS++ (built and
+	  tested with GCC 16), the other modules can follow one class at a
+	  time;
+
+	- the macros of the factory (SMSpp_insert_in_factory_h and
+	  SMSpp_insert_in_factory_cpp_*), which give the name of the class as a
+	  string by #__VA_ARGS__: std::meta::identifier_of() gives it, and the
+	  registration could be a template. The macro of the .h declares
+	  members of the class (the static object that registers it and
+	  private_name()), which without the macro need a CRTP base between the
+	  class and its base, so that the hierarchy of every class changes; the
+	  macros are used by about 190 classes in all the modules.
+
 2022-02-10 [medium] add multi-dimensional vectors of stuff with non-uniform size
 
         For some applications (UC) it would be quite handy to have groups of
