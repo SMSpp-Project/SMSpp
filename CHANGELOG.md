@@ -215,6 +215,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- the constructor of `C05FunctionModLin` checks that the `Variable` and the
+  changes are as many: it compared the sizes of its arguments after moving
+  them into the fields, so that the check never failed
+
 - the names of the parameters of the inner Solver that a `LagBFunction`
   gives: `[int|dbl|...]_par_str2idx()` shifted the index of the inner
   Solver the way that leads from the `LagBFunction` to it, and

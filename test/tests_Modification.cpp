@@ -2689,6 +2689,40 @@ static void test_issue_by_kind( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* A C05FunctionModLin takes as many Variable as changes, and refuses
+ * anything else: the vectors are moved into it, and what is checked is what
+ * it holds, both when they are empty and when one of them alone is. */
+
+static void test_C05FunctionModLin_sizes( void )
+{
+ std::vector< ColVariable > x( 3 );
+ LinearFunction lf( { { & x[ 0 ] , 1 } , { & x[ 1 ] , 2 } ,
+		      { & x[ 2 ] , 3 } } );
+ using Vars = std::vector< Variable * >;
+ using Delta = Function::Vec_FunctionValue;
+
+ auto make = [ & ]( Vars v , Delta d ) {
+  return( C05FunctionModLin( & lf , std::move( d ) , std::move( v ) ) ); };
+
+ auto refused = [ & ]( Vars v , Delta d ) {
+  try { make( std::move( v ) , std::move( d ) ); }
+  catch( const std::invalid_argument & ) { return( true ); }
+  return( false ); };
+
+ const auto mod = make( { & x[ 0 ] , & x[ 2 ] } , { 1 , -1 } );
+ assert( ( mod.vars().size() == 2 ) && ( mod.delta().size() == 2 ) );
+ assert( ( mod.vars()[ 1 ] == & x[ 2 ] ) && ( mod.delta()[ 1 ] == -1 ) );
+
+ const auto none = make( {} , {} );
+ assert( none.vars().empty() && none.delta().empty() );
+
+ assert( refused( { & x[ 0 ] , & x[ 1 ] } , { 1 } ) );
+ assert( refused( { & x[ 0 ] } , { 1 , 2 } ) );
+ assert( refused( {} , { 1 } ) );
+ assert( refused( { & x[ 0 ] } , {} ) );
+ }
+
+/*--------------------------------------------------------------------------*/
 /* What a FunctionMod says of itself once its Function is that of an
  * FRowConstraint or of an FRealObjective, which read its shift() [see
  * Modification::set_changes()]: upwards the RHS becomes harder to satisfy and
@@ -3035,6 +3069,7 @@ int main( void )
  test_LagBFunction_concerned();
  test_issue_by_kind();
  test_FunctionMod_changes();
+ test_C05FunctionModLin_sizes();
  test_dry_run_BendersBFunction();
  test_dry_run_C05SumFunction();
  test_changes();

@@ -2739,8 +2739,10 @@ class C05FunctionModLin : public FunctionMod
                     bool cB = true )
   : FunctionMod( f , shift , cB ) , v_vars( std::move( vars ) ) ,
     v_delta( std::move( delta ) ) {
-  if( vars.size() != delta.size() )
-   throw( std::invalid_argument( "vars and delta sizes do not match" ) );
+  // the arguments have been moved from: the sizes are those of the fields
+  if( v_vars.size() != v_delta.size() )
+   throw( std::invalid_argument( "C05FunctionModLin::C05FunctionModLin: "
+                                 "vars and delta sizes do not match" ) );
   }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
