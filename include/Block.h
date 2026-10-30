@@ -2294,7 +2294,10 @@ class Block : public Observer {
   * A change issues a BlockWeightMod. A Solver attached to an ancestor has
   * to handle it, and std::logic_error is thrown, before anything is
   * changed, if any of them cannot [see Solver::handles_weight_change()]; one
-  * attached to this Block does not see the weight. std::invalid_argument is
+  * attached to this Block does not see the weight. The ancestors are looked
+  * at up to the first one that is a Function (say, the LagBFunction or the
+  * BendersBFunction whose inner Block this Block is in), which tells those
+  * above it of the change as a change of itself. std::invalid_argument is
   * thrown if \p w is not finite and positive. */
 
  void set_objective_weight( double w , c_ModParam issueMod = eModBlck );

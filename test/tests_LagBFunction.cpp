@@ -1028,6 +1028,68 @@ static void test_columns_edge_cases( void )
 
 /*--------------------------------------------------------------------------*/
 
+/*--------------------------------------------------------------------------*/
+/* The weight of the Objective of the inner Block changed with a Solver that
+ * cannot handle it attached above the LagBFunction: the LagBFunction tells
+ * it of the change as a change of itself, hence the change is not refused;
+ * the value is then that of the Lagrangian with the costs times the weight,
+ * the Lagrangian term entering with none, and a linearization stored before
+ * the change, with its constant computed again, is still above it. */
+
+/// l( y ) with the costs of the inner Block times w
+static double closed_form_w( const std::vector< double > & y ,
+			     const std::vector< Index > & rows , double w )
+{
+ double val = 0;
+ for( Index j = 0 ; j < c_cost.size() ; ++j ) {
+  double cy = w * c_cost[ j ];
+  for( Index k = 0 ; k < rows.size() ; ++k )
+   cy += y[ k ] * c_A[ rows[ k ] ][ j ];
+  val += cy * ( cy >= 0 ? c_lb[ j ] : c_ub[ j ] );
+  }
+ for( Index k = 0 ; k < rows.size() ; ++k )
+  val += y[ k ] * c_b[ rows[ k ] ];
+ return( val );
+ }
+
+static void test_weight_change( void )
+{
+ Fixture f;
+ f.lbf->set_par( C05Function::intGPMaxSz , 1 );
+ f.lbf->set_dual_pairs( v_dual_pair( { f.pair( 0 , 0 ) , f.pair( 1 , 1 ) } ) );
+ f.observe();
+
+ const std::vector< double > y0 = { -1 , 0.25 };
+ check_at( f , y0 , { 0 , 1 } , "before the weight" );
+ f.lbf->store_linearization( 0 , eNoMod );
+ double g[ 2 ];
+ f.lbf->get_linearization_coefficients( g , Range( 0 , 2 ) , 0 );
+
+ bool refused = false;
+ try { f.inner->set_objective_weight( 2.5 ); }
+ catch( std::logic_error & ) { refused = true; }
+ expect( ! refused , "a change of the weight inside the LagBFunction is "
+	 "refused by a Solver above it" );
+
+ const std::vector< std::vector< double > > ys = {
+  { 0 , 0 } , { -1 , 0.25 } , { 2 , 0.5 } , { -3 , -1 } };
+ for( const auto & yv : ys ) {
+  f.set_y( yv );
+  assert( f.lbf->compute() == Solver::kOK );
+  const double lw = closed_form_w( yv , { 0 , 1 } , 2.5 );
+  expect( equal( f.lbf->get_value() , lw ) , "l( y ) with the weight = " +
+	  std::to_string( f.lbf->get_value() ) + ", expected " +
+	  std::to_string( lw ) );
+  const double alpha = f.lbf->get_linearization_constant( 0 );
+  expect( lw <= alpha + g[ 0 ] * yv[ 0 ] + g[ 1 ] * yv[ 1 ] + c_eps ,
+	  "the stored linearization is below l with the weight" );
+  }
+
+ std::cout << "weight of the inner Block: done" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+
 int main( int argc , char ** argv )
 {
  test_empty_dual_pairs();
@@ -1042,6 +1104,7 @@ int main( int argc , char ** argv )
  test_columns_remove_all();
  test_columns_remove_some();
  test_columns_edge_cases();
+ test_weight_change();
 
  if( n_failures ) {
   std::cout << "LagBFunction_unit_test: " << n_failures << " check(s) failed"

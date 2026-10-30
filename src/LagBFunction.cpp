@@ -3655,6 +3655,38 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 
  if( mod->get_Block() == this )
   return( guts_of_this_add_Modification( mod , chnl ) );
+
+ // BlockWeightMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ /* A change of the weights of a Block of the inner Block. The weight of the
+  * Objective changes the weights of the Objective in the LagBFunction [see
+  * v_ObjW], which are computed again: the Lagrangian costs are written
+  * again with them [see f_dirty_Lc], and the constants of the
+  * linearizations are computed again, the value of a point changing while
+  * its gradient, the Lagrangian term that enters with no weight, does not.
+  * The weight of the Variable changes the coefficients of the Constraint of
+  * the inner Block, which is what the Modification says of itself, as any
+  * other one below. */
+
+ if( const auto wmod = dynamic_cast< const BlockWeightMod * >( mod ) ) {
+  if( wmod->which() & BlockWeightMod::eObjective ) {
+   for( Index h = 0 ; h < v_BlockBFS.size() ; ++h ) {
+    double w = v_BlockBFS[ h ]->get_objective_weight();
+    if( h )  // the father comes before in the BFS
+     w *= v_ObjW[ Block2Idx.at( v_BlockBFS[ h ]->get_f_Block() ) ];
+    v_ObjW[ h ] = w;
+    }
+   f_dirty_Lc = ! LagPairs.empty();
+
+   if( f_Observer )
+    f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
+                                    this , C05FunctionMod::AlphaChanged ,
+                                    Subset() , 1 , NaN , true ) ,
+				  chnl );
+   }
+
+  if( ! ( wmod->which() & BlockWeightMod::eVariable ) )
+   return( 0 );
+  }
  
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // C05FunctionModLin: the "linear part" of a Function has been changed

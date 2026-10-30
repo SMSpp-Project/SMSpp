@@ -206,6 +206,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- a change of the weights of a `Block` asks the `Solver` of its ancestors
+  up to the first one that is a `Function` (the `LagBFunction` or the
+  `BendersBFunction` whose inner `Block` it is in), which tells those above
+  it of the change as a change of itself; `LagBFunction` takes a
+  `BlockWeightMod` from its inner `Block`, computes the weights of its
+  `Objective` again, writes the Lagrangian costs again with them and
+  issues an `AlphaChanged` `LagBFunctionMod`; `LagBFunction_unit_test`
+  checks it with a `Solver` above the `LagBFunction` that does not handle
+  a change of the weights
+
 - the documentation of `NcMemFile` says that the root group of an image
   opened again gives its groups and its variables in the order of their
   names, netCDF-C not tracking the order of creation in the root of a file

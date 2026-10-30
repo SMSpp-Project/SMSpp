@@ -27,6 +27,7 @@
 #include "AbstractBlock.h"
 #include "Block.h"
 #include "Constraint.h"
+#include "Function.h"
 #include "Objective.h"
 #include "SMSnetCDF.h"
 #include "Solution.h"
@@ -490,12 +491,18 @@ double Block::get_objective_weight( const Block * ancestor ) const
 // itself does not see them
 static void check_weight_change( const Block * b , const char * who )
 {
- for( auto a = b->get_f_Block() ; a ; a = a->get_f_Block() )
+ for( auto a = b->get_f_Block() ; a ; a = a->get_f_Block() ) {
   for( auto s : a->get_registered_solvers() )
    if( s && ( ! s->handles_weight_change() ) )
     throw( std::logic_error( std::string( "Block::" ) + who + ": the " +
                              s->classname() + " attached to an ancestor "
                              "cannot handle a change of the weights" ) );
+
+  // a Function with an inner Block tells those above it of the change as
+  // a change of itself, which is no change of the weights for them
+  if( dynamic_cast< const Function * >( a ) )
+   break;
+  }
  }
 
 /*--------------------------------------------------------------------------*/
