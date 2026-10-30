@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `copy_group()` and `write_via_memory()` in `SMSnetCDF.h`: the first
+  copies a netCDF group into another, possibly of another file, making all
+  the definitions before writing any value, so that the destination file
+  leaves the define mode once; the second writes each part of a group in an
+  `NcMemFile` of its own and copies all of them together, so that a file
+  made of many parts is written in a time linear in its size rather than
+  quadratic (in a netCDF-4 file each passage from the define mode to the data
+  mode writes the metadata and flushes every dataset open in the process);
+  `copy_group()` throws `std::length_error` rather than taking a file over
+  the 32767 groups netCDF-C (up to 4.9.3 at least) can hold, past which it
+  crashes; `NetCDF_unit_test` checks them against writing in place
+
 - the weight of the Objective of a `Block` [see
   `Block::set_objective_weight()`] in the `Solver` and `Function` of the core:
   `LagBFunction` writes in the Objective of each Block of its inner Block the
@@ -193,6 +205,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   headers of another library left out)
 
 ### Changed
+
+- the documentation of `NcMemFile` says that the root group of an image
+  opened again gives its groups and its variables in the order of their
+  names, netCDF-C not tracking the order of creation in the root of a file
+  in memory, while the other groups keep it
 
 - `SMSpp_BUILD_MODULE` is ON by default where the C++20 modules can be built
   and the compiler is Clang, and OFF elsewhere (MSVC included, where they are

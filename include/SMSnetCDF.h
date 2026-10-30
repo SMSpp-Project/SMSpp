@@ -2200,6 +2200,73 @@ inline void check_dimensions( const netCDF::NcGroup & group ,
   }
  }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - COPYING netCDF GROUPS - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// copy the content of a netCDF group into another group
+/** Copies into \p to the dimensions, the variables with their values, the
+ * attributes and, recursively, the sub-groups of \p from, which may belong
+ * to another file (say, an NcMemFile), keeping their names and order, the
+ * unlimited dimensions, and the chunking, compression and fill mode of each
+ * variable. A dimension that a variable of \p from uses and that is defined
+ * outside \p from is looked for by name in \p to and in its ancestors.
+ * \p to must have none of the names of \p from, and \p from must have no
+ * variable of a user-defined type (strings are fine), otherwise an
+ * exception is thrown; std::length_error is thrown, and nothing is copied,
+ * if the file of \p to would have more than 32767 groups, since netCDF-C
+ * (up to 4.9.3 at least) crashes when a file gets the 32768-th one.
+ *
+ * All the definitions are made before any value is written, so that the
+ * file of \p to leaves the define mode once. This is the point of the
+ * function: in a netCDF-4 file each passage from the define mode to the
+ * data mode (which netCDF does by itself at the first write after a
+ * definition) writes the metadata of the whole file and flushes every
+ * HDF5 dataset in it, so that a file written one variable at a time, as
+ * the serialize() of the Block and of the Solution do, costs a time
+ * growing as the square of the number of its variables [see
+ * write_via_memory()]. */
+
+void copy_group( const netCDF::NcGroup & from , netCDF::NcGroup & to );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// write the parts of a netCDF group by way of in-memory files
+/** For each i in [ 0 , names.size() ), creates in \p group the sub-group
+ * names[ i ] and has \p write( i , g ) write in it, as \p write( i ,
+ * group.addGroup( names[ i ] ) ) would do, provided that \p write only
+ * uses what it writes itself (a dimension of an ancestor of the sub-group
+ * is not there for it to use).
+ *
+ * This is how a netCDF-4 file made of many parts is written in a time
+ * linear in its size. In a netCDF-4 file each passage from the define mode
+ * to the data mode (which netCDF does by itself at the first write after a
+ * definition) writes the metadata of the file and flushes the HDF5
+ * datasets, and the flush of a file goes through all the datasets open in
+ * the process, those of the other files too: a serialize() writing its
+ * variables one at a time passes from a mode to the other at each of them,
+ * so that a file costs a time quadratic in the number of its variables
+ * (the Solution of a TwoStageStochasticBlock with 200 scenarios, each of 88
+ * UnitBlock, has some 37000 variables in 18000 groups, and takes minutes to
+ * be written).
+ *
+ * Here each part is written by \p write in an NcMemFile of its own, whose
+ * image is kept once it is closed, and then all the parts are copied in
+ * \p group, all the definitions first and all the values after
+ * [see copy_group()]: each part costs the square of its own size while the
+ * datasets open in the process are those of the part, and \p group passes
+ * once from the define mode to the data mode. The images of all the parts
+ * are in memory together, a memory as large as what is written (plus some
+ * 64 KiB for each part, see NcMemFile()), and the parts are written one
+ * after the other, in the order of \p names.
+ *
+ * With a netCDF-C earlier than 4.6.2, which has no in-memory files, each
+ * part is written directly in its sub-group of \p group. */
+
+void write_via_memory( netCDF::NcGroup & group ,
+		       const std::vector< std::string > & names ,
+		       const std::function< void( std::size_t ,
+						  netCDF::NcGroup & ) > &
+		       write );
+
 /** @} ---------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 /*-------------------------------- CLASSES ---------------------------------*/
@@ -2232,6 +2299,13 @@ inline void check_dimensions( const netCDF::NcGroup & group ,
  * size it has allocated, but the same content written in the same order
  * with the same netCDF and HDF5 libraries gives the same bytes. close() and
  * the destructor close the file discarding the image.
+ *
+ * Once its image is opened again, the root group of an NcMemFile gives
+ * its groups and its variables (not its dimensions) in the order of their
+ * names rather than in that of their creation, since netCDF-C (up to 4.9.3 at
+ * least) does not track the order of creation in the root group of a file
+ * in memory; every other group keeps it. What has to be read back in the
+ * order it was written is therefore best written in a sub-group.
  *
  * An image cannot be opened for writing, since the netCDF-C library does
  * not write in a netCDF-4 image it has not created (nor, on disk, in the

@@ -14,7 +14,8 @@
  * serialize_State(), and put_State() of what is read back gives a Function
  * with the same global pool. A Block with nested Block also goes through
  * the image of a netCDF file in memory (NcMemFile), before and after its
- * data are changed, and is compared with the one read from a file on disk.
+ * data are changed, and is compared with the one read from a file on disk;
+ * copy_group() and write_via_memory() are checked against writing in place.
  *
  * All of this is done with the core alone: no Solver is needed, since the
  * global pools are filled by compute() for a PolyhedralFunction and by
@@ -55,6 +56,7 @@
 #include <map>
 #include <memory>
 #include <sstream>
+#include <stdexcept>
 #include <tuple>
 #include <vector>
 
@@ -1441,7 +1443,7 @@ static void test_in_memory( void )
  box->set_rhs( 3 );
  block->get_objective()->set_sense( Objective::eMin );
  auto & ir = *block->get_nested_Blocks()[ 0 ]->
-			       get_static_constraint_v< FRowConstraint >( "r" );
+		      get_static_constraint_v< FRowConstraint >( "r" );
  ir[ 0 ].set_rhs( 9 );
  auto & pf = static_cast< PolyhedralFunctionBlock * >(
 		  block->get_nested_Blocks()[ 1 ] )->get_PolyhedralFunction();
@@ -1583,6 +1585,270 @@ static void test_in_memory( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* copy_group() and write_via_memory() give what writing in place gives: the
+ * same groups, dimensions, variables and attributes, in the same order,
+ * whatever their types (strings, scalars, a dimension of length 0, an
+ * unlimited one) and however many the sub-groups (enough of them for an
+ * order by name to differ from the order of creation); a dimension of an
+ * ancestor of the copied group is found by name in the destination, and its
+ * absence throws, as a variable of a user-defined type does; a copy that
+ * would take a file over the groups netCDF-C can hold throws and copies
+ * nothing. */
+
+// writes in g a part with some of everything, i telling the parts apart
+
+static void write_part( netCDF::NcGroup & g , int i )
+{
+ g.putAtt( "type" , "Part" );
+ g.putAtt( "index" , netCDF::NcInt() , i );
+
+ auto t = g.addDim( "T" , 5 );
+ auto z = g.addDim( "Z" , 0 );
+ auto u = g.addDim( "U" );  // unlimited
+
+ const double x[] = { 1.5 + i , -2 , 3 , 0 , 1e-300 };
+ auto vx = g.addVar( "x" , netCDF::NcDouble() , t );
+ vx.putVar( x );
+ vx.putAtt( "unit" , "MW" );
+ vx.putAtt( "scale" , netCDF::NcDouble() , 0.5 );
+
+ g.addVar( "k" , netCDF::NcInt() ).putVar( & i );
+ g.addVar( "z" , netCDF::NcDouble() , z );
+
+ const char * s[] = { "a" , "" , "ccc" , "dd" , "e" };
+ g.addVar( "s" , netCDF::NcString() , t ).putVar( s );
+
+ const double m[] = { 1 , 2 , 3 , 4 , 5 , 6 , 7 , 8 , 9 , 10 };
+ g.addVar( "m" , netCDF::NcDouble() , { t , g.addDim( "R" , 2 ) } )
+  .putVar( { 0 , 0 } , { 5 , 2 } , m );
+
+ const int w[] = { 7 , 8 , 9 };
+ g.addVar( "w" , netCDF::NcInt() , u ).putVar( { 0 } , { 3 } , w );
+
+ for( int j = 0 ; j < 12 ; ++j ) {
+  auto sg = g.addGroup( "Sub_" + std::to_string( j ) );
+  sg.putAtt( "type" , "Sub" );
+  auto n = sg.addDim( "N" , 2 );
+  const double v[] = { double( i ) , double( j ) };
+  sg.addVar( "v" , netCDF::NcDouble() , n ).putVar( v );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+// a text with everything in grp, in the order netCDF gives it
+
+static void dump( int grp , std::ostream & out )
+{
+ char name[ NC_MAX_NAME + 1 ];
+ nc_inq_grpname( grp , name );
+ out << "group " << name << "\n";
+
+ auto atts = [ & ]( int var ) {
+  int na = 0;
+  nc_inq_varnatts( grp , var , & na );
+  for( int a = 0 ; a < na ; ++a ) {
+   nc_type type;
+   std::size_t len;
+   nc_inq_attname( grp , var , a , name );
+   nc_inq_att( grp , var , name , & type , & len );
+   out << " att " << name << " " << type << " " << len << ":";
+   if( type == NC_CHAR ) {
+    std::string v( len , ' ' );
+    nc_get_att_text( grp , var , name , v.data() );
+    out << v;
+    }
+   else {
+    std::vector< double > v( len );
+    nc_get_att_double( grp , var , name , v.data() );
+    for( auto d : v )
+     out << " " << d;
+    }
+   out << "\n";
+   }
+  };
+ atts( NC_GLOBAL );
+
+ int nd = 0;
+ nc_inq_dimids( grp , & nd , nullptr , 0 );
+ std::vector< int > dims( nd );
+ nc_inq_dimids( grp , & nd , dims.data() , 0 );
+ int nu = 0;
+ nc_inq_unlimdims( grp , & nu , nullptr );
+ std::vector< int > unlim( nu );
+ nc_inq_unlimdims( grp , & nu , unlim.data() );
+ for( auto d : dims ) {
+  std::size_t len;
+  nc_inq_dim( grp , d , name , & len );
+  out << " dim " << name << " " << len
+      << ( std::ranges::find( unlim , d ) != unlim.end() ? " unlimited" : "" )
+      << "\n";
+  }
+
+ int nv = 0;
+ nc_inq_varids( grp , & nv , nullptr );
+ std::vector< int > vars( nv );
+ nc_inq_varids( grp , & nv , vars.data() );
+ for( auto v : vars ) {
+  nc_type type;
+  int ndims;
+  int vdims[ NC_MAX_VAR_DIMS ];
+  nc_inq_var( grp , v , name , & type , & ndims , vdims , nullptr );
+  out << " var " << name << " " << type;
+  std::size_t n = 1;
+  for( int k = 0 ; k < ndims ; ++k ) {
+   char dn[ NC_MAX_NAME + 1 ];
+   std::size_t len;
+   nc_inq_dim( grp , vdims[ k ] , dn , & len );
+   out << " " << dn;
+   n *= len;
+   }
+  out << ":";
+  if( type == NC_STRING ) {
+   std::vector< char * > s( n );
+   if( n )
+    nc_get_var_string( grp , v , s.data() );
+   for( auto c : s )
+    out << " '" << c << "'";
+   nc_free_string( n , s.data() );
+   }
+  else {
+   std::vector< double > d( n );
+   if( n )
+    nc_get_var_double( grp , v , d.data() );
+   for( auto e : d )
+    out << " " << e;
+   }
+  out << "\n";
+  atts( v );
+  }
+
+ int ng = 0;
+ nc_inq_grps( grp , & ng , nullptr );
+ std::vector< int > grps( ng );
+ nc_inq_grps( grp , & ng , grps.data() );
+ for( auto g : grps )
+  dump( g , out );
+ }
+
+static std::string dump( const netCDF::NcGroup & g )
+{
+ std::ostringstream out;
+ dump( g.getId() , out );
+ return( out.str() );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+static void test_copy_group( void )
+{
+ const auto base = std::filesystem::temp_directory_path() /
+  ( "smspp_NetCDF_test_copy_" + std::to_string(
+    std::chrono::steady_clock::now().time_since_epoch().count() ) );
+ const auto fa = base.string() + "_a.nc4";
+ const auto fb = base.string() + "_b.nc4";
+
+ // 15 parts, written in place and by way of memory: the same file, also
+ // once it is read back from disk
+ std::vector< std::string > names;
+ for( int i = 0 ; i < 15 ; ++i )
+  names.push_back( "Part_" + std::to_string( i ) );
+ {
+  netCDF::NcFile a( fa , netCDF::NcFile::replace );
+  for( int i = 0 ; i < 15 ; ++i ) {
+   auto g = a.addGroup( names[ i ] );
+   write_part( g , i );
+   }
+  netCDF::NcFile b( fb , netCDF::NcFile::replace );
+  write_via_memory( b , names , [ & ]( std::size_t i , netCDF::NcGroup & g ) {
+		     write_part( g , int( i ) ); } );
+  assert( dump( a ) == dump( b ) );
+  }
+ {
+  netCDF::NcFile a( fa , netCDF::NcFile::read );
+  netCDF::NcFile b( fb , netCDF::NcFile::read );
+  assert( dump( a ) == dump( b ) );
+  assert( dump( a ).find( "group Sub_11" ) > dump( a ).find( "group Sub_2" ) );
+  }
+
+ // no parts: nothing written
+ {
+  NcMemFile f;
+  write_via_memory( f , {} , []( std::size_t , netCDF::NcGroup & ) {
+		     assert( false ); } );
+  assert( f.getGroupCount() == 0 );
+  }
+
+ // a dimension of an ancestor of the copied group is found by name in the
+ // destination and in its ancestors, and its absence throws
+ {
+  NcMemFile from;
+  auto n = from.addDim( "N" , 3 );
+  auto g = from.addGroup( "G" );
+  const double v[] = { 1 , 2 , 3 };
+  g.addVar( "v" , netCDF::NcDouble() , n ).putVar( v );
+
+  NcMemFile to;
+  to.addDim( "N" , 3 );
+  auto h = to.addGroup( "H" ).addGroup( "K" );
+  copy_group( g , h );
+  double r[ 3 ];
+  h.getVar( "v" ).getVar( r );
+  assert( ( r[ 0 ] == 1 ) && ( r[ 1 ] == 2 ) && ( r[ 2 ] == 3 ) );
+  assert( h.getVar( "v" ).getDim( 0 ).getSize() == 3 );
+
+  NcMemFile none;
+  auto k = none.addGroup( "K" );
+  bool thrown = false;
+  try { copy_group( g , k ); }
+  catch( netCDF::exceptions::NcException & ) { thrown = true; }
+  assert( thrown );
+  }
+
+ // a variable of a user-defined type throws
+ {
+  // with the C API, netCDF::NcGroup::addVlenType() throwing on its own
+  // type in netcdf-cxx4 4.3.1
+  NcMemFile from;
+  nc_type vl;
+  int w;
+  nc_def_vlen( from.getId() , "vl" , NC_INT , & vl );
+  nc_def_var( from.getId() , "w" , vl , 0 , nullptr , & w );
+  NcMemFile to;
+  bool thrown = false;
+  try { copy_group( from , to ); }
+  catch( std::invalid_argument & ) { thrown = true; }
+  assert( thrown );
+  }
+
+ // the groups of a file: a copy that would take it over 32767 throws, and
+ // the file keeps what it had
+ {
+  NcMemFile to;
+  for( int j = 1 ; j < 32760 ; ++j )
+   to.addGroup( "G_" + std::to_string( j ) );
+  NcMemFile from;
+  for( int j = 0 ; j < 8 ; ++j )
+   from.addGroup( "S_" + std::to_string( j ) );
+  auto before = to.getGroupCount();
+  bool thrown = false;
+  try { copy_group( from , to ); }
+  catch( std::length_error & ) { thrown = true; }
+  assert( thrown && ( to.getGroupCount() == before ) );
+
+  // one group fewer fits exactly, the root included
+  NcMemFile fits;
+  for( int j = 0 ; j < 7 ; ++j )
+   fits.addGroup( "S_" + std::to_string( j ) );
+  copy_group( fits , to );
+  assert( to.getGroupCount() == before + 7 );
+  }
+
+ std::filesystem::remove( fa );
+ std::filesystem::remove( fb );
+ std::cout << "copy_group and write_via_memory: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
 /*----------------------------------- MAIN ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1598,6 +1864,7 @@ int main( void )
  test_constants();
  test_append_to_file();
  test_in_memory();
+ test_copy_group();
 
  std::filesystem::remove( nc_file() );
 
