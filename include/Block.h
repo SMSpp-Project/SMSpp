@@ -116,6 +116,7 @@
 #include "Solver.h"
 
 #include <boost/bimap.hpp>
+#include <cmath>
 #include <filesystem>
 #include <list>
 #include <netcdf>
@@ -1394,6 +1395,16 @@ class Block : public Observer {
   *   different parts of a Block mean); if "name" is not present, an empty
   *   name() results.
   *
+  * - the optional double attribute "ObjectiveWeight" that contains the
+  *   weight of the Objective of this Block [see set_objective_weight()],
+  *   which must be finite and positive; if "ObjectiveWeight" is not present,
+  *   the weight is 1.
+  *
+  * - the optional double attribute "VariableWeight" that contains the
+  *   weight of the Variable of this Block [see set_variable_weight()],
+  *   which must be finite and positive; if "VariableWeight" is not present,
+  *   the weight is 1.
+  *
   * - whatever other information is required by the specific :Block.
   *
   *      THIS IS THE METHOD TO BE IMPLEMENTED BY DERIVED CLASSES
@@ -1450,9 +1461,10 @@ class Block : public Observer {
   * the check would pass.
   *
   * So, what the method currently does is just to handle the optional "name"
-  * attribute. It does *not* handle the sub-Block, because there can
-  * hardly be any reasonably general way in which they can be structured
-  * (there can be different groups of sub-Block with different properties).
+  * and "ObjectiveWeight" attributes. It does *not* handle the sub-Block,
+  * because there can hardly be any reasonably general way in which they can
+  * be structured (there can be different groups of sub-Block with different
+  * properties).
   * By not even trying, we can leave in this method only things that are
   * sensible for each and every :Block. Because of this
   *
@@ -1516,6 +1528,28 @@ class Block : public Observer {
    f_name.clear();
   else
    gname.getValues( f_name );
+
+  f_objective_weight = 1;
+  netCDF::NcGroupAtt gweight = group.getAtt( "ObjectiveWeight" );
+  if( ! gweight.isNull() ) {
+   double w;
+   gweight.getValues( & w );
+   if( ( ! std::isfinite( w ) ) || ( w <= 0 ) )
+    throw( std::invalid_argument( "Block::deserialize: ObjectiveWeight "
+                                  "must be finite and positive" ) );
+   f_objective_weight = w;
+   }
+
+  f_variable_weight = 1;
+  netCDF::NcGroupAtt gvweight = group.getAtt( "VariableWeight" );
+  if( ! gvweight.isNull() ) {
+   double s;
+   gvweight.getValues( & s );
+   if( ( ! std::isfinite( s ) ) || ( s <= 0 ) )
+    throw( std::invalid_argument( "Block::deserialize: VariableWeight "
+                                  "must be finite and positive" ) );
+   f_variable_weight = s;
+   }
 
   // issue a NBModification, the "nuclear option"
   if( anyone_there() )
@@ -2241,6 +2275,60 @@ class Block : public Observer {
  virtual void set_name( std::string && name ) { f_name = std::move( name ); }
 
 /*--------------------------------------------------------------------------*/
+ /// setting the weight of the Objective of the Block
+ /** Sets the weight \p w by which the Objective of this Block counts in any
+  * problem the Block is part of, e.g., the probability of the scenario the
+  * Block describes times the discount factor of its period. The Block is
+  * not changed: it is any Solver that assembles a problem out of nested
+  * Block which multiplies the Objective of each of them by the product of
+  * the weights along the path to the Block the Solver is attached to, the
+  * latter excluded [see get_objective_weight( const Block * )]. Hence, a
+  * Solver attached to this Block does not see the weight.
+  *
+  * The weight only concerns the Objective; the coefficients that the
+  * Variable of the Block have in the Constraint outside of it are scaled by
+  * the weight of the Variable [see set_variable_weight()], and changing
+  * both by the same factor [see set_weight()] is the scaling of the whole
+  * Block, e.g., a number of identical copies of it.
+  *
+  * A change issues a BlockWeightMod. A Solver attached to an ancestor has
+  * to handle it, and std::logic_error is thrown, before anything is
+  * changed, if any of them cannot [see Solver::handles_weight_change()]; one
+  * attached to this Block does not see the weight. std::invalid_argument is
+  * thrown if \p w is not finite and positive. */
+
+ void set_objective_weight( double w , c_ModParam issueMod = eModBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// setting the weight of the Variable of the Block
+ /** Sets the weight \p s by which the coefficients that the Variable of this
+  * Block, and of its sub-Block, have in the Constraint outside of it are
+  * multiplied, e.g., the number of identical copies of a unit in the
+  * balance of the nodes it feeds; the Constraint of the Block itself, and
+  * its Objective, are not concerned [see set_objective_weight()]. As for
+  * the weight of the Objective, the Block is not changed: a Solver that
+  * assembles a problem out of nested Block multiplies the coefficient of a
+  * Variable in a Constraint by the product of the weights of the Variable
+  * along the path from the Block of the Variable up to the closest Block
+  * that contains both, the latter excluded [see get_variable_weight( const
+  * Block * )].
+  *
+  * Modification and exceptions as for set_objective_weight(). */
+
+ void set_variable_weight( double s , c_ModParam issueMod = eModBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// setting both the weights of the Block
+ /** Sets the weight of the Objective and that of the Variable [see
+  * set_objective_weight() and set_variable_weight()] to the same \p k, i.e.,
+  * scales the whole Block as k identical copies of it would; a single
+  * BlockWeightMod saying that both have changed is issued. It is virtual so
+  * that a :Block for which the two changing together means something more
+  * can react to it. */
+
+ virtual void set_weight( double k , c_ModParam issueMod = eModBlck );
+
+/*--------------------------------------------------------------------------*/
  /// setting the BlockConfig
  /** This method sets the BlockConfig of this Block. The BlockConfig object
   * pointed by \p newBC is not copied, but it becomes property of this
@@ -2812,6 +2900,46 @@ class Block : public Observer {
  /// getting the string name of this Block
 
  const std::string & name( void ) const { return( f_name ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// getting the weight of the Objective of this Block
+ /** Returns the weight of the Objective of this Block, 1 unless set
+  * otherwise [see set_objective_weight()]. */
+
+ double get_objective_weight( void ) const { return( f_objective_weight ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// getting the weight of the Objective of this Block within an ancestor
+ /** Returns the product of the weights of the Objective [see
+  * set_objective_weight()] of this Block and of all its ancestors up to
+  * \p ancestor, the latter excluded, i.e., the factor by which a Solver
+  * attached to \p ancestor multiplies the Objective of this Block; it is 1
+  * if \p ancestor is this Block, and if \p ancestor is nullptr the product
+  * goes up to the root, included. std::invalid_argument is thrown if
+  * \p ancestor is neither this Block nor one of its ancestors. */
+
+ double get_objective_weight( const Block * ancestor ) const;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// getting the weight of the Variable of this Block
+ /** Returns the weight of the Variable of this Block, 1 unless set otherwise
+  * [see set_variable_weight()]. */
+
+ double get_variable_weight( void ) const { return( f_variable_weight ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// getting the weight of the Variable of this Block within another Block
+ /** Returns the factor by which the coefficients that the Variable of this
+  * Block have in a Constraint of the Block \p cblock are multiplied, i.e.,
+  * the product of the weights of the Variable [see set_variable_weight()]
+  * of this Block and of its ancestors up to the closest one that is also
+  * \p cblock or an ancestor of it, the latter excluded: it is 1 if this
+  * Block is \p cblock or one of its descendants, as a Constraint of a Block
+  * is not outside of it, and if \p cblock is nullptr the product goes up to
+  * the root, included. std::invalid_argument is thrown if the two Block are
+  * not in the same tree. */
+
+ double get_variable_weight( const Block * cblock ) const;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// getting the "father" Block of this Block
@@ -7119,6 +7247,10 @@ class Block : public Observer {
   group.putAtt( "type", classname() );
   if( ! f_name.empty() )
    group.putAtt( "name", f_name );
+  if( f_objective_weight != 1 )
+   group.putAtt( "ObjectiveWeight", netCDF::NcDouble() , f_objective_weight );
+  if( f_variable_weight != 1 )
+   group.putAtt( "VariableWeight", netCDF::NcDouble() , f_variable_weight );
    }
 
 /** @} ---------------------------------------------------------------------*/
@@ -7140,6 +7272,19 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 /*--------------------------------------------------------------------------*/
+/** @name Protected method for changing the weights
+ *  @{ */
+
+ /// sets to \p w the weights that \p which says [see BlockWeightMod]
+ /** The common part of set_objective_weight(), set_variable_weight() and
+  * set_weight(), \p who being the name of the one called for the messages
+  * of the exceptions: the weights that do not change are left out, and a
+  * BlockWeightMod saying which ones have changed, if any, is issued. */
+
+ void change_weights( double w , int which , c_ModParam issueMod ,
+                      const char * who );
+
+/** @} ---------------------------------------------------------------------*/
 /** @name Protected methods for locking and unlocking
  *  @{ */
 
@@ -8111,6 +8256,10 @@ class Block : public Observer {
 
  std::string f_name;            ///< the string name of the Block
 
+ double f_objective_weight = 1;  ///< the weight of the Objective
+
+ double f_variable_weight = 1;   ///< the weight of the Variable
+
  BlockConfig * f_BlockConfig;        ///< the BlockConfig for this Block
 
  std::vector< std::pair< ChnlName , GroupModification * > > v_GroupMod;
@@ -8631,6 +8780,83 @@ class BlockMod : public AModification
 /*--------------------------------------------------------------------------*/
 
  };  // end( class( BlockMod ) )
+
+/*--------------------------------------------------------------------------*/
+/*------------------------- CLASS BlockWeightMod ---------------------------*/
+/*--------------------------------------------------------------------------*/
+/// derived class from BlockMod for a change of the weights of a Block
+/** Derived class from BlockMod saying that the weight of the Objective, the
+ * weight of the Variable, or both, of a Block have changed [see
+ * Block::set_objective_weight(), Block::set_variable_weight() and
+ * Block::set_weight()]. The Block itself is not changed: what changes is
+ * the problem that a Solver attached to an ancestor assembles out of it,
+ * i.e., the Objective of the Block and of its sub-Block if the weight of
+ * the Objective has changed, and the coefficients that their Variable have
+ * in the Constraint outside of the Block if the weight of the Variable has.
+ * Both changing in one Modification is the scaling of the whole Block. */
+
+class BlockWeightMod : public BlockMod
+{
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+ public:
+
+ /// which of the weights have changed, bit-wise
+ enum weight_type {
+  eObjective = 1 ,  ///< the weight of the Objective
+  eVariable = 2 ,   ///< the weight of the Variable
+  eBoth = 3         ///< both
+  };
+
+/*---------------------------- CONSTRUCTOR ---------------------------------*/
+
+ /// constructor: takes the Block and which of the weights have changed
+
+ BlockWeightMod( Block * fblock , int which , bool cB = false )
+  : BlockMod( fblock , cB ) , f_which( which ) {
+  ModConcern c = 0;
+  if( which & eObjective )
+   c |= eModObj | eObjUp | eObjDown;
+  if( which & eVariable )
+   c |= eModCnsCoef | eRegnShrink | eRegnGrow;
+  set_changes( c );
+  }
+
+/*------------------------------ DESTRUCTOR --------------------------------*/
+
+ virtual ~BlockWeightMod() = default;   ///< destructor, does nothing
+
+/*-------------------- PUBLIC METHODS OF THE CLASS -------------------------*/
+
+ /// which of the weights have changed [see weight_type]
+
+ [[nodiscard]] int which( void ) const { return( f_which ); }
+
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+
+ protected:
+
+ /// print the BlockWeightMod
+
+ void print( std::ostream & output ) const override {
+  output << "BlockWeightMod[";
+  if( concerns_Block() )
+   output << "t";
+  else
+   output << "f";
+  output << "] on Block [" << &f_Block << "]: weight of the "
+	 << ( f_which == eBoth ? "Objective and of the Variable" :
+	      ( f_which == eObjective ? "Objective" : "Variable" ) )
+	 << " changed" << std::endl;
+  }
+
+/*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
+
+ int f_which;  ///< which of the weights have changed
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( BlockWeightMod ) )
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS BlockModAD ------------------------------*/

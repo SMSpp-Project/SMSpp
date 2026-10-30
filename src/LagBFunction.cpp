@@ -289,16 +289,18 @@ void LagBFunction::set_inner_block( Block * innerblock , bool deleteold )
   // Clear data structures (in case of reuse)
   v_Obj.clear();
   v_ObjIsQuad.clear();
+  v_ObjW.clear();
   v_BlockBFS.clear();
   Block2Idx.clear();
   CostMatrix.clear();
 
   // BFS traversal of Block tree starting from innerblock
-  std::queue< Block * > q;
-  q.push( innerblock );
+  // each Block with the weight of its Objective in the LagBFunction
+  std::queue< std::pair< Block * , double > > q;
+  q.push( { innerblock , innerblock->get_objective_weight() } );
 
   while( ! q.empty() ) {
-   Block * curr = q.front(); q.pop();
+   auto [ curr , w ] = q.front(); q.pop();
 
    Index h = v_BlockBFS.size();
    v_BlockBFS.push_back( curr );
@@ -319,6 +321,7 @@ void LagBFunction::set_inner_block( Block * innerblock , bool deleteold )
 	       "nor a quadratic FRealObjective (a PolyhedralFunctionBlock has "
 	       "to be in its linearized representation)" ) );
    v_Obj.push_back( obj );
+   v_ObjW.push_back( w );
 
    bool isQuad = dynamic_cast< const p_QF >( obj->get_function() ) != nullptr;
    v_ObjIsQuad.push_back( isQuad );
@@ -340,7 +343,8 @@ void LagBFunction::set_inner_block( Block * innerblock , bool deleteold )
     }
 
    for( Index i = 0 ; i < curr->get_number_nested_Blocks() ; ++i )
-    q.push( curr->get_nested_Block( i ) );
+    q.push( { curr->get_nested_Block( i ) ,
+              w * curr->get_nested_Block( i )->get_objective_weight() } );
    }
   }
  else {
@@ -371,10 +375,12 @@ void LagBFunction::set_inner_block( Block * innerblock , bool deleteold )
   // Also fill BFS metadata to keep the structure coherent
   v_Obj.clear();
   v_ObjIsQuad.clear();
+  v_ObjW.clear();
   v_BlockBFS.clear();
   Block2Idx.clear();
 
   v_Obj.push_back( frobj );
+  v_ObjW.push_back( innerblock->get_objective_weight() );
   v_ObjIsQuad.push_back( dynamic_cast< const p_QF >( fn ) != nullptr );
   v_BlockBFS.push_back( innerblock );
   Block2Idx[ innerblock ] = 0;
@@ -701,9 +707,10 @@ void LagBFunction::set_par( idx_type par , double value )
 
  switch( par ) {
   case( dblRelAcc ):   add_par( "dblRelAcc"   , value ); break;
-  case( dblAbsAcc ):   add_par( "dblAbsAcc"   , value ); break;
-  case( dblUpCutOff ): add_par( "dblUpCutOff" , value ); break;
-  case( dblLwCutOff ): add_par( "dblLwCutOff" , value ); break;
+  // given to the Solver of the inner Block in its scale by compute()
+  case( dblAbsAcc ):   f_abs_acc = value; break;
+  case( dblUpCutOff ): f_up_cut = value; break;
+  case( dblLwCutOff ): f_lw_cut = value; break;
   case( dblRAccLin ):  add_par( "dblRAccSol"  , value ); break;
   case( dblAAccLin ):  add_par( "dblAAccSol"  , value );
   }
@@ -1966,20 +1973,22 @@ void LagBFunction::store_linearization( Index name , ModParam issueMod )
  // rather than the value the dual actually attains, Sum_k mult_k f(x_k); the
  // two coincide only when the objective is affine. The latter (epigraphic)
  // value is the exact constant of the linearization and equals
- // value - < lambda , G > , where the right "value" is get_value(): the best
- // *bound* on Fi consistent with the recovered primal -- lower bound for a
- // minimisation, upper bound for a maximisation (see the twin comment in
- // get_linearization_constant()). Store the difference delta_na = epigraphic
- // - f(conv) as the (cost-independent) correction, so that later
- // re-evaluations f(conv) + value reconstruct the exact constant. For a
- // genuine extreme point delta_na is ~0. EAGER (default): instead store the
- // full epigraphic constant itself in value (= epigraphic when convexified,
- // else c·conv), so that get_linearization_constant() can return it without
- // re-reading the Solution; it is maintained on cost changes by
- // update_CostMatrix_*().
+ // value - < lambda , G > , where "value" is get_value(), provided it is the
+ // value of Fi, i.e., the inner Solver has closed its gap [see
+ // inner_value_exact()]: a bound short of it (an inner Solver stopped at a
+ // cutoff) would put the linearization on the wrong side of Fi, while
+ // f(conv) is always valid, conv being feasible. Store the difference
+ // delta_na = epigraphic - f(conv) as the (cost-independent) correction, so
+ // that later re-evaluations f(conv) + value reconstruct the exact constant.
+ // For a genuine extreme point delta_na is ~0. EAGER (default): instead store
+ // the full epigraphic constant itself in value (= epigraphic when
+ // convexified, else c·conv), so that get_linearization_constant() can
+ // return it without re-reading the Solution; it is maintained on cost
+ // changes by update_CostMatrix_*().
  if( ( ! NoSol ) && VarSol && inner_Solver() && ( ! std::isnan( f_yb ) ) ) {
   double fv = get_value();                          // = (lb|ub) + f_yb
-  if( ( fv > - Inf< FunctionValue >() ) && ( fv < Inf< FunctionValue >() ) ) {
+  if( ( fv > - Inf< FunctionValue >() ) && ( fv < Inf< FunctionValue >() ) &&
+      inner_value_exact( fv ) ) {
    double cx = get_linearization_constant( name );  // = f(conv) (value is 0)
    double lG = 0;                                   // = <lambda,G>
    for( auto & lp : LagPairs ) {
@@ -1994,7 +2003,7 @@ void LagBFunction::store_linearization( Index name , ModParam issueMod )
                                       : ( cvx ? epigraphic : cx ); // const
    }
   else
-   if( ! f_lazy_eval )           // fv not finite: store the bare c·conv
+   if( ! f_lazy_eval )   // fv not finite, or not Fi: store the bare c·conv
     g_pool[ name ].value = get_linearization_constant( name );
   }
  else
@@ -2425,9 +2434,12 @@ int LagBFunction::compute( bool changedvars )
    for( Index i : v_active[ h ] ) {  // only coords coupled to a multiplier
     if( i >= m )                     // beyond current objective (shrunk): skip
      continue;
-    double newval = cm[ i ].first;
+    // the Lagrangian term is divided by the weight of the Objective, which
+    // the Solver of the inner Block multiplies it by [see v_ObjW]
+    double lag = 0;
     for( const auto & el : cm[ i ].second )
-     newval += y[ el.first ] * el.second;
+     lag += y[ el.first ] * el.second;
+    const double newval = cm[ i ].first + lag / obj_w( h );
     double oldval = ! v_ObjIsQuad[ h ]
        ? static_cast< p_LF >( fn )->get_v_var()[ i ].second
        : std::get< 1 >( static_cast< p_QF >( fn )->get_v_var()[ i ] );
@@ -2505,6 +2517,23 @@ int LagBFunction::compute( bool changedvars )
            lp.first->get_value();
   }
 
+ // the cutoffs and the absolute accuracy of the LagBFunction are given to
+ // the Solver of the inner Block, which does not see the weight W of its
+ // Objective [see v_ObjW]: they are divided by W, so that it sees them as
+ // it would with W in the coefficients of the Objective
+ {
+  const double w = inner_weight();
+  const auto to_inner = [ w ]( double c ) {
+   return( ( std::abs( c ) < INF ) ? c / w : c );
+   };
+  if( ! std::isnan( f_up_cut ) )
+   add_par( "dblUpCutOff" , to_inner( f_up_cut ) );
+  if( ! std::isnan( f_lw_cut ) )
+   add_par( "dblLwCutOff" , to_inner( f_lw_cut ) );
+  if( ! std::isnan( f_abs_acc ) )
+   add_par( "dblAbsAcc" , f_abs_acc / w );
+  }
+
  // if some parameters have been changed, set BlockSolverConfig- - - - - - - -
  if( f_CC_changed ) {
   is->set_ComputeConfig( f_CC );  // push the changes
@@ -2535,13 +2564,15 @@ int LagBFunction::compute( bool changedvars )
 
 /*--------------------------------------------------------------------------*/
 
-static RealObjective::OFValue get_recours_obj( const Block * blck )
+// the constant terms of the Objective of blck and of its sub-Block, those
+// of blck multiplied by w and those of each sub-Block by w times its weight
+static RealObjective::OFValue get_recours_obj( const Block * blck , double w )
 {
  RealObjective::OFValue rv = 0;
  if( auto obj = dynamic_cast< RealObjective * >( blck->get_objective() ) )
-  rv = obj->get_constant_term();
+  rv = w * obj->get_constant_term();
  for( const auto bk : blck->get_nested_Blocks() )
-  rv += get_recours_obj( bk );
+  rv += get_recours_obj( bk , w * bk->get_objective_weight() );
  return( rv );
  }
 
@@ -2550,7 +2581,7 @@ static RealObjective::OFValue get_recours_obj( const Block * blck )
 Function::FunctionValue LagBFunction::get_constant_term( void ) const
 {
  if( auto bk = get_inner_block() )
-  return( get_recours_obj( bk ) );
+  return( get_recours_obj( bk , inner_weight() ) );
  return( 0 );
  }
 
@@ -2558,15 +2589,17 @@ Function::FunctionValue LagBFunction::get_constant_term( void ) const
 
 #if CHECK_SOLUTIONS & 2
 
-static double cptobj( Block * blck )
+// the value of the Objective of blck and of its sub-Block as the Solver of
+// blck sees it, that of each sub-Block multiplied by its weight times w
+static double cptobj( Block * blck , double w = 1 )
 {
  double ov = 0;
  if( auto obj = dynamic_cast< FRealObjective * >( blck->get_objective() ) ) {
   obj->compute();
-  ov = obj->value();
+  ov = w * obj->value();
   }
  for( auto bk : blck->get_nested_Blocks() )
-  ov += cptobj( bk );
+  ov += cptobj( bk , w * bk->get_objective_weight() );
  return( ov );
  }
 
@@ -2965,7 +2998,7 @@ Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
  // so we can safely rely on get_objective_value() to collect the *original*
  // values of all sub-Block Objectives recursively
  if( ! PushCostToOwner )
-  alpha += get_objective_value( get_inner_block() );
+  alpha += get_objective_value( get_inner_block() , inner_weight() );
 
  // for the root Block (and for all other Objectives when PushCostToOwner ==
  // 1), we need to compute the value "by hand" using the original coefficients
@@ -2973,9 +3006,10 @@ Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
  for( Index h = 0 ; h < v_Obj.size() ; ++h ) {
   const auto * obj = v_Obj[ h ];
   const auto & cm = CostMatrix[ h ];
+  OFValue ah = 0;  // that of v_Obj[ h ], which enters with its weight
 
   if( ! v_ObjIsQuad[ h ] ) {
-   alpha += obj->get_constant_term();
+   ah += obj->get_constant_term();
    const auto & rp = static_cast< p_LF >( obj->get_function() )->get_v_var();
    const auto & tp = v_tmpCP[ h ];
 
@@ -2986,13 +3020,13 @@ Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
    #endif
 
    for( Index i = 0 ; i < rp.size() ; ++i )
-    alpha += rp[ i ].first->get_value() * cm[ i ].first;
+    ah += rp[ i ].first->get_value() * cm[ i ].first;
 
    for( Index i = 0 ; i < tp.size() ; ++i )
-    alpha += tp[ i ].first->get_value() * cm[ rp.size() + i ].first;
+    ah += tp[ i ].first->get_value() * cm[ rp.size() + i ].first;
    }
   else {
-   alpha += obj->get_constant_term();
+   ah += obj->get_constant_term();
    const auto & rp = static_cast< p_QF >( obj->get_function() )->get_v_var();
    const auto & tp = v_tmpCP[ h ];
 
@@ -3005,18 +3039,19 @@ Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
    for( Index i = 0 ; i < rp.size() ; ++i ) {
     auto val = std::get< 0 >( rp[ i ] )->get_value();
     if( val ) {
-     alpha += cm[ i ].first * val;
+     ah += cm[ i ].first * val;
      val *= val;
-     alpha += std::get< 2 >( rp[ i ] ) * val;
+     ah += std::get< 2 >( rp[ i ] ) * val;
     }
    }
 
    for( Index i = 0 ; i < tp.size() ; ++i ) {
     auto val = tp[ i ].first->get_value();
     if( val )
-     alpha += cm[ rp.size() + i ].first * val;
+     ah += cm[ rp.size() + i ].first * val;
     }
    }
+  alpha += obj_w( h ) * ah;
   }
 
  // epigraphic correction for a stored linearization. Under LAZY, value is the
@@ -3040,20 +3075,18 @@ Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
    // solutions, and the alpha = f( conv ) computed above is the value at the
    // (fractional) combination point rather than the epigraphic value Sum_k
    // mult_k f( x_k ) the dual attains; the two coincide only when the
-   // objective is affine. The exact constant equals value - <lambda,G> , where
-   // the right "value" to use is get_value(): the best *bound* on Fi
-   // consistent with the recovered (possibly convexified) primal -- the lower
-   // bound for a minimisation, the upper bound for a maximisation (this is
-   // exactly what get_value() returns via is_convex()). Using instead the
-   // value attained at the incumbent would be on the wrong side of the inner
-   // gap and produce an over-estimated constant, i.e. a linearization above Fi
-   // (negative error). Correct alpha by the gap when it is significant (for a
-   // genuine extreme point the inner Solver is exact, get_value() == c x*, and
-   // the stable c x* computed above is kept).
+   // objective is affine. The exact constant equals value - <lambda,G> ,
+   // where "value" is get_value(), provided it is the value of Fi, i.e., the
+   // inner Solver has closed its gap [see inner_value_exact()]: a bound short
+   // of it (an inner Solver stopped at a cutoff) would put the linearization
+   // on the wrong side of Fi, while f( conv ) is always valid, conv being
+   // feasible, and is then kept. Correct alpha by the difference when it is
+   // significant (for a genuine extreme point get_value() == c x*, and the
+   // stable c x* computed above is kept).
    if( VarSol && inner_Solver() && ( ! std::isnan( f_yb ) ) ) {
     double fv = get_value();                          // = (lb|ub) + f_yb
     if( ( fv > - Inf< FunctionValue >() ) && ( fv < Inf< FunctionValue >() )
-	) {
+	&& inner_value_exact( fv ) ) {
      double lG = 0;                                   // = <lambda,G>
      for( auto & lp : LagPairs ) {
       lp.second->compute();
@@ -4662,7 +4695,7 @@ void LagBFunction::update_CostMatrix_ModLinRngd( Index h ,
     }
    CM[ j ].first = rc[ j ].second;
    }
-  eager_pool_cost_delta( rc , jdeltas );
+  eager_pool_cost_delta( rc , jdeltas , obj_w( h ) );
   return;
   }
 
@@ -4747,7 +4780,7 @@ void LagBFunction::update_CostMatrix_ModLinSbst( Index h ,
     }
    CM[ j ].first = rc[ j ].second;
    }
-  eager_pool_cost_delta( rc , jdeltas );
+  eager_pool_cost_delta( rc , jdeltas , obj_w( h ) );
   return;
   }
 
@@ -4789,7 +4822,8 @@ void LagBFunction::update_CostMatrix_ModLinSbst( Index h ,
 /*--------------------------------------------------------------------------*/
 
 void LagBFunction::eager_pool_cost_delta( const v_coeff_pair & rc ,
-		 const std::vector< std::pair< Index , double > > & jdeltas )
+		 const std::vector< std::pair< Index , double > > & jdeltas ,
+		 double w )
 {
  if( f_lazy_eval || NoSol || jdeltas.empty() )
   return;
@@ -4807,7 +4841,7 @@ void LagBFunction::eager_pool_cost_delta( const v_coeff_pair & rc ,
   double dv = 0;
   for( const auto & jd : jdeltas )
    dv += jd.second * rc[ jd.first ].first->get_value();
-  g_pool[ k ].value += dv;
+  g_pool[ k ].value += w * dv;
   }
 
  // the inner Block now holds the last pool Solution; mark that no pool entry
@@ -4820,7 +4854,7 @@ void LagBFunction::eager_pool_cost_delta( const v_coeff_pair & rc ,
 
 void LagBFunction::eager_pool_cost_removal(
                                     c_Vec_p_Var & vars ,
-                                    c_Vec_FunctionValue & costs )
+                                    c_Vec_FunctionValue & costs , double w )
 {
  if( f_lazy_eval || NoSol || vars.empty() )
   return;
@@ -4836,7 +4870,7 @@ void LagBFunction::eager_pool_cost_removal(
   double dv = 0;
   for( Index j = 0 ; j < vars.size() ; ++j )
    dv -= costs[ j ] * static_cast< ColVariable * >( vars[ j ] )->get_value();
-  g_pool[ k ].value += dv;
+  g_pool[ k ].value += w * dv;
   }
 
  // As in eager_pool_cost_delta(), the Block contains the last pool Solution,
@@ -4968,7 +5002,7 @@ void LagBFunction::update_CostMatrix_ModVarsRngd( Index h ,
   Vec_FunctionValue costs( vars.size() );
   for( Index i = 0 ; i < vars.size() ; ++i )
    costs[ i ] = CM[ rng.first + i ].first;
-  eager_pool_cost_removal( vars , costs );
+  eager_pool_cost_removal( vars , costs , obj_w( h ) );
   }
  m_column tempCM;     // CostMatrix elements to be re-added
 
@@ -5043,7 +5077,7 @@ void LagBFunction::update_CostMatrix_ModVarsSbst( Index h ,
   Vec_FunctionValue costs( vars.size() );
   for( Index i = 0 ; i < vars.size() ; ++i )
    costs[ i ] = CM[ sbst[ i ] ].first;
-  eager_pool_cost_removal( vars , costs );
+  eager_pool_cost_removal( vars , costs , obj_w( h ) );
   }
  m_column tempCM;     // CostMatrix elements to be re-added
 

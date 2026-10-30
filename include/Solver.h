@@ -780,7 +780,10 @@ class Solver : public ThinComputeInterface
  /** Move in the string parameters specific of Solver, together with
   * the parameters of ThinComputeInterface that Solver actually "listens to":
   *
-  * - strLogFileName [empty]: filename for the inner Solver log. */
+  * - strLogFileName [empty]: filename for the inner Solver log; the file is
+  *   opened (and emptied) when the name changes, the same name leaves the
+  *   file open as it is, and the empty name closes it, leaving alone a log
+  *   given with set_log(). */
 
  void set_par( idx_type par , std::string && value ) override;
 
@@ -798,6 +801,34 @@ class Solver : public ThinComputeInterface
 
  virtual void set_log( std::ostream * log_stream = nullptr ) {
   f_log = log_stream;
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// true if the Solver handles a change of the weights of a sub-Block
+ /** Returns true if the Solver handles a BlockWeightMod coming from a
+  * sub-Block of its Block, i.e., a change of the weight of the Objective or
+  * of the Variable of the sub-Block [see Block::set_objective_weight() and
+  * Block::set_variable_weight()], which changes the problem it solves. A
+  * Solver that does not is never left solving the old problem: the change
+  * is refused, with std::logic_error, before anything is changed. The
+  * default is false, a :Solver that handles it says so. */
+
+ [[nodiscard]] virtual bool handles_weight_change( void ) const {
+  return( false );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// true if the Solver applies the weights of the Variable of a sub-Block
+ /** Returns true if the Solver multiplies the coefficients of the Variable
+  * of a sub-Block of its Block in the Constraint outside of the sub-Block
+  * by their weight [see Block::set_variable_weight()]. A Solver that does
+  * not would silently solve another problem, hence it refuses, with
+  * std::logic_error, a Block below which a weight of the Variable is not 1
+  * [see set_Block()]. The default is false, a :Solver that applies them
+  * says so. */
+
+ [[nodiscard]] virtual bool handles_variable_weight( void ) const {
+  return( false );
   }
 
 /** @} ---------------------------------------------------------------------*/

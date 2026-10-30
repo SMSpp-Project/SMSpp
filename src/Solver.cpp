@@ -77,6 +77,26 @@ void Solver::set_Block( Block * block )
        "Solver::set_Block: the Block being attached is in the "
        "excluded set; the Solver would have nothing to do" ) );
 
+ // a weight of the Variable below the Block, which a Solver that does not
+ // handle it would silently ignore [see handles_variable_weight()]; that
+ // of the Block itself concerns the Constraint outside of it
+ if( block && ( ! handles_variable_weight() ) ) {
+  std::vector< Block * > todo( block->get_nested_Blocks().begin() ,
+                               block->get_nested_Blocks().end() );
+  while( ! todo.empty() ) {
+   auto b = todo.back();
+   todo.pop_back();
+   if( f_excluded.count( b ) > 0 )
+    continue;
+   if( b->get_variable_weight() != 1 )
+    throw( std::logic_error( "Solver::set_Block: " + classname() +
+                             " does not handle the weight of the Variable "
+                             "of a sub-Block" ) );
+   todo.insert( todo.end() , b->get_nested_Blocks().begin() ,
+                b->get_nested_Blocks().end() );
+   }
+  }
+
  if( f_Block )           // was attached to some Block
   v_mod.clear();         // any pending Modification was about the old
                          // Block, so it is now irrelevant
@@ -130,9 +150,21 @@ bool Solver::is_excluded( Block * b ) const
 void Solver::set_par( idx_type par , std::string && value )
 {
  if( par == strLogFileName ) {
+  // the file already open under the same name is kept, so that a
+  // ComputeConfig applied again (or the one that restores the previous
+  // parameters) does not empty it
+  if( ( value == LogFileName ) && ( value.empty() || f_log_file.is_open() ) )
+   return;
   if( f_log_file.is_open() )
    f_log_file.close();
-  f_log_file.open( value , std::fstream::out | std::fstream::trunc );
+  LogFileName = std::move( value );
+  // no name means no log file, and a log given with set_log() is left alone
+  if( LogFileName.empty() ) {
+   if( f_log == & f_log_file )
+    set_log( nullptr );
+   return;
+   }
+  f_log_file.open( LogFileName , std::fstream::out | std::fstream::trunc );
   set_log( & f_log_file );
   return;
   }

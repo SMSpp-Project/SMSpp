@@ -2013,13 +2013,15 @@ int BendersBFunction::compute( bool changedvars ) {
 
 /*--------------------------------------------------------------------------*/
 
-static RealObjective::OFValue get_recours_obj( const Block * blck )
+// the constant terms of the Objective of blck and of its sub-Block, those
+// of blck multiplied by w and those of each sub-Block by w times its weight
+static RealObjective::OFValue get_recours_obj( const Block * blck , double w )
 {
  RealObjective::OFValue rv = 0;
  if( auto obj = dynamic_cast< RealObjective * >( blck->get_objective() ) )
-  rv = obj->get_constant_term();
+  rv = w * obj->get_constant_term();
  for( const auto bk : blck->get_nested_Blocks() )
-  rv += get_recours_obj( bk );
+  rv += get_recours_obj( bk , w * bk->get_objective_weight() );
 
  return( rv );
  };
@@ -2029,7 +2031,7 @@ static RealObjective::OFValue get_recours_obj( const Block * blck )
 Function::FunctionValue BendersBFunction::get_constant_term( void ) const
 {
  if( auto bk = get_inner_block() )
-  return( get_recours_obj( bk ) );
+  return( get_recours_obj( bk , inner_weight() ) );
  else
   return( 0 );
  }
@@ -2132,8 +2134,8 @@ Function::FunctionValue BendersBFunction::get_value( void ) {
                            "attached to it." ) );
 
  if( v_Block.front()->get_objective_sense() == Objective::eMin )
-  return( solver->get_ub() );
- return( solver->get_lb() );
+  return( inner_weight() * solver->get_ub() );
+ return( inner_weight() * solver->get_lb() );
 
 } // end ( BendersBFunction::get_value )
 
@@ -2378,7 +2380,9 @@ void BendersBFunction::get_linearization_coefficients
   if( ignore_constraint( constraint ) )
    continue;
 
-  const auto dual_value = effective_dual_for_cut( constraint , j , obj_sign );
+  // of the BendersBFunction, the weight of the inner Block comprised
+  const auto dual_value =
+   inner_weight() * effective_dual_for_cut( constraint , j , obj_sign );
 
   if( dual_value == 0 )
    continue;
@@ -2430,7 +2434,9 @@ void BendersBFunction::get_linearization_coefficients
   if( ignore_constraint( constraint ) )
    continue;
 
-  const auto dual_value = effective_dual_for_cut( constraint , j , obj_sign );
+  // of the BendersBFunction, the weight of the inner Block comprised
+  const auto dual_value =
+   inner_weight() * effective_dual_for_cut( constraint , j , obj_sign );
 
   if( dual_value == 0 )
    continue;
@@ -2471,7 +2477,9 @@ void BendersBFunction::get_linearization_coefficients
   if( ignore_constraint( constraint ) )
    continue;
 
-  const auto dual_value = effective_dual_for_cut( constraint , j , obj_sign );
+  // of the BendersBFunction, the weight of the inner Block comprised
+  const auto dual_value =
+   inner_weight() * effective_dual_for_cut( constraint , j , obj_sign );
 
   if( dual_value == 0 )
    continue;
@@ -2529,7 +2537,9 @@ void BendersBFunction::get_linearization_coefficients
   if( ignore_constraint( constraint ) )
    continue;
 
-  const auto dual_value = effective_dual_for_cut( constraint , j , obj_sign );
+  // of the BendersBFunction, the weight of the inner Block comprised
+  const auto dual_value =
+   inner_weight() * effective_dual_for_cut( constraint , j , obj_sign );
 
   if( dual_value == 0 )
    continue;
@@ -2565,11 +2575,13 @@ BendersBFunction::compute_linearization_constant_from_bound() {
                            "from_bound: The sub-Block (if present) has no "
                            "Solver attached to it." ) );
 
+ // g is that of the BendersBFunction, the bound is multiplied by the weight
+ // of the inner Block [see inner_weight()] as the value is
  FunctionValue linearization_constant = 0;
  if( v_Block.front()->get_objective_sense() == Objective::eMin )
-  linearization_constant = solver->get_lb();
+  linearization_constant = inner_weight() * solver->get_lb();
  else
-  linearization_constant = solver->get_ub();
+  linearization_constant = inner_weight() * solver->get_ub();
 
  for( Index i = 0 ; i < v_x.size() ; ++i )
   linearization_constant -= g[ i ] * v_x[ i ]->get_value();
@@ -2748,14 +2760,14 @@ Function::FunctionValue BendersBFunction::get_linearization_constant(
    else {
     // Compute the linearization constant from the dual solution
     solver->get_dual_solution( f_get_dual_solution_config );
-    return( compute_linearization_constant() );
+    return( inner_weight() * compute_linearization_constant() );
    }
   }
   else {
    // "vertical" linearization
    if( solver->has_dual_direction() )
     solver->get_dual_direction( f_get_dual_direction_config );
-   return( compute_linearization_constant() );
+   return( inner_weight() * compute_linearization_constant() );
   }
  }
  else {
@@ -2763,7 +2775,7 @@ Function::FunctionValue BendersBFunction::get_linearization_constant(
   if( constant == Inf< FunctionValue >() ) {
    // the linearization constant must be recomputed
    write_dual_solution_from_global_pool( name );
-   constant = compute_linearization_constant();
+   constant = inner_weight() * compute_linearization_constant();
    global_pool.set_linearization_constant( constant , name );
   }
   return( constant );

@@ -82,23 +82,40 @@ void BoxSolver::set_Block( Block * block )
  CDASolver::set_Block( block );
  f_sense = -1;
  f_desc.clear();
+ f_desc_w.clear();
  resetf();
 
  if( ! f_Block )
   return;
 
  // compute the set of all involved (sub-)Block
+ // with the weight of their Objective, going down the tree
  f_desc.push_back( f_Block );
+ std::vector< double > w( 1 , 1.0 );
  for( Block::Index i = 0 ; i < f_desc.size() ; ++i ) {
   if( auto obj = f_desc[ i ]->get_objective() )
    if( ! dynamic_cast< FRealObjective * >( obj ) )
     throw( std::invalid_argument(
 			  "BoxSolver::set_Block: unsupported Objective" ) );
-  for( auto el : f_desc[ i ]->get_nested_Blocks() )
+  for( auto el : f_desc[ i ]->get_nested_Blocks() ) {
    f_desc.push_back( el );
+   w.push_back( w[ i ] * el->get_objective_weight() );
+   }
+  if( w[ i ] != 1 )
+   f_desc_w[ f_desc[ i ] ] = w[ i ];
   }
 
  f_desc.shrink_to_fit();
+ }
+
+/*--------------------------------------------------------------------------*/
+
+double BoxSolver::objective_weight( const Objective * obj ) const
+{
+ if( f_desc_w.empty() )
+  return( 1 );
+ auto it = f_desc_w.find( obj->get_Block() );
+ return( it == f_desc_w.end() ? 1 : it->second );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -219,7 +236,7 @@ int BoxSolver::compute( bool changedvars )
   for( auto bk : f_desc ) {
    // deal with the constant in the Objective
    if( auto obj = static_cast< RealObjective * >( bk->get_objective() ) ) {
-    double ct = obj->get_constant_term();
+    double ct = objective_weight( obj ) * obj->get_constant_term();
     f_max_val += ct;
     f_min_val += ct;
     }
@@ -714,17 +731,18 @@ void BoxSolver::get_var_data( ColVariable & var ,
   // Objective
   if( auto oi = dynamic_cast< Objective * >( ai ) ) {
    auto fro = static_cast< FRealObjective * >( oi );
+   const double w = objective_weight( oi );
 
    if( auto lf = dynamic_cast< LinearFunction * >( fro->get_function() ) ) {
     // WARNING: INEFFICIENT!!
-    b += lf->get_coefficient( lf->is_active( & var ) );
+    b += w * lf->get_coefficient( lf->is_active( & var ) );
     continue;
     }
 
    if( auto qf = dynamic_cast< DQuadFunction * >( fro->get_function() ) ) {
     auto p = qf->is_active( & var );    // WARNING: INEFFICIENT!!
-    b += qf->get_linear_coefficient( p );
-    a += qf->get_quadratic_coefficient( p );
+    b += w * qf->get_linear_coefficient( p );
+    a += w * qf->get_quadratic_coefficient( p );
     continue;
     }
    
@@ -866,17 +884,18 @@ void BoxSolver::get_var_data( ColVariable & var ,
   // Objective
   if( auto oi = dynamic_cast< Objective * >( ai ) ) {
    auto fro = static_cast< FRealObjective * >( oi );
+   const double w = objective_weight( oi );
 
    if( auto lf = dynamic_cast< LinearFunction * >( fro->get_function() ) ) {
     // WARNING: INEFFICIENT!!
-    b += lf->get_coefficient( lf->is_active( & var ) );
+    b += w * lf->get_coefficient( lf->is_active( & var ) );
     continue;
     }
 
    if( auto qf = dynamic_cast< DQuadFunction * >( fro->get_function() ) ) {
     auto p = qf->is_active( & var );    // WARNING: INEFFICIENT!!
-    b += qf->get_linear_coefficient( p );
-    a += qf->get_quadratic_coefficient( p );
+    b += w * qf->get_linear_coefficient( p );
+    a += w * qf->get_quadratic_coefficient( p );
     continue;
     }
    

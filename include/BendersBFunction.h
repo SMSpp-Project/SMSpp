@@ -1966,6 +1966,20 @@ void print( std::ostream & output ) override {
  FunctionValue get_constant_term( void ) const override;
 
 /*--------------------------------------------------------------------------*/
+ /// the weight of the Objective of the inner Block
+ /** The weight of the Objective of the inner Block [see
+  * Block::set_objective_weight()] times that of the BendersBFunction, which
+  * as its ancestor multiplies it: the value of the BendersBFunction and its
+  * linearizations are those of the Solver of the inner Block multiplied by
+  * it, since that Solver does not see it. */
+
+ double inner_weight( void ) const {
+  return( get_objective_weight() *
+          ( ( v_Block.empty() || ( ! v_Block.front() ) ) ? 1 :
+            v_Block.front()->get_objective_weight() ) );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// returns true only if this BendersBFunction is convex
  /** This method returns true only if this BendersBFunction is convex. If this
   * BendersBFunction has no sub-Block or the sense of the Objective of its

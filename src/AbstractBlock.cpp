@@ -3218,6 +3218,13 @@ void AbstractBlock::mirror_variables( Block * src , AbstractBlock * dst )
  for( Index i = 0 ; i < src->get_number_nested_Blocks() ; ++i ) {
   auto inner = new AbstractBlock( dst );
   inner->set_name( std::string( src->get_nested_Block( i )->name() ) );
+  // the weights of the Objective and of the Variable, those of the
+  // original [see Block::set_objective_weight() and
+  // Block::set_variable_weight()], are set before anybody can listen
+  inner->f_objective_weight =
+   src->get_nested_Block( i )->get_objective_weight();
+  inner->f_variable_weight =
+   src->get_nested_Block( i )->get_variable_weight();
   dst->add_nested_Block( inner );
   mirror_variables( src->get_nested_Block( i ) , inner );
   }
@@ -3379,6 +3386,8 @@ void AbstractBlock::mirror( Block * blck )
   throw( std::logic_error( _prfx + "the AbstractBlock is not empty" ) );
 
  f_mirrored = blck;
+ f_objective_weight = blck->get_objective_weight();
+ f_variable_weight = blck->get_variable_weight();
 
  /* Two passes over the subtree: a Constraint of any of its Block can be
   * written in the Variable of any other, hence every Variable has to have

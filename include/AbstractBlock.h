@@ -590,7 +590,10 @@ class AbstractBlock : public Block
   * recorded, so that the copy is a *relaxation* of the original and the
   * caller can see what is missing [see get_mirror_issues()]. Note that a
   * relaxation is not always an acceptable answer, which is why the list is
-  * there rather than silently empty.
+  * there rather than silently empty. The weights of the Objective and of
+  * the Variable [see Block::set_objective_weight() and
+  * Block::set_variable_weight()] of \p blck and of its sub-Block are those
+  * of the copy and of its sub-Block.
   *
   * The size Variable of \p blck [see Block::get_size_variable() and
   * set_size_variable()], if any, stays what it is in the copy: one that \p

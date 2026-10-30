@@ -22,6 +22,10 @@
  * BlockSolverConfig of its ComputeConfig registers, read from
  * LagBFCfg-Box.txt.
  *
+ * An inner Solver stopped at a cutoff, with the minimizer but only a lower
+ * bound below its value, is checked to give the linearization of the
+ * minimizer, whose constant is its cost, and not one through the bound.
+ *
  * A second set of tests checks the by-column representation of the
  * Lagrangian term that the Lagrangian costs c_j + y A^j are computed from,
  * as get_A_by_col() gives it, after the Lagrangian pairs are set (once and
@@ -513,6 +517,87 @@ static void test_state_copy( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/// a BoxSolver stopped before the end, at a cutoff: it has the minimizer
+/// but proves only a lower bound gap below its value
+
+class StoppedBoxSolver : public BoxSolver {
+ public:
+ explicit StoppedBoxSolver( double gap ) : f_gap( gap ) {}
+
+ int compute( bool changedvars = true ) override {
+  BoxSolver::compute( changedvars );
+  return( kCutOff );
+  }
+
+ [[nodiscard]] OFValue get_lb( void ) override {
+  return( BoxSolver::get_lb() - f_gap );
+  }
+
+ private:
+ double f_gap;
+ };
+
+/*--------------------------------------------------------------------------*/
+/* An inner Solver stopped at a cutoff has the minimizer x* but proves only a
+ * lower bound below l( y ): the linearization is that of x*, whose constant
+ * is c x*, and not one through the bound, which would be below the concave
+ * l( y ) at y and cut off its maximum; checked for the last linearization
+ * and for one stored in the global pool, at all the points. */
+
+static void test_stopped_inner_Solver( void )
+{
+ const double gap = 7;
+ Fixture f;
+ f.inner->unregister_Solvers( true );
+ f.inner->register_Solver( new StoppedBoxSolver( gap ) );
+ f.lbf->set_dual_pairs( v_dual_pair( { f.pair( 0 , 0 ) , f.pair( 1 , 1 ) } ) );
+ f.lbf->set_par( C05Function::intGPMaxSz , 1 );
+
+ const std::vector< std::vector< double > > ys = {
+  { 0 , 0 } , { -1 , 0.25 } , { 2 , 0.5 } , { -3 , -1 } };
+ f.set_y( ys[ 2 ] );
+ assert( f.lbf->compute() == Solver::kCutOff );
+
+ const double value = closed_form( ys[ 2 ] , { 0 , 1 } );
+ expect( equal( f.lbf->get_lower_estimate() , value - gap ) ,
+	 "stopped inner Solver: the lower estimate is not its bound" );
+ expect( equal( f.lbf->get_upper_estimate() , value ) ,
+	 "stopped inner Solver: the upper estimate is not the value of x*" );
+
+ assert( f.lbf->has_linearization() );
+ double g[ 2 ];
+ f.lbf->get_linearization_coefficients( g );
+ double cx = 0;
+ for( Index j = 0 ; j < c_cost.size() ; ++j )
+  cx += c_cost[ j ] * ( *f.x )[ j ].get_value();
+
+ const double alpha = f.lbf->get_linearization_constant();
+ expect( equal( alpha , cx ) , "stopped inner Solver: constant = " +
+	 std::to_string( alpha ) + ", expected c x* = " + std::to_string( cx ) );
+
+ // the constant of the stored linearization is read after a compute() at
+ // another point, as a Solver does, so that it comes from the global pool
+ // and not from the Solution still in the inner Block
+ f.lbf->store_linearization( 0 , eNoMod );
+ f.set_y( ys[ 0 ] );
+ assert( f.lbf->compute() == Solver::kCutOff );
+ assert( f.lbf->has_linearization() );
+ const double alpha0 = f.lbf->get_linearization_constant( 0 );
+ expect( equal( alpha0 , cx ) , "stopped inner Solver: stored constant = " +
+	 std::to_string( alpha0 ) + ", expected c x* = " +
+	 std::to_string( cx ) );
+
+ for( Index q = 0 ; q < ys.size() ; ++q ) {
+  const double lq = closed_form( ys[ q ] , { 0 , 1 } );
+  const double lin = alpha0 + g[ 0 ] * ys[ q ][ 0 ] + g[ 1 ] * ys[ q ][ 1 ];
+  expect( lq <= lin + c_eps , "stopped inner Solver: the stored "
+	  "linearization is below l at point " + std::to_string( q ) );
+  }
+
+ std::cout << "inner Solver stopped at a cutoff: done" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
 /* A LagBFunction told that it has no inner Solver (intInnrSlvr -1) does not
  * use the BoxSolver the inner Block has, and compute() throws; the
  * BlockSolverConfig of a ComputeConfig then registers a second BoxSolver,
@@ -950,6 +1035,7 @@ int main( int argc , char ** argv )
  test_set_dual_pairs_twice();
  test_values_and_kinks();
  test_state_copy();
+ test_stopped_inner_Solver();
  test_no_inner_Solver();
  test_columns_set_dual_pairs();
  test_columns_set_dual_pairs_twice();

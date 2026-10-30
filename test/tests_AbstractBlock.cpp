@@ -22,6 +22,8 @@
 #include "ColVariableSolution.h"
 
 #include "BlockInspection.h"
+#include "BoxSolver.h"
+#include "FakeSolver.h"
 #include "FRealObjective.h"
 #include "DQuadFunction.h"
 #include "LinearFunction.h"
@@ -29,6 +31,7 @@
 
 #include <netcdf>
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <iostream>
 #include <list>
@@ -1092,6 +1095,244 @@ static void test_serialize_nested( void )
 
 /*--------------------------------------------------------------------------*/
 
+/* The weight of the Objective [see Block::set_objective_weight()]: 1 when
+ * it is not set; the product along the path from a Block up to an ancestor,
+ * the latter excluded, for an ancestor that is the Block itself (1), its
+ * father, the root and none (the root included); refused for a Block that
+ * is not an ancestor; a weight that is not finite and positive is refused
+ * and leaves the old one; so is any weight while a Solver that cannot
+ * handle the change is attached to an ancestor, and not once it is
+ * detached, while one attached to the Block itself does not see it. */
+
+static void test_objective_weight( void )
+{
+ auto root = new AbstractBlock;
+ auto mid = new AbstractBlock( root );
+ auto leaf = new AbstractBlock( mid );
+ root->add_nested_Block( mid );
+ mid->add_nested_Block( leaf );
+ AbstractBlock other;
+
+ assert( leaf->get_objective_weight() == 1 );
+ assert( leaf->get_objective_weight( nullptr ) == 1 );
+
+ root->set_objective_weight( 5 );
+ mid->set_objective_weight( 2 );
+ leaf->set_objective_weight( 3 );
+ assert( leaf->get_objective_weight() == 3 );
+ assert( leaf->get_objective_weight( leaf ) == 1 );
+ assert( leaf->get_objective_weight( mid ) == 3 );
+ assert( leaf->get_objective_weight( root ) == 6 );
+ assert( leaf->get_objective_weight( nullptr ) == 30 );
+ assert( root->get_objective_weight( nullptr ) == 5 );
+
+ const std::vector< const Block * > not_ancestors = { leaf , & other };
+ for( auto b : not_ancestors ) {
+  bool refused = false;
+  try { mid->get_objective_weight( b ); }
+  catch( const std::invalid_argument & ) { refused = true; }
+  assert( refused );
+  }
+
+ for( double w : { 0.0 , -1.0 , Inf< double >() , - Inf< double >() ,
+                   std::nan( "" ) } ) {
+  bool refused = false;
+  try { leaf->set_objective_weight( w ); }
+  catch( const std::invalid_argument & ) { refused = true; }
+  assert( refused );
+  assert( leaf->get_objective_weight() == 3 );
+  }
+
+ leaf->register_Solver( new BoxSolver() );
+ leaf->set_objective_weight( 7 );
+ assert( leaf->get_objective_weight() == 7 );
+ leaf->unregister_Solvers( true );
+ leaf->set_objective_weight( 3 );
+
+ root->register_Solver( new BoxSolver() );
+ bool refused = false;
+ try { leaf->set_objective_weight( 7 ); }
+ catch( const std::logic_error & ) { refused = true; }
+ assert( refused );
+ assert( leaf->get_objective_weight() == 3 );
+ root->unregister_Solvers( true );
+ leaf->set_objective_weight( 7 );
+ assert( leaf->get_objective_weight() == 7 );
+ leaf->set_objective_weight( 3 );
+
+ delete root;
+ std::cout << "weight of the Objective: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+/// a Solver that handles a change of the weights, and keeps what it gets
+
+class WeightListener : public FakeSolver {
+ public:
+ [[nodiscard]] bool handles_weight_change( void ) const override {
+  return( true );
+  }
+
+ [[nodiscard]] bool handles_variable_weight( void ) const override {
+  return( true );
+  }
+
+ /// the which() of the BlockWeightMod received, in order
+ std::vector< int > received( void ) {
+  std::vector< int > w;
+  lock_Modification_list();
+  for( auto & mod : get_Modification_list() )
+   if( auto bwm = std::dynamic_pointer_cast< BlockWeightMod >( mod ) )
+    w.push_back( bwm->which() );
+  get_Modification_list().clear();
+  unlock_Modification_list();
+  return( w );
+  }
+ };
+
+/* The weight of the Variable [see Block::set_variable_weight()]: 1 when it
+ * is not set; the factor of a Variable of a Block in a Constraint of another
+ * Block is the product from the Block up to the closest one containing
+ * both, the latter excluded: for the Block itself and a descendant of it
+ * (1), its father, the root, a Block in another branch (up to their common
+ * ancestor) and none (the root included); refused for a Block in another
+ * tree. set_weight() changes both the weights; a change issues one
+ * BlockWeightMod saying which weights have changed, none if nothing does,
+ * received by a Solver of an ancestor that handles it, and refused, leaving
+ * the weights as they are, if a Solver of an ancestor does not. */
+
+static void test_variable_weight( void )
+{
+ auto root = new AbstractBlock;
+ auto mid = new AbstractBlock( root );
+ auto leaf = new AbstractBlock( mid );
+ auto other = new AbstractBlock( root );
+ root->add_nested_Block( mid );
+ root->add_nested_Block( other );
+ mid->add_nested_Block( leaf );
+ AbstractBlock alone;
+
+ assert( leaf->get_variable_weight() == 1 );
+ assert( leaf->get_variable_weight( nullptr ) == 1 );
+
+ root->set_variable_weight( 5 );
+ mid->set_variable_weight( 2 );
+ leaf->set_variable_weight( 3 );
+ other->set_variable_weight( 7 );
+ assert( leaf->get_variable_weight() == 3 );
+ assert( leaf->get_variable_weight( leaf ) == 1 );
+ assert( mid->get_variable_weight( leaf ) == 1 );
+ assert( leaf->get_variable_weight( mid ) == 3 );
+ assert( leaf->get_variable_weight( root ) == 6 );
+ assert( leaf->get_variable_weight( other ) == 6 );
+ assert( other->get_variable_weight( leaf ) == 7 );
+ assert( leaf->get_variable_weight( nullptr ) == 30 );
+ assert( leaf->get_objective_weight() == 1 );
+
+ bool refused = false;
+ try { leaf->get_variable_weight( & alone ); }
+ catch( const std::invalid_argument & ) { refused = true; }
+ assert( refused );
+
+ for( double s : { 0.0 , -1.0 , Inf< double >() , std::nan( "" ) } ) {
+  refused = false;
+  try { leaf->set_variable_weight( s ); }
+  catch( const std::invalid_argument & ) { refused = true; }
+  assert( refused );
+  assert( leaf->get_variable_weight() == 3 );
+  }
+
+ auto listener = new WeightListener();
+ root->register_Solver( listener );
+ leaf->set_variable_weight( 4 );
+ leaf->set_objective_weight( 2 );
+ leaf->set_weight( 9 );
+ leaf->set_weight( 9 );
+ mid->set_weight( 2 );
+ assert( leaf->get_objective_weight() == 9 );
+ assert( leaf->get_variable_weight() == 9 );
+ assert( mid->get_objective_weight() == 2 );
+ const std::vector< int > expected = { BlockWeightMod::eVariable ,
+                                       BlockWeightMod::eObjective ,
+                                       BlockWeightMod::eBoth ,
+                                       BlockWeightMod::eObjective };
+ assert( listener->received() == expected );
+
+ mid->register_Solver( new BoxSolver() );
+ refused = false;
+ try { leaf->set_weight( 1 ); }
+ catch( const std::logic_error & ) { refused = true; }
+ assert( refused );
+ assert( leaf->get_objective_weight() == 9 );
+ assert( leaf->get_variable_weight() == 9 );
+ assert( listener->received().empty() );
+ mid->unregister_Solvers( true );
+ root->unregister_Solvers( true );
+
+ delete root;
+ std::cout << "weight of the Variable: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+/* The weights of the Objective and of the Variable through a netCDF file:
+ * what is not 1 comes back at every level of the tree, 1 is not written
+ * ("ObjectiveWeight" and "VariableWeight" are not there), and a file whose
+ * "ObjectiveWeight" is not finite and positive is refused:
+ * Block::deserialize() throws, which new_Block() turns into a nullptr. */
+
+static void test_serialize_objective_weight( void )
+{
+ auto root = new AbstractBlock;
+ auto mid = new AbstractBlock( root );
+ auto leaf = new AbstractBlock( mid );
+ root->add_nested_Block( mid );
+ mid->add_nested_Block( leaf );
+ mid->set_objective_weight( 0.25 );
+ leaf->set_objective_weight( 4 );
+ leaf->set_variable_weight( 0.5 );
+
+ auto read = through_a_file( *root );
+ assert( read );
+ auto rmid = read->get_nested_Blocks()[ 0 ];
+ auto rleaf = rmid->get_nested_Blocks()[ 0 ];
+ assert( read->get_objective_weight() == 1 );
+ assert( rmid->get_objective_weight() == 0.25 );
+ assert( rleaf->get_objective_weight() == 4 );
+ assert( rleaf->get_objective_weight( read ) == 1 );
+ assert( rleaf->get_variable_weight() == 0.5 );
+ assert( rmid->get_variable_weight() == 1 );
+ delete read;
+
+ const char * const name = "tests_AbstractBlock_weight.nc4";
+ root->Block::serialize( name , eBlockFile );
+ {
+  netCDF::NcFile f( name , netCDF::NcFile::read );
+  assert( f.getGroup( "Block_0" ).getAtt( "ObjectiveWeight" ).isNull() );
+  assert( f.getGroup( "Block_0" ).getAtt( "VariableWeight" ).isNull() );
+  }
+
+ for( double w : { 0.0 , -2.0 , Inf< double >() , std::nan( "" ) } ) {
+  root->Block::serialize( name , eBlockFile );
+  {
+   netCDF::NcFile f( name , netCDF::NcFile::write );
+   f.getGroup( "Block_0" ).putAtt( "ObjectiveWeight" , netCDF::NcDouble() ,
+                                   w );
+   }
+  // new_Block() turns what deserialize() throws into a nullptr
+  Block * read = nullptr;
+  try { read = Block::deserialize( name ); }
+  catch( const std::invalid_argument & ) {}
+  assert( ! read );
+  }
+ std::remove( name );
+
+ delete root;
+ std::cout << "serialize the weight of the Objective: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+
 /* A Block with no Objective, whose LP file says " obj: 0", i.e., an
  * Objective made of a constant alone: it comes back as the same model, with
  * its row, and with an Objective that has no term. */
@@ -2115,6 +2356,9 @@ int main( int argc , char ** argv )
  test_serialize_quadratic_objective();
  test_serialize_nested();
  test_serialize_no_objective();
+ test_objective_weight();
+ test_variable_weight();
+ test_serialize_objective_weight();
  test_set_objective_replaces();
  test_mirror_of_an_empty_Block();
  test_sized_mirror();

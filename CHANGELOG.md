@@ -9,6 +9,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- the weight of the Objective of a `Block` [see
+  `Block::set_objective_weight()`] in the `Solver` and `Function` of the core:
+  `LagBFunction` writes in the Objective of each Block of its inner Block the
+  Lagrangian term divided by the weight of that Objective in it, its own weight
+  comprised, and multiplies by the weight of the inner Block its value, the
+  constant of its linearizations (those kept in the pool comprised) and its
+  constant term, the Lagrangian term entering with no weight, and divides by
+  it the cutoffs and the absolute accuracy it gives to the `Solver` of the
+  inner Block;
+  `BendersBFunction` multiplies by the weight of its inner Block, and its own,
+  its value, its linearizations and its constant term; `BoxSolver` multiplies
+  the coefficients and the constant of each Objective by its weight;
+  `AbstractBlock::mirror()` gives the copy and its sub-Block the weights of the
+  original
+
+- the weight of the Objective of a `Block`: `set_objective_weight()`,
+  `get_objective_weight()` and `get_objective_weight( ancestor )`, the
+  product of the weights along the path from a `Block` up to an ancestor,
+  the latter excluded, which is the factor by which a `Solver` attached to
+  the ancestor multiplies the `Objective` of the `Block` (e.g., the
+  probability of a scenario times the discount factor of its period); the
+  weight is the optional attribute `ObjectiveWeight` of the group of the
+  `Block`, read by `Block::deserialize()` and written by `serialize()`
+  when it is not 1; `AbstractBlock_test` checks it, with the weights that
+  are not finite and positive refused
+
+- the weight of the Variable of a `Block`: `set_variable_weight()`,
+  `get_variable_weight()` and `get_variable_weight( cblock )`, the product
+  of the weights from a `Block` up to the closest one that also contains
+  `cblock`, which is the factor by which a `Solver` multiplies the
+  coefficients of the Variable of the `Block` in a Constraint of `cblock`
+  (e.g., the number of copies of a unit in the balance of the nodes);
+  `set_weight()` sets both the weights, the scaling of the whole `Block`;
+  the optional attribute `VariableWeight` of the group of the `Block`;
+  a change of either weight issues a `BlockWeightMod` saying which weights
+  have changed, and is refused before anything changes if a `Solver`
+  attached to an ancestor does not handle it
+  [see `Solver::handles_weight_change()`, false by default];
+  `AbstractBlock_test` checks the products, the Modification and the
+  refusal
+
 - `BranchingRule.h`, the components with which a `RelaxationSolver` can
   choose the variable to branch upon and estimate the children of a
   branching, knowing nothing of the enumerative Solver that uses it nor of
@@ -214,6 +255,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   without asking the RelaxationSolver
 
 ### Fixed
+
+- `strLogFileName` of `Solver` is kept, and `get_str_par()` returns it: a
+  `ComputeConfig` applied again, or the one restoring the previous
+  parameters, opened the file again and emptied it, and the empty name put
+  a file that is not open as log in place of the one given with `set_log()`
+
+- the constant of a linearization of `LagBFunction`, the last one and those
+  stored in the global pool, is taken from the bound of the inner Solver
+  (the epigraphic one of a convexified primal) only when that bound is the
+  value of the function: an inner Solver stopped at a cutoff with a primal
+  solution put the linearization through its bound, below a concave function
+  (above a convex one), which cut its optimum off and made a Lagrangian dual
+  stop below it; `LagBFunction_unit_test` checks it with an inner Solver
+  stopped at a cutoff
 
 - the constructor of `C05FunctionModLin` checks that the `Variable` and the
   changes are as many: it compared the sizes of its arguments after moving

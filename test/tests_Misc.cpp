@@ -6,7 +6,7 @@
  * own: GlobalInformation and its Collection, SimpleDataMapping, Change and
  * GroupChange, BoxSolver, UpdateSolver, and what the base Solver class does
  * by itself (registration to a Block, the queue of Modification, the tables
- * of the parameters).
+ * of the parameters, the log file).
  *
  * BoxSolver is taken over box LPs and separable box QPs whose optimum is
  * known in closed form, in both senses, and over the two cases where there
@@ -44,7 +44,9 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <fstream>
 #include <iostream>
+#include <iterator>
 #include <stdexcept>
 #include <vector>
 
@@ -1168,6 +1170,55 @@ static void test_Solver_parameters( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/// a FakeSolver that shows where it logs
+
+class LogProbe : public FakeSolver {
+ public:
+ std::ostream * log( void ) const { return( f_log ); }
+ };
+
+/* strLogFileName opens the log file and get_str_par() returns its name; the
+ * same name given again (a ComputeConfig applied again, or the one that
+ * restores the previous parameters) leaves the file as it is, with what was
+ * written in it; the empty name closes it, leaving alone a log given with
+ * set_log(), and stops the logging into the file. */
+
+static void test_Solver_log_file( void )
+{
+ const std::string name = "Misc_unit_test.log";
+ const auto content = [ & ]() {
+  std::ifstream in( name );
+  return( std::string( std::istreambuf_iterator< char >( in ) ,
+                       std::istreambuf_iterator< char >() ) );
+  };
+
+ LogProbe s;
+ s.set_par( Solver::strLogFileName , std::string( name ) );
+ expect( s.get_str_par( Solver::strLogFileName ) == name ,
+	 "strLogFileName is not kept" );
+ assert( s.log() );
+ *s.log() << "logged" << std::endl;
+
+ s.set_par( Solver::strLogFileName , std::string( name ) );
+ expect( content() == "logged\n" ,
+	 "the same strLogFileName given again empties the log file" );
+
+ s.set_log( & std::cout );
+ s.set_par( Solver::strLogFileName , std::string() );
+ expect( s.log() == & std::cout ,
+	 "the empty strLogFileName replaces the log given with set_log()" );
+ expect( s.get_str_par( Solver::strLogFileName ).empty() ,
+	 "the empty strLogFileName is not kept" );
+
+ s.set_par( Solver::strLogFileName , std::string( name ) );
+ s.set_par( Solver::strLogFileName , std::string() );
+ expect( ! s.log() , "the empty strLogFileName leaves the log in the file" );
+
+ std::remove( name.c_str() );
+ std::cout << "Solver log file: done" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
 
 int main( int argc , char ** argv )
 {
@@ -1184,6 +1235,7 @@ int main( int argc , char ** argv )
  test_Solver_registration();
  test_Solver_Modification_queue();
  test_Solver_parameters();
+ test_Solver_log_file();
 
  if( n_failures ) {
   std::cout << "Misc_unit_test: " << n_failures << " check(s) failed"
