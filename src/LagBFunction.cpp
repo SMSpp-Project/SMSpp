@@ -3,7 +3,7 @@
 /*--------------------------------------------------------------------------*/
 /** @file
  * Implementation of the LagBFunction class, which is derived from both a
- * C05Function and a Block and implements the concept of the Lagrangian 
+ * C05Function and a Block and implements the concept of the Lagrangian
  * function of some Block (the unique sub-Block of LagBFunction when "seen"
  * as a Block) w.r.t. a given set of linear terms.
  *
@@ -628,7 +628,7 @@ void LagBFunction::set_par( idx_type par , int value )
     if( f_max_glob > Index( value ) ) {
      f_max_glob = value;
      update_f_max_glob();
-     }    
+     }
     }
    g_pool.resize( value );
    break;
@@ -658,7 +658,7 @@ void LagBFunction::set_par( idx_type par , int value )
      g_pool[ i ].sol = nullptr;
     f_max_glob = 0;
 
-    // if somebody is listening (assuming issueMod == eModBlck) 
+    // if somebody is listening (assuming issueMod == eModBlck)
     if( f_Observer && ( f_Observer->issue_mod( eModBlck ) ) )
      // issue a LagBFunctionMod with type() == GlobalPoolRemoved and
      // which().empty(); however, shift() == 0 since the function itself
@@ -1197,7 +1197,8 @@ void LagBFunction::remove_variables( Subset && nms , bool ordered ,
 
   for( ; it < nms.end() ; ++vi )
    if( *it == vi )                // one element to be eliminated
-    *( its++ ) = LagPairs[ *( it++ ) ].first;  // skip it, but keep the Variable
+    // skip it, but keep the Variable
+    *( its++ ) = LagPairs[ *( it++ ) ].first;
    else
     *( curr++ ) = std::move( LagPairs[ vi ] );  // move in the current position
 
@@ -1804,7 +1805,7 @@ void LagBFunction::serialize_State( netCDF::NcGroup & group ,
   std::vector< int > typ( f_max_glob );
   for( Index i = 0 ; i < f_max_glob ; ++i )
    typ[ i ] = g_pool[ i ].varsol ? 1 : 0;
- 
+
   ( group.addVar( "LagBFunction_Type" , netCDF::NcByte() , gs )
     ).putVar( { 0 } , {  f_max_glob } , typ.data() );
 
@@ -1832,13 +1833,13 @@ void LagBFunction::serialize_State( netCDF::NcGroup & group ,
 
  if( ! zLC.empty() ) {
   netCDF::NcDim cn = group.addDim( "LagBFunction_ImpCoeffNum" , zLC.size() );
-  
+
   auto ncCI = group.addVar( "LagBFunction_ImpCoeffInd" , netCDF::NcInt() ,
 			    cn );
 
   auto ncCV = group.addVar( "LagBFunction_ImpCoeffVal" , netCDF::NcDouble() ,
 			    cn );
- 
+
   for( Index i = 0 ; i < zLC.size() ; ++i ) {
    ncCI.putVar( { i } , zLC[ i ].first );
    ncCV.putVar( { i } , zLC[ i ].second );
@@ -2023,7 +2024,7 @@ void LagBFunction::store_linearization( Index name , ModParam issueMod )
  if( ( ! f_Observer ) ||
      ( ! f_Observer->issue_mod( issueMod , Function::eModFValues ) ) )
   return;
-  
+
  f_Observer->add_Modification( std::make_shared< C05FunctionMod >(
                                 this , C05FunctionMod::GlobalPoolAdded ,
                                 Subset( { name } ) , 0 ,
@@ -2206,7 +2207,7 @@ void LagBFunction::delete_linearization( Index name , ModParam issueMod )
  if( ( ! f_Observer ) ||
      ( ! f_Observer->issue_mod( issueMod , Function::eModFValues ) ) )
   return;
-  
+
  f_Observer->add_Modification( std::make_shared< C05FunctionMod >(
                                 this , C05FunctionMod::GlobalPoolRemoved ,
                                 Subset( { name } ) , 0 ,
@@ -2273,7 +2274,7 @@ void LagBFunction::delete_linearizations( Subset && which , bool ordered ,
  if( ( ! f_Observer ) ||
      ( ! f_Observer->issue_mod( issueMod , Function::eModFValues ) ) )
   return;
-  
+
  f_Observer->add_Modification( std::make_shared< C05FunctionMod >(
                                 this , C05FunctionMod::GlobalPoolRemoved ,
                                 std::move( which ) , 0 ,
@@ -2799,7 +2800,7 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
  else {  // a linearization of the global pool - - - - - - - - - - - - - - - -
   if( NoSol )
    throw( std::logic_error( "LagBFunction: Solutions are not stored" ) );
-   
+
   // assign Solution to the sub-Block in such a way the linearization
   // associated with the given name will be retrieved from the global pool
 
@@ -3294,7 +3295,8 @@ bool LagBFunction::flush_v_tmpCP( void )
    }
 
    const Index cm_sz = CostMatrix[ h ].size();
-   const Index can   = ( cm_sz > cur ) ? std::min< Index >( pend , cm_sz - cur ) : 0;
+   const Index can   = ( cm_sz > cur ) ?
+                       std::min< Index >( pend , cm_sz - cur ) : 0;
 
    // use eNoBlck: the inner Block need not mirror the abstract change,
    // because LagBFunction manages the consistency externally (the added
@@ -3347,7 +3349,8 @@ bool LagBFunction::flush_v_tmpCP( void )
    }
 
    const Index cm_sz = CostMatrix[ h ].size();
-   const Index can   = ( cm_sz > cur ) ? std::min< Index >( pend , cm_sz - cur ) : 0;
+   const Index can   = ( cm_sz > cur ) ?
+                       std::min< Index >( pend , cm_sz - cur ) : 0;
 
    // see comment in the LinearFunction branch above for why eNoBlck
    if( can == 1 )
@@ -3687,7 +3690,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
   if( ! ( wmod->which() & BlockWeightMod::eVariable ) )
    return( 0 );
   }
- 
+
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // C05FunctionModLin: the "linear part" of a Function has been changed
  // C05FunctionModLin can have a special treatment, and therefore need be
@@ -4408,7 +4411,7 @@ char LagBFunction::guts_of_this_add_Modification( p_Mod mod , ChnlName chnl )
 				Range( i , i + 1 ) , Subset() , NaN , true ) ,
 				 chnl );
   return( 0 );  // all done
-  
+
   }  // end( C05FunctionModLinSbst )
 
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -5287,7 +5290,7 @@ void LagBFunctionState::deserialize( const netCDF::NcGroup & group )
   }
  else
   zLC.clear();
- 
+
  }  // end( LagBFunctionState::deserialize )
 
 /*--------------------------------------------------------------------------*/
@@ -5303,7 +5306,7 @@ void LagBFunctionState::serialize( netCDF::NcGroup & group ) const
   std::vector< int > typ( f_max_glob );
   for( Index i = 0 ; i < f_max_glob ; ++i )
    typ[ i ] = g_pool[ i ].varsol ? 1 : 0;
- 
+
   ( group.addVar( "LagBFunction_Type" , netCDF::NcByte() , gs ) ).putVar(
 				      { 0 } , {  f_max_glob } , typ.data() );
 
@@ -5321,7 +5324,8 @@ void LagBFunctionState::serialize( netCDF::NcGroup & group ) const
    }
   ( group.addVar( "LagBFunction_Value" , netCDF::NcDouble() , gs ) ).putVar(
 				      { 0 } , { f_max_glob } , val.data() );
-  ( group.addVar( "LagBFunction_Convexified" , netCDF::NcByte() , gs ) ).putVar(
+  ( group.addVar( "LagBFunction_Convexified" , netCDF::NcByte() , gs ) )
+   .putVar(
 				      { 0 } , { f_max_glob } , cvx.data() );
 
   for( Index i = 0 ; i < f_max_glob ; ++i ) {
@@ -5335,13 +5339,13 @@ void LagBFunctionState::serialize( netCDF::NcGroup & group ) const
 
  if( ! zLC.empty() ) {
   netCDF::NcDim cn = group.addDim( "LagBFunction_ImpCoeffNum" , zLC.size() );
-  
+
   auto ncCI = group.addVar( "LagBFunction_ImpCoeffInd" , netCDF::NcInt() ,
 			    cn );
 
   auto ncCV = group.addVar( "LagBFunction_ImpCoeffVal" , netCDF::NcDouble() ,
 			    cn );
- 
+
   for( Index i = 0 ; i < zLC.size() ; ++i ) {
    ncCI.putVar( { i } , zLC[ i ].first );
    ncCV.putVar( { i } , zLC[ i ].second );

@@ -160,7 +160,8 @@ struct Fixture {
    ( *box )[ j ].set_rhs( c_ub[ j ] , eNoMod );
    cp.push_back( { & ( *x )[ j ] , c_cost[ j ] } );
    }
-  auto obj = new FRealObjective( inner , new LinearFunction( std::move( cp ) ) );
+  auto obj = new FRealObjective( inner ,
+				  new LinearFunction( std::move( cp ) ) );
   obj->set_sense( Objective::eMin , eNoMod );
   inner->set_objective( obj , eNoMod );
 
@@ -182,7 +183,7 @@ struct Fixture {
   for( Index j = 0 ; j < c_cost.size() ; ++j )
    cp.push_back( { & ( *x )[ j ] , c_A[ i ][ j ] } );
   return( LagBFunction::dual_pair( & ( *y )[ k ] ,
-				   new LinearFunction( std::move( cp ) , c_b[ i ] ) ) );
+		      new LinearFunction( std::move( cp ) , c_b[ i ] ) ) );
   }
 
  /// makes the LagBFunction the Function of the Objective of outer
@@ -573,7 +574,8 @@ static void test_stopped_inner_Solver( void )
 
  const double alpha = f.lbf->get_linearization_constant();
  expect( equal( alpha , cx ) , "stopped inner Solver: constant = " +
-	 std::to_string( alpha ) + ", expected c x* = " + std::to_string( cx ) );
+	 std::to_string( alpha ) + ", expected c x* = " +
+	 std::to_string( cx ) );
 
  // the constant of the stored linearization is read after a compute() at
  // another point, as a Solver does, so that it comes from the global pool
