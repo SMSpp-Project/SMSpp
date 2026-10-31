@@ -334,6 +334,8 @@ install(FILES ${findMods}
 install(FILES ${CMAKE_CURRENT_LIST_DIR}/cmake/CheckModule.cmake
         ${CMAKE_CURRENT_LIST_DIR}/cmake/FastFlow.cmake
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${modName})
+install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/cmake/fastflow
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${modName})
 
 # Install the README and LICENSE files.
 install(FILES

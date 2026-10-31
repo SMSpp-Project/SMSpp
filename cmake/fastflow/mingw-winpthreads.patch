@@ -1,0 +1,129 @@
+diff --git a/ff/platforms/liblfds.h b/ff/platforms/liblfds.h
+index 1640556b..962e2bb7 100644
+--- a/ff/platforms/liblfds.h
++++ b/ff/platforms/liblfds.h
+@@ -108,6 +108,20 @@ typedef unsigned long int     atom_t;
+ #define FF_MEM_ALIGN(__A,__alignment)  __A __attribute__( (aligned(__alignment)))
+ #endif
+ 
++// MinGW-w64: GCC or Clang on Windows, which is not __unix__ and has no
++// __declspec( align ) of MSVC; INLINE is the one of platform.h, if there
++#if (defined __MINGW32__)
++#include <assert.h>
++#include <stdio.h>
++#include <stdlib.h>
++#ifndef INLINE
++#define INLINE                  inline
++#endif
++#define ALIGN_TO_PRE(alignment)
++#define ALIGN_TO_POST(alignment)        __attribute__( (aligned(alignment)) )
++#define FF_MEM_ALIGN(__A,__alignment)  __A __attribute__( (aligned(__alignment)) )
++#endif
++
+ #if ((defined __GNUC__ || defined __llvm__) && defined __unix__ && defined __x86_64__)
+ #define ALIGN_SINGLE_POINTER    8
+ #define ALIGN_DOUBLE_POINTER    16
+@@ -124,6 +138,10 @@ typedef unsigned long int     atom_t;
+ #define ALIGN_SINGLE_POINTER    8
+ #define ALIGN_DOUBLE_POINTER    16
+ typedef unsigned long long int  atom_t;
++#elif ((defined __GNUC__ || defined __llvm__) && defined __MINGW64__)
++#define ALIGN_SINGLE_POINTER    8
++#define ALIGN_DOUBLE_POINTER    16
++typedef unsigned long long int  atom_t;
+ #elif (defined _MSC_VER)
+ // defined above
+ #else // default to generic 64 bit archiecture
+diff --git a/ff/platforms/platform.h b/ff/platforms/platform.h
+index be76f0ee..3b25dfd6 100644
+--- a/ff/platforms/platform.h
++++ b/ff/platforms/platform.h
+@@ -46,26 +46,41 @@ inline static int posix_memalign(void **memptr, size_t alignment, size_t size)
+ 
+ 
+ #if defined(_WIN32)
++#if defined(_MSC_VER)
+ #pragma unmanaged
++#endif
+ 
+ #define NOMINMAX
+ 
++// MinGW-w64 has the POSIX threads (winpthreads) and the POSIX headers that
++// define what follows for MSVC only: their declarations would clash
++#if defined(__MINGW32__)
++#include <windows.h>
++#include <pthread.h>
++#include <sys/time.h>
++#include <unistd.h>
++#else
+ #include <ff/platforms/pthread_minport_windows.h>
++#endif
+ #define INLINE __forceinline
+ #define NOINLINE __declspec(noinline)
+ //#define CACHE_LINE_SIZE 64
+ #define __WIN_ALIGNED_16__ __declspec(align(16))
+ 
+ // Thread specific storage
++#if !defined(__MINGW32__)
+ #define __thread __declspec(thread)
++#endif
+ 
+ 
+ // Only x86 and x86_64 are currently supported for Windows OS
+ INLINE void WMB() {} 
+ INLINE void PAUSE() {}
+ 
++#if !defined(__MINGW32__)
+ #include <BaseTsd.h>
+ typedef SSIZE_T ssize_t;
++#endif
+ 
+ INLINE static int posix_memalign(void **memptr,size_t alignment, size_t sz)
+ {
+@@ -82,6 +97,7 @@ INLINE static void posix_memalign_free(void* mem)
+  // Other
+ 
+ #include <string>
++#if !defined(__MINGW32__)
+ typedef unsigned long useconds_t;
+ //#define strtoll std::stoll
+ #define strtoll _strtoi64
+@@ -125,6 +141,7 @@ expected_counter_difference;
+     }
+ 	return(0);
+ }
++#endif // !__MINGW32__
+ 
+ 
+ //#define __TICKS2WAIT 1000
+@@ -147,6 +164,7 @@ struct timeval {
+ #endif 
+ */
+ 
++#if !defined(__MINGW32__)
+ struct timezone 
+ {
+   int  tz_minuteswest; /* minutes W of Greenwich */
+@@ -187,6 +205,7 @@ INLINE static int gettimeofday(struct timeval *tv, struct timezone *tz)
+  
+   return 0;
+ }
++#endif // !__MINGW32__
+ 
+ //#include <sys/time.h> 
+ //#include <sys/resource.h> 
+diff --git a/ff/spin-lock.hpp b/ff/spin-lock.hpp
+index f9b85d16..a93381cc 100644
+--- a/ff/spin-lock.hpp
++++ b/ff/spin-lock.hpp
+@@ -151,7 +151,9 @@ ALIGN_TO_PRE(CACHE_LINE_SIZE) struct CLHSpinLock {
+ #if defined(_MSC_VER) // To be tested
+     MyPred[pid] = (CLHLockNode *) __sync_lock_test_and_set((void *volatile *)&Tail, (void *)MyNode[pid]);
+ #else //defined(__GNUC__)
+-    MyPred[pid] = (CLHLockNode *) __sync_lock_test_and_set((long *)&Tail, (long)MyNode[pid]);
++    // intptr_t, which is a pointer wide also where long is not (LLP64, i.e.
++    // 64-bit Windows with MinGW-w64)
++    MyPred[pid] = (CLHLockNode *) __sync_lock_test_and_set((intptr_t *)&Tail, (intptr_t)MyNode[pid]);
+ #endif
+     while (MyPred[pid]->locked == true) ;
+     }
