@@ -95,4 +95,40 @@ pthread_cond_timedwait and clock_gettime")
             endif ()
         endif ()
     endif ()
+
+    # the compilers of MinGW (MSYS2) have the pthreads and the clocks of
+    # POSIX, from winpthreads, while FastFlow takes any _WIN32 for MSVC and
+    # its minimal port of the pthreads, whose types clash with those of
+    # winpthreads: the conditions on _WIN32 of its headers leave MinGW out,
+    # so that it goes the way of the POSIX systems (those that also ask for
+    # _MSC_VER are left as they are). The edit is idempotent, guarded by the
+    # FF_SMSPP_MINGW marker put in ff/platforms/platform.h
+    if (MINGW)
+        set(_ff_platform "${fastflow_SOURCE_DIR}/ff/platforms/platform.h")
+        file(READ "${_ff_platform}" _ff_platform_src)
+        if (NOT _ff_platform_src MATCHES "FF_SMSPP_MINGW")
+            file(GLOB_RECURSE _ff_headers
+                    "${fastflow_SOURCE_DIR}/ff/*.h"
+                    "${fastflow_SOURCE_DIR}/ff/*.hpp")
+            foreach (_ff_h IN LISTS _ff_headers)
+                file(READ "${_ff_h}" _ff_src)
+                set(_ff_new "${_ff_src}")
+                string(REPLACE "defined(_WIN32)"
+                        "(defined(_WIN32) && !defined(__MINGW32__))"
+                        _ff_new "${_ff_new}")
+                string(REPLACE "#ifdef _WIN32"
+                        "#if defined(_WIN32) && !defined(__MINGW32__)"
+                        _ff_new "${_ff_new}")
+                if (NOT _ff_new STREQUAL _ff_src)
+                    file(WRITE "${_ff_h}" "${_ff_new}")
+                endif ()
+            endforeach ()
+            file(READ "${_ff_platform}" _ff_platform_src)
+            file(WRITE "${_ff_platform}"
+                    "/* FF_SMSPP_MINGW: _WIN32 without MinGW */\n"
+                    "${_ff_platform_src}")
+            message(STATUS "FastFlow: the conditions on _WIN32 leave MinGW \
+out")
+        endif ()
+    endif ()
 endmacro()
