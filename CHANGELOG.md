@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- the event type `ThinComputeInterface::eEverySolution`, called by a
+  `compute()` whose result is a combination of the solutions of several
+  problems it solves one after the other on the same Block (as the
+  simulation of the scenarios of a policy) each time one of them has been
+  written in the Block, so that whoever reads something out of each of them
+  (a linearization, say) can do it while it is there, and
+  `Solver::get_solution_Block()`, the Block holding that solution: the one
+  of the Solver, or the copy of it on which the `compute()` solves each
+  problem
+
 - `copy_group()` and `write_via_memory()` in `SMSnetCDF.h`: the first
   copies a netCDF group into another, possibly of another file, making all
   the definitions before writing any value, so that the destination file

@@ -1870,6 +1870,21 @@ class Solver : public ThinComputeInterface
  [[nodiscard]] virtual Block * get_Block( void ) const { return( f_Block ); }
 
 /*--------------------------------------------------------------------------*/
+ /// the Block in which the solution of an eEverySolution event is
+ /** While an event of type eEverySolution is being called [see
+  * ThinComputeInterface::event_type], returns the Block that holds the
+  * solution that the event is about. It is the Block of this Solver [see
+  * get_Block()] unless the compute() solves each of the problems out of
+  * which its result is made on a copy of it: then it is that copy, a twin
+  * of the Block of this Solver (an AbstractPath built on the one leads to
+  * the same element of the other) whose data are those of the problem just
+  * solved. Out of such an event it returns get_Block(). */
+
+ [[nodiscard]] virtual Block * get_solution_Block( void ) const {
+  return( get_Block() );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// getting the "identity" of this Solver
 
  [[nodiscard]] virtual void * id( void ) { return( f_id ); }
