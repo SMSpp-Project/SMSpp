@@ -47,6 +47,7 @@
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <memory>
 #include <stdexcept>
 #include <vector>
 
@@ -165,12 +166,26 @@ static bool throws( F f )
  }
 
 /*--------------------------------------------------------------------------*/
+/// what the tests give to a Block that the Block does not own, deleted at the
+/// end of main(), after every Block, the last given the first deleted
+
+static std::vector< std::shared_ptr< void > > given;
+
+template< class T >
+static T * kept( T * t )
+{
+ given.emplace_back( t );
+ return( t );
+ }
+
+/*--------------------------------------------------------------------------*/
 /// an AbstractBlock with n ColVariable in its first static group, "x"
 
 static AbstractBlock * block_with_x( Index n , Block * father = nullptr )
 {
  auto block = new AbstractBlock( father );
- block->add_static_variable( *( new std::vector< ColVariable >( n ) ) , "x" );
+ block->add_static_variable( *kept( new std::vector< ColVariable >( n ) ) ,
+			     "x" );
  return( block );
  }
 
@@ -268,7 +283,8 @@ static void test_GlobalInformation( void )
   scalars->write( "k" + std::to_string( i ) , i );
  assert( scalars->size() == 1001 );
  double d = 0;
- assert( scalars->read( GlobalInformation::str_Incumbent , d ) && ( d == 12.5 ) );
+ assert( scalars->read( GlobalInformation::str_Incumbent , d ) &&
+	 ( d == 12.5 ) );
  assert( & ( *scalars )[ GlobalInformation::str_Incumbent ] == & inc );
  scalars->write( GlobalInformation::str_Incumbent , 7 );
  assert( inc.load() == 7 );
@@ -338,20 +354,23 @@ static void test_DataMapping( void )
  SimpleDataMapping< Range , Range > rr( fr , inner , Range( 1 , 3 ) ,
 					Range( 0 , 2 ) );
  rr.set_data( data.cbegin() );
- assert( ( values_of( inner ) == std::vector< double >( { 11 , 12 , 0 , 0 } ) ) );
+ assert( ( values_of( inner ) ==
+	    std::vector< double >( { 11 , 12 , 0 , 0 } ) ) );
 
  // subsets, SetTo not ordered: the i-th of SetFrom (an ordered multiset)
  // goes to the i-th of SetTo
  SimpleDataMapping< Subset , Subset > ss( fs , inner , Subset( { 0 , 5 } ) ,
 					  Subset( { 3 , 1 } ) );
  ss.set_data( data.cbegin() );
- assert( ( values_of( inner ) == std::vector< double >( { 11 , 15 , 0 , 10 } ) ) );
+ assert( ( values_of( inner ) ==
+	    std::vector< double >( { 11 , 15 , 0 , 10 } ) ) );
 
  // one value broadcast over three
  SimpleDataMapping< Range , Range > bc( fr , inner , Range( 4 , 5 ) ,
 					Range( 1 , 4 ) );
  bc.set_data( data.cbegin() );
- assert( ( values_of( inner ) == std::vector< double >( { 11 , 14 , 14 , 14 } ) ) );
+ assert( ( values_of( inner ) ==
+	    std::vector< double >( { 11 , 14 , 14 , 14 } ) ) );
 
  // the round trip
  const char * file = "Misc_test_DataMapping.nc4";
@@ -553,13 +572,14 @@ struct BoxModel {
 
  /// linear if quad is empty, else the DQuadFunction sum quad x^2 + lin x
 
- BoxModel( const std::vector< double > & lb , const std::vector< double > & ub ,
+ BoxModel( const std::vector< double > & lb ,
+	   const std::vector< double > & ub ,
 	   const std::vector< double > & lin ,
 	   const std::vector< double > & quad , int sense ) {
   const Index n = lb.size();
   block = block_with_x( n );
   auto & x = x_of( block );
-  box = new std::vector< BoxConstraint >( n );
+  box = kept( new std::vector< BoxConstraint >( n ) );
   block->add_static_constraint( *box , "box" );
   for( Index j = 0 ; j < n ; ++j ) {
    ( *box )[ j ].set_variable( & x[ j ] , eNoMod );
@@ -579,7 +599,7 @@ struct BoxModel {
     ct.push_back( { & x[ j ] , lin[ j ] , quad[ j ] } );
    f = new DQuadFunction( std::move( ct ) );
    }
-  obj = new FRealObjective( block , f );
+  obj = kept( new FRealObjective( block , f ) );
   obj->set_sense( sense , eNoMod );
   block->set_objective( obj , eNoMod );
   solver = new BoxSolver();
@@ -609,7 +629,8 @@ static void test_BoxSolver_LP( void )
  BoxModel m( lb , ub , { 1 , -2 , 0.5 } , {} , Objective::eMin );
  m.solver->set_par( BoxSolver::intPDSol , 2 );
 
- assert( throws< std::logic_error >( [ & ]() { (void) m.solver->get_lb(); } ) );
+ assert( throws< std::logic_error >( [ & ]() {
+	   (void) m.solver->get_lb(); } ) );
  assert( m.solver->compute() == Solver::kOK );
  assert( equal( m.solver->get_var_value() , -1.5 ) );
  assert( equal( m.solver->get_lb() , -1.5 ) &&
@@ -726,16 +747,16 @@ static void test_BoxSolver_duals( void )
   for( int when = 0 ; when < 2 ; ++when ) {
    auto block = block_with_x( 1 );
    auto & x = x_of( block );
-   auto lbc = new std::vector< LBConstraint >( 1 );
-   auto ubc = new std::vector< UBConstraint >( 1 );
+   auto lbc = kept( new std::vector< LBConstraint >( 1 ) );
+   auto ubc = kept( new std::vector< UBConstraint >( 1 ) );
    block->add_static_constraint( *lbc , "lb" );
    block->add_static_constraint( *ubc , "ub" );
    ( *lbc )[ 0 ].set_variable( & x[ 0 ] , eNoMod );
    ( *lbc )[ 0 ].set_lhs( 0 , eNoMod );
    ( *ubc )[ 0 ].set_variable( & x[ 0 ] , eNoMod );
    ( *ubc )[ 0 ].set_rhs( 2 , eNoMod );
-   auto obj = new FRealObjective( block , new LinearFunction(
-			  LinearFunction::v_coeff_pair( { { & x[ 0 ] , c.cost } } ) ) );
+   auto obj = kept( new FRealObjective( block , new LinearFunction(
+	       LinearFunction::v_coeff_pair( { { & x[ 0 ] , c.cost } } ) ) ) );
    obj->set_sense( c.sense , eNoMod );
    block->set_objective( obj , eNoMod );
    auto solver = new BoxSolver();
@@ -778,12 +799,12 @@ static void test_BoxSolver_duals( void )
  {
   auto block = block_with_x( 1 );
   auto & x = x_of( block );
-  auto ubc = new std::vector< UBConstraint >( 1 );
+  auto ubc = kept( new std::vector< UBConstraint >( 1 ) );
   block->add_static_constraint( *ubc , "ub" );
   ( *ubc )[ 0 ].set_variable( & x[ 0 ] , eNoMod );
   ( *ubc )[ 0 ].set_rhs( 2 , eNoMod );
-  auto obj = new FRealObjective( block , new LinearFunction(
-			  LinearFunction::v_coeff_pair( { { & x[ 0 ] , 1.0 } } ) ) );
+  auto obj = kept( new FRealObjective( block , new LinearFunction(
+	       LinearFunction::v_coeff_pair( { { & x[ 0 ] , 1.0 } } ) ) ) );
   obj->set_sense( Objective::eMax , eNoMod );
   block->set_objective( obj , eNoMod );
   auto solver = new BoxSolver();
@@ -896,7 +917,8 @@ static void test_BoxSolver_unbounded( void )
 
 static void test_UpdateSolver( void )
 {
- assert( throws< std::invalid_argument >( []() { UpdateSolver( nullptr ); } ) );
+ assert( throws< std::invalid_argument >( []() {
+	   UpdateSolver( nullptr ); } ) );
 
  struct Case {
   int options;
@@ -1236,6 +1258,9 @@ int main( int argc , char ** argv )
  test_Solver_Modification_queue();
  test_Solver_parameters();
  test_Solver_log_file();
+
+ while( ! given.empty() )
+  given.pop_back();
 
  if( n_failures ) {
   std::cout << "Misc_unit_test: " << n_failures << " check(s) failed"
