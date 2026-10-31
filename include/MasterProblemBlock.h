@@ -2029,6 +2029,51 @@ class MasterProblemBlock : public Block {
  [[nodiscard]] double get_t() const { return( t_stab ); }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the stabilization of the MP [see stabilization_type]
+
+ [[nodiscard]] stabilization_type get_stabilization( void ) const
+  { return( StblType ); }
+
+/*--------------------------------------------------------------------------*/
+ /// returns true if the MP is in its primal form, false if in the dual one
+
+ [[nodiscard]] bool is_primal( void ) const { return( IsPrimal ); }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the current level f_lev (level and doubly stabilization only)
+
+ [[nodiscard]] double get_level( void ) const { return( f_lev ); }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the diagonal of the quadratic 0-th component, empty if none
+ /** Returns the diagonal \f$ \rho \f$ of the quadratic 0-th component
+  * \f$ \frac{1}{2} \sum_j \rho_j x_j^2 \f$ of the primal MP [see
+  * set_zeroth_quadratic()], which is empty if there is no such component. */
+
+ [[nodiscard]] const std::vector< double > & get_zeroth_quadratic( void )
+  const { return( f_rho ); }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the bit-wise scaling of the hard components
+ /** Returns the scaling of the PolyhedralFunctionBlock of the hard
+  * components: bit 0 for the local rows, bit 1 for the global epigraph
+  * [see configure()]; 0 means that no component is scaled. */
+
+ [[nodiscard]] int get_hard_cmp_scaling( void ) const
+  { return( HardCmpScaling ); }
+
+/*--------------------------------------------------------------------------*/
+ /// gives the box of coordinate j of the primal MP
+ /** Writes in \p lhs and \p rhs the box of coordinate \p j of the primal
+  * MP, i.e., [ L , U ] intersected with the trust region under
+  * #kTrustRegion, in the frame of the Variable [see set_v2_form()]: the
+  * displacement d_j in the translated form, x_j in the raw one. An infinite
+  * side is - / + Inf< double >(). */
+
+ void get_primal_box( Index j , double & lhs , double & rhs ) const
+  { primal_box( j , lhs , rhs ); }
+
+/*--------------------------------------------------------------------------*/
  /// update the linear coefficient vector b of the primal Objective
  /** Sets the linear coefficient on every d_i of the primal MP Objective
   * to the value \p b[i] (i.e. the "b" of the paper's primal MP b * d + sum_k

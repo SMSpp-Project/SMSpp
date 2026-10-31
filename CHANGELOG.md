@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- the getters `get_stabilization()`, `is_primal()`, `get_level()`,
+  `get_zeroth_quadratic()`, `get_hard_cmp_scaling()` and `get_primal_box()`
+  of `MasterProblemBlock`, which give a Solver of the master the
+  stabilization, the form, the level, the quadratic 0-th component, the
+  scaling of the hard components and the box of each coordinate (the
+  trust region included) without access to its protected fields
+
 - the event type `ThinComputeInterface::eEverySolution`, called by a
   `compute()` whose result is a combination of the solutions of several
   problems it solves one after the other on the same Block (as the
