@@ -299,6 +299,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `BlockSolverConfig::apply()` deletes the `Solver` it has created when
+  its `ComputeConfig` does not apply (e.g., a parameter the `Solver` does
+  not know), which was lost
+
 - `FRealObjective` and `FRowConstraint` do not ask their `Block` whether
   to issue the `Modification` of a new `Function` when told `eNoMod`, as
   their destructors do: an `Objective` or a `Constraint` that a `Block`

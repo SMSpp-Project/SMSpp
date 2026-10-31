@@ -23,6 +23,7 @@
 #include <algorithm>
 
 #include <cctype>
+#include <memory>
 
 #include "BlockInspection.h"
 
@@ -318,6 +319,17 @@ void BlockSolverConfig::apply( Block * block ,
    slvr->set_excluded_blocks( ignored );
   };
 
+ // a new Solver, ComputeConfig-ured if the ComputeConfig is there and told
+ // what to ignore; deleted if any of that throws, as no Block has it yet
+ const auto new_solver = [ & ]( const std::string & name ,
+				ComputeConfig * cfg ) {
+  std::unique_ptr< Solver > slvr( Solver::new_Solver( name ) );
+  if( cfg )
+   slvr->set_ComputeConfig( cfg );
+  install_excluded( slvr.get() );
+  return( slvr.release() );
+  };
+
  auto & recorded = v_Registered[ block ];  // the record for this Block
 
  if( f_diff == eAddMode ) {  // additive mode- - - - - - - - - - - - - - - - -
@@ -328,12 +340,7 @@ void BlockSolverConfig::apply( Block * block ,
   auto cit = v_SolverConfigs.begin();
   for( auto nit = v_SolverNames.begin() ; nit != v_SolverNames.end() ;
        ++nit , ++cit ) {
-   auto slvr = Solver::new_Solver( *nit );  // first create the Solver
-
-   if( *cit )                               // if the ComputeConfig is there
-    slvr->set_ComputeConfig( *cit );        // ComputeConfig-ure it
-
-   install_excluded( slvr );                // and tell it what to ignore
+   auto slvr = new_solver( *nit , *cit );
 
    block->register_Solver( slvr );          // only then pass it to the Block
    recorded.push_back( slvr );              // and record it
@@ -377,12 +384,7 @@ void BlockSolverConfig::apply( Block * block ,
      slvr->set_ComputeConfig( *cit );  // ComputeConfig-ure it
     }
    else {                // a new and different Solver (name) is specified
-    slvr = Solver::new_Solver( *nit );
-
-    if( *cit )                             // if the ComputeConfig is there
-     slvr->set_ComputeConfig( *cit );      // ComputeConfig-ure it
-
-    install_excluded( slvr );              // and tell it what to ignore
+    slvr = new_solver( *nit , *cit );
 
     forget( *sit );                        // the replaced one is deleted
     block->replace_Solver( slvr , sit , true );  // replace the existing one
@@ -407,12 +409,7 @@ void BlockSolverConfig::apply( Block * block ,
          ++nit , ++sit , ++cit ) {
    //  note: the order of operations is important
 
-   auto slvr = Solver::new_Solver( *nit );  // first create a new Solver
-
-   if( *cit )                                // if the ComputeConfig is there
-    slvr->set_ComputeConfig( *cit );         // ComputeConfig-ure it
-
-   install_excluded( slvr );                 // and tell it what to ignore
+   auto slvr = new_solver( *nit , *cit );
 
    // only then replace the existing one
    forget( *sit );                           // the replaced one is deleted
@@ -427,12 +424,7 @@ void BlockSolverConfig::apply( Block * block ,
  for( ; nit != v_SolverNames.end() ; ++nit , ++cit ) {
   //  note: the order of operations is important
 
-  auto slvr = Solver::new_Solver( *nit );  // first create the Solver
-
-  if( *cit )                               // if the ComputeConfig is there
-   slvr->set_ComputeConfig( *cit );        // ComputeConfig-ure it
-
-  install_excluded( slvr );                // and tell it what to ignore
+  auto slvr = new_solver( *nit , *cit );
 
   block->register_Solver( slvr );          // only then pass it to the Block
   recorded.push_back( slvr );
