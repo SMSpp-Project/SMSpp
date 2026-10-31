@@ -367,6 +367,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   own: a `Solution` registered in the DLL of a module was not found by the
   core (e.g., with the compilers of MSYS2)
 
+- `FindnetCDF.cmake` and `FindnetCDFCxx.cmake` find the libraries of the
+  compilers of MinGW (MSYS2) where its packages are, as on Unix, and under
+  both the names of netCDF-C++, instead of looking only where vcpkg puts
+  them
+
 - `MasterProblemBlock::set_zeroth_quadratic()` and `CreatePrimalMP()` throw
   `std::logic_error` when the quadratic 0-th component meets a stabilization
   that is not the proximal one, as its documentation said: with the trust
