@@ -89,6 +89,12 @@ if (MSVC)
     find_library(GETOPT_LIBRARY getopt)
 endif ()
 
+# the threads, which the core and FastFlow use: with a recent glibc they are
+# in the C library, while elsewhere (say, the compilers of MinGW-w64) they
+# have to be linked, by whoever links the core too
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
+
 # Fetch FastFlow, which the build interface of the library passes on to the
 # modules [see cmake/FastFlow.cmake]
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FastFlow.cmake)
@@ -206,7 +212,8 @@ target_include_directories(
 target_link_libraries(${modName} PUBLIC
         Boost::boost
         Eigen3::Eigen
-        netCDF::netCDFCxx)
+        netCDF::netCDFCxx
+        Threads::Threads)
 
 if (MSVC)
     target_link_libraries(${modName} PUBLIC ${GETOPT_LIBRARY})

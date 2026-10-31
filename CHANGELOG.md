@@ -299,6 +299,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- the target of the core links the threads (`Threads::Threads`, and
+  `find_dependency(Threads)` in its configuration), which the core and
+  FastFlow use and which are not in the C library everywhere: with the
+  clang++ of MSYS2 the DLL of a module that includes FastFlow did not link
+
 - the factories of `Change`, `Solution` and `State` are defined in the
   source files instead of the headers, so that there is one of each also
   when the libraries are DLLs of Windows, each of which had a copy of its
