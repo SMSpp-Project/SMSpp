@@ -71,8 +71,10 @@ void FRealObjective::set_function( Function * const function ,
    vbeg->add_active( this );
   }
 
- // if so instructed, issue the FRealObjectiveMod
- if( f_Block && f_Block->issue_mod( issueMod , Modification::eModObj ) )
+ // if so instructed, issue the FRealObjectiveMod; with eNoMod the Block is
+ // not asked, as it may be gone already (from the destructor)
+ if( ( Observer::par2mod( issueMod ) != eNoMod ) && f_Block &&
+     f_Block->issue_mod( issueMod , Modification::eModObj ) )
   f_Block->add_Modification( std::make_shared< FRealObjectiveMod >(
                               this , FRealObjectiveMod::eFunctionChanged ,
                               Observer::par2concern( issueMod ) ) ,

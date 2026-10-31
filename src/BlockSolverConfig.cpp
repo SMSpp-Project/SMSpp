@@ -235,7 +235,7 @@ void BlockSolverConfig::deserialize( const netCDF::NcGroup & group )
    else {
     delete ccfg;
     throw( std::invalid_argument(
-	          "BlockSolverConfig::deserialize: not a ComputeConfig" ) );    
+	          "BlockSolverConfig::deserialize: not a ComputeConfig" ) );
     }
    }
   }
@@ -869,9 +869,11 @@ void MetaBlockSolverConfig::set_map( MapConfig * map )
  if( map )
   for( const auto & [ key , val ] : map->f_value )
    if( val && ( ! dynamic_cast< BlockSolverConfig * >( val ) ) ) {
+    // the message first, as key goes with the map
+    std::invalid_argument e( "MetaBlockSolverConfig::set_map: entry " + key +
+			     " is not a BlockSolverConfig" );
     delete map;
-    throw( std::invalid_argument( "MetaBlockSolverConfig::set_map: entry "
-				  + key + " is not a BlockSolverConfig" ) );
+    throw( e );
     }
 
  delete f_map;

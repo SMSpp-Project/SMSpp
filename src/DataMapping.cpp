@@ -16,6 +16,8 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <memory>
+
 #include "BendersBFunction.h"
 #include "DataMapping.h"
 
@@ -87,19 +89,23 @@ SimpleDataMappingBase * SimpleDataMappingFactory::new_SimpleDataMapping(
  if( types.size() == 4 && types[ 3 ] == 'F' ) {
   const auto t = types.substr( 0, 3 );
   if( t == "RRD" )
-   return( new SimpleDataMapping< Range , Range , double , BendersBFunction > );
+   return( new SimpleDataMapping< Range , Range , double ,
+                                  BendersBFunction > );
   else if( t == "RRI" )
    return( new SimpleDataMapping< Range , Range , int , BendersBFunction > );
   else if( t == "RSD" )
-   return( new SimpleDataMapping< Range , Subset , double , BendersBFunction > );
+   return( new SimpleDataMapping< Range , Subset , double ,
+                                  BendersBFunction > );
   else if( t == "RSI" )
    return( new SimpleDataMapping< Range , Subset , int , BendersBFunction > );
   else if( t == "SRD" )
-   return( new SimpleDataMapping< Subset , Range , double , BendersBFunction > );
+   return( new SimpleDataMapping< Subset , Range , double ,
+                                  BendersBFunction > );
   else if( t == "SRI" )
    return( new SimpleDataMapping< Subset , Range , int , BendersBFunction > );
   else if( t == "SSD" )
-   return( new SimpleDataMapping< Subset , Subset , double , BendersBFunction > );
+   return( new SimpleDataMapping< Subset , Subset , double ,
+                                  BendersBFunction > );
   else if( t == "SSI" )
    return( new SimpleDataMapping< Subset , Subset , int , BendersBFunction > );
   else
@@ -153,12 +159,13 @@ DataMapping * SimpleDataMappingFactory::deserialize(
  char set_from_type, set_to_type;
  get_sets_type( group , set_from_type , set_to_type );
 
- auto data_mapping = new_SimpleDataMapping( { set_from_type , set_to_type ,
-                                              data_type , caller_type } );
+ std::unique_ptr< DataMapping > data_mapping( new_SimpleDataMapping(
+                         { set_from_type , set_to_type , data_type ,
+                           caller_type } ) );
 
  data_mapping->deserialize( group , block_reference );
 
- return( data_mapping );
+ return( data_mapping.release() );
  }
 
 /*--------------------------------------------------------------------------*/

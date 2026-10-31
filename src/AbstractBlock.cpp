@@ -4035,12 +4035,23 @@ void AbstractBlock::mirror_write_duals( void )
 bool AbstractBlock::mirror_added( const BlockModAD * mod , ModParam par )
 {
  if( mod->is_variable() ) {
-  // a Variable of the copy that goes may be used outside of the copy
-  if( ! mod->is_added() )
-   return( false );
-
   std::vector< Variable * > vars;
   mod->get_elements( vars );
+
+  // a Variable of the copy that goes may be used outside of the copy, hence
+  // it stays; the one of the original is gone, and is forgotten by comparing
+  // its address alone
+  if( ! mod->is_added() ) {
+   for( auto var : vars )
+    for( auto it = f_v_map.begin() ; it != f_v_map.end() ; ++it )
+     if( static_cast< const Variable * >( it->first ) == var ) {
+      f_v_rmap.erase( it->second );
+      f_v_map.erase( it );
+      break;
+      }
+   return( false );
+   }
+
   for( auto var : vars ) {
    auto s = dynamic_cast< ColVariable * >( var );
    if( ! s )

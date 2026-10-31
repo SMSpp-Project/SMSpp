@@ -299,6 +299,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `FRealObjective` and `FRowConstraint` do not ask their `Block` whether
+  to issue the `Modification` of a new `Function` when told `eNoMod`, as
+  their destructors do: an `Objective` or a `Constraint` that a `Block`
+  does not own, deleted after the `Block` by whoever made it, read the
+  `Block` that was gone
+
+- `MetaBlockConfig::set_map()` and `MetaBlockSolverConfig::set_map()`,
+  refusing an entry of the wrong type, wrote its name in the message after
+  deleting the map that held it
+
+- a mirror `AbstractBlock` forgets the dynamic `ColVariable` that the
+  original removes, which it keeps refusing: `set_size_variable()` then
+  read the removed one
+
+- `Change::new_Change()`, `Configuration::new_Configuration()`,
+  `Solution::new_Solution()`, `State::new_State()` and
+  `SimpleDataMappingFactory::deserialize()` delete the object they made
+  when its `deserialize()` throws, which was lost
+
 - the target of the core links the threads (`Threads::Threads`, and
   `find_dependency(Threads)` in its configuration), which the core and
   FastFlow use and which are not in the C library everywhere: with the

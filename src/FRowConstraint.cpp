@@ -70,8 +70,9 @@ void FRowConstraint::set_function( Function * const function ,
    vbeg->add_active( this );
   }
 
- // if so instructed, issue the FRowConstraintMod
- if( get_Block() &&
+ // if so instructed, issue the FRowConstraintMod; with eNoMod the Block is
+ // not asked, as it may be gone already (from the destructor)
+ if( ( Observer::par2mod( issueMod ) != eNoMod ) && get_Block() &&
      get_Block()->issue_mod( issueMod , Modification::eModCnsCoef ) )
   get_Block()->add_Modification( std::make_shared< FRowConstraintMod >(
                               this , FRowConstraintMod::eFunctionChanged ,

@@ -16,6 +16,8 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <memory>
+
 #include "Solution.h"
 
 #include "ColVariable.h"
@@ -242,7 +244,7 @@ Solution * Solution::new_Solution( const netCDF::NcGroup & group )
    }
 
   gtype.getValues( tmp );
-  auto result = new_Solution( tmp );
+  std::unique_ptr< Solution > result( new_Solution( tmp ) );
   result->deserialize( group );
 
   // whether it holds a direction is written by Solution::serialize(), hence
@@ -254,7 +256,7 @@ Solution * Solution::new_Solution( const netCDF::NcGroup & group )
    result->is_direction( dir != 0 );
    }
 
-  return( result );
+  return( result.release() );
   }
  catch( netCDF::exceptions::NcException & e ) {
   std::cerr << "netCDF error " << e.what() << " in Solution::new_Solution"

@@ -17,6 +17,8 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <memory>
+
 #include "SMSTypedefs.h"
 
 #include "ThinComputeInterface.h"
@@ -561,7 +563,7 @@ void ComputeConfig::serialize( netCDF::NcGroup & group ) const
    tmp_cstr[ i ] = tmp[ i ].c_str();
 
   ( group.addVar( "v_str_par_vals" , netCDF::NcString() , tot ) ).putVar(
-							       tmp_cstr.data() );
+							    tmp_cstr.data() );
   }
 
  // "extra" Configuration - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1011,9 +1013,9 @@ State * State::new_State( const netCDF::NcGroup & group )
    }
 
   gtype.getValues( tmp );
-  auto result = new_State( tmp );
+  std::unique_ptr< State > result( new_State( tmp ) );
   result->deserialize( group );
-  return( result );
+  return( result.release() );
   }
  catch( netCDF::exceptions::NcException & e ) {
   std::cerr << "netCDF error " << e.what() << " in State::new_State"

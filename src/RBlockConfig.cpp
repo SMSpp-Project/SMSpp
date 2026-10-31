@@ -694,9 +694,11 @@ void MetaBlockConfig::set_map( MapConfig * map )
  if( map )
   for( const auto & [ key , val ] : map->f_value )
    if( val && ( ! dynamic_cast< BlockConfig * >( val ) ) ) {
+    // the message first, as key goes with the map
+    std::invalid_argument e( "MetaBlockConfig::set_map: entry " + key +
+			     " is not a BlockConfig" );
     delete map;
-    throw( std::invalid_argument( "MetaBlockConfig::set_map: entry " + key
-				  + " is not a BlockConfig" ) );
+    throw( e );
     }
 
  delete f_map;
