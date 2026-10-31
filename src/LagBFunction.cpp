@@ -5145,9 +5145,9 @@ void LagBFunction::update_CostMatrix_ModVarsSbst( Index h ,
 void LagBFunction::set_default_inner_BlockConfig( void )
 {
  if( auto ib = get_inner_block() ) {
-  auto config = new OCRBlockConfig( ib );
-  config->clear();
-  config->apply( ib );
+  OCRBlockConfig config( ib );
+  config.clear();
+  config.apply( ib );
   }
  }
 

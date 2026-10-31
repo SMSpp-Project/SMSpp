@@ -1399,8 +1399,9 @@ public:
   // FunctionName
 
   auto function_name = Block::get_method_name( function );
-  SMSpp_di_unipi_it::serialize< std::string >
-   ( group , FunctionName_name , netCDF::NcString() , function_name );
+  // the overload for std::string, which hands netCDF the char * it wants
+  SMSpp_di_unipi_it::serialize( group , FunctionName_name ,
+				netCDF::NcString() , function_name );
 
   // AbstractPath
 

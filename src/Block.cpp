@@ -35,6 +35,7 @@
 #include "Variable.h"
 
 #include <algorithm>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -314,11 +315,11 @@ Block * Block::new_Block( const netCDF::NcGroup & group , Block * father ,
    }
 
   gtype.getValues( tmp );
-  auto result = new_Block( tmp , father );
+  std::unique_ptr< Block > result( new_Block( tmp , father ) );
   if( f )
-   std::invoke( *f , result );
+   std::invoke( *f , result.get() );
   result->deserialize( group );
-  return( result );
+  return( result.release() );
   }
  catch( netCDF::exceptions::NcException & e ) {
   std::cerr << "netCDF error " << e.what() << " in new_Block( group )"

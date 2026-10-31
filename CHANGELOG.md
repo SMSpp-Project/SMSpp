@@ -343,10 +343,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   original removes, which it keeps refusing: `set_size_variable()` then
   read the removed one
 
-- `Change::new_Change()`, `Configuration::new_Configuration()`,
-  `Solution::new_Solution()`, `State::new_State()` and
-  `SimpleDataMappingFactory::deserialize()` delete the object they made
-  when its `deserialize()` throws, which was lost
+- `Block::new_Block()`, `Change::new_Change()`,
+  `Configuration::new_Configuration()`, `Solution::new_Solution()`,
+  `State::new_State()` and `SimpleDataMappingFactory::deserialize()` delete
+  the object they made when its `deserialize()` throws, which was lost
+
+- `SimpleDataMapping::serialize()` writes the name of its method by the
+  `serialize()` of a `std::string`, which hands netCDF the `char *` it
+  wants, instead of the generic one, which handed it the `std::string`
+  itself: with the libc++ of macOS the write crashed
+
+- `LagBFunction::set_default_inner_BlockConfig()` deletes the
+  `OCRBlockConfig` it applies, which was lost
 
 - the target of the core links the threads (`Threads::Threads`, and
   `find_dependency(Threads)` in its configuration), which the core and
