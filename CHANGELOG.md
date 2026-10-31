@@ -367,10 +367,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   own: a `Solution` registered in the DLL of a module was not found by the
   core (e.g., with the compilers of MSYS2)
 
-- `cmake/FastFlow.cmake` builds FastFlow with the compilers of MinGW
-  (MSYS2): the conditions on `_WIN32` of its headers leave MinGW out, which
-  has the pthreads of POSIX, so that their types no longer clash with those
-  of the minimal port of FastFlow for MSVC
+- `cmake/FastFlow.cmake` applies to the fetched FastFlow the patches in
+  `cmake/fastflow`, each the change of a pull request to FastFlow, until it
+  has them: the timed waits of the port of the pthreads for MSVC, which the
+  core had injected in its header, `parallel_for.hpp` that MSVC builds
+  alone, and FastFlow on the POSIX threads of MinGW-w64 (MSYS2), which it
+  did not build on; a patch already there is left alone, and the patches
+  are installed with the file
 
 - `FindnetCDF.cmake` and `FindnetCDFCxx.cmake` find the libraries of the
   compilers of MinGW (MSYS2) where its packages are, as on Unix, and under
