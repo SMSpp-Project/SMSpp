@@ -2523,16 +2523,20 @@ int LagBFunction::compute( bool changedvars )
  // Objective [see v_ObjW]: they are divided by W, so that it sees them as
  // it would with W in the coefficients of the Objective
  {
+  // with a weight of 0 the inner Block counts for nothing, and its Solver
+  // has no cutoff and no accuracy of the value to be told of
   const double w = inner_weight();
   const auto to_inner = [ w ]( double c ) {
    return( ( std::abs( c ) < INF ) ? c / w : c );
    };
-  if( ! std::isnan( f_up_cut ) )
-   add_par( "dblUpCutOff" , to_inner( f_up_cut ) );
-  if( ! std::isnan( f_lw_cut ) )
-   add_par( "dblLwCutOff" , to_inner( f_lw_cut ) );
-  if( ! std::isnan( f_abs_acc ) )
-   add_par( "dblAbsAcc" , f_abs_acc / w );
+  if( w > 0 ) {
+   if( ! std::isnan( f_up_cut ) )
+    add_par( "dblUpCutOff" , to_inner( f_up_cut ) );
+   if( ! std::isnan( f_lw_cut ) )
+    add_par( "dblLwCutOff" , to_inner( f_lw_cut ) );
+   if( ! std::isnan( f_abs_acc ) )
+    add_par( "dblAbsAcc" , f_abs_acc / w );
+   }
   }
 
  // if some parameters have been changed, set BlockSolverConfig- - - - - - - -

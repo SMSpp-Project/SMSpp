@@ -216,6 +216,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- a weight of the Objective or of the Variable of a Block may be 0 (a
+  Block that counts for nothing, say, a unit of which there is no copy):
+  the weights are finite and not negative, and `LagBFunction` gives the
+  Solver of an inner Block of weight 0 no cutoff nor accuracy, which it
+  would otherwise divide by the weight
+
 - a change of the weights of a `Block` asks the `Solver` of its ancestors
   up to the first one that is a `Function` (the `LagBFunction` or the
   `BendersBFunction` whose inner `Block` it is in), which tells those above

@@ -512,9 +512,10 @@ static void check_weight_change( const Block * b , const char * who )
 void Block::change_weights( double w , int which , c_ModParam issueMod ,
                             const char * who )
 {
- if( ( ! std::isfinite( w ) ) || ( w <= 0 ) )
+ if( ( ! std::isfinite( w ) ) || ( w < 0 ) )
   throw( std::invalid_argument( std::string( "Block::" ) + who +
-                                ": the weight must be finite and positive" ) );
+                                ": the weight must be finite and not "
+                                "negative" ) );
 
  if( ( which & BlockWeightMod::eObjective ) && ( f_objective_weight == w ) )
   which &= ~int( BlockWeightMod::eObjective );

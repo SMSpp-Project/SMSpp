@@ -1099,7 +1099,7 @@ static void test_serialize_nested( void )
  * it is not set; the product along the path from a Block up to an ancestor,
  * the latter excluded, for an ancestor that is the Block itself (1), its
  * father, the root and none (the root included); refused for a Block that
- * is not an ancestor; a weight that is not finite and positive is refused
+ * is not an ancestor; a weight that is negative or not finite is refused
  * and leaves the old one; so is any weight while a Solver that cannot
  * handle the change is attached to an ancestor, and not once it is
  * detached, while one attached to the Block itself does not see it. */
@@ -1134,7 +1134,7 @@ static void test_objective_weight( void )
   assert( refused );
   }
 
- for( double w : { 0.0 , -1.0 , Inf< double >() , - Inf< double >() ,
+ for( double w : { -1.0 , Inf< double >() , - Inf< double >() ,
                    std::nan( "" ) } ) {
   bool refused = false;
   try { leaf->set_objective_weight( w ); }
@@ -1142,6 +1142,12 @@ static void test_objective_weight( void )
   assert( refused );
   assert( leaf->get_objective_weight() == 3 );
   }
+
+ // a weight of 0, a Block that counts for nothing, is one
+ leaf->set_objective_weight( 0 );
+ assert( leaf->get_objective_weight() == 0 );
+ assert( leaf->get_objective_weight( nullptr ) == 0 );
+ leaf->set_objective_weight( 3 );
 
  leaf->register_Solver( new BoxSolver() );
  leaf->set_objective_weight( 7 );
@@ -1234,13 +1240,18 @@ static void test_variable_weight( void )
  catch( const std::invalid_argument & ) { refused = true; }
  assert( refused );
 
- for( double s : { 0.0 , -1.0 , Inf< double >() , std::nan( "" ) } ) {
+ for( double s : { -1.0 , Inf< double >() , std::nan( "" ) } ) {
   refused = false;
   try { leaf->set_variable_weight( s ); }
   catch( const std::invalid_argument & ) { refused = true; }
   assert( refused );
   assert( leaf->get_variable_weight() == 3 );
   }
+
+ // a weight of 0, a unit of which there is no copy, is one
+ leaf->set_variable_weight( 0 );
+ assert( leaf->get_variable_weight( nullptr ) == 0 );
+ leaf->set_variable_weight( 3 );
 
  auto listener = new WeightListener();
  root->register_Solver( listener );
@@ -1278,7 +1289,7 @@ static void test_variable_weight( void )
 /* The weights of the Objective and of the Variable through a netCDF file:
  * what is not 1 comes back at every level of the tree, 1 is not written
  * ("ObjectiveWeight" and "VariableWeight" are not there), and a file whose
- * "ObjectiveWeight" is not finite and positive is refused:
+ * "ObjectiveWeight" is negative or not finite is refused:
  * Block::deserialize() throws, which new_Block() turns into a nullptr. */
 
 static void test_serialize_objective_weight( void )
@@ -1312,7 +1323,7 @@ static void test_serialize_objective_weight( void )
   assert( f.getGroup( "Block_0" ).getAtt( "VariableWeight" ).isNull() );
   }
 
- for( double w : { 0.0 , -2.0 , Inf< double >() , std::nan( "" ) } ) {
+ for( double w : { -2.0 , Inf< double >() , std::nan( "" ) } ) {
   root->Block::serialize( name , eBlockFile );
   {
    netCDF::NcFile f( name , netCDF::NcFile::write );

@@ -1397,13 +1397,13 @@ class Block : public Observer {
   *
   * - the optional double attribute "ObjectiveWeight" that contains the
   *   weight of the Objective of this Block [see set_objective_weight()],
-  *   which must be finite and positive; if "ObjectiveWeight" is not present,
-  *   the weight is 1.
+  *   which must be finite and not negative; if "ObjectiveWeight" is not
+  *   present, the weight is 1.
   *
   * - the optional double attribute "VariableWeight" that contains the
   *   weight of the Variable of this Block [see set_variable_weight()],
-  *   which must be finite and positive; if "VariableWeight" is not present,
-  *   the weight is 1.
+  *   which must be finite and not negative; if "VariableWeight" is not
+  *   present, the weight is 1.
   *
   * - whatever other information is required by the specific :Block.
   *
@@ -1534,9 +1534,9 @@ class Block : public Observer {
   if( ! gweight.isNull() ) {
    double w;
    gweight.getValues( & w );
-   if( ( ! std::isfinite( w ) ) || ( w <= 0 ) )
+   if( ( ! std::isfinite( w ) ) || ( w < 0 ) )
     throw( std::invalid_argument( "Block::deserialize: ObjectiveWeight "
-                                  "must be finite and positive" ) );
+                                  "must be finite and not negative" ) );
    f_objective_weight = w;
    }
 
@@ -1545,9 +1545,9 @@ class Block : public Observer {
   if( ! gvweight.isNull() ) {
    double s;
    gvweight.getValues( & s );
-   if( ( ! std::isfinite( s ) ) || ( s <= 0 ) )
+   if( ( ! std::isfinite( s ) ) || ( s < 0 ) )
     throw( std::invalid_argument( "Block::deserialize: VariableWeight "
-                                  "must be finite and positive" ) );
+                                  "must be finite and not negative" ) );
    f_variable_weight = s;
    }
 
@@ -2298,7 +2298,9 @@ class Block : public Observer {
   * at up to the first one that is a Function (say, the LagBFunction or the
   * BendersBFunction whose inner Block this Block is in), which tells those
   * above it of the change as a change of itself. std::invalid_argument is
-  * thrown if \p w is not finite and positive. */
+  * thrown if \p w is negative or not finite; a weight of 0 makes the
+  * Objective of the Block count for nothing (say, a unit of which there is
+  * no copy), and a Solver that divides by it has to treat it apart. */
 
  void set_objective_weight( double w , c_ModParam issueMod = eModBlck );
 
