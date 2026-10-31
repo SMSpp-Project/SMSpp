@@ -367,6 +367,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   own: a `Solution` registered in the DLL of a module was not found by the
   core (e.g., with the compilers of MSYS2)
 
+- `cmake/FastFlow.cmake` builds FastFlow with the compilers of MinGW
+  (MSYS2): the conditions on `_WIN32` of its headers leave MinGW out, which
+  has the pthreads of POSIX, so that their types no longer clash with those
+  of the minimal port of FastFlow for MSVC
+
 - `FindnetCDF.cmake` and `FindnetCDFCxx.cmake` find the libraries of the
   compilers of MinGW (MSYS2) where its packages are, as on Unix, and under
   both the names of netCDF-C++, instead of looking only where vcpkg puts
