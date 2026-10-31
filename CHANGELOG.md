@@ -306,6 +306,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- the version of a library found by `cmake/FindEigen3.cmake`,
+  `cmake/FindnetCDF.cmake` or `cmake/FindnetCDFCxx.cmake` is kept in the
+  cache, with the include directory it is read from, and read again when that
+  directory changes: a configure that took the paths from the cache left
+  `Eigen3_VERSION`, `netCDF_VERSION` and `netCDFCxx_VERSION` empty
+
 - `cmake/FindEigen3.cmake`, `cmake/FindnetCDF.cmake` and
   `cmake/FindnetCDFCxx.cmake` drop the cached paths of a library when one of
   them does not exist any more (e.g., in a build directory configured once

@@ -36,7 +36,7 @@ include(FindPackageHandleStandardArgs)
 
 # Drop the cached paths if one of them does not exist any more, so that
 # they are all searched again from the same place
-set(_eigen3_cached Eigen3_INCLUDE_DIR)
+set(_eigen3_cached Eigen3_INCLUDE_DIR Eigen3_VERSION)
 foreach (_var ${_eigen3_cached})
     foreach (_path ${${_var}})
         if (IS_ABSOLUTE "${_path}" AND NOT EXISTS "${_path}")
@@ -55,8 +55,17 @@ unset(_eigen3_stale)
 unset(_var)
 unset(_path)
 
+# The cached version is the one of the include directory it was read from,
+# possibly none
+if (NOT "${Eigen3_INCLUDE_DIR}" STREQUAL
+        "${_Eigen3_VERSION_INCLUDE_DIR}")
+    unset(Eigen3_VERSION CACHE)
+    unset(_Eigen3_VERSION_INCLUDE_DIR CACHE)
+endif ()
+
 # Check if already in cache
-if (Eigen3_INCLUDE_DIR)
+if (Eigen3_INCLUDE_DIR AND
+        DEFINED _Eigen3_VERSION_INCLUDE_DIR)
     set(Eigen3_FOUND TRUE)
 else ()
 
@@ -111,6 +120,15 @@ else ()
             Eigen3
             REQUIRED_VARS Eigen3_INCLUDE_DIR
             VERSION_VAR Eigen3_VERSION)
+endif ()
+
+# A found package keeps its version in the cache, with the include
+# directory it was read from
+if (Eigen3_FOUND)
+    set(Eigen3_VERSION "${Eigen3_VERSION}" CACHE INTERNAL
+            "Eigen3 version.")
+    set(_Eigen3_VERSION_INCLUDE_DIR "${Eigen3_INCLUDE_DIR}"
+            CACHE INTERNAL "Include directory of the Eigen3 version.")
 endif ()
 
 # ----- Export the target --------------------------------------------------- #

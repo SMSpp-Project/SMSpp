@@ -55,7 +55,7 @@ endif ()
 # Drop the cached paths if one of them does not exist any more, so that
 # they are all searched again from the same place
 set(_netCDFCxx_cached netCDFCxx_INCLUDE_DIR netCDFCxx_LIBRARY
-        netCDFCxx_LIBRARY_DEBUG)
+        netCDFCxx_LIBRARY_DEBUG netCDFCxx_VERSION)
 foreach (_var ${_netCDFCxx_cached})
     foreach (_path ${${_var}})
         if (IS_ABSOLUTE "${_path}" AND NOT EXISTS "${_path}")
@@ -74,8 +74,17 @@ unset(_netCDFCxx_stale)
 unset(_var)
 unset(_path)
 
+# The cached version is the one of the include directory it was read from,
+# possibly none
+if (NOT "${netCDFCxx_INCLUDE_DIR}" STREQUAL
+        "${_netCDFCxx_VERSION_INCLUDE_DIR}")
+    unset(netCDFCxx_VERSION CACHE)
+    unset(_netCDFCxx_VERSION_INCLUDE_DIR CACHE)
+endif ()
+
 # Check if already in cache
-if (netCDFCxx_INCLUDE_DIR AND netCDFCxx_LIBRARY AND netCDFCxx_LIBRARY_DEBUG)
+if (netCDFCxx_INCLUDE_DIR AND netCDFCxx_LIBRARY AND netCDFCxx_LIBRARY_DEBUG AND
+        DEFINED _netCDFCxx_VERSION_INCLUDE_DIR)
     set(netCDFCxx_FOUND TRUE)
 else ()
 
@@ -143,6 +152,15 @@ else ()
             netCDFCxx
             REQUIRED_VARS netCDFCxx_LIBRARY netCDFCxx_INCLUDE_DIR
             VERSION_VAR netCDFCxx_VERSION)
+endif ()
+
+# A found package keeps its version in the cache, with the include
+# directory it was read from
+if (netCDFCxx_FOUND)
+    set(netCDFCxx_VERSION "${netCDFCxx_VERSION}" CACHE INTERNAL
+            "netCDF-C++ version.")
+    set(_netCDFCxx_VERSION_INCLUDE_DIR "${netCDFCxx_INCLUDE_DIR}"
+            CACHE INTERNAL "Include directory of the netCDF-C++ version.")
 endif ()
 
 # ----- Export the target --------------------------------------------------- #
