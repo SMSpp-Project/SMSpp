@@ -260,15 +260,18 @@ class MasterProblemBlock : public Block {
   *   #kLevel and #kDoublyStabilized are recovered as special cases by
   *   degenerating one of the two centres.
   *
-  * Only #kProximal, #kLevel and #kDoublyStabilized are currently fully
-  * wired in CreatePrimalMP / CreateDualMP; #kTrustRegion is wired in
-  * CreatePrimalMP only, where its master has a linear Objective and the box
+  * #kProximal, #kLevel, #kDoublyStabilized and #kTrustRegion are wired in
+  * CreatePrimalMP / CreateDualMP. In the primal MP the master of
+  * #kTrustRegion has a linear Objective and the box
   * \f$ \| x - \bar{x} \|_\infty \leq t \f$, which \f$ t = \infty \f$
   * removes [see set_t()], hence it is a mixed-integer linear problem when
-  * some coordinates are integer [see set_integer()]; #kNone and
-  * #kUpperLower are reserved enumerators, and CreatePrimalMP / CreateDualMP
-  * throw `std::logic_error` if invoked with one of them, as CreateDualMP
-  * does with #kTrustRegion. */
+  * some coordinates are integer [see set_integer()]; the primal master of
+  * #kNone is that of #kTrustRegion with \f$ t = \infty \f$ whatever t is,
+  * i.e., the cutting-plane master over the box [ L , U ] [see set_box()],
+  * which is unbounded below as long as the cuts do not bound the model on
+  * it. CreateDualMP throws `std::logic_error` with #kNone, and so do
+  * CreatePrimalMP / CreateDualMP with #kUpperLower, a reserved
+  * enumerator. */
 
  enum stabilization_type {
   kProximal         = 0 ,  ///< proximal stabilization
@@ -2011,7 +2014,8 @@ class MasterProblemBlock : public Block {
   * With #kTrustRegion t is instead the radius of the trust region
   * \f$ \| x - \bar{x} \|_\infty \leq t \f$, which is part of the box and
   * is updated at once. In the primal MP t may be Inf< double >(), which
-  * removes the stabilization: the master is then the cutting-plane one.
+  * removes the stabilization: the master is then the cutting-plane one,
+  * which the primal MP of #kNone is whatever t is, t being only stored.
   *
   * \note this method only updates the proximal coefficient: issuing the
   *       call at every change of t, and re-solving the MP after it, is up
@@ -2793,6 +2797,13 @@ class MasterProblemBlock : public Block {
                     ///< under #kTrustRegion with a finite t, and not
                     ///< farther than the side of [ L , U ]; a tie goes to
                     ///< the trust region, so that z* is not underestimated
+
+ bool has_trust_region( void ) const {
+  return( ( StblType == kTrustRegion ) ||
+          ( IsPrimal && ( StblType == kNone ) ) );
+  }
+                    ///< true if the master is the one of #kTrustRegion, as
+                    ///< the primal one of #kNone is with an infinite t
 
  void refresh_box_coordinate( Index j , DQuadFunction * dqf ,
                               ModParam issueMod = eModBlck );

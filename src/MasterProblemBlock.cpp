@@ -870,10 +870,9 @@ void MasterProblemBlock::generate_objective( Configuration * objc )
 
 void MasterProblemBlock::CreatePrimalMP( stabilization_type Stbl )
 {
- // kNone and kUpperLower are reserved enumerators of stabilization_type;
- // their full wiring is tracked separately and until then callers must fall
- // back to kProximal / kLevel / kDoublyStabilized / kTrustRegion
- if( Stbl == kNone || Stbl == kUpperLower )
+ // kUpperLower is a reserved enumerator of stabilization_type; kNone is
+ // the trust region with an infinite radius [see has_trust_region()]
+ if( Stbl == kUpperLower )
   throw( std::logic_error(
        "MasterProblemBlock::CreatePrimalMP: stabilization type " +
        std::to_string( int( Stbl ) ) +
@@ -1194,15 +1193,20 @@ void MasterProblemBlock::generate_primal_objective( void )
 
 void MasterProblemBlock::CreateDualMP( stabilization_type Stbl )
 {
- // kUpperLower is a reserved enumerator with no implementation yet; reject
- // it up front. kNone is handled below by the natural flow (no proximal
- // quadratic term, no level row), and so is kTrustRegion, whose radius only
- // moves the sides of the box [see primal_box()].
+ // kUpperLower is a reserved enumerator with no implementation yet, and
+ // kNone is the cutting-plane master of the primal MP only [see
+ // has_trust_region()]: a free z with no term in the Objective would fix
+ // the step to 0. kTrustRegion is handled below, its radius only moving the
+ // sides of the box [see primal_box()].
  if( Stbl == kUpperLower )
   throw( std::logic_error(
        "MasterProblemBlock::CreateDualMP: stabilization type " +
        std::to_string( int( Stbl ) ) +
        " is reserved but not yet implemented" ) );
+ if( Stbl == kNone )
+  throw( std::logic_error(
+       "MasterProblemBlock::CreateDualMP: the cutting-plane master (kNone) "
+       "is only the primal one" ) );
 
  StblType = Stbl;
  IsPrimal = false;
@@ -2461,13 +2465,16 @@ double MasterProblemBlock::get_conjugate_stabilization( double t ) const
 {
  const auto z = get_z_vector();
 
- // the conjugate of the indicator of the inf-norm ball of radius t
- if( StblType == kTrustRegion )
-  return( t * std::transform_reduce(
+ // the conjugate of the indicator of the inf-norm ball of radius t, which
+ // is 0 at z = 0 also when t is infinite
+ if( has_trust_region() ) {
+  const double nz = std::transform_reduce(
                  z.cbegin() , z.cend() , 0.0 , std::plus<>() ,
                  []( double zj ) {
                   return( std::abs( zj ) );
-                  } ) );
+                  } );
+  return( nz > 0.0 ? t * nz : 0.0 );
+  }
 
  return( t / 2.0 * std::transform_reduce(
                       z.cbegin() , z.cend() , 0.0 , std::plus<>() ,
@@ -3209,14 +3216,13 @@ double MasterProblemBlock::get_FiBLambda( int k ) const
   // multiple of z*, and it is read as it is [see get_d_vector()]
   const double sigma_k = get_aggregated_alpha( k );
   const auto zk = get_aggregated_subgradient( k );
-  const auto zt = ( StblType == kTrustRegion ) ? get_d_vector()
-                                               : get_z_vector();
+  const auto zt = has_trust_region() ? get_d_vector() : get_z_vector();
   double dot = 0.0;
   const std::size_t n = std::min( zk.size() , zt.size() );
   for( std::size_t j = 0 ; j < n ; ++j )
    dot += zk[ j ] * zt[ j ];
-  return( ( StblType == kTrustRegion ) ? dot - sigma_k
-                                       : - sigma_k - step_scale * dot );
+  return( has_trust_region() ? dot - sigma_k
+                             : - sigma_k - step_scale * dot );
   }
 
  for( int kk = 0 ; kk < int( HardCmps.size() ) ; ++kk )
@@ -3227,7 +3233,7 @@ double MasterProblemBlock::get_FiBLambda( int k ) const
  // t in proximal mode and eta in pure-level mode; with the trust region the
  // stabilization contributes t || z* ||_1 instead [see
  // get_conjugate_stabilization()]
- if( StblType == kTrustRegion )
+ if( has_trust_region() )
   return( - ( get_aggregated_alpha( -1 ) +
               get_lambda() * get_conjugate_stabilization( t_stab ) ) );
 
@@ -3244,7 +3250,7 @@ std::vector< double > MasterProblemBlock::get_z_vector( void ) const
        ! std::isfinite( get_level_multiplier() ) ) )
   throw( std::domain_error( "MasterProblemBlock: no normalized level aggregate" ) );
  std::vector< double > out;
- if( IsPrimal && ( StblType == kTrustRegion ) ) {
+ if( IsPrimal && has_trust_region() ) {
   // The trust region has no term in z: what the master tells of the
   // aggregate on coordinate j is the part of the multiplier of the side of
   // the box d*_j lies on that belongs to the trust region [see
@@ -6325,7 +6331,7 @@ int MasterProblemBlock::solve_master( void )
    * whose z is fixed to 0, the multipliers s^+ - s^- = l of the box and
    * the dual values of the coupling rows, which give d [see
    * get_d_vector()]. */
-  if( StblType == kTrustRegion ) {
+  if( has_trust_region() ) {
    // the step on coordinate i, and the point it leads to in the frame of
    // the Variable (x in the iterate form, d in the displacement one)
    auto step = [ this , has_linear ]( Index i ) {

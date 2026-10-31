@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   scaling of the hard components and the box of each coordinate (the
   trust region included) without access to its protected fields
 
+- the stabilization `kNone` of `MasterProblemBlock` in the primal master
+  problem, i.e., the cutting-plane master of Kelley over the box of the
+  Variable, which is that of `kTrustRegion` with an infinite radius whatever
+  t is (`has_trust_region()`); `CreateDualMP()` throws with it, a free z
+  with no term in the Objective fixing the step to 0
+
 - the event type `ThinComputeInterface::eEverySolution`, called by a
   `compute()` whose result is a combination of the solutions of several
   problems it solves one after the other on the same Block (as the
@@ -382,6 +388,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   region it was accepted, and the bundle then expected a decrease that the
   function did not give, stopping by noise reduction with the radius at
   its maximum
+
+- `MasterProblemBlock::get_conjugate_stabilization()` is 0 at z = 0 under
+  the trust region also when t is infinite, rather than the NaN of an
+  infinite t times a zero norm
+
+- the documentation of `MasterProblemBlock::stabilization_type` says that
+  `CreateDualMP()` builds the trust region too
 
 - `strLogFileName` of `Solver` is kept, and `get_str_par()` returns it: a
   `ComputeConfig` applied again, or the one restoring the previous
