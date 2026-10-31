@@ -22,6 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   t is (`has_trust_region()`); `CreateDualMP()` throws with it, a free z
   with no term in the Objective fixing the step to 0
 
+- `ComputeConfig` reads a double parameter written `inf`, `+inf`, `-inf` or
+  `infinity` (in any case) as `Inf< double >()` or its opposite, which the
+  stream extraction of a double does not, so that a configuration file can
+  give a parameter an infinite value (e.g., the radius of a trust region)
+
 - the event type `ThinComputeInterface::eEverySolution`, called by a
   `compute()` whose result is a combination of the solutions of several
   problems it solves one after the other on the same Block (as the

@@ -17,7 +17,9 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <cctype>
 #include <memory>
+#include <type_traits>
 
 #include "SMSTypedefs.h"
 
@@ -46,6 +48,39 @@ static bool advance( std::istream & input , const std::string & msg )
  if( input.fail() )
   throw( std::invalid_argument( msg ) );
  return( advance( input ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+// a double parameter, which may also be written inf, +inf, -inf or
+// infinity (in any case), i.e., as Inf< double >() or its opposite
+
+static std::istream & read_double( std::istream & input , double & value )
+{
+ input >> std::ws;
+ int c = input.peek();
+ double sign = 1;
+ if( ( c == '+' ) || ( c == '-' ) ) {
+  input.get();
+  const int n = input.peek();
+  if( ( n != 'i' ) && ( n != 'I' ) ) {
+   input.putback( char( c ) );
+   return( input >> value );
+   }
+  sign = ( c == '-' ) ? -1 : 1;
+  c = n;
+  }
+
+ if( ( c != 'i' ) && ( c != 'I' ) )
+  return( input >> value );
+
+ std::string word;
+ while( std::isalpha( input.peek() ) )
+  word.push_back( char( std::tolower( input.get() ) ) );
+ if( ( word == "inf" ) || ( word == "infinity" ) )
+  value = sign * Inf< double >();
+ else
+  input.setstate( std::ios::failbit );
+ return( input );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -713,8 +748,12 @@ void ComputeConfig::load( std::istream & input )
   pairs.resize( count );
   std::string prev_name = last_name;
   for( unsigned int i = 0 ; i < count ; ++i ) {
-   input >> eatcomments >> pairs[ i ].first
-         >> eatcomments >> pairs[ i ].second;
+   input >> eatcomments >> pairs[ i ].first >> eatcomments;
+   if constexpr( std::is_same_v<
+                  std::decay_t< decltype( pairs[ i ].second ) > , double > )
+    read_double( input , pairs[ i ].second );
+   else
+    input >> pairs[ i ].second;
    if( input.fail() )
     throw( std::logic_error(
          "ComputeConfig::load: " + std::string( block ) +
@@ -831,7 +870,8 @@ void ComputeConfig::merge_overrides( std::istream & input )
  for( unsigned int i = 0 ; i < k ; ++i ) {
   std::string name;
   double value;
-  input >> eatcomments >> name >> eatcomments >> value;
+  input >> eatcomments >> name >> eatcomments;
+  read_double( input , value );
   checkfail( input , sre );
   set_par( std::move( name ) , value );
   }
