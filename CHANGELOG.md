@@ -306,6 +306,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `cmake/FindEigen3.cmake`, `cmake/FindnetCDF.cmake` and
+  `cmake/FindnetCDFCxx.cmake` drop the cached paths of a library when one of
+  them does not exist any more (e.g., in a build directory configured once
+  outside and once inside a container, or after an upgrade), so that all of
+  them are searched again; the stale include directory was kept, since
+  `find_path()` does not search a cached one again, and the configuration
+  stopped on reading the version from a header that is not there
+
+- `cmake/FindnetCDF.cmake` quotes the properties of `netCDF::netcdf`: with an
+  `HDF5_LIBRARIES` of more than one library (as the HDF5 of Debian and Ubuntu
+  gives) `set_target_properties()` stopped the configuration with an
+  incorrect number of arguments
+
 - `BlockSolverConfig::apply()` deletes the `Solver` it has created when
   its `ComputeConfig` does not apply (e.g., a parameter the `Solver` does
   not know), which was lost

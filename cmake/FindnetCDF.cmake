@@ -41,6 +41,27 @@ include(FindPackageHandleStandardArgs)
 # ----- Requirements -------------------------------------------------------- #
 find_package(HDF5 QUIET)
 
+# Drop the cached paths if one of them does not exist any more, so that
+# they are all searched again from the same place
+set(_netCDF_cached netCDF_INCLUDE_DIR netCDF_LIBRARY netCDF_LIBRARY_DEBUG)
+foreach (_var ${_netCDF_cached})
+    foreach (_path ${${_var}})
+        if (IS_ABSOLUTE "${_path}" AND NOT EXISTS "${_path}")
+            set(_netCDF_stale TRUE)
+        endif ()
+    endforeach ()
+endforeach ()
+if (_netCDF_stale)
+    message(STATUS "Cached netCDF paths not found, searching again")
+    foreach (_var ${_netCDF_cached})
+        unset(${_var} CACHE)
+    endforeach ()
+endif ()
+unset(_netCDF_cached)
+unset(_netCDF_stale)
+unset(_var)
+unset(_path)
+
 # Check if already in cache
 if (netCDF_INCLUDE_DIR AND netCDF_LIBRARY AND netCDF_LIBRARY_DEBUG)
     set(netCDF_FOUND TRUE)
@@ -118,10 +139,10 @@ if (netCDF_FOUND)
         add_library(netCDF::netcdf UNKNOWN IMPORTED)
         set_target_properties(
                 netCDF::netcdf PROPERTIES
-                IMPORTED_LOCATION ${netCDF_LIBRARY}
-                IMPORTED_LOCATION_DEBUG ${netCDF_LIBRARY_DEBUG}
-                INTERFACE_INCLUDE_DIRECTORIES ${netCDF_INCLUDE_DIRS}
-                INTERFACE_LINK_LIBRARIES ${HDF5_LIBRARIES})
+                IMPORTED_LOCATION "${netCDF_LIBRARY}"
+                IMPORTED_LOCATION_DEBUG "${netCDF_LIBRARY_DEBUG}"
+                INTERFACE_INCLUDE_DIRECTORIES "${netCDF_INCLUDE_DIRS}"
+                INTERFACE_LINK_LIBRARIES "${HDF5_LIBRARIES}")
     endif ()
 endif ()
 

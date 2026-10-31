@@ -52,6 +52,28 @@ else ()
     endif ()
 endif ()
 
+# Drop the cached paths if one of them does not exist any more, so that
+# they are all searched again from the same place
+set(_netCDFCxx_cached netCDFCxx_INCLUDE_DIR netCDFCxx_LIBRARY
+        netCDFCxx_LIBRARY_DEBUG)
+foreach (_var ${_netCDFCxx_cached})
+    foreach (_path ${${_var}})
+        if (IS_ABSOLUTE "${_path}" AND NOT EXISTS "${_path}")
+            set(_netCDFCxx_stale TRUE)
+        endif ()
+    endforeach ()
+endforeach ()
+if (_netCDFCxx_stale)
+    message(STATUS "Cached netCDF-C++ paths not found, searching again")
+    foreach (_var ${_netCDFCxx_cached})
+        unset(${_var} CACHE)
+    endforeach ()
+endif ()
+unset(_netCDFCxx_cached)
+unset(_netCDFCxx_stale)
+unset(_var)
+unset(_path)
+
 # Check if already in cache
 if (netCDFCxx_INCLUDE_DIR AND netCDFCxx_LIBRARY AND netCDFCxx_LIBRARY_DEBUG)
     set(netCDFCxx_FOUND TRUE)

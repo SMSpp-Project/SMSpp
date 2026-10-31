@@ -34,6 +34,27 @@
 # --------------------------------------------------------------------------- #
 include(FindPackageHandleStandardArgs)
 
+# Drop the cached paths if one of them does not exist any more, so that
+# they are all searched again from the same place
+set(_eigen3_cached Eigen3_INCLUDE_DIR)
+foreach (_var ${_eigen3_cached})
+    foreach (_path ${${_var}})
+        if (IS_ABSOLUTE "${_path}" AND NOT EXISTS "${_path}")
+            set(_eigen3_stale TRUE)
+        endif ()
+    endforeach ()
+endforeach ()
+if (_eigen3_stale)
+    message(STATUS "Cached Eigen3 paths not found, searching again")
+    foreach (_var ${_eigen3_cached})
+        unset(${_var} CACHE)
+    endforeach ()
+endif ()
+unset(_eigen3_cached)
+unset(_eigen3_stale)
+unset(_var)
+unset(_path)
+
 # Check if already in cache
 if (Eigen3_INCLUDE_DIR)
     set(Eigen3_FOUND TRUE)
