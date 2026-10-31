@@ -299,6 +299,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- the factories of `Change`, `Solution` and `State` are defined in the
+  source files instead of the headers, so that there is one of each also
+  when the libraries are DLLs of Windows, each of which had a copy of its
+  own: a `Solution` registered in the DLL of a module was not found by the
+  core (e.g., with the compilers of MSYS2)
+
 - `MasterProblemBlock::set_zeroth_quadratic()` and `CreatePrimalMP()` throw
   `std::logic_error` when the quadratic 0-th component meets a stabilization
   that is not the proximal one, as its documentation said: with the trust

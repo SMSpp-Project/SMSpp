@@ -291,5 +291,16 @@ const std::string & Solution::get_filename_prefix( void )
  }
 
 /*--------------------------------------------------------------------------*/
+// the factory is defined here, and not in the header, so that there is one
+// of it also when the libraries are DLLs of Windows, each of which would
+// otherwise have a copy of its own
+
+Solution::SolutionFactoryMap & Solution::f_factory( void )
+{
+ static SolutionFactoryMap s_factory;
+ return( s_factory );
+ }
+
+/*--------------------------------------------------------------------------*/
 /*----------------------- End File Solution.cpp ----------------------------*/
 /*--------------------------------------------------------------------------*/

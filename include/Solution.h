@@ -800,10 +800,7 @@ class Solution
   * The rationale for using a method is that this is the "Construct On First
   * Use Idiom" that solves the "static initialization order problem". */
 
- static SolutionFactoryMap & f_factory( void ) {
-  static SolutionFactoryMap s_factory;
-  return( s_factory );
-  }
+ static SolutionFactoryMap & f_factory( void );
 
 /*--------------------------------------------------------------------------*/
  /// empty placeholder for class-specific static initialization

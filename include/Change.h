@@ -478,10 +478,7 @@ class Change {
   * The rationale for using a method is that this is the "Construct On First
   * Use Idiom" that solves the "static initialization order problem". */
 
- static ChangeFactoryMap & f_factory( void ) {
-  static ChangeFactoryMap c_factory;
-  return( c_factory );
-  }
+ static ChangeFactoryMap & f_factory( void );
 
 /*--------------------------------------------------------------------------*/
  /// empty placeholder for class-specific static initialization

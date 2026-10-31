@@ -1050,5 +1050,16 @@ const std::string & State::get_filename_prefix()
  }
 
 /*--------------------------------------------------------------------------*/
+// the factory is defined here, and not in the header, so that there is one
+// of it also when the libraries are DLLs of Windows, each of which would
+// otherwise have a copy of its own
+
+State::StateFactoryMap & State::f_factory( void )
+{
+ static StateFactoryMap s_factory;
+ return( s_factory );
+ }
+
+/*--------------------------------------------------------------------------*/
 /*------------------ End File ThinComputeInterface.cpp ---------------------*/
 /*--------------------------------------------------------------------------*/

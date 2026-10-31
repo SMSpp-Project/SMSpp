@@ -3277,10 +3277,7 @@ class State {
   * rationale for using a method is that this is the "Construct On First Use
   * Idiom" that solves the "static initialization order problem". */
 
- static StateFactoryMap & f_factory( void ) {
-  static StateFactoryMap s_factory;
-  return( s_factory );
-  }
+ static StateFactoryMap & f_factory( void );
 
 /*--------------------------------------------------------------------------*/
  /// empty placeholder for class-specific static initialization
