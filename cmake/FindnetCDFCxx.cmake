@@ -95,7 +95,9 @@ else ()
             DOC "netCDF-C++ include directory.")
 
     # ----- Find the library ------------------------------------------------ #
-    if (UNIX)
+    # the compilers of MinGW (MSYS2) find it where its packages are, as on
+    # Unix, and with the same names
+    if (UNIX OR MINGW)
         find_library(netCDFCxx_LIBRARY
                 NAMES netcdf-cxx4 netcdf_c++4
                 PATHS ${netCDFCxx_ROOT}/lib
