@@ -307,6 +307,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `Observer.h` and `Solver.h` include `<atomic>`, whose `std::atomic_flag`
+  they use, instead of finding it through other headers: the libc++ of
+  MSYS2 does not include it on their behalf
+
 - the version of a library found by `cmake/FindEigen3.cmake`,
   `cmake/FindnetCDF.cmake` or `cmake/FindnetCDFCxx.cmake` is kept in the
   cache, with the include directory it is read from, and read again when that
