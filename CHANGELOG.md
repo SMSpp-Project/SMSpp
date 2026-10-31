@@ -293,6 +293,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `MasterProblemBlock::set_zeroth_quadratic()` and `CreatePrimalMP()` throw
+  `std::logic_error` when the quadratic 0-th component meets a stabilization
+  that is not the proximal one, as its documentation said: with the trust
+  region it was accepted, and the bundle then expected a decrease that the
+  function did not give, stopping by noise reduction with the radius at
+  its maximum
+
 - `strLogFileName` of `Solver` is kept, and `get_str_par()` returns it: a
   `ComputeConfig` applied again, or the one restoring the previous
   parameters, opened the file again and emptied it, and the empty name put

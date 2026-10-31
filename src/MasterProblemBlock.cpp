@@ -879,6 +879,15 @@ void MasterProblemBlock::CreatePrimalMP( stabilization_type Stbl )
        std::to_string( int( Stbl ) ) +
        " is reserved but not yet implemented" ) );
 
+ // a quadratic 0-th component given before is only carried by the proximal
+ // stabilization [see set_zeroth_quadratic()]
+ if( ( Stbl != kProximal ) &&
+     std::any_of( f_rho.begin() , f_rho.end() ,
+                  []( double r ) { return( r > 0 ); } ) )
+  throw( std::logic_error(
+       "MasterProblemBlock::CreatePrimalMP: only the proximal stabilization "
+       "carries the quadratic 0-th component" ) );
+
  StblType = Stbl;
  IsPrimal = true;
  f_dual_level_probe_active = false;
@@ -6493,6 +6502,11 @@ void MasterProblemBlock::set_zeroth_quadratic( const std::vector< double > &
    throw( std::logic_error(
         "MasterProblemBlock::set_zeroth_quadratic: the level row is linear in "
         "the model, hence it cannot carry the quadratic 0-th component" ) );
+
+  if( StblType != kProximal )
+   throw( std::logic_error(
+        "MasterProblemBlock::set_zeroth_quadratic: only the proximal "
+        "stabilization carries the quadratic 0-th component" ) );
   }
 
  f_rho = rho;

@@ -1697,8 +1697,10 @@ class MasterProblemBlock : public Block {
   * there. It must have one entry per Variable of the master.
   *
   * Only the primal MP with #kProximal stabilization supports it: the dual MP
-  * would need the term dualized, and the level ones would need the level row,
-  * which is linear in the model, to carry it. Both throw std::logic_error. */
+  * would need the term dualized, and the level ones would need the level
+  * row, which is linear in the model, to carry it. Any stabilization but
+  * #kProximal, the trust region included, throws std::logic_error, and so
+  * does CreatePrimalMP() with any of them once the term is there. */
 
  void set_zeroth_quadratic( const std::vector< double > & rho );
 
