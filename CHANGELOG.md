@@ -317,6 +317,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- on Windows, the executables that copy their DLLs next to themselves
+  are linked one at a time (a job pool of Ninja), since two copies of the
+  same DLL into one directory collided (e.g., with the clang++ of MSYS2)
+
 - `Observer.h` and `Solver.h` include `<atomic>`, whose `std::atomic_flag`
   they use, instead of finding it through other headers: the libc++ of
   MSYS2 does not include it on their behalf
