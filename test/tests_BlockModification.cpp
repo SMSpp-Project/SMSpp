@@ -33,6 +33,7 @@
 
 #include <iostream>
 #include <list>
+#include <memory>
 #include <stdexcept>
 #include <vector>
 
@@ -52,6 +53,20 @@ using ChnlName = Observer::ChnlName;
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ FUNCTIONS ---------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// what the tests give to a Block that the Block does not own, deleted at the
+/// end of main(), after every Block, the last given the first deleted
+
+static std::vector< std::shared_ptr< void > > given;
+
+template< class T >
+static T * kept( T * t )
+{
+ given.emplace_back( t );
+ return( t );
+ }
+
 /*--------------------------------------------------------------------------*/
 
 /// number of failed checks of the documented contract
@@ -318,7 +333,7 @@ static void test_open_if_needed( void )
 static void test_add_dynamic_variables( void )
 {
  auto block = new AbstractBlock;
- auto x = new std::list< ColVariable >( 2 );
+ auto x = kept( new std::list< ColVariable >( 2 ) );
  block->add_dynamic_variable( *x , "x" );
  auto solver = new FakeSolver();
  block->register_Solver( solver );
@@ -389,9 +404,9 @@ static void test_add_dynamic_variables( void )
 static void test_add_dynamic_constraints( void )
 {
  auto block = new AbstractBlock;
- auto var = new ColVariable;
+ auto var = kept( new ColVariable );
  block->add_static_variable( *var , "v" );
- auto rows = new std::list< FRowConstraint >( 1 );
+ auto rows = kept( new std::list< FRowConstraint >( 1 ) );
  fill( *rows , *var , 0 );
  block->add_dynamic_constraint( *rows , "rows" );
  auto solver = new FakeSolver();
@@ -449,7 +464,7 @@ static void test_add_dynamic_constraints( void )
 static void test_remove_range( void )
 {
  auto block = new AbstractBlock;
- auto x = new std::list< ColVariable >( 6 );
+ auto x = kept( new std::list< ColVariable >( 6 ) );
  number( *x , 0 );
  block->add_dynamic_variable( *x , "x" );
  auto solver = new FakeSolver();
@@ -523,7 +538,7 @@ static void test_remove_range( void )
 static void test_remove_subset( void )
 {
  auto block = new AbstractBlock;
- auto x = new std::list< ColVariable >( 8 );
+ auto x = kept( new std::list< ColVariable >( 8 ) );
  number( *x , 0 );
  block->add_dynamic_variable( *x , "x" );
  auto solver = new FakeSolver();
@@ -618,7 +633,7 @@ static void test_remove_subset( void )
 static void test_remove_iterators( void )
 {
  auto block = new AbstractBlock;
- auto x = new std::list< ColVariable >( 6 );
+ auto x = kept( new std::list< ColVariable >( 6 ) );
  number( *x , 0 );
  block->add_dynamic_variable( *x , "x" );
  auto solver = new FakeSolver();
@@ -686,14 +701,14 @@ static void test_remove_iterators( void )
  // unordered iterators are an error when the Modification is issued, and
  // nothing is changed: the list, the row the Variable are active in, the
  // Modification the Solver got
- auto y = new std::list< ColVariable >( 4 );
+ auto y = kept( new std::list< ColVariable >( 4 ) );
  number( *y , 0 );
  block->add_dynamic_variable( *y , "y" );
  LinearFunction::v_coeff_pair terms;
  for( auto & v : *y )
   terms.push_back( { & v , 1.0 } );
- auto row = new FRowConstraint( block , 0 , 10 ,
-				new LinearFunction( std::move( terms ) ) );
+ auto row = kept( new FRowConstraint( block , 0 , 10 ,
+				new LinearFunction( std::move( terms ) ) ) );
  block->add_static_constraint( *row , "row" );
  mods.clear();
  auto intact = [ & ]() {
@@ -764,9 +779,9 @@ static void test_remove_iterators( void )
 static void test_remove_constraints( void )
 {
  auto block = new AbstractBlock;
- auto var = new ColVariable;
+ auto var = kept( new ColVariable );
  block->add_static_variable( *var , "v" );
- auto rows = new std::list< FRowConstraint >( 6 );
+ auto rows = kept( new std::list< FRowConstraint >( 6 ) );
  fill( *rows , *var , 0 );
  block->add_dynamic_constraint( *rows , "rows" );
  assert( var->get_num_active() == 6 );
@@ -946,9 +961,9 @@ static void test_active_of_absent_stuff( void )
 static void test_remove_active_variable( void )
 {
  auto block = new AbstractBlock;
- auto x = new std::list< ColVariable >( 2 );
+ auto x = kept( new std::list< ColVariable >( 2 ) );
  block->add_dynamic_variable( *x , "x" );
- auto rows = new std::vector< FRowConstraint >( 1 );
+ auto rows = kept( new std::vector< FRowConstraint >( 1 ) );
  block->add_static_constraint( *rows , "r" );
  auto & row = ( *rows )[ 0 ];
  row.set_function( new LinearFunction( { { & x->front() , 1.0 } ,
@@ -992,7 +1007,7 @@ static void test_remove_active_variable( void )
 static void test_modes_and_listening( void )
 {
  auto block = new PeepingBlock;
- auto s = new std::vector< ColVariable >( 2 );
+ auto s = kept( new std::vector< ColVariable >( 2 ) );
  block->add_static_variable( *s , "s" );
  auto & v = ( *s )[ 0 ];
 
@@ -1072,7 +1087,7 @@ static void test_modes_and_listening( void )
 static void test_channel( void )
 {
  auto block = new PeepingBlock;
- auto s = new std::vector< ColVariable >( 3 );
+ auto s = kept( new std::vector< ColVariable >( 3 ) );
  block->add_static_variable( *s , "s" );
  auto solver = new FakeSolver();
  block->register_Solver( solver );
@@ -1145,7 +1160,7 @@ static void test_channel( void )
 static void test_nested_channels( void )
 {
  auto block = new AbstractBlock;
- auto s = new std::vector< ColVariable >( 4 );
+ auto s = kept( new std::vector< ColVariable >( 4 ) );
  block->add_static_variable( *s , "s" );
  auto solver = new FakeSolver();
  block->register_Solver( solver );
@@ -1198,7 +1213,7 @@ static void test_nested_channels( void )
 static void test_forced_close( void )
 {
  auto block = new AbstractBlock;
- auto s = new std::vector< ColVariable >( 3 );
+ auto s = kept( new std::vector< ColVariable >( 3 ) );
  block->add_static_variable( *s , "s" );
  auto solver = new FakeSolver();
  block->register_Solver( solver );
@@ -1260,7 +1275,7 @@ static void test_forced_close( void )
 static void test_empty_channel( void )
 {
  auto block = new AbstractBlock;
- auto s = new std::vector< ColVariable >( 1 );
+ auto s = kept( new std::vector< ColVariable >( 1 ) );
  block->add_static_variable( *s , "s" );
  auto solver = new FakeSolver();
  block->register_Solver( solver );
@@ -1327,7 +1342,7 @@ static void test_empty_channel( void )
 static void test_default_channel( void )
 {
  auto block = new AbstractBlock;
- auto s = new std::vector< ColVariable >( 3 );
+ auto s = kept( new std::vector< ColVariable >( 3 ) );
  block->add_static_variable( *s , "s" );
  auto solver = new FakeSolver();
  block->register_Solver( solver );
@@ -1414,7 +1429,7 @@ static void test_default_channel( void )
 static void test_clear_and_discard( void )
 {
  auto block = new AbstractBlock;
- auto s = new std::vector< ColVariable >( 4 );
+ auto s = kept( new std::vector< ColVariable >( 4 ) );
  block->add_static_variable( *s , "s" );
  auto solver = new FakeSolver();
  block->register_Solver( solver );
@@ -1526,7 +1541,7 @@ static void test_clear_and_discard( void )
  // the sub-Block receives everything naked, the one of the father nothing
  auto sub = new AbstractBlock( block );
  block->add_nested_Block( sub );
- auto t = new std::vector< ColVariable >( 1 );
+ auto t = kept( new std::vector< ColVariable >( 1 ) );
  sub->add_static_variable( *t , "t" );
  auto ssolver = new FakeSolver();
  sub->register_Solver( ssolver );
@@ -1568,7 +1583,7 @@ static void test_sub_Block( void )
  auto father = new PeepingBlock;
  auto early = new PeepingBlock( father );
  father->add_nested_Block( early );
- auto s = new std::vector< ColVariable >( 2 );
+ auto s = kept( new std::vector< ColVariable >( 2 ) );
  early->add_static_variable( *s , "s" );
  auto & v = ( *s )[ 0 ];
  assert( ! early->anyone_there() );
@@ -1643,7 +1658,7 @@ static void test_sub_Block( void )
  assert( fmods.empty() && smods.empty() && father->seen.empty() );
  assert( throws( [ & ]() { father->close_channel( sch ); } ) );
  {
-  auto fv = new ColVariable;
+  auto fv = kept( new ColVariable );
   father->add_static_variable( *fv , "f" );
   assert( throws( [ & ]() {
 	   fv->is_fixed( true , Observer::make_par( eNoBlck , sch ) ); } ) );
@@ -1692,6 +1707,9 @@ int main( void )
  test_default_channel();
  test_clear_and_discard();
  test_sub_Block();
+
+ while( ! given.empty() )
+  given.pop_back();
 
  if( n_failed ) {
   std::cout << n_failed << " check(s) of the documented contract FAILED"

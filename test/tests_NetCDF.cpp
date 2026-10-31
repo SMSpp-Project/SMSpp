@@ -77,6 +77,27 @@ using RealVector = PolyhedralFunction::RealVector;
 /*------------------------------ FUNCTIONS ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+/// what the tests give to a Block that the Block does not own, deleted at the
+/// end of main(), after every Block, the last given the first deleted
+
+static std::vector< std::shared_ptr< void > > given;
+
+template< class T >
+static T * kept( T * t )
+{
+ given.emplace_back( t );
+ return( t );
+ }
+
+/// an FRealObjective of b with Function f, to be given to b
+
+static FRealObjective * objective( Block * b , Function * f )
+{
+ return( kept( new FRealObjective( b , f ) ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 /// the name of the netCDF file the tests write, removed at the end
 
 static const std::string & nc_file( void )
@@ -269,11 +290,11 @@ static void test_abstract_block( void )
 {
  AbstractBlock block;
 
- auto x = new std::vector< ColVariable >( 4 );
+ auto x = kept( new std::vector< ColVariable >( 4 ) );
  ( *x )[ 1 ].set_type( ColVariable::kNatural );
  block.add_static_variable( *x , "x" );
 
- auto rows = new std::vector< FRowConstraint >( 3 );
+ auto rows = kept( new std::vector< FRowConstraint >( 3 ) );
  ( *rows )[ 0 ].set_function( linear( *x , { 1 , 2 , 0 , 0 } ) );
  ( *rows )[ 0 ].set_both( 3 );
  ( *rows )[ 1 ].set_function( linear( *x , { 0 , 0 , -3 , 0.5 } ) );
@@ -284,17 +305,16 @@ static void test_abstract_block( void )
  ( *rows )[ 2 ].set_rhs( 4 );
  block.add_static_constraint( *rows , "r" );
 
- auto box = new BoxConstraint( & block , & ( *x )[ 0 ] , -1 , 5 );
+ auto box = kept( new BoxConstraint( & block , & ( *x )[ 0 ] , -1 , 5 ) );
  block.add_static_constraint( *box , "box" );
- auto lb = new LBConstraint( & block , & ( *x )[ 2 ] , -2 );
+ auto lb = kept( new LBConstraint( & block , & ( *x )[ 2 ] , -2 ) );
  block.add_static_constraint( *lb , "lb" );
- auto ub = new UBConstraint( & block , & ( *x )[ 3 ] , 8 );
+ auto ub = kept( new UBConstraint( & block , & ( *x )[ 3 ] , 8 ) );
  block.add_static_constraint( *ub , "ub" );
- auto lb3 = new LBConstraint( & block , & ( *x )[ 3 ] , -4 );
+ auto lb3 = kept( new LBConstraint( & block , & ( *x )[ 3 ] , -4 ) );
  block.add_static_constraint( *lb3 , "lb3" );
 
- auto obj = new FRealObjective( & block ,
-				linear( *x , { 5 , -1 , 2 , 1 } ) );
+ auto obj = objective( & block , linear( *x , { 5 , -1 , 2 , 1 } ) );
  obj->set_sense( Objective::eMax , eNoMod );
  block.set_objective( obj , eNoMod );
 
@@ -323,18 +343,17 @@ static void test_abstract_block( void )
  // written being 0 to it
  {
   AbstractBlock only_ub;
-  auto y = new std::vector< ColVariable >( 1 );
+  auto y = kept( new std::vector< ColVariable >( 1 ) );
   only_ub.add_static_variable( *y , "y" );
-  auto u = new UBConstraint( & only_ub , & ( *y )[ 0 ] , 8 );
+  auto u = kept( new UBConstraint( & only_ub , & ( *y )[ 0 ] , 8 ) );
   only_ub.add_static_constraint( *u , "u" );
-  only_ub.set_objective( new FRealObjective( & only_ub ,
-					     linear( *y , { 1 } ) ) , eNoMod );
+  only_ub.set_objective( objective( & only_ub , linear( *y , { 1 } ) ) ,
+			 eNoMod );
   auto r = round_trip( only_ub );
   assert( r && same( model_of( *r ) , model_of( only_ub ) ) );
   delete r;
   }
 
- // the AbstractBlock owns what was added to it, and deletes it
  std::cout << "rows, bounds and Objective of an AbstractBlock: OK"
 	   << std::endl;
  }
@@ -356,9 +375,9 @@ static void test_empty_abstract_block( void )
   }
  {
   AbstractBlock block;
-  auto x = new std::vector< ColVariable >( 2 );
+  auto x = kept( new std::vector< ColVariable >( 2 ) );
   block.add_static_variable( *x , "x" );
-  auto obj = new FRealObjective( & block , linear( *x , { 1 , -1 } ) );
+  auto obj = objective( & block , linear( *x , { 1 , -1 } ) );
   block.set_objective( obj , eNoMod );
 
   auto read = round_trip( block );
@@ -368,12 +387,11 @@ static void test_empty_abstract_block( void )
  {
   // an empty group of rows
   AbstractBlock block;
-  auto x = new std::vector< ColVariable >( 2 );
+  auto x = kept( new std::vector< ColVariable >( 2 ) );
   block.add_static_variable( *x , "x" );
-  auto rows = new std::vector< FRowConstraint >();
+  auto rows = kept( new std::vector< FRowConstraint >() );
   block.add_static_constraint( *rows , "none" );
-  block.set_objective( new FRealObjective( & block ,
-					   linear( *x , { 2 , 3 } ) ) ,
+  block.set_objective( objective( & block , linear( *x , { 2 , 3 } ) ) ,
 		       eNoMod );
 
   auto read = round_trip( block );
@@ -384,10 +402,9 @@ static void test_empty_abstract_block( void )
  // a column that is in no row and has a zero coefficient in the Objective
  {
   AbstractBlock block;
-  auto x = new std::vector< ColVariable >( 2 );
+  auto x = kept( new std::vector< ColVariable >( 2 ) );
   block.add_static_variable( *x , "x" );
-  block.set_objective( new FRealObjective( & block ,
-					   linear( *x , { 0 , 3 } ) ) ,
+  block.set_objective( objective( & block , linear( *x , { 0 , 3 } ) ) ,
 		       eNoMod );
 
   auto read = round_trip( block );
@@ -398,7 +415,7 @@ static void test_empty_abstract_block( void )
  // columns and no Objective
  {
   AbstractBlock block;
-  auto x = new std::vector< ColVariable >( 2 );
+  auto x = kept( new std::vector< ColVariable >( 2 ) );
   block.add_static_variable( *x , "x" );
 
   auto read = round_trip( block );
@@ -410,9 +427,9 @@ static void test_empty_abstract_block( void )
  // whose coefficients are all zero too: both are written as the constant 0
  {
   AbstractBlock block;
-  auto x = new std::vector< ColVariable >( 2 );
+  auto x = kept( new std::vector< ColVariable >( 2 ) );
   block.add_static_variable( *x , "x" );
-  auto rows = new std::vector< FRowConstraint >( 2 );
+  auto rows = kept( new std::vector< FRowConstraint >( 2 ) );
   ( *rows )[ 0 ].set_function( linear( *x , { 1 , 1 } ) );
   ( *rows )[ 0 ].set_lhs( - Inf< double >() );
   ( *rows )[ 0 ].set_rhs( 4 );
@@ -420,8 +437,7 @@ static void test_empty_abstract_block( void )
   ( *rows )[ 1 ].set_lhs( -1 );
   ( *rows )[ 1 ].set_rhs( Inf< double >() );
   block.add_static_constraint( *rows , "r" );
-  block.set_objective( new FRealObjective( & block ,
-					   linear( *x , { 0 , 0 } ) ) ,
+  block.set_objective( objective( & block , linear( *x , { 0 , 0 } ) ) ,
 		       eNoMod );
 
   auto read = round_trip( block );
@@ -703,11 +719,11 @@ static AbstractBlock * sub_Block( Index m ,
 				  std::vector< RowConstraint * > & rows )
 {
  auto b = new AbstractBlock();
- auto y = new std::vector< ColVariable >( 2 );
+ auto y = kept( new std::vector< ColVariable >( 2 ) );
  ( *y )[ 0 ].is_positive( true , eNoMod );
  b->add_static_variable( *y , "y" );
 
- auto r = new std::vector< FRowConstraint >( m );
+ auto r = kept( new std::vector< FRowConstraint >( m ) );
  for( Index i = 0 ; i < m ; ++i ) {
   ( *r )[ i ].set_function( linear( *y , { 1.0 + i , -1 } ) );
   ( *r )[ i ].set_lhs( - double( i ) );
@@ -718,8 +734,7 @@ static AbstractBlock * sub_Block( Index m ,
  for( auto & row : *r )
   rows.push_back( & row );
 
- b->set_objective( new FRealObjective( b , linear( *y , { 1 , 2 } ) ) ,
-		   eNoMod );
+ b->set_objective( objective( b , linear( *y , { 1 , 2 } ) ) , eNoMod );
  return( b );
  }
 
@@ -949,10 +964,9 @@ struct Lagrangian {
 
  Lagrangian( int terms = 1 ) {
   inner = new AbstractBlock();
-  x = new std::vector< ColVariable >( 2 );
+  x = kept( new std::vector< ColVariable >( 2 ) );
   inner->add_static_variable( *x , "x" );
-  inner->set_objective( new FRealObjective( inner ,
-					    linear( *x , { 1 , -1 } ) ) ,
+  inner->set_objective( objective( inner , linear( *x , { 1 , -1 } ) ) ,
 			eNoMod );
   f = new LagBFunction( inner );
   LagBFunction::v_dual_pair dp;
@@ -1146,10 +1160,9 @@ static void test_constants( void )
 {
  for( double c0 : { 0.25 , -3.5 } ) {
   AbstractBlock block;
-  auto x = new std::vector< ColVariable >( 2 );
+  auto x = kept( new std::vector< ColVariable >( 2 ) );
   block.add_static_variable( *x , "x" );
-  block.set_objective( new FRealObjective( & block ,
-					   linear( *x , { 1 , -2 } , c0 ) ) ,
+  block.set_objective( objective( & block , linear( *x , { 1 , -2 } , c0 ) ) ,
 		       eNoMod );
   auto read = round_trip( block );
   assert( read && same( model_of( *read ) , model_of( block ) ) );
@@ -1160,10 +1173,9 @@ static void test_constants( void )
  // a constant and no term: every cost is zero
  {
   AbstractBlock block;
-  auto x = new std::vector< ColVariable >( 2 );
+  auto x = kept( new std::vector< ColVariable >( 2 ) );
   block.add_static_variable( *x , "x" );
-  block.set_objective( new FRealObjective( & block ,
-					   linear( *x , { 0 , 0 } , 7 ) ) ,
+  block.set_objective( objective( & block , linear( *x , { 0 , 0 } , 7 ) ) ,
 		       eNoMod );
   auto read = round_trip( block );
   assert( read && same( model_of( *read ) , model_of( block ) ) );
@@ -1174,17 +1186,16 @@ static void test_constants( void )
  // 1 <= x0 + x1 + 2 <= 5 is -1 <= x0 + x1 <= 3, and x0 - 0.5 = 1 is x0 = 1.5
  {
   AbstractBlock block;
-  auto x = new std::vector< ColVariable >( 2 );
+  auto x = kept( new std::vector< ColVariable >( 2 ) );
   block.add_static_variable( *x , "x" );
-  auto rows = new std::vector< FRowConstraint >( 2 );
+  auto rows = kept( new std::vector< FRowConstraint >( 2 ) );
   ( *rows )[ 0 ].set_function( linear( *x , { 1 , 1 } , 2 ) );
   ( *rows )[ 0 ].set_lhs( 1 );
   ( *rows )[ 0 ].set_rhs( 5 );
   ( *rows )[ 1 ].set_function( linear( *x , { 1 , 0 } , -0.5 ) );
   ( *rows )[ 1 ].set_both( 1 );
   block.add_static_constraint( *rows , "r" );
-  block.set_objective( new FRealObjective( & block ,
-					   linear( *x , { 1 , 1 } ) ) ,
+  block.set_objective( objective( & block , linear( *x , { 1 , 1 } ) ) ,
 		       eNoMod );
 
   auto read = round_trip( block );
@@ -1226,15 +1237,13 @@ static void test_append_to_file( void )
 		     ".nc4" ) ).string();
 
  AbstractBlock a;
- auto x = new std::vector< ColVariable >( 1 );
+ auto x = kept( new std::vector< ColVariable >( 1 ) );
  a.add_static_variable( *x , "x" );
- a.set_objective( new FRealObjective( & a , linear( *x , { 2 } ) ) ,
-		  eNoMod );
+ a.set_objective( objective( & a , linear( *x , { 2 } ) ) , eNoMod );
  AbstractBlock b;
- auto y = new std::vector< ColVariable >( 2 );
+ auto y = kept( new std::vector< ColVariable >( 2 ) );
  b.add_static_variable( *y , "y" );
- b.set_objective( new FRealObjective( & b , linear( *y , { 1 , 3 } ) ) ,
-		  eNoMod );
+ b.set_objective( objective( & b , linear( *y , { 1 , 3 } ) ) , eNoMod );
 
  // not there: created
  std::filesystem::remove( fn );
@@ -1292,11 +1301,11 @@ static AbstractBlock * memory_block( std::vector< ColVariable > & y )
 {
  auto block = new AbstractBlock;
 
- auto x = new std::vector< ColVariable >( 4 );
+ auto x = kept( new std::vector< ColVariable >( 4 ) );
  ( *x )[ 1 ].set_type( ColVariable::kNatural );
  block->add_static_variable( *x , "x" );
 
- auto rows = new std::vector< FRowConstraint >( 3 );
+ auto rows = kept( new std::vector< FRowConstraint >( 3 ) );
  ( *rows )[ 0 ].set_function( linear( *x , { 1 , 2 , 0 , 0 } ) );
  ( *rows )[ 0 ].set_both( 3 );
  ( *rows )[ 1 ].set_function( linear( *x , { 0 , 0 , -3 , 0.5 } ) );
@@ -1307,23 +1316,23 @@ static AbstractBlock * memory_block( std::vector< ColVariable > & y )
  ( *rows )[ 2 ].set_rhs( 4 );
  block->add_static_constraint( *rows , "r" );
 
- auto box = new BoxConstraint( block , & ( *x )[ 0 ] , -1 , 5 );
+ auto box = kept( new BoxConstraint( block , & ( *x )[ 0 ] , -1 , 5 ) );
  block->add_static_constraint( *box , "box" );
 
- auto obj = new FRealObjective( block , linear( *x , { 5 , -1 , 2 , 1 } ) );
+ auto obj = objective( block , linear( *x , { 5 , -1 , 2 , 1 } ) );
  obj->set_sense( Objective::eMax , eNoMod );
  block->set_objective( obj , eNoMod );
 
  auto inner = new AbstractBlock( block );
- auto z = new std::vector< ColVariable >( 2 );
+ auto z = kept( new std::vector< ColVariable >( 2 ) );
  inner->add_static_variable( *z , "z" );
- auto irows = new std::vector< FRowConstraint >( 1 );
+ auto irows = kept( new std::vector< FRowConstraint >( 1 ) );
  ( *irows )[ 0 ].set_function( linear( *z , { 1 , 1 } ) );
  ( *irows )[ 0 ].set_lhs( - Inf< double >() );
  ( *irows )[ 0 ].set_rhs( 4 );
  inner->add_static_constraint( *irows , "r" );
- inner->set_objective( new FRealObjective( inner , linear( *z , { 0 , 1 } ) )
-		       , eNoMod );
+ inner->set_objective( objective( inner , linear( *z , { 0 , 1 } ) ) ,
+		       eNoMod );
  block->add_nested_Block( inner );
 
  auto pfb = new PolyhedralFunctionBlock( block );
@@ -1494,10 +1503,9 @@ static void test_in_memory( void )
  // the image by their position
  {
   AbstractBlock small;
-  auto v = new std::vector< ColVariable >( 2 );
+  auto v = kept( new std::vector< ColVariable >( 2 ) );
   small.add_static_variable( *v , "v" );
-  small.set_objective( new FRealObjective( & small ,
-					   linear( *v , { 1 , -1 } ) ) ,
+  small.set_objective( objective( & small , linear( *v , { 1 , -1 } ) ) ,
 		       eNoMod );
 
   NcMemFile f;
@@ -1865,6 +1873,9 @@ int main( void )
  test_append_to_file();
  test_in_memory();
  test_copy_group();
+
+ while( ! given.empty() )
+  given.pop_back();
 
  std::filesystem::remove( nc_file() );
 

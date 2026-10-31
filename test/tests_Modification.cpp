@@ -44,6 +44,7 @@
 #include <iostream>
 #include <iterator>
 #include <list>
+#include <memory>
 #include <stdexcept>
 #include <type_traits>
 #include <vector>
@@ -220,6 +221,20 @@ class PhysMod : public Modification
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ FUNCTIONS ---------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// what the tests give to a Block that the Block does not own, deleted at the
+/// end of main(), after every Block, the last given the first deleted
+
+static std::vector< std::shared_ptr< void > > given;
+
+template< class T >
+static T * kept( T * t )
+{
+ given.emplace_back( t );
+ return( t );
+ }
+
 /*--------------------------------------------------------------------------*/
 
 /// true if calling f() throws std::invalid_argument
@@ -487,7 +502,7 @@ static void check_throws( Rig & r , const Case & c )
 static void test_ColVariable( void )
 {
  Rig r;
- auto x = new ColVariable;
+ auto x = kept( new ColVariable );
  r.block->add_static_variable( *x , "x" );
 
  // the state as ColVariable encodes it: the type above the fixed bit
@@ -583,12 +598,12 @@ static void test_ColVariable( void )
 static void test_RowConstraint( void )
 {
  Rig r;
- auto x = new std::vector< ColVariable >( 2 );
+ auto x = kept( new std::vector< ColVariable >( 2 ) );
  r.block->add_static_variable( *x , "x" );
  auto X = [ x ]( Index i ) { return( & ( *x )[ i ] ); };
- auto c = new FRowConstraint( nullptr , 0 , 0 ,
+ auto c = kept( new FRowConstraint( nullptr , 0 , 0 ,
 			      new LinearFunction( { { X( 0 ) , 1 } ,
-						    { X( 1 ) , 2 } } ) );
+						    { X( 1 ) , 2 } } ) ) );
  r.block->add_static_constraint( *c , "c" );
 
  auto bounds = [ c ]( RHSValue l , RHSValue u ) {
@@ -706,17 +721,17 @@ static void test_RowConstraint( void )
 static void test_OneVarConstraint( void )
 {
  Rig r;
- auto x = new std::vector< ColVariable >( 2 );
+ auto x = kept( new std::vector< ColVariable >( 2 ) );
  r.block->add_static_variable( *x , "x" );
  auto X = [ x ]( Index i ) { return( & ( *x )[ i ] ); };
 
- auto box = new BoxConstraint( nullptr , X( 0 ) , 0 , 10 );
+ auto box = kept( new BoxConstraint( nullptr , X( 0 ) , 0 , 10 ) );
  r.block->add_static_constraint( *box , "box" );
- auto lb = new LBConstraint( nullptr , X( 0 ) , 0 );
+ auto lb = kept( new LBConstraint( nullptr , X( 0 ) , 0 ) );
  r.block->add_static_constraint( *lb , "lb" );
- auto ub = new UBConstraint( nullptr , X( 0 ) , 10 );
+ auto ub = kept( new UBConstraint( nullptr , X( 0 ) , 10 ) );
  r.block->add_static_constraint( *ub , "ub" );
- auto lb0 = new LB0Constraint( nullptr , X( 1 ) );
+ auto lb0 = kept( new LB0Constraint( nullptr , X( 1 ) ) );
  r.block->add_static_constraint( *lb0 , "lb0" );
 
  // the OneVarConstraintMod of cnst of the given type
@@ -851,7 +866,7 @@ static void test_OneVarConstraint( void )
 static void test_Objective( void )
 {
  Rig r;
- auto x = new std::vector< ColVariable >( 2 );
+ auto x = kept( new std::vector< ColVariable >( 2 ) );
  r.block->add_static_variable( *x , "x" );
  auto X = [ x ]( Index i ) { return( & ( *x )[ i ] ); };
  auto obj = new FRealObjective( nullptr ,
@@ -951,10 +966,10 @@ static void test_Objective( void )
 static void test_LinearFunction( void )
 {
  Rig r;
- auto x = new std::vector< ColVariable >( 4 );
+ auto x = kept( new std::vector< ColVariable >( 4 ) );
  r.block->add_static_variable( *x , "x" );
  auto X = [ x ]( Index i ) { return( & ( *x )[ i ] ); };
- auto c = new FRowConstraint;
+ auto c = kept( new FRowConstraint );
  r.block->add_static_constraint( *c , "c" );
  auto lf = [ c ]() {
   return( static_cast< LinearFunction * >( c->get_function() ) );
@@ -1553,9 +1568,9 @@ static void test_dynamic( Rig & r , std::list< T > & l )
 static void test_AbstractBlock( void )
 {
  Rig r;
- auto vars = new std::list< ColVariable >;
+ auto vars = kept( new std::list< ColVariable > );
  r.block->add_dynamic_variable( *vars , "y" );
- auto rows = new std::list< FRowConstraint >;
+ auto rows = kept( new std::list< FRowConstraint > );
  r.block->add_dynamic_constraint( *rows , "c" );
 
  test_dynamic( r , *vars );
@@ -1570,9 +1585,9 @@ static void test_AbstractBlock( void )
 static void test_removed_Variable_in_stuff( void )
 {
  Rig r;
- auto vars = new std::list< ColVariable >;
+ auto vars = kept( new std::list< ColVariable > );
  r.block->add_dynamic_variable( *vars , "y" );
- auto rows = new std::vector< FRowConstraint >( 2 );
+ auto rows = kept( new std::vector< FRowConstraint >( 2 ) );
  r.block->add_static_constraint( *rows , "c" );
  auto c0 = & ( *rows )[ 0 ];
  auto c1 = & ( *rows )[ 1 ];
@@ -1673,10 +1688,10 @@ static void test_removed_Variable_in_stuff( void )
 static void test_dry_run( void )
 {
  Rig r;
- auto x = new std::vector< ColVariable >( 3 );
+ auto x = kept( new std::vector< ColVariable >( 3 ) );
  r.block->add_static_variable( *x , "x" );
  auto X = [ x ]( Index i ) { return( & ( *x )[ i ] ); };
- auto c = new FRowConstraint;
+ auto c = kept( new FRowConstraint );
  r.block->add_static_constraint( *c , "c" );
  auto obj = new FRealObjective;
  r.objective = obj;
@@ -1909,7 +1924,7 @@ static void test_dry_run_LagBFunction( void )
  auto make = [ & ]() {
   drop();
   auto inner = new AbstractBlock;
-  z = new std::vector< ColVariable >( 2 );
+  z = kept( new std::vector< ColVariable >( 2 ) );
   inner->add_static_variable( *z , "z" );
   iobj = new FRealObjective( inner , new LinearFunction( v_coeff_pair{
 				      { Z( 0 ) , 1 } , { Z( 1 ) , 2 } } ) );
@@ -2044,7 +2059,7 @@ static void test_dry_run_BendersBFunction( void )
  auto make = [ & ]() {
   delete bbf;  // and its inner Block with it
   auto inner = new AbstractBlock;
-  c = new std::vector< FRowConstraint >( 3 );
+  c = kept( new std::vector< FRowConstraint >( 3 ) );
   inner->add_static_constraint( *c , "c" );
   bbf = new BendersBFunction( inner , { X( 0 ) , X( 1 ) } ,
 			      { { 1 , 2 } , { 3 , 4 } } , { 5 , 6 } ,
@@ -2322,7 +2337,7 @@ static void test_changes( void )
 {
  using M = Modification;
  Rig r;
- auto x = new ColVariable;
+ auto x = kept( new ColVariable );
  r.block->add_static_variable( *x , "x" );
 
  // the data of a Variable: fixing it shrinks the region, unfixing it makes
@@ -2381,9 +2396,9 @@ static void test_changes( void )
  assert( rmod.changes() == ( M::eModCnsSide | M::eRegnShrink ) );
 
  // the set of the dynamic Variable and Constraint, as the Block issues it
- auto vars = new std::list< ColVariable >;
+ auto vars = kept( new std::list< ColVariable > );
  r.block->add_dynamic_variable( *vars , "y" );
- auto rows = new std::list< FRowConstraint >;
+ auto rows = kept( new std::list< FRowConstraint > );
  r.block->add_dynamic_constraint( *rows , "c" );
 
  auto one = [ & ]( std::function< void( void ) > call , M::ModConcern mc ) {
@@ -2477,11 +2492,11 @@ static void test_function_concerned( void )
 {
  using M = Modification;
  Rig r;
- auto x = new std::vector< ColVariable >( 3 );
+ auto x = kept( new std::vector< ColVariable >( 3 ) );
  r.block->add_static_variable( *x , "x" );
  auto X = [ x ]( Index i ) { return( & ( *x )[ i ] ); };
  auto rf = new LinearFunction( { { X( 0 ) , 1 } } );
- auto c = new FRowConstraint( nullptr , 0 , 1 , rf );
+ auto c = kept( new FRowConstraint( nullptr , 0 , 1 , rf ) );
  r.block->add_static_constraint( *c , "c" );
  auto of = new LinearFunction( { { X( 0 ) , 1 } } );
  auto obj = new FRealObjective( nullptr , of );
@@ -2548,9 +2563,9 @@ static void test_concerned( void )
 {
  using M = Modification;
  Rig r;
- auto x = new ColVariable;
+ auto x = kept( new ColVariable );
  r.block->add_static_variable( *x , "x" );
- auto rows = new std::list< FRowConstraint >;
+ auto rows = kept( new std::list< FRowConstraint > );
  r.block->add_dynamic_constraint( *rows , "c" );
  auto son = new AbstractBlock( r.block );
  r.block->add_nested_Block( son );
@@ -2636,13 +2651,13 @@ static void test_issue_by_kind( void )
 {
  using M = Modification;
  Rig r;
- auto x = new std::vector< ColVariable >( 2 );
+ auto x = kept( new std::vector< ColVariable >( 2 ) );
  r.block->add_static_variable( *x , "x" );
  auto X = [ x ]( Index i ) { return( & ( *x )[ i ] ); };
  auto rf = new LinearFunction( { { X( 0 ) , 1 } } );
- auto c = new FRowConstraint( nullptr , 0 , 1 , rf );
+ auto c = kept( new FRowConstraint( nullptr , 0 , 1 , rf ) );
  r.block->add_static_constraint( *c , "c" );
- auto rows = new std::list< FRowConstraint >;
+ auto rows = kept( new std::list< FRowConstraint > );
  r.block->add_dynamic_constraint( *rows , "d" );
  auto obj = new FRealObjective( nullptr , new LinearFunction(
 						   { { X( 0 ) , 1 } } ) );
@@ -2737,10 +2752,10 @@ static void test_FunctionMod_changes( void )
  using M = Modification;
  static constexpr double NaN = FunctionMod::NaNshift;
  Rig r;
- auto x = new std::vector< ColVariable >( 1 );
+ auto x = kept( new std::vector< ColVariable >( 1 ) );
  r.block->add_static_variable( *x , "x" );
  auto rf = new LinearFunction( { { & ( *x )[ 0 ] , 1 } } );
- auto c = new FRowConstraint( nullptr , 0 , 1 , rf );
+ auto c = kept( new FRowConstraint( nullptr , 0 , 1 , rf ) );
  r.block->add_static_constraint( *c , "c" );
  auto of = new LinearFunction( { { & ( *x )[ 0 ] , 1 } } );
  auto obj = new FRealObjective( nullptr , of );
@@ -2844,11 +2859,11 @@ static void test_LagBFunction_concerned( void )
  Rig r;
  std::vector< ColVariable > y( 1 );                     // the multiplier
  auto inner = new PhysBlock;
- auto z = new std::vector< ColVariable >( 2 );
+ auto z = kept( new std::vector< ColVariable >( 2 ) );
  inner->add_static_variable( *z , "z" );
  auto Z = [ z ]( Index i ) { return( & ( *z )[ i ] ); };
  auto rf = new LinearFunction( { { Z( 0 ) , 1 } , { Z( 1 ) , 1 } } );
- auto c = new FRowConstraint( nullptr , 0 , 1 , rf );
+ auto c = kept( new FRowConstraint( nullptr , 0 , 1 , rf ) );
  inner->add_static_constraint( *c , "c" );
  auto of = new LinearFunction( { { Z( 0 ) , 1 } , { Z( 1 ) , 2 } } );
  auto iobj = new FRealObjective( inner , of );
@@ -2978,11 +2993,11 @@ static void test_LagBFunction_concerned( void )
 static void test_adapt( void )
 {
  Rig r;
- auto x = new ColVariable;
+ auto x = kept( new ColVariable );
  r.block->add_static_variable( *x , "x" );
- auto vars = new std::list< ColVariable >;
+ auto vars = kept( new std::list< ColVariable > );
  r.block->add_dynamic_variable( *vars , "y" );
- auto rows = new std::list< FRowConstraint >;
+ auto rows = kept( new std::list< FRowConstraint > );
  r.block->add_dynamic_constraint( *rows , "c" );
  {
   std::list< ColVariable > n( 3 );
@@ -3076,6 +3091,9 @@ int main( void )
  test_concerned();
  test_function_concerned();
  test_adapt();
+
+ while( ! given.empty() )
+  given.pop_back();
 
  std::cout << "Modification_test: all tests passed" << std::endl;
  return( 0 );

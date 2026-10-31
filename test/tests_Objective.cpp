@@ -143,6 +143,7 @@ struct Fixture {
   block->reset_objective();
   delete obj;
   delete block;
+  delete x;
   }
 
  Lst_sp_Mod & mods( void ) { return( solver->get_Modification_list() ); }

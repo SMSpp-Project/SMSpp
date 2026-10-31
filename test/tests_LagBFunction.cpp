@@ -145,13 +145,18 @@ struct Fixture {
  LagBFunction * lbf;
  FakeSolver * fake;                    ///< registered to outer
 
+ // what the Block do not own, deleted after them
+ std::vector< BoxConstraint > * box;
+ FRealObjective * inner_obj;
+ FRealObjective * outer_obj = nullptr;
+
  /// the Block are built, the LagBFunction has no Lagrangian term yet
 
  Fixture( void ) {
   inner = new AbstractBlock();
   x = new std::vector< ColVariable >( c_cost.size() );
   inner->add_static_variable( *x , "x" );
-  auto box = new std::vector< BoxConstraint >( c_cost.size() );
+  box = new std::vector< BoxConstraint >( c_cost.size() );
   inner->add_static_constraint( *box , "box" );
   LinearFunction::v_coeff_pair cp;
   for( Index j = 0 ; j < c_cost.size() ; ++j ) {
@@ -160,10 +165,10 @@ struct Fixture {
    ( *box )[ j ].set_rhs( c_ub[ j ] , eNoMod );
    cp.push_back( { & ( *x )[ j ] , c_cost[ j ] } );
    }
-  auto obj = new FRealObjective( inner ,
+  inner_obj = new FRealObjective( inner ,
 				  new LinearFunction( std::move( cp ) ) );
-  obj->set_sense( Objective::eMin , eNoMod );
-  inner->set_objective( obj , eNoMod );
+  inner_obj->set_sense( Objective::eMin , eNoMod );
+  inner->set_objective( inner_obj , eNoMod );
 
   outer = new AbstractBlock();
   y = new std::vector< ColVariable >( c_A.size() );
@@ -189,9 +194,9 @@ struct Fixture {
  /// makes the LagBFunction the Function of the Objective of outer
 
  void observe( void ) {
-  auto obj = new FRealObjective( outer , lbf );
-  obj->set_sense( Objective::eMax , eNoMod );
-  outer->set_objective( obj , eNoMod );
+  outer_obj = new FRealObjective( outer , lbf );
+  outer_obj->set_sense( Objective::eMax , eNoMod );
+  outer->set_objective( outer_obj , eNoMod );
   observed = true;
   }
 
@@ -214,6 +219,11 @@ struct Fixture {
   else
    delete lbf;
   delete outer;
+  delete outer_obj;
+  delete y;
+  delete inner_obj;
+  delete box;
+  delete x;
   }
 
  bool observed = false;
@@ -723,19 +733,21 @@ struct Rig {
  std::vector< ColVariable > * x;
  std::vector< ColVariable > y;
  LagBFunction * f;
+ FRealObjective * obj;
 
  Rig( void ) : y( 8 ) {
   auto block = new AbstractBlock();
   x = new std::vector< ColVariable >( 4 );
   block->add_static_variable( *x , "x" );
-  block->set_objective( new FRealObjective( nullptr ,
-			 new LinearFunction( { { X( 0 ) , 1 } ,
-					       { X( 1 ) , 2 } } ) ) ,
-			eNoMod );
+  obj = new FRealObjective( nullptr ,
+			    new LinearFunction( { { X( 0 ) , 1 } ,
+						  { X( 1 ) , 2 } } ) );
+  block->set_objective( obj , eNoMod );
   f = new LagBFunction( block );
   }
 
- ~Rig( void ) { delete f; }  // the LagBFunction deletes the inner Block
+ // the LagBFunction deletes the inner Block, not what is given to it
+ ~Rig( void ) { delete f; delete obj; delete x; }
 
  ColVariable * X( Index j ) { return( & ( *x )[ j ] ); }
 

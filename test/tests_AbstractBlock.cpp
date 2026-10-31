@@ -53,6 +53,19 @@ using namespace SMSpp_di_unipi_it;
 /*--------------------------------------------------------------------------*/
 /*------------------------------ FUNCTIONS ---------------------------------*/
 /*--------------------------------------------------------------------------*/
+/// what the tests give to a Block that the Block does not own, deleted at the
+/// end of main(), after every Block, the last given the first deleted
+
+static std::vector< std::shared_ptr< void > > given;
+
+template< class T >
+static T * kept( T * t )
+{
+ given.emplace_back( t );
+ return( t );
+ }
+
+/*--------------------------------------------------------------------------*/
 
 void TearDown( AbstractBlock * block )
 {
@@ -93,7 +106,7 @@ void runAllTests()
 
  // test Adds_StaticConstraints_One
  block = new AbstractBlock(); // SetUp
- auto c = new FRowConstraint();
+ auto c = kept( new FRowConstraint() );
  block->add_static_constraint( *c );
  assert( block->get_static_constraint< FRowConstraint >( 0 ) == c );
  assert(
@@ -103,7 +116,7 @@ void runAllTests()
  // test Adds_StaticConstraints_Vector: the group is the vector, and each of
  // its elements knows the Block and where it sits in the group
  block = new AbstractBlock(); // SetUp
- auto v_c = new std::vector< FRowConstraint >( 5 );
+ auto v_c = kept( new std::vector< FRowConstraint >( 5 ) );
  block->add_static_constraint( *v_c , "v_c" );
  assert( block->get_static_constraint_v< FRowConstraint >( 0 ) == v_c );
  assert( block->get_number_static_constraints() == 1 );
@@ -121,7 +134,7 @@ void runAllTests()
 
  // test Adds_StaticConstraints_MultiArray
  block = new AbstractBlock(); // SetUp
- auto m_c = new boost::multi_array< FRowConstraint , 2 >;
+ auto m_c = kept( new boost::multi_array< FRowConstraint , 2 > );
  m_c->resize( boost::extents[ 2 ][ 2 ] );
  block->add_static_constraint( *m_c );
  assert( ( block->get_static_constraint< FRowConstraint , 2 >( 0 ) ) == m_c );
@@ -132,7 +145,7 @@ void runAllTests()
 
  // test Adds_StaticVariables_One
  block = new AbstractBlock(); // SetUp
- auto v = new ColVariable();
+ auto v = kept( new ColVariable() );
  block->add_static_variable( *v );
  assert( block->get_static_variable< ColVariable >( 0 ) == v );
  assert( block->get_static_variable< ColVariable >( 0 )->get_Block() == block );
@@ -140,7 +153,7 @@ void runAllTests()
 
  // test Adds_StaticVariables_Vector
  block = new AbstractBlock(); // SetUp
- auto v_v = new std::vector< ColVariable >( 5 );
+ auto v_v = kept( new std::vector< ColVariable >( 5 ) );
  block->add_static_variable( *v_v );
  assert( block->get_static_variable_v< ColVariable >( 0 ) == v_v );
  for( const auto & i : *v_v )
@@ -150,7 +163,7 @@ void runAllTests()
 
  // test Adds_StaticVariables_MultiArray
  block = new AbstractBlock(); // SetUp
- auto m_v = new boost::multi_array< ColVariable , 2 >;
+ auto m_v = kept( new boost::multi_array< ColVariable , 2 > );
  m_v->resize( boost::extents[ 2 ][ 2 ] );
  block->add_static_variable( *m_v );
  assert( ( block->get_static_variable< ColVariable , 2 >( 0 ) ) == m_v );
@@ -161,7 +174,7 @@ void runAllTests()
 
  // test Adds_DynamicConstraints_List
  block = new AbstractBlock(); // SetUp
- auto l_c = new std::list< FRowConstraint >( 5 );
+ auto l_c = kept( new std::list< FRowConstraint >( 5 ) );
  block->add_dynamic_constraint( *l_c );
  assert( block->get_dynamic_constraint< FRowConstraint >( 0 ) == l_c );
  for( const auto & i : *l_c )
@@ -171,7 +184,7 @@ void runAllTests()
 
  // test Adds_DynamicConstraints_Vector
  block = new AbstractBlock(); // SetUp
- auto v_l_c = new std::vector< std::list< FRowConstraint > >( 5 );
+ auto v_l_c = kept( new std::vector< std::list< FRowConstraint > >( 5 ) );
  for( auto & i : *v_l_c )
   i.resize( 3 );
  block->add_dynamic_constraint( *v_l_c );
@@ -184,7 +197,8 @@ void runAllTests()
 
  // test Adds_DynamicConstraints_MultiArray
  block = new AbstractBlock(); // SetUp
- auto m_l_c = new boost::multi_array< std::list< FRowConstraint > , 2 >;
+ auto m_l_c =
+  kept( new boost::multi_array< std::list< FRowConstraint > , 2 > );
  m_l_c->resize( boost::extents[ 2 ][ 2 ] );
  for( auto i = m_l_c->data() ;
       i < ( m_l_c->data() + m_l_c->num_elements() ) ; ++i )
@@ -201,7 +215,7 @@ void runAllTests()
 
  // test Adds_DynamicVariables_List
  block = new AbstractBlock(); // SetUp
- auto l_v = new std::list< ColVariable >( 5 );
+ auto l_v = kept( new std::list< ColVariable >( 5 ) );
  block->add_dynamic_variable( *l_v );
  assert( block->get_dynamic_variable< ColVariable >( 0 ) == l_v );
  for( const auto & i : *l_v )
@@ -211,7 +225,7 @@ void runAllTests()
 
  // test Adds_DynamicVariables_Vector
  block = new AbstractBlock(); // SetUp
- auto v_l_v = new std::vector< std::list< ColVariable > >( 5 );
+ auto v_l_v = kept( new std::vector< std::list< ColVariable > >( 5 ) );
  for( auto & i : *v_l_v )
   i.resize( 3 );
  block->add_dynamic_variable( *v_l_v );
@@ -224,7 +238,7 @@ void runAllTests()
 
  // test Adds_DynamicVariables_MultiArray
  block = new AbstractBlock(); // SetUp
- auto m_l_v = new boost::multi_array< std::list< ColVariable > , 2 >;
+ auto m_l_v = kept( new boost::multi_array< std::list< ColVariable > , 2 > );
  m_l_v->resize( boost::extents[ 2 ][ 2 ] );
  for( auto i = m_l_v->data() ;
       i < ( m_l_v->data() + m_l_v->num_elements() ) ; ++i )
@@ -307,12 +321,12 @@ static void test_lp_round_trip( void )
 {
  AbstractBlock block;
 
- auto cols = new std::vector< ColVariable >( 3 );
+ auto cols = kept( new std::vector< ColVariable >( 3 ) );
  ( *cols )[ 0 ].set_type( ColVariable::kNatural );
  ( *cols )[ 1 ].is_positive( true , eNoMod );
  block.add_static_variable( *cols , "x" );
 
- auto rows = new std::vector< FRowConstraint >( 2 );
+ auto rows = kept( new std::vector< FRowConstraint >( 2 ) );
  {
   LinearFunction::v_coeff_pair p;
   p.push_back( { & ( *cols )[ 0 ] , 1.0 } );
@@ -333,7 +347,8 @@ static void test_lp_round_trip( void )
  LinearFunction::v_coeff_pair o;
  o.push_back( { & ( *cols )[ 0 ] , 5.0 } );
  o.push_back( { & ( *cols )[ 2 ] , -1.0 } );
- auto obj = new FRealObjective( & block , new LinearFunction( std::move( o ) ) );
+ auto obj = kept( new FRealObjective( & block ,
+				      new LinearFunction( std::move( o ) ) ) );
  obj->set_sense( Objective::eMin , eNoMod );
  block.set_objective( obj , eNoMod );
 
@@ -384,12 +399,12 @@ static void test_mps_round_trip( void )
 {
  AbstractBlock block;
 
- auto cols = new std::vector< ColVariable >( 3 );
+ auto cols = kept( new std::vector< ColVariable >( 3 ) );
  ( *cols )[ 0 ].set_type( ColVariable::kNatural );
  ( *cols )[ 1 ].is_positive( true , eNoMod );
  block.add_static_variable( *cols , "x" );
 
- auto rows = new std::vector< FRowConstraint >( 2 );
+ auto rows = kept( new std::vector< FRowConstraint >( 2 ) );
  {
   LinearFunction::v_coeff_pair p;
   p.push_back( { & ( *cols )[ 0 ] , 1.0 } );
@@ -410,7 +425,8 @@ static void test_mps_round_trip( void )
  LinearFunction::v_coeff_pair o;
  o.push_back( { & ( *cols )[ 0 ] , 5.0 } );
  o.push_back( { & ( *cols )[ 2 ] , -1.0 } );
- auto obj = new FRealObjective( & block , new LinearFunction( std::move( o ) ) );
+ auto obj = kept( new FRealObjective( & block ,
+				      new LinearFunction( std::move( o ) ) ) );
  obj->set_sense( Objective::eMin , eNoMod );
  block.set_objective( obj , eNoMod );
 
@@ -482,10 +498,10 @@ static void test_mps_round_trip( void )
 static void test_mps_constants( void )
 {
  AbstractBlock block;
- auto cols = new std::vector< ColVariable >( 3 );
+ auto cols = kept( new std::vector< ColVariable >( 3 ) );
  block.add_static_variable( *cols , "x" );
 
- auto rows = new std::vector< FRowConstraint >( 2 );
+ auto rows = kept( new std::vector< FRowConstraint >( 2 ) );
  {
   LinearFunction::v_coeff_pair p;
   p.push_back( { & ( *cols )[ 0 ] , 1.0 } );
@@ -504,8 +520,8 @@ static void test_mps_constants( void )
 
  LinearFunction::v_coeff_pair o;
  o.push_back( { & ( *cols )[ 0 ] , 1.0 } );
- block.set_objective( new FRealObjective( & block ,
-				new LinearFunction( std::move( o ) , 2.5 ) ) ,
+ block.set_objective( kept( new FRealObjective( & block ,
+			    new LinearFunction( std::move( o ) , 2.5 ) ) ) ,
 		      eNoMod );
 
  std::ostringstream written;
@@ -571,10 +587,10 @@ static void test_is( void )
 {
  AbstractBlock block;
 
- auto cols = new std::vector< ColVariable >( 2 );
+ auto cols = kept( new std::vector< ColVariable >( 2 ) );
  block.add_static_variable( *cols , "x" );
 
- auto rows = new std::vector< FRowConstraint >( 3 );
+ auto rows = kept( new std::vector< FRowConstraint >( 3 ) );
  for( int i = 0 ; i < 3 ; ++i ) {
   LinearFunction::v_coeff_pair p;
   p.push_back( { & ( *cols )[ i == 2 ? 1 : 0 ] , 1.0 } );
@@ -636,7 +652,7 @@ static void test_writers_edge_cases( void )
 {
  AbstractBlock block;
 
- auto cols = new std::vector< ColVariable >( 5 );
+ auto cols = kept( new std::vector< ColVariable >( 5 ) );
  // x_0 free, x_1 fixed, x_2 in nothing, x_3 and x_4 ordinary
  ( *cols )[ 0 ].is_positive( false , eNoMod );
  ( *cols )[ 0 ].is_negative( false , eNoMod );
@@ -645,10 +661,10 @@ static void test_writers_edge_cases( void )
  block.add_static_variable( *cols , "x" );
 
  // a group with no name: its elements are named after its index
- auto more = new std::vector< ColVariable >( 1 );
+ auto more = kept( new std::vector< ColVariable >( 1 ) );
  block.add_static_variable( *more );
 
- auto rows = new std::vector< FRowConstraint >( 4 );
+ auto rows = kept( new std::vector< FRowConstraint >( 4 ) );
  {                                       // every coefficient zero
   LinearFunction::v_coeff_pair p;
   p.push_back( { & ( *cols )[ 3 ] , 0.0 } );
@@ -690,8 +706,8 @@ static void test_writers_edge_cases( void )
 
  LinearFunction::v_coeff_pair o;
  o.push_back( { & ( *cols )[ 3 ] , 1.0 } );
- auto obj = new FRealObjective( & block ,
-				new LinearFunction( std::move( o ) ) );
+ auto obj = kept( new FRealObjective( & block ,
+				      new LinearFunction( std::move( o ) ) ) );
  obj->set_sense( Objective::eMax , eNoMod );
  block.set_objective( obj , eNoMod );
 
@@ -756,7 +772,7 @@ static void test_writers_edge_cases( void )
 
  // ---- a Function that is not linear is refused, not written wrong --------
 
- auto quad = new std::vector< FRowConstraint >( 1 );
+ auto quad = kept( new std::vector< FRowConstraint >( 1 ) );
  {
   DQuadFunction::v_coeff_triple t;
   t.push_back( { & ( *cols )[ 3 ] , 1.0 , 1.0 } );
@@ -786,10 +802,10 @@ static void test_is_edge_cases( void )
 {
  AbstractBlock block;
 
- auto cols = new std::vector< ColVariable >( 2 );
+ auto cols = kept( new std::vector< ColVariable >( 2 ) );
  block.add_static_variable( *cols , "y" );
 
- auto rows = new std::vector< FRowConstraint >( 2 );
+ auto rows = kept( new std::vector< FRowConstraint >( 2 ) );
  {
   LinearFunction::v_coeff_pair p;
   p.push_back( { & ( *cols )[ 0 ] , 1.0 } );
@@ -820,7 +836,7 @@ static void test_is_edge_cases( void )
  assert( under.str().find( " 1e-09 * ( e_0: y_0 = 4 )" ) != std::string::npos );
 
  // a row that is not linear carries no multiplier into the certificate
- auto quad = new std::vector< FRowConstraint >( 1 );
+ auto quad = kept( new std::vector< FRowConstraint >( 1 ) );
  {
   DQuadFunction::v_coeff_triple t;
   t.push_back( { & ( *cols )[ 0 ] , 1.0 , 1.0 } );
@@ -902,13 +918,13 @@ static void test_serialize_dynamic_groups( void )
 {
  AbstractBlock block;
 
- auto cols = new std::list< ColVariable >( 3 );
+ auto cols = kept( new std::list< ColVariable >( 3 ) );
  block.add_dynamic_variable( *cols , "y" );
  std::vector< ColVariable * > y;
  for( auto & col : *cols )
   y.push_back( & col );
 
- auto rows = new std::list< FRowConstraint >( 2 );
+ auto rows = kept( new std::list< FRowConstraint >( 2 ) );
  double rhs = 5;
  for( auto & row : *rows ) {
   row.set_function( sum_of( { y[ 0 ] , y[ 1 ] } ) );
@@ -917,7 +933,8 @@ static void test_serialize_dynamic_groups( void )
   }
  block.add_dynamic_constraint( *rows , "d" );
 
- block.set_objective( new FRealObjective( & block , sum_of( y ) ) , eNoMod );
+ block.set_objective( kept( new FRealObjective( & block , sum_of( y ) ) ) ,
+		      eNoMod );
 
  auto read = through_a_file( block );
  assert( read );
@@ -951,9 +968,9 @@ static void test_serialize_one_var_constraint( void )
 {
  AbstractBlock block;
 
- auto cols = new std::vector< ColVariable >( 2 );
+ auto cols = kept( new std::vector< ColVariable >( 2 ) );
  block.add_static_variable( *cols , "x" );
- auto box = new std::vector< BoxConstraint >( 1 );
+ auto box = kept( new std::vector< BoxConstraint >( 1 ) );
  ( *box )[ 0 ].set_variable( & ( *cols )[ 1 ] );
  ( *box )[ 0 ].set_lhs( 1 );
  ( *box )[ 0 ].set_rhs( 3 );
@@ -961,8 +978,8 @@ static void test_serialize_one_var_constraint( void )
 
  // both columns in the Objective, so that each of them is in the model
  // somewhere else than in the Bounds [see test_serialize_column_in_no_row()]
- block.set_objective( new FRealObjective( & block ,
-				 sum_of( { & ( *cols )[ 0 ] , & ( *cols )[ 1 ] } ) ) ,
+ block.set_objective( kept( new FRealObjective( & block ,
+			sum_of( { & ( *cols )[ 0 ] , & ( *cols )[ 1 ] } ) ) ) ,
 		      eNoMod );
 
  auto read = through_a_file( block );
@@ -997,10 +1014,10 @@ static void test_serialize_column_in_no_row( void )
 {
  AbstractBlock block;
 
- auto cols = new std::vector< ColVariable >( 2 );
+ auto cols = kept( new std::vector< ColVariable >( 2 ) );
  block.add_static_variable( *cols , "x" );
- block.set_objective( new FRealObjective( & block ,
-					  sum_of( { & ( *cols )[ 0 ] } ) ) ,
+ block.set_objective( kept( new FRealObjective( & block ,
+			    sum_of( { & ( *cols )[ 0 ] } ) ) ) ,
 		      eNoMod );
 
  auto read = through_a_file( block );
@@ -1022,12 +1039,12 @@ static void test_serialize_quadratic_objective( void )
 {
  AbstractBlock block;
 
- auto cols = new std::vector< ColVariable >( 1 );
+ auto cols = kept( new std::vector< ColVariable >( 1 ) );
  block.add_static_variable( *cols , "x" );
  DQuadFunction::v_coeff_triple t;
  t.push_back( { & ( *cols )[ 0 ] , 1.0 , 2.0 } );
- block.set_objective( new FRealObjective( & block ,
-				  new DQuadFunction( std::move( t ) ) ) ,
+ block.set_objective( kept( new FRealObjective( & block ,
+			    new DQuadFunction( std::move( t ) ) ) ) ,
 		      eNoMod );
 
  const char * const name = "tests_AbstractBlock_quadratic.nc4";
@@ -1052,24 +1069,25 @@ static void test_serialize_quadratic_objective( void )
 static void test_serialize_nested( void )
 {
  auto block = new AbstractBlock;
- auto x = new std::vector< ColVariable >( 1 );
+ auto x = kept( new std::vector< ColVariable >( 1 ) );
  block->add_static_variable( *x , "x" );
- block->set_objective( new FRealObjective( block ,
-					   sum_of( { & ( *x )[ 0 ] } ) ) , eNoMod );
+ block->set_objective( kept( new FRealObjective( block ,
+			     sum_of( { & ( *x )[ 0 ] } ) ) ) ,
+		       eNoMod );
 
  for( int k = 0 ; k < 2 ; ++k ) {
   auto inner = new AbstractBlock( block );
-  auto z = new std::vector< ColVariable >( 2 );
+  auto z = kept( new std::vector< ColVariable >( 2 ) );
   inner->add_static_variable( *z , "z" );
-  auto rows = new std::vector< FRowConstraint >( 1 + k );
+  auto rows = kept( new std::vector< FRowConstraint >( 1 + k ) );
   for( auto & row : *rows ) {
    row.set_function( sum_of( { & ( *z )[ 0 ] , & ( *z )[ 1 ] } ) );
    row.set_lhs( - Inf< double >() );   // one side, hence one row of the LP
    row.set_rhs( 4 );
    }
   inner->add_static_constraint( *rows , "r" );
-  inner->set_objective( new FRealObjective( inner ,
-					    sum_of( { & ( *z )[ 1 ] } ) ) ,
+  inner->set_objective( kept( new FRealObjective( inner ,
+			      sum_of( { & ( *z )[ 1 ] } ) ) ) ,
 			eNoMod );
   block->add_nested_Block( inner );
   }
@@ -1351,9 +1369,9 @@ static void test_serialize_objective_weight( void )
 static void test_serialize_no_objective( void )
 {
  AbstractBlock block;
- auto cols = new std::vector< ColVariable >( 1 );
+ auto cols = kept( new std::vector< ColVariable >( 1 ) );
  block.add_static_variable( *cols , "x" );
- auto rows = new std::vector< FRowConstraint >( 1 );
+ auto rows = kept( new std::vector< FRowConstraint >( 1 ) );
  ( *rows )[ 0 ].set_function( sum_of( { & ( *cols )[ 0 ] } ) );
  ( *rows )[ 0 ].set_lhs( - Inf< double >() );
  ( *rows )[ 0 ].set_rhs( 2 );
@@ -1549,7 +1567,7 @@ static void test_read_lp_malformed( void )
 static void test_set_objective_replaces( void )
 {
  AbstractBlock block;
- auto cols = new std::vector< ColVariable >( 2 );
+ auto cols = kept( new std::vector< ColVariable >( 2 ) );
  block.add_static_variable( *cols , "x" );
 
  auto first = new FRealObjective( & block , sum_of( { & ( *cols )[ 0 ] } ) );
@@ -1557,7 +1575,8 @@ static void test_set_objective_replaces( void )
  assert( block.get_objective() == first );
  assert( first->get_Block() == & block );
 
- auto second = new FRealObjective( nullptr , sum_of( { & ( *cols )[ 1 ] } ) );
+ auto second = kept( new FRealObjective( nullptr ,
+					 sum_of( { & ( *cols )[ 1 ] } ) ) );
  second->set_sense( Objective::eMax , eNoMod );
  block.set_objective( second , eNoMod );
  assert( block.get_objective() == second );
@@ -1614,7 +1633,8 @@ static void test_mirror_of_an_empty_Block( void )
  assert( ! other.get_mirrored() );
 
  AbstractBlock full;
- full.add_static_variable( * new std::vector< ColVariable >( 1 ) , "x" );
+ full.add_static_variable( *kept( new std::vector< ColVariable >( 1 ) ) ,
+			   "x" );
  refused = false;
  try { full.mirror( & original ); }
  catch( const std::logic_error & ) { refused = true; }
@@ -1704,17 +1724,17 @@ static void test_sized_mirror( void )
  orig->anyone_there( true );  // its Modification go to father
 
  // x0 >= 0, 0 <= x1 <= 1, x2 free, x3 fixed to 0.5
- auto x = new std::vector< ColVariable >( 4 );
+ auto x = kept( new std::vector< ColVariable >( 4 ) );
  (*x)[ 0 ].set_type( ColVariable::kNonNegative , eNoMod );
  (*x)[ 1 ].set_type( ColVariable::kPosUnitary , eNoMod );
  (*x)[ 3 ].set_value( 0.5 );
  (*x)[ 3 ].is_fixed( true , eNoMod );
  orig->add_static_variable( *x , "x" );
- auto dv = new std::list< ColVariable >;
+ auto dv = kept( new std::list< ColVariable > );
  orig->add_dynamic_variable( *dv , "dv" );
 
  // x0 + x1 = 1, -1 <= x0 - x2 <= 2, x2 <= 3, x0 + x2 + x3 >= 1
- auto rows = new std::vector< FRowConstraint >( 4 );
+ auto rows = kept( new std::vector< FRowConstraint >( 4 ) );
  auto row = [ & ]( int i , LinearFunction::v_coeff_pair && t , double l ,
                    double u ) {
   (*rows)[ i ].set_function( new LinearFunction( std::move( t ) ) , eNoMod );
@@ -1729,26 +1749,26 @@ static void test_sized_mirror( void )
  orig->add_static_constraint( *rows , "r" );
 
  // -2 <= x2 <= 4, x0 <= 5
- auto box = new std::vector< BoxConstraint >( 1 );
+ auto box = kept( new std::vector< BoxConstraint >( 1 ) );
  (*box)[ 0 ].set_variable( & (*x)[ 2 ] , eNoMod );
  (*box)[ 0 ].set_lhs( -2 , eNoMod );
  (*box)[ 0 ].set_rhs( 4 , eNoMod );
  orig->add_static_constraint( *box , "box" );
- auto ub = new std::vector< UBConstraint >( 1 );
+ auto ub = kept( new std::vector< UBConstraint >( 1 ) );
  (*ub)[ 0 ].set_variable( & (*x)[ 0 ] , eNoMod );
  (*ub)[ 0 ].set_rhs( 5 , eNoMod );
  orig->add_static_constraint( *ub , "ub" );
- auto dc = new std::list< FRowConstraint >;
+ auto dc = kept( new std::list< FRowConstraint > );
  orig->add_dynamic_constraint( *dc , "dc" );
 
  // x0 + 2 x1 + 3
- auto obj = new FRealObjective( orig , new LinearFunction(
-                  { { & (*x)[ 0 ] , 1 } , { & (*x)[ 1 ] , 2 } } , 3 ) );
+ auto obj = kept( new FRealObjective( orig , new LinearFunction(
+                  { { & (*x)[ 0 ] , 1 } , { & (*x)[ 1 ] , 2 } } , 3 ) ) );
  orig->set_objective( obj , eNoMod );
 
  // the size Variable, of another Block
  AbstractBlock other;
- auto vv = new std::vector< ColVariable >( 1 );
+ auto vv = kept( new std::vector< ColVariable >( 1 ) );
  other.add_static_variable( *vv , "v" );
  auto v = & (*vv)[ 0 ];
 
@@ -1910,16 +1930,16 @@ static void test_sized_mirror( void )
 static void test_mirror_keeps_size_variable( void )
 {
  AbstractBlock other;
- auto vv = new std::vector< ColVariable >( 2 );
+ auto vv = kept( new std::vector< ColVariable >( 2 ) );
  other.add_static_variable( *vv , "v" );
  auto v = & (*vv)[ 0 ];
  auto w = & (*vv)[ 1 ];
 
  // x0 + x1 <= 1
  AbstractBlock orig;
- auto x = new std::vector< ColVariable >( 2 );
+ auto x = kept( new std::vector< ColVariable >( 2 ) );
  orig.add_static_variable( *x , "x" );
- auto rows = new std::vector< FRowConstraint >( 1 );
+ auto rows = kept( new std::vector< FRowConstraint >( 1 ) );
  (*rows)[ 0 ].set_function( new LinearFunction(
                    { { & (*x)[ 0 ] , 1 } , { & (*x)[ 1 ] , 1 } } ) , eNoMod );
  (*rows)[ 0 ].set_lhs( - Inf< double >() , eNoMod );
@@ -1947,7 +1967,7 @@ static void test_mirror_keeps_size_variable( void )
 
  // the copy of a Block owning its size Variable owns the copy of it
  AbstractBlock owner;
- auto s = new std::vector< ColVariable >( 1 );
+ auto s = kept( new std::vector< ColVariable >( 1 ) );
  owner.add_static_variable( *s , "s" );
  owner.set_owned_size_variable( & (*s)[ 0 ] );
  AbstractBlock owned;
@@ -2260,9 +2280,9 @@ static void test_dynamic_edges( void )
  auto b = new RecBlock;
 
  // one list of Variable and one of Constraint
- auto vars = new std::list< ColVariable >;
+ auto vars = kept( new std::list< ColVariable > );
  b->add_dynamic_variable( *vars , "y" );
- auto rows = new std::list< FRowConstraint >;
+ auto rows = kept( new std::list< FRowConstraint > );
  b->add_dynamic_constraint( *rows , "c" );
 
  test_dynamic_edges_of( b , *vars ,
@@ -2272,7 +2292,7 @@ static void test_dynamic_edges( void )
 
  // ---- a vector of lists: one group, a list per cell ----------------------
 
- auto cells = new std::vector< std::list< ColVariable > >( 3 );
+ auto cells = kept( new std::vector< std::list< ColVariable > >( 3 ) );
  b->add_dynamic_variable( *cells , "z" );
  const auto group = b->get_dynamic_variable_groups().back().get();
  assert( group->get_num_elements() == 0 );
@@ -2302,7 +2322,7 @@ static void test_dynamic_edges( void )
 
  // ---- what goes away leaves the stuff it was in --------------------------
 
- auto x = new std::vector< ColVariable >( 1 );
+ auto x = kept( new std::vector< ColVariable >( 1 ) );
  b->add_static_variable( *x , "x" );
  for( ModParam iM : { eNoMod , eModBlck } ) {
   // a dynamic Constraint on a static Variable: removing the Constraint
@@ -2326,7 +2346,7 @@ static void test_dynamic_edges( void )
   // it off the Function of the Constraint
   std::list< ColVariable > nl( 2 );
   b->add_dynamic_variables( *vars , nl , eNoMod );
-  auto c = new std::vector< FRowConstraint >( 1 );
+  auto c = kept( new std::vector< FRowConstraint >( 1 ) );
   LinearFunction::v_coeff_pair p;
   for( auto & v : *vars )
    p.push_back( { & v , 1.0 } );
@@ -2379,6 +2399,9 @@ int main( int argc , char ** argv )
  test_read_lp_powers();
  test_read_lp_malformed();
  test_dynamic_edges();
+
+ while( ! given.empty() )
+  given.pop_back();
 
  std::cout << "All tests passed!!" << std::endl;
  return( 0 );

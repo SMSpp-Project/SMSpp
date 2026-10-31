@@ -31,6 +31,7 @@
 #include <array>
 #include <iostream>
 #include <list>
+#include <memory>
 #include <vector>
 
 // last, so that the headers above are read as the library was compiled
@@ -44,6 +45,20 @@ using namespace SMSpp_di_unipi_it;
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ FUNCTIONS ---------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// what the tests give to a Block that the Block does not own, deleted at the
+/// end of main(), after every Block, the last given the first deleted
+
+static std::vector< std::shared_ptr< void > > given;
+
+template< class T >
+static T * kept( T * t )
+{
+ given.emplace_back( t );
+ return( t );
+ }
+
 /*--------------------------------------------------------------------------*/
 
 /// returns the values of the elements of the group, in storage order
@@ -80,19 +95,19 @@ static void test_shapes( void )
  double next = 0;
  auto fill = [ & next ]( ColVariable & var ) { var.set_value( next++ ); };
 
- auto single = new ColVariable;
- auto array = new std::vector< ColVariable >( 4 );
- auto grid = new boost::multi_array< ColVariable , 2 >(
-					       boost::extents[ 2 ][ 3 ] );
- auto jagged = new std::vector< std::vector< ColVariable > >( 2 );
+ auto single = kept( new ColVariable );
+ auto array = kept( new std::vector< ColVariable >( 4 ) );
+ auto grid = kept( new boost::multi_array< ColVariable , 2 >(
+					       boost::extents[ 2 ][ 3 ] ) );
+ auto jagged = kept( new std::vector< std::vector< ColVariable > >( 2 ) );
  ( *jagged )[ 0 ].resize( 3 );
  ( *jagged )[ 1 ].resize( 2 );
- auto cells = new boost::multi_array< std::vector< ColVariable > , 2 >(
-					       boost::extents[ 2 ][ 2 ] );
+ auto cells = kept( new boost::multi_array< std::vector< ColVariable > , 2 >(
+					       boost::extents[ 2 ][ 2 ] ) );
  for( auto cell = cells->data() ; cell != cells->data() + 4 ; ++cell )
   cell->resize( 2 );
- auto list = new std::list< ColVariable >( 3 );
- auto lists = new std::vector< std::list< ColVariable > >( 2 );
+ auto list = kept( new std::list< ColVariable >( 3 ) );
+ auto lists = kept( new std::vector< std::list< ColVariable > >( 2 ) );
  ( *lists )[ 0 ].resize( 2 );
  ( *lists )[ 1 ].resize( 1 );
 
@@ -216,8 +231,8 @@ static void test_constraints( void )
 {
  AbstractBlock block;
 
- auto rows = new std::vector< FRowConstraint >( 3 );
- auto boxes = new std::vector< ZOConstraint >( 2 );
+ auto rows = kept( new std::vector< FRowConstraint >( 3 ) );
+ auto boxes = kept( new std::vector< ZOConstraint >( 2 ) );
 
  block.add_static_constraint( *rows , "rows" );
  block.add_static_constraint( *boxes , "zeroone" );
@@ -531,10 +546,10 @@ static void test_empty_group( void )
 {
  AbstractBlock b;
 
- auto none = new std::vector< ColVariable >( 0 );
+ auto none = kept( new std::vector< ColVariable >( 0 ) );
  b.add_static_variable( *none , "none" );
 
- auto cells = new std::vector< std::list< FRowConstraint > >( 2 );
+ auto cells = kept( new std::vector< std::list< FRowConstraint > >( 2 ) );
  b.add_dynamic_constraint( *cells , "born_empty" );
 
  const auto & sv = b.get_static_variable_groups();
@@ -584,9 +599,9 @@ static void test_empty_group( void )
  ColVariable stranger;
  assert( inspection::name_of( & b , & stranger ).empty() );
 
- /* The two containers are NOT deleted here: the Block still has them
-  * registered, and its destructor walks its groups, so freeing what a group
-  * views is a read of memory that is gone. */
+ /* The two containers are deleted at the end of main(), not here: the Block
+  * still has them registered, and its destructor walks its groups, so
+  * freeing what a group views is a read of memory that is gone. */
 
  std::cout << "empty group: OK" << std::endl;
  }
@@ -604,13 +619,14 @@ static void test_element_knows_its_group( void )
  AbstractBlock other;
 
  // before the registration an element has its Block and no group
- auto x = new std::vector< ColVariable >( 4 );
+ auto x = kept( new std::vector< ColVariable >( 4 ) );
  for( auto & v : *x )
   v.set_Block( & b );
  assert( ( *x )[ 0 ].get_Block() == & b );
  assert( ! ( *x )[ 0 ].get_Group() );
 
- auto m = new boost::multi_array< ColVariable , 2 >( boost::extents[ 2 ][ 3 ] );
+ auto m = kept( new boost::multi_array< ColVariable , 2 >(
+					       boost::extents[ 2 ][ 3 ] ) );
  b.add_static_variable( *x , "x" );
  b.add_static_variable( *m , "M" );
 
@@ -659,7 +675,7 @@ static void test_element_knows_its_group( void )
  ( *x )[ 1 ].set_Block( & b );
 
  // replacing a group takes its elements out of it, the Block staying
- auto y = new std::vector< ColVariable >( 2 );
+ auto y = kept( new std::vector< ColVariable >( 2 ) );
  b.set_static_variable( 0 , *y , "y" );
  assert( ! ( *x )[ 0 ].get_Group() );
  assert( ( *x )[ 0 ].get_Block() == & b );
@@ -677,8 +693,8 @@ static void test_element_knows_its_group( void )
   * one of its cells; an element added to a list that is not registered
   * gets the Block and no group, as before. */
 
- auto rows = new std::list< FRowConstraint >( 2 );
- auto grid = new std::vector< std::list< FRowConstraint > >( 3 );
+ auto rows = kept( new std::list< FRowConstraint >( 2 ) );
+ auto grid = kept( new std::vector< std::list< FRowConstraint > >( 3 ) );
  b.add_dynamic_constraint( *rows , "rows" );
  b.add_dynamic_constraint( *grid , "grid" );
  const auto & dc = b.get_dynamic_constraint_groups();
@@ -706,8 +722,8 @@ static void test_element_knows_its_group( void )
  assert( ! loose.front().get_Group() );
 
  // a dynamic grid of lists: the cell added to is found among many
- auto lists = new boost::multi_array< std::list< FRowConstraint > , 2 >(
-					     boost::extents[ 2 ][ 2 ] );
+ auto lists = kept( new boost::multi_array< std::list< FRowConstraint > , 2 >(
+					     boost::extents[ 2 ][ 2 ] ) );
  b.add_dynamic_constraint( *lists , "lists" );
  std::list< FRowConstraint > in_grid( 2 );
  b.add_dynamic_constraints( ( *lists )[ 1 ][ 0 ] , in_grid , eNoMod );
@@ -718,7 +734,7 @@ static void test_element_knows_its_group( void )
   * resetting the first Block does not take it out of the second one: a
   * group only lets go of the elements that are still its own. */
 
- auto z = new std::vector< ColVariable >( 3 );
+ auto z = kept( new std::vector< ColVariable >( 3 ) );
  b.add_static_variable( *z , "z" );
  other.add_static_variable( *z , "z_again" );
  const auto & osv = other.get_static_variable_groups();
@@ -741,7 +757,7 @@ static void test_element_knows_its_group( void )
   * cell plus the sizes of the cells before it, and the group of the element
   * does not change that: it only spares the search among the other groups. */
 
- auto jag = new std::vector< std::vector< ColVariable > >( 3 );
+ auto jag = kept( new std::vector< std::vector< ColVariable > >( 3 ) );
  ( *jag )[ 0 ].resize( 1 );
  ( *jag )[ 1 ].resize( 3 );
  ( *jag )[ 2 ].resize( 2 );
@@ -751,9 +767,9 @@ static void test_element_knows_its_group( void )
  assert( std::get< 0 >( where ) && ( std::get< 1 >( where ) == 1 ) &&
 	 ( std::get< 2 >( where ) == 1 + 2 ) );
 
- /* The containers are NOT deleted here, for the reason given at the end of
-  * test_empty_group(); the ones reset away are no longer seen by the Block,
-  * and are left alone for uniformity. */
+ /* The containers are deleted at the end of main(), for the reason given at
+  * the end of test_empty_group(); the ones reset away are no longer seen by
+  * the Block, and are kept with the others for uniformity. */
 
  std::cout << "element knows its group: OK" << std::endl;
  }
@@ -769,13 +785,13 @@ static void test_after_a_dynamic_removal( void )
 {
  AbstractBlock b;
 
- auto y = new std::list< ColVariable >( 4 );
+ auto y = kept( new std::list< ColVariable >( 4 ) );
  b.add_dynamic_variable( *y , "y" );
  std::vector< ColVariable * > was;
  for( auto & v : *y )
   was.push_back( & v );
 
- auto lists = new std::vector< std::list< ColVariable > >( 2 );
+ auto lists = kept( new std::vector< std::list< ColVariable > >( 2 ) );
  ( *lists )[ 0 ].resize( 3 );
  ( *lists )[ 1 ].resize( 2 );
  b.add_dynamic_variable( *lists , "g" );
@@ -829,8 +845,8 @@ static void test_rank_three( void )
 {
  AbstractBlock b;
 
- auto t = new boost::multi_array< ColVariable , 3 >(
-					      boost::extents[ 2 ][ 3 ][ 4 ] );
+ auto t = kept( new boost::multi_array< ColVariable , 3 >(
+					    boost::extents[ 2 ][ 3 ][ 4 ] ) );
  double next = 0;
  for( auto var = t->data() ; var != t->data() + 24 ; ++var )
   var->set_value( next++ );
@@ -882,10 +898,11 @@ static void test_zero_extent( void )
 {
  AbstractBlock b;
 
- auto z = new boost::multi_array< ColVariable , 2 >( boost::extents[ 3 ][ 0 ] );
+ auto z = kept( new boost::multi_array< ColVariable , 2 >(
+					       boost::extents[ 3 ][ 0 ] ) );
  b.add_static_variable( *z , "Z" );
- auto zc = new boost::multi_array< std::vector< FRowConstraint > , 2 >(
-						    boost::extents[ 0 ][ 2 ] );
+ auto zc = kept( new boost::multi_array< std::vector< FRowConstraint > , 2 >(
+						  boost::extents[ 0 ][ 2 ] ) );
  b.add_static_constraint( *zc , "C" );
 
  const auto & group = *b.get_static_variable_groups()[ 0 ];
@@ -926,11 +943,11 @@ static void test_zero_extent( void )
 static void test_group_index_out_of_range( void )
 {
  AbstractBlock b;
- auto x = new std::vector< ColVariable >( 2 );
+ auto x = kept( new std::vector< ColVariable >( 2 ) );
  b.add_static_variable( *x , "x" );
- auto rows = new std::vector< FRowConstraint >( 2 );
+ auto rows = kept( new std::vector< FRowConstraint >( 2 ) );
  b.add_static_constraint( *rows , "r" );
- auto more = new std::list< FRowConstraint >( 1 );
+ auto more = kept( new std::list< FRowConstraint >( 1 ) );
  b.add_dynamic_constraint( *more , "d" );
 
  auto refused = []( auto && f ) {
@@ -976,13 +993,15 @@ static void test_group_index_out_of_range( void )
 static void test_for_each_on_empty( void )
 {
  AbstractBlock b;
- b.add_static_variable( * new std::vector< ColVariable >( 0 ) , "v" );
- b.add_dynamic_variable( * new std::list< ColVariable >( 0 ) , "l" );
- b.add_dynamic_variable( * new std::vector< std::list< ColVariable > >( 0 ) ,
-			 "n" );
- b.add_static_constraint( * new std::vector< FRowConstraint >( 0 ) , "r" );
+ b.add_static_variable( * kept( new std::vector< ColVariable >( 0 ) ) ,
+			"v" );
+ b.add_dynamic_variable( * kept( new std::list< ColVariable >( 0 ) ) , "l" );
+ b.add_dynamic_variable(
+	   * kept( new std::vector< std::list< ColVariable > >( 0 ) ) , "n" );
+ b.add_static_constraint( * kept( new std::vector< FRowConstraint >( 0 ) ) ,
+			  "r" );
  b.add_dynamic_constraint(
-	       * new std::vector< std::list< FRowConstraint > >( 0 ) , "c" );
+	* kept( new std::vector< std::list< FRowConstraint > >( 0 ) ) , "c" );
 
  Block::Index seen = 0;
  for( const auto * groups : { & b.get_static_variable_groups() ,
@@ -1048,6 +1067,9 @@ int main( void )
  test_zero_extent();
  test_group_index_out_of_range();
  test_for_each_on_empty();
+
+ while( ! given.empty() )
+  given.pop_back();
 
  std::cout << "All tests passed!!" << std::endl;
 

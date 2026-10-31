@@ -352,6 +352,10 @@ int main( void )
  for( auto m : members )
   m->register_Observer( & before );
 
+ // the sum does not own the members: deleted after it
+ std::vector< std::unique_ptr< PolyhedralFunction > > owned( members.begin() ,
+							     members.end() );
+
  std::vector< C05Function * > cmp( members.begin() , members.end() );
  C05SumFunction sum( std::move( cmp ) , true );
 
