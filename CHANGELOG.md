@@ -223,6 +223,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- the README leaves the channels that distribute SMS++ to the
+  installation guide of the wiki (Installing-SMS++), keeping the names
+  of the packages of the module
+
 - a weight of the Objective or of the Variable of a Block may be 0 (a
   Block that counts for nothing, say, a unit of which there is no copy):
   the weights are finite and not negative, and `LagBFunction` gives the
