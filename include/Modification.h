@@ -419,9 +419,10 @@ class Modification {
   * ePhysCns and ePhysVars those of a physical Modification that only changes
   * the Objective, the sides of the Constraint, the Constraint (sides and
   * coefficients) and the data of the Variable, respectively, in either
-  * direction. The bits are to be read through the static methods below (is_physical(),
-  * may_shrink_region(), lower_bound_stays_valid(), ...) rather than tested
-  * one by one, so that the encoding can change without anyone noticing. */
+  * direction. The bits are to be read through the static methods below
+  * (is_physical(), may_shrink_region(), lower_bound_stays_valid(), ...)
+  * rather than tested one by one, so that the encoding can change without
+  * anyone noticing. */
 
  using ModConcern = unsigned short int;
 
@@ -898,7 +899,11 @@ class NBModification : public NModification {
  * it can be an "abstract" Modification. However, its concerns_Block() value
  * is automatically set as the logical or of the concerns_Block() values of
  * its sub-Modifications (recursively), i.e., it is true if at least one of
- * them is true. */
+ * them is true, and so is its changes() value the or of those of its
+ * sub-Modifications. Both reach the father of a nested GroupModification
+ * when its channel is closed [see Block::close_channel()], since it is
+ * inserted in its father when it is still empty, and nobody sees a
+ * GroupModification before the outermost one is closed. */
 
 class GroupModification : public AModification {
 
@@ -979,15 +984,14 @@ class GroupModification : public AModification {
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 
  /// add a new Modification to the v_sub_Modifications list
- /** Besides concerns_Block(), the changes() of the GroupModification and of
-  * all its ancestors gets the or of those of \p mod, since a nested
-  * GroupModification is inserted in its father when it is still empty. */
+ /** Besides concerns_Block(), the changes() of the GroupModification gets
+  * the or of those of \p mod; those of its ancestors get it when the
+  * channel is closed [see Block::close_channel()]. */
 
  void add( const std::shared_ptr< Modification > & mod ) {
   if( mod->concerns_Block() )  // if the sub-Modification concerns the Block
    concerns_Block( true );     // then the whole GroupModification does
-  for( auto gm = this ; gm ; gm = gm->f_father )
-   gm->f_changes |= mod->changes();
+  f_changes |= mod->changes();
   v_sub_Modifications.push_back( mod );
  }
 

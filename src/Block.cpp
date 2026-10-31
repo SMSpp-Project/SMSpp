@@ -896,12 +896,15 @@ void Block::close_channel( ChnlName chnl , bool force , bool discard )
     auto root = GMit->second;
 
     // if concerns_Block() of the current GroupModification is true, ensure
-    // that the concerns_Block() of is also true up until the top
+    // that the concerns_Block() of is also true up until the top; what it
+    // changes goes up as well, each level adding what it changes itself
     const bool concerns = root->concerns_Block();
     while( root->father() ) {
+     const auto changes = root->changes();
      root = root->father();
      if( concerns )
       root->concerns_Block( true );
+     root->set_changes( root->changes() | changes );
      }
 
     Observer::release_channel_name( chnl );  // give back the channel name
@@ -924,11 +927,14 @@ void Block::close_channel( ChnlName chnl , bool force , bool discard )
      if( ( ! subs.empty() ) && ( subs.back().get() == GMit->second ) )
       subs.pop_back();
      }
-    else
+    else {
      // if concerns_Block() of the current GroupModification is true, ensure
-     // that the concerns_Block() of father is also true
+     // that the concerns_Block() of father is also true; and what it
+     // changes is changed by the father
      if( GMit->second->concerns_Block() )
       father->concerns_Block( true );
+     father->set_changes( father->changes() | GMit->second->changes() );
+     }
 
     GMit->second = father; // move back the channel to being the father
     }

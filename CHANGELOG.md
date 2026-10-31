@@ -261,8 +261,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   constructor takes and `changes()`, no longer virtual, returns: a derived
   class passes its value to the constructor of its base, or sets it in its
   own with `set_changes()`, instead of overriding `changes()`, and a
-  `GroupModification` keeps the or of its sub-Modification, and of those of
-  the GroupModification nested in it, as they are added
+  `GroupModification` keeps the or of its sub-Modification as they are
+  added, and gets that of a GroupModification nested in it when the channel
+  of the latter is closed (`Block::close_channel()`)
 
 - `SMSppMODrule` of `lib/makefile-mod` takes the prefixes of the modules
   that a module imports (e.g., `MILPS BAXSLV`) in place of their module

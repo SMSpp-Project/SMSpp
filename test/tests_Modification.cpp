@@ -2440,6 +2440,17 @@ static void test_changes( void )
        r.block->close_channel( chnl );
        } , M::eModVarData | M::eRegnGrow );
 
+ // and so it does when the channel is closed at once from the nested level,
+ // the father adding what it changes itself
+ one( [ & ]() {
+       auto chnl = r.block->open_channel();
+       std::list< FRowConstraint > n( 1 );
+       add_d( r.block , *rows , n , Observer::make_par( eModBlck , chnl ) );
+       r.block->open_channel( chnl );
+       x->is_fixed( true , Observer::make_par( eModBlck , chnl ) );
+       r.block->close_channel( chnl , true );
+       } , M::eModCnsSet | M::eModVarData | M::eRegnShrink );
+
  // the static methods
  const auto phys = M::ModConcern( M::eModPhys | M::eEffAny );
  assert( M::is_physical( phys ) && ( ! M::is_abstract( phys ) ) );
