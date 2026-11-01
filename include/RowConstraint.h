@@ -565,13 +565,14 @@ class RowConstraint : public Constraint
 
 /*--------------------------------------------------------------------------*/
  /// checks if the violation of a RowConstraint does not exceed the tolerance
- /** This function checks whether the violation of the given RowConstraint (that
-  * is not relaxed; see is_relaxed()) is not greater than the provided tolerance.
-  * The parameter \p rel_viol indicates whether the relative (see rel_viol()) or
-  * the absolute (see abs_viol()) violation must be considered.
+ /** This function checks whether the violation of the given RowConstraint
+  * (that is not relaxed; see is_relaxed()) is not greater than the provided
+  * tolerance. The parameter \p rel_viol indicates whether the relative (see
+  * rel_viol()) or the absolute (see abs_viol()) violation must be
+  * considered.
   *
-  * If the RowConstraint is not relaxed, then it will be compute()-ed before its
-  * violation is checked.
+  * If the RowConstraint is not relaxed, then it will be compute()-ed before
+  * its violation is checked.
   *
   * @param constraint A RowConstraint.
   *
@@ -582,23 +583,25 @@ class RowConstraint : public Constraint
   *        rel_viol()). Otherwise, the absolute violation is considered (see
   *        abs_viol()).
   *
-  * @return This function returns true if and only if the violation of the given
-  *         RowConstraint is not greater than the given tolerance. */
+  * @return This function returns true if and only if the violation of the
+  *         given RowConstraint is not greater than the given tolerance. */
 template< class T >
 static std::enable_if_t< std::is_base_of_v< RowConstraint , T > , bool >
-is_feasible( T & constraint , double tolerance = 1e-10 , bool rel_viol = true ) {
+is_feasible( T & constraint , double tolerance = 1e-10 ,
+             bool rel_viol = true ) {
   if( constraint.is_relaxed() )
     return( true );
   if( auto ret = constraint.compute();
       ( ret <= Constraint::kUnEval ) || ( ret > Constraint::kOK ) )
     return( false );
-  if( ( rel_viol ? constraint.rel_viol() : constraint.abs_viol() ) > tolerance )
+  if( ( rel_viol ? constraint.rel_viol() : constraint.abs_viol() ) >
+      tolerance )
     return( false );
   return( true );
 }
 
 /*--------------------------------------------------------------------------*/
- /// checks if the violation of each RowConstraint does not exceed the tolerance
+ /// checks if the violation of each RowConstraint is within the tolerance
  /** This function checks whether the violation of each RowConstraint (that is
   * not relaxed; see is_relaxed()) in the given collection of RowConstraint is
   * not greater than the provided tolerance. The parameter \p rel_viol
@@ -624,9 +627,9 @@ is_feasible( T & constraint , double tolerance = 1e-10 , bool rel_viol = true ) 
   * @return This function returns true if and only if the violation of each
   *         RowConstraint of the given collection is not greater than the
   *         given tolerance. */
-template< template< class ... > class C , class T >
+template< template< class ... > class C , class T , class ... CA >
 static std::enable_if_t< std::is_base_of_v< RowConstraint , T > , bool >
-is_feasible( C< T > & constraints , double tolerance = 1e-10 ,
+is_feasible( C< T , CA ... > & constraints , double tolerance = 1e-10 ,
              bool rel_viol = true ) {
   for( auto & constraint : constraints )
     if( ! is_feasible( constraint , tolerance , rel_viol ) )
@@ -635,7 +638,7 @@ is_feasible( C< T > & constraints , double tolerance = 1e-10 ,
 }
 
 /*--------------------------------------------------------------------------*/
- /// checks if the violation of each RowConstraint does not exceed the tolerance
+ /// checks if the violation of each RowConstraint is within the tolerance
  /** This function checks whether the violation of each RowConstraint (that is
   * not relaxed; see is_relaxed()) in the given collection of RowConstraint is
   * not greater than the provided tolerance. The parameter \p rel_viol
@@ -674,7 +677,7 @@ is_feasible( boost::multi_array< T , K > & constraints ,
 }
 
 /*--------------------------------------------------------------------------*/
- /// checks if the violation of each RowConstraint does not exceed the tolerance
+ /// checks if the violation of each RowConstraint is within the tolerance
  /** This function checks whether the violation of each RowConstraint (that is
   * not relaxed; see is_relaxed()) in the given collection of RowConstraint is
   * not greater than the provided tolerance. The parameter \p rel_viol
@@ -716,7 +719,7 @@ is_feasible( boost::multi_array< T , K > & constraints ,
  }
 
 /*--------------------------------------------------------------------------*/
- /// checks if the violation of each RowConstraint does not exceed the tolerance
+ /// checks if the violation of each RowConstraint is within the tolerance
  /** This function checks whether the violation of each RowConstraint (that is
   * not relaxed; see is_relaxed()) in the given collection of RowConstraint is
   * not greater than the provided tolerance. The parameter \p rel_viol
@@ -743,9 +746,10 @@ is_feasible( boost::multi_array< T , K > & constraints ,
   *         RowConstraint of the given collection is not greater than the
   *         given tolerance. */
 
- template< template< class ... > class C , class T , std::size_t K >
+ template< template< class ... > class C , class T , class ... CA ,
+           std::size_t K >
  static std::enable_if_t< std::is_base_of_v< RowConstraint , T > , bool >
- is_feasible( boost::multi_array< C< T > , K > & constraints ,
+ is_feasible( boost::multi_array< C< T , CA ... > , K > & constraints ,
               double tolerance = 1e-10 , bool rel_viol = true ) {
   auto n = constraints.num_elements();
   auto l_constraints = constraints.data();

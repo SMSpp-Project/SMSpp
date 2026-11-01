@@ -345,6 +345,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   not empty broadcast no value over SetTo dividing by zero; with an empty
   SetFrom it now does nothing
 
+- `Constraint::clear()` and `ColVariable::is_feasible()` of a `std::list`
+  no longer fail to compile with MSVC, which found the call ambiguous
+  between the overload for `std::list` and the one for any container: the
+  overloads for `std::vector` and `std::list`, which did what the generic
+  ones do, are gone, and the generic ones, as those of
+  `RowConstraint::is_feasible()`, take the container with all its template
+  arguments (e.g., the allocator)
+
 - on Windows, the executables that copy their DLLs next to themselves
   are linked one at a time (a job pool of Ninja), since two copies of the
   same DLL into one directory collided (e.g., with the clang++ of MSYS2)
