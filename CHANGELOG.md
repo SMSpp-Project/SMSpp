@@ -229,6 +229,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- the `register_method()` taking a member function of a `:Block` (or a const
+  one, for a query) no longer deduces the parameter types from it, which are
+  those given or those of the `arg_packer_helper`, so that a member function
+  that is not overloaded can be registered too (GCC refused to deduce the
+  pack of a member function with `ModParam` after it)
+
 - the methods factory takes the data of a setter only as a span:
   `DataMapping::set_data()` takes a `std::span< const double >` of the data
   in place of an iterator into them, and `SimpleDataMapping` gives the
@@ -317,6 +323,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a copy of its own and a module can export them
 
 ### Removed
+
+- the iterator forms of the methods factory: `Block::MF_dbl_it` and
+  `Block::MF_int_it`, the parameter type lists `MS_dbl_rngd`, `MS_int_rngd`,
+  `MS_dbl_sbst` and `MS_int_sbst`, the maps `MF_dbl_rngd_map`,
+  `MF_int_rngd_map`, `MF_dbl_sbst_map` and `MF_int_sbst_map` and the
+  factories that held them; a setter with data is registered with
+  `MF_dbl_sp` or `MF_int_sp`, i.e., with the lists `MS_sp_D_S`
 
 - the bytecode of `cmake/smspp_module_exports.py`, which had been
   committed by mistake; `__pycache__/` is ignored
