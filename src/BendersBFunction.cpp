@@ -1088,7 +1088,7 @@ void BendersBFunction::modify_row( c_Index i , RealVector && Ai ,
 
 /*--------------------------------------------------------------------------*/
 
-void BendersBFunction::modify_constants( MF_dbl_it nb , Range range ,
+void BendersBFunction::modify_constants( MF_dbl_sp nb , Range range ,
 					 c_ModParam issuePMod ,
 					 c_ModParam issueAMod ) {
  if( ! Observer::not_dry_run( issueAMod ) )  // a dry run changes nothing
@@ -1098,9 +1098,13 @@ void BendersBFunction::modify_constants( MF_dbl_it nb , Range range ,
  if( range.second <= range.first )
   return;
 
+ if( nb.size() < range.second - range.first )
+  throw( std::invalid_argument( "BendersBFunction::modify_constants: the "
+                                "span is shorter than the Range" ) );
+
  bool changed = false;
  for( Index i = 0 ; i < range.second - range.first ; ++i ) {
-  const auto new_b = * ( nb + i );
+  const auto new_b = nb[ i ];
   if( v_b[ range.first + i ] != new_b ) {
    v_b[ range.first + i ] = new_b;
    changed = true;
@@ -1139,12 +1143,12 @@ void BendersBFunction::modify_constants( c_RealVector & nb , Range range ,
  if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
   return;
 
- modify_constants( nb.cbegin() , range , issueMod , issueMod );
+ modify_constants( MF_dbl_sp( nb ) , range , issueMod , issueMod );
 }  // end( BendersBFunction::modify_constants( range ) )
 
 /*--------------------------------------------------------------------------*/
 
-void BendersBFunction::modify_constants( MF_dbl_it nb , Subset && rows ,
+void BendersBFunction::modify_constants( MF_dbl_sp nb , Subset && rows ,
 					 const bool ordered ,
 					 c_ModParam issuePMod ,
 					 c_ModParam issueAMod )
@@ -1155,6 +1159,10 @@ void BendersBFunction::modify_constants( MF_dbl_it nb , Subset && rows ,
  if( rows.empty() )  // actually nothing to modify
   return;            // cowardly (and silently) return
 
+ if( nb.size() < rows.size() )
+  throw( std::invalid_argument( "BendersBFunction::modify_constants: the "
+                                "span is shorter than the Subset" ) );
+
  for( const auto i : rows )
   if( i >= v_A.size() )
    throw( std::invalid_argument( "BendersBFunction::modify_constants: row " +
@@ -1162,7 +1170,7 @@ void BendersBFunction::modify_constants( MF_dbl_it nb , Subset && rows ,
 
  bool changed = false;
  for( Index i = 0 ; i < rows.size() ; ++i ) {
-  const auto new_b = * ( nb + i );
+  const auto new_b = nb[ i ];
   if( v_b[ rows[ i ] ] != new_b ) {
    v_b[ rows[ i ] ] = new_b;
    changed = true;
@@ -1203,7 +1211,7 @@ void BendersBFunction::modify_constants( c_RealVector & nb , Subset && rows ,
  if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
   return;
 
- modify_constants( nb.cbegin() , std::move( rows ) , ordered ,
+ modify_constants( MF_dbl_sp( nb ) , std::move( rows ) , ordered ,
                    issueMod , issueMod );
 }  // end( BendersBFunction::modify_constants )
 

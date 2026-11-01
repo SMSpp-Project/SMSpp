@@ -229,6 +229,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- the `register_method()` taking a member function of a `:Block` (or a const
+  one, for a query) no longer deduces the parameter types from it, which are
+  those given or those of the `arg_packer_helper`, so that a member function
+  that is not overloaded can be registered too (GCC refused to deduce the
+  pack of a member function with `ModParam` after it)
+
+- the methods factory takes the data of a setter only as a span:
+  `DataMapping::set_data()` takes a `std::span< const double >` of the data
+  in place of an iterator into them, and `SimpleDataMapping` gives the
+  function it calls a `std::span< const DataType >` of the data its SetFrom
+  selects (its `F` is a `FunctionType` of that span), throwing
+  `std::invalid_argument` if SetFrom goes past the end of the data;
+  `BendersBFunction::modify_constants()` takes a `MF_dbl_sp`, and throws
+  `std::invalid_argument` if it is shorter than the Range or the Subset, and
+  is registered in the methods factory in that form; `Misc_unit_test` checks
+  a SetFrom going past the end of a span
+
 - the README leaves the channels that distribute SMS++ to the
   installation guide of the wiki (Installing-SMS++), keeping the names
   of the packages of the module
@@ -307,6 +324,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- the iterator forms of the methods factory: `Block::MF_dbl_it` and
+  `Block::MF_int_it`, the parameter type lists `MS_dbl_rngd`, `MS_int_rngd`,
+  `MS_dbl_sbst` and `MS_int_sbst`, the maps `MF_dbl_rngd_map`,
+  `MF_int_rngd_map`, `MF_dbl_sbst_map` and `MF_int_sbst_map` and the
+  factories that held them; a setter with data is registered with
+  `MF_dbl_sp` or `MF_int_sp`, i.e., with the lists `MS_sp_D_S`
+
 - the bytecode of `cmake/smspp_module_exports.py`, which had been
   committed by mistake; `__pycache__/` is ignored
 
@@ -316,6 +340,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   without asking the RelaxationSolver
 
 ### Fixed
+
+- `SimpleDataMapping::set_data()` with an empty SetFrom and a SetTo that is
+  not empty broadcast no value over SetTo dividing by zero; with an empty
+  SetFrom it now does nothing
+
+- `Constraint::clear()` and `ColVariable::is_feasible()` of a `std::list`
+  no longer fail to compile with MSVC, which found the call ambiguous
+  between the overload for `std::list` and the one for any container: the
+  overloads for `std::vector` and `std::list`, which did what the generic
+  ones do, are gone, and the generic ones, as those of
+  `RowConstraint::is_feasible()`, take the container with all its template
+  arguments (e.g., the allocator)
 
 - on Windows, the executables that copy their DLLs next to themselves
   are linked one at a time (a job pool of Ninja), since two copies of the

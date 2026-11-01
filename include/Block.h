@@ -593,10 +593,6 @@ class Block : public Observer {
  *   std::vector< Index >, although this may change) together with a
  *   [const] iterator [c_]Subset_it in it;
  *
- * - MF_dbl_it, a const_iterator into a std::vector< double >;
- *
- * - MF_int_it, a const_iterator into a std::vector< int >;
- *
  * - MF_dbl_sp, a std::span< const double >;
  *
  * - MF_int_sp, a std::span< const int >;
@@ -624,12 +620,10 @@ class Block : public Observer {
  * - arg_packer_helper and arg_packer (variadic template), helper types for
  *   template shenanigans for methods factory;
  *
- * - the types MS[_D]_S with D in { dbl , int } (or not there) and S in
- *   { rngd , sbst } representing the standard parameter type lists for
- *   functions to be inserted in the methods factory;
- *
- * - the MS_sp_D_S with D in { dbl , int }, the same lists with the data as
- *   a span;
+ * - the types MS_S with S in { rngd , sbst }, and MS_sp_D_S with D in
+ *   { dbl , int } and the same S, representing the standard parameter type
+ *   lists for functions to be inserted in the methods factory, without data
+ *   and with the data as a span, respectively;
  *
  * - the MS_qry_D_S with D in { dbl , int } and S in { rngd , sbst }, the
  *   lists for a getter writing its answer through a mutable span.
@@ -661,12 +655,6 @@ class Block : public Observer {
 
  using Subset_it = Subset::iterator;          ///< iterator in Subset
  using c_Subset_it = Subset::const_iterator;  ///< const iterator in Subset
-
- /// iterator for double data received by the functions in the methods factory
- using MF_dbl_it = std::vector< double >::const_iterator;
-
- /// iterator for int data received by the functions in the methods factory
- using MF_int_it = std::vector< int >::const_iterator;
 
  /// span for double data received by the functions in the methods factory
  using MF_dbl_sp = std::span< const double >;
@@ -735,37 +723,25 @@ class Block : public Observer {
  /// type for ( void , range ) functions
  using MS_rngd = arg_packer< Range >;
 
- /// type for ( double , range ) functions
- using MS_dbl_rngd = arg_packer< MF_dbl_it , Range >;
-
- /// type for ( int , range ) functions
- using MS_int_rngd = arg_packer< MF_int_it , Range >;
-
  /// type for ( void , subset ) functions
  using MS_sbst = arg_packer< Subset && , bool >;
 
- /// type for ( double , subset ) functions
- using MS_dbl_sbst = arg_packer< MF_dbl_it , Subset && , bool >;
-
- /// type for ( int , subset ) functions
- using MS_int_sbst = arg_packer< MF_int_it , Subset && , bool >;
-
- /// type for ( double , range ) functions, span form
+ /// type for ( double , range ) functions
  using MS_sp_dbl_rngd = arg_packer< MF_dbl_sp , Range >;
 
- /// type for ( int , range ) functions, span form
+ /// type for ( int , range ) functions
  using MS_sp_int_rngd = arg_packer< MF_int_sp , Range >;
 
- /// type for ( double , subset ) functions, span form
+ /// type for ( double , subset ) functions
  using MS_sp_dbl_sbst = arg_packer< MF_dbl_sp , Subset && , bool >;
 
- /// type for ( int , subset ) functions, span form
+ /// type for ( int , subset ) functions
  using MS_sp_int_sbst = arg_packer< MF_int_sp , Subset && , bool >;
 
- /// type for ( double , double , range ) functions, span form
+ /// type for ( double , double , range ) functions
  using MS_sp_dbl2_rngd = arg_packer< MF_dbl_sp , MF_dbl_sp , Range >;
 
- /// type for ( double , double , subset ) functions, span form
+ /// type for ( double , double , subset ) functions
  using MS_sp_dbl2_sbst = arg_packer< MF_dbl_sp , MF_dbl_sp , Subset && ,
                                      bool >;
 
@@ -806,16 +782,9 @@ class Block : public Observer {
 
  /// canonical factory types for the standard method signatures
  using MF_rngd_map = MethodsFactoryMap< FunctionType< Range > >;
- using MF_dbl_rngd_map = MethodsFactoryMap< FunctionType< MF_dbl_it , Range > >;
- using MF_int_rngd_map = MethodsFactoryMap< FunctionType< MF_int_it , Range > >;
-
  using MF_sbst_map = MethodsFactoryMap< FunctionType< Subset && , bool > >;
- using MF_dbl_sbst_map = MethodsFactoryMap< FunctionType<
-  MF_dbl_it , Subset && , bool > >;
- using MF_int_sbst_map = MethodsFactoryMap< FunctionType<
-  MF_int_it , Subset && , bool > >;
 
- /// the same data-carrying signatures in their span form
+ /// the data-carrying signatures, the data in a span
  using MF_sp_dbl_rngd_map = MethodsFactoryMap< FunctionType<
   MF_dbl_sp , Range > >;
  using MF_sp_int_rngd_map = MethodsFactoryMap< FunctionType<
@@ -6067,8 +6036,9 @@ class Block : public Observer {
  *      FACTORY FOR F IS SELECTED.
  *
  * For the standard function signatures supported by Block (such as the
- * predefined MS[_D]_S families), methods< F >() returns a reference to a
- * unique, centralized factory owned by the core Block implementation.
+ * predefined MS_S and MS_sp_D_S families), methods< F >() returns a
+ * reference to a unique, centralized factory owned by the core Block
+ * implementation.
  * This avoids having separate copies of the same methods factory in
  * different translation units or shared libraries.
  *
@@ -6134,12 +6104,9 @@ class Block : public Observer {
  *   std::vector< Index >, although this may change) together with a
  *   [const] iterator [c_]Subset_it in it;
  *
- * - MF_dbl_it, a const_iterator into a std::vector< double >;
- *
- * - MF_int_it, a const_iterator into a std::vector< int >;
- *
- * - MF_dbl_sp and MF_int_sp, the same data as spans, and MF_dbl_msp and
- *   MF_int_msp, the mutable spans a getter writes its answer through;
+ * - MF_dbl_sp and MF_int_sp, spans of the double and int data received by
+ *   a setter, and MF_dbl_msp and MF_int_msp, the mutable spans a getter
+ *   writes its answer through;
  *
  * These are thought to form the basis of "most" data-changing and
  * data-reading member functions in any :Block class. In particular,
@@ -6150,8 +6117,7 @@ class Block : public Observer {
  *
  * where:
  *
- * - data is either not there, or one of MF_dbl_it, MF_int_it, MF_dbl_sp
- *   and MF_int_sp;
+ * - data is either not there, or one of MF_dbl_sp and MF_int_sp;
  *
  * - slice indicates a subset of the data, in two possible forms:
  *
@@ -6171,16 +6137,14 @@ class Block : public Observer {
  *     A getter does not consume the Subset, and takes a c_Subset &
  *     instead.
  *
- *   Note that, if present, the provided  MF_X_it (call it "iter") must
- *   point to a std::vector< X > at least as long (after the position
- *   pointed by iter) as how many elements are there in the slice, and
- *   the X value *( iter + h ) has to be taken as the new value for the
- *   data structure in the :Block corresponding to the h-th Index in slice.
- *
- *   If the data travels in a span, the span is the same "at least as long"
- *   buffer, and one shorter than the slice is an error the function can
- *   report instead of reading past the end. A getter writing through a
- *   mutable span writes the h-th value for the h-th Index in slice.
+ *   Note that, if present, the provided span (call it "data") must be at
+ *   least as long as how many elements are there in the slice, and the
+ *   value data[ h ] has to be taken as the new value for the data structure
+ *   in the :Block corresponding to the h-th Index in slice; a span shorter
+ *   than the slice is an error, that the function reports by throwing
+ *   std::invalid_argument instead of reading past its end. A getter
+ *   writing through a mutable span writes the h-th value for the h-th
+ *   Index in slice.
  *
  *   Those of a getter have the same form, with a mutable span as data,
  *   MF_dbl_msp or MF_int_msp, and no ModParam.
@@ -6188,7 +6152,7 @@ class Block : public Observer {
  *   An item of the slice may carry two values instead of one, say a unit
  *   with two sizes: a setter then takes two MF_dbl_sp, the h-th value of
  *   each for the h-th Index in slice, and a getter two MF_dbl_msp, written
- *   the same way. These come only with spans.
+ *   the same way.
  *
  *   A parameter that is a single scalar, say the size of a unit, comes with
  *   no slice at all: a setter ( double , ModParam , ModParam ), MS_dbl, and
@@ -6196,16 +6160,16 @@ class Block : public Observer {
  *   MS_qry_dbl2 are the same for a pair of scalars, say the two sizes of a
  *   unit.
  *
- * These parameter type lists are "encoded" in the predefined types
- * MS[_D]_S with D in { dbl , int } (or not there) and S in { rngd , sbst },
- * representing (in obvious ways) the possible interfaces; the MS_sp_D_S,
- * with D in { dbl , int }, are the same ones with the data as a span, and
- * the MS_qry_D_S, with the same D, those of a getter writing through a
- * mutable span; MS_sp_dbl2_S and MS_qry_dbl2_S are the setter and the
- * getter with two values per Index. Specific versions of register_method(), get_method_fs(),
- * get_method_name_fs() and get_query_fs() are provided which take a final
+ * These parameter type lists are "encoded" in the predefined types MS_S,
+ * with S in { rngd , sbst }, for a setter without data, MS_sp_D_S, with D
+ * in { dbl , int } and the same S, for a setter with its data in a span,
+ * and MS_qry_D_S, with the same D, for a getter writing through a mutable
+ * span; MS_sp_dbl2_S and MS_qry_dbl2_S are the setter and the getter with
+ * two values per Index. Specific versions of register_method(),
+ * get_method_fs(), get_method_name_fs() and get_query_fs() are provided
+ * which take a final
  *
- *     MS[_D]_S::args()
+ *     MS_[sp_D_]S::args()
  *
  * parameter (don't ask why the "args", that's pretty weird template wizardry)
  * specifying the type of function to be inserted in the methods factory.
@@ -6227,19 +6191,19 @@ class Block : public Observer {
  * class NetworkBlock : Block representing (an optimization problem defined
  * over some) weighted graph. NetworkBlock may have two functions
  *
- *     void set_arc_weight( MF_dbl_it , Range , ModParam , ModParam );
+ *     void set_arc_weight( MF_dbl_sp , Range , ModParam , ModParam );
  *
- *     void set_arc_weight( MF_dbl_it , Subset && , bool ,
+ *     void set_arc_weight( MF_dbl_sp , Subset && , bool ,
  *                          ModParam , ModParam );
  *
  * for changing the weights in the arcs of the graph. These functions can be
  * registered straight away in the methods factory by just calling anywhere
  *
- *     register_method< NetworkBlock , MF_dbl_it , Range>(
+ *     register_method< NetworkBlock , MF_dbl_sp , Range>(
  *                                         "NetworkBlock::set_arc_weight" ,
  *                                         & NetworkBlock::set_arc_weight );
  *
- *     register_method< NetworkBlock , MF_dbl_it , Subset && , const bool >(
+ *     register_method< NetworkBlock , MF_dbl_sp , Subset && , const bool >(
  *                                         "NetworkBlock::set_arc_weight" ,
  *                                         & NetworkBlock::set_arc_weight );
  *
@@ -6269,24 +6233,29 @@ class Block : public Observer {
  * A user who would like to have a function in the methods factory for setting
  * the weight of subsets of arcs could implement the following functions:
  *
- *     void set_weight_range( Block * block , MF_dbl_it begin ,
+ *     void set_weight_range( Block * block , MF_dbl_sp data ,
  *                            Range range , ModParam issuePMod = eNoBlc ,
  *                                          ModParam issueAMod = eModBlck ) {
- *      for( Index i = range.first ; i < range.second ; ++i , ++begin )
- *       static_cast< NetworkBlock * >( block )->set_arc_weight( i , *begin ,
- *                                                               issuePMod ,
- *                                                               issueAMod );
+ *      if( data.size() < range.second - range.first )
+ *       throw( std::invalid_argument( "set_weight_range: the span is "
+ *                                     "shorter than the Range" ) );
+ *      for( Index i = range.first ; i < range.second ; ++i )
+ *       static_cast< NetworkBlock * >( block )->set_arc_weight( i ,
+ *                                                data[ i - range.first ] ,
+ *                                                issuePMod , issueAMod );
  *      }
  *
- *     void set_weight_subset( Block * block , MF_dbl_it begin ,
+ *     void set_weight_subset( Block * block , MF_dbl_sp data ,
  *                             Subset && sbst , bool ordered = false ,
  *                             ModParam issuePMod = eNoBlc ,
  *                             ModParam issueAMod = eModBlck ) {
- *      for( auto i : sbst )
- *       static_cast< NetworkBlock * >( block )->set_arc_weight( i ,
- *                                                               *(begin++) ,
- *                                                               issuePMod ,
- *                                                               issueAMod );
+ *      if( data.size() < sbst.size() )
+ *       throw( std::invalid_argument( "set_weight_subset: the span is "
+ *                                     "shorter than the Subset" ) );
+ *      for( Index h = 0 ; h < sbst.size() ; ++h )
+ *       static_cast< NetworkBlock * >( block )->set_arc_weight( sbst[ h ] ,
+ *                                                data[ h ] ,
+ *                                                issuePMod , issueAMod );
  *      }
  *
  * These could then be freely registered in the methods factory as in
@@ -6375,7 +6344,7 @@ class Block : public Observer {
  *     MF_dbl_msp        the mutable span to write the answer out through
  *     QueryType         FunctionType with a const Block * and no ModParam
  *     ConstMemberFunctionType   what the wrapper adapts to it
- *     MS_qry_dbl_rngd   the parameter list, mirroring MS_dbl_rngd
+ *     MS_qry_dbl_rngd   the parameter list, mirroring MS_sp_dbl_rngd
  *     MF_qry_dbl_rngd_map       the map holding this family's entries
  *
  * plus the single copy of that map owned by the core, declared as
@@ -6384,11 +6353,12 @@ class Block : public Observer {
  * QueryType< MF_dbl_msp , Range > that makes the signature standard;
  * without it nothing compiles.
  *
- * The ( double , subset ) family is obtained the same way from MS_dbl_sbst,
+ * The ( double , subset ) family is obtained the same way from
+ * MS_sp_dbl_sbst,
  * and is there together with the first because a :Block may have to answer
  * two consumers about disjoint subsets of its parameters. The integer
- * twins, MS_qry_int_rngd and MS_qry_int_sbst, mirror MS_int_rngd and
- * MS_int_sbst on MF_int_msp, for a :Block whose parameter is a count and
+ * twins, MS_qry_int_rngd and MS_qry_int_sbst, mirror MS_sp_int_rngd and
+ * MS_sp_int_sbst on MF_int_msp, for a :Block whose parameter is a count and
  * answers with the count rather than with a double that happens to be
  * integral. Any further family comes from the setter family it mirrors.
  *
@@ -6468,7 +6438,10 @@ class Block : public Observer {
   * the function to be inserted in the methods factory. Indeed, what this
   * version does is to create a FunctionType< Args > lambda function
   * which just static_cast<> the Block * argument to a dBlock *, and
-  * then invokes \p function.
+  * then invokes \p function. Args are never deduced from \p fnct (whose
+  * parameter pack is not the last of its parameters): they are those
+  * given, so that \p fnct can name a member function that is overloaded as
+  * well as one that is not.
   *
   * @param name The name that will identify the given \p function in the
   *             methods factory; as the "&&" tells, the std::string becomes
@@ -6481,7 +6454,8 @@ class Block : public Observer {
  template< class dBlock , typename ... Args >
  static std::enable_if_t< std::is_base_of_v< Block , dBlock > , void >
  register_method( std::string && name ,
-                  MemberFunctionType< dBlock , Args... > fnct ) {
+                  std::type_identity_t<
+                   MemberFunctionType< dBlock , Args... > > fnct ) {
   register_method( std::move( name ),
                    new FunctionType< Args... >(
                     [ fnct ]( Block * blck , Args && ... args ,
@@ -6508,7 +6482,7 @@ class Block : public Observer {
   * the adapter function is now specified by means of the third parameter,
   * which is dummy arg_packer_helper< Args... >. This is intended to be used
   * with existing parameter type list-specifying types, such as in
-  * MS_rngd::args() or MS_int_sbst::args(), although there is nothing
+  * MS_rngd::args() or MS_sp_int_sbst::args(), although there is nothing
   * preventing from defining new ones.
   *
   * @param name The name that will identify the given \p function in the
@@ -6523,7 +6497,8 @@ class Block : public Observer {
 
  template< class dBlock , typename ... Args >
  static void register_method( std::string && name ,
-                              MemberFunctionType< dBlock , Args... > fnct ,
+                              std::type_identity_t<
+                               MemberFunctionType< dBlock , Args... > > fnct ,
                               arg_packer_helper< Args... > ) {
   register_method< dBlock, Args... >( std::move( name ) , fnct );
   }
@@ -6536,7 +6511,8 @@ class Block : public Observer {
  template< class dBlock , typename ... Args >
  static std::enable_if_t< std::is_base_of_v< Block , dBlock > , void >
  register_method( std::string && name ,
-                  ConstMemberFunctionType< dBlock , Args... > fnct ) {
+                  std::type_identity_t<
+                   ConstMemberFunctionType< dBlock , Args... > > fnct ) {
   register_method( std::move( name ),
                    new QueryType< Args... >(
                     [ fnct ]( const Block * blck , Args && ... args ) {
@@ -6552,7 +6528,8 @@ class Block : public Observer {
  template< class dBlock , typename ... Args >
  static void register_method(
                   std::string && name ,
-                  ConstMemberFunctionType< dBlock , Args... > fnct ,
+                  std::type_identity_t<
+                   ConstMemberFunctionType< dBlock , Args... > > fnct ,
                   arg_packer_helper< Args... > ) {
   register_method< dBlock, Args... >( std::move( name ) , fnct );
   }
@@ -6566,19 +6543,19 @@ class Block : public Observer {
   *
   * Suppose, for example, that the methods factory has a function associated
   * with the name "NetworkBlock::set_arc_weight" that has the typical "double,
-  * Range" interface, i.e., a #MF_dbl_it parameter, a #Range parameter, and
+  * Range" interface, i.e., a #MF_dbl_sp parameter, a #Range parameter, and
   * two ModParam parameters. This has been inserted in the interface under
-  * the guise of a FunctionType< MF_dbl_it , Range > pointer. Thus,
+  * the guise of a FunctionType< MF_dbl_sp , Range > pointer. Thus,
   * to invoke such a function one should do
   *
-  *     auto mthd = get_method< FunctionType< MF_dbl_it , Range > >(
+  *     auto mthd = get_method< FunctionType< MF_dbl_sp , Range > >(
   *                                        "NetworkBlock::set_arc_weight" );
-  *     std::invoke( *mthd , NB , iter , range , issuePMod , issueAMod );
+  *     std::invoke( *mthd , NB , data , range , issuePMod , issueAMod );
   *
   * where NB is a pointer to a NetworkBlock object (assuming the function
   * obtained from the methods factory is associated with this class, as it is
-  * a good practice, considering the name of the function), iter is an
-  * iterator of type #MF_dbl_it, range is a #Range, and issuePMod and
+  * a good practice, considering the name of the function), data is a
+  * span of type #MF_dbl_sp, range is a #Range, and issuePMod and
   * issueAMod are the last two parameters of the function.
   *
   * @param name The name associated with the function. */
@@ -6601,19 +6578,19 @@ class Block : public Observer {
   *
   * Suppose, for example, that the methods factory has a function associated
   * with the name "NetworkBlock::set_arc_weight" that has the typical "double,
-  * Range" interface, i.e., a #MF_dbl_it parameter, a #Range parameter, and
+  * Range" interface, i.e., a #MF_dbl_sp parameter, a #Range parameter, and
   * two ModParam parameters. This has been inserted in the interface under
-  * the guise of a FunctionType< MF_dbl_it , Range > pointer. Thus,
+  * the guise of a FunctionType< MF_dbl_sp , Range > pointer. Thus,
   * to invoke such a function one should do
   *
-  *     auto mthd = get_method_fs< MF_dbl_it , Range >(
+  *     auto mthd = get_method_fs< MF_dbl_sp , Range >(
   *                                        "NetworkBlock::set_arc_weight" );
-  *     std::invoke( *mthd , NB , iter , range , issuePMod , issueAMod );
+  *     std::invoke( *mthd , NB , data , range , issuePMod , issueAMod );
   *
   * where NB is a pointer to a NetworkBlock object (assuming the function
   * obtained from the methods factory is associated with this class, as it is
-  * good practice considering the name given to the function), iter is an
-  * iterator of type #MF_dbl_it, range is a #Range, and issuePMod and
+  * good practice considering the name given to the function), data is a
+  * span of type #MF_dbl_sp, range is a #Range, and issuePMod and
   * issueAMod are the last two parameters of the function.
   *
   * @param name The name associated with the function. */
@@ -6632,19 +6609,19 @@ class Block : public Observer {
   *
   * Suppose, for example, that the methods factory has a function associated
   * with the name "NetworkBlock::set_arc_weight" that has the typical "double,
-  * Range" interface, i.e., a #MF_dbl_it parameter, a #Range parameter, and
+  * Range" interface, i.e., a #MF_dbl_sp parameter, a #Range parameter, and
   * two ModParam parameters. This has been inserted in the interface under
-  * the guise of a FunctionType< MF_dbl_it , Range > pointer. Thus,
+  * the guise of a FunctionType< MF_dbl_sp , Range > pointer. Thus,
   * to invoke such a function one should do
   *
   *     auto mthd = get_method_fs( "NetworkBlock::set_arc_weight" ,
-  *                                MS_dbl_rngd::args() );
-  *     std::invoke( *mthd , NB , iter , range , issuePMod , issueAMod );
+  *                                MS_sp_dbl_rngd::args() );
+  *     std::invoke( *mthd , NB , data , range , issuePMod , issueAMod );
   *
   * where NB is a pointer to a NetworkBlock object (assuming the function
   * obtained from the methods factory is associated with this class, as it is
-  * good practice considering the name given to the function), iter is an
-  * iterator of type #MF_dbl_it, range is a #Range, and issuePMod and
+  * good practice considering the name given to the function), data is a
+  * span of type #MF_dbl_sp, range is a #Range, and issuePMod and
   * issueAMod are the last two parameters of the function.
   *
   * @param name The name associated with the function.
@@ -8175,15 +8152,7 @@ class Block : public Observer {
 
  static MF_rngd_map & methods_rngd_factory( void );
 
- static MF_dbl_rngd_map & methods_dbl_rngd_factory( void );
-
- static MF_int_rngd_map & methods_int_rngd_factory( void );
-
  static MF_sbst_map & methods_sbst_factory( void );
-
- static MF_dbl_sbst_map & methods_dbl_sbst_factory( void );
-
- static MF_int_sbst_map & methods_int_sbst_factory( void );
 
  static MF_sp_dbl_rngd_map & methods_sp_dbl_rngd_factory( void );
 
@@ -8566,41 +8535,9 @@ struct Block::methods_factory_accessor< Block::FunctionType< Block::Range > > {
 
 template<>
 struct Block::methods_factory_accessor<
- Block::FunctionType< Block::MF_dbl_it , Block::Range > > {
- static Block::MF_dbl_rngd_map & get( void ) {
-  return( Block::methods_dbl_rngd_factory() );
- }
-};
-
-template<>
-struct Block::methods_factory_accessor<
- Block::FunctionType< Block::MF_int_it , Block::Range > > {
- static Block::MF_int_rngd_map & get( void ) {
-  return( Block::methods_int_rngd_factory() );
- }
-};
-
-template<>
-struct Block::methods_factory_accessor<
  Block::FunctionType< Block::Subset && , bool > > {
  static Block::MF_sbst_map & get( void ) {
   return( Block::methods_sbst_factory() );
- }
-};
-
-template<>
-struct Block::methods_factory_accessor<
- Block::FunctionType< Block::MF_dbl_it , Block::Subset && , bool > > {
- static Block::MF_dbl_sbst_map & get( void ) {
-  return( Block::methods_dbl_sbst_factory() );
- }
-};
-
-template<>
-struct Block::methods_factory_accessor<
- Block::FunctionType< Block::MF_int_it , Block::Subset && , bool > > {
- static Block::MF_int_sbst_map & get( void ) {
-  return( Block::methods_int_sbst_factory() );
  }
 };
 

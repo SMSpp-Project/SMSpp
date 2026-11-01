@@ -2136,7 +2136,8 @@ static void test_dry_run_BendersBFunction( void )
              bbf->modify_constants( NB , Range( 0 , 2 ) , iM ); } ,
 	    [ & ]() { return( b_is( 0 , 9 ) && b_is( 1 , 10 ) ); } ) ,
   bbf_case( [ & ]( ModParam iM ) {
-             bbf->modify_constants( NB.cbegin() , Range( 0 , 2 ) , iM ,
+             bbf->modify_constants( Block::MF_dbl_sp( NB ) , Range( 0 , 2 ) ,
+                                    iM ,
                                     iM ); } ,
 	    [ & ]() { return( b_is( 0 , 9 ) && b_is( 1 , 10 ) ); } ) ,
   bbf_case( [ & ]( ModParam iM ) {
@@ -2144,7 +2145,8 @@ static void test_dry_run_BendersBFunction( void )
                                     iM ); } ,
 	    [ & ]() { return( b_is( 1 , 9 ) && b_is( 0 , 10 ) ); } ) ,
   bbf_case( [ & ]( ModParam iM ) {
-             bbf->modify_constants( NB.cbegin() , Subset( { 1 } ) , true ,
+             bbf->modify_constants( Block::MF_dbl_sp( NB ) , Subset( { 1 } ) ,
+                                    true ,
                                     iM , iM ); } ,
 	    [ & ]() { return( b_is( 1 , 9 ) ); } ) ,
   bbf_case( [ & ]( ModParam iM ) { bbf->modify_constant( 1 , 9 , iM ); } ,

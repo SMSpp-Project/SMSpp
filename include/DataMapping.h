@@ -54,7 +54,7 @@ namespace SMSpp_di_unipi_it
  * functions. The first one is set_data(), which has the following
  * signature:
  *
- *    virtual void set_data( std::vector< double >::const_iterator ,
+ *    virtual void set_data( std::span< const double > ,
  *                           c_ModParam issueMod = eModBlck ,
  *                           c_ModParam issueAMod = eModBlck ) const;
  *
@@ -124,7 +124,8 @@ public:
  /** This function sets the value of the data associated with this
   * DataMapping.
   *
-  * @param data An iterator to the first element of the data.
+  * @param data The data; a set of positions that goes past its end is an
+  *        error, reported by throwing std::invalid_argument.
   *
   * @param issueMod indicates if and how the a "physical" Modification should
   *        be issued.
@@ -133,7 +134,7 @@ public:
   *        should be issued.
   */
 
- virtual void set_data( std::vector< double >::const_iterator data ,
+ virtual void set_data( std::span< const double > data ,
                         c_ModParam issueMod = eModBlck ,
                         c_ModParam issueAMod = eModBlck ) const = 0;
 
@@ -689,19 +690,18 @@ constexpr char SimpleDataMappingBase::get_id< int >() { return( 'I' ); }
  * SimpleDataMappingBase and is used to define some common kinds of data
  * mapping. We define two vectors: the large one and the small one. The large
  * vector refers to the vector that is given as input to the set_data() method
- * (by means of an iterator to the beginning of this vector). This is the
- * vector containing all the data that can be used by the
- * SimpleDataMapping. The small vector is a vector formed by a subset of the
- * elements of the large vector. This is the vector that will effectively be
- * used to perform some computation. This computation is typically the task of
- * changing the data of some object based on this small vector. There is a
+ * (as a span). This is the vector containing all the data that can be used by
+ * the SimpleDataMapping. The small vector is a vector formed by a subset of
+ * the elements of the large vector. This is the vector that will effectively
+ * be used to perform some computation. This computation is typically the task
+ * of changing the data of some object based on this small vector. There is a
  * mapping defined by the SetFrom set that specifies which elements of the
- * large vector are used to compose the small vector. This SetFrom set
- * contains the indices of these elements in the large vector. The small
- * vector is the one that will typically impact the data of some object. The
- * SetTo set can be used to specify which part of this data is
- * affected. Actually, SetFrom and SetTo are ordered multisets, but we will
- * refer to them as sets for simplicity.
+ * large vector are used to compose the small vector. This SetFrom set contains
+ * the indices of these elements in the large vector. The small vector is the
+ * one that will typically impact the data of some object. The SetTo set can be
+ * used to specify which part of this data is affected. Actually, SetFrom and
+ * SetTo are ordered multisets, but we will refer to them as sets for
+ * simplicity.
  *
  * As an example, consider the case in which the large vector contains data
  * related to costs and capacities of arcs of a network. Suppose this network
@@ -750,13 +750,11 @@ constexpr char SimpleDataMappingBase::get_id< int >() { return( 'I' ); }
  * vector, and the SetTo set. If the SetTo set is a Block::Subset, then the
  * type of this function is
  *
- *    Block::FunctionType< typename std::vector< DataType >::const_iterator ,
- *                         SetTo && , bool >
+ *    Block::FunctionType< std::span< const DataType > , SetTo && , bool >
  *
  * If the SetTo set is a Block::Range, then the type of this function is
  *
- *    Block::FunctionType< typename std::vector< DataType >::const_iterator ,
- *                         const SetTo & >
+ *    Block::FunctionType< std::span< const DataType > , SetTo >
  *
  * Please refer to the definition of Block::FunctionType for completely
  * understanding the type of this function.
@@ -764,9 +762,8 @@ constexpr char SimpleDataMappingBase::get_id< int >() { return( 'I' ); }
  * In the network example above, this function could be, for instance,
  *
  * void set_capacities( Network * network ,
- *                      std::vector< double >::const_iterator capacities ,
- *                      const Range & indices ,
- *                      c_ModParam , c_ModParam );
+ *                      std::span< const double > capacities ,
+ *                      Range indices , c_ModParam , c_ModParam );
  *
  * Ignoring the details of the type of this function, this is a function that
  * receives a pointer to a Network object, a vector of capacities, and a Range
@@ -822,10 +819,8 @@ public:
  using Subset = Block::Subset;
 
  using F = std::conditional_t< std::is_same_v< SetTo , Subset > ,
-    Block::FunctionType< typename std::vector< DataType >::const_iterator ,
-                         SetTo && , bool > ,
-    Block::FunctionType< typename std::vector< DataType >::const_iterator ,
-                         SetTo > >;
+    Block::FunctionType< std::span< const DataType > , SetTo && , bool > ,
+    Block::FunctionType< std::span< const DataType > , SetTo > >;
 
 /** @} ---------------------------------------------------------------------*/
 /*------------ CONSTRUCTING AND DESTRUCTING SimpleDataMapping --------------*/
@@ -1213,18 +1208,30 @@ public:
 
 /*--------------------------------------------------------------------------*/
 
- void set_data( std::vector< double >::const_iterator data ,
+ void set_data( std::span< const double > data ,
                 c_ModParam issueMod = eModBlck ,
                 c_ModParam issueAMod = eModBlck ) const override {
 
+  if( empty( set_from ) )  // nothing to read, hence nothing to set
+   return;
+
+  Index last;
+  if constexpr( std::is_same_v< SetFrom , Range > )
+   last = set_from.second;
+  else
+   last = *std::max_element( set_from.begin() , set_from.end() ) + 1;
+  if( last > data.size() )
+   throw( std::invalid_argument( "SimpleDataMapping::set_data: the span is "
+                                 "shorter than SetFrom" ) );
+
   std::vector< DataType > sub_data;
-  decltype( sub_data.cbegin() ) begin;
+  std::span< const DataType > values;
 
   if( ( std::is_same_v< SetFrom , Subset > ) ||
       ( cardinality( set_to ) > cardinality( set_from ) ) ) {
 
-   /* Subset usually contains a non-range set, so we cannot pass an iterator
-    * to the given data forward to the function. Also, when the cardinality of
+   /* Subset usually contains a non-range set, so we cannot pass a span of
+    * the given data forward to the function. Also, when the cardinality of
     * the SetFrom set is smaller than that of the SetTo set, we have to expand
     * the given data. In both cases, we need to construct a new vector to
     * accommodate the data to be passed to the function. */
@@ -1234,24 +1241,25 @@ public:
 
    sub_data = extract< DataType >( data , set_from );
    expand( sub_data , cardinality( set_to ) );
-   begin = sub_data.cbegin();
+   values = sub_data;
   }
   else if constexpr( std::is_same_v< SetFrom , Range > ) {
+   auto from = data.subspan( set_from.first , cardinality( set_from ) );
    if constexpr( std::is_same_v< DataType , double > )
-    begin = std::next( data , set_from.first );
+    values = from;
    else {
     // Convert the data type.
-    sub_data.assign( std::next( data , set_from.first ) ,
-                     std::next( data , set_from.second ) );
-    begin = sub_data.cbegin();
+    sub_data.assign( from.begin() , from.end() );
+    values = sub_data;
    }
   }
 
   if constexpr( std::is_same_v< SetTo , Subset > )
-   std::invoke( * function , caller , begin , Subset( set_to ) ,
+   std::invoke( * function , caller , values , Subset( set_to ) ,
                 ordered , issueMod , issueAMod );
   else
-   std::invoke( * function , caller , begin , set_to , issueMod , issueAMod );
+   std::invoke( * function , caller , values , set_to , issueMod ,
+                issueAMod );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1529,38 +1537,32 @@ private:
 /*--------------------------------------------------------------------------*/
 
  template< class S = double , class T = double >
- static std::vector< S > extract
- ( const typename std::vector< T >::const_iterator & data ,
-   const Block::Range & range ) {
+ static std::vector< S > extract( std::span< const T > data ,
+                                  const Block::Range & range ) {
   if( range.first >= range.second )
    return {};
-  return( std::vector< S >( data + range.first , data + range.second ) );
+  auto from = data.subspan( range.first , range.second - range.first );
+  return( std::vector< S >( from.begin() , from.end() ) );
  }
 
 /*--------------------------------------------------------------------------*/
 
  template< class S = double , class T = double >
- static std::vector< S > extract_from_ordered_subset
- ( const typename std::vector< T >::const_iterator & data ,
-   const Block::Subset & subset ) {
-  std::size_t size = subset.size();
-  std::vector< S > output( size );
-  auto it = data;
-  Block::Subset::size_type previous = 0;
-  for( std::size_t i = 0 ; i < size ; ++i ) {
-   it = std::next( it , subset[ i ] - previous );
-   output[ i ] = *it;
-   previous = subset[ i ];
-  }
+ static std::vector< S > extract_from_ordered_subset(
+                                  std::span< const T > data ,
+                                  const Block::Subset & subset ) {
+  std::vector< S > output( subset.size() );
+  for( std::size_t i = 0 ; i < subset.size() ; ++i )
+   output[ i ] = data[ subset[ i ] ];
   return( output );
  }
 
 /*--------------------------------------------------------------------------*/
 
  template< class S = double , class T = double >
- static std::vector< S > extract
- ( const typename std::vector< T >::const_iterator & data ,
-   const Block::Subset & subset, bool subset_is_ordered = false ) {
+ static std::vector< S > extract( std::span< const T > data ,
+                                  const Block::Subset & subset ,
+                                  bool subset_is_ordered = false ) {
   if( subset_is_ordered )
    return( extract_from_ordered_subset< S , T >( data , subset ) );
   else {

@@ -1460,12 +1460,11 @@ class BendersBFunction : public C05Function , public Block {
  /// modify only the constant term of a range of rows of the linear mapping
  /** Like modify_rows( range ), but modify the constant terms only.
   *
-  * @param nb an iterator to a vector of double containing the new values of
-  *        the constants. This iterator must have at least <tt>range.second -
-  *        range.first</tt> valid successors (including \p nb itself).  For
-  *        each i in [range.first, range.second), the i-th successor of \p nb
-  *        provides the new value of the constant term for row <tt>range.first
-  *        + i</tt>;
+  * @param nb the new values of the constants: <tt>nb[ i ]</tt> is the new
+  *        value of the constant term for row <tt>range.first + i</tt>, hence
+  *        \p nb must be at least as long as \p range, once \p range is
+  *        restricted to the rows there are (std::invalid_argument is thrown
+  *        if it is shorter);
   *
   * @param range contains the indices of the rows whose constants will be
   *        modified, hence <tt>range.second <= get_b().size()</tt>;
@@ -1484,7 +1483,7 @@ class BendersBFunction : public C05Function , public Block {
   *        the constant alone (if all the values are equal, the function
   *        value has not changed and the method does nothing). */
 
- void modify_constants( MF_dbl_it nb , Range range = Block::INFRange ,
+ void modify_constants( MF_dbl_sp nb , Range range = Block::INFRange ,
                         ModParam issuePMod = eNoBlck ,
                         ModParam issueAMod = eNoBlck );
 
@@ -1492,12 +1491,10 @@ class BendersBFunction : public C05Function , public Block {
  /// modify only the constant term of a subset of rows of the linear mapping
  /** Like modify_rows( subset ), but modify the constant terms only.
   *
-  * @param nb an iterator to a vector of double containing the new values of
-  *        the constants. This iterator must have at least
-  *        <tt>rows.size()</tt> valid successors (including \p nb itself).
-  *        For each i in {0, ..., rows.size()-1}, the i-th successor of \p nb
-  *        provides the new value of the constant term for \p rows[ i ] of the
-  *        linear mapping;
+  * @param nb the new values of the constants: <tt>nb[ i ]</tt> is the new
+  *        value of the constant term for \p rows[ i ] of the linear
+  *        mapping, hence \p nb must be at least as long as \p rows
+  *        (std::invalid_argument is thrown if it is shorter);
   *
   * @param rows contains the indices of the rows to be modified; all entries
   *        must therefore be numbers in 0, ..., get_A().size() - 1; as the &&
@@ -1522,7 +1519,7 @@ class BendersBFunction : public C05Function , public Block {
   *        the constant alone (if all the values are equal, the function
   *        value has not changed and the method does nothing). */
 
- void modify_constants( MF_dbl_it nb , Subset && rows ,
+ void modify_constants( MF_dbl_sp nb , Subset && rows ,
 			bool ordered = false ,
                         ModParam issuePMod = eNoBlck ,
                         ModParam issueAMod = eNoBlck );
@@ -3155,17 +3152,17 @@ void print( std::ostream & output ) override {
 
   register_method< BendersBFunction >( "BendersBFunction::modify_constants" ,
                                        & BendersBFunction::modify_constants ,
-                                       MS_dbl_sbst::args() );
+                                       MS_sp_dbl_sbst::args() );
 
   register_method< BendersBFunction >( "BendersBFunction::modify_constants" ,
                                        & BendersBFunction::modify_constants ,
-                                       MS_dbl_rngd::args() );
+                                       MS_sp_dbl_rngd::args() );
 				       !!*/
-  register_method< BendersBFunction , MF_dbl_it , Subset && , const bool >(
+  register_method< BendersBFunction , MF_dbl_sp , Subset && , const bool >(
    "BendersBFunction::modify_constants" ,
    & BendersBFunction::modify_constants );
 
-  register_method< BendersBFunction , MF_dbl_it , Range >(
+  register_method< BendersBFunction , MF_dbl_sp , Range >(
    "BendersBFunction::modify_constants" ,
    & BendersBFunction::modify_constants );
   }
