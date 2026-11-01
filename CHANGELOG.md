@@ -27,10 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   problems it solves one after the other on the same Block (as the
   simulation of the scenarios of a policy) each time one of them has been
   written in the Block, so that whoever reads something out of each of them
-  (a linearization, say) can do it while it is there, and
-  `Solver::get_solution_Block()`, the Block holding that solution: the one
-  of the Solver, or the copy of it on which the `compute()` solves each
-  problem
+  (a linearization, say) can do it while it is there; a `compute()` that
+  solves each problem on a copy of the Block writes the solution in the
+  Block of the Solver before calling them
 
 - `copy_group()` and `write_via_memory()` in `SMSnetCDF.h`: the first
   copies a netCDF group into another, possibly of another file, making all
