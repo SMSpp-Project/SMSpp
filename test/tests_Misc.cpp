@@ -48,6 +48,7 @@
 #include <iostream>
 #include <iterator>
 #include <memory>
+#include <span>
 #include <stdexcept>
 #include <vector>
 
@@ -63,7 +64,7 @@ using namespace SMSpp_di_unipi_it;
 using Index = Block::Index;
 using Range = Block::Range;
 using Subset = Block::Subset;
-using MF_dbl_it = Block::MF_dbl_it;
+using MF_dbl_sp = Block::MF_dbl_sp;
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CONSTANTS --------------------------------*/
@@ -308,22 +309,24 @@ static void test_GlobalInformation( void )
 /*--------------------------------------------------------------------------*/
 /// the method of the tests: sets the values of x[ range ]
 
-static void set_x_range( Block * block , MF_dbl_it data , Range range ,
+static void set_x_range( Block * block , MF_dbl_sp data , Range range ,
 			 ModParam , ModParam )
 {
  auto & x = x_of( block );
+ assert( data.size() >= range.second - range.first );
  for( Index i = range.first ; i < range.second ; ++i )
-  x[ i ].set_value( *( data++ ) );
+  x[ i ].set_value( data[ i - range.first ] );
  }
 
 /// the method of the tests: sets the values of x[ subset ]
 
-static void set_x_subset( Block * block , MF_dbl_it data , Subset && subset ,
+static void set_x_subset( Block * block , MF_dbl_sp data , Subset && subset ,
 			  bool , ModParam , ModParam )
 {
  auto & x = x_of( block );
- for( auto i : subset )
-  x[ i ].set_value( *( data++ ) );
+ assert( data.size() >= subset.size() );
+ for( Index h = 0 ; h < subset.size() ; ++h )
+  x[ subset[ h ] ].set_value( data[ h ] );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -335,8 +338,8 @@ static void set_x_subset( Block * block , MF_dbl_it data , Subset && subset ,
 
 static void test_DataMapping( void )
 {
- using FR = Block::FunctionType< MF_dbl_it , Range >;
- using FS = Block::FunctionType< MF_dbl_it , Subset && , bool >;
+ using FR = Block::FunctionType< MF_dbl_sp , Range >;
+ using FS = Block::FunctionType< MF_dbl_sp , Subset && , bool >;
  Block::register_method( "tests_Misc::set_x" , new FR( & set_x_range ) );
  Block::register_method( "tests_Misc::set_x" , new FS( & set_x_subset ) );
  auto fr = Block::get_method< FR >( "tests_Misc::set_x" );
@@ -353,7 +356,7 @@ static void test_DataMapping( void )
 
  SimpleDataMapping< Range , Range > rr( fr , inner , Range( 1 , 3 ) ,
 					Range( 0 , 2 ) );
- rr.set_data( data.cbegin() );
+ rr.set_data( data );
  assert( ( values_of( inner ) ==
 	    std::vector< double >( { 11 , 12 , 0 , 0 } ) ) );
 
@@ -361,16 +364,40 @@ static void test_DataMapping( void )
  // goes to the i-th of SetTo
  SimpleDataMapping< Subset , Subset > ss( fs , inner , Subset( { 0 , 5 } ) ,
 					  Subset( { 3 , 1 } ) );
- ss.set_data( data.cbegin() );
+ ss.set_data( data );
  assert( ( values_of( inner ) ==
 	    std::vector< double >( { 11 , 15 , 0 , 10 } ) ) );
 
  // one value broadcast over three
  SimpleDataMapping< Range , Range > bc( fr , inner , Range( 4 , 5 ) ,
 					Range( 1 , 4 ) );
- bc.set_data( data.cbegin() );
+ bc.set_data( data );
  assert( ( values_of( inner ) ==
 	    std::vector< double >( { 11 , 14 , 14 , 14 } ) ) );
+
+ // the data are only the part of a longer vector the span views, and a
+ // SetFrom going past their end is refused, the caller left as it was
+ rr.set_data( std::span( data ).subspan( 2 ) );
+ assert( ( values_of( inner ) ==
+	    std::vector< double >( { 13 , 14 , 14 , 14 } ) ) );
+ bool refused = false;
+ try {
+  rr.set_data( std::span( data ).subspan( 0 , 2 ) );
+  }
+ catch( std::invalid_argument & ) {
+  refused = true;
+  }
+ assert( refused );
+ refused = false;
+ try {
+  ss.set_data( std::span( data ).first( 5 ) );
+  }
+ catch( std::invalid_argument & ) {
+  refused = true;
+  }
+ assert( refused );
+ assert( ( values_of( inner ) ==
+	    std::vector< double >( { 13 , 14 , 14 , 14 } ) ) );
 
  // the round trip
  const char * file = "Misc_test_DataMapping.nc4";
@@ -399,8 +426,8 @@ static void test_DataMapping( void )
 
   for( auto & x : x_of( inner ) )
    x.set_value( 0 );
-  rr2->set_data( data.cbegin() );
-  ss2->set_data( data.cbegin() );
+  rr2->set_data( data );
+  ss2->set_data( data );
   assert( ( values_of( inner ) ==
 	    std::vector< double >( { 11 , 15 , 0 , 10 } ) ) );
   assert( ( values_of( outer ) == std::vector< double >( { 0 } ) ) );

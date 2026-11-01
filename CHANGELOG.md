@@ -229,6 +229,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- the methods factory takes the data of a setter only as a span:
+  `DataMapping::set_data()` takes a `std::span< const double >` of the data
+  in place of an iterator into them, and `SimpleDataMapping` gives the
+  function it calls a `std::span< const DataType >` of the data its SetFrom
+  selects (its `F` is a `FunctionType` of that span), throwing
+  `std::invalid_argument` if SetFrom goes past the end of the data;
+  `BendersBFunction::modify_constants()` takes a `MF_dbl_sp`, and throws
+  `std::invalid_argument` if it is shorter than the Range or the Subset, and
+  is registered in the methods factory in that form; `Misc_unit_test` checks
+  a SetFrom going past the end of a span
+
 - the README leaves the channels that distribute SMS++ to the
   installation guide of the wiki (Installing-SMS++), keeping the names
   of the packages of the module
@@ -316,6 +327,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   without asking the RelaxationSolver
 
 ### Fixed
+
+- `SimpleDataMapping::set_data()` with an empty SetFrom and a SetTo that is
+  not empty broadcast no value over SetTo dividing by zero; with an empty
+  SetFrom it now does nothing
 
 - on Windows, the executables that copy their DLLs next to themselves
   are linked one at a time (a job pool of Ninja), since two copies of the
