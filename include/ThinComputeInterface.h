@@ -286,12 +286,12 @@ class ThinComputeInterface
    * the compute() at hand solves one after the other on the same Block, as
    * the simulation of each scenario of a policy. When the event is called
    * the solution, primal and dual, is written in the Block as
-   * get_var_solution() and get_dual_solution() would write it (a compute()
-   * that solves the problem on a copy of the Block writes it in the Block
-   * first), and nothing else of the compute() is running on that Block: the
-   * event handler can read whatever it needs out of it, and it is called
-   * once for each of the solutions, those that the compute() does not reach
-   * (say, after an error) excluded. A compute() that gives a single
+   * get_var_solution() and get_dual_solution() would write it (in the copy
+   * of the Block that Solver::get_solution_Block() returns, if the compute()
+   * solves it on one), and nothing else of the compute() is running on that
+   * Block: the event handler can read whatever it needs out of it, and it is
+   * called once for each of the solutions, those that the compute() does not
+   * reach (say, after an error) excluded. A compute() that gives a single
    * solution does not call these events. */
 
   e_last_event_type = 4     ///< convenience value to define new events
