@@ -191,7 +191,7 @@ namespace SMSpp_di_unipi_it
  *
  *     WHAT GROUPS OF Variable/Constraint, sub-Block AND Objective ARE
  *     AVAILABLE DEPEND ON HOW THE "ABSTRACT" REPRESENTATION OF THE
- *     :AbstractBlock IS CONSTRUCTED, AND THEREFORE ON THE Configuration
+ *     AbstractBlock IS CONSTRUCTED, AND THEREFORE ON THE Configuration
  *     PARAMETERS PASSED TO generate_[abstract_*,objective](). THUS, THE
  *     VALUES OF f_1st_*_* AND f_res_obj ARE ONLY EXPECTED TO BE SIGNIFICANT
  *     INSIDE THE CALL TO generate_[abstract_*,objective]()
