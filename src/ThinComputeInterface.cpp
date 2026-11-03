@@ -749,8 +749,8 @@ void ComputeConfig::load( std::istream & input )
   std::string prev_name = last_name;
   for( unsigned int i = 0 ; i < count ; ++i ) {
    input >> eatcomments >> pairs[ i ].first >> eatcomments;
-   if constexpr( std::is_same_v<
-                  std::decay_t< decltype( pairs[ i ].second ) > , double > )
+   if constexpr( std::is_same_v< std::decay_t< decltype( pairs[ i ].second ) > ,
+				 double > )
     read_double( input , pairs[ i ].second );
    else
     input >> pairs[ i ].second;

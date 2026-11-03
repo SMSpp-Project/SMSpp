@@ -675,6 +675,37 @@ static const char * full_ComputeConfig =
  "SimpleConfiguration<int> 7  # extra\n";
 
 /*--------------------------------------------------------------------------*/
+/* A double parameter written inf, -INF or +Infinity is read as an infinity,
+ * the numbers with a sign in front as numbers, and a word that is not an
+ * infinity is a read error, which ComputeConfig::load() throws. */
+
+static void test_ComputeConfig_infinity( void )
+{
+ auto c = from_text( "ComputeConfig 0\n0\n"
+		     "6  dblA inf  dblB -INF  dblC +Infinity  dblD -1e3  "
+		     "dblE +2.5  dblF -.5\n0 0 0 0\n*\n" );
+ auto cc = dynamic_cast< ComputeConfig * >( c );
+ expect( cc , "a ComputeConfig with infinite double parameters is read" );
+ if( cc )
+  expect(
+    ( cc->dbl_pars == decltype( cc->dbl_pars ){ { "dblA" , Inf< double >() } ,
+						{ "dblB" , -Inf< double >() } ,
+						{ "dblC" , Inf< double >() } ,
+						{ "dblD" , -1e3 } ,
+						{ "dblE" , 2.5 } ,
+						{ "dblF" , -0.5 } } ) ,
+    "inf, -INF and +Infinity are infinities, -1e3, +2.5 and -.5 "
+    "numbers" );
+ delete c;
+
+ expect( throws< std::logic_error >( [] {
+	  delete from_text( "ComputeConfig 0\n0\n1  dblA info\n"
+			    "0 0 0 0\n*\n" );
+	  } ) ,
+	 "a double parameter written info is a read error" );
+ }
+
+/*--------------------------------------------------------------------------*/
 /* The full format is read in all its parts, and the ComputeConfig goes
  * through netCDF and clone() with all of them, the extra Configuration
  * included. */
@@ -2838,6 +2869,7 @@ int main( void )
  test_filename_prefix();
 
  test_ComputeConfig_load();
+ test_ComputeConfig_infinity();
  test_ComputeConfig_flags();
  test_ComputeConfig_set_par();
  test_ComputeConfig_override();
