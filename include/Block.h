@@ -9887,7 +9887,12 @@ class BlockConfig : public Configuration {
   * - a binary number b to determine the value of #f_diff. If b == 0 then
   *   #f_diff = false, otherwise, #f_diff = true.
   *
-  * for all of:  static constraints Configuration ,
+  * - the version of the format, which must be equal to #f_txt_version; a
+  *   file in the old format, which had no version number, is rejected with
+  *   an exception rather than being read with the slots shifted by one.
+  *
+  * for all of:  structure Configuration ,
+  *              static constraints Configuration ,
   *              dynamic constraints Configuration ,
   *              static variables Configuration ,
   *              dynamic variables Configuration ,
