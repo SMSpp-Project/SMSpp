@@ -15,7 +15,8 @@
  * with the same global pool. A Block with nested Block also goes through
  * the image of a netCDF file in memory (NcMemFile), before and after its
  * data are changed, and is compared with the one read from a file on disk;
- * copy_group() and write_via_memory() are checked against writing in place.
+ * copy_group() and write_via_memory() are checked against writing in place,
+ * and write_stacked() and read_stacked() against the parts written alone.
  *
  * All of this is done with the core alone: no Solver is needed, since the
  * global pools are filled by compute() for a PolyhedralFunction and by
@@ -1603,12 +1604,14 @@ static void test_in_memory( void )
  * would take a file over the groups netCDF-C can hold throws and copies
  * nothing. */
 
-// writes in g a part with some of everything, i telling the parts apart
+// writes in g a part with some of everything, i telling the parts apart:
+// in the values, and in an attribute if index
 
-static void write_part( netCDF::NcGroup & g , int i )
+static void write_part( netCDF::NcGroup & g , int i , bool index = true )
 {
  g.putAtt( "type" , "Part" );
- g.putAtt( "index" , netCDF::NcInt() , i );
+ if( index )
+  g.putAtt( "index" , netCDF::NcInt() , i );
 
  auto t = g.addDim( "T" , 5 );
  auto z = g.addDim( "Z" , 0 );
@@ -1857,6 +1860,153 @@ static void test_copy_group( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* write_stacked() writes identical parts (differing in the values of their
+ * variables only) as one group with the dimension stacked_dimension in
+ * front of every variable, and read_stacked() gives back each of them as it
+ * was written, strings, scalars, an empty and an
+ * unlimited dimension included, and so does it with a stack nested in the
+ * parts, whose dimension has another name; parts of several trees are written in one stack per tree, with
+ * the index of where each part is; parts whose root has a dimension
+ * stacked_dimension are written as write_via_memory() writes them; parts that together take more groups than a file holds fit
+ * in one when stacked; a part out of the stack throws. */
+
+static void test_stacked( void )
+{
+ // the 15 parts of write_part(), each as it is written in place
+ std::vector< std::string > names;
+ std::vector< std::string > alone;
+ for( int i = 0 ; i < 15 ; ++i ) {
+  names.push_back( "Part_" + std::to_string( i ) );
+  NcMemFile f;
+  auto g = f.addGroup( "part" );
+  write_part( g , i , false );
+  alone.push_back( dump( g ) );
+  }
+
+ {
+  NcMemFile f;
+  assert( write_stacked( f , "Parts" , names ,
+			 [ & ]( std::size_t i , netCDF::NcGroup & g ) {
+			  write_part( g , int( i ) , false ); } ) );
+  auto s = f.getGroup( "Parts" );
+  assert( f.getGroupCount() == 1 );
+  assert( stacked_size( s ) == 15 );
+  assert( s.getVar( "x" ).getDim( 0 ).getName() == stacked_dimension );
+  for( std::size_t i = 0 ; i < 15 ; ++i )
+   read_stacked( s , i , [ & ]( const netCDF::NcGroup & g ) {
+    assert( dump( g ) == alone[ i ] ); } );
+  bool thrown = false;
+  try { read_stacked( s , 15 , []( const netCDF::NcGroup & ) {} ); }
+  catch( std::out_of_range & ) { thrown = true; }
+  assert( thrown );
+  assert( stacked_size( f ) == 0 );
+  }
+
+ // parts of three trees, mixed: one stack per tree, in the order of their
+ // first part, and each part given back as it was written
+ {
+  auto write = [ & ]( std::size_t i , netCDF::NcGroup & g ) {
+   write_part( g , int( i ) , false );
+   if( i % 3 == 1 )
+    g.addVar( "extra" , netCDF::NcInt() );
+   if( i % 3 == 2 )
+    g.addGroup( "More" ).addDim( "M" , i );
+   };
+  NcMemFile f;
+  assert( write_stacked( f , "Parts" , names , write ) );
+  auto s = f.getGroup( "Parts" );
+  assert( ( f.getGroupCount() == 1 ) && ( stacked_size( s ) == 15 ) );
+  assert( stacked_size( s.getGroup( "Stack_0" ) ) == 5 );
+  assert( stacked_size( s.getGroup( "Stack_1" ) ) == 5 );
+  assert( s.getGroup( "Stack_1" ).getVar( "extra" ).getDimCount() == 1 );
+  // the dimension M differs in length, so every part with More is apart
+  assert( s.getGroupCount() == 2 + 5 );
+  for( std::size_t i = 0 ; i < 15 ; ++i )
+   read_stacked( s , i , [ & ]( const netCDF::NcGroup & g ) {
+    NcMemFile e;
+    auto r = e.addGroup( "part" );
+    write( i , r );
+    assert( dump( g ) == dump( r ) ); } );
+  }
+
+ // no parts: nothing written
+ {
+  NcMemFile f;
+  assert( ! write_stacked( f , "Parts" , {} ,
+			   []( std::size_t , netCDF::NcGroup & ) {} ) );
+  assert( f.getGroupCount() == 0 );
+  }
+
+ // parts whose root already has the dimension: the parts as they are
+ {
+  NcMemFile f;
+  assert( ! write_stacked( f , "Parts" , { "A" , "B" } ,
+			   [ & ]( std::size_t , netCDF::NcGroup & g ) {
+			    g.addDim( stacked_dimension , 2 ); } ) );
+  assert( f.getGroupCount() == 2 );
+  }
+
+ // parts with a stack nested in them: stacked, each part given back with
+ // its nested stack, and each element of this as it was written
+ {
+  auto write = [ & ]( std::size_t i , netCDF::NcGroup & g ) {
+   g.putAtt( "type" , "Outer" );
+   write_stacked( g , "Inner" , { "a" , "b" , "c" } ,
+		  [ & ]( std::size_t j , netCDF::NcGroup & h ) {
+		   write_part( h , int( 10 * i + j ) , false ); } );
+   };
+  NcMemFile f;
+  assert( write_stacked( f , "Parts" , names , write ) );
+  auto s = f.getGroup( "Parts" );
+  assert( s.getVar( "x" ).isNull() );
+  // the two dimensions of the stacks have different names, the outer one
+  // first
+  auto x = s.getGroup( "Inner" ).getVar( "x" );
+  assert( ( x.getDimCount() == 3 ) && ( x.getDim( 0 ).getSize() == 15 ) &&
+	  ( x.getDim( 1 ).getSize() == 3 ) );
+  assert( ( x.getDim( 0 ).getName() == std::string( stacked_dimension ) +
+	    "_1" ) && ( x.getDim( 1 ).getName() == stacked_dimension ) );
+  assert( stacked_size( s ) == 15 );
+  for( std::size_t i = 0 ; i < 15 ; ++i )
+   read_stacked( s , i , [ & ]( const netCDF::NcGroup & g ) {
+    auto inner = g.getGroup( "Inner" );
+    assert( stacked_size( inner ) == 3 );
+    for( std::size_t j = 0 ; j < 3 ; ++j )
+     read_stacked( inner , j , [ & ]( const netCDF::NcGroup & h ) {
+      NcMemFile e;
+      auto r = e.addGroup( "part" );
+      write_part( r , int( 10 * i + j ) , false );
+      assert( dump( h ) == dump( r ) ); } );
+    } );
+  }
+
+ // 40 parts of 1000 groups each: 40040 groups written apart, which no file
+ // holds, and 1001 stacked
+ {
+  std::vector< std::string > many;
+  for( int i = 0 ; i < 40 ; ++i )
+   many.push_back( "P_" + std::to_string( i ) );
+  auto write = [ & ]( std::size_t i , netCDF::NcGroup & g ) {
+   for( int j = 0 ; j < 1000 ; ++j ) {
+    auto sg = g.addGroup( "U_" + std::to_string( j ) );
+    const double v = double( i ) + j;
+    sg.addVar( "v" , netCDF::NcDouble() ).putVar( & v );
+    }
+   };
+  NcMemFile f;
+  assert( write_stacked( f , "Parts" , many , write ) );
+  auto s = f.getGroup( "Parts" );
+  assert( s.getGroupCount() == 1000 );
+  read_stacked( s , 39 , [ & ]( const netCDF::NcGroup & g ) {
+   double v;
+   g.getGroup( "U_999" ).getVar( "v" ).getVar( & v );
+   assert( v == 39 + 999 ); } );
+  }
+
+ std::cout << "write_stacked and read_stacked: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
 /*----------------------------------- MAIN ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1873,6 +2023,7 @@ int main( void )
  test_append_to_file();
  test_in_memory();
  test_copy_group();
+ test_stacked();
 
  while( ! given.empty() )
   given.pop_back();

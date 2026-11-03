@@ -233,6 +233,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   depends on, with the names of an optional library inside an `#if` and the
   headers of another library left out)
 
+- `write_stacked()`, `stacked_size()` and `read_stacked()` in `SMSnetCDF.h`:
+  the first writes the parts of a group in one sub-group, stacking those
+  whose netCDF trees are identical along a dimension `Stacked` in front of
+  each of their variables (one stack per tree, with the index of where each
+  part is, if they differ), so that the file has the groups of one part of
+  each tree however many the parts (a netCDF file holds at most 32767
+  groups); the last gives back one part in an in-memory file, the stacks
+  nested in it included
+
 ### Changed
 
 - the `register_method()` taking a member function of a `:Block` (or a const

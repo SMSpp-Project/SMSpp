@@ -2267,6 +2267,98 @@ void write_via_memory( netCDF::NcGroup & group ,
 						  netCDF::NcGroup & ) > &
 		       write );
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// the name of the dimension along which write_stacked() stacks the parts
+/** The name of the dimension of a stack with no stack nested in its parts:
+ * one with stacks nested in its parts, the deepest of level n - 1, has
+ * stacked_dimension + "_n" [see write_stacked()]. */
+inline constexpr const char * stacked_dimension = "Stacked";
+
+/// the names with which write_stacked() indexes the parts of several stacks
+inline constexpr const char * stacked_parts_dimension = "NumberParts";
+inline constexpr const char * stacked_class_variable = "PartStack";
+inline constexpr const char * stacked_position_variable = "PartPosition";
+inline constexpr const char * stacked_class_group = "Stack_";
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// write the parts of a netCDF group stacked in one sub-group
+/** Has \p write( i , g ) write the i-th of names.size() parts as
+ * write_via_memory() does, each in an in-memory file, and then writes them
+ * in the one sub-group \p stack of \p group, stacking those whose trees
+ * are identical (the same groups, in the same order, with the same
+ * dimensions, variables and attributes, values apart). A stack of parts is
+ * a group whose tree is that of one of them, its root group having besides
+ * a dimension of length the number of the parts (stacked_dimension, see
+ * below for a stack nested in the parts), and
+ * each variable of the tree having that dimension in front of its own ones,
+ * the k-th element along it being the value of the k-th part. If the trees
+ * of all the parts are identical, \p stack is the stack of all of them;
+ * otherwise \p stack has
+ *
+ * - the dimension stacked_parts_dimension, of length names.size();
+ *
+ * - the sub-groups stacked_class_group + "c", for c = 0, 1, ..., each the
+ *   stack of the parts with the c-th tree, in the order of the first part
+ *   that has it;
+ *
+ * - the variables stacked_class_variable and stacked_position_variable, of
+ *   type netCDF::NcInt and indexed over stacked_parts_dimension, which give
+ *   for the i-th part the c of its stack and its position in it.
+ *
+ * A stack may be nested in the parts (e.g., the Solution of a multi-stage
+ * Block, whose scenarios are two-stage Blocks with stacked scenarios): a
+ * variable of the nested stack then has the dimensions of both stacks, the
+ * outer one first, and since a dimension is found by its name (by the
+ * netCDF readers of Python, say), the dimension of a stack is
+ * stacked_dimension + "_n" if the deepest stack nested in its parts has
+ * level n - 1, stacked_dimension (level 0) if none is. read_stacked() gives
+ * back a part with the stacks nested in it as they were.
+ *
+ * Returns true, unless the root group of a part is a stack, or there are no
+ * parts: then the parts are written as write_via_memory() does, in the
+ * sub-groups names[ i ], and false is returned. The groups of the parts
+ * that a reader gives back from a stack are best called \p stack + "_i",
+ * as the callers in SMS++ call names[ i ] (pySMSpp does so).
+ *
+ * A file holds at most 32767 groups [see copy_group()], while the parts
+ * of, say, the Solution of a stochastic Block, one per scenario, have the
+ * same tree with as many groups as the units of the problem, and the units
+ * are of a few types only: written stacked, the file has the groups of one
+ * part, and those of a unit of each type, whatever their number. Each part
+ * is read back by read_stacked().
+ *
+ * With a netCDF-C earlier than 4.6.2, which has no in-memory files, the
+ * parts are written as write_via_memory() does, and false is returned. */
+
+bool write_stacked( netCDF::NcGroup & group , const std::string & stack ,
+		    const std::vector< std::string > & names ,
+		    const std::function< void( std::size_t ,
+					       netCDF::NcGroup & ) > & write );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// the number of parts stacked in \p group, 0 if it is not a stack
+/** Returns the length of the dimension of the stack \p group, or, if it
+ * has several stacks, that of its dimension stacked_parts_dimension [see
+ * write_stacked()]; 0 if \p group is null or none of the two. */
+
+std::size_t stacked_size( const netCDF::NcGroup & group );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// read the \p i-th part of a group written by write_stacked()
+/** Rebuilds in an in-memory file the tree of the \p i-th part of the stack
+ * \p stack [see write_stacked()], taken from the stack of its tree if
+ * \p stack has several, each variable without the dimension of the stack
+ * and with the values of that part, and calls \p read on its root group,
+ * which exists until \p read returns: only the groups of one part are open
+ * at a time, however many the parts. Throws
+ * std::out_of_range if \p i is not smaller than stacked_size( \p stack ),
+ * and std::logic_error with a netCDF-C earlier than 4.6.2, which has no
+ * in-memory files. */
+
+void read_stacked( const netCDF::NcGroup & stack , std::size_t i ,
+		   const std::function< void( const netCDF::NcGroup & ) > &
+		   read );
+
 /** @} ---------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 /*-------------------------------- CLASSES ---------------------------------*/
