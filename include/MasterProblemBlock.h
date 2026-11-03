@@ -269,9 +269,10 @@ class MasterProblemBlock : public Block {
   * #kNone is that of #kTrustRegion with \f$ t = \infty \f$ whatever t is,
   * i.e., the cutting-plane master over the box [ L , U ] [see set_box()],
   * which is unbounded below as long as the cuts do not bound the model on
-  * it. CreateDualMP throws `std::logic_error` with #kNone, and so do
-  * CreatePrimalMP / CreateDualMP with #kUpperLower, a reserved
-  * enumerator. */
+  * it. Likewise, the dual master of #kNone is that of #kTrustRegion with
+  * \f$ t = \infty \f$, where only the finite sides of [ L , U ] have a
+  * multiplier. CreatePrimalMP / CreateDualMP throw `std::logic_error` with
+  * #kUpperLower, a reserved enumerator. */
 
  enum stabilization_type {
   kProximal         = 0 ,  ///< proximal stabilization
@@ -1431,8 +1432,8 @@ class MasterProblemBlock : public Block {
   * residual: there tol is always 0. */
 
  void set_xref_tol( double tol ) noexcept {
-  f_xref_tol = ( ( tol > 0.0 ) &&
-                 ( IsPrimal || ( StblType != kTrustRegion ) ) ) ? tol : 0.0;
+  f_xref_tol =
+    ( ( tol > 0.0 ) && ( IsPrimal || ( ! has_trust_region() ) ) ) ? tol : 0.0;
   }
 
 /*--------------------------------------------------------------------------*/
@@ -2799,11 +2800,10 @@ class MasterProblemBlock : public Block {
                     ///< the trust region, so that z* is not underestimated
 
  bool has_trust_region( void ) const {
-  return( ( StblType == kTrustRegion ) ||
-          ( IsPrimal && ( StblType == kNone ) ) );
+  return( ( StblType == kTrustRegion ) || ( StblType == kNone ) );
   }
-                    ///< true if the master is the one of #kTrustRegion, as
-                    ///< the primal one of #kNone is with an infinite t
+ ///< true if the master is the one of #kTrustRegion, as
+ ///< that of #kNone is with an infinite t
 
  void refresh_box_coordinate( Index j , DQuadFunction * dqf ,
                               ModParam issueMod = eModBlck );

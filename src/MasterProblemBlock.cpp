@@ -1193,24 +1193,19 @@ void MasterProblemBlock::generate_primal_objective( void )
 
 void MasterProblemBlock::CreateDualMP( stabilization_type Stbl )
 {
- // kUpperLower is a reserved enumerator with no implementation yet, and
- // kNone is the cutting-plane master of the primal MP only [see
- // has_trust_region()]: a free z with no term in the Objective would fix
- // the step to 0. kTrustRegion is handled below, its radius only moving the
- // sides of the box [see primal_box()].
+ // kUpperLower is a reserved enumerator with no implementation yet.
+ // kTrustRegion is handled below, its radius only moving the sides of the
+ // box [see primal_box()], and kNone is the trust region with an infinite
+ // radius [see has_trust_region()], i.e., the box [ L , U ] only.
  if( Stbl == kUpperLower )
   throw( std::logic_error(
        "MasterProblemBlock::CreateDualMP: stabilization type " +
        std::to_string( int( Stbl ) ) +
        " is reserved but not yet implemented" ) );
- if( Stbl == kNone )
-  throw( std::logic_error(
-       "MasterProblemBlock::CreateDualMP: the cutting-plane master (kNone) "
-       "is only the primal one" ) );
 
  StblType = Stbl;
  IsPrimal = false;
- if( Stbl == kTrustRegion )  // no lazy reference [see set_xref_tol()]
+ if( has_trust_region() )  // no lazy reference [see set_xref_tol()]
   f_xref_tol = 0.0;
  // Pure level starts with the same proximal seed used by the primal form. The
  // flag is cleared by remove_initial_level_objective() once a level is known.
@@ -1429,7 +1424,7 @@ void MasterProblemBlock::generate_dual_abstract_variables( void )
  // then ask the multipliers s^+ / s^- of the box, which the trust region is
  // part of, to balance the aggregate [see get_z_vector()]
  std::list< ColVariable > new_z( NumVars );
- if( StblType == kTrustRegion )
+ if( has_trust_region() )
   for( auto & zj : new_z ) {
    zj.set_value( 0.0 );
    zj.is_fixed( true , eNoMod );
@@ -3364,7 +3359,7 @@ std::vector< double > MasterProblemBlock::get_z_vector( void ) const
  // Under the trust region Var_z is fixed to 0, and the coupling rows have
  // the multipliers s^+ - s^- of the box balance the aggregate: z* is the
  // part of them that belongs to the trust region [see trust_region_side()]
- if( StblType == kTrustRegion ) {
+ if( has_trust_region() ) {
   for( Index j = 0 ; j < Var_z_idx.size() ; ++j ) {
    double zj = 0.0;
    if( trust_region_side( j , true ) )
@@ -3471,7 +3466,7 @@ std::vector< double > MasterProblemBlock::get_d_vector( void ) const
  // the frame of x in the iterate form; the dual value is the coefficient of
  // the row in the Lagrangian of a minimization, i.e., the opposite of d* if
  // the master is a maximization (a concave C05Function)
- if( StblType == kTrustRegion ) {
+ if( has_trust_region() ) {
   const double sgn = IsConvex ? 1.0 : -1.0;
   Index j = 0;
   for( const auto & row : CouplingCns ) {
@@ -3599,8 +3594,8 @@ void MasterProblemBlock::sensitivity_analysis( double & vl ,
  // v* as a function of t is - Sigma* - D*_t( z* ), which is linear in t
  // with slope - || z* ||_1 under the trust region [see
  // get_conjugate_stabilization()]
- vl = ( StblType == kTrustRegion ) ? - get_conjugate_stabilization( 1.0 )
-                                   : - get_dual_norm_squared() / 2.0;
+ vl = has_trust_region() ? -get_conjugate_stabilization( 1.0 )
+			 : -get_dual_norm_squared() / 2.0;
  vc = get_FiBLambda() - vl * t_stab;
  }
 
@@ -3778,7 +3773,9 @@ double MasterProblemBlock::get_aggregated_alpha( int k ) const
   total -= get_r() * f_global_LB_xbar;
 
  if( ( StblType == kLevel || StblType == kDoublyStabilized ||
-       StblType == kTrustRegion ) && ! EasyCmps.empty() ) {
+       StblType == kTrustRegion ||
+       ( ( ! IsPrimal ) && ( StblType == kNone ) ) ) &&
+     ! EasyCmps.empty() ) {
   // The returned Sigma is meant to have the reference values of the easy
   // components at x_bar added by the caller: supply here the opposite
   // affine values at x_bar, evaluated at the current master solution;
@@ -5169,7 +5166,7 @@ void MasterProblemBlock::append_coordinate_state( int n , ModParam issueMod )
    // as in generate_dual_abstract_variables(): under the trust region z is
    // fixed to 0, and the box of the new coordinates is the trust region
    std::list< ColVariable > new_z( n );
-   if( StblType == kTrustRegion )
+   if( has_trust_region() )
     for( auto & zj : new_z ) {
      zj.set_value( 0.0 );
      zj.is_fixed( true , eNoMod );
@@ -6424,7 +6421,7 @@ int MasterProblemBlock::solve_master( void )
    // with: that is the dual value of its coupling rows [see get_d_vector()].
    const bool easy_duals = f_keep_easy_duals && ( ! EasyCmps_SB.empty() );
    if( ( ( IsPrimal || easy_duals ) && ( ! f_has_integer ) ) ||
-       ( ( ! IsPrimal ) && ( StblType == kTrustRegion ) ) )
+       ( ( ! IsPrimal ) && ( has_trust_region() ) ) )
     if( auto * cda = dynamic_cast< CDASolver * >( slv ) )
      cda->get_dual_solution( nullptr );
    // and the duals of their rows, with them the reduced costs of their

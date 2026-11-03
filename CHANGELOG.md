@@ -16,11 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   scaling of the hard components and the box of each coordinate (the
   trust region included) without access to its protected fields
 
-- the stabilization `kNone` of `MasterProblemBlock` in the primal master
-  problem, i.e., the cutting-plane master of Kelley over the box of the
-  Variable, which is that of `kTrustRegion` with an infinite radius whatever
-  t is (`has_trust_region()`); `CreateDualMP()` throws with it, a free z
-  with no term in the Objective fixing the step to 0
+- the stabilization `kNone` of `MasterProblemBlock`, i.e., the
+  cutting-plane master of Kelley over the box of the Variable, which is
+  that of `kTrustRegion` with an infinite radius whatever t is
+  (`has_trust_region()`), in the primal and in the dual master problem,
+  where z is fixed to 0 and only the finite sides of the box have a
+  multiplier
 
 - `ComputeConfig` reads a double parameter written `inf`, `+inf`, `-inf` or
   `infinity` (in any case) as `Inf< double >()` or its opposite, which the
