@@ -17,6 +17,10 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <cctype>
+#include <memory>
+#include <type_traits>
+
 #include "SMSTypedefs.h"
 
 #include "ThinComputeInterface.h"
@@ -44,6 +48,39 @@ static bool advance( std::istream & input , const std::string & msg )
  if( input.fail() )
   throw( std::invalid_argument( msg ) );
  return( advance( input ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+// a double parameter, which may also be written inf, +inf, -inf or
+// infinity (in any case), i.e., as Inf< double >() or its opposite
+
+static std::istream & read_double( std::istream & input , double & value )
+{
+ input >> std::ws;
+ int c = input.peek();
+ double sign = 1;
+ if( ( c == '+' ) || ( c == '-' ) ) {
+  input.get();
+  const int n = input.peek();
+  if( ( n != 'i' ) && ( n != 'I' ) ) {
+   input.putback( char( c ) );
+   return( input >> value );
+   }
+  sign = ( c == '-' ) ? -1 : 1;
+  c = n;
+  }
+
+ if( ( c != 'i' ) && ( c != 'I' ) )
+  return( input >> value );
+
+ std::string word;
+ while( std::isalpha( input.peek() ) )
+  word.push_back( char( std::tolower( input.get() ) ) );
+ if( ( word == "inf" ) || ( word == "infinity" ) )
+  value = sign * Inf< double >();
+ else
+  input.setstate( std::ios::failbit );
+ return( input );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -561,7 +598,7 @@ void ComputeConfig::serialize( netCDF::NcGroup & group ) const
    tmp_cstr[ i ] = tmp[ i ].c_str();
 
   ( group.addVar( "v_str_par_vals" , netCDF::NcString() , tot ) ).putVar(
-							       tmp_cstr.data() );
+							    tmp_cstr.data() );
   }
 
  // "extra" Configuration - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -711,8 +748,12 @@ void ComputeConfig::load( std::istream & input )
   pairs.resize( count );
   std::string prev_name = last_name;
   for( unsigned int i = 0 ; i < count ; ++i ) {
-   input >> eatcomments >> pairs[ i ].first
-         >> eatcomments >> pairs[ i ].second;
+   input >> eatcomments >> pairs[ i ].first >> eatcomments;
+   if constexpr( std::is_same_v< std::decay_t< decltype( pairs[ i ].second ) > ,
+				 double > )
+    read_double( input , pairs[ i ].second );
+   else
+    input >> pairs[ i ].second;
    if( input.fail() )
     throw( std::logic_error(
          "ComputeConfig::load: " + std::string( block ) +
@@ -829,7 +870,8 @@ void ComputeConfig::merge_overrides( std::istream & input )
  for( unsigned int i = 0 ; i < k ; ++i ) {
   std::string name;
   double value;
-  input >> eatcomments >> name >> eatcomments >> value;
+  input >> eatcomments >> name >> eatcomments;
+  read_double( input , value );
   checkfail( input , sre );
   set_par( std::move( name ) , value );
   }
@@ -1011,9 +1053,9 @@ State * State::new_State( const netCDF::NcGroup & group )
    }
 
   gtype.getValues( tmp );
-  auto result = new_State( tmp );
+  std::unique_ptr< State > result( new_State( tmp ) );
   result->deserialize( group );
-  return( result );
+  return( result.release() );
   }
  catch( netCDF::exceptions::NcException & e ) {
   std::cerr << "netCDF error " << e.what() << " in State::new_State"
@@ -1047,6 +1089,17 @@ void State::set_filename_prefix( std::string && prefix )
 const std::string & State::get_filename_prefix()
 {
  return( state_filename_prefix() );
+ }
+
+/*--------------------------------------------------------------------------*/
+// the factory is defined here, and not in the header, so that there is one
+// of it also when the libraries are DLLs of Windows, each of which would
+// otherwise have a copy of its own
+
+State::StateFactoryMap & State::f_factory( void )
+{
+ static StateFactoryMap s_factory;
+ return( s_factory );
  }
 
 /*--------------------------------------------------------------------------*/

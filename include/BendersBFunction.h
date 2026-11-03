@@ -79,9 +79,9 @@ namespace SMSpp_di_unipi_it
  *    one, and only, sub-Block of BendersBFunction (when "seen" as a Block).
  *
  * 2) A matrix A with m rows and n columns, a vector b with m rows, and a
- *    vector of pairs [ ( C_i , S_i ) ]_{i \in I}, each pair being formed by a
- *    pointer C_i to a RowConstraint of Block B and a #ConstraintSide S_i,
- *    where I = {0, ..., m-1}.
+ *    vector of pairs \f$ [ ( C_i , S_i ) ]_{i \in I} \f$, each pair being
+ *    formed by a pointer C_i to a RowConstraint of Block B and a
+ *    #ConstraintSide S_i, where I = {0, ..., m-1}.
  *
  *    Problem (B) would typically be associated with an original problem
  *
@@ -128,8 +128,8 @@ namespace SMSpp_di_unipi_it
  *    RowConstraint. Moreover, if a RowConstraint in Block B has finite bounds
  *    that can be different from each other and are affected by the values of
  *    x, then it would be listed twice (once for each of its bounds). That is,
- *    there would be indices i, j \in I such that i != j and C_i = C_j, S_i =
- *    eLHS, and S_j = eRHS.
+ *    there would be indices \f$ i, j \in I \f$ such that i != j and
+ *    C_i = C_j, S_i = eLHS, and S_j = eRHS.
  *
  *        The vector of pairs [ ( C_i , S_i ) ]_{i \in I} must not contain
  *        duplicate entries (i.e., there must not exist indices i, j \in I
@@ -714,7 +714,7 @@ class BendersBFunction : public C05Function , public Block {
   *
   * @param par The parameter to be set.
   *
-  * @return The value of the parameter. */
+  * @param value The value of the parameter. */
 
  void set_par( idx_type par , int value ) override;
 
@@ -743,7 +743,7 @@ class BendersBFunction : public C05Function , public Block {
   *
   * @param par The parameter to be set.
   *
-  * @return The value of the parameter. */
+  * @param value The value of the parameter. */
 
  void set_par( idx_type par , double value ) override {
 
@@ -901,7 +901,7 @@ class BendersBFunction : public C05Function , public Block {
 /*--------- METHODS FOR HANDLING THE State OF THE BendersBFunction ---------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the State of the BendersBFunction
- */
+ *  @{ */
 
  State * get_State( void ) const override;
 
@@ -1460,12 +1460,11 @@ class BendersBFunction : public C05Function , public Block {
  /// modify only the constant term of a range of rows of the linear mapping
  /** Like modify_rows( range ), but modify the constant terms only.
   *
-  * @param nb an iterator to a vector of double containing the new values of
-  *        the constants. This iterator must have at least <tt>range.second -
-  *        range.first</tt> valid successors (including \p nb itself).  For
-  *        each i in [range.first, range.second), the i-th successor of \p nb
-  *        provides the new value of the constant term for row <tt>range.first
-  *        + i</tt>;
+  * @param nb the new values of the constants: <tt>nb[ i ]</tt> is the new
+  *        value of the constant term for row <tt>range.first + i</tt>, hence
+  *        \p nb must be at least as long as \p range, once \p range is
+  *        restricted to the rows there are (std::invalid_argument is thrown
+  *        if it is shorter);
   *
   * @param range contains the indices of the rows whose constants will be
   *        modified, hence <tt>range.second <= get_b().size()</tt>;
@@ -1484,7 +1483,7 @@ class BendersBFunction : public C05Function , public Block {
   *        the constant alone (if all the values are equal, the function
   *        value has not changed and the method does nothing). */
 
- void modify_constants( MF_dbl_it nb , Range range = Block::INFRange ,
+ void modify_constants( MF_dbl_sp nb , Range range = Block::INFRange ,
                         ModParam issuePMod = eNoBlck ,
                         ModParam issueAMod = eNoBlck );
 
@@ -1492,12 +1491,10 @@ class BendersBFunction : public C05Function , public Block {
  /// modify only the constant term of a subset of rows of the linear mapping
  /** Like modify_rows( subset ), but modify the constant terms only.
   *
-  * @param nb an iterator to a vector of double containing the new values of
-  *        the constants. This iterator must have at least
-  *        <tt>rows.size()</tt> valid successors (including \p nb itself).
-  *        For each i in {0, ..., rows.size()-1}, the i-th successor of \p nb
-  *        provides the new value of the constant term for \p rows[ i ] of the
-  *        linear mapping;
+  * @param nb the new values of the constants: <tt>nb[ i ]</tt> is the new
+  *        value of the constant term for \p rows[ i ] of the linear
+  *        mapping, hence \p nb must be at least as long as \p rows
+  *        (std::invalid_argument is thrown if it is shorter);
   *
   * @param rows contains the indices of the rows to be modified; all entries
   *        must therefore be numbers in 0, ..., get_A().size() - 1; as the &&
@@ -1522,7 +1519,7 @@ class BendersBFunction : public C05Function , public Block {
   *        the constant alone (if all the values are equal, the function
   *        value has not changed and the method does nothing). */
 
- void modify_constants( MF_dbl_it nb , Subset && rows ,
+ void modify_constants( MF_dbl_sp nb , Subset && rows ,
 			bool ordered = false ,
                         ModParam issuePMod = eNoBlck ,
                         ModParam issueAMod = eNoBlck );
@@ -1767,6 +1764,43 @@ class BendersBFunction : public C05Function , public Block {
 
  void add_Modification( sp_Mod mod , Observer::ChnlName chnl = 0 ) override;
 
+/*--------------------------------------------------------------------------*/
+ /// the kinds of Modification of the sub-Block the BendersBFunction reads
+ /** The BendersBFunction reads of the sub-Block what may change the dual
+  * solutions of its global pool and the Constraint it handles:
+  *
+  * - the physical Modification (eModPhys), which say how the model of the
+  *   sub-Block changes, its Objective included;
+  *
+  * - the abstract Modification of the Constraint (eModCnsSide, eModCnsCoef
+  *   and eModCnsSet), since the Constraint it handles are in the abstract
+  *   representation, and so are the dynamic ones;
+  *
+  * - those of the Variable (eModVarSet, eModVarData and eModVarType).
+  *
+  * The abstract Modification of the Objective are not read, hence a
+  * sub-Block that has no other use for them need not issue them; an
+  * AbstractBlock reads them anyway, its abstract representation being its
+  * physical one [see AbstractBlock::concerned()]. */
+
+ [[nodiscard]] Modification::ModConcern concerned_by( void ) const override {
+  return( Modification::eModAnything & ~ Modification::eModObj );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the kinds of Modification read by anyone listening to the sub-Block
+ /** What the BendersBFunction reads itself [see concerned_by()] and what
+  * its Solver read: unlike in Block::concerned(), the father is left out,
+  * since the Modification of the sub-Block stop at the BendersBFunction
+  * [see add_Modification()]. */
+
+ [[nodiscard]] Modification::ModConcern concerned( void ) const override {
+  auto c = concerned_by();
+  for( auto slvr : v_Solver )
+   c |= slvr->concerned_by();
+  return( c );
+  }
+
 /** @} ---------------------------------------------------------------------*/
 /*------------ METHODS FOR Saving THE DATA OF THE BendersBFunction ---------*/
 /*--------------------------------------------------------------------------*/
@@ -1846,7 +1880,7 @@ void print( std::ostream & output ) override {
   *   nonzero entries of the matrix. In this case, A[k] is the value of the
   *   k-th nonzero entry, whose column index is given by Column[k]. The
   *   nonzero elements of the matrix are given in left-to-right top-to-bottom
-  *   (``row-major'') order. If the dimension "NumNonzero" is not present,
+  *   ("row-major") order. If the dimension "NumNonzero" is not present,
   *   then "A" is indexed over both the "NumRow" and "NumVar" dimensions (in
   *   this order); it contains the (row-major) representation of the matrix
   *   A. This variable is optional only if NumRow == 0.
@@ -1858,10 +1892,10 @@ void print( std::ostream & output ) override {
   *
   * - The variable "ConstraintSide", of type netCDF::NcChar and indexed over
   *   the dimension "NumRow", indicating, at position i, which side of the
-  *   i-th Constraint is affected. The possible values are `L' for the
-  *   left-hand (or lower bound) side, `R' for the right-hand (or upper bound)
-  *   side, and `B' for both sides. This variable is optional. If it is not
-  *   provided, then all entries of this array are assumed to be `B'.
+  *   i-th Constraint is affected. The possible values are 'L' for the
+  *   left-hand (or lower bound) side, 'R' for the right-hand (or upper bound)
+  *   side, and 'B' for both sides. This variable is optional. If it is not
+  *   provided, then all entries of this array are assumed to be 'B'.
   *
   * - The group "AbstractPath" containing the description of a vector of
   *   AbstractPath to the affected RowConstraints. The number of AbstractPath
@@ -1927,6 +1961,20 @@ void print( std::ostream & output ) override {
  /// returns the "constant term" of the BendersBFunction
 
  FunctionValue get_constant_term( void ) const override;
+
+/*--------------------------------------------------------------------------*/
+ /// the weight of the Objective of the inner Block
+ /** The weight of the Objective of the inner Block [see
+  * Block::set_objective_weight()] times that of the BendersBFunction, which
+  * as its ancestor multiplies it: the value of the BendersBFunction and its
+  * linearizations are those of the Solver of the inner Block multiplied by
+  * it, since that Solver does not see it. */
+
+ double inner_weight( void ) const {
+  return( get_objective_weight() *
+          ( ( v_Block.empty() || ( ! v_Block.front() ) ) ? 1 :
+            v_Block.front()->get_objective_weight() ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns true only if this BendersBFunction is convex
@@ -2913,10 +2961,6 @@ void print( std::ostream & output ) override {
 
  function_value_behaviour get_behaviour( std::shared_ptr< BlockModAD > mod );
 
-/*--------------------------------------------------------------------------*/
- /// returns the behaviour of this Function considering the given Modification
-
- function_value_behaviour get_behaviour( std::shared_ptr< ConstraintMod > mod );
 
 /*--------------------------------------------------------------------------*/
  /// returns the behaviour of this Function considering the given Modification
@@ -3108,17 +3152,17 @@ void print( std::ostream & output ) override {
 
   register_method< BendersBFunction >( "BendersBFunction::modify_constants" ,
                                        & BendersBFunction::modify_constants ,
-                                       MS_dbl_sbst::args() );
+                                       MS_sp_dbl_sbst::args() );
 
   register_method< BendersBFunction >( "BendersBFunction::modify_constants" ,
                                        & BendersBFunction::modify_constants ,
-                                       MS_dbl_rngd::args() );
+                                       MS_sp_dbl_rngd::args() );
 				       !!*/
-  register_method< BendersBFunction , MF_dbl_it , Subset && , const bool >(
+  register_method< BendersBFunction , MF_dbl_sp , Subset && , const bool >(
    "BendersBFunction::modify_constants" ,
    & BendersBFunction::modify_constants );
 
-  register_method< BendersBFunction , MF_dbl_it , Range >(
+  register_method< BendersBFunction , MF_dbl_sp , Range >(
    "BendersBFunction::modify_constants" ,
    & BendersBFunction::modify_constants );
   }

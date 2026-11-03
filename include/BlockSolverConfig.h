@@ -587,7 +587,7 @@ class BlockSolverConfig : public Configuration {
   v_SolverNames.clear();
   }
 
-/*------------------------------- CLONE -----------------------------------*/
+/*------------------------------- CLONE ------------------------------------*/
 
  [[nodiscard]] BlockSolverConfig * clone( void ) const override {
   return( new BlockSolverConfig( *this ) );
@@ -850,7 +850,7 @@ class BlockSolverConfig : public Configuration {
   * - for i = 1 ... k
   *   information describing the corresponding ComputeConfig in the format
   *   accepted by Configuration::deserialize( std::istream ), with all the
-  *   corresponding input options, like '*' for  nullptr and "*<filename>"
+  *   corresponding input options, like '*' for  nullptr and "\*\<filename\>"
   *   for loading it out of a different file.
   *   (clearly, if k == 0 this is empty) */
 
@@ -1008,7 +1008,7 @@ class RBlockSolverConfig : public BlockSolverConfig {
   * sub-Block, or even to nullptr remains the Block has exactly no Solver
   * configuration.
   *
-  * The parameter \diff tells the mode of the required [R]BlockSolverConfig
+  * The parameter \p diff tells the mode of the required [R]BlockSolverConfig
   * [see bsc_mode].
   *
   * The parameter clear tells is a clear()-ed BlockSolverConfig is wanted.
@@ -1193,7 +1193,7 @@ class RBlockSolverConfig : public BlockSolverConfig {
     config->clear();
   }
 
-/*------------------------------- CLONE -----------------------------------*/
+/*------------------------------- CLONE ------------------------------------*/
 
  [[nodiscard]] RBlockSolverConfig * clone( void ) const override {
   return( new RBlockSolverConfig( *this ) );
@@ -1534,7 +1534,7 @@ class MetaBlockSolverConfig : public BlockSolverConfig {
    f_map->clear();
   }
 
-/*------------------------------- CLONE -----------------------------------*/
+/*------------------------------- CLONE ------------------------------------*/
 
  [[nodiscard]] MetaBlockSolverConfig * clone( void ) const override {
   return( new MetaBlockSolverConfig( *this ) );

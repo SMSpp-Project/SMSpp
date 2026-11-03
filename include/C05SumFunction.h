@@ -72,7 +72,7 @@ namespace SMSpp_di_unipi_it {
 /// the C05Function that is the sum of a set of C05Function
 /** The class C05SumFunction represents the sum
  *
- *     f( x ) = \sum_{ h \in G } f_h( x )
+ *     \f[ f( x ) = \sum_{ h \in G } f_h( x ) \f]
  *
  * of a group G of C05Function, the members, which are neither owned nor
  * changed in any other way than by being computed and by having their
@@ -212,7 +212,7 @@ class C05SumFunction : public C05Function , public Observer
   };
 
 /*--------------------------------------------------------------------------*/
-/*--------------- CONSTRUCTING AND DESTRUCTING C05SumFunction ------------*/
+/*--------------- CONSTRUCTING AND DESTRUCTING C05SumFunction --------------*/
 /*--------------------------------------------------------------------------*/
 
  /// constructor: the members, and the union of their "active" Variable
@@ -348,7 +348,7 @@ class C05SumFunction : public C05Function , public Observer
   }
 
 /*--------------------------------------------------------------------------*/
-/*----------- METHODS FOR HANDLING THE "ACTIVE" Variable ------------------*/
+/*----------- METHODS FOR HANDLING THE "ACTIVE" Variable -------------------*/
 /*--------------------------------------------------------------------------*/
 
  [[nodiscard]] Block * get_Block( void ) const override {

@@ -24,6 +24,8 @@ set(netCDFCxx_ROOT @netCDFCxx_ROOT@)
 
 # ----- Requirements -------------------------------------------------------- #
 find_dependency(Boost)
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_dependency(Threads)
 
 # This is needed to find the find modules we provide
 list(APPEND CMAKE_MODULE_PATH ${@modName@_CMAKE_DIR})
@@ -42,6 +44,12 @@ if (NOT netCDFCxx_FOUND)
     find_package(netCDFCxx REQUIRED)
 endif ()
 
+# the HDF5 the library was built with, which a static library carries to
+# whoever links it [see NcMemFile]
+if (@SMSpp_HDF5_DEPENDENCY@)
+    find_dependency(HDF5 COMPONENTS C)
+endif ()
+
 list(REMOVE_AT CMAKE_MODULE_PATH -1)
 
 # ----- Import target ------------------------------------------------------- #
@@ -50,5 +58,10 @@ if (NOT TARGET @modNamespace@::@modName@)
 endif ()
 
 set(@modName@_LIBRARIES @modNamespace@::@modName@)
+
+# the check of the C++20 modules and the fetch of FastFlow, called by the
+# modules that use this one
+include("${@modName@_CMAKE_DIR}/CheckModule.cmake")
+include("${@modName@_CMAKE_DIR}/FastFlow.cmake")
 
 # --------------------------------------------------------------------------- #

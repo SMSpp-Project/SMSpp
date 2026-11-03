@@ -16,6 +16,8 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <memory>
+
 #include "Solution.h"
 
 #include "ColVariable.h"
@@ -242,7 +244,7 @@ Solution * Solution::new_Solution( const netCDF::NcGroup & group )
    }
 
   gtype.getValues( tmp );
-  auto result = new_Solution( tmp );
+  std::unique_ptr< Solution > result( new_Solution( tmp ) );
   result->deserialize( group );
 
   // whether it holds a direction is written by Solution::serialize(), hence
@@ -254,7 +256,7 @@ Solution * Solution::new_Solution( const netCDF::NcGroup & group )
    result->is_direction( dir != 0 );
    }
 
-  return( result );
+  return( result.release() );
   }
  catch( netCDF::exceptions::NcException & e ) {
   std::cerr << "netCDF error " << e.what() << " in Solution::new_Solution"
@@ -288,6 +290,17 @@ void Solution::set_filename_prefix( std::string && prefix )
 const std::string & Solution::get_filename_prefix( void )
 {
  return( solution_filename_prefix() );
+ }
+
+/*--------------------------------------------------------------------------*/
+// the factory is defined here, and not in the header, so that there is one
+// of it also when the libraries are DLLs of Windows, each of which would
+// otherwise have a copy of its own
+
+Solution::SolutionFactoryMap & Solution::f_factory( void )
+{
+ static SolutionFactoryMap s_factory;
+ return( s_factory );
  }
 
 /*--------------------------------------------------------------------------*/

@@ -3,7 +3,7 @@
 /*--------------------------------------------------------------------------*/
 /** @file
  * Implementation of the LagBFunction class, which is derived from both a
- * C05Function and a Block and implements the concept of the Lagrangian 
+ * C05Function and a Block and implements the concept of the Lagrangian
  * function of some Block (the unique sub-Block of LagBFunction when "seen"
  * as a Block) w.r.t. a given set of linear terms.
  *
@@ -289,24 +289,39 @@ void LagBFunction::set_inner_block( Block * innerblock , bool deleteold )
   // Clear data structures (in case of reuse)
   v_Obj.clear();
   v_ObjIsQuad.clear();
+  v_ObjW.clear();
   v_BlockBFS.clear();
   Block2Idx.clear();
   CostMatrix.clear();
 
   // BFS traversal of Block tree starting from innerblock
-  std::queue< Block * > q;
-  q.push( innerblock );
+  // each Block with the weight of its Objective in the LagBFunction
+  std::queue< std::pair< Block * , double > > q;
+  q.push( { innerblock , innerblock->get_objective_weight() } );
 
   while( ! q.empty() ) {
-   Block * curr = q.front(); q.pop();
+   auto [ curr , w ] = q.front(); q.pop();
 
    Index h = v_BlockBFS.size();
    v_BlockBFS.push_back( curr );
    Block2Idx[ curr ] = h;
 
-   FRealObjective * obj = static_cast< FRealObjective * >(
+   FRealObjective * obj = dynamic_cast< FRealObjective * >(
 						     curr->get_objective() );
+   // the Lagrangian costs are written in the linear coefficients of the
+   // Objective of each Block: a Function that has none, e.g., the
+   // PolyhedralFunction of a PolyhedralFunctionBlock in its natural
+   // representation, has to be linearized by the BlockConfig of the Block
+   if( ( ! obj ) ||
+       ( ( ! dynamic_cast< const p_LF >( obj->get_function() ) ) &&
+         ( ! dynamic_cast< const p_QF >( obj->get_function() ) ) ) )
+    throw( std::invalid_argument(
+	       "LagBFunction::set_inner_block: the Objective of a " +
+	       curr->classname() + " in the inner Block is neither a linear "
+	       "nor a quadratic FRealObjective (a PolyhedralFunctionBlock has "
+	       "to be in its linearized representation)" ) );
    v_Obj.push_back( obj );
+   v_ObjW.push_back( w );
 
    bool isQuad = dynamic_cast< const p_QF >( obj->get_function() ) != nullptr;
    v_ObjIsQuad.push_back( isQuad );
@@ -328,7 +343,8 @@ void LagBFunction::set_inner_block( Block * innerblock , bool deleteold )
     }
 
    for( Index i = 0 ; i < curr->get_number_nested_Blocks() ; ++i )
-    q.push( curr->get_nested_Block( i ) );
+    q.push( { curr->get_nested_Block( i ) ,
+              w * curr->get_nested_Block( i )->get_objective_weight() } );
    }
   }
  else {
@@ -359,10 +375,12 @@ void LagBFunction::set_inner_block( Block * innerblock , bool deleteold )
   // Also fill BFS metadata to keep the structure coherent
   v_Obj.clear();
   v_ObjIsQuad.clear();
+  v_ObjW.clear();
   v_BlockBFS.clear();
   Block2Idx.clear();
 
   v_Obj.push_back( frobj );
+  v_ObjW.push_back( innerblock->get_objective_weight() );
   v_ObjIsQuad.push_back( dynamic_cast< const p_QF >( fn ) != nullptr );
   v_BlockBFS.push_back( innerblock );
   Block2Idx[ innerblock ] = 0;
@@ -610,7 +628,7 @@ void LagBFunction::set_par( idx_type par , int value )
     if( f_max_glob > Index( value ) ) {
      f_max_glob = value;
      update_f_max_glob();
-     }    
+     }
     }
    g_pool.resize( value );
    break;
@@ -640,7 +658,7 @@ void LagBFunction::set_par( idx_type par , int value )
      g_pool[ i ].sol = nullptr;
     f_max_glob = 0;
 
-    // if somebody is listening (assuming issueMod == eModBlck) 
+    // if somebody is listening (assuming issueMod == eModBlck)
     if( f_Observer && ( f_Observer->issue_mod( eModBlck ) ) )
      // issue a LagBFunctionMod with type() == GlobalPoolRemoved and
      // which().empty(); however, shift() == 0 since the function itself
@@ -689,9 +707,10 @@ void LagBFunction::set_par( idx_type par , double value )
 
  switch( par ) {
   case( dblRelAcc ):   add_par( "dblRelAcc"   , value ); break;
-  case( dblAbsAcc ):   add_par( "dblAbsAcc"   , value ); break;
-  case( dblUpCutOff ): add_par( "dblUpCutOff" , value ); break;
-  case( dblLwCutOff ): add_par( "dblLwCutOff" , value ); break;
+  // given to the Solver of the inner Block in its scale by compute()
+  case( dblAbsAcc ):   f_abs_acc = value; break;
+  case( dblUpCutOff ): f_up_cut = value; break;
+  case( dblLwCutOff ): f_lw_cut = value; break;
   case( dblRAccLin ):  add_par( "dblRAccSol"  , value ); break;
   case( dblAAccLin ):  add_par( "dblAAccSol"  , value );
   }
@@ -817,7 +836,8 @@ void LagBFunction::add_dual_pairs( v_dual_pair && dp , ModParam issueMod )
  LagPairs.insert( LagPairs.end() , std::make_move_iterator( dp.begin() ) ,
 		                   std::make_move_iterator( dp.end() ) );
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , Function::eModFVars ) ) )
   return;
 
  // construct the set of added Variable for the C05FunctionModVarsAddd
@@ -899,7 +919,8 @@ void LagBFunction::remove_variable( Index i , ModParam issueMod )
  delete itv->second;
  LagPairs.erase( itv );       // now erase it
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , Function::eModFVars ) ) )
   return;
 
  // a Lagrangian function is strongly quasi-additive: shift() == 0
@@ -924,7 +945,7 @@ void LagBFunction::remove_variables( Range range , ModParam issueMod )
 
  if( ( ! range.first ) && ( range.second >= LagPairs.size() ) ) {
   // removing *all* variables
-  if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+  if( f_Observer && f_Observer->issue_mod( issueMod , Function::eModFVars ) ) {
    // an Observer is there: copy the names of deleted Variables (all of them)
    Vec_p_Var vars( LagPairs.size() );
 
@@ -1007,7 +1028,7 @@ void LagBFunction::remove_variables( Range range , ModParam issueMod )
  f_Lc = -1;  // the Lipschitz constant must be computed
 
  // now actually eliminate the rows from LagPairs - - - - - - - - - - - - - -
- if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+ if( f_Observer && f_Observer->issue_mod( issueMod , Function::eModFVars ) ) {
   // somebody is there: meanwhile, prepare data for the Modification
 
   Vec_p_Var vars( range.second - range.first );
@@ -1059,7 +1080,7 @@ void LagBFunction::remove_variables( Subset && nms , bool ordered ,
   return;
 
  if( nms.empty() ) {  // removing all Variables
-  if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+  if( f_Observer && f_Observer->issue_mod( issueMod , Function::eModFVars ) ) {
    // an Observer is there: copy the names of deleted Variables (all of them)
    Vec_p_Var vars( LagPairs.size() );
 
@@ -1161,7 +1182,7 @@ void LagBFunction::remove_variables( Subset && nms , bool ordered ,
  for( auto idx : nms )
   delete LagPairs[ idx ].second;
 
- if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+ if( f_Observer && f_Observer->issue_mod( issueMod , Function::eModFVars ) ) {
   // somebody is there: meanwhile, prepare data for the Modification
   // (as it will be destroyed during the process)
 
@@ -1176,7 +1197,8 @@ void LagBFunction::remove_variables( Subset && nms , bool ordered ,
 
   for( ; it < nms.end() ; ++vi )
    if( *it == vi )                // one element to be eliminated
-    *( its++ ) = LagPairs[ *( it++ ) ].first;  // skip it, but keep the Variable
+    // skip it, but keep the Variable
+    *( its++ ) = LagPairs[ *( it++ ) ].first;
    else
     *( curr++ ) = std::move( LagPairs[ vi ] );  // move in the current position
 
@@ -1783,7 +1805,7 @@ void LagBFunction::serialize_State( netCDF::NcGroup & group ,
   std::vector< int > typ( f_max_glob );
   for( Index i = 0 ; i < f_max_glob ; ++i )
    typ[ i ] = g_pool[ i ].varsol ? 1 : 0;
- 
+
   ( group.addVar( "LagBFunction_Type" , netCDF::NcByte() , gs )
     ).putVar( { 0 } , {  f_max_glob } , typ.data() );
 
@@ -1811,13 +1833,13 @@ void LagBFunction::serialize_State( netCDF::NcGroup & group ,
 
  if( ! zLC.empty() ) {
   netCDF::NcDim cn = group.addDim( "LagBFunction_ImpCoeffNum" , zLC.size() );
-  
+
   auto ncCI = group.addVar( "LagBFunction_ImpCoeffInd" , netCDF::NcInt() ,
 			    cn );
 
   auto ncCV = group.addVar( "LagBFunction_ImpCoeffVal" , netCDF::NcDouble() ,
 			    cn );
- 
+
   for( Index i = 0 ; i < zLC.size() ; ++i ) {
    ncCI.putVar( { i } , zLC[ i ].first );
    ncCV.putVar( { i } , zLC[ i ].second );
@@ -1896,7 +1918,7 @@ void LagBFunction::restore_purged_solutions( v_gpool_el && sols ,
 
  // tell the Observer (if any) about all of them at once
  if( added.empty() || ( ! f_Observer ) ||
-     ( ! f_Observer->issue_mod( issueMod ) ) )
+     ( ! f_Observer->issue_mod( issueMod , Function::eModFValues ) ) )
   return;
 
  f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
@@ -1952,20 +1974,22 @@ void LagBFunction::store_linearization( Index name , ModParam issueMod )
  // rather than the value the dual actually attains, Sum_k mult_k f(x_k); the
  // two coincide only when the objective is affine. The latter (epigraphic)
  // value is the exact constant of the linearization and equals
- // value - < lambda , G > , where the right "value" is get_value(): the best
- // *bound* on Fi consistent with the recovered primal -- lower bound for a
- // minimisation, upper bound for a maximisation (see the twin comment in
- // get_linearization_constant()). Store the difference delta_na = epigraphic
- // - f(conv) as the (cost-independent) correction, so that later
- // re-evaluations f(conv) + value reconstruct the exact constant. For a
- // genuine extreme point delta_na is ~0. EAGER (default): instead store the
- // full epigraphic constant itself in value (= epigraphic when convexified,
- // else c·conv), so that get_linearization_constant() can return it without
- // re-reading the Solution; it is maintained on cost changes by
- // update_CostMatrix_*().
+ // value - < lambda , G > , where "value" is get_value(), provided it is the
+ // value of Fi, i.e., the inner Solver has closed its gap [see
+ // inner_value_exact()]: a bound short of it (an inner Solver stopped at a
+ // cutoff) would put the linearization on the wrong side of Fi, while
+ // f(conv) is always valid, conv being feasible. Store the difference
+ // delta_na = epigraphic - f(conv) as the (cost-independent) correction, so
+ // that later re-evaluations f(conv) + value reconstruct the exact constant.
+ // For a genuine extreme point delta_na is ~0. EAGER (default): instead store
+ // the full epigraphic constant itself in value (= epigraphic when
+ // convexified, else c·conv), so that get_linearization_constant() can
+ // return it without re-reading the Solution; it is maintained on cost
+ // changes by update_CostMatrix_*().
  if( ( ! NoSol ) && VarSol && inner_Solver() && ( ! std::isnan( f_yb ) ) ) {
   double fv = get_value();                          // = (lb|ub) + f_yb
-  if( ( fv > - Inf< FunctionValue >() ) && ( fv < Inf< FunctionValue >() ) ) {
+  if( ( fv > - Inf< FunctionValue >() ) && ( fv < Inf< FunctionValue >() ) &&
+      inner_value_exact( fv ) ) {
    double cx = get_linearization_constant( name );  // = f(conv) (value is 0)
    double lG = 0;                                   // = <lambda,G>
    for( auto & lp : LagPairs ) {
@@ -1980,7 +2004,7 @@ void LagBFunction::store_linearization( Index name , ModParam issueMod )
                                       : ( cvx ? epigraphic : cx ); // const
    }
   else
-   if( ! f_lazy_eval )           // fv not finite: store the bare c·conv
+   if( ! f_lazy_eval )   // fv not finite, or not Fi: store the bare c·conv
     g_pool[ name ].value = get_linearization_constant( name );
   }
  else
@@ -1997,9 +2021,10 @@ void LagBFunction::store_linearization( Index name , ModParam issueMod )
 
  // if necessary, issue the Modification - - - - - - - - - - - - - - - - - - -
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , Function::eModFValues ) ) )
   return;
-  
+
  f_Observer->add_Modification( std::make_shared< C05FunctionMod >(
                                 this , C05FunctionMod::GlobalPoolAdded ,
                                 Subset( { name } ) , 0 ,
@@ -2147,7 +2172,8 @@ void LagBFunction::store_combination_of_linearizations(
   g_pool[ name ].convexified = true;
   }
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , Function::eModFValues ) ) )
   return;
 
  f_Observer->add_Modification( std::make_shared< C05FunctionMod >(
@@ -2178,9 +2204,10 @@ void LagBFunction::delete_linearization( Index name , ModParam issueMod )
 
  update_f_max_glob();
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , Function::eModFValues ) ) )
   return;
-  
+
  f_Observer->add_Modification( std::make_shared< C05FunctionMod >(
                                 this , C05FunctionMod::GlobalPoolRemoved ,
                                 Subset( { name } ) , 0 ,
@@ -2212,7 +2239,7 @@ void LagBFunction::delete_linearizations( Subset && which , bool ordered ,
   if( LastSolution< Inf< Index >() )  // LastSolution was in the global pool
    LastSolution = g_pool.size();     // it is no longer valid
 
-  if( f_Observer && f_Observer->issue_mod( issueMod ) )
+  if( f_Observer && f_Observer->issue_mod( issueMod , Function::eModFValues ) )
    f_Observer->add_Modification( std::make_shared< C05FunctionMod >(
                                   this , C05FunctionMod::GlobalPoolRemoved ,
                                   std::move( which ) , 0 ,
@@ -2244,9 +2271,10 @@ void LagBFunction::delete_linearizations( Subset && which , bool ordered ,
 
  update_f_max_glob();
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , Function::eModFValues ) ) )
   return;
-  
+
  f_Observer->add_Modification( std::make_shared< C05FunctionMod >(
                                 this , C05FunctionMod::GlobalPoolRemoved ,
                                 std::move( which ) , 0 ,
@@ -2407,9 +2435,12 @@ int LagBFunction::compute( bool changedvars )
    for( Index i : v_active[ h ] ) {  // only coords coupled to a multiplier
     if( i >= m )                     // beyond current objective (shrunk): skip
      continue;
-    double newval = cm[ i ].first;
+    // the Lagrangian term is divided by the weight of the Objective, which
+    // the Solver of the inner Block multiplies it by [see v_ObjW]
+    double lag = 0;
     for( const auto & el : cm[ i ].second )
-     newval += y[ el.first ] * el.second;
+     lag += y[ el.first ] * el.second;
+    const double newval = cm[ i ].first + lag / obj_w( h );
     double oldval = ! v_ObjIsQuad[ h ]
        ? static_cast< p_LF >( fn )->get_v_var()[ i ].second
        : std::get< 1 >( static_cast< p_QF >( fn )->get_v_var()[ i ] );
@@ -2487,6 +2518,27 @@ int LagBFunction::compute( bool changedvars )
            lp.first->get_value();
   }
 
+ // the cutoffs and the absolute accuracy of the LagBFunction are given to
+ // the Solver of the inner Block, which does not see the weight W of its
+ // Objective [see v_ObjW]: they are divided by W, so that it sees them as
+ // it would with W in the coefficients of the Objective
+ {
+  // with a weight of 0 the inner Block counts for nothing, and its Solver
+  // has no cutoff and no accuracy of the value to be told of
+  const double w = inner_weight();
+  const auto to_inner = [ w ]( double c ) {
+   return( ( std::abs( c ) < INF ) ? c / w : c );
+   };
+  if( w > 0 ) {
+   if( ! std::isnan( f_up_cut ) )
+    add_par( "dblUpCutOff" , to_inner( f_up_cut ) );
+   if( ! std::isnan( f_lw_cut ) )
+    add_par( "dblLwCutOff" , to_inner( f_lw_cut ) );
+   if( ! std::isnan( f_abs_acc ) )
+    add_par( "dblAbsAcc" , f_abs_acc / w );
+   }
+  }
+
  // if some parameters have been changed, set BlockSolverConfig- - - - - - - -
  if( f_CC_changed ) {
   is->set_ComputeConfig( f_CC );  // push the changes
@@ -2517,13 +2569,15 @@ int LagBFunction::compute( bool changedvars )
 
 /*--------------------------------------------------------------------------*/
 
-static RealObjective::OFValue get_recours_obj( const Block * blck )
+// the constant terms of the Objective of blck and of its sub-Block, those
+// of blck multiplied by w and those of each sub-Block by w times its weight
+static RealObjective::OFValue get_recours_obj( const Block * blck , double w )
 {
  RealObjective::OFValue rv = 0;
  if( auto obj = dynamic_cast< RealObjective * >( blck->get_objective() ) )
-  rv = obj->get_constant_term();
+  rv = w * obj->get_constant_term();
  for( const auto bk : blck->get_nested_Blocks() )
-  rv += get_recours_obj( bk );
+  rv += get_recours_obj( bk , w * bk->get_objective_weight() );
  return( rv );
  }
 
@@ -2532,7 +2586,7 @@ static RealObjective::OFValue get_recours_obj( const Block * blck )
 Function::FunctionValue LagBFunction::get_constant_term( void ) const
 {
  if( auto bk = get_inner_block() )
-  return( get_recours_obj( bk ) );
+  return( get_recours_obj( bk , inner_weight() ) );
  return( 0 );
  }
 
@@ -2540,15 +2594,17 @@ Function::FunctionValue LagBFunction::get_constant_term( void ) const
 
 #if CHECK_SOLUTIONS & 2
 
-static double cptobj( Block * blck )
+// the value of the Objective of blck and of its sub-Block as the Solver of
+// blck sees it, that of each sub-Block multiplied by its weight times w
+static double cptobj( Block * blck , double w = 1 )
 {
  double ov = 0;
  if( auto obj = dynamic_cast< FRealObjective * >( blck->get_objective() ) ) {
   obj->compute();
-  ov = obj->value();
+  ov = w * obj->value();
   }
  for( auto bk : blck->get_nested_Blocks() )
-  ov += cptobj( bk );
+  ov += cptobj( bk , w * bk->get_objective_weight() );
  return( ov );
  }
 
@@ -2748,7 +2804,7 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
  else {  // a linearization of the global pool - - - - - - - - - - - - - - - -
   if( NoSol )
    throw( std::logic_error( "LagBFunction: Solutions are not stored" ) );
-   
+
   // assign Solution to the sub-Block in such a way the linearization
   // associated with the given name will be retrieved from the global pool
 
@@ -2947,7 +3003,7 @@ Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
  // so we can safely rely on get_objective_value() to collect the *original*
  // values of all sub-Block Objectives recursively
  if( ! PushCostToOwner )
-  alpha += get_objective_value( get_inner_block() );
+  alpha += get_objective_value( get_inner_block() , inner_weight() );
 
  // for the root Block (and for all other Objectives when PushCostToOwner ==
  // 1), we need to compute the value "by hand" using the original coefficients
@@ -2955,9 +3011,10 @@ Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
  for( Index h = 0 ; h < v_Obj.size() ; ++h ) {
   const auto * obj = v_Obj[ h ];
   const auto & cm = CostMatrix[ h ];
+  OFValue ah = 0;  // that of v_Obj[ h ], which enters with its weight
 
   if( ! v_ObjIsQuad[ h ] ) {
-   alpha += obj->get_constant_term();
+   ah += obj->get_constant_term();
    const auto & rp = static_cast< p_LF >( obj->get_function() )->get_v_var();
    const auto & tp = v_tmpCP[ h ];
 
@@ -2968,13 +3025,13 @@ Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
    #endif
 
    for( Index i = 0 ; i < rp.size() ; ++i )
-    alpha += rp[ i ].first->get_value() * cm[ i ].first;
+    ah += rp[ i ].first->get_value() * cm[ i ].first;
 
    for( Index i = 0 ; i < tp.size() ; ++i )
-    alpha += tp[ i ].first->get_value() * cm[ rp.size() + i ].first;
+    ah += tp[ i ].first->get_value() * cm[ rp.size() + i ].first;
    }
   else {
-   alpha += obj->get_constant_term();
+   ah += obj->get_constant_term();
    const auto & rp = static_cast< p_QF >( obj->get_function() )->get_v_var();
    const auto & tp = v_tmpCP[ h ];
 
@@ -2987,18 +3044,19 @@ Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
    for( Index i = 0 ; i < rp.size() ; ++i ) {
     auto val = std::get< 0 >( rp[ i ] )->get_value();
     if( val ) {
-     alpha += cm[ i ].first * val;
+     ah += cm[ i ].first * val;
      val *= val;
-     alpha += std::get< 2 >( rp[ i ] ) * val;
+     ah += std::get< 2 >( rp[ i ] ) * val;
     }
    }
 
    for( Index i = 0 ; i < tp.size() ; ++i ) {
     auto val = tp[ i ].first->get_value();
     if( val )
-     alpha += cm[ rp.size() + i ].first * val;
+     ah += cm[ rp.size() + i ].first * val;
     }
    }
+  alpha += obj_w( h ) * ah;
   }
 
  // epigraphic correction for a stored linearization. Under LAZY, value is the
@@ -3022,20 +3080,18 @@ Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
    // solutions, and the alpha = f( conv ) computed above is the value at the
    // (fractional) combination point rather than the epigraphic value Sum_k
    // mult_k f( x_k ) the dual attains; the two coincide only when the
-   // objective is affine. The exact constant equals value - <lambda,G> , where
-   // the right "value" to use is get_value(): the best *bound* on Fi
-   // consistent with the recovered (possibly convexified) primal -- the lower
-   // bound for a minimisation, the upper bound for a maximisation (this is
-   // exactly what get_value() returns via is_convex()). Using instead the
-   // value attained at the incumbent would be on the wrong side of the inner
-   // gap and produce an over-estimated constant, i.e. a linearization above Fi
-   // (negative error). Correct alpha by the gap when it is significant (for a
-   // genuine extreme point the inner Solver is exact, get_value() == c x*, and
-   // the stable c x* computed above is kept).
+   // objective is affine. The exact constant equals value - <lambda,G> ,
+   // where "value" is get_value(), provided it is the value of Fi, i.e., the
+   // inner Solver has closed its gap [see inner_value_exact()]: a bound short
+   // of it (an inner Solver stopped at a cutoff) would put the linearization
+   // on the wrong side of Fi, while f( conv ) is always valid, conv being
+   // feasible, and is then kept. Correct alpha by the difference when it is
+   // significant (for a genuine extreme point get_value() == c x*, and the
+   // stable c x* computed above is kept).
    if( VarSol && inner_Solver() && ( ! std::isnan( f_yb ) ) ) {
     double fv = get_value();                          // = (lb|ub) + f_yb
     if( ( fv > - Inf< FunctionValue >() ) && ( fv < Inf< FunctionValue >() )
-	) {
+	&& inner_value_exact( fv ) ) {
      double lG = 0;                                   // = <lambda,G>
      for( auto & lp : LagPairs ) {
       lp.second->compute();
@@ -3243,7 +3299,8 @@ bool LagBFunction::flush_v_tmpCP( void )
    }
 
    const Index cm_sz = CostMatrix[ h ].size();
-   const Index can   = ( cm_sz > cur ) ? std::min< Index >( pend , cm_sz - cur ) : 0;
+   const Index can   = ( cm_sz > cur ) ?
+                       std::min< Index >( pend , cm_sz - cur ) : 0;
 
    // use eNoBlck: the inner Block need not mirror the abstract change,
    // because LagBFunction manages the consistency externally (the added
@@ -3296,7 +3353,8 @@ bool LagBFunction::flush_v_tmpCP( void )
    }
 
    const Index cm_sz = CostMatrix[ h ].size();
-   const Index can   = ( cm_sz > cur ) ? std::min< Index >( pend , cm_sz - cur ) : 0;
+   const Index can   = ( cm_sz > cur ) ?
+                       std::min< Index >( pend , cm_sz - cur ) : 0;
 
    // see comment in the LinearFunction branch above for why eNoBlck
    if( can == 1 )
@@ -3604,7 +3662,39 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 
  if( mod->get_Block() == this )
   return( guts_of_this_add_Modification( mod , chnl ) );
- 
+
+ // BlockWeightMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ /* A change of the weights of a Block of the inner Block. The weight of the
+  * Objective changes the weights of the Objective in the LagBFunction [see
+  * v_ObjW], which are computed again: the Lagrangian costs are written
+  * again with them [see f_dirty_Lc], and the constants of the
+  * linearizations are computed again, the value of a point changing while
+  * its gradient, the Lagrangian term that enters with no weight, does not.
+  * The weight of the Variable changes the coefficients of the Constraint of
+  * the inner Block, which is what the Modification says of itself, as any
+  * other one below. */
+
+ if( const auto wmod = dynamic_cast< const BlockWeightMod * >( mod ) ) {
+  if( wmod->which() & BlockWeightMod::eObjective ) {
+   for( Index h = 0 ; h < v_BlockBFS.size() ; ++h ) {
+    double w = v_BlockBFS[ h ]->get_objective_weight();
+    if( h )  // the father comes before in the BFS
+     w *= v_ObjW[ Block2Idx.at( v_BlockBFS[ h ]->get_f_Block() ) ];
+    v_ObjW[ h ] = w;
+    }
+   f_dirty_Lc = ! LagPairs.empty();
+
+   if( f_Observer )
+    f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
+                                    this , C05FunctionMod::AlphaChanged ,
+                                    Subset() , 1 , NaN , true ) ,
+				  chnl );
+   }
+
+  if( ! ( wmod->which() & BlockWeightMod::eVariable ) )
+   return( 0 );
+  }
+
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // C05FunctionModLin: the "linear part" of a Function has been changed
  // C05FunctionModLin can have a special treatment, and therefore need be
@@ -3873,26 +3963,10 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 
    }  // end( if( from the Objective of a further sub-Block ) )
 
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  // here comes the last and final case: f belongs to some [FRow]Constraint
-  // if the Function has changed unpredictably, then there is no way one
-  // can guarantee that the previous Solutions have remained feasible
-  if( std::isnan( tmod->shift() ) )
-   return( 4 );
-
-  // if the Constraint is a [F]RowConstraint, it is surely not violated
-  // if shift() > 0 and RHS == +INF or shift() < 0 and LHS == -INF,
-  // otherwise in principle it can be violated and we need to check
-  if( auto cnsobs = dynamic_cast< FRowConstraint * >( f->get_Observer() ) )
-   if( ( ( tmod->shift() > 0 ) && ( cnsobs->get_rhs() <  INF ) ) ||
-       ( ( tmod->shift() < 0 ) && ( cnsobs->get_lhs() > -INF ) ) ) {
-    f_Lc = -1;    // yet, the Lipschitz constant must be recomputed
-    return( 0 );
-    }
-
-  // this is a Function that has changed in some way we don't understand:
-  // take the safe route and re-check feasibility
-  return( 4 );
+  // what remains is the Function of some Constraint, which is dealt with
+  // below as any other Modification that does not come from an Objective
+  // [see Modification::changes()], since the abstract representation of
+  // the Constraint of the inner Block may well not be there
 
   }  // end( FunctionMod )
 
@@ -4098,119 +4172,53 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
    }  // end( if( from the Objective of a further sub-Block ) )
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  // here comes the last and final case: f belongs to some constraint
-  // in theory, adding Variable should not violate the Constraint ...
-  // but this is only true if, say, the Constraint is linear and the
-  // [Col]Variable are allowed to take the value 0. since we have no
-  // way of knowing whether or not this is true, we have to assume it is not
-  return( 4 );
+  // what remains is the Function of some Constraint, dealt with below as
+  // for FunctionMod
 
   }  // end( FunctionModVars )
 
- // VariableMod: some variables of (B) changed the status- - - - - - - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- if( const auto tmod = dynamic_cast< const VariableMod * >( mod ) ) {
-  const auto xj = dynamic_cast< const ColVariable * >( tmod->variable() );
-
-  if( ! xj )     // unknown variable type
-   return( 8 );  // no clue what is happening, take the worst case
-
-  // check the current state of the ColVariable against its previous state:
-  // if the change of state increased the set of values that the ColVariable
-  // can have then return 0 (nothing has to be done), otherwise return 8
-  // (feasibility has to be checked)
-  if( ( ( xj->is_fixed() == xj->is_fixed( tmod->old_state() ) ) ||
-	( ( ! xj->is_fixed() ) && xj->is_fixed( tmod->old_state() ) ) )
-      && ( ( xj->is_integer() == xj->is_integer( tmod->old_state() ) ) ||
-	   ( ( ! xj->is_integer() ) && xj->is_integer( tmod->old_state() ) ) )
-      && ( ( xj->is_positive() == xj->is_positive( tmod->old_state() ) ) ||
-	   ( ( ! xj->is_positive() ) && xj->is_positive( tmod->old_state() ) )
-	   )
-      && ( ( xj->is_negative() == xj->is_negative( tmod->old_state() ) ) ||
-	   ( ( ! xj->is_negative() ) && xj->is_negative( tmod->old_state() ) )
-	   )
-      && ( ( xj->is_unitary() == xj->is_unitary( tmod->old_state() ) ) ||
-	   ( ( ! xj->is_unitary() ) && xj->is_unitary( tmod->old_state() ) ) )
-      ) {
-   f_Lc = -1;    // the Lipschitz constant must be computed
-   return( 0 );
-   }
-  else
-   return( 8 );
-
-  }  // end( VariableMod )
-
- // RowConstraintMod: the LHS/RHS of some constraints of (B) changed - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- if( const auto tmod = dynamic_cast< const RowConstraintMod * >( mod ) ) {
-  // return true if the RHS and/or LHS have changed
-  // TODO: if the RHS increases or the LHS decreases in fact the feasible
-  //       region has increased and in fact false should be returned, but so
-  //       far there is no way to detect this since we don't have access to
-  //       the previous value; some work should be done on RowConstraintMod
-  if( ( tmod->type() == RowConstraintMod::eChgLHS ) ||
-      ( tmod->type() == RowConstraintMod::eChgRHS ) ||
-      ( tmod->type() == RowConstraintMod::eChgBTS ) )
-   return( 2 );
-  // otherwise do nothing, as the case is dealt with next
-  }
-
- // ConstraintMod: some constraints of (B) relaxed/enforced- - - - - - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- if( const auto tmod = dynamic_cast< const ConstraintMod * >( mod ) ) {
-  // return true if a Constraint has been enforced, since this reduces the
-  // feasible region, and false if a Constraint has been relaxed, since this
-  // enlarges the feasible region
-  f_Lc = -1;  // the Lipschitz constant must be computed
-  return( tmod->type() == ConstraintMod::eEnforceConst ? 16 : 0 );
-  }
-
- // BlockModAD - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- // BlockModAD: is_variable() && is_added() keep feasibility
- // BlockModAD: ( ! is_variable() ) && ( ! is_added() ) keep feasibility
- // THIS IS CORRECT BASED ON THE DEFINITION OF DYNAMIC Variable/Constraint IN
- // A Block, WHICH STATES THAT:
- // Similarly, dynamic Variable are "there even they are
- // not there": all dynamic Variable not explicitly generated are assumed to
- // be there in the Block set at their default value (most often, zero), and
- // it is assumed that this does not change the fact that the (explicitly
- // constructed part of the) solution is feasible.
- // THUS, GENERATING DYNAMIC Variable CANNOT MAKE A Solution UNFEASIBLE. A
- // FORTIORI NOR CAN DELETING A DYNAMIC Constraint
- if( const auto tmod = dynamic_cast< const BlockModAD * >( mod ) ) {
-  f_Lc = -1;  // the Lipschitz constant must be computed
-  return( ( tmod->is_variable() && ( ! tmod->is_added() ) ) ||
-	  ( ( ! tmod->is_variable() ) && tmod->is_added() ) ? 32 : 0 );
-  }
-
- // BlockMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- // arbitrary changes of (B) may violate the feasibility
- if( dynamic_cast< const BlockMod * >( mod ) )
-  return( 64 );
-
  // any other Modification - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- // what it does to the inner Block is what it says of itself [see
- // Modification::changes()]. One that may shrink the feasible region may
- // take away the feasibility of the Solution in the global pool, which have
- // then to be checked, as for an arbitrary change of the inner Block (64);
- // among these, the physical Modification of the inner Block, which say so
- // until the Block says more of them. An abstract one that changes the
- // Objective in a way not dealt with above is reported as unknown (128),
- // the pool being checked anyway; the Objective changed by a physical one is
- // seen through the abstract Objective, which the inner Block keeps in step
- // and whose Modification are dealt with above. Any other cannot take away
- // the feasibility of the pool, and nothing has to be done.
+ // What any Modification that does not come from an Objective does to the
+ // inner Block is what it says of itself [see Modification::changes()]:
+ // this holds for the physical ones and for the abstract ones of the
+ // Variable and of the Constraint alike, the latter possibly not being
+ // there at all since the inner Block may have no abstract representation
+ // of its Constraint. One that changes the feasible region changes the
+ // Lipschitz constant, which has then to be computed again. One that may
+ // shrink the region may take away the feasibility of the Solution in the
+ // global pool, which have then to be checked; the returned value says what
+ // has changed with the encoding of LagBFunctionMod::what(), a physical
+ // one, one that says all the abstract kinds (as a BlockMod) and one that
+ // says nothing more being reported as an arbitrary one (64). An abstract
+ // Modification that changes the Objective in a way not dealt with above is
+ // reported as unknown (128), the pool being checked anyway; the Objective
+ // changed by a physical one is seen through the abstract Objective, which
+ // the inner Block keeps in step and whose Modification are dealt with
+ // above. Any other cannot take away the feasibility of the pool, and
+ // nothing has to be done.
 
- if( mod->may_shrink_region() )
+ if( mod->may_shrink_region() || mod->may_grow_region() )
+  f_Lc = -1;
+
+ if( ! mod->may_shrink_region() )
+  return( mod->is_abstract() && mod->changes_objective() ? char( 128 ) : 0 );
+
+ const auto abst = Modification::eModAbst;
+ if( mod->is_physical() || ( ( mod->changes() & abst ) == abst ) )
   return( 64 );
 
- if( mod->is_abstract() && mod->changes_objective() )
-  return( char( 128 ) );
+ char what = 0;
+ if( mod->changes_structure() )
+  what |= 32;
+ else {
+  if( mod->changes_variables() )
+   what |= 8;
+  if( mod->changes_constraints() )
+   what |= mod->changes_only_sides() ? 2 : 4;
+  }
 
- return( 0 );
+ return( what ? what : char( 64 ) );
 
  }  // end( LagBFunction::guts_of_guts_of_add_Modification )
 
@@ -4407,7 +4415,7 @@ char LagBFunction::guts_of_this_add_Modification( p_Mod mod , ChnlName chnl )
 				Range( i , i + 1 ) , Subset() , NaN , true ) ,
 				 chnl );
   return( 0 );  // all done
-  
+
   }  // end( C05FunctionModLinSbst )
 
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -4726,7 +4734,7 @@ void LagBFunction::update_CostMatrix_ModLinRngd( Index h ,
     }
    CM[ j ].first = rc[ j ].second;
    }
-  eager_pool_cost_delta( rc , jdeltas );
+  eager_pool_cost_delta( rc , jdeltas , obj_w( h ) );
   return;
   }
 
@@ -4811,7 +4819,7 @@ void LagBFunction::update_CostMatrix_ModLinSbst( Index h ,
     }
    CM[ j ].first = rc[ j ].second;
    }
-  eager_pool_cost_delta( rc , jdeltas );
+  eager_pool_cost_delta( rc , jdeltas , obj_w( h ) );
   return;
   }
 
@@ -4853,7 +4861,8 @@ void LagBFunction::update_CostMatrix_ModLinSbst( Index h ,
 /*--------------------------------------------------------------------------*/
 
 void LagBFunction::eager_pool_cost_delta( const v_coeff_pair & rc ,
-		 const std::vector< std::pair< Index , double > > & jdeltas )
+		 const std::vector< std::pair< Index , double > > & jdeltas ,
+		 double w )
 {
  if( f_lazy_eval || NoSol || jdeltas.empty() )
   return;
@@ -4871,7 +4880,7 @@ void LagBFunction::eager_pool_cost_delta( const v_coeff_pair & rc ,
   double dv = 0;
   for( const auto & jd : jdeltas )
    dv += jd.second * rc[ jd.first ].first->get_value();
-  g_pool[ k ].value += dv;
+  g_pool[ k ].value += w * dv;
   }
 
  // the inner Block now holds the last pool Solution; mark that no pool entry
@@ -4884,7 +4893,7 @@ void LagBFunction::eager_pool_cost_delta( const v_coeff_pair & rc ,
 
 void LagBFunction::eager_pool_cost_removal(
                                     c_Vec_p_Var & vars ,
-                                    c_Vec_FunctionValue & costs )
+                                    c_Vec_FunctionValue & costs , double w )
 {
  if( f_lazy_eval || NoSol || vars.empty() )
   return;
@@ -4900,7 +4909,7 @@ void LagBFunction::eager_pool_cost_removal(
   double dv = 0;
   for( Index j = 0 ; j < vars.size() ; ++j )
    dv -= costs[ j ] * static_cast< ColVariable * >( vars[ j ] )->get_value();
-  g_pool[ k ].value += dv;
+  g_pool[ k ].value += w * dv;
   }
 
  // As in eager_pool_cost_delta(), the Block contains the last pool Solution,
@@ -5032,7 +5041,7 @@ void LagBFunction::update_CostMatrix_ModVarsRngd( Index h ,
   Vec_FunctionValue costs( vars.size() );
   for( Index i = 0 ; i < vars.size() ; ++i )
    costs[ i ] = CM[ rng.first + i ].first;
-  eager_pool_cost_removal( vars , costs );
+  eager_pool_cost_removal( vars , costs , obj_w( h ) );
   }
  m_column tempCM;     // CostMatrix elements to be re-added
 
@@ -5107,7 +5116,7 @@ void LagBFunction::update_CostMatrix_ModVarsSbst( Index h ,
   Vec_FunctionValue costs( vars.size() );
   for( Index i = 0 ; i < vars.size() ; ++i )
    costs[ i ] = CM[ sbst[ i ] ].first;
-  eager_pool_cost_removal( vars , costs );
+  eager_pool_cost_removal( vars , costs , obj_w( h ) );
   }
  m_column tempCM;     // CostMatrix elements to be re-added
 
@@ -5136,9 +5145,9 @@ void LagBFunction::update_CostMatrix_ModVarsSbst( Index h ,
 void LagBFunction::set_default_inner_BlockConfig( void )
 {
  if( auto ib = get_inner_block() ) {
-  auto config = new OCRBlockConfig( ib );
-  config->clear();
-  config->apply( ib );
+  OCRBlockConfig config( ib );
+  config.clear();
+  config.apply( ib );
   }
  }
 
@@ -5285,7 +5294,7 @@ void LagBFunctionState::deserialize( const netCDF::NcGroup & group )
   }
  else
   zLC.clear();
- 
+
  }  // end( LagBFunctionState::deserialize )
 
 /*--------------------------------------------------------------------------*/
@@ -5301,7 +5310,7 @@ void LagBFunctionState::serialize( netCDF::NcGroup & group ) const
   std::vector< int > typ( f_max_glob );
   for( Index i = 0 ; i < f_max_glob ; ++i )
    typ[ i ] = g_pool[ i ].varsol ? 1 : 0;
- 
+
   ( group.addVar( "LagBFunction_Type" , netCDF::NcByte() , gs ) ).putVar(
 				      { 0 } , {  f_max_glob } , typ.data() );
 
@@ -5319,7 +5328,8 @@ void LagBFunctionState::serialize( netCDF::NcGroup & group ) const
    }
   ( group.addVar( "LagBFunction_Value" , netCDF::NcDouble() , gs ) ).putVar(
 				      { 0 } , { f_max_glob } , val.data() );
-  ( group.addVar( "LagBFunction_Convexified" , netCDF::NcByte() , gs ) ).putVar(
+  ( group.addVar( "LagBFunction_Convexified" , netCDF::NcByte() , gs ) )
+   .putVar(
 				      { 0 } , { f_max_glob } , cvx.data() );
 
   for( Index i = 0 ; i < f_max_glob ; ++i ) {
@@ -5333,13 +5343,13 @@ void LagBFunctionState::serialize( netCDF::NcGroup & group ) const
 
  if( ! zLC.empty() ) {
   netCDF::NcDim cn = group.addDim( "LagBFunction_ImpCoeffNum" , zLC.size() );
-  
+
   auto ncCI = group.addVar( "LagBFunction_ImpCoeffInd" , netCDF::NcInt() ,
 			    cn );
 
   auto ncCV = group.addVar( "LagBFunction_ImpCoeffVal" , netCDF::NcDouble() ,
 			    cn );
- 
+
   for( Index i = 0 ; i < zLC.size() ; ++i ) {
    ncCI.putVar( { i } , zLC[ i ].first );
    ncCV.putVar( { i } , zLC[ i ].second );

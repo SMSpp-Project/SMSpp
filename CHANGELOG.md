@@ -7,6 +7,577 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-03
+
+### Added
+
+- the getters `get_stabilization()`, `is_primal()`, `get_level()`,
+  `get_zeroth_quadratic()`, `get_hard_cmp_scaling()` and `get_primal_box()`
+  of `MasterProblemBlock`, which give a Solver of the master the
+  stabilization, the form, the level, the quadratic 0-th component, the
+  scaling of the hard components and the box of each coordinate (the
+  trust region included) without access to its protected fields
+
+- the stabilization `kNone` of `MasterProblemBlock`, i.e., the
+  cutting-plane master of Kelley over the box of the Variable, which is
+  that of `kTrustRegion` with an infinite radius whatever t is
+  (`has_trust_region()`), in the primal and in the dual master problem,
+  where z is fixed to 0 and only the finite sides of the box have a
+  multiplier
+
+- `ComputeConfig` reads a double parameter written `inf`, `+inf`, `-inf` or
+  `infinity` (in any case) as `Inf< double >()` or its opposite, which the
+  stream extraction of a double does not, so that a configuration file can
+  give a parameter an infinite value (e.g., the radius of a trust region)
+
+- the event type `ThinComputeInterface::eEverySolution`, called by a
+  `compute()` whose result is a combination of the solutions of several
+  problems it solves one after the other on the same Block (as the
+  simulation of the scenarios of a policy) each time one of them has been
+  written in the Block, so that whoever reads something out of each of them
+  (a linearization, say) can do it while it is there, and
+  `Solver::get_solution_Block()`, the Block holding that solution: the one
+  of the Solver, or the copy of it on which the `compute()` solves each
+  problem
+
+- `copy_group()` and `write_via_memory()` in `SMSnetCDF.h`: the first
+  copies a netCDF group into another, possibly of another file, making all
+  the definitions before writing any value, so that the destination file
+  leaves the define mode once; the second writes each part of a group in an
+  `NcMemFile` of its own and copies all of them together, so that a file
+  made of many parts is written in a time linear in its size rather than
+  quadratic (in a netCDF-4 file each passage from the define mode to the data
+  mode writes the metadata and flushes every dataset open in the process);
+  `copy_group()` throws `std::length_error` rather than taking a file over
+  the 32767 groups netCDF-C (up to 4.9.3 at least) can hold, past which it
+  crashes; `NetCDF_unit_test` checks them against writing in place
+
+- the weight of the Objective of a `Block` [see
+  `Block::set_objective_weight()`] in the `Solver` and `Function` of the core:
+  `LagBFunction` writes in the Objective of each Block of its inner Block the
+  Lagrangian term divided by the weight of that Objective in it, its own weight
+  comprised, and multiplies by the weight of the inner Block its value, the
+  constant of its linearizations (those kept in the pool comprised) and its
+  constant term, the Lagrangian term entering with no weight, and divides by
+  it the cutoffs and the absolute accuracy it gives to the `Solver` of the
+  inner Block;
+  `BendersBFunction` multiplies by the weight of its inner Block, and its own,
+  its value, its linearizations and its constant term; `BoxSolver` multiplies
+  the coefficients and the constant of each Objective by its weight;
+  `AbstractBlock::mirror()` gives the copy and its sub-Block the weights of the
+  original
+
+- the weight of the Objective of a `Block`: `set_objective_weight()`,
+  `get_objective_weight()` and `get_objective_weight( ancestor )`, the
+  product of the weights along the path from a `Block` up to an ancestor,
+  the latter excluded, which is the factor by which a `Solver` attached to
+  the ancestor multiplies the `Objective` of the `Block` (e.g., the
+  probability of a scenario times the discount factor of its period); the
+  weight is the optional attribute `ObjectiveWeight` of the group of the
+  `Block`, read by `Block::deserialize()` and written by `serialize()`
+  when it is not 1; `AbstractBlock_test` checks it, with the weights that
+  are not finite and positive refused
+
+- the weight of the Variable of a `Block`: `set_variable_weight()`,
+  `get_variable_weight()` and `get_variable_weight( cblock )`, the product
+  of the weights from a `Block` up to the closest one that also contains
+  `cblock`, which is the factor by which a `Solver` multiplies the
+  coefficients of the Variable of the `Block` in a Constraint of `cblock`
+  (e.g., the number of copies of a unit in the balance of the nodes);
+  `set_weight()` sets both the weights, the scaling of the whole `Block`;
+  the optional attribute `VariableWeight` of the group of the `Block`;
+  a change of either weight issues a `BlockWeightMod` saying which weights
+  have changed, and is refused before anything changes if a `Solver`
+  attached to an ancestor does not handle it
+  [see `Solver::handles_weight_change()`, false by default];
+  `AbstractBlock_test` checks the products, the Modification and the
+  refusal
+
+- `BranchingRule.h`, the components with which a `RelaxationSolver` can
+  choose the variable to branch upon and estimate the children of a
+  branching, knowing nothing of the enumerative Solver that uses it nor of
+  the relaxation: `BranchCandidate`, a candidate described by its values in
+  the point of the candidates and in a second point, its block, its
+  position and its cost (the variable being known to the RelaxationSolver
+  only, by an index), `BranchingFeatures`, its fractionality and its eight
+  features, `StrongBranching`, the product score out of the bounds of the
+  two children that the RelaxationSolver computes, with the CSV of its
+  data, `LearnedBranching`, a perceptron on the features read from a file,
+  `BranchEstimator`, the interface of a RelaxationSolver that estimates the
+  best value under each child, `PseudoCosts`, the pseudocosts of the
+  candidates and the estimates of the children of Benichou et al. (1971),
+  and `LearnedPseudoCosts`, the priors of the pseudocosts read from a file
+  of two `LearnedBranching` models; `BranchingRule_unit_test` checks them
+
+- `cmake/smspp_module_exports.py --update <interfaces>` writes the
+  interface of a C++20 module again from itself, which says how it was made
+  (the name, the modules it imports, the optional and the excluded
+  headers), with the flags read from the `compile_commands.json` given by
+  `--compdb`; with `--check` it prints the differences instead, and fails
+  if there are any, which the nightly job of the modules of the umbrella
+  does after building them
+
+- the job `makefiles` of the pipeline builds the core with its makefiles,
+  with g++ and then with clang++ and the C++20 module, and runs
+  `Module_test` [see `ci/makefile` of the umbrella]
+
+- `cmake/FastFlow.cmake`, installed and included by the package
+  configuration file: `smspp_fetch_fastflow()` fetches FastFlow once, with
+  the MSVC patch, for the core and for a module built alone, which an
+  installed core does not give it
+
+- `SMSppCLANG`, `SMSppSWERR` and `SMSppSWDBG` in `lib/makefile-OS`: whether
+  `$(CC)` is clang++, asked when first needed, and the options that stop at
+  the first error and give the debugging information, which clang++ and g++
+  spell differently; the makefiles of the tests and of the tools take them,
+  and build also with g++
+
+- `lib/makefile-mod`, the makefile of the C++20 modules: with `SMSppMOD`
+  not empty (e.g., `make SMSppMOD=1`) and clang++ 16 or later, the makefile
+  of the core and those of the modules compile their interface into a
+  module file, all of them in `obj/` of the core, and into an object that
+  goes with the other ones; `SMSppMODrule` and `SMSppMODlib` are the rules
+  that the makefile of a module expands with one line, and
+  `test/makefile-Module` builds the test that imports `smspp`
+
+- `cmake/CheckModule.cmake`, installed with the package configuration file,
+  which includes it: `smspp_check_module()` turns `SMSpp_BUILD_MODULE` off
+  in the calling directory, with a warning that says why, when the C++20
+  module cannot be built (a CMake older than 3.28, a generator other than
+  Ninja 1.11 or Visual Studio, a compiler other than Clang 16 with
+  `clang-scan-deps` or MSVC 19.34 or later, or a module it imports that is
+  not there); the core and every module call it before building their
+  module
+
+- `Modification::set_changes()`, which whoever forwards a Modification and
+  knows more of what it does than the one that issued it uses to say so: an
+  `FRowConstraint` and an `FRealObjective` say what the `shift()` of their
+  Function does before passing a `FunctionMod` on to the Block. Shifted
+  upwards, the region of an `FRowConstraint` may shrink if its RHS is finite
+  and grow if its LHS is, downwards the opposite, with only `eModCnsCoef` and
+  no effect while it is relaxed; the objective of an `FRealObjective` moves
+  the way of the shift, with only `eModObj`. Hence a `LagBFunction` keeps its
+  pool when the Function of a Constraint with RHS at +INF is shifted upwards,
+  and a Solver that reads only the Objective no longer receives the
+  `FunctionMod` of a Constraint, nor one reading the Constraint that of the
+  Objective
+
+- `AbstractBlock::mirror()` keeps the size Variable of the mirrored Block:
+  the copy owns the copy of one the Block owns, and keeps one an
+  `AbstractBlock` had been given, whose rows it has already sized, taking no
+  other one in either case; a copy of an unsized Block can still be given one
+  of its own, which need not be the one of another copy of the same Block
+
+- `Solver::set_excluded_objectives()`, `get_excluded_objectives()` and
+  `is_objective_excluded()`: the Block whose Objective a Solver must ignore,
+  their Variable and Constraint being loaded, next to the sub-Block it must
+  ignore altogether [see `set_excluded_blocks()`]
+
+- `MasterProblemBlock::set_hosted_Block()`: the primal master hosts a Block
+  as a sub-Block it does not own, so that its Solver has all the Constraint of
+  the Block, of any type, and gets their Modification through the usual
+  channel; the rows x_j - d_j = x_bar_j (x_j - d_j = 0 in raw form) bind the
+  coordinates of the Block to the Variable of the master, the sides following
+  the stability centre, so that the feasible set is the projection of the one
+  of the Block. The Objective and the sub-Block of the hosted Block are given
+  to the Solver of the master to be ignored, and the multipliers of the rows
+  enter the aggregate as those of the linear constraints do
+
+- `MasterProblemBlock::set_linear_constraints()`: the linear constraints l <=
+  A x <= u on the variables of the master problem, which the primal master
+  has as rows on its Variable, with the sides following the stability centre
+  in the displacement form; their multipliers are part of z* = - d* / t, and
+  hence of the aggregated linearization error, and under the trust region
+  they are balanced against the box as the rows of the easy
+  `BendersBFunction` are. With them `solve_master()` solves the master even
+  when every bundle is empty, the step having to satisfy them, and the caller
+  gives the empty components their fictitious bound. The dual master has
+  their multipliers, as it has those of the box: two non-negative Variable
+  per row in the coupling rows, with the sides in the objective; setting them
+  again replaces the old ones, whose multipliers leave the dual master.
+  `remove_vars()` refuses to remove a coordinate that is in one of them
+
+- the methods factory has families that take two values per Index, each in
+  a span of its own, for the setters (`MS_sp_dbl2_rngd` and
+  `MS_sp_dbl2_sbst`) and for the queries (`MS_qry_dbl2_rngd` and
+  `MS_qry_dbl2_sbst`), which lets a Block whose items have two parameters of
+  the same kind
+
+- the methods factory has families for a parameter that is a single scalar,
+  or a pair of scalars, with no slice: the setters `MS_dbl` and `MS_dbl2`,
+  ( double [ , double ] , ModParam , ModParam ), and the queries
+  `MS_qry_dbl` and `MS_qry_dbl2`, writing into ( double & [ , double & ] ),
+  say for the size of a unit, which has no Index to give
+
+- `Constraint::clear()` and `ColVariable::is_feasible()` of any container
+  of the items, of any container of containers of them and of a
+  `boost::multi_array` of containers of them (e.g., a `std::deque`, a
+  `std::deque` of `std::vector`, a `boost::multi_array` of `std::deque`),
+  like `RowConstraint::is_feasible()` already did, next to the specific
+  overloads for the containers of the groups of a Block, which are kept
+
+- `NcMemFile` (in `SMSnetCDF.h`), a `netCDF::NcFile` held in memory, created
+  empty or opened read-only on the bytes of a netCDF-4 file, whose `close(
+  Image & )` gives those bytes (netCDF-C 4.6.2 or later);
+  `Block::serialize( std::vector< unsigned char > & , int )` and
+  `Block::deserialize( std::span< const unsigned char > , unsigned int ,
+  Block * )`, which write a Block to such an image and read it back, e.g.,
+  to copy a Block as it is now, its changes included, without passing
+  through the filesystem
+
+- the C++20 module `smspp` (`src/SMSpp.cppm`), which exports every name
+  that the headers declare at namespace scope, so that a source file can
+  write `import smspp;` in place of the `#include` of the headers; it is
+  built with the CMake option `SMSpp_BUILD_MODULE` (CMake 3.28, Ninja, Clang
+  16 or later) as the target `SMS++::SMS++_module`, and
+  `cmake/smspp_module_exports.py` writes it from the AST of the headers, as
+  it writes the module of any other SMS++ module (which re-exports those it
+  depends on, with the names of an optional library inside an `#if` and the
+  headers of another library left out)
+
+- `write_stacked()`, `stacked_size()` and `read_stacked()` in `SMSnetCDF.h`:
+  the first writes the parts of a group in one sub-group, stacking those
+  whose netCDF trees are identical along a dimension `Stacked` in front of
+  each of their variables (one stack per tree, with the index of where each
+  part is, if they differ), so that the file has the groups of one part of
+  each tree however many the parts (a netCDF file holds at most 32767
+  groups); the last gives back one part in an in-memory file, the stacks
+  nested in it included
+
+### Changed
+
+- the `register_method()` taking a member function of a `:Block` (or a const
+  one, for a query) no longer deduces the parameter types from it, which are
+  those given or those of the `arg_packer_helper`, so that a member function
+  that is not overloaded can be registered too (GCC refused to deduce the
+  pack of a member function with `ModParam` after it)
+
+- the methods factory takes the data of a setter only as a span:
+  `DataMapping::set_data()` takes a `std::span< const double >` of the data
+  in place of an iterator into them, and `SimpleDataMapping` gives the
+  function it calls a `std::span< const DataType >` of the data its SetFrom
+  selects (its `F` is a `FunctionType` of that span), throwing
+  `std::invalid_argument` if SetFrom goes past the end of the data;
+  `BendersBFunction::modify_constants()` takes a `MF_dbl_sp`, and throws
+  `std::invalid_argument` if it is shorter than the Range or the Subset, and
+  is registered in the methods factory in that form; `Misc_unit_test` checks
+  a SetFrom going past the end of a span
+
+- the README leaves the channels that distribute SMS++ to the
+  installation guide of the wiki (Installing-SMS++), keeping the names
+  of the packages of the module
+
+- a weight of the Objective or of the Variable of a Block may be 0 (a
+  Block that counts for nothing, say, a unit of which there is no copy):
+  the weights are finite and not negative, and `LagBFunction` gives the
+  Solver of an inner Block of weight 0 no cutoff nor accuracy, which it
+  would otherwise divide by the weight
+
+- a change of the weights of a `Block` asks the `Solver` of its ancestors
+  up to the first one that is a `Function` (the `LagBFunction` or the
+  `BendersBFunction` whose inner `Block` it is in), which tells those above
+  it of the change as a change of itself; `LagBFunction` takes a
+  `BlockWeightMod` from its inner `Block`, computes the weights of its
+  `Objective` again, writes the Lagrangian costs again with them and
+  issues an `AlphaChanged` `LagBFunctionMod`; `LagBFunction_unit_test`
+  checks it with a `Solver` above the `LagBFunction` that does not handle
+  a change of the weights
+
+- the documentation of `NcMemFile` says that the root group of an image
+  opened again gives its groups and its variables in the order of their
+  names, netCDF-C not tracking the order of creation in the root of a file
+  in memory, while the other groups keep it
+
+- `SMSpp_BUILD_MODULE` is ON by default where the C++20 modules can be built
+  and the compiler is Clang, and OFF elsewhere (MSVC included, where they are
+  built on request): `cmake/CheckModule.cmake` decides it when it is first
+  included, if the option is not given, and then turns off a module that
+  cannot be built with a status message, keeping the warning for an `ON`
+  that was asked for; the makefiles build the modules only on request, as
+  before
+
+- the global module fragment of an interface written by
+  `cmake/smspp_module_exports.py` includes only the headers that no other
+  header of the module includes, e.g., 15 of the 52 of the core in
+  `src/SMSpp.cppm`, while the names are read from all of them as before
+
+- what a Modification changes is a field of `Modification`, which the
+  constructor takes and `changes()`, no longer virtual, returns: a derived
+  class passes its value to the constructor of its base, or sets it in its
+  own with `set_changes()`, instead of overriding `changes()`, and a
+  `GroupModification` keeps the or of its sub-Modification as they are
+  added, and gets that of a GroupModification nested in it when the channel
+  of the latter is closed (`Block::close_channel()`)
+
+- `SMSppMODrule` of `lib/makefile-mod` takes the prefixes of the modules
+  that a module imports (e.g., `MILPS BAXSLV`) in place of their module
+  files, and compiles the interface with the `*INC` of those modules and
+  of the ones they import, so that it finds the headers of its
+  dependencies also when the basic makefile of the module is included
+
+- `SMSpp_BUILD_MODULE` no longer stops the configuration when the C++20
+  module cannot be built: it is turned off with a warning, and the build
+  goes on with the headers; with GCC the module is not built, since GCC (up
+  to 15 at least) refuses the entities of internal linkage (e.g.,
+  `Eigen::Dynamic`) that the headers of Eigen and Boost expose to the
+  templates of a module
+
+- `SMSTypedefs.h` keeps the type definitions and includes three new headers
+  with the rest of what it held, moved there unchanged: `SMSFactory.h`, the
+  macros that insert a class in its factory; `SMSStreams.h`, the
+  `operator<<()`, `operator>>()` and `eatcomments` of pairs, containers and
+  `boost::multi_array`; `SMSnetCDF.h`, the functions that serialize and
+  deserialize to/from netCDF groups, and `NcMemFile`. Including
+  `SMSTypedefs.h` gives all of them as before
+
+- `MasterProblemBlock::CreateEmptyMP()` reads bit 3 (+8) of `DoEasyCmp` as
+  `use_easy_size_variables( false )` and bit 4 (+16) as
+  `use_easy_mirrors( true )`, as `intDoEasy` of BundleSolver now does
+  (formerly bits 4 and 5)
+
+- the functions of `BlockInspection.h` and `Inf()` of `SMSTypedefs.h` are
+  `inline` instead of `static`, so that each translation unit no longer gets
+  a copy of its own and a module can export them
+
+### Removed
+
+- the iterator forms of the methods factory: `Block::MF_dbl_it` and
+  `Block::MF_int_it`, the parameter type lists `MS_dbl_rngd`, `MS_int_rngd`,
+  `MS_dbl_sbst` and `MS_int_sbst`, the maps `MF_dbl_rngd_map`,
+  `MF_int_rngd_map`, `MF_dbl_sbst_map` and `MF_int_sbst_map` and the
+  factories that held them; a setter with data is registered with
+  `MF_dbl_sp` or `MF_int_sp`, i.e., with the lists `MS_sp_D_S`
+
+- the bytecode of `cmake/smspp_module_exports.py`, which had been
+  committed by mistake; `__pycache__/` is ignored
+
+- `RelaxationSolver::classify()` and its `mod_effect`: what a Modification
+  does to the problem is said by the Modification itself
+  [see `Modification::changes()`], which an enumerative Solver can read
+  without asking the RelaxationSolver
+
+### Fixed
+
+- `SimpleDataMapping::set_data()` with an empty SetFrom and a SetTo that is
+  not empty broadcast no value over SetTo dividing by zero; with an empty
+  SetFrom it now does nothing
+
+- `Constraint::clear()` and `ColVariable::is_feasible()` of a `std::list`
+  no longer fail to compile with MSVC, which found the call ambiguous
+  between the overload for `std::list` and the one for any container: the
+  overloads for `std::vector` and `std::list`, which did what the generic
+  ones do, are gone, and the generic ones, as those of
+  `RowConstraint::is_feasible()`, take the container with all its template
+  arguments (e.g., the allocator)
+
+- on Windows, the executables that copy their DLLs next to themselves
+  are linked one at a time (a job pool of Ninja), since two copies of the
+  same DLL into one directory collided (e.g., with the clang++ of MSYS2)
+
+- `Observer.h` and `Solver.h` include `<atomic>`, whose `std::atomic_flag`
+  they use, instead of finding it through other headers: the libc++ of
+  MSYS2 does not include it on their behalf
+
+- the version of a library found by `cmake/FindEigen3.cmake`,
+  `cmake/FindnetCDF.cmake` or `cmake/FindnetCDFCxx.cmake` is kept in the
+  cache, with the include directory it is read from, and read again when that
+  directory changes: a configure that took the paths from the cache left
+  `Eigen3_VERSION`, `netCDF_VERSION` and `netCDFCxx_VERSION` empty
+
+- `cmake/FindEigen3.cmake`, `cmake/FindnetCDF.cmake` and
+  `cmake/FindnetCDFCxx.cmake` drop the cached paths of a library when one of
+  them does not exist any more (e.g., in a build directory configured once
+  outside and once inside a container, or after an upgrade), so that all of
+  them are searched again; the stale include directory was kept, since
+  `find_path()` does not search a cached one again, and the configuration
+  stopped on reading the version from a header that is not there
+
+- `cmake/FindnetCDF.cmake` quotes the properties of `netCDF::netcdf`: with an
+  `HDF5_LIBRARIES` of more than one library (as the HDF5 of Debian and Ubuntu
+  gives) `set_target_properties()` stopped the configuration with an
+  incorrect number of arguments
+
+- `BlockSolverConfig::apply()` deletes the `Solver` it has created when
+  its `ComputeConfig` does not apply (e.g., a parameter the `Solver` does
+  not know), which was lost
+
+- `FRealObjective` and `FRowConstraint` do not ask their `Block` whether
+  to issue the `Modification` of a new `Function` when told `eNoMod`, as
+  their destructors do: an `Objective` or a `Constraint` that a `Block`
+  does not own, deleted after the `Block` by whoever made it, read the
+  `Block` that was gone
+
+- `MetaBlockConfig::set_map()` and `MetaBlockSolverConfig::set_map()`,
+  refusing an entry of the wrong type, wrote its name in the message after
+  deleting the map that held it
+
+- a mirror `AbstractBlock` forgets the dynamic `ColVariable` that the
+  original removes, which it keeps refusing: `set_size_variable()` then
+  read the removed one
+
+- `Block::new_Block()`, `Change::new_Change()`,
+  `Configuration::new_Configuration()`, `Solution::new_Solution()`,
+  `State::new_State()` and `SimpleDataMappingFactory::deserialize()` delete
+  the object they made when its `deserialize()` throws, which was lost
+
+- `SimpleDataMapping::serialize()` writes the name of its method by the
+  `serialize()` of a `std::string`, which hands netCDF the `char *` it
+  wants, instead of the generic one, which handed it the `std::string`
+  itself: with the libc++ of macOS the write crashed
+
+- `LagBFunction::set_default_inner_BlockConfig()` deletes the
+  `OCRBlockConfig` it applies, which was lost
+
+- the target of the core links the threads (`Threads::Threads`, and
+  `find_dependency(Threads)` in its configuration), which the core and
+  FastFlow use and which are not in the C library everywhere: with the
+  clang++ of MSYS2 the DLL of a module that includes FastFlow did not link
+
+- the factories of `Change`, `Solution` and `State` are defined in the
+  source files instead of the headers, so that there is one of each also
+  when the libraries are DLLs of Windows, each of which had a copy of its
+  own: a `Solution` registered in the DLL of a module was not found by the
+  core (e.g., with the compilers of MSYS2)
+
+- `MasterProblemBlock::set_zeroth_quadratic()` and `CreatePrimalMP()` throw
+  `std::logic_error` when the quadratic 0-th component meets a stabilization
+  that is not the proximal one, as its documentation said: with the trust
+  region it was accepted, and the bundle then expected a decrease that the
+  function did not give, stopping by noise reduction with the radius at
+  its maximum
+
+- `MasterProblemBlock::get_conjugate_stabilization()` is 0 at z = 0 under
+  the trust region also when t is infinite, rather than the NaN of an
+  infinite t times a zero norm
+
+- the documentation of `MasterProblemBlock::stabilization_type` says that
+  `CreateDualMP()` builds the trust region too
+
+- `strLogFileName` of `Solver` is kept, and `get_str_par()` returns it: a
+  `ComputeConfig` applied again, or the one restoring the previous
+  parameters, opened the file again and emptied it, and the empty name put
+  a file that is not open as log in place of the one given with `set_log()`
+
+- the constant of a linearization of `LagBFunction`, the last one and those
+  stored in the global pool, is taken from the bound of the inner Solver
+  (the epigraphic one of a convexified primal) only when that bound is the
+  value of the function: an inner Solver stopped at a cutoff with a primal
+  solution put the linearization through its bound, below a concave function
+  (above a convex one), which cut its optimum off and made a Lagrangian dual
+  stop below it; `LagBFunction_unit_test` checks it with an inner Solver
+  stopped at a cutoff
+
+- the constructor of `C05FunctionModLin` checks that the `Variable` and the
+  changes are as many: it compared the sizes of its arguments after moving
+  them into the fields, so that the check never failed
+
+- the names of the parameters of the inner Solver that a `LagBFunction`
+  gives: `[int|dbl|...]_par_str2idx()` shifted the index of the inner
+  Solver the way that leads from the `LagBFunction` to it, and
+  `[int|dbl|...]_par_idx2str()` the other way round (the vector-of-int one
+  with the shift of the double parameters), so that a parameter of the
+  inner Solver that is not one of `Solver` (e.g., `intPDSol` of the
+  `BoxSolver`, 6 there and 11 in the `LagBFunction`) was named by the index
+  of another one, and a `ComputeConfig` of the `LagBFunction` setting it by
+  name set that other parameter (`intNoSol`); `LagBFunction_unit_test`
+  checks the names both ways
+
+- `BendersBFunction::get_linearization_coefficients()` with a
+  `SparseVector` and a `Subset` gave the coefficients with the opposite sign
+  of those of the other three forms; the unit test compares the four forms
+
+- `expected_dims()` and `expected_vars()` of `Block`, `AbstractBlock`,
+  `PolyhedralFunctionBlock`, `PolyhedralFunction` and `AbstractPath` are
+  declared also with `NDEBUG`, which only turns off the check of
+  `Block::deserialize()` that calls them: `NDEBUG` changed the virtual
+  table of `Block`, so that an object compiled with it linked with one
+  compiled without called the wrong virtual method (e.g., a
+  `BlockSolverConfig` attached no Solver)
+
+- `src/SMSpp.cppm` exports `C05SumFunction`, which it did not since the
+  header was added after the interface was written
+
+- `cmake/smspp_module_exports.py` writes the translation unit that it
+  compiles in a directory of its own, since an `#include "..."` is looked
+  for first in the directory of the file that has it, and a header with the
+  name of one of the module left in the temporary directory was taken in its
+  place; it no longer writes an empty namespace, where the only names were
+  classes declared in advance, which made the interface of MILPSolver depend
+  on the backends of the build
+
+- `AbstractBlock` no longer leaks the `Objective` it makes in `read_lp()`,
+  `read_mps()` and `mirror()`, which it now deletes in its destructor and
+  when a model is read over another, nor the two lists of the size
+  `Variable` of `set_size_variable()`, nor the containers of a model read
+  over another one: `reset_static_constraints()` and
+  `reset_static_variables()` of `Block` take `dispose`, false by default,
+  which deletes the containers the `Block` owns too
+
+- `AbstractBlock::read_lp()` reads the power of a quadratic term with blanks
+  around its `^`, as in `x ^2` (the form written by Gurobi, which it refused
+  saying that `""` cannot be the name of a column), `x ^ 2` and `x^ 2`
+
+- `NcMemFile` no longer lets HDF5 print an error for each attribute
+  that netCDF looks for and does not find when an image is read in a thread
+  other than the first one using netCDF (the copies of an `SDDPBlock` in
+  the threads of an `InvestmentFunction` printed hundreds of them): netCDF
+  turns the printing off only in its first thread, while a thread-safe
+  HDF5 keeps it per thread. HDF5 is an optional dependency, found by
+  CMake, and without it nothing changes but the log
+
+- the documentation of `C05Function.h`, `BendersBFunction.h`,
+  `MasterProblemBlock.h` and `QuadFunction.h`: a `\f(` written for f( and
+  the TeX quotes `` ``x'' `` opened a formula or a code span that Doxygen
+  never closed, so that it dropped the rest of the file (the class
+  `C05Function` was missing from the reference) or put the comments in
+  the types of the methods
+
+- `AbstractBlock::read_lp()` gives a column fixed in the Bounds section
+  (`x = v`, or equal lower and upper bounds) the value v: it was fixed at
+  the default value 0, and a MILPSolver took 0 as both its bounds
+
+- `LagBFunction::set_inner_block()` throws, naming the class of the Block,
+  when a Block of the inner Block has an Objective that is neither linear
+  nor quadratic, e.g., a `PolyhedralFunctionBlock` in its natural
+  representation, which it used to read as a `LinearFunction`, with a
+  segmentation fault
+- `MasterProblemBlock`: the rows of an easy `BendersBFunction` absorbed in
+  the primal master keep their sides b_i in the iterate form, where the
+  Variable is x, rather than moving them to A_i x_bar + b_i as in the
+  displacement form, and a change of the stability centre now issues the
+  Modification of the sides, which a Solver attached to the master did not
+  see
+
+- `Block::remove_dynamic_constraints()` and `remove_dynamic_variables()`
+  taking iterators, and `remove_dynamic_constraint()` /
+  `remove_dynamic_variable()`, check the iterators before changing anything
+  when the Modification is issued: unordered ones, or one not in the list,
+  throw `std::invalid_argument` with the list, its items and what they are
+  active in left as they were, rather than half-spliced
+
+- `AbstractBlock::write_lp()` writes the constant term of the Objective and
+  of the rows, which it left out: the constant of the Objective was lost in
+  every netCDF round trip of an AbstractBlock, and a row with a constant
+  term was read back as a different row
+
+- `PolyhedralFunction::serialize()` writes the columns of A also when the
+  function has no active Variable yet, e.g., in a PolyhedralFunctionBlock
+  just deserialized, which was written back with no column and so lost A
+
+- `Block::serialize( std::string , int , false )` throws if the file is there
+  and cannot be opened for appending, leaving it as it was, rather than
+  writing a new file over it; a file that is not there is still created
+
+- `Configuration::serialize( std::string , int , false )`, likewise, throws
+  if the file is there and cannot be opened for appending, rather than
+  writing a new file over it
+
+- `AbstractBlock::write_mps()` writes the constant term of the Objective, as
+  minus the right-hand side of the objective row (as the solvers write it),
+  and moves that of a row to its sides; `read_mps()` reads the right-hand
+  side of the objective row, which it refused, as the constant term of the
+  Objective
+
 ## [0.8.0] - 2026-10-09
 
 ### Added
@@ -1681,7 +2252,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - First test release.
 
-[Unreleased]: https://gitlab.com/smspp/smspp/-/compare/0.8.0...develop
+[Unreleased]: https://gitlab.com/smspp/smspp/-/compare/0.9.0...develop
+[0.9.0]: https://gitlab.com/smspp/smspp/-/compare/0.8.0...0.9.0
 [0.8.0]: https://gitlab.com/smspp/smspp/-/compare/0.7.1...0.8.0
 [0.7.1]: https://gitlab.com/smspp/smspp/-/compare/0.7.0...0.7.1
 [0.7.0]: https://gitlab.com/smspp/smspp/-/compare/0.6.0...0.7.0

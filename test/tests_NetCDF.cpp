@@ -12,7 +12,11 @@
  * variables, are there too. For the :Function that have a State, the State
  * goes the same way, both the one of get_State() and the one written by
  * serialize_State(), and put_State() of what is read back gives a Function
- * with the same global pool.
+ * with the same global pool. A Block with nested Block also goes through
+ * the image of a netCDF file in memory (NcMemFile), before and after its
+ * data are changed, and is compared with the one read from a file on disk;
+ * copy_group() and write_via_memory() are checked against writing in place,
+ * and write_stacked() and read_stacked() against the parts written alone.
  *
  * All of this is done with the core alone: no Solver is needed, since the
  * global pools are filled by compute() for a PolyhedralFunction and by
@@ -40,16 +44,20 @@
 #include "LinearFunction.h"
 #include "OneVarConstraint.h"
 #include "PolyhedralFunctionBlock.h"
+#include "SMSnetCDF.h"
 
 #include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <iostream>
 #include <limits>
 #include <map>
 #include <memory>
 #include <sstream>
+#include <stdexcept>
 #include <tuple>
 #include <vector>
 
@@ -68,6 +76,27 @@ using RealVector = PolyhedralFunction::RealVector;
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ FUNCTIONS ---------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// what the tests give to a Block that the Block does not own, deleted at the
+/// end of main(), after every Block, the last given the first deleted
+
+static std::vector< std::shared_ptr< void > > given;
+
+template< class T >
+static T * kept( T * t )
+{
+ given.emplace_back( t );
+ return( t );
+ }
+
+/// an FRealObjective of b with Function f, to be given to b
+
+static FRealObjective * objective( Block * b , Function * f )
+{
+ return( kept( new FRealObjective( b , f ) ) );
+ }
+
 /*--------------------------------------------------------------------------*/
 
 /// the name of the netCDF file the tests write, removed at the end
@@ -262,11 +291,11 @@ static void test_abstract_block( void )
 {
  AbstractBlock block;
 
- auto x = new std::vector< ColVariable >( 4 );
+ auto x = kept( new std::vector< ColVariable >( 4 ) );
  ( *x )[ 1 ].set_type( ColVariable::kNatural );
  block.add_static_variable( *x , "x" );
 
- auto rows = new std::vector< FRowConstraint >( 3 );
+ auto rows = kept( new std::vector< FRowConstraint >( 3 ) );
  ( *rows )[ 0 ].set_function( linear( *x , { 1 , 2 , 0 , 0 } ) );
  ( *rows )[ 0 ].set_both( 3 );
  ( *rows )[ 1 ].set_function( linear( *x , { 0 , 0 , -3 , 0.5 } ) );
@@ -277,17 +306,16 @@ static void test_abstract_block( void )
  ( *rows )[ 2 ].set_rhs( 4 );
  block.add_static_constraint( *rows , "r" );
 
- auto box = new BoxConstraint( & block , & ( *x )[ 0 ] , -1 , 5 );
+ auto box = kept( new BoxConstraint( & block , & ( *x )[ 0 ] , -1 , 5 ) );
  block.add_static_constraint( *box , "box" );
- auto lb = new LBConstraint( & block , & ( *x )[ 2 ] , -2 );
+ auto lb = kept( new LBConstraint( & block , & ( *x )[ 2 ] , -2 ) );
  block.add_static_constraint( *lb , "lb" );
- auto ub = new UBConstraint( & block , & ( *x )[ 3 ] , 8 );
+ auto ub = kept( new UBConstraint( & block , & ( *x )[ 3 ] , 8 ) );
  block.add_static_constraint( *ub , "ub" );
- auto lb3 = new LBConstraint( & block , & ( *x )[ 3 ] , -4 );
+ auto lb3 = kept( new LBConstraint( & block , & ( *x )[ 3 ] , -4 ) );
  block.add_static_constraint( *lb3 , "lb3" );
 
- auto obj = new FRealObjective( & block ,
-				linear( *x , { 5 , -1 , 2 , 1 } ) );
+ auto obj = objective( & block , linear( *x , { 5 , -1 , 2 , 1 } ) );
  obj->set_sense( Objective::eMax , eNoMod );
  block.set_objective( obj , eNoMod );
 
@@ -316,18 +344,17 @@ static void test_abstract_block( void )
  // written being 0 to it
  {
   AbstractBlock only_ub;
-  auto y = new std::vector< ColVariable >( 1 );
+  auto y = kept( new std::vector< ColVariable >( 1 ) );
   only_ub.add_static_variable( *y , "y" );
-  auto u = new UBConstraint( & only_ub , & ( *y )[ 0 ] , 8 );
+  auto u = kept( new UBConstraint( & only_ub , & ( *y )[ 0 ] , 8 ) );
   only_ub.add_static_constraint( *u , "u" );
-  only_ub.set_objective( new FRealObjective( & only_ub ,
-					     linear( *y , { 1 } ) ) , eNoMod );
+  only_ub.set_objective( objective( & only_ub , linear( *y , { 1 } ) ) ,
+			 eNoMod );
   auto r = round_trip( only_ub );
   assert( r && same( model_of( *r ) , model_of( only_ub ) ) );
   delete r;
   }
 
- // the AbstractBlock owns what was added to it, and deletes it
  std::cout << "rows, bounds and Objective of an AbstractBlock: OK"
 	   << std::endl;
  }
@@ -349,9 +376,9 @@ static void test_empty_abstract_block( void )
   }
  {
   AbstractBlock block;
-  auto x = new std::vector< ColVariable >( 2 );
+  auto x = kept( new std::vector< ColVariable >( 2 ) );
   block.add_static_variable( *x , "x" );
-  auto obj = new FRealObjective( & block , linear( *x , { 1 , -1 } ) );
+  auto obj = objective( & block , linear( *x , { 1 , -1 } ) );
   block.set_objective( obj , eNoMod );
 
   auto read = round_trip( block );
@@ -361,12 +388,11 @@ static void test_empty_abstract_block( void )
  {
   // an empty group of rows
   AbstractBlock block;
-  auto x = new std::vector< ColVariable >( 2 );
+  auto x = kept( new std::vector< ColVariable >( 2 ) );
   block.add_static_variable( *x , "x" );
-  auto rows = new std::vector< FRowConstraint >();
+  auto rows = kept( new std::vector< FRowConstraint >() );
   block.add_static_constraint( *rows , "none" );
-  block.set_objective( new FRealObjective( & block ,
-					   linear( *x , { 2 , 3 } ) ) ,
+  block.set_objective( objective( & block , linear( *x , { 2 , 3 } ) ) ,
 		       eNoMod );
 
   auto read = round_trip( block );
@@ -377,10 +403,9 @@ static void test_empty_abstract_block( void )
  // a column that is in no row and has a zero coefficient in the Objective
  {
   AbstractBlock block;
-  auto x = new std::vector< ColVariable >( 2 );
+  auto x = kept( new std::vector< ColVariable >( 2 ) );
   block.add_static_variable( *x , "x" );
-  block.set_objective( new FRealObjective( & block ,
-					   linear( *x , { 0 , 3 } ) ) ,
+  block.set_objective( objective( & block , linear( *x , { 0 , 3 } ) ) ,
 		       eNoMod );
 
   auto read = round_trip( block );
@@ -391,7 +416,7 @@ static void test_empty_abstract_block( void )
  // columns and no Objective
  {
   AbstractBlock block;
-  auto x = new std::vector< ColVariable >( 2 );
+  auto x = kept( new std::vector< ColVariable >( 2 ) );
   block.add_static_variable( *x , "x" );
 
   auto read = round_trip( block );
@@ -403,9 +428,9 @@ static void test_empty_abstract_block( void )
  // whose coefficients are all zero too: both are written as the constant 0
  {
   AbstractBlock block;
-  auto x = new std::vector< ColVariable >( 2 );
+  auto x = kept( new std::vector< ColVariable >( 2 ) );
   block.add_static_variable( *x , "x" );
-  auto rows = new std::vector< FRowConstraint >( 2 );
+  auto rows = kept( new std::vector< FRowConstraint >( 2 ) );
   ( *rows )[ 0 ].set_function( linear( *x , { 1 , 1 } ) );
   ( *rows )[ 0 ].set_lhs( - Inf< double >() );
   ( *rows )[ 0 ].set_rhs( 4 );
@@ -413,8 +438,7 @@ static void test_empty_abstract_block( void )
   ( *rows )[ 1 ].set_lhs( -1 );
   ( *rows )[ 1 ].set_rhs( Inf< double >() );
   block.add_static_constraint( *rows , "r" );
-  block.set_objective( new FRealObjective( & block ,
-					   linear( *x , { 0 , 0 } ) ) ,
+  block.set_objective( objective( & block , linear( *x , { 0 , 0 } ) ) ,
 		       eNoMod );
 
   auto read = round_trip( block );
@@ -501,6 +525,15 @@ static void test_polyhedral_function_block( void )
   auto & rpf = read->get_PolyhedralFunction();
   check_pf( rpf , pf );
   assert( rpf.get_A()[ 0 ].size() == 3 );
+
+  // what has been read, with no Variable given to it yet, is written as it
+  // was read: the columns of A are those of the matrix
+  auto again = dynamic_cast< PolyhedralFunctionBlock * >(
+						      round_trip( *read ) );
+  assert( again );
+  check_pf( again->get_PolyhedralFunction() , pf );
+  assert( again->get_PolyhedralFunction().get_A()[ 0 ].size() == 3 );
+  delete again;
 
   // the Variable are not part of the format: those given afterwards must
   // be as many as the columns of A
@@ -687,11 +720,11 @@ static AbstractBlock * sub_Block( Index m ,
 				  std::vector< RowConstraint * > & rows )
 {
  auto b = new AbstractBlock();
- auto y = new std::vector< ColVariable >( 2 );
+ auto y = kept( new std::vector< ColVariable >( 2 ) );
  ( *y )[ 0 ].is_positive( true , eNoMod );
  b->add_static_variable( *y , "y" );
 
- auto r = new std::vector< FRowConstraint >( m );
+ auto r = kept( new std::vector< FRowConstraint >( m ) );
  for( Index i = 0 ; i < m ; ++i ) {
   ( *r )[ i ].set_function( linear( *y , { 1.0 + i , -1 } ) );
   ( *r )[ i ].set_lhs( - double( i ) );
@@ -702,8 +735,7 @@ static AbstractBlock * sub_Block( Index m ,
  for( auto & row : *r )
   rows.push_back( & row );
 
- b->set_objective( new FRealObjective( b , linear( *y , { 1 , 2 } ) ) ,
-		   eNoMod );
+ b->set_objective( objective( b , linear( *y , { 1 , 2 } ) ) , eNoMod );
  return( b );
  }
 
@@ -933,10 +965,9 @@ struct Lagrangian {
 
  Lagrangian( int terms = 1 ) {
   inner = new AbstractBlock();
-  x = new std::vector< ColVariable >( 2 );
+  x = kept( new std::vector< ColVariable >( 2 ) );
   inner->add_static_variable( *x , "x" );
-  inner->set_objective( new FRealObjective( inner ,
-					    linear( *x , { 1 , -1 } ) ) ,
+  inner->set_objective( objective( inner , linear( *x , { 1 , -1 } ) ) ,
 			eNoMod );
   f = new LagBFunction( inner );
   LagBFunction::v_dual_pair dp;
@@ -1122,6 +1153,860 @@ static void test_lagrangian_function( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* The constant terms of an AbstractBlock: that of the Objective, positive,
+ * negative and alone, comes back as it is; that of a row comes back moved to
+ * its sides, the row being the same. */
+
+static void test_constants( void )
+{
+ for( double c0 : { 0.25 , -3.5 } ) {
+  AbstractBlock block;
+  auto x = kept( new std::vector< ColVariable >( 2 ) );
+  block.add_static_variable( *x , "x" );
+  block.set_objective( objective( & block , linear( *x , { 1 , -2 } , c0 ) ) ,
+		       eNoMod );
+  auto read = round_trip( block );
+  assert( read && same( model_of( *read ) , model_of( block ) ) );
+  assert( model_of( *read ).obj_const == c0 );
+  delete read;
+  }
+
+ // a constant and no term: every cost is zero
+ {
+  AbstractBlock block;
+  auto x = kept( new std::vector< ColVariable >( 2 ) );
+  block.add_static_variable( *x , "x" );
+  block.set_objective( objective( & block , linear( *x , { 0 , 0 } , 7 ) ) ,
+		       eNoMod );
+  auto read = round_trip( block );
+  assert( read && same( model_of( *read ) , model_of( block ) ) );
+  assert( model_of( *read ).obj_const == 7 );
+  delete read;
+  }
+
+ // 1 <= x0 + x1 + 2 <= 5 is -1 <= x0 + x1 <= 3, and x0 - 0.5 = 1 is x0 = 1.5
+ {
+  AbstractBlock block;
+  auto x = kept( new std::vector< ColVariable >( 2 ) );
+  block.add_static_variable( *x , "x" );
+  auto rows = kept( new std::vector< FRowConstraint >( 2 ) );
+  ( *rows )[ 0 ].set_function( linear( *x , { 1 , 1 } , 2 ) );
+  ( *rows )[ 0 ].set_lhs( 1 );
+  ( *rows )[ 0 ].set_rhs( 5 );
+  ( *rows )[ 1 ].set_function( linear( *x , { 1 , 0 } , -0.5 ) );
+  ( *rows )[ 1 ].set_both( 1 );
+  block.add_static_constraint( *rows , "r" );
+  block.set_objective( objective( & block , linear( *x , { 1 , 1 } ) ) ,
+		       eNoMod );
+
+  auto read = round_trip( block );
+  assert( read );
+  const auto m = model_of( *read );
+  assert( m.rows.size() == 3 );
+  using Row = Model::Row;
+  const std::vector< std::pair< Index , double > > both{ { 0 , 1 } ,
+							 { 1 , 1 } };
+  const std::vector< std::pair< Index , double > > first{ { 0 , 1 } };
+  std::vector< Row > expected{ { both , -1 , Inf< double >() } ,
+			       { both , - Inf< double >() , 3 } ,
+			       { first , 1.5 , 1.5 } };
+  std::sort( expected.begin() , expected.end() );
+  assert( m.rows == expected );
+  read->for_each_constraint_group( [ & ]( const BaseGroup & g ) {
+    for( Index i = 0 ; i < g.get_num_elements() ; ++i )
+     if( auto r = dynamic_cast< const FRowConstraint * >(
+						    g.get_Constraint( i ) ) )
+      assert( static_cast< const LinearFunction * >( r->get_function() )
+	      ->get_constant_term() == 0 );
+    } );
+  delete read;
+  }
+
+ std::cout << "constant terms of an AbstractBlock: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+/* serialize( std::string , int , false ) appends to the file, creating it if
+ * it is not there, and throws if it is there and cannot be appended to,
+ * leaving it as it was rather than writing over it. */
+
+static void test_append_to_file( void )
+{
+ const auto fn = ( std::filesystem::temp_directory_path() /
+		   ( "smspp_NetCDF_test_append_" + std::to_string(
+       std::chrono::steady_clock::now().time_since_epoch().count() ) +
+		     ".nc4" ) ).string();
+
+ AbstractBlock a;
+ auto x = kept( new std::vector< ColVariable >( 1 ) );
+ a.add_static_variable( *x , "x" );
+ a.set_objective( objective( & a , linear( *x , { 2 } ) ) , eNoMod );
+ AbstractBlock b;
+ auto y = kept( new std::vector< ColVariable >( 2 ) );
+ b.add_static_variable( *y , "y" );
+ b.set_objective( objective( & b , linear( *y , { 1 , 3 } ) ) , eNoMod );
+
+ // not there: created
+ std::filesystem::remove( fn );
+ a.Block::serialize( fn , eBlockFile , false );
+ b.Block::serialize( fn , eBlockFile , false );
+ {
+  netCDF::NcFile f( fn , netCDF::NcFile::read );
+  auto r0 = Block::deserialize( f , 0 );
+  auto r1 = Block::deserialize( f , 1 );
+  assert( r0 && same( model_of( *r0 ) , model_of( a ) ) );
+  assert( r1 && same( model_of( *r1 ) , model_of( b ) ) );
+  assert( ! Block::deserialize( f , 2 ) );
+  delete r0;
+  delete r1;
+  }
+
+ // there and not a netCDF file: an exception, and the file as it was
+ {
+  std::ofstream out( fn , std::ios::trunc );
+  out << "not a netCDF file" << std::endl;
+  }
+ bool thrown = false;
+ try { a.Block::serialize( fn , eBlockFile , false ); }
+ catch( std::runtime_error & e ) {
+  thrown = ( std::string( e.what() ).rfind( "Block::serialize: " , 0 ) == 0 );
+  }
+ assert( thrown );
+ {
+  std::ifstream in( fn );
+  std::string line;
+  std::getline( in , line );
+  assert( line == "not a netCDF file" );
+  }
+
+ std::filesystem::remove( fn );
+ std::cout << "appending to a file: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+/* A Block written to the image of a netCDF file in memory and read back
+ * from it: an AbstractBlock with its rows, bounds and Objective and two
+ * nested Block, an AbstractBlock and a PolyhedralFunctionBlock. The image
+ * gives the same Block as the file serialize( std::string ) writes, it is a
+ * netCDF file that can be written to disk and read from there, and the
+ * bytes of a file read from disk are an image; writing the same Block twice
+ * gives the same bytes; a Block
+ * changed after it was built is read back with the changes, which is how a
+ * copy of a Block as it is now is made; the Block of an image of type
+ * eBlockFile are appended and read by position; and what is not an image,
+ * or not the image of an SMS++ file, gives no Block. */
+
+/// the AbstractBlock of the in-memory tests, with its two nested Block
+
+static AbstractBlock * memory_block( std::vector< ColVariable > & y )
+{
+ auto block = new AbstractBlock;
+
+ auto x = kept( new std::vector< ColVariable >( 4 ) );
+ ( *x )[ 1 ].set_type( ColVariable::kNatural );
+ block->add_static_variable( *x , "x" );
+
+ auto rows = kept( new std::vector< FRowConstraint >( 3 ) );
+ ( *rows )[ 0 ].set_function( linear( *x , { 1 , 2 , 0 , 0 } ) );
+ ( *rows )[ 0 ].set_both( 3 );
+ ( *rows )[ 1 ].set_function( linear( *x , { 0 , 0 , -3 , 0.5 } ) );
+ ( *rows )[ 1 ].set_lhs( - Inf< double >() );
+ ( *rows )[ 1 ].set_rhs( 7 );
+ ( *rows )[ 2 ].set_function( linear( *x , { 1 , 0 , -1 , 0 } ) );
+ ( *rows )[ 2 ].set_lhs( 1 );
+ ( *rows )[ 2 ].set_rhs( 4 );
+ block->add_static_constraint( *rows , "r" );
+
+ auto box = kept( new BoxConstraint( block , & ( *x )[ 0 ] , -1 , 5 ) );
+ block->add_static_constraint( *box , "box" );
+
+ auto obj = objective( block , linear( *x , { 5 , -1 , 2 , 1 } ) );
+ obj->set_sense( Objective::eMax , eNoMod );
+ block->set_objective( obj , eNoMod );
+
+ auto inner = new AbstractBlock( block );
+ auto z = kept( new std::vector< ColVariable >( 2 ) );
+ inner->add_static_variable( *z , "z" );
+ auto irows = kept( new std::vector< FRowConstraint >( 1 ) );
+ ( *irows )[ 0 ].set_function( linear( *z , { 1 , 1 } ) );
+ ( *irows )[ 0 ].set_lhs( - Inf< double >() );
+ ( *irows )[ 0 ].set_rhs( 4 );
+ inner->add_static_constraint( *irows , "r" );
+ inner->set_objective( objective( inner , linear( *z , { 0 , 1 } ) ) ,
+		       eNoMod );
+ block->add_nested_Block( inner );
+
+ auto pfb = new PolyhedralFunctionBlock( block );
+ auto & pf = pfb->get_PolyhedralFunction();
+ pf.set_variables( { & y[ 0 ] , & y[ 1 ] , & y[ 2 ] } );
+ pf.set_PolyhedralFunction( { { 1 , 2 , 0 } , { -3 , 0.5 , 4 } } ,
+			    { 0 , 1.5 } , -10 , true , eNoMod );
+ block->add_nested_Block( pfb );
+
+ return( block );
+ }
+
+/// the models of an AbstractBlock and of its nested AbstractBlock
+
+static std::vector< Model > models_of( const Block & b )
+{
+ std::vector< Model > m{ model_of( b ) };
+ for( auto nb : b.get_nested_Blocks() )
+  if( dynamic_cast< const AbstractBlock * >( nb ) &&
+      ( ! dynamic_cast< const PolyhedralFunctionBlock * >( nb ) ) )
+   m.push_back( model_of( *nb ) );
+ return( m );
+ }
+
+/// true if a and b have the same models and the same PolyhedralFunction
+
+static bool same_block( Block & a , Block & b )
+{
+ const auto ma = models_of( a );
+ const auto mb = models_of( b );
+ if( ma.size() != mb.size() )
+  return( false );
+ for( std::size_t i = 0 ; i < ma.size() ; ++i )
+  if( ! same( ma[ i ] , mb[ i ] ) )
+   return( false );
+ if( a.get_number_nested_Blocks() != b.get_number_nested_Blocks() )
+  return( false );
+ auto pa = dynamic_cast< PolyhedralFunctionBlock * >(
+					       a.get_nested_Blocks().back() );
+ auto pb = dynamic_cast< PolyhedralFunctionBlock * >(
+					       b.get_nested_Blocks().back() );
+ if( ( ! pa ) || ( ! pb ) )
+  return( false );
+ auto & fa = pa->get_PolyhedralFunction();
+ auto & fb = pb->get_PolyhedralFunction();
+ return( ( fa.get_A() == fb.get_A() ) && ( fa.get_b() == fb.get_b() ) &&
+	 ( fa.is_convex() == fb.is_convex() ) &&
+	 ( fa.get_global_bound() == fb.get_global_bound() ) );
+ }
+
+/// the bytes of a file
+
+static NcMemFile::Image bytes_of( const std::string & name )
+{
+ std::ifstream in( name , std::ios::binary );
+ return( NcMemFile::Image( std::istreambuf_iterator< char >( in ) ,
+			   std::istreambuf_iterator< char >() ) );
+ }
+
+static void test_in_memory( void )
+{
+ std::vector< ColVariable > y( 3 );
+ auto block = memory_block( y );
+
+ // the round trip through memory gives the same Block
+ NcMemFile::Image image;
+ block->Block::serialize( image );
+ assert( ! image.empty() );
+ const auto image0 = image;
+
+ auto read = Block::deserialize( image );
+ assert( dynamic_cast< AbstractBlock * >( read ) );
+ assert( same_block( *read , *block ) );
+ assert( read->get_nested_Blocks()[ 0 ]->get_f_Block() == read );
+
+ // the bytes are read where they are, and left as they were
+ assert( image == image0 );
+ delete read;
+
+ // writing the same Block again gives the same bytes
+ NcMemFile::Image twice;
+ block->Block::serialize( twice );
+ assert( twice == image );
+
+ // the file serialize( std::string ) writes gives the same Block
+ block->Block::serialize( nc_file() , eProbFile );
+ auto from_file = Block::deserialize( nc_file() );
+ assert( from_file && same_block( *from_file , *block ) );
+ delete from_file;
+
+ // the image is a netCDF file: written to disk, it is read from there
+ {
+  std::ofstream out( nc_file() , std::ios::binary | std::ios::trunc );
+  out.write( reinterpret_cast< const char * >( image.data() ) ,
+	     image.size() );
+  }
+ auto from_disk = Block::deserialize( nc_file() );
+ assert( from_disk && same_block( *from_disk , *block ) );
+ delete from_disk;
+ block->Block::serialize( nc_file() , eProbFile );
+
+ // the bytes of a file written on disk are read from memory as well
+ auto from_bytes = Block::deserialize( bytes_of( nc_file() ) );
+ assert( from_bytes && same_block( *from_bytes , *block ) );
+ delete from_bytes;
+
+ // a Block changed after it was built: its image is a copy of it as it is
+ // now, with the changes and with no Modification to be copied
+ const auto before = models_of( *block );
+ auto & x = *block->get_static_variable_v< ColVariable >( "x" );
+ auto & r = *block->get_static_constraint_v< FRowConstraint >( "r" );
+ r[ 1 ].set_rhs( 2 );
+ static_cast< LinearFunction * >( r[ 2 ].get_function() )
+					       ->modify_coefficient( 1 , -5 );
+ auto box = block->get_static_constraint< BoxConstraint >( "box" );
+ assert( box );
+ box->set_rhs( 3 );
+ block->get_objective()->set_sense( Objective::eMin );
+ auto & ir = *block->get_nested_Blocks()[ 0 ]->
+		      get_static_constraint_v< FRowConstraint >( "r" );
+ ir[ 0 ].set_rhs( 9 );
+ auto & pf = static_cast< PolyhedralFunctionBlock * >(
+		  block->get_nested_Blocks()[ 1 ] )->get_PolyhedralFunction();
+ pf.modify_constant( 0 , -7 );
+ pf.add_row( { 0 , 0 , 1 } , 2 );
+ x[ 3 ].set_type( ColVariable::kInteger );
+
+ const auto after = models_of( *block );
+ assert( ! same( after[ 0 ] , before[ 0 ] ) );
+ assert( ! same( after[ 1 ] , before[ 1 ] ) );
+
+ NcMemFile::Image changed;
+ block->Block::serialize( changed );
+ assert( changed != image0 );
+ auto copy = Block::deserialize( changed );
+ assert( copy && same_block( *copy , *block ) );
+ const auto cm = models_of( *copy );
+ assert( cm[ 0 ].integer[ 3 ] && ( cm[ 0 ].ub[ 0 ] == 3 ) );
+ assert( cm[ 0 ].sense == Objective::eMin );
+ auto & cpf = static_cast< PolyhedralFunctionBlock * >(
+		   copy->get_nested_Blocks()[ 1 ] )->get_PolyhedralFunction();
+ assert( ( cpf.get_nrows() == 3 ) && ( cpf.get_b()[ 0 ] == -7 ) );
+
+ // the copy is a Block of its own: changing it leaves the original alone
+ cpf.modify_constant( 1 , 5 );
+ assert( pf.get_b()[ 1 ] == 1.5 );
+ assert( same( models_of( *block )[ 0 ] , after[ 0 ] ) );
+ delete copy;
+
+ // and writing the changed Block again gives the same bytes again
+ NcMemFile::Image changed2;
+ block->Block::serialize( changed2 );
+ assert( changed2 == changed );
+
+ // two images opened at the same time
+ {
+  NcMemFile f1( image0 );
+  NcMemFile f2( changed );
+  auto b1 = Block::deserialize( f1 );
+  auto b2 = Block::deserialize( f2 );
+  assert( b1 && b2 && same_block( *b2 , *block ) );
+  assert( same( models_of( *b1 )[ 0 ] , before[ 0 ] ) );
+  delete b1;
+  delete b2;
+  }
+
+ // eBlockFile: several Block written in the same NcMemFile, and read from
+ // the image by their position
+ {
+  AbstractBlock small;
+  auto v = kept( new std::vector< ColVariable >( 2 ) );
+  small.add_static_variable( *v , "v" );
+  small.set_objective( objective( & small , linear( *v , { 1 , -1 } ) ) ,
+		       eNoMod );
+
+  NcMemFile f;
+  f.putAtt( "SMS++_file_type" , netCDF::NcInt() , eBlockFile );
+  block->Block::serialize( f , eBlockFile );
+  small.Block::serialize( f , eBlockFile );
+  NcMemFile::Image many;
+  f.close( many );
+
+  auto b0 = Block::deserialize( many , 0 );
+  auto b1 = Block::deserialize( many , 1 );
+  assert( b0 && same_block( *b0 , *block ) );
+  assert( b1 && same( model_of( *b1 ) , model_of( small ) ) );
+  assert( ! Block::deserialize( many , 2 ) );
+  delete b0;
+  delete b1;
+
+  // serialize( image ) starts a new image, with the Block alone
+  small.Block::serialize( many , eBlockFile );
+  auto only = Block::deserialize( many , 0 );
+  assert( only && same( model_of( *only ) , model_of( small ) ) );
+  assert( ! Block::deserialize( many , 1 ) );
+  delete only;
+  }
+
+ // what is not an image gives no Block, and a wrong type throws leaving
+ // the image as it was
+ {
+  NcMemFile::Image junk( 100 , 7 );
+  assert( ! Block::deserialize( junk ) );
+  assert( ! Block::deserialize( NcMemFile::Image() ) );
+
+  NcMemFile::Image kept( image0 );
+  bool thrown = false;
+  try { block->Block::serialize( kept , 7 ); }
+  catch( std::invalid_argument & ) { thrown = true; }
+  assert( thrown && ( kept == image0 ) );
+
+  // a netCDF image with no SMS++_file_type is not an SMS++ file
+  NcMemFile f;
+  f.addGroup( "Block_0" );
+  NcMemFile::Image plain;
+  f.close( plain );
+  assert( ! plain.empty() );
+  assert( ! Block::deserialize( plain ) );
+  thrown = false;
+  try { f.close( plain ); }
+  catch( std::logic_error & ) { thrown = true; }
+  assert( thrown );
+
+  thrown = false;
+  try { NcMemFile g( junk ); }
+  catch( netCDF::exceptions::NcException & ) { thrown = true; }
+  assert( thrown );
+  }
+
+ // NcMemFile on its own: any netCDF content, read back from the image,
+ // whose bytes are left as they were also when the file is closed with
+ // close( Image & )
+ {
+  NcMemFile f;
+  auto d = f.addDim( "n" , 3 );
+  auto var = f.addVar( "v" , netCDF::ncDouble , d );
+  const double v[] = { 1.5 , -2 , 3 };
+  var.putVar( v );
+  f.putAtt( "a" , netCDF::NcInt() , 4 );
+  NcMemFile::Image img;
+  f.close( img );
+  const auto img0 = img;
+
+  NcMemFile h( img );
+  double rv[ 3 ];
+  h.getVar( "v" ).getVar( rv );
+  assert( ( rv[ 0 ] == 1.5 ) && ( rv[ 1 ] == -2 ) && ( rv[ 2 ] == 3 ) );
+  int a = 0;
+  h.getAtt( "a" ).getValues( & a );
+  assert( a == 4 );
+  NcMemFile::Image back;
+  h.close( back );
+  assert( ( img == img0 ) && ( back == img0 ) );
+  }
+
+ delete block;
+ std::cout << "Block in memory: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+/* copy_group() and write_via_memory() give what writing in place gives: the
+ * same groups, dimensions, variables and attributes, in the same order,
+ * whatever their types (strings, scalars, a dimension of length 0, an
+ * unlimited one) and however many the sub-groups (enough of them for an
+ * order by name to differ from the order of creation); a dimension of an
+ * ancestor of the copied group is found by name in the destination, and its
+ * absence throws, as a variable of a user-defined type does; a copy that
+ * would take a file over the groups netCDF-C can hold throws and copies
+ * nothing. */
+
+// writes in g a part with some of everything, i telling the parts apart:
+// in the values, and in an attribute if index
+
+static void write_part( netCDF::NcGroup & g , int i , bool index = true )
+{
+ g.putAtt( "type" , "Part" );
+ if( index )
+  g.putAtt( "index" , netCDF::NcInt() , i );
+
+ auto t = g.addDim( "T" , 5 );
+ auto z = g.addDim( "Z" , 0 );
+ auto u = g.addDim( "U" );  // unlimited
+
+ const double x[] = { 1.5 + i , -2 , 3 , 0 , 1e-300 };
+ auto vx = g.addVar( "x" , netCDF::NcDouble() , t );
+ vx.putVar( x );
+ vx.putAtt( "unit" , "MW" );
+ vx.putAtt( "scale" , netCDF::NcDouble() , 0.5 );
+
+ g.addVar( "k" , netCDF::NcInt() ).putVar( & i );
+ g.addVar( "z" , netCDF::NcDouble() , z );
+
+ const char * s[] = { "a" , "" , "ccc" , "dd" , "e" };
+ g.addVar( "s" , netCDF::NcString() , t ).putVar( s );
+
+ const double m[] = { 1 , 2 , 3 , 4 , 5 , 6 , 7 , 8 , 9 , 10 };
+ g.addVar( "m" , netCDF::NcDouble() , { t , g.addDim( "R" , 2 ) } )
+  .putVar( { 0 , 0 } , { 5 , 2 } , m );
+
+ const int w[] = { 7 , 8 , 9 };
+ g.addVar( "w" , netCDF::NcInt() , u ).putVar( { 0 } , { 3 } , w );
+
+ for( int j = 0 ; j < 12 ; ++j ) {
+  auto sg = g.addGroup( "Sub_" + std::to_string( j ) );
+  sg.putAtt( "type" , "Sub" );
+  auto n = sg.addDim( "N" , 2 );
+  const double v[] = { double( i ) , double( j ) };
+  sg.addVar( "v" , netCDF::NcDouble() , n ).putVar( v );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+// a text with everything in grp, in the order netCDF gives it
+
+static void dump( int grp , std::ostream & out )
+{
+ char name[ NC_MAX_NAME + 1 ];
+ nc_inq_grpname( grp , name );
+ out << "group " << name << "\n";
+
+ auto atts = [ & ]( int var ) {
+  int na = 0;
+  nc_inq_varnatts( grp , var , & na );
+  for( int a = 0 ; a < na ; ++a ) {
+   nc_type type;
+   std::size_t len;
+   nc_inq_attname( grp , var , a , name );
+   nc_inq_att( grp , var , name , & type , & len );
+   out << " att " << name << " " << type << " " << len << ":";
+   if( type == NC_CHAR ) {
+    std::string v( len , ' ' );
+    nc_get_att_text( grp , var , name , v.data() );
+    out << v;
+    }
+   else {
+    std::vector< double > v( len );
+    nc_get_att_double( grp , var , name , v.data() );
+    for( auto d : v )
+     out << " " << d;
+    }
+   out << "\n";
+   }
+  };
+ atts( NC_GLOBAL );
+
+ int nd = 0;
+ nc_inq_dimids( grp , & nd , nullptr , 0 );
+ std::vector< int > dims( nd );
+ nc_inq_dimids( grp , & nd , dims.data() , 0 );
+ int nu = 0;
+ nc_inq_unlimdims( grp , & nu , nullptr );
+ std::vector< int > unlim( nu );
+ nc_inq_unlimdims( grp , & nu , unlim.data() );
+ for( auto d : dims ) {
+  std::size_t len;
+  nc_inq_dim( grp , d , name , & len );
+  out << " dim " << name << " " << len
+      << ( std::ranges::find( unlim , d ) != unlim.end() ? " unlimited" : "" )
+      << "\n";
+  }
+
+ int nv = 0;
+ nc_inq_varids( grp , & nv , nullptr );
+ std::vector< int > vars( nv );
+ nc_inq_varids( grp , & nv , vars.data() );
+ for( auto v : vars ) {
+  nc_type type;
+  int ndims;
+  int vdims[ NC_MAX_VAR_DIMS ];
+  nc_inq_var( grp , v , name , & type , & ndims , vdims , nullptr );
+  out << " var " << name << " " << type;
+  std::size_t n = 1;
+  for( int k = 0 ; k < ndims ; ++k ) {
+   char dn[ NC_MAX_NAME + 1 ];
+   std::size_t len;
+   nc_inq_dim( grp , vdims[ k ] , dn , & len );
+   out << " " << dn;
+   n *= len;
+   }
+  out << ":";
+  if( type == NC_STRING ) {
+   std::vector< char * > s( n );
+   if( n )
+    nc_get_var_string( grp , v , s.data() );
+   for( auto c : s )
+    out << " '" << c << "'";
+   nc_free_string( n , s.data() );
+   }
+  else {
+   std::vector< double > d( n );
+   if( n )
+    nc_get_var_double( grp , v , d.data() );
+   for( auto e : d )
+    out << " " << e;
+   }
+  out << "\n";
+  atts( v );
+  }
+
+ int ng = 0;
+ nc_inq_grps( grp , & ng , nullptr );
+ std::vector< int > grps( ng );
+ nc_inq_grps( grp , & ng , grps.data() );
+ for( auto g : grps )
+  dump( g , out );
+ }
+
+static std::string dump( const netCDF::NcGroup & g )
+{
+ std::ostringstream out;
+ dump( g.getId() , out );
+ return( out.str() );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+static void test_copy_group( void )
+{
+ const auto base = std::filesystem::temp_directory_path() /
+  ( "smspp_NetCDF_test_copy_" + std::to_string(
+    std::chrono::steady_clock::now().time_since_epoch().count() ) );
+ const auto fa = base.string() + "_a.nc4";
+ const auto fb = base.string() + "_b.nc4";
+
+ // 15 parts, written in place and by way of memory: the same file, also
+ // once it is read back from disk
+ std::vector< std::string > names;
+ for( int i = 0 ; i < 15 ; ++i )
+  names.push_back( "Part_" + std::to_string( i ) );
+ {
+  netCDF::NcFile a( fa , netCDF::NcFile::replace );
+  for( int i = 0 ; i < 15 ; ++i ) {
+   auto g = a.addGroup( names[ i ] );
+   write_part( g , i );
+   }
+  netCDF::NcFile b( fb , netCDF::NcFile::replace );
+  write_via_memory( b , names , [ & ]( std::size_t i , netCDF::NcGroup & g ) {
+		     write_part( g , int( i ) ); } );
+  assert( dump( a ) == dump( b ) );
+  }
+ {
+  netCDF::NcFile a( fa , netCDF::NcFile::read );
+  netCDF::NcFile b( fb , netCDF::NcFile::read );
+  assert( dump( a ) == dump( b ) );
+  assert( dump( a ).find( "group Sub_11" ) > dump( a ).find( "group Sub_2" ) );
+  }
+
+ // no parts: nothing written
+ {
+  NcMemFile f;
+  write_via_memory( f , {} , []( std::size_t , netCDF::NcGroup & ) {
+		     assert( false ); } );
+  assert( f.getGroupCount() == 0 );
+  }
+
+ // a dimension of an ancestor of the copied group is found by name in the
+ // destination and in its ancestors, and its absence throws
+ {
+  NcMemFile from;
+  auto n = from.addDim( "N" , 3 );
+  auto g = from.addGroup( "G" );
+  const double v[] = { 1 , 2 , 3 };
+  g.addVar( "v" , netCDF::NcDouble() , n ).putVar( v );
+
+  NcMemFile to;
+  to.addDim( "N" , 3 );
+  auto h = to.addGroup( "H" ).addGroup( "K" );
+  copy_group( g , h );
+  double r[ 3 ];
+  h.getVar( "v" ).getVar( r );
+  assert( ( r[ 0 ] == 1 ) && ( r[ 1 ] == 2 ) && ( r[ 2 ] == 3 ) );
+  assert( h.getVar( "v" ).getDim( 0 ).getSize() == 3 );
+
+  NcMemFile none;
+  auto k = none.addGroup( "K" );
+  bool thrown = false;
+  try { copy_group( g , k ); }
+  catch( netCDF::exceptions::NcException & ) { thrown = true; }
+  assert( thrown );
+  }
+
+ // a variable of a user-defined type throws
+ {
+  // with the C API, netCDF::NcGroup::addVlenType() throwing on its own
+  // type in netcdf-cxx4 4.3.1
+  NcMemFile from;
+  nc_type vl;
+  int w;
+  nc_def_vlen( from.getId() , "vl" , NC_INT , & vl );
+  nc_def_var( from.getId() , "w" , vl , 0 , nullptr , & w );
+  NcMemFile to;
+  bool thrown = false;
+  try { copy_group( from , to ); }
+  catch( std::invalid_argument & ) { thrown = true; }
+  assert( thrown );
+  }
+
+ // the groups of a file: a copy that would take it over 32767 throws, and
+ // the file keeps what it had
+ {
+  NcMemFile to;
+  for( int j = 1 ; j < 32760 ; ++j )
+   to.addGroup( "G_" + std::to_string( j ) );
+  NcMemFile from;
+  for( int j = 0 ; j < 8 ; ++j )
+   from.addGroup( "S_" + std::to_string( j ) );
+  auto before = to.getGroupCount();
+  bool thrown = false;
+  try { copy_group( from , to ); }
+  catch( std::length_error & ) { thrown = true; }
+  assert( thrown && ( to.getGroupCount() == before ) );
+
+  // one group fewer fits exactly, the root included
+  NcMemFile fits;
+  for( int j = 0 ; j < 7 ; ++j )
+   fits.addGroup( "S_" + std::to_string( j ) );
+  copy_group( fits , to );
+  assert( to.getGroupCount() == before + 7 );
+  }
+
+ std::filesystem::remove( fa );
+ std::filesystem::remove( fb );
+ std::cout << "copy_group and write_via_memory: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+/* write_stacked() writes identical parts (differing in the values of their
+ * variables only) as one group with the dimension stacked_dimension in
+ * front of every variable, and read_stacked() gives back each of them as it
+ * was written, strings, scalars, an empty and an
+ * unlimited dimension included, and so does it with a stack nested in the
+ * parts, whose dimension has another name; parts of several trees are written in one stack per tree, with
+ * the index of where each part is; parts whose root has a dimension
+ * stacked_dimension are written as write_via_memory() writes them; parts that together take more groups than a file holds fit
+ * in one when stacked; a part out of the stack throws. */
+
+static void test_stacked( void )
+{
+ // the 15 parts of write_part(), each as it is written in place
+ std::vector< std::string > names;
+ std::vector< std::string > alone;
+ for( int i = 0 ; i < 15 ; ++i ) {
+  names.push_back( "Part_" + std::to_string( i ) );
+  NcMemFile f;
+  auto g = f.addGroup( "part" );
+  write_part( g , i , false );
+  alone.push_back( dump( g ) );
+  }
+
+ {
+  NcMemFile f;
+  assert( write_stacked( f , "Parts" , names ,
+			 [ & ]( std::size_t i , netCDF::NcGroup & g ) {
+			  write_part( g , int( i ) , false ); } ) );
+  auto s = f.getGroup( "Parts" );
+  assert( f.getGroupCount() == 1 );
+  assert( stacked_size( s ) == 15 );
+  assert( s.getVar( "x" ).getDim( 0 ).getName() == stacked_dimension );
+  for( std::size_t i = 0 ; i < 15 ; ++i )
+   read_stacked( s , i , [ & ]( const netCDF::NcGroup & g ) {
+    assert( dump( g ) == alone[ i ] ); } );
+  bool thrown = false;
+  try { read_stacked( s , 15 , []( const netCDF::NcGroup & ) {} ); }
+  catch( std::out_of_range & ) { thrown = true; }
+  assert( thrown );
+  assert( stacked_size( f ) == 0 );
+  }
+
+ // parts of three trees, mixed: one stack per tree, in the order of their
+ // first part, and each part given back as it was written
+ {
+  auto write = [ & ]( std::size_t i , netCDF::NcGroup & g ) {
+   write_part( g , int( i ) , false );
+   if( i % 3 == 1 )
+    g.addVar( "extra" , netCDF::NcInt() );
+   if( i % 3 == 2 )
+    g.addGroup( "More" ).addDim( "M" , i );
+   };
+  NcMemFile f;
+  assert( write_stacked( f , "Parts" , names , write ) );
+  auto s = f.getGroup( "Parts" );
+  assert( ( f.getGroupCount() == 1 ) && ( stacked_size( s ) == 15 ) );
+  assert( stacked_size( s.getGroup( "Stack_0" ) ) == 5 );
+  assert( stacked_size( s.getGroup( "Stack_1" ) ) == 5 );
+  assert( s.getGroup( "Stack_1" ).getVar( "extra" ).getDimCount() == 1 );
+  // the dimension M differs in length, so every part with More is apart
+  assert( s.getGroupCount() == 2 + 5 );
+  for( std::size_t i = 0 ; i < 15 ; ++i )
+   read_stacked( s , i , [ & ]( const netCDF::NcGroup & g ) {
+    NcMemFile e;
+    auto r = e.addGroup( "part" );
+    write( i , r );
+    assert( dump( g ) == dump( r ) ); } );
+  }
+
+ // no parts: nothing written
+ {
+  NcMemFile f;
+  assert( ! write_stacked( f , "Parts" , {} ,
+			   []( std::size_t , netCDF::NcGroup & ) {} ) );
+  assert( f.getGroupCount() == 0 );
+  }
+
+ // parts whose root already has the dimension: the parts as they are
+ {
+  NcMemFile f;
+  assert( ! write_stacked( f , "Parts" , { "A" , "B" } ,
+			   [ & ]( std::size_t , netCDF::NcGroup & g ) {
+			    g.addDim( stacked_dimension , 2 ); } ) );
+  assert( f.getGroupCount() == 2 );
+  }
+
+ // parts with a stack nested in them: stacked, each part given back with
+ // its nested stack, and each element of this as it was written
+ {
+  auto write = [ & ]( std::size_t i , netCDF::NcGroup & g ) {
+   g.putAtt( "type" , "Outer" );
+   write_stacked( g , "Inner" , { "a" , "b" , "c" } ,
+		  [ & ]( std::size_t j , netCDF::NcGroup & h ) {
+		   write_part( h , int( 10 * i + j ) , false ); } );
+   };
+  NcMemFile f;
+  assert( write_stacked( f , "Parts" , names , write ) );
+  auto s = f.getGroup( "Parts" );
+  assert( s.getVar( "x" ).isNull() );
+  // the two dimensions of the stacks have different names, the outer one
+  // first
+  auto x = s.getGroup( "Inner" ).getVar( "x" );
+  assert( ( x.getDimCount() == 3 ) && ( x.getDim( 0 ).getSize() == 15 ) &&
+	  ( x.getDim( 1 ).getSize() == 3 ) );
+  assert( ( x.getDim( 0 ).getName() == std::string( stacked_dimension ) +
+	    "_1" ) && ( x.getDim( 1 ).getName() == stacked_dimension ) );
+  assert( stacked_size( s ) == 15 );
+  for( std::size_t i = 0 ; i < 15 ; ++i )
+   read_stacked( s , i , [ & ]( const netCDF::NcGroup & g ) {
+    auto inner = g.getGroup( "Inner" );
+    assert( stacked_size( inner ) == 3 );
+    for( std::size_t j = 0 ; j < 3 ; ++j )
+     read_stacked( inner , j , [ & ]( const netCDF::NcGroup & h ) {
+      NcMemFile e;
+      auto r = e.addGroup( "part" );
+      write_part( r , int( 10 * i + j ) , false );
+      assert( dump( h ) == dump( r ) ); } );
+    } );
+  }
+
+ // 40 parts of 1000 groups each: 40040 groups written apart, which no file
+ // holds, and 1001 stacked
+ {
+  std::vector< std::string > many;
+  for( int i = 0 ; i < 40 ; ++i )
+   many.push_back( "P_" + std::to_string( i ) );
+  auto write = [ & ]( std::size_t i , netCDF::NcGroup & g ) {
+   for( int j = 0 ; j < 1000 ; ++j ) {
+    auto sg = g.addGroup( "U_" + std::to_string( j ) );
+    const double v = double( i ) + j;
+    sg.addVar( "v" , netCDF::NcDouble() ).putVar( & v );
+    }
+   };
+  NcMemFile f;
+  assert( write_stacked( f , "Parts" , many , write ) );
+  auto s = f.getGroup( "Parts" );
+  assert( s.getGroupCount() == 1000 );
+  read_stacked( s , 39 , [ & ]( const netCDF::NcGroup & g ) {
+   double v;
+   g.getGroup( "U_999" ).getVar( "v" ).getVar( & v );
+   assert( v == 39 + 999 ); } );
+  }
+
+ std::cout << "write_stacked and read_stacked: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
 /*----------------------------------- MAIN ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1134,6 +2019,14 @@ int main( void )
  test_benders_function();
  test_benders_state();
  test_lagrangian_function();
+ test_constants();
+ test_append_to_file();
+ test_in_memory();
+ test_copy_group();
+ test_stacked();
+
+ while( ! given.empty() )
+  given.pop_back();
 
  std::filesystem::remove( nc_file() );
 

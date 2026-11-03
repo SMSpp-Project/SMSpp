@@ -109,6 +109,11 @@ Unit tests for the core SMS++ library. Each test is registered as a separate
   the rows added, modified and deleted with the Modification they issue, the
   sides written by `compute()` over a box inner Block solved by `BoxSolver`,
   and the serialization with the matrix in dense and sparse form.
+- `BranchingRule_unit_test` covers the components of `BranchingRule.h`
+  against values computed by hand: the features of the candidates, the
+  product score of strong branching (ties, empty children, both senses, its
+  CSV), the perceptron read from a file, the pseudocosts with the estimates
+  they give and their learned priors, and the files that are not a model.
 - `Misc_unit_test` covers `GlobalInformation`, `SimpleDataMapping`, `Change`
   and `GroupChange`, `BoxSolver` (box LPs and QPs in both senses, empty
   boxes, unbounded directions, dual values), `UpdateSolver`, and what the
@@ -121,7 +126,10 @@ Unit tests for the core SMS++ library. Each test is registered as a separate
   empty cases included, the LP files `read_lp()` has to refuse, and those of
   the `State` of the `PolyhedralFunction`, of the `BendersBFunction` and of
   the `LagBFunction`, both the one of `get_State()` and the one written by
-  `serialize_State()`.
+  `serialize_State()`; and the round trip of a `Block` with nested `Block`
+  through the image of a netCDF file in memory (`NcMemFile`), against the
+  one through a file on disk, before and after its data are changed, with
+  several `Block` in one image and with what is not an image.
 
 These are built and run through CMake / ctest (there is no makefile here);
 all of them passing is a good sign that no regressions have been introduced

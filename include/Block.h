@@ -116,6 +116,8 @@
 #include "Solver.h"
 
 #include <boost/bimap.hpp>
+#include <cmath>
+#include <filesystem>
 #include <list>
 #include <netcdf>
 #include <span>
@@ -591,10 +593,6 @@ class Block : public Observer {
  *   std::vector< Index >, although this may change) together with a
  *   [const] iterator [c_]Subset_it in it;
  *
- * - MF_dbl_it, a const_iterator into a std::vector< double >;
- *
- * - MF_int_it, a const_iterator into a std::vector< int >;
- *
  * - MF_dbl_sp, a std::span< const double >;
  *
  * - MF_int_sp, a std::span< const int >;
@@ -622,12 +620,10 @@ class Block : public Observer {
  * - arg_packer_helper and arg_packer (variadic template), helper types for
  *   template shenanigans for methods factory;
  *
- * - the types MS[_D]_S with D in { dbl , int } (or not there) and S in
- *   { rngd , sbst } representing the standard parameter type lists for
- *   functions to be inserted in the methods factory;
- *
- * - the MS_sp_D_S with D in { dbl , int }, the same lists with the data as
- *   a span;
+ * - the types MS_S with S in { rngd , sbst }, and MS_sp_D_S with D in
+ *   { dbl , int } and the same S, representing the standard parameter type
+ *   lists for functions to be inserted in the methods factory, without data
+ *   and with the data as a span, respectively;
  *
  * - the MS_qry_D_S with D in { dbl , int } and S in { rngd , sbst }, the
  *   lists for a getter writing its answer through a mutable span.
@@ -659,12 +655,6 @@ class Block : public Observer {
 
  using Subset_it = Subset::iterator;          ///< iterator in Subset
  using c_Subset_it = Subset::const_iterator;  ///< const iterator in Subset
-
- /// iterator for double data received by the functions in the methods factory
- using MF_dbl_it = std::vector< double >::const_iterator;
-
- /// iterator for int data received by the functions in the methods factory
- using MF_int_it = std::vector< int >::const_iterator;
 
  /// span for double data received by the functions in the methods factory
  using MF_dbl_sp = std::span< const double >;
@@ -733,32 +723,33 @@ class Block : public Observer {
  /// type for ( void , range ) functions
  using MS_rngd = arg_packer< Range >;
 
- /// type for ( double , range ) functions
- using MS_dbl_rngd = arg_packer< MF_dbl_it , Range >;
-
- /// type for ( int , range ) functions
- using MS_int_rngd = arg_packer< MF_int_it , Range >;
-
  /// type for ( void , subset ) functions
  using MS_sbst = arg_packer< Subset && , bool >;
 
- /// type for ( double , subset ) functions
- using MS_dbl_sbst = arg_packer< MF_dbl_it , Subset && , bool >;
-
- /// type for ( int , subset ) functions
- using MS_int_sbst = arg_packer< MF_int_it , Subset && , bool >;
-
- /// type for ( double , range ) functions, span form
+ /// type for ( double , range ) functions
  using MS_sp_dbl_rngd = arg_packer< MF_dbl_sp , Range >;
 
- /// type for ( int , range ) functions, span form
+ /// type for ( int , range ) functions
  using MS_sp_int_rngd = arg_packer< MF_int_sp , Range >;
 
- /// type for ( double , subset ) functions, span form
+ /// type for ( double , subset ) functions
  using MS_sp_dbl_sbst = arg_packer< MF_dbl_sp , Subset && , bool >;
 
- /// type for ( int , subset ) functions, span form
+ /// type for ( int , subset ) functions
  using MS_sp_int_sbst = arg_packer< MF_int_sp , Subset && , bool >;
+
+ /// type for ( double , double , range ) functions
+ using MS_sp_dbl2_rngd = arg_packer< MF_dbl_sp , MF_dbl_sp , Range >;
+
+ /// type for ( double , double , subset ) functions
+ using MS_sp_dbl2_sbst = arg_packer< MF_dbl_sp , MF_dbl_sp , Subset && ,
+                                     bool >;
+
+ /// type for ( double ) functions, a scalar with no slice
+ using MS_dbl = arg_packer< double >;
+
+ /// type for ( double , double ) functions, a pair of scalars with no slice
+ using MS_dbl2 = arg_packer< double , double >;
 
  /// type for ( double , range ) queries
  using MS_qry_dbl_rngd = arg_packer< MF_dbl_msp , Range >;
@@ -772,22 +763,28 @@ class Block : public Observer {
  /// type for ( int , subset ) queries
  using MS_qry_int_sbst = arg_packer< MF_int_msp , c_Subset & , bool >;
 
+ /// type for ( double , double , range ) queries
+ using MS_qry_dbl2_rngd = arg_packer< MF_dbl_msp , MF_dbl_msp , Range >;
+
+ /// type for ( double , double , subset ) queries
+ using MS_qry_dbl2_sbst = arg_packer< MF_dbl_msp , MF_dbl_msp , c_Subset & ,
+                                      bool >;
+
+ /// type for ( double ) queries, a scalar with no slice
+ using MS_qry_dbl = arg_packer< double & >;
+
+ /// type for ( double , double ) queries, a pair of scalars with no slice
+ using MS_qry_dbl2 = arg_packer< double & , double & >;
+
  /// typedef for the bimap used by one methods factory
  template< class F >
  using MethodsFactoryMap = boost::bimap< std::string , F * >;
 
  /// canonical factory types for the standard method signatures
  using MF_rngd_map = MethodsFactoryMap< FunctionType< Range > >;
- using MF_dbl_rngd_map = MethodsFactoryMap< FunctionType< MF_dbl_it , Range > >;
- using MF_int_rngd_map = MethodsFactoryMap< FunctionType< MF_int_it , Range > >;
-
  using MF_sbst_map = MethodsFactoryMap< FunctionType< Subset && , bool > >;
- using MF_dbl_sbst_map = MethodsFactoryMap< FunctionType<
-  MF_dbl_it , Subset && , bool > >;
- using MF_int_sbst_map = MethodsFactoryMap< FunctionType<
-  MF_int_it , Subset && , bool > >;
 
- /// the same data-carrying signatures in their span form
+ /// the data-carrying signatures, the data in a span
  using MF_sp_dbl_rngd_map = MethodsFactoryMap< FunctionType<
   MF_dbl_sp , Range > >;
  using MF_sp_int_rngd_map = MethodsFactoryMap< FunctionType<
@@ -796,6 +793,16 @@ class Block : public Observer {
   MF_dbl_sp , Subset && , bool > >;
  using MF_sp_int_sbst_map = MethodsFactoryMap< FunctionType<
   MF_int_sp , Subset && , bool > >;
+
+ /// two values per Index, in two spans
+ using MF_sp_dbl2_rngd_map = MethodsFactoryMap< FunctionType<
+  MF_dbl_sp , MF_dbl_sp , Range > >;
+ using MF_sp_dbl2_sbst_map = MethodsFactoryMap< FunctionType<
+  MF_dbl_sp , MF_dbl_sp , Subset && , bool > >;
+
+ /// a scalar, or a pair of scalars, with no slice
+ using MF_dbl_map = MethodsFactoryMap< FunctionType< double > >;
+ using MF_dbl2_map = MethodsFactoryMap< FunctionType< double , double > >;
 
  /// canonical factory types for the standard query signatures
  using MF_qry_dbl_rngd_map = MethodsFactoryMap< QueryType<
@@ -806,6 +813,13 @@ class Block : public Observer {
   MF_int_msp , Range > >;
  using MF_qry_int_sbst_map = MethodsFactoryMap< QueryType<
   MF_int_msp , c_Subset & , bool > >;
+ using MF_qry_dbl2_rngd_map = MethodsFactoryMap< QueryType<
+  MF_dbl_msp , MF_dbl_msp , Range > >;
+ using MF_qry_dbl2_sbst_map = MethodsFactoryMap< QueryType<
+  MF_dbl_msp , MF_dbl_msp , c_Subset & , bool > >;
+ using MF_qry_dbl_map = MethodsFactoryMap< QueryType< double & > >;
+ using MF_qry_dbl2_map = MethodsFactoryMap< QueryType< double & ,
+                                                      double & > >;
 
 /** @} ---------------------------------------------------------------------*/
 
@@ -1137,7 +1151,7 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
  /// de-serialize a :Block out of an open netCDF SMS++ file at given position
  /** Second-level de-serialization method: takes an open netCDF file, the
-  * index \pos of a Block into the file, and possibly a \p father, and
+  * index \p idx of a Block into the file, and possibly a \p father, and
   * returns the corresponding complete :Block object with the prescribed
   * father (if any).
   *
@@ -1220,6 +1234,37 @@ class Block : public Observer {
         almost_deserialize( const netCDF::NcFile & f ,
 			    unsigned int idx = 0 ,
 			    Block * father = nullptr );
+
+/*--------------------------------------------------------------------------*/
+ /// de-serialize a :Block out of the image of an SMS++ netCDF file
+ /** Second-level de-serialization method: does the same as
+  * deserialize( netCDF::NcFile , unsigned int ) on the SMS++ netCDF file
+  * whose image (its bytes) is \p image, as written by
+  * serialize( std::vector< unsigned char > & ) or read from a file, without
+  * the file being on disk. The bytes are read where they are, without being
+  * copied, and are not needed after the method returns. Anything going
+  * wrong (\p image is not a netCDF file, or any of the reasons for which
+  * deserialize( netCDF::NcFile , unsigned int ) fails) results in nullptr
+  * being returned.
+  *
+  * Together with serialize( std::vector< unsigned char > & ), this gives a
+  * copy of a :Block as it is now, the changes made to it after it was
+  * loaded included, without passing through the filesystem:
+  *
+  *      std::vector< unsigned char > image;
+  *      myBlock->serialize( image );
+  *      auto copy = Block::deserialize( image );
+  *
+  * where myBlock is a Block *; through a pointer to a :Block, which
+  * re-defines serialize( netCDF::NcGroup & ) and so hides the other forms,
+  * the call is myBlock->Block::serialize( image ), as for the filename.
+  *
+  * The in-memory netCDF files need netCDF-C 4.6.2 or later, see
+  * SMSnetCDF.h. */
+
+ static Block * deserialize( std::span< const unsigned char > image ,
+			     unsigned int idx = 0 , Block * father = nullptr ,
+			     std::function< void( Block * ) > * f = nullptr );
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize a :Block out of netCDF::NcGroup, returns it
@@ -1319,6 +1364,16 @@ class Block : public Observer {
   *   different parts of a Block mean); if "name" is not present, an empty
   *   name() results.
   *
+  * - the optional double attribute "ObjectiveWeight" that contains the
+  *   weight of the Objective of this Block [see set_objective_weight()],
+  *   which must be finite and not negative; if "ObjectiveWeight" is not
+  *   present, the weight is 1.
+  *
+  * - the optional double attribute "VariableWeight" that contains the
+  *   weight of the Variable of this Block [see set_variable_weight()],
+  *   which must be finite and not negative; if "VariableWeight" is not
+  *   present, the weight is 1.
+  *
   * - whatever other information is required by the specific :Block.
   *
   *      THIS IS THE METHOD TO BE IMPLEMENTED BY DERIVED CLASSES
@@ -1375,9 +1430,10 @@ class Block : public Observer {
   * the check would pass.
   *
   * So, what the method currently does is just to handle the optional "name"
-  * attribute. It does *not* handle the sub-Block, because there can
-  * hardly be any reasonably general way in which they can be structured
-  * (there can be different groups of sub-Block with different properties).
+  * and "ObjectiveWeight" attributes. It does *not* handle the sub-Block,
+  * because there can hardly be any reasonably general way in which they can
+  * be structured (there can be different groups of sub-Block with different
+  * properties).
   * By not even trying, we can leave in this method only things that are
   * sensible for each and every :Block. Because of this
   *
@@ -1441,6 +1497,28 @@ class Block : public Observer {
    f_name.clear();
   else
    gname.getValues( f_name );
+
+  f_objective_weight = 1;
+  netCDF::NcGroupAtt gweight = group.getAtt( "ObjectiveWeight" );
+  if( ! gweight.isNull() ) {
+   double w;
+   gweight.getValues( & w );
+   if( ( ! std::isfinite( w ) ) || ( w < 0 ) )
+    throw( std::invalid_argument( "Block::deserialize: ObjectiveWeight "
+                                  "must be finite and not negative" ) );
+   f_objective_weight = w;
+   }
+
+  f_variable_weight = 1;
+  netCDF::NcGroupAtt gvweight = group.getAtt( "VariableWeight" );
+  if( ! gvweight.isNull() ) {
+   double s;
+   gvweight.getValues( & s );
+   if( ( ! std::isfinite( s ) ) || ( s < 0 ) )
+    throw( std::invalid_argument( "Block::deserialize: VariableWeight "
+                                  "must be finite and not negative" ) );
+   f_variable_weight = s;
+   }
 
   // issue a NBModification, the "nuclear option"
   if( anyone_there() )
@@ -1522,8 +1600,9 @@ class Block : public Observer {
  *
  *   std::vector< std::string > expected_vars( void )
  *
- * are only declared if NDEBUG is defined. They are invoked, under the same
- * condition, inside Block::deserialize( const netCDF::NcGroup & ) to check
+ * are always declared, so that the virtual table of Block is the same
+ * whether NDEBUG is defined or not. They are invoked, only if NDEBUG is not
+ * defined, inside Block::deserialize( const netCDF::NcGroup & ) to check
  * the list of dimensions and variables that are expected to be found in
  * the netCDF::NcGroup, and complain if *un*expected ones are found in there.
  * This may (but not necessarily is) be a warning for some error.
@@ -1547,9 +1626,8 @@ class Block : public Observer {
  *
  * These methods are public for the odd chance that a :Block uses a different
  * :Block without deriving from it and therefore it may want to know its list
- * of expected variables / dimensions. */
-
-#ifndef NDEBUG
+ * of expected variables / dimensions.
+ *  @{ */
 
  virtual std::vector< std::string > expected_dims( void ) const {
   static const std::vector< std::string > _empty;
@@ -1561,8 +1639,6 @@ class Block : public Observer {
   static const std::vector< std::string > _empty;
   return( _empty );
   }
-
-#endif
 
 /** @} ---------------------------------------------------------------------*/
 /*----------------- Methods for acquiring/releasing the Block --------------*/
@@ -2168,6 +2244,65 @@ class Block : public Observer {
  virtual void set_name( std::string && name ) { f_name = std::move( name ); }
 
 /*--------------------------------------------------------------------------*/
+ /// setting the weight of the Objective of the Block
+ /** Sets the weight \p w by which the Objective of this Block counts in any
+  * problem the Block is part of, e.g., the probability of the scenario the
+  * Block describes times the discount factor of its period. The Block is
+  * not changed: it is any Solver that assembles a problem out of nested
+  * Block which multiplies the Objective of each of them by the product of
+  * the weights along the path to the Block the Solver is attached to, the
+  * latter excluded [see get_objective_weight( const Block * )]. Hence, a
+  * Solver attached to this Block does not see the weight.
+  *
+  * The weight only concerns the Objective; the coefficients that the
+  * Variable of the Block have in the Constraint outside of it are scaled by
+  * the weight of the Variable [see set_variable_weight()], and changing
+  * both by the same factor [see set_weight()] is the scaling of the whole
+  * Block, e.g., a number of identical copies of it.
+  *
+  * A change issues a BlockWeightMod. A Solver attached to an ancestor has
+  * to handle it, and std::logic_error is thrown, before anything is
+  * changed, if any of them cannot [see Solver::handles_weight_change()]; one
+  * attached to this Block does not see the weight. The ancestors are looked
+  * at up to the first one that is a Function (say, the LagBFunction or the
+  * BendersBFunction whose inner Block this Block is in), which tells those
+  * above it of the change as a change of itself. std::invalid_argument is
+  * thrown if \p w is negative or not finite; a weight of 0 makes the
+  * Objective of the Block count for nothing (say, a unit of which there is
+  * no copy), and a Solver that divides by it has to treat it apart. */
+
+ void set_objective_weight( double w , c_ModParam issueMod = eModBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// setting the weight of the Variable of the Block
+ /** Sets the weight \p s by which the coefficients that the Variable of this
+  * Block, and of its sub-Block, have in the Constraint outside of it are
+  * multiplied, e.g., the number of identical copies of a unit in the
+  * balance of the nodes it feeds; the Constraint of the Block itself, and
+  * its Objective, are not concerned [see set_objective_weight()]. As for
+  * the weight of the Objective, the Block is not changed: a Solver that
+  * assembles a problem out of nested Block multiplies the coefficient of a
+  * Variable in a Constraint by the product of the weights of the Variable
+  * along the path from the Block of the Variable up to the closest Block
+  * that contains both, the latter excluded [see get_variable_weight( const
+  * Block * )].
+  *
+  * Modification and exceptions as for set_objective_weight(). */
+
+ void set_variable_weight( double s , c_ModParam issueMod = eModBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// setting both the weights of the Block
+ /** Sets the weight of the Objective and that of the Variable [see
+  * set_objective_weight() and set_variable_weight()] to the same \p k, i.e.,
+  * scales the whole Block as k identical copies of it would; a single
+  * BlockWeightMod saying that both have changed is issued. It is virtual so
+  * that a :Block for which the two changing together means something more
+  * can react to it. */
+
+ virtual void set_weight( double k , c_ModParam issueMod = eModBlck );
+
+/*--------------------------------------------------------------------------*/
  /// setting the BlockConfig
  /** This method sets the BlockConfig of this Block. The BlockConfig object
   * pointed by \p newBC is not copied, but it becomes property of this
@@ -2741,6 +2876,46 @@ class Block : public Observer {
  const std::string & name( void ) const { return( f_name ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// getting the weight of the Objective of this Block
+ /** Returns the weight of the Objective of this Block, 1 unless set
+  * otherwise [see set_objective_weight()]. */
+
+ double get_objective_weight( void ) const { return( f_objective_weight ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// getting the weight of the Objective of this Block within an ancestor
+ /** Returns the product of the weights of the Objective [see
+  * set_objective_weight()] of this Block and of all its ancestors up to
+  * \p ancestor, the latter excluded, i.e., the factor by which a Solver
+  * attached to \p ancestor multiplies the Objective of this Block; it is 1
+  * if \p ancestor is this Block, and if \p ancestor is nullptr the product
+  * goes up to the root, included. std::invalid_argument is thrown if
+  * \p ancestor is neither this Block nor one of its ancestors. */
+
+ double get_objective_weight( const Block * ancestor ) const;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// getting the weight of the Variable of this Block
+ /** Returns the weight of the Variable of this Block, 1 unless set otherwise
+  * [see set_variable_weight()]. */
+
+ double get_variable_weight( void ) const { return( f_variable_weight ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// getting the weight of the Variable of this Block within another Block
+ /** Returns the factor by which the coefficients that the Variable of this
+  * Block have in a Constraint of the Block \p cblock are multiplied, i.e.,
+  * the product of the weights of the Variable [see set_variable_weight()]
+  * of this Block and of its ancestors up to the closest one that is also
+  * \p cblock or an ancestor of it, the latter excluded: it is 1 if this
+  * Block is \p cblock or one of its descendants, as a Constraint of a Block
+  * is not outside of it, and if \p cblock is nullptr the product goes up to
+  * the root, included. std::invalid_argument is thrown if the two Block are
+  * not in the same tree. */
+
+ double get_variable_weight( const Block * cblock ) const;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// getting the "father" Block of this Block
 
  p_Block get_f_Block( void ) const { return( f_Block ); }
@@ -2873,42 +3048,43 @@ class Block : public Observer {
   *
   *     (D)   min { f(y) : y \in Y }
   *
-  * that, besides weak duality (f(y) >= c(x) for each y \in Y and x \in X)
-  * also satisfies strong duality in the strongest possible sense: the
-  * optimal values of (P) and (D) are identical *even when they are plus or
-  * minus infinity", which means that (P) is empty <==> (D) is unbounded below
-  * and (D) is empty <==> (P) is unbounded above. In other words, (P) and (D)
-  * are completely equivalent in terms of optimal values; most often this
-  * means that any algorithm solving one actually solves the other as well.
-  * One can therefore equivalently consider Block a representation of (P) (a
-  * maximization problem) or of (D) (a minimization one). In this setting we
-  * may be able to derive a conditionally valid upper bound on both.
+  * that, besides weak duality (f(y) >= c(x) for each \f$ y \in Y \f$ and
+  * \f$ x \in X \f$) also satisfies strong duality in the strongest possible
+  * sense: the optimal values of (P) and (D) are identical *even when they are
+  * plus or minus infinity", which means that (P) is empty <==> (D) is
+  * unbounded below and (D) is empty <==> (P) is unbounded above. In other
+  * words, (P) and (D) are completely equivalent in terms of optimal values;
+  * most often this means that any algorithm solving one actually solves the
+  * other as well. One can therefore equivalently consider Block a
+  * representation of (P) (a maximization problem) or of (D) (a minimization
+  * one). In this setting we may be able to derive a conditionally valid upper
+  * bound on both.
   *
   * To do that we assume that we know an "easy" relaxation of (D) that is
   * surely nonempty
   *
   *     (D')   min { f(y) : y \in Y' }
   *
-  * For instance, one may know a compact box Y' = [ l , u ] such that
-  * l <= y <= u for all y \in Y. Now, let us assume that we can find a
-  * *globally valid* finite *upper* bound v on (D') (note that this is a
-  * minimization problem, so this is a bound on how *bad* a solution of (D)
-  * can ever be); for instance, we may be able to compute a linear upper
-  * approximation of f(y) which is valid on Y' (or f() may have been linear
-  * in the first place), which makes the computation of v trivial. Then, we
-  * know that v >= f(y) for all y \in Y (note, again, that (D) is a
-  * minimization problem). Now, let us assume that we find some x \in X such
-  * that c(x) > v: that is, we have found a valid lower bound on the optimal
-  * value of (D) which is greater than v. Then, (D) is empty as required by
-  * the definition of conditionally valid upper bound for a minimization
-  * problem (in this case, (D)). Indeed, assume there is any y \in Y: by weak
-  * duality f(y) >= c(x) > v, but on the other hand by construction v >= f(y),
-  * which yields the contradiction. Hence, (D) must be empty. But for the
-  * strong duality assumption, this means that (P) must be unbounded above.
-  * Thus, v is a conditionally valid upper bound also according to the
-  * definition given for a maximization problem (in this case, (P)): in fact,
-  * as soon as we find x \in X such that c(x) > v, we can conclude (by duality
-  * arguments) that (P) is unbounded above.
+  * For instance, one may know a compact box Y' = [ l , u ] such that l <= y <=
+  * u for all \f$ y \in Y \f$. Now, let us assume that we can find a *globally
+  * valid* finite *upper* bound v on (D') (note that this is a minimization
+  * problem, so this is a bound on how *bad* a solution of (D) can ever be);
+  * for instance, we may be able to compute a linear upper approximation of
+  * f(y) which is valid on Y' (or f() may have been linear in the first place),
+  * which makes the computation of v trivial. Then, we know that v >= f(y) for
+  * all \f$ y \in Y \f$ (note, again, that (D) is a minimization problem). Now,
+  * let us assume that we find some \f$ x \in X \f$ such that c(x) > v: that
+  * is, we have found a valid lower bound on the optimal value of (D) which is
+  * greater than v. Then, (D) is empty as required by the definition of
+  * conditionally valid upper bound for a minimization problem (in this case,
+  * (D)). Indeed, assume there is any \f$ y \in Y \f$: by weak duality f(y) >=
+  * c(x) > v, but on the other hand by construction v >= f(y), which yields the
+  * contradiction. Hence, (D) must be empty. But for the strong duality
+  * assumption, this means that (P) must be unbounded above. Thus, v is a
+  * conditionally valid upper bound also according to the definition given for
+  * a maximization problem (in this case, (P)): in fact, as soon as we find
+  * \f$ x \in X \f$ such that c(x) > v, we can conclude (by duality arguments)
+  * that (P) is unbounded above.
   *
   * Algorithmically, one can use such a construction to declare (D) empty when
   * it is solving it by dual methods, and the algorithm that is solving (P) is
@@ -3983,6 +4159,11 @@ class Block : public Observer {
   *     ORDERED; THAT IS, THE *rmvd[ i ] MUST BE FOUND IN THE LIST BEFORE
   *     *rmvd[ i + 1 ] FOR ALL i
   *
+  * In that case rmvd is checked as a whole before anything is changed: if
+  * an iterator does not point into list, or they are not ordered, then
+  * std::invalid_argument is thrown and list, the Block and the items of
+  * the list are left exactly as they were.
+  *
   * The parameter issueMod decides if and how the BlockModRmv is issued, as
   * described in Observer::make_par().
   *
@@ -4104,6 +4285,11 @@ class Block : public Observer {
   *     IF THE BlockModRmv* IS ISSUED, THEN THE ITERATORS IN rmvd MUST BE
   *     ORDERED; THAT IS, THE *rmvd[ i ] MUST BE FOUND IN THE LIST BEFORE
   *     *rmvd[ i + 1 ] FOR ALL i
+  *
+  * In that case rmvd is checked as a whole before anything is changed: if
+  * an iterator does not point into list, or they are not ordered, then
+  * std::invalid_argument is thrown and list, the Block and the items of
+  * the list are left exactly as they were.
   *
   * The parameter issueMod decides if and how the BlockModRmv is issued, as
   * described in Observer::make_par().
@@ -5850,8 +6036,9 @@ class Block : public Observer {
  *      FACTORY FOR F IS SELECTED.
  *
  * For the standard function signatures supported by Block (such as the
- * predefined MS[_D]_S families), methods< F >() returns a reference to a
- * unique, centralized factory owned by the core Block implementation.
+ * predefined MS_S and MS_sp_D_S families), methods< F >() returns a
+ * reference to a unique, centralized factory owned by the core Block
+ * implementation.
  * This avoids having separate copies of the same methods factory in
  * different translation units or shared libraries.
  *
@@ -5917,12 +6104,9 @@ class Block : public Observer {
  *   std::vector< Index >, although this may change) together with a
  *   [const] iterator [c_]Subset_it in it;
  *
- * - MF_dbl_it, a const_iterator into a std::vector< double >;
- *
- * - MF_int_it, a const_iterator into a std::vector< int >;
- *
- * - MF_dbl_sp and MF_int_sp, the same data as spans, and MF_dbl_msp and
- *   MF_int_msp, the mutable spans a getter writes its answer through;
+ * - MF_dbl_sp and MF_int_sp, spans of the double and int data received by
+ *   a setter, and MF_dbl_msp and MF_int_msp, the mutable spans a getter
+ *   writes its answer through;
  *
  * These are thought to form the basis of "most" data-changing and
  * data-reading member functions in any :Block class. In particular,
@@ -5933,8 +6117,7 @@ class Block : public Observer {
  *
  * where:
  *
- * - data is either not there, or one of MF_dbl_it, MF_int_it, MF_dbl_sp
- *   and MF_int_sp;
+ * - data is either not there, or one of MF_dbl_sp and MF_int_sp;
  *
  * - slice indicates a subset of the data, in two possible forms:
  *
@@ -5954,29 +6137,39 @@ class Block : public Observer {
  *     A getter does not consume the Subset, and takes a c_Subset &
  *     instead.
  *
- *   Note that, if present, the provided  MF_X_it (call it "iter") must
- *   point to a std::vector< X > at least as long (after the position
- *   pointed by iter) as how many elements are there in the slice, and
- *   the X value *( iter + h ) has to be taken as the new value for the
- *   data structure in the :Block corresponding to the h-th Index in slice.
- *
- *   If the data travels in a span, the span is the same "at least as long"
- *   buffer, and one shorter than the slice is an error the function can
- *   report instead of reading past the end. A getter writing through a
- *   mutable span writes the h-th value for the h-th Index in slice.
+ *   Note that, if present, the provided span (call it "data") must be at
+ *   least as long as how many elements are there in the slice, and the
+ *   value data[ h ] has to be taken as the new value for the data structure
+ *   in the :Block corresponding to the h-th Index in slice; a span shorter
+ *   than the slice is an error, that the function reports by throwing
+ *   std::invalid_argument instead of reading past its end. A getter
+ *   writing through a mutable span writes the h-th value for the h-th
+ *   Index in slice.
  *
  *   Those of a getter have the same form, with a mutable span as data,
  *   MF_dbl_msp or MF_int_msp, and no ModParam.
  *
- * These parameter type lists are "encoded" in the predefined types
- * MS[_D]_S with D in { dbl , int } (or not there) and S in { rngd , sbst },
- * representing (in obvious ways) the possible interfaces; the MS_sp_D_S,
- * with D in { dbl , int }, are the same ones with the data as a span, and
- * the MS_qry_D_S, with the same D, those of a getter writing through a
- * mutable span. Specific versions of register_method(), get_method_fs(),
- * get_method_name_fs() and get_query_fs() are provided which take a final
+ *   An item of the slice may carry two values instead of one, say a unit
+ *   with two sizes: a setter then takes two MF_dbl_sp, the h-th value of
+ *   each for the h-th Index in slice, and a getter two MF_dbl_msp, written
+ *   the same way.
  *
- *     MS[_D]_S::args()
+ *   A parameter that is a single scalar, say the size of a unit, comes with
+ *   no slice at all: a setter ( double , ModParam , ModParam ), MS_dbl, and
+ *   a getter writing it into a double &, MS_qry_dbl; MS_dbl2 and
+ *   MS_qry_dbl2 are the same for a pair of scalars, say the two sizes of a
+ *   unit.
+ *
+ * These parameter type lists are "encoded" in the predefined types MS_S,
+ * with S in { rngd , sbst }, for a setter without data, MS_sp_D_S, with D
+ * in { dbl , int } and the same S, for a setter with its data in a span,
+ * and MS_qry_D_S, with the same D, for a getter writing through a mutable
+ * span; MS_sp_dbl2_S and MS_qry_dbl2_S are the setter and the getter with
+ * two values per Index. Specific versions of register_method(),
+ * get_method_fs(), get_method_name_fs() and get_query_fs() are provided
+ * which take a final
+ *
+ *     MS_[sp_D_]S::args()
  *
  * parameter (don't ask why the "args", that's pretty weird template wizardry)
  * specifying the type of function to be inserted in the methods factory.
@@ -5998,19 +6191,19 @@ class Block : public Observer {
  * class NetworkBlock : Block representing (an optimization problem defined
  * over some) weighted graph. NetworkBlock may have two functions
  *
- *     void set_arc_weight( MF_dbl_it , Range , ModParam , ModParam );
+ *     void set_arc_weight( MF_dbl_sp , Range , ModParam , ModParam );
  *
- *     void set_arc_weight( MF_dbl_it , Subset && , bool ,
+ *     void set_arc_weight( MF_dbl_sp , Subset && , bool ,
  *                          ModParam , ModParam );
  *
  * for changing the weights in the arcs of the graph. These functions can be
  * registered straight away in the methods factory by just calling anywhere
  *
- *     register_method< NetworkBlock , MF_dbl_it , Range>(
+ *     register_method< NetworkBlock , MF_dbl_sp , Range>(
  *                                         "NetworkBlock::set_arc_weight" ,
  *                                         & NetworkBlock::set_arc_weight );
  *
- *     register_method< NetworkBlock , MF_dbl_it , Subset && , const bool >(
+ *     register_method< NetworkBlock , MF_dbl_sp , Subset && , const bool >(
  *                                         "NetworkBlock::set_arc_weight" ,
  *                                         & NetworkBlock::set_arc_weight );
  *
@@ -6040,24 +6233,29 @@ class Block : public Observer {
  * A user who would like to have a function in the methods factory for setting
  * the weight of subsets of arcs could implement the following functions:
  *
- *     void set_weight_range( Block * block , MF_dbl_it begin ,
+ *     void set_weight_range( Block * block , MF_dbl_sp data ,
  *                            Range range , ModParam issuePMod = eNoBlc ,
  *                                          ModParam issueAMod = eModBlck ) {
- *      for( Index i = range.first ; i < range.second ; ++i , ++begin )
- *       static_cast< NetworkBlock * >( block )->set_arc_weight( i , *begin ,
- *                                                               issuePMod ,
- *                                                               issueAMod );
+ *      if( data.size() < range.second - range.first )
+ *       throw( std::invalid_argument( "set_weight_range: the span is "
+ *                                     "shorter than the Range" ) );
+ *      for( Index i = range.first ; i < range.second ; ++i )
+ *       static_cast< NetworkBlock * >( block )->set_arc_weight( i ,
+ *                                                data[ i - range.first ] ,
+ *                                                issuePMod , issueAMod );
  *      }
  *
- *     void set_weight_subset( Block * block , MF_dbl_it begin ,
+ *     void set_weight_subset( Block * block , MF_dbl_sp data ,
  *                             Subset && sbst , bool ordered = false ,
  *                             ModParam issuePMod = eNoBlc ,
  *                             ModParam issueAMod = eModBlck ) {
- *      for( auto i : sbst )
- *       static_cast< NetworkBlock * >( block )->set_arc_weight( i ,
- *                                                               *(begin++) ,
- *                                                               issuePMod ,
- *                                                               issueAMod );
+ *      if( data.size() < sbst.size() )
+ *       throw( std::invalid_argument( "set_weight_subset: the span is "
+ *                                     "shorter than the Subset" ) );
+ *      for( Index h = 0 ; h < sbst.size() ; ++h )
+ *       static_cast< NetworkBlock * >( block )->set_arc_weight( sbst[ h ] ,
+ *                                                data[ h ] ,
+ *                                                issuePMod , issueAMod );
  *      }
  *
  * These could then be freely registered in the methods factory as in
@@ -6146,7 +6344,7 @@ class Block : public Observer {
  *     MF_dbl_msp        the mutable span to write the answer out through
  *     QueryType         FunctionType with a const Block * and no ModParam
  *     ConstMemberFunctionType   what the wrapper adapts to it
- *     MS_qry_dbl_rngd   the parameter list, mirroring MS_dbl_rngd
+ *     MS_qry_dbl_rngd   the parameter list, mirroring MS_sp_dbl_rngd
  *     MF_qry_dbl_rngd_map       the map holding this family's entries
  *
  * plus the single copy of that map owned by the core, declared as
@@ -6155,11 +6353,12 @@ class Block : public Observer {
  * QueryType< MF_dbl_msp , Range > that makes the signature standard;
  * without it nothing compiles.
  *
- * The ( double , subset ) family is obtained the same way from MS_dbl_sbst,
+ * The ( double , subset ) family is obtained the same way from
+ * MS_sp_dbl_sbst,
  * and is there together with the first because a :Block may have to answer
  * two consumers about disjoint subsets of its parameters. The integer
- * twins, MS_qry_int_rngd and MS_qry_int_sbst, mirror MS_int_rngd and
- * MS_int_sbst on MF_int_msp, for a :Block whose parameter is a count and
+ * twins, MS_qry_int_rngd and MS_qry_int_sbst, mirror MS_sp_int_rngd and
+ * MS_sp_int_sbst on MF_int_msp, for a :Block whose parameter is a count and
  * answers with the count rather than with a double that happens to be
  * integral. Any further family comes from the setter family it mirrors.
  *
@@ -6239,7 +6438,10 @@ class Block : public Observer {
   * the function to be inserted in the methods factory. Indeed, what this
   * version does is to create a FunctionType< Args > lambda function
   * which just static_cast<> the Block * argument to a dBlock *, and
-  * then invokes \p function.
+  * then invokes \p function. Args are never deduced from \p fnct (whose
+  * parameter pack is not the last of its parameters): they are those
+  * given, so that \p fnct can name a member function that is overloaded as
+  * well as one that is not.
   *
   * @param name The name that will identify the given \p function in the
   *             methods factory; as the "&&" tells, the std::string becomes
@@ -6252,7 +6454,8 @@ class Block : public Observer {
  template< class dBlock , typename ... Args >
  static std::enable_if_t< std::is_base_of_v< Block , dBlock > , void >
  register_method( std::string && name ,
-                  MemberFunctionType< dBlock , Args... > fnct ) {
+                  std::type_identity_t<
+                   MemberFunctionType< dBlock , Args... > > fnct ) {
   register_method( std::move( name ),
                    new FunctionType< Args... >(
                     [ fnct ]( Block * blck , Args && ... args ,
@@ -6279,7 +6482,7 @@ class Block : public Observer {
   * the adapter function is now specified by means of the third parameter,
   * which is dummy arg_packer_helper< Args... >. This is intended to be used
   * with existing parameter type list-specifying types, such as in
-  * MS_rngd::args() or MS_int_sbst::args(), although there is nothing
+  * MS_rngd::args() or MS_sp_int_sbst::args(), although there is nothing
   * preventing from defining new ones.
   *
   * @param name The name that will identify the given \p function in the
@@ -6289,12 +6492,13 @@ class Block : public Observer {
   * @param fnct The pointer to the class member function whose adapter
   *             function is to be added to the corresponding methods factory.
   *
-  * @param void Dummy arg_packer_helper< Args... > parameter to specify the
-  *             parameter type list of the function to be registered. */
+  * The last, unnamed, parameter is a dummy arg_packer_helper< Args... > that
+  * specifies the parameter type list of the function to be registered. */
 
  template< class dBlock , typename ... Args >
  static void register_method( std::string && name ,
-                              MemberFunctionType< dBlock , Args... > fnct ,
+                              std::type_identity_t<
+                               MemberFunctionType< dBlock , Args... > > fnct ,
                               arg_packer_helper< Args... > ) {
   register_method< dBlock, Args... >( std::move( name ) , fnct );
   }
@@ -6307,7 +6511,8 @@ class Block : public Observer {
  template< class dBlock , typename ... Args >
  static std::enable_if_t< std::is_base_of_v< Block , dBlock > , void >
  register_method( std::string && name ,
-                  ConstMemberFunctionType< dBlock , Args... > fnct ) {
+                  std::type_identity_t<
+                   ConstMemberFunctionType< dBlock , Args... > > fnct ) {
   register_method( std::move( name ),
                    new QueryType< Args... >(
                     [ fnct ]( const Block * blck , Args && ... args ) {
@@ -6323,7 +6528,8 @@ class Block : public Observer {
  template< class dBlock , typename ... Args >
  static void register_method(
                   std::string && name ,
-                  ConstMemberFunctionType< dBlock , Args... > fnct ,
+                  std::type_identity_t<
+                   ConstMemberFunctionType< dBlock , Args... > > fnct ,
                   arg_packer_helper< Args... > ) {
   register_method< dBlock, Args... >( std::move( name ) , fnct );
   }
@@ -6337,19 +6543,19 @@ class Block : public Observer {
   *
   * Suppose, for example, that the methods factory has a function associated
   * with the name "NetworkBlock::set_arc_weight" that has the typical "double,
-  * Range" interface, i.e., a #MF_dbl_it parameter, a #Range parameter, and
+  * Range" interface, i.e., a #MF_dbl_sp parameter, a #Range parameter, and
   * two ModParam parameters. This has been inserted in the interface under
-  * the guise of a FunctionType< MF_dbl_it , Range > pointer. Thus,
+  * the guise of a FunctionType< MF_dbl_sp , Range > pointer. Thus,
   * to invoke such a function one should do
   *
-  *     auto mthd = get_method< FunctionType< MF_dbl_it , Range > >(
+  *     auto mthd = get_method< FunctionType< MF_dbl_sp , Range > >(
   *                                        "NetworkBlock::set_arc_weight" );
-  *     std::invoke( *mthd , NB , iter , range , issuePMod , issueAMod );
+  *     std::invoke( *mthd , NB , data , range , issuePMod , issueAMod );
   *
   * where NB is a pointer to a NetworkBlock object (assuming the function
   * obtained from the methods factory is associated with this class, as it is
-  * a good practice, considering the name of the function), iter is an
-  * iterator of type #MF_dbl_it, range is a #Range, and issuePMod and
+  * a good practice, considering the name of the function), data is a
+  * span of type #MF_dbl_sp, range is a #Range, and issuePMod and
   * issueAMod are the last two parameters of the function.
   *
   * @param name The name associated with the function. */
@@ -6372,19 +6578,19 @@ class Block : public Observer {
   *
   * Suppose, for example, that the methods factory has a function associated
   * with the name "NetworkBlock::set_arc_weight" that has the typical "double,
-  * Range" interface, i.e., a #MF_dbl_it parameter, a #Range parameter, and
+  * Range" interface, i.e., a #MF_dbl_sp parameter, a #Range parameter, and
   * two ModParam parameters. This has been inserted in the interface under
-  * the guise of a FunctionType< MF_dbl_it , Range > pointer. Thus,
+  * the guise of a FunctionType< MF_dbl_sp , Range > pointer. Thus,
   * to invoke such a function one should do
   *
-  *     auto mthd = get_method_fs< MF_dbl_it , Range >(
+  *     auto mthd = get_method_fs< MF_dbl_sp , Range >(
   *                                        "NetworkBlock::set_arc_weight" );
-  *     std::invoke( *mthd , NB , iter , range , issuePMod , issueAMod );
+  *     std::invoke( *mthd , NB , data , range , issuePMod , issueAMod );
   *
   * where NB is a pointer to a NetworkBlock object (assuming the function
   * obtained from the methods factory is associated with this class, as it is
-  * good practice considering the name given to the function), iter is an
-  * iterator of type #MF_dbl_it, range is a #Range, and issuePMod and
+  * good practice considering the name given to the function), data is a
+  * span of type #MF_dbl_sp, range is a #Range, and issuePMod and
   * issueAMod are the last two parameters of the function.
   *
   * @param name The name associated with the function. */
@@ -6403,25 +6609,25 @@ class Block : public Observer {
   *
   * Suppose, for example, that the methods factory has a function associated
   * with the name "NetworkBlock::set_arc_weight" that has the typical "double,
-  * Range" interface, i.e., a #MF_dbl_it parameter, a #Range parameter, and
+  * Range" interface, i.e., a #MF_dbl_sp parameter, a #Range parameter, and
   * two ModParam parameters. This has been inserted in the interface under
-  * the guise of a FunctionType< MF_dbl_it , Range > pointer. Thus,
+  * the guise of a FunctionType< MF_dbl_sp , Range > pointer. Thus,
   * to invoke such a function one should do
   *
   *     auto mthd = get_method_fs( "NetworkBlock::set_arc_weight" ,
-  *                                MS_dbl_rngd::args() );
-  *     std::invoke( *mthd , NB , iter , range , issuePMod , issueAMod );
+  *                                MS_sp_dbl_rngd::args() );
+  *     std::invoke( *mthd , NB , data , range , issuePMod , issueAMod );
   *
   * where NB is a pointer to a NetworkBlock object (assuming the function
   * obtained from the methods factory is associated with this class, as it is
-  * good practice considering the name given to the function), iter is an
-  * iterator of type #MF_dbl_it, range is a #Range, and issuePMod and
+  * good practice considering the name given to the function), data is a
+  * span of type #MF_dbl_sp, range is a #Range, and issuePMod and
   * issueAMod are the last two parameters of the function.
   *
   * @param name The name associated with the function.
   *
-  * @param void Dummy arg_packer_helper< Args... > parameter to specify
-  *             parameter type list of the function to be retrieved. */
+  * The last, unnamed, parameter is a dummy arg_packer_helper< Args... > that
+  * specifies the parameter type list of the function to be retrieved. */
 
  template< typename... Args >
  static FunctionType< Args... > *
@@ -6476,8 +6682,8 @@ class Block : public Observer {
   *
   * @param name The name associated with the function.
   *
-  * @param void Dummy arg_packer_helper< Args... > parameter to specify the
-  *             parameter type list of the query to be retrieved. */
+  * The last, unnamed, parameter is a dummy arg_packer_helper< Args... > that
+  * specifies the parameter type list of the query to be retrieved. */
 
  template< typename... Args >
  static QueryType< Args... > *
@@ -6526,9 +6732,9 @@ class Block : public Observer {
   *
   * @param fnct A pointer to the function whose associated name is desired.
   *
-  * @param void Dummy arg_packer_helper< Args... > parameter to specify the
-  *             parameter type list of the function whose associated name is
-  *             desired. */
+  * The last, unnamed, parameter is a dummy arg_packer_helper< Args... > that
+  * specifies the parameter type list of the function whose associated name
+  * is desired. */
 
  template< typename... Args >
  static const std::string & get_method_name_fs(
@@ -6870,7 +7076,10 @@ class Block : public Observer {
   * If \p replace == true (the default) any existing content of the file is
   * overwritten and the Block is saved as *the first one* in the newly created
   * file, while if  \p replace == false the file is opened for appending and
-  * the Block is saved after the last one currently present (if any).
+  * the Block is saved after the last one currently present (if any); if the
+  * file is not there it is created, while if it is there but cannot be
+  * opened for appending (say, it is not a netCDF-4 file) exception is thrown
+  * and the file is left as it was.
   *
   * The base class implementation opens the netCDF file, creates the required
   * attribute "SMS++_file_type" (if the file is created anew, otherwise it is
@@ -6888,10 +7097,15 @@ class Block : public Observer {
 	"Block::serialize( std:string ): invalid SMS++ netCDF file type" ) );
 
   netCDF::NcFile f;
-  if( ! replace ) {
+  if( ( ! replace ) && std::filesystem::exists( filename ) ) {
    try { f.open( filename , netCDF::NcFile::write ); }
-   catch( netCDF::exceptions::NcException & e ) { replace = true; }
+   catch( netCDF::exceptions::NcException & e ) {
+    throw( std::runtime_error( "Block::serialize: cannot open " + filename +
+			       " for appending: " + e.what() ) );
+    }
    }
+  else
+   replace = true;
   if( replace ) {
    f.open( filename , netCDF::NcFile::replace );
    f.putAtt( "SMS++_file_type" , netCDF::NcInt() , type );
@@ -6899,6 +7113,29 @@ class Block : public Observer {
 
   serialize( f , type );
   }
+
+/*--------------------------------------------------------------------------*/
+ /// serialize a Block (recursively) to the image of a netCDF file
+ /** Top-level method to serialize a Block (recursively) to an SMS++ netCDF
+  * file of type \p type held in memory, whose image (its bytes) replaces
+  * the content of \p image: the same as serialize( std::string , int ,
+  * bool ) with \p image in place of the file, except that an image cannot
+  * be appended to [see SMSnetCDF.h], so the new file holds the Block alone.
+  * Several Block go in the same image by writing them, with
+  * serialize( netCDF::NcFile & , int ), in the same NcMemFile before closing
+  * it. The image is a netCDF-4 file that deserialize( std::span< const
+  * unsigned char > , unsigned int ) reads back, and that can also be written
+  * to disk and read by deserialize( std::string ), although its bytes need
+  * not be those that serialize( std::string , int , bool ) writes [see
+  * SMSnetCDF.h]; with the same libraries, the same Block gives the same
+  * bytes. If anything goes wrong, exception is thrown and \p image is left
+  * as it was.
+  *
+  * The in-memory netCDF files need netCDF-C 4.6.2 or later, see
+  * SMSnetCDF.h. */
+
+ void serialize( std::vector< unsigned char > & image ,
+		 int type = eProbFile ) const;
 
 /*--------------------------------------------------------------------------*/
  /// serialize a Block (recursively) to an open netCDF file
@@ -6992,6 +7229,10 @@ class Block : public Observer {
   group.putAtt( "type", classname() );
   if( ! f_name.empty() )
    group.putAtt( "name", f_name );
+  if( f_objective_weight != 1 )
+   group.putAtt( "ObjectiveWeight", netCDF::NcDouble() , f_objective_weight );
+  if( f_variable_weight != 1 )
+   group.putAtt( "VariableWeight", netCDF::NcDouble() , f_variable_weight );
    }
 
 /** @} ---------------------------------------------------------------------*/
@@ -7013,6 +7254,19 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 /*--------------------------------------------------------------------------*/
+/** @name Protected method for changing the weights
+ *  @{ */
+
+ /// sets to \p w the weights that \p which says [see BlockWeightMod]
+ /** The common part of set_objective_weight(), set_variable_weight() and
+  * set_weight(), \p who being the name of the one called for the messages
+  * of the exceptions: the weights that do not change are left out, and a
+  * BlockWeightMod saying which ones have changed, if any, is issued. */
+
+ void change_weights( double w , int which , c_ModParam issueMod ,
+                      const char * who );
+
+/** @} ---------------------------------------------------------------------*/
 /** @name Protected methods for locking and unlocking
  *  @{ */
 
@@ -7201,17 +7455,29 @@ class Block : public Observer {
 
 /*--------------------------------------------------------------------------*/
  /// removes any existing static Constraint; to be used with care
+ /** With \p dispose, the containers of the groups that this Block owns
+  * [see BaseGroup::set_storage_deleter()] are deleted too. */
 
- void reset_static_constraints( void ) {
+ void reset_static_constraints( bool dispose = false ) {
   leave_groups( v_s_Constraint_groups );
+  if( dispose )
+   for( const auto & group : v_s_Constraint_groups )
+    if( group )
+     group->delete_storage();
   v_s_Constraint_groups.clear();
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// removes any existing static Variable; to be used with care
+ /** With \p dispose, the containers of the groups that this Block owns
+  * [see BaseGroup::set_storage_deleter()] are deleted too. */
 
- void reset_static_variables( void ) {
+ void reset_static_variables( bool dispose = false ) {
   leave_groups( v_s_Variable_groups );
+  if( dispose )
+   for( const auto & group : v_s_Variable_groups )
+    if( group )
+     group->delete_storage();
   v_s_Variable_groups.clear();
   }
 
@@ -7886,15 +8152,7 @@ class Block : public Observer {
 
  static MF_rngd_map & methods_rngd_factory( void );
 
- static MF_dbl_rngd_map & methods_dbl_rngd_factory( void );
-
- static MF_int_rngd_map & methods_int_rngd_factory( void );
-
  static MF_sbst_map & methods_sbst_factory( void );
-
- static MF_dbl_sbst_map & methods_dbl_sbst_factory( void );
-
- static MF_int_sbst_map & methods_int_sbst_factory( void );
 
  static MF_sp_dbl_rngd_map & methods_sp_dbl_rngd_factory( void );
 
@@ -7904,6 +8162,14 @@ class Block : public Observer {
 
  static MF_sp_int_sbst_map & methods_sp_int_sbst_factory( void );
 
+ static MF_sp_dbl2_rngd_map & methods_sp_dbl2_rngd_factory( void );
+
+ static MF_sp_dbl2_sbst_map & methods_sp_dbl2_sbst_factory( void );
+
+ static MF_dbl_map & methods_dbl_factory( void );
+
+ static MF_dbl2_map & methods_dbl2_factory( void );
+
  static MF_qry_dbl_rngd_map & queries_dbl_rngd_factory( void );
 
  static MF_qry_dbl_sbst_map & queries_dbl_sbst_factory( void );
@@ -7911,6 +8177,14 @@ class Block : public Observer {
  static MF_qry_int_rngd_map & queries_int_rngd_factory( void );
 
  static MF_qry_int_sbst_map & queries_int_sbst_factory( void );
+
+ static MF_qry_dbl2_rngd_map & queries_dbl2_rngd_factory( void );
+
+ static MF_qry_dbl2_sbst_map & queries_dbl2_sbst_factory( void );
+
+ static MF_qry_dbl_map & queries_dbl_factory( void );
+
+ static MF_qry_dbl2_map & queries_dbl2_factory( void );
 
 /** @} ---------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
@@ -7956,6 +8230,10 @@ class Block : public Observer {
 
  std::string f_name;            ///< the string name of the Block
 
+ double f_objective_weight = 1;  ///< the weight of the Objective
+
+ double f_variable_weight = 1;   ///< the weight of the Variable
+
  BlockConfig * f_BlockConfig;        ///< the BlockConfig for this Block
 
  std::vector< std::pair< ChnlName , GroupModification * > > v_GroupMod;
@@ -7999,6 +8277,35 @@ class Block : public Observer {
     [ g = group.get() ]( S & element ) { element.set_Group( g ); } );
    }
   return( group );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// the positions in \p list of the items the iterators in \p rmvd point to
+ /** Returns the positions in \p list of the items the iterators in \p rmvd
+  * point to, which must be in the order of the list; throws
+  * std::invalid_argument if one of them is not found in \p list, or they
+  * are not in its order, having changed nothing. This is what the
+  * remove_dynamic_*() taking iterators check before touching the list. */
+
+ template< class T >
+ static Subset removed_positions( const std::list< T > & list ,
+				  const std::vector< typename
+				  std::list< T >::iterator > & rmvd ) {
+  Subset subset( rmvd.size() );
+  Index i = 0;
+  auto rit = rmvd.begin();
+  auto sit = subset.begin();
+  for( auto lit = list.begin() ;
+       ( lit != list.end() ) && ( rit != rmvd.end() ) ; ++lit , ++i )
+   if( &( *lit ) == &( *( *rit ) ) ) {
+    ++rit;
+    *(sit++) = i;  // record position
+    }
+
+  if( rit != rmvd.end() )
+   throw( std::invalid_argument( "invalid or unordered removed list" ) );
+
+  return( subset );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -8228,41 +8535,9 @@ struct Block::methods_factory_accessor< Block::FunctionType< Block::Range > > {
 
 template<>
 struct Block::methods_factory_accessor<
- Block::FunctionType< Block::MF_dbl_it , Block::Range > > {
- static Block::MF_dbl_rngd_map & get( void ) {
-  return( Block::methods_dbl_rngd_factory() );
- }
-};
-
-template<>
-struct Block::methods_factory_accessor<
- Block::FunctionType< Block::MF_int_it , Block::Range > > {
- static Block::MF_int_rngd_map & get( void ) {
-  return( Block::methods_int_rngd_factory() );
- }
-};
-
-template<>
-struct Block::methods_factory_accessor<
  Block::FunctionType< Block::Subset && , bool > > {
  static Block::MF_sbst_map & get( void ) {
   return( Block::methods_sbst_factory() );
- }
-};
-
-template<>
-struct Block::methods_factory_accessor<
- Block::FunctionType< Block::MF_dbl_it , Block::Subset && , bool > > {
- static Block::MF_dbl_sbst_map & get( void ) {
-  return( Block::methods_dbl_sbst_factory() );
- }
-};
-
-template<>
-struct Block::methods_factory_accessor<
- Block::FunctionType< Block::MF_int_it , Block::Subset && , bool > > {
- static Block::MF_int_sbst_map & get( void ) {
-  return( Block::methods_int_sbst_factory() );
  }
 };
 
@@ -8300,6 +8575,23 @@ struct Block::methods_factory_accessor<
 
 template<>
 struct Block::methods_factory_accessor<
+ Block::FunctionType< Block::MF_dbl_sp , Block::MF_dbl_sp , Block::Range > > {
+ static Block::MF_sp_dbl2_rngd_map & get( void ) {
+  return( Block::methods_sp_dbl2_rngd_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor<
+ Block::FunctionType< Block::MF_dbl_sp , Block::MF_dbl_sp , Block::Subset && ,
+                      bool > > {
+ static Block::MF_sp_dbl2_sbst_map & get( void ) {
+  return( Block::methods_sp_dbl2_sbst_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor<
  Block::QueryType< Block::MF_dbl_msp , Block::Range > > {
  static Block::MF_qry_dbl_rngd_map & get( void ) {
   return( Block::queries_dbl_rngd_factory() );
@@ -8330,6 +8622,53 @@ struct Block::methods_factory_accessor<
  }
 };
 
+template<>
+struct Block::methods_factory_accessor<
+ Block::QueryType< Block::MF_dbl_msp , Block::MF_dbl_msp , Block::Range > > {
+ static Block::MF_qry_dbl2_rngd_map & get( void ) {
+  return( Block::queries_dbl2_rngd_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor<
+ Block::QueryType< Block::MF_dbl_msp , Block::MF_dbl_msp , Block::c_Subset & ,
+                   bool > > {
+ static Block::MF_qry_dbl2_sbst_map & get( void ) {
+  return( Block::queries_dbl2_sbst_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor< Block::FunctionType< double > > {
+ static Block::MF_dbl_map & get( void ) {
+  return( Block::methods_dbl_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor<
+ Block::FunctionType< double , double > > {
+ static Block::MF_dbl2_map & get( void ) {
+  return( Block::methods_dbl2_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor< Block::QueryType< double & > > {
+ static Block::MF_qry_dbl_map & get( void ) {
+  return( Block::queries_dbl_factory() );
+ }
+};
+
+template<>
+struct Block::methods_factory_accessor<
+ Block::QueryType< double & , double & > > {
+ static Block::MF_qry_dbl2_map & get( void ) {
+  return( Block::queries_dbl2_factory() );
+ }
+};
+
 /*--------------------------------------------------------------------------*/
 /*---------------------------- CLASS BlockMod ------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -8354,7 +8693,7 @@ class BlockMod : public AModification
 
  virtual ~BlockMod() = default;   ///< destructor, does nothing
 
-/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+/*-------------------- PUBLIC METHODS OF THE CLASS -------------------------*/
 
  /// accessor to the pointer to the Block to which the Modification refers
 
@@ -8385,6 +8724,83 @@ class BlockMod : public AModification
  };  // end( class( BlockMod ) )
 
 /*--------------------------------------------------------------------------*/
+/*------------------------- CLASS BlockWeightMod ---------------------------*/
+/*--------------------------------------------------------------------------*/
+/// derived class from BlockMod for a change of the weights of a Block
+/** Derived class from BlockMod saying that the weight of the Objective, the
+ * weight of the Variable, or both, of a Block have changed [see
+ * Block::set_objective_weight(), Block::set_variable_weight() and
+ * Block::set_weight()]. The Block itself is not changed: what changes is
+ * the problem that a Solver attached to an ancestor assembles out of it,
+ * i.e., the Objective of the Block and of its sub-Block if the weight of
+ * the Objective has changed, and the coefficients that their Variable have
+ * in the Constraint outside of the Block if the weight of the Variable has.
+ * Both changing in one Modification is the scaling of the whole Block. */
+
+class BlockWeightMod : public BlockMod
+{
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+ public:
+
+ /// which of the weights have changed, bit-wise
+ enum weight_type {
+  eObjective = 1 ,  ///< the weight of the Objective
+  eVariable = 2 ,   ///< the weight of the Variable
+  eBoth = 3         ///< both
+  };
+
+/*---------------------------- CONSTRUCTOR ---------------------------------*/
+
+ /// constructor: takes the Block and which of the weights have changed
+
+ BlockWeightMod( Block * fblock , int which , bool cB = false )
+  : BlockMod( fblock , cB ) , f_which( which ) {
+  ModConcern c = 0;
+  if( which & eObjective )
+   c |= eModObj | eObjUp | eObjDown;
+  if( which & eVariable )
+   c |= eModCnsCoef | eRegnShrink | eRegnGrow;
+  set_changes( c );
+  }
+
+/*------------------------------ DESTRUCTOR --------------------------------*/
+
+ virtual ~BlockWeightMod() = default;   ///< destructor, does nothing
+
+/*-------------------- PUBLIC METHODS OF THE CLASS -------------------------*/
+
+ /// which of the weights have changed [see weight_type]
+
+ [[nodiscard]] int which( void ) const { return( f_which ); }
+
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+
+ protected:
+
+ /// print the BlockWeightMod
+
+ void print( std::ostream & output ) const override {
+  output << "BlockWeightMod[";
+  if( concerns_Block() )
+   output << "t";
+  else
+   output << "f";
+  output << "] on Block [" << &f_Block << "]: weight of the "
+	 << ( f_which == eBoth ? "Objective and of the Variable" :
+	      ( f_which == eObjective ? "Objective" : "Variable" ) )
+	 << " changed" << std::endl;
+  }
+
+/*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
+
+ int f_which;  ///< which of the weights have changed
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( BlockWeightMod ) )
+
+/*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS BlockModAD ------------------------------*/
 /*--------------------------------------------------------------------------*/
 /// derived class from AModification for adding/removing stuff to a Block
@@ -8408,15 +8824,20 @@ class BlockModAD : public AModification
  public:
 
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
- /// constructor, taking the "concerns" value
+ /// constructor, taking what is involved and the "concerns" value
+ /** Constructor: takes whether Variable (\p var == true) or Constraint are
+  * involved, whether they are added (\p add == true) or removed, and the
+  * "concerns" value; what the Modification changes follows from the first
+  * two [see changes_of()]. */
 
- BlockModAD( bool cB = false ) : AModification( cB ) {}
+ BlockModAD( bool var , bool add , bool cB = false )
+  : AModification( cB , changes_of( var , add ) ) {}
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
  virtual ~BlockModAD() = default;  ///< destructor, does nothing
 
-/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+/*-------------------- PUBLIC METHODS OF THE CLASS -------------------------*/
 
  /// returns true if a Variable is involved, false if a Constraint is involved
  /** Returns true if a Variable is involved, false if a Constraint is
@@ -8434,17 +8855,18 @@ class BlockModAD : public AModification
  virtual bool is_added( void ) const = 0;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// returns what the Modification changes [see Modification::ModConcern]
+ /// what adding (\p add == true) or removing Variable (\p var == true) or
+ /// Constraint changes [see changes()]
  /** The set of the Variable or of the Constraint. Adding Variable makes the
   * region grow, a solution of before staying feasible with the new Variable
   * at 0, and removing them shrinks it, as fixing them at 0 would; adding
   * Constraint shrinks the region, and removing them makes it grow. In all
   * cases the objective is the same as before at every point of before. */
 
- [[nodiscard]] ModConcern changes( void ) const override {
-  if( is_variable() )
-   return( eModVarSet | ( is_added() ? eRegnGrow : eRegnShrink ) );
-  return( eModCnsSet | ( is_added() ? eRegnShrink : eRegnGrow ) );
+ static constexpr ModConcern changes_of( bool var , bool add ) {
+  if( var )
+   return( eModVarSet | ( add ? eRegnGrow : eRegnShrink ) );
+  return( eModCnsSet | ( add ? eRegnShrink : eRegnGrow ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -8536,15 +8958,15 @@ class BlockModAdd : public BlockModAD
  /// constructor, taking all the data of the Modification
  /** Constructor, taking:
   *
-  * @param the std::list< ConstOrVar > & whc, a reference to the list where
+  * @param whc the std::list< ConstOrVar > &, a reference to the list where
   *        the Constraint or Variable (of type ConstOrVar) have been added;
   *
-  * @param the std::vector< ConstOrVar * > && add, containing the pointers
+  * @param add the std::vector< ConstOrVar * > &&, containing the pointers
   *        to the Constraint or Variable (of type ConstOrVar) that have been
   *        added; as the "&&" suggests, the object becomes property of the
   *        BlockModAdd;
   *
-  * @param the bool cB, containing the "concerns" value.
+  * @param cB the bool, containing the "concerns" value.
   *
   * Note that a pointer to the affected Block can always be inferred from the
   * other information that the Modification contains, and therefore is not
@@ -8553,7 +8975,8 @@ class BlockModAdd : public BlockModAD
  BlockModAdd( std::list< ConstOrVar > & whc ,
               std::vector< ConstOrVar * > && add , Block::Index first ,
               bool cB = false )
-  : BlockModAD( cB ) , whc_list( whc ) , add_vec( std::move( add ) ) ,
+  : BlockModAD( std::is_base_of_v< Variable , ConstOrVar > , true , cB ) ,
+    whc_list( whc ) , add_vec( std::move( add ) ) ,
     f_first( first ) {
   static_assert( std::is_base_of< Variable , ConstOrVar >::value ||
                  std::is_base_of< Constraint , ConstOrVar >::value ,
@@ -8565,7 +8988,7 @@ class BlockModAdd : public BlockModAD
 
  virtual ~BlockModAdd() = default;
 
-/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+/*-------------------- PUBLIC METHODS OF THE CLASS -------------------------*/
 
  Block * get_Block( void ) const override {
   return( add_vec[ 0 ]->get_Block() );
@@ -8707,18 +9130,18 @@ class BlockModRmv : public BlockModAD {
  /// constructor, taking all the data of the Modification
  /** Constructor, taking:
   *
-  * @param the std::list< ConstOrVar > & whc, a reference to the list from
+  * @param whc the std::list< ConstOrVar > &, a reference to the list from
   *        which the Constraint or Variable (of type ConstOrVar) have been
   *        removed;
   *
-  * @param the std::list< ConstOrVar > && rmvd, containing the *actual*
+  * @param rmvd the std::list< ConstOrVar > &&, containing the *actual*
   *        Constraint or Variable (of type ConstOrVar) that have been
   *        removed from the std::list< ConstOrVar > & whc; as the "&&"
   *        suggests, the object becomes property of the BlockModRmv, which
   *        is crucial for proper timely disposal of the objects themselves
   *        (see comments to the destructor);
   *
-  * @param the bool cB, containing the "concerns" value.
+  * @param cB the bool, containing the "concerns" value.
   *
   * Note that a pointer to the affected Block can always be inferred from the
   * other information that the Modification contains, and therefore is not
@@ -8726,7 +9149,8 @@ class BlockModRmv : public BlockModAD {
 
  BlockModRmv( std::list< ConstOrVar > & whc ,
               std::list< ConstOrVar > && rmvd , bool cB = false )
-  : BlockModAD( cB ) , f_whc( whc ) , f_rmvd( std::move( rmvd ) ) {
+  : BlockModAD( std::is_base_of_v< Variable , ConstOrVar > , false , cB ) ,
+    f_whc( whc ) , f_rmvd( std::move( rmvd ) ) {
   static_assert( std::is_base_of< Variable , ConstOrVar >::value ||
                  std::is_base_of< Constraint , ConstOrVar >::value ,
                  "BlockModRmv: must inherit from Variable or Constraint" );
@@ -8754,7 +9178,7 @@ class BlockModRmv : public BlockModAD {
    }
   }
 
-/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+/*-------------------- PUBLIC METHODS OF THE CLASS -------------------------*/
 
  Block * get_Block() const override {
   return( f_rmvd.front().get_Block() );
@@ -8847,18 +9271,18 @@ class BlockModRmvRngd : public BlockModRmv< ConstOrVar >
  /// constructor, taking all the data of the Modification
  /** Constructor, taking:
   *
-  * @param the std::list< ConstOrVar > & whc, a reference to the list from
+  * @param whc the std::list< ConstOrVar > &, a reference to the list from
   *        which the Constraint or Variable (of type ConstOrVar) have been
   *        removed;
   *
-  * @param the std::list< ConstOrVar > && rmvd, containing the *actual*
+  * @param rmvd the std::list< ConstOrVar > &&, containing the *actual*
   *        Constraint or Variable (of type ConstOrVar) that have been
   *        removed from the std::list< ConstOrVar > & whc; as the "&&"
   *        suggests, the object becomes property of the BlockModRmv, which
   *        is crucial for proper timely disposal of the objects themselves
   *        (see comments to the destructor);
   *
-  * @param the Range range, containing the usual left-closed, right-open
+  * @param range the Range, containing the usual left-closed, right-open
   *        interval with the original names that the Constraint or Variable
   *        (of type ConstOrVar) in \p rmvd had before they were removed;
   *        note that
@@ -8870,7 +9294,7 @@ class BlockModRmvRngd : public BlockModRmv< ConstOrVar >
   *     AND range.second (EXCLUDED), AND OF COURSE ONE EXPECTS THE ORDER OF
   *     ELEMENTS IN rmvd TO BE THE ORIGINAL ORDER IN whc
   *
-  * @param the bool cB, containing the "concerns" value.
+  * @param cB the bool, containing the "concerns" value.
   *
   * Note that a pointer to the affected Block can always be inferred from the
   * other information that the Modification contains, and therefore is not
@@ -8893,7 +9317,7 @@ class BlockModRmvRngd : public BlockModRmv< ConstOrVar >
 
  virtual ~BlockModRmvRngd() = default;
 
-/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+/*-------------------- PUBLIC METHODS OF THE CLASS -------------------------*/
  /// accessor to the range
 
  Block::c_Range & range( void ) const { return( f_range ); }
@@ -8950,18 +9374,18 @@ class BlockModRmvSbst : public BlockModRmv< ConstOrVar >
  /// constructor, taking all the data of the Modification
  /** Constructor, taking:
   *
-  * @param the std::list< ConstOrVar > & whc, a reference to the list from
+  * @param whc the std::list< ConstOrVar > &, a reference to the list from
   *        which the Constraint or Variable (of type ConstOrVar) have been
   *        removed;
   *
-  * @param the std::list< ConstOrVar > && rmvd, containing the *actual*
+  * @param rmvd the std::list< ConstOrVar > &&, containing the *actual*
   *        Constraint or Variable (of type ConstOrVar) that have been
   *        removed from the std::list< ConstOrVar > & whc; as the "&&"
   *        suggests, the object becomes property of the BlockModRmv, which
   *        is crucial for proper timely disposal of the objects themselves
   *        (see comments to the destructor);
   *
-  * @param the Subset subset, containing the original names that the
+  * @param subset the Subset, containing the original names that the
   *        Constraint or Variable (of type ConstOrVar) in \p rmvd had before
   *        they were removed; note that
   *
@@ -8977,7 +9401,7 @@ class BlockModRmvSbst : public BlockModRmv< ConstOrVar >
   *     subset IS ALLOWED TO BE EMPTY, MEANING THAT ALL THE Constraint OR
   *     Variable FROM THE LIST WHICH HAVE BEEN REMOVED.
   *
-  * @param the bool cB, containing the "concerns" value.
+  * @param cB the bool, containing the "concerns" value.
   *
   * Note that a pointer to the affected Block can always be inferred from the
   * other information that the Modification contains, and therefore is not
@@ -9000,7 +9424,7 @@ class BlockModRmvSbst : public BlockModRmv< ConstOrVar >
 
  virtual ~BlockModRmvSbst() = default;
 
-/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+/*-------------------- PUBLIC METHODS OF THE CLASS -------------------------*/
  /// accessor to the range
 
  Block::c_Subset & subset( void ) const { return( f_subset ); }
@@ -9316,7 +9740,7 @@ class BlockConfig : public Configuration {
   move( f_extra_Configuration , bc->f_extra_Configuration );
  }
 
-/*------------------------------- CLONE -----------------------------------*/
+/*------------------------------- CLONE ------------------------------------*/
 
  BlockConfig * clone( void ) const override {
   return( new BlockConfig( *this ) );
@@ -9463,7 +9887,12 @@ class BlockConfig : public Configuration {
   * - a binary number b to determine the value of #f_diff. If b == 0 then
   *   #f_diff = false, otherwise, #f_diff = true.
   *
-  * for all of:  static constraints Configuration ,
+  * - the version of the format, which must be equal to #f_txt_version; a
+  *   file in the old format, which had no version number, is rejected with
+  *   an exception rather than being read with the slots shifted by one.
+  *
+  * for all of:  structure Configuration ,
+  *              static constraints Configuration ,
   *              dynamic constraints Configuration ,
   *              static variables Configuration ,
   *              dynamic variables Configuration ,
@@ -9476,7 +9905,7 @@ class BlockConfig : public Configuration {
   *
   *  information describing the corresponding :Configuration in the format
   *  accepted by Configuration::deserialize( std::istream ), with all the
-  *  corresponding input options, like '*' for  nullptr and "*<filename>"
+  *  corresponding input options, like '*' for  nullptr and "\*\<filename\>"
   *  for loading it out of a different file. */
 
  void load( std::istream & input ) override;
@@ -9578,7 +10007,7 @@ class BlockConfig : public Configuration {
 /*--------------------------------------------------------------------------*/
 /*------------------------- Block-RELATED TYPES ----------------------------*/
 /*--------------------------------------------------------------------------*/
-/** @defgroup Block_TYPES Type definitions in Block.h
+/** @addtogroup Block_TYPES
  *  @{ */
 
 
@@ -9678,7 +10107,7 @@ inline void serialize( netCDF::NcGroup & group , const Block * data ,
 /** Deserialize basically any STL container of Block (*) out of the given
  * \p group and into \p data. This is supposed to be represented by the
  * dimension with name \p size giving the size of the container, plus by as
- * many sub-groups of \p group with name <name>0, <name>1, ..., each one
+ * many sub-groups of \p group with name \<name\>0, \<name\>1, ..., each one
  * containing one of the Block. */
 
 template< template< class ... > class C >
@@ -9704,7 +10133,7 @@ void deserialize( const netCDF::NcGroup & group , C< Block * > & data ,
 /** Serialize basically any STL container of Block (*) into the given
  * \p group and into \p data. This is supposed to be represented by the
  * dimension with name \p size giving the size of the container, plus by as
- * many sub-groups of \p group with name <name>0, <name>1, ..., each one
+ * many sub-groups of \p group with name \<name\>0, \<name\>1, ..., each one
  * containing one of the Block. */
 
 template< template< class ... > class C >
@@ -9738,7 +10167,7 @@ Block::add_dynamic_constraints( std::list< Const > & list ,
  // the group of the list, which the new Constraint join
  auto group = group_of_cell( v_d_Constraint_groups , & list );
 
- if( issue_mod( issueMod ) ) {
+ if( issue_mod( issueMod , Modification::eModCnsSet ) ) {
   // initialize the vector of pointer to added Constraint
   Index first = list.size();
   auto names = std::vector< Const * >( newlist.size() );
@@ -9786,7 +10215,7 @@ Block::add_dynamic_variables( std::list< Var > & list ,
  // the group of the list, which the new Variable join
  auto group = group_of_cell( v_d_Variable_groups , & list );
 
- if( issue_mod( issueMod ) ) {
+ if( issue_mod( issueMod , Modification::eModVarSet ) ) {
   // initialize the vector of pointer to added Constraint
   Index first = list.size();
   auto names = std::vector< Var * >( newlist.size() );
@@ -9836,6 +10265,14 @@ Block::remove_dynamic_constraints( std::list< Const > & list ,
  if( list.empty() )
   throw( std::invalid_argument( "removing from empty list" ) );
 
+ const bool listening = issue_mod( issueMod , Modification::eModCnsSet );
+
+ // if somebody is listening, the names of the Constraint are found first,
+ // thereby checking that rmvd is correct before anything is changed
+ Subset subset;
+ if( listening )
+  subset = removed_positions( list , rmvd );
+
  // note that each Constraint is removed from its active Variable, but it
  // is not clear()-ed now: if a Modification is issued, the list of active
  // Variable remaining available may help the :Solver to manage it, and
@@ -9843,29 +10280,17 @@ Block::remove_dynamic_constraints( std::list< Const > & list ,
  for( const auto const_it : rmvd )
   remove_constraint_from_variables( &( *const_it ) );
 
- if( issue_mod( issueMod ) ) {  // somebody is listening
+ if( listening ) {  // somebody is listening
   std::list< Const > removed;
-  Subset subset( rmvd.size() );
 
-  // remove all the Constraint (whose iterators are found) in rmvd and add
-  // them to the removed list; note that by using splice() the address of
-  // the actual Constraints objects is not changed. meanwhile also construct
-  // the list of names, thereby checking that rmvd is correct
-  Index i = 0;
-  auto rit = rmvd.begin();
+  // remove all the Constraint in rmvd and add them to the removed list;
+  // note that by using splice() the address of the actual Constraints
+  // objects is not changed
+  for( auto el : rmvd )
+   removed.splice( removed.end() , list , el );
+
+  Index i;
   auto sit = subset.begin();
-  for( auto lit = list.begin() ;
-       ( lit != list.end() ) && ( rit != rmvd.end() ) ; ++i )
-   if( &( *lit ) == &( *( *rit ) ) ) {
-    ++lit;  // increment the iterator before removing
-    removed.splice( removed.end(), list, *(rit++) );  // move element
-    *(sit++) = i;                                       // record position
-    }
-   else
-    ++lit;
-
-  if( rit != rmvd.end() )
-   throw( std::invalid_argument( "invalid or unordered removed list" ) );
 
   // now check if this actually was a range
   bool isr = true;
@@ -9913,31 +10338,34 @@ Block::remove_dynamic_constraint( std::list< Const > & list ,
  if( list.empty() )
   throw( std::invalid_argument( "removing from empty list" ) );
 
+ const bool listening = issue_mod( issueMod , Modification::eModCnsSet );
+
+ // if somebody is listening, the name of the Constraint is found first,
+ // thereby checking that it is correct before anything is changed
+ Index i = 0;
+ if( listening ) {
+  auto lit = list.begin();
+  for( ; lit != list.end() ; ++lit , ++i )
+   if( &( *lit ) == &( *rmvd ) )
+    break;
+
+  if( lit == list.end() )
+   throw( std::invalid_argument( "invalid removed iterator" ) );
+  }
+
  // note that the Constraint is removed from its active Variable, but it
  // is not clear()-ed now: if a Modification is issued, the list of active
  // Variable remaining available may help the :Solver to manage it, and
  // clear()-ing will be done in the Modification destructor
  remove_constraint_from_variables( &( *rmvd ) );
 
- if( issue_mod( issueMod ) ) {  // somebody is listening
+ if( listening ) {  // somebody is listening
   std::list< Const > removed;
 
   // remove the Constraint pointed by rmvd and add it the removed list; note
   // that by using splice() the address of the actual Constraint object is
-  // not changed. meanwhile also find its name, thereby checking that it is
-  // correct
-
-  Index i = 0;
-  auto lit = list.begin();
-  auto initial_el = list.size();
-  for( ; lit != list.end() ; ++lit , ++i )
-   if( &( *lit ) == &( *rmvd ) ) {
-    removed.splice( removed.end() , list , rmvd );
-    break;
-    }
-
-  if( i == initial_el )
-   throw( std::invalid_argument( "invalid removed iterator" ) );
+  // not changed
+  removed.splice( removed.end() , list , rmvd );
 
   // now issue the BlockModRmv*
   if( list.empty() )
@@ -10000,7 +10428,7 @@ Block::remove_dynamic_constraints( std::list< Const > & list ,
  for( auto it = sit ; it != eit ; ++it )
   remove_constraint_from_variables( &( *it ) );
 
- if( issue_mod( issueMod ) ) {  // somebody is listening
+ if( issue_mod( issueMod , Modification::eModCnsSet ) ) {
   std::list< Const > removed;
 
   // remove all the Constraint in the range and add them to the removed list
@@ -10047,7 +10475,7 @@ Block::remove_dynamic_constraints( std::list< Const > & list ,
   for( auto & c : list )
    remove_constraint_from_variables( &c );
 
-  if( issue_mod( issueMod ) ) {  // somebody is listening
+  if( issue_mod( issueMod , Modification::eModCnsSet ) ) {
    std::list< Const > removed;
 
    // remove all the Constraint add them to the removed list
@@ -10103,7 +10531,7 @@ Block::remove_dynamic_constraints( std::list< Const > & list ,
   ? std::prev( list.end(), list.size() - pos )
   : std::next( list.begin(), pos );
 
- if( issue_mod( issueMod ) ) {  // somebody is listening
+ if( issue_mod( issueMod , Modification::eModCnsSet ) ) {
   std::list< Const > removed;
 
   // remove each Constraint in the subset and add them to the removed
@@ -10175,32 +10603,28 @@ Block::remove_dynamic_variables( std::list< Var > & list ,
  if( list.empty() )
   throw( std::invalid_argument( "removing from empty list" ) );
 
+ const bool listening = issue_mod( issueMod , Modification::eModVarSet );
+
+ // if somebody is listening, the names of the Variable are found first,
+ // thereby checking that rmvd is correct before anything is changed
+ Subset subset;
+ if( listening )
+  subset = removed_positions( list , rmvd );
+
  for( const auto & var_it : rmvd )
   remove_variable_from_stuff( &( *var_it ) , issueindMod );
 
- if( issue_mod( issueMod ) ) {  // somebody is listening
+ if( listening ) {  // somebody is listening
   std::list< Var > removed;
-  Subset subset( rmvd.size() );
 
-  // remove all the Variable (whose iterators are found) in rmvd and add
-  // them to the removed list; note that by using splice() the address of
-  // the actual Variable objects is not changed. meanwhile also construct
-  // the list of names, thereby checking that rmvd is correct
-  Index i = 0;
-  auto rit = rmvd.begin();
+  // remove all the Variable in rmvd and add them to the removed list; note
+  // that by using splice() the address of the actual Variable objects is
+  // not changed
+  for( auto el : rmvd )
+   removed.splice( removed.end() , list , el );
+
+  Index i;
   auto sit = subset.begin();
-  for( auto lit = list.begin() ;
-       ( lit != list.end() ) && ( rit != rmvd.end() ) ; ++i )
-   if( &( *lit ) == &( *( *rit ) ) ) {
-    ++lit;  // increment the iterator before removing
-    removed.splice( removed.end(), list, *(rit++) );  // move element
-    *(sit++) = i;                                       // record position
-    }
-   else
-    ++lit;
-
-  if( rit != rmvd.end() )
-   throw( std::invalid_argument( "invalid or unordered removed list" ) );
 
   // now check if this actually was a range
   bool isr = true;
@@ -10247,26 +10671,30 @@ Block::remove_dynamic_variable( std::list< Var > & list ,
  if( list.empty() )
   throw( std::invalid_argument( "removing from empty list" ) );
 
+ const bool listening = issue_mod( issueMod , Modification::eModVarSet );
+
+ // if somebody is listening, the name of the Variable is found first,
+ // thereby checking that it is correct before anything is changed
+ Index i = 0;
+ if( listening ) {
+  auto lit = list.begin();
+  for( ; lit != list.end() ; ++lit , ++i )
+   if( &( *lit ) == &( *rmvd ) )
+    break;
+
+  if( lit == list.end() )
+   throw( std::invalid_argument( "invalid removed iterator" ) );
+  }
+
  remove_variable_from_stuff( &( *rmvd ) , issueindMod );
 
- if( issue_mod( issueMod ) ) {  // somebody is listening
+ if( listening ) {  // somebody is listening
   std::list< Var > removed;
 
   // remove the Variable pointed by rmvd and add it the removed list; note
   // that by using splice() the address of the actual Variable object is
-  // not changed. meanwhile also find its name, thereby checking that it is
-  // correct
-
-  Index i = 0;
-  auto lit = list.begin();
-  for( ; lit != list.end() ; ++lit , ++i )
-   if( &( *lit ) == &( *rmvd ) ) {
-    removed.splice( removed.end() , list , rmvd );
-    break;
-    }
-
-  if( lit == list.end() )
-   throw( std::invalid_argument( "invalid removed iterator" ) );
+  // not changed
+  removed.splice( removed.end() , list , rmvd );
 
   // now issue the BlockModRmv*
   if( list.empty() )
@@ -10325,7 +10753,7 @@ Block::remove_dynamic_variables( std::list< Var > & list , Range range ,
  for( auto it = sit ; it != eit ; ++it )
   remove_variable_from_stuff( &( *it ) , issueindMod );
 
- if( issue_mod( issueMod ) ) {  // somebody is listening
+ if( issue_mod( issueMod , Modification::eModVarSet ) ) {
   std::list< Var > removed;
 
   // remove all the Variable in the range and add them to the removed list
@@ -10365,7 +10793,7 @@ Block::remove_dynamic_variables( std::list< Var > & list ,
   for( auto & v : list )
    remove_variable_from_stuff( &v, issueindMod );
 
-  if( issue_mod( issueMod ) ) {  // somebody is listening
+  if( issue_mod( issueMod , Modification::eModVarSet ) ) {
    std::list< Var > removed;
 
    // remove all the Constraint add them to the removed list
@@ -10416,7 +10844,7 @@ Block::remove_dynamic_variables( std::list< Var > & list ,
   ? std::prev( list.end(), list.size() - pos )
   : std::next( list.begin(), pos );
 
- if( issue_mod( issueMod ) ) {  // somebody is listening
+ if( issue_mod( issueMod , Modification::eModVarSet ) ) {
   std::list< Var > removed;
 
   // remove all the Variable in the subset and add them to the removed

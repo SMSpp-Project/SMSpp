@@ -84,8 +84,8 @@ namespace SMSpp_di_unipi_it {
  *    the bound/sign/integrality constraints found in practical models, most
  *    notably that of binary values (the value being either 0 or 1).
  *
- * - A trivial implementation of the set of "active stuff" for this
- *   ColVariable as an ordered set of pointers to ThinVarDepInterface.
+ *  - A trivial implementation of the set of "active stuff" for this
+ *    ColVariable as an ordered set of pointers to ThinVarDepInterface.
  *
  * Important note: the "type" of the ColVariable is in fact a constraint on
  * its possible values; as such, it being a part of the ColVariable, rather
@@ -325,49 +325,8 @@ class ColVariable : public Variable
   }
 
 /*--------------------------------------------------------------------------*/
-/// verifies whether the given std::vector of ColVariable is feasible
-/** This function returns true if and only if each ColVariable in the given
- * std::vector is feasible with respect to the given tolerance (see
- * ColVariable::is_feasible()).
- *
- * @return This function returns true if and only if each of the given
- *         ColVariable is feasible considering the given tolerance. */
-
- template< typename T >
- static std::enable_if_t< std::is_base_of_v< ColVariable , T > , bool >
- is_feasible( const std::vector< T > & variables ,
-              double tolerance = 1e-10 ) {
-  // if empty, std::all_of returns true, i.e., the solution is feasible
-  return( std::all_of( variables.begin() , variables.end() ,
-                       [ tolerance ]( const auto & variable ) {
-                        return( variable.is_feasible( tolerance ) );
-                       } ) );
- }
-
-/*--------------------------------------------------------------------------*/
- /// verifies whether the given std::vector of std::vector of ColVariable is
- /// feasible
- /** This function returns true if and only if each ColVariable in the given
-  * std::vector of std::vector is feasible with respect to the given tolerance
-  * (see ColVariable::is_feasible()).
-  *
-  * @return This function returns true if and only if each of the given
-  *         ColVariable is feasible considering the given tolerance. */
-
- template< typename T >
- static std::enable_if_t< std::is_base_of_v< ColVariable , T > , bool >
- is_feasible( const std::vector< std::vector< T > > & variables ,
-              double tolerance = 1e-10 ) {
-  // if empty, std::all_of returns true, i.e., the solution is feasible
-  return( std::all_of( variables.begin() , variables.end() ,
-                       [ tolerance ]( const auto & l_variables ) {
-                        return( ColVariable::is_feasible( l_variables ,
-                                                          tolerance ) );
-                       } ) );
- }
-
-/*--------------------------------------------------------------------------*/
-/// verifies whether the given K-D boost::multi_array of ColVariable is feasible
+/// verifies whether the given K-D boost::multi_array of ColVariable is
+/// feasible
 /** This function returns true if and only if each ColVariable in the given
  * K-D boost::multi_array is feasible with respect to the given tolerance (see
  * ColVariable::is_feasible()).
@@ -388,39 +347,13 @@ class ColVariable : public Variable
  }
 
 /*--------------------------------------------------------------------------*/
- /// verifies whether the given K-D boost::multi_array of std::vector of
- /// ColVariable is feasible
- /** This function returns true if and only if each ColVariable in the given
-  * K-D boost::multi_array of std::vector is feasible with respect to the given
-  * tolerance (see ColVariable::is_feasible()).
-  *
-  * @return This function returns true if and only if each of the given
-  *         ColVariable is feasible considering the given tolerance. */
+/// verifies whether the given collection of ColVariable is feasible
+/** The collection can be any container, e.g., a std::vector, a std::list or
+ * a std::deque. */
 
- template< typename T , std::size_t K >
+ template< template< class ... > class C , class T , class ... CA >
  static std::enable_if_t< std::is_base_of_v< ColVariable , T > , bool >
- is_feasible( const boost::multi_array< std::vector< T > , K > & variables ,
-              double tolerance = 1e-10 ) {
-  auto n = variables.num_elements();
-  auto v_variables = variables.data();
-  for( decltype( n ) i = 0 ; i < n ; ++i , ++v_variables )
-   if( ! ColVariable::is_feasible( *v_variables , tolerance ) )
-    return( false );
-  return( true );
- }
-
-/*--------------------------------------------------------------------------*/
-/// verifies whether the given std::list of ColVariable is feasible
-/** This function returns true if and only if each ColVariable in the given
- * std::list is feasible with respect to the given tolerance (see
- * ColVariable::is_feasible()).
- *
- * @return This function returns true if and only if each of the given
- *         ColVariable is feasible considering the given tolerance. */
-
- template< typename T >
- static std::enable_if_t< std::is_base_of_v< ColVariable , T > , bool >
- is_feasible( const std::list< T > & variables ,
+ is_feasible( const C< T , CA ... > & variables ,
               double tolerance = 1e-10 ) {
   // if empty, std::all_of returns true, i.e., the solution is feasible
   return( std::all_of( variables.begin() , variables.end() ,
@@ -430,45 +363,38 @@ class ColVariable : public Variable
  }
 
 /*--------------------------------------------------------------------------*/
-/// verifies whether the given std::vector of std::list of ColVariable is
+/// verifies whether the given collection of collections of ColVariable is
 /// feasible
-/** This function returns true if and only if each ColVariable in the given
- * std::vector of std::list is feasible with respect to the given tolerance
- * (see ColVariable::is_feasible()).
- *
- * @return This function returns true if and only if each of the given
- *         ColVariable is feasible considering the given tolerance. */
+/** Both collections can be any container, e.g., a std::vector of std::list. */
 
- template< typename T >
+ template< template< class ... > class C ,
+           template< class ... > class D , class T ,
+           class ... DA , class ... CA >
  static std::enable_if_t< std::is_base_of_v< ColVariable , T > , bool >
- is_feasible( const std::vector< std::list< T > > & variables ,
+ is_feasible( const C< D< T , DA ... > , CA ... > & variables ,
               double tolerance = 1e-10 ) {
   // if empty, std::all_of returns true, i.e., the solution is feasible
   return( std::all_of( variables.begin() , variables.end() ,
-                       [ tolerance ]( const auto & l_variables ) {
-                        return( ColVariable::is_feasible( l_variables ,
+                       [ tolerance ]( const auto & d_variables ) {
+                        return( ColVariable::is_feasible( d_variables ,
                                                           tolerance ) );
                        } ) );
  }
 
 /*--------------------------------------------------------------------------*/
-/// verifies whether the given K-D boost::multi_array of std::list of
+/// verifies whether the given K-D boost::multi_array of collections of
 /// ColVariable is feasible
-/** This function returns true if and only if each ColVariable in the given
- * K-D boost::multi_array of std:list is feasible with respect to the given
- * tolerance (see ColVariable::is_feasible()).
- *
- * @return This function returns true if and only if each of the given
- *         ColVariable is feasible considering the given tolerance. */
+/** The collections can be any container, e.g., a std::vector. */
 
- template< typename T , std::size_t K >
+ template< template< class ... > class C , class T , class ... CA ,
+           std::size_t K >
  static std::enable_if_t< std::is_base_of_v< ColVariable , T > , bool >
- is_feasible( const boost::multi_array< std::list< T > , K > & variables ,
+ is_feasible( const boost::multi_array< C< T , CA ... > , K > & variables ,
               double tolerance = 1e-10 ) {
   auto n = variables.num_elements();
-  auto l_variables = variables.data();
-  for( decltype( n ) i = 0 ; i < n ; ++i , ++l_variables )
-   if( ! ColVariable::is_feasible( *l_variables , tolerance ) )
+  auto c_variables = variables.data();
+  for( decltype( n ) i = 0 ; i < n ; ++i , ++c_variables )
+   if( ! ColVariable::is_feasible( *c_variables , tolerance ) )
     return( false );
   return( true );
  }

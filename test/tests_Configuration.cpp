@@ -566,7 +566,9 @@ static void test_deserialize_stream( void )
 /*--------------------------------------------------------------------------*/
 /* The "[idx]" at the end of a netCDF filename selects the Configuration of
  * an eConfigFile, the one appended by serialize( ... , false ) being the
- * second; a position that is not in the file gives nullptr. */
+ * second; a position that is not in the file gives nullptr. Appending to a
+ * file that is not there creates it, and to one that is not a netCDF file
+ * throws and leaves it as it was. */
 
 static void test_netCDF_positions( void )
 {
@@ -598,6 +600,34 @@ static void test_netCDF_positions( void )
  // a file type that is not one of a Configuration is refused
  assert( throws< std::invalid_argument >( [ & ]() {
     write_nc( first , fn , eBlockFile ); } ) );
+
+ // replace == false on a file that is not there creates it
+ std::filesystem::remove( fn );
+ write_nc( first , fn , eConfigFile , false );
+ c0 = Configuration::deserialize( fn );
+ assert( c0 && ( value_of< int >( c0 ) == 1 ) );
+ delete c0;
+
+ // and on a file that is there and cannot be appended to throws, leaving
+ // it as it was rather than writing over it
+ {
+  std::ofstream out( fn , std::ios::trunc );
+  out << "not a netCDF file" << std::endl;
+  }
+ bool thrown = false;
+ try { write_nc( first , fn , eConfigFile , false ); }
+ catch( std::runtime_error & e ) {
+  thrown = ( std::string( e.what() ).rfind( "Configuration::serialize: " ,
+					    0 ) == 0 );
+  }
+ assert( thrown );
+ {
+  std::ifstream in( fn );
+  std::string line;
+  std::getline( in , line );
+  assert( line == "not a netCDF file" );
+  }
+ std::filesystem::remove( fn );
 
  std::cout << "positions in a netCDF file: OK" << std::endl;
  }
@@ -643,6 +673,37 @@ static const char * full_ComputeConfig =
  "1  vdblA 2 0.25 0.75        # vector of double\n"
  "1  vstrA 2 one two          # vector of string\n"
  "SimpleConfiguration<int> 7  # extra\n";
+
+/*--------------------------------------------------------------------------*/
+/* A double parameter written inf, -INF or +Infinity is read as an infinity,
+ * the numbers with a sign in front as numbers, and a word that is not an
+ * infinity is a read error, which ComputeConfig::load() throws. */
+
+static void test_ComputeConfig_infinity( void )
+{
+ auto c = from_text( "ComputeConfig 0\n0\n"
+		     "6  dblA inf  dblB -INF  dblC +Infinity  dblD -1e3  "
+		     "dblE +2.5  dblF -.5\n0 0 0 0\n*\n" );
+ auto cc = dynamic_cast< ComputeConfig * >( c );
+ expect( cc , "a ComputeConfig with infinite double parameters is read" );
+ if( cc )
+  expect(
+    ( cc->dbl_pars == decltype( cc->dbl_pars ){ { "dblA" , Inf< double >() } ,
+						{ "dblB" , -Inf< double >() } ,
+						{ "dblC" , Inf< double >() } ,
+						{ "dblD" , -1e3 } ,
+						{ "dblE" , 2.5 } ,
+						{ "dblF" , -0.5 } } ) ,
+    "inf, -INF and +Infinity are infinities, -1e3, +2.5 and -.5 "
+    "numbers" );
+ delete c;
+
+ expect( throws< std::logic_error >( [] {
+	  delete from_text( "ComputeConfig 0\n0\n1  dblA info\n"
+			    "0 0 0 0\n*\n" );
+	  } ) ,
+	 "a double parameter written info is a read error" );
+ }
 
 /*--------------------------------------------------------------------------*/
 /* The full format is read in all its parts, and the ComputeConfig goes
@@ -2808,6 +2869,7 @@ int main( void )
  test_filename_prefix();
 
  test_ComputeConfig_load();
+ test_ComputeConfig_infinity();
  test_ComputeConfig_flags();
  test_ComputeConfig_set_par();
  test_ComputeConfig_override();

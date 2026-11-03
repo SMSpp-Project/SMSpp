@@ -30,7 +30,7 @@
 #                              Antonio Frangioni                             #
 #                         Dipartimento di Informatica                        #
 #                             Universita' di Pisa                            #
-#									     #
+#                                                                            #
 ##############################################################################
 
 # include the SMS++ makefile internally defining all external modules - - - -
@@ -66,5 +66,9 @@ SMS++OBJ = $(SMS++_LOCAL_LIB)
 # clean-up unrequired things- - - - - - - - - - - - - - - - - - - - - - - - -
 
 SMS++H =
+
+# the C++20 module smspp, made with the library [see makefile-mod]
+
+$(eval $(call SMSppMODlib,SMS++,smspp))
 
 ########################## End of makefile-inc ###############################

@@ -55,8 +55,6 @@ include(CTest)
 # See: https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html
 include(BuildType)
 
-include(FetchContent)
-
 # ----- Requirements -------------------------------------------------------- #
 # The Boost find module is provided by CMake.
 find_package(Boost 1.72.0 REQUIRED)
@@ -75,82 +73,32 @@ if (NOT netCDFCxx_FOUND)
     find_package(netCDFCxx REQUIRED)
 endif ()
 
+# HDF5, which netCDF reads its files with, only to turn off the printing of
+# its errors in the threads that read an image in memory [see NcMemFile]:
+# without it the reading is the same, with the errors in the log
+find_package(HDF5 COMPONENTS C QUIET)
+set(SMSpp_HDF5 ${HDF5_FOUND})
+# a static library carries it to whoever links it [see SMS++Config.cmake.in]
+if (SMSpp_HDF5 AND NOT BUILD_SHARED_LIBS)
+    set(SMSpp_HDF5_DEPENDENCY ON)
+else ()
+    set(SMSpp_HDF5_DEPENDENCY OFF)
+endif ()
+
 if (MSVC)
     find_library(GETOPT_LIBRARY getopt)
 endif ()
 
-# Declare and fetch FastFlow
-FetchContent_Declare(
-        fastflow
-        GIT_REPOSITORY https://github.com/fastflow/fastflow.git
-        GIT_TAG master)
+# the threads, which the core and FastFlow use: with a recent glibc they are
+# in the C library, while elsewhere (say, the compilers of MinGW-w64) they
+# have to be linked, by whoever links the core too
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
 
-FetchContent_Populate(fastflow)
-
-# ----- FastFlow Windows/MSVC compatibility patch --------------------------- #
-# FastFlow's bundled Windows port (ff/platforms/pthread_minport_windows.h) is
-# incomplete under MSVC: it provides pthread_cond_wait() but not the timed
-# variant pthread_cond_timedwait(), nor clock_gettime()/CLOCK_REALTIME, all of
-# which the FastFlow core (ff/node.hpp, lb.hpp, gt.hpp, farm.hpp, pipeline.hpp
-# and ff/utils.hpp) relies on for its blocking-mode timed waits. On Linux these
-# come from <pthread.h>/<time.h>; on Windows we inject a minimal implementation
-# into the fetched header at configure time. The edit is idempotent (guarded by
-# the FF_SMSPP_WIN_COMPAT marker) and mirrors the configure-time header shimming
-# we already do for LEMON in MCFLemonSolver/CMakeLists.txt. Note: NOMINMAX and
-# /Zc:__cplusplus (set in the top-level CMakeSettings.txt) are also required to
-# build FastFlow with MSVC.
-if (MSVC)
-    set(_ff_winport "${fastflow_SOURCE_DIR}/ff/platforms/pthread_minport_windows.h")
-    if (EXISTS "${_ff_winport}")
-        file(READ "${_ff_winport}" _ff_winport_src)
-        if (NOT _ff_winport_src MATCHES "FF_SMSPP_WIN_COMPAT")
-            # Injected right after the `typedef CONDITION_VARIABLE pthread_cond_t;`
-            # line, where INLINE/RESTRICT, <time.h> (struct timespec), <errno.h>
-            # (ETIMEDOUT) and <Windows.h> are already in scope. pthread_mutex_t is
-            # CRITICAL_SECTION and pthread_cond_t is CONDITION_VARIABLE here.
-            set(_ff_shim [=[typedef CONDITION_VARIABLE pthread_cond_t;
-/* ---- FF_SMSPP_WIN_COMPAT: MSVC compatibility shim injected by SMS++ ------- */
-#ifndef FF_SMSPP_WIN_COMPAT
-#define FF_SMSPP_WIN_COMPAT
-#ifndef CLOCK_REALTIME
-#define CLOCK_REALTIME 0
-#endif
-/* clock_gettime(): map CLOCK_REALTIME onto the Windows system clock. FILETIME
-   counts 100 ns ticks since 1601-01-01; 116444736000000000 is the offset (in
-   ticks) from that epoch to the Unix epoch 1970-01-01. */
-INLINE int clock_gettime(int, struct timespec *tp) {
-    FILETIME ft; ULARGE_INTEGER u;
-    GetSystemTimePreciseAsFileTime(&ft);
-    u.LowPart = ft.dwLowDateTime; u.HighPart = ft.dwHighDateTime;
-    unsigned long long t = u.QuadPart - 116444736000000000ULL;
-    tp->tv_sec  = (long)(t / 10000000ULL);
-    tp->tv_nsec = (long)((t % 10000000ULL) * 100ULL);
-    return 0;
-}
-/* pthread_cond_timedwait(): turn the absolute POSIX deadline into a relative
-   millisecond timeout for SleepConditionVariableCS(); return ETIMEDOUT on
-   expiry, as POSIX requires. */
-INLINE int pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
-                                  const struct timespec *abstime) {
-    struct timespec now;
-    clock_gettime(CLOCK_REALTIME, &now);
-    long long ms = (long long)(abstime->tv_sec - now.tv_sec) * 1000LL
-                 + (long long)(abstime->tv_nsec - now.tv_nsec) / 1000000LL;
-    if (ms < 0) ms = 0;
-    if (!SleepConditionVariableCS(cond, mutex, (DWORD)ms))
-        if (GetLastError() == ERROR_TIMEOUT) return ETIMEDOUT;
-    return 0;
-}
-#endif
-/* ---- end FF_SMSPP_WIN_COMPAT --------------------------------------------- */]=])
-            string(REPLACE "typedef CONDITION_VARIABLE pthread_cond_t;"
-                    "${_ff_shim}" _ff_winport_src "${_ff_winport_src}")
-            file(WRITE "${_ff_winport}" "${_ff_winport_src}")
-            message(STATUS
-                    "FastFlow: injected MSVC pthread_cond_timedwait/clock_gettime shim")
-        endif ()
-    endif ()
-endif ()
+# Fetch FastFlow, which the build interface of the library passes on to the
+# modules [see cmake/FastFlow.cmake]
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FastFlow.cmake)
+smspp_fetch_fastflow()
 
 # ----- Configuration header ------------------------------------------------ #
 # This will generate a *Config.h header in the build directory.
@@ -202,6 +150,7 @@ target_sources(${modName} PRIVATE
         src/AbstractChange.cpp
         src/Change.cpp
         src/BoxSolver.cpp
+        src/BranchingRule.cpp
         src/CDASolver.cpp
         src/Block.cpp
         src/BlockSolverConfig.cpp
@@ -229,6 +178,7 @@ target_sources(${modName} PRIVATE
         src/RowConstraintSolution.cpp
         src/PolyhedralFunctionBlock.cpp
         src/QuadFunction.cpp
+        src/SMSnetCDF.cpp
         src/Solution.cpp
         src/Solver.cpp
         src/ThinComputeInterface.cpp
@@ -248,8 +198,8 @@ target_include_directories(
         ${modName} PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         # the build directory holds the generated ${modName}Config.h, so that
-        # dependents built in-tree can #include it (installed builds get it from
-        # the INSTALL_INTERFACE include dir, where it is installed)
+        # dependents built in-tree can #include it (installed builds get it
+        # from the INSTALL_INTERFACE include dir, where it is installed)
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
         $<INSTALL_INTERFACE:include/${modNamespace}>
         $<BUILD_INTERFACE:${fastflow_SOURCE_DIR}>)
@@ -262,15 +212,50 @@ target_include_directories(
 target_link_libraries(${modName} PUBLIC
         Boost::boost
         Eigen3::Eigen
-        netCDF::netCDFCxx)
+        netCDF::netCDFCxx
+        Threads::Threads)
 
 if (MSVC)
     target_link_libraries(${modName} PUBLIC ${GETOPT_LIBRARY})
 endif ()
 
+if (SMSpp_HDF5)
+    target_compile_definitions(${modName} PRIVATE SMSpp_HAVE_HDF5)
+    target_include_directories(${modName} PRIVATE ${HDF5_C_INCLUDE_DIRS}
+                               ${HDF5_INCLUDE_DIRS})
+    target_link_libraries(${modName} PRIVATE ${HDF5_C_LIBRARIES})
+endif ()
+
 # This alias is defined so that executables in this same project can use
 # the library with this notation.
 add_library(${modNamespace}::${modName} ALIAS ${modName})
+
+# ----- C++20 module -------------------------------------------------------- #
+# The module smspp (src/SMSpp.cppm) exports the names of all the headers, so
+# that a translation unit can write "import smspp;" in place of including
+# them. It needs CMake 3.28 or later, the Ninja or Visual Studio generator
+# and a compiler that scans the module dependencies and accepts the headers
+# of Eigen and Boost in a module (Clang 16 or MSVC 19.34 or later): unless
+# SMSpp_BUILD_MODULE says otherwise, it is built where these are there and
+# the compiler is Clang, and where they are missing an SMSpp_BUILD_MODULE=ON
+# is turned off with a warning [see CheckModule.cmake].
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CheckModule.cmake)
+smspp_check_module()
+
+if (SMSpp_BUILD_MODULE)
+    # the scan of the module dependencies, which cmake_policy(VERSION 3.15)
+    # above would leave off
+    cmake_policy(SET CMP0155 NEW)
+
+    add_library(${modName}_module)
+    target_sources(${modName}_module PUBLIC
+            FILE_SET CXX_MODULES
+            BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/src
+            FILES src/SMSpp.cppm)
+    target_compile_features(${modName}_module PUBLIC cxx_std_20)
+    target_link_libraries(${modName}_module PUBLIC ${modName})
+    add_library(${modNamespace}::${modName}_module ALIAS ${modName}_module)
+endif ()
 
 # ----- Subdirectories ------------------------------------------------------ #
 if (BUILD_TESTING)
@@ -290,6 +275,17 @@ install(TARGETS ${modName}
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} # .dll
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} # .so .dylib
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}) # .lib
+
+# Install the module, whose interface is compiled again by each importer
+if (SMSpp_BUILD_MODULE)
+    install(TARGETS ${modName}_module
+            EXPORT ${modName}Targets
+            RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            FILE_SET CXX_MODULES
+            DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${modNamespace}/modules)
+endif ()
 
 # Install the headers
 install(DIRECTORY include/
@@ -330,6 +326,13 @@ install(FILES
 # party developers should provide for them.
 file(GLOB findMods ${CMAKE_CURRENT_LIST_DIR}/cmake/Find*)
 install(FILES ${findMods}
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${modName})
+
+# Install the check of the C++20 modules and the fetch of FastFlow, which the
+# configuration file includes for the modules that find the core with
+# find_package().
+install(FILES ${CMAKE_CURRENT_LIST_DIR}/cmake/CheckModule.cmake
+        ${CMAKE_CURRENT_LIST_DIR}/cmake/FastFlow.cmake
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${modName})
 
 # Install the README and LICENSE files.

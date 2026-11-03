@@ -87,13 +87,15 @@ namespace SMSpp_di_unipi_it
  *    This will be the one, and only, inner Block of LagBFunction (when
  *    "seen" as a Block).
  *
- * 2) A vector of pairs defining the Lagrangian term: < y , g(x) > =
- *    [ < y_i , g_i(x) > ]_{ i \in I }. The vector-valued function g(x) =
- *    [ g_i( x ) ]_{ i \in I } is defined in the same Variable x as B, and
- *    it should be thought as [a part of] the "complicating constraints" of
- *    some original problem
+ * 2) A vector of pairs defining the Lagrangian term:
+ *    \f$ \langle y , g(x) \rangle =
+ *    [ \langle y_i , g_i(x) \rangle ]_{ i \in I } \f$. The vector-valued
+ *    function \f$ g(x) = [ g_i( x ) ]_{ i \in I } \f$ is defined in the same
+ *    Variable x as B, and it should be thought as [a part of] the
+ *    "complicating constraints" of some original problem
  *
- *      (O)  max { c(x) [+ ...] : g(x) [+ ...] [<]=[>] 0 , x \in X [, ...] }
+ *      \f[ (O) \quad \max \{ c(x) [+ \ldots] : g(x) [+ \ldots] \; [<]=[>] \;
+ *          0 \,,\, x \in X [, \ldots] \} \f]
  *
  *    that are relaxed to make it easier. The "[...]" are meant to convey the
  *    fact that (O) may have other groups of variables besides x, but when
@@ -110,7 +112,7 @@ namespace SMSpp_di_unipi_it
  *    on whether g(x) is the original constraint or is opposite (- g(x)).
  *    LagBFunction assumes that the right choices regarding to the signs are
  *    done by whomever constructed the g(x) it is passed and takes no
- *    responsibility for this. The vector y = [ y_i ]_{ i \in I } of
+ *    responsibility for this. The vector \f$ y = [ y_i ]_{ i \in I } \f$ of
  *    Lagrangian multipliers, real-valued Variable (ColVariable) each one
  *    associated to one of the complicating terms g_i(x), must *not* be of
  *    Variable of the LagBFunction seen as a Block, because they are
@@ -122,8 +124,9 @@ namespace SMSpp_di_unipi_it
  *    LagBFunction.
  *
  * 3) A list of pairs of relaxed functions and their Lagrangian multipliers:
- *    { ( y_i , g_i( x ) ) }_{ i \in \bar{I} } which handle the dynamic
- *    generation/removal which handle the dynamic relaxation of constraints.
+ *    \f$ \{ ( y_i , g_i( x ) ) \}_{ i \in \bar{I} } \f$ which handle the
+ *    dynamic generation/removal which handle the dynamic relaxation of
+ *    constraints.
  *
  * Note that the LagBFunction is not supposed to have any Constraint or
  * Variable in itself, that is, besides "x" and "x in X"  (respectively) that
@@ -131,7 +134,9 @@ namespace SMSpp_di_unipi_it
  *
  * With these elements, LagBFunction represents the Lagrangian function
  *
- *   (L_y)   l( y ) = max { c( x ) + \sum_{ i \in I } y_i g_i( x ) : x \in X }
+ *   \f[ (L_y) \quad
+ *       l( y ) = \max \{ c( x ) + \sum_{ i \in I } y_i g_i( x ) : x \in X \}
+ *   \f]
  *
  * The function l(y) is convex in y (concave if (B) is a minimization
  * problem), since it is the pointwise maximum of (possibly, infinitely
@@ -218,10 +223,10 @@ namespace SMSpp_di_unipi_it
  * (implementation decisions) that somewhat further limit the kind of
  * Block that can be used as (B):
  *
- * - THE LAGRANGIAN TERM c( x ) + \sum_{ i \in I } y_i g_i(x) FOR FIXED VALUE
- *   OF y_i AND LINEAR c( x ), g_i( x ) BECOMES EITHER A LinearFunction OR A
- *   DQuadFunction (DEPENDING ON WHAT IT WAS ORIGINALLY) THAT IS WRITTEN IN
- *   THE OBJECTIVE OF (B).
+ * - THE LAGRANGIAN TERM \f$ c( x ) + \sum_{ i \in I } y_i g_i(x) \f$ FOR
+ *   FIXED VALUE OF y_i AND LINEAR c( x ), g_i( x ) BECOMES EITHER A
+ *   LinearFunction OR A DQuadFunction (DEPENDING ON WHAT IT WAS ORIGINALLY)
+ *   THAT IS WRITTEN IN THE OBJECTIVE OF (B).
  *
  *   The first, obvious consequence is that (B) must necessarily have an
  *   "abstract") Objective that is a FRealObjective whose Function is either
@@ -350,8 +355,8 @@ namespace SMSpp_di_unipi_it
  * - the Objective of the LagBFunction is empty
  *
  * - the Objective of (B) is that corresponding to the last value of
- *   \bar{y} on which compute() has been called (in the linear case,
- *   c^\bar{y} x).
+ *   \f$ \bar{y} \f$ on which compute() has been called (in the linear case,
+ *   \f$ c^{\bar{y}} x \f$).
  *
  * Thus, this violates the intended mathematical definition of Block. Yet,
  * this is acceptable in the following two scenarios. When the LagBFunction
@@ -364,19 +369,20 @@ namespace SMSpp_di_unipi_it
  * case they will know exactly what to do with it. In other words, even if
  * the Objective of the LagBFunction (seen as a Block) is empty, such a
  * Solver, which is *not* general-purpose but specialized for the case, will
- * be able to "pretend" to see the right term c(x) + \sum_{i \in I} y_i g_i(x)
- * in there. Thus, while it will not be possible to use a LagBFunction as
- * "any" Block to be passed to "any" general-purpose Solver, the most
- * important use cases for it are covered.
+ * be able to "pretend" to see the right term
+ * \f$ c(x) + \sum_{i \in I} y_i g_i(x) \f$ in there. Thus, while it will not
+ * be possible to use a LagBFunction as "any" Block to be passed to "any"
+ * general-purpose Solver, the most important use cases for it are covered.
  *
  * It would actually be possible to make the "abstract representation" of the
  * LagBFunction to exactly match its intended mathematical semantic. To do
  * that, one should (in the linear case, for notational simplicity):
  *
- * - set the Objective of the LagBFunction as c x + y A x - c^\bar{y} x
+ * - set the Objective of the LagBFunction as
+ *   \f$ c x + y A x - c^{\bar{y}} x \f$
  *   (a BiLinearFunction);
  *
- * - keep the Objective of (B) to c^\bar{y} x.
+ * - keep the Objective of (B) to \f$ c^{\bar{y}} x \f$.
  *
  * Since the Objective of the son is (implicitly) summed to that of the
  * father, this would work being the f_sense of Objective of both LagBFunction
@@ -811,7 +817,7 @@ class LagBFunction : public C05Function , public Block
   *
   * The constructor does not accept an array of dual pair, which consists of
   * a pair of a relaxed constraint g_i(x) and its Lagrangian multiplier y_i,
-  * for i \in I. The assumption makes sure that, before saving the
+  * for \f$ i \in I \f$. The assumption makes sure that, before saving the
   * Lagrangian multipliers, the Observer has been registered. */
 
  LagBFunction( Block * innerblock = nullptr , Observer * observer = nullptr );
@@ -1572,8 +1578,9 @@ class LagBFunction : public C05Function , public Block
 
 /*--------------------------------------------------------------------------*/
  /// remove a subset of Lagrangian terms from the LagBFunction
- /** Remove the Lagrangian terms < y_i , g_i( x ) > with i \in subset from
-  * the LagBFunction, i.e., the corresponding subset of the "active" Variable.
+ /** Remove the Lagrangian terms \f$ \langle y_i , g_i( x ) \rangle \f$ with
+  * i in subset from the LagBFunction, i.e., the corresponding subset of the
+  * "active" Variable.
   * If \p nms.empty(), then *all* the Lagrangian terms ("active" Variable) are
   * removed. \p ordered tells if \p nms is already ordered in increasing
   * sense.
@@ -1741,6 +1748,40 @@ class LagBFunction : public C05Function , public Block
   * replaces this one, that case will still behave correctly. */
 
  [[nodiscard]] bool anyone_there( void ) const override { return( true ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the kinds of Modification of the inner Block the LagBFunction reads
+ /** The LagBFunction reads of the inner Block only what it needs to keep its
+  * data structures up to date [see anyone_there()], so that what nobody
+  * else reads need not be issued [see Observer::issue_mod()]:
+  *
+  * - the abstract Modification of the Objective (eModObj), which keep the
+  *   CostMatrix in step, and those of the set of the Variable (eModVarSet),
+  *   which the Function of the Objective issues when its Variable change;
+  *
+  * - the physical Modification (eModPhys), which say how the feasible
+  *   region of the inner Block changes, since the abstract representation
+  *   of its static Constraint may not be there;
+  *
+  * - those of the set of the Constraint (eModCnsSet), since the dynamic
+  *   Constraint, e.g., the cuts, are only in the abstract representation;
+  *
+  * - the Modification of the Variable (eModVarData and eModVarType), whose
+  *   fixing and integrality may take away the feasibility of the Solution
+  *   in the global pool.
+  *
+  * The abstract Modification of the sides and of the coefficients of the
+  * Constraint are not read, hence an inner Block that has no other use for
+  * them need not issue them; those that come anyway are dealt with through
+  * what they say of themselves [see Modification::changes()]. An inner
+  * AbstractBlock reads them anyway, its abstract representation being its
+  * physical one [see AbstractBlock::concerned()]. */
+
+ [[nodiscard]] Modification::ModConcern concerned_by( void ) const override {
+  return( Modification::eModPhys | Modification::eModObj |
+	  Modification::eModCnsSet | Modification::eModVarSet |
+	  Modification::eModVarData | Modification::eModVarType );
+  }
 
 /** @} ---------------------------------------------------------------------*/
 /*---------- METHODS FOR PRINING/SAVING THE DATA OF THE LagBFunction -------*/
@@ -1936,6 +1977,7 @@ class LagBFunction : public C05Function , public Block
    else {
     if( std::isnan( f_yb ) )
      throw( std::logic_error( "get_lower_estimate called before compute" ) );
+    lb *= inner_weight();
     return( f_yb > - Inf< FunctionValue >() ? lb + f_yb : lb );
     }
    }
@@ -1953,6 +1995,7 @@ class LagBFunction : public C05Function , public Block
    else {
     if( std::isnan( f_yb ) )
      throw( std::logic_error( "get_upper_estimate called before compute" ) );
+    ub *= inner_weight();
     return( f_yb > - Inf< FunctionValue >() ? ub + f_yb : ub );
     }
    }
@@ -2045,8 +2088,8 @@ class LagBFunction : public C05Function , public Block
   * it returns a (const) pointer to a std::pair< Coefficient , v_mon_pair >.
   * The coefficient is the original cost c_j of the [Col]Variable.
   * v_mon_pair is a vector of std::pair< Index , Coefficient > describing the
-  * linear function y A^j = \sum_i y_i a_{ij}, where the Index is j (the
-  * index of y_i as an active Variable of the LagBFunction), while the
+  * linear function \f$ y A^j = \sum_i y_i a_{ij} \f$, where the Index is j
+  * (the index of y_i as an active Variable of the LagBFunction), while the
   * Coefficient is a_{ij}.
   *
   * Note that if xj is actually not a [Col]Variable of the inner Block, the
@@ -2302,6 +2345,14 @@ class LagBFunction : public C05Function , public Block
     return( C05Function::get_dflt_dbl_par( par ) );
    }
 
+  // those given in the scale of the LagBFunction [see f_up_cut]
+  if( ( par == dblUpCutOff ) && ( ! std::isnan( f_up_cut ) ) )
+   return( f_up_cut );
+  if( ( par == dblLwCutOff ) && ( ! std::isnan( f_lw_cut ) ) )
+   return( f_lw_cut );
+  if( ( par == dblAbsAcc ) && ( ! std::isnan( f_abs_acc ) ) )
+   return( f_abs_acc );
+
   if( auto is = inner_Solver() )
    switch( par ) {
     case( dblRelAcc ):   return( is->get_dbl_par( Solver::dblRelAcc ) );
@@ -2374,7 +2425,7 @@ class LagBFunction : public C05Function , public Block
    return( intPoolExtMem );
 
   if( auto is = inner_Solver() )
-   return( int_par_lbf( is->int_par_str2idx( name ) ) );
+   return( int_par_is( is->int_par_str2idx( name ) ) );
   else
    return( C05Function::int_par_str2idx( name ) );
   }
@@ -2386,7 +2437,7 @@ class LagBFunction : public C05Function , public Block
   if( name == "dblCostTol" )
    return( dblCostTol );
   if( auto is = inner_Solver() )
-   return( dbl_par_lbf( is->dbl_par_str2idx( name ) ) );
+   return( dbl_par_is( is->dbl_par_str2idx( name ) ) );
   else
    return( C05Function::dbl_par_str2idx( name ) );
   }
@@ -2399,7 +2450,7 @@ class LagBFunction : public C05Function , public Block
    return( strChkCfg );
 
   if( auto is = inner_Solver() )
-   return( str_par_lbf( is->str_par_str2idx( name ) ) );
+   return( str_par_is( is->str_par_str2idx( name ) ) );
   else
    return( C05Function::str_par_str2idx( name ) );
   }
@@ -2409,7 +2460,7 @@ class LagBFunction : public C05Function , public Block
  [[nodiscard]] idx_type vint_par_str2idx( const std::string & name )
   const override {
   if( auto is = inner_Solver() )
-   return( vint_par_lbf( is->vint_par_str2idx( name ) ) );
+   return( vint_par_is( is->vint_par_str2idx( name ) ) );
   else
    return( C05Function::vint_par_str2idx( name ) );
   }
@@ -2419,7 +2470,7 @@ class LagBFunction : public C05Function , public Block
  [[nodiscard]] idx_type vdbl_par_str2idx( const std::string & name )
   const override {
   if( auto is = inner_Solver() )
-   return( vdbl_par_lbf( is->vdbl_par_str2idx( name ) ) );
+   return( vdbl_par_is( is->vdbl_par_str2idx( name ) ) );
   else
    return( C05Function::vdbl_par_str2idx( name ) );
   }
@@ -2429,7 +2480,7 @@ class LagBFunction : public C05Function , public Block
  [[nodiscard]] idx_type vstr_par_str2idx( const std::string & name )
   const override {
   if( auto is = inner_Solver() )
-   return( vstr_par_lbf( is->vstr_par_str2idx( name ) ) );
+   return( vstr_par_is( is->vstr_par_str2idx( name ) ) );
   else
    return( C05Function::vstr_par_str2idx( name ) );
   }
@@ -2446,7 +2497,7 @@ class LagBFunction : public C05Function , public Block
    return( pars[ idx - intInnrSlvr ] );
 
   if( auto is = inner_Solver() )
-   return( is->int_par_idx2str( int_par_is( idx ) ) );
+   return( is->int_par_idx2str( int_par_lbf( idx ) ) );
   else
    return( C05Function::int_par_idx2str( idx ) );
   }
@@ -2461,7 +2512,7 @@ class LagBFunction : public C05Function , public Block
    return( pars[ idx - dblCostTol ] );
 
   if( auto is = inner_Solver() )
-   return( is->dbl_par_idx2str( dbl_par_is( idx ) ) );
+   return( is->dbl_par_idx2str( dbl_par_lbf( idx ) ) );
   else
    return( C05Function::dbl_par_idx2str( idx ) );
   }
@@ -2475,7 +2526,7 @@ class LagBFunction : public C05Function , public Block
    return( _chk );
 
   if( auto is = inner_Solver() )
-   return( is->str_par_idx2str( str_par_is( idx ) ) );
+   return( is->str_par_idx2str( str_par_lbf( idx ) ) );
   else
    return( C05Function::str_par_idx2str( idx ) );
   }
@@ -2485,7 +2536,7 @@ class LagBFunction : public C05Function , public Block
  [[nodiscard]] const std::string & vint_par_idx2str( idx_type idx )
   const override {
   if( auto is = inner_Solver() )
-   return( is->vint_par_idx2str( dbl_par_is( idx ) ) );
+   return( is->vint_par_idx2str( vint_par_lbf( idx ) ) );
   else
    return( C05Function::vint_par_idx2str( idx ) );
   }
@@ -2495,7 +2546,7 @@ class LagBFunction : public C05Function , public Block
  [[nodiscard]] const std::string & vdbl_par_idx2str( idx_type idx )
   const override {
   if( auto is = inner_Solver() )
-   return( is->vdbl_par_idx2str( vdbl_par_is( idx ) ) );
+   return( is->vdbl_par_idx2str( vdbl_par_lbf( idx ) ) );
   else
    return( C05Function::vdbl_par_idx2str( idx ) );
   }
@@ -2505,7 +2556,7 @@ class LagBFunction : public C05Function , public Block
  [[nodiscard]] const std::string & vstr_par_idx2str( idx_type idx )
   const override {
   if( auto is = inner_Solver() )
-   return( is->vstr_par_idx2str( vstr_par_is( idx ) ) );
+   return( is->vstr_par_idx2str( vstr_par_lbf( idx ) ) );
   else
    return( C05Function::vstr_par_idx2str( idx ) );
   }
@@ -2791,14 +2842,17 @@ class LagBFunction : public C05Function , public Block
 
 /*--------------------------------------------------------------------------*/
 
- OFValue get_objective_value( Block * blck ) {
+ // the values of the Objective of the sub-Block of blck, whose weight in
+ // the LagBFunction is w, each multiplied by its weight [see v_ObjW]
+ OFValue get_objective_value( Block * blck , double w ) {
   OFValue ret = 0;
   for( auto sb : blck->get_nested_Blocks() ) {
+   const double ws = w * sb->get_objective_weight();
    if( auto ro = dynamic_cast< RealObjective * >( sb->get_objective() ) ) {
     ro->compute();
-    ret += ro->value();
+    ret += ws * ro->value();
     }
-   ret += get_objective_value( sb );
+   ret += get_objective_value( sb , ws );
    }
   return( ret );
   }
@@ -2862,10 +2916,12 @@ class LagBFunction : public C05Function , public Block
   * jdeltas holds ( j , Delta_c_j ) for the changed CM columns of obj rc;
   * the j-th Variable value of each stored Solution is read by writing it into
   * the inner Block (the only general way, since reading inside a Solution is
-  * not possible without a write). Does nothing under lazy or NoSol. */
+  * not possible without a write); the update is multiplied by w, the
+  * weight of the Objective [see v_ObjW]. Does nothing under lazy or NoSol. */
 
  void eager_pool_cost_delta( const v_coeff_pair & rc ,
-	       const std::vector< std::pair< Index , double > > & jdeltas );
+	       const std::vector< std::pair< Index , double > > & jdeltas ,
+	       double w );
 
  /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// EAGER: remove original linear-cost terms from stored pool constants
@@ -2874,10 +2930,11 @@ class LagBFunction : public C05Function , public Block
   * their old original costs. Before changing CostMatrix, subtract
   * sum_j c_j x*_j from every eager full epigraphic constant. This is exact for
   * a LinearFunction Objective, including convexified pool entries, because the
-  * removed objective term is affine. Does nothing under lazy or NoSol. */
+  * removed objective term is affine; the update is multiplied by w, the
+  * weight of the Objective [see v_ObjW]. Does nothing under lazy or NoSol. */
 
  void eager_pool_cost_removal( c_Vec_p_Var & vars ,
-                               c_Vec_FunctionValue & costs );
+                               c_Vec_FunctionValue & costs , double w );
 
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -2916,6 +2973,22 @@ class LagBFunction : public C05Function , public Block
   * already populated. */
 
  void populate_conv_active( Index name );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// true if the inner Solver has the value of the function at the point
+ /** True if the bound \p fv returned by get_value() is the value of the
+  * function, i.e., the other estimate is finite and equal to it, which is
+  * what the epigraphic constant of a linearization needs [see
+  * get_linearization_constant()]: an inner Solver stopped before the end
+  * (e.g., at a cutoff) has a bound on the wrong side of the function, and a
+  * linearization through it would cut the function off. */
+
+ bool inner_value_exact( FunctionValue fv ) {
+  const auto fo = is_convex() ? get_lower_estimate() : get_upper_estimate();
+  return( ( std::abs( fo ) < Inf< FunctionValue >() ) &&
+          ( std::abs( fo - fv ) <=
+            1e-9 * std::max( FunctionValue( 1 ) , std::abs( fv ) ) ) );
+  }
 
 /*--------------------------------------------------------------------------*/
 
@@ -3022,6 +3095,14 @@ class LagBFunction : public C05Function , public Block
  bool PushCostToOwner;  ///< true if sub-Block objectives are changed
 
  double f_cost_tol;     ///< rel. cost-change tolerance (dblCostTol)
+
+ /// the dblUpCutOff, dblLwCutOff and dblAbsAcc of the LagBFunction, NaN if
+ /// not set: the Solver of the inner Block, which does not see the weight W
+ /// of its Objective, has them divided by W, which is what compute() gives
+ /// it [see v_ObjW]
+ double f_up_cut = std::numeric_limits< double >::quiet_NaN();
+ double f_lw_cut = std::numeric_limits< double >::quiet_NaN();
+ double f_abs_acc = std::numeric_limits< double >::quiet_NaN();
 
  std::string f_chk_cfg_name;           ///< the file of strChkCfg
  Configuration * f_chk_cfg = nullptr;  ///< the Configuration it holds
@@ -3156,9 +3237,9 @@ class LagBFunction : public C05Function , public Block
 		       * Variable of the inner Block:
  * - Inf : the Solution is the last one from the local pool
  *
- * - \in [ 0 , g_pool.size() ): is the index of a Solution of the global pool
+ * - in [ 0 , g_pool.size() ): is the index of a Solution of the global pool
  *
- * - \in [ g_pool.size() , INF ): the Solution is not significant
+ * - in [ g_pool.size() , INF ): the Solution is not significant
  *
  * It of course only makes sense if NoSol == false. */
 
@@ -3244,6 +3325,29 @@ class LagBFunction : public C05Function , public Block
  /// true if v_Obj[ h ] is a DQuadFunction, false if is a LinearFunction
  std::vector< bool > v_ObjIsQuad;
 
+ /// the weight of v_Obj[ h ] in the LagBFunction [see v_ObjW]
+ double obj_w( Index h ) const {
+  return( get_objective_weight() * v_ObjW[ h ] );
+  }
+
+ /// the weight of the Objective of the inner Block [see v_ObjW]
+ double inner_weight( void ) const {
+  return( v_ObjW.empty() ? get_objective_weight() : obj_w( 0 ) );
+  }
+
+ /// the weight of v_Obj[ h ] in the inner Block
+ /** The product of the weights of the Objective [see
+  * Block::set_objective_weight()] of v_BlockBFS[ h ] and of its ancestors
+  * up to the inner Block, the latter comprised; times the weight of the
+  * LagBFunction itself, which as their ancestor multiplies them, it is the
+  * factor by which the Objective of v_BlockBFS[ h ] enters the value of the
+  * LagBFunction [see obj_w()], the Lagrangian term entering with none. The
+  * Solver of the inner Block does not see the weight of the inner Block,
+  * and sees that of the others divided by it, hence the Lagrangian term
+  * written in v_Obj[ h ] is divided by obj_w( h ), and the value of the
+  * Solver is multiplied by obj_w( 0 ). */
+ std::vector< double > v_ObjW;
+
  /// fast lookup Block wrt its index h in v_BlockBFS and v_Obj
  std::unordered_map< const Block * , Index > Block2Idx;
 
@@ -3287,27 +3391,34 @@ class LagBFunction : public C05Function , public Block
  *       objective (if any) has changed so that the function values have only
  *       been shifted by a constant.
  *
- *   1 = the LHS/RHS of some Constraint in the inner Block (possibly
- *       comprised the bounds on the ColVariable implemented via the
- *       OneVarConstraint, but not the "inherent" ones) have changed.
+ *   1 = only the sides of some Constraint in the inner Block have changed
+ *       (possibly comprised the bounds on the ColVariable implemented via
+ *       the OneVarConstraint, but not the "inherent" ones), or a relaxed
+ *       Constraint has been enforced.
  *
- *   2 = the coefficients in some of the Constraint in the inner Block have
- *       changed.
+ *   2 = the coefficients, or anything else besides the sides, of some of
+ *       the Constraint in the inner Block have changed.
  *
  *   3 = some Variable in the inner Block has changed state (fixed/unfixed,
  *       changed type ...) in a way that can take away feasibility
  *
- *   4 = some previously relaxed Constraint in the inner Block has been
- *       enforced (relaxing cannot take away feasibility and therefore is
- *       not an issue)
+ *   4 = not used.
  *
- *   5 = some dynamic Variable has been removed or some dynamic Constraint
- *       has been added (it is assumed that adding Variable or removing
- *       Constraint cannot take away feasibility and therefore is not an
- *       issue)
+ *   5 = some Variable or Constraint has been added or removed in a way
+ *       that can take away feasibility, e.g., some dynamic Variable has been
+ *       removed or some dynamic Constraint has been added (it is assumed
+ *       that adding Variable or removing Constraint cannot take away
+ *       feasibility and therefore is not an issue)
  *
- *   6 = some other arbitrary change in a Block (a BlockMod), that can
- *       therefore take away feasibility
+ *   6 = some physical or otherwise arbitrary change of the inner Block that
+ *       can take away feasibility
+ *
+ *   7 = the Objective of the inner Block has changed in a way that the
+ *       LagBFunction does not know, e.g., its sense
+ *
+ * Bits 1 to 6 are decided by what the original Modification says of itself
+ * [see Modification::changes()], not by its type, and they are set only if
+ * the Modification may shrink the feasible region.
  *
  * Note that a single LagBFunctionMod may have more than one bit set to 1
  * (and surely it has at least one of them), since multiple original
@@ -3345,7 +3456,7 @@ class LagBFunctionMod : public C05FunctionMod {
 
  virtual ~LagBFunctionMod() { }  ///< destructor: does nothing
 
-/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+/*-------------------- PUBLIC METHODS OF THE CLASS -------------------------*/
 
  /// accessor to the what value
 

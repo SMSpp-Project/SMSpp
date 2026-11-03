@@ -174,6 +174,8 @@ struct Model {
  ~Model() {
   block->unregister_Solvers( true );
   delete block;
+  delete obj;
+  delete x;
   }
 
  Lst_sp_Mod & mods( void ) { return( solver->get_Modification_list() ); }

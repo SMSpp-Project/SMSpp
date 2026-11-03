@@ -136,7 +136,8 @@ namespace SMSpp_di_unipi_it
  * representation*: there is no other reference to the Variable/Constraint
  * save that in those data structures. Hence, the destructor of AbstractBlock
  * (unlike that of Block) takes care of (clear()-ing first, and) destroying
- * (then) all the "abstract" Constraint/Variable (and the Objective).
+ * (then) all the "abstract" Constraint/Variable, and the Objective if it
+ * made it itself [see f_own_obj].
  * Similarly, the pointers to the inner Block in the v_Block vector are
  * likely the only live references to these Block, and therefore they are
  * destroyed in the AbstractBlock destructor.
@@ -190,7 +191,7 @@ namespace SMSpp_di_unipi_it
  *
  *     WHAT GROUPS OF Variable/Constraint, sub-Block AND Objective ARE
  *     AVAILABLE DEPEND ON HOW THE "ABSTRACT" REPRESENTATION OF THE
- *     :AbstractBlock IS CONSTRUCTED, AND THEREFORE ON THE Configuration
+ *     AbstractBlock IS CONSTRUCTED, AND THEREFORE ON THE Configuration
  *     PARAMETERS PASSED TO generate_[abstract_*,objective](). THUS, THE
  *     VALUES OF f_1st_*_* AND f_res_obj ARE ONLY EXPECTED TO BE SIGNIFICANT
  *     INSIDE THE CALL TO generate_[abstract_*,objective]()
@@ -252,7 +253,7 @@ class AbstractBlock : public Block
  void load( std::istream & input , char frmt = 0 ) override;
 
 /*--------------------------------------------------------------------------*/
- /// de-serialize the current :AbstractBlock out of netCDF::NcGroup
+ /// de-serialize the current AbstractBlock out of netCDF::NcGroup
  /** The AbstractBlock de-serializes itself out of a .lp/.mps representation
   * stored in a netCDF::NcGroup. The method of the base AbstractBlock class 
   * only handles the "arbitrary" part, i.e., that after the "reserved" one
@@ -292,23 +293,21 @@ class AbstractBlock : public Block
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
  /// extends Block::expected_dims()
 
  std::vector< std::string > expected_dims( void ) const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// extends UnitBlock::expected_vars()
+ /// extends Block::expected_vars()
 
  virtual std::vector< std::string > expected_vars( void ) const override;
-
-#endif
 
 /*--------------------------------------------------------------------------*/
  /// destructor of AbstractBlock, destroys the abstract representation
  /** The destructor of AbstractBlock (unlike that of Block) takes care of
   * (clear()-ing first, and) destroying (then) all the "abstract"
-  * Constraint/Variable (and the Objective). Similarly, the pointers to the
+  * Constraint/Variable, and the Objective if it made it itself [see
+  * f_own_obj]. Similarly, the pointers to the
   * inner Block in the v_Block vector are likely the only live references to
   * these Block, and therefore they are destroyed in the AbstractBlock
   * destructor.
@@ -448,6 +447,23 @@ class AbstractBlock : public Block
   return( f_lb_cond == conditional ? f_lb : - Inf< double >() );
   }
 
+/*--------------------------------------------------------------------------*/
+ /// the kinds of Modification read by anyone listening to the AbstractBlock
+ /** As Block::concerned(), except that whoever reads the physical
+  * Modification also reads all the abstract ones: in AbstractBlock the
+  * abstract representation is the physical representation, hence a change
+  * of its Variable, Constraint or Objective only shows as an abstract
+  * Modification. Note that the sub-Block of an AbstractBlock see the
+  * result as what is read by anyone listening to their father [see
+  * Block::concerned()]. */
+
+ [[nodiscard]] Modification::ModConcern concerned( void ) const override {
+  auto c = Block::concerned();
+  if( c & Modification::eModPhys )
+   c |= Modification::eModAbst;
+  return( c );
+  }
+
 /** @} ---------------------------------------------------------------------*/
 /*----- Methods for adding/removing (dynamic) Variables and Constraints ----*/
 /*--------------------------------------------------------------------------*/
@@ -574,7 +590,20 @@ class AbstractBlock : public Block
   * recorded, so that the copy is a *relaxation* of the original and the
   * caller can see what is missing [see get_mirror_issues()]. Note that a
   * relaxation is not always an acceptable answer, which is why the list is
-  * there rather than silently empty.
+  * there rather than silently empty. The weights of the Objective and of
+  * the Variable [see Block::set_objective_weight() and
+  * Block::set_variable_weight()] of \p blck and of its sub-Block are those
+  * of the copy and of its sub-Block.
+  *
+  * The size Variable of \p blck [see Block::get_size_variable() and
+  * set_size_variable()], if any, stays what it is in the copy: one that \p
+  * blck owns has its copy here, which becomes the one this AbstractBlock
+  * owns, and one that an AbstractBlock \p blck has been given lives outside
+  * of the mirrored subtree, hence it is used as it is, the copy having the
+  * rows of \p blck already sized by it; in both cases the copy takes no
+  * other size Variable. A copy of a Block that has none can be given one
+  * afterwards, which is then the copy's own and need not be the one of any
+  * other copy of the same Block.
   *
   * The AbstractBlock must be empty, and it is an error to mirror twice. */
 
@@ -689,7 +718,8 @@ class AbstractBlock : public Block
   * becoming the plain copy of the mirrored Block again.
   *
   * It returns false, changing nothing, if this AbstractBlock is not a
-  * mirror, if it already has another size Variable, if mirror() has left
+  * mirror, if it already has another size Variable, given or kept from the
+  * mirrored Block [see mirror()], or owns one, if mirror() has left
   * issues, or if the mirrored Block has something that cannot be scaled:
   * a row or an Objective whose Function is not a LinearFunction, or an
   * integer ColVariable. An AbstractBlock that is not a
@@ -703,16 +733,18 @@ class AbstractBlock : public Block
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// the size Variable given to this AbstractBlock, nullptr if none
+ /** The one given by set_size_variable(), or the one the mirrored Block had
+  * been given and the copy keeps [see mirror()]. */
 
  [[nodiscard]] ColVariable * get_given_size_variable( void ) const {
-  return( f_size_var );
+  return( f_size_var ? f_size_var : f_size_kept );
   }
 
 /** @} ---------------------------------------------------------------------*/
 /*----------------- Methods for checking the AbstractBlock -----------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for checking solution information in the AbstractBlock
- **/
+ *  @{ */
 
  /// returns true if the current solution is (approximately) feasible
  /** Returns true if the solution encoded in the current value of the Variable
@@ -740,8 +772,8 @@ class AbstractBlock : public Block
   *   relative and zero for absolute violation);
   *
   * - Otherwise, if #f_BlockConfig is not nullptr,
-  *   #f_BlockConfig->f_is_feasible_Configuration is not nullptr and it is a
-  *   pointer to either a SimpleConfiguration< double > or to a
+  *   `f_BlockConfig->f_is_feasible_Configuration` is not nullptr and it is
+  *   a pointer to either a SimpleConfiguration< double > or to a
   *   SimpleConfiguration< std::pair< double , int > >, then the values of the
   *   parameters are obtained analogously as above;
   *
@@ -874,7 +906,9 @@ class AbstractBlock : public Block
   * format, and every column is written in the Objective with its cost, even
   * when this is zero, so that read_lp(), which numbers the columns in the
   * order it first meets them, gives them back in the order they have in the
-  * Block. */
+  * Block. The constant term of the Objective, and that of a row, is written
+  * after the terms, where read_lp() reads it: in the Objective it stays, in
+  * a row it is moved to the sides. */
 
  void write_lp( std::ostream & output ) const;
 
@@ -885,6 +919,9 @@ class AbstractBlock : public Block
   * format makes: a row with both sides finite and different is one row with
   * its second side in RANGES rather than two rows, and a row whose two sides
   * are both infinite is left out, the format having no way of saying it.
+  * The constant term of a row is moved to its sides, and that of the
+  * Objective is written as minus the right-hand side of the objective row,
+  * which is how the solvers write it and how read_mps() reads it.
   *
   * What travels is the model and not the way it is grouped, exactly as with
   * write_lp(). */
@@ -976,6 +1013,11 @@ class AbstractBlock : public Block
  /// the second pass of mirror(): the Constraint and the Objective
 
  void mirror_constraints( Block * src , AbstractBlock * dst );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// clears and deletes the Objective this Block made, if any
+
+ void delete_own_obj( void );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// writes the copy of a Constraint of the mirrored Block, sized if v is
@@ -1070,6 +1112,8 @@ class AbstractBlock : public Block
 
  bool f_res_obj;          ///< if the Objective is not available
 
+ Objective * f_own_obj = nullptr;  ///< the Objective it made, which it deletes
+
  bool f_is_direction = false;  ///< if the Variable hold a direction
 
  Index f_1st_sub_block;   ///< the first available inner Block;
@@ -1087,6 +1131,10 @@ class AbstractBlock : public Block
  std::map< const Block * , AbstractBlock * > f_b_map;
 
  ColVariable * f_size_var = nullptr;  ///< the size Variable, if any
+
+ ColVariable * f_size_kept = nullptr;
+ ///< the size Variable the mirrored AbstractBlock had been given, with which
+ ///< its rows, and hence those of the copy, are sized [see mirror()]
 
  /// the rows the size Variable adds [see set_size_variable()]
  std::list< FRowConstraint > * f_size_list = nullptr;

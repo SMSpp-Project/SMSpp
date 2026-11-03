@@ -155,26 +155,6 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
  using ThinVarDepInterface::clear;
 
 /*--------------------------------------------------------------------------*/
- /// clear a std::vector of Constraint
- template< typename T >
- static std::enable_if_t< std::is_base_of_v< Constraint , T > , void >
- clear( std::vector< T > & constraints ) {
-  for( auto & constraint : constraints )
-   constraint.clear();
-  constraints.clear();
- }
-
-/*--------------------------------------------------------------------------*/
- /// clear a std::vector of std::vector of Constraint
- template< typename T >
- static std::enable_if_t< std::is_base_of_v< Constraint , T > , void >
- clear( std::vector< std::vector< T > > & constraints ) {
-  for( auto & v_constraints : constraints )
-   Constraint::clear( v_constraints );
-  constraints.clear();
- }
-
-/*--------------------------------------------------------------------------*/
  /// clear a K-D boost::multi_array of Constraint
  template< typename T , std::size_t K >
  static std::enable_if_t< std::is_base_of_v< Constraint , T > , void >
@@ -188,47 +168,47 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
  }
 
 /*--------------------------------------------------------------------------*/
- /// clear a K-D boost::multi_array of std::vector of Constraint
- template< typename T , std::size_t K >
+ /// clear a collection of Constraint
+ /** Clears each Constraint of the collection, and then empties it; the
+  * collection can be any sequence container having clear(), e.g., a
+  * std::vector, a std::list or a std::deque. */
+ template< template< class ... > class C , class T , class ... CA >
  static std::enable_if_t< std::is_base_of_v< Constraint , T > , void >
- clear( boost::multi_array< std::vector< T > , K > & constraints ) {
-  auto v_constraints = constraints.data();
-  auto n = constraints.num_elements();
-  for( decltype( n ) i = 0 ; i < n ; ++i , ++v_constraints )
-   Constraint::clear( *v_constraints );
-  std::array< int , K > shape = {}; // for int, {} will zero-initialize
-  constraints.resize( shape );
- }
-
-/*--------------------------------------------------------------------------*/
- /// clear a std::list of Constraint
- template< typename T >
- static std::enable_if_t< std::is_base_of_v< Constraint , T > , void >
- clear( std::list< T > & constraints ) {
+ clear( C< T , CA ... > & constraints ) {
   for( auto & constraint : constraints )
    constraint.clear();
   constraints.clear();
  }
 
 /*--------------------------------------------------------------------------*/
- /// clear a std::vector of std::list of Constraint
- template< typename T >
+ /// clear a collection of collections of Constraint
+ /** Clears each inner collection of Constraint, with the clear() above that
+  * takes it, and then empties the outer collection; both can be any
+  * sequence container having clear(), e.g., a std::vector of std::list. */
+ template< template< class ... > class C ,
+           template< class ... > class D , class T ,
+           class ... DA , class ... CA >
  static std::enable_if_t< std::is_base_of_v< Constraint , T > , void >
- clear( std::vector< std::list< T > > & constraints ) {
-  for( auto & l_constraints : constraints )
-   Constraint::clear( l_constraints );
+ clear( C< D< T , DA ... > , CA ... > & constraints ) {
+  for( auto & d_constraints : constraints )
+   Constraint::clear( d_constraints );
   constraints.clear();
  }
 
 /*--------------------------------------------------------------------------*/
- /// clear a K-D boost::multi_array of std::list of Constraint
- template< typename T , std::size_t K >
+ /// clear a K-D boost::multi_array of collections of Constraint
+ /** Clears each collection of Constraint in the boost::multi_array, with the
+  * clear() above that takes it, and then resizes the boost::multi_array to
+  * have no element; the collections can be any sequence container having
+  * clear(), e.g., a std::vector. */
+ template< template< class ... > class C , class T , class ... CA ,
+           std::size_t K >
  static std::enable_if_t< std::is_base_of_v< Constraint , T > , void >
- clear( boost::multi_array< std::list< T > , K > & constraints ) {
-  auto l_constraints = constraints.data();
+ clear( boost::multi_array< C< T , CA ... > , K > & constraints ) {
+  auto c_constraints = constraints.data();
   auto n = constraints.num_elements();
-  for( decltype( n ) i = 0 ; i < n ; ++i , ++l_constraints )
-   Constraint::clear( *l_constraints );
+  for( decltype( n ) i = 0 ; i < n ; ++i , ++c_constraints )
+   Constraint::clear( *c_constraints );
   std::array< int , K > shape = {}; // for int, {} will zero-initialize
   constraints.resize( shape );
  }
@@ -298,7 +278,8 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
   * inspection::index_in_group(), the position of the Constraint in it;
   * nullptr if the Constraint is in no group, as it is before its Block
   * registers it or after the Block drops the group, or if it is reached
-  * through a group that holds pointers to it [see BaseGroup::is_indirect()]. */
+  * through a group that holds pointers to it [see
+  * BaseGroup::is_indirect()]. */
 
  [[nodiscard]] BaseGroup * get_Group( void ) const {
   return( ( f_owner & 1 ) ?
@@ -462,29 +443,31 @@ class ConstraintMod : public AModification {
   * to encode the possible values of modification, the field f_type is of
   * type "int", and therefore so is the parameter of the constructor, in
   * order to allow derived classes to "extend" the set of possible types of
-  * modifications. */
+  * modifications. What the Modification changes follows from the type
+  * [see changes_of()]. */
 
  explicit ConstraintMod( Constraint * cnst , int mod = eRelaxConst,
                          bool cB = true )
-  : AModification( cB ) , f_constraint( cnst ) , f_type( mod ) {}
+  : AModification( cB , changes_of( mod ) ) , f_constraint( cnst ) ,
+    f_type( mod ) {}
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
  ~ConstraintMod() override = default;  ///< destructor: does nothing
 
-/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+/*-------------------- PUBLIC METHODS OF THE CLASS -------------------------*/
 
- /// returns what the Modification changes [see Modification::ModConcern]
+ /// what a ConstraintMod of type \p mod changes [see changes()]
  /** The data of a Constraint, which leaves the objective as it is: relaxing
   * the Constraint makes the region grow, enforcing it shrinks it, both
   * being changes of its sides, and any other change of a derived class,
   * which does not say more, may be of the sides or of the coefficients and
   * may do either. */
 
- [[nodiscard]] ModConcern changes( void ) const override {
-  if( f_type == eRelaxConst )
+ static constexpr ModConcern changes_of( int mod ) {
+  if( mod == eRelaxConst )
    return( eModCnsSide | eRegnGrow );
-  if( f_type == eEnforceConst )
+  if( mod == eEnforceConst )
    return( eModCnsSide | eRegnShrink );
   return( eModCnsSide | eModCnsCoef | eRegnShrink | eRegnGrow );
   }

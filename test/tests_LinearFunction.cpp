@@ -865,6 +865,8 @@ static void test_dry_run( void )
 
  block->unregister_Solvers( true );
  delete block;
+ delete rows;
+ delete x;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1053,6 +1055,8 @@ static void test_Modification_in_FRowConstraint( void )
 
  block->unregister_Solvers( true );
  delete block;
+ delete rows;
+ delete x;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1104,6 +1108,8 @@ static void test_Modification_in_FRealObjective( void )
 
  block->unregister_Solvers( true );
  delete block;
+ delete obj;
+ delete x;
  }
 
 /*--------------------------------------------------------------------------*/

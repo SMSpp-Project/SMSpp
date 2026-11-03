@@ -20,7 +20,7 @@ DIR = .
 CC = clang++
 
 # common flags
-COMMON_SW = -std=c++20 -Wno-enum-compare -ferror-limit=1
+COMMON_SW = -std=c++20 -Wno-enum-compare $(SMSppSWERR)
 
 # debug switches
 SW_DEBUG = -g $(COMMON_SW)
@@ -101,4 +101,4 @@ distclean: clean
 
 .PHONY: debug release clean distclean
 
-############################ End of makefile ################################
+############################ End of makefile #################################

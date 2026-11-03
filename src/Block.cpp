@@ -27,9 +27,17 @@
 #include "AbstractBlock.h"
 #include "Block.h"
 #include "Constraint.h"
+#include "Function.h"
 #include "Objective.h"
+#include "SMSnetCDF.h"
 #include "Solution.h"
+#include "Solver.h"
 #include "Variable.h"
+
+#include <algorithm>
+#include <memory>
+#include <string>
+#include <vector>
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -246,6 +254,47 @@ Block::almost_deserialize( const netCDF::NcFile & f , unsigned int idx ,
 
 /*--------------------------------------------------------------------------*/
 
+Block * Block::deserialize( std::span< const unsigned char > image ,
+			    unsigned int idx , Block * father ,
+			    std::function< void( Block * ) > * f )
+{
+ try {
+  NcMemFile file( image );
+  return( Block::deserialize( file , idx , father , f ) );
+  }
+ catch( netCDF::exceptions::NcException & e ) {
+  std::cerr << "netCDF error " << e.what() << " in deserialize( image )"
+	    << std::endl;
+  }
+ catch( std::exception & e ) {
+  std::cerr << "error " << e.what() << " in deserialize( image )"
+	    << std::endl;
+  }
+ catch( ... ) {
+  std::cerr << "unknown error in deserialize( image )" << std::endl;
+  }
+
+ return( nullptr );
+
+ }  // end( Block::deserialize( image ) )
+
+/*--------------------------------------------------------------------------*/
+
+void Block::serialize( std::vector< unsigned char > & image , int type )
+ const
+{
+ if( ( type != eProbFile ) && ( type != eBlockFile ) )
+  throw( std::invalid_argument(
+		     "Block::serialize: invalid SMS++ netCDF file type" ) );
+
+ NcMemFile f;
+ f.putAtt( "SMS++_file_type" , netCDF::NcInt() , type );
+ serialize( f , type );
+ f.close( image );
+ }  // end( Block::serialize( image ) )
+
+/*--------------------------------------------------------------------------*/
+
 Block * Block::new_Block( const netCDF::NcGroup & group , Block * father ,
                           std::function< void( Block * ) > * f )
 {
@@ -266,11 +315,11 @@ Block * Block::new_Block( const netCDF::NcGroup & group , Block * father ,
    }
 
   gtype.getValues( tmp );
-  auto result = new_Block( tmp , father );
+  std::unique_ptr< Block > result( new_Block( tmp , father ) );
   if( f )
-   std::invoke( *f , result );
+   std::invoke( *f , result.get() );
   result->deserialize( group );
-  return( result );
+  return( result.release() );
   }
  catch( netCDF::exceptions::NcException & e ) {
   std::cerr << "netCDF error " << e.what() << " in new_Block( group )"
@@ -420,6 +469,131 @@ int Block::get_objective_sense( void ) const
 
 /*--------------------------------------------------------------------------*/
 
+double Block::get_objective_weight( const Block * ancestor ) const
+{
+ double w = 1;
+ for( auto b = this ; b != ancestor ; b = b->get_f_Block() ) {
+  if( ! b ) {
+   if( ancestor )
+    throw( std::invalid_argument( "Block::get_objective_weight: the "
+                                  "Block is not an ancestor" ) );
+   break;
+   }
+  w *= b->get_objective_weight();
+  }
+
+ return( w );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+// throws if a Solver attached to an ancestor of b cannot handle a change of
+// the weights of b [see Solver::handles_weight_change()]; one attached to b
+// itself does not see them
+static void check_weight_change( const Block * b , const char * who )
+{
+ for( auto a = b->get_f_Block() ; a ; a = a->get_f_Block() ) {
+  for( auto s : a->get_registered_solvers() )
+   if( s && ( ! s->handles_weight_change() ) )
+    throw( std::logic_error( std::string( "Block::" ) + who + ": the " +
+                             s->classname() + " attached to an ancestor "
+                             "cannot handle a change of the weights" ) );
+
+  // a Function with an inner Block tells those above it of the change as
+  // a change of itself, which is no change of the weights for them
+  if( dynamic_cast< const Function * >( a ) )
+   break;
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+// the common part of the setters of the weights: \p which says which of
+// them change [see BlockWeightMod]
+void Block::change_weights( double w , int which , c_ModParam issueMod ,
+                            const char * who )
+{
+ if( ( ! std::isfinite( w ) ) || ( w < 0 ) )
+  throw( std::invalid_argument( std::string( "Block::" ) + who +
+                                ": the weight must be finite and not "
+                                "negative" ) );
+
+ if( ( which & BlockWeightMod::eObjective ) && ( f_objective_weight == w ) )
+  which &= ~int( BlockWeightMod::eObjective );
+ if( ( which & BlockWeightMod::eVariable ) && ( f_variable_weight == w ) )
+  which &= ~int( BlockWeightMod::eVariable );
+ if( ! which )  // nothing changes
+  return;
+
+ if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
+  return;
+
+ // the Solver that are told have to handle it; with no Modification the
+ // caller answers for those that are not told, as everywhere
+ const bool issue = issue_mod( issueMod , Modification::eModAbst );
+ if( issue )
+  check_weight_change( this , who );
+
+ if( which & BlockWeightMod::eObjective )
+  f_objective_weight = w;
+ if( which & BlockWeightMod::eVariable )
+  f_variable_weight = w;
+
+ if( issue )
+  add_Modification( std::make_shared< BlockWeightMod >(
+                     this , which , Observer::par2concern( issueMod ) ) ,
+                    Observer::par2chnl( issueMod ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void Block::set_objective_weight( double w , c_ModParam issueMod )
+{
+ change_weights( w , BlockWeightMod::eObjective , issueMod ,
+                 "set_objective_weight" );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void Block::set_variable_weight( double s , c_ModParam issueMod )
+{
+ change_weights( s , BlockWeightMod::eVariable , issueMod ,
+                 "set_variable_weight" );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void Block::set_weight( double k , c_ModParam issueMod )
+{
+ change_weights( k , BlockWeightMod::eBoth , issueMod , "set_weight" );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+double Block::get_variable_weight( const Block * cblock ) const
+{
+ // the ancestors of cblock, itself comprised, where the path from this
+ // Block stops: the first of them met going up is the closest Block that
+ // contains both
+ std::vector< const Block * > up;
+ for( auto c = cblock ; c ; c = c->get_f_Block() )
+  up.push_back( c );
+
+ double s = 1;
+ for( auto b = this ; b ; b = b->get_f_Block() ) {
+  if( std::find( up.begin() , up.end() , b ) != up.end() )
+   return( s );
+  s *= b->get_variable_weight();
+  }
+
+ if( cblock )
+  throw( std::invalid_argument( "Block::get_variable_weight: the Block "
+                                "are not in the same tree" ) );
+ return( s );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 void Block::set_objective( Objective * newOF , c_ModParam issueMod )
 {
  if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
@@ -428,7 +602,7 @@ void Block::set_objective( Objective * newOF , c_ModParam issueMod )
  f_Objective = newOF;
  newOF->set_Block( this );
 
- if( issue_mod( issueMod ) )
+ if( issue_mod( issueMod , Modification::eModAbst ) )
   add_Modification( std::make_shared< BlockMod >(
    this , Observer::par2concern( issueMod ) ) ,
 		    Observer::par2chnl( issueMod ) );
@@ -722,12 +896,15 @@ void Block::close_channel( ChnlName chnl , bool force , bool discard )
     auto root = GMit->second;
 
     // if concerns_Block() of the current GroupModification is true, ensure
-    // that the concerns_Block() of is also true up until the top
+    // that the concerns_Block() of is also true up until the top; what it
+    // changes goes up as well, each level adding what it changes itself
     const bool concerns = root->concerns_Block();
     while( root->father() ) {
+     const auto changes = root->changes();
      root = root->father();
      if( concerns )
       root->concerns_Block( true );
+     root->set_changes( root->changes() | changes );
      }
 
     Observer::release_channel_name( chnl );  // give back the channel name
@@ -750,11 +927,14 @@ void Block::close_channel( ChnlName chnl , bool force , bool discard )
      if( ( ! subs.empty() ) && ( subs.back().get() == GMit->second ) )
       subs.pop_back();
      }
-    else
+    else {
      // if concerns_Block() of the current GroupModification is true, ensure
-     // that the concerns_Block() of father is also true
+     // that the concerns_Block() of father is also true; and what it
+     // changes is changed by the father
      if( GMit->second->concerns_Block() )
       father->concerns_Block( true );
+     father->set_changes( father->changes() | GMit->second->changes() );
+     }
 
     GMit->second = father; // move back the channel to being the father
     }
@@ -918,33 +1098,9 @@ Block::MF_rngd_map & Block::methods_rngd_factory( void )
  return( f );
  }
 
-Block::MF_dbl_rngd_map & Block::methods_dbl_rngd_factory( void )
-{
- static MF_dbl_rngd_map f;
- return( f );
- }
-
-Block::MF_int_rngd_map & Block::methods_int_rngd_factory( void )
-{
- static MF_int_rngd_map f;
- return( f );
- }
-
 Block::MF_sbst_map & Block::methods_sbst_factory( void )
 {
  static MF_sbst_map f;
- return( f );
- }
-
-Block::MF_dbl_sbst_map & Block::methods_dbl_sbst_factory( void )
-{
- static MF_dbl_sbst_map f;
- return( f );
- }
-
-Block::MF_int_sbst_map & Block::methods_int_sbst_factory( void )
-{
- static MF_int_sbst_map f;
  return( f );
  }
 
@@ -972,6 +1128,18 @@ Block::MF_sp_int_sbst_map & Block::methods_sp_int_sbst_factory( void )
  return( f );
  }
 
+Block::MF_sp_dbl2_rngd_map & Block::methods_sp_dbl2_rngd_factory( void )
+{
+ static MF_sp_dbl2_rngd_map f;
+ return( f );
+ }
+
+Block::MF_sp_dbl2_sbst_map & Block::methods_sp_dbl2_sbst_factory( void )
+{
+ static MF_sp_dbl2_sbst_map f;
+ return( f );
+ }
+
 Block::MF_qry_dbl_rngd_map & Block::queries_dbl_rngd_factory( void )
 {
  static MF_qry_dbl_rngd_map f;
@@ -993,6 +1161,42 @@ Block::MF_qry_int_rngd_map & Block::queries_int_rngd_factory( void )
 Block::MF_qry_int_sbst_map & Block::queries_int_sbst_factory( void )
 {
  static MF_qry_int_sbst_map f;
+ return( f );
+ }
+
+Block::MF_qry_dbl2_rngd_map & Block::queries_dbl2_rngd_factory( void )
+{
+ static MF_qry_dbl2_rngd_map f;
+ return( f );
+ }
+
+Block::MF_qry_dbl2_sbst_map & Block::queries_dbl2_sbst_factory( void )
+{
+ static MF_qry_dbl2_sbst_map f;
+ return( f );
+ }
+
+Block::MF_dbl_map & Block::methods_dbl_factory( void )
+{
+ static MF_dbl_map f;
+ return( f );
+ }
+
+Block::MF_dbl2_map & Block::methods_dbl2_factory( void )
+{
+ static MF_dbl2_map f;
+ return( f );
+ }
+
+Block::MF_qry_dbl_map & Block::queries_dbl_factory( void )
+{
+ static MF_qry_dbl_map f;
+ return( f );
+ }
+
+Block::MF_qry_dbl2_map & Block::queries_dbl2_factory( void )
+{
+ static MF_qry_dbl2_map f;
  return( f );
  }
 

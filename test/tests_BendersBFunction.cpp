@@ -50,6 +50,7 @@
 #include <cmath>
 #include <cstdio>
 #include <iostream>
+#include <memory>
 #include <stdexcept>
 #include <vector>
 
@@ -120,6 +121,19 @@ static bool throws( F f )
  }
 
 /*--------------------------------------------------------------------------*/
+/// what the tests give to a Block that the Block does not own, deleted at the
+/// end of main(), after every Block, the last given the first deleted
+
+static std::vector< std::shared_ptr< void > > given;
+
+template< class T >
+static T * kept( T * t )
+{
+ given.emplace_back( t );
+ return( t );
+ }
+
+/*--------------------------------------------------------------------------*/
 /// the kinds of inner Block of the tests
 
 enum InnerKind {
@@ -140,9 +154,9 @@ static AbstractBlock * make_inner( InnerKind kind ,
  if( kind == eRows ) {
   // min z0 + 2 z1 , z0 + z1 <= 10 , z0 - z1 >= -7; every column has a
   // nonzero cost, as a column appearing nowhere is not read back
-  auto z = new std::vector< ColVariable >( 2 );
+  auto z = kept( new std::vector< ColVariable >( 2 ) );
   inner->add_static_variable( *z , "z" );
-  auto rows = new std::vector< FRowConstraint >( 2 );
+  auto rows = kept( new std::vector< FRowConstraint >( 2 ) );
   inner->add_static_constraint( *rows , "rows" );
   ( *rows )[ 0 ].set_function( new LinearFunction(
    LinearFunction::v_coeff_pair( { { & ( *z )[ 0 ] , 1.0 } ,
@@ -156,17 +170,17 @@ static AbstractBlock * make_inner( InnerKind kind ,
   ( *rows )[ 1 ].set_rhs( Inf< double >() , eNoMod );
   for( auto & r : *rows )
    c.push_back( & r );
-  auto obj = new FRealObjective( inner , new LinearFunction(
+  auto obj = kept( new FRealObjective( inner , new LinearFunction(
    LinearFunction::v_coeff_pair( { { & ( *z )[ 0 ] , 1.0 } ,
-				   { & ( *z )[ 1 ] , 2.0 } } ) ) );
+				   { & ( *z )[ 1 ] , 2.0 } } ) ) ) );
   obj->set_sense( Objective::eMin , eNoMod );
   inner->set_objective( obj , eNoMod );
   return( inner );
   }
 
- auto z = new std::vector< ColVariable >( c_cost.size() );
+ auto z = kept( new std::vector< ColVariable >( c_cost.size() ) );
  inner->add_static_variable( *z , "z" );
- auto box = new std::vector< BoxConstraint >( c_cost.size() );
+ auto box = kept( new std::vector< BoxConstraint >( c_cost.size() ) );
  inner->add_static_constraint( *box , "box" );
  for( Index j = 0 ; j < c_cost.size() ; ++j ) {
   ( *box )[ j ].set_variable( & ( *z )[ j ] , eNoMod );
@@ -188,7 +202,7 @@ static AbstractBlock * make_inner( InnerKind kind ,
    ct.push_back( { & ( *z )[ j ] , c_qlin[ j ] , c_quad[ j ] } );
   f = new DQuadFunction( std::move( ct ) );
   }
- auto obj = new FRealObjective( inner , f );
+ auto obj = kept( new FRealObjective( inner , f ) );
  obj->set_sense( Objective::eMin , eNoMod );
  inner->set_objective( obj , eNoMod );
  return( inner );
@@ -275,11 +289,9 @@ class SaysMod : public Modification
 {
  public:
 
- SaysMod( Block * b , ModConcern c ) : f_block( b ) , f_c( c ) {}
+ SaysMod( Block * b , ModConcern c ) : Modification( c ) , f_block( b ) {}
 
  [[nodiscard]] Block * get_Block( void ) const override { return( f_block ); }
-
- [[nodiscard]] ModConcern changes( void ) const override { return( f_c ); }
 
  protected:
 
@@ -288,7 +300,6 @@ class SaysMod : public Modification
   }
 
  Block * f_block;
- ModConcern f_c;
  };
 
 /*--------------------------------------------------------------------------*/
@@ -494,6 +505,53 @@ static void test_sides_of_other_rows( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* What the BendersBFunction reads of the inner Block [see
+ * BendersBFunction::concerned_by()]: all but the abstract Objective, and not
+ * what is read by the Solver of its father, since the Modification of the
+ * inner Block stop at it; an inner AbstractBlock reads all the abstract
+ * kinds anyway, its abstract representation being its physical one. A
+ * Constraint relaxed or enforced, which the BendersBFunction does not
+ * handle, only changes sides, and the value moves the way the region does;
+ * a change of the sides of one it handles only means that they have to be
+ * written again, and nothing is issued. */
+
+static void test_concerned( void )
+{
+ using M = Modification;
+ Fixture f( { { 1 , 2 } , { 0 , -1 } } , { 1 , 0.5 } , { 0 , 1 } ,
+	    { BBF::eRHS , BBF::eLHS } );
+
+ assert( f.bbf->concerned_by() == ( M::eModAnything & ~ M::eModObj ) );
+ assert( f.bbf->concerned() == f.bbf->concerned_by() );
+ assert( f.inner->concerned() == M::eModAnything );
+
+ f.attach_BoxSolver();
+ f.fake->get_Modification_list().clear();
+
+ // the third row of the inner Block, which is not a row of A, relaxed: the
+ // region grows, and the value of a min can only decrease
+ f.c[ 2 ]->relax( true , eModBlck );
+ {
+  auto mod = the_mod< C05FunctionMod >( f.fake );
+  assert( mod->type() == C05FunctionMod::AlphaChanged );
+  assert( mod->shift() == - Inf< double >() );
+  }
+
+ // and enforced again: the value can only increase
+ f.c[ 2 ]->relax( false , eModBlck );
+ {
+  auto mod = the_mod< C05FunctionMod >( f.fake );
+  assert( mod->shift() == Inf< double >() );
+  }
+
+ // the RHS of the first row, which is a row of A, changed from outside
+ f.c[ 0 ]->set_rhs( 7 , eModBlck );
+ assert( f.fake->get_Modification_list().empty() );
+
+ std::cout << "concerned: done" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
 /* A mapping with no active Variable, i.e., each row of A empty and M( x ) = b
  * constant: deleting two rows out of three by subset leaves the third one in
  * A as in b. */
@@ -578,6 +636,19 @@ static void test_sides_and_value( InnerKind kind )
 	  where + "linearization coefficients ( " + std::to_string( g[ 0 ] ) +
 	  " , " + std::to_string( g[ 1 ] ) + " ), expected ( " +
 	  std::to_string( g0 ) + " , " + std::to_string( g1 ) + " )" );
+  // the other three forms give the same coefficients
+  BBF::SparseVector sg;
+  f.bbf->get_linearization_coefficients( sg );
+  const Block::Subset both = { 0 , 1 };
+  double gs[ 2 ];
+  f.bbf->get_linearization_coefficients( gs , both );
+  BBF::SparseVector ssg;
+  f.bbf->get_linearization_coefficients( ssg , both );
+  expect( equal( sg.coeff( 0 ) , g0 ) && equal( sg.coeff( 1 ) , g1 ) &&
+	  equal( gs[ 0 ] , g0 ) && equal( gs[ 1 ] , g1 ) &&
+	  equal( ssg.coeff( 0 ) , g0 ) && equal( ssg.coeff( 1 ) , g1 ) ,
+	  where + "the coefficients differ among the forms of "
+	  "get_linearization_coefficients()" );
   const double alpha = f.bbf->get_linearization_constant();
   expect( equal( alpha + g[ 0 ] * x[ 0 ] + g[ 1 ] * x[ 1 ] , phi ) ,
 	  where + "the linearization is not exact at x: constant " +
@@ -750,10 +821,14 @@ int main( int argc , char ** argv )
  test_rows_bookkeeping();
  test_rows_with_no_variable();
  test_sides_of_other_rows();
+ test_concerned();
  test_sides_and_value( eBoxLinear );
  test_sides_and_value( eBoxQuad );
  test_BendersBlock_round_trip();
  test_sparse_round_trip();
+
+ while( ! given.empty() )
+  given.pop_back();
 
  if( n_failures ) {
   std::cout << "BendersBFunction_unit_test: " << n_failures

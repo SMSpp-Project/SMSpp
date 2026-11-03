@@ -71,8 +71,10 @@ void FRealObjective::set_function( Function * const function ,
    vbeg->add_active( this );
   }
 
- // if so instructed, issue the FRealObjectiveMod
- if( f_Block && f_Block->issue_mod( issueMod ) )
+ // if so instructed, issue the FRealObjectiveMod; with eNoMod the Block is
+ // not asked, as it may be gone already (from the destructor)
+ if( ( Observer::par2mod( issueMod ) != eNoMod ) && f_Block &&
+     f_Block->issue_mod( issueMod , Modification::eModObj ) )
   f_Block->add_Modification( std::make_shared< FRealObjectiveMod >(
                               this , FRealObjectiveMod::eFunctionChanged ,
                               Observer::par2concern( issueMod ) ) ,
@@ -97,7 +99,7 @@ void FRealObjective::remove_variable( Index i, ModParam issueMod ) {
  if( ! f_function )
   return;
 
- if( f_Block && f_Block->issue_mod( issueMod ) )
+ if( f_Block && f_Block->issue_mod( issueMod , Function::eModFVars ) )
   f_function->remove_variable( i, issueMod );
  else {
   // unregistration can preceed removal, since the Function completely
@@ -116,7 +118,7 @@ void FRealObjective::remove_variables( Range range, ModParam issueMod ) {
  if( ! f_function )
   return;
 
- if( f_Block && f_Block->issue_mod( issueMod ) )
+ if( f_Block && f_Block->issue_mod( issueMod , Function::eModFVars ) )
   f_function->remove_variables( range, issueMod );
  else {
   // unregistration can preceed removal, since the Function completely
@@ -140,7 +142,7 @@ void FRealObjective::remove_variables( Subset && nms, bool ordered,
  if( ! f_function )
   return;
 
- if( f_Block && f_Block->issue_mod( issueMod ) )
+ if( f_Block && f_Block->issue_mod( issueMod , Function::eModFVars ) )
   f_function->remove_variables( std::move( nms ) , ordered , issueMod );
  else {
   // unregistration can preceed removal, since the Function completely
@@ -191,6 +193,22 @@ void FRealObjective::add_Modification( sp_Mod mod , c_ChnlName chnl ) {
    if( tmod ) {
     for( const auto & submod : tmod->sub_Modifications() )
      guts_of_aM( submod );
+    }
+   }
+
+  // FunctionMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  // the shift of the Function is that of the objective, whatever the sense
+  {
+   const auto tmod = std::dynamic_pointer_cast< FunctionMod >( mod );
+   if( tmod ) {
+    const auto shift = tmod->shift();
+    Modification::ModConcern c = Modification::eModObj;
+    if( std::isnan( shift ) || ( shift > 0 ) )
+     c |= Modification::eObjUp;
+    if( std::isnan( shift ) || ( shift < 0 ) )
+     c |= Modification::eObjDown;
+    tmod->set_changes( c );
+    return;
     }
    }
 

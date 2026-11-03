@@ -1,5 +1,5 @@
 /*--------------------------------------------------------------------------*/
-/*------------------------- File QuadFunction.h ---------------------------*/
+/*------------------------- File QuadFunction.h ----------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
  * Header file for the *concrete* class QuadFunction, which implements
@@ -44,7 +44,7 @@
 namespace SMSpp_di_unipi_it {
 
 /*--------------------------------------------------------------------------*/
-/*------------------------- CLASS QuadFunction ----------------------------*/
+/*------------------------- CLASS QuadFunction -----------------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -118,7 +118,7 @@ class QuadFunction : public DQuadFunction {
  /// constructor of QuadFunction, taking the data describing it
  /** Constructor of QuadFunction. It accepts:
   *
-  * @param v_var, a && to a vector of triples < ColVariable * , Coefficient ,
+  * @param v_var a && to a vector of triples < ColVariable * , Coefficient ,
   *        Coefficient >, with the first coefficient being that of the linear
   *        term and the second being that of the quadratic term of the
   *        function corresponding to the given ColVariable; as the &&
@@ -130,10 +130,10 @@ class QuadFunction : public DQuadFunction {
   *        quadratic function. Here the indexes refer to variables 
   *        in v_var and as a result we must have Index i < v_var.size(). 
   *
-  * @param ct, a FunctionValue providing the value of the constant term of the
+  * @param ct a FunctionValue providing the value of the constant term of the
   *        function;
   *
-  * @param observer, a pointer to the Observer of this QuadFunction.
+  * @param observer a pointer to the Observer of this QuadFunction.
   *
   * All inputs have a default ({}, 0, and nullptr, respectively) so that this
   * can be used as the void constructor.
@@ -220,8 +220,8 @@ class QuadFunction : public DQuadFunction {
 /*--------------------------------------------------------------------------*/
 
 
-/** @} ---------------------------------------------------------------------*/
-/*----------- METHODS FOR READING THE DATA OF THE QuadFunction ------------*/
+/*--------------------------------------------------------------------------*/
+/*----------- METHODS FOR READING THE DATA OF THE QuadFunction -------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the QuadFunction
     @{ */
@@ -273,7 +273,7 @@ class QuadFunction : public DQuadFunction {
   }
 
 /** @} ---------------------------------------------------------------------*/
-/*--------- METHODS DESCRIBING THE BEHAVIOR OF THE QuadFunction -----------*/
+/*--------- METHODS DESCRIBING THE BEHAVIOR OF THE QuadFunction ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of the QuadFunction
  *  @{ */
@@ -382,8 +382,8 @@ class QuadFunction : public DQuadFunction {
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
 /*--------------------------------------------------------------------------*/
 
-/** @} ---------------------------------------------------------------------*/
-/*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE QuadFunction --------*/
+/*--------------------------------------------------------------------------*/
+/*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE QuadFunction ---------*/
 /*--------------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------------------*/
@@ -393,8 +393,8 @@ class QuadFunction : public DQuadFunction {
 /*--------------------------------------------------------------------------*/
 
 
-/** @} ---------------------------------------------------------------------*/
-/*-------------- METHODS FOR MODIFYING THE QuadFunction -------------------*/
+/*--------------------------------------------------------------------------*/
+/*-------------- METHODS FOR MODIFYING THE QuadFunction --------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for modifying the QuadFunction
  *  @{ */
@@ -422,8 +422,8 @@ class QuadFunction : public DQuadFunction {
   * become property of the QuadFunction object.
   * 
   * We also add the non-diagonal terms, if any, this can be empty ;
-  * The added variables come with ``absolute indexes", in particular cross terms with
-  * existing variables can be specified
+  * The added variables come with "absolute indexes", in particular cross
+  * terms with existing variables can be specified
   * 
   *
   * The parameter issueMod decides if and how the C05FunctionModVars is
@@ -619,7 +619,7 @@ class QuadFunction : public DQuadFunction {
  };  // end( class( QuadFunction ) )
 
 /*--------------------------------------------------------------------------*/
-/*------------------- Class QuadFunctionModVarsAddd ----------------------*/
+/*------------------- Class QuadFunctionModVarsAddd ------------------------*/
 /*--------------------------------------------------------------------------*/
 /// class to describe "nicely" adding Variable of a QuadFunction
 /** Derived class from DQuadFunctionModVarsAddd to describe adding "active"
@@ -829,5 +829,5 @@ class QuadFunctionModSbst : public C05FunctionModSbst
 #endif  /* QuadFunction.h included */
 
 /*--------------------------------------------------------------------------*/
-/*--------------------- End File QuadFunction.h ---------------------------*/
+/*--------------------- End File QuadFunction.h ----------------------------*/
 /*--------------------------------------------------------------------------*/

@@ -31,6 +31,7 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <atomic>
 #include <unordered_set>
 
 #include "Modification.h"
@@ -353,12 +354,13 @@ class Solver : public ThinComputeInterface
   * accuracy required to the solution of the Block. This is
   * geared towards single-objective optimization problems, and it is defined
   * as follows: a solution for a *minimization* problem has a relative
-  * accuracy of \eps if a feasible (to within the required tolerance for each
-  * Block) solution has been obtained, an upper bound "ub" on its objective
-  * function value has been found [see get_ub()], a lower bound "lb" on the
-  * *optimal* value of the problem has been found [see get_lb()], and
+  * accuracy of \f$ \epsilon \f$ if a feasible (to within the required
+  * tolerance for each Block) solution has been obtained, an upper bound "ub"
+  * on its objective function value has been found [see get_ub()], a lower
+  * bound "lb" on the *optimal* value of the problem has been found [see
+  * get_lb()], and
   *
-  *    ub - lb <= \eps * max( abs( lb ) , 1 )
+  *    \f[ ub - lb \leq \epsilon \cdot \max \{ | lb | , 1 \} \f]
   *
   * The roles of ub and lb are suitably reversed for a maximization problem
   * [see the comments to get_ub(), get_lb() and Objective::set_sense()]. The
@@ -368,19 +370,19 @@ class Solver : public ThinComputeInterface
                  /**< The algorithmic parameter for setting the *absolute*
                   * accuracy required to the solution of the model. This is
   * geared towards single-objective optimization problems, and it is defined
-  * as follows: a solution for a *minimization* problem has a absolute
-  * accuracy of \eps if a feasible  (to within the required tolerance for
-  * each Block) solution has been obtained, an upper bound "ub" on its
-  * objective function value has been found [see get_ub()], a lower bound
-  * "lb" on the *optimal* value of the problem has been found [see get_lb()],
-  * and
+  * as follows: a solution for a *minimization* problem has an absolute
+  * accuracy of \f$ \epsilon \f$ if a feasible (to within the required
+  * tolerance for each Block) solution has been obtained, an upper bound "ub"
+  * on its objective function value has been found [see get_ub()], a lower
+  * bound "lb" on the *optimal* value of the problem has been found [see
+  * get_lb()], and
   *
-  *    ub - lb <= \eps
+  *    \f[ ub - lb \leq \epsilon \f]
   *
   * The roles of ub and lb are suitably reversed for a maximization problem
   * [see the comments to get_ub(), get_lb() and Objective::set_sense()]. The
-  * default is Inf< OFValue >(), which is intended to mean that the only working
-  * accuracy is the relative one. */
+  * default is Inf< OFValue >(), which is intended to mean that the only
+  * working accuracy is the relative one. */
 
   dblUpCutOff ,  ///< upper cutoff for stopping the algorithm
                  /**< The algorithmic parameter for setting the "upper cut
@@ -388,19 +390,20 @@ class Solver : public ThinComputeInterface
   * telling the Solver "when enough is enough". In particular, if the Solver
   * obtains a certified lower bound "lb" on the optimal value such that
   *
-  *   lb >= \eps
+  *   \f[ lb \geq \epsilon \f]
   *
-  * with the provided parameter \eps, then it can stop. This is a
-  * *certificate* that the optimal value is at *least* \eps. For a
+  * with the provided parameter \f$ \epsilon \f$, then it can stop. This is a
+  * *certificate* that the optimal value is at *least* \f$ \epsilon \f$. For a
   * maximization problem the condition says: I actually needed a solution
   * with objective function value at least as good as (i.e., larger than)
-  * \eps, now that I have found one the problem is as good as solved to me.
-  * Hence this parameter is analogous to the maximum absolute accuracy (see
-  * dblAbsAcc), but "weaker" in that it does not not require any upper bound
-  * to work. For a minimization problem, instead, the condition says: I
-  * actually needed a solution with objective function value at least as
-  * good as (i.e., smaller than) \eps, now that I have know for sure that
-  * this is never going to happen the problem is as good as unfeasible to me.
+  * \f$ \epsilon \f$, now that I have found one the problem is as good as
+  * solved to me. Hence this parameter is analogous to the maximum absolute
+  * accuracy (see dblAbsAcc), but "weaker" in that it does not require any
+  * upper bound to work. For a minimization problem, instead, the condition
+  * says: I actually needed a solution with objective function value at least
+  * as good as (i.e., smaller than) \f$ \epsilon \f$, now that I know for
+  * sure that this is never going to happen the problem is as good as
+  * unfeasible to me.
   * The default is Inf< OFValue >(). */
 
   dblLwCutOff ,  ///< lower cutoff for stopping the algorithm
@@ -409,19 +412,20 @@ class Solver : public ThinComputeInterface
   * telling the Solver "when enough is enough". In particular, if the Solver
   * obtains a certified upper bound "ub" on the optimal value such that
   *
-  *   ub <= \eps
+  *   \f[ ub \leq \epsilon \f]
   *
-  * with the provided parameter \eps, then it can stop. This is a
-  * *certificate* that the optimal value is at *most* \eps. For a
+  * with the provided parameter \f$ \epsilon \f$, then it can stop. This is a
+  * *certificate* that the optimal value is at *most* \f$ \epsilon \f$. For a
   * minimization problem the condition says: I actually needed a solution
   * with objective function value at least as good as (i.e., smaller than)
-  * \eps, now that I have found one the problem is as good as solved to me.
-  * Hence this parameter is analogous to the maximum absolute accuracy (see
-  * dblAbsAcc), but "weaker" in that it does not not require any lower bound
-  * to work. For a maximization problem, instead, the condition says: I
-  * actually needed a solution with objective function value at least as
-  * good as (i.e., larger than) \eps, now that I have know for sure that
-  * this is never going to happen the problem is as good as unfeasible to me.
+  * \f$ \epsilon \f$, now that I have found one the problem is as good as
+  * solved to me. Hence this parameter is analogous to the maximum absolute
+  * accuracy (see dblAbsAcc), but "weaker" in that it does not require any
+  * lower bound to work. For a maximization problem, instead, the condition
+  * says: I actually needed a solution with objective function value at least
+  * as good as (i.e., larger than) \f$ \epsilon \f$, now that I know for
+  * sure that this is never going to happen the problem is as good as
+  * unfeasible to me.
   * The default is - Inf< OFValue >(). */
 
   dblRAccSol ,   ///< maximum relative error in any reported solution
@@ -432,13 +436,14 @@ class Solver : public ThinComputeInterface
   * minimization problem, the objective function value of a feasible solution
   * provides an upper bound "ub" on the optimal value. Assuming a lower bound
   * "lb" on the *optimal* value of the problem has been found [see get_lb()],
-  * a solution is deemed acceptable with the provided parameter \eps if
+  * a solution is deemed acceptable with the provided parameter
+  * \f$ \epsilon \f$ if
   *
-  *    ub - lb <= \eps * max( abs( ub ) , abs( lb ) , 1 )
+  *    \f[ ub - lb \leq \epsilon \cdot \max \{ | ub | , | lb | , 1 \} \f]
   *
   * Note that if no lb is available, the above formula can be replaced with
   *
-  *    ub - fbest <= \eps * max( abs( ub ) , abs( fbest ) , 1 )
+  *    \f[ ub - fbest \leq \epsilon \cdot \max \{ | ub | , | fbest | , 1 \} \f]
   *
   * where fbest is the value of the best (with smallest objective value)
   * solution found so far. The roles of ub and lb are suitably reversed for
@@ -447,13 +452,13 @@ class Solver : public ThinComputeInterface
   dblAAccSol ,   ///< maximum absolute error in any reported solution
                  /**< Similar to dblRAccSol but for an *absolute* accuracy;
                   * that is, a solution is deemed acceptable with the
-  * provided parameter \eps if
+  * provided parameter \f$ \epsilon \f$ if
   *
-  *    ub - lb <= \eps
+  *    \f[ ub - lb \leq \epsilon \f]
   *
   * or
   *
-  *    ub - fbest <= \eps
+  *    \f[ ub - fbest \leq \epsilon \f]
   *
   * with the same notation as in dblRAccSol and the same provisions about the
   * case of a maximization problem. The default is Inf< OFValue >(). */
@@ -776,7 +781,10 @@ class Solver : public ThinComputeInterface
  /** Move in the string parameters specific of Solver, together with
   * the parameters of ThinComputeInterface that Solver actually "listens to":
   *
-  * - strLogFileName [empty]: filename for the inner Solver log. */
+  * - strLogFileName [empty]: filename for the inner Solver log; the file is
+  *   opened (and emptied) when the name changes, the same name leaves the
+  *   file open as it is, and the empty name closes it, leaving alone a log
+  *   given with set_log(). */
 
  void set_par( idx_type par , std::string && value ) override;
 
@@ -794,6 +802,34 @@ class Solver : public ThinComputeInterface
 
  virtual void set_log( std::ostream * log_stream = nullptr ) {
   f_log = log_stream;
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// true if the Solver handles a change of the weights of a sub-Block
+ /** Returns true if the Solver handles a BlockWeightMod coming from a
+  * sub-Block of its Block, i.e., a change of the weight of the Objective or
+  * of the Variable of the sub-Block [see Block::set_objective_weight() and
+  * Block::set_variable_weight()], which changes the problem it solves. A
+  * Solver that does not is never left solving the old problem: the change
+  * is refused, with std::logic_error, before anything is changed. The
+  * default is false, a :Solver that handles it says so. */
+
+ [[nodiscard]] virtual bool handles_weight_change( void ) const {
+  return( false );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// true if the Solver applies the weights of the Variable of a sub-Block
+ /** Returns true if the Solver multiplies the coefficients of the Variable
+  * of a sub-Block of its Block in the Constraint outside of the sub-Block
+  * by their weight [see Block::set_variable_weight()]. A Solver that does
+  * not would silently solve another problem, hence it refuses, with
+  * std::logic_error, a Block below which a weight of the Variable is not 1
+  * [see set_Block()]. The default is false, a :Solver that applies them
+  * says so. */
+
+ [[nodiscard]] virtual bool handles_variable_weight( void ) const {
+  return( false );
   }
 
 /** @} ---------------------------------------------------------------------*/
@@ -892,6 +928,46 @@ class Solver : public ThinComputeInterface
 
  [[nodiscard]] bool is_excluded( Block * b ) const;
 
+/*--------------------------------------------------------------------------*/
+ /// declare Block whose Objective the Solver must IGNORE
+ /** Installs a set of Block of the tree rooted at the Block (to be) attached
+  * via set_Block() whose Objective the Solver does not load, while their
+  * Variable and Constraint, and their sub-Block, are loaded as usual (unless
+  * they are excluded via set_excluded_blocks()). The Objective sense of such
+  * a Block is ignored too, and so are the Modification of its Objective,
+  * i.e., any ObjectiveMod coming from it and any FunctionMod or
+  * FunctionModVars of the Function of its Objective. The intended use is a
+  * Block that is hosted inside a larger one because of what it constrains,
+  * while what it minimizes is handled by somebody else.
+  *
+  * Unlike set_excluded_blocks(), the set is not about subtrees: only the
+  * Block in it lose their Objective, not their descendants. As for
+  * set_excluded_blocks(), the set is copied, it can be given before or after
+  * set_Block() (a :Solver may then need to load the problem again), and
+  * passing nullptr clears it. The base class maintains the set but does not
+  * use it: it is the :Solver that reads the Objective of the Block that has
+  * to consult it, via is_objective_excluded(). */
+
+ virtual void set_excluded_objectives(
+                       const std::unordered_set< Block * > * ignored
+                                                              = nullptr );
+
+/*--------------------------------------------------------------------------*/
+ /// returns the set of Block whose Objective the Solver was told to ignore
+
+ [[nodiscard]] const std::unordered_set< Block * > &
+                                    get_excluded_objectives( void ) const
+  { return( f_excluded_obj ); }
+
+/*--------------------------------------------------------------------------*/
+ /// true iff the Objective of the Block \p b is to be ignored
+ /** Returns true iff \p b is in the set given by set_excluded_objectives();
+  * the descendants of \p b are not concerned. Returns false for nullptr. */
+
+ [[nodiscard]] bool is_objective_excluded( const Block * b ) const {
+  return( b && f_excluded_obj.count( const_cast< Block * >( b ) ) );
+  }
+
 /** @} ---------------------------------------------------------------------*/
 /*----------------- METHODS FOR MANAGING THE "IDENTITY" --------------------*/
 /*--------------------------------------------------------------------------*/
@@ -959,7 +1035,8 @@ class Solver : public ThinComputeInterface
  *
  * Note that max_event_number() by default returns 0, which implies that the
  * :Solver does not support *any* event, and therefore that there is no need
- * to resize v_events. */
+ * to resize v_events.
+ *  @{ */
 
  /// returns the maximum number of event types supported by the :Solver
  /** Returns the maximum number of event types supported by the :Solver,
@@ -1794,6 +1871,28 @@ class Solver : public ThinComputeInterface
  [[nodiscard]] virtual Block * get_Block( void ) const { return( f_Block ); }
 
 /*--------------------------------------------------------------------------*/
+ /// the Block in which the solution of an eEverySolution event is
+ /** While an event of type eEverySolution is being called [see
+  * ThinComputeInterface::event_type], returns the Block that holds the
+  * solution that the event is about. It is the Block of this Solver [see
+  * get_Block()] unless the compute() solves each of the problems out of
+  * which its result is made on a copy of it: then it is that copy, a twin
+  * of the Block of this Solver (an AbstractPath built on the one leads to
+  * the same element of the other) whose data are those of the problem just
+  * solved. Out of such an event it returns get_Block().
+  *
+  * Writing the solution in the Block of this Solver instead would not do: a
+  * handler reads the solution together with the data of the problem it
+  * belongs to (say, the duals of some constraints together with their
+  * coefficients, to form a linearization), and those data are in the copy,
+  * while the Block of this Solver may even have Variable fixed at values
+  * that the solution of the copy does not have. */
+
+ [[nodiscard]] virtual Block * get_solution_Block( void ) const {
+  return( get_Block() );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// getting the "identity" of this Solver
 
  [[nodiscard]] virtual void * id( void ) { return( f_id ); }
@@ -2348,6 +2447,10 @@ class Solver : public ThinComputeInterface
  ///< The base class maintains the set but does NOT use it: it is the
  ///< :Solver author's responsibility to consult it (via is_excluded())
  ///< where the Block tree is walked.
+
+ std::unordered_set< Block * > f_excluded_obj;
+ ///< the Block whose Objective the Solver must ignore, their Variable and
+ ///< Constraint being loaded [see set_excluded_objectives()]
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/

@@ -172,7 +172,7 @@ class RHandler
   *
   * @param config A pointer to a BlockConfig.
   *
-  * @param index The name of the sub-Block whose BlockConfig is being
+  * @param name The name of the sub-Block whose BlockConfig is being
   *        added. */
 
  void add_sub_BlockConfig( BlockConfig * config , std::string && name ) {
@@ -2083,7 +2083,7 @@ class OBlockConfig : public BlockConfig ,
   * specified in BlockConfig::load(), followed by the information describing
   * the corresponding ComputeConfig in the format accepted by
   * Configuration::deserialize( std::istream ), with all the corresponding
-  * input options, like '*' for  nullptr and "*<filename>"  for loading it
+  * input options, like '*' for  nullptr and "\*\<filename\>"  for loading it
   * out of a different file. */
 
  void load( std::istream & input ) override {
@@ -2409,7 +2409,7 @@ class CBlockConfig : public BlockConfig ,
   *   - the information describing the corresponding ComputeConfig in the 
   *     format accepted by Configuration::deserialize( std::istream ), with
   *     all the corresponding input options, like '*' for  nullptr and
-  *     "*<filename>" for loading it out of a different file
+  *     "\*\<filename\>" for loading it out of a different file
   *
   * The identification of the Constraint can be either (i) two integers
   * representing the Block::ConstraintID of the Constraint (see
@@ -2722,7 +2722,7 @@ class RBlockConfig : public BlockConfig ,
   *  - the information describing the corresponding *BlockConfig in the 
   *     format accepted by Configuration::deserialize( std::istream ), with
   *     all the corresponding input options, like '*' for  nullptr and
-  *     "*<filename>" for loading it out of a different file
+  *     "\*\<filename\>" for loading it out of a different file
   *
   * Notice that the sign of k determines whether the identification of the
   * sub-Block must be provided. If k < 0, then the identification of the

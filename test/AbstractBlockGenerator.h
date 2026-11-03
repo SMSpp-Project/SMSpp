@@ -16,8 +16,10 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <memory>
 #include <random>
 #include <utility>
+#include <vector>
 
 #include "AbstractBlock.h"
 #include "Block.h"
@@ -278,6 +280,15 @@ public:
  }
 
 /*--------------------------------------------------------------------------*/
+ /// deletes what it has given to the Blocks, which do not own it: hence it
+ /// is destroyed after every Block it has generated
+
+ ~AbstractBlockGenerator() {
+  while( ! given.empty() )
+   given.pop_back();
+ }
+
+/*--------------------------------------------------------------------------*/
 
  AbstractBlock * generate( int depth ) {
   auto block = new AbstractBlock();
@@ -341,7 +352,8 @@ private:
     if( depth > 0 ) {
      function = new LagBFunction( nullptr , t );
      auto block = new AbstractBlock();
-     block->set_objective( new FRealObjective( block , new LinearFunction() ) );
+     block->set_objective( kept( new FRealObjective( block ,
+                                 new LinearFunction() ) ) );
      static_cast< LagBFunction * >( function )->set_inner_block( block );
      block->set_f_Block( static_cast< LagBFunction * >( function ) );
      generate( block , depth );
@@ -376,7 +388,8 @@ private:
   if( ! block->get_objective() ) {
    auto objective = new FRealObjective( block );
    generate_function( objective , depth );
-   block->set_objective( objective );
+   // kept after what its Function has given, deleted before it
+   block->set_objective( kept( objective ) );
   }
  }
 
@@ -384,19 +397,23 @@ private:
 
  void generate_groups( AbstractBlock * block , int depth ) {
   generate_groups< ColVariable , false >
-   ( [ block ]( auto * e ) { block->add_static_variable( * e ); } ,
+   ( [ this , block ]( auto * e ) {
+      block->add_static_variable( * kept( e ) ); } ,
      generator->static_variable_generator , depth );
 
   generate_groups< std::list< ColVariable > , true >
-   ( [ block ]( auto * e ) { block->add_dynamic_variable( * e ); } ,
+   ( [ this , block ]( auto * e ) {
+      block->add_dynamic_variable( * kept( e ) ); } ,
      generator->dynamic_variable_generator , depth );
 
   generate_groups< FRowConstraint , false >
-   ( [ block ]( auto * e ) { block->add_static_constraint( * e ); } ,
+   ( [ this , block ]( auto * e ) {
+      block->add_static_constraint( * kept( e ) ); } ,
      generator->static_constraint_generator , depth );
 
   generate_groups< std::list< FRowConstraint > , true >
-   ( [ block ]( auto * e ) { block->add_dynamic_constraint( * e ); } ,
+   ( [ this , block ]( auto * e ) {
+      block->add_dynamic_constraint( * kept( e ) ); } ,
      generator->dynamic_constraint_generator , depth );
  }
 
@@ -559,7 +576,18 @@ private:
 
 /*--------------------------------------------------------------------------*/
 
+ template< class T >
+ T * kept( T * t ) {
+  given.emplace_back( t );
+  return( t );
+ }
+
+/*--------------------------------------------------------------------------*/
+
  AbstractBlockRandomNumberGenerator * generator;
+
+ /// what has been given to the Blocks, the last given the first deleted
+ std::vector< std::shared_ptr< void > > given;
 
 };
 

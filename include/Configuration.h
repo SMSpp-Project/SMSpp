@@ -28,6 +28,8 @@
 
 #include "SMSTypedefs.h"
 
+#include <filesystem>
+
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -522,7 +524,10 @@ class Configuration
   * default) any existing content of the file is overwritten and the
   * Configuration is saved as *the first one* in the newly created file, while
   * if  \p replace == false the file is opened for appending and the
-  * Configuration is saved after the last one currently present (if any).
+  * Configuration is saved after the last one currently present (if any); if
+  * the file is not there it is created, while if it is there but cannot be
+  * opened for appending (say, it is not a netCDF-4 file) exception is thrown
+  * and the file is left as it was.
   *
   * The base class implementation opens the netCDF file, creates the required
   * attribute "SMS++_file_type" (if the file is created anew, otherwise it is
@@ -539,10 +544,15 @@ class Configuration
    throw( std::invalid_argument( "invalid SMS++ netCDF file type" ) );
 
   netCDF::NcFile f;
-  if( ! replace ) {
+  if( ( ! replace ) && std::filesystem::exists( filename ) ) {
    try { f.open( filename , netCDF::NcFile::write ); }
-   catch( netCDF::exceptions::NcException & e ) { replace = true; }
+   catch( netCDF::exceptions::NcException & e ) {
+    throw( std::runtime_error( "Configuration::serialize: cannot open " +
+			       filename + " for appending: " + e.what() ) );
+    }
    }
+  else
+   replace = true;
   if( replace ) {
    f.open( filename , netCDF::NcFile::replace );
    f.putAtt( "SMS++_file_type", netCDF::NcInt(), type );
@@ -657,7 +667,7 @@ class Configuration
 
  virtual void load( std::istream & input ) = 0;
 
-/** @} --------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /** @name Protected methods for handling static fields
  *
  * These methods allow derived classes to partake into static initialization
@@ -735,7 +745,7 @@ class Configuration
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
-/** @} ---------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1109,7 +1119,7 @@ inline void serialize( netCDF::NcGroup & group , const std::string & name ,
 /** Deserialize basically any STL container of Configuration (*) out of the
  * given \p group and into \p data. This is supposed to be represented by
  * the dimension with name \p size giving the size of the container, plus
- * by as many sub-groups of \p group with name <name>0, <name>1, ..., each
+ * by as many sub-groups of \p group with name \<name\>0, \<name\>1, ..., each
  * one containing one of the Configuration. */
 
 template< template< class ... > class C >
@@ -1137,7 +1147,7 @@ void deserialize( const netCDF::NcGroup & group ,
 /** Serialize basically any STL container of Configuration (*) into the
  * given \p group and into \p data. This is supposed to be represented by
  * the dimension with name \p size giving the size of the container, plus
- * by as many sub-groups of \p group with name <name>0, <name>1, ..., each
+ * by as many sub-groups of \p group with name \<name\>0, \<name\>1, ..., each
  * one containing one of the Configuration; the sub-group of a nullptr is
  * not created, and it is read back as nullptr. */
 

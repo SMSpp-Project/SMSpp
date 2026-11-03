@@ -17,6 +17,7 @@
 /*--------------------------------------------------------------------------*/
 
 #include <filesystem>
+#include <memory>
 
 #include "Configuration.h"
 
@@ -207,9 +208,9 @@ Configuration * Configuration::new_Configuration(
    }
 
   gtype.getValues( tmp );
-  auto result = new_Configuration( tmp );
+  std::unique_ptr< Configuration > result( new_Configuration( tmp ) );
   result->deserialize( group );
-  return( result );
+  return( result.release() );
   }
  catch( netCDF::exceptions::NcException & e ) {
   std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;

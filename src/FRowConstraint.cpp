@@ -70,8 +70,10 @@ void FRowConstraint::set_function( Function * const function ,
    vbeg->add_active( this );
   }
 
- // if so instructed, issue the FRowConstraintMod
- if( get_Block() && get_Block()->issue_mod( issueMod ) )
+ // if so instructed, issue the FRowConstraintMod; with eNoMod the Block is
+ // not asked, as it may be gone already (from the destructor)
+ if( ( Observer::par2mod( issueMod ) != eNoMod ) && get_Block() &&
+     get_Block()->issue_mod( issueMod , Modification::eModCnsCoef ) )
   get_Block()->add_Modification( std::make_shared< FRowConstraintMod >(
                               this , FRowConstraintMod::eFunctionChanged ,
                               Observer::par2concern( issueMod ) ) ,
@@ -91,7 +93,8 @@ void FRowConstraint::set_rhs( c_RHSValue rhs_value , ModParam issueMod )
 
  f_rhs = rhs_value;        // change the value
 
- if( ( ! get_Block() ) || ( ! get_Block()->issue_mod( issueMod ) ) )
+ if( ( ! get_Block() ) ||
+     ( ! get_Block()->issue_mod( issueMod , Modification::eModCnsSide ) ) )
   return;
 
  get_Block()->add_Modification( std::make_shared< RowConstraintMod >(
@@ -112,7 +115,8 @@ void FRowConstraint::set_lhs( c_RHSValue lhs_value , ModParam issueMod )
 
  f_lhs = lhs_value;        // change the value
 
- if( ( ! get_Block() ) || ( ! get_Block()->issue_mod( issueMod ) ) )
+ if( ( ! get_Block() ) ||
+     ( ! get_Block()->issue_mod( issueMod , Modification::eModCnsSide ) ) )
   return;
 
  get_Block()->add_Modification( std::make_shared< RowConstraintMod >(
@@ -134,7 +138,8 @@ void FRowConstraint::set_both( c_RHSValue both_value , ModParam issueMod )
  f_lhs = both_value;
  f_rhs = both_value;
 
- if( ( ! get_Block() ) || ( ! get_Block()->issue_mod( issueMod ) ) )
+ if( ( ! get_Block() ) ||
+     ( ! get_Block()->issue_mod( issueMod , Modification::eModCnsSide ) ) )
   return;
 
  get_Block()->add_Modification( std::make_shared< RowConstraintMod >(
@@ -161,7 +166,7 @@ void FRowConstraint::remove_variable( Index i , ModParam issueMod )
  if( ! f_function )
   return;
 
- if( get_Block() && get_Block()->issue_mod( issueMod ) )
+ if( get_Block() && get_Block()->issue_mod( issueMod , Function::eModFVars ) )
   f_function->remove_variable( i , issueMod );
  else {
   // unregistration can preceed removal, since the Function completely
@@ -181,7 +186,7 @@ void FRowConstraint::remove_variables( Range range , ModParam issueMod )
  if( ! f_function )
   return;
 
- if( get_Block() && get_Block()->issue_mod( issueMod ) )
+ if( get_Block() && get_Block()->issue_mod( issueMod , Function::eModFVars ) )
   f_function->remove_variables( range, issueMod );
  else {
   // unregistration can preceed removal, since the Function completely
@@ -206,7 +211,7 @@ void FRowConstraint::remove_variables( Subset && nms , bool ordered ,
  if( ! f_function )
   return;
 
- if( get_Block() && get_Block()->issue_mod( issueMod ) )
+ if( get_Block() && get_Block()->issue_mod( issueMod , Function::eModFVars ) )
   f_function->remove_variables( std::move( nms ) , ordered , issueMod );
  else {
   // unregistration can preceed removal, since the Function completely
@@ -260,6 +265,30 @@ void FRowConstraint::add_Modification( sp_Mod mod , c_ChnlName chnl )
    if( tmod ) {
     for( const auto & submod : tmod->sub_Modifications() )
      guts_of_aM( submod );
+    }
+   }
+
+  // FunctionMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  /* The Function shifted upwards makes the RHS harder to satisfy and the LHS
+     easier, downwards the opposite, NaN both; a relaxed Constraint is not
+     in the feasible region, which does not change. */
+  {
+   const auto tmod = std::dynamic_pointer_cast< FunctionMod >( mod );
+   if( tmod ) {
+    const auto shift = tmod->shift();
+    const bool up = std::isnan( shift ) || ( shift > 0 );
+    const bool down = std::isnan( shift ) || ( shift < 0 );
+    const bool lhs = get_lhs() > -RHSINF;
+    const bool rhs = get_rhs() < RHSINF;
+    Modification::ModConcern c = Modification::eModCnsCoef;
+    if( ! is_relaxed() ) {
+     if( ( up && rhs ) || ( down && lhs ) )
+      c |= Modification::eRegnShrink;
+     if( ( up && lhs ) || ( down && rhs ) )
+      c |= Modification::eRegnGrow;
+     }
+    tmod->set_changes( c );
+    return;
     }
    }
 

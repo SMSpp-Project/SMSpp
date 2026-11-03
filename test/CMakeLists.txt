@@ -39,6 +39,14 @@ function(smspp_install target_name)
                 $<TARGET_FILE_DIR:${target_name}>
                 COMMAND_EXPAND_LISTS
                 COMMENT "Copying runtime DLLs next to ${target_name}.exe")
+        # one link at a time, since two copies of the same DLL into a
+        # directory collide, and Ninja links in parallel
+        get_property(_pools GLOBAL PROPERTY JOB_POOLS)
+        if (NOT _pools MATCHES "smspp_runtime_dlls=")
+            set_property(GLOBAL APPEND PROPERTY JOB_POOLS smspp_runtime_dlls=1)
+        endif ()
+        set_property(TARGET ${target_name}
+                     PROPERTY JOB_POOL_LINK smspp_runtime_dlls)
     endif ()
 
     #[[install(TARGETS ${target_name}
@@ -142,7 +150,8 @@ smspp_install(Solution_test)
 add_test(NAME Solution_test
          COMMAND Solution_test)
 
-add_executable(PolyhedralFunctionBlock_unit_test tests_PolyhedralFunctionBlock.cpp)
+add_executable(PolyhedralFunctionBlock_unit_test
+               tests_PolyhedralFunctionBlock.cpp)
 target_link_libraries(PolyhedralFunctionBlock_unit_test PRIVATE SMS++::SMS++)
 smspp_install(PolyhedralFunctionBlock_unit_test)
 add_test(NAME PolyhedralFunctionBlock_unit_test
@@ -173,6 +182,12 @@ smspp_install(BendersBFunction_unit_test)
 add_test(NAME BendersBFunction_unit_test
          COMMAND BendersBFunction_unit_test)
 
+add_executable(BranchingRule_unit_test tests_BranchingRule.cpp)
+target_link_libraries(BranchingRule_unit_test PRIVATE SMS++::SMS++)
+smspp_install(BranchingRule_unit_test)
+add_test(NAME BranchingRule_unit_test
+         COMMAND BranchingRule_unit_test)
+
 add_executable(Misc_unit_test tests_Misc.cpp)
 target_link_libraries(Misc_unit_test PRIVATE SMS++::SMS++)
 smspp_install(Misc_unit_test)
@@ -184,5 +199,13 @@ target_link_libraries(NetCDF_test PRIVATE SMS++::SMS++)
 smspp_install(NetCDF_test)
 add_test(NAME NetCDF_test
          COMMAND NetCDF_test)
+
+if (SMSpp_BUILD_MODULE)
+    add_executable(Module_test tests_Module.cpp)
+    target_link_libraries(Module_test PRIVATE SMS++::SMS++_module)
+    smspp_install(Module_test)
+    add_test(NAME Module_test
+             COMMAND Module_test)
+endif ()
 
 # --------------------------------------------------------------------------- #

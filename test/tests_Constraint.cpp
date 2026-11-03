@@ -39,6 +39,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <deque>
 #include <functional>
 #include <iostream>
 #include <list>
@@ -1041,6 +1042,130 @@ static void test_ovc_empty_values( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/*---------------------- TESTS OF THE STATIC clear() -----------------------*/
+/*--------------------------------------------------------------------------*/
+/* Constraint::clear() of the collections that none of the specific
+ * overloads takes, whose items are any sequence container: a std::deque, a
+ * std::deque of std::vector and of std::list, a std::list of std::list and a
+ * boost::multi_array of std::deque. The empty collection and the one of
+ * empty collections are emptied, and each Constraint, relaxed or not, is
+ * clear()-ed before being destroyed, i.e., it forgets its ColVariable
+ * without leaving it, so that the ColVariable still lists it afterwards. */
+
+/// sets x in each of the constraints, relaxing the first one
+template< class R >
+static std::vector< ThinVarDepInterface * > activate( R & rows ,
+						     ColVariable & x )
+{
+ std::vector< ThinVarDepInterface * > was;
+ for( auto & c : rows ) {
+  c.set_variable( & x , eNoMod );
+  was.push_back( & c );
+  }
+ if( ! was.empty() )
+  rows.front().relax( true , eNoMod );
+ return( was );
+ }
+
+/// true if x still lists all the constraints in was, and nothing else
+static bool still_listed( const ColVariable & x ,
+			  const std::vector< ThinVarDepInterface * > & was )
+{
+ if( x.get_num_active() != was.size() )
+  return( false );
+ for( auto c : was )
+  if( listed( x , c ) != 1 )
+   return( false );
+ return( true );
+ }
+
+template< class D >
+static void check_clear_nested( std::deque< D > & rows ,
+				const std::string & what )
+{
+ Constraint::clear( rows );  // empty
+ assert( rows.empty() );
+
+ rows.resize( 3 );           // of empty collections
+ Constraint::clear( rows );
+ assert( rows.empty() );
+
+ ColVariable x;
+ rows.resize( 3 );
+ rows[ 0 ].resize( 2 );      // rows[ 1 ] stays empty
+ rows[ 2 ].resize( 1 );
+ std::vector< ThinVarDepInterface * > was;
+ for( auto & d : rows )
+  for( auto c : activate( d , x ) )
+   was.push_back( c );
+ assert( x.get_num_active() == 3 );
+
+ Constraint::clear( rows );
+ assert( rows.empty() && still_listed( x , was ) );
+ std::cout << what << ": OK" << std::endl;
+ }
+
+static void test_clear_collections( void )
+{
+ {  // a std::deque
+  std::deque< BoxConstraint > rows;
+  Constraint::clear( rows );
+  assert( rows.empty() );
+  ColVariable x;
+  rows.resize( 3 );
+  auto was = activate( rows , x );
+  Constraint::clear( rows );
+  assert( rows.empty() && still_listed( x , was ) );
+  std::cout << "clear( deque ): OK" << std::endl;
+  }
+
+ {
+  std::deque< std::vector< BoxConstraint > > rows;
+  check_clear_nested( rows , "clear( deque of vector )" );
+  }
+ {
+  std::deque< std::list< BoxConstraint > > rows;
+  check_clear_nested( rows , "clear( deque of list )" );
+  }
+
+ {  // a std::list of std::list
+  std::list< std::list< BoxConstraint > > rows;
+  Constraint::clear( rows );
+  assert( rows.empty() );
+  rows.resize( 2 );
+  Constraint::clear( rows );
+  assert( rows.empty() );
+  ColVariable x;
+  rows.resize( 2 );
+  rows.back().resize( 2 );
+  auto was = activate( rows.back() , x );
+  Constraint::clear( rows );
+  assert( rows.empty() && still_listed( x , was ) );
+  std::cout << "clear( list of list ): OK" << std::endl;
+  }
+
+ {  // a boost::multi_array of std::deque
+  boost::multi_array< std::deque< BoxConstraint > , 2 > rows;
+  Constraint::clear( rows );
+  assert( rows.num_elements() == 0 );
+  rows.resize( boost::extents[ 2 ][ 2 ] );
+  Constraint::clear( rows );
+  assert( rows.num_elements() == 0 );
+  ColVariable x;
+  rows.resize( boost::extents[ 2 ][ 2 ] );
+  rows[ 0 ][ 1 ].resize( 2 );  // the other cells stay empty
+  rows[ 1 ][ 0 ].resize( 1 );
+  std::vector< ThinVarDepInterface * > was;
+  for( auto d : { & rows[ 0 ][ 1 ] , & rows[ 1 ][ 0 ] } )
+   for( auto c : activate( *d , x ) )
+    was.push_back( c );
+  Constraint::clear( rows );
+  assert( ( rows.num_elements() == 0 ) && still_listed( x , was ) );
+  std::cout << "clear( multi_array of deque ): OK" << std::endl;
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
 
 int main( void )
 {
@@ -1060,6 +1185,8 @@ int main( void )
  test_variable_is_active();
  test_ovc_values();
  test_ovc_empty_values();
+
+ test_clear_collections();
 
  if( n_failed ) {
   std::cout << n_failed << " checks FAILED" << std::endl;

@@ -40,6 +40,7 @@
 /*--------------------------------------------------------------------------*/
 
 #include <list>
+#include <memory>
 
 #include "SMSTypedefs.h"
 
@@ -77,7 +78,7 @@ class Block;            // forward definition of Block
  * Therefore, Change objects need to contain all the necessary informations to 
  * apply the changes, i.e., all the new data of the Block.
  * 
- * Changes in a Block can be applied either to its Abstract Representation (AR) 
+ * Changes in a Block can be applied either to its Abstract Representation (AR)
  * or to its Physical Representation (PR). Hence, derived classes of Change 
  * can be either "abstract" (and hence they can be applied to any Block) or 
  * "specific", i.e., for a specific derived class from Block. The base Change
@@ -91,7 +92,7 @@ class Block;            // forward definition of Block
  * of changes in order to be able to provide an "UndoChange". An "UndoChange" 
  * is a Change returned by the apply() method that can be used to restore the 
  * state of the Block prior to the application of the current Change. In fact, 
- * although this mechanism can be useful in some cases, it requires to possibly  
+ * although this mechanism can be useful in some cases, it requires to possibly
  * restrict the total number of supported changes, since creating an 
  * "UndoChange" of an arbitrary Change can be complicated and sometimes not 
  * supported. */
@@ -188,10 +189,10 @@ class Change {
 
   std::string tmp;
   gtype.getValues( tmp );
-  auto result = new_Change( tmp );
+  std::unique_ptr< Change > result( new_Change( tmp ) );
   try {
    result->deserialize( group );
-   return( result );
+   return( result.release() );
    }
   catch( netCDF::exceptions::NcException & e ) {
    std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
@@ -428,7 +429,7 @@ class Change {
                          ModParam issueMod = eNoBlck , 
                          ModParam issueAMod = eNoBlck ) = 0;
 
-/** @} ---------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -478,10 +479,7 @@ class Change {
   * The rationale for using a method is that this is the "Construct On First
   * Use Idiom" that solves the "static initialization order problem". */
 
- static ChangeFactoryMap & f_factory( void ) {
-  static ChangeFactoryMap c_factory;
-  return( c_factory );
-  }
+ static ChangeFactoryMap & f_factory( void );
 
 /*--------------------------------------------------------------------------*/
  /// empty placeholder for class-specific static initialization
@@ -520,7 +518,7 @@ class Change {
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
-/** @} ---------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -653,6 +651,10 @@ class GroupChange : public Change {
 /*--------------------------------------------------------------------------*/
 
  };  // end( class( GroupChange ) )
+
+/*--------------------------------------------------------------------------*/
+
+/** @} end( group( Change_CLASSES ) ) */
 
 }  // end( namespace SMSpp_di_unipi_it )
 
