@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-03
+
 ### Added
 
 - the getters `get_stabilization()`, `is_primal()`, `get_level()`,
@@ -2250,7 +2252,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - First test release.
 
-[Unreleased]: https://gitlab.com/smspp/smspp/-/compare/0.8.0...develop
+[Unreleased]: https://gitlab.com/smspp/smspp/-/compare/0.9.0...develop
+[0.9.0]: https://gitlab.com/smspp/smspp/-/compare/0.8.0...0.9.0
 [0.8.0]: https://gitlab.com/smspp/smspp/-/compare/0.7.1...0.8.0
 [0.7.1]: https://gitlab.com/smspp/smspp/-/compare/0.7.0...0.7.1
 [0.7.0]: https://gitlab.com/smspp/smspp/-/compare/0.6.0...0.7.0
