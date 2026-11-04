@@ -1569,7 +1569,7 @@ static void test_in_memory( void )
  {
   NcMemFile f;
   auto d = f.addDim( "n" , 3 );
-  auto var = f.addVar( "v" , netCDF::ncDouble , d );
+  auto var = f.addVar( "v" , netCDF::NcDouble() , d );
   const double v[] = { 1.5 , -2 , 3 };
   var.putVar( v );
   f.putAtt( "a" , netCDF::NcInt() , 4 );

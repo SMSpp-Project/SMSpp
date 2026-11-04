@@ -28,7 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Block::register_method()`, which only the assert reads, are marked as
   such, and the decompression of `SMSnetCDF.h` counts the change intervals
   with `std::size_t`
-
+- `NetCDF_test` links on Windows, where the DLL of netCDF-C++ does not
+  export the type objects such as `netCDF::ncDouble`
 - `MasterProblemBlock::solve_master()` with all the components empty: the
   step is the projection of - t l on the box, rather than - t l also when
   it leaves the box, and the dual master with a finite global lower bound
