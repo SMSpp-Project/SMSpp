@@ -1776,7 +1776,6 @@ void BoxSolver::process_var_dual( ColVariable & var ,
  // the unique stationary point (max or min depending on the sign of a)
  // of a x^2 + b is at x = - b / ( 2 * a );
  OFValue x = - b / ( 2 * a );
- auto q = [ & ]( OFValue y ) -> OFValue { return( ( a * y + b ) * y ); };
  
  // a bound that is not tight at the optimum has dual value 0: in the convex
  // cases below both are set so, and the tight one, if any, is written after

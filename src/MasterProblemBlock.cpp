@@ -618,7 +618,6 @@ void MasterProblemBlock::configure(
  // marked easy.
  int next_global_easy = 0;
  for( int k = 0 ; k < n_easy ; ++k ) {
-  int component = k;
   if( int( is_easy.size() ) == n_total ) {
    while( next_global_easy < n_total && ! is_easy[ next_global_easy ] )
     ++next_global_easy;
@@ -626,7 +625,7 @@ void MasterProblemBlock::configure(
     throw( std::invalid_argument(
          "MasterProblemBlock::configure: inconsistent easy-component "
          "flags" ) );
-   component = next_global_easy++;
+   ++next_global_easy;
    }
 
   auto * c05 = easy_components[ k ];

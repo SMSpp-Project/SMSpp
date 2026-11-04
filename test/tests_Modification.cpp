@@ -327,17 +327,6 @@ static Addrs addresses( const L & l )
  }
 
 /*--------------------------------------------------------------------------*/
-/// the elements of v in the given positions
-
-static Addrs pick( const Addrs & v , std::initializer_list< Index > pos )
-{
- Addrs rv;
- for( auto i : pos )
-  rv.push_back( v[ i ] );
- return( rv );
- }
-
-/*--------------------------------------------------------------------------*/
 /*------------------------ CHECKING ONE Case -------------------------------*/
 /*--------------------------------------------------------------------------*/
 

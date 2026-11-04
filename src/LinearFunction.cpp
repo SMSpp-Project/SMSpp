@@ -39,7 +39,7 @@ int LinearFunction::compute( bool changedvars )
 {
  if( changedvars ) {
   f_value = f_constant_term;  // value of the function
-  for( const auto el : v_pairs )
+  for( const auto & el : v_pairs )
    f_value += el.first->get_value() * el.second;
   }
 
@@ -51,7 +51,7 @@ int LinearFunction::compute( bool changedvars )
 Function::FunctionValue LinearFunction::get_Lipschitz_constant( void )
 {
  FunctionValue L = 0;
- for( const auto el : v_pairs )
+ for( const auto & el : v_pairs )
   L += el.second * el.second;
 
  return( sqrt( double( L ) ) );

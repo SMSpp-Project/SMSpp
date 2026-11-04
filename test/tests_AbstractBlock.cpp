@@ -1538,7 +1538,7 @@ static void test_read_lp_powers( void )
 
 static void test_read_lp_malformed( void )
 {
- for( const std::string lp : {
+ for( const std::string & lp : {
    std::string( "" ) ,
    std::string( "Maybe\n obj: x\nEnd\n" ) ,
    std::string( "Minimize\n obj: x\n" ) ,

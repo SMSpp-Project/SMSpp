@@ -1514,7 +1514,7 @@ void AbstractBlock::read_mps( std::istream & file )
  i = 0;
  bool marker = false;
  tmp.clear();
- ColVariable * v;
+ ColVariable * v = nullptr;
  LinearFunction * f;
  while( file.peek() == file.widen( ' ' ) ) {
   std::string row;

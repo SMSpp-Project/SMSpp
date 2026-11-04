@@ -2708,7 +2708,7 @@ static void test_handlers( void )
   }
 
  // the other combinations are there, and read what they are given
- for( const std::string & name : { "OCBlockConfig" , "ORBlockConfig" ,
+ for( const std::string name : { "OCBlockConfig" , "ORBlockConfig" ,
 				   "CRBlockConfig" } ) {
   // the handlers are the letters before "BlockConfig"
   const auto h = name.substr( 0 , 2 );

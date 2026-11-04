@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Block::register_method()`, which only the assert reads, are marked as
   such, and the decompression of `SMSnetCDF.h` counts the change intervals
   with `std::size_t`
+- the sources and the tests compile without warnings under `-Wall`: the
+  unused functions, variables and lambdas are gone, the column of the MPS
+  reader of `AbstractBlock` starts as `nullptr`, the loops over strings
+  and pairs take them by reference, and the indentation follows the code
+  in the translation of the Modification of a member of `C05SumFunction`
+  and in the removal of a Range of Variable from `LagBFunction`
 - `NetCDF_test` links on Windows, where the DLL of netCDF-C++ does not
   export the type objects such as `netCDF::ncDouble`
 - `MasterProblemBlock::solve_master()` with all the components empty: the

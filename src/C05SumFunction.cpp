@@ -416,7 +416,6 @@ void C05SumFunction::member_Variables_changed(
                         ChnlName chnl )
 {
  const auto h = member_of( vmod );
- auto member = v_members[ h ];
 
  /* The "active" Variable of the sum are the union of those of the members,
   * so that a Variable added to a member is one of the sum only if no other
@@ -622,7 +621,7 @@ void C05SumFunction::translate_Modification( const sp_Mod & mod ,
     out = std::make_shared< FunctionMod >( this , fmod->shift() ,
                                            fmod->concerns_Block() );
 
-    emit( std::move( out ) , chnl );
+  emit( std::move( out ) , chnl );
 
   if( ! stale.empty() )
    emit( std::make_shared< C05FunctionMod >( this ,
