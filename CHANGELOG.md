@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- the fictitious bound of `MasterProblemBlock::set_fictitious_LB()` is
+  v^k >= 0 also when there is a finite global lower bound (with which it is
+  not needed), rather than the bound minus 1; in the raw primal form it is
+  F_k( x_bar ) only once that value is known, and 0 before (it used to make
+  the master infeasible before the first evaluation)
+
+### Fixed
+
+- `MasterProblemBlock::solve_master()` with all the components empty: the
+  step is the projection of - t l on the box, rather than - t l also when
+  it leaves the box, and the dual master with a finite global lower bound
+  is solved by its Solver (the model is that bound, and the step 0) rather
+  than given the step - t l
+
 ## [0.9.0] - 2026-11-03
 
 ### Added

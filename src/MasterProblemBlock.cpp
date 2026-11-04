@@ -4474,10 +4474,8 @@ void MasterProblemBlock::set_global_LB( double LB )
  const double coeff = finite ? sgn * ( LB + f_C ) : 0.0;
  dqf->modify_term( DQuadFunction::Index( r_obj_idx ) , coeff , 0.0 );
 
- // cache the translated global lower bound LB + f_C (the value the
- // r-multiplier carries) so that set_fictitious_LB() can place the
- // fictitious per-component bound strictly *below* it (gamma_i cost =
- // global_LB - 1)
+ // cache the translated global lower bound LB + f_C, the value that the
+ // r-multiplier carries
  f_global_LB_xbar = finite ? ( LB + f_C ) : - Inf< Function::FunctionValue >();
 
  // Var_r is meaningful only when LB is finite: unfix it now (it was
@@ -6302,7 +6300,11 @@ int MasterProblemBlock::solve_master( void )
  // Nor does it with linear constraints, which the step has to satisfy: the
  // master is solved, and the caller gives the empty components their
  // fictitious bound [see set_fictitious_LB()] for it to be bounded.
- if( is_bundle_empty() && ( NoEasyCmps == 0 ) && f_lc_A.empty() ) {
+ // Nor, in the dual MP, with a finite global lower bound: the model is
+ // then that bound alone, the master is bounded and feasible (lambda = 0,
+ // r = 1) and its Solver gives the step as for any other master.
+ if( is_bundle_empty() && ( NoEasyCmps == 0 ) && f_lc_A.empty() &&
+     ( IsPrimal || ( ! std::isfinite( f_global_LB_xbar ) ) ) ) {
   /* With every B^k empty the cutting-plane model is empty and the master
    * reduces to the stabilization alone,
    *
@@ -6365,14 +6367,35 @@ int MasterProblemBlock::solve_master( void )
    return( Solver::kOK );
    }
 
-  if( IsPrimal )
-   for( int i = 0 ; i < int( Var_d_idx.size() ) ; ++i )
-    Var_d_idx[ i ]->set_value( ( f_v2_form ? f_x_bar[ i ] : 0.0 )
-                          - ( has_linear ? t_stab * f_linear_part[ i ]
-                                         : 0.0 ) );
-  else
-   for( int i = 0 ; i < int( Var_z_idx.size() ) ; ++i )
-    Var_z_idx[ i ]->set_value( has_linear ? f_linear_part[ i ] : 0.0 );
+  /* Without the trust region the problem is separable, and d*_j is the
+   * projection of - t l_j on the box [see set_box()]: the primal MP writes
+   * it, the dual one writes z*_j = - d*_j / t and gives the multiplier
+   * s^+_j - s^-_j = l_j - z*_j of the coupling row to the side d*_j is
+   * on. */
+  const auto set_mult = []( ColVariable * s , double value ) {
+   if( ! s->is_fixed() )
+    s->set_value( value );
+   };
+  for( Index i = 0 ; i < Index( NumVars ) ; ++i ) {
+   const double li = has_linear ? f_linear_part[ i ] : 0.0;
+   const double xi = f_v2_form ? f_x_bar[ i ] : 0.0;
+   double lhs , rhs;
+   primal_box( i , lhs , rhs );
+   double di = li != 0.0 ? - t_stab * li : 0.0;
+   if( std::isfinite( lhs ) )
+    di = std::max( di , lhs - xi );
+   if( std::isfinite( rhs ) )
+    di = std::min( di , rhs - xi );
+   if( IsPrimal )
+    Var_d_idx[ i ]->set_value( xi + di );
+   else {
+    const double zi = std::isfinite( di ) && std::isfinite( t_stab ) ?
+                      - di / t_stab : li;
+    Var_z_idx[ i ]->set_value( zi );
+    set_mult( Var_s_plus_idx[ i ] , std::max( li - zi , 0.0 ) );
+    set_mult( Var_s_minus_idx[ i ] , std::max( zi - li , 0.0 ) );
+    }
+   }
 
   return( Solver::kOK );
   }
@@ -7538,16 +7561,6 @@ void MasterProblemBlock::set_fictitious_LB( int k , bool on )
  // value v_k lives in that frame already. The caller is responsible
  // for removing it (on == false) as soon as the component receives
  // a real cut, restoring the gamma^k-fixed "no bound" state
- // the fictitious model lower bound value: 0 when no genuine global LB
- // exists, otherwise strictly below the translated global LB
- // (global_LB_xbar - 1), so the per-component fictitious constraint
- //   v^k >= fict
- // never becomes more stringent than the genuine aggregate
- //   v   >= global_LB_xbar
- // which would corrupt the master direction (gamma_i cost =
- // global_LB - 1)
- const double fict = std::isfinite( f_global_LB_xbar )
-                     ? ( f_global_LB_xbar - 1.0 ) : 0.0;
 
  if( k >= int( HardCmps.size() ) || ! HardCmps[ k ] )
   return;
@@ -7563,14 +7576,16 @@ void MasterProblemBlock::set_fictitious_LB( int k , bool on )
   // In the translated primal frame v_k is already relative to F_k(x_bar), so
   // the empty component disappears with v_k >= 0. In the raw frame v_k is
   // the physical function value instead: use F_k(x_bar), which again gives
-  // zero after get_FiBLambda() subtracts the reference.
+  // zero after get_FiBLambda() subtracts the reference, or 0 while it is
+  // not known (e.g., before the first evaluation), since the value of the
+  // bound only moves the constant of the objective and not d.
   const double primal_fict =
-   ( f_v2_form && k < int( f_F_at_x_bar.size() ) )
-   ? f_F_at_x_bar[ k ] : 0.0;
+   ( f_v2_form && k < int( f_F_at_x_bar.size() ) &&
+     std::isfinite( f_F_at_x_bar[ k ] ) ) ? f_F_at_x_bar[ k ] : 0.0;
   poly.modify_bound( on ? primal_fict : no_bound );
   }
  else
-  poly.modify_bound( on ? ( IsConvex ? 1.0 : -1.0 ) * fict : no_bound );
+  poly.modify_bound( on ? 0.0 : no_bound );
  }  // end( MasterProblemBlock::set_fictitious_LB )
 
 /*--------------------------------------------------------------------------*/

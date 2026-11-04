@@ -2115,7 +2115,11 @@ class MasterProblemBlock : public Block {
   * to set_LB), because the model value v^k already lives in that frame.
   * The caller must remove it (\p on == false) as soon as the component
   * gets a real cut, restoring the gamma^k-fixed "no bound" state. \p k
-  * must lie in [0, NoHardCmps). */
+  * must lie in [0, NoHardCmps).
+  *
+  * It is not needed when a finite global lower bound has been set [see
+  * set_global_LB()]: the master is then bounded with the empty components
+  * left free (in the dual, lambda = 0 and r = 1 satisfy their rows). */
 
  void set_fictitious_LB( int k , bool on );
 
