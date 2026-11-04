@@ -6415,7 +6415,8 @@ class Block : public Observer {
   auto iter = methods< F >().left.find( name );
   if( iter != methods< F >().left.end() ) {
    delete iter->second;
-   auto replaced = methods< F >().left.replace_data( iter, function );
+   [[maybe_unused]] auto replaced =
+                       methods< F >().left.replace_data( iter, function );
    assert( replaced );
   } else
    methods< F >().insert( typename MethodsFactoryMap< F >::value_type(

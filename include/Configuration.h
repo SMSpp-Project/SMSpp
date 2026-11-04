@@ -451,7 +451,7 @@ class Configuration
   *     reset), so that values already loaded from the base file are
   *     preserved unless explicitly overridden. */
 
- virtual void merge_overrides( std::istream & input ) {
+ virtual void merge_overrides( [[maybe_unused]] std::istream & input ) {
   throw( std::invalid_argument(
    "Configuration::merge_overrides: this Configuration type does not "
    "support inline override (used by the `* file.txt + body' syntax)" ) );

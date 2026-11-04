@@ -377,10 +377,9 @@ class PolyhedralFunction : public C05Function {
 		     bool is_convex = true ,
 		     Observer * const observer = nullptr ,
 		     BoolVector && is_vert = {} )
-  : C05Function( observer ) , f_is_convex( is_convex ) , f_bound( bound ) ,
-    f_loc_pool_sz( 1 ) , f_next( 0 ) ,  f_max_glob( 0 ) , f_inf_idx( 0 ) ,
-    f_n_vert( 0 ) , f_n_violated( 0 )
- {
+     : C05Function( observer ) , f_is_convex( is_convex ) , f_bound( bound ) ,
+       f_loc_pool_sz( 1 ) , f_next( 0 ) , f_inf_idx( 0 ) , f_n_vert( 0 ) ,
+       f_n_violated( 0 ) , f_max_glob( 0 ) {
   AAccMlt = C05Function::get_dflt_dbl_par( dblAAccMlt );
   v_ord.resize( 1 );
   v_ord[ 0 ] = 0;

@@ -532,9 +532,12 @@ class MasterProblemBlock : public Block {
   * - the file does not contain a BlockSolverConfig.
   *
   * After a successful call the registered Solver is ready to be compute()-ed.
-  */
+  * Block::register_Solver(), which takes the Solver itself, is still
+  * available [see the using below]. */
 
  void register_Solver( std::string && solv_cfg_filename );
+
+ using Block::register_Solver;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// register the inner Solver + install an exclusion list on it

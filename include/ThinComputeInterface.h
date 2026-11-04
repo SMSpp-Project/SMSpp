@@ -2248,8 +2248,9 @@ class ComputeConfig : public Configuration
 /*---------------------------- CONSTRUCTORS --------------------------------*/
  /// constructor: initializes everything to "default configuration"
 
- ComputeConfig( void ) : Configuration() , f_diff( true ) , f_relax( false ) ,
-                         f_extra_Configuration( nullptr ) {}
+ ComputeConfig( void )
+     : Configuration() , f_extra_Configuration( nullptr ) , f_diff( true ) ,
+       f_relax( false ) { }
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor: does what it says on the tin

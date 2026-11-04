@@ -678,8 +678,8 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
    std::vector< R > given_vector = buf;
    buf.resize( size );
 
-   auto t = 0;
-   for( auto k = 0 ; k < change_intervals.size() ; ++k ) {
+   std::size_t t = 0;
+   for( std::size_t k = 0 ; k < change_intervals.size() ; ++k ) {
     auto upper_endpoint = change_intervals[ k ];
     if( k == change_intervals.size() - 1 )
      upper_endpoint = size - 1;

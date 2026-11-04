@@ -1097,8 +1097,8 @@ class VariableGroupMod : public GroupModification {
 
  explicit VariableGroupMod( std::vector< Variable * > && vars , int type ,
 			    GroupModification * father = nullptr )
-  : GroupModification( father ) , v_vars( std::move( vars ) ) ,
-    f_type( type ) {}
+     : GroupModification( father ) , f_type( type ) ,
+       v_vars( std::move( vars ) ) { }
 
  /// destructor: does nothing
  ~VariableGroupMod() override = default;

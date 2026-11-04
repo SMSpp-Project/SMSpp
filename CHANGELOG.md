@@ -17,6 +17,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- the headers compile without warnings under `-Wall`: the members of
+  `ComputeConfig`, `VariableGroupMod`, `PolyhedralFunction` and
+  `PolyhedralFunctionBlock` are initialized in the order they are declared,
+  the index translations of `LagBFunction` compare and subtract the last
+  parameters of `Solver` and of `LagBFunction` as `idx_type` rather than as
+  enumerations of different types, and `MasterProblemBlock` no longer hides
+  `Block::register_Solver()`; the unused parameter of the default
+  `Configuration::merge_overrides()` and the result of the replacement in
+  `Block::register_method()`, which only the assert reads, are marked as
+  such, and the decompression of `SMSnetCDF.h` counts the change intervals
+  with `std::size_t`
+
 - `MasterProblemBlock::solve_master()` with all the components empty: the
   step is the projection of - t l on the box, rather than - t l also when
   it leaves the box, and the dual master with a finite global lower bound
