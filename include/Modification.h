@@ -410,10 +410,14 @@ class Modification {
   * is a guarantee. A physical Modification may also say, with the other bits
   * of kind, what it changes in terms of the model (a change of the
   * capacities of a MCFBlock is that of the sides of its Constraint, say),
-  * which those who do not read its physical representation can use; it is
-  * physical all the same [see is_physical()]. The sides and the coefficients
-  * of the Constraint are told apart because a dual solution stays feasible
-  * when only the former change [see changes_only_sides()]. The masks
+  * which those who receive it without reading its physical representation
+  * can use (say, a Solver that reads all the kinds); it is physical all the
+  * same [see is_physical()], and therefore it does not reach those who only
+  * read the abstract representation [see is_of_concern()], who see the
+  * change in the abstract Modification that come with it (if any). The
+  * sides and the coefficients of the Constraint are told apart because a
+  * dual solution stays feasible when only the former change [see
+  * changes_only_sides()]. The masks
   * eModAbst (all the abstract kinds), eModAnything (all the kinds) and
   * eModAll (all the bits) serve the standard cases, and ePhysObj, ePhysSides,
   * ePhysCns and ePhysVars those of a physical Modification that only changes
@@ -565,12 +569,21 @@ class Modification {
 
  /// true if a Modification that changes \p c is of concern to \p reads
  /** \p reads is what someone listening reads [see Solver::concerned_by()],
-  * of which only the kind matters: the Modification concerns it if one of
-  * the kinds of \p c is among them, and one that reads all the kinds is
-  * concerned by any Modification, even one that says nothing of itself. */
+  * of which only the kind matters. One that reads all the kinds is
+  * concerned by any Modification, even one that says nothing of itself,
+  * and any reader is concerned by one that changes everything (eModAll,
+  * say, a NBModification). Otherwise, a physical Modification only
+  * concerns those who read eModPhys, whatever else it says it changes
+  * (those who read the abstract representation see the change in the
+  * abstract Modification that come with it), while an abstract one
+  * concerns those who read one of its kinds. */
  static constexpr bool is_of_concern( ModConcern c , ModConcern reads ) {
-  return( ( ( reads & eModAnything ) == eModAnything ) ||
-	  ( c & reads & eModAnything ) );
+  if( ( ( reads & eModAnything ) == eModAnything ) ||
+      ( ( c & eModAll ) == eModAll ) )
+   return( true );
+  if( c & eModPhys )
+   return( reads & eModPhys );
+  return( c & reads & eModAbst );
   }
 
  /// true if the value of a solution is still an upper bound
@@ -638,6 +651,16 @@ class Modification {
 
  [[nodiscard]] bool upper_bound_stays_valid( void ) const {
   return( upper_bound_stays_valid( changes() ) );
+  }
+
+ /// true if the Modification is of concern to \p reads
+ /** The same as is_of_concern( changes() , \p reads ), except that a
+  * GroupModification is of concern if any of its sub-Modification is: the
+  * or of what they change cannot tell a physical sub-Modification from an
+  * abstract one [see GroupModification::is_of_concern_to()]. */
+
+ [[nodiscard]] virtual bool is_of_concern_to( ModConcern reads ) const {
+  return( is_of_concern( changes() , reads ) );
   }
 
 /** @} ---------------------------------------------------------------------*/
@@ -948,6 +971,23 @@ class GroupModification : public AModification {
 
  [[nodiscard]] GroupModification * father( void ) const {
   return( f_father );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// true if any of the sub-Modification is of concern to \p reads
+ /** The group mixes physical and abstract Modification, so that its
+  * changes() has eModPhys and the kinds of the abstract ones: is_of_concern()
+  * on it would keep from one that only reads the abstract representation
+  * the abstract sub-Modification. Hence, the group asks each of them; an
+  * empty one is asked as any other Modification. */
+
+ [[nodiscard]] bool is_of_concern_to( ModConcern reads ) const override {
+  if( v_sub_Modifications.empty() )
+   return( AModification::is_of_concern_to( reads ) );
+  for( const auto & mod : v_sub_Modifications )
+   if( mod->is_of_concern_to( reads ) )
+    return( true );
+  return( false );
   }
 
 /*------------------------ FRIENDS OF THE CLASS ----------------------------*/

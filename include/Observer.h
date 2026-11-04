@@ -170,6 +170,16 @@ class Observer {
   }
 
 /*--------------------------------------------------------------------------*/
+ /// true if anyone listening reads \p mod
+ /** As anyone_there_for( mod.changes() ), except that a GroupModification
+  * is read if any of its sub-Modification is [see
+  * Modification::is_of_concern_to()]. */
+
+ [[nodiscard]] bool anyone_there_for( const Modification & mod ) const {
+  return( anyone_there() && mod.is_of_concern_to( concerned() ) );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// notify this Observer about a Modification
  /** This method notifies this Observer about a Modification.
   *

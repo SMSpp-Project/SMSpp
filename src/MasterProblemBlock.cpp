@@ -4296,7 +4296,7 @@ void MasterProblemBlock::set_box( const std::vector< double > & L ,
 
  auto issue_box_modifications = [ this , & lower , & upper ,
                                   lower_changed , upper_changed ]( void ) {
-  if( ! anyone_there() )
+  if( ! anyone_there_for( Modification::eModPhys ) )
    return;
   const Range range( 0 , Index( NumVars ) );
   if( lower_changed )
@@ -4392,7 +4392,7 @@ void MasterProblemBlock::set_box( std::vector< double > L ,
   refresh_box_coordinate( j , dqf , make_par( eModBlck , chnl ) );
  close_channel( chnl );
 
- if( anyone_there() ) {
+ if( anyone_there_for( Modification::eModPhys ) ) {
   if( lower_changed )
    add_Modification( std::make_shared< MasterProblemRngdMod >(
                      this , MasterProblemMod::BoxLowerChanged , range ,
@@ -4487,7 +4487,7 @@ void MasterProblemBlock::set_box( std::vector< double > L ,
   refresh_box_coordinate( j , dqf , make_par( eModBlck , chnl ) );
  close_channel( chnl );
 
- if( anyone_there() ) {
+ if( anyone_there_for( Modification::eModPhys ) ) {
   if( lower_changed ) {
    auto lower_subset = subset;
    add_Modification( std::make_shared< MasterProblemSbstMod >(
@@ -4560,7 +4560,7 @@ void MasterProblemBlock::set_global_LB( double LB )
    Var_r.is_fixed( true , eNoBlck );
   }
 
- if( anyone_there() )
+ if( anyone_there_for( Modification::eModPhys ) )
   add_Modification( std::make_shared< MasterProblemLowerBoundMod >(
                     this , MasterProblemLowerBoundMod::GlobalLowerBound ,
                     LB ) );
@@ -4609,7 +4609,7 @@ void MasterProblemBlock::set_reference(
  const std::vector< double > old_F     = f_F_at_x_bar;
 
  auto issue_reference_mod = [ this ]( void ) {
-  if( anyone_there() )
+  if( anyone_there_for( Modification::eModPhys ) )
    add_Modification( std::make_shared< MasterProblemMod >(
                      this , MasterProblemMod::ReferenceChanged ) );
   };
@@ -4989,7 +4989,7 @@ void MasterProblemBlock::set_linear_part( const std::vector< double > & b )
   close_channel( chnl );
   }
 
- if( anyone_there() )
+ if( anyone_there_for( Modification::eModPhys ) )
   add_Modification( std::make_shared< MasterProblemRngdMod >(
                     this , MasterProblemMod::LinearPartChanged ,
                     Range( 0 , Index( NumVars ) ) ,
@@ -5047,7 +5047,7 @@ void MasterProblemBlock::set_linear_part( std::vector< double > b ,
   close_channel( chnl );
   }
 
- if( anyone_there() )
+ if( anyone_there_for( Modification::eModPhys ) )
   add_Modification( std::make_shared< MasterProblemRngdMod >(
                     this , MasterProblemMod::LinearPartChanged , range ,
                     std::move( b ) ) );
@@ -5129,7 +5129,7 @@ void MasterProblemBlock::set_linear_part( std::vector< double > b ,
   close_channel( chnl );
   }
 
- if( anyone_there() )
+ if( anyone_there_for( Modification::eModPhys ) )
   add_Modification( std::make_shared< MasterProblemSbstMod >(
                     this , MasterProblemMod::LinearPartChanged ,
                     std::move( subset ) , std::move( b ) , true ) );
@@ -6509,9 +6509,9 @@ void MasterProblemBlock::set_integer( std::vector< bool > integer )
   return;
 
  // the Variable already there change type, with a Modification if anyone
- // is listening, so that the master Solver sees the change
+ // reads it, so that the master Solver sees the change
  if( f_abs_rep & k_mpb_built_var ) {
-  const auto mod = anyone_there() ? eModBlck : eNoMod;
+  const auto mod = eNoBlck;
   for( int j = 0 ; j < int( Var_d.size() ) ; ++j ) {
    const bool yn = ( j < int( integer.size() ) ) && integer[ j ];
    if( Var_d_idx[ j ]->is_integer() != yn )
@@ -6523,7 +6523,7 @@ void MasterProblemBlock::set_integer( std::vector< bool > integer )
  f_has_integer = any;
 
  // which coordinates are binary may have changed
- refresh_local_branching( anyone_there() ? eModBlck : eNoMod );
+ refresh_local_branching( eNoBlck );
 
  }  // end( MasterProblemBlock::set_integer )
 
@@ -6633,7 +6633,7 @@ void MasterProblemBlock::set_local_branching( double kappa )
 
  const bool was = std::isfinite( f_kappa );
  f_kappa = kappa;
- const auto mod = anyone_there() ? eModBlck : eNoMod;
+ const auto mod = eNoBlck;
 
  // the trust region leaves the binary coordinates to the local branching
  // only while there is one [see primal_box()]
@@ -6658,7 +6658,7 @@ void MasterProblemBlock::add_reverse_local_branching( void )
  std::list< FRowConstraint > row( 1 );
  local_branching_row( row.front() , true );
  add_dynamic_constraints( RevLBranchCns , row ,
-                          anyone_there() ? eModBlck : eNoMod );
+                          eNoBlck );
 
  }  // end( MasterProblemBlock::add_reverse_local_branching )
 
@@ -6671,7 +6671,7 @@ void MasterProblemBlock::clear_reverse_local_branching( void )
 
  remove_dynamic_constraints( RevLBranchCns ,
                              Range( 0 , Index( RevLBranchCns.size() ) ) ,
-                             anyone_there() ? eModBlck : eNoMod );
+                             eNoBlck );
 
  }  // end( MasterProblemBlock::clear_reverse_local_branching )
 
@@ -6702,7 +6702,7 @@ void MasterProblemBlock::set_linear_constraints( std::vector< LinearRow > A ,
    }
   }
 
- const ModParam issueMod = anyone_there() ? eModBlck : eNoMod;
+ const ModParam issueMod = eNoBlck;
 
  // the multipliers of the old rows go first, while f_lc_A still says where
  // they are
@@ -6853,7 +6853,7 @@ void MasterProblemBlock::set_hosted_Block( Block * block ,
  if( ( ! block ) && ( ! x.empty() ) )
   throw( std::invalid_argument( _prfx + "coordinates without a Block" ) );
 
- const ModParam issueMod = anyone_there() ? eModBlck : eNoMod;
+ const ModParam issueMod = eNoBlck;
 
  // the old rows go first, while the Variable they have are still there
  f_host_x.clear();
@@ -7224,7 +7224,7 @@ void MasterProblemBlock::set_t( double t )
  t_stab = t;
 
  auto issue_t_mod = [ this ]( void ) {
-  if( anyone_there() )
+  if( anyone_there_for( Modification::eModPhys ) )
    add_Modification( std::make_shared< MasterProblemParamMod >(
                     this , MasterProblemMod::TChanged , t_stab ) );
   };
@@ -7374,7 +7374,7 @@ void MasterProblemBlock::set_f_lev( double f )
    }
   }
 
- if( anyone_there() )
+ if( anyone_there_for( Modification::eModPhys ) )
   add_Modification( std::make_shared< MasterProblemParamMod >(
                     this , MasterProblemMod::LevelChanged , f_lev ) );
 
@@ -7419,7 +7419,7 @@ void MasterProblemBlock::set_LB( int k , double LB )
   f_LB_raw[ k ] = LB;
 
  auto issue_lower_bound_mod = [ this , k , LB ]( void ) {
-  if( anyone_there() )
+  if( anyone_there_for( Modification::eModPhys ) )
    add_Modification( std::make_shared< MasterProblemLowerBoundMod >(
                      this , k , LB ) );
   };

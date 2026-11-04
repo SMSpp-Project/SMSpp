@@ -1189,7 +1189,7 @@ class PolyhedralFunctionBlock : public AbstractBlock
   // directly attached, or it has a father Block and the father says so
 
   if( ( ! v_Solver.empty() ) ||
-      ( get_f_Block() && get_f_Block()->anyone_there() ) )
+      ( get_f_Block() && get_f_Block()->anyone_there_for( *mod ) ) )
    AbstractBlock::add_Modification( mod , chnl );
   }
 

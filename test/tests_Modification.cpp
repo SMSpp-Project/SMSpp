@@ -39,6 +39,7 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <array>
 #include <cmath>
 #include <functional>
 #include <iostream>
@@ -2640,6 +2641,108 @@ static void test_concerned( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* Whom a physical, an abstract and a "nuclear" Modification reach [see
+ * Modification::is_of_concern()]: a physical one only those who read
+ * eModPhys, whatever kinds it says, an abstract one those who read one of
+ * its kinds, a NBModification anyone, and anything those who read all the
+ * kinds; a group whoever one of its sub-Modification reaches [see
+ * Modification::is_of_concern_to()]; and whether a physical Modification is
+ * issued under eNoBlck when nobody reads the physical representation [see
+ * Observer::issue_pmod()]. */
+
+static void test_concern_physical( void )
+{
+ using M = Modification;
+
+ // the rule, on the bits alone
+ static_assert( M::is_of_concern( M::ePhysVars , M::eModPhys ) );
+ static_assert( ! M::is_of_concern( M::ePhysVars , M::eModAbst ) );
+ static_assert( ! M::is_of_concern( M::ePhysVars , M::eModVarData ) );
+ static_assert( M::is_of_concern( M::ePhysVars , M::eModAnything ) );
+ static_assert( M::is_of_concern( M::eModPhys | M::eEffAny , M::eModPhys ) );
+ static_assert( ! M::is_of_concern( M::eModVarData , M::eModPhys ) );
+ static_assert( M::is_of_concern( M::eModVarData , M::eModAbst ) );
+ static_assert( ! M::is_of_concern( M::eModVarData , M::eModObj ) );
+ static_assert( M::is_of_concern( M::eModAll , M::eModPhys ) );
+ static_assert( M::is_of_concern( M::eModAll , M::eModObj ) );
+ static_assert( ! M::is_of_concern( 0 , M::eModAbst ) );
+ static_assert( M::is_of_concern( 0 , M::eModAnything ) );
+
+ // and on a Block with three Solver: the physical and the abstract
+ // representation, and the data of the Variable alone
+ Rig r;
+ auto x = kept( new ColVariable );
+ r.block->add_static_variable( *x , "x" );
+ r.listen( false );
+ auto phys = new ReadsSolver( M::eModPhys );
+ auto abst = new ReadsSolver( M::eModAbst );
+ auto data = new ReadsSolver( M::eModVarData );
+ for( auto s : { phys , abst , data } )
+  r.block->register_Solver( s );
+ auto sizes = [ & ]( void ) {
+  return( std::array< std::size_t , 3 >{
+		  phys->get_Modification_list().size() ,
+		  abst->get_Modification_list().size() ,
+		  data->get_Modification_list().size() } );
+  };
+ auto clear = [ & ]( void ) {
+  for( auto s : { phys , abst , data } )
+   s->get_Modification_list().clear();
+  r.clear();
+  };
+
+ using A = std::array< std::size_t , 3 >;
+ clear();
+ x->is_fixed( true , eNoBlck );
+ assert( sizes() == ( A{ 0 , 1 , 1 } ) );
+ clear();
+ x->is_integer( true , eNoBlck );
+ assert( sizes() == ( A{ 0 , 1 , 0 } ) );
+ clear();
+ r.block->add_Modification( std::make_shared< PhysMod >( r.block ) );
+ assert( sizes() == ( A{ 1 , 0 , 0 } ) );
+ clear();
+ r.block->add_Modification( std::make_shared< NBModification >( r.block ) );
+ assert( sizes() == ( A{ 1 , 1 , 1 } ) );
+
+ // a group of physical Modification alone reaches the physical reader,
+ // while one also holding an abstract Modification reaches whoever reads
+ // any of its sub-Modification, even if nested one level down
+ clear();
+ auto chnl = r.block->open_channel();
+ r.block->add_Modification( std::make_shared< PhysMod >( r.block ) , chnl );
+ r.block->close_channel( chnl );
+ assert( sizes() == ( A{ 1 , 0 , 0 } ) );
+ clear();
+ chnl = r.block->open_channel();
+ r.block->add_Modification( std::make_shared< PhysMod >( r.block ) , chnl );
+ x->is_integer( false , Observer::make_par( eNoBlck , chnl ) );
+ r.block->close_channel( chnl );
+ assert( sizes() == ( A{ 1 , 1 , 0 } ) );
+ clear();
+ chnl = r.block->open_channel();
+ r.block->add_Modification( std::make_shared< PhysMod >( r.block ) , chnl );
+ r.block->open_channel( chnl );
+ x->is_fixed( false , Observer::make_par( eNoBlck , chnl ) );
+ r.block->close_channel( chnl );
+ r.block->close_channel( chnl );
+ assert( sizes() == ( A{ 1 , 1 , 1 } ) );
+
+ // without the reader of the physical representation, a physical
+ // Modification is not even issued under eNoBlck, and still under eModBlck
+ r.block->unregister_Solver( phys , true );
+ assert( ! r.block->issue_pmod( eNoBlck , M::ePhysVars ) );
+ assert( r.block->issue_mod( eNoBlck , M::eModVarData ) );
+ assert( ! r.block->issue_mod( eNoBlck , M::ePhysVars ) );
+ assert( r.block->issue_mod( eModBlck , M::ePhysVars ) );
+
+ clear();
+ r.block->unregister_Solver( abst , true );
+ r.block->unregister_Solver( data , true );
+ r.listen( true );
+ }
+
+/*--------------------------------------------------------------------------*/
 /* The modifying methods of the core ask issue_mod() with the kind of the
  * Modification they would issue [see Observer::issue_mod()]: with the only
  * Solver reading the sides of the Constraint, under eNoBlck a change of the
@@ -3091,6 +3194,7 @@ int main( void )
  test_dry_run_C05SumFunction();
  test_changes();
  test_concerned();
+ test_concern_physical();
  test_function_concerned();
  test_adapt();
 

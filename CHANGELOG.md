@@ -18,6 +18,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `Modification::is_of_concern()`: a physical Modification only reaches
+  those who read `eModPhys`, whatever kinds it says it changes, and no longer
+  those who only read the abstract representation (who see the change in the
+  abstract Modification that come with it, if any); one that changes
+  everything (`eModAll`, e.g., a `NBModification`) reaches anyone, and
+  under `eNoBlck` a physical Modification is not issued when nobody reads
+  `eModPhys` [see `Observer::issue_pmod()`]; the Block asks
+  `Modification::is_of_concern_to()`, by which a `GroupModification` reaches
+  whoever one of its sub-Modification reaches
+
+- the Modification whose kind is known are issued only if someone reads
+  that kind (`Observer::anyone_there_for()`, which also takes the
+  Modification itself): the Function Modification passed on by
+  `FRowConstraint`, `FRealObjective` and `PolyhedralFunctionBlock`, those
+  that `C05SumFunction` issues for its members, the physical ones of
+  `MasterProblemBlock` and the changes of its abstract representation (now
+  under `eNoBlck`); `MasterProblemBlock::concerned()` also says what the
+  original fathers of its easy inner Block read, since their Modification
+  are passed there too
+
 - the fictitious bound of `MasterProblemBlock::set_fictitious_LB()` is
   v^k >= 0 also when there is a finite global lower bound (with which it is
   not needed), rather than the bound minus 1; in the raw primal form it is

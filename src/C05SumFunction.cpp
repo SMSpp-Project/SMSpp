@@ -444,7 +444,7 @@ void C05SumFunction::member_Variables_changed(
   if( changed.empty() )            // nothing new for the sum
    return;
 
-  if( f_Observer && anyone_there() ) {
+  if( f_Observer && f_Observer->anyone_there_for( Function::eModFVars ) ) {
    sp_Mod out;
       if( std::dynamic_pointer_cast< C05FunctionModVarsAddd >( vmod ) )
     out = std::make_shared< C05FunctionModVarsAddd >( this ,
@@ -519,7 +519,7 @@ void C05SumFunction::member_Variables_changed(
  for( Index k = 0 ; k < v_members.size() ; ++k )
   rebuild_map( k );
 
- if( f_Observer && anyone_there() ) {
+ if( f_Observer && f_Observer->anyone_there_for( Function::eModFVars ) ) {
   sp_Mod out;
     const bool strong =
    std::dynamic_pointer_cast< C05FunctionModVarsRngd >( vmod ) ||
@@ -596,7 +596,7 @@ void C05SumFunction::translate_Modification( const sp_Mod & mod ,
   * AllLinearizationChanged with no names, i.e. "check them all", which is
   * coarser but true. */
 
- if( f_Observer && anyone_there() ) {
+ if( f_Observer && f_Observer->anyone_there_for( Function::eModFValues ) ) {
   sp_Mod out;
   if( const auto cmod = std::dynamic_pointer_cast< C05FunctionMod >( fmod ) ) {
    if( std::dynamic_pointer_cast< C05FunctionModRngd >( fmod ) ||

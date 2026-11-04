@@ -2179,6 +2179,24 @@ class MasterProblemBlock : public Block {
  void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override;
 
 /*--------------------------------------------------------------------------*/
+ /// the kinds of Modification read by anyone listening to the Block
+ /** Besides what Block::concerned() says, what is read by the father each
+  * easy inner Block and the host had when they were registered, since
+  * their Modification are passed there too [see add_Modification()]: an
+  * inner Block that asks its father whether to issue a Modification must
+  * also hear about the Solver of its original branch. */
+
+ [[nodiscard]] Modification::ModConcern concerned( void ) const override {
+  auto c = Block::concerned();
+  for( auto * owner : EasyCmps_Father )
+   if( owner )
+    c |= owner->concerned();
+  if( f_host_father )
+   c |= f_host_father->concerned();
+  return( c );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// load a MasterProblemBlock out of an istream
  /** Required by the abstract interface of Block, but currently not
   * implemented (a MasterProblemBlock is always built programmatically by its

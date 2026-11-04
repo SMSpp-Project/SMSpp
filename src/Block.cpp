@@ -807,9 +807,8 @@ void Block::add_Modification( sp_Mod mod , ChnlName chnl )
  // the Solver, if any, that read the kind of the Modification are passed
  // it as well [see Solver::concerned_by()]
  if( ! v_Solver.empty() ) {
-  const auto c = mod->changes();
   for( Solver * slv : v_Solver )
-   if( Modification::is_of_concern( c , slv->concerned_by() ) )
+   if( mod->is_of_concern_to( slv->concerned_by() ) )
     slv->add_Modification( mod );
   }
 

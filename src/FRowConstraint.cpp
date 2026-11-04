@@ -318,7 +318,8 @@ void FRowConstraint::add_Modification( sp_Mod mod , c_ChnlName chnl )
  // "abstract" Modification issued with eModBlck must reach the Block even if
  // no Solver is there, for it to keep the "physical" representation in synch
 
- if( get_Block() && ( get_Block()->anyone_there() || mod->concerns_Block() ) )
+ if( get_Block() && ( get_Block()->anyone_there_for( *mod ) ||
+                      mod->concerns_Block() ) )
   get_Block()->add_Modification( mod , chnl );
 
  }  // end( FRowConstraint::add_Modification )
