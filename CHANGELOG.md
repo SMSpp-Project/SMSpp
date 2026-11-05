@@ -26,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `AbstractBlock::read_mps()` finds a row or a column by its name in a hash
+  table rather than by a linear search over all the names for each entry,
+  which made the read of a model quadratic in its size
+
 - the headers compile without warnings under `-Wall`: the members of
   `ComputeConfig`, `VariableGroupMod`, `PolyhedralFunction` and
   `PolyhedralFunctionBlock` are initialized in the order they are declared,

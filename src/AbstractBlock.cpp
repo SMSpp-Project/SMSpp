@@ -29,6 +29,7 @@
 #include <set>
 #include <sstream>
 #include <type_traits>
+#include <unordered_map>
 
 
 #include "ColVariable.h"
@@ -1356,8 +1357,11 @@ void AbstractBlock::read_mps( std::istream & file )
  std::vector< std::string > row_names;
  std::vector< char > row_type;
 
+ std::unordered_map< std::string , Index > row_index;  // the index of a row
+
  std::vector< ColVariable > * cols;
  std::vector< std::string > col_names;
+ std::unordered_map< std::string , Index > col_index;  // that of a column
  std::vector< BoxConstraint > * bounds;
 
  std::string rhs_name; // Only one RHS vector is supported
@@ -1496,6 +1500,7 @@ void AbstractBlock::read_mps( std::istream & file )
   if( word == "E" || word == "L" || word == "G" ) {
    row_type[ i ] = word[ 0 ];
    file >> row_names[ i ];
+   row_index.emplace( row_names[ i ] , i );
    ++i;
    file.ignore( max, '\n' );
   } else if( word == "N" ) {
@@ -1541,6 +1546,7 @@ void AbstractBlock::read_mps( std::istream & file )
   if( word != tmp ) {
    tmp = word;
    col_names[ i ] = tmp;
+   col_index.emplace( tmp , i );
    v = &( *cols )[ i ];
    if( marker ) {
     v->set_type( ColVariable::kInteger, eNoMod );
@@ -1552,9 +1558,9 @@ void AbstractBlock::read_mps( std::istream & file )
   if( row == of_name ) {
    f = static_cast< LinearFunction * >(of->get_function());
   } else {
-   auto it = std::find( row_names.begin(), row_names.end(), row );
-   if( it != row_names.end() ) {
-    auto j = std::distance( row_names.begin(), it );
+   auto it = row_index.find( row );
+   if( it != row_index.end() ) {
+    auto j = it->second;
     f = static_cast< LinearFunction * >(( *rows )[ j ].get_function());
    } else {
     throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
@@ -1571,9 +1577,9 @@ void AbstractBlock::read_mps( std::istream & file )
     f = static_cast< LinearFunction * >(of->get_function());
    } else {
     // Will add to a constraint
-    auto it = std::find( row_names.begin(), row_names.end(), row );
-    if( it != row_names.end() ) {
-     auto j = std::distance( row_names.begin(), it );
+    auto it = row_index.find( row );
+    if( it != row_index.end() ) {
+     auto j = it->second;
      f = static_cast< LinearFunction * >(( *rows )[ j ].get_function());
     } else {
      throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
@@ -1614,10 +1620,10 @@ void AbstractBlock::read_mps( std::istream & file )
     of_const = - dbl_val( value );
     return;
     }
-   auto it = std::find( row_names.begin(), row_names.end(), row );
-   if( it == row_names.end() )
+   auto it = row_index.find( row );
+   if( it == row_index.end() )
     throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
-   rhs[ std::distance( row_names.begin(), it ) ] = dbl_val( value );
+   rhs[ it->second ] = dbl_val( value );
    };
 
   // First name/value pair
@@ -1654,9 +1660,9 @@ void AbstractBlock::read_mps( std::istream & file )
    // First name/value pair
    file >> row;
    file >> value;
-   auto it = std::find( row_names.begin(), row_names.end(), row );
-   if( it != row_names.end() ) {
-    auto j = std::distance( row_names.begin(), it );
+   auto it = row_index.find( row );
+   if( it != row_index.end() ) {
+    auto j = it->second;
     rng[ j ] = dbl_val( value );
    } else {
     throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
@@ -1666,9 +1672,9 @@ void AbstractBlock::read_mps( std::istream & file )
    if( file.peek() != file.widen( '\n' ) ) {
     file >> row;
     file >> value;
-    it = std::find( row_names.begin(), row_names.end(), row );
-    if( it != row_names.end() ) {
-     auto j = std::distance( row_names.begin(), it );
+    it = row_index.find( row );
+    if( it != row_index.end() ) {
+     auto j = it->second;
      rng[ j ] = dbl_val( value );
     } else {
      throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
@@ -1744,9 +1750,9 @@ void AbstractBlock::read_mps( std::istream & file )
    std::string value;
    file >> col;
 
-   auto it = std::find( col_names.begin(), col_names.end(), col );
-   if( it != col_names.end() ) {
-    auto j = std::distance( col_names.begin(), it );
+   auto it = col_index.find( col );
+   if( it != col_index.end() ) {
+    auto j = it->second;
     auto & b = ( *bounds )[ j ];
     auto & c = ( *cols )[ j ];
     if( type == "LO" ) {        // Lower bound
