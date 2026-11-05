@@ -1361,8 +1361,11 @@ class MasterProblemBlock : public Block {
  /** In the dual MP the global lower bound enters as the linear coefficient
   * of the r multiplier in the master Objective (+ r * LB_xbar term, with
   * LB_xbar = LB + C, cf. set_C). This API forwards \p LB to that coefficient
-  * via modify_term on the FRealObjective LinearFunction. No-op under the
-  * primal MP (where the global LB has to be expressed differently). */
+  * via modify_term on the FRealObjective LinearFunction. In the primal MP it
+  * is the left-hand side of the value row LB <= b*d + sum_k v^k, whose
+  * right-hand side is the level, if any [see set_f_lev()]; the row is there
+  * whatever the stabilization, with infinite sides as long as they are not
+  * given. A non-finite \p LB means that there is no global lower bound. */
 
  void set_global_LB( double LB );
 
@@ -1944,7 +1947,8 @@ class MasterProblemBlock : public Block {
   * stationarity (i): lambda + r - omega = 1), shared across every hard
   * component (cf. PolyhedralFunctionBlock::set_lambda). In the primal form
   * it is 1 plus the multiplier of the level row, if any, that the rows of
-  * each component share with the proximal term. Meaningful only after
+  * each component share with the proximal term, less the multiplier r of
+  * the global lower bound row [see get_r()]. Meaningful only after
   * solve_master(). */
 
  [[nodiscard]] double get_lambda( void ) const {
@@ -1952,8 +1956,8 @@ class MasterProblemBlock : public Block {
    return( Var_lambda.get_value() );
   if( ( StblType == kDoublyStabilized ) ||
       ( ( StblType == kLevel ) && has_initial_level_objective() ) )
-   return( 1.0 + get_level_multiplier() );
-  return( 1.0 );
+   return( 1.0 + get_level_multiplier() - get_r() );
+  return( 1.0 - get_r() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1966,10 +1970,11 @@ class MasterProblemBlock : public Block {
 
 /*--------------------------------------------------------------------------*/
  /// returns the current optimal value of r
- /** r is the dual multiplier of the global LB row. Meaningful only after
-  * solve_master(). */
+ /** r is the dual multiplier of the global LB row: a variable of the dual
+  * MP, the dual value of the left-hand side of the value row in the primal
+  * one [see set_global_LB()]. Meaningful only after solve_master(). */
 
- [[nodiscard]] double get_r( void ) const { return( Var_r.get_value() ); }
+ [[nodiscard]] double get_r( void ) const;
 
 /*--------------------------------------------------------------------------*/
  /// returns the mass the aggregate of the dual master is divided by
@@ -1987,7 +1992,8 @@ class MasterProblemBlock : public Block {
  [[nodiscard]] double aggregate_mass( void ) const {
   if( uses_pure_level_aggregation() )
    return( get_level_multiplier() );
-  return( get_lambda() + ( Var_r.is_fixed() ? 0.0 : get_r() ) );
+  return( get_lambda() + ( ( IsPrimal || ! Var_r.is_fixed() ) ? get_r()
+                                                             : 0.0 ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -2051,6 +2057,13 @@ class MasterProblemBlock : public Block {
  /// returns the current level f_lev (level and doubly stabilization only)
 
  [[nodiscard]] double get_level( void ) const { return( f_lev ); }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the global lower bound [see set_global_LB()], -INF if none
+ [[nodiscard]] double get_global_LB( void ) const {
+  return( std::isfinite( f_global_LB_xbar ) ? f_global_LB_xbar - f_C
+                                            : - Inf< double >() );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the diagonal of the quadratic 0-th component, empty if none
@@ -2398,8 +2411,8 @@ class MasterProblemBlock : public Block {
                                 ///< per-hard-component LB^k: v^k >= LB^k
                                 ///< (rhs = +INF by default)
 
- FRowConstraint LevelCns;                ///< primal level constraint
-                                         ///< b*d + sum_k v^k <= f_lev
+ FRowConstraint LevelCns;                ///< primal value row
+                                         ///< LB <= b*d + sum_k v^k <= f_lev
                                          ///< (kLevel / kDoublyStabilized only)
 
  std::vector< int > level_d_idx;
@@ -2795,6 +2808,13 @@ class MasterProblemBlock : public Block {
                     ///< rows follow the centre (displacement form only)
 
  void primal_box( Index j , double & lhs , double & rhs ) const;
+
+ /// the global lower bound in the frame of the stability centre
+ /** The value of the global lower bound row minus the value of the model at
+  * x_bar, i.e., LB - F( x_bar ), whose opposite is the linearization error
+  * of the row; 0 if there is no global lower bound. */
+
+ [[nodiscard]] double global_LB_displacement( void ) const;
                     ///< the box of coordinate j of the primal MP: [ L , U ]
                     ///< intersected with the trust region, in the frame of
                     ///< the Variable

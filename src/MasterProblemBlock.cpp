@@ -1060,15 +1060,18 @@ void MasterProblemBlock::generate_primal_abstract_constraints( void )
   pfb->generate_abstract_constraints();
  }
 
- // ---- level constraint b*d + sum_k v^k <= f_lev -------------------------
+ // ---- value row LB <= b*d + sum_k v^k <= f_lev ---------------------------
  //
- // The first NumVars coefficients are reserved for the linear component b;
+ // The row of the level and of the global lower bound, whatever the
+ // stabilization: each side is infinite as long as it is not given [see
+ // set_f_lev() and set_global_LB()], and since LB < f_lev at most one of
+ // them is active, the sign of the dual value telling which. The first
+ // NumVars coefficients are reserved for the linear component b;
  // set_linear_part() refreshes them after construction. The remaining terms
  // reference each PFB's f_v directly via get_v(). LevelCns is a master-side
  // static FRowConstraint so the inner Solver picks it up.
 
- if( ( StblType == kLevel || StblType == kDoublyStabilized )
-          && NoHardCmps > 0 ) {
+ if( NoHardCmps > 0 ) {
   LinearFunction::v_coeff_pair lvl_terms;
   lvl_terms.reserve( NumVars + NoHardCmps );
   level_d_idx.clear();
@@ -1086,8 +1089,11 @@ void MasterProblemBlock::generate_primal_abstract_constraints( void )
     lvl_terms.emplace_back( pfb->get_v() , 1.0 );
    }
 
-  LevelCns.set_lhs( - Inf< double >() , eNoMod );
-  LevelCns.set_rhs( f_lev , eNoMod );
+  const bool uses_level =
+   ( StblType == kLevel || StblType == kDoublyStabilized );
+  LevelCns.set_lhs( std::isfinite( f_global_LB_xbar ) ?
+                    f_global_LB_xbar - f_C : - Inf< double >() , eNoMod );
+  LevelCns.set_rhs( uses_level ? f_lev : Inf< double >() , eNoMod );
   LevelCns.set_function(
      new LinearFunction( std::move( lvl_terms ) ) , eNoMod );
   add_static_constraint( LevelCns , "MPB_level" );
@@ -3259,8 +3265,13 @@ std::vector< double > MasterProblemBlock::get_z_vector( void ) const
   // the reduced cost of a Variable whose bound is not the one d*_j is on.
   out = get_d_vector();
   std::vector< double > agg( NumVars , 0.0 );
-  if( int( f_linear_part.size() ) == NumVars )
-   agg = f_linear_part;
+  if( int( f_linear_part.size() ) == NumVars ) {
+   // b has the mass lambda of the rows, less than one when the global
+   // lower bound row takes some of it
+   const double lambda = get_lambda();
+   for( int j = 0 ; j < NumVars ; ++j )
+    agg[ j ] = lambda * f_linear_part[ j ];
+   }
   for( int k = 0 ; k < int( HardCmps.size() ) ; ++k ) {
    const auto zk = get_aggregated_subgradient( k );
    for( int j = 0 ; j < std::min( NumVars , int( zk.size() ) ) ; ++j )
@@ -3502,6 +3513,44 @@ double MasterProblemBlock::get_level_multiplier( void ) const
 
 /*--------------------------------------------------------------------------*/
 
+double MasterProblemBlock::get_r( void ) const
+{
+ if( ! IsPrimal )
+  return( Var_r.get_value() );
+
+ // in the primal master r is the dual value of the left-hand side of the
+ // value row, the global lower bound one
+ if( ( ! ( f_abs_rep & k_mpb_built_cnst ) ) || ( ! LevelCns.get_function() ) ||
+     ( ! std::isfinite( f_global_LB_xbar ) ) )
+  return( 0.0 );
+
+ return( std::max( 0.0 , - LevelCns.get_dual() ) );
+}
+
+/*--------------------------------------------------------------------------*/
+
+double MasterProblemBlock::global_LB_displacement( void ) const
+{
+ if( ! std::isfinite( f_global_LB_xbar ) )
+  return( 0.0 );
+
+ // the raw primal form has the row in absolute terms: the displacement
+ // frame subtracts the value of the model at x_bar, i.e., F( x_bar )
+ if( IsPrimal && f_v2_form ) {
+  double F = 0.0;
+  for( auto Fk : f_F_at_x_bar )
+   F += Fk;
+  if( f_linear_part.size() == f_x_bar.size() )
+   F += std::inner_product( f_linear_part.begin() , f_linear_part.end() ,
+                            f_x_bar.begin() , 0.0 );
+  return( f_global_LB_xbar - F );
+  }
+
+ return( f_global_LB_xbar );
+}
+
+/*--------------------------------------------------------------------------*/
+
 bool MasterProblemBlock::aggregate_is_valid( double tolerance ) const
 {
  if( ! uses_pure_level_aggregation() )
@@ -3657,7 +3706,11 @@ double MasterProblemBlock::get_aggregated_alpha( int k ) const
    return( zd - mu * get_FiBLambda( k ) );
    }
 
-  return( get_Gid_aggregate() - mu * get_FiBLambda() );
+  // the global lower bound row, LB <= b*d + sum_k v^k, is the horizontal
+  // linearization at LB: no subgradient, the linearization error
+  // F( x_bar ) - LB, i.e., minus LB in the frame of the stability centre
+  return( get_Gid_aggregate() - mu * get_FiBLambda() -
+          get_r() * global_LB_displacement() );
   }
 
  // b[i] is stored in the physical PolyhedralFunction units. The multiplier
@@ -4452,7 +4505,21 @@ void MasterProblemBlock::set_box( std::vector< double > L ,
 
 void MasterProblemBlock::set_global_LB( double LB )
 {
- if( IsPrimal || r_obj_idx < 0 )
+ if( IsPrimal ) {
+  // the left-hand side of the value row, i.e., LB <= b*d + sum_k v^k
+  const bool finite = std::isfinite( LB );
+  f_global_LB_xbar = finite ? ( LB + f_C )
+                            : - Inf< Function::FunctionValue >();
+  if( ( f_abs_rep & k_mpb_built_cnst ) && LevelCns.get_function() )
+   LevelCns.set_lhs( finite ? LB : - Inf< double >() , eNoBlck );
+  if( anyone_there() )
+   add_Modification( std::make_shared< MasterProblemLowerBoundMod >(
+                     this , MasterProblemLowerBoundMod::GlobalLowerBound ,
+                     LB ) );
+  return;
+  }
+
+ if( r_obj_idx < 0 )
   return;
 
  auto obj = dynamic_cast< FRealObjective * >( get_objective() );
@@ -5261,7 +5328,7 @@ void MasterProblemBlock::append_primal_level_coordinates(
                                       int first , int n , ModParam issueMod )
 {
  if( n <= 0 || ! IsPrimal || ! ( f_abs_rep & k_mpb_built_cnst ) ||
-     ( StblType != kLevel && StblType != kDoublyStabilized ) )
+     ! LevelCns.get_function() )
   return;
 
  auto * lf = dynamic_cast< LinearFunction * >( LevelCns.get_function() );
@@ -6209,7 +6276,7 @@ void MasterProblemBlock::refresh_primal_level_linear_part( void )
 
 void MasterProblemBlock::refresh_primal_level_linear_part( Range range )
 {
- if( ! IsPrimal || ( StblType != kLevel && StblType != kDoublyStabilized ) )
+ if( ! IsPrimal )
   return;
  if( range.second <= range.first )
   return;
@@ -6240,7 +6307,7 @@ void MasterProblemBlock::refresh_primal_level_linear_part( Range range )
 void MasterProblemBlock::refresh_primal_level_linear_part(
                                                const Subset & subset )
 {
- if( ! IsPrimal || ( StblType != kLevel && StblType != kDoublyStabilized ) )
+ if( ! IsPrimal )
   return;
  if( subset.empty() )
   return;
@@ -6274,130 +6341,6 @@ int MasterProblemBlock::solve_master( void )
   throw( std::logic_error(
        "MasterProblemBlock::solve_master: no Solver registered" ) );
  auto * slv = solvers.front();
-
- // Short-circuit when every B^k is empty, symmetric for primal and dual.
- //
- // Primal MP with every B^k empty (no cuts pushed yet by add_cut) is
- // intrinsically unbounded below in the v_k variables: the master has no
- // v_k >= a_i.d + b_i row constraining v_k from below, so min sum v_k +
- // (1/(2t))||d||^2 -> -INF.
- //
- // Dual MP with every B^k empty is structurally infeasible under the
- // K * lambda + r - omega = 1 normalization once r and omega are
- // pinned to 0 (their default state when no global LB / level is
- // installed): the per-PFB rows  sum_i theta^k_i + gamma^k = lambda
- // collapse to gamma^k = lambda (theta empty), and any hard component
- // whose PFB has no global bound has gamma^k fixed to 0, forcing
- // lambda = 0 and contradicting K * lambda = 1.
- //
- // Hence at the very first call (no cuts, no function value known yet) no
- // master is solved at all: the stabilization alone gives the answer
- // below, and the caller is expected to evaluate the function, push the
- // first cuts through add_cut() and call solve_master again. This does not
- // apply when exact easy components are present: their objective and
- // coupling terms already make the master non-empty and must be optimized.
- // Nor does it with linear constraints, which the step has to satisfy: the
- // master is solved, and the caller gives the empty components their
- // fictitious bound [see set_fictitious_LB()] for it to be bounded.
- // Nor, in the dual MP, with a finite global lower bound: the model is
- // then that bound alone, the master is bounded and feasible (lambda = 0,
- // r = 1) and its Solver gives the step as for any other master.
- if( is_bundle_empty() && ( NoEasyCmps == 0 ) && f_lc_A.empty() &&
-     ( IsPrimal || ( ! std::isfinite( f_global_LB_xbar ) ) ) ) {
-  /* With every B^k empty the cutting-plane model is empty and the master
-   * reduces to the stabilization alone,
-   *
-   *     min { l.d + || d ||^2 / 2 t }
-   *
-   * l being the gradient of the linear 0-th component [see
-   * set_linear_part()], whose solution is d = - t l rather than d = 0. The
-   * answer d = 0 is right only when l is zero: when it is not, d = 0
-   * hides the one direction along which the function is known to
-   * decrease, the point never moves, and a function that is unbounded
-   * below because of l alone is never recognised as such, the caller
-   * evaluating the function at the same point again and again. z = l is
-   * the same answer in the dual frame. */
-
-  const bool has_linear = std::any_of( f_linear_part.begin() ,
-                                       f_linear_part.end() ,
-                                       []( double c ) { return( c != 0 ); } );
-
-  /* With the trust region the stabilization is the box, and the solution
-   * of min { l.d : d in the box } is the side opposite to the sign of l
-   * (0 where l is), with multiplier | l_j | on that side: the primal MP
-   * writes d, whose side gives z* = l [see get_z_vector()], the dual one,
-   * whose z is fixed to 0, the multipliers s^+ - s^- = l of the box and
-   * the dual values of the coupling rows, which give d [see
-   * get_d_vector()]. */
-  if( has_trust_region() ) {
-   // the step on coordinate i, and the point it leads to in the frame of
-   // the Variable (x in the iterate form, d in the displacement one)
-   auto step = [ this , has_linear ]( Index i ) {
-    const double li = has_linear ? f_linear_part[ i ] : 0.0;
-    double lhs , rhs;
-    primal_box( i , lhs , rhs );
-    const double side = li > 0.0 ? lhs : ( li < 0.0 ? rhs : Inf< double >() );
-    const double xi = f_v2_form ? f_x_bar[ i ] : 0.0;
-    return( std::isfinite( side ) ? side - xi : 0.0 );
-    };
-   const auto frame = [ this ]( Index i ) {
-    return( f_v2_form ? f_x_bar[ i ] : 0.0 );
-    };
-
-   // a side that is infinite (t is) keeps its multiplier fixed to 0
-   const auto set_mult = []( ColVariable * s , double value ) {
-    if( ! s->is_fixed() )
-     s->set_value( value );
-    };
-
-   if( IsPrimal )
-    for( Index i = 0 ; i < Var_d_idx.size() ; ++i )
-     Var_d_idx[ i ]->set_value( frame( i ) + step( i ) );
-   else {
-    Index i = 0;
-    for( auto & row : CouplingCns ) {
-     const double li = has_linear ? f_linear_part[ i ] : 0.0;
-     set_mult( Var_s_plus_idx[ i ] , std::max( li , 0.0 ) );
-     set_mult( Var_s_minus_idx[ i ] , std::max( - li , 0.0 ) );
-     row.set_dual( ( IsConvex ? 1.0 : -1.0 ) * ( frame( i ) + step( i ) ) );
-     ++i;
-     }
-    }
-   return( Solver::kOK );
-   }
-
-  /* Without the trust region the problem is separable, and d*_j is the
-   * projection of - t l_j on the box [see set_box()]: the primal MP writes
-   * it, the dual one writes z*_j = - d*_j / t and gives the multiplier
-   * s^+_j - s^-_j = l_j - z*_j of the coupling row to the side d*_j is
-   * on. */
-  const auto set_mult = []( ColVariable * s , double value ) {
-   if( ! s->is_fixed() )
-    s->set_value( value );
-   };
-  for( Index i = 0 ; i < Index( NumVars ) ; ++i ) {
-   const double li = has_linear ? f_linear_part[ i ] : 0.0;
-   const double xi = f_v2_form ? f_x_bar[ i ] : 0.0;
-   double lhs , rhs;
-   primal_box( i , lhs , rhs );
-   double di = li != 0.0 ? - t_stab * li : 0.0;
-   if( std::isfinite( lhs ) )
-    di = std::max( di , lhs - xi );
-   if( std::isfinite( rhs ) )
-    di = std::min( di , rhs - xi );
-   if( IsPrimal )
-    Var_d_idx[ i ]->set_value( xi + di );
-   else {
-    const double zi = std::isfinite( di ) && std::isfinite( t_stab ) ?
-                      - di / t_stab : li;
-    Var_z_idx[ i ]->set_value( zi );
-    set_mult( Var_s_plus_idx[ i ] , std::max( li - zi , 0.0 ) );
-    set_mult( Var_s_minus_idx[ i ] , std::max( zi - li , 0.0 ) );
-    }
-   }
-
-  return( Solver::kOK );
-  }
 
  refresh_primal_objective();
 

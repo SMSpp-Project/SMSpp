@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- the global lower bound of the primal `MasterProblemBlock`: the level row
+  is the row LB <= b*d + sum_k v^k <= f_lev with any stabilization, with
+  infinite sides until `set_global_LB()` and `set_f_lev()` give them, and
+  `get_r()` its multiplier on the side of LB, so that the primal and the
+  dual master problem are the same also with a global lower bound;
+  `get_global_LB()` gives it to a Solver of the master
+
 ### Changed
 
 - the fictitious bound of `MasterProblemBlock::set_fictitious_LB()` is
@@ -36,11 +45,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and in the removal of a Range of Variable from `LagBFunction`
 - `NetCDF_test` links on Windows, where the DLL of netCDF-C++ does not
   export the type objects such as `netCDF::ncDouble`
-- `MasterProblemBlock::solve_master()` with all the components empty: the
-  step is the projection of - t l on the box, rather than - t l also when
-  it leaves the box, and the dual master with a finite global lower bound
-  is solved by its Solver (the model is that bound, and the step 0) rather
-  than given the step - t l
 
 ## [0.9.0] - 2026-11-03
 
