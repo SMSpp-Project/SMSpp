@@ -184,7 +184,7 @@ struct t< T( U ) > { using type = U; };
 inline std::string && SMSpp_classname_normalise( std::string && str ) {
  str.erase( std::remove_if( str.begin() , str.end() , ::isspace ) ,
             str.end() );
- while( str.front() == '(' ) {
+ while( ( ! str.empty() ) && ( str.front() == '(' ) ) {
   str.pop_back();
   str.erase( 0 , 1 );
   }

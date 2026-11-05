@@ -30,6 +30,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   table rather than by a linear search over all the names for each entry,
   which made the read of a model quadratic in its size
 
+- `SMSpp_classname_normalise()` no longer reads the first character of an
+  empty classname, which was undefined behaviour (it aborted
+  `ClassFactory_test` in a build with the assertions of the standard
+  library)
+
 - the headers compile without warnings under `-Wall`: the members of
   `ComputeConfig`, `VariableGroupMod`, `PolyhedralFunction` and
   `PolyhedralFunctionBlock` are initialized in the order they are declared,
