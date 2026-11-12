@@ -46,6 +46,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- the configuration, of the core and of a module that finds it, no longer
+  warns that policies CMP0144, CMP0167 and CMP0169 are not set: Boost is
+  found by its own package configuration file, the upper-case
+  `<PACKAGE>_ROOT` are prefixes of `find_package()`, and FastFlow is fetched
+  by `FetchContent_MakeAvailable()`
 - the C++20 module `smspp` exports `BlockWeightMod`, `copy_group()`,
   `write_via_memory()` and the functions of the stacked solutions of
   `SMSnetCDF.h` (`write_stacked()`, `read_stacked()`, `stacked_size()` and
