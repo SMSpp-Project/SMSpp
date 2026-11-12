@@ -89,6 +89,7 @@ export namespace SMSpp_di_unipi_it {
  using SMSpp_di_unipi_it::BlockModRmv;
  using SMSpp_di_unipi_it::BlockModRmvRngd;
  using SMSpp_di_unipi_it::BlockModRmvSbst;
+ using SMSpp_di_unipi_it::BlockWeightMod;
  using SMSpp_di_unipi_it::Vec_Block;
  using SMSpp_di_unipi_it::Vec_Block_it;
  using SMSpp_di_unipi_it::c_Vec_Block;
@@ -370,14 +371,24 @@ export namespace SMSpp_di_unipi_it {
  using SMSpp_di_unipi_it::_nc_read_type;
  using SMSpp_di_unipi_it::check_dimensions;
  using SMSpp_di_unipi_it::check_variables;
+ using SMSpp_di_unipi_it::copy_group;
  using SMSpp_di_unipi_it::deserialize;
  using SMSpp_di_unipi_it::deserialize_dim;
  using SMSpp_di_unipi_it::get_sizes_dimensions;
  using SMSpp_di_unipi_it::get_var_values;
  using SMSpp_di_unipi_it::is_netCDF_type_v;
+ using SMSpp_di_unipi_it::read_stacked;
  using SMSpp_di_unipi_it::read_type_t;
  using SMSpp_di_unipi_it::serialize;
+ using SMSpp_di_unipi_it::stacked_class_group;
+ using SMSpp_di_unipi_it::stacked_class_variable;
+ using SMSpp_di_unipi_it::stacked_dimension;
+ using SMSpp_di_unipi_it::stacked_parts_dimension;
+ using SMSpp_di_unipi_it::stacked_position_variable;
+ using SMSpp_di_unipi_it::stacked_size;
  using SMSpp_di_unipi_it::typ2nCDF;
+ using SMSpp_di_unipi_it::write_stacked;
+ using SMSpp_di_unipi_it::write_via_memory;
 
  // Solution.h
  using SMSpp_di_unipi_it::Solution;

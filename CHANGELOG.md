@@ -46,6 +46,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- the C++20 module `smspp` exports `BlockWeightMod`, `copy_group()`,
+  `write_via_memory()` and the functions of the stacked solutions of
+  `SMSnetCDF.h` (`write_stacked()`, `read_stacked()`, `stacked_size()` and
+  the names of their dimensions, groups and variables), which the headers
+  declare and `src/SMSpp.cppm` did not export
+
 - `AbstractBlock::read_mps()` finds a row or a column by its name in a hash
   table rather than by a linear search over all the names for each entry,
   which made the read of a model quadratic in its size
