@@ -496,13 +496,15 @@ class Collection< std::atomic< T > > : public CollectionMap< std::atomic< T > >
  *   flags of the whole cooperation;
  *
  * - str_LocalFixingAllowed ("LocalFixingAllowed") is the key, within
- *   str_AtomicFlags, telling whether incumbent-dependent local tightenings
- *   (say, a reduced-cost fixing folded into a branching Change) are
- *   currently sound: such a tightening is valid only for the incumbent in
- *   force when it is generated, which is fine within a single solve (the
- *   incumbent only improves) but not when state is retained across
- *   re-solves with different incumbents, and whoever drives the search
- *   clears the flag in that case; true when absent.
+ *   str_AtomicFlags, telling whether local tightenings that depend on the
+ *   incumbent or on the data (say, a reduced-cost fixing folded into a
+ *   branching Change, or a child left out of a branching because it is
+ *   empty under the current data) are currently sound: such a tightening
+ *   is valid only for the incumbent and the data in force when it is
+ *   generated, which is fine within a single solve (the incumbent only
+ *   improves, the data do not change) but not when state is retained
+ *   across re-solves with different incumbents or data, and whoever drives
+ *   the search clears the flag in that case; true when absent.
  *
  * Every other user defines and documents its own names and keys alongside
  * its own code (say, an enumerative Solver its cut pool), taking care not

@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `GlobalInformation::str_LocalFixingAllowed` also covers the local
+  reductions that depend on the data, which are unsound as well when the
+  state of a search is retained across changes of the data
+
 - `Modification::is_of_concern()`: a physical Modification only reaches
   those who read `eModPhys`, whatever kinds it says it changes, and no longer
   those who only read the abstract representation (who see the change in the
