@@ -50,6 +50,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `UpdateSolver.h` did not compile by itself, calling
+  `Block::add_Modification()` with `Block` only declared, and
+  `UpdateSolver::set_issueAMod()` defaulted to `eNoBlck` while the
+  constructor and the field default to `eModBlck`: the header includes
+  `Block.h`, and the default is `eModBlck`
+
 - `Block::load( const std::string & )` printed an error and went on, leaving
   the Block as it was, when the file could not be opened: it throws
   `std::invalid_argument`
