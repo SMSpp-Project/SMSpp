@@ -259,7 +259,8 @@ static void test_value_and_linearization( void )
 	 <= 1e-12 );
  assert( sum.has_linearization( true ) );
  sum.get_linearization_coefficients( g.data() );
- assert( ( g[ 0 ] == 5 ) && ( g[ 1 ] == 2 * 3 * 4 - 1 + 1 ) && ( g[ 2 ] == 2 ) );
+ assert( ( g[ 0 ] == 5 ) && ( g[ 1 ] == 2 * 3 * 4 - 1 + 1 ) &&
+	 ( g[ 2 ] == 2 ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -495,7 +496,8 @@ int main( void )
 
  before.clear();
  after.clear();
- members[ 1 ]->add_variable( & y , PolyhedralFunction::RealVector( { 1 , 1 } ) );
+ members[ 1 ]->add_variable( & y ,
+			     PolyhedralFunction::RealVector( { 1 , 1 } ) );
 
  assert( sum.get_num_active_var() == 3 );      // the sum has gained it
  assert( sum.is_active( & y ) == 2 );
@@ -513,7 +515,8 @@ int main( void )
 
  before.clear();
  after.clear();
- members[ 2 ]->add_variable( & y , PolyhedralFunction::RealVector( { 1 , 1 } ) );
+ members[ 2 ]->add_variable( & y ,
+			     PolyhedralFunction::RealVector( { 1 , 1 } ) );
 
  assert( sum.get_num_active_var() == 3 );      // nothing has changed
  for( std::size_t i = 0 ; i < after.size() ; ++i )

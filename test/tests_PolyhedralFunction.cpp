@@ -611,7 +611,8 @@ static void test_modify_rows_Mod( void )
  m.f->modify_row( 1 , { 5 , 5 } , 9 );
  auto rmod = m.only< PolyhedralFunctionModRngd >();
  check( rmod && ( rmod->PFtype() == PolyhedralFunctionMod::ModifyRows ) &&
-	( rmod->range() == PF::Range( 1 , 2 ) ) && std::isnan( rmod->shift() ) ,
+	( rmod->range() == PF::Range( 1 , 2 ) ) &&
+	std::isnan( rmod->shift() ) ,
 	"modify_row: PolyhedralFunctionModRngd" );
  check( ( m.f->get_A()[ 1 ] == PF::RealVector( { 5 , 5 } ) ) &&
 	( m.f->get_b()[ 1 ] == 9 ) , "modify_row: data" );
@@ -1292,7 +1293,7 @@ static void test_PFB_primal( void )
  fa.PF().delete_row( 0 );
  check( ( rows->size() == 2 ) &&
 	primal_row( rows->front() , v , fa.x , { 3 , 1 } , -1 ) ,
-	"PFB primal delete_row( 0 ): the first row is now - 1 <= v - 3 x0 - x1" );
+     "PFB primal delete_row( 0 ): the first row is now - 1 <= v - 3 x0 - x1" );
 
  fa.PF().modify_constant( 1 , 7 );
  check( ( rows->size() == 2 ) && ( rows->back().get_lhs() == 7 ) ,
@@ -1772,7 +1773,8 @@ static void test_rows_edges( void )
  four( f );
  assert( throws_a< std::invalid_argument >( [ & f ]() {
   f.delete_rows( Subset( { 1 , 9 } ) ); } ) );
- assert( throws_a< std::invalid_argument >( [ & f ]() { f.delete_row( 4 ); } ) );
+ assert( throws_a< std::invalid_argument >( [ & f ]() {
+  f.delete_row( 4 ); } ) );
  assert( f.get_nrows() == 4 );
  assert( rec.mods.empty() );
 
@@ -2054,7 +2056,8 @@ static void test_variables_edges( void )
   assert( mod->range() == Range( 1 , 2 ) );
   assert( mod->vars() == Vec_p_Var( { & x[ 1 ] } ) );
  }
- assert( throws_a< std::logic_error >( [ & f ]() { f.remove_variable( 2 ); } ) );
+ assert( throws_a< std::logic_error >( [ & f ]() {
+  f.remove_variable( 2 ); } ) );
  assert( rec.mods.empty() );
 
  // ---- removing by Range --------------------------------------------------

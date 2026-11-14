@@ -190,7 +190,8 @@ class StrongBranching
 			double node ,
 			const std::vector< BranchCandidate > & cands ,
 			const std::vector< BranchingFeatures::Features > & x ,
-			const std::vector< Eval > & evals , std::size_t chosen );
+			const std::vector< Eval > & evals ,
+			std::size_t chosen );
 
  };  // end( class( StrongBranching ) )
 
@@ -227,7 +228,7 @@ class LearnedBranching
  /** Ties go to the first one. */
 
  [[nodiscard]] std::size_t best(
-		     const std::vector< BranchingFeatures::Features > & x ) const;
+		  const std::vector< BranchingFeatures::Features > & x ) const;
 
  private:
 
@@ -362,7 +363,8 @@ class LearnedPseudoCosts
  /// the priors, down and up, of a candidate with the given features at a
  /// node of bound node
  [[nodiscard]] std::array< double , 2 > prior(
-		      const BranchingFeatures::Features & x , double node ) const;
+		      const BranchingFeatures::Features & x ,
+		      double node ) const;
 
  private:
 

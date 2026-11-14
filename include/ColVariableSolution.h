@@ -347,8 +347,8 @@ public:
   * @return true if and only if this ColVariableSolution is empty. */
 
  bool empty() const {
-  return static_variable_values.empty() && dynamic_variable_values.empty() &&
-   nested_solutions.empty();
+  return( static_variable_values.empty() && dynamic_variable_values.empty() &&
+    nested_solutions.empty() );
   }
 
 /*--------------------------------------------------------------------------*/

@@ -892,7 +892,7 @@ class BendersBFunction : public C05Function , public Block {
    { "intLinComp" , "intSolverIndex"};
 
   if( idx >= intLastParC05F && idx < intLastBendersBFPar )
-   return pars[ idx - intLastParC05F ];
+   return( pars[ idx - intLastParC05F ] );
 
   return( C05Function::int_par_idx2str( idx ) );
   }
@@ -1863,12 +1863,12 @@ void print( std::ostream & output ) override {
   *
   * - The variable "Column", of type netCDF::NcUint and indexed over the
   *   dimension "NumNonzero", containing the column indices of the entries of
-  *   the matrix. If "NumNonzero" or "NumNonzeroAtRow" is not present, then this
-  *   variable is ignored. For each k in {0, ..., NumNonzero-1}, Column[k] is
-  *   the column index of the k-th nonzero entry of the A matrix, whose value
-  *   is given by A[k]. "Column" stores the column indices in row-major order,
-  *   that is, if (i,j) and (p,q) are the entries of the k-th and l-th nonzero
-  *   elements of A, respectively, with k < l, then i <= p.
+  *   the matrix. If "NumNonzero" or "NumNonzeroAtRow" is not present, then
+  *   this variable is ignored. For each k in {0, ..., NumNonzero-1}, Column[k]
+  *   is the column index of the k-th nonzero entry of the A matrix, whose
+  *   value is given by A[k]. "Column" stores the column indices in row-major
+  *   order, that is, if (i,j) and (p,q) are the entries of the k-th and l-th
+  *   nonzero elements of A, respectively, with k < l, then i <= p.
   *
   * - The variable "A", of type netCDF::NcDouble. This variable stores the
   *   values of the elements of the A matrix of the mapping. If the dimension
@@ -2051,7 +2051,8 @@ void print( std::ostream & output ) override {
   *    equal to - #dblAAccMlt), and the sum of the coefficients of the
   *    diagonal linearizations must be approximately equal to 1:
   *
-  *    abs( 1 - sum coefficients of diagonal linearizations ) <= K * #dblAAccMlt
+  *    abs( 1 - sum coefficients of diagonal linearizations )
+  *      <= K * #dblAAccMlt
   *
   *    where K is the number of linearizations being combined.
   *
@@ -2211,8 +2212,8 @@ void print( std::ostream & output ) override {
  /// get the whole set of parameters of this BendersBFunction
  /** The extra Configuration (see ComputeConfig::f_extra_Configuration) of the
   * ComputeConfig of the BendersBFunction is a
-  * SimpleConfiguration< std::pair< Configuration * , Configuration * > >. The first
-  * Configuration of this pair is a :BlockConfig and the second one is a
+  * SimpleConfiguration< std::pair< Configuration * , Configuration * > >. The
+  * first Configuration of this pair is a :BlockConfig and the second one is a
   * :BlockSolverConfig, both of them being associated with the inner Block of
   * this BendersBFunction.
   *
@@ -2360,7 +2361,8 @@ void print( std::ostream & output ) override {
 
  public:
 
-  static constexpr auto NaN = std::numeric_limits< FunctionValue >::quiet_NaN();
+  static constexpr auto NaN =
+    std::numeric_limits< FunctionValue >::quiet_NaN();
 
 /*--------------------------------------------------------------------------*/
 
@@ -2541,9 +2543,10 @@ void print( std::ostream & output ) override {
   FunctionValue get_linearization_constant( Index name ) const {
    if( name < size() )
     return( linearization_constants[ name ] );
-   throw( std::invalid_argument( "GlobalPool::get_linearization_constant: linea"
-                                 "rization with name " + std::to_string( name )
-                                 + " does not exist." ) );
+   throw( std::invalid_argument(
+     "GlobalPool::get_linearization_constant: linea"
+     "rization with name " + std::to_string( name )
+     + " does not exist." ) );
    }
 
 /*--------------------------------------------------------------------------*/
@@ -2705,8 +2708,10 @@ void print( std::ostream & output ) override {
    auto nnz_dim = group.addDim( "NumNonzero" , column.size() );
    SMSpp_di_unipi_it::serialize( group , "NumNonzeroAtRow" , netCDF::NcUint() ,
                                  row_dim , nnz_at_row );
-   SMSpp_di_unipi_it::serialize( group , "Column" , netCDF::NcUint() , nnz_dim , column );
-   SMSpp_di_unipi_it::serialize( group , "A" , netCDF::NcDouble() , nnz_dim , values );
+   SMSpp_di_unipi_it::serialize( group , "Column" , netCDF::NcUint() ,
+				 nnz_dim , column );
+   SMSpp_di_unipi_it::serialize( group , "A" , netCDF::NcDouble() , nnz_dim ,
+				 values );
   }
 
   inline Index get_nnz() const {
@@ -2819,7 +2824,8 @@ void print( std::ostream & output ) override {
  void write_dual_solution( Index name );
 
 /*--------------------------------------------------------------------------*/
- /// asks \p solver for the dual solution, checking that it covers v_constraints
+ /// asks \p solver for the dual solution, checking that it covers
+ /// v_constraints
  /** Throws std::logic_error if the Solver leaves the dual value of some of
   * the Constraint of the mapping unwritten. */
 
@@ -3060,8 +3066,8 @@ void print( std::ostream & output ) override {
 
  Index get_constraint_index( RowConstraint * constraint ) {
   retrieve_constraints();
-  auto it = std::find( std::begin( v_constraints ) , std::end( v_constraints ) ,
-                       constraint );
+  auto it = std::find( std::begin( v_constraints ) ,
+		       std::end( v_constraints ) , constraint );
   if( it != std::end( v_constraints ) )
    return( std::distance( std::begin( v_constraints ) , it ) );
   return( Inf< Index >() );
@@ -3223,7 +3229,8 @@ class BendersBFunctionMod : public C05FunctionMod {
    * encodes for a single type of operation, but it is still defined here to
    * avoid being defined identically multiple times. */
   enum benders_function_mod_type {
-   ModifyRows = C05FunctionModLastParam,///< modify a set of rows (both A and b)
+   ModifyRows = C05FunctionModLastParam,///< modify a set of rows (both A and
+					///< b)
    ModifyCnst ,                         ///< modify a set of constants (b only)
    DeleteRows ,                         ///< delete a set of rows
    BendersBFunctionModLastParam

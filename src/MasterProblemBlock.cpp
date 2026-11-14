@@ -2124,7 +2124,7 @@ void MasterProblemBlock::add_easy_coupling( Index easy_id , Index j ,
                            "index outside master dimension" ) );
 
  auto * gi = dynamic_cast< LinearFunction * >(
-                          EasyCmps[ easy_id ]->get_Lagrangian_term( local_i ) );
+                         EasyCmps[ easy_id ]->get_Lagrangian_term( local_i ) );
  if( ! gi )
   throw( std::logic_error( "MasterProblemBlock::add_easy_coupling: "
                            "LagBFunction term is not a LinearFunction" ) );
@@ -2174,7 +2174,7 @@ void MasterProblemBlock::add_easy_objective_terms( Index easy_id , Index j ,
  auto dqf = obj ? dynamic_cast< DQuadFunction * >( obj->get_function() )
                 : nullptr;
  auto * gi = dynamic_cast< LinearFunction * >(
-                          EasyCmps[ easy_id ]->get_Lagrangian_term( local_i ) );
+                         EasyCmps[ easy_id ]->get_Lagrangian_term( local_i ) );
  if( ( ! dqf ) || ( ! gi ) )
   throw( std::logic_error( "MasterProblemBlock::add_easy_objective_terms: "
                            "expected DQuadFunction and LinearFunction" ) );
@@ -2210,7 +2210,7 @@ Index MasterProblemBlock::easy_local_to_global(
 {
  // Dense case: no sparse map provided.
  if( EasyLocal2Global.empty() )
-  return local_i;
+  return( local_i );
 
  if( easy_id >= EasyLocal2Global.size() )
   throw( std::logic_error(
@@ -2223,7 +2223,7 @@ Index MasterProblemBlock::easy_local_to_global(
   throw( std::logic_error( "easy_local_to_global: invalid local variable "
      "index" ) );
  // return global index
- return map[ local_i ];
+ return( map[ local_i ] );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -3248,7 +3248,8 @@ std::vector< double > MasterProblemBlock::get_z_vector( void ) const
  if( uses_pure_level_aggregation() &&
      ( ! ( get_level_multiplier() > 0.0 ) ||
        ! std::isfinite( get_level_multiplier() ) ) )
-  throw( std::domain_error( "MasterProblemBlock: no normalized level aggregate" ) );
+  throw( std::domain_error(
+    "MasterProblemBlock: no normalized level aggregate" ) );
  std::vector< double > out;
  if( IsPrimal && has_trust_region() ) {
   // The trust region has no term in z: what the master tells of the
@@ -3396,7 +3397,8 @@ MasterProblemBlock::get_aggregated_subgradient( int k ) const
  if( uses_pure_level_aggregation() &&
      ( ! ( get_level_multiplier() > 0.0 ) ||
        ! std::isfinite( get_level_multiplier() ) ) )
-  throw( std::domain_error( "MasterProblemBlock: no normalized level aggregate" ) );
+  throw( std::domain_error(
+    "MasterProblemBlock: no normalized level aggregate" ) );
  // The abstract multiplier is stored differently in the two linearized PFB
  // representations: as the dual value of a cut constraint in the primal one,
  // and as an explicit theta variable in the dual one.
@@ -3565,10 +3567,12 @@ bool MasterProblemBlock::aggregate_is_valid( double tolerance ) const
  if( ! std::isfinite( r ) || r < - tolerance )
   return( false );
  for( int k = 0 ; k < int( HardCmps.size() ) ; ++k ) {
-  const auto * pfb = dynamic_cast< const PolyhedralFunctionBlock * >( HardCmps[ k ] );
+  const auto * pfb =
+    dynamic_cast< const PolyhedralFunctionBlock * >( HardCmps[ k ] );
   if( ! pfb )
    return( false );
-  auto & pf = const_cast< PolyhedralFunctionBlock * >( pfb )->get_PolyhedralFunction();
+  auto & pf =
+    const_cast< PolyhedralFunctionBlock * >( pfb )->get_PolyhedralFunction();
   double sum = r;
   for( PolyhedralFunction::Index i = 0 ; i < pf.get_nrows() ; ++i ) {
    const double weight = pfb->get_row_multiplier( i ) / eta;
@@ -3680,7 +3684,8 @@ double MasterProblemBlock::get_aggregated_alpha( int k ) const
  if( uses_pure_level_aggregation() &&
      ( ! ( get_level_multiplier() > 0.0 ) ||
        ! std::isfinite( get_level_multiplier() ) ) )
-  throw( std::domain_error( "MasterProblemBlock: no normalized level aggregate" ) );
+  throw( std::domain_error(
+    "MasterProblemBlock: no normalized level aggregate" ) );
  if( IsPrimal ) {
   // The primal master directly provides d* and the model decrease v*. For
   // every component the aggregate-cut identity is
@@ -5647,7 +5652,7 @@ void MasterProblemBlock::remove_vars( const int * subset , int sz )
  // it explicit even for a complete removal: an empty SMS++ Subset means
  // "remove all", whereas an empty *coordinate* subset means "do nothing".
  auto names = [ &removed ]() {
-  return Subset( removed.begin() , removed.end() );
+  return( Subset( removed.begin() , removed.end() ) );
   };
  auto compact = [ &removed ]( auto & values ) {
   if( values.empty() )
@@ -5909,10 +5914,10 @@ void MasterProblemBlock::remove_vars( const int * subset , int sz )
   // Every positional map below still contains old objective/level indices.
   // Subtract the number of deleted terms preceding each surviving one.
   auto reindex = []( int p , const Subset & removed_positions ) {
-   return p < 0 ? p :
-    p - int( std::lower_bound( removed_positions.begin() ,
-                              removed_positions.end() ,
-                              Index( p ) ) - removed_positions.begin() );
+   return( p < 0 ? p :
+     p - int( std::lower_bound( removed_positions.begin() ,
+                               removed_positions.end() ,
+                               Index( p ) ) - removed_positions.begin() ) );
    };
   if( dqf ) {
    compact( d_obj_idx );
@@ -5964,9 +5969,9 @@ void MasterProblemBlock::remove_vars( const int * subset , int sz )
   for( auto & map : EasyLocal2Global ) {
    map.erase( std::remove_if( map.begin() , map.end() ,
               [ &removed , old_n ]( Index j ) {
-               return j < Index( old_n ) &&
-                      std::binary_search( removed.begin() , removed.end() ,
-                                          int( j ) );
+               return( j < Index( old_n ) &&
+                       std::binary_search( removed.begin() , removed.end() ,
+                                           int( j ) ) );
                } ) , map.end() );
    for( auto & j : map )
     if( j < Index( old_n ) )
@@ -5976,8 +5981,8 @@ void MasterProblemBlock::remove_vars( const int * subset , int sz )
   for( auto & coeffs : EasyObjCoeffs ) {
    coeffs.erase( std::remove_if( coeffs.begin() , coeffs.end() ,
                  [ &removed ]( const auto & term ) {
-                  return std::binary_search( removed.begin() , removed.end() ,
-                                             int( term.first ) );
+                  return( std::binary_search( removed.begin() , removed.end() ,
+                                              int( term.first ) ) );
                   } ) , coeffs.end() );
    for( auto & term : coeffs )
     term.first -= Index( std::lower_bound( removed.begin() , removed.end() ,
@@ -6453,7 +6458,7 @@ void MasterProblemBlock::set_zeroth_quadratic( const std::vector< double > &
  for( auto rj : rho ) {
   if( rj < 0.0 )
    throw( std::invalid_argument(
-        "MasterProblemBlock::set_zeroth_quadratic: rho must be nonnegative" ) );
+     "MasterProblemBlock::set_zeroth_quadratic: rho must be nonnegative" ) );
   any = any || ( rj > 0.0 );
   }
 
@@ -6463,8 +6468,8 @@ void MasterProblemBlock::set_zeroth_quadratic( const std::vector< double > &
  if( any ) {
   if( ! IsPrimal )
    throw( std::logic_error(
-        "MasterProblemBlock::set_zeroth_quadratic: only the primal MP carries "
-        "the quadratic 0-th component, the dual one would need it dualized" ) );
+    "MasterProblemBlock::set_zeroth_quadratic: only the primal MP carries "
+    "the quadratic 0-th component, the dual one would need it dualized" ) );
 
   if( ( StblType == kLevel ) || ( StblType == kDoublyStabilized ) )
    throw( std::logic_error(

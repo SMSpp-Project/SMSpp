@@ -548,7 +548,7 @@ class ColVariable : public Variable
 
   if( ( idx == v_active.end() ) || ( *idx != stuff ) )
    throw( std::invalid_argument(
-		     "ColVariable::remove_active: called on non-active stuff" ) );
+     "ColVariable::remove_active: called on non-active stuff" ) );
 
   v_active.erase( idx );  // now remove it
   }

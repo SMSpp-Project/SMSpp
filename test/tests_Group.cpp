@@ -283,12 +283,12 @@ static void test_cells_of_vectors( void )
  const std::array< Block::Index , 4 > length = { 3 , 0 , 1 , 2 };
 
  auto cells = new boost::multi_array< std::vector< ColVariable > , 2 >(
-						       boost::extents[ 2 ][ 2 ] );
+						    boost::extents[ 2 ][ 2 ] );
  auto jagged = new std::vector< std::vector< ColVariable > >( 3 );
  ( *jagged )[ 0 ].resize( 2 );
  ( *jagged )[ 2 ].resize( 3 );
  auto rows = new boost::multi_array< std::vector< FRowConstraint > , 2 >(
-						       boost::extents[ 2 ][ 2 ] );
+						    boost::extents[ 2 ][ 2 ] );
 
  double next = 1;
  for( Block::Index c = 0 ; c < 4 ; ++c ) {
@@ -445,12 +445,13 @@ static void test_multi_array_layout( void )
  // stored in the order of Fortran, or with its indices starting elsewhere,
  // is refused rather than read wrongly
  auto fortran = new boost::multi_array< ColVariable , 2 >(
-			  boost::extents[ 2 ][ 3 ] , boost::fortran_storage_order() );
+			  boost::extents[ 2 ][ 3 ] ,
+			  boost::fortran_storage_order() );
  auto based = new boost::multi_array< std::vector< ColVariable > , 2 >(
-						       boost::extents[ 2 ][ 3 ] );
+						    boost::extents[ 2 ][ 3 ] );
  based->reindex( 1 );
- auto plain = new boost::multi_array< ColVariable , 2 >(
-						       boost::extents[ 2 ][ 3 ] );
+ auto plain =
+   new boost::multi_array< ColVariable , 2 >( boost::extents[ 2 ][ 3 ] );
 
  auto refused = []( auto && make ) {
   try {
@@ -1011,7 +1012,8 @@ static void test_for_each_on_empty( void )
    assert( group->for_each_as< ColVariable >(
 			 [ & seen ]( ColVariable & ) { ++seen; } ) );
    assert( group->for_each_run_as< ColVariable >(
-			 [ & seen ]( ColVariable * , Block::Index ) { ++seen; } ) );
+			 [ & seen ]( ColVariable * ,
+				     Block::Index ) { ++seen; } ) );
    }
 
  // a list is a cell of its own: the one of an empty list is walked, and it

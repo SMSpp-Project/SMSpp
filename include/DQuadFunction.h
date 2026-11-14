@@ -552,7 +552,9 @@ class DQuadFunction : public C15Function {
  * vector v_triples of triples.
  * @{ */
 
- Index get_num_active_var() const override final { return( v_triples.size() ); }
+ Index get_num_active_var() const override final {
+  return( v_triples.size() );
+  }
 
 /*--------------------------------------------------------------------------*/
 
@@ -1096,7 +1098,8 @@ class DQuadFunctionModRngd : public C05FunctionModRngd
 
  DQuadFunctionModRngd( C05Function * f , int type,
 			   DQuadFunction::v_coeff_pair && coeff ,
-			   Vec_p_Var && vars , c_Range & range , Subset && which = {} ,
+			   Vec_p_Var && vars , c_Range & range ,
+			   Subset && which = {} ,
 			   FunctionValue shift = NaNshift , bool cB = true )
   : C05FunctionModRngd( f , type , std::move( vars ) , range , 
       std::move( which ), shift , cB ) , f_coeff( std::move( coeff ) ) {}
@@ -1169,12 +1172,13 @@ class DQuadFunctionModRngd : public C05FunctionModRngd
 /*--------------------------------------------------------------------------*/
 /*---------------------- Class DQuadFunctionModSbst ------------------------*/
 /*--------------------------------------------------------------------------*/
-/// class to describe changes to a DQuadFunction involving a subset of Variables
+/// class to describe changes to a DQuadFunction involving a subset of
+/// Variables
 /** Derived class from C05FunctionModSbst to describe modification to a subset 
- * of "active" ColVariables of a DQuadFunction. The only difference with the base
- * C05FunctionModSbst is that the DQuadFunctionModSbst stores the difference
- * between the old and the new values of both linear and quadratic coefficients
- * of each modified ColVariable in the DQuadFunction. */
+ * of "active" ColVariables of a DQuadFunction. The only difference with the
+ * base C05FunctionModSbst is that the DQuadFunctionModSbst stores the
+ * difference between the old and the new values of both linear and quadratic
+ * coefficients of each modified ColVariable in the DQuadFunction. */
 
 class DQuadFunctionModSbst : public C05FunctionModSbst
 {
@@ -1194,8 +1198,10 @@ class DQuadFunctionModSbst : public C05FunctionModSbst
 
  DQuadFunctionModSbst( C05Function * f , int type,
 			   DQuadFunction::v_coeff_pair && coeff ,
-			   Vec_p_Var && vars , Subset && subset , bool ordered = false ,
-			   Subset && which = {} , FunctionValue shift = NaNshift , 
+			   Vec_p_Var && vars , Subset && subset ,
+			   bool ordered = false ,
+			   Subset && which = {} ,
+			   FunctionValue shift = NaNshift , 
          bool cB = true )
   : C05FunctionModSbst( f , type , std::move( vars ) ,
                         sort_by_index( subset , vars , coeff , ordered ) ,

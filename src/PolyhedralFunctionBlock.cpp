@@ -325,8 +325,9 @@ void PolyhedralFunctionBlock::set_lambda( ColVariable * lambda )
   throw( std::logic_error( "PolyhedralFunctionBlock::set_lambda: it "
 			   "requires the dual representation" ) );
  if( ! ( f_rep & k_built_cnst ) )
-  throw( std::logic_error( "PolyhedralFunctionBlock::set_lambda: it has to "
-			   "be called after generate_abstract_constraints()" ) );
+  throw( std::logic_error(
+    "PolyhedralFunctionBlock::set_lambda: it has to "
+    "be called after generate_abstract_constraints()" ) );
  if( ! lambda )
   throw( std::invalid_argument( "PolyhedralFunctionBlock::set_lambda: "
 				"nullptr lambda" ) );
@@ -1757,7 +1758,8 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual( c_p_Mod mod ,
 
  // ModifyCnst is cheap: only b_i changes -> only obj coefficients
  const auto rng_mod = dynamic_cast< const PolyhedralFunctionModRngd * >( mod );
- const auto sbst_mod = dynamic_cast< const PolyhedralFunctionModSbst * >( mod );
+ const auto sbst_mod =
+   dynamic_cast< const PolyhedralFunctionModSbst * >( mod );
 
  // bound change is encoded as PolyhedralFunctionModRngd with empty range
  if( rng_mod && rng_mod->range().first == rng_mod->range().second ) {

@@ -2936,7 +2936,7 @@ void AbstractBlock::read_lp( std::istream & file )
     compare_section(std::string const &s): key_s(s) {}
  
     bool operator()(std::string const &s) {
-        return boost::iequals( s , key_s);
+        return( boost::iequals( s , key_s) );
     }
  };
 

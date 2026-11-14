@@ -963,7 +963,8 @@ void Block::clear_channel( ChnlName chnl )
 
  for( Block * blck = this ; blck ; blck = blck->f_Block ) {
   auto GMit = std::find_if( blck->v_GroupMod.begin() , blck->v_GroupMod.end() ,
-			    [ chnl ]( auto & a ) { return( a.first == chnl ); } );
+			    [ chnl ]( auto & a ) {
+			     return( a.first == chnl ); } );
   if( GMit != blck->v_GroupMod.end() ) {
    GMit->second->clear();
    return;

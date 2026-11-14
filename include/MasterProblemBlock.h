@@ -2621,8 +2621,8 @@ class MasterProblemBlock : public Block {
  // ( add_cut / modify_cut / modify_alpha / get_raw_aggregated_alpha )
  // reduces to the plain displacement frame
  const std::vector< double > & cut_ref() const {
-  return ( ( f_xref_tol > 0.0 ) &&
-           ( f_x_ref.size() == f_x_bar.size() ) ) ? f_x_ref : f_x_bar;
+  return( ( ( f_xref_tol > 0.0 ) &&
+            ( f_x_ref.size() == f_x_bar.size() ) ) ? f_x_ref : f_x_bar );
   }
 
  [[nodiscard]] double get_master_objective_value() const;

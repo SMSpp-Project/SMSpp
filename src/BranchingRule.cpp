@@ -56,7 +56,8 @@ void BranchingFeatures::sort_by_fractionality(
 				      std::vector< BranchCandidate > & cands )
 {
  std::stable_sort( cands.begin() , cands.end() ,
-		   []( const BranchCandidate & a , const BranchCandidate & b ) {
+		   []( const BranchCandidate & a ,
+		       const BranchCandidate & b ) {
 		    return( fractionality( a.value ) >
 			    fractionality( b.value ) ); } );
  }
@@ -130,12 +131,11 @@ std::size_t StrongBranching::best( const std::vector< Eval > & evals )
 
 /*--------------------------------------------------------------------------*/
 
-void StrongBranching::write_log( const std::string & file ,
-				 unsigned long call , double node ,
-				 const std::vector< BranchCandidate > & cands ,
-				 const std::vector< BranchingFeatures::Features >
-				 & x , const std::vector< Eval > & evals ,
-				 std::size_t chosen )
+void StrongBranching::write_log(
+		 const std::string & file , unsigned long call , double node ,
+		 const std::vector< BranchCandidate > & cands ,
+		 const std::vector< BranchingFeatures::Features > & x ,
+		 const std::vector< Eval > & evals , std::size_t chosen )
 {
  const bool is_new = ! std::filesystem::exists( file );
  std::ofstream out( file , std::ios::app );
@@ -230,7 +230,7 @@ double LearnedBranching::score( const BranchingFeatures::Features & x ) const
 /*--------------------------------------------------------------------------*/
 
 std::size_t LearnedBranching::best(
-		     const std::vector< BranchingFeatures::Features > & x ) const
+		   const std::vector< BranchingFeatures::Features > & x ) const
 {
  std::size_t best_c = 0;
  double best_score = - std::numeric_limits< double >::infinity();
@@ -305,7 +305,8 @@ std::array< double , 2 > PseudoCosts::estimates(
 								  none };
   return( std::array< double , 2 >{
 	   get( cd.id , 0 , pr[ 0 ] ) * ( cd.value - std::floor( cd.value ) ) ,
-	   get( cd.id , 1 , pr[ 1 ] ) * ( std::ceil( cd.value ) - cd.value ) } );
+	   get( cd.id , 1 , pr[ 1 ] ) *
+	   ( std::ceil( cd.value ) - cd.value ) } );
   };
 
  double rest = 0;
@@ -345,7 +346,8 @@ void LearnedPseudoCosts::load( const std::string & file )
 /*--------------------------------------------------------------------------*/
 
 std::array< double , 2 > LearnedPseudoCosts::prior(
-		       const BranchingFeatures::Features & x , double node ) const
+		       const BranchingFeatures::Features & x ,
+		       double node ) const
 {
  const double scale = std::max( std::abs( node ) , 1.0 );
  return( std::array< double , 2 >{

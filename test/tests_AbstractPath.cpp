@@ -118,7 +118,8 @@ void test_paths( Block * block , Block * reference_block ) {
             [ reference_block ]( FRowConstraint & v ) {
              {
              AbstractPath path( & v , reference_block );
-             assert( & v == path.get_element< Constraint >( reference_block ) );
+             assert( & v ==
+                     path.get_element< Constraint >( reference_block ) );
              add_path( path );
              }
 
@@ -144,7 +145,8 @@ void test_paths( Block * block , Block * reference_block ) {
             [ reference_block ]( FRowConstraint & v ) {
              {
              AbstractPath path( & v , reference_block );
-             assert( & v == path.get_element< Constraint >( reference_block ) );
+             assert( & v ==
+                     path.get_element< Constraint >( reference_block ) );
              add_path( path );
              }
 
@@ -226,10 +228,12 @@ void test_variable_multi_selection( Block * reference ) {
   {
    AbstractPath rpath = path;
    rpath.set_last_node_range( 0 , group_size );
-   assert( rpath.get_number_elements< ColVariable >( reference ) == group_size );
+   assert( rpath.get_number_elements< ColVariable >( reference ) ==
+	   group_size );
    for( Index j = 0 ; j < group_size ; ++j )
     assert( rpath.get_element< ColVariable >( reference , j ) ==
-            inspection::get_element< ColVariable >( reference , true , g , j ) );
+            inspection::get_element< ColVariable >( reference , true , g ,
+                                                    j ) );
 
    const auto indices = rpath.get_resolved_indices< ColVariable >( reference );
    assert( indices.size() == group_size );
@@ -326,7 +330,8 @@ void test_block_multi_selection( Block * reference ) {
 
   assert( path.get_number_elements< Block >( reference ) == subset.size() );
   for( Index j = 0 ; j < subset.size() ; ++j )
-   assert( path.get_element< Block >( reference , j ) == nested[ subset[ j ] ] );
+   assert( path.get_element< Block >( reference , j ) ==
+	   nested[ subset[ j ] ] );
 
   assert( path.get_resolved_indices< Block >( reference ) == subset );
 
@@ -466,19 +471,23 @@ void simple_full_test() {
 
  generator.static_constraint_generator =
   new ElementGenerator< std::mt19937 , Int >
-  ( { 4 , 7 } , { 0 , 2 } , { 4 , 7 } , { 2 , 3 } , { 3 , 6 } , { 4 , 7 } , 0 );
+  ( { 4 , 7 } , { 0 , 2 } , { 4 , 7 } , { 2 , 3 } , { 3 , 6 } , { 4 , 7 } ,
+    0 );
 
  generator.static_variable_generator =
   new ElementGenerator< std::mt19937 , Int >
-  ( { 4 , 7 } , { 0 , 2 } , { 4 , 7 } , { 2 , 4 } , { 3 , 6 } , { 4 , 7 } , 2 );
+  ( { 4 , 7 } , { 0 , 2 } , { 4 , 7 } , { 2 , 4 } , { 3 , 6 } , { 4 , 7 } ,
+    2 );
 
  generator.dynamic_constraint_generator =
   new ElementGenerator< std::mt19937 , Int >
-  ( { 4 , 7 } , { 0 , 2 } , { 4 , 7 } , { 2 , 3 } , { 3 , 6 } , { 4 , 7 } , 3 );
+  ( { 4 , 7 } , { 0 , 2 } , { 4 , 7 } , { 2 , 3 } , { 3 , 6 } , { 4 , 7 } ,
+    3 );
 
  generator.dynamic_variable_generator =
   new ElementGenerator< std::mt19937 , Int >
-  ( { 4 , 7 } , { 0 , 2 } , { 4 , 7 } , { 2 , 4 } , { 3 , 6 } , { 4 , 7 } , 4 );
+  ( { 4 , 7 } , { 0 , 2 } , { 4 , 7 } , { 2 , 4 } , { 3 , 6 } , { 4 , 7 } ,
+    4 );
 
  generator.function_generator =
   new FunctionGenerator< std::mt19937 , Int >( { 0 , 2 } , 5 );

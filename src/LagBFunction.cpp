@@ -2947,7 +2947,7 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
 Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
 {
  if( f_play_dumb )
-  return 0;
+  return( 0 );
 
  if( name == Inf< Index >() ) {  // the last computed linearization- - - - - -
 

@@ -206,11 +206,11 @@ typedef Vec_Block::iterator Vec_Block_it;
  * dimensions. For dynamic Variable/Constraint, only the last dimension can
  * by varying. A group is a typed view over the container the :Block holds
  * [see BaseGroup], which is what lets a vector of Variable with an arbitrary
- * number of indices be handled; boost::multi_array implements them. Tools are provided so that both (multi-dimensional
- * vectors of lists of) *any possible derived class* from
- * Variable/Constraint, as well as (multi-dimensional vectors of lists of)
- * *pointers* to *any possible derived class* from Variable/Constraint, can
- * be handled.
+ * number of indices be handled; boost::multi_array implements them. Tools are
+ * provided so that both (multi-dimensional vectors of lists of) *any possible
+ * derived class* from Variable/Constraint, as well as (multi-dimensional
+ * vectors of lists of) *pointers* to *any possible derived class* from
+ * Variable/Constraint, can be handled.
  *
  * Block is a *base* class for representing the general concept of "a part of
  * a mathematical model with a well-understood identity"; in other words, it
@@ -2218,7 +2218,8 @@ class Block : public Observer {
 
  virtual void read_unlock( void ) {
   if( ( f_owner != ReadOnlyLock() ) && ( f_owner != v_ownersLock() ) )
-   throw( std::logic_error( "trying to read-unlock a non-read-locked Block" ) );
+   throw( std::logic_error(
+     "trying to read-unlock a non-read-locked Block" ) );
 
   // read-unlock all the sub-Block
   for( auto sb = v_Block.end() ; sb != v_Block.begin() ; )
@@ -2769,9 +2770,9 @@ class Block : public Observer {
   * object for each of these.
   *
   * Note that not all "groups" (families) of "abstract" dynamic Constraint may
-  * have been constructed [see generate_abstract_constraints()]. This does *not*
-  * mean that those that have not been constructed may not be generated: if
-  * this is done, only the "physical representation" of these is generated,
+  * have been constructed [see generate_abstract_constraints()]. This does
+  * *not* mean that those that have not been constructed may not be generated:
+  * if this is done, only the "physical representation" of these is generated,
   * and the "abstract" one is not.
   *
   * Note that the dycc parameter is meant as an *override* of the default
@@ -3308,9 +3309,9 @@ class Block : public Observer {
  /// the groups of static Constraint of the Block
  /** One group for each group of static Constraint the :Block has registered,
   * in the order they were registered. A group is nullptr when that group
-  * has not been constructed yet [see generate_abstract_constraints()]; otherwise it
-  * says the type of its elements, its shape and its name, and gives
-  * access to the elements without knowing the type of the container that
+  * has not been constructed yet [see generate_abstract_constraints()];
+  * otherwise it says the type of its elements, its shape and its name, and
+  * gives access to the elements without knowing the type of the container that
   * holds them [see BaseGroup].
   *
   * Note that this is the "abstract representation" of the Block, which is
@@ -3397,7 +3398,8 @@ class Block : public Observer {
  template< class Const >
  std::enable_if_t< std::is_base_of_v< Constraint , Const > ,
   std::vector< Const > * > get_static_constraint_v( Index i ) const {
-  return( group_container< std::vector< Const > >( v_s_Constraint_groups , i ) );
+  return( group_container< std::vector< Const > >( v_s_Constraint_groups ,
+						   i ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3411,7 +3413,8 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Constraint , Const > ,
   std::vector< Const > * >
  get_static_constraint_v( const std::string & name ) const {
-  return( group_container< std::vector< Const > >( v_s_Constraint_groups , name ) );
+  return( group_container< std::vector< Const > >( v_s_Constraint_groups ,
+						   name ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3424,7 +3427,8 @@ class Block : public Observer {
  template< class Const , unsigned short K >
  std::enable_if_t< std::is_base_of_v< Constraint , Const > ,
   boost::multi_array< Const , K > * > get_static_constraint( Index i ) const {
-  return( group_container< boost::multi_array< Const , K > >( v_s_Constraint_groups , i ) );
+  return( group_container< boost::multi_array< Const , K > >(
+                                                 v_s_Constraint_groups , i ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3438,15 +3442,16 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Constraint , Const > ,
   boost::multi_array< Const , K > * >
  get_static_constraint( const std::string & name ) const {
-  return( group_container< boost::multi_array< Const , K > >( v_s_Constraint_groups , name ) );
+  return( group_container< boost::multi_array< Const , K > >(
+                                              v_s_Constraint_groups , name ) );
   }
 
 /*--------------------------------------------------------------------------*/
  /// the groups of static Variable of the Block
  /** One group for each group of static Variable the :Block has registered,
   * in the order they were registered. A group is nullptr when that group
-  * has not been constructed yet [see generate_abstract_variables()]; otherwise it
-  * says the type of its elements, its shape and its name, and gives
+  * has not been constructed yet [see generate_abstract_variables()]; otherwise
+  * it says the type of its elements, its shape and its name, and gives
   * access to the elements without knowing the type of the container that
   * holds them [see BaseGroup].
   *
@@ -3550,7 +3555,8 @@ class Block : public Observer {
  template< class Var >
  std::enable_if_t< std::is_base_of_v< Variable , Var > , std::vector< Var > * >
  get_static_variable_v( const std::string & name ) const {
-  return( group_container< std::vector< Var > >( v_s_Variable_groups , name ) );
+  return( group_container< std::vector< Var > >( v_s_Variable_groups ,
+						 name ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3564,7 +3570,8 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Variable , Var > ,
   boost::multi_array< Var , K > * >
  get_static_variable( Index i ) const {
-  return( group_container< boost::multi_array< Var, K > >( v_s_Variable_groups , i ) );
+  return( group_container< boost::multi_array< Var, K > >(
+                                                   v_s_Variable_groups , i ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3578,16 +3585,17 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Variable, Var > ,
   boost::multi_array< Var , K > * >
  get_static_variable( const std::string & name ) const {
-  return( group_container< boost::multi_array< Var, K > >( v_s_Variable_groups , name ) );
+  return( group_container< boost::multi_array< Var, K > >(
+                                                v_s_Variable_groups , name ) );
   }
 
 /*--------------------------------------------------------------------------*/
  /// the groups of dynamic Constraint of the Block
  /** One group for each group of dynamic Constraint the :Block has registered,
   * in the order they were registered. A group is nullptr when that group
-  * has not been constructed yet [see generate_abstract_constraints()]; otherwise it
-  * says the type of its elements, its shape and its name, and gives
-  * access to the elements without knowing the type of the container that
+  * has not been constructed yet [see generate_abstract_constraints()];
+  * otherwise it says the type of its elements, its shape and its name, and
+  * gives access to the elements without knowing the type of the container that
   * holds them [see BaseGroup].
   *
   * Note that this is the "abstract representation" of the Block, which is
@@ -3691,7 +3699,8 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Constraint , Const > ,
   std::list< Const > * >
  get_dynamic_constraint( const std::string & name ) const {
-  return( group_container< std::list< Const > >( v_d_Constraint_groups , name ) );
+  return( group_container< std::list< Const > >( v_d_Constraint_groups ,
+						 name ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3705,7 +3714,8 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Constraint , Const > ,
   std::vector< std::list< Const > > * >
  get_dynamic_constraint_v( Index i ) const {
-  return( group_container< std::vector< std::list< Const > > >( v_d_Constraint_groups , i ) );
+  return( group_container< std::vector< std::list< Const > > >(
+                                                 v_d_Constraint_groups , i ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3719,7 +3729,8 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Constraint , Const > ,
   std::vector< std::list< Const > > * >
  get_dynamic_constraint_v( const std::string & name ) const {
-  return( group_container< std::vector< std::list< Const > > >( v_d_Constraint_groups , name ) );
+  return( group_container< std::vector< std::list< Const > > >(
+                                              v_d_Constraint_groups , name ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3733,7 +3744,8 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Constraint , Const > ,
   boost::multi_array< std::list< Const > , K > * >
  get_dynamic_constraint( Index i ) const {
-  return( group_container< boost::multi_array< std::list< Const > , K > >( v_d_Constraint_groups , i ) );
+  return( group_container< boost::multi_array< std::list< Const > , K > >(
+                                                 v_d_Constraint_groups , i ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3748,15 +3760,16 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Constraint , Const > ,
   boost::multi_array< std::list< Const > , K > * >
  get_dynamic_constraint( const std::string & name ) const {
-  return( group_container< boost::multi_array< std::list< Const > , K > >( v_d_Constraint_groups , name ) );
+  return( group_container< boost::multi_array< std::list< Const > , K > >(
+                                              v_d_Constraint_groups , name ) );
   }
 
 /*--------------------------------------------------------------------------*/
  /// the groups of dynamic Variable of the Block
  /** One group for each group of dynamic Variable the :Block has registered,
   * in the order they were registered. A group is nullptr when that group
-  * has not been constructed yet [see generate_abstract_variables()]; otherwise it
-  * says the type of its elements, its shape and its name, and gives
+  * has not been constructed yet [see generate_abstract_variables()]; otherwise
+  * it says the type of its elements, its shape and its name, and gives
   * access to the elements without knowing the type of the container that
   * holds them [see BaseGroup].
   *
@@ -3904,7 +3917,8 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Variable , Var > ,
   std::vector< std::list< Var > > * >
  get_dynamic_variable_v( Index i ) const {
-  return( group_container< std::vector< std::list< Var > > >( v_d_Variable_groups , i ) );
+  return( group_container< std::vector< std::list< Var > > >(
+                                                   v_d_Variable_groups , i ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3918,7 +3932,8 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Variable , Var > ,
   std::vector< std::list< Var > > * >
  get_dynamic_variable_v( const std::string & name ) const {
-  return( group_container< std::vector< std::list< Var > > >( v_d_Variable_groups , name ) );
+  return( group_container< std::vector< std::list< Var > > >(
+                                                v_d_Variable_groups , name ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3932,7 +3947,8 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Variable , Var > ,
   boost::multi_array< std::list< Var > , K > * >
  get_dynamic_variable( Index i ) const {
-  return( group_container< boost::multi_array< std::list< Var > , K > >( v_d_Variable_groups , i ) );
+  return( group_container< boost::multi_array< std::list< Var > , K > >(
+                                                   v_d_Variable_groups , i ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3947,7 +3963,8 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Variable , Var > ,
   boost::multi_array< std::list< Var > , K > * >
  get_dynamic_variable( const std::string & name ) const {
-  return( group_container< boost::multi_array< std::list< Var > , K > >( v_d_Variable_groups , name ) );
+  return( group_container< boost::multi_array< std::list< Var > , K > >(
+                                                v_d_Variable_groups , name ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -3959,7 +3976,8 @@ class Block : public Observer {
 
  const std::string & get_s_const_name( Index i ) const {
   static const std::string _empty;
-  if( ( i >= v_s_Constraint_groups.size() ) || ( ! v_s_Constraint_groups[ i ] ) )
+  if( ( i >= v_s_Constraint_groups.size() ) ||
+      ( ! v_s_Constraint_groups[ i ] ) )
    return( _empty );
   return( v_s_Constraint_groups[ i ]->get_name() );
   }
@@ -3973,7 +3991,8 @@ class Block : public Observer {
  Index get_s_const_index( const std::string & name ) const {
   Index i = 0;
   for( ; i < v_s_Constraint_groups.size() ; ++i )
-   if( v_s_Constraint_groups[ i ] && ( v_s_Constraint_groups[ i ]->get_name() == name ) )
+   if( v_s_Constraint_groups[ i ] &&
+       ( v_s_Constraint_groups[ i ]->get_name() == name ) )
     break;
   return( i );
   }
@@ -4001,7 +4020,8 @@ class Block : public Observer {
  Index get_s_var_index( const std::string & name ) const {
   Index i = 0;
   for( ; i < v_s_Variable_groups.size() ; ++i )
-   if( v_s_Variable_groups[ i ] && ( v_s_Variable_groups[ i ]->get_name() == name ) )
+   if( v_s_Variable_groups[ i ] &&
+       ( v_s_Variable_groups[ i ]->get_name() == name ) )
     break;
   return( i );
   }
@@ -4015,7 +4035,8 @@ class Block : public Observer {
 
  const std::string & get_d_const_name( Index i ) const {
   static const std::string _empty;
-  if( ( i >= v_d_Constraint_groups.size() ) || ( ! v_d_Constraint_groups[ i ] ) )
+  if( ( i >= v_d_Constraint_groups.size() ) ||
+      ( ! v_d_Constraint_groups[ i ] ) )
    return( _empty );
   return( v_d_Constraint_groups[ i ]->get_name() );
   }
@@ -4029,7 +4050,8 @@ class Block : public Observer {
  Index get_d_const_index( const std::string & name ) const {
   Index i = 0;
   for( ; i < v_d_Constraint_groups.size() ; ++i )
-   if( v_d_Constraint_groups[ i ] && ( v_d_Constraint_groups[ i ]->get_name() == name ) )
+   if( v_d_Constraint_groups[ i ] &&
+       ( v_d_Constraint_groups[ i ]->get_name() == name ) )
     break;
   return( i );
   }
@@ -4057,7 +4079,8 @@ class Block : public Observer {
  Index get_d_var_index( const std::string & name ) const {
   Index i = 0;
   for( ; i < v_d_Variable_groups.size() ; ++i )
-   if( v_d_Variable_groups[ i ] && ( v_d_Variable_groups[ i ]->get_name() == name ) )
+   if( v_d_Variable_groups[ i ] &&
+       ( v_d_Variable_groups[ i ]->get_name() == name ) )
     break;
   return( i );
   }
@@ -4852,10 +4875,10 @@ class Block : public Observer {
   *
   * This is to is_optimal( bool , Configuration * ) exactly what
   * is_sol_feasible( Solution * , Configuration * ) is to is_feasible(
-  * bool , Configuration * ): the values are read out of sol rather than out of the
-  * Variable of the Block, so that the solution a "physical" Solver produces
-  * [see Solver::get_Solution()] can be checked even if the Block has no
-  * "abstract representation". Note that proving optimality typically
+  * bool , Configuration * ): the values are read out of sol rather than out of
+  * the Variable of the Block, so that the solution a "physical" Solver
+  * produces [see Solver::get_Solution()] can be checked even if the Block has
+  * no "abstract representation". Note that proving optimality typically
   * requires a dual solution, hence sol has to carry one; if it does not,
   * the method must not return true.
   *

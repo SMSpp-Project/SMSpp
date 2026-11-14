@@ -12,8 +12,8 @@
  * opposite meanings), over the arithmetic of the parameter that says if, how
  * and where a Modification is issued, over the channels that pack them into
  * a GroupModification (nested, forced, empty, emptied, discarded, and
- * hijacking the default channel), and over the path of a Modification from a sub-Block to the
- * Solver of its father.
+ * hijacking the default channel), and over the path of a Modification from a
+ * sub-Block to the Solver of its father.
  *
  * \author Donato Meoli \n
  *         Dipartimento di Informatica \n
@@ -812,7 +812,8 @@ static void test_remove_constraints( void )
  assert( mods.size() == 1 );
  {
   auto rmv = as< BlockModRmvRngd< FRowConstraint > >( mods.front() );
-  assert( rmv && ( ! rmv->is_variable() ) && ( rmv->range() == Range( 1 , 3 ) ) );
+  assert( rmv && ( ! rmv->is_variable() ) &&
+	  ( rmv->range() == Range( 1 , 3 ) ) );
   assert( ( rhs_of( rmv->removed() ) == std::vector< double >( { 1 , 2 } ) ) );
   assert( & rmv->removed().front() == gone[ 0 ] );
   }
@@ -1140,7 +1141,8 @@ static void test_channel( void )
  block->close_channel( ch2 );
  assert( mods.size() == 1 );
  gm = as< GroupModification >( mods.front() );
- assert( gm && gm->concerns_Block() && ( gm->sub_Modifications().size() == 2 ) );
+ assert( gm && gm->concerns_Block() &&
+	 ( gm->sub_Modifications().size() == 2 ) );
 
  // nesting into a channel that is not open is an error
  assert( throws( [ & ]() { block->open_channel( ch2 ); } ) );

@@ -501,7 +501,7 @@ static void test_simple_vector_of_configurations( void )
  nv = dynamic_cast< VecConf * >( n );
  expect( nv && ( nv->f_value.size() == 2 ) && ( ! nv->f_value[ 0 ] ) &&
 	 nv->f_value[ 1 ] && ( value_of< int >( nv->f_value[ 1 ] ) == 1 ) ,
-	 "netCDF round trip of the vector { nullptr , 1 } of Configuration *" );
+	"netCDF round trip of the vector { nullptr , 1 } of Configuration *" );
  delete n;
 
  std::cout << "SimpleConfiguration< std::vector< Configuration * > >: done"
@@ -551,7 +551,8 @@ static void test_deserialize_stream( void )
 
  // a Configuration is read at the point of the stream it starts at, and the
  // stream is left right after it
- std::istringstream two( "SimpleConfiguration<int> 1 SimpleConfiguration<int> 2" );
+ std::istringstream two(
+   "SimpleConfiguration<int> 1 SimpleConfiguration<int> 2" );
  auto c1 = Configuration::deserialize( two );
  auto c2 = Configuration::deserialize( two );
  assert( c1 && c2 && ( value_of< int >( c1 ) == 1 ) &&
@@ -719,7 +720,8 @@ static void test_ComputeConfig_load( void )
  assert( ( cc->int_pars == decltype( cc->int_pars ){ { "intA" , 5 } ,
 						      { "intB" , -3 } } ) );
  assert( ( cc->dbl_pars == decltype( cc->dbl_pars ){ { "dblA" , 0.5 } } ) );
- assert( ( cc->str_pars == decltype( cc->str_pars ){ { "strA" , "hello" } } ) );
+ assert( ( cc->str_pars ==
+	   decltype( cc->str_pars ){ { "strA" , "hello" } } ) );
  assert( ( cc->vint_pars == decltype( cc->vint_pars ){
 	    { "vintA" , { 1 , 2 , 3 } } , { "vintB" , {} } } ) );
  assert( ( cc->vdbl_pars == decltype( cc->vdbl_pars ){
@@ -962,7 +964,8 @@ static void test_ComputeConfig_override( void )
 						      { "intB" , 20 } } ) );
  assert( ( cc->dbl_pars == decltype( cc->dbl_pars ){ { "dblA" , 0.5 } ,
 						      { "dblB" , 1.5 } } ) );
- assert( ( cc->vint_pars == decltype( cc->vint_pars ){ { "vintA" , { 9 } } } ) );
+ assert( ( cc->vint_pars ==
+	   decltype( cc->vint_pars ){ { "vintA" , { 9 } } } ) );
  // the stream has ended where the slot would be: the extra is kept
  assert( cc->f_extra_Configuration &&
 	 ( value_of< int >( cc->f_extra_Configuration ) == 7 ) );
@@ -995,7 +998,8 @@ static void test_ComputeConfig_override( void )
 
  // whitespace and comments may come between the filename and the "+"
  c = from_text( std::string( "*tests_Configuration_base.txt # base\n"
-			     "  + # and now the override\n" ) + override_body );
+			     "  + # and now the override\n" ) +
+			     override_body );
  cc = dynamic_cast< ComputeConfig * >( c );
  assert( cc && ( cc->int_pars.size() == 2 ) &&
 	 ( cc->int_pars[ 1 ].second == 20 ) );
@@ -1057,12 +1061,13 @@ static void test_ComputeConfig_override_in_a_container( void )
 
 static void test_BlockConfig_load( void )
 {
- auto c = from_text( "BlockConfig 1 2\n"
-		     "*                            # structure\n"
-		     "*  *  *  *                   # constraints and variables\n"
-		     "SimpleConfiguration<int> 1   # objective\n"
-		     "*  *  *                      # feasible, optimal, solution\n"
-		     "SimpleConfiguration<int> 2   # extra\n" );
+ auto c = from_text(
+   "BlockConfig 1 2\n"
+   "*                            # structure\n"
+   "*  *  *  *                   # constraints and variables\n"
+   "SimpleConfiguration<int> 1   # objective\n"
+   "*  *  *                      # feasible, optimal, solution\n"
+   "SimpleConfiguration<int> 2   # extra\n" );
  auto bc = dynamic_cast< BlockConfig * >( c );
  assert( bc && bc->is_diff() );
  assert( ! bc->f_structure_Configuration );
@@ -1228,7 +1233,8 @@ static void test_BlockConfig_move( void )
  expect( ! a.f_structure_Configuration , "the move constructor of "
 	 "BlockConfig leaves f_structure_Configuration of the moved-from one "
 	 "nullptr" );
- assert( ( b.f_extra_Configuration == extra ) && ( ! a.f_extra_Configuration ) );
+ assert( ( b.f_extra_Configuration == extra ) &&
+	 ( ! a.f_extra_Configuration ) );
 
  // whatever happened, each pointer is deleted once
  if( ! taken )
@@ -1244,9 +1250,10 @@ static void test_BlockConfig_move( void )
 
 /*--------------------------------------------------------------------------*/
 /* An OCRBlockConfig got from a Block records the BlockConfig of its
- * sub-Block, by index or by name [see OCRBlockConfig::get_right_BlockConfig()],
- * applies them to the sub-Block of another Block, keeps its structure
- * through clear(), and refuses a sub-Block that is not there. */
+ * sub-Block, by index or by name [see
+ * OCRBlockConfig::get_right_BlockConfig()], applies them to the sub-Block of
+ * another Block, keeps its structure through clear(), and refuses a sub-Block
+ * that is not there. */
 
 static void test_OCRBlockConfig( void )
 {
@@ -1258,8 +1265,10 @@ static void test_OCRBlockConfig( void )
   named->set_name( "second" );
   father->add_nested_Block( named );
   }
- P.get_nested_Block( 0 )->set_BlockConfig( make_BlockConfig( false , 1 , 11 ) );
- P.get_nested_Block( 1 )->set_BlockConfig( make_BlockConfig( false , 2 , 22 ) );
+ P.get_nested_Block( 0 )->set_BlockConfig( make_BlockConfig( false , 1 ,
+							     11 ) );
+ P.get_nested_Block( 1 )->set_BlockConfig( make_BlockConfig( false , 2 ,
+							     22 ) );
 
  // got out of the whole Block, it finds the BlockConfig of the sub-Block
  OCRBlockConfig got( & P );
@@ -1277,16 +1286,16 @@ static void test_OCRBlockConfig( void )
  auto right = OCRBlockConfig::get_right_BlockConfig( P.get_nested_Block( 0 ) );
  expect( right && right->f_extra_Configuration &&
 	 ( value_of< int >( right->f_extra_Configuration ) == 11 ) ,
-	 "OCRBlockConfig::get_right_BlockConfig() of a Block whose BlockConfig "
-	 "has an extra Configuration gives a BlockConfig with it" );
+	"OCRBlockConfig::get_right_BlockConfig() of a Block whose BlockConfig "
+	"has an extra Configuration gives a BlockConfig with it" );
  delete right;
 
  // it is the simplest *BlockConfig that holds it, and there is none for a
  // Block with no BlockConfig; for the whole Block it is an RBlockConfig
  right = OCRBlockConfig::get_right_BlockConfig( P.get_nested_Block( 0 ) );
  expect( right && ( right->classname() == "BlockConfig" ) ,
-	 "OCRBlockConfig::get_right_BlockConfig() of a Block whose BlockConfig "
-	 "has no sub-BlockConfig is a BlockConfig" );
+	"OCRBlockConfig::get_right_BlockConfig() of a Block whose BlockConfig "
+	"has no sub-BlockConfig is a BlockConfig" );
  delete right;
  AbstractBlock bare;
  assert( ! OCRBlockConfig::get_right_BlockConfig( & bare ) );
@@ -1313,11 +1322,13 @@ static void test_OCRBlockConfig( void )
  again.get( & P );
  assert( ( again.num_sub_BlockConfig() == 1 ) &&
 	 ( value_of< int >(
-		  again.get_sub_BlockConfig( 0 )->f_extra_Configuration ) == 22 ) );
+		  again.get_sub_BlockConfig( 0 )->f_extra_Configuration ) ==
+		  22 ) );
 
  // one by index and one by name
  OCRBlockConfig oc( false );
- oc.add_sub_BlockConfig( make_BlockConfig( false , 1 , 11 ) , Block::Index( 0 ) );
+ oc.add_sub_BlockConfig( make_BlockConfig( false , 1 , 11 ) ,
+			 Block::Index( 0 ) );
  oc.add_sub_BlockConfig( make_BlockConfig( false , 2 , 22 ) , "second" );
  assert( oc.num_sub_BlockConfig() == 2 );
  assert( oc.get_sub_Block_id( 0 ) == "0" );
@@ -1373,9 +1384,10 @@ static BlockSolverConfig * bsc_from_text( const std::string & text )
 
 static void test_BlockSolverConfig_load( void )
 {
- auto bsc = bsc_from_text( "BlockSolverConfig 1\n"
-			   "2  FakeSolver  *\n"
-			   "2  *  ComputeConfig 1  1 intMaxIter 10  0 0 0 0 0 *\n" );
+ auto bsc = bsc_from_text(
+   "BlockSolverConfig 1\n"
+   "2  FakeSolver  *\n"
+   "2  *  ComputeConfig 1  1 intMaxIter 10  0 0 0 0 0 *\n" );
  assert( bsc->is_diff() == BlockSolverConfig::eDiffMode );
  assert( bsc->num_ComputeConfig() == 2 );
  assert( bsc->get_SolverName( 0 ) == "FakeSolver" );
@@ -1408,7 +1420,8 @@ static void test_BlockSolverConfig_load( void )
  // fewer ComputeConfig than names: the missing ones are nullptr
  bsc = bsc_from_text( "BlockSolverConfig 2  2 FakeSolver FakeSolver  0" );
  assert( ( bsc->is_diff() == BlockSolverConfig::eAddMode ) &&
-	 ( bsc->num_ComputeConfig() == 2 ) && ( ! bsc->get_SolverConfig( 1 ) ) );
+	 ( bsc->num_ComputeConfig() == 2 ) &&
+	 ( ! bsc->get_SolverConfig( 1 ) ) );
  delete bsc;
 
  // an empty one
@@ -1439,10 +1452,11 @@ static void test_BlockSolverConfig_apply( void )
  auto own = new FakeSolver;
  block.register_Solver( own );
 
- auto bsc = bsc_from_text( "BlockSolverConfig 2\n"
-			   "2  FakeSolver  FakeSolver\n"
-			   "2  ComputeConfig 1  1 intMaxIter 10  0 0 0 0 0 *\n"
-			   "   ComputeConfig 3  1 noSuchPar 1  0 0 0 0 0 *\n" );
+ auto bsc = bsc_from_text(
+   "BlockSolverConfig 2\n"
+   "2  FakeSolver  FakeSolver\n"
+   "2  ComputeConfig 1  1 intMaxIter 10  0 0 0 0 0 *\n"
+   "   ComputeConfig 3  1 noSuchPar 1  0 0 0 0 0 *\n" );
  bsc->apply( & block );
  auto & solvers = block.get_registered_solvers();
  assert( solvers.size() == 3 );
@@ -1456,7 +1470,8 @@ static void test_BlockSolverConfig_apply( void )
 
  // the clone has registered nothing
  auto k = bsc->clone();
- assert( ( k->num_ComputeConfig() == 2 ) && k->get_Solvers( & block ).empty() );
+ assert( ( k->num_ComputeConfig() == 2 ) &&
+	 k->get_Solvers( & block ).empty() );
  assert( k->get_SolverConfig( 0 ) != bsc->get_SolverConfig( 0 ) );
  delete k;
 
@@ -1495,13 +1510,15 @@ static void test_BlockSolverConfig_apply( void )
  // a parameter the Solver does not know, the ComputeConfig not relax()-ed
  bsc = bsc_from_text( "BlockSolverConfig 2  1 FakeSolver\n"
 		      "1  ComputeConfig 1  1 noSuchPar 1  0 0 0 0 0 *\n" );
- assert( throws< std::invalid_argument >( [ & ]() { bsc->apply( & block ); } ) );
+ assert( throws< std::invalid_argument >(
+			      [ & ]() { bsc->apply( & block ); } ) );
  assert( ( solvers.size() == 1 ) && ( solvers.front() == own ) );
  delete bsc;
 
  // a Solver that is not in the factory
  bsc = bsc_from_text( "BlockSolverConfig 2  1 NoSuchSolver  0" );
- assert( throws< std::invalid_argument >( [ & ]() { bsc->apply( & block ); } ) );
+ assert( throws< std::invalid_argument >(
+			      [ & ]() { bsc->apply( & block ); } ) );
  assert( solvers.size() == 1 );
  delete bsc;
 
@@ -1557,7 +1574,8 @@ static void test_BlockSolverConfig_netCDF( void )
  BlockSolverConfig e( BlockSolverConfig::eSetMode );
  n = nc_round_trip( e );
  nb = dynamic_cast< BlockSolverConfig * >( n );
- assert( nb && nb->empty() && ( nb->is_diff() == BlockSolverConfig::eSetMode ) );
+ assert( nb && nb->empty() &&
+	 ( nb->is_diff() == BlockSolverConfig::eSetMode ) );
  delete n;
 
  // an eProbFile written by hand as SMSTypedefs.h describes it
@@ -1718,7 +1736,8 @@ static bool same_bc( const BlockConfig & a , const BlockConfig & b )
 	 same( a.f_dynamic_variables_Configuration ,
 	       b.f_dynamic_variables_Configuration ) &&
 	 same( a.f_objective_Configuration , b.f_objective_Configuration ) &&
-	 same( a.f_is_feasible_Configuration , b.f_is_feasible_Configuration ) &&
+	 same( a.f_is_feasible_Configuration ,
+	       b.f_is_feasible_Configuration ) &&
 	 same( a.f_is_optimal_Configuration , b.f_is_optimal_Configuration ) &&
 	 same( a.f_solution_Configuration , b.f_solution_Configuration ) &&
 	 same( a.f_extra_Configuration , b.f_extra_Configuration ) );
@@ -1764,7 +1783,8 @@ static bool same( const Configuration * a , const Configuration * b )
     return( false );
    for( Block::Index i = 0 ; i < r->num_sub_BlockConfig() ; ++i )
     if( ( r->get_sub_Block_id( i ) != s->get_sub_Block_id( i ) ) ||
-	( ! same( r->get_sub_BlockConfig( i ) , s->get_sub_BlockConfig( i ) ) ) )
+	( ! same( r->get_sub_BlockConfig( i ) ,
+		  s->get_sub_BlockConfig( i ) ) ) )
      return( false );
    }
   return( true );
@@ -2094,8 +2114,9 @@ static void test_meta_configuration( void )
  out << *c;
  assert( out.str().find( "A" ) != std::string::npos );
 
- auto e = text_as< SC_map >(
-		  "SimpleConfiguration<std::map<std::string,Configuration*>> 0" );
+ auto e =
+   text_as< SC_map >(
+     "SimpleConfiguration<std::map<std::string,Configuration*>> 0" );
  assert( e && e->f_value.empty() );
  auto ne = nc_as< SC_map >( *e );
  assert( ne && ne->f_value.empty() );
@@ -2532,9 +2553,10 @@ static void test_BlockConfig_apply_nothing( void )
 {
  AbstractBlock block;
 
- auto full = text_as< BlockConfig >( "BlockConfig 0 2 * "
-				     "SimpleConfiguration<int> 3 * * * * * * * "
-				     "SimpleConfiguration<int> 2" );
+ auto full = text_as< BlockConfig >(
+   "BlockConfig 0 2 * "
+   "SimpleConfiguration<int> 3 * * * * * * * "
+   "SimpleConfiguration<int> 2" );
  full->apply( & block );
 
  // a differential one with nothing in it changes nothing
@@ -2591,9 +2613,10 @@ static void test_handlers( void )
 
  // the Constraint
  {
-  auto c = text_as< CBlockConfig >( "CBlockConfig 1 2" + empty_slots +
-				    "2 rows 0 ComputeConfig 1 1 intA 1 0 0 0 0 0 *"
-				    "  rows 3 ComputeConfig 1 1 intA 2 0 0 0 0 0 *" );
+  auto c = text_as< CBlockConfig >(
+    "CBlockConfig 1 2" + empty_slots +
+    "2 rows 0 ComputeConfig 1 1 intA 1 0 0 0 0 0 *"
+    "  rows 3 ComputeConfig 1 1 intA 2 0 0 0 0 0 *" );
   assert( c && ( c->num_ComputeConfig_Constraint() == 2 ) );
   assert( ( c->get_Constraint_id( 0 ) ==
 	    std::pair< std::string , Block::Index >( "rows" , 0 ) ) );
@@ -2638,10 +2661,11 @@ static void test_handlers( void )
 
  // the sub-Block, by name and by position, one of them with none
  {
-  auto c = text_as< RBlockConfig >( "RBlockConfig 1 2" + empty_slots +
-				    "-2 sub1 BlockConfig 1 2 * "
-				    "SimpleConfiguration<int> 4 * * * * * * * *"
-				    " sub2 *" );
+  auto c = text_as< RBlockConfig >(
+    "RBlockConfig 1 2" + empty_slots +
+    "-2 sub1 BlockConfig 1 2 * "
+    "SimpleConfiguration<int> 4 * * * * * * * *"
+    " sub2 *" );
   assert( c && ( c->num_sub_BlockConfig() == 2 ) );
   assert( c->get_sub_Block_id( 0 ) == "sub1" );
   assert( c->get_sub_Block_id( 1 ) == "sub2" );
@@ -2651,9 +2675,10 @@ static void test_handlers( void )
 
   // the netCDF round trip of one sub-Block
   {
-   auto one = text_as< RBlockConfig >( "RBlockConfig 1 2" + empty_slots +
-				       "-1 sub1 BlockConfig 1 2 * "
-				       "SimpleConfiguration<int> 4 * * * * * * * *" );
+   auto one = text_as< RBlockConfig >(
+     "RBlockConfig 1 2" + empty_slots +
+     "-1 sub1 BlockConfig 1 2 * "
+     "SimpleConfiguration<int> 4 * * * * * * * *" );
    assert( one && ( one->num_sub_BlockConfig() == 1 ) );
    auto n = nc_as< RBlockConfig >( *one );
    assert( n && ( n->num_sub_BlockConfig() == 1 ) );
@@ -2846,7 +2871,8 @@ static void test_BlockSolverConfig_fields( void )
  delete p;
 
  delete r; delete c;
- std::cout << "BlockSolverConfig and RBlockSolverConfig field by field: OK" << std::endl;
+ std::cout << "BlockSolverConfig and RBlockSolverConfig field by field: OK" <<
+   std::endl;
  }
 
 /*--------------------------------------------------------------------------*/

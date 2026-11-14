@@ -427,7 +427,8 @@ namespace SMSpp_di_unipi_it::inspection
   const auto n = groups.size();
 
   return( std::string( is_static ? "static " : "dynamic " ) +
-	  ( is_variable ? "Variable" : "Constraint" ) + " groups of the Block (" +
+	  ( is_variable ? "Variable" : "Constraint" ) +
+	  " groups of the Block (" +
 	  std::to_string( n ) + " group" + ( n == 1 ? "" : "s" ) +
 	  ( n ? ": " + names : std::string() ) + ")" );
   }

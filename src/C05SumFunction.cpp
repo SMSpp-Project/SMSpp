@@ -217,7 +217,8 @@ void C05SumFunction::add_Modification( sp_Mod mod , ChnlName chnl )
   * sum takes) does, and what it says about the sum is what its
   * sub-Modification say together. */
 
- if( const auto gmod = std::dynamic_pointer_cast< GroupModification >( mod ) ) {
+ if( const auto gmod =
+     std::dynamic_pointer_cast< GroupModification >( mod ) ) {
   group_Modification( gmod , chnl );
   return;
   }
@@ -842,7 +843,8 @@ int C05SumFunction::compute_parallel( bool changedvars ,
   int bad = kOK;
   for( Index h = from ; h < to ; ++h ) {
    const int s = ( h == from ) ? first : running[ h - from - 1 ].get();
-   if( ( s <= kUnEval ) || ( ( s >= kError ) && ( s != Solver::kLowPrecision ) ) )
+   if( ( s <= kUnEval ) ||
+       ( ( s >= kError ) && ( s != Solver::kLowPrecision ) ) )
     bad = s;
    else if( s == Solver::kLowPrecision )
     status = Solver::kLowPrecision;
@@ -911,7 +913,8 @@ int C05SumFunction::compute( bool changedvars )
   // returns only up to the accuracy it was given, which is what an inexact
   // oracle is, and the group is inexact with it; stopping here would leave
   // the other members unevaluated and the group without a value
-  if( ( s <= kUnEval ) || ( ( s >= kError ) && ( s != Solver::kLowPrecision ) ) )
+  if( ( s <= kUnEval ) ||
+      ( ( s >= kError ) && ( s != Solver::kLowPrecision ) ) )
    return( s );                    // an error ends it all
   if( s == Solver::kLowPrecision )  // an inexact member makes the sum inexact
    status = Solver::kLowPrecision;
@@ -1026,7 +1029,8 @@ bool C05SumFunction::random_combination( void )
  for( Index h = 0 ; h < k ; ++h ) {
   const auto m = v_members[ h ];
   for( Index n = 0 ; n < f_gp_size ; ++n )
-   if( m->is_linearization_there( n ) && ( ! m->is_linearization_vertical( n ) ) )
+   if( m->is_linearization_there( n ) &&
+       ( ! m->is_linearization_vertical( n ) ) )
     held[ h ].push_back( n );
 
   if( held[ h ].empty() )   // a member with nothing to contribute leaves the

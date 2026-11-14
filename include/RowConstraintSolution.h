@@ -53,7 +53,8 @@ namespace SMSpp_di_unipi_it
  using Vec_RowConstraintSolution = std::vector< RowConstraintSolution >;
  ///< a vector of RowConstraintSolution
 
- using c_Vec_RowConstraintSolution = const std::vector< RowConstraintSolution >;
+ using c_Vec_RowConstraintSolution =
+   const std::vector< RowConstraintSolution >;
  ///< a const vector of RowConstraintSolution
 
 /** @}  end( group( RowConstraintSolution_TYPES ) ) */

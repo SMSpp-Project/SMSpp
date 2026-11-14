@@ -265,10 +265,13 @@ private:
  /// Name of the netCDF dimension that stores the number of nodes in the path
  inline static const std::string path_dim_name = "PathDim";
 
- /// Name of the netCDF dimension that stores the sum of the lengths of the paths
- inline static const std::string path_total_length_dim_name = "PathTotalLength";
+ /// Name of the netCDF dimension that stores the sum of the lengths of the
+ /// paths
+ inline static const std::string path_total_length_dim_name =
+   "PathTotalLength";
 
- /// Name of the netCDF variable that stores the starting positions of each path
+ /// Name of the netCDF variable that stores the starting positions of each
+ /// path
  inline static const std::string path_start_name = "PathStart";
 
  /// Name of the netCDF variable that stores the array of types of nodes
@@ -478,7 +481,8 @@ private:
  void reverse( void ) {
   std::reverse( std::begin( node_types ), std::end( node_types ) );
   std::reverse( std::begin( group_indices ), std::end( group_indices ) );
-  std::reverse( std::begin( group_index_names ) , std::end( group_index_names ) );
+  std::reverse( std::begin( group_index_names ) ,
+		std::end( group_index_names ) );
   std::reverse( std::begin( element_indices ), std::end( element_indices ) );
   std::reverse( std::begin( range_indices ), std::end( range_indices) );
   std::reverse( std::begin( node_subsets ), std::end( node_subsets ) );
@@ -857,8 +861,9 @@ public:
   if( empty() ||
       ( ! Node::is_block( node_types.back() ) &&
         ! Node::has_range( node_types.back() ) ) )
-   throw( std::logic_error( "AbstractPath::set_last_node_subset: the last node "
-                            "does not support a subset." ) );
+   throw( std::logic_error(
+     "AbstractPath::set_last_node_subset: the last node "
+     "does not support a subset." ) );
   if( subset.empty() ) {
    const auto start = Node::is_block( node_types.back() )
     ? ( group_indices.back() == Inf< Index >() ? 0 : group_indices.back() )
@@ -1166,7 +1171,8 @@ public:
    else if( node.type == Node::eObjective ) {
     auto objective = block->get_objective();
 
-    if( const auto fro = dynamic_cast< const FRealObjective * >( objective ) ) {
+    if( const auto fro =
+	dynamic_cast< const FRealObjective * >( objective ) ) {
      auto function = fro->get_function();
 
      /* the Function is also a Block, and the path goes on in it */
@@ -1225,7 +1231,8 @@ public:
    }
    if( node.type == Node::eObjective ) {
     // It must be an FRealObjective
-    auto objective = dynamic_cast< FRealObjective * >( block->get_objective() );
+    auto objective =
+      dynamic_cast< FRealObjective * >( block->get_objective() );
     if( objective )
      return( dynamic_cast< T * >( objective->get_function() ) );
     return( nullptr );
@@ -1341,7 +1348,8 @@ public:
     }
    else if( node.type == Node::eObjective ) {
     auto objective = block->get_objective();
-    if( const auto fro = dynamic_cast< const FRealObjective * >( objective ) ) {
+    if( const auto fro =
+	dynamic_cast< const FRealObjective * >( objective ) ) {
      auto function = fro->get_function();
 
      /* the Function is also a Block, and the path goes on in it */
@@ -1372,8 +1380,9 @@ public:
     return( result );
     }
    if( node.range_index < node.group_index )
-    throw( std::logic_error( "AbstractPath::get_resolved_indices: invalid Block "
-                             "range, end < start." ) );
+    throw( std::logic_error(
+      "AbstractPath::get_resolved_indices: invalid Block "
+      "range, end < start." ) );
    result.reserve( node.range_index - node.group_index );
    for( Index k = node.group_index ; k < node.range_index ; ++k )
     result.push_back( k );
@@ -1443,7 +1452,8 @@ public:
     }
 
   if( ! subset_elements.empty() ) {
-   serialize( group , subset_size_name , netCDF::NcUint() , dim , subset_sizes );
+   serialize( group , subset_size_name , netCDF::NcUint() , dim ,
+	      subset_sizes );
    auto subset_dim = group.addDim( subset_total_length_dim_name ,
                                    subset_elements.size() );
    serialize( group , subset_name , netCDF::NcUint() , subset_dim ,
@@ -1624,10 +1634,10 @@ public:
   *     explicit subset;
   *
   *   * "PathSubset", of type netCDF::NcUint and indexed over its own
-  *     dimension "PathSubsetTotalLength" (equal to the sum of PathSubsetSizes):
-  *     it contains the concatenation, in node order, of the explicit subsets
-  *     of all nodes (only the nodes with PathSubsetSizes[i] > 0 contribute,
-  *     in their original order).
+  *     dimension "PathSubsetTotalLength" (equal to the sum of
+  *     PathSubsetSizes): it contains the concatenation, in node order, of the
+  *     explicit subsets of all nodes (only the nodes with PathSubsetSizes[i] >
+  *     0 contribute, in their original order).
   *
   *   When PathSubsetSizes[i] > 0, the subset takes precedence over the
   *   contiguous range that may also be present on node i. When both
@@ -1789,8 +1799,9 @@ public:
       ( ! netCDFvars.PathElementIndices.isNull() &&
         netCDFvars.PathElementIndices.getDimCount() != 1 ) )
    throw( std::invalid_argument( "AbstractPath::pre_deserialize: variables " +
-                                 node_type_name + ", " + group_index_name + ", "
-                                 "and " + element_index_name + " must have "
+                                 node_type_name + ", " + group_index_name +
+                                 ", " "and " + element_index_name +
+                                 " must have "
                                  "a single dimension." ) );
 
   if( ( netCDFvars.PathNodeTypes.getDim( 0 ) !=
@@ -1799,8 +1810,9 @@ public:
         netCDFvars.PathNodeTypes.getDim( 0 ) !=
         netCDFvars.PathElementIndices.getDim( 0 ) ) )
    throw( std::invalid_argument( "AbstractPath::pre_deserialize: variables " +
-                                 node_type_name + ", " + group_index_name + ", "
-                                 "and " + element_index_name + " must be "
+                                 node_type_name + ", " + group_index_name +
+                                 ", " "and " + element_index_name +
+                                 " must be "
                                  "indexed over the same dimension." ) );
 
   return( netCDFvars );
@@ -1960,7 +1972,8 @@ public:
 
  virtual std::vector< std::string > expected_dims( void ) const {
   static const std::vector< std::string > ed =
-  { path_dim_name , path_total_length_dim_name , subset_total_length_dim_name };
+  { path_dim_name , path_total_length_dim_name ,
+    subset_total_length_dim_name };
 
   return( ed );
   }
@@ -2063,9 +2076,9 @@ public:
   for( const auto & subset : node_subsets )
    if( ! subset.empty() )
     throw( std::logic_error(
-     "AbstractPath::serialize: serializing a vector of AbstractPath that "
-     "contains explicit element/Block subsets is not supported; serialize such "
-     "paths individually instead." ) );
+    "AbstractPath::serialize: serializing a vector of AbstractPath that "
+    "contains explicit element/Block subsets is not supported; serialize such "
+    "paths individually instead." ) );
 
   const auto num_nodes = length();
 
@@ -2135,7 +2148,8 @@ public:
    // Prefer the string-typed group identifier when present (paths
    // deserialized from a string-typed PathGroupIndices have an empty
    // group_indices vector).
-   if( ( i < group_index_names.size() ) && ( ! group_index_names[ i ].empty() ) )
+   if( ( i < group_index_names.size() ) &&
+       ( ! group_index_names[ i ].empty() ) )
     std::cout << group_index_names[ i ];
    else if( i < group_indices.size() )
     std::cout << group_indices[ i ];

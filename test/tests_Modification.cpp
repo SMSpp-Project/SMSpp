@@ -615,9 +615,9 @@ static void test_RowConstraint( void )
 		 assert( cmod && ( cmod->constraint() == c ) );
 		 assert( cmod->type() == type );
 		 assert( ! std::dynamic_pointer_cast< OneVarConstraintMod >(
-									mod ) );
+								       mod ) );
 		 assert( ! std::dynamic_pointer_cast< FRowConstraintMod >(
-									mod ) );
+								       mod ) );
 		 } } );
   };
 
@@ -658,7 +658,7 @@ static void test_RowConstraint( void )
 		 assert( cmod && ( cmod->constraint() == c ) );
 		 assert( cmod->type() == type );
 		 assert( ! std::dynamic_pointer_cast< RowConstraintMod >(
-									mod ) );
+								       mod ) );
 		 } } );
   };
 
@@ -816,7 +816,8 @@ static void test_OneVarConstraint( void )
 		 return( ( box->get_active_var( 0 ) == to ) &&
 			 ( box->get_num_active_var() == ( to ? 1 : 0 ) ) &&
 			 ( active_in( *X( 0 ) , box ) == ( to == X( 0 ) ) ) &&
-			 ( active_in( *X( 1 ) , box ) == ( to == X( 1 ) ) ) ); } ,
+			 ( active_in( *X( 1 ) , box ) ==
+			   ( to == X( 1 ) ) ) ); } ,
 		ovc_mod( box , OneVarConstraintMod::eVariableChanged ) } );
   };
 
@@ -830,7 +831,8 @@ static void test_OneVarConstraint( void )
 			  box->remove_variables( Range( 0 , 1 ) , iM ); } ) );
  // the empty Subset means all of them
  changes.push_back( var( nullptr , [ = ]( ModParam iM ) {
-			  box->remove_variables( Subset() , false , iM ); } ) );
+			  box->remove_variables( Subset() , false , iM );
+			  } ) );
  changes.push_back( var( nullptr , [ = ]( ModParam iM ) {
 			  box->remove_variables( Subset( { 0 } ) , true ,
 						 iM ); } ) );
@@ -874,7 +876,7 @@ static void test_Objective( void )
 		 assert( omod && ( omod->of() == obj ) );
 		 assert( omod->type() == type );
 		 assert( ! std::dynamic_pointer_cast< FRealObjectiveMod >(
-									mod ) );
+								       mod ) );
 		 } } );
   };
 
@@ -1168,8 +1170,8 @@ static void test_LinearFunction( void )
                           lf()->modify_coefficients( { 1 } , Range( 2 , 5 ) ,
                                                      iM ); } , none ) ,
   make( P2 , P2 , true , [ = ]( ModParam iM ) {
-                          lf()->modify_coefficients( {} , Subset() , false ,
-                                                     iM ); } , none ) ,
+                         lf()->modify_coefficients( {} , Subset() , false ,
+                                                    iM ); } , none ) ,
   make( P2 , P2 , true , [ = ]( ModParam iM ) {
                           lf()->set_constant_term( 0 , iM ); } , none ) ,
   make( P2 , P2 , true , [ = ]( ModParam iM ) {
@@ -1246,7 +1248,8 @@ static void test_LinearFunction( void )
 		[ = ]( const sp_Mod & mod ) {
 		 assert( registered( *x , obj , p1 ) );
 		 auto fmod = std::dynamic_pointer_cast< FunctionMod >( mod );
-		 auto vmod = std::dynamic_pointer_cast< FunctionModVars >( mod );
+		 auto vmod =
+		   std::dynamic_pointer_cast< FunctionModVars >( mod );
 		 assert( ( fmod && ( fmod->function() == of() ) ) ||
 			 ( vmod && ( vmod->function() == of() ) ) );
 		 check( mod );
@@ -1411,9 +1414,11 @@ static void test_dynamic( Rig & r , std::list< T > & l )
 		 return( true );
 		 } ,
 		[ & , n0 , n ]( const sp_Mod & mod ) {
-		 auto bmod = std::dynamic_pointer_cast< BlockModAdd< T > >( mod );
+		 auto bmod =
+		   std::dynamic_pointer_cast< BlockModAdd< T > >( mod );
 		 assert( bmod && ( & bmod->whc() == & l ) );
-		 assert( bmod->is_added() && ( bmod->is_variable() == isvar ) );
+		 assert( bmod->is_added() &&
+			 ( bmod->is_variable() == isvar ) );
 		 assert( bmod->first() == n0 );
 		 auto now = addresses( l );
 		 assert( bmod->added().size() == n );
@@ -1444,8 +1449,8 @@ static void test_dynamic( Rig & r , std::list< T > & l )
 		 for( auto i : gn )
 		  want.push_back( old[ i ] );
 		 if( range.second > range.first ) {
-		  auto bmod = std::dynamic_pointer_cast< BlockModRmvRngd< T > >(
-									mod );
+		  auto bmod =
+		    std::dynamic_pointer_cast< BlockModRmvRngd< T > >( mod );
 		  assert( bmod && ( & bmod->whc() == & l ) );
 		  assert( ( ! bmod->is_added() ) &&
 			  ( bmod->is_variable() == isvar ) );
@@ -1453,8 +1458,8 @@ static void test_dynamic( Rig & r , std::list< T > & l )
 		  assert( addresses( bmod->removed() ) == want );
 		  }
 		 else {
-		  auto bmod = std::dynamic_pointer_cast< BlockModRmvSbst< T > >(
-									mod );
+		  auto bmod =
+		    std::dynamic_pointer_cast< BlockModRmvSbst< T > >( mod );
 		  assert( bmod && ( & bmod->whc() == & l ) );
 		  assert( ( ! bmod->is_added() ) &&
 			  ( bmod->is_variable() == isvar ) );
@@ -2472,7 +2477,8 @@ static void test_changes( void )
  assert( M::lower_bound_stays_valid( shrink ) &&
 	 ( ! M::upper_bound_stays_valid( shrink ) ) &&
 	 ( ! M::solution_stays_feasible( shrink ) ) &&
-	 M::may_shrink_region( shrink ) && ( ! M::may_grow_region( shrink ) ) );
+	 M::may_shrink_region( shrink ) &&
+	 ( ! M::may_grow_region( shrink ) ) );
  assert( M::upper_bound_stays_valid( grow ) &&
 	 ( ! M::lower_bound_stays_valid( grow ) ) &&
 	 M::solution_stays_feasible( grow ) );
@@ -2883,7 +2889,8 @@ static void test_FunctionMod_changes( void )
  const auto C = M::eModCnsCoef;
 
  for( auto [ lhs , rhs ] : { std::pair( 0.0 , 1.0 ) , std::pair( 0.0 , INF ) ,
-			     std::pair( -INF , 1.0 ) , std::pair( -INF , INF ) } ) {
+			     std::pair( -INF , 1.0 ) , std::pair( -INF ,
+								  INF ) } ) {
   c->set_lhs( lhs , eNoMod );
   c->set_rhs( rhs , eNoMod );
   const bool l = ( lhs > -INF );
@@ -3154,7 +3161,8 @@ static void test_adapt( void )
  // a GroupModification: a removal and a fixing make an adapted Solution
  auto grp = last( [ & ]() {
 		   auto chnl = r.block->open_channel();
-		   x->is_fixed( false , Observer::make_par( eModBlck , chnl ) );
+		   x->is_fixed( false ,
+				Observer::make_par( eModBlck , chnl ) );
 		   rmv_d( r.block , *vars , Range( 0 , 1 ) ,
 			  Observer::make_par( eModBlck , chnl ) );
 		   r.block->close_channel( chnl );

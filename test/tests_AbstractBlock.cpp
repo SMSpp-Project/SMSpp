@@ -148,7 +148,8 @@ void runAllTests()
  auto v = kept( new ColVariable() );
  block->add_static_variable( *v );
  assert( block->get_static_variable< ColVariable >( 0 ) == v );
- assert( block->get_static_variable< ColVariable >( 0 )->get_Block() == block );
+ assert( block->get_static_variable< ColVariable >( 0 )->get_Block() ==
+	 block );
  TearDown( block ); // TearDown
 
  // test Adds_StaticVariables_Vector
@@ -833,7 +834,8 @@ static void test_is_edge_cases( void )
  // just below eps it does enter, and an equality is written with its side
  std::ostringstream under;
  block.write_is( under , 1e-10 );
- assert( under.str().find( " 1e-09 * ( e_0: y_0 = 4 )" ) != std::string::npos );
+ assert( under.str().find( " 1e-09 * ( e_0: y_0 = 4 )" ) !=
+	 std::string::npos );
 
  // a row that is not linear carries no multiplier into the certificate
  auto quad = kept( new std::vector< FRowConstraint >( 1 ) );
