@@ -46,6 +46,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `eLastFileParam` is 5, the first value of `smspp_netCDF_file_type` not
+  taken by the five basic file types, rather than 4, the value of
+  `eStateFile`
+
 - the configuration, of the core and of a module that finds it, no longer
   warns that policies CMP0144, CMP0167 and CMP0169 are not set: Boost is
   found by its own package configuration file, the upper-case
