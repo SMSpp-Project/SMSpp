@@ -1429,11 +1429,11 @@ class Block : public Observer {
   * Block1::deserialize() it would return Block2::classname(), and therefore
   * the check would pass.
   *
-  * So, what the method currently does is just to handle the optional "name"
-  * and "ObjectiveWeight" attributes. It does *not* handle the sub-Block,
-  * because there can hardly be any reasonably general way in which they can
-  * be structured (there can be different groups of sub-Block with different
-  * properties).
+  * So, what the method currently does is just to handle the optional
+  * "name", "ObjectiveWeight" and "VariableWeight" attributes. It does *not*
+  * handle the sub-Block, because there can hardly be any reasonably general
+  * way in which they can be structured (there can be different groups of
+  * sub-Block with different properties).
   * By not even trying, we can leave in this method only things that are
   * sensible for each and every :Block. Because of this
   *
@@ -4821,7 +4821,7 @@ class Block : public Observer {
   * decision), then is_optimal( false ) and is_optimal( true ), called in this
   * order, should indeed give the same result. See also the comments to
   * is_feasible() for the cases where the check using the "abstract
-  * representation" may give different results that that using the "physical"
+  * representation" may give different results than that using the "physical"
   * one.
   *
   * The parameter optc, which is a pointer to an arbitrarily complex
@@ -4930,12 +4930,12 @@ class Block : public Observer {
   * performed using the "abstract representation" of the Block, otherwise
   * the "physical representation" of the Block should be used. See the
   * comments to is_feasible() for the cases where the check using the
-  * "abstract representation" may give different results that that using
+  * "abstract representation" may give different results than that using
   * the "physical" one. Also, as in is_feasible(), this value has to be taken
   * as a clue rather than as an order, in the sense that if the required
   * representation is not available then the Block should still do its best to
   * return a meaningful return value with the information it does possess,
-  * even if not the intended one
+  * even if not the intended one.
   *
   * Checking the property is likely to entail some numerical computation, say
   * to verify that some matrix-vector scalar product is "zero". This may
@@ -4947,7 +4947,7 @@ class Block : public Observer {
   * used to specify that only "a part" of the check, say considering only a
   * subset of the Constraint, need be performed.
   *
-  * Note that the fsbc parameter is meant as an *override* of the default
+  * Note that the optc parameter is meant as an *override* of the default
   * Configuration for is_optimal() set by means of set_BlockConfig(). That
   * is, if the method is called with optc == nullptr then the corresponding
   * configuration from the BlockConfig() is used. If the BlockConfig is not

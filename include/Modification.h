@@ -767,7 +767,7 @@ class AModification : public Modification {
  /** This method allows to set the value returned by concerns_Block( void ),
   *
   *      WHICH IS A VERY DELICATE OPERATION THAT NEEDS TO BE DONE WITH
-  *      EXTREME CARE. THERE IS NO REASON (I SEE NOW) WHY A :Block SHOULD
+  *      EXTREME CARE. THERE IS NO KNOWN REASON WHY A :Block SHOULD
   *      CHANGE THE VALUE FROM false TO true (THIS CAN BE DONE IN Block WHEN
   *      HANDLING CHANNELS). THE ONLY PLACE IN WHICH THE VALUE SHOULD BE
   *      CHANGED FROM true TO false IS INSIDE add_Modification() OF THE

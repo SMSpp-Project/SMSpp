@@ -123,7 +123,7 @@ class FRowConstraint : public RowConstraint, public Observer {
  /// "rough destructor": calls the version of the Function object
  /** The clear() method just calls clear() in the inner Function (if any).
   * This results in the list of Variable of the Function to be emptied,
-  * so that in the destructor they re not un-registered. */
+  * so that in the destructor they are not un-registered. */
 
  void clear() override {
   if( f_function )
@@ -145,10 +145,10 @@ class FRowConstraint : public RowConstraint, public Observer {
   * different Function.
   *
   * For some reason, the caller may want instead to manage the Function object
-  * herself. This is why the deleteold is provided; if true then the previous
+  * herself. This is why deleteold is provided; if true then the previous
   * Function object (if any) is deleted, otherwise it is not. In the latter
-  * case, it is assumed that the called has another pointer to the Function
-  * and will dispose of it in due time. Thus, a call to set_function()
+  * case, it is assumed that the caller has another pointer to the Function
+  * and will dispose of it in due time. A call to set_function( nullptr )
   * removes any Function from the FRowConstraint, leaving it "empty".
   *
   * Note that
@@ -156,7 +156,7 @@ class FRowConstraint : public RowConstraint, public Observer {
   *    FRowConstraint REGISTERS ITSELF IN THE Variable OF THE Function
   *
   * This process, which is completely transparent to the Function itself,
-  * primarily happen between this method. However, in addition
+  * primarily happens in this method. However, in addition
   *
   *     EACH TIME A Variable IS ADDED/REMOVED FROM THE Function, THE
   *     FRowConstraint WILL HAVE TO REGISTER/UNREGISTER ITSELF FROM

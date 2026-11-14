@@ -771,9 +771,9 @@ void Block::add_Modification( sp_Mod mod , ChnlName chnl )
  // Modification should generally not even be issued if ! anyone_there(), but
  // there is an exception: "abstract" Modification under the default eModBlck
  // mode are still issued in order to keep the "abstract" representation in
- // synch with the "phisical" one. this is supposed to happen in the
- // :Block::add_Modification(), that then should call this method. without
- // the following check this would result in the Modification being uslessly
+ // sync with the "physical" one. This is supposed to happen in the
+ // :Block::add_Modification(), that then should call this method. Without
+ // the following check this would result in the Modification being uselessly
  // passed up to all the chain of ancestors of the Block, the check avoids it
  if( ! anyone_there() )
   return;
@@ -895,8 +895,9 @@ void Block::close_channel( ChnlName chnl , bool force , bool discard )
     auto root = GMit->second;
 
     // if concerns_Block() of the current GroupModification is true, ensure
-    // that the concerns_Block() of is also true up until the top; what it
-    // changes goes up as well, each level adding what it changes itself
+    // that the concerns_Block() of its ancestors is also true up until the
+    // top; what it changes goes up as well, each level adding what it
+    // changes itself
     const bool concerns = root->concerns_Block();
     while( root->father() ) {
      const auto changes = root->changes();

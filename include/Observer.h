@@ -628,7 +628,7 @@ class Observer {
   * method "downgrades" the "mod" part of the parameter to eNoBlck if it is
   * eModBlck keeping the same channel, and does nothing otherwise.
   * This is the same as not_ModBlock() and it has the same use, but it
-  * returns the modified (or nor) value rather than changing the input
+  * returns the modified (or not) value rather than changing the input
   * variable. */
 
  static ModParam un_ModBlock( ModParam issueMod ) {

@@ -184,7 +184,7 @@ class Solver : public ThinComputeInterface
   *   specific error, kLowPrecision, is already provided for the case where
   *   the issue is not numerical, but inherent in what the solver is
   *   (heuristic, hence explicitly incapable of solving every instance to
-  *   optimality. */
+  *   optimality). */
 
  enum sol_type {
   kUnbounded = kUnEval + 1 ,  ///< the model is provably unbounded
@@ -1740,7 +1740,7 @@ class Solver : public ThinComputeInterface
   *
   * - calls either get_var_solution() or get_var_direction() depending on
   *   which among has_var_solution() and has_var_direction() is true (if
-  *   none it returns nullptr, if both it check and returns solutions first)
+  *   none it returns nullptr, if both it checks and returns solutions first)
   *   to have the solution / direction written in the Variable of the Block;
   *
   * - calls Block::get_Solution() to retrieve the Solution object;

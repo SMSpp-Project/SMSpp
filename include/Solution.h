@@ -562,10 +562,10 @@ class Solution
   * This implies that there might be different Solution objects relative to
   * a given Block; say, the "original ones" corresponding to combinatorial
   * solutions (a path, represented by a predecessor function) and the "scaled
-  * ones) produced by scaling and/or summing (see sum()) below (say, a double
+  * ones" produced by scaling and/or summing (see sum()) below (say, a double
   * for each arc of the graph). Thus, scale() might return a Solution object
   * that, while being appropriate for the original Block, may in fact be "of
-  * a different type" than the originating one". The requirement is that the
+  * a different type" than the originating one. The requirement is that the
   * newly created Solution must be a "general" one, in the sense that it
   * makes sense (obviously) to scale it, and also to *sum* it with other
   * Solution objects, see sum(). The method in the base class returns
