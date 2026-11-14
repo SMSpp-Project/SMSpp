@@ -97,20 +97,16 @@ namespace SMSpp_di_unipi_it
  * linker is invoked via the compiler), and "-all_load" for clang++. Note that
  * the behaviour depends on the default settings of the linker and therefore
  * it may change even for the same compiler toolchain on different OS
- * distributions. Yet, activating said options may have unwanted side effects
- * that one may want to do without. This is why the further macro
- *
- *   SMSpp_ensure_load( < class name > )
- *
- * is provided. By adding it at the beginning of a .cpp, it does some dirty
- * but hopefully not terribly costly things that ensure that < class name >
- * is added to the corresponding factory. However, note that for this to
- * work the corresponding headed must be explicitly included; it is not
- * possible to automatically include files using a macro due to the fact that
- * the C preprocessor only does one pass, and while there are some very dirty
- * hacks around that we prefer to steer well clear of those. Anyway this
- * mechanism should only be used as last resort since it has a (hopefully,
- * little but) nonzero cost at runtime.
+ * distributions. For this reason SMSpp_insert_in_factory_cpp_0 and
+ * SMSpp_insert_in_factory_cpp_1 also define the empty extern "C" function
+ * SMSpp_force_load_< class name >, and the CMake target of a module built
+ * as a shared library tells whoever links it to keep the one of the class
+ * named after the module, which keeps the whole library and therefore all
+ * its classes: by "/INCLUDE:" with MSVC, by "-u" with ld64 (where the
+ * symbol has a leading '_') and with MinGW, while the ELF linker, which
+ * keeps a library only for the symbols that a regular object asks for, is
+ * given "--no-as-needed". An executable not linked to these targets has to
+ * pass the same options by itself.
  * @{ */
 
 /** The macro defines a very small, "fake" class _init. Its only meaning is to
@@ -207,7 +203,11 @@ inline std::string && SMSpp_classname_normalise( std::string && str ) {
  * 3) the actual implementation of the static ClassType::_private_name();
  *
  * 4) the actual implementation of virtual ClassType::private_name(), itself
- *    using ClassType::_private_name().
+ *    using ClassType::_private_name();
+ *
+ * 5) in the non-template versions, the definition of the empty extern "C"
+ *    function SMSpp_force_load_< ClassName > that the linker is told to
+ *    keep (see above).
  *
  * The approach can be applied to any class deriving from a base class that
  * has the following (possibly, pure virtual) methods (that should be visible
