@@ -1819,7 +1819,7 @@ class Solver : public ThinComputeInterface
   * simply clone() it and return the thusly generated copy. When it does,
   * however,
   *
-  *    THE Solution OBJECT SHOULD BE ASKED TO THE Block WITH new_Solution(),
+  *    THE Solution OBJECT SHOULD BE ASKED TO THE Block WITH get_Solution(),
   *    RATHER THAN BE CONSTRUCTED BY NAME
   *
   * because the :Solution a :Block wants is the :Block's business, and a
