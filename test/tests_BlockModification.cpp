@@ -12,8 +12,9 @@
  * opposite meanings), over the arithmetic of the parameter that says if, how
  * and where a Modification is issued, over the channels that pack them into
  * a GroupModification (nested, forced, empty, emptied, discarded, and
- * hijacking the default channel), and over the path of a Modification from a
- * sub-Block to the Solver of its father.
+ * hijacking the default channel), and over the path of a Modification from
+ * a sub-Block to the Solver of its father, also for a sub-Block constructed
+ * while the Solver is registered.
  *
  * \author Donato Meoli \n
  *         Dipartimento di Informatica \n
@@ -1685,6 +1686,54 @@ static void test_sub_Block( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/// a FakeSolver that has a sub-Block nested into the Block it is given
+/** As a Solver that generates the abstract representation of its Block may
+ * have the Block construct its sub-Block, which happens before the Block
+ * has the Solver in its list. */
+
+class NestingSolver : public FakeSolver {
+ public:
+
+ void set_Block( Block * block ) override {
+  if( auto ab = dynamic_cast< AbstractBlock * >( block ) ) {
+   nested = new AbstractBlock( ab );
+   ab->add_nested_Block( nested );
+   }
+  FakeSolver::set_Block( block );
+  }
+
+ AbstractBlock * nested = nullptr;  ///< the sub-Block it has nested
+ };
+
+/* A sub-Block constructed while the Solver is given its Block knows that
+ * someone is listening, and its Modification reach the Solver of its
+ * father. */
+
+static void test_sub_Block_of_set_Block( void )
+{
+ auto father = new AbstractBlock;
+ auto ns = new NestingSolver;
+ father->register_Solver( ns );
+ auto nested = ns->nested;
+ assert( nested );
+ expect( nested->anyone_there() , "a sub-Block nested by set_Block() does "
+	 "not know that the Solver of its father listens" );
+
+ auto v = kept( new ColVariable );
+ nested->add_static_variable( *v , "v" );
+ auto & mods = ns->get_Modification_list();
+ mods.clear();
+ v->is_fixed( true , eNoBlck );
+ expect( mods.size() == 1 , "the Modification of a sub-Block nested by "
+	 "set_Block() does not reach the Solver of its father" );
+
+ father->unregister_Solvers( true );
+ assert( ! nested->anyone_there() );
+ delete father;
+ std::cout << "sub-Block of set_Block(): OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
 /*----------------------------------- MAIN ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1709,6 +1758,7 @@ int main( void )
  test_default_channel();
  test_clear_and_discard();
  test_sub_Block();
+ test_sub_Block_of_set_Block();
 
  while( ! given.empty() )
   given.pop_back();

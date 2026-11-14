@@ -50,6 +50,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `Block::register_Solver()` told the sub-Block that someone listens before
+  calling `Solver::set_Block()`, so that the sub-Block that the latter had
+  constructed (say, by generating the abstract representation of the Block)
+  did not know it, and their Modification did not reach the Solver; it now
+  tells them after `set_Block()` as well
+
 - `LagBFunction` updated the constants of the global pool kept under
   `intPoolExtMem` == 0 after a change of the costs only if the indices of
   the Modification were still those of the Objective, and read past its end

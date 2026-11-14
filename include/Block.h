@@ -5916,6 +5916,12 @@ class Block : public Observer {
    v_Solver.push_front( newSolver );
   else
    v_Solver.push_back( newSolver );
+
+  // set_Block() may have had sub-Block constructed (say, by generating the
+  // abstract representation), and those know nothing yet
+  if( ! f_at )
+   for( auto el : v_Block )
+    el->anyone_there( true );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
