@@ -348,7 +348,8 @@ void C05SumFunction::flush_pending( ChnlName chnl )
   * a shift of the sum, and which concerns the Block if either does. Two
   * finite shifts give their sum, a monotone change (+-INFshift) stays so
   * only with changes of the same sign (monotone or finite), anything else is
-  * unpredictable (NaN). */
+  * unpredictable (NaN); the intervals [see FunctionMod::shift_lower()] add
+  * up end by end. */
 
  auto same = []( const sp_Mod & a , const sp_Mod & b ) -> bool {
   const auto ca = std::dynamic_pointer_cast< C05FunctionMod >( a );
@@ -371,17 +372,29 @@ void C05SumFunction::flush_pending( ChnlName chnl )
   return( a + b );
   };
 
+ // the ends of two intervals add up, an infinite end staying infinite
+ auto add_end = []( FunctionValue a , FunctionValue b , FunctionValue inf )
+  -> FunctionValue {
+  if( ( a == inf ) || ( b == inf ) )
+   return( inf );
+  return( a + b );
+  };
+
  while( ! v_pending.empty() ) {
   auto out = v_pending.front();
   v_pending.pop_front();
   auto fout = std::static_pointer_cast< FunctionMod >( out );
   FunctionValue shift = fout->shift();
+  FunctionValue lo = fout->shift_lower();
+  FunctionValue hi = fout->shift_upper();
   bool cB = fout->concerns_Block();
   bool merged = false;
 
   while( ( ! v_pending.empty() ) && same( out , v_pending.front() ) ) {
    auto nxt = std::static_pointer_cast< FunctionMod >( v_pending.front() );
    shift = add_shift( shift , nxt->shift() );
+   lo = add_end( lo , nxt->shift_lower() , - FunctionMod::INFshift );
+   hi = add_end( hi , nxt->shift_upper() , FunctionMod::INFshift );
    cB = cB || nxt->concerns_Block();
    v_pending.pop_front();
    merged = true;
@@ -394,6 +407,8 @@ void C05SumFunction::flush_pending( ChnlName chnl )
                                               shift , cB );
    else
     out = std::make_shared< FunctionMod >( this , shift , cB );
+   std::static_pointer_cast< FunctionMod >( out )->set_shift_interval( lo ,
+                                                                        hi );
    }
 
   f_Observer->add_Modification( std::move( out ) , chnl );
@@ -628,6 +643,10 @@ void C05SumFunction::translate_Modification( const sp_Mod & mod ,
    else
     out = std::make_shared< FunctionMod >( this , fmod->shift() ,
                                            fmod->concerns_Block() );
+
+  // the interval of the change of the member is that of the sum
+  std::static_pointer_cast< FunctionMod >( out )->set_shift_interval(
+                               fmod->shift_lower() , fmod->shift_upper() );
 
   emit( std::move( out ) , chnl );
 

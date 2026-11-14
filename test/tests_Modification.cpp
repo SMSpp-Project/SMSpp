@@ -3089,6 +3089,200 @@ static void test_LagBFunction_concerned( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* The interval of the change of a Function [see FunctionMod::shift_lower()]:
+ * without one, shift_lower() and shift_upper() say what shift() says, with
+ * one they combine it with what shift() says, and an empty or undefined one
+ * is refused. The Observer of the Function says the directions of the
+ * change by the ends of the interval. A LagBFunction whose inner Objective
+ * changes its linear costs says, with shift() == NaN, the interval of the
+ * change over the box of the Variable of the inner Block: for d the change
+ * of the cost of x_j in [ l_j , u_j ], from min( d l_j , d u_j ) to
+ * max( d l_j , d u_j ), summed over j and multiplied by the weight of the
+ * Objective; an infinite bound gives an infinite end, a relaxed
+ * OneVarConstraint does not bound, and a fixed Variable has its value as
+ * both bounds. */
+
+static void test_shift_interval( void )
+{
+ using M = Modification;
+ static constexpr double NaN = FunctionMod::NaNshift;
+
+ // what shift() alone says - - - - - - - - - - - - - - - - - - - - - - - - -
+ {
+  auto ends = []( double s , double lo , double hi ) {
+   FunctionMod mod( nullptr , s );
+   return( ( mod.shift_lower() == lo ) && ( mod.shift_upper() == hi ) );
+   };
+  assert( ends( 2 , 2 , 2 ) );
+  assert( ends( 0 , 0 , 0 ) );
+  assert( ends( INF , 0 , INF ) );
+  assert( ends( -INF , -INF , 0 ) );
+  assert( ends( NaN , -INF , INF ) );
+  }
+
+ // with an interval, combined with shift() - - - - - - - - - - - - - - - - -
+ {
+  auto ends = []( double s , double l , double h , double lo , double hi ) {
+   FunctionMod mod( nullptr , s );
+   mod.set_shift_interval( l , h );
+   return( std::isnan( mod.shift() ) == std::isnan( s ) &&
+           ( mod.shift_lower() == lo ) && ( mod.shift_upper() == hi ) );
+   };
+  assert( ends( NaN , -1 , 2 , -1 , 2 ) );
+  assert( ends( NaN , -INF , 2 , -INF , 2 ) );
+  assert( ends( INF , -1 , 2 , 0 , 2 ) );
+  assert( ends( INF , 1 , 2 , 1 , 2 ) );
+  assert( ends( -INF , -1 , 2 , -1 , 0 ) );
+  assert( ends( 3 , -1 , 5 , 3 , 3 ) );
+
+  FunctionMod mod( nullptr , NaN );
+  bool thrown = false;
+  try { mod.set_shift_interval( 2 , 1 ); }
+  catch( std::invalid_argument & ) { thrown = true; }
+  assert( thrown );
+  thrown = false;
+  try { mod.set_shift_interval( NaN , 1 ); }
+  catch( std::invalid_argument & ) { thrown = true; }
+  assert( thrown );
+  }
+
+ // the directions that the Observer says - - - - - - - - - - - - - - - - - -
+ {
+  Rig r;
+  auto x = kept( new std::vector< ColVariable >( 1 ) );
+  r.block->add_static_variable( *x , "x" );
+  auto rf = new LinearFunction( { { & ( *x )[ 0 ] , 1 } } );
+  auto c = kept( new FRowConstraint( nullptr , 0 , 1 , rf ) );
+  r.block->add_static_constraint( *c , "c" );
+  auto of = new LinearFunction( { { & ( *x )[ 0 ] , 1 } } );
+  auto obj = new FRealObjective( nullptr , of );
+  r.objective = obj;
+  r.block->set_objective( obj , eNoMod );
+
+  auto says = [ & ]( Observer * o , Function * f , double lo , double hi ) {
+   r.clear();
+   const auto mod = std::make_shared< FunctionMod >( f , NaN );
+   mod->set_shift_interval( lo , hi );
+   o->add_Modification( mod );
+   r.clear();
+   return( mod->changes() );
+   };
+
+  assert( says( obj , of , 1 , 2 ) == ( M::eModObj | M::eObjUp ) );
+  assert( says( obj , of , -2 , -1 ) == ( M::eModObj | M::eObjDown ) );
+  assert( says( obj , of , -1 , 1 ) == ( M::eModObj | M::eObjUp |
+                                         M::eObjDown ) );
+  // upwards the RHS 1 may be violated and the LHS 0 is easier
+  assert( says( c , rf , 0 , 2 ) == ( M::eModCnsCoef | M::eRegnShrink |
+                                      M::eRegnGrow ) );
+  c->set_lhs( -INF , eNoMod );
+  assert( says( c , rf , 0 , 2 ) == ( M::eModCnsCoef | M::eRegnShrink ) );
+  assert( says( c , rf , -2 , 0 ) == ( M::eModCnsCoef | M::eRegnGrow ) );
+  }
+
+ // what a LagBFunction says of a change of its costs - - - - - - - - - - - -
+ {
+  Rig r;
+  std::vector< ColVariable > y( 1 );                     // the multiplier
+  auto inner = new PhysBlock;
+  auto z = kept( new std::vector< ColVariable >( 3 ) );
+  inner->add_static_variable( *z , "z" );
+  auto Z = [ z ]( Index i ) { return( & ( *z )[ i ] ); };
+  // z_0 in [ 0 , 2 ], z_1 in [ -1 , 3 ], z_2 >= 0 with no upper bound
+  auto box = kept( new std::vector< BoxConstraint >( 2 ) );
+  ( *box )[ 0 ].set_variable( Z( 0 ) );
+  ( *box )[ 0 ].set_lhs( 0 , eNoMod );
+  ( *box )[ 0 ].set_rhs( 2 , eNoMod );
+  ( *box )[ 1 ].set_variable( Z( 1 ) );
+  ( *box )[ 1 ].set_lhs( -1 , eNoMod );
+  ( *box )[ 1 ].set_rhs( 3 , eNoMod );
+  inner->add_static_constraint( *box , "box" );
+  Z( 2 )->is_positive( true , eNoMod );
+  auto of = new LinearFunction( { { Z( 0 ) , 1 } , { Z( 1 ) , 2 } ,
+                                  { Z( 2 ) , 1 } } );
+  auto iobj = new FRealObjective( inner , of );
+  inner->set_objective( iobj , eNoMod );
+
+  auto lbf = new LagBFunction( inner );
+  LagBFunction::v_dual_pair dp;
+  dp.emplace_back( & y[ 0 ] , new LinearFunction(
+                                    v_coeff_pair{ { Z( 0 ) , 1 } } , 2 ) );
+  lbf->set_dual_pairs( std::move( dp ) );
+  lbf->register_Observer( r.block );
+
+  // the AlphaChanged that the LagBFunction issues after the change, of
+  // which there is exactly one, with shift() == NaN and the given ends
+  auto alpha = [ & ]( std::function< void( void ) > change , double lo ,
+                      double hi ) {
+   r.clear();
+   change();
+   std::shared_ptr< LagBFunctionMod > got;
+   for( const auto & mod : r.got() )
+    if( auto lmod = std::dynamic_pointer_cast< LagBFunctionMod >( mod ) )
+     if( lmod->type() == C05FunctionMod::AlphaChanged ) {
+      assert( ! got );
+      got = lmod;
+      }
+   assert( got && std::isnan( got->shift() ) );
+   const bool ok = ( got->shift_lower() == lo ) &&
+                   ( got->shift_upper() == hi );
+   r.clear();
+   return( ok );
+   };
+
+  // + 1 on z_1 in [ -1 , 3 ], - 2 on z_0 in [ 0 , 2 ]
+  assert( alpha( [ & ]() { of->modify_coefficient( 1 , 3 , eModBlck ); } ,
+                 -1 , 3 ) );
+  assert( alpha( [ & ]() { of->modify_coefficient( 0 , -1 , eModBlck ); } ,
+                 -4 , 0 ) );
+
+  // both at once, back to where they were: + 2 on z_0 , - 1 on z_1
+  assert( alpha( [ & ]() {
+                  of->modify_coefficients( Vec_FV( { 1 , 2 } ) ,
+                                           Range( 0 , 2 ) , eModBlck ); } ,
+                 -3 , 5 ) );
+
+  // on a Subset: + 1 on z_0 , - 1 on z_1 , i.e. [ 0 - 3 , 2 + 1 ]
+  assert( alpha( [ & ]() {
+                  of->modify_coefficients( Vec_FV( { 2 , 1 } ) ,
+                                           Subset( { 0 , 1 } ) , true ,
+                                           eModBlck ); } ,
+                 -3 , 3 ) );
+
+  // + 1 on z_2 >= 0: up by at least 0, by at most anything; - 1 on z_2:
+  // the opposite
+  assert( alpha( [ & ]() { of->modify_coefficient( 2 , 2 , eModBlck ); } ,
+                 0 , INF ) );
+  assert( alpha( [ & ]() { of->modify_coefficient( 2 , 1 , eModBlck ); } ,
+                 -INF , 0 ) );
+
+  // a relaxed bound does not bound
+  ( *box )[ 1 ].relax( true , eNoMod );
+  assert( alpha( [ & ]() { of->modify_coefficient( 1 , 2 , eModBlck ); } ,
+                 -INF , INF ) );
+  ( *box )[ 1 ].relax( false , eNoMod );
+
+  // a fixed Variable has its value as both bounds
+  Z( 0 )->set_value( 1.5 );
+  Z( 0 )->is_fixed( true , eNoMod );
+  assert( alpha( [ & ]() { of->modify_coefficient( 0 , 4 , eModBlck ); } ,
+                 3 , 3 ) );
+  Z( 0 )->is_fixed( false , eNoMod );
+
+  // the weight of the LagBFunction multiplies it all: - 2 on z_0 in [ 0 , 2 ]
+  lbf->set_objective_weight( 0.5 , eNoMod );
+  assert( alpha( [ & ]() { of->modify_coefficient( 0 , 2 , eModBlck ); } ,
+                 -2 , 0 ) );
+
+  r.clear();
+  lbf->register_Observer( nullptr );
+  delete lbf;
+  iobj->set_Block( nullptr );
+  delete iobj;
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
 /* What Solution::adapt() answers: a ColVariableSolution drops the value of
  * a removed dynamic Variable and is unchanged by what does not touch what it
  * holds, a NModification invalidates it, a GroupModification combines the
@@ -3189,6 +3383,7 @@ int main( void )
  test_LagBFunction_concerned();
  test_issue_by_kind();
  test_FunctionMod_changes();
+ test_shift_interval();
  test_C05FunctionModLin_sizes();
  test_dry_run_BendersBFunction();
  test_dry_run_C05SumFunction();

@@ -631,8 +631,9 @@ void BoxSolver::check_sense( Block * blck )
 
 /*--------------------------------------------------------------------------*/
 
-void BoxSolver::get_var_data( ColVariable & var ,
-			      VarValue & l , VarValue & u )
+void BoxSolver::get_box( ColVariable & var , Block * blck ,
+			 ColVariable::VarValue & l , ColVariable::VarValue & u ,
+			 bool zero_duals )
 {
  // initialize upper and lower bound
  if( var.is_fixed() )
@@ -643,21 +644,19 @@ void BoxSolver::get_var_data( ColVariable & var ,
   }
 
  // scan through all active stuff: compute in l and u the tightest lower
- // and upper bounds, and in cl, cu the pointer to the OneVarConstraint that
- // correspond to the "tight" cl / cu (if any)
+ // and upper bounds
  for( Block::Index i = 0 ; i < var.get_num_active() ; ++i ) {
   auto ai = var.get_active( i );
 
   // check that the ThinVarDepInterface belongs to the Block (or any of
   // its sub-Block, recursively)
-  auto blck = ai->get_Block();
-  while( blck && ( blck != f_Block ) )
-   blck = blck->get_f_Block();
+  auto b = ai->get_Block();
+  while( b && ( b != blck ) )
+   b = b->get_f_Block();
 
-  if( ! blck )  // if not
-   continue;    // ignore it: it must be defined in a Block enclosing the
-                // one to which BoxSolver is registered, which means it is
-                // not something that BoxSolver "sees"
+  if( ! b )     // if not
+   continue;    // ignore it: it must be defined in a Block enclosing blck,
+                // which means it is not something that blck "says"
 
   // a OneVarConstraint, which bounds var only if it is not relaxed
   if( auto ovr = dynamic_cast< OneVarConstraint * >( ai ) ) {
@@ -668,7 +667,7 @@ void BoxSolver::get_var_data( ColVariable & var ,
      u = rhs;
     }
 
-   if( f_sol & 2 )        // the dual solution is required
+   if( zero_duals )       // the dual solution is required
     ovr->set_dual( 0 );   // it is 0 unless otherwise proven
    }
 
@@ -683,7 +682,15 @@ void BoxSolver::get_var_data( ColVariable & var ,
   l = std::ceil( l );
   u = std::floor( u );
   }
- }  // end( BoxSolver::get_var_data )
+ }  // end( BoxSolver::get_box )
+
+/*--------------------------------------------------------------------------*/
+
+void BoxSolver::get_var_data( ColVariable & var ,
+			      VarValue & l , VarValue & u )
+{
+ get_box( var , f_Block , l , u , f_sol & 2 );
+ }
 
 /*--------------------------------------------------------------------------*/
 

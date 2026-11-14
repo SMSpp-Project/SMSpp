@@ -197,15 +197,16 @@ void FRealObjective::add_Modification( sp_Mod mod , c_ChnlName chnl ) {
    }
 
   // FunctionMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  // the shift of the Function is that of the objective, whatever the sense
+  // the shift of the Function is that of the objective, whatever the sense,
+  // and so are the ends of the interval of the change, which say the same
+  // as shift() when no interval is set [see FunctionMod::shift_lower()]
   {
    const auto tmod = std::dynamic_pointer_cast< FunctionMod >( mod );
    if( tmod ) {
-    const auto shift = tmod->shift();
     Modification::ModConcern c = Modification::eModObj;
-    if( std::isnan( shift ) || ( shift > 0 ) )
+    if( tmod->shift_upper() > 0 )
      c |= Modification::eObjUp;
-    if( std::isnan( shift ) || ( shift < 0 ) )
+    if( tmod->shift_lower() < 0 )
      c |= Modification::eObjDown;
     tmod->set_changes( c );
     return;

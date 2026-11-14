@@ -2909,14 +2909,76 @@ class LagBFunction : public C05Function , public Block
   }
 
 /*--------------------------------------------------------------------------*/
+ /// an interval [ lo , hi ] containing the change of the value
+ /** The first is lo, the second hi, either possibly infinite [see
+  * FunctionMod::set_shift_interval()]. */
 
- void update_CostMatrix_ModLinRngd( Index h , const v_coeff_pair & rc ,
-				    c_Vec_p_Var & vars , c_Range & rng );
+ using shift_interval = std::pair< FunctionValue , FunctionValue >;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the original costs of v_Obj[ h ] that change, one by one
+ /** Each change( j , k ) writes in CostMatrix[ h ][ j ] the new original
+  * cost rc[ k ].second, the coefficient of the Variable rc[ k ].first in the
+  * Objective, with d its difference with the old one. Since the
+  * Lagrangian costs do not change, at every value of the multipliers the
+  * LagBFunction changes by \f$ w \sum d_j x_j \f$ at the optimal x of the
+  * inner Block, w the weight of the Objective [see obj_w()], whence for
+  * every multiplier
+  * \f[
+  *   \min_{x \in X} w \sum_j d_j x_j \leq f( y ) - f_{old}( y ) \leq
+  *   \max_{x \in X} w \sum_j d_j x_j
+  * \f]
+  * (the optimal x of the new function is feasible for the old one, and
+  * vice-versa, whether the inner Block is a min or a max), with X the
+  * feasible region of the inner Block, which is contained in the box of
+  * BoxSolver::get_box(); each term ranges over d_j [ l_j , u_j ], and their
+  * sum is what finish() returns, multiplied by w. finish() also updates the
+  * eager constants of the global pool [see eager_pool_cost_delta()]. */
+
+ class cost_change {
+  public:
+   cost_change( LagBFunction & lbf , Index h , const v_coeff_pair & rc );
+
+   /// the index in rc of vi, looked for around j; Inf< Index >() if none
+   Index find( Variable * vi , Index j ) const;
+
+   /// CostMatrix[ h ][ j ] takes the coefficient rc[ k ]
+   void change( Index j , Index k );
+
+   /// the interval of the change of the LagBFunction
+   shift_interval finish( void );
+
+  private:
+   LagBFunction & f_lbf;
+   Index f_h;
+   const v_coeff_pair & f_rc;
+   m_column & f_CM;
+   FunctionValue f_lo;
+   FunctionValue f_hi;
+   std::vector< std::pair< Index , double > > f_jdeltas;
+  };
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- void update_CostMatrix_ModLinSbst( Index h , const v_coeff_pair & rc ,
-				    c_Vec_p_Var & vars , c_Subset & sbst );
+ shift_interval update_CostMatrix_ModLinRngd( Index h ,
+                                              const v_coeff_pair & rc ,
+                                              c_Vec_p_Var & vars ,
+                                              c_Range & rng );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ shift_interval update_CostMatrix_ModLinSbst( Index h ,
+                                              const v_coeff_pair & rc ,
+                                              c_Vec_p_Var & vars ,
+                                              c_Subset & sbst );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// issue a LagBFunctionMod AlphaChanged with the interval dv of the change
+ /** The Modification has what() == 1 and shift() == NaN, the interval dv
+  * being set [see FunctionMod::set_shift_interval()] if either of its ends
+  * is finite. */
+
+ void issue_alpha_changed( shift_interval dv , ChnlName chnl );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// EAGER: propagate an original-cost change to the stored pool constants

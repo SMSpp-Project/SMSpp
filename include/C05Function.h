@@ -1732,6 +1732,7 @@ class C05FunctionMod : public FunctionMod
       output << "(-)";
      else
       output << " by " << f_shift;
+   print_shift_interval( output );
    }
   output << std::endl;
   }
@@ -1915,6 +1916,7 @@ class C05FunctionModRngd : public C05FunctionMod
       output << "(-)";
      else
       output << " by " << f_shift;
+   print_shift_interval( output );
    }
   output << std::endl;
   }
@@ -2049,6 +2051,7 @@ class C05FunctionModSbst : public C05FunctionMod
       output << "(-)";
      else
       output << " by " << f_shift;
+   print_shift_interval( output );
    }
   output << std::endl;
   }

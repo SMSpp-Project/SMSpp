@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- the interval of the change of a `FunctionMod`: `set_shift_interval()`
+  says that the change of the value lies in [ lo , hi ] at every point,
+  `shift()` keeping what it says, and `shift_lower()` / `shift_upper()`
+  combine the interval with `shift()`; `LagBFunction` gives it, with
+  `shift()` NaN as before, when the linear costs of its inner Objective
+  change, from the box of the Variable of the inner Block (the change
+  being w sum_j d_j x_j, w the weight of the Objective), `C05SumFunction`
+  passes it on and adds it up, `FRealObjective` and `FRowConstraint` read
+  the directions of the change from it; `BoxSolver::get_box()` gives the
+  box of a ColVariable in a Block
+
 - the global lower bound of the primal `MasterProblemBlock`: the level row
   is the row LB <= b*d + sum_k v^k <= f_lev with any stabilization, with
   infinite sides until `set_global_LB()` and `set_f_lev()` give them, and

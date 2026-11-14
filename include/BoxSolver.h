@@ -309,7 +309,7 @@ public:
 
  void get_dual_solution( Configuration *solc = nullptr ) override;
 
- /*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 
  [[nodiscard]] bool has_var_direction( void ) override {
   return( f_state == kUnbounded );
@@ -343,6 +343,25 @@ public:
 
   return( f_sense == 0 ? f_max_val : f_min_val );
   }
+
+/*--------------------------------------------------------------------------*/
+ /// the box of a ColVariable in a Block
+ /** Returns in l and u the tightest bounds on var that the Block blck, or
+  * any of its sub-Block (recursively), says: those of var itself [see
+  * ColVariable::get_lb() and ColVariable::get_ub()], or its value if var is
+  * fixed, intersected with those of every OneVarConstraint on var that
+  * belongs to blck and is not relaxed, the extremes made integer if var is.
+  * The set of the values that var takes in the feasible solutions of blck
+  * is contained in [ l , u ], which is empty (l > u) if the bounds
+  * contradict each other. With zero_duals, the dual value of every
+  * OneVarConstraint on var that belongs to blck is set to 0. This is what
+  * BoxSolver reads of each ColVariable, and anyone else can read the same,
+  * e.g., to bound how much a linear Objective of blck can change when its
+  * coefficients do. */
+
+ static void get_box( ColVariable & var , Block * blck ,
+		      ColVariable::VarValue & l , ColVariable::VarValue & u ,
+		      bool zero_duals = false );
 
 /** @} ---------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/

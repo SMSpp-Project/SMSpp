@@ -270,14 +270,15 @@ void FRowConstraint::add_Modification( sp_Mod mod , c_ChnlName chnl )
 
   // FunctionMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /* The Function shifted upwards makes the RHS harder to satisfy and the LHS
-     easier, downwards the opposite, NaN both; a relaxed Constraint is not
-     in the feasible region, which does not change. */
+     easier, downwards the opposite, NaN both; the direction is that of the
+     ends of the interval of the change [see FunctionMod::shift_lower()],
+     which say the same as shift() when no interval is set. A relaxed
+     Constraint is not in the feasible region, which does not change. */
   {
    const auto tmod = std::dynamic_pointer_cast< FunctionMod >( mod );
    if( tmod ) {
-    const auto shift = tmod->shift();
-    const bool up = std::isnan( shift ) || ( shift > 0 );
-    const bool down = std::isnan( shift ) || ( shift < 0 );
+    const bool up = tmod->shift_upper() > 0;
+    const bool down = tmod->shift_lower() < 0;
     const bool lhs = get_lhs() > -RHSINF;
     const bool rhs = get_rhs() < RHSINF;
     Modification::ModConcern c = Modification::eModCnsCoef;

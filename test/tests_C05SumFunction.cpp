@@ -451,15 +451,18 @@ int main( void )
   assert( fmod->shift() == 7.5 );
   }
 
- // the shifts of the merged ones add up as changes do: a monotone one - - - -
+ // the shifts of the merged ones add up as changes do: a monotone one
  // (+-INFshift) stays so only with ones of its sign, otherwise the change
- // is unpredictable (NaN)
+ // is unpredictable (NaN), and the intervals [see FunctionMod::shift_lower()]
+ // add up end by end - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  {
   static constexpr auto INF = FunctionMod::INFshift;
   static constexpr auto NaN = FunctionMod::NaNshift;
-  // the shift that the sum says of the members changed by the shifts sh
-  auto merged = [ & ]( std::vector< FunctionValue > sh ) {
+  // what the sum says of the members changed by the shifts sh, the first
+  // member also with the interval [ lo , hi ] if it is not empty
+  auto merged = [ & ]( std::vector< FunctionValue > sh , FunctionValue lo ,
+                       FunctionValue hi ) {
    before.clear();
    after.clear();
    {
@@ -468,24 +471,54 @@ int main( void )
     relay.add_nested_Block( child );
 
     const auto chnl = child->open_channel();
-    for( Index h = 0 ; h < sh.size() ; ++h )
-     child->add_Modification( changed( *members[ h ] , 1 , sh[ h ] ) ,
-                              chnl );
+    for( Index h = 0 ; h < sh.size() ; ++h ) {
+     auto mod = changed( *members[ h ] , 1 , sh[ h ] );
+     if( ( ! h ) && ( lo <= hi ) )
+      std::static_pointer_cast< FunctionMod >( mod )->set_shift_interval(
+								    lo , hi );
+     child->add_Modification( mod , chnl );
+     }
     child->close_channel( chnl );
     }
    assert( after.size() == 1 );
    const auto fmod = std::dynamic_pointer_cast< FunctionMod >( after[ 0 ] );
    assert( fmod );
-   return( fmod->shift() );
+   return( fmod );
    };
 
-  assert( merged( { INF , 2.5 } ) == INF );
-  assert( merged( { INF , INF , 0 } ) == INF );
-  assert( std::isnan( merged( { INF , -INF } ) ) );
-  assert( std::isnan( merged( { INF , -1 } ) ) );
-  assert( std::isnan( merged( { INF , NaN } ) ) );
-  assert( merged( { -INF , -2 } ) == -INF );
-  assert( std::isnan( merged( { -INF , 2 } ) ) );
+  assert( merged( { INF , 2.5 } , 1 , 0 )->shift() == INF );
+  assert( merged( { INF , INF , 0 } , 1 , 0 )->shift() == INF );
+  assert( std::isnan( merged( { INF , -INF } , 1 , 0 )->shift() ) );
+  assert( std::isnan( merged( { INF , -1 } , 1 , 0 )->shift() ) );
+  assert( std::isnan( merged( { INF , NaN } , 1 , 0 )->shift() ) );
+  assert( merged( { -INF , -2 } , 1 , 0 )->shift() == -INF );
+  assert( std::isnan( merged( { -INF , 2 } , 1 , 0 )->shift() ) );
+
+  // up at least 0 and by [ -1 , 2 ] with nothing known: [ -1 , INF ]
+  auto fm = merged( { NaN , INF } , -1 , 2 );
+  assert( std::isnan( fm->shift() ) );
+  assert( ( fm->shift_lower() == -1 ) && ( fm->shift_upper() == INF ) );
+
+  // [ -1 , 2 ] and a shift of 3 and one of -0.5: [ 1.5 , 4.5 ]
+  fm = merged( { NaN , 3 , -0.5 } , -1 , 2 );
+  assert( ( fm->shift_lower() == 1.5 ) && ( fm->shift_upper() == 4.5 ) );
+  }
+
+ // a single Modification of a member passes its interval on to the sum - - -
+
+ before.clear();
+ after.clear();
+ {
+  auto mod = changed( *members[ 2 ] , 0 , FunctionMod::NaNshift );
+  std::static_pointer_cast< FunctionMod >( mod )->set_shift_interval( -3 ,
+                                                                      0.5 );
+  sum.add_Modification( mod );
+  }
+ assert( after.size() == 1 );
+ {
+  const auto fmod = std::dynamic_pointer_cast< FunctionMod >( after[ 0 ] );
+  assert( fmod && ( fmod->function() == & sum ) );
+  assert( ( fmod->shift_lower() == -3 ) && ( fmod->shift_upper() == 0.5 ) );
   }
 
  // the "active" Variable of the sum are the union of those of the members - -

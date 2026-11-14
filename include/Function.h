@@ -36,6 +36,9 @@
 #include "ThinComputeInterface.h"
 #include "ThinVarDepInterface.h"
 
+#include <algorithm>
+#include <cmath>
+
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -854,7 +857,32 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface
  * previously known before about the function is no longer reliable, *except
  * for the set of "active" Variable* that has remained the same. Indeed, 
  * changes in the set of "active" Variable have their own separate 
- * Modification. */
+ * Modification.
+ *
+ * Between the finite shift and the three infinite cases there is the one in
+ * which the change is not the same at every point, but it is known to lie
+ * in an interval: for given \f$ \delta^- \leq \delta^+ \f$ (each of which
+ * can be infinite)
+ * \f[
+ *   \delta^- \leq f( x ) - f_{old}( x ) \leq \delta^+
+ *   \qquad \forall x \,,
+ * \f]
+ * where \f$ f_{old} \f$ is the Function prior to the Modification. This
+ * happens, e.g., when the linear costs c of a variable x ranging in a box
+ * \f$ [ l , u ] \f$ change to \f$ c + \Delta c \f$, since then
+ * \f$ \delta^\pm = \sum_j \max / \min \{ \Delta c_j l_j ,
+ * \Delta c_j u_j \} \f$. The issuer says it with set_shift_interval(),
+ * which leaves shift() as it is, so that a reader that only knows shift()
+ * reacts as it always did, and a reader that knows the interval reads
+ * shift_lower() and shift_upper(), which combine the interval with what
+ * shift() says (a finite shift() s gives [ s , s ], +INFshift gives
+ * \f$ \delta^- \geq 0 \f$, - INFshift gives \f$ \delta^+ \leq 0 \f$, NaN
+ * says nothing). Hence, a lower bound \f$ \underline{f} \f$ on the
+ * minimum of \f$ f_{old} \f$ gives \f$ \underline{f} + \delta^- \f$ for
+ * the minimum of f, and an upper bound on its maximum moves by
+ * \f$ \delta^+ \f$; with no interval set both are infinite unless shift()
+ * says otherwise, which is the case of all the issuers that do not know
+ * it. */
 
 class FunctionMod : public AModification
 {
@@ -907,7 +935,8 @@ class FunctionMod : public AModification
  explicit FunctionMod( Function * f , FunctionValue shift = NaNshift ,
                        bool cB = true )
   : AModification( cB , Function::eModFValues | eEffAny ) ,
-    f_function( f ) , f_shift( shift ) {}
+    f_function( f ) , f_shift( shift ) , f_shift_lo( - INFshift ) ,
+    f_shift_hi( INFshift ) {}
 
  ///< constructor: takes a Function pointer and a shift
  /**< Constructor: takes a pointer to the affected Function and the value of
@@ -966,7 +995,7 @@ class FunctionMod : public AModification
  *   equal to the value that would have been returned prior to the
  *   Modification.
  *
- * - - INFshif: this means that the value of the Function has changed
+ * - - INFshift: this means that the value of the Function has changed
  *   "unpredictably but monotonically downwards": computing the value of the
  *   Function at any point now returns a value that is surely smaller than or
  *   equal to the value that would have been returned prior to the
@@ -974,11 +1003,64 @@ class FunctionMod : public AModification
 
  [[nodiscard]] FunctionValue shift( void ) const { return( f_shift ); }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// sets an interval that contains the change of the value at every point
+ /** Says that \f$ lo \leq f( x ) - f_{old}( x ) \leq hi \f$ for all x
+  * [see the comments to the class], each of the two being possibly
+  * infinite; shift() is not changed. Throws std::invalid_argument if either
+  * is NaN or lo > hi. */
+
+ void set_shift_interval( FunctionValue lo , FunctionValue hi ) {
+  if( std::isnan( lo ) || std::isnan( hi ) || ( lo > hi ) )
+   throw( std::invalid_argument( "FunctionMod::set_shift_interval: "
+                                 "empty or undefined interval" ) );
+  f_shift_lo = lo;
+  f_shift_hi = hi;
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the largest known lower bound on the change of the value
+ /** Returns \f$ \delta^- \f$ such that \f$ f( x ) - f_{old}( x ) \geq
+  * \delta^- \f$ for all x: shift() itself if it is finite, otherwise the
+  * lower end of the interval of set_shift_interval() (- INFshift if none
+  * was set), raised to 0 if shift() == INFshift. */
+
+ [[nodiscard]] FunctionValue shift_lower( void ) const {
+  if( std::isnan( f_shift ) || ( f_shift <= - INFshift ) )
+   return( f_shift_lo );
+  if( f_shift >= INFshift )
+   return( std::max( f_shift_lo , FunctionValue( 0 ) ) );
+  return( f_shift );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the smallest known upper bound on the change of the value
+ /** Returns \f$ \delta^+ \f$ such that \f$ f( x ) - f_{old}( x ) \leq
+  * \delta^+ \f$ for all x: shift() itself if it is finite, otherwise the
+  * upper end of the interval of set_shift_interval() (INFshift if none was
+  * set), lowered to 0 if shift() == - INFshift. */
+
+ [[nodiscard]] FunctionValue shift_upper( void ) const {
+  if( std::isnan( f_shift ) || ( f_shift >= INFshift ) )
+   return( f_shift_hi );
+  if( f_shift <= - INFshift )
+   return( std::min( f_shift_hi , FunctionValue( 0 ) ) );
+  return( f_shift );
+  }
+
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
  protected:
 
 /*-------------------------- PROTECTED METHODS -----------------------------*/
+ /// print the interval of set_shift_interval(), if any
+
+ void print_shift_interval( std::ostream & output ) const {
+  if( ( f_shift_lo > - INFshift ) || ( f_shift_hi < INFshift ) )
+   output << " in [ " << f_shift_lo << " , " << f_shift_hi << " ]";
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// print the FunctionMod
 
  void print( std::ostream & output ) const override {
@@ -996,6 +1078,7 @@ class FunctionMod : public AModification
    output << "(-)";
   else
    output << " by " << f_shift;
+  print_shift_interval( output );
   }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
@@ -1003,6 +1086,10 @@ class FunctionMod : public AModification
  Function * f_function;   ///< pointer to the modified Function
 
  FunctionValue f_shift;  ///< how the value of the function has changed
+
+ FunctionValue f_shift_lo;  ///< lower end of the interval of the change
+
+ FunctionValue f_shift_hi;  ///< upper end of the interval of the change
 
 /*--------------------------------------------------------------------------*/
 
