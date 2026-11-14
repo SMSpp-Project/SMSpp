@@ -1562,6 +1562,49 @@ static void test_read_lp_malformed( void )
 
 /*--------------------------------------------------------------------------*/
 
+/// an AbstractBlock whose feasibility check throws
+
+class ThrowingBlock : public AbstractBlock {
+ public:
+
+ bool is_feasible( bool useabstract = false ,
+		   Configuration * fsbc = nullptr ) override {
+  throw( std::logic_error( "ThrowingBlock::is_feasible: on purpose" ) );
+  }
+ };
+
+/* is_sol_feasible() writes the Solution in the Variable to check it: when
+ * the check throws, the exception reaches the caller, and the Variable and
+ * the direction flag are what they were before [see
+ * Block::is_sol_feasible()]. */
+
+static void test_check_of_a_Solution_that_throws( void )
+{
+ ThrowingBlock block;
+ auto x = kept( new std::vector< ColVariable >( 2 ) );
+ block.add_static_variable( *x , "x" );
+
+ ( *x )[ 0 ].set_value( 5 );
+ ( *x )[ 1 ].set_value( 6 );
+ ColVariableSolution sol;
+ sol.read( & block );
+ sol.is_direction( true );
+ ( *x )[ 0 ].set_value( 1 );
+ ( *x )[ 1 ].set_value( 2 );
+
+ bool thrown = false;
+ try { block.is_sol_feasible( & sol ); }
+ catch( const std::logic_error & ) { thrown = true; }
+ assert( thrown );
+ assert( ( ( *x )[ 0 ].get_value() == 1 ) &&
+	 ( ( *x )[ 1 ].get_value() == 2 ) );
+ assert( ! block.is_direction() );
+
+ std::cout << "check of a Solution that throws: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+
 /* set_objective() on a Block that has one replaces it: the new one is the
  * Objective of the Block and knows it, and the old one is left to whoever
  * made it, not deleted [see Block::set_objective()]. */
@@ -2400,6 +2443,7 @@ int main( int argc , char ** argv )
  test_read_lp_edges();
  test_read_lp_powers();
  test_read_lp_malformed();
+ test_check_of_a_Solution_that_throws();
  test_dynamic_edges();
 
  while( ! given.empty() )

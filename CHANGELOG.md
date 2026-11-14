@@ -50,6 +50,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `Block::is_sol_feasible()` and `Block::is_sol_optimal()` left the Solution
+  they check in the Variable of the Block, the direction flag raised and the
+  saved state leaked when the check threw anything other than
+  `std::domain_error`: what the Block held is put back before the exception
+  is passed on
+
 - `Block::map_forward_Modification()` changed a mirror of the Block [see
   `AbstractBlock::mirror()`] with `eNoMod` whatever `issueAMod` said, so
   that a Solver of a mirror kept in sync by an `UpdateSolver` was never told

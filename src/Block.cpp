@@ -642,6 +642,15 @@ static bool check_Solution( Block * blck , Solution * sol , Check && check )
  if( sol->is_direction() && ( ! wasdir ) )
   blck->is_direction( true );
 
+ // what the Block held is put back however the check ends, also when it
+ // throws, and then the exception is passed on
+ const auto restore = [ blck , current , wasdir ]() {
+  std::unique_ptr< Solution > held( current );
+  if( blck->is_direction() != wasdir )
+   blck->is_direction( wasdir );
+  held->write( blck );
+  };
+
  // a Solution that gives a fixed Variable another value than the one it is
  // fixed at is not feasible, and writing it stops there [see
  // ColVariable::set_value()]: what has been written is put back all the same
@@ -653,13 +662,12 @@ static bool check_Solution( Block * blck , Solution * sol , Check && check )
  catch( const std::domain_error & ) {
   answer = false;
   }
+ catch( ... ) {
+  restore();
+  throw;
+  }
 
- if( blck->is_direction() != wasdir )
-  blck->is_direction( wasdir );
-
- current->write( blck );
- delete current;
-
+ restore();
  return( answer );
  }
 
