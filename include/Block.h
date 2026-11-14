@@ -5507,17 +5507,16 @@ class Block : public Observer {
   * list top-to-bottom and calling map_forward_Modification() on each
   * element in turn. */
 
- virtual void map_forward_Modifications( Block * R3B , Lst_sp_Mod lmod ,
+ virtual void map_forward_Modifications( Block * R3B , Lst_sp_Mod & lmod ,
                                          Configuration * r3bc = nullptr ,
                                          ModParam issuePMod = eNoBlck ,
                                          ModParam issueAMod = eModBlck ) {
-  for( auto mit = lmod.begin() ; mit != lmod.end() ; ) {
-   auto nmit = ++mit;
+  for( auto mit = lmod.begin() ; mit != lmod.end() ; )
    if( map_forward_Modification( R3B , mit->get() , r3bc ,
 				 issuePMod , issueAMod ) )
-    lmod.erase( mit );
-   mit = nmit;
-   }
+    mit = lmod.erase( mit );
+   else
+    ++mit;
   }
 
 /*--------------------------------------------------------------------------*/
@@ -5617,17 +5616,16 @@ class Block : public Observer {
   *
   * See the comments to map_forward_Modifications(). */
 
- virtual void map_back_Modifications( Block * R3B , Lst_sp_Mod lmod ,
+ virtual void map_back_Modifications( Block * R3B , Lst_sp_Mod & lmod ,
                                       Configuration * r3bc = nullptr ,
                                       ModParam issuePMod = eNoBlck ,
                                       ModParam issueAMod = eModBlck ) {
-  for( auto mit = lmod.begin() ; mit != lmod.end() ; ) {
-   auto nmit = ++mit;
+  for( auto mit = lmod.begin() ; mit != lmod.end() ; )
    if( map_back_Modification( R3B , mit->get() , r3bc ,
                               issuePMod , issueAMod ) )
-    lmod.erase( mit );
-   mit = nmit;
-   }
+    mit = lmod.erase( mit );
+   else
+    ++mit;
   }
 
 /** @} ---------------------------------------------------------------------*/

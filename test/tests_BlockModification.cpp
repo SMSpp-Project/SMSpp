@@ -12,9 +12,10 @@
  * opposite meanings), over the arithmetic of the parameter that says if, how
  * and where a Modification is issued, over the channels that pack them into
  * a GroupModification (nested, forced, empty, emptied, discarded, and
- * hijacking the default channel), and over the path of a Modification from
- * a sub-Block to the Solver of its father, also for a sub-Block constructed
- * while the Solver is registered.
+ * hijacking the default channel), over the path of a Modification from a
+ * sub-Block to the Solver of its father, also for a sub-Block constructed
+ * while the Solver is registered, and over the mapping of the Modification
+ * to another Block.
  *
  * \author Donato Meoli \n
  *         Dipartimento di Informatica \n
@@ -35,6 +36,7 @@
 #include <iostream>
 #include <list>
 #include <memory>
+#include <set>
 #include <stdexcept>
 #include <vector>
 
@@ -1734,6 +1736,77 @@ static void test_sub_Block_of_set_Block( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/// an AbstractBlock that maps the Modification of a given set
+/** It records each Modification it is asked to map, forward or back, and
+ * says it has mapped those in the set. */
+
+class MappingBlock : public AbstractBlock {
+ public:
+
+ bool map_forward_Modification( Block * R3B , c_p_Mod mod ,
+				Configuration * r3bc = nullptr ,
+				ModParam issuePMod = eNoBlck ,
+				ModParam issueAMod = eModBlck ) override {
+  asked.push_back( mod );
+  return( mapped.count( mod ) > 0 );
+  }
+
+ bool map_back_Modification( Block * R3B , c_p_Mod mod ,
+			     Configuration * r3bc = nullptr ,
+			     ModParam issuePMod = eNoBlck ,
+			     ModParam issueAMod = eModBlck ) override {
+  asked.push_back( mod );
+  return( mapped.count( mod ) > 0 );
+  }
+
+ std::vector< const Modification * > asked;  ///< what it was asked
+ std::set< const Modification * > mapped;    ///< what it maps
+ };
+
+/* map_forward_Modifications() and map_back_Modifications() ask to map each
+ * Modification of the list once, in order, and remove from the list those
+ * that have been mapped, leaving the others [see
+ * Block::map_forward_Modifications()]. */
+
+static void test_map_Modifications( void )
+{
+ for( bool forward : { true , false } ) {
+  MappingBlock b;
+  AbstractBlock r3b;
+  std::vector< sp_Mod > m;
+  for( int i = 0 ; i < 3 ; ++i )
+   m.push_back( std::make_shared< NBModification >( & b ) );
+  b.mapped = { m[ 0 ].get() , m[ 2 ].get() };
+
+  Lst_sp_Mod lmod( m.begin() , m.end() );
+  if( forward )
+   b.map_forward_Modifications( & r3b , lmod );
+  else
+   b.map_back_Modifications( & r3b , lmod );
+
+  expect( ( b.asked.size() == 3 ) && ( b.asked[ 0 ] == m[ 0 ].get() ) &&
+	  ( b.asked[ 1 ] == m[ 1 ].get() ) && ( b.asked[ 2 ] == m[ 2 ].get() ) ,
+	  "map_*_Modifications() does not ask each Modification once, in "
+	  "order" );
+  expect( ( lmod.size() == 1 ) && ( lmod.front() == m[ 1 ] ) ,
+	  "map_*_Modifications() does not leave in the list exactly the "
+	  "Modification not mapped" );
+  }
+
+ // a list of one Modification
+ MappingBlock b;
+ AbstractBlock r3b;
+ auto mod = std::make_shared< NBModification >( & b );
+ b.mapped = { mod.get() };
+ Lst_sp_Mod lmod( { mod } );
+ b.map_forward_Modifications( & r3b , lmod );
+ expect( ( b.asked.size() == 1 ) && lmod.empty() ,
+	 "map_forward_Modifications() of a list of one Modification" );
+
+ std::cout << "map_*_Modifications(): OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
 /*----------------------------------- MAIN ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1759,6 +1832,7 @@ int main( void )
  test_clear_and_discard();
  test_sub_Block();
  test_sub_Block_of_set_Block();
+ test_map_Modifications();
 
  while( ! given.empty() )
   given.pop_back();

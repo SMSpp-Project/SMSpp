@@ -50,6 +50,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `Block::map_forward_Modifications()` and `Block::map_back_Modifications()`
+  advanced the iterator before using it, so that they skipped the first
+  Modification and read past the end of the list, and took the list by
+  value, so that the Modification mapped were not removed from the list of
+  the caller as the comment says: they take it by reference, and ask to map
+  each Modification once, in order
+
 - `Block::register_Solver()` told the sub-Block that someone listens before
   calling `Solver::set_Block()`, so that the sub-Block that the latter had
   constructed (say, by generating the abstract representation of the Block)
