@@ -50,6 +50,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `LagBFunction` updated the constants of the global pool kept under
+  `intPoolExtMem` == 0 after a change of the costs only if the indices of
+  the Modification were still those of the Objective, and read past its end
+  when Variable had been removed from it since
+
 - `BoxSolver` bounded a ColVariable by a relaxed OneVarConstraint, which is
   not in the problem
 

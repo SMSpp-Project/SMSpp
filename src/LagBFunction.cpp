@@ -110,6 +110,26 @@ bool rmvd_vars( const Modification * mod , const void * & cell ,
  return( false );
  }
 
+/*--------------------------------------------------------------------------*/
+/// the position in rc of the Variable vi, which a Modification put at j
+/** Looks vi up at j, then before j, where it most likely is if Variable
+ * have been removed since, then after j; returns rc.size() if vi is no
+ * longer in rc. */
+
+Block::Index find_cost( const LinearFunction::v_coeff_pair & rc ,
+			const Variable * vi , Block::Index j )
+{
+ for( auto k = std::min( j + 1 , Block::Index( rc.size() ) ) ; k-- ; )
+  if( rc[ k ].first == vi )
+   return( k );
+
+ for( auto k = j + 1 ; k < rc.size() ; ++k )
+  if( rc[ k ].first == vi )
+   return( k );
+
+ return( rc.size() );
+ }
+
 }  // end( unnamed namespace )
 
 /*--------------------------------------------------------------------------*/
@@ -4721,7 +4741,10 @@ void LagBFunction::update_CostMatrix_ModLinRngd( Index h ,
  bool current = true;
  auto it = vars.begin();
  for( Index j = rng.first ; j < rng.second ; ++j )
-  if( rc[ j ].first != *( it++ ) ) { current = false; break; }
+  if( ( j >= rc.size() ) || ( rc[ j ].first != *( it++ ) ) ) {
+   current = false;
+   break;
+   }
 
  if( current ) {  // if Range is still current, it's easy
   std::vector< std::pair< Index , double > > jdeltas;  // EAGER: (j, Delta_c_j)
@@ -4742,34 +4765,24 @@ void LagBFunction::update_CostMatrix_ModLinRngd( Index h ,
  // found in the Modification, since if Variable have been added/removed
  // in obj by changes occurring prior to this the corresponding
  // Modification have been already "seen" before this and acted upon
+ std::vector< std::pair< Index , double > > jdeltas;  // EAGER: (k, Delta_c_k)
  it = vars.begin();
  for( Index j = rng.first ; j < rng.second ; ++j ) {
   auto vi = *( it++ );          // the Variable whose cost has changed
-  if( rc[ j ].first == vi )     // if vi is still in the same place
-   CM[ j ].first = rc[ j ].second;  // still easy
-  else {                        // if not, look up for it
-   // start looking up before j, since it's where it most likely is
-   Index h = j;
-   while( h )
-    if( rc[ --h ].first == vi )
-     break;
-
-   if( rc[ h ].first == vi )    // if it is found
-    CM[ j ].first = rc[ h ].second;  // all done
-   else {                       // otherwise
-    // look up after j, it still could be there
-    for( h = j + 1 ; h < rc.size() ; ++h )
-     if( rc[ h ].first == vi )
-      break;
-
-    if( h < rc.size() )         // if it is found
-     CM[ j ].first = rc[ h ].second;  // all done
-    // otherwise, do nothing: the changed Variable is no longer in obj
-    // at this point, which means that the corresponding Modification
-    // is waiting in the queue to be discovered and acted upon
-    }
+  const auto k = find_cost( rc , vi , j );
+  // if it is not found, do nothing: the changed Variable is no longer in
+  // obj at this point, which means that the corresponding Modification is
+  // waiting in the queue to be discovered and acted upon
+  if( k >= rc.size() )
+   continue;
+  if( ! f_lazy_eval ) {
+   double d = rc[ k ].second - CM[ j ].first;
+   if( d != 0 )
+    jdeltas.emplace_back( k , d );
    }
+  CM[ j ].first = rc[ k ].second;
   }
+ eager_pool_cost_delta( rc , jdeltas , obj_w( h ) );
  }  // end( LagBFunction::update_CostMatrix_ModLinRngd )
 
 /*--------------------------------------------------------------------------*/
@@ -4806,7 +4819,10 @@ void LagBFunction::update_CostMatrix_ModLinSbst( Index h ,
  bool current = true;
  auto it = vars.begin();
  for( Index j : sbst )
-  if( rc[ j ].first != *( it++ ) ) { current = false; break; }
+  if( ( j >= rc.size() ) || ( rc[ j ].first != *( it++ ) ) ) {
+   current = false;
+   break;
+   }
 
  if( current ) {  // if Subset is still current, it's easy
   std::vector< std::pair< Index , double > > jdeltas;  // EAGER: (j, Delta_c_j)
@@ -4827,34 +4843,24 @@ void LagBFunction::update_CostMatrix_ModLinSbst( Index h ,
  // in the Modification, since if Variable have been added/removed in obj by
  // changes occurring prior to this the corresponding Modification have been
  // already "seen" before this and acted upon
+ std::vector< std::pair< Index , double > > jdeltas;  // EAGER: (k, Delta_c_k)
  it = vars.begin();
  for( Index j : sbst ) {
   auto vi = *( it++ );          // the Variable whose cost has changed
-  if( rc[ j ].first == vi )   // if vi is still in the same place
-   CM[ j ].first = rc[ j ].second;  // still easy
-  else {                      // if not, look up for it
-   // start looking up before j, since it's where it most likely is
-   Index h = j;
-   while( h )
-    if( rc[ --h ].first == vi )
-     break;
-
-   if( rc[ h ].first == vi )  // if it is found
-    CM[ j ].first = rc[ h ].second;  // all done
-   else {                     // otherwise
-    // look up after j, it still could be there
-    for( h = j + 1 ; h < rc.size() ; ++h )
-     if( rc[ h ].first == vi )
-      break;
-
-    if( h < rc.size() )       // if it is found
-     CM[ j ].first = rc[ h ].second;  // all done
-    // otherwise, do nothing: the changed Variable is no longer in obj
-    // at this point, which means that the corresponding Modification
-    // is waiting in the queue to be discovered and acted upon
-    }
+  const auto k = find_cost( rc , vi , j );
+  // if it is not found, do nothing: the changed Variable is no longer in
+  // obj at this point, which means that the corresponding Modification is
+  // waiting in the queue to be discovered and acted upon
+  if( k >= rc.size() )
+   continue;
+  if( ! f_lazy_eval ) {
+   double d = rc[ k ].second - CM[ j ].first;
+   if( d != 0 )
+    jdeltas.emplace_back( k , d );
    }
+  CM[ j ].first = rc[ k ].second;
   }
+ eager_pool_cost_delta( rc , jdeltas , obj_w( h ) );
  }  // end( LagBFunction::update_CostMatrix_ModLinSbst )
 
 /*--------------------------------------------------------------------------*/
