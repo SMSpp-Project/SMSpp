@@ -15,7 +15,7 @@
  * hijacking the default channel), over the path of a Modification from a
  * sub-Block to the Solver of its father, also for a sub-Block constructed
  * while the Solver is registered, and over the mapping of the Modification
- * to another Block.
+ * to another Block, a mirror among them.
  *
  * \author Donato Meoli \n
  *         Dipartimento di Informatica \n
@@ -32,6 +32,7 @@
 #include "FakeSolver.h"
 #include "FRowConstraint.h"
 #include "LinearFunction.h"
+#include "UpdateSolver.h"
 
 #include <iostream>
 #include <list>
@@ -1807,6 +1808,43 @@ static void test_map_Modifications( void )
  }
 
 /*--------------------------------------------------------------------------*/
+
+/* The mirror of a Block kept in sync by an UpdateSolver is changed issuing
+ * the Modification that the UpdateSolver asks for, which reach a Solver
+ * registered to the mirror [see Block::map_forward_Modification()]. */
+
+static void test_Modification_to_a_mirror( void )
+{
+ auto orig = new AbstractBlock;
+ auto x = kept( new std::vector< ColVariable >( 2 ) );
+ orig->add_static_variable( *x , "x" );
+
+ auto copy = new AbstractBlock;
+ copy->mirror( orig );
+ assert( copy->get_mirror_issues().empty() );
+ auto cx = copy->mirror_of( & ( *x )[ 0 ] );
+ assert( cx );
+
+ auto fake = new FakeSolver();
+ copy->register_Solver( fake );
+ auto & mods = fake->get_Modification_list();
+ auto us = new UpdateSolver( copy );
+ orig->register_Solver( us );
+
+ mods.clear();
+ ( *x )[ 0 ].is_fixed( true , eModBlck );
+ assert( cx->is_fixed() );
+ expect( ! mods.empty() , "the mirror is changed with no Modification, and "
+	 "its Solver is not told" );
+
+ orig->unregister_Solvers( true );
+ copy->unregister_Solvers( true );
+ delete copy;
+ delete orig;
+ std::cout << "Modification to a mirror: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
 /*----------------------------------- MAIN ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1833,6 +1871,7 @@ int main( void )
  test_sub_Block();
  test_sub_Block_of_set_Block();
  test_map_Modifications();
+ test_Modification_to_a_mirror();
 
  while( ! given.empty() )
   given.pop_back();

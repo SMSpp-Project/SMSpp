@@ -50,6 +50,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `Block::map_forward_Modification()` changed a mirror of the Block [see
+  `AbstractBlock::mirror()`] with `eNoMod` whatever `issueAMod` said, so
+  that a Solver of a mirror kept in sync by an `UpdateSolver` was never told
+  of the changes: the mirror issues the Modification of its changes as
+  `issueAMod` says
+
 - `Block::map_forward_Modifications()` and `Block::map_back_Modifications()`
   advanced the iterator before using it, so that they skipped the first
   Modification and read past the end of the list, and took the list by

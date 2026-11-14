@@ -5450,11 +5450,14 @@ class Block : public Observer {
   * Modification it produces, or which Modification need be mapped
   * "immediately".
   *
-  * The method is given a default implementation returning false if \p mod
-  * refers to this; otherwise it seeks \p mod in the list of inner Block
-  * of this, and if it finds it calls map_forward_Modification() of the
-  * inner Block and the corresponding inner Block of R3B (if any, otherwise
-  * false is returned).
+  * The method is given a default implementation that, if \p R3B is a
+  * mirror of this [see AbstractBlock::mirror()], has the mirror apply the
+  * change [see AbstractBlock::mirror_forward_Modification()] issuing the
+  * Modification of the copy as \p issueAMod says. Otherwise, it returns
+  * false if \p mod refers to this, and else it seeks \p mod in the list of
+  * inner Block of this, and if it finds it calls map_forward_Modification()
+  * of the inner Block and the corresponding inner Block of R3B (if any,
+  * otherwise false is returned).
   *
   * If \p *r3bc is a SimpleConfiguration< std::vector< Configuration * >,
   * then the i-th element of the vector is passed as the r3bc parameter

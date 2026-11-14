@@ -1617,7 +1617,7 @@ bool Block::map_forward_Modification( Block * R3B , c_p_Mod mod ,
   * Modification comes from: the map it holds covers the whole of it. */
 
  if( auto ab = as_mirror( this , R3B ) )
-  return( ab->mirror_forward_Modification( mod ) );
+  return( ab->mirror_forward_Modification( mod , issueAMod ) );
 
  if( mod->get_Block() == this )
   return( false );
