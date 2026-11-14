@@ -141,6 +141,7 @@ export namespace SMSpp_di_unipi_it {
  using SMSpp_di_unipi_it::GroupChange;
 
  // ChangeSolver.h
+ using SMSpp_di_unipi_it::BoundCertificate;
  using SMSpp_di_unipi_it::ChangeSolver;
  using SMSpp_di_unipi_it::RelaxationSolver;
 

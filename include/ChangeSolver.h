@@ -17,7 +17,8 @@
  *   dual bound), it can produce *true* solutions of the original problem
  *   (valid primal bounds, see get_true_lb() / get_true_ub()) and, foremost,
  *   it can branch(): produce the set of Changes that generate the children
- *   of the current node.
+ *   of the current node, and, optionally, bound a node again after a change
+ *   of the data without solving it (see BoundCertificate).
  *
  * Neither class derives from Solver: they are traits that a concrete class
  * derives from *alongside* its problem-specific :Solver base, with plain
@@ -50,6 +51,8 @@
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
+
+#include <limits>
 
 #include "Change.h"
 
@@ -188,6 +191,28 @@ class ChangeSolver
  };  // end( class( ChangeSolver ) )
 
 /*--------------------------------------------------------------------------*/
+/*----------------------- CLASS BoundCertificate ---------------------------*/
+/*--------------------------------------------------------------------------*/
+/// what a RelaxationSolver keeps of the bound of a node
+/** The class BoundCertificate is the base of whatever a RelaxationSolver
+ * keeps of the relaxation it has solved at a node in order to bound the
+ * node again, after a change of the data, without solving it [see
+ * RelaxationSolver::get_bound_certificate() and
+ * RelaxationSolver::shifted_bound()]: say, the multipliers of a Lagrangian
+ * (or LP) relaxation together with the value they give, or the ray proving
+ * that the relaxation is empty. Only the RelaxationSolver that has produced
+ * it reads it; whoever drives the RelaxationSolver only stores it with the
+ * node and gives it back. */
+
+class BoundCertificate
+{
+ public:
+
+ virtual ~BoundCertificate() = default;  ///< destructor: does nothing
+
+ };  // end( class( BoundCertificate ) )
+
+/*--------------------------------------------------------------------------*/
 /*----------------------- CLASS RelaxationSolver ---------------------------*/
 /*--------------------------------------------------------------------------*/
 /// a ChangeSolver solving a relaxation, able to branch()
@@ -207,7 +232,9 @@ class ChangeSolver
  * the concrete class), it may produce *true* solutions of the original
  * problem - see has_true_var_solution(), get_true_lb() / get_true_ub() and
  * get_true_[var_]solution() - and it can branch(): produce the Changes
- * generating the children of the current node of the enumeration tree. */
+ * generating the children of the current node of the enumeration tree.
+ * Optionally, it can also bound a node again after a change of the data
+ * without solving it [see shifted_bound()]. */
 
 class RelaxationSolver : public virtual ChangeSolver
 {
@@ -331,6 +358,144 @@ class RelaxationSolver : public virtual ChangeSolver
  virtual Solution * get_true_solution( Configuration * solc = nullptr ) = 0;
 
 /*--------------------------------------------------------------------------*/
+/*------------------ METHODS FOR BOUNDING AFTER A CHANGE -------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Bounding a node again after a change of the data
+ *
+ * A driver that keeps an enumeration tree across a change of the data (say,
+ * a Branch-and-Bound that reoptimizes) has, for each node \f$ \nu \f$ of
+ * its frontier, a bound \f$ D( \nu ) \f$ valid under the old data, i.e.,
+ * for a minimization problem \f$ D( \nu ) \leq \min \{ c x : x \in X_\nu
+ * \} \f$, and it would rather not solve the relaxation of every node again
+ * to have one valid under the new data. These methods give it one at the
+ * cost of moving the RelaxationSolver to the node, without any compute().
+ * With \f$ B_\nu = [ l , u ] \supseteq X_\nu \f$ the box of the Variable at
+ * the node (their bounds and the fixings of the branching included), the
+ * two sources of such a bound are the following, written for a
+ * minimization problem (for a maximization one the bounds are upper ones,
+ * and min and max swap).
+ *
+ * - A change \f$ c \rightarrow c + \delta c \f$ of the Objective:
+ *   \f[
+ *     \min_{x \in X_\nu} ( c + \delta c ) x \;\geq\;
+ *     \min_{x \in X_\nu} c x + \min_{x \in X_\nu} \delta c \, x \;\geq\;
+ *     D( \nu ) + \sum_j \min \{ \delta c_j l_j \,,\, \delta c_j u_j \}
+ *   \f]
+ *   since \f$ X_\nu \subseteq B_\nu \f$ and the minimum of a linear function
+ *   over a box is attained at a vertex, coordinate by coordinate. This only
+ *   needs \f$ D( \nu ) \f$, whatever relaxation has given it; a term is
+ *   \f$ - \infty \f$ (no information) when \f$ \delta c_j > 0 \f$ and
+ *   \f$ l_j = - \infty \f$, or \f$ \delta c_j < 0 \f$ and \f$ u_j = + \infty
+ *   \f$, and it is 0 when \f$ \delta c_j = 0 \f$, whatever the box. A
+ *   change of the region that cannot make it grow leaves this valid; one
+ *   that can requires the next source.
+ *
+ * - A Lagrangian (or LP) certificate. If the relaxation of the node is
+ *   \f$ \min \{ c x : A x \geq b \,,\, x \in B_\nu \} \f$, or a restriction
+ *   of it, and \f$ y \geq 0 \f$ are multipliers of its rows (the sign being
+ *   that of the rows), weak duality gives
+ *   \f[
+ *     L( y ; c , A , b ) = y^\top b + \min_{x \in B_\nu} ( c - y^\top A ) x
+ *     \;\leq\; \min \{ c x : x \in X_\nu \}
+ *   \f]
+ *   whatever the data \f$ ( c , A , b ) \f$ are. \f$ L \f$ is affine in
+ *   \f$ b \f$ and, through the same vertex argument as above,
+ *   \f[
+ *     L( y ; c + \delta c , A + \delta A , b + \delta b ) \;\geq\;
+ *     L( y ; c , A , b ) + y^\top \delta b + \sum_j \min \{ g_j l_j \,,\,
+ *     g_j u_j \} \quad , \quad g = \delta c - y^\top \delta A \;,
+ *   \f]
+ *   with equality when only \f$ b \f$ changes. Hence the value
+ *   \f$ L( y ; c , A , b ) \f$, kept with \f$ y \f$ at the node, gives a
+ *   valid bound under the new data with no solve, also when the region
+ *   grows. The conditions are that \f$ y \f$ be dual feasible, i.e., in the
+ *   cone of the rows, and that \f$ \min_{x \in B_\nu} ( c - y^\top A ) x \f$
+ *   be finite, i.e., that the box be finite wherever the reduced cost is
+ *   not zero; \f$ y \f$ need not be optimal, \f$ L \f$ being a valid bound
+ *   for any dual feasible \f$ y \f$. Symmetrically, a ray \f$ y \geq 0 \f$
+ *   with \f$ y^\top b - \max_{x \in B_\nu} y^\top A x > 0 \f$ proves the
+ *   node empty (Farkas), and it still does under the new data if
+ *   \f[
+ *     y^\top b - \max_{x \in B_\nu} y^\top A x + y^\top \delta b -
+ *     \sum_j \max \{ ( y^\top \delta A )_j l_j \,,\,
+ *                    ( y^\top \delta A )_j u_j \} \;>\; 0 \;.
+ *   \f]
+ *
+ * The bound so obtained can be passed on: once shifted, \f$ D( \nu ) \f$
+ * and the value kept in the certificate are valid under the new data, and
+ * the next change shifts them again from there. The protocol is the
+ * following. The driver asks, right after the compute() of a node, for the
+ * certificate of the bound the RelaxationSolver has given there [see
+ * get_bound_certificate()], and keeps it with the node. Once the data have
+ * changed it calls prepare_bound_shift(), once and before any compute(),
+ * and then, for each node it wants to bound again, it moves the
+ * RelaxationSolver to the node and calls shifted_bound() with the bound of
+ * the node and its certificate. A RelaxationSolver that can do none of
+ * this keeps the defaults, which say so, and the driver then solves the
+ * nodes again.
+ *  @{ */
+
+/*--------------------------------------------------------------------------*/
+ /// the certificate of the bound of the current node, nullptr if none
+ /** Called right after a compute() at the current node, it returns the
+  * (newly minted, caller-owned) certificate of the bound that compute() has
+  * given there [see BoundCertificate], which shifted_bound() reads after a
+  * change of the data; the certificate of an empty relaxation, if any,
+  * proves it empty. nullptr, the default, means that there is none: the
+  * node can still be bounded again from its bound alone, when the change
+  * allows it. */
+
+ [[nodiscard]] virtual BoundCertificate * get_bound_certificate( void ) {
+  return( nullptr );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// prepare to bound again the nodes after a change of the data
+ /** Called once after a change of the data, before any compute() and any
+  * shifted_bound(): the RelaxationSolver takes in the Modification it has
+  * received since its last compute() (or since the last call of this
+  * method), remembering how the data have changed with respect to those
+  * that its last compute() has seen, which are the old data of the
+  * shifted_bound() that follow, up to the next call of this method; the
+  * next compute() works on the new data, as if this method had not been
+  * called. It returns true if shifted_bound() may give a bound under these
+  * changes; the default returns false, and then shifted_bound() is not
+  * called. */
+
+ [[nodiscard]] virtual bool prepare_bound_shift( void ) {
+  return( false );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// a valid bound of the current node under the new data, without solving
+ /** Called after prepare_bound_shift() has returned true, with the
+  * RelaxationSolver moved to a node: \p bound is a bound of the node valid
+  * under the old data [see prepare_bound_shift()] (a lower one for a
+  * minimization problem, an upper one for a maximization one), possibly
+  * infinite, and \p cert the certificate of the node [see
+  * get_bound_certificate()], possibly nullptr. It returns a bound of the
+  * node valid under the new data, which is
+  *
+  * - finite, or the infinity that says nothing (\f$ - \infty \f$ for a
+  *   minimization problem), for a bound obtained as described above;
+  *
+  * - the other infinity (\f$ + \infty \f$ for a minimization problem) if
+  *   the node is proven empty under the new data;
+  *
+  * - NaN, the default, if no valid bound is known: the node has to be
+  *   solved again.
+  *
+  * When the returned value is not NaN, \p cert (if any) is updated so that
+  * it refers to the new data, hence it serves the next change; when it is
+  * NaN, \p cert is meaningless, and the caller is to drop it. */
+
+ [[nodiscard]] virtual Solver::OFValue shifted_bound( Solver::OFValue bound ,
+                                                      BoundCertificate * cert
+                                                      ) {
+  return( std::numeric_limits< Solver::OFValue >::quiet_NaN() );
+  }
+
+/** @} ---------------------------------------------------------------------*/
 
  };  // end( class( RelaxationSolver ) )
 

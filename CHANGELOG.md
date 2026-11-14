@@ -16,6 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dual master problem are the same also with a global lower bound;
   `get_global_LB()` gives it to a Solver of the master
 
+- `BoundCertificate` and the optional methods
+  `RelaxationSolver::get_bound_certificate()`, `prepare_bound_shift()` and
+  `shifted_bound()`, by which a RelaxationSolver bounds a node of an
+  enumeration tree again after a change of the data without solving it,
+  from the bound of the node over its box (a change of the Objective) or
+  from the multipliers kept with the node (any change of the data); the
+  defaults say that it cannot, and the driver then solves the node
+
 ### Changed
 
 - `GlobalInformation::str_LocalFixingAllowed` also covers the local
