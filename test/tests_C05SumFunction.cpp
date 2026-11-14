@@ -451,6 +451,43 @@ int main( void )
   assert( fmod->shift() == 7.5 );
   }
 
+ // the shifts of the merged ones add up as changes do: a monotone one - - - -
+ // (+-INFshift) stays so only with ones of its sign, otherwise the change
+ // is unpredictable (NaN)
+
+ {
+  static constexpr auto INF = FunctionMod::INFshift;
+  static constexpr auto NaN = FunctionMod::NaNshift;
+  // the shift that the sum says of the members changed by the shifts sh
+  auto merged = [ & ]( std::vector< FunctionValue > sh ) {
+   before.clear();
+   after.clear();
+   {
+    Relay relay( & sum );
+    auto child = new AbstractBlock( & relay );
+    relay.add_nested_Block( child );
+
+    const auto chnl = child->open_channel();
+    for( Index h = 0 ; h < sh.size() ; ++h )
+     child->add_Modification( changed( *members[ h ] , 1 , sh[ h ] ) ,
+                              chnl );
+    child->close_channel( chnl );
+    }
+   assert( after.size() == 1 );
+   const auto fmod = std::dynamic_pointer_cast< FunctionMod >( after[ 0 ] );
+   assert( fmod );
+   return( fmod->shift() );
+   };
+
+  assert( merged( { INF , 2.5 } ) == INF );
+  assert( merged( { INF , INF , 0 } ) == INF );
+  assert( std::isnan( merged( { INF , -INF } ) ) );
+  assert( std::isnan( merged( { INF , -1 } ) ) );
+  assert( std::isnan( merged( { INF , NaN } ) ) );
+  assert( merged( { -INF , -2 } ) == -INF );
+  assert( std::isnan( merged( { -INF , 2 } ) ) );
+  }
+
  // the "active" Variable of the sum are the union of those of the members - -
 
  ColVariable y;                   // a Variable no member has

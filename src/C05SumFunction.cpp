@@ -345,7 +345,10 @@ void C05SumFunction::flush_pending( ChnlName chnl )
  /* Two translations say the same thing about the sum if they are the same
   * kind of Modification about the same linearizations: they are then merged
   * into one, whose shift is the sum of theirs, a shift of one addend being
-  * a shift of the sum, and which concerns the Block if either does. */
+  * a shift of the sum, and which concerns the Block if either does. Two
+  * finite shifts give their sum, a monotone change (+-INFshift) stays so
+  * only with changes of the same sign (monotone or finite), anything else is
+  * unpredictable (NaN). */
 
  auto same = []( const sp_Mod & a , const sp_Mod & b ) -> bool {
   const auto ca = std::dynamic_pointer_cast< C05FunctionMod >( a );
@@ -358,9 +361,14 @@ void C05SumFunction::flush_pending( ChnlName chnl )
   };
 
  auto add_shift = []( FunctionValue a , FunctionValue b ) -> FunctionValue {
-  if( ( a == FunctionMod::INFshift ) || ( b == FunctionMod::INFshift ) )
-   return( FunctionMod::INFshift );  // unpredictable stays unpredictable
-  return( a + b );          // NaN, i.e. "no shift known", propagates
+  constexpr auto INF = FunctionMod::INFshift;
+  if( std::isnan( a ) || std::isnan( b ) )
+   return( FunctionMod::NaNshift );
+  if( ( a >= INF ) || ( b >= INF ) )      // monotonically up if the other
+   return( ( a >= 0 ) && ( b >= 0 ) ? INF : FunctionMod::NaNshift );
+  if( ( a <= - INF ) || ( b <= - INF ) )  // monotonically down if the other
+   return( ( a <= 0 ) && ( b <= 0 ) ? - INF : FunctionMod::NaNshift );
+  return( a + b );
   };
 
  while( ! v_pending.empty() ) {
