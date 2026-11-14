@@ -50,6 +50,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `BoxSolver` bounded a ColVariable by a relaxed OneVarConstraint, which is
+  not in the problem
+
 - `C05SumFunction` merged a monotone upward change (`INFshift`) with an
   unpredictable, a downward or a negative one into a monotone upward one,
   which keeps a lower bound the change may have made invalid: they now give
