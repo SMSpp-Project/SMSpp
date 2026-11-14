@@ -1562,6 +1562,25 @@ static void test_read_lp_malformed( void )
 
 /*--------------------------------------------------------------------------*/
 
+/* A file that cannot be opened is refused with an exception that says who
+ * refuses it, rather than leaving the Block as it was [see Block::load()]. */
+
+static void test_load_of_a_missing_file( void )
+{
+ AbstractBlock block;
+ std::string what;
+ try {
+  static_cast< Block & >( block ).load( std::string( "no/such/file.lp" ) ,
+					'L' );
+  }
+ catch( const std::invalid_argument & e ) { what = e.what(); }
+ assert( what.find( "Block::load: " ) == 0 );
+
+ std::cout << "load of a missing file: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+
 /// an AbstractBlock whose feasibility check throws
 
 class ThrowingBlock : public AbstractBlock {
@@ -2443,6 +2462,7 @@ int main( int argc , char ** argv )
  test_read_lp_edges();
  test_read_lp_powers();
  test_read_lp_malformed();
+ test_load_of_a_missing_file();
  test_check_of_a_Solution_that_throws();
  test_dynamic_edges();
 

@@ -50,6 +50,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `Block::load( const std::string & )` printed an error and went on, leaving
+  the Block as it was, when the file could not be opened: it throws
+  `std::invalid_argument`
+
 - `Block::is_sol_feasible()` and `Block::is_sol_optimal()` left the Solution
   they check in the Variable of the Block, the direction flag raised and the
   saved state leaked when the check threw anything other than

@@ -6984,7 +6984,8 @@ class Block : public Observer {
   * In fact, the implementation of this method in the base Block class just
   * opens an ifstream using the given filename and then calls the
   * load( istream & ) version, which is where the true :Block-specific
-  * loading is supposed to mostly happen.
+  * loading is supposed to mostly happen; it throws std::invalid_argument if
+  * the file cannot be opened.
   *
   * However, this method is virtual and there is a clear scenario in which
   * derived classes may want to override it: that of multi-file formats.
@@ -7001,11 +7002,10 @@ class Block : public Observer {
 
  virtual void load( const std::string & input , char frmt = 0 ) {
   std::ifstream f( get_filename_prefix() + input , std::fstream::in );
-  if( f.is_open() )
-   load( f , frmt );
-  else
-   std::cerr << "Error: cannot open text file " <<
-      get_filename_prefix() + input << std::endl;
+  if( ! f.is_open() )
+   throw( std::invalid_argument( "Block::load: cannot open text file " +
+                                 get_filename_prefix() + input ) );
+  load( f , frmt );
   }
 
 /*--------------------------------------------------------------------------*/
