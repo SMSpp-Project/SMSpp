@@ -50,6 +50,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `AbstractBlock::mirror()` copied a `QuadFunction` as a `DQuadFunction`,
+  losing its off-diagonal terms: the copy is a `QuadFunction`
+
+- the `print()` of `LinearFunction`, `DQuadFunction` and `QuadFunction`
+  printed the address of the field holding the `Observer` rather than the
+  `Observer`
+
 - `UpdateSolver.h` did not compile by itself, calling
   `Block::add_Modification()` with `Block` only declared, and
   `UpdateSolver::set_issueAMod()` defaulted to `eNoBlck` while the

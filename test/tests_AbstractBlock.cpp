@@ -26,6 +26,7 @@
 #include "FakeSolver.h"
 #include "FRealObjective.h"
 #include "DQuadFunction.h"
+#include "QuadFunction.h"
 #include "LinearFunction.h"
 #include "OneVarConstraint.h"
 
@@ -2043,6 +2044,47 @@ static void test_mirror_keeps_size_variable( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* The copy of a row whose Function is a QuadFunction is a QuadFunction with
+ * the same off-diagonal terms, hence the same value at the same point. */
+
+static void test_mirror_of_a_QuadFunction( void )
+{
+ AbstractBlock orig;
+ auto x = kept( new std::vector< ColVariable >( 2 ) );
+ orig.add_static_variable( *x , "x" );
+ auto rows = kept( new std::vector< FRowConstraint >( 1 ) );
+ (*rows)[ 0 ].set_function( new QuadFunction(
+                   { { & (*x)[ 0 ] , 1 , 2 } , { & (*x)[ 1 ] , 3 , 4 } } ,
+                   { { 1 , 0 , 5 } } , 6 ) , eNoMod );
+ (*rows)[ 0 ].set_lhs( - Inf< double >() , eNoMod );
+ (*rows)[ 0 ].set_rhs( 100 , eNoMod );
+ orig.add_static_constraint( *rows , "r" );
+
+ AbstractBlock copy;
+ copy.mirror( & orig );
+ assert( copy.get_mirror_issues().empty() );
+ auto crow = dynamic_cast< FRowConstraint * >(
+                                         copy.mirror_of( & (*rows)[ 0 ] ) );
+ assert( crow );
+ auto cqf = dynamic_cast< QuadFunction * >( crow->get_function() );
+ assert( cqf );
+
+ auto oqf = static_cast< QuadFunction * >( (*rows)[ 0 ].get_function() );
+ for( const auto & [ v0 , v1 ] : { std::pair( 1.0 , 2.0 ) ,
+                                  std::pair( -3.0 , 0.5 ) } ) {
+  (*x)[ 0 ].set_value( v0 );
+  (*x)[ 1 ].set_value( v1 );
+  copy.mirror_of( & (*x)[ 0 ] )->set_value( v0 );
+  copy.mirror_of( & (*x)[ 1 ] )->set_value( v1 );
+  oqf->compute( true );
+  cqf->compute( true );
+  assert( std::abs( oqf->get_value() - cqf->get_value() ) <= 1e-12 );
+  }
+
+ std::cout << "mirror of a QuadFunction: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
 /* The edges of add_dynamic_*() and remove_dynamic_*(), for Variable and for
  * Constraint alike: adding nothing, adding to an empty list, a Range that is
  * empty (anywhere, even reversed or on an empty list), one to the end, one
@@ -2458,6 +2500,7 @@ int main( int argc , char ** argv )
  test_mirror_of_an_empty_Block();
  test_sized_mirror();
  test_mirror_keeps_size_variable();
+ test_mirror_of_a_QuadFunction();
  test_read_lp_of_an_empty_model();
  test_read_lp_edges();
  test_read_lp_powers();

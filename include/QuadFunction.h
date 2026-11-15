@@ -574,7 +574,7 @@ class QuadFunction : public DQuadFunction {
  /// printing the QuadFunction
  void print( std::ostream & output ) override {
   output << "QuadFunction [" << this << "] observed by ["
-         << &f_Observer << "] with " << get_num_active_var()
+         << f_Observer << "] with " << get_num_active_var()
          << " active variables;";
   output << "current value = " << get_value();
   }

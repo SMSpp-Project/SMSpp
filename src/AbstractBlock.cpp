@@ -3153,16 +3153,26 @@ Function * AbstractBlock::mirror_Function( const Function * fnct )
   return( new LinearFunction( std::move( cp ) , lf->get_constant_term() ) );
   }
 
- if( auto qf = dynamic_cast< const DQuadFunction * >( fnct ) ) {
-  DQuadFunction::v_coeff_triple ct;
-  ct.reserve( qf->get_v_var().size() );
-  for( auto & tr : qf->get_v_var() )
-   ct.emplace_back( var_of( std::get< 0 >( tr ) ) , std::get< 1 >( tr ) ,
-                    std::get< 2 >( tr ) );
-  return( new DQuadFunction( std::move( ct ) , qf->get_constant_term() ) );
+ auto qf = dynamic_cast< const DQuadFunction * >( fnct );
+ if( ! qf )
+  return( nullptr );   // a Function that cannot be written on other Variable
+
+ DQuadFunction::v_coeff_triple ct;
+ ct.reserve( qf->get_v_var().size() );
+ for( auto & tr : qf->get_v_var() )
+  ct.emplace_back( var_of( std::get< 0 >( tr ) ) , std::get< 1 >( tr ) ,
+                   std::get< 2 >( tr ) );
+
+ // a QuadFunction is also a DQuadFunction; its off-diagonal terms are by
+ // index of the active Variable, which the copy keeps in the same order
+ if( auto nqf = dynamic_cast< const QuadFunction * >( fnct ) ) {
+  QuadFunction::v_off_diag_term od;
+  nqf->get_v_nd_var( od );
+  return( new QuadFunction( std::move( ct ) , std::move( od ) ,
+                            nqf->get_constant_term() ) );
   }
 
- return( nullptr );   // a Function that cannot be written on other Variable
+ return( new DQuadFunction( std::move( ct ) , qf->get_constant_term() ) );
  }
 
 /*--------------------------------------------------------------------------*/
