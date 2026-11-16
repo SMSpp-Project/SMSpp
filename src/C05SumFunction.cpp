@@ -104,20 +104,22 @@ C05SumFunction::C05SumFunction( std::vector< C05Function * > && members ,
   throw( std::invalid_argument( "C05SumFunction: the sum has no members" ) );
 
  // when the "active" Variable are not given, they are the union of those of
- // the members, in the order in which the members give them
+ // the members, in the order in which the members give them, the map from
+ // each to its position telling which are there already
  if( v_vars.empty() )
   for( auto m : v_members ) {
    const auto n = m->get_num_active_var();
    for( Index i = 0 ; i < n ; ++i ) {
     const auto var = static_cast< ColVariable * >( m->get_active_var( i ) );
-    if( std::find( v_vars.begin() , v_vars.end() , var ) == v_vars.end() )
+    if( f_var2idx.emplace( var , v_vars.size() ).second )
      v_vars.push_back( var );
     }
    }
-
- f_var2idx.reserve( v_vars.size() );
- for( Index i = 0 ; i < v_vars.size() ; ++i )
-  f_var2idx.emplace( v_vars[ i ] , i );
+ else {
+  f_var2idx.reserve( v_vars.size() );
+  for( Index i = 0 ; i < v_vars.size() ; ++i )
+   f_var2idx.emplace( v_vars[ i ] , i );
+  }
 
  // the vectors of entries are drawn from a generator of the group's own, so
  // that a run is repeatable; the size of the group is only a fallback, since
@@ -513,12 +515,15 @@ void C05SumFunction::member_Variables_changed(
   positions[ i ] = where[ ord[ i ] ];
   }
 
- // take them out, keeping the order of the ones that stay
- auto gone = [ & sorted ]( const ColVariable * v ) {
-  return( std::find( sorted.begin() , sorted.end() , v ) != sorted.end() );
-  };
- v_vars.erase( std::remove_if( v_vars.begin() , v_vars.end() , gone ) ,
-               v_vars.end() );
+ // take them out by their positions, keeping the order of the ones that
+ // stay
+ Index kept = 0;
+ for( Index i = 0 , p = 0 ; i < v_vars.size() ; ++i )
+  if( ( p < positions.size() ) && ( positions[ p ] == i ) )
+   ++p;
+  else
+   v_vars[ kept++ ] = v_vars[ i ];
+ v_vars.resize( kept );
 
  f_var2idx.clear();
  f_var2idx.reserve( v_vars.size() );

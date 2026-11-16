@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `C05SumFunction` makes the union of the Variable of its members, and
+  takes out those that leave it, in time linear in their number rather
+  than quadratic, through the map from each Variable to its position
+
 ## [0.10.0] - 2026-11-16
 
 ### Added
