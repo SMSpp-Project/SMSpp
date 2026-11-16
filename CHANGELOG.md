@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `MasterProblemBlock::set_improvement_cutoff()`, with which the master
+  Solver stops at the first point whose value is below the one of the
+  stability centre by more than a given eps, i.e., a point that the model
+  says is better than the centre, rather than prove the optimality of the
+  master: `solve_master()` gives the Solver that cutoff (`dblLwCutOff`)
+  before each solve and reads the point at which it has stopped (`kCutOff`)
+  as a solution; only the primal master in raw form with the proximal
+  stabilization or the trust region has it, and `MasterProblemBlock::
+  set_int_feas_tol()`, which gives the master Solver its integrality
+  tolerance [see `dblIntFeasTol` of `MILPSolver`]
+
 - `smspp_module_exports.py` takes `--imports <module>=<macro>`, a module
   re-exported only if the macro is defined, as `--optional` does for a
   header
@@ -21,6 +32,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `get_global_LB()` gives it to a Solver of the master
 
 ### Changed
+
+- on a binary coordinate of the primal master, i.e., an integer one with box
+  [ 0 , 1 ], the quadratic coefficient of the stabilization is moved into the
+  linear one, since x_j^2 = x_j: with only binary coordinates the proximal
+  master is a mixed-integer linear program, with the same value at every
+  integer point
 
 - `GlobalInformation::str_LocalFixingAllowed` also covers the local
   reductions that depend on the data, which are unsound as well when the
@@ -53,6 +70,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the master infeasible before the first evaluation)
 
 ### Fixed
+
+- `MasterProblemBlock::set_box()` on a range or on a subset of the
+  coordinates updates the local branching constraint, as the one on all of
+  them does, when the coordinates that are binary change
 
 - `AbstractBlock::mirror()` copied a `QuadFunction` as a `DQuadFunction`,
   losing its off-diagonal terms: the copy is a `QuadFunction`

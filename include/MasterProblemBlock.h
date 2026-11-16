@@ -1726,10 +1726,15 @@ class MasterProblemBlock : public Block {
   * \f]
   * an integer quadratic program, and a mixed-integer linear one, i.e., the
   * cutting-plane master over the integer points of the box, with
-  * \f$ t = \infty \f$ [see set_t()]. A master with integer coordinates has
-  * no dual solution: the multipliers of the cuts, hence the aggregated
-  * linearization error and subgradient, are not available, and only the
-  * primal solution and its value can be used [see get_master_bound()].
+  * \f$ t = \infty \f$ [see set_t()]. On a binary coordinate, i.e., an
+  * integer one with box \f$ [ 0 , 1 ] \f$, \f$ x_j^2 = x_j \f$, and its
+  * quadratic coefficient is moved into the linear one: with only binary
+  * coordinates the stabilized master is a mixed-integer linear program as
+  * well, with the same value at every integer point. A master with integer
+  * coordinates has no dual solution: the multipliers of the cuts, hence the
+  * aggregated linearization error and subgradient, are not available, and
+  * only the primal solution and its value can be used [see
+  * get_master_bound()].
   *
   * Only the primal MP in raw form [see set_v2_form()] supports it, since
   * that is where the Variable of the master are the x themselves: in the
@@ -1904,10 +1909,46 @@ class MasterProblemBlock : public Block {
  void set_max_time( double t );
 
 /*--------------------------------------------------------------------------*/
+ /// set the integrality tolerance of the master Solver to \p tol
+ /** Forwards `dblIntFeasTol = tol` to the first Solver registered to
+  * MasterProblemBlock via set_par [see MILPSolver::dblIntFeasTol]. No-op if
+  * no Solver is registered or if the Solver does not advertise the
+  * parameter. */
+
+ void set_int_feas_tol( double tol );
+
+/*--------------------------------------------------------------------------*/
+ /// stop the master Solver at the first point that improves on the centre
+ /** With a finite \p eps, each solve_master() gives the master Solver the
+  * cutoff (dblLwCutOff, the master being a minimization [see Solver.h])
+  * C - \p eps, C being the value of the Objective of the master at the
+  * stability centre with the model at the value of the function there,
+  * i.e., \f$ b \bar{x} + \sum_k f_k( \bar{x} ) \f$ plus the stabilization
+  * at \f$ \bar{x} \f$. The Objective at the point of the master is C plus
+  * the predicted decrease of the model [see get_FiBLambda()] plus the
+  * stabilization, which is nonnegative, hence a point whose value reaches
+  * the cutoff has a predicted decrease below - \p eps, and is different
+  * from the centre: a MIP Solver may stop there, with kCutOff and that
+  * point as its solution, rather than prove the optimality of the master
+  * [see MILPSolver::compute()], and solve_master() then reads it as a
+  * solution. An infinite \p eps, the default, sets no cutoff, which is what
+  * a master whose value is a bound has to have. Only the primal MP in raw
+  * form [see set_v2_form()] with the proximal stabilization or the trust
+  * region, with the values of the function at the centre [see
+  * set_x_bar()] and no easy component, has C: otherwise no cutoff is set,
+  * whatever \p eps. The cutoff is only given to a Solver that advertises
+  * dblLwCutOff, and the one it had is overwritten as long as \p eps has
+  * ever been finite. */
+
+ void set_improvement_cutoff( double eps ) { f_impr_eps = eps; }
+
+/*--------------------------------------------------------------------------*/
  /// solve the Master Problem by triggering compute() on the inner Solver
  /** Forwards to the compute() method of the first Solver registered to
   * MasterProblemBlock through register_Solver(); throws std::logic_error if no
-  * Solver is attached. Returns the status returned by compute(). */
+  * Solver is attached. Returns the status returned by compute(), which is
+  * kCutOff, with the solution read as after kOK, when the cutoff of
+  * set_improvement_cutoff() has stopped the Solver. */
 
  int solve_master( void );
 
@@ -2519,6 +2560,10 @@ class MasterProblemBlock : public Block {
 
  double f_kappa = Inf< double >();  ///< radius of the local branching
 
+ /// the eps of set_improvement_cutoff(), and whether it has been finite
+ double f_impr_eps = Inf< double >();
+ bool f_impr_set = false;
+
  std::list< FRowConstraint > LBranchCns;     ///< the local branching
                                              ///< constraint, if any
  std::list< FRowConstraint > RevLBranchCns;  ///< the reverse ones
@@ -2772,8 +2817,13 @@ class MasterProblemBlock : public Block {
                     ///< refresh a subset of b coefficients in the primal
                     ///< level row
 
+ [[nodiscard]] double improvement_cutoff( void ) const;
+                    ///< the cutoff of set_improvement_cutoff(), - INF if
+                    ///< there is none
+
  [[nodiscard]] bool is_binary( Index j ) const;
-                    ///< whether coordinate j is integer with box [ 0 , 1 ]
+                    ///< whether coordinate j is integer with box [ 0 , 1 ],
+                    ///< whose proximal term is then linear, x_j^2 = x_j
 
  void local_branching_row( FRowConstraint & row , bool reverse );
                     ///< write in row Delta( x , x_bar ) <= kappa, or

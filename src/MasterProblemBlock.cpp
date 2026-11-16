@@ -1164,10 +1164,13 @@ void MasterProblemBlock::generate_primal_objective( void )
    * set_linear_part() into the Objective once it exists: the rho * x_bar
    * shift that goes with it is therefore added by refresh_primal_objective(),
    * which has both and runs before every solve. */
+  double q = quad_coeff + ( f_rho.empty() ? 0.0 : f_rho[ i ] / 2.0 );
+  if( is_binary( Index( i ) ) ) {  // x_i^2 = x_i [see is_binary()]
+   lin_coeff += q;
+   q = 0;
+   }
   d_obj_idx.push_back( int( triples.size() ) );
-  triples.emplace_back( Var_d_idx[ i ] , lin_coeff ,
-                        quad_coeff + ( f_rho.empty() ? 0.0
-                                                     : f_rho[ i ] / 2.0 ) );
+  triples.emplace_back( Var_d_idx[ i ] , lin_coeff , q );
   }
 
  level_model_obj_idx = -1;
@@ -4407,6 +4410,10 @@ void MasterProblemBlock::set_box( std::vector< double > L ,
                      this , MasterProblemMod::BoxUpperChanged , range ,
                      std::move( U ) ) );
   }
+
+ // which coordinates are binary may have changed
+ if( IsPrimal )
+  refresh_local_branching( eModBlck );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -4504,6 +4511,10 @@ void MasterProblemBlock::set_box( std::vector< double > L ,
                      this , MasterProblemMod::BoxUpperChanged ,
                      std::move( subset ) , std::move( U ) , true ) );
   }
+
+ // which coordinates are binary may have changed
+ if( IsPrimal )
+  refresh_local_branching( eModBlck );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -6044,6 +6055,56 @@ void MasterProblemBlock::set_max_time( double t )
 
 /*--------------------------------------------------------------------------*/
 
+void MasterProblemBlock::set_int_feas_tol( double tol )
+{
+ const auto & solvers = this->get_registered_solvers();
+ if( solvers.empty() )
+  return;
+ auto * slv = solvers.front();
+ const auto idx = slv->dbl_par_str2idx( "dblIntFeasTol" );
+ if( idx < slv->get_num_dbl_par() )
+  slv->set_par( idx , tol );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+double MasterProblemBlock::improvement_cutoff( void ) const
+{
+ // C is only there in the primal MP in raw form, with the proximal
+ // stabilization or the trust region, the values of the function at the
+ // centre and no easy component [see set_improvement_cutoff()]
+ if( ( ! std::isfinite( f_impr_eps ) ) || ( ! IsPrimal ) || ( ! f_v2_form ) ||
+     ( ( StblType != kProximal ) && ( StblType != kTrustRegion ) ) ||
+     ( NoEasyCmps > 0 ) || ( int( d_obj_idx.size() ) != NumVars ) ||
+     ( int( f_F_at_x_bar.size() ) < NoHardCmps ) ||
+     ( int( f_x_bar.size() ) < NumVars ) )
+  return( - Inf< double >() );
+
+ auto * obj = dynamic_cast< FRealObjective * >( get_objective() );
+ auto * dqf = obj ? dynamic_cast< DQuadFunction * >( obj->get_function() )
+                  : nullptr;
+ if( ! dqf )
+  return( - Inf< double >() );
+
+ // the Objective at the centre: its own terms on x, and v_k = f_k( x_bar )
+ double C = dqf->get_constant_term();
+ for( int j = 0 ; j < NumVars ; ++j ) {
+  const auto idx = DQuadFunction::Index( d_obj_idx[ j ] );
+  const double x = f_x_bar[ j ];
+  C += ( dqf->get_linear_coefficient( idx ) +
+         dqf->get_quadratic_coefficient( idx ) * x ) * x;
+  }
+ for( int k = 0 ; k < NoHardCmps ; ++k ) {
+  if( ! std::isfinite( f_F_at_x_bar[ k ] ) )
+   return( - Inf< double >() );
+  C += f_F_at_x_bar[ k ];
+  }
+
+ return( C - f_impr_eps );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 bool MasterProblemBlock::has_initial_level_objective( void ) const
 {
  if( StblType != kLevel )
@@ -6130,8 +6191,13 @@ void MasterProblemBlock::remove_initial_level_objective( void )
 
  std::vector< double > linear( NumVars );
  std::vector< double > quadratic( NumVars , 0.5 );
- for( int j = 0 ; j < NumVars ; ++j )
+ for( int j = 0 ; j < NumVars ; ++j ) {
   linear[ j ] = f_v2_form ? - f_x_bar[ j ] : 0.0;
+  if( is_binary( Index( j ) ) ) {  // x_j^2 = x_j [see is_binary()]
+   linear[ j ] += quadratic[ j ];
+   quadratic[ j ] = 0;
+   }
+  }
 
  if( NumVars > 0 ) {
   Subset terms;
@@ -6249,6 +6315,11 @@ void MasterProblemBlock::refresh_primal_objective( void )
    if( ! f_rho.empty() )  // the translated form carries rho * x_bar instead
     linear[ j ] += f_rho[ j ] * f_x_bar[ j ];
 
+  if( is_binary( Index( j ) ) ) {  // x_j^2 = x_j [see is_binary()]
+   linear[ j ] += quadratic[ j ];
+   quadratic[ j ] = 0;
+   }
+
   changed = changed ||
    ( linear[ j ] !=
      dqf->get_linear_coefficient(
@@ -6349,12 +6420,27 @@ int MasterProblemBlock::solve_master( void )
 
  refresh_primal_objective();
 
+ // the cutoff of set_improvement_cutoff() moves with the centre and the
+ // stabilization, hence it is given again at each solve
+ if( std::isfinite( f_impr_eps ) || f_impr_set ) {
+  const auto idx = slv->dbl_par_str2idx( "dblLwCutOff" );
+  if( idx < slv->get_num_dbl_par() ) {
+   slv->set_par( idx , improvement_cutoff() );
+   f_impr_set = true;
+   }
+  }
+
  int rc = slv->compute();
 
  // A solution returned with kLowPrecision may exist but be infeasible.
  // Neither a missing nor an infeasible solution can be used as a master
- // step; in both cases let the caller handle a failed master solve.
- if( ( rc == Solver::kOK || rc == Solver::kLowPrecision ) &&
+ // step; in both cases let the caller handle a failed master solve. The
+ // point at which the cutoff of set_improvement_cutoff() has stopped the
+ // Solver is a solution as well.
+ const bool has_point = ( rc == Solver::kOK ) ||
+                        ( rc == Solver::kLowPrecision ) ||
+                        ( ( rc == Solver::kCutOff ) && f_impr_set );
+ if( has_point &&
      ( ( ! slv->has_var_solution() ) || ( ! slv->is_var_feasible() ) ) )
   rc = Solver::kError;
 
@@ -6362,7 +6448,7 @@ int MasterProblemBlock::solve_master( void )
  // buffers; the ColVariable on the Block stay at their stale values until
  // get_var_solution() is called. Without this push, the caller
  // would read d* / z* / theta as zeros after every master solve
- if( rc == Solver::kOK || rc == Solver::kLowPrecision ) {
+ if( has_point && ( rc != Solver::kError ) ) {
   // a Solver that cannot hand over the solution it says it has is a failed
   // master problem, which the caller knows how to deal with, and not a
   // reason to terminate the whole run
@@ -6588,6 +6674,11 @@ void MasterProblemBlock::local_branching_row( FRowConstraint & row ,
 void MasterProblemBlock::refresh_local_branching( ModParam issueMod ,
                                                   bool building )
 {
+ // which coordinates are binary, and so have a linear proximal term, may
+ // have changed [see is_binary()]
+ if( IsPrimal && f_has_integer )
+  f_primal_objective_dirty = true;
+
  if( ( ! IsPrimal ) ||
      ( ( ! building ) && ( ! ( f_abs_rep & k_mpb_built_cnst ) ) ) )
   return;
