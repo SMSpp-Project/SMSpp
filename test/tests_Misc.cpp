@@ -933,6 +933,32 @@ static void test_BoxSolver_unbounded( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* A relaxed OneVarConstraint is not in the problem: it does not bound its
+ * ColVariable, a cost pushing beyond it makes the problem unbounded, and
+ * once it is enforced again it bounds as before. */
+
+static void test_BoxSolver_relaxed( void )
+{
+ BoxModel m( { 0 , -1 } , { 2 , 1 } , { -1 , 1 } , {} , Objective::eMin );
+ assert( m.solver->compute() == Solver::kOK );
+ assert( equal( m.solver->get_var_value() , -3 ) );
+
+ ( *m.box )[ 0 ].relax( true );
+ const int rtrn = m.solver->compute();
+ expect( ( rtrn == Solver::kUnbounded ) &&
+	 ( m.solver->get_lb() == -INF ) ,
+	 "box LP, relaxed bound: compute() = " + std::to_string( rtrn ) +
+	 ", get_lb() = " + std::to_string( m.solver->get_lb() ) +
+	 ", expected unbounded" );
+
+ ( *m.box )[ 0 ].relax( false );
+ assert( m.solver->compute() == Solver::kOK );
+ assert( equal( m.solver->get_var_value() , -3 ) );
+
+ std::cout << "BoxSolver, relaxed bound: done" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
 /*------------------------------ UpdateSolver ------------------------------*/
 /*--------------------------------------------------------------------------*/
 /* An UpdateSolver attached to a Block passes the Modification it receives,
@@ -1280,6 +1306,7 @@ int main( int argc , char ** argv )
  test_BoxSolver_duals();
  test_BoxSolver_empty_box();
  test_BoxSolver_unbounded();
+ test_BoxSolver_relaxed();
  test_UpdateSolver();
  test_Solver_registration();
  test_Solver_Modification_queue();

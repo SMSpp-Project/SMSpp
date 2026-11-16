@@ -205,7 +205,8 @@ protected:
     @{ */
 
  /// Name of the netCDF dimension that stores the number of DataMappings
- inline static const std::string NumberDataMappings_name = "NumberDataMappings";
+ inline static const std::string NumberDataMappings_name =
+   "NumberDataMappings";
 
  /// Name of the netCDF variable that stores the (array with the) type(s) of
  /// the data to be set
@@ -405,14 +406,14 @@ public:
 /*--------------------------------------------------------------------------*/
 
  /// expands a multi-Block DataMapping into single-Block ones
- /** When the caller of this SimpleDataMappingBase is a Block whose AbstractPath
-  * selects more than one nested Block (a contiguous Block range or an explicit
-  * Block subset, see AbstractPath), this function returns the equivalent list
-  * of "plain" single-Block SimpleDataMappingBase: one for each selected Block.
-  * This allows a vector of DataMappings to list a function and its mapping
-  * only once even when it has to be applied to many sibling Blocks, while
-  * keeping set_data() (and all its consumers) completely unaware of the
-  * multi-Block case.
+ /** When the caller of this SimpleDataMappingBase is a Block whose
+  * AbstractPath selects more than one nested Block (a contiguous Block range
+  * or an explicit Block subset, see AbstractPath), this function returns the
+  * equivalent list of "plain" single-Block SimpleDataMappingBase: one for each
+  * selected Block. This allows a vector of DataMappings to list a function and
+  * its mapping only once even when it has to be applied to many sibling
+  * Blocks, while keeping set_data() (and all its consumers) completely unaware
+  * of the multi-Block case.
   *
   * Each returned SimpleDataMappingBase targets a single Block (with a single-
   * Block AbstractPath, so that set_caller_from_reference() keeps working on
@@ -422,8 +423,8 @@ public:
   * of SetFrom; otherwise, every Block receives the whole SetFrom. The SetTo
   * set is the same for every Block.
   *
-  * If the caller is not a Block, or its AbstractPath selects at most one Block,
-  * an empty vector is returned (meaning "no expansion needed").
+  * If the caller is not a Block, or its AbstractPath selects at most one
+  * Block, an empty vector is returned (meaning "no expansion needed").
   *
   * @param block_reference The reference Block against which this DataMapping's
   *        AbstractPath is resolved.
@@ -520,7 +521,8 @@ public:
 
  static void serialize
  ( netCDF::NcGroup & group ,
-   const std::vector< std::unique_ptr< SimpleDataMappingBase > > & data_mappings ,
+   const std::vector< std::unique_ptr< SimpleDataMappingBase > > &
+    data_mappings ,
    Block * block_reference ) {
   SDMBnetCDF sdmb_netCDF;
   pre_serialize( data_mappings , sdmb_netCDF , group );
@@ -614,7 +616,8 @@ private:
 /*--------------------------------------------------------------------------*/
 
  static void pre_serialize
- ( const std::vector< std::unique_ptr< SimpleDataMappingBase > > & data_mappings ,
+ ( const std::vector< std::unique_ptr< SimpleDataMappingBase > > &
+    data_mappings ,
    SDMBnetCDF & sdmb_netCDF , netCDF::NcGroup & group ) {
 
   auto num_data_mappings = data_mappings.size();
@@ -666,10 +669,14 @@ private:
  // Apparently, GCC wants template specializations
  // outside the class declaration.
 template<>
-constexpr char SimpleDataMappingBase::get_id< Block::Range >() { return( 'R' ); }
+constexpr char SimpleDataMappingBase::get_id< Block::Range >() {
+ return( 'R' );
+ }
 
 template<>
-constexpr char SimpleDataMappingBase::get_id< Block::Subset >() { return( 'S'); }
+constexpr char SimpleDataMappingBase::get_id< Block::Subset >() {
+ return( 'S');
+ }
 
 template<>
 constexpr char SimpleDataMappingBase::get_id< double >() { return( 'D' ); }
@@ -845,7 +852,8 @@ public:
   * @param set_to The set specifying which part of the data that will change.
   */
  SimpleDataMapping( F * function = nullptr , Caller * caller = nullptr ,
-                    const SetFrom & set_from = {} , const SetTo & set_to = {} ) :
+                    const SetFrom & set_from = {} ,
+                    const SetTo & set_to = {} ) :
   function( function ) , caller( caller ) , set_from( set_from ) ,
   set_to( set_to ) {
 
@@ -937,7 +945,8 @@ public:
     if( set_elements.size() < next_index + 2 )
      throw( std::logic_error( "SimpleDataMapping::deserialize: invalid "
                               "'" + SetElements_name + "' array." ) );
-    set_to = Range( set_elements[ next_index ] , set_elements[ next_index + 1 ] );
+    set_to = Range( set_elements[ next_index ] ,
+		    set_elements[ next_index + 1 ] );
    }
    else {
     if( set_elements.size() < next_index + set_size[ 1 ] )
@@ -966,9 +975,10 @@ public:
    if( ( to_card == 0 ) ||
        ( to_card >= from_card && to_card   % from_card != 0 ) ||
        ( to_card <  from_card && from_card % to_card   != 0 ) )
-    throw( std::logic_error( "SimpleDataMapping::deserialize: the cardinalities "
-                             "of 'SetFrom' and 'SetTo' must be one a positive "
-                             "multiple of the other." ) );
+    throw( std::logic_error(
+      "SimpleDataMapping::deserialize: the cardinalities "
+      "of 'SetFrom' and 'SetTo' must be one a positive "
+      "multiple of the other." ) );
   }
  }
 
@@ -1075,9 +1085,10 @@ public:
    if( ( to_card == 0 ) ||
        ( to_card >= from_card && to_card   % from_card != 0 ) ||
        ( to_card <  from_card && from_card % to_card   != 0 ) )
-    throw( std::logic_error( "SimpleDataMapping::deserialize: the cardinalities "
-                             "of 'SetFrom' and 'SetTo' must be one a positive "
-                             "multiple of the other." ) );
+    throw( std::logic_error(
+      "SimpleDataMapping::deserialize: the cardinalities "
+      "of 'SetFrom' and 'SetTo' must be one a positive "
+      "multiple of the other." ) );
   }
 
   set_elements_start_index = next_index;
@@ -1168,12 +1179,13 @@ public:
    result.reserve( nblocks );
    for( Index j = 0 ; j < nblocks ; ++j ) {
 
-    auto block_j = caller_path.template get_element< Caller >( block_reference ,
-                                                              j );
+    auto block_j =
+      caller_path.template get_element< Caller >( block_reference , j );
     if( ! block_j )
-     throw( std::logic_error( "SimpleDataMapping::split_over_blocks: could not "
-                              "resolve Block number " + std::to_string( j ) +
-                              " of the multi-Block caller." ) );
+     throw( std::logic_error(
+       "SimpleDataMapping::split_over_blocks: could not "
+       "resolve Block number " + std::to_string( j ) +
+       " of the multi-Block caller." ) );
 
     auto dm = std::make_unique<
      SimpleDataMapping< SetFrom , SetTo , DataType , Caller > >();

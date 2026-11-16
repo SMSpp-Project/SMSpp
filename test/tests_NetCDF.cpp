@@ -1569,7 +1569,7 @@ static void test_in_memory( void )
  {
   NcMemFile f;
   auto d = f.addDim( "n" , 3 );
-  auto var = f.addVar( "v" , netCDF::ncDouble , d );
+  auto var = f.addVar( "v" , netCDF::NcDouble() , d );
   const double v[] = { 1.5 , -2 , 3 };
   var.putVar( v );
   f.putAtt( "a" , netCDF::NcInt() , 4 );
@@ -1865,10 +1865,11 @@ static void test_copy_group( void )
  * front of every variable, and read_stacked() gives back each of them as it
  * was written, strings, scalars, an empty and an
  * unlimited dimension included, and so does it with a stack nested in the
- * parts, whose dimension has another name; parts of several trees are written in one stack per tree, with
- * the index of where each part is; parts whose root has a dimension
- * stacked_dimension are written as write_via_memory() writes them; parts that together take more groups than a file holds fit
- * in one when stacked; a part out of the stack throws. */
+ * parts, whose dimension has another name; parts of several trees are written
+ * in one stack per tree, with the index of where each part is; parts whose
+ * root has a dimension stacked_dimension are written as write_via_memory()
+ * writes them; parts that together take more groups than a file holds fit in
+ * one when stacked; a part out of the stack throws. */
 
 static void test_stacked( void )
 {

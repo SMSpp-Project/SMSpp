@@ -105,7 +105,8 @@ SMSpp_insert_in_factory_cpp_1_t( DummyBlockT< void , 1 > );
 SMSpp_insert_in_factory_cpp_1_t( DummyBlockT< double , 1 > );
 SMSpp_insert_in_factory_cpp_1_t( DummyBlockT< char , 1 > );
 SMSpp_insert_in_factory_cpp_1_t( DummyBlockT< int , 1 > );
-SMSpp_insert_in_factory_cpp_1_t( DummyBlockT< std::pair< double , int > , 1 > );
+SMSpp_insert_in_factory_cpp_1_t
+( DummyBlockT< std::pair< double , int > , 1 > );
 SMSpp_insert_in_factory_cpp_1_t
 ( DummyBlockT< std::list< std::pair < int , double > > , 1 > );
 
@@ -324,7 +325,8 @@ static void test_Configuration( void )
 
 static void test_Solver( void )
 {
- auto make = []( const std::string & n ) { return( Solver::new_Solver( n ) ); };
+ auto make =
+   []( const std::string & n ) { return( Solver::new_Solver( n ) ); };
 
  // the Solver of the core
  check< FakeSolver , Solver >( make , "FakeSolver" );
@@ -382,7 +384,8 @@ static void test_State( void )
 
 static void test_Change( void )
 {
- auto make = []( const std::string & n ) { return( Change::new_Change( n ) ); };
+ auto make =
+   []( const std::string & n ) { return( Change::new_Change( n ) ); };
 
  check< GroupChange , Change >( make , "GroupChange" );
 

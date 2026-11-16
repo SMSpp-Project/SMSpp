@@ -51,48 +51,6 @@ SMSpp_insert_in_factory_cpp_0( RBlockSolverConfig );
 SMSpp_insert_in_factory_cpp_0( MetaBlockSolverConfig );
 
 /*--------------------------------------------------------------------------*/
-/*--------------------------- AUXILIARY FUNCTIONS --------------------------*/
-/*--------------------------------------------------------------------------*/
-
-namespace {
-
-/// returns the index of the sub-Block with the given \p id
-
-Block::Index get_nested_Block_index( const std::string & id ,
-                                     const Block * block )
-{
- if( ( ! id.empty() ) && std::isdigit( id.front() ) ) {
-  // The id is the index of the sub-Block
-  try { return( std::stoi( id ) ); }
-  catch( ... ) { return( Inf< Block::Index >() ); }
-  }
- else  // The id is the name of the sub-Block
-  return( block->get_nested_Block_index( id ) );
- }
-
-/*--------------------------------------------------------------------------*/
-// returns the sub-Block with the given \p id
-
-Block * get_nested_Block( const std::string & id , const Block * block )
-{
- if( auto bi = block->get_nested_Block( id ) )
-  return( bi );
-
- if( id.empty() || ( ! std::isdigit( id.front() ) ) )
-  return( nullptr );
-
- Block::Index i;
- try { i = std::stoi( id ); }
- catch( ... ) { return( nullptr ); }
-
- return( block->get_nested_Block( i ) );
- }
-
-/*--------------------------------------------------------------------------*/
-
-}  // end( namespace )
-
-/*--------------------------------------------------------------------------*/
 
 static bool advance( std::istream & input )
 {

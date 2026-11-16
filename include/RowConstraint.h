@@ -711,11 +711,11 @@ is_feasible( boost::multi_array< T , K > & constraints ,
  is_feasible( C< D< T , DA ... > , CA ... > & constraints ,
               double tolerance = 1e-10 , bool rel_viol = true ) {
   // if empty, std::all_of returns true, i.e., the solution is feasible
-  return std::all_of( constraints.begin() , constraints.end() ,
-                      [ tolerance , rel_viol ]( auto & l_constraints ) {
-                       return RowConstraint::is_feasible
-                        ( l_constraints , tolerance , rel_viol );
-                      } );
+  return( std::all_of( constraints.begin() , constraints.end() ,
+                       [ tolerance , rel_viol ]( auto & l_constraints ) {
+                        return( RowConstraint::is_feasible
+                          ( l_constraints , tolerance , rel_viol ) );
+                       } ) );
  }
 
 /*--------------------------------------------------------------------------*/

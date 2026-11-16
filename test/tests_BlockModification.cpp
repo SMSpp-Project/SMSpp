@@ -12,8 +12,10 @@
  * opposite meanings), over the arithmetic of the parameter that says if, how
  * and where a Modification is issued, over the channels that pack them into
  * a GroupModification (nested, forced, empty, emptied, discarded, and
- * hijacking the default channel), and over the path of a Modification from a sub-Block to the
- * Solver of its father.
+ * hijacking the default channel), over the path of a Modification from a
+ * sub-Block to the Solver of its father, also for a sub-Block constructed
+ * while the Solver is registered, and over the mapping of the Modification
+ * to another Block, a mirror among them.
  *
  * \author Donato Meoli \n
  *         Dipartimento di Informatica \n
@@ -30,10 +32,12 @@
 #include "FakeSolver.h"
 #include "FRowConstraint.h"
 #include "LinearFunction.h"
+#include "UpdateSolver.h"
 
 #include <iostream>
 #include <list>
 #include <memory>
+#include <set>
 #include <stdexcept>
 #include <vector>
 
@@ -812,7 +816,8 @@ static void test_remove_constraints( void )
  assert( mods.size() == 1 );
  {
   auto rmv = as< BlockModRmvRngd< FRowConstraint > >( mods.front() );
-  assert( rmv && ( ! rmv->is_variable() ) && ( rmv->range() == Range( 1 , 3 ) ) );
+  assert( rmv && ( ! rmv->is_variable() ) &&
+	  ( rmv->range() == Range( 1 , 3 ) ) );
   assert( ( rhs_of( rmv->removed() ) == std::vector< double >( { 1 , 2 } ) ) );
   assert( & rmv->removed().front() == gone[ 0 ] );
   }
@@ -1140,7 +1145,8 @@ static void test_channel( void )
  block->close_channel( ch2 );
  assert( mods.size() == 1 );
  gm = as< GroupModification >( mods.front() );
- assert( gm && gm->concerns_Block() && ( gm->sub_Modifications().size() == 2 ) );
+ assert( gm && gm->concerns_Block() &&
+	 ( gm->sub_Modifications().size() == 2 ) );
 
  // nesting into a channel that is not open is an error
  assert( throws( [ & ]() { block->open_channel( ch2 ); } ) );
@@ -1683,6 +1689,162 @@ static void test_sub_Block( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/// a FakeSolver that has a sub-Block nested into the Block it is given
+/** As a Solver that generates the abstract representation of its Block may
+ * have the Block construct its sub-Block, which happens before the Block
+ * has the Solver in its list. */
+
+class NestingSolver : public FakeSolver {
+ public:
+
+ void set_Block( Block * block ) override {
+  if( auto ab = dynamic_cast< AbstractBlock * >( block ) ) {
+   nested = new AbstractBlock( ab );
+   ab->add_nested_Block( nested );
+   }
+  FakeSolver::set_Block( block );
+  }
+
+ AbstractBlock * nested = nullptr;  ///< the sub-Block it has nested
+ };
+
+/* A sub-Block constructed while the Solver is given its Block knows that
+ * someone is listening, and its Modification reach the Solver of its
+ * father. */
+
+static void test_sub_Block_of_set_Block( void )
+{
+ auto father = new AbstractBlock;
+ auto ns = new NestingSolver;
+ father->register_Solver( ns );
+ auto nested = ns->nested;
+ assert( nested );
+ expect( nested->anyone_there() , "a sub-Block nested by set_Block() does "
+	 "not know that the Solver of its father listens" );
+
+ auto v = kept( new ColVariable );
+ nested->add_static_variable( *v , "v" );
+ auto & mods = ns->get_Modification_list();
+ mods.clear();
+ v->is_fixed( true , eNoBlck );
+ expect( mods.size() == 1 , "the Modification of a sub-Block nested by "
+	 "set_Block() does not reach the Solver of its father" );
+
+ father->unregister_Solvers( true );
+ assert( ! nested->anyone_there() );
+ delete father;
+ std::cout << "sub-Block of set_Block(): OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+/// an AbstractBlock that maps the Modification of a given set
+/** It records each Modification it is asked to map, forward or back, and
+ * says it has mapped those in the set. */
+
+class MappingBlock : public AbstractBlock {
+ public:
+
+ bool map_forward_Modification( Block * R3B , c_p_Mod mod ,
+				Configuration * r3bc = nullptr ,
+				ModParam issuePMod = eNoBlck ,
+				ModParam issueAMod = eModBlck ) override {
+  asked.push_back( mod );
+  return( mapped.count( mod ) > 0 );
+  }
+
+ bool map_back_Modification( Block * R3B , c_p_Mod mod ,
+			     Configuration * r3bc = nullptr ,
+			     ModParam issuePMod = eNoBlck ,
+			     ModParam issueAMod = eModBlck ) override {
+  asked.push_back( mod );
+  return( mapped.count( mod ) > 0 );
+  }
+
+ std::vector< const Modification * > asked;  ///< what it was asked
+ std::set< const Modification * > mapped;    ///< what it maps
+ };
+
+/* map_forward_Modifications() and map_back_Modifications() ask to map each
+ * Modification of the list once, in order, and remove from the list those
+ * that have been mapped, leaving the others [see
+ * Block::map_forward_Modifications()]. */
+
+static void test_map_Modifications( void )
+{
+ for( bool forward : { true , false } ) {
+  MappingBlock b;
+  AbstractBlock r3b;
+  std::vector< sp_Mod > m;
+  for( int i = 0 ; i < 3 ; ++i )
+   m.push_back( std::make_shared< NBModification >( & b ) );
+  b.mapped = { m[ 0 ].get() , m[ 2 ].get() };
+
+  Lst_sp_Mod lmod( m.begin() , m.end() );
+  if( forward )
+   b.map_forward_Modifications( & r3b , lmod );
+  else
+   b.map_back_Modifications( & r3b , lmod );
+
+  expect( ( b.asked.size() == 3 ) && ( b.asked[ 0 ] == m[ 0 ].get() ) &&
+	  ( b.asked[ 1 ] == m[ 1 ].get() ) && ( b.asked[ 2 ] == m[ 2 ].get() ) ,
+	  "map_*_Modifications() does not ask each Modification once, in "
+	  "order" );
+  expect( ( lmod.size() == 1 ) && ( lmod.front() == m[ 1 ] ) ,
+	  "map_*_Modifications() does not leave in the list exactly the "
+	  "Modification not mapped" );
+  }
+
+ // a list of one Modification
+ MappingBlock b;
+ AbstractBlock r3b;
+ auto mod = std::make_shared< NBModification >( & b );
+ b.mapped = { mod.get() };
+ Lst_sp_Mod lmod( { mod } );
+ b.map_forward_Modifications( & r3b , lmod );
+ expect( ( b.asked.size() == 1 ) && lmod.empty() ,
+	 "map_forward_Modifications() of a list of one Modification" );
+
+ std::cout << "map_*_Modifications(): OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+/* The mirror of a Block kept in sync by an UpdateSolver is changed issuing
+ * the Modification that the UpdateSolver asks for, which reach a Solver
+ * registered to the mirror [see Block::map_forward_Modification()]. */
+
+static void test_Modification_to_a_mirror( void )
+{
+ auto orig = new AbstractBlock;
+ auto x = kept( new std::vector< ColVariable >( 2 ) );
+ orig->add_static_variable( *x , "x" );
+
+ auto copy = new AbstractBlock;
+ copy->mirror( orig );
+ assert( copy->get_mirror_issues().empty() );
+ auto cx = copy->mirror_of( & ( *x )[ 0 ] );
+ assert( cx );
+
+ auto fake = new FakeSolver();
+ copy->register_Solver( fake );
+ auto & mods = fake->get_Modification_list();
+ auto us = new UpdateSolver( copy );
+ orig->register_Solver( us );
+
+ mods.clear();
+ ( *x )[ 0 ].is_fixed( true , eModBlck );
+ assert( cx->is_fixed() );
+ expect( ! mods.empty() , "the mirror is changed with no Modification, and "
+	 "its Solver is not told" );
+
+ orig->unregister_Solvers( true );
+ copy->unregister_Solvers( true );
+ delete copy;
+ delete orig;
+ std::cout << "Modification to a mirror: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
 /*----------------------------------- MAIN ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1707,6 +1869,9 @@ int main( void )
  test_default_channel();
  test_clear_and_discard();
  test_sub_Block();
+ test_sub_Block_of_set_Block();
+ test_map_Modifications();
+ test_Modification_to_a_mirror();
 
  while( ! given.empty() )
   given.pop_back();

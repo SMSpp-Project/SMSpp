@@ -7,6 +7,191 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-16
+
+### Added
+
+- `MasterProblemBlock::set_improvement_cutoff()`, with which the master
+  Solver stops at the first point whose value is below the one of the
+  stability centre by more than a given eps, i.e., a point that the model
+  says is better than the centre, rather than prove the optimality of the
+  master: `solve_master()` gives the Solver that cutoff (`dblLwCutOff`)
+  before each solve and reads the point at which it has stopped (`kCutOff`)
+  as a solution; only the primal master in raw form with the proximal
+  stabilization or the trust region has it, and `MasterProblemBlock::
+  set_int_feas_tol()`, which gives the master Solver its integrality
+  tolerance [see `dblIntFeasTol` of `MILPSolver`]
+
+- `for_each_selected()` and `has_selected()` next to
+  `for_each_by_classname()`: the visit of the "meta" Configuration that
+  chooses the parts of a solution by `classname()`, whose format
+  `Solver::get_var_solution()` now describes once for every :Solver: a
+  Block that is a key is written as the Configuration it is mapped to says
+  (nullptr for all of it, sub-Blocks included), the sub-Blocks of one that
+  is not are looked at in turn, and a :Solver whose solution comes in
+  pieces larger than a Block writes a piece whole if any Block in it is
+  chosen
+
+- `SMSTerminate.h`, with `smspp_terminate()`, the handler of
+  `std::terminate()` of the tools and the testers: it prints the type of
+  the exception, demangled, and its message, or that there is no
+  exception (e.g., when the destructor of a `std::thread` that can still
+  be joined terminates), and aborts
+
+- `smspp_module_exports.py` takes `--imports <module>=<macro>`, a module
+  re-exported only if the macro is defined, as `--optional` does for a
+  header
+
+- the global lower bound of the primal `MasterProblemBlock`: the level row
+  is the row LB <= b*d + sum_k v^k <= f_lev with any stabilization, with
+  infinite sides until `set_global_LB()` and `set_f_lev()` give them, and
+  `get_r()` its multiplier on the side of LB, so that the primal and the
+  dual master problem are the same also with a global lower bound;
+  `get_global_LB()` gives it to a Solver of the master
+
+### Changed
+
+- on a binary coordinate of the primal master, i.e., an integer one with box
+  [ 0 , 1 ], the quadratic coefficient of the stabilization is moved into the
+  linear one, since x_j^2 = x_j: with only binary coordinates the proximal
+  master is a mixed-integer linear program, with the same value at every
+  integer point
+
+- `GlobalInformation::str_LocalFixingAllowed` also covers the local
+  reductions that depend on the data, which are unsound as well when the
+  state of a search is retained across changes of the data
+
+- `Modification::is_of_concern()`: a physical Modification only reaches
+  those who read `eModPhys`, whatever kinds it says it changes, and no longer
+  those who only read the abstract representation (who see the change in the
+  abstract Modification that come with it, if any); one that changes
+  everything (`eModAll`, e.g., a `NBModification`) reaches anyone, and
+  under `eNoBlck` a physical Modification is not issued when nobody reads
+  `eModPhys` [see `Observer::issue_pmod()`]; the Block asks
+  `Modification::is_of_concern_to()`, by which a `GroupModification` reaches
+  whoever one of its sub-Modification reaches
+
+- the Modification whose kind is known are issued only if someone reads
+  that kind (`Observer::anyone_there_for()`, which also takes the
+  Modification itself): the Function Modification passed on by
+  `FRowConstraint`, `FRealObjective` and `PolyhedralFunctionBlock`, those
+  that `C05SumFunction` issues for its members, the physical ones of
+  `MasterProblemBlock` and the changes of its abstract representation (now
+  under `eNoBlck`); `MasterProblemBlock::concerned()` also says what the
+  original fathers of its easy inner Block read, since their Modification
+  are passed there too
+
+- the fictitious bound of `MasterProblemBlock::set_fictitious_LB()` is
+  v^k >= 0 also when there is a finite global lower bound (with which it is
+  not needed), rather than the bound minus 1; in the raw primal form it is
+  F_k( x_bar ) only once that value is known, and 0 before (it used to make
+  the master infeasible before the first evaluation)
+
+### Fixed
+
+- `MasterProblemBlock::set_box()` on a range or on a subset of the
+  coordinates updates the local branching constraint, as the one on all of
+  them does, when the coordinates that are binary change
+
+- `AbstractBlock::mirror()` copied a `QuadFunction` as a `DQuadFunction`,
+  losing its off-diagonal terms: the copy is a `QuadFunction`
+
+- the `print()` of `LinearFunction`, `DQuadFunction` and `QuadFunction`
+  printed the address of the field holding the `Observer` rather than the
+  `Observer`
+
+- `UpdateSolver.h` did not compile by itself, calling
+  `Block::add_Modification()` with `Block` only declared, and
+  `UpdateSolver::set_issueAMod()` defaulted to `eNoBlck` while the
+  constructor and the field default to `eModBlck`: the header includes
+  `Block.h`, and the default is `eModBlck`
+
+- `Block::load( const std::string & )` printed an error and went on, leaving
+  the Block as it was, when the file could not be opened: it throws
+  `std::invalid_argument`
+
+- `Block::is_sol_feasible()` and `Block::is_sol_optimal()` left the Solution
+  they check in the Variable of the Block, the direction flag raised and the
+  saved state leaked when the check threw anything other than
+  `std::domain_error`: what the Block held is put back before the exception
+  is passed on
+
+- `Block::map_forward_Modification()` changed a mirror of the Block [see
+  `AbstractBlock::mirror()`] with `eNoMod` whatever `issueAMod` said, so
+  that a Solver of a mirror kept in sync by an `UpdateSolver` was never told
+  of the changes: the mirror issues the Modification of its changes as
+  `issueAMod` says
+
+- `Block::map_forward_Modifications()` and `Block::map_back_Modifications()`
+  advanced the iterator before using it, so that they skipped the first
+  Modification and read past the end of the list, and took the list by
+  value, so that the Modification mapped were not removed from the list of
+  the caller as the comment says: they take it by reference, and ask to map
+  each Modification once, in order
+
+- `Block::register_Solver()` told the sub-Block that someone listens before
+  calling `Solver::set_Block()`, so that the sub-Block that the latter had
+  constructed (say, by generating the abstract representation of the Block)
+  did not know it, and their Modification did not reach the Solver; it now
+  tells them after `set_Block()` as well
+
+- `LagBFunction` updated the constants of the global pool kept under
+  `intPoolExtMem` == 0 after a change of the costs only if the indices of
+  the Modification were still those of the Objective, and read past its end
+  when Variable had been removed from it since
+
+- `BoxSolver` bounded a ColVariable by a relaxed OneVarConstraint, which is
+  not in the problem
+
+- `C05SumFunction` merged a monotone upward change (`INFshift`) with an
+  unpredictable, a downward or a negative one into a monotone upward one,
+  which keeps a lower bound the change may have made invalid: they now give
+  NaN, and two monotone ones stay so only if of the same sign
+
+- `eLastFileParam` is 5, the first value of `smspp_netCDF_file_type` not
+  taken by the five basic file types, rather than 4, the value of
+  `eStateFile`
+
+- the configuration, of the core and of a module that finds it, no longer
+  warns that policies CMP0144, CMP0167 and CMP0169 are not set: Boost is
+  found by its own package configuration file, the upper-case
+  `<PACKAGE>_ROOT` are prefixes of `find_package()`, and FastFlow is fetched
+  by `FetchContent_MakeAvailable()`
+- the C++20 module `smspp` exports `BlockWeightMod`, `copy_group()`,
+  `write_via_memory()` and the functions of the stacked solutions of
+  `SMSnetCDF.h` (`write_stacked()`, `read_stacked()`, `stacked_size()` and
+  the names of their dimensions, groups and variables), which the headers
+  declare and `src/SMSpp.cppm` did not export
+
+- `AbstractBlock::read_mps()` finds a row or a column by its name in a hash
+  table rather than by a linear search over all the names for each entry,
+  which made the read of a model quadratic in its size
+
+- `SMSpp_classname_normalise()` no longer reads the first character of an
+  empty classname, which was undefined behaviour (it aborted
+  `ClassFactory_test` in a build with the assertions of the standard
+  library)
+
+- the headers compile without warnings under `-Wall`: the members of
+  `ComputeConfig`, `VariableGroupMod`, `PolyhedralFunction` and
+  `PolyhedralFunctionBlock` are initialized in the order they are declared,
+  the index translations of `LagBFunction` compare and subtract the last
+  parameters of `Solver` and of `LagBFunction` as `idx_type` rather than as
+  enumerations of different types, and `MasterProblemBlock` no longer hides
+  `Block::register_Solver()`; the unused parameter of the default
+  `Configuration::merge_overrides()` and the result of the replacement in
+  `Block::register_method()`, which only the assert reads, are marked as
+  such, and the decompression of `SMSnetCDF.h` counts the change intervals
+  with `std::size_t`
+- the sources and the tests compile without warnings under `-Wall`: the
+  unused functions, variables and lambdas are gone, the column of the MPS
+  reader of `AbstractBlock` starts as `nullptr`, the loops over strings
+  and pairs take them by reference, and the indentation follows the code
+  in the translation of the Modification of a member of `C05SumFunction`
+  and in the removal of a Range of Variable from `LagBFunction`
+- `NetCDF_test` links on Windows, where the DLL of netCDF-C++ does not
+  export the type objects such as `netCDF::ncDouble`
+
 ## [0.9.0] - 2026-11-03
 
 ### Added
@@ -2252,7 +2437,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - First test release.
 
-[Unreleased]: https://gitlab.com/smspp/smspp/-/compare/0.9.0...develop
+[Unreleased]: https://gitlab.com/smspp/smspp/-/compare/0.10.0...develop
+[0.10.0]: https://gitlab.com/smspp/smspp/-/compare/0.9.0...0.10.0
 [0.9.0]: https://gitlab.com/smspp/smspp/-/compare/0.8.0...0.9.0
 [0.8.0]: https://gitlab.com/smspp/smspp/-/compare/0.7.1...0.8.0
 [0.7.1]: https://gitlab.com/smspp/smspp/-/compare/0.7.0...0.7.1

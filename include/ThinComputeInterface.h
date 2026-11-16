@@ -2248,8 +2248,9 @@ class ComputeConfig : public Configuration
 /*---------------------------- CONSTRUCTORS --------------------------------*/
  /// constructor: initializes everything to "default configuration"
 
- ComputeConfig( void ) : Configuration() , f_diff( true ) , f_relax( false ) ,
-                         f_extra_Configuration( nullptr ) {}
+ ComputeConfig( void )
+     : Configuration() , f_extra_Configuration( nullptr ) , f_diff( true ) ,
+       f_relax( false ) { }
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor: does what it says on the tin
@@ -2414,7 +2415,7 @@ class ComputeConfig : public Configuration
   * the extra slot.
   *
   * Used by Configuration::deserialize(std::istream &) to implement the
-  * `* base.txt + <body>` cascade-override syntax. */
+  * `*base.txt +` cascade-override syntax, followed by the body. */
 
  void merge_overrides( std::istream & input ) override;
 
@@ -2783,9 +2784,9 @@ class ComputeConfig : public Configuration
   *
   *   = bit 1 (+2) for f_relax, telling if the ComputeConfig is allowed to
   *     contain names of parameters that are not recognised by the
-  *     :ThinComputeInterface is will be set_*() to; if false, trying to
+  *     :ThinComputeInterface it will be set_*() to; if false, trying to
   *     set an unrecognised parameter should raise an exception; if the
-  *     attribute is not there, f_diff == false is assumed.
+  *     attribute is not there, f_relax == false is assumed.
   *
   * number k of the names of int parameters
   *

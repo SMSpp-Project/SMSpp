@@ -195,7 +195,8 @@ public:
  using Interval = std::pair< Int , Int >;
 
  NumNestedBlockGenerator( Interval num_nested_blocks , S seed ) :
-  num_nested_blocks_dist( num_nested_blocks.first , num_nested_blocks.second ) ,
+  num_nested_blocks_dist( num_nested_blocks.first ,
+                          num_nested_blocks.second ) ,
   generator ( seed ) {}
 
  ~NumNestedBlockGenerator() {}

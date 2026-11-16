@@ -532,9 +532,12 @@ class MasterProblemBlock : public Block {
   * - the file does not contain a BlockSolverConfig.
   *
   * After a successful call the registered Solver is ready to be compute()-ed.
-  */
+  * Block::register_Solver(), which takes the Solver itself, is still
+  * available [see the using below]. */
 
  void register_Solver( std::string && solv_cfg_filename );
+
+ using Block::register_Solver;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// register the inner Solver + install an exclusion list on it
@@ -1358,8 +1361,11 @@ class MasterProblemBlock : public Block {
  /** In the dual MP the global lower bound enters as the linear coefficient
   * of the r multiplier in the master Objective (+ r * LB_xbar term, with
   * LB_xbar = LB + C, cf. set_C). This API forwards \p LB to that coefficient
-  * via modify_term on the FRealObjective LinearFunction. No-op under the
-  * primal MP (where the global LB has to be expressed differently). */
+  * via modify_term on the FRealObjective LinearFunction. In the primal MP it
+  * is the left-hand side of the value row LB <= b*d + sum_k v^k, whose
+  * right-hand side is the level, if any [see set_f_lev()]; the row is there
+  * whatever the stabilization, with infinite sides as long as they are not
+  * given. A non-finite \p LB means that there is no global lower bound. */
 
  void set_global_LB( double LB );
 
@@ -1720,10 +1726,15 @@ class MasterProblemBlock : public Block {
   * \f]
   * an integer quadratic program, and a mixed-integer linear one, i.e., the
   * cutting-plane master over the integer points of the box, with
-  * \f$ t = \infty \f$ [see set_t()]. A master with integer coordinates has
-  * no dual solution: the multipliers of the cuts, hence the aggregated
-  * linearization error and subgradient, are not available, and only the
-  * primal solution and its value can be used [see get_master_bound()].
+  * \f$ t = \infty \f$ [see set_t()]. On a binary coordinate, i.e., an
+  * integer one with box \f$ [ 0 , 1 ] \f$, \f$ x_j^2 = x_j \f$, and its
+  * quadratic coefficient is moved into the linear one: with only binary
+  * coordinates the stabilized master is a mixed-integer linear program as
+  * well, with the same value at every integer point. A master with integer
+  * coordinates has no dual solution: the multipliers of the cuts, hence the
+  * aggregated linearization error and subgradient, are not available, and
+  * only the primal solution and its value can be used [see
+  * get_master_bound()].
   *
   * Only the primal MP in raw form [see set_v2_form()] supports it, since
   * that is where the Variable of the master are the x themselves: in the
@@ -1898,10 +1909,46 @@ class MasterProblemBlock : public Block {
  void set_max_time( double t );
 
 /*--------------------------------------------------------------------------*/
+ /// set the integrality tolerance of the master Solver to \p tol
+ /** Forwards `dblIntFeasTol = tol` to the first Solver registered to
+  * MasterProblemBlock via set_par [see MILPSolver::dblIntFeasTol]. No-op if
+  * no Solver is registered or if the Solver does not advertise the
+  * parameter. */
+
+ void set_int_feas_tol( double tol );
+
+/*--------------------------------------------------------------------------*/
+ /// stop the master Solver at the first point that improves on the centre
+ /** With a finite \p eps, each solve_master() gives the master Solver the
+  * cutoff (dblLwCutOff, the master being a minimization [see Solver.h])
+  * C - \p eps, C being the value of the Objective of the master at the
+  * stability centre with the model at the value of the function there,
+  * i.e., \f$ b \bar{x} + \sum_k f_k( \bar{x} ) \f$ plus the stabilization
+  * at \f$ \bar{x} \f$. The Objective at the point of the master is C plus
+  * the predicted decrease of the model [see get_FiBLambda()] plus the
+  * stabilization, which is nonnegative, hence a point whose value reaches
+  * the cutoff has a predicted decrease below - \p eps, and is different
+  * from the centre: a MIP Solver may stop there, with kCutOff and that
+  * point as its solution, rather than prove the optimality of the master
+  * [see MILPSolver::compute()], and solve_master() then reads it as a
+  * solution. An infinite \p eps, the default, sets no cutoff, which is what
+  * a master whose value is a bound has to have. Only the primal MP in raw
+  * form [see set_v2_form()] with the proximal stabilization or the trust
+  * region, with the values of the function at the centre [see
+  * set_x_bar()] and no easy component, has C: otherwise no cutoff is set,
+  * whatever \p eps. The cutoff is only given to a Solver that advertises
+  * dblLwCutOff, and the one it had is overwritten as long as \p eps has
+  * ever been finite. */
+
+ void set_improvement_cutoff( double eps ) { f_impr_eps = eps; }
+
+/*--------------------------------------------------------------------------*/
  /// solve the Master Problem by triggering compute() on the inner Solver
  /** Forwards to the compute() method of the first Solver registered to
   * MasterProblemBlock through register_Solver(); throws std::logic_error if no
-  * Solver is attached. Returns the status returned by compute(). */
+  * Solver is attached. Returns the status returned by compute(), which is
+  * kCutOff, with the solution read as after kOK, when the cutoff of
+  * set_improvement_cutoff() has stopped the Solver. */
 
  int solve_master( void );
 
@@ -1941,7 +1988,8 @@ class MasterProblemBlock : public Block {
   * stationarity (i): lambda + r - omega = 1), shared across every hard
   * component (cf. PolyhedralFunctionBlock::set_lambda). In the primal form
   * it is 1 plus the multiplier of the level row, if any, that the rows of
-  * each component share with the proximal term. Meaningful only after
+  * each component share with the proximal term, less the multiplier r of
+  * the global lower bound row [see get_r()]. Meaningful only after
   * solve_master(). */
 
  [[nodiscard]] double get_lambda( void ) const {
@@ -1949,8 +1997,8 @@ class MasterProblemBlock : public Block {
    return( Var_lambda.get_value() );
   if( ( StblType == kDoublyStabilized ) ||
       ( ( StblType == kLevel ) && has_initial_level_objective() ) )
-   return( 1.0 + get_level_multiplier() );
-  return( 1.0 );
+   return( 1.0 + get_level_multiplier() - get_r() );
+  return( 1.0 - get_r() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1963,10 +2011,11 @@ class MasterProblemBlock : public Block {
 
 /*--------------------------------------------------------------------------*/
  /// returns the current optimal value of r
- /** r is the dual multiplier of the global LB row. Meaningful only after
-  * solve_master(). */
+ /** r is the dual multiplier of the global LB row: a variable of the dual
+  * MP, the dual value of the left-hand side of the value row in the primal
+  * one [see set_global_LB()]. Meaningful only after solve_master(). */
 
- [[nodiscard]] double get_r( void ) const { return( Var_r.get_value() ); }
+ [[nodiscard]] double get_r( void ) const;
 
 /*--------------------------------------------------------------------------*/
  /// returns the mass the aggregate of the dual master is divided by
@@ -1984,7 +2033,8 @@ class MasterProblemBlock : public Block {
  [[nodiscard]] double aggregate_mass( void ) const {
   if( uses_pure_level_aggregation() )
    return( get_level_multiplier() );
-  return( get_lambda() + ( Var_r.is_fixed() ? 0.0 : get_r() ) );
+  return( get_lambda() + ( ( IsPrimal || ! Var_r.is_fixed() ) ? get_r()
+                                                             : 0.0 ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -2048,6 +2098,13 @@ class MasterProblemBlock : public Block {
  /// returns the current level f_lev (level and doubly stabilization only)
 
  [[nodiscard]] double get_level( void ) const { return( f_lev ); }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the global lower bound [see set_global_LB()], -INF if none
+ [[nodiscard]] double get_global_LB( void ) const {
+  return( std::isfinite( f_global_LB_xbar ) ? f_global_LB_xbar - f_C
+                                            : - Inf< double >() );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the diagonal of the quadratic 0-th component, empty if none
@@ -2115,7 +2172,11 @@ class MasterProblemBlock : public Block {
   * to set_LB), because the model value v^k already lives in that frame.
   * The caller must remove it (\p on == false) as soon as the component
   * gets a real cut, restoring the gamma^k-fixed "no bound" state. \p k
-  * must lie in [0, NoHardCmps). */
+  * must lie in [0, NoHardCmps).
+  *
+  * It is not needed when a finite global lower bound has been set [see
+  * set_global_LB()]: the master is then bounded with the empty components
+  * left free (in the dual, lambda = 0 and r = 1 satisfy their rows). */
 
  void set_fictitious_LB( int k , bool on );
 
@@ -2157,6 +2218,24 @@ class MasterProblemBlock : public Block {
   * branch. */
 
  void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// the kinds of Modification read by anyone listening to the Block
+ /** Besides what Block::concerned() says, what is read by the father each
+  * easy inner Block and the host had when they were registered, since
+  * their Modification are passed there too [see add_Modification()]: an
+  * inner Block that asks its father whether to issue a Modification must
+  * also hear about the Solver of its original branch. */
+
+ [[nodiscard]] Modification::ModConcern concerned( void ) const override {
+  auto c = Block::concerned();
+  for( auto * owner : EasyCmps_Father )
+   if( owner )
+    c |= owner->concerned();
+  if( f_host_father )
+   c |= f_host_father->concerned();
+  return( c );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// load a MasterProblemBlock out of an istream
@@ -2391,8 +2470,8 @@ class MasterProblemBlock : public Block {
                                 ///< per-hard-component LB^k: v^k >= LB^k
                                 ///< (rhs = +INF by default)
 
- FRowConstraint LevelCns;                ///< primal level constraint
-                                         ///< b*d + sum_k v^k <= f_lev
+ FRowConstraint LevelCns;                ///< primal value row
+                                         ///< LB <= b*d + sum_k v^k <= f_lev
                                          ///< (kLevel / kDoublyStabilized only)
 
  std::vector< int > level_d_idx;
@@ -2480,6 +2559,10 @@ class MasterProblemBlock : public Block {
  bool f_has_integer = false;  ///< true if any entry of f_integer is
 
  double f_kappa = Inf< double >();  ///< radius of the local branching
+
+ /// the eps of set_improvement_cutoff(), and whether it has been finite
+ double f_impr_eps = Inf< double >();
+ bool f_impr_set = false;
 
  std::list< FRowConstraint > LBranchCns;     ///< the local branching
                                              ///< constraint, if any
@@ -2583,8 +2666,8 @@ class MasterProblemBlock : public Block {
  // ( add_cut / modify_cut / modify_alpha / get_raw_aggregated_alpha )
  // reduces to the plain displacement frame
  const std::vector< double > & cut_ref() const {
-  return ( ( f_xref_tol > 0.0 ) &&
-           ( f_x_ref.size() == f_x_bar.size() ) ) ? f_x_ref : f_x_bar;
+  return( ( ( f_xref_tol > 0.0 ) &&
+            ( f_x_ref.size() == f_x_bar.size() ) ) ? f_x_ref : f_x_bar );
   }
 
  [[nodiscard]] double get_master_objective_value() const;
@@ -2734,8 +2817,13 @@ class MasterProblemBlock : public Block {
                     ///< refresh a subset of b coefficients in the primal
                     ///< level row
 
+ [[nodiscard]] double improvement_cutoff( void ) const;
+                    ///< the cutoff of set_improvement_cutoff(), - INF if
+                    ///< there is none
+
  [[nodiscard]] bool is_binary( Index j ) const;
-                    ///< whether coordinate j is integer with box [ 0 , 1 ]
+                    ///< whether coordinate j is integer with box [ 0 , 1 ],
+                    ///< whose proximal term is then linear, x_j^2 = x_j
 
  void local_branching_row( FRowConstraint & row , bool reverse );
                     ///< write in row Delta( x , x_bar ) <= kappa, or
@@ -2788,6 +2876,13 @@ class MasterProblemBlock : public Block {
                     ///< rows follow the centre (displacement form only)
 
  void primal_box( Index j , double & lhs , double & rhs ) const;
+
+ /// the global lower bound in the frame of the stability centre
+ /** The value of the global lower bound row minus the value of the model at
+  * x_bar, i.e., LB - F( x_bar ), whose opposite is the linearization error
+  * of the row; 0 if there is no global lower bound. */
+
+ [[nodiscard]] double global_LB_displacement( void ) const;
                     ///< the box of coordinate j of the primal MP: [ L , U ]
                     ///< intersected with the trust region, in the frame of
                     ///< the Variable

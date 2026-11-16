@@ -678,8 +678,8 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
    std::vector< R > given_vector = buf;
    buf.resize( size );
 
-   auto t = 0;
-   for( auto k = 0 ; k < change_intervals.size() ; ++k ) {
+   std::size_t t = 0;
+   for( std::size_t k = 0 ; k < change_intervals.size() ; ++k ) {
     auto upper_endpoint = change_intervals[ k ];
     if( k == change_intervals.size() - 1 )
      upper_endpoint = size - 1;
@@ -2236,15 +2236,15 @@ void copy_group( const netCDF::NcGroup & from , netCDF::NcGroup & to );
  * uses what it writes itself (a dimension of an ancestor of the sub-group
  * is not there for it to use).
  *
- * This is how a netCDF-4 file made of many parts is written in a time
- * linear in its size. In a netCDF-4 file each passage from the define mode
- * to the data mode (which netCDF does by itself at the first write after a
- * definition) writes the metadata of the file and flushes the HDF5
- * datasets, and the flush of a file goes through all the datasets open in
- * the process, those of the other files too: a serialize() writing its
+ * This is how a netCDF-4 file made of many parts of bounded size is written
+ * in a time linear in its size. In a netCDF-4 file each passage from the
+ * define mode to the data mode (which netCDF does by itself at the first
+ * write after a definition) writes the metadata of the file and flushes the
+ * HDF5 datasets, and the flush of a file goes through all the datasets open
+ * in the process, those of the other files too: a serialize() writing its
  * variables one at a time passes from a mode to the other at each of them,
- * so that a file costs a time quadratic in the number of its variables
- * (the Solution of a TwoStageStochasticBlock with 200 scenarios, each of 88
+ * so that a file costs a time quadratic in the number of its variables (the
+ * Solution of a TwoStageStochasticBlock with 200 scenarios, each of 88
  * UnitBlock, has some 37000 variables in 18000 groups, and takes minutes to
  * be written).
  *

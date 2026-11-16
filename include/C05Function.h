@@ -2395,7 +2395,8 @@ class C05FunctionModVarsRngd : public FunctionModVarsRngd
   : FunctionModVarsRngd( f , std::move( vars ) , range , shift , cB ) ,
     v_linear_delta( std::move( delta ) ) , f_has_linear_delta( true ) {
   if( v_linear_delta.size() != v_vars.size() )
-   throw( std::invalid_argument( "vars and linear delta sizes do not match" ) );
+   throw( std::invalid_argument(
+     "vars and linear delta sizes do not match" ) );
   }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
@@ -2597,7 +2598,8 @@ class C05FunctionModVarsSbst : public FunctionModVarsSbst
        Subset && subset , bool ordered , Vec_FunctionValue && delta ,
        FunctionValue shift , bool cB ) {
   if( vars.size() != delta.size() )
-   throw( std::invalid_argument( "vars and linear delta sizes do not match" ) );
+   throw( std::invalid_argument(
+     "vars and linear delta sizes do not match" ) );
   if( ( ! subset.empty() ) && ( vars.size() != subset.size() ) )
    throw( std::invalid_argument( "vars and subset sizes do not match" ) );
   if( ( ! ordered ) && ( ! subset.empty() ) && ( vars.size() > 1 ) ) {

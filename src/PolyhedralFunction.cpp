@@ -440,7 +440,8 @@ void PolyhedralFunction::store_combination_of_linearizations(
  RealVector a( v_x.size() , 0 );
  FunctionValue b = 0;
 
- FunctionValue sum = 0;       // the sum of the multipliers of the diagonal ones
+ FunctionValue sum = 0;       // the sum of the multipliers of the diagonal
+			      // ones
  bool diagonal = false;      // true if any of them is diagonal
 
  for( const auto & coef : coefficients ) {
@@ -1445,7 +1446,8 @@ void PolyhedralFunction::remove_variables( Subset && nms , bool ordered ,
   if( f_Observer && f_Observer->issue_mod( issueMod , Function::eModFVars ) )
    f_Observer->add_Modification( std::make_shared< C05FunctionModVarsSbst >(
                                   this , std::move( vars ) , Subset() ,
-                                  true , 0 , Observer::par2concern( issueMod ) ) ,
+                                  true , 0 ,
+                                  Observer::par2concern( issueMod ) ) ,
                                  Observer::par2chnl( issueMod ) );
   return;
   }
@@ -1624,8 +1626,10 @@ void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
                            : C05FunctionMod::AllLinearizationChanged;
 
  f_Observer->add_Modification( std::make_shared< PolyhedralFunctionModRngd >(
-                                this , type , PolyhedralFunctionMod::ModifyRows ,
-                                range , std::move( which ) , C05FunctionMod::NaNshift ,
+                                this , type ,
+                                PolyhedralFunctionMod::ModifyRows ,
+                                range , std::move( which ) ,
+                                C05FunctionMod::NaNshift ,
                                 Observer::par2concern( issueMod ) ) ,
                                Observer::par2chnl( issueMod ) );
 
@@ -1783,7 +1787,8 @@ void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
                            : C05FunctionMod::AllLinearizationChanged;
 
  f_Observer->add_Modification( std::make_shared< PolyhedralFunctionModSbst >(
-                                this , type , PolyhedralFunctionMod::ModifyRows ,
+                                this , type ,
+                                PolyhedralFunctionMod::ModifyRows ,
                                 std::move( rows ) , std::move( which ) ,
                                 C05FunctionMod::NaNshift ,
                                 Observer::par2concern( issueMod ) ) ,
@@ -1893,7 +1898,8 @@ void PolyhedralFunction::modify_row( Index i , RealVector && Ai ,
                            : C05FunctionMod::AllLinearizationChanged;
 
  f_Observer->add_Modification( std::make_shared< PolyhedralFunctionModRngd >(
-                                this , type , PolyhedralFunctionMod::ModifyRows ,
+                                this , type ,
+                                PolyhedralFunctionMod::ModifyRows ,
                                 Range( i , i + 1 ) , std::move( which ) ,
                                 C05FunctionMod::NaNshift ,
                                 Observer::par2concern( issueMod ) ) ,
@@ -2150,7 +2156,8 @@ void PolyhedralFunction::modify_constants( c_RealVector & nb ,
                            : C05FunctionMod::AlphaChanged;
 
  f_Observer->add_Modification( std::make_shared< PolyhedralFunctionModSbst >(
-                                this , type , PolyhedralFunctionMod::ModifyCnst ,
+                                this , type ,
+                                PolyhedralFunctionMod::ModifyCnst ,
                                 std::move( rows ) , std::move( which ) ,
                                 shift , Observer::par2concern( issueMod ) ) ,
                                Observer::par2chnl( issueMod ) );
@@ -2237,7 +2244,8 @@ void PolyhedralFunction::modify_constant( Index i , FunctionValue bi ,
                            : C05FunctionMod::AlphaChanged;
 
  f_Observer->add_Modification( std::make_shared< PolyhedralFunctionModRngd >(
-                                this , type , PolyhedralFunctionMod::ModifyCnst ,
+                                this , type ,
+                                PolyhedralFunctionMod::ModifyCnst ,
                                 Range( i , i + 1 ) , std::move( which ) ,
                                 shift , Observer::par2concern( issueMod ) ) ,
                                Observer::par2chnl( issueMod ) );
@@ -2367,7 +2375,8 @@ void PolyhedralFunction::modify_bound( FunctionValue newbound ,
                             : C05FunctionMod::AlphaChanged;
 
  f_Observer->add_Modification( std::make_shared< PolyhedralFunctionModRngd >(
-                                this , type , PolyhedralFunctionMod::ModifyCnst ,
+                                this , type ,
+                                PolyhedralFunctionMod::ModifyCnst ,
                                 Range( 0 , 0 ) , std::move( which ) ,
                                 shift , Observer::par2concern( issueMod ) ) ,
                                Observer::par2chnl( issueMod ) );
@@ -2468,7 +2477,8 @@ void PolyhedralFunction::add_rows( MultiVector && nA , c_RealVector & nb ,
 
  // issue the PolyhedralFunctionModAddd
  f_Observer->add_Modification( std::make_shared< PolyhedralFunctionModAddd >(
-                                this , k , Observer::par2concern( issueMod ) ) ,
+                                this , k ,
+                                Observer::par2concern( issueMod ) ) ,
                                Observer::par2chnl( issueMod ) );
 
  }  // end( PolyhedralFunction::add_rows )
@@ -2518,7 +2528,8 @@ void PolyhedralFunction::add_row( RealVector && Ai , FunctionValue bi ,
 
  // issue the PolyhedralFunctionModAddd
  f_Observer->add_Modification( std::make_shared< PolyhedralFunctionModAddd >(
-                                this , 1 , Observer::par2concern( issueMod ) ) ,
+                                this , 1 ,
+                                Observer::par2concern( issueMod ) ) ,
                                Observer::par2chnl( issueMod ) );
 
  }  // end( PolyhedralFunction::add_row )
@@ -2612,7 +2623,8 @@ void PolyhedralFunction::delete_rows( Range range , ModParam issueMod )
                            : C05FunctionMod::GlobalPoolRemoved;
 
  f_Observer->add_Modification( std::make_shared< PolyhedralFunctionModRngd >(
-                                this , type , PolyhedralFunctionMod::DeleteRows ,
+                                this , type ,
+                                PolyhedralFunctionMod::DeleteRows ,
                                 range , std::move( which ) ,
                                 f_is_convex ? -FunctionMod::INFshift
                                             : FunctionMod::INFshift ,
@@ -2732,7 +2744,8 @@ void PolyhedralFunction::delete_rows( Subset && rows , bool ordered ,
                            : C05FunctionMod::GlobalPoolRemoved;
 
  f_Observer->add_Modification( std::make_shared< PolyhedralFunctionModSbst >(
-                                this , type , PolyhedralFunctionMod::DeleteRows ,
+                                this , type ,
+                                PolyhedralFunctionMod::DeleteRows ,
                                 std::move( rows ) , std::move( which ) ,
                                 f_is_convex ? -FunctionMod::INFshift
                                             : FunctionMod::INFshift ,
@@ -2815,7 +2828,8 @@ void PolyhedralFunction::delete_row( Index i , ModParam issueMod )
                            : C05FunctionMod::GlobalPoolRemoved;
 
  f_Observer->add_Modification( std::make_shared< PolyhedralFunctionModRngd >(
-                                this , type , PolyhedralFunctionMod::DeleteRows ,
+                                this , type ,
+                                PolyhedralFunctionMod::DeleteRows ,
                                 Range( i , i + 1 ) , std::move( which ) ,
                                 f_is_convex ? - FunctionMod::INFshift
                                             : FunctionMod::INFshift ,
@@ -3167,7 +3181,8 @@ void PolyhedralFunctionState::serialize( netCDF::NcGroup & group ) const
   // which of them are vertical, only written if any is
   if( std::find( v_avert.begin() , v_avert.end() , true ) != v_avert.end() ) {
    std::vector< unsigned char > vert( v_aA.size() , 0 );
-   for( PolyhedralFunction::Index i = 0 ; ( i < v_aA.size() ) && ( i < v_avert.size() ) ; ++i )
+   for( PolyhedralFunction::Index i = 0 ;
+	( i < v_aA.size() ) && ( i < v_avert.size() ) ; ++i )
     vert[ i ] = v_avert[ i ];
    ( group.addVar( "PolyFunction_aVert" , netCDF::NcUbyte() , nr ) ).putVar(
 				    { 0 } , { vert.size() } , vert.data() );

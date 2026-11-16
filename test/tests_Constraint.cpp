@@ -99,7 +99,8 @@ static bool throws( F f )
 /** Scans the list rather than asking ColVariable::is_active(), which is
  * itself under test in test_variable_is_active(). */
 
-static long listed( const ColVariable & var , const ThinVarDepInterface * stuff )
+static long listed( const ColVariable & var ,
+		    const ThinVarDepInterface * stuff )
 {
  const auto & act = var.active_stuff();
  return( std::count( act.begin() , act.end() , stuff ) );
@@ -218,9 +219,12 @@ static void test_row_values( void )
 static void test_row_infinite_values( void )
 {
  ColVariable x;
- FRowConstraint le( nullptr , -INF , 10 , new LinearFunction( { { & x , 1 } } ) );
- FRowConstraint ge( nullptr , 5 , INF , new LinearFunction( { { & x , 1 } } ) );
- FRowConstraint fr( nullptr , -INF , INF , new LinearFunction( { { & x , 1 } } ) );
+ FRowConstraint le( nullptr , -INF , 10 ,
+		    new LinearFunction( { { & x , 1 } } ) );
+ FRowConstraint ge( nullptr , 5 , INF ,
+		    new LinearFunction( { { & x , 1 } } ) );
+ FRowConstraint fr( nullptr , -INF , INF ,
+		    new LinearFunction( { { & x , 1 } } ) );
 
  x.set_value( INF );
  le.compute(); ge.compute(); fr.compute();
@@ -521,7 +525,8 @@ static void test_row_function_mods( void )
   assert( list.size() == 1 );
   vmod = std::dynamic_pointer_cast< FunctionModVars >( list.front() );
   assert( vmod && ( ! vmod->added() ) && ( vmod->vars()[ 0 ] == & x ) );
-  assert( ( listed( x , & lc ) == 0 ) && ( lc.is_active( & x ) == NOTACTIVE ) );
+  assert( ( listed( x , & lc ) == 0 ) &&
+	  ( lc.is_active( & x ) == NOTACTIVE ) );
   list.clear();
 
   // a range, then all of them
@@ -540,7 +545,8 @@ static void test_row_function_mods( void )
   lc.remove_variables( Subset( { 2 , 0 } ) );
   assert( ( listed( x , & lc ) == 0 ) && ( listed( y , & lc ) == 1 ) &&
 	  ( listed( z , & lc ) == 0 ) );
-  assert( ( lc.get_num_active_var() == 1 ) && ( lc.get_active_var( 0 ) == & y ) );
+  assert( ( lc.get_num_active_var() == 1 ) &&
+	  ( lc.get_active_var( 0 ) == & y ) );
   lc.remove_variable( 0 );
   list.clear();
 
@@ -685,7 +691,8 @@ static void test_ovc_setters( void )
  block->register_Solver( solver );
  ColVariable x;
 
- auto refused = [ & ]( RowConstraint & c , const std::function< void() > & f ) {
+ auto refused = [ & ]( RowConstraint & c ,
+		       const std::function< void() > & f ) {
   auto l = c.get_lhs();
   auto r = c.get_rhs();
   bool rv = throws< std::invalid_argument >( f );
@@ -864,7 +871,8 @@ static void test_ovc_variable( void )
   assert( row_mods( solver ).empty() && ( listed( x , & c ) == 1 ) );
 
   // indices other than 0 are refused
-  assert( throws< std::invalid_argument >( [ & ] { c.remove_variable( 1 ); } ) );
+  assert( throws< std::invalid_argument >( [ & ] {
+    c.remove_variable( 1 ); } ) );
   assert( throws< std::invalid_argument >( [ & ] {
     c.remove_variables( Range( 0 , 2 ) ); } ) );
   assert( throws< std::invalid_argument >( [ & ] {
@@ -1018,7 +1026,8 @@ static void test_ovc_values( void )
 static void test_ovc_empty_values( void )
 {
  BoxConstraint box( nullptr , nullptr , -1 , 1 );
- assert( box.feasible() && ( box.abs_viol() == 0 ) && ( box.rel_viol() == 0 ) );
+ assert( box.feasible() && ( box.abs_viol() == 0 ) &&
+	 ( box.rel_viol() == 0 ) );
 
  LBConstraint lb( nullptr , nullptr , 2 );
  UBConstraint ub( nullptr , nullptr , -2 );
@@ -1035,8 +1044,10 @@ static void test_ovc_empty_values( void )
   }
 
  // 0 is below the lhs 2 of lb and above the rhs -2 of ub
- assert( ( ! lb.feasible() ) && ( lb.abs_viol() == 2 ) && ( lb.rel_viol() == 1 ) );
- assert( ( ! ub.feasible() ) && ( ub.abs_viol() == 2 ) && ( ub.rel_viol() == 1 ) );
+ assert( ( ! lb.feasible() ) && ( lb.abs_viol() == 2 ) &&
+	 ( lb.rel_viol() == 1 ) );
+ assert( ( ! ub.feasible() ) && ( ub.abs_viol() == 2 ) &&
+	 ( ub.rel_viol() == 1 ) );
 
  std::cout << "empty OneVarConstraint values: OK" << std::endl;
  }

@@ -64,7 +64,8 @@ namespace SMSpp_di_unipi_it {
  *       sum_{j = 1, ..., n, i < j} a_{ij}/2 x_i x_j +
  *       sum_{j = 1, ..., n, i > j} a_{ij}/2 x_i x_j
  *
- * Globally the function is understood as the non-diagonal terms + DQuadFunction
+ * Globally the function is understood as the non-diagonal terms +
+ * DQuadFunction
  * 
  * This Function issues the following :Modification:
  *
@@ -90,9 +91,9 @@ class QuadFunction : public DQuadFunction {
   * the term of the sum corresponding to a_{ij}x_i x_j . 
   * 
   * Internally the collection of off_diagonal terms are not stored as a 
-  * random collection of triplets, but rather the (lower half) of a SparseMatrix
-  * It will be assumed throughout that a ColVariable corresponding to Index 
-  * actually exists in DQuadFunction
+  * random collection of triplets, but rather the (lower half) of a
+  * SparseMatrix It will be assumed throughout that a ColVariable corresponding
+  * to Index actually exists in DQuadFunction
   * This will not be explicitly checked, in principle
   */
  using off_diag_term = std::tuple< Index , Index , Coefficient >;
@@ -233,7 +234,8 @@ class QuadFunction : public DQuadFunction {
     int k_nd_t = 0;
     for (int k=0; k < mat_nd.outerSize(); ++k){
       for (Qmat::InnerIterator it(mat_nd,k); it; ++it){
-        v_nd_triples[k_nd_t] = std::make_tuple( it.row(), it.col(), it.value() );
+        v_nd_triples[k_nd_t] = std::make_tuple( it.row(), it.col(),
+                                                it.value() );
         ++k_nd_t;
       } 
     }
@@ -242,7 +244,7 @@ class QuadFunction : public DQuadFunction {
 
  /// returns directly the Eigen::SparseMatrix
 
- Qmat get_matrix( void ) const { return mat_nd; }
+ Qmat get_matrix( void ) const { return( mat_nd ); }
  
 /*--------------------------------------------------------------------------*/
 
@@ -257,18 +259,20 @@ class QuadFunction : public DQuadFunction {
     #ifndef NDEBUG
       if( ( std::min( i , j ) < 0 ) ||
           ( std::max( i , j ) >= DQuadFunction::get_num_active_var() ) ) {
-        throw( std::invalid_argument( "QuadFunction::get_quadratic_coefficient: invalid "
-                                      "index: " + std::to_string( i ) + " , " + std::to_string( j ) ) );
+        throw( std::invalid_argument(
+          "QuadFunction::get_quadratic_coefficient: invalid "
+          "index: " + std::to_string( i ) + " , " +
+          std::to_string( j ) ) );
       }
     #endif
     if( i < j ) {
-      return mat_nd.coeff( j , i);
+      return( mat_nd.coeff( j , i) );
     }
     else if( i == j){
-      return DQuadFunction::get_quadratic_coefficient( i );
+      return( DQuadFunction::get_quadratic_coefficient( i ) );
     }
     else {
-      return mat_nd.coeff( i , j);
+      return( mat_nd.coeff( i , j) );
     }
   }
 
@@ -438,8 +442,8 @@ class QuadFunction : public DQuadFunction {
  /// add just a single non-diagonal term to the QuadFunction
  /** We have the two Variables and the coefficient
   *  This approach will first have to check if indeed both var1 and var2 exist 
-  *  if not, the missing variables will be added and the non-diagonal term expanded
-  *  in the rare case when quad_coeff = 0.0 nothing is done at all
+  *  if not, the missing variables will be added and the non-diagonal term
+  *  expanded in the rare case when quad_coeff = 0.0 nothing is done at all
   * 
   */
  void add_nd_term ( ColVariable * var1 , ColVariable * var2 ,
@@ -495,7 +499,8 @@ class QuadFunction : public DQuadFunction {
   * C05FunctionModVarsRngd is issued as opposed to a FunctionModVarsRngd
   * one. 
   * 
-  * In our case this will delete all non-diagonal terms involving this index Range;
+  * In our case this will delete all non-diagonal terms involving this index
+  * Range;
   *
   */
 
@@ -569,7 +574,7 @@ class QuadFunction : public DQuadFunction {
  /// printing the QuadFunction
  void print( std::ostream & output ) override {
   output << "QuadFunction [" << this << "] observed by ["
-         << &f_Observer << "] with " << get_num_active_var()
+         << f_Observer << "] with " << get_num_active_var()
          << " active variables;";
   output << "current value = " << get_value();
   }
@@ -597,11 +602,11 @@ class QuadFunction : public DQuadFunction {
  std::vector< FunctionValue > offdiagonal_gradient( void );
 
   /**
-  * The following are internal flags to remember what kind of function we are dealing
-  * with ; The flag NotConvex means that the function is neither convex nor concave
-  * and that this is known with certainty ; This evidently means that the Hessian is
-  * indefinite ; Unkown is we do not know yet or some modification has ruined our 
-  * former knowledge 
+  * The following are internal flags to remember what kind of function we are
+  * dealing with ; The flag NotConvex means that the function is neither convex
+  * nor concave and that this is known with certainty ; This evidently means
+  * that the Hessian is indefinite ; Unkown is we do not know yet or some
+  * modification has ruined our former knowledge 
   *
   */
   enum fctType { Convex, Concave, NotConvex, Unknown};
@@ -737,13 +742,15 @@ class QuadFunctionModSbst : public C05FunctionModSbst
  /** Constructor of QuadFunctionModSbst: takes the same arguments as
   * that of C05FunctionModSbst plus a single Coefficient with the delta
   * value for the off diagonal term identified by the Subset. Moreover,
-  * we also store a boolean value "is_added" to understand if the term have been
-  * added to the quadratic matrix or simply modified. */ 
+  * we also store a boolean value "is_added" to understand if the term have
+  * been added to the quadratic matrix or simply modified. */ 
 
  QuadFunctionModSbst( C05Function * f , int type,
 			   Coefficient && od_term , bool added ,
-			   Vec_p_Var && vars , Subset && subset , bool ordered = false ,
-			   Subset && which = {} , FunctionValue shift = NaNshift , 
+			   Vec_p_Var && vars , Subset && subset ,
+			   bool ordered = false ,
+			   Subset && which = {} ,
+			   FunctionValue shift = NaNshift , 
          bool cB = true )
   : C05FunctionModSbst( f , type , std::move( vars ) , std::move( subset ) , 
       ordered , std::move( which ) , shift , cB ) , 

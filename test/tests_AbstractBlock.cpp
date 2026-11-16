@@ -26,6 +26,7 @@
 #include "FakeSolver.h"
 #include "FRealObjective.h"
 #include "DQuadFunction.h"
+#include "QuadFunction.h"
 #include "LinearFunction.h"
 #include "OneVarConstraint.h"
 
@@ -148,7 +149,8 @@ void runAllTests()
  auto v = kept( new ColVariable() );
  block->add_static_variable( *v );
  assert( block->get_static_variable< ColVariable >( 0 ) == v );
- assert( block->get_static_variable< ColVariable >( 0 )->get_Block() == block );
+ assert( block->get_static_variable< ColVariable >( 0 )->get_Block() ==
+	 block );
  TearDown( block ); // TearDown
 
  // test Adds_StaticVariables_Vector
@@ -833,7 +835,8 @@ static void test_is_edge_cases( void )
  // just below eps it does enter, and an equality is written with its side
  std::ostringstream under;
  block.write_is( under , 1e-10 );
- assert( under.str().find( " 1e-09 * ( e_0: y_0 = 4 )" ) != std::string::npos );
+ assert( under.str().find( " 1e-09 * ( e_0: y_0 = 4 )" ) !=
+	 std::string::npos );
 
  // a row that is not linear carries no multiplier into the certificate
  auto quad = kept( new std::vector< FRowConstraint >( 1 ) );
@@ -1538,7 +1541,7 @@ static void test_read_lp_powers( void )
 
 static void test_read_lp_malformed( void )
 {
- for( const std::string lp : {
+ for( const std::string & lp : {
    std::string( "" ) ,
    std::string( "Maybe\n obj: x\nEnd\n" ) ,
    std::string( "Minimize\n obj: x\n" ) ,
@@ -1556,6 +1559,68 @@ static void test_read_lp_malformed( void )
   }
 
  std::cout << "read_lp of malformed input: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+/* A file that cannot be opened is refused with an exception that says who
+ * refuses it, rather than leaving the Block as it was [see Block::load()]. */
+
+static void test_load_of_a_missing_file( void )
+{
+ AbstractBlock block;
+ std::string what;
+ try {
+  static_cast< Block & >( block ).load( std::string( "no/such/file.lp" ) ,
+					'L' );
+  }
+ catch( const std::invalid_argument & e ) { what = e.what(); }
+ assert( what.find( "Block::load: " ) == 0 );
+
+ std::cout << "load of a missing file: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+/// an AbstractBlock whose feasibility check throws
+
+class ThrowingBlock : public AbstractBlock {
+ public:
+
+ bool is_feasible( bool useabstract = false ,
+		   Configuration * fsbc = nullptr ) override {
+  throw( std::logic_error( "ThrowingBlock::is_feasible: on purpose" ) );
+  }
+ };
+
+/* is_sol_feasible() writes the Solution in the Variable to check it: when
+ * the check throws, the exception reaches the caller, and the Variable and
+ * the direction flag are what they were before [see
+ * Block::is_sol_feasible()]. */
+
+static void test_check_of_a_Solution_that_throws( void )
+{
+ ThrowingBlock block;
+ auto x = kept( new std::vector< ColVariable >( 2 ) );
+ block.add_static_variable( *x , "x" );
+
+ ( *x )[ 0 ].set_value( 5 );
+ ( *x )[ 1 ].set_value( 6 );
+ ColVariableSolution sol;
+ sol.read( & block );
+ sol.is_direction( true );
+ ( *x )[ 0 ].set_value( 1 );
+ ( *x )[ 1 ].set_value( 2 );
+
+ bool thrown = false;
+ try { block.is_sol_feasible( & sol ); }
+ catch( const std::logic_error & ) { thrown = true; }
+ assert( thrown );
+ assert( ( ( *x )[ 0 ].get_value() == 1 ) &&
+	 ( ( *x )[ 1 ].get_value() == 2 ) );
+ assert( ! block.is_direction() );
+
+ std::cout << "check of a Solution that throws: OK" << std::endl;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1979,6 +2044,47 @@ static void test_mirror_keeps_size_variable( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* The copy of a row whose Function is a QuadFunction is a QuadFunction with
+ * the same off-diagonal terms, hence the same value at the same point. */
+
+static void test_mirror_of_a_QuadFunction( void )
+{
+ AbstractBlock orig;
+ auto x = kept( new std::vector< ColVariable >( 2 ) );
+ orig.add_static_variable( *x , "x" );
+ auto rows = kept( new std::vector< FRowConstraint >( 1 ) );
+ (*rows)[ 0 ].set_function( new QuadFunction(
+                   { { & (*x)[ 0 ] , 1 , 2 } , { & (*x)[ 1 ] , 3 , 4 } } ,
+                   { { 1 , 0 , 5 } } , 6 ) , eNoMod );
+ (*rows)[ 0 ].set_lhs( - Inf< double >() , eNoMod );
+ (*rows)[ 0 ].set_rhs( 100 , eNoMod );
+ orig.add_static_constraint( *rows , "r" );
+
+ AbstractBlock copy;
+ copy.mirror( & orig );
+ assert( copy.get_mirror_issues().empty() );
+ auto crow = dynamic_cast< FRowConstraint * >(
+                                         copy.mirror_of( & (*rows)[ 0 ] ) );
+ assert( crow );
+ auto cqf = dynamic_cast< QuadFunction * >( crow->get_function() );
+ assert( cqf );
+
+ auto oqf = static_cast< QuadFunction * >( (*rows)[ 0 ].get_function() );
+ for( const auto & [ v0 , v1 ] : { std::pair( 1.0 , 2.0 ) ,
+                                  std::pair( -3.0 , 0.5 ) } ) {
+  (*x)[ 0 ].set_value( v0 );
+  (*x)[ 1 ].set_value( v1 );
+  copy.mirror_of( & (*x)[ 0 ] )->set_value( v0 );
+  copy.mirror_of( & (*x)[ 1 ] )->set_value( v1 );
+  oqf->compute( true );
+  cqf->compute( true );
+  assert( std::abs( oqf->get_value() - cqf->get_value() ) <= 1e-12 );
+  }
+
+ std::cout << "mirror of a QuadFunction: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
 /* The edges of add_dynamic_*() and remove_dynamic_*(), for Variable and for
  * Constraint alike: adding nothing, adding to an empty list, a Range that is
  * empty (anywhere, even reversed or on an empty list), one to the end, one
@@ -2394,10 +2500,13 @@ int main( int argc , char ** argv )
  test_mirror_of_an_empty_Block();
  test_sized_mirror();
  test_mirror_keeps_size_variable();
+ test_mirror_of_a_QuadFunction();
  test_read_lp_of_an_empty_model();
  test_read_lp_edges();
  test_read_lp_powers();
  test_read_lp_malformed();
+ test_load_of_a_missing_file();
+ test_check_of_a_Solution_that_throws();
  test_dynamic_edges();
 
  while( ! given.empty() )

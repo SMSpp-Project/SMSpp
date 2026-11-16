@@ -184,7 +184,7 @@ class Solver : public ThinComputeInterface
   *   specific error, kLowPrecision, is already provided for the case where
   *   the issue is not numerical, but inherent in what the solver is
   *   (heuristic, hence explicitly incapable of solving every instance to
-  *   optimality. */
+  *   optimality). */
 
  enum sol_type {
   kUnbounded = kUnEval + 1 ,  ///< the model is provably unbounded
@@ -1490,6 +1490,26 @@ class Solver : public ThinComputeInterface
   * of the "groups" of Variable of the Block, as returned by
   * get_static_variables() and get_dynamic_variables(), need be changed.
   *
+  * One format is however the same for every :Solver, since it does not
+  * depend on how the sub-Block of an instance are numbered: the "meta" one,
+  * i.e., a
+  *
+  *   SimpleConfiguration< std::map< std::string , Configuration * > >
+  *
+  * mapping the classname() of a Block to the Configuration of that Block.
+  * The Block of the tree, starting from the one of the Solver, whose
+  * classname() is a key (or that the special key "*" covers, if any) have
+  * their part of the solution written as the Configuration they are mapped
+  * to says, nullptr meaning all of it, sub-Block included; that
+  * Configuration can be any that the Solver understands for that Block, a
+  * positional one or a "meta" one in its turn, which then chooses among the
+  * sub-Block of that Block. A Block that is not a key is not written, but
+  * its sub-Block are looked at in turn [see for_each_selected()]. A Solver
+  * whose solution comes in pieces larger than a Block, say, the components
+  * of a decomposition, writes a piece whole if any Block in it is chosen
+  * [see has_selected()], and so it may write more than it is asked for, but
+  * never less.
+  *
   * As a consequence to the fact that get_var_solution() can retrieve only "a
   * part" of the solution information, it may make sense to call it more than
   * once for each call to has_var_solution() or new_var_solution() that
@@ -1740,7 +1760,7 @@ class Solver : public ThinComputeInterface
   *
   * - calls either get_var_solution() or get_var_direction() depending on
   *   which among has_var_solution() and has_var_direction() is true (if
-  *   none it returns nullptr, if both it check and returns solutions first)
+  *   none it returns nullptr, if both it checks and returns solutions first)
   *   to have the solution / direction written in the Variable of the Block;
   *
   * - calls Block::get_Solution() to retrieve the Solution object;
@@ -1819,7 +1839,7 @@ class Solver : public ThinComputeInterface
   * simply clone() it and return the thusly generated copy. When it does,
   * however,
   *
-  *    THE Solution OBJECT SHOULD BE ASKED TO THE Block WITH new_Solution(),
+  *    THE Solution OBJECT SHOULD BE ASKED TO THE Block WITH get_Solution(),
   *    RATHER THAN BE CONSTRUCTED BY NAME
   *
   * because the :Solution a :Block wants is the :Block's business, and a
@@ -2079,10 +2099,12 @@ class Solver : public ThinComputeInterface
  /** Returns the kinds of Modification [see Modification::ModConcern] that
   * the Solver reads, of which only the "kind" bits matter: the Block passes
   * the Solver only the Modification of those kinds [see
-  * Modification::is_of_concern()]. The base class reads all the kinds, which
-  * is what every Solver did before saying it; a Solver that, say, is only
-  * interested in the physical representation of its Block returns eModPhys,
-  * and is spared the abstract Modification. */
+  * Modification::is_of_concern_to()]. The base class reads all the kinds,
+  * which is what every Solver did before saying it; a Solver that, say, is
+  * only interested in the physical representation of its Block returns
+  * eModPhys, and is spared the abstract Modification, while one that only
+  * reads the abstract representation returns some of the abstract kinds
+  * (say, eModAbst), and is spared the physical ones. */
 
  [[nodiscard]] virtual Modification::ModConcern concerned_by( void ) const {
   return( Modification::eModAnything );

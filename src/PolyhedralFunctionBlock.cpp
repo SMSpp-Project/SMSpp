@@ -325,8 +325,9 @@ void PolyhedralFunctionBlock::set_lambda( ColVariable * lambda )
   throw( std::logic_error( "PolyhedralFunctionBlock::set_lambda: it "
 			   "requires the dual representation" ) );
  if( ! ( f_rep & k_built_cnst ) )
-  throw( std::logic_error( "PolyhedralFunctionBlock::set_lambda: it has to "
-			   "be called after generate_abstract_constraints()" ) );
+  throw( std::logic_error(
+    "PolyhedralFunctionBlock::set_lambda: it has to "
+    "be called after generate_abstract_constraints()" ) );
  if( ! lambda )
   throw( std::invalid_argument( "PolyhedralFunctionBlock::set_lambda: "
 				"nullptr lambda" ) );
@@ -1387,7 +1388,7 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_LR( c_p_Mod mod ,
   }
 
  // ObjectiveMod- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- if( auto tmod = dynamic_cast< const ObjectiveMod * >( mod ) )
+ if( dynamic_cast< const ObjectiveMod * >( mod ) )
   throw( std::logic_error(
 		   "ObjectiveMod not allowed in PolyhedralFunctionBlock" ) );
 
@@ -1757,7 +1758,8 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual( c_p_Mod mod ,
 
  // ModifyCnst is cheap: only b_i changes -> only obj coefficients
  const auto rng_mod = dynamic_cast< const PolyhedralFunctionModRngd * >( mod );
- const auto sbst_mod = dynamic_cast< const PolyhedralFunctionModSbst * >( mod );
+ const auto sbst_mod =
+   dynamic_cast< const PolyhedralFunctionModSbst * >( mod );
 
  // bound change is encoded as PolyhedralFunctionModRngd with empty range
  if( rng_mod && rng_mod->range().first == rng_mod->range().second ) {
@@ -2628,10 +2630,8 @@ void PolyhedralFunctionBlock::UpdateLinearizedDualScale( ChnlName chnl )
  obj_coeff[ 0 ] = PF().is_bound_set()
                   ? ScaledBound( PF().get_global_bound() ) : 0.0;
  Index i = 0;
- for( const auto & theta : f_theta ) {
+ for( ; i < f_theta.size() ; ++i )
   obj_coeff[ i + 1 ] = ScaledRowFactor( i ) * PF().get_b()[ i ];
-  ++i;
-  }
  obj_lf->modify_coefficients( std::move( obj_coeff ) ,
                               Range( 0 , 1 + f_theta.size() ) , par );
 

@@ -51,7 +51,8 @@ int main( void )
 
  auto rows = new std::vector< FRowConstraint >( 1 );
  ( *rows )[ 0 ].set_function( new LinearFunction(
-			  { { & ( *x )[ 0 ] , 1 } , { & ( *x )[ 1 ] , 2 } } ) );
+			  { { & ( *x )[ 0 ] , 1 } ,
+			    { & ( *x )[ 1 ] , 2 } } ) );
  ( *rows )[ 0 ].set_lhs( - Inf< double >() );
  ( *rows )[ 0 ].set_rhs( 4 );
  block->add_static_constraint( *rows , "r" );

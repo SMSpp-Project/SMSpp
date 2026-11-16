@@ -189,7 +189,7 @@ void runAllTests()
  LinearFunction::v_coeff_pair add_check = add_vars;
  adds_fun.add_variables( std::move( add_vars ) );
  assert( adds_fun.get_num_active_var() == add_check.size() );
- for( int i = 0 ; i < add_check.size() ; ++i ) {
+ for( std::size_t i = 0 ; i < add_check.size() ; ++i ) {
   assert( adds_fun.is_active( add_check[ i ].first ) == i );
   assert( adds_fun.get_active_var( i ) == add_check[ i ].first );
   assert( adds_fun.get_coefficient( i ) == add_check[ i ].second );

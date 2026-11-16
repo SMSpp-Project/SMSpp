@@ -68,7 +68,8 @@ void runAllTests()
  assert( fun.C05Function::get_dflt_int_par( C05Function::intGPMaxSz ) == 0 );
  assert( fun.C05Function::get_dflt_dbl_par( C05Function::dblRAccLin ) == 0 );
  assert( fun.C05Function::get_dflt_dbl_par( C05Function::dblAAccLin ) == 0 );
- assert( fun.C05Function::get_dflt_dbl_par( C05Function::dblAAccMlt ) == 1e-10 );
+ assert( fun.C05Function::get_dflt_dbl_par( C05Function::dblAAccMlt ) ==
+	 1e-10 );
 
  // test ChecksParameterValues
  for( int i = 0 ; i < Function::intLastParFun ; ++i )

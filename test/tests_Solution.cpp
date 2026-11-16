@@ -91,7 +91,8 @@ static void fill( std::list< FRowConstraint > & rows , ColVariable & var ,
 /*--------------------------------------------------------------------------*/
 /// the dual values of the rows of the list, in list order
 
-static std::vector< double > duals_of( const std::list< FRowConstraint > & rows )
+static std::vector< double >
+duals_of( const std::list< FRowConstraint > & rows )
 {
  std::vector< double > rv;
  for( const auto & row : rows )
@@ -106,7 +107,7 @@ static std::vector< double > duals_of( const std::list< FRowConstraint > & rows 
  * were removed have been dropped from it. */
 
 static std::vector< double > written_duals( Solution * sol , Block * block ,
-					    std::list< FRowConstraint > & rows )
+					   std::list< FRowConstraint > & rows )
 {
  for( auto & row : rows )
   row.set_dual( -1 );
@@ -578,7 +579,7 @@ static void test_row_round_trip( void )
  assert( back->get_nested_solutions().size() == 1 );
  assert( back->get_nested_solutions()[ 0 ].
 	 get_static_constraint_dual_values() ==
-	 duals.get_nested_solutions()[ 0 ].get_static_constraint_dual_values() );
+       duals.get_nested_solutions()[ 0 ].get_static_constraint_dual_values() );
 
  // the shape survives: the empty static group is there, and so is the
  // empty cell of the vector of lists
@@ -675,7 +676,8 @@ static void test_round_trip_of_nothing( void )
   auto pd = through_a_file( primal );
   assert( dynamic_cast< ColVariableSolution * >( pd ) );
   assert( static_cast< ColVariableSolution * >( pd )->
-	  get_static_variable_values() == primal.get_static_variable_values() );
+	  get_static_variable_values() ==
+	  primal.get_static_variable_values() );
   pd->write( block );
   delete pd;
 
@@ -760,7 +762,8 @@ static void test_clone( void )
 	    get_dynamic_constraint_dual_values() );
  assert( full->get_constraint_solution().get_nested_solutions().size() == 1 );
 
- assert( hollow->get_variable_solution().get_static_variable_values().empty() );
+ assert(
+  hollow->get_variable_solution().get_static_variable_values().empty() );
  assert( hollow->get_constraint_solution().
 	 get_static_constraint_dual_values().empty() );
  assert( hollow->get_constraint_solution().get_nested_solutions().empty() );
@@ -871,8 +874,8 @@ static void test_scale_and_sum( void )
 /*--------------------------------------------------------------------------*/
 
 /* Whether a Solution holds a direction travels with it: clone(), full or
- * empty, scale() and the netCDF round trip keep it, and sum() is a direction only
- * if both sides are one [see Solution::is_direction()]. */
+ * empty, scale() and the netCDF round trip keep it, and sum() is a direction
+ * only if both sides are one [see Solution::is_direction()]. */
 
 static void test_is_direction( void )
 {
@@ -1023,7 +1026,7 @@ static void test_write_into_another_shape( void )
 static void test_factory( void )
 {
  for( const std::string name : { "Solution" , "ColVariableSolution" ,
-				 "RowConstraintSolution" , "ColRowSolution" } ) {
+			       "RowConstraintSolution" , "ColRowSolution" } ) {
   auto sol = Solution::new_Solution( name );
   assert( sol );
   assert( sol->classname() == name );

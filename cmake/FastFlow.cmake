@@ -22,12 +22,10 @@ macro(smspp_fetch_fastflow)
     FetchContent_Declare(
             fastflow
             GIT_REPOSITORY https://github.com/fastflow/fastflow.git
-            GIT_TAG master)
-
-    FetchContent_GetProperties(fastflow)
-    if (NOT fastflow_POPULATED)
-        FetchContent_Populate(fastflow)
-    endif ()
+            GIT_TAG master
+            # no CMakeLists.txt there: the sources are fetched, not built
+            SOURCE_SUBDIR none)
+    FetchContent_MakeAvailable(fastflow)
 
     # the MSVC compatibility patch: the Windows port of FastFlow
     # (ff/platforms/pthread_minport_windows.h) is incomplete under MSVC, as

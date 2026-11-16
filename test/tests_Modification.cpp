@@ -39,6 +39,7 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <array>
 #include <cmath>
 #include <functional>
 #include <iostream>
@@ -323,17 +324,6 @@ static Addrs addresses( const L & l )
  Addrs rv;
  for( const auto & el : l )
   rv.push_back( & el );
- return( rv );
- }
-
-/*--------------------------------------------------------------------------*/
-/// the elements of v in the given positions
-
-static Addrs pick( const Addrs & v , std::initializer_list< Index > pos )
-{
- Addrs rv;
- for( auto i : pos )
-  rv.push_back( v[ i ] );
  return( rv );
  }
 
@@ -625,9 +615,9 @@ static void test_RowConstraint( void )
 		 assert( cmod && ( cmod->constraint() == c ) );
 		 assert( cmod->type() == type );
 		 assert( ! std::dynamic_pointer_cast< OneVarConstraintMod >(
-									mod ) );
+								       mod ) );
 		 assert( ! std::dynamic_pointer_cast< FRowConstraintMod >(
-									mod ) );
+								       mod ) );
 		 } } );
   };
 
@@ -668,7 +658,7 @@ static void test_RowConstraint( void )
 		 assert( cmod && ( cmod->constraint() == c ) );
 		 assert( cmod->type() == type );
 		 assert( ! std::dynamic_pointer_cast< RowConstraintMod >(
-									mod ) );
+								       mod ) );
 		 } } );
   };
 
@@ -826,7 +816,8 @@ static void test_OneVarConstraint( void )
 		 return( ( box->get_active_var( 0 ) == to ) &&
 			 ( box->get_num_active_var() == ( to ? 1 : 0 ) ) &&
 			 ( active_in( *X( 0 ) , box ) == ( to == X( 0 ) ) ) &&
-			 ( active_in( *X( 1 ) , box ) == ( to == X( 1 ) ) ) ); } ,
+			 ( active_in( *X( 1 ) , box ) ==
+			   ( to == X( 1 ) ) ) ); } ,
 		ovc_mod( box , OneVarConstraintMod::eVariableChanged ) } );
   };
 
@@ -840,7 +831,8 @@ static void test_OneVarConstraint( void )
 			  box->remove_variables( Range( 0 , 1 ) , iM ); } ) );
  // the empty Subset means all of them
  changes.push_back( var( nullptr , [ = ]( ModParam iM ) {
-			  box->remove_variables( Subset() , false , iM ); } ) );
+			  box->remove_variables( Subset() , false , iM );
+			  } ) );
  changes.push_back( var( nullptr , [ = ]( ModParam iM ) {
 			  box->remove_variables( Subset( { 0 } ) , true ,
 						 iM ); } ) );
@@ -884,7 +876,7 @@ static void test_Objective( void )
 		 assert( omod && ( omod->of() == obj ) );
 		 assert( omod->type() == type );
 		 assert( ! std::dynamic_pointer_cast< FRealObjectiveMod >(
-									mod ) );
+								       mod ) );
 		 } } );
   };
 
@@ -1178,8 +1170,8 @@ static void test_LinearFunction( void )
                           lf()->modify_coefficients( { 1 } , Range( 2 , 5 ) ,
                                                      iM ); } , none ) ,
   make( P2 , P2 , true , [ = ]( ModParam iM ) {
-                          lf()->modify_coefficients( {} , Subset() , false ,
-                                                     iM ); } , none ) ,
+                         lf()->modify_coefficients( {} , Subset() , false ,
+                                                    iM ); } , none ) ,
   make( P2 , P2 , true , [ = ]( ModParam iM ) {
                           lf()->set_constant_term( 0 , iM ); } , none ) ,
   make( P2 , P2 , true , [ = ]( ModParam iM ) {
@@ -1256,7 +1248,8 @@ static void test_LinearFunction( void )
 		[ = ]( const sp_Mod & mod ) {
 		 assert( registered( *x , obj , p1 ) );
 		 auto fmod = std::dynamic_pointer_cast< FunctionMod >( mod );
-		 auto vmod = std::dynamic_pointer_cast< FunctionModVars >( mod );
+		 auto vmod =
+		   std::dynamic_pointer_cast< FunctionModVars >( mod );
 		 assert( ( fmod && ( fmod->function() == of() ) ) ||
 			 ( vmod && ( vmod->function() == of() ) ) );
 		 check( mod );
@@ -1421,9 +1414,11 @@ static void test_dynamic( Rig & r , std::list< T > & l )
 		 return( true );
 		 } ,
 		[ & , n0 , n ]( const sp_Mod & mod ) {
-		 auto bmod = std::dynamic_pointer_cast< BlockModAdd< T > >( mod );
+		 auto bmod =
+		   std::dynamic_pointer_cast< BlockModAdd< T > >( mod );
 		 assert( bmod && ( & bmod->whc() == & l ) );
-		 assert( bmod->is_added() && ( bmod->is_variable() == isvar ) );
+		 assert( bmod->is_added() &&
+			 ( bmod->is_variable() == isvar ) );
 		 assert( bmod->first() == n0 );
 		 auto now = addresses( l );
 		 assert( bmod->added().size() == n );
@@ -1454,8 +1449,8 @@ static void test_dynamic( Rig & r , std::list< T > & l )
 		 for( auto i : gn )
 		  want.push_back( old[ i ] );
 		 if( range.second > range.first ) {
-		  auto bmod = std::dynamic_pointer_cast< BlockModRmvRngd< T > >(
-									mod );
+		  auto bmod =
+		    std::dynamic_pointer_cast< BlockModRmvRngd< T > >( mod );
 		  assert( bmod && ( & bmod->whc() == & l ) );
 		  assert( ( ! bmod->is_added() ) &&
 			  ( bmod->is_variable() == isvar ) );
@@ -1463,8 +1458,8 @@ static void test_dynamic( Rig & r , std::list< T > & l )
 		  assert( addresses( bmod->removed() ) == want );
 		  }
 		 else {
-		  auto bmod = std::dynamic_pointer_cast< BlockModRmvSbst< T > >(
-									mod );
+		  auto bmod =
+		    std::dynamic_pointer_cast< BlockModRmvSbst< T > >( mod );
 		  assert( bmod && ( & bmod->whc() == & l ) );
 		  assert( ( ! bmod->is_added() ) &&
 			  ( bmod->is_variable() == isvar ) );
@@ -2482,7 +2477,8 @@ static void test_changes( void )
  assert( M::lower_bound_stays_valid( shrink ) &&
 	 ( ! M::upper_bound_stays_valid( shrink ) ) &&
 	 ( ! M::solution_stays_feasible( shrink ) ) &&
-	 M::may_shrink_region( shrink ) && ( ! M::may_grow_region( shrink ) ) );
+	 M::may_shrink_region( shrink ) &&
+	 ( ! M::may_grow_region( shrink ) ) );
  assert( M::upper_bound_stays_valid( grow ) &&
 	 ( ! M::lower_bound_stays_valid( grow ) ) &&
 	 M::solution_stays_feasible( grow ) );
@@ -2651,6 +2647,108 @@ static void test_concerned( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* Whom a physical, an abstract and a "nuclear" Modification reach [see
+ * Modification::is_of_concern()]: a physical one only those who read
+ * eModPhys, whatever kinds it says, an abstract one those who read one of
+ * its kinds, a NBModification anyone, and anything those who read all the
+ * kinds; a group whoever one of its sub-Modification reaches [see
+ * Modification::is_of_concern_to()]; and whether a physical Modification is
+ * issued under eNoBlck when nobody reads the physical representation [see
+ * Observer::issue_pmod()]. */
+
+static void test_concern_physical( void )
+{
+ using M = Modification;
+
+ // the rule, on the bits alone
+ static_assert( M::is_of_concern( M::ePhysVars , M::eModPhys ) );
+ static_assert( ! M::is_of_concern( M::ePhysVars , M::eModAbst ) );
+ static_assert( ! M::is_of_concern( M::ePhysVars , M::eModVarData ) );
+ static_assert( M::is_of_concern( M::ePhysVars , M::eModAnything ) );
+ static_assert( M::is_of_concern( M::eModPhys | M::eEffAny , M::eModPhys ) );
+ static_assert( ! M::is_of_concern( M::eModVarData , M::eModPhys ) );
+ static_assert( M::is_of_concern( M::eModVarData , M::eModAbst ) );
+ static_assert( ! M::is_of_concern( M::eModVarData , M::eModObj ) );
+ static_assert( M::is_of_concern( M::eModAll , M::eModPhys ) );
+ static_assert( M::is_of_concern( M::eModAll , M::eModObj ) );
+ static_assert( ! M::is_of_concern( 0 , M::eModAbst ) );
+ static_assert( M::is_of_concern( 0 , M::eModAnything ) );
+
+ // and on a Block with three Solver: the physical and the abstract
+ // representation, and the data of the Variable alone
+ Rig r;
+ auto x = kept( new ColVariable );
+ r.block->add_static_variable( *x , "x" );
+ r.listen( false );
+ auto phys = new ReadsSolver( M::eModPhys );
+ auto abst = new ReadsSolver( M::eModAbst );
+ auto data = new ReadsSolver( M::eModVarData );
+ for( auto s : { phys , abst , data } )
+  r.block->register_Solver( s );
+ auto sizes = [ & ]( void ) {
+  return( std::array< std::size_t , 3 >{
+		  phys->get_Modification_list().size() ,
+		  abst->get_Modification_list().size() ,
+		  data->get_Modification_list().size() } );
+  };
+ auto clear = [ & ]( void ) {
+  for( auto s : { phys , abst , data } )
+   s->get_Modification_list().clear();
+  r.clear();
+  };
+
+ using A = std::array< std::size_t , 3 >;
+ clear();
+ x->is_fixed( true , eNoBlck );
+ assert( sizes() == ( A{ 0 , 1 , 1 } ) );
+ clear();
+ x->is_integer( true , eNoBlck );
+ assert( sizes() == ( A{ 0 , 1 , 0 } ) );
+ clear();
+ r.block->add_Modification( std::make_shared< PhysMod >( r.block ) );
+ assert( sizes() == ( A{ 1 , 0 , 0 } ) );
+ clear();
+ r.block->add_Modification( std::make_shared< NBModification >( r.block ) );
+ assert( sizes() == ( A{ 1 , 1 , 1 } ) );
+
+ // a group of physical Modification alone reaches the physical reader,
+ // while one also holding an abstract Modification reaches whoever reads
+ // any of its sub-Modification, even if nested one level down
+ clear();
+ auto chnl = r.block->open_channel();
+ r.block->add_Modification( std::make_shared< PhysMod >( r.block ) , chnl );
+ r.block->close_channel( chnl );
+ assert( sizes() == ( A{ 1 , 0 , 0 } ) );
+ clear();
+ chnl = r.block->open_channel();
+ r.block->add_Modification( std::make_shared< PhysMod >( r.block ) , chnl );
+ x->is_integer( false , Observer::make_par( eNoBlck , chnl ) );
+ r.block->close_channel( chnl );
+ assert( sizes() == ( A{ 1 , 1 , 0 } ) );
+ clear();
+ chnl = r.block->open_channel();
+ r.block->add_Modification( std::make_shared< PhysMod >( r.block ) , chnl );
+ r.block->open_channel( chnl );
+ x->is_fixed( false , Observer::make_par( eNoBlck , chnl ) );
+ r.block->close_channel( chnl );
+ r.block->close_channel( chnl );
+ assert( sizes() == ( A{ 1 , 1 , 1 } ) );
+
+ // without the reader of the physical representation, a physical
+ // Modification is not even issued under eNoBlck, and still under eModBlck
+ r.block->unregister_Solver( phys , true );
+ assert( ! r.block->issue_pmod( eNoBlck , M::ePhysVars ) );
+ assert( r.block->issue_mod( eNoBlck , M::eModVarData ) );
+ assert( ! r.block->issue_mod( eNoBlck , M::ePhysVars ) );
+ assert( r.block->issue_mod( eModBlck , M::ePhysVars ) );
+
+ clear();
+ r.block->unregister_Solver( abst , true );
+ r.block->unregister_Solver( data , true );
+ r.listen( true );
+ }
+
+/*--------------------------------------------------------------------------*/
 /* The modifying methods of the core ask issue_mod() with the kind of the
  * Modification they would issue [see Observer::issue_mod()]: with the only
  * Solver reading the sides of the Constraint, under eNoBlck a change of the
@@ -2791,7 +2889,8 @@ static void test_FunctionMod_changes( void )
  const auto C = M::eModCnsCoef;
 
  for( auto [ lhs , rhs ] : { std::pair( 0.0 , 1.0 ) , std::pair( 0.0 , INF ) ,
-			     std::pair( -INF , 1.0 ) , std::pair( -INF , INF ) } ) {
+			     std::pair( -INF , 1.0 ) , std::pair( -INF ,
+								  INF ) } ) {
   c->set_lhs( lhs , eNoMod );
   c->set_rhs( rhs , eNoMod );
   const bool l = ( lhs > -INF );
@@ -3062,7 +3161,8 @@ static void test_adapt( void )
  // a GroupModification: a removal and a fixing make an adapted Solution
  auto grp = last( [ & ]() {
 		   auto chnl = r.block->open_channel();
-		   x->is_fixed( false , Observer::make_par( eModBlck , chnl ) );
+		   x->is_fixed( false ,
+				Observer::make_par( eModBlck , chnl ) );
 		   rmv_d( r.block , *vars , Range( 0 , 1 ) ,
 			  Observer::make_par( eModBlck , chnl ) );
 		   r.block->close_channel( chnl );
@@ -3102,6 +3202,7 @@ int main( void )
  test_dry_run_C05SumFunction();
  test_changes();
  test_concerned();
+ test_concern_physical();
  test_function_concerned();
  test_adapt();
 

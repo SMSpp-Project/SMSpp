@@ -1078,11 +1078,12 @@ class LagBFunction : public C05Function , public Block
   * set_ComputeConfig() for details. */
 
  idx_type int_par_is( idx_type par ) const {
-  if constexpr( Solver::intLastAlgPar < intLastLagBFPar ) {
+  if constexpr( idx_type( Solver::intLastAlgPar ) <
+		idx_type( intLastLagBFPar ) ) {
    if( par == Inf< idx_type >() )
     return( par );
    if( par >= Solver::intLastAlgPar )
-    par += intLastLagBFPar - Solver::intLastAlgPar;
+    par += idx_type( intLastLagBFPar ) - idx_type( Solver::intLastAlgPar );
    }
   return( par );
   }
@@ -1095,11 +1096,12 @@ class LagBFunction : public C05Function , public Block
   * set_ComputeConfig() for details. */
 
  idx_type dbl_par_is( idx_type par ) const {
-  if constexpr( Solver::dblLastAlgPar < dblLastLagBFPar ) {
+  if constexpr( idx_type( Solver::dblLastAlgPar ) <
+		idx_type( dblLastLagBFPar ) ) {
    if( par == Inf< idx_type >() )
     return( par );
    if( par >= Solver::dblLastAlgPar )
-    par += dblLastLagBFPar - Solver::dblLastAlgPar;
+    par += idx_type( dblLastLagBFPar ) - idx_type( Solver::dblLastAlgPar );
    }
   return( par );
   }
@@ -1112,11 +1114,12 @@ class LagBFunction : public C05Function , public Block
   * set_ComputeConfig() for details. */
 
  idx_type str_par_is( idx_type par ) const {
-  if constexpr( Solver::strLastAlgPar < strLastLagBFPar ) {
+  if constexpr( idx_type( Solver::strLastAlgPar ) <
+		idx_type( strLastLagBFPar ) ) {
    if( par == Inf< idx_type >() )
     return( par );
    if( par >= Solver::strLastAlgPar )
-    par += strLastLagBFPar - Solver::strLastAlgPar;
+    par += idx_type( strLastLagBFPar ) - idx_type( Solver::strLastAlgPar );
    }
   return( par );
   }
@@ -1129,11 +1132,12 @@ class LagBFunction : public C05Function , public Block
   * to set_ComputeConfig() for details. */
 
  idx_type vint_par_is( idx_type par ) const {
-  if constexpr( Solver::vintLastAlgPar < vintLastLagBFPar ) {
+  if constexpr( idx_type( Solver::vintLastAlgPar ) <
+		idx_type( vintLastLagBFPar ) ) {
    if( par == Inf< idx_type >() )
     return( par );
    if( par >= Solver::vintLastAlgPar )
-    par += vintLastLagBFPar - Solver::vintLastAlgPar;
+    par += idx_type( vintLastLagBFPar ) - idx_type( Solver::vintLastAlgPar );
    }
   return( par );
   }
@@ -1146,11 +1150,12 @@ class LagBFunction : public C05Function , public Block
   * comments to set_ComputeConfig() for details. */
 
  idx_type vdbl_par_is( idx_type par ) const {
-  if constexpr( Solver::vdblLastAlgPar < vdblLastLagBFPar ) {
+  if constexpr( idx_type( Solver::vdblLastAlgPar ) <
+		idx_type( vdblLastLagBFPar ) ) {
    if( par == Inf< idx_type >() )
     return( par );
    if( par >= Solver::vdblLastAlgPar )
-    par += vdblLastLagBFPar - Solver::vdblLastAlgPar;
+    par += idx_type( vdblLastLagBFPar ) - idx_type( Solver::vdblLastAlgPar );
    }
   return( par );
   }
@@ -1163,11 +1168,12 @@ class LagBFunction : public C05Function , public Block
   * comments to set_ComputeConfig() for details. */
 
  idx_type vstr_par_is( idx_type par ) const {
-  if constexpr( Solver::vstrLastAlgPar < vstrLastLagBFPar ) {
+  if constexpr( idx_type( Solver::vstrLastAlgPar ) <
+		idx_type( vstrLastLagBFPar ) ) {
    if( par == Inf< idx_type >() )
     return( par );
    if( par >= Solver::vstrLastAlgPar )
-    par += vstrLastLagBFPar - Solver::vstrLastAlgPar;
+    par += idx_type( vstrLastLagBFPar ) - idx_type( Solver::vstrLastAlgPar );
    }
   return( par );
   }
@@ -1180,11 +1186,12 @@ class LagBFunction : public C05Function , public Block
   * set_ComputeConfig() for details. */
 
  idx_type int_par_lbf( idx_type par ) const {
-  if constexpr( Solver::intLastAlgPar < intLastLagBFPar ) {
+  if constexpr( idx_type( Solver::intLastAlgPar ) <
+		idx_type( intLastLagBFPar ) ) {
    if( par == Inf< idx_type >() )
     return( par );
    if( par >= intLastLagBFPar )
-    par -= intLastLagBFPar - Solver::intLastAlgPar;
+    par -= idx_type( intLastLagBFPar ) - idx_type( Solver::intLastAlgPar );
    }
   return( par );
   }
@@ -1197,11 +1204,12 @@ class LagBFunction : public C05Function , public Block
   * set_ComputeConfig() for details. */
 
  idx_type dbl_par_lbf( idx_type par ) const {
-  if constexpr( Solver::dblLastAlgPar < dblLastLagBFPar ) {
+  if constexpr( idx_type( Solver::dblLastAlgPar ) <
+		idx_type( dblLastLagBFPar ) ) {
    if( par == Inf< idx_type >() )
     return( par );
    if( par >= dblLastLagBFPar )
-    par -= dblLastLagBFPar - Solver::dblLastAlgPar;
+    par -= idx_type( dblLastLagBFPar ) - idx_type( Solver::dblLastAlgPar );
    }
   return( par );
   }
@@ -1214,11 +1222,12 @@ class LagBFunction : public C05Function , public Block
   * set_ComputeConfig() for details. */
 
  idx_type str_par_lbf( idx_type par ) const {
-  if constexpr( Solver::strLastAlgPar < strLastLagBFPar ) {
+  if constexpr( idx_type( Solver::strLastAlgPar ) <
+		idx_type( strLastLagBFPar ) ) {
    if( par == Inf< idx_type >() )
     return( par );
    if( par >= strLastLagBFPar )
-    par -= strLastLagBFPar - Solver::strLastAlgPar;
+    par -= idx_type( strLastLagBFPar ) - idx_type( Solver::strLastAlgPar );
    }
   return( par );
   }
@@ -1231,11 +1240,12 @@ class LagBFunction : public C05Function , public Block
   * set_ComputeConfig() for details. */
 
  idx_type vint_par_lbf( idx_type par ) const {
-  if constexpr( Solver::vintLastAlgPar < vintLastLagBFPar ) {
+  if constexpr( idx_type( Solver::vintLastAlgPar ) <
+		idx_type( vintLastLagBFPar ) ) {
    if( par == Inf< idx_type >() )
     return( par );
    if( par >= vintLastLagBFPar )
-    par -= vintLastLagBFPar - Solver::vintLastAlgPar;
+    par -= idx_type( vintLastLagBFPar ) - idx_type( Solver::vintLastAlgPar );
    }
   return( par );
   }
@@ -1248,11 +1258,12 @@ class LagBFunction : public C05Function , public Block
   * comments to set_ComputeConfig() for details. */
 
  idx_type vdbl_par_lbf( idx_type par ) const {
-  if constexpr( Solver::vdblLastAlgPar < vdblLastLagBFPar ) {
+  if constexpr( idx_type( Solver::vdblLastAlgPar ) <
+		idx_type( vdblLastLagBFPar ) ) {
    if( par == Inf< idx_type >() )
     return( par );
    if( par >= vdblLastLagBFPar )
-    par -= vdblLastLagBFPar - Solver::vdblLastAlgPar;
+    par -= idx_type( vdblLastLagBFPar ) - idx_type( Solver::vdblLastAlgPar );
    }
   return( par );
   }
@@ -1265,11 +1276,12 @@ class LagBFunction : public C05Function , public Block
   * comments to set_ComputeConfig() for details. */
 
  idx_type vstr_par_lbf( idx_type par ) const {
-  if constexpr( Solver::vstrLastAlgPar < vstrLastLagBFPar ) {
+  if constexpr( idx_type( Solver::vstrLastAlgPar ) <
+		idx_type( vstrLastLagBFPar ) ) {
    if( par == Inf< idx_type >() )
     return( par );
    if( par >= vstrLastLagBFPar )
-    par -= vstrLastLagBFPar - Solver::vstrLastAlgPar;
+    par -= idx_type( vstrLastLagBFPar ) - idx_type( Solver::vstrLastAlgPar );
    }
   return( par );
   }

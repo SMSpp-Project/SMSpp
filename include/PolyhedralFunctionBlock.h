@@ -339,12 +339,12 @@ class PolyhedralFunctionBlock : public AbstractBlock
   * an "empty" PolyhedralFunction to start with. */
 
  PolyhedralFunctionBlock( Block * father = nullptr )
-  : AbstractBlock( father ) , f_rep( 0 ) , f_scaling( 0 ) ,
-    f_no_objective( false ) , f_global_scale( 1.0 ) ,
-    f_global_reference( 1.0 ) ,
-    f_own_polyf( {} , {} , {} , -Inf< Function::FunctionValue >() , true , this
-		 ) ,
-    f_v() , f_const() { }
+     : AbstractBlock( father ) , f_rep( 0 ) , f_scaling( 0 ) ,
+       f_global_scale( 1.0 ) , f_global_reference( 1.0 ) ,
+       f_no_objective( false ) ,
+       f_own_polyf( {} , {} , {} , -Inf< Function::FunctionValue >() , true ,
+		    this ) ,
+       f_v() , f_const() { }
 
 /*--------------------------------------------------------------------------*/
  /// constructor wrapping an *external* PolyhedralFunction
@@ -355,12 +355,15 @@ class PolyhedralFunctionBlock : public AbstractBlock
   * PolyhedralFunction, e.g. in remove_redundant_rows(). */
 
  PolyhedralFunctionBlock( Block * father , PolyhedralFunction * polyf )
-  : AbstractBlock( father ) , f_rep( 0 ) , f_scaling( 0 ) ,
-    f_no_objective( false ) , f_global_scale( 1.0 ) ,
-    f_global_reference( 1.0 ) ,
-    f_own_polyf( {} , {} , {} , -Inf< Function::FunctionValue >() , true ,
-		 nullptr ) ,
-    f_v() , f_const() { if( polyf ) f_polyf_p = polyf; }
+     : AbstractBlock( father ) , f_rep( 0 ) , f_scaling( 0 ) ,
+       f_global_scale( 1.0 ) , f_global_reference( 1.0 ) ,
+       f_no_objective( false ) ,
+       f_own_polyf( {} , {} , {} , -Inf< Function::FunctionValue >() , true ,
+		    nullptr ) ,
+       f_v() , f_const() {
+  if( polyf )
+   f_polyf_p = polyf;
+  }
 
 /*--------------------------------------------------------------------------*/
  /// load the PolyhedralFunctionBlock out of an istream
@@ -1186,7 +1189,7 @@ class PolyhedralFunctionBlock : public AbstractBlock
   // directly attached, or it has a father Block and the father says so
 
   if( ( ! v_Solver.empty() ) ||
-      ( get_f_Block() && get_f_Block()->anyone_there() ) )
+      ( get_f_Block() && get_f_Block()->anyone_there_for( *mod ) ) )
    AbstractBlock::add_Modification( mod , chnl );
   }
 

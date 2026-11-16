@@ -642,6 +642,15 @@ static bool check_Solution( Block * blck , Solution * sol , Check && check )
  if( sol->is_direction() && ( ! wasdir ) )
   blck->is_direction( true );
 
+ // what the Block held is put back however the check ends, also when it
+ // throws, and then the exception is passed on
+ const auto restore = [ blck , current , wasdir ]() {
+  std::unique_ptr< Solution > held( current );
+  if( blck->is_direction() != wasdir )
+   blck->is_direction( wasdir );
+  held->write( blck );
+  };
+
  // a Solution that gives a fixed Variable another value than the one it is
  // fixed at is not feasible, and writing it stops there [see
  // ColVariable::set_value()]: what has been written is put back all the same
@@ -653,13 +662,12 @@ static bool check_Solution( Block * blck , Solution * sol , Check && check )
  catch( const std::domain_error & ) {
   answer = false;
   }
+ catch( ... ) {
+  restore();
+  throw;
+  }
 
- if( blck->is_direction() != wasdir )
-  blck->is_direction( wasdir );
-
- current->write( blck );
- delete current;
-
+ restore();
  return( answer );
  }
 
@@ -771,9 +779,9 @@ void Block::add_Modification( sp_Mod mod , ChnlName chnl )
  // Modification should generally not even be issued if ! anyone_there(), but
  // there is an exception: "abstract" Modification under the default eModBlck
  // mode are still issued in order to keep the "abstract" representation in
- // synch with the "phisical" one. this is supposed to happen in the
- // :Block::add_Modification(), that then should call this method. without
- // the following check this would result in the Modification being uslessly
+ // sync with the "physical" one. This is supposed to happen in the
+ // :Block::add_Modification(), that then should call this method. Without
+ // the following check this would result in the Modification being uselessly
  // passed up to all the chain of ancestors of the Block, the check avoids it
  if( ! anyone_there() )
   return;
@@ -807,9 +815,8 @@ void Block::add_Modification( sp_Mod mod , ChnlName chnl )
  // the Solver, if any, that read the kind of the Modification are passed
  // it as well [see Solver::concerned_by()]
  if( ! v_Solver.empty() ) {
-  const auto c = mod->changes();
   for( Solver * slv : v_Solver )
-   if( Modification::is_of_concern( c , slv->concerned_by() ) )
+   if( mod->is_of_concern_to( slv->concerned_by() ) )
     slv->add_Modification( mod );
   }
 
@@ -896,8 +903,9 @@ void Block::close_channel( ChnlName chnl , bool force , bool discard )
     auto root = GMit->second;
 
     // if concerns_Block() of the current GroupModification is true, ensure
-    // that the concerns_Block() of is also true up until the top; what it
-    // changes goes up as well, each level adding what it changes itself
+    // that the concerns_Block() of its ancestors is also true up until the
+    // top; what it changes goes up as well, each level adding what it
+    // changes itself
     const bool concerns = root->concerns_Block();
     while( root->father() ) {
      const auto changes = root->changes();
@@ -964,7 +972,8 @@ void Block::clear_channel( ChnlName chnl )
 
  for( Block * blck = this ; blck ; blck = blck->f_Block ) {
   auto GMit = std::find_if( blck->v_GroupMod.begin() , blck->v_GroupMod.end() ,
-			    [ chnl ]( auto & a ) { return( a.first == chnl ); } );
+			    [ chnl ]( auto & a ) {
+			     return( a.first == chnl ); } );
   if( GMit != blck->v_GroupMod.end() ) {
    GMit->second->clear();
    return;
@@ -1616,7 +1625,7 @@ bool Block::map_forward_Modification( Block * R3B , c_p_Mod mod ,
   * Modification comes from: the map it holds covers the whole of it. */
 
  if( auto ab = as_mirror( this , R3B ) )
-  return( ab->mirror_forward_Modification( mod ) );
+  return( ab->mirror_forward_Modification( mod , issueAMod ) );
 
  if( mod->get_Block() == this )
   return( false );

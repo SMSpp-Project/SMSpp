@@ -618,7 +618,6 @@ void MasterProblemBlock::configure(
  // marked easy.
  int next_global_easy = 0;
  for( int k = 0 ; k < n_easy ; ++k ) {
-  int component = k;
   if( int( is_easy.size() ) == n_total ) {
    while( next_global_easy < n_total && ! is_easy[ next_global_easy ] )
     ++next_global_easy;
@@ -626,7 +625,7 @@ void MasterProblemBlock::configure(
     throw( std::invalid_argument(
          "MasterProblemBlock::configure: inconsistent easy-component "
          "flags" ) );
-   component = next_global_easy++;
+   ++next_global_easy;
    }
 
   auto * c05 = easy_components[ k ];
@@ -1061,15 +1060,18 @@ void MasterProblemBlock::generate_primal_abstract_constraints( void )
   pfb->generate_abstract_constraints();
  }
 
- // ---- level constraint b*d + sum_k v^k <= f_lev -------------------------
+ // ---- value row LB <= b*d + sum_k v^k <= f_lev ---------------------------
  //
- // The first NumVars coefficients are reserved for the linear component b;
+ // The row of the level and of the global lower bound, whatever the
+ // stabilization: each side is infinite as long as it is not given [see
+ // set_f_lev() and set_global_LB()], and since LB < f_lev at most one of
+ // them is active, the sign of the dual value telling which. The first
+ // NumVars coefficients are reserved for the linear component b;
  // set_linear_part() refreshes them after construction. The remaining terms
  // reference each PFB's f_v directly via get_v(). LevelCns is a master-side
  // static FRowConstraint so the inner Solver picks it up.
 
- if( ( StblType == kLevel || StblType == kDoublyStabilized )
-          && NoHardCmps > 0 ) {
+ if( NoHardCmps > 0 ) {
   LinearFunction::v_coeff_pair lvl_terms;
   lvl_terms.reserve( NumVars + NoHardCmps );
   level_d_idx.clear();
@@ -1087,8 +1089,11 @@ void MasterProblemBlock::generate_primal_abstract_constraints( void )
     lvl_terms.emplace_back( pfb->get_v() , 1.0 );
    }
 
-  LevelCns.set_lhs( - Inf< double >() , eNoMod );
-  LevelCns.set_rhs( f_lev , eNoMod );
+  const bool uses_level =
+   ( StblType == kLevel || StblType == kDoublyStabilized );
+  LevelCns.set_lhs( std::isfinite( f_global_LB_xbar ) ?
+                    f_global_LB_xbar - f_C : - Inf< double >() , eNoMod );
+  LevelCns.set_rhs( uses_level ? f_lev : Inf< double >() , eNoMod );
   LevelCns.set_function(
      new LinearFunction( std::move( lvl_terms ) ) , eNoMod );
   add_static_constraint( LevelCns , "MPB_level" );
@@ -1159,10 +1164,13 @@ void MasterProblemBlock::generate_primal_objective( void )
    * set_linear_part() into the Objective once it exists: the rho * x_bar
    * shift that goes with it is therefore added by refresh_primal_objective(),
    * which has both and runs before every solve. */
+  double q = quad_coeff + ( f_rho.empty() ? 0.0 : f_rho[ i ] / 2.0 );
+  if( is_binary( Index( i ) ) ) {  // x_i^2 = x_i [see is_binary()]
+   lin_coeff += q;
+   q = 0;
+   }
   d_obj_idx.push_back( int( triples.size() ) );
-  triples.emplace_back( Var_d_idx[ i ] , lin_coeff ,
-                        quad_coeff + ( f_rho.empty() ? 0.0
-                                                     : f_rho[ i ] / 2.0 ) );
+  triples.emplace_back( Var_d_idx[ i ] , lin_coeff , q );
   }
 
  level_model_obj_idx = -1;
@@ -2119,7 +2127,7 @@ void MasterProblemBlock::add_easy_coupling( Index easy_id , Index j ,
                            "index outside master dimension" ) );
 
  auto * gi = dynamic_cast< LinearFunction * >(
-                          EasyCmps[ easy_id ]->get_Lagrangian_term( local_i ) );
+                         EasyCmps[ easy_id ]->get_Lagrangian_term( local_i ) );
  if( ! gi )
   throw( std::logic_error( "MasterProblemBlock::add_easy_coupling: "
                            "LagBFunction term is not a LinearFunction" ) );
@@ -2169,7 +2177,7 @@ void MasterProblemBlock::add_easy_objective_terms( Index easy_id , Index j ,
  auto dqf = obj ? dynamic_cast< DQuadFunction * >( obj->get_function() )
                 : nullptr;
  auto * gi = dynamic_cast< LinearFunction * >(
-                          EasyCmps[ easy_id ]->get_Lagrangian_term( local_i ) );
+                         EasyCmps[ easy_id ]->get_Lagrangian_term( local_i ) );
  if( ( ! dqf ) || ( ! gi ) )
   throw( std::logic_error( "MasterProblemBlock::add_easy_objective_terms: "
                            "expected DQuadFunction and LinearFunction" ) );
@@ -2205,7 +2213,7 @@ Index MasterProblemBlock::easy_local_to_global(
 {
  // Dense case: no sparse map provided.
  if( EasyLocal2Global.empty() )
-  return local_i;
+  return( local_i );
 
  if( easy_id >= EasyLocal2Global.size() )
   throw( std::logic_error(
@@ -2218,7 +2226,7 @@ Index MasterProblemBlock::easy_local_to_global(
   throw( std::logic_error( "easy_local_to_global: invalid local variable "
      "index" ) );
  // return global index
- return map[ local_i ];
+ return( map[ local_i ] );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -3243,7 +3251,8 @@ std::vector< double > MasterProblemBlock::get_z_vector( void ) const
  if( uses_pure_level_aggregation() &&
      ( ! ( get_level_multiplier() > 0.0 ) ||
        ! std::isfinite( get_level_multiplier() ) ) )
-  throw( std::domain_error( "MasterProblemBlock: no normalized level aggregate" ) );
+  throw( std::domain_error(
+    "MasterProblemBlock: no normalized level aggregate" ) );
  std::vector< double > out;
  if( IsPrimal && has_trust_region() ) {
   // The trust region has no term in z: what the master tells of the
@@ -3260,8 +3269,13 @@ std::vector< double > MasterProblemBlock::get_z_vector( void ) const
   // the reduced cost of a Variable whose bound is not the one d*_j is on.
   out = get_d_vector();
   std::vector< double > agg( NumVars , 0.0 );
-  if( int( f_linear_part.size() ) == NumVars )
-   agg = f_linear_part;
+  if( int( f_linear_part.size() ) == NumVars ) {
+   // b has the mass lambda of the rows, less than one when the global
+   // lower bound row takes some of it
+   const double lambda = get_lambda();
+   for( int j = 0 ; j < NumVars ; ++j )
+    agg[ j ] = lambda * f_linear_part[ j ];
+   }
   for( int k = 0 ; k < int( HardCmps.size() ) ; ++k ) {
    const auto zk = get_aggregated_subgradient( k );
    for( int j = 0 ; j < std::min( NumVars , int( zk.size() ) ) ; ++j )
@@ -3386,7 +3400,8 @@ MasterProblemBlock::get_aggregated_subgradient( int k ) const
  if( uses_pure_level_aggregation() &&
      ( ! ( get_level_multiplier() > 0.0 ) ||
        ! std::isfinite( get_level_multiplier() ) ) )
-  throw( std::domain_error( "MasterProblemBlock: no normalized level aggregate" ) );
+  throw( std::domain_error(
+    "MasterProblemBlock: no normalized level aggregate" ) );
  // The abstract multiplier is stored differently in the two linearized PFB
  // representations: as the dual value of a cut constraint in the primal one,
  // and as an explicit theta variable in the dual one.
@@ -3503,6 +3518,44 @@ double MasterProblemBlock::get_level_multiplier( void ) const
 
 /*--------------------------------------------------------------------------*/
 
+double MasterProblemBlock::get_r( void ) const
+{
+ if( ! IsPrimal )
+  return( Var_r.get_value() );
+
+ // in the primal master r is the dual value of the left-hand side of the
+ // value row, the global lower bound one
+ if( ( ! ( f_abs_rep & k_mpb_built_cnst ) ) || ( ! LevelCns.get_function() ) ||
+     ( ! std::isfinite( f_global_LB_xbar ) ) )
+  return( 0.0 );
+
+ return( std::max( 0.0 , - LevelCns.get_dual() ) );
+}
+
+/*--------------------------------------------------------------------------*/
+
+double MasterProblemBlock::global_LB_displacement( void ) const
+{
+ if( ! std::isfinite( f_global_LB_xbar ) )
+  return( 0.0 );
+
+ // the raw primal form has the row in absolute terms: the displacement
+ // frame subtracts the value of the model at x_bar, i.e., F( x_bar )
+ if( IsPrimal && f_v2_form ) {
+  double F = 0.0;
+  for( auto Fk : f_F_at_x_bar )
+   F += Fk;
+  if( f_linear_part.size() == f_x_bar.size() )
+   F += std::inner_product( f_linear_part.begin() , f_linear_part.end() ,
+                            f_x_bar.begin() , 0.0 );
+  return( f_global_LB_xbar - F );
+  }
+
+ return( f_global_LB_xbar );
+}
+
+/*--------------------------------------------------------------------------*/
+
 bool MasterProblemBlock::aggregate_is_valid( double tolerance ) const
 {
  if( ! uses_pure_level_aggregation() )
@@ -3517,10 +3570,12 @@ bool MasterProblemBlock::aggregate_is_valid( double tolerance ) const
  if( ! std::isfinite( r ) || r < - tolerance )
   return( false );
  for( int k = 0 ; k < int( HardCmps.size() ) ; ++k ) {
-  const auto * pfb = dynamic_cast< const PolyhedralFunctionBlock * >( HardCmps[ k ] );
+  const auto * pfb =
+    dynamic_cast< const PolyhedralFunctionBlock * >( HardCmps[ k ] );
   if( ! pfb )
    return( false );
-  auto & pf = const_cast< PolyhedralFunctionBlock * >( pfb )->get_PolyhedralFunction();
+  auto & pf =
+    const_cast< PolyhedralFunctionBlock * >( pfb )->get_PolyhedralFunction();
   double sum = r;
   for( PolyhedralFunction::Index i = 0 ; i < pf.get_nrows() ; ++i ) {
    const double weight = pfb->get_row_multiplier( i ) / eta;
@@ -3632,7 +3687,8 @@ double MasterProblemBlock::get_aggregated_alpha( int k ) const
  if( uses_pure_level_aggregation() &&
      ( ! ( get_level_multiplier() > 0.0 ) ||
        ! std::isfinite( get_level_multiplier() ) ) )
-  throw( std::domain_error( "MasterProblemBlock: no normalized level aggregate" ) );
+  throw( std::domain_error(
+    "MasterProblemBlock: no normalized level aggregate" ) );
  if( IsPrimal ) {
   // The primal master directly provides d* and the model decrease v*. For
   // every component the aggregate-cut identity is
@@ -3658,7 +3714,11 @@ double MasterProblemBlock::get_aggregated_alpha( int k ) const
    return( zd - mu * get_FiBLambda( k ) );
    }
 
-  return( get_Gid_aggregate() - mu * get_FiBLambda() );
+  // the global lower bound row, LB <= b*d + sum_k v^k, is the horizontal
+  // linearization at LB: no subgradient, the linearization error
+  // F( x_bar ) - LB, i.e., minus LB in the frame of the stability centre
+  return( get_Gid_aggregate() - mu * get_FiBLambda() -
+          get_r() * global_LB_displacement() );
   }
 
  // b[i] is stored in the physical PolyhedralFunction units. The multiplier
@@ -4244,7 +4304,7 @@ void MasterProblemBlock::set_box( const std::vector< double > & L ,
 
  auto issue_box_modifications = [ this , & lower , & upper ,
                                   lower_changed , upper_changed ]( void ) {
-  if( ! anyone_there() )
+  if( ! anyone_there_for( Modification::eModPhys ) )
    return;
   const Range range( 0 , Index( NumVars ) );
   if( lower_changed )
@@ -4340,7 +4400,7 @@ void MasterProblemBlock::set_box( std::vector< double > L ,
   refresh_box_coordinate( j , dqf , make_par( eModBlck , chnl ) );
  close_channel( chnl );
 
- if( anyone_there() ) {
+ if( anyone_there_for( Modification::eModPhys ) ) {
   if( lower_changed )
    add_Modification( std::make_shared< MasterProblemRngdMod >(
                      this , MasterProblemMod::BoxLowerChanged , range ,
@@ -4350,6 +4410,10 @@ void MasterProblemBlock::set_box( std::vector< double > L ,
                      this , MasterProblemMod::BoxUpperChanged , range ,
                      std::move( U ) ) );
   }
+
+ // which coordinates are binary may have changed
+ if( IsPrimal )
+  refresh_local_branching( eModBlck );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -4435,7 +4499,7 @@ void MasterProblemBlock::set_box( std::vector< double > L ,
   refresh_box_coordinate( j , dqf , make_par( eModBlck , chnl ) );
  close_channel( chnl );
 
- if( anyone_there() ) {
+ if( anyone_there_for( Modification::eModPhys ) ) {
   if( lower_changed ) {
    auto lower_subset = subset;
    add_Modification( std::make_shared< MasterProblemSbstMod >(
@@ -4447,13 +4511,31 @@ void MasterProblemBlock::set_box( std::vector< double > L ,
                      this , MasterProblemMod::BoxUpperChanged ,
                      std::move( subset ) , std::move( U ) , true ) );
   }
+
+ // which coordinates are binary may have changed
+ if( IsPrimal )
+  refresh_local_branching( eModBlck );
  }
 
 /*--------------------------------------------------------------------------*/
 
 void MasterProblemBlock::set_global_LB( double LB )
 {
- if( IsPrimal || r_obj_idx < 0 )
+ if( IsPrimal ) {
+  // the left-hand side of the value row, i.e., LB <= b*d + sum_k v^k
+  const bool finite = std::isfinite( LB );
+  f_global_LB_xbar = finite ? ( LB + f_C )
+                            : - Inf< Function::FunctionValue >();
+  if( ( f_abs_rep & k_mpb_built_cnst ) && LevelCns.get_function() )
+   LevelCns.set_lhs( finite ? LB : - Inf< double >() , eNoBlck );
+  if( anyone_there() )
+   add_Modification( std::make_shared< MasterProblemLowerBoundMod >(
+                     this , MasterProblemLowerBoundMod::GlobalLowerBound ,
+                     LB ) );
+  return;
+  }
+
+ if( r_obj_idx < 0 )
   return;
 
  auto obj = dynamic_cast< FRealObjective * >( get_objective() );
@@ -4474,10 +4556,8 @@ void MasterProblemBlock::set_global_LB( double LB )
  const double coeff = finite ? sgn * ( LB + f_C ) : 0.0;
  dqf->modify_term( DQuadFunction::Index( r_obj_idx ) , coeff , 0.0 );
 
- // cache the translated global lower bound LB + f_C (the value the
- // r-multiplier carries) so that set_fictitious_LB() can place the
- // fictitious per-component bound strictly *below* it (gamma_i cost =
- // global_LB - 1)
+ // cache the translated global lower bound LB + f_C, the value that the
+ // r-multiplier carries
  f_global_LB_xbar = finite ? ( LB + f_C ) : - Inf< Function::FunctionValue >();
 
  // Var_r is meaningful only when LB is finite: unfix it now (it was
@@ -4496,7 +4576,7 @@ void MasterProblemBlock::set_global_LB( double LB )
    Var_r.is_fixed( true , eNoBlck );
   }
 
- if( anyone_there() )
+ if( anyone_there_for( Modification::eModPhys ) )
   add_Modification( std::make_shared< MasterProblemLowerBoundMod >(
                     this , MasterProblemLowerBoundMod::GlobalLowerBound ,
                     LB ) );
@@ -4545,7 +4625,7 @@ void MasterProblemBlock::set_reference(
  const std::vector< double > old_F     = f_F_at_x_bar;
 
  auto issue_reference_mod = [ this ]( void ) {
-  if( anyone_there() )
+  if( anyone_there_for( Modification::eModPhys ) )
    add_Modification( std::make_shared< MasterProblemMod >(
                      this , MasterProblemMod::ReferenceChanged ) );
   };
@@ -4925,7 +5005,7 @@ void MasterProblemBlock::set_linear_part( const std::vector< double > & b )
   close_channel( chnl );
   }
 
- if( anyone_there() )
+ if( anyone_there_for( Modification::eModPhys ) )
   add_Modification( std::make_shared< MasterProblemRngdMod >(
                     this , MasterProblemMod::LinearPartChanged ,
                     Range( 0 , Index( NumVars ) ) ,
@@ -4983,7 +5063,7 @@ void MasterProblemBlock::set_linear_part( std::vector< double > b ,
   close_channel( chnl );
   }
 
- if( anyone_there() )
+ if( anyone_there_for( Modification::eModPhys ) )
   add_Modification( std::make_shared< MasterProblemRngdMod >(
                     this , MasterProblemMod::LinearPartChanged , range ,
                     std::move( b ) ) );
@@ -5065,7 +5145,7 @@ void MasterProblemBlock::set_linear_part( std::vector< double > b ,
   close_channel( chnl );
   }
 
- if( anyone_there() )
+ if( anyone_there_for( Modification::eModPhys ) )
   add_Modification( std::make_shared< MasterProblemSbstMod >(
                     this , MasterProblemMod::LinearPartChanged ,
                     std::move( subset ) , std::move( b ) , true ) );
@@ -5264,7 +5344,7 @@ void MasterProblemBlock::append_primal_level_coordinates(
                                       int first , int n , ModParam issueMod )
 {
  if( n <= 0 || ! IsPrimal || ! ( f_abs_rep & k_mpb_built_cnst ) ||
-     ( StblType != kLevel && StblType != kDoublyStabilized ) )
+     ! LevelCns.get_function() )
   return;
 
  auto * lf = dynamic_cast< LinearFunction * >( LevelCns.get_function() );
@@ -5583,7 +5663,7 @@ void MasterProblemBlock::remove_vars( const int * subset , int sz )
  // it explicit even for a complete removal: an empty SMS++ Subset means
  // "remove all", whereas an empty *coordinate* subset means "do nothing".
  auto names = [ &removed ]() {
-  return Subset( removed.begin() , removed.end() );
+  return( Subset( removed.begin() , removed.end() ) );
   };
  auto compact = [ &removed ]( auto & values ) {
   if( values.empty() )
@@ -5845,10 +5925,10 @@ void MasterProblemBlock::remove_vars( const int * subset , int sz )
   // Every positional map below still contains old objective/level indices.
   // Subtract the number of deleted terms preceding each surviving one.
   auto reindex = []( int p , const Subset & removed_positions ) {
-   return p < 0 ? p :
-    p - int( std::lower_bound( removed_positions.begin() ,
-                              removed_positions.end() ,
-                              Index( p ) ) - removed_positions.begin() );
+   return( p < 0 ? p :
+     p - int( std::lower_bound( removed_positions.begin() ,
+                               removed_positions.end() ,
+                               Index( p ) ) - removed_positions.begin() ) );
    };
   if( dqf ) {
    compact( d_obj_idx );
@@ -5900,9 +5980,9 @@ void MasterProblemBlock::remove_vars( const int * subset , int sz )
   for( auto & map : EasyLocal2Global ) {
    map.erase( std::remove_if( map.begin() , map.end() ,
               [ &removed , old_n ]( Index j ) {
-               return j < Index( old_n ) &&
-                      std::binary_search( removed.begin() , removed.end() ,
-                                          int( j ) );
+               return( j < Index( old_n ) &&
+                       std::binary_search( removed.begin() , removed.end() ,
+                                           int( j ) ) );
                } ) , map.end() );
    for( auto & j : map )
     if( j < Index( old_n ) )
@@ -5912,8 +5992,8 @@ void MasterProblemBlock::remove_vars( const int * subset , int sz )
   for( auto & coeffs : EasyObjCoeffs ) {
    coeffs.erase( std::remove_if( coeffs.begin() , coeffs.end() ,
                  [ &removed ]( const auto & term ) {
-                  return std::binary_search( removed.begin() , removed.end() ,
-                                             int( term.first ) );
+                  return( std::binary_search( removed.begin() , removed.end() ,
+                                              int( term.first ) ) );
                   } ) , coeffs.end() );
    for( auto & term : coeffs )
     term.first -= Index( std::lower_bound( removed.begin() , removed.end() ,
@@ -5971,6 +6051,56 @@ void MasterProblemBlock::set_max_time( double t )
  const auto idx = slv->dbl_par_str2idx( "dblMaxTime" );
  if( idx < slv->get_num_dbl_par() )
   slv->set_par( idx , t );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void MasterProblemBlock::set_int_feas_tol( double tol )
+{
+ const auto & solvers = this->get_registered_solvers();
+ if( solvers.empty() )
+  return;
+ auto * slv = solvers.front();
+ const auto idx = slv->dbl_par_str2idx( "dblIntFeasTol" );
+ if( idx < slv->get_num_dbl_par() )
+  slv->set_par( idx , tol );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+double MasterProblemBlock::improvement_cutoff( void ) const
+{
+ // C is only there in the primal MP in raw form, with the proximal
+ // stabilization or the trust region, the values of the function at the
+ // centre and no easy component [see set_improvement_cutoff()]
+ if( ( ! std::isfinite( f_impr_eps ) ) || ( ! IsPrimal ) || ( ! f_v2_form ) ||
+     ( ( StblType != kProximal ) && ( StblType != kTrustRegion ) ) ||
+     ( NoEasyCmps > 0 ) || ( int( d_obj_idx.size() ) != NumVars ) ||
+     ( int( f_F_at_x_bar.size() ) < NoHardCmps ) ||
+     ( int( f_x_bar.size() ) < NumVars ) )
+  return( - Inf< double >() );
+
+ auto * obj = dynamic_cast< FRealObjective * >( get_objective() );
+ auto * dqf = obj ? dynamic_cast< DQuadFunction * >( obj->get_function() )
+                  : nullptr;
+ if( ! dqf )
+  return( - Inf< double >() );
+
+ // the Objective at the centre: its own terms on x, and v_k = f_k( x_bar )
+ double C = dqf->get_constant_term();
+ for( int j = 0 ; j < NumVars ; ++j ) {
+  const auto idx = DQuadFunction::Index( d_obj_idx[ j ] );
+  const double x = f_x_bar[ j ];
+  C += ( dqf->get_linear_coefficient( idx ) +
+         dqf->get_quadratic_coefficient( idx ) * x ) * x;
+  }
+ for( int k = 0 ; k < NoHardCmps ; ++k ) {
+  if( ! std::isfinite( f_F_at_x_bar[ k ] ) )
+   return( - Inf< double >() );
+  C += f_F_at_x_bar[ k ];
+  }
+
+ return( C - f_impr_eps );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -6061,8 +6191,13 @@ void MasterProblemBlock::remove_initial_level_objective( void )
 
  std::vector< double > linear( NumVars );
  std::vector< double > quadratic( NumVars , 0.5 );
- for( int j = 0 ; j < NumVars ; ++j )
+ for( int j = 0 ; j < NumVars ; ++j ) {
   linear[ j ] = f_v2_form ? - f_x_bar[ j ] : 0.0;
+  if( is_binary( Index( j ) ) ) {  // x_j^2 = x_j [see is_binary()]
+   linear[ j ] += quadratic[ j ];
+   quadratic[ j ] = 0;
+   }
+  }
 
  if( NumVars > 0 ) {
   Subset terms;
@@ -6180,6 +6315,11 @@ void MasterProblemBlock::refresh_primal_objective( void )
    if( ! f_rho.empty() )  // the translated form carries rho * x_bar instead
     linear[ j ] += f_rho[ j ] * f_x_bar[ j ];
 
+  if( is_binary( Index( j ) ) ) {  // x_j^2 = x_j [see is_binary()]
+   linear[ j ] += quadratic[ j ];
+   quadratic[ j ] = 0;
+   }
+
   changed = changed ||
    ( linear[ j ] !=
      dqf->get_linear_coefficient(
@@ -6212,7 +6352,7 @@ void MasterProblemBlock::refresh_primal_level_linear_part( void )
 
 void MasterProblemBlock::refresh_primal_level_linear_part( Range range )
 {
- if( ! IsPrimal || ( StblType != kLevel && StblType != kDoublyStabilized ) )
+ if( ! IsPrimal )
   return;
  if( range.second <= range.first )
   return;
@@ -6243,7 +6383,7 @@ void MasterProblemBlock::refresh_primal_level_linear_part( Range range )
 void MasterProblemBlock::refresh_primal_level_linear_part(
                                                const Subset & subset )
 {
- if( ! IsPrimal || ( StblType != kLevel && StblType != kDoublyStabilized ) )
+ if( ! IsPrimal )
   return;
  if( subset.empty() )
   return;
@@ -6278,113 +6418,29 @@ int MasterProblemBlock::solve_master( void )
        "MasterProblemBlock::solve_master: no Solver registered" ) );
  auto * slv = solvers.front();
 
- // Short-circuit when every B^k is empty, symmetric for primal and dual.
- //
- // Primal MP with every B^k empty (no cuts pushed yet by add_cut) is
- // intrinsically unbounded below in the v_k variables: the master has no
- // v_k >= a_i.d + b_i row constraining v_k from below, so min sum v_k +
- // (1/(2t))||d||^2 -> -INF.
- //
- // Dual MP with every B^k empty is structurally infeasible under the
- // K * lambda + r - omega = 1 normalization once r and omega are
- // pinned to 0 (their default state when no global LB / level is
- // installed): the per-PFB rows  sum_i theta^k_i + gamma^k = lambda
- // collapse to gamma^k = lambda (theta empty), and any hard component
- // whose PFB has no global bound has gamma^k fixed to 0, forcing
- // lambda = 0 and contradicting K * lambda = 1.
- //
- // Hence at the very first call (no cuts, no function value known yet) no
- // master is solved at all: the stabilization alone gives the answer
- // below, and the caller is expected to evaluate the function, push the
- // first cuts through add_cut() and call solve_master again. This does not
- // apply when exact easy components are present: their objective and
- // coupling terms already make the master non-empty and must be optimized.
- // Nor does it with linear constraints, which the step has to satisfy: the
- // master is solved, and the caller gives the empty components their
- // fictitious bound [see set_fictitious_LB()] for it to be bounded.
- if( is_bundle_empty() && ( NoEasyCmps == 0 ) && f_lc_A.empty() ) {
-  /* With every B^k empty the cutting-plane model is empty and the master
-   * reduces to the stabilization alone,
-   *
-   *     min { l.d + || d ||^2 / 2 t }
-   *
-   * l being the gradient of the linear 0-th component [see
-   * set_linear_part()], whose solution is d = - t l rather than d = 0. The
-   * answer d = 0 is right only when l is zero: when it is not, d = 0
-   * hides the one direction along which the function is known to
-   * decrease, the point never moves, and a function that is unbounded
-   * below because of l alone is never recognised as such, the caller
-   * evaluating the function at the same point again and again. z = l is
-   * the same answer in the dual frame. */
-
-  const bool has_linear = std::any_of( f_linear_part.begin() ,
-                                       f_linear_part.end() ,
-                                       []( double c ) { return( c != 0 ); } );
-
-  /* With the trust region the stabilization is the box, and the solution
-   * of min { l.d : d in the box } is the side opposite to the sign of l
-   * (0 where l is), with multiplier | l_j | on that side: the primal MP
-   * writes d, whose side gives z* = l [see get_z_vector()], the dual one,
-   * whose z is fixed to 0, the multipliers s^+ - s^- = l of the box and
-   * the dual values of the coupling rows, which give d [see
-   * get_d_vector()]. */
-  if( has_trust_region() ) {
-   // the step on coordinate i, and the point it leads to in the frame of
-   // the Variable (x in the iterate form, d in the displacement one)
-   auto step = [ this , has_linear ]( Index i ) {
-    const double li = has_linear ? f_linear_part[ i ] : 0.0;
-    double lhs , rhs;
-    primal_box( i , lhs , rhs );
-    const double side = li > 0.0 ? lhs : ( li < 0.0 ? rhs : Inf< double >() );
-    const double xi = f_v2_form ? f_x_bar[ i ] : 0.0;
-    return( std::isfinite( side ) ? side - xi : 0.0 );
-    };
-   const auto frame = [ this ]( Index i ) {
-    return( f_v2_form ? f_x_bar[ i ] : 0.0 );
-    };
-
-   // a side that is infinite (t is) keeps its multiplier fixed to 0
-   const auto set_mult = []( ColVariable * s , double value ) {
-    if( ! s->is_fixed() )
-     s->set_value( value );
-    };
-
-   if( IsPrimal )
-    for( Index i = 0 ; i < Var_d_idx.size() ; ++i )
-     Var_d_idx[ i ]->set_value( frame( i ) + step( i ) );
-   else {
-    Index i = 0;
-    for( auto & row : CouplingCns ) {
-     const double li = has_linear ? f_linear_part[ i ] : 0.0;
-     set_mult( Var_s_plus_idx[ i ] , std::max( li , 0.0 ) );
-     set_mult( Var_s_minus_idx[ i ] , std::max( - li , 0.0 ) );
-     row.set_dual( ( IsConvex ? 1.0 : -1.0 ) * ( frame( i ) + step( i ) ) );
-     ++i;
-     }
-    }
-   return( Solver::kOK );
-   }
-
-  if( IsPrimal )
-   for( int i = 0 ; i < int( Var_d_idx.size() ) ; ++i )
-    Var_d_idx[ i ]->set_value( ( f_v2_form ? f_x_bar[ i ] : 0.0 )
-                          - ( has_linear ? t_stab * f_linear_part[ i ]
-                                         : 0.0 ) );
-  else
-   for( int i = 0 ; i < int( Var_z_idx.size() ) ; ++i )
-    Var_z_idx[ i ]->set_value( has_linear ? f_linear_part[ i ] : 0.0 );
-
-  return( Solver::kOK );
-  }
-
  refresh_primal_objective();
+
+ // the cutoff of set_improvement_cutoff() moves with the centre and the
+ // stabilization, hence it is given again at each solve
+ if( std::isfinite( f_impr_eps ) || f_impr_set ) {
+  const auto idx = slv->dbl_par_str2idx( "dblLwCutOff" );
+  if( idx < slv->get_num_dbl_par() ) {
+   slv->set_par( idx , improvement_cutoff() );
+   f_impr_set = true;
+   }
+  }
 
  int rc = slv->compute();
 
  // A solution returned with kLowPrecision may exist but be infeasible.
  // Neither a missing nor an infeasible solution can be used as a master
- // step; in both cases let the caller handle a failed master solve.
- if( ( rc == Solver::kOK || rc == Solver::kLowPrecision ) &&
+ // step; in both cases let the caller handle a failed master solve. The
+ // point at which the cutoff of set_improvement_cutoff() has stopped the
+ // Solver is a solution as well.
+ const bool has_point = ( rc == Solver::kOK ) ||
+                        ( rc == Solver::kLowPrecision ) ||
+                        ( ( rc == Solver::kCutOff ) && f_impr_set );
+ if( has_point &&
      ( ( ! slv->has_var_solution() ) || ( ! slv->is_var_feasible() ) ) )
   rc = Solver::kError;
 
@@ -6392,7 +6448,7 @@ int MasterProblemBlock::solve_master( void )
  // buffers; the ColVariable on the Block stay at their stale values until
  // get_var_solution() is called. Without this push, the caller
  // would read d* / z* / theta as zeros after every master solve
- if( rc == Solver::kOK || rc == Solver::kLowPrecision ) {
+ if( has_point && ( rc != Solver::kError ) ) {
   // a Solver that cannot hand over the solution it says it has is a failed
   // master problem, which the caller knows how to deal with, and not a
   // reason to terminate the whole run
@@ -6488,7 +6544,7 @@ void MasterProblemBlock::set_zeroth_quadratic( const std::vector< double > &
  for( auto rj : rho ) {
   if( rj < 0.0 )
    throw( std::invalid_argument(
-        "MasterProblemBlock::set_zeroth_quadratic: rho must be nonnegative" ) );
+     "MasterProblemBlock::set_zeroth_quadratic: rho must be nonnegative" ) );
   any = any || ( rj > 0.0 );
   }
 
@@ -6498,8 +6554,8 @@ void MasterProblemBlock::set_zeroth_quadratic( const std::vector< double > &
  if( any ) {
   if( ! IsPrimal )
    throw( std::logic_error(
-        "MasterProblemBlock::set_zeroth_quadratic: only the primal MP carries "
-        "the quadratic 0-th component, the dual one would need it dualized" ) );
+    "MasterProblemBlock::set_zeroth_quadratic: only the primal MP carries "
+    "the quadratic 0-th component, the dual one would need it dualized" ) );
 
   if( ( StblType == kLevel ) || ( StblType == kDoublyStabilized ) )
    throw( std::logic_error(
@@ -6544,9 +6600,9 @@ void MasterProblemBlock::set_integer( std::vector< bool > integer )
   return;
 
  // the Variable already there change type, with a Modification if anyone
- // is listening, so that the master Solver sees the change
+ // reads it, so that the master Solver sees the change
  if( f_abs_rep & k_mpb_built_var ) {
-  const auto mod = anyone_there() ? eModBlck : eNoMod;
+  const auto mod = eNoBlck;
   for( int j = 0 ; j < int( Var_d.size() ) ; ++j ) {
    const bool yn = ( j < int( integer.size() ) ) && integer[ j ];
    if( Var_d_idx[ j ]->is_integer() != yn )
@@ -6558,7 +6614,7 @@ void MasterProblemBlock::set_integer( std::vector< bool > integer )
  f_has_integer = any;
 
  // which coordinates are binary may have changed
- refresh_local_branching( anyone_there() ? eModBlck : eNoMod );
+ refresh_local_branching( eNoBlck );
 
  }  // end( MasterProblemBlock::set_integer )
 
@@ -6618,6 +6674,11 @@ void MasterProblemBlock::local_branching_row( FRowConstraint & row ,
 void MasterProblemBlock::refresh_local_branching( ModParam issueMod ,
                                                   bool building )
 {
+ // which coordinates are binary, and so have a linear proximal term, may
+ // have changed [see is_binary()]
+ if( IsPrimal && f_has_integer )
+  f_primal_objective_dirty = true;
+
  if( ( ! IsPrimal ) ||
      ( ( ! building ) && ( ! ( f_abs_rep & k_mpb_built_cnst ) ) ) )
   return;
@@ -6668,7 +6729,7 @@ void MasterProblemBlock::set_local_branching( double kappa )
 
  const bool was = std::isfinite( f_kappa );
  f_kappa = kappa;
- const auto mod = anyone_there() ? eModBlck : eNoMod;
+ const auto mod = eNoBlck;
 
  // the trust region leaves the binary coordinates to the local branching
  // only while there is one [see primal_box()]
@@ -6693,7 +6754,7 @@ void MasterProblemBlock::add_reverse_local_branching( void )
  std::list< FRowConstraint > row( 1 );
  local_branching_row( row.front() , true );
  add_dynamic_constraints( RevLBranchCns , row ,
-                          anyone_there() ? eModBlck : eNoMod );
+                          eNoBlck );
 
  }  // end( MasterProblemBlock::add_reverse_local_branching )
 
@@ -6706,7 +6767,7 @@ void MasterProblemBlock::clear_reverse_local_branching( void )
 
  remove_dynamic_constraints( RevLBranchCns ,
                              Range( 0 , Index( RevLBranchCns.size() ) ) ,
-                             anyone_there() ? eModBlck : eNoMod );
+                             eNoBlck );
 
  }  // end( MasterProblemBlock::clear_reverse_local_branching )
 
@@ -6737,7 +6798,7 @@ void MasterProblemBlock::set_linear_constraints( std::vector< LinearRow > A ,
    }
   }
 
- const ModParam issueMod = anyone_there() ? eModBlck : eNoMod;
+ const ModParam issueMod = eNoBlck;
 
  // the multipliers of the old rows go first, while f_lc_A still says where
  // they are
@@ -6888,7 +6949,7 @@ void MasterProblemBlock::set_hosted_Block( Block * block ,
  if( ( ! block ) && ( ! x.empty() ) )
   throw( std::invalid_argument( _prfx + "coordinates without a Block" ) );
 
- const ModParam issueMod = anyone_there() ? eModBlck : eNoMod;
+ const ModParam issueMod = eNoBlck;
 
  // the old rows go first, while the Variable they have are still there
  f_host_x.clear();
@@ -7259,7 +7320,7 @@ void MasterProblemBlock::set_t( double t )
  t_stab = t;
 
  auto issue_t_mod = [ this ]( void ) {
-  if( anyone_there() )
+  if( anyone_there_for( Modification::eModPhys ) )
    add_Modification( std::make_shared< MasterProblemParamMod >(
                     this , MasterProblemMod::TChanged , t_stab ) );
   };
@@ -7409,7 +7470,7 @@ void MasterProblemBlock::set_f_lev( double f )
    }
   }
 
- if( anyone_there() )
+ if( anyone_there_for( Modification::eModPhys ) )
   add_Modification( std::make_shared< MasterProblemParamMod >(
                     this , MasterProblemMod::LevelChanged , f_lev ) );
 
@@ -7454,7 +7515,7 @@ void MasterProblemBlock::set_LB( int k , double LB )
   f_LB_raw[ k ] = LB;
 
  auto issue_lower_bound_mod = [ this , k , LB ]( void ) {
-  if( anyone_there() )
+  if( anyone_there_for( Modification::eModPhys ) )
    add_Modification( std::make_shared< MasterProblemLowerBoundMod >(
                      this , k , LB ) );
   };
@@ -7538,16 +7599,6 @@ void MasterProblemBlock::set_fictitious_LB( int k , bool on )
  // value v_k lives in that frame already. The caller is responsible
  // for removing it (on == false) as soon as the component receives
  // a real cut, restoring the gamma^k-fixed "no bound" state
- // the fictitious model lower bound value: 0 when no genuine global LB
- // exists, otherwise strictly below the translated global LB
- // (global_LB_xbar - 1), so the per-component fictitious constraint
- //   v^k >= fict
- // never becomes more stringent than the genuine aggregate
- //   v   >= global_LB_xbar
- // which would corrupt the master direction (gamma_i cost =
- // global_LB - 1)
- const double fict = std::isfinite( f_global_LB_xbar )
-                     ? ( f_global_LB_xbar - 1.0 ) : 0.0;
 
  if( k >= int( HardCmps.size() ) || ! HardCmps[ k ] )
   return;
@@ -7563,14 +7614,16 @@ void MasterProblemBlock::set_fictitious_LB( int k , bool on )
   // In the translated primal frame v_k is already relative to F_k(x_bar), so
   // the empty component disappears with v_k >= 0. In the raw frame v_k is
   // the physical function value instead: use F_k(x_bar), which again gives
-  // zero after get_FiBLambda() subtracts the reference.
+  // zero after get_FiBLambda() subtracts the reference, or 0 while it is
+  // not known (e.g., before the first evaluation), since the value of the
+  // bound only moves the constant of the objective and not d.
   const double primal_fict =
-   ( f_v2_form && k < int( f_F_at_x_bar.size() ) )
-   ? f_F_at_x_bar[ k ] : 0.0;
+   ( f_v2_form && k < int( f_F_at_x_bar.size() ) &&
+     std::isfinite( f_F_at_x_bar[ k ] ) ) ? f_F_at_x_bar[ k ] : 0.0;
   poly.modify_bound( on ? primal_fict : no_bound );
   }
  else
-  poly.modify_bound( on ? ( IsConvex ? 1.0 : -1.0 ) * fict : no_bound );
+  poly.modify_bound( on ? 0.0 : no_bound );
  }  // end( MasterProblemBlock::set_fictitious_LB )
 
 /*--------------------------------------------------------------------------*/

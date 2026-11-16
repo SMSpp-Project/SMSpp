@@ -659,12 +659,14 @@ void BoxSolver::get_var_data( ColVariable & var ,
                 // one to which BoxSolver is registered, which means it is
                 // not something that BoxSolver "sees"
 
-  // a OneVarConstraint
+  // a OneVarConstraint, which bounds var only if it is not relaxed
   if( auto ovr = dynamic_cast< OneVarConstraint * >( ai ) ) {
-   if( auto lhs = ovr->get_lhs() ; lhs > l )
-    l = lhs;
-   if( auto rhs = ovr->get_rhs() ; rhs < u )
-    u = rhs;
+   if( ! ovr->is_relaxed() ) {
+    if( auto lhs = ovr->get_lhs() ; lhs > l )
+     l = lhs;
+    if( auto rhs = ovr->get_rhs() ; rhs < u )
+     u = rhs;
+    }
 
    if( f_sol & 2 )        // the dual solution is required
     ovr->set_dual( 0 );   // it is 0 unless otherwise proven
@@ -717,8 +719,9 @@ void BoxSolver::get_var_data( ColVariable & var ,
                 // not something that BoxSolver "sees"
   // Constraint
   if( auto ci = dynamic_cast< Constraint * >( ai ) ) {
-   // a OneVarConstraint
-   if( auto ovr = dynamic_cast< OneVarConstraint * >( ci ) ) {
+   // a OneVarConstraint bounds var only if it is not relaxed
+   if( auto ovr = dynamic_cast< OneVarConstraint * >( ci ) ;
+       ovr && ( ! ovr->is_relaxed() ) ) {
     if( auto lhs = ovr->get_lhs() ; lhs > l )
      l = lhs;
     if( auto rhs = ovr->get_rhs() ; rhs < u )
@@ -796,15 +799,16 @@ void BoxSolver::get_var_data( ColVariable & var ,
                 // one to which BoxSolver is registered, which means it is
                 // not something that BoxSolver "sees"
 
-  // a OneVarConstraint
+  // a OneVarConstraint, which bounds var only if it is not relaxed
   if( auto ovr = dynamic_cast< OneVarConstraint * >( ai ) ) {
+   const bool rlx = ovr->is_relaxed();
    auto lhs = ovr->get_lhs();
-   if( lhs > l ) {
+   if( ( ! rlx ) && ( lhs > l ) ) {
     l = lhs;
     cl = ovr;
     }
    auto rhs = ovr->get_rhs();
-   if( rhs < u ) {
+   if( ( ! rlx ) && ( rhs < u ) ) {
     u = rhs;
     cu = ovr;
     }
@@ -862,15 +866,16 @@ void BoxSolver::get_var_data( ColVariable & var ,
 
   // Constraint
   if( auto ci = dynamic_cast< Constraint * >( ai ) ) {
-   // a OneVarConstraint
+   // a OneVarConstraint, which bounds var only if it is not relaxed
    if( auto ovr = dynamic_cast< OneVarConstraint * >( ci ) ) {
+    const bool rlx = ovr->is_relaxed();
     auto lhs = ovr->get_lhs();
-    if( lhs > l ) {
+    if( ( ! rlx ) && ( lhs > l ) ) {
      l = lhs;
      cl = ovr;
      }
     auto rhs = ovr->get_rhs();
-    if( rhs < u ) {
+    if( ( ! rlx ) && ( rhs < u ) ) {
      u = rhs;
      cu = ovr;
      }
@@ -1776,7 +1781,6 @@ void BoxSolver::process_var_dual( ColVariable & var ,
  // the unique stationary point (max or min depending on the sign of a)
  // of a x^2 + b is at x = - b / ( 2 * a );
  OFValue x = - b / ( 2 * a );
- auto q = [ & ]( OFValue y ) -> OFValue { return( ( a * y + b ) * y ); };
  
  // a bound that is not tight at the optimum has dual value 0: in the convex
  // cases below both are set so, and the tight one, if any, is written after
