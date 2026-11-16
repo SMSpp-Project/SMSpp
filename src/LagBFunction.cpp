@@ -4879,9 +4879,8 @@ void LagBFunction::eager_pool_cost_delta( const v_coeff_pair & rc ,
  // Modification-handling point (not at query time, which would disturb the
  // Block state and the cost propagation -- the very bug eager fixes).
  for( Index k = 0 ; k < f_max_glob ; ++k ) {
-  if( ! g_pool[ k ].sol )
+  if( ! write_pool_entry( k ) )
    continue;
-  g_pool[ k ].sol->write( v_Block.front() );
   double dv = 0;
   for( const auto & jd : jdeltas )
    dv += jd.second * rc[ jd.first ].first->get_value();
@@ -4893,6 +4892,27 @@ void LagBFunction::eager_pool_cost_delta( const v_coeff_pair & rc ,
  LastSolution = g_pool.size();
 
  }  // end( LagBFunction::eager_pool_cost_delta )
+
+/*--------------------------------------------------------------------------*/
+
+bool LagBFunction::write_pool_entry( Index k )
+{
+ if( ! g_pool[ k ].sol )
+  return( false );
+
+ // the inner Block may be already past the Modification being handled, a
+ // Variable having been fixed after it at a value other than that of the
+ // entry: the write stops there, and the entry, no longer feasible, is
+ // deleted when the Modification of the fixing is handled
+ try {
+  g_pool[ k ].sol->write( v_Block.front() );
+  }
+ catch( const std::domain_error & ) {
+  return( false );
+  }
+ return( true );
+
+ }  // end( LagBFunction::write_pool_entry )
 
 /*--------------------------------------------------------------------------*/
 
@@ -4908,9 +4928,8 @@ void LagBFunction::eager_pool_cost_removal(
              "LagBFunction::eager_pool_cost_removal: inconsistent sizes" ) );
 
  for( Index k = 0 ; k < f_max_glob ; ++k ) {
-  if( ! g_pool[ k ].sol )
+  if( ! write_pool_entry( k ) )
    continue;
-  g_pool[ k ].sol->write( v_Block.front() );
   double dv = 0;
   for( Index j = 0 ; j < vars.size() ; ++j )
    dv -= costs[ j ] * static_cast< ColVariable * >( vars[ j ] )->get_value();

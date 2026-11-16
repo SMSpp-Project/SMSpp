@@ -13,6 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   takes out those that leave it, in time linear in their number rather
   than quadratic, through the map from each Variable to its position
 
+### Fixed
+
+- `LagBFunction` handles a change of the costs of its inner Block when a
+  Variable has been fixed after it at a value other than that of a
+  linearization in the global pool, as a Solver that gives the inner Block
+  back to its father while it does not need it hands it the Modification
+  later (`LagrangianDualSolver`): the Solution of that linearization is no
+  longer written whole, rather than `ColVariable::set_value()` throwing,
+  and the fixing deletes the linearization, which threw in the second
+  `compute()` of an `HQPSolver` with a `LagrangianDualSolver` and at its
+  destruction
+
 ## [0.10.0] - 2026-11-16
 
 ### Added

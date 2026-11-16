@@ -2948,6 +2948,20 @@ class LagBFunction : public C05Function , public Block
  void eager_pool_cost_removal( c_Vec_p_Var & vars ,
                                c_Vec_FunctionValue & costs , double w );
 
+ /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// writes entry k of the global pool in the inner Block, if it can
+ /** Writes the Solution of entry k of the global pool in the inner Block,
+  * returning false if there is none or if it gives a fixed Variable another
+  * value than the one it is fixed at [see ColVariable::set_value()], the
+  * write then stopping there. This happens when a Modification is handled
+  * after the inner Block has been changed further, e.g., by a Solver that
+  * holds the Modification of a sub-Block it has given back to its father
+  * while it does not need it: the entry is then no longer feasible, and the
+  * Modification of the fixing, which comes after, deletes it [see
+  * add_Modification()]. */
+
+ bool write_pool_entry( Index k );
+
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// EAGER subgradient: fill g from conv_active without writing the Solution

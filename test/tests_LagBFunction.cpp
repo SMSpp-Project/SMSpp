@@ -26,6 +26,11 @@
  * bound below its value, is checked to give the linearization of the
  * minimizer, whose constant is its cost, and not one through the bound.
  *
+ * A change of a cost handled after a Variable of the inner Block has been
+ * fixed at a value other than that of a linearization in the global pool,
+ * as a Solver that gives the inner Block back to its father hands them, is
+ * checked not to throw, the fixing deleting the linearization.
+ *
  * A second set of tests checks the by-column representation of the
  * Lagrangian term that the Lagrangian costs c_j + y A^j are computed from,
  * as get_A_by_col() gives it, after the Lagrangian pairs are set (once and
@@ -1103,6 +1108,64 @@ static void test_weight_change( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* The Modification of the inner Block handled after the inner Block has
+ * changed further, as a Solver does that gives the inner Block back to its
+ * father while it does not need it: a change of a cost, then a Variable
+ * fixed at a value other than that of the linearization in the global
+ * pool. When the change of the cost is handled, the Variable is fixed
+ * already and the Solution of the pool cannot be written; the change is
+ * handled all the same, and the fixing deletes the linearization. */
+
+static void test_fixed_after_cost_change( void )
+{
+ Fixture f;
+ f.lbf->set_par( C05Function::intGPMaxSz , 1 );
+ f.lbf->set_dual_pairs( v_dual_pair( { f.pair( 0 , 0 ) , f.pair( 1 , 1 ) } ) );
+
+ // c^y_0 = -2, hence x*_0 = 2
+ check_at( f , { -3 , -1 } , { 0 , 1 } , "before the fixing" );
+ f.lbf->store_linearization( 0 , eNoMod );
+ assert( f.lbf->is_linearization_there( 0 ) );
+
+ // the inner Block given to another father, which keeps its Modification
+ const auto father = f.inner->get_f_Block();
+ const bool there = f.inner->anyone_there();
+ AbstractBlock other;
+ auto keep = new FakeSolver();
+ other.register_Solver( keep );
+ f.inner->set_f_Block( & other );
+ f.inner->anyone_there( true );
+
+ static_cast< LinearFunction * >( f.inner_obj->get_function() )
+  ->modify_coefficient( 0 , 3 );
+ ( *f.x )[ 0 ].set_value( 1 );
+ ( *f.x )[ 0 ].is_fixed( true );
+
+ const auto mods = keep->get_Modification_list();
+ keep->get_Modification_list().clear();
+ f.inner->set_f_Block( father );
+ f.inner->anyone_there( there );
+
+ bool thrown = false;
+ try {
+  for( const auto & mod : mods )
+   f.lbf->add_Modification( mod );
+  }
+ catch( const std::exception & e ) {
+  thrown = true;
+  std::cout << e.what() << std::endl;
+  }
+ expect( ! thrown , "a change of a cost handled after a Variable is fixed "
+	 "throws" );
+ expect( ! f.lbf->is_linearization_there( 0 ) , "the linearization of a "
+	 "point with a fixed Variable at another value is not deleted" );
+
+ other.unregister_Solvers( true );
+
+ std::cout << "Variable fixed after a change of a cost: done" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
 
 int main( int argc , char ** argv )
 {
@@ -1119,6 +1182,7 @@ int main( int argc , char ** argv )
  test_columns_remove_some();
  test_columns_edge_cases();
  test_weight_change();
+ test_fixed_after_cost_change();
 
  if( n_failures ) {
   std::cout << "LagBFunction_unit_test: " << n_failures << " check(s) failed"
