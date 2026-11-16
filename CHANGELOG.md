@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `smspp_module_exports.py` takes `--imports <module>=<macro>`, a module
+  re-exported only if the macro is defined, as `--optional` does for a
+  header
+
 - the global lower bound of the primal `MasterProblemBlock`: the level row
   is the row LB <= b*d + sum_k v^k <= f_lev with any stabilization, with
   infinite sides until `set_global_LB()` and `set_f_lev()` give them, and

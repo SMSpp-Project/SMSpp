@@ -19,7 +19,9 @@
 # A header that is compiled only with an optional library is given with       #
 # --optional <header>=<macro>: both its #include and its names are then       #
 # inside an #if defined( <macro> ), which CMake defines when the library is   #
-# there. To be run whenever a header gains or loses a name.                   #
+# there. A module that is imported only if it is there is given in the same   #
+# way, with --imports <module>=<macro>: its "export import" is then inside an #
+# #if defined( <macro> ). To be run whenever a header gains or loses a name.  #
 #                                                                             #
 # The global module fragment includes only the headers that no other header   #
 # of the module includes, which bring in the others; the names are read from  #
@@ -302,7 +304,14 @@ def interface( name , out_file , imports , optional , includes , names ,
     out += [ "" , BANNER , title( "MODULE PURVIEW" ) , BANNER , "" ,
              f"export module {name};" , "" ]
     if imports:
-        out += [ f"export import {m};" for m in imports ] + [ "" ]
+        for m in imports:
+            if "=" in m:
+                m , macro = m.split( "=" , 1 )
+                out += [ f"#if defined( {macro} )" , f"export import {m};" ,
+                         "#endif" ]
+            else:
+                out.append( f"export import {m};" )
+        out.append( "" )
     for ns in sorted( names ):
         by_header = collections.defaultdict( list )
         for n , header in names[ ns ].items():
@@ -336,7 +345,9 @@ def read_interface( path ):
     text = open( path ).read()
     lines = text.split( "\n" )
     name = re.search( r"^export module (\S+);" , text , re.M ).group( 1 )
-    imports = re.findall( r"^export import (\S+);" , text , re.M )
+    imports = [ m + "=" + c if c else m for c , m in re.findall(
+        r"^(?:#if defined\( (\w+) \)\n)?export import (\S+);" , text ,
+        re.M ) ]
     optional = dict( ( h , m ) for m , h in re.findall(
         r'^#if defined\( (\w+) \)\n #include "([^"]+)"' , text , re.M ) )
     end = lines.index( " */" )
@@ -453,7 +464,9 @@ def main():
     ap.add_argument( "--out" , default = "src/SMSpp.cppm" ,
                      help = "the interface, relative to --root" )
     ap.add_argument( "--imports" , nargs = "*" , default = [] ,
-                     help = "the modules to re-export" )
+                     metavar = "MODULE[=MACRO]" ,
+                     help = "the modules to re-export, one with =MACRO only "
+                            "if MACRO is defined" )
     ap.add_argument( "--optional" , nargs = "*" , default = [] ,
                      metavar = "HEADER=MACRO" )
     ap.add_argument( "--exclude" , nargs = "*" , default = [] ,
