@@ -30,6 +30,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pieces larger than a Block writes a piece whole if any Block in it is
   chosen
 
+- `SMSTerminate.h`, with `smspp_terminate()`, the handler of
+  `std::terminate()` of the tools and the testers: it prints the type of
+  the exception, demangled, and its message, or that there is no
+  exception (e.g., when the destructor of a `std::thread` that can still
+  be joined terminates), and aborts
+
 - `smspp_module_exports.py` takes `--imports <module>=<macro>`, a module
   re-exported only if the macro is defined, as `--optional` does for a
   header

@@ -50,6 +50,7 @@ module;
 #include "MasterProblemBlock.h"
 #include "QuadFunction.h"
 #include "RBlockConfig.h"
+#include "SMSTerminate.h"
 #include "UpdateSolver.h"
 
 /*--------------------------------------------------------------------------*/
@@ -326,6 +327,9 @@ export namespace SMSpp_di_unipi_it {
  using SMSpp_di_unipi_it::operator<<;
  using SMSpp_di_unipi_it::operator>>;
  using SMSpp_di_unipi_it::out_el;
+
+ // SMSTerminate.h
+ using SMSpp_di_unipi_it::smspp_terminate;
 
  // SMSTypedefs.h
  using SMSpp_di_unipi_it::Inf;
