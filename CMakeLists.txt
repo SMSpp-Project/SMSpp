@@ -234,12 +234,12 @@ add_library(${modNamespace}::${modName} ALIAS ${modName})
 # ----- C++20 module -------------------------------------------------------- #
 # The module smspp (src/SMSpp.cppm) exports the names of all the headers, so
 # that a translation unit can write "import smspp;" in place of including
-# them. It needs CMake 3.28 or later, the Ninja or Visual Studio generator
-# and a compiler that scans the module dependencies and accepts the headers
-# of Eigen and Boost in a module (Clang 16 or MSVC 19.34 or later): unless
-# SMSpp_BUILD_MODULE says otherwise, it is built where these are there and
-# the compiler is Clang, and where they are missing an SMSpp_BUILD_MODULE=ON
-# is turned off with a warning [see CheckModule.cmake].
+# them. It needs CMake 3.28 or later, and a generator and a compiler that
+# build a module and a unit that imports it and uses its templates, which a
+# small module built at configure time tells: unless SMSpp_BUILD_MODULE says
+# otherwise, it is built where these are there, and where they are missing
+# an SMSpp_BUILD_MODULE=ON is turned off with a warning [see
+# CheckModule.cmake].
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CheckModule.cmake)
 smspp_check_module()
 
@@ -329,13 +329,15 @@ file(GLOB findMods ${CMAKE_CURRENT_LIST_DIR}/cmake/Find*)
 install(FILES ${findMods}
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${modName})
 
-# Install the check of the C++20 modules, the fetch of FastFlow and the
-# functions of the modules, which the configuration file includes for the
-# modules that find the core with find_package().
+# Install the check of the C++20 modules, with its small module, the fetch of
+# FastFlow and the functions of the modules, which the configuration file
+# includes for the modules that find the core with find_package().
 install(FILES ${CMAKE_CURRENT_LIST_DIR}/cmake/CheckModule.cmake
         ${CMAKE_CURRENT_LIST_DIR}/cmake/FastFlow.cmake
         ${CMAKE_CURRENT_LIST_DIR}/cmake/SMSppModule.cmake
         ${CMAKE_CURRENT_LIST_DIR}/cmake/SMSppCopyRuntime.cmake
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${modName})
+install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/cmake/module-check
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${modName})
 
 # Install the README and LICENSE files.

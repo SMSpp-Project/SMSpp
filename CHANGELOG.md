@@ -26,6 +26,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   takes out those that leave it, in time linear in their number rather
   than quadratic, through the map from each Variable to its position
 
+- whether the C++20 modules can be built is told by a small module and a
+  unit that imports it, built at configure time by CMake [see cmake/module-
+  check] and with the options of the makefiles by makefile-mod, rather than
+  by the name and the version of the compiler and of the generator;
+  `SMSpp_BUILD_MODULE` is ON by default wherever they build, MSVC included,
+  where it was ON with Clang alone
+
 ### Fixed
 
 - `LagBFunction` handles a change of the costs of its inner Block when a
