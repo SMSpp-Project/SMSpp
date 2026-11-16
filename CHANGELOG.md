@@ -20,6 +20,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   set_int_feas_tol()`, which gives the master Solver its integrality
   tolerance [see `dblIntFeasTol` of `MILPSolver`]
 
+- `for_each_selected()` and `has_selected()` next to
+  `for_each_by_classname()`: the visit of the "meta" Configuration that
+  chooses the parts of a solution by `classname()`, whose format
+  `Solver::get_var_solution()` now describes once for every :Solver: a
+  Block that is a key is written as the Configuration it is mapped to says
+  (nullptr for all of it, sub-Blocks included), the sub-Blocks of one that
+  is not are looked at in turn, and a :Solver whose solution comes in
+  pieces larger than a Block writes a piece whole if any Block in it is
+  chosen
+
 - `smspp_module_exports.py` takes `--imports <module>=<macro>`, a module
   re-exported only if the macro is defined, as `--optional` does for a
   header

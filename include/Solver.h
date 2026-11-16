@@ -1490,6 +1490,26 @@ class Solver : public ThinComputeInterface
   * of the "groups" of Variable of the Block, as returned by
   * get_static_variables() and get_dynamic_variables(), need be changed.
   *
+  * One format is however the same for every :Solver, since it does not
+  * depend on how the sub-Block of an instance are numbered: the "meta" one,
+  * i.e., a
+  *
+  *   SimpleConfiguration< std::map< std::string , Configuration * > >
+  *
+  * mapping the classname() of a Block to the Configuration of that Block.
+  * The Block of the tree, starting from the one of the Solver, whose
+  * classname() is a key (or that the special key "*" covers, if any) have
+  * their part of the solution written as the Configuration they are mapped
+  * to says, nullptr meaning all of it, sub-Block included; that
+  * Configuration can be any that the Solver understands for that Block, a
+  * positional one or a "meta" one in its turn, which then chooses among the
+  * sub-Block of that Block. A Block that is not a key is not written, but
+  * its sub-Block are looked at in turn [see for_each_selected()]. A Solver
+  * whose solution comes in pieces larger than a Block, say, the components
+  * of a decomposition, writes a piece whole if any Block in it is chosen
+  * [see has_selected()], and so it may write more than it is asked for, but
+  * never less.
+  *
   * As a consequence to the fact that get_var_solution() can retrieve only "a
   * part" of the solution information, it may make sense to call it more than
   * once for each call to has_var_solution() or new_var_solution() that

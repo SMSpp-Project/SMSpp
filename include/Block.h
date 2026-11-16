@@ -10100,6 +10100,72 @@ void for_each_by_classname(
 
 /*--------------------------------------------------------------------------*/
 
+/// calls a function on the Block of a tree that a "meta" selection chooses
+/** Calls f( b , c ) on each Block b of the tree rooted at \p block (\p block
+ * included) that \p map chooses, where c is the Configuration associated
+ * with b->classname() in \p map, or that associated with the special key
+ * "*" (if any) when b->classname() is not a key of \p map. Unlike in
+ * for_each_by_classname(), a nullptr Configuration does choose b, and the
+ * sub-Block of a chosen Block are not visited, since c says what of b, its
+ * sub-Block included, is meant (nullptr meaning all of it); the sub-Block
+ * of a Block that is not chosen are visited in turn. The visit is
+ * father-first.
+ *
+ * This is how a :Solver reads the "meta" Configuration
+ *
+ *   SimpleConfiguration< std::map< std::string , Configuration * > >
+ *
+ * passed to get_var_solution() and get_dual_solution() [see Solver]: the
+ * parts of the solution to be written are those of the chosen Block, c
+ * being for each of them the Configuration of that Block alone, possibly a
+ * positional one or a "meta" one in its turn, which is then visited over
+ * each of the sub-Block of that Block. */
+
+template< class F >
+void for_each_selected( Block * block ,
+			const std::map< std::string , Configuration * > & map ,
+			F f )
+{
+ if( ( ! block ) || map.empty() )
+  return;
+
+ const auto dflt = map.find( "*" );
+ std::list< Block * > BFS{ block };
+ while( ! BFS.empty() ) {
+  auto b = BFS.front();
+  BFS.pop_front();
+  auto it = map.find( b->classname() );
+  if( it == map.end() )
+   it = dflt;
+  if( it != map.end() )
+   f( b , it->second );
+  else
+   for( auto el : b->get_nested_Blocks() )
+    BFS.push_back( el );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+/// whether a "meta" selection chooses some Block of a tree
+/** Returns true if and only if for_each_selected( block , map , f ) would
+ * call f() at least once, i.e., if \p block or one of its descendants has a
+ * classname() that is a key of \p map, or \p map has the special key "*".
+ * A :Solver whose solution comes in pieces larger than a Block, say, a
+ * component of a decomposition, uses it to tell whether a piece is to be
+ * written at all, writing it whole if so. */
+
+inline bool has_selected( Block * block ,
+			  const std::map< std::string , Configuration * > & map )
+{
+ bool found = false;
+ for_each_selected( block , map , [ & ]( Block * , Configuration * ) {
+                                   found = true; } );
+ return( found );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 /// deserialize a Block (*) out of a given group
 /** Deserialize a Block (*) , out of the given \p group and into \p data.
  * This is done by calling Block::new_Block() on the given \p group if

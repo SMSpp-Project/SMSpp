@@ -13,7 +13,9 @@
  * a ComputeConfig, with and without the slot of its extra Configuration. The
  * Configuration of a Block are got from a Block and applied to another, in
  * both modes, and cleared; the BlockSolverConfig register their Solver, and
- * the cleared ones remove all and only these.
+ * the cleared ones remove all and only these. The "meta" Configuration that
+ * chooses the parts of a solution is visited over a tree of Block of two
+ * classes [see for_each_selected()].
  *
  * A second set of tests, whose files go in a directory of their own that
  * is removed at the end, compares what is read with what was written field
@@ -43,6 +45,7 @@
 #include "AbstractBlock.h"
 #include "BlockSolverConfig.h"
 #include "FakeSolver.h"
+#include "PolyhedralFunctionBlock.h"
 #include "RBlockConfig.h"
 
 #include <chrono>
@@ -2222,6 +2225,64 @@ static void test_MetaBlockSolverConfig( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* The "meta" Configuration of a solution chooses the Block whose classname()
+ * is a key, nullptr included, and does not look below them; below the others
+ * it goes on. The tree is
+ *
+ *   root (AbstractBlock) -> a (AbstractBlock) -> p1 (PolyhedralFunctionBlock)
+ *                        -> p2 (PolyhedralFunctionBlock)
+ */
+
+static void test_for_each_selected( void )
+{
+ AbstractBlock root;
+ auto a = new AbstractBlock( & root );
+ auto p2 = new PolyhedralFunctionBlock( & root );
+ root.add_nested_Block( a );
+ root.add_nested_Block( p2 );
+ auto p1 = new PolyhedralFunctionBlock( a );
+ a->add_nested_Block( p1 );
+
+ using Map = std::map< std::string , Configuration * >;
+ auto chosen = [ & ]( const Map & map ) {
+  std::vector< std::pair< Block * , Configuration * > > v;
+  for_each_selected( & root , map , [ & ]( Block * b , Configuration * c ) {
+                                     v.emplace_back( b , c ); } );
+  return( v );
+  };
+
+ // a class below one that is not a key, nullptr choosing all of the Block
+ auto v = chosen( { { "PolyhedralFunctionBlock" , nullptr } } );
+ expect( ( v.size() == 2 ) && ( v[ 0 ].first == p2 ) &&
+	 ( v[ 1 ].first == p1 ) && ( ! v[ 0 ].second ) && ( ! v[ 1 ].second ) ,
+	 "for_each_selected: the PolyhedralFunctionBlock, father-first" );
+
+ // the class of the root: the root alone, its sub-Block being in its part
+ SimpleConfiguration< int > own( 1 );
+ v = chosen( { { "AbstractBlock" , & own } } );
+ expect( ( v.size() == 1 ) && ( v[ 0 ].first == & root ) &&
+	 ( v[ 0 ].second == & own ) ,
+	 "for_each_selected: a chosen Block is not looked below" );
+
+ // "*" for the classes that are not keys, which the root is
+ v = chosen( { { "*" , nullptr } } );
+ expect( ( v.size() == 1 ) && ( v[ 0 ].first == & root ) ,
+	 "for_each_selected: \"*\" chooses the root" );
+
+ // no key matches, or no key at all
+ expect( chosen( { { "NoSuchBlock" , nullptr } } ).empty() &&
+	 chosen( {} ).empty() , "for_each_selected: nothing chosen" );
+
+ expect( has_selected( a , { { "PolyhedralFunctionBlock" , nullptr } } ) &&
+	 ( ! has_selected( p2 , { { "AbstractBlock" , nullptr } } ) ) &&
+	 has_selected( p2 , { { "*" , nullptr } } ) &&
+	 ( ! has_selected( nullptr , { { "*" , nullptr } } ) ) ,
+	 "has_selected: below the Block, the Block itself and \"*\"" );
+
+ std::cout << "for_each_selected: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
 /* A MetaBlockConfig configures the Block it is apply()-ed to with its own
  * fields and the descendants with the map, through copies, so that the map
  * is unchanged and can be apply()-ed again. */
@@ -2916,6 +2977,7 @@ int main( void )
  test_nested();
  test_meta_configuration();
  test_MetaBlockSolverConfig();
+ test_for_each_selected();
  test_MetaBlockConfig();
  test_includes();
  test_ComputeConfig_copy();

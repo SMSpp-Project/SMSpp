@@ -94,6 +94,8 @@ export namespace SMSpp_di_unipi_it {
  using SMSpp_di_unipi_it::Vec_Block_it;
  using SMSpp_di_unipi_it::c_Vec_Block;
  using SMSpp_di_unipi_it::for_each_by_classname;
+ using SMSpp_di_unipi_it::for_each_selected;
+ using SMSpp_di_unipi_it::has_selected;
  using SMSpp_di_unipi_it::p_Block;
 
  // BlockSolverConfig.h
