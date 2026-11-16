@@ -15,7 +15,7 @@
 #                         Dipartimento di Informatica                         #
 #                             Universita' di Pisa                             #
 # --------------------------------------------------------------------------- #
-cmake_minimum_required(VERSION 3.21)
+cmake_minimum_required(VERSION 3.24)
 cmake_policy(VERSION 3.15)
 # Boost is found by its own package configuration file, as FindBoost is
 # gone, and the upper-case <PACKAGE>_ROOT are prefixes of find_package()
@@ -73,9 +73,7 @@ if (NOT Eigen3_FOUND)
 endif ()
 
 # Try first with library's own configuration file, then with our find module.
-if (UNIX)
-    find_package(netCDFCxx QUIET NO_MODULE)
-endif ()
+find_package(netCDFCxx QUIET NO_MODULE)
 if (NOT netCDFCxx_FOUND)
     find_package(netCDFCxx REQUIRED)
 endif ()
@@ -92,7 +90,11 @@ else ()
     set(SMSpp_HDF5_DEPENDENCY OFF)
 endif ()
 
-if (MSVC)
+# getopt(), which the tools use, in its own library where the C library does
+# not have it (e.g., the port of vcpkg)
+include(CheckSymbolExists)
+check_symbol_exists(getopt "getopt.h" SMSpp_HAVE_GETOPT)
+if (NOT SMSpp_HAVE_GETOPT)
     find_library(GETOPT_LIBRARY getopt)
 endif ()
 
@@ -101,6 +103,9 @@ endif ()
 # have to be linked, by whoever links the core too
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
+
+# The functions of the modules [see cmake/SMSppModule.cmake]
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/SMSppModule.cmake)
 
 # Fetch FastFlow, which the build interface of the library passes on to the
 # modules [see cmake/FastFlow.cmake]
@@ -114,19 +119,8 @@ configure_file(cmake/${modName}Config.h.in ${modName}Config.h)
 # ----- RPATH --------------------------------------------------------------- #
 # The installed libraries and executables look for the libraries of the same
 # installation relative to their own location, so that the installed tree can
-# be moved as a whole; the directories of the external libraries are kept.
-include(GNUInstallDirs)
-if (NOT CMAKE_INSTALL_RPATH)
-    if (APPLE)
-        set(rpathOrigin "@loader_path")
-    else ()
-        set(rpathOrigin "$ORIGIN")
-    endif ()
-    file(RELATIVE_PATH binToLib ${CMAKE_INSTALL_FULL_BINDIR}
-            ${CMAKE_INSTALL_FULL_LIBDIR})
-    set(CMAKE_INSTALL_RPATH "${rpathOrigin}" "${rpathOrigin}/${binToLib}")
-endif ()
-set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+# be moved as a whole [see cmake/SMSppModule.cmake].
+smspp_install_rpath()
 
 # ----- Library ------------------------------------------------------------- #
 # With the BUILD_SHARED_LIBS variable we can specify if the library will
@@ -222,7 +216,7 @@ target_link_libraries(${modName} PUBLIC
         netCDF::netCDFCxx
         Threads::Threads)
 
-if (MSVC)
+if (GETOPT_LIBRARY)
     target_link_libraries(${modName} PUBLIC ${GETOPT_LIBRARY})
 endif ()
 
@@ -335,11 +329,13 @@ file(GLOB findMods ${CMAKE_CURRENT_LIST_DIR}/cmake/Find*)
 install(FILES ${findMods}
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${modName})
 
-# Install the check of the C++20 modules and the fetch of FastFlow, which the
-# configuration file includes for the modules that find the core with
-# find_package().
+# Install the check of the C++20 modules, the fetch of FastFlow and the
+# functions of the modules, which the configuration file includes for the
+# modules that find the core with find_package().
 install(FILES ${CMAKE_CURRENT_LIST_DIR}/cmake/CheckModule.cmake
         ${CMAKE_CURRENT_LIST_DIR}/cmake/FastFlow.cmake
+        ${CMAKE_CURRENT_LIST_DIR}/cmake/SMSppModule.cmake
+        ${CMAKE_CURRENT_LIST_DIR}/cmake/SMSppCopyRuntime.cmake
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${modName})
 
 # Install the README and LICENSE files.

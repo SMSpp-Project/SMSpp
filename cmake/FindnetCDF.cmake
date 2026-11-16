@@ -84,32 +84,30 @@ else ()
             DOC "netCDF include directory.")
 
     # ----- Find the library ------------------------------------------------ #
-    if (UNIX)
-        find_library(netCDF_LIBRARY
-                NAMES netcdf
-                PATHS ${netCDF_ROOT}/lib
-                DOC "netCDF library.")
-
+    # also where conda and vcpkg put it, the latter with a debug one of its own
+    set(_netCDF_dirs ${netCDF_ROOT}/lib $ENV{LIBRARY_LIB})
+    set(_netCDF_debug_dirs ${netCDF_ROOT}/debug/lib)
+    if (VCPKG_INSTALLED_DIR)
+        list(APPEND _netCDF_dirs
+                ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib)
+        list(APPEND _netCDF_debug_dirs
+                ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/lib)
+    endif ()
+    find_library(netCDF_LIBRARY
+            NAMES netcdf
+            PATHS ${_netCDF_dirs}
+            DOC "netCDF library.")
+    find_library(netCDF_LIBRARY_DEBUG
+            NAMES netcdf
+            PATHS ${_netCDF_debug_dirs}
+            NO_DEFAULT_PATH
+            DOC "netCDF debug library.")
+    if (NOT netCDF_LIBRARY_DEBUG)
         set(netCDF_LIBRARY_DEBUG ${netCDF_LIBRARY}
                 CACHE FILEPATH "netCDF debug library." FORCE)
-    elseif (WIN32)
-        find_library(netCDF_LIBRARY
-                NAMES netcdf
-                PATHS
-                ${netCDF_ROOT}/lib
-                ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib
-                $ENV{LIBRARY_LIB}
-                NO_DEFAULT_PATH
-                DOC "netCDF library.")
-
-        find_library(netCDF_LIBRARY_DEBUG
-                NAMES netcdf
-                PATHS
-                ${netCDF_ROOT}/debug/lib
-                ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/lib
-                NO_DEFAULT_PATH
-                DOC "netCDF debug library.")
     endif ()
+    unset(_netCDF_dirs)
+    unset(_netCDF_debug_dirs)
 
     # ----- Parse the version ----------------------------------------------- #
     if (netCDF_INCLUDE_DIR)

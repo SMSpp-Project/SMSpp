@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `cmake/SMSppModule.cmake`, installed and included by the package
+  configuration file, with the functions by which the modules build the same
+  way on every system: `smspp_keep_module()`, `smspp_keep_modules()`,
+  `smspp_copy_runtime()`, `smspp_install_rpath()`, and `SMSpp_BASH` and
+  `SMSpp_CMAKE_DIR`; a build with static libraries needs CMake 3.30, which
+  links each archive whole once
+
+- `cmake/FindCPLEX.cmake` and `cmake/FindGUROBI.cmake`, the find modules of
+  all the modules, which look for every layout of the libraries and import a
+  DLL where they find one, with no test on the system or on the architecture
+
 ### Changed
 
 - `C05SumFunction` makes the union of the Variable of its members, and
@@ -24,6 +37,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and the fixing deletes the linearization, which threw in the second
   `compute()` of an `HQPSolver` with a `LagrangianDualSolver` and at its
   destruction
+
+- the library is kept in whoever links it by a source that calls its
+  `SMSpp_force_load_` function, the tests and the tools take the static
+  libraries whole by the `WHOLE_ARCHIVE` feature of CMake and copy the DLLs
+  next to them only where there are any, and the installed run-time path is
+  the one of `smspp_install_rpath()`, with no test on the system or on the
+  compiler [see `SMSppModule.cmake` of SMS++]; CMake 3.24 or later is needed
+
+- the find modules of netCDF and netCDF-C++ look for the libraries of conda
+  and vcpkg, and for their debug ones, on every system; getopt() is looked
+  for in a library of its own only where the C library does not have it; the
+  shim of FastFlow for MSVC is put in its header for Windows on every system
+
+- `lib/makefile-OS` reads only the name of the system, for the default paths,
+  and gives `-Wfatal-errors` for the first error and nothing beyond `-g` for
+  the debugger, which clang++ and g++ both take
 
 ## [0.10.0] - 2026-11-16
 

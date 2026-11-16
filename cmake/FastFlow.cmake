@@ -33,24 +33,24 @@ macro(smspp_fetch_fastflow)
     # clock_gettime() and CLOCK_REALTIME, which the core of FastFlow
     # (ff/node.hpp, lb.hpp, gt.hpp, farm.hpp, pipeline.hpp and ff/utils.hpp)
     # uses for its timed waits in blocking mode; on Linux these come from
-    # <pthread.h> and <time.h>, on Windows a minimal implementation is put in
-    # the fetched header at configure time. The edit is idempotent (guarded
-    # by the FF_SMSPP_WIN_COMPAT marker), as the header shim of LEMON in
+    # <pthread.h> and <time.h>, while a minimal implementation is put in the
+    # fetched header at configure time, which only a build for Windows
+    # includes. The edit is idempotent (guarded by the FF_SMSPP_WIN_COMPAT
+    # marker), as the header shim of LEMON in
     # MCFLemonSolver/CMakeLists.txt; NOMINMAX and /Zc:__cplusplus (set in
     # the CMakeSettings.txt of the umbrella) are also needed to build
     # FastFlow with MSVC.
-    if (MSVC)
-        set(_ff_winport "${fastflow_SOURCE_DIR}/ff/platforms")
-        string(APPEND _ff_winport "/pthread_minport_windows.h")
-        if (EXISTS "${_ff_winport}")
-            file(READ "${_ff_winport}" _ff_winport_src)
-            if (NOT _ff_winport_src MATCHES "FF_SMSPP_WIN_COMPAT")
-                # put right after "typedef CONDITION_VARIABLE pthread_cond_t;",
-                # where INLINE, RESTRICT, <time.h> (struct timespec),
-                # <errno.h> (ETIMEDOUT) and <Windows.h> are in scope;
-                # pthread_mutex_t is CRITICAL_SECTION and pthread_cond_t is
-                # CONDITION_VARIABLE there
-                set(_ff_shim [=[typedef CONDITION_VARIABLE pthread_cond_t;
+    set(_ff_winport "${fastflow_SOURCE_DIR}/ff/platforms")
+    string(APPEND _ff_winport "/pthread_minport_windows.h")
+    if (EXISTS "${_ff_winport}")
+        file(READ "${_ff_winport}" _ff_winport_src)
+        if (NOT _ff_winport_src MATCHES "FF_SMSPP_WIN_COMPAT")
+            # put right after "typedef CONDITION_VARIABLE pthread_cond_t;",
+            # where INLINE, RESTRICT, <time.h> (struct timespec),
+            # <errno.h> (ETIMEDOUT) and <Windows.h> are in scope;
+            # pthread_mutex_t is CRITICAL_SECTION and pthread_cond_t is
+            # CONDITION_VARIABLE there
+            set(_ff_shim [=[typedef CONDITION_VARIABLE pthread_cond_t;
 /* ---- FF_SMSPP_WIN_COMPAT: MSVC compatibility shim injected by SMS++ ---- */
 #ifndef FF_SMSPP_WIN_COMPAT
 #define FF_SMSPP_WIN_COMPAT
@@ -85,12 +85,11 @@ INLINE int pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
 }
 #endif
 /* ---- end FF_SMSPP_WIN_COMPAT ---- */]=])
-                string(REPLACE "typedef CONDITION_VARIABLE pthread_cond_t;"
-                        "${_ff_shim}" _ff_winport_src "${_ff_winport_src}")
-                file(WRITE "${_ff_winport}" "${_ff_winport_src}")
-                message(STATUS "FastFlow: injected the MSVC shim of \
+            string(REPLACE "typedef CONDITION_VARIABLE pthread_cond_t;"
+                    "${_ff_shim}" _ff_winport_src "${_ff_winport_src}")
+            file(WRITE "${_ff_winport}" "${_ff_winport_src}")
+            message(STATUS "FastFlow: injected the MSVC shim of \
 pthread_cond_timedwait and clock_gettime")
-            endif ()
         endif ()
     endif ()
 endmacro()

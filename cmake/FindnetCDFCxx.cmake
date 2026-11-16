@@ -95,32 +95,30 @@ else ()
             DOC "netCDF-C++ include directory.")
 
     # ----- Find the library ------------------------------------------------ #
-    if (UNIX)
-        find_library(netCDFCxx_LIBRARY
-                NAMES netcdf-cxx4 netcdf_c++4
-                PATHS ${netCDFCxx_ROOT}/lib
-                DOC "netCDF-C++ library.")
-
+    # also where conda and vcpkg put it, the latter with a debug one of its own
+    set(_netCDFCxx_dirs ${netCDFCxx_ROOT}/lib $ENV{LIBRARY_LIB})
+    set(_netCDFCxx_debug_dirs ${netCDFCxx_ROOT}/debug/lib)
+    if (VCPKG_INSTALLED_DIR)
+        list(APPEND _netCDFCxx_dirs
+                ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib)
+        list(APPEND _netCDFCxx_debug_dirs
+                ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/lib)
+    endif ()
+    find_library(netCDFCxx_LIBRARY
+            NAMES netcdf-cxx4 netcdf_c++4
+            PATHS ${_netCDFCxx_dirs}
+            DOC "netCDF-C++ library.")
+    find_library(netCDFCxx_LIBRARY_DEBUG
+            NAMES netcdf-cxx4 netcdf_c++4
+            PATHS ${_netCDFCxx_debug_dirs}
+            NO_DEFAULT_PATH
+            DOC "netCDF-C++ debug library.")
+    if (NOT netCDFCxx_LIBRARY_DEBUG)
         set(netCDFCxx_LIBRARY_DEBUG ${netCDFCxx_LIBRARY}
                 CACHE FILEPATH "netCDF-C++ debug library." FORCE)
-    elseif (WIN32)
-        find_library(netCDFCxx_LIBRARY
-                NAMES netcdf-cxx4
-                PATHS
-                ${netCDFCxx_ROOT}/lib
-                ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib
-                $ENV{LIBRARY_LIB}
-                NO_DEFAULT_PATH
-                DOC "netCDF-C++ library.")
-
-        find_library(netCDFCxx_LIBRARY_DEBUG
-                NAMES netcdf-cxx4
-                PATHS
-                ${netCDFCxx_ROOT}/debug/lib
-                ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/lib
-                NO_DEFAULT_PATH
-                DOC "netCDF-C++ debug library.")
     endif ()
+    unset(_netCDFCxx_dirs)
+    unset(_netCDFCxx_debug_dirs)
 
     # ----- Parse the version ----------------------------------------------- #
     # Get version from netCDF (there is no way to parse it from the headers)

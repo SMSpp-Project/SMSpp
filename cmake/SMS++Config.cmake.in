@@ -44,9 +44,7 @@ if (NOT Eigen3_FOUND)
 endif ()
 
 # Try first with library's own configuration file, then with our find module.
-if (UNIX)
-    find_package(netCDFCxx QUIET NO_MODULE)
-endif ()
+find_package(netCDFCxx QUIET NO_MODULE)
 if (NOT netCDFCxx_FOUND)
     find_package(netCDFCxx REQUIRED)
 endif ()
@@ -66,9 +64,10 @@ endif ()
 
 set(@modName@_LIBRARIES @modNamespace@::@modName@)
 
-# the check of the C++20 modules and the fetch of FastFlow, called by the
-# modules that use this one
+# the check of the C++20 modules, the fetch of FastFlow and the functions of
+# the modules, called by the modules that use this one
 include("${@modName@_CMAKE_DIR}/CheckModule.cmake")
 include("${@modName@_CMAKE_DIR}/FastFlow.cmake")
+include("${@modName@_CMAKE_DIR}/SMSppModule.cmake")
 
 # --------------------------------------------------------------------------- #
