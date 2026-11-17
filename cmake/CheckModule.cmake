@@ -42,11 +42,34 @@ function(_smspp_module_toolchain out)
         set(_why "CMake ${CMAKE_VERSION} is older than 3.28")
     else ()
         set(_scan "${CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS}")
-        try_compile(SMSpp_MODULE_TOOLCHAIN PROJECT smspp_module_check
-                SOURCE_DIR ${CMAKE_CURRENT_FUNCTION_LIST_DIR}/module-check
-                BINARY_DIR ${CMAKE_BINARY_DIR}/smspp-module-check
-                CMAKE_FLAGS -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
-                    -DCMAKE_CXX_COMPILER_CLANG_SCAN_DEPS=${_scan})
+        if (NOT DEFINED SMSpp_MODULE_TOOLCHAIN)
+            # a separate run of CMake, since a generator that does not build
+            # modules makes try_compile() fail the whole configuration
+            set(_dir ${CMAKE_BINARY_DIR}/smspp-module-check)
+            set(_gen -G ${CMAKE_GENERATOR})
+            if (CMAKE_GENERATOR_PLATFORM)
+                list(APPEND _gen -A ${CMAKE_GENERATOR_PLATFORM})
+            endif ()
+            if (CMAKE_GENERATOR_TOOLSET)
+                list(APPEND _gen -T ${CMAKE_GENERATOR_TOOLSET})
+            endif ()
+            execute_process(COMMAND ${CMAKE_COMMAND} ${_gen}
+                    -S ${CMAKE_CURRENT_FUNCTION_LIST_DIR}/module-check
+                    -B ${_dir}
+                    -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
+                    -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
+                    -DCMAKE_CXX_COMPILER_CLANG_SCAN_DEPS=${_scan}
+                    RESULT_VARIABLE _rc OUTPUT_QUIET ERROR_QUIET)
+            if (_rc EQUAL 0)
+                execute_process(COMMAND ${CMAKE_COMMAND} --build ${_dir}
+                        RESULT_VARIABLE _rc OUTPUT_QUIET ERROR_QUIET)
+            endif ()
+            if (_rc EQUAL 0)
+                set(SMSpp_MODULE_TOOLCHAIN TRUE CACHE INTERNAL "")
+            else ()
+                set(SMSpp_MODULE_TOOLCHAIN FALSE CACHE INTERNAL "")
+            endif ()
+        endif ()
         if (NOT SMSpp_MODULE_TOOLCHAIN)
             set(_why "the generator ${CMAKE_GENERATOR} and the compiler \
 ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION} do not build a module \

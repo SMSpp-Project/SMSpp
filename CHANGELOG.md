@@ -31,7 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   check] and with the options of the makefiles by makefile-mod, rather than
   by the name and the version of the compiler and of the generator;
   `SMSpp_BUILD_MODULE` is ON by default wherever they build, MSVC included,
-  where it was ON with Clang alone
+  where it was ON with Clang alone, and OFF with a generator that does not
+  build modules (e.g., Unix Makefiles), whose configuration goes on
 
 ### Fixed
 
