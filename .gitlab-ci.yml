@@ -88,6 +88,24 @@ test:
       - tools/*
       - CMakeLists.txt
 
+# The reflection of C++26, which only GCC 16 has among the compilers of the
+# image: the core is built with it and its tests are run, on the branch that
+# uses the reflection, until every compiler has it.
+cpp26-gcc:
+  stage: build
+  image: gcc:16
+  script:
+    - apt-get update -qq
+    - apt-get install -y -qq cmake libboost-dev libeigen3-dev
+                             libnetcdf-c++4-dev > /dev/null
+    - cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+            -DCMAKE_CXX_COMPILER=g++
+    - cmake --build build -j$(nproc)
+    - ctest -C Release --test-dir build --output-on-failure
+  only:
+    refs:
+      - feature/cpp26
+
 deploy:
   stage: deploy
   script:
