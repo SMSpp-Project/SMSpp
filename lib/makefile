@@ -119,6 +119,7 @@ SMS++H = $(SMS++SDR)/include/AbstractBlock.h \
 	$(SMS++SDR)/include/SMSFactory.h \
 	$(SMS++SDR)/include/SMSnetCDF.h \
 	$(SMS++SDR)/include/SMSStreams.h \
+	$(SMS++SDR)/include/SMSTerminate.h \
 	$(SMS++SDR)/include/SMSTypedefs.h \
 	$(SMS++SDR)/include/Solution.h \
 	$(SMS++SDR)/include/Solver.h \

@@ -282,7 +282,7 @@ static void test_LearnedBranching( void )
 
  // files that are not a model: the tag, the number of the features, no
  // hidden unit, too few numbers; a failed load() leaves no model
- for( const std::string bad : {
+ for( const std::string & bad : {
        std::string( "LBRModelX 8 1\n" ) , std::string( "LBRModel 7 1\n" ) ,
        std::string( "LBRModel 8 0\n" ) ,
        std::string( "LBRModel 8 2\n1 2" ) } ) {

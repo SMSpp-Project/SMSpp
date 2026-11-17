@@ -50,6 +50,7 @@
 #include <cmath>
 #include <cstdio>
 #include <iostream>
+#include <memory>
 #include <stdexcept>
 #include <vector>
 
@@ -120,6 +121,19 @@ static bool throws( F f )
  }
 
 /*--------------------------------------------------------------------------*/
+/// what the tests give to a Block that the Block does not own, deleted at the
+/// end of main(), after every Block, the last given the first deleted
+
+static std::vector< std::shared_ptr< void > > given;
+
+template< class T >
+static T * kept( T * t )
+{
+ given.emplace_back( t );
+ return( t );
+ }
+
+/*--------------------------------------------------------------------------*/
 /// the kinds of inner Block of the tests
 
 enum InnerKind {
@@ -140,9 +154,9 @@ static AbstractBlock * make_inner( InnerKind kind ,
  if( kind == eRows ) {
   // min z0 + 2 z1 , z0 + z1 <= 10 , z0 - z1 >= -7; every column has a
   // nonzero cost, as a column appearing nowhere is not read back
-  auto z = new std::vector< ColVariable >( 2 );
+  auto z = kept( new std::vector< ColVariable >( 2 ) );
   inner->add_static_variable( *z , "z" );
-  auto rows = new std::vector< FRowConstraint >( 2 );
+  auto rows = kept( new std::vector< FRowConstraint >( 2 ) );
   inner->add_static_constraint( *rows , "rows" );
   ( *rows )[ 0 ].set_function( new LinearFunction(
    LinearFunction::v_coeff_pair( { { & ( *z )[ 0 ] , 1.0 } ,
@@ -156,17 +170,17 @@ static AbstractBlock * make_inner( InnerKind kind ,
   ( *rows )[ 1 ].set_rhs( Inf< double >() , eNoMod );
   for( auto & r : *rows )
    c.push_back( & r );
-  auto obj = new FRealObjective( inner , new LinearFunction(
+  auto obj = kept( new FRealObjective( inner , new LinearFunction(
    LinearFunction::v_coeff_pair( { { & ( *z )[ 0 ] , 1.0 } ,
-				   { & ( *z )[ 1 ] , 2.0 } } ) ) );
+				   { & ( *z )[ 1 ] , 2.0 } } ) ) ) );
   obj->set_sense( Objective::eMin , eNoMod );
   inner->set_objective( obj , eNoMod );
   return( inner );
   }
 
- auto z = new std::vector< ColVariable >( c_cost.size() );
+ auto z = kept( new std::vector< ColVariable >( c_cost.size() ) );
  inner->add_static_variable( *z , "z" );
- auto box = new std::vector< BoxConstraint >( c_cost.size() );
+ auto box = kept( new std::vector< BoxConstraint >( c_cost.size() ) );
  inner->add_static_constraint( *box , "box" );
  for( Index j = 0 ; j < c_cost.size() ; ++j ) {
   ( *box )[ j ].set_variable( & ( *z )[ j ] , eNoMod );
@@ -188,7 +202,7 @@ static AbstractBlock * make_inner( InnerKind kind ,
    ct.push_back( { & ( *z )[ j ] , c_qlin[ j ] , c_quad[ j ] } );
   f = new DQuadFunction( std::move( ct ) );
   }
- auto obj = new FRealObjective( inner , f );
+ auto obj = kept( new FRealObjective( inner , f ) );
  obj->set_sense( Objective::eMin , eNoMod );
  inner->set_objective( obj , eNoMod );
  return( inner );
@@ -812,6 +826,9 @@ int main( int argc , char ** argv )
  test_sides_and_value( eBoxQuad );
  test_BendersBlock_round_trip();
  test_sparse_round_trip();
+
+ while( ! given.empty() )
+  given.pop_back();
 
  if( n_failures ) {
   std::cout << "BendersBFunction_unit_test: " << n_failures

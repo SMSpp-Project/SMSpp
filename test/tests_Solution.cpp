@@ -59,6 +59,20 @@ using Subset = Block::Subset;
 /*------------------------------ FUNCTIONS ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+/// what the tests give to a Block that the Block does not own, deleted at the
+/// end of main(), after every Block, the last given the first deleted
+
+static std::vector< std::shared_ptr< void > > given;
+
+template< class T >
+static T * kept( T * t )
+{
+ given.emplace_back( t );
+ return( t );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 /// gives the rows of the list a Function of their own and the given duals
 /** The dual values are start, start + 1, ... in list order; a row needs a
  * Function to be a row at all, and one Variable is enough. */
@@ -77,7 +91,8 @@ static void fill( std::list< FRowConstraint > & rows , ColVariable & var ,
 /*--------------------------------------------------------------------------*/
 /// the dual values of the rows of the list, in list order
 
-static std::vector< double > duals_of( const std::list< FRowConstraint > & rows )
+static std::vector< double >
+duals_of( const std::list< FRowConstraint > & rows )
 {
  std::vector< double > rv;
  for( const auto & row : rows )
@@ -92,7 +107,7 @@ static std::vector< double > duals_of( const std::list< FRowConstraint > & rows 
  * were removed have been dropped from it. */
 
 static std::vector< double > written_duals( Solution * sol , Block * block ,
-					    std::list< FRowConstraint > & rows )
+					   std::list< FRowConstraint > & rows )
 {
  for( auto & row : rows )
   row.set_dual( -1 );
@@ -132,9 +147,9 @@ static std::string throws( const std::function< void( void ) > & f )
 static void test_subset_of_a_list( void )
 {
  auto block = new AbstractBlock;
- auto var = new ColVariable;
+ auto var = kept( new ColVariable );
  block->add_static_variable( *var , "x" );
- auto rows = new std::list< FRowConstraint >( 5 );
+ auto rows = kept( new std::list< FRowConstraint >( 5 ) );
  fill( *rows , *var , 10 );
  block->add_dynamic_constraint( *rows , "rows" );
 
@@ -170,9 +185,9 @@ static void test_subset_of_a_list( void )
 static void test_one_cell_of_a_grid( void )
 {
  auto block = new AbstractBlock;
- auto var = new ColVariable;
+ auto var = kept( new ColVariable );
  block->add_static_variable( *var , "x" );
- auto grid = new std::vector< std::list< FRowConstraint > >( 3 );
+ auto grid = kept( new std::vector< std::list< FRowConstraint > >( 3 ) );
  ( *grid )[ 0 ].resize( 2 );
  ( *grid )[ 1 ].resize( 4 );
  ( *grid )[ 2 ].resize( 1 );
@@ -212,9 +227,9 @@ static void test_one_cell_of_a_grid( void )
 static void test_whole_cell( void )
 {
  auto block = new AbstractBlock;
- auto var = new ColVariable;
+ auto var = kept( new ColVariable );
  block->add_static_variable( *var , "x" );
- auto rows = new std::list< FRowConstraint >( 3 );
+ auto rows = kept( new std::list< FRowConstraint >( 3 ) );
  fill( *rows , *var , 1 );
  block->add_dynamic_constraint( *rows , "rows" );
 
@@ -248,9 +263,9 @@ static void test_whole_cell( void )
 static void test_position_past_the_values( void )
 {
  auto block = new AbstractBlock;
- auto var = new ColVariable;
+ auto var = kept( new ColVariable );
  block->add_static_variable( *var , "x" );
- auto rows = new std::list< FRowConstraint >( 2 );
+ auto rows = kept( new std::list< FRowConstraint >( 2 ) );
  fill( *rows , *var , 50 );
  block->add_dynamic_constraint( *rows , "rows" );
 
@@ -283,16 +298,16 @@ static void test_position_past_the_values( void )
 static void test_nested_and_unknown( void )
 {
  auto block = new AbstractBlock;
- auto var = new ColVariable;
+ auto var = kept( new ColVariable );
  block->add_static_variable( *var , "x" );
- auto root_rows = new std::list< FRowConstraint >( 2 );
+ auto root_rows = kept( new std::list< FRowConstraint >( 2 ) );
  fill( *root_rows , *var , 1000 );
  block->add_dynamic_constraint( *root_rows , "rows" );
 
  auto inner = new AbstractBlock( block );
- auto inner_var = new ColVariable;
+ auto inner_var = kept( new ColVariable );
  inner->add_static_variable( *inner_var , "y" );
- auto inner_rows = new std::list< FRowConstraint >( 4 );
+ auto inner_rows = kept( new std::list< FRowConstraint >( 4 ) );
  fill( *inner_rows , *inner_var , 2000 );
  inner->add_dynamic_constraint( *inner_rows , "rows" );
  block->add_nested_Block( inner );
@@ -337,9 +352,9 @@ static void test_nested_and_unknown( void )
 static void test_the_solutions( void )
 {
  auto block = new AbstractBlock;
- auto var = new ColVariable;
+ auto var = kept( new ColVariable );
  block->add_static_variable( *var , "x" );
- auto rows = new std::list< FRowConstraint >( 3 );
+ auto rows = kept( new std::list< FRowConstraint >( 3 ) );
  fill( *rows , *var , 5 );
  block->add_dynamic_constraint( *rows , "rows" );
 
@@ -375,7 +390,7 @@ static void test_the_solutions( void )
 static void test_dynamic_variables( void )
 {
  auto block = new AbstractBlock;
- auto vars = new std::list< ColVariable >( 4 );
+ auto vars = kept( new std::list< ColVariable >( 4 ) );
  double next = 1;
  for( auto & var : *vars )
   var.set_value( next++ );
@@ -436,19 +451,19 @@ static shaped_block make_shaped_block( void )
 {
  shaped_block s;
  s.block = new AbstractBlock;
- s.vars = new std::vector< ColVariable >( 2 );
+ s.vars = kept( new std::vector< ColVariable >( 2 ) );
  ( *s.vars )[ 0 ].set_value( 1.5 );
  ( *s.vars )[ 1 ].set_value( -2 );
  s.block->add_static_variable( *s.vars , "x" );
 
- s.dvars = new std::list< ColVariable >( 3 );
+ s.dvars = kept( new std::list< ColVariable >( 3 ) );
  double v = 7;
  for( auto & var : *s.dvars )
   var.set_value( v++ );
  s.block->add_dynamic_variable( *s.dvars , "y" );
 
  auto & x = ( *s.vars )[ 0 ];
- s.rows = new std::vector< FRowConstraint >( 3 );
+ s.rows = kept( new std::vector< FRowConstraint >( 3 ) );
  double d = 10;
  for( auto & row : *s.rows ) {
   row.set_function( new LinearFunction( { { & x , 1.0 } } ) , eNoMod );
@@ -457,23 +472,23 @@ static shaped_block make_shaped_block( void )
   }
  s.block->add_static_constraint( *s.rows , "rows" );
 
- s.none = new std::vector< FRowConstraint >( 0 );
+ s.none = kept( new std::vector< FRowConstraint >( 0 ) );
  s.block->add_static_constraint( *s.none , "none" );
 
- s.list = new std::list< FRowConstraint >( 2 );
+ s.list = kept( new std::list< FRowConstraint >( 2 ) );
  fill( *s.list , x , 20 );
  s.block->add_dynamic_constraint( *s.list , "list" );
 
- s.cells = new std::vector< std::list< FRowConstraint > >( 2 );
+ s.cells = kept( new std::vector< std::list< FRowConstraint > >( 2 ) );
  ( *s.cells )[ 0 ].resize( 2 );
  fill( ( *s.cells )[ 0 ] , x , 30 );
  s.block->add_dynamic_constraint( *s.cells , "cells" );
 
  s.inner = new AbstractBlock( s.block );
- auto y = new ColVariable;
+ auto y = kept( new ColVariable );
  y->set_value( 4 );
  s.inner->add_static_variable( *y , "z" );
- s.inner_rows = new std::vector< FRowConstraint >( 1 );
+ s.inner_rows = kept( new std::vector< FRowConstraint >( 1 ) );
  ( *s.inner_rows )[ 0 ].set_function( new LinearFunction( { { y , 1.0 } } ) ,
 				      eNoMod );
  ( *s.inner_rows )[ 0 ].set_dual( 40 );
@@ -564,7 +579,7 @@ static void test_row_round_trip( void )
  assert( back->get_nested_solutions().size() == 1 );
  assert( back->get_nested_solutions()[ 0 ].
 	 get_static_constraint_dual_values() ==
-	 duals.get_nested_solutions()[ 0 ].get_static_constraint_dual_values() );
+       duals.get_nested_solutions()[ 0 ].get_static_constraint_dual_values() );
 
  // the shape survives: the empty static group is there, and so is the
  // empty cell of the vector of lists
@@ -635,10 +650,12 @@ static void test_round_trip_of_nothing( void )
   AbstractBlock * block = & empty;
   AbstractBlock hollow;
   if( k == 1 ) {  // a static group and a dynamic list, both with no row
-   hollow.add_static_variable( * new std::vector< ColVariable >( 0 ) , "x" );
-   hollow.add_static_constraint( * new std::vector< FRowConstraint >( 0 ) ,
-				 "r" );
-   hollow.add_dynamic_constraint( * new std::list< FRowConstraint > , "d" );
+   hollow.add_static_variable(
+		    * kept( new std::vector< ColVariable >( 0 ) ) , "x" );
+   hollow.add_static_constraint(
+		    * kept( new std::vector< FRowConstraint >( 0 ) ) , "r" );
+   hollow.add_dynamic_constraint(
+		    * kept( new std::list< FRowConstraint > ) , "d" );
    block = & hollow;
    }
 
@@ -659,7 +676,8 @@ static void test_round_trip_of_nothing( void )
   auto pd = through_a_file( primal );
   assert( dynamic_cast< ColVariableSolution * >( pd ) );
   assert( static_cast< ColVariableSolution * >( pd )->
-	  get_static_variable_values() == primal.get_static_variable_values() );
+	  get_static_variable_values() ==
+	  primal.get_static_variable_values() );
   pd->write( block );
   delete pd;
 
@@ -684,12 +702,13 @@ static void test_round_trip_of_nothing( void )
 static void test_round_trip_of_a_cellless_group( void )
 {
  AbstractBlock block;
- auto var = new ColVariable;
+ auto var = kept( new ColVariable );
  block.add_static_variable( *var , "x" );
  block.add_dynamic_constraint(
-		  * new std::vector< std::list< FRowConstraint > >( 0 ) , "c" );
+	   * kept( new std::vector< std::list< FRowConstraint > >( 0 ) ) ,
+	   "c" );
  block.add_dynamic_variable(
-		  * new std::vector< std::list< ColVariable > >( 0 ) , "v" );
+	   * kept( new std::vector< std::list< ColVariable > >( 0 ) ) , "v" );
 
  RowConstraintSolution duals;
  duals.read( & block );
@@ -743,7 +762,8 @@ static void test_clone( void )
 	    get_dynamic_constraint_dual_values() );
  assert( full->get_constraint_solution().get_nested_solutions().size() == 1 );
 
- assert( hollow->get_variable_solution().get_static_variable_values().empty() );
+ assert(
+  hollow->get_variable_solution().get_static_variable_values().empty() );
  assert( hollow->get_constraint_solution().
 	 get_static_constraint_dual_values().empty() );
  assert( hollow->get_constraint_solution().get_nested_solutions().empty() );
@@ -832,7 +852,8 @@ static void test_scale_and_sum( void )
  assert( throws( [ & ] { d2->sum( & primal , 1 ); } ) == "invalid_argument" );
 
  AbstractBlock other;
- other.add_static_variable( * new std::vector< ColVariable >( 5 ) , "x" );
+ other.add_static_variable( * kept( new std::vector< ColVariable >( 5 ) ) ,
+			   "x" );
  ColVariableSolution wrong;
  wrong.read( & other );
  assert( ! throws( [ & ] { p2->sum( & wrong , 1 ); } ).empty() );
@@ -853,8 +874,8 @@ static void test_scale_and_sum( void )
 /*--------------------------------------------------------------------------*/
 
 /* Whether a Solution holds a direction travels with it: clone(), full or
- * empty, scale() and the netCDF round trip keep it, and sum() is a direction only
- * if both sides are one [see Solution::is_direction()]. */
+ * empty, scale() and the netCDF round trip keep it, and sum() is a direction
+ * only if both sides are one [see Solution::is_direction()]. */
 
 static void test_is_direction( void )
 {
@@ -943,40 +964,48 @@ static void test_write_into_another_shape( void )
 
  // the same groups, one of them of another size
  AbstractBlock sized;
- sized.add_static_variable( * new std::vector< ColVariable >( 3 ) , "x" );
- sized.add_dynamic_variable( * new std::list< ColVariable >( 3 ) , "y" );
+ sized.add_static_variable( * kept( new std::vector< ColVariable >( 3 ) ) ,
+			   "x" );
+ sized.add_dynamic_variable( * kept( new std::list< ColVariable >( 3 ) ) ,
+			    "y" );
  assert( ! throws( [ & ] { primal.write( & sized ); } ).empty() );
 
  AbstractBlock rsized;
- rsized.add_static_constraint( * new std::vector< FRowConstraint >( 4 ) ,
-			       "rows" );
- rsized.add_static_constraint( * new std::vector< FRowConstraint >( 0 ) ,
-			       "none" );
- rsized.add_dynamic_constraint( * new std::list< FRowConstraint > , "list" );
+ rsized.add_static_constraint(
+	   * kept( new std::vector< FRowConstraint >( 4 ) ) , "rows" );
+ rsized.add_static_constraint(
+	   * kept( new std::vector< FRowConstraint >( 0 ) ) , "none" );
+ rsized.add_dynamic_constraint( * kept( new std::list< FRowConstraint > ) ,
+			       "list" );
  rsized.add_dynamic_constraint(
-		 * new std::vector< std::list< FRowConstraint > >( 2 ) , "cells" );
+	   * kept( new std::vector< std::list< FRowConstraint > >( 2 ) ) ,
+	   "cells" );
  assert( ! throws( [ & ] { duals.write( & rsized ); } ).empty() );
 
  // the same static groups, a dynamic group with another number of cells
  AbstractBlock celled;
- celled.add_static_constraint( * new std::vector< FRowConstraint >( 3 ) ,
-			       "rows" );
- celled.add_static_constraint( * new std::vector< FRowConstraint >( 0 ) ,
-			       "none" );
- celled.add_dynamic_constraint( * new std::list< FRowConstraint > , "list" );
+ celled.add_static_constraint(
+	   * kept( new std::vector< FRowConstraint >( 3 ) ) , "rows" );
+ celled.add_static_constraint(
+	   * kept( new std::vector< FRowConstraint >( 0 ) ) , "none" );
+ celled.add_dynamic_constraint( * kept( new std::list< FRowConstraint > ) ,
+			       "list" );
  celled.add_dynamic_constraint(
-		 * new std::vector< std::list< FRowConstraint > >( 3 ) , "cells" );
+	   * kept( new std::vector< std::list< FRowConstraint > >( 3 ) ) ,
+	   "cells" );
  assert( ! throws( [ & ] { duals.write( & celled ); } ).empty() );
 
  // the same groups, and no nested Block
  AbstractBlock flat;
- flat.add_static_constraint( * new std::vector< FRowConstraint >( 3 ) ,
+ flat.add_static_constraint( * kept( new std::vector< FRowConstraint >( 3 ) ) ,
 			     "rows" );
- flat.add_static_constraint( * new std::vector< FRowConstraint >( 0 ) ,
+ flat.add_static_constraint( * kept( new std::vector< FRowConstraint >( 0 ) ) ,
 			     "none" );
- flat.add_dynamic_constraint( * new std::list< FRowConstraint >( 2 ) , "list" );
  flat.add_dynamic_constraint(
-		 * new std::vector< std::list< FRowConstraint > >( 2 ) , "cells" );
+	   * kept( new std::list< FRowConstraint >( 2 ) ) , "list" );
+ flat.add_dynamic_constraint(
+	   * kept( new std::vector< std::list< FRowConstraint > >( 2 ) ) ,
+	   "cells" );
  assert( ! throws( [ & ] { duals.write( & flat ); } ).empty() );
 
  // while the Block it came from takes it
@@ -997,7 +1026,7 @@ static void test_write_into_another_shape( void )
 static void test_factory( void )
 {
  for( const std::string name : { "Solution" , "ColVariableSolution" ,
-				 "RowConstraintSolution" , "ColRowSolution" } ) {
+			       "RowConstraintSolution" , "ColRowSolution" } ) {
   auto sol = Solution::new_Solution( name );
   assert( sol );
   assert( sol->classname() == name );
@@ -1047,6 +1076,9 @@ int main( void )
  test_is_direction();
  test_write_into_another_shape();
  test_factory();
+
+ while( ! given.empty() )
+  given.pop_back();
 
  std::cout << "All tests passed!!" << std::endl;
 

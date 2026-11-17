@@ -433,7 +433,8 @@ void QuadFunction::modify_term( Index i , Index j ,
   throw( std::invalid_argument( "QuadFunction::modify_term: i == j == " +
                                 std::to_string( i ) +
                                 " is not a non-diagonal term" ) );
- // Observe that this insertion is highly inefficient if done one coeff at a time
+ // Observe that this insertion is highly inefficient if done one coeff at a
+ // time
  auto & coeff = mat_nd.coeffRef( std::max( i , j ) , std::min( i , j ) );
  const Coefficient old_coeff = coeff;
  coeff = quad_nd_coeff;
@@ -492,7 +493,8 @@ void QuadFunction::remove_variable( Index i , ModParam issueMod ) {
    }
   }
  }
- // We Squeez every bit of memory out of the beast before reallocating the whole deal
+ // We Squeez every bit of memory out of the beast before reallocating the
+ // whole deal
  mat_nd.setZero();
  mat_nd.data().squeeze();
 
@@ -597,7 +599,8 @@ void QuadFunction::remove_variables( Subset && nms , bool ordered ,
 void QuadFunction::identify_convexity( void ) {
  /**
     *
-    *  We need to perform the costly computation and figure out what kind of function this is
+    *  We need to perform the costly computation and figure out what kind of
+    *  function this is
     *
    */
  if( my_convexity == Unknown ) {
@@ -626,7 +629,8 @@ void QuadFunction::identify_convexity( void ) {
   }
   else {
    throw( std::logic_error(
-    "Symmetric matrices can not be something other than PSD, NSD or indefinite ... yet ..." ) );
+    "Symmetric matrices can not be something other than PSD, NSD or "
+    "indefinite ... yet ..." ) );
   }
  }
 }

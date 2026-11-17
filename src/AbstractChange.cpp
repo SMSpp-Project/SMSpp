@@ -146,7 +146,7 @@ Change * AbstractChange::apply( Block * block , bool doUndo ,
     else
      if( type == 'O' )
       if( auto obj = dynamic_cast< FRealObjective * >(
-				       path.get_element< Objective >( block ) ) )
+				     path.get_element< Objective >( block ) ) )
        fobj = obj->get_function();
     }
    if( ( ! pv ) || ( ! fobj ) )
@@ -277,7 +277,8 @@ Change * AbstractChange::apply( Block * block , bool doUndo ,
     throw( std::invalid_argument( std::string( "AbstractChange::apply: " ) +
 				  ( lb ? "eChgLB" : "eChgUB" ) +
 				  " needs a variable with a BoxConstraint or "
-				  "a " + ( lb ? "LB" : "UB" ) + "Constraint" ) );
+				  "a " + ( lb ? "LB" : "UB" ) +
+				  "Constraint" ) );
    break;
    }
 

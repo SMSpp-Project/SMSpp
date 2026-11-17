@@ -15,8 +15,15 @@
 #                         Dipartimento di Informatica                         #
 #                             Universita' di Pisa                             #
 # --------------------------------------------------------------------------- #
-cmake_minimum_required(VERSION 3.21)
+cmake_minimum_required(VERSION 3.24)
 cmake_policy(VERSION 3.15)
+# Boost is found by its own package configuration file, as FindBoost is
+# gone, and the upper-case <PACKAGE>_ROOT are prefixes of find_package()
+foreach (_policy CMP0144 CMP0167)
+    if (POLICY ${_policy})
+        cmake_policy(SET ${_policy} NEW)
+    endif ()
+endforeach ()
 # Derive the version from the most recent git tag (fallback for tarballs), so
 # a release is just `git tag x.y.z`. Must be done before project().
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/DeriveVersion.cmake)
@@ -66,9 +73,7 @@ if (NOT Eigen3_FOUND)
 endif ()
 
 # Try first with library's own configuration file, then with our find module.
-if (UNIX)
-    find_package(netCDFCxx QUIET NO_MODULE)
-endif ()
+find_package(netCDFCxx QUIET NO_MODULE)
 if (NOT netCDFCxx_FOUND)
     find_package(netCDFCxx REQUIRED)
 endif ()
@@ -85,9 +90,22 @@ else ()
     set(SMSpp_HDF5_DEPENDENCY OFF)
 endif ()
 
-if (MSVC)
+# getopt(), which the tools use, in its own library where the C library does
+# not have it (e.g., the port of vcpkg)
+include(CheckSymbolExists)
+check_symbol_exists(getopt "getopt.h" SMSpp_HAVE_GETOPT)
+if (NOT SMSpp_HAVE_GETOPT)
     find_library(GETOPT_LIBRARY getopt)
 endif ()
+
+# the threads, which the core and FastFlow use: with a recent glibc they are
+# in the C library, while elsewhere (say, the compilers of MinGW-w64) they
+# have to be linked, by whoever links the core too
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
+
+# The functions of the modules [see cmake/SMSppModule.cmake]
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/SMSppModule.cmake)
 
 # Fetch FastFlow, which the build interface of the library passes on to the
 # modules [see cmake/FastFlow.cmake]
@@ -101,19 +119,8 @@ configure_file(cmake/${modName}Config.h.in ${modName}Config.h)
 # ----- RPATH --------------------------------------------------------------- #
 # The installed libraries and executables look for the libraries of the same
 # installation relative to their own location, so that the installed tree can
-# be moved as a whole; the directories of the external libraries are kept.
-include(GNUInstallDirs)
-if (NOT CMAKE_INSTALL_RPATH)
-    if (APPLE)
-        set(rpathOrigin "@loader_path")
-    else ()
-        set(rpathOrigin "$ORIGIN")
-    endif ()
-    file(RELATIVE_PATH binToLib ${CMAKE_INSTALL_FULL_BINDIR}
-            ${CMAKE_INSTALL_FULL_LIBDIR})
-    set(CMAKE_INSTALL_RPATH "${rpathOrigin}" "${rpathOrigin}/${binToLib}")
-endif ()
-set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+# be moved as a whole [see cmake/SMSppModule.cmake].
+smspp_install_rpath()
 
 # ----- Library ------------------------------------------------------------- #
 # With the BUILD_SHARED_LIBS variable we can specify if the library will
@@ -211,9 +218,10 @@ target_include_directories(
 target_link_libraries(${modName} PUBLIC
         Boost::boost
         Eigen3::Eigen
-        netCDF::netCDFCxx)
+        netCDF::netCDFCxx
+        Threads::Threads)
 
-if (MSVC)
+if (GETOPT_LIBRARY)
     target_link_libraries(${modName} PUBLIC ${GETOPT_LIBRARY})
 endif ()
 
@@ -231,12 +239,12 @@ add_library(${modNamespace}::${modName} ALIAS ${modName})
 # ----- C++20 module -------------------------------------------------------- #
 # The module smspp (src/SMSpp.cppm) exports the names of all the headers, so
 # that a translation unit can write "import smspp;" in place of including
-# them. It needs CMake 3.28 or later, the Ninja or Visual Studio generator
-# and a compiler that scans the module dependencies and accepts the headers
-# of Eigen and Boost in a module (Clang 16 or MSVC 19.34 or later): unless
-# SMSpp_BUILD_MODULE says otherwise, it is built where these are there and
-# the compiler is Clang, and where they are missing an SMSpp_BUILD_MODULE=ON
-# is turned off with a warning [see CheckModule.cmake].
+# them. It needs CMake 3.28 or later, and a generator and a compiler that
+# build a module and a unit that imports it and uses its templates, which a
+# small module built at configure time tells: unless SMSpp_BUILD_MODULE says
+# otherwise, it is built where these are there, and where they are missing
+# an SMSpp_BUILD_MODULE=ON is turned off with a warning [see
+# CheckModule.cmake].
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CheckModule.cmake)
 smspp_check_module()
 
@@ -326,11 +334,15 @@ file(GLOB findMods ${CMAKE_CURRENT_LIST_DIR}/cmake/Find*)
 install(FILES ${findMods}
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${modName})
 
-# Install the check of the C++20 modules and the fetch of FastFlow, which the
-# configuration file includes for the modules that find the core with
-# find_package().
+# Install the check of the C++20 modules, with its small module, the fetch of
+# FastFlow and the functions of the modules, which the configuration file
+# includes for the modules that find the core with find_package().
 install(FILES ${CMAKE_CURRENT_LIST_DIR}/cmake/CheckModule.cmake
         ${CMAKE_CURRENT_LIST_DIR}/cmake/FastFlow.cmake
+        ${CMAKE_CURRENT_LIST_DIR}/cmake/SMSppModule.cmake
+        ${CMAKE_CURRENT_LIST_DIR}/cmake/SMSppCopyRuntime.cmake
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${modName})
+install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/cmake/module-check
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${modName})
 
 # Install the README and LICENSE files.

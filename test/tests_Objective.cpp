@@ -143,6 +143,7 @@ struct Fixture {
   block->reset_objective();
   delete obj;
   delete block;
+  delete x;
   }
 
  Lst_sp_Mod & mods( void ) { return( solver->get_Modification_list() ); }
@@ -303,7 +304,8 @@ static void test_value_and_constant( void )
  {
   auto fm = as< FunctionMod >( f.mods().front() );
   auto om = as< FRealObjectiveMod >( f.mods().front() );
-  assert( ( fm && ( fm->function() == lf ) ) || ( om && ( om->of() == f.obj ) ) );
+  assert( ( fm && ( fm->function() == lf ) ) ||
+	  ( om && ( om->of() == f.obj ) ) );
   if( fm )
    assert( fm->shift() == 7 );
   }

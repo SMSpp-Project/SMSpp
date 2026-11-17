@@ -39,7 +39,7 @@ int LinearFunction::compute( bool changedvars )
 {
  if( changedvars ) {
   f_value = f_constant_term;  // value of the function
-  for( const auto el : v_pairs )
+  for( const auto & el : v_pairs )
    f_value += el.first->get_value() * el.second;
   }
 
@@ -51,7 +51,7 @@ int LinearFunction::compute( bool changedvars )
 Function::FunctionValue LinearFunction::get_Lipschitz_constant( void )
 {
  FunctionValue L = 0;
- for( const auto el : v_pairs )
+ for( const auto & el : v_pairs )
   L += el.second * el.second;
 
  return( sqrt( double( L ) ) );
@@ -237,7 +237,7 @@ void LinearFunction::map_active( c_Vec_p_Var & vars , Subset & map ,
 /*--------------------------------------------------------------------------*/
 
 void LinearFunction::add_variables( v_coeff_pair && vars ,
-				                                ModParam issueMod )
+				    ModParam issueMod )
 {
  if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
   return;
@@ -598,7 +598,8 @@ void LinearFunction::remove_variables( Subset && nms , bool ordered ,
   ++vi;              // skip the first element, it will be overwritten
 
   for( ; it < nms.end() ; ++vi )
-   if( *it == vi ) {              // record the Variable and its old coefficient
+   if( *it == vi ) {              // record the Variable and its old
+				  // coefficient
     *( its++ ) = v_pairs[ *it ].first;
     *( dit++ ) = -v_pairs[ *( it++ ) ].second;
     }

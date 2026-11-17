@@ -10,12 +10,12 @@
 #   in place of the #include. This makefile gives the rules that compile the #
 #   interface into the module file (a .pcm) and into an object that goes     #
 #   with the other ones of the module. The modules are built only if         #
-#   $(SMSppMOD) is not empty (e.g., make SMSppMOD=1), with clang++ 16 or     #
-#   later; otherwise, or with another compiler (which is reported by a       #
-#   warning), nothing here does anything, and every makefile builds what it  #
-#   built without them. g++, up to 15 at least, does not build them: it      #
-#   refuses the entities of internal linkage (e.g., Eigen::Dynamic) that the #
-#   headers of Eigen and Boost expose to the templates of a module.          #
+#   $(SMSppMOD) is not empty (e.g., make SMSppMOD=1), with a compiler that   #
+#   takes the options of clang++ for the modules (-x c++-module,             #
+#   -fmodule-output, -fprebuilt-module-path) and builds a small module and a #
+#   unit that imports it (e.g., clang++ 16 or later, and not g++, up to 15   #
+#   at least); otherwise (which is reported by a warning) nothing here does  #
+#   anything, and every makefile builds what it built without them.          #
 #                                                                            #
 #   All the module files go to a single directory, $(SMS++SDR)/obj, where    #
 #   clang++ finds any of them by its name: whatever compiles a module or     #
@@ -56,7 +56,6 @@
 #           $(SW)          = compiler options                                #
 #           $(SMS++SDR)    = the directory where the core SMS++ source is    #
 #           $(SMSppMOD)    = not empty if the modules are to be built        #
-#           $(SMSppCLANG)  = not empty if $(CC) is clang++ [see makefile-OS] #
 #                                                                            #
 #   Output: $(SMSppMODDIR) = the directory of the module files               #
 #           $(SMSppMODSW)  = the options of whatever compiles or imports a   #
@@ -69,14 +68,33 @@
 #                                                                            #
 ##############################################################################
 
-# the compiler, and whether it builds the modules - - - - - - - - - - - - - -
+# whether the compiler builds the modules: a small module, whose template
+# walks a std::vector by its iterators, and a unit that imports it are
+# compiled with the options of the rules below, in obj/modcheck - - - - - - -
+
+SMSppMODcheck = module;\n\#include <vector>\nexport module smspp_check;\n\
+export template< typename T > int walk( T n ) { std::vector< T > v( n );\n\
+int k = 0; for( auto i = v.begin() ; i != v.end() ; ++i ) ++k;\n\
+return( k - int( v.end() - v.begin() ) ); }\n
+
+SMSppMODck = $(SMS++SDR)/obj/modcheck
 
 ifneq ($(SMSppMOD),)
-    SMSppMODver := $(firstword $(subst ., ,$(shell $(CC) -dumpversion)))
-    ifneq ($(and $(SMSppCLANG),$(shell test "$(SMSppMODver)" -ge 16 \
-	2>/dev/null && echo ok)),ok)
-        $(warning SMSppMOD is turned off: $(CC) $(SMSppMODver) does not \
-	build the modules (clang++ 16 or later is needed))
+    SMSppMODok := $(shell mkdir -p $(SMSppMODck) && \
+	printf '$(SMSppMODcheck)' > $(SMSppMODck)/m.cppm && \
+	printf 'import smspp_check;\nint main() { return( walk( 3 ) ); }\n' \
+	> $(SMSppMODck)/u.cpp && \
+	$(CC) -std=c++20 -x c++-module -c $(SMSppMODck)/m.cppm \
+	-fmodule-output=$(SMSppMODck)/smspp_check.pcm \
+	-o $(SMSppMODck)/m.o > /dev/null 2>&1 && \
+	$(CC) -std=c++20 -fprebuilt-module-path=$(SMSppMODck) \
+	-c $(SMSppMODck)/u.cpp -o $(SMSppMODck)/u.o > /dev/null 2>&1 && \
+	echo ok; \
+	rm -f $(addprefix $(SMSppMODck)/,m.cppm u.cpp m.o u.o \
+	smspp_check.pcm); rmdir $(SMSppMODck))
+    ifneq ($(SMSppMODok),ok)
+        $(warning SMSppMOD is turned off: $(CC) does not build a module and \
+	a unit that imports it with the options of these makefiles)
         override SMSppMOD :=
     endif
 endif

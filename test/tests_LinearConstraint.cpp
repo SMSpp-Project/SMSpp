@@ -46,7 +46,8 @@ using Range = Block::Range;
 
 /// how many times the ColVariable lists stuff among its active stuff
 
-static long listed( const ColVariable & var , const ThinVarDepInterface * stuff )
+static long listed( const ColVariable & var ,
+		    const ThinVarDepInterface * stuff )
 {
  const auto & act = var.active_stuff();
  return( std::count( act.begin() , act.end() , stuff ) );
@@ -68,7 +69,8 @@ static void test_construction( void )
   LinearConstraint lc( nullptr , 0 , 6 , { { & x , 2 } , { & y , 3 } } , -1 );
   auto f = lc.get_linear_function();
   assert( f && ( f == lc.get_function() ) && ( f->get_Observer() == & lc ) );
-  assert( ( lc.get_coefficient( 0 ) == 2 ) && ( lc.get_coefficient( 1 ) == 3 ) );
+  assert( ( lc.get_coefficient( 0 ) == 2 ) &&
+	  ( lc.get_coefficient( 1 ) == 3 ) );
   assert( ( lc.get_num_active_var() == 2 ) && ( listed( x , & lc ) == 1 ) &&
 	  ( listed( y , & lc ) == 1 ) );
   assert( lc.compute() == Constraint::kOK );
@@ -134,11 +136,13 @@ static void test_redirected( void )
   assert( ( lc.get_coefficient( 0 ) == 5 ) && ( list.size() == 1 ) );
   list.clear();
   lc.modify_coefficients( { 7 , 8 } , Range( 0 , 2 ) );
-  assert( ( lc.get_coefficient( 0 ) == 7 ) && ( lc.get_coefficient( 1 ) == 8 ) );
+  assert( ( lc.get_coefficient( 0 ) == 7 ) &&
+	  ( lc.get_coefficient( 1 ) == 8 ) );
   assert( list.size() == 1 );
   list.clear();
   lc.modify_coefficients( { 9 } , Subset( { 1 } ) , true );
-  assert( ( lc.get_coefficient( 0 ) == 7 ) && ( lc.get_coefficient( 1 ) == 9 ) );
+  assert( ( lc.get_coefficient( 0 ) == 7 ) &&
+	  ( lc.get_coefficient( 1 ) == 9 ) );
   assert( list.size() == 1 );
   list.clear();
 

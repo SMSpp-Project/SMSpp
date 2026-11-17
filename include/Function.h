@@ -872,9 +872,11 @@ class FunctionMod : public AModification
   * the shift. If shift is finite, then it indicates that the Function value
   * has been shifted by a constant. This means that if the Function value at
   * a given point was f_v before this Modification, then the correct value is
-  * now f_v + shift. If shift is Inf< FunctionValue >(), then it means that the
+  * now f_v + shift. If shift is NaN (NaNshift), then it means that the
   * Function has been modified in an unpredictable way, so that any prior
-  * information regarding the Function can be disregarded.
+  * information regarding the Function can be disregarded, while +INFshift
+  * and - INFshift mean that it has changed unpredictably but monotonically
+  * upwards and downwards, respectively [see shift()].
   *
   * What the Modification changes [see changes()] are the values of the
   * Function, which are the coefficients of a Constraint when the Function
@@ -896,7 +898,7 @@ class FunctionMod : public AModification
  [[nodiscard]] Block * get_Block( void ) const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// accessor to (the pointer to) the affected Constraint
+ /// accessor to (the pointer to) the affected Function
 
  [[nodiscard]] Function * function( void ) const { return( f_function ); }
 
@@ -924,7 +926,7 @@ class FunctionMod : public AModification
  *   equal to the value that would have been returned prior to the
  *   Modification.
  *
- * - - INFshif: this means that the value of the Function has changed
+ * - - INFshift: this means that the value of the Function has changed
  *   "unpredictably but monotonically downwards": computing the value of the
  *   Function at any point now returns a value that is surely smaller than or
  *   equal to the value that would have been returned prior to the
@@ -1034,8 +1036,6 @@ class FunctionMod : public AModification
  * function f( x , y ) = f_1( x ) + f_2( y ) is quasi additive for whatever
  * reasonable concept of addition (of other additive terms) and removal one
  * can think of, but the concept also covers non-additive functions:
- *
- * f( x , y ) = f_1( x ) + f_2( y ), can be dealt with:
  *
  *     f_old( x ) = e^x     and      f( x , y ) = e^( x + y )
  *

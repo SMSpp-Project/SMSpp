@@ -50,6 +50,7 @@ module;
 #include "MasterProblemBlock.h"
 #include "QuadFunction.h"
 #include "RBlockConfig.h"
+#include "SMSTerminate.h"
 #include "UpdateSolver.h"
 
 /*--------------------------------------------------------------------------*/
@@ -89,10 +90,13 @@ export namespace SMSpp_di_unipi_it {
  using SMSpp_di_unipi_it::BlockModRmv;
  using SMSpp_di_unipi_it::BlockModRmvRngd;
  using SMSpp_di_unipi_it::BlockModRmvSbst;
+ using SMSpp_di_unipi_it::BlockWeightMod;
  using SMSpp_di_unipi_it::Vec_Block;
  using SMSpp_di_unipi_it::Vec_Block_it;
  using SMSpp_di_unipi_it::c_Vec_Block;
  using SMSpp_di_unipi_it::for_each_by_classname;
+ using SMSpp_di_unipi_it::for_each_selected;
+ using SMSpp_di_unipi_it::has_selected;
  using SMSpp_di_unipi_it::p_Block;
 
  // BlockSolverConfig.h
@@ -324,6 +328,9 @@ export namespace SMSpp_di_unipi_it {
  using SMSpp_di_unipi_it::operator>>;
  using SMSpp_di_unipi_it::out_el;
 
+ // SMSTerminate.h
+ using SMSpp_di_unipi_it::smspp_terminate;
+
  // SMSTypedefs.h
  using SMSpp_di_unipi_it::Inf;
  using SMSpp_di_unipi_it::KD_Vec_List_p_Const;
@@ -370,14 +377,24 @@ export namespace SMSpp_di_unipi_it {
  using SMSpp_di_unipi_it::_nc_read_type;
  using SMSpp_di_unipi_it::check_dimensions;
  using SMSpp_di_unipi_it::check_variables;
+ using SMSpp_di_unipi_it::copy_group;
  using SMSpp_di_unipi_it::deserialize;
  using SMSpp_di_unipi_it::deserialize_dim;
  using SMSpp_di_unipi_it::get_sizes_dimensions;
  using SMSpp_di_unipi_it::get_var_values;
  using SMSpp_di_unipi_it::is_netCDF_type_v;
+ using SMSpp_di_unipi_it::read_stacked;
  using SMSpp_di_unipi_it::read_type_t;
  using SMSpp_di_unipi_it::serialize;
+ using SMSpp_di_unipi_it::stacked_class_group;
+ using SMSpp_di_unipi_it::stacked_class_variable;
+ using SMSpp_di_unipi_it::stacked_dimension;
+ using SMSpp_di_unipi_it::stacked_parts_dimension;
+ using SMSpp_di_unipi_it::stacked_position_variable;
+ using SMSpp_di_unipi_it::stacked_size;
  using SMSpp_di_unipi_it::typ2nCDF;
+ using SMSpp_di_unipi_it::write_stacked;
+ using SMSpp_di_unipi_it::write_via_memory;
 
  // Solution.h
  using SMSpp_di_unipi_it::Solution;

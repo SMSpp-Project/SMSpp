@@ -823,6 +823,8 @@ static void test_DQuad_Modification( void )
 
  block->unregister_Solvers( true );
  delete block;
+ delete rows;
+ delete x;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1021,6 +1023,8 @@ static void test_Quad_Modification( void )
 
  block->unregister_Solvers( true );
  delete block;
+ delete rows;
+ delete x;
  }
 
 /*--------------------------------------------------------------------------*/

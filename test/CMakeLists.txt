@@ -12,34 +12,14 @@
 
 # The classes of the modules register themselves in the factories from
 # static objects, which nothing here names: a shared library is kept by
-# what its module asks of the linker [see the CMakeLists.txt of the
-# module], while an archive has to be taken whole.
-if (NOT BUILD_SHARED_LIBS)
-    if (MSVC)
-        add_link_options("/WHOLEARCHIVE" "/FORCE:MULTIPLE")
-    else () # Unix
-        if (APPLE)
-            add_link_options("-Wl,-all_load")
-        else ()
-            add_link_options("-Wl,--whole-archive,--allow-multiple-definition")
-        endif ()
-    endif ()
-endif ()
+# what its module asks of the linker, while an archive has to be taken
+# whole [see cmake/SMSppModule.cmake].
+smspp_keep_modules()
 
 # Utility function to standardize installation and runtime dependency handling
 # for SMS++ tests.
 function(smspp_install target_name)
-    if (WIN32 AND BUILD_SHARED_LIBS AND NOT DEFINED ENV{CONDA_BUILD})
-        # On Windows with shared libraries enabled copies all runtime DLL
-        # dependencies next to the executable in the build directory
-        # (POST_BUILD), using CMake's TARGET_RUNTIME_DLLS generator expression
-        add_custom_command(TARGET ${target_name} POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                $<TARGET_RUNTIME_DLLS:${target_name}>
-                $<TARGET_FILE_DIR:${target_name}>
-                COMMAND_EXPAND_LISTS
-                COMMENT "Copying runtime DLLs next to ${target_name}.exe")
-    endif ()
+    smspp_copy_runtime(${target_name})
 
     #[[install(TARGETS ${target_name}
             RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})]]

@@ -290,6 +290,22 @@ class ThinComputeInterface
    * some events not to be called at all, although of course a derived class
    * may place appropriate checks in multiple places to try to avoid this. */
 
+  eEverySolution = 3 ,  ///< events to be called at each partial solution
+                        /**< Type of events that will be called each time
+                         * compute() has written in the Block one of the
+   * solutions out of which its result is made, i.e., when the result is a
+   * combination (say, the mean) of the solutions of several problems that
+   * the compute() at hand solves one after the other on the same Block, as
+   * the simulation of each scenario of a policy. When the event is called
+   * the solution, primal and dual, is written in the Block as
+   * get_var_solution() and get_dual_solution() would write it (in the copy
+   * of the Block that Solver::get_solution_Block() returns, if the compute()
+   * solves it on one), and nothing else of the compute() is running on that
+   * Block: the event handler can read whatever it needs out of it, and it is
+   * called once for each of the solutions, those that the compute() does not
+   * reach (say, after an error) excluded. A compute() that gives a single
+   * solution does not call these events. */
+
   e_last_event_type = 4     ///< convenience value to define new events
                             /**< convenience value to allow derived classes
 			     * to "extend" event_type and define new
@@ -2358,8 +2374,9 @@ class ComputeConfig : public Configuration
 /*---------------------------- CONSTRUCTORS --------------------------------*/
  /// constructor: initializes everything to "default configuration"
 
- ComputeConfig( void ) : Configuration() , f_diff( true ) , f_relax( false ) ,
-                         f_extra_Configuration( nullptr ) {}
+ ComputeConfig( void )
+     : Configuration() , f_extra_Configuration( nullptr ) , f_diff( true ) ,
+       f_relax( false ) { }
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor: does what it says on the tin
@@ -2524,7 +2541,7 @@ class ComputeConfig : public Configuration
   * the extra slot.
   *
   * Used by Configuration::deserialize(std::istream &) to implement the
-  * `* base.txt + <body>` cascade-override syntax. */
+  * `*base.txt +` cascade-override syntax, followed by the body. */
 
  void merge_overrides( std::istream & input ) override;
 
@@ -2893,9 +2910,9 @@ class ComputeConfig : public Configuration
   *
   *   = bit 1 (+2) for f_relax, telling if the ComputeConfig is allowed to
   *     contain names of parameters that are not recognised by the
-  *     :ThinComputeInterface is will be set_*() to; if false, trying to
+  *     :ThinComputeInterface it will be set_*() to; if false, trying to
   *     set an unrecognised parameter should raise an exception; if the
-  *     attribute is not there, f_diff == false is assumed.
+  *     attribute is not there, f_relax == false is assumed.
   *
   * number k of the names of int parameters
   *
@@ -3387,10 +3404,7 @@ class State {
   * rationale for using a method is that this is the "Construct On First Use
   * Idiom" that solves the "static initialization order problem". */
 
- static StateFactoryMap & f_factory( void ) {
-  static StateFactoryMap s_factory;
-  return( s_factory );
-  }
+ static StateFactoryMap & f_factory( void );
 
 /*--------------------------------------------------------------------------*/
  /// empty placeholder for class-specific static initialization

@@ -104,20 +104,22 @@ C05SumFunction::C05SumFunction( std::vector< C05Function * > && members ,
   throw( std::invalid_argument( "C05SumFunction: the sum has no members" ) );
 
  // when the "active" Variable are not given, they are the union of those of
- // the members, in the order in which the members give them
+ // the members, in the order in which the members give them, the map from
+ // each to its position telling which are there already
  if( v_vars.empty() )
   for( auto m : v_members ) {
    const auto n = m->get_num_active_var();
    for( Index i = 0 ; i < n ; ++i ) {
     const auto var = static_cast< ColVariable * >( m->get_active_var( i ) );
-    if( std::find( v_vars.begin() , v_vars.end() , var ) == v_vars.end() )
+    if( f_var2idx.emplace( var , v_vars.size() ).second )
      v_vars.push_back( var );
     }
    }
-
- f_var2idx.reserve( v_vars.size() );
- for( Index i = 0 ; i < v_vars.size() ; ++i )
-  f_var2idx.emplace( v_vars[ i ] , i );
+ else {
+  f_var2idx.reserve( v_vars.size() );
+  for( Index i = 0 ; i < v_vars.size() ; ++i )
+   f_var2idx.emplace( v_vars[ i ] , i );
+  }
 
  // the vectors of entries are drawn from a generator of the group's own, so
  // that a run is repeatable; the size of the group is only a fallback, since
@@ -217,7 +219,8 @@ void C05SumFunction::add_Modification( sp_Mod mod , ChnlName chnl )
   * sum takes) does, and what it says about the sum is what its
   * sub-Modification say together. */
 
- if( const auto gmod = std::dynamic_pointer_cast< GroupModification >( mod ) ) {
+ if( const auto gmod =
+     std::dynamic_pointer_cast< GroupModification >( mod ) ) {
   group_Modification( gmod , chnl );
   return;
   }
@@ -345,7 +348,10 @@ void C05SumFunction::flush_pending( ChnlName chnl )
  /* Two translations say the same thing about the sum if they are the same
   * kind of Modification about the same linearizations: they are then merged
   * into one, whose shift is the sum of theirs, a shift of one addend being
-  * a shift of the sum, and which concerns the Block if either does. */
+  * a shift of the sum, and which concerns the Block if either does. Two
+  * finite shifts give their sum, a monotone change (+-INFshift) stays so
+  * only with changes of the same sign (monotone or finite), anything else is
+  * unpredictable (NaN). */
 
  auto same = []( const sp_Mod & a , const sp_Mod & b ) -> bool {
   const auto ca = std::dynamic_pointer_cast< C05FunctionMod >( a );
@@ -358,9 +364,14 @@ void C05SumFunction::flush_pending( ChnlName chnl )
   };
 
  auto add_shift = []( FunctionValue a , FunctionValue b ) -> FunctionValue {
-  if( ( a == FunctionMod::INFshift ) || ( b == FunctionMod::INFshift ) )
-   return( FunctionMod::INFshift );  // unpredictable stays unpredictable
-  return( a + b );          // NaN, i.e. "no shift known", propagates
+  constexpr auto INF = FunctionMod::INFshift;
+  if( std::isnan( a ) || std::isnan( b ) )
+   return( FunctionMod::NaNshift );
+  if( ( a >= INF ) || ( b >= INF ) )      // monotonically up if the other
+   return( ( a >= 0 ) && ( b >= 0 ) ? INF : FunctionMod::NaNshift );
+  if( ( a <= - INF ) || ( b <= - INF ) )  // monotonically down if the other
+   return( ( a <= 0 ) && ( b <= 0 ) ? - INF : FunctionMod::NaNshift );
+  return( a + b );
   };
 
  while( ! v_pending.empty() ) {
@@ -416,7 +427,6 @@ void C05SumFunction::member_Variables_changed(
                         ChnlName chnl )
 {
  const auto h = member_of( vmod );
- auto member = v_members[ h ];
 
  /* The "active" Variable of the sum are the union of those of the members,
   * so that a Variable added to a member is one of the sum only if no other
@@ -445,7 +455,7 @@ void C05SumFunction::member_Variables_changed(
   if( changed.empty() )            // nothing new for the sum
    return;
 
-  if( f_Observer && anyone_there() ) {
+  if( f_Observer && f_Observer->anyone_there_for( Function::eModFVars ) ) {
    sp_Mod out;
       if( std::dynamic_pointer_cast< C05FunctionModVarsAddd >( vmod ) )
     out = std::make_shared< C05FunctionModVarsAddd >( this ,
@@ -505,12 +515,15 @@ void C05SumFunction::member_Variables_changed(
   positions[ i ] = where[ ord[ i ] ];
   }
 
- // take them out, keeping the order of the ones that stay
- auto gone = [ & sorted ]( const ColVariable * v ) {
-  return( std::find( sorted.begin() , sorted.end() , v ) != sorted.end() );
-  };
- v_vars.erase( std::remove_if( v_vars.begin() , v_vars.end() , gone ) ,
-               v_vars.end() );
+ // take them out by their positions, keeping the order of the ones that
+ // stay
+ Index kept = 0;
+ for( Index i = 0 , p = 0 ; i < v_vars.size() ; ++i )
+  if( ( p < positions.size() ) && ( positions[ p ] == i ) )
+   ++p;
+  else
+   v_vars[ kept++ ] = v_vars[ i ];
+ v_vars.resize( kept );
 
  f_var2idx.clear();
  f_var2idx.reserve( v_vars.size() );
@@ -520,7 +533,7 @@ void C05SumFunction::member_Variables_changed(
  for( Index k = 0 ; k < v_members.size() ; ++k )
   rebuild_map( k );
 
- if( f_Observer && anyone_there() ) {
+ if( f_Observer && f_Observer->anyone_there_for( Function::eModFVars ) ) {
   sp_Mod out;
     const bool strong =
    std::dynamic_pointer_cast< C05FunctionModVarsRngd >( vmod ) ||
@@ -597,7 +610,7 @@ void C05SumFunction::translate_Modification( const sp_Mod & mod ,
   * AllLinearizationChanged with no names, i.e. "check them all", which is
   * coarser but true. */
 
- if( f_Observer && anyone_there() ) {
+ if( f_Observer && f_Observer->anyone_there_for( Function::eModFValues ) ) {
   sp_Mod out;
   if( const auto cmod = std::dynamic_pointer_cast< C05FunctionMod >( fmod ) ) {
    if( std::dynamic_pointer_cast< C05FunctionModRngd >( fmod ) ||
@@ -622,7 +635,7 @@ void C05SumFunction::translate_Modification( const sp_Mod & mod ,
     out = std::make_shared< FunctionMod >( this , fmod->shift() ,
                                            fmod->concerns_Block() );
 
-    emit( std::move( out ) , chnl );
+  emit( std::move( out ) , chnl );
 
   if( ! stale.empty() )
    emit( std::make_shared< C05FunctionMod >( this ,
@@ -835,7 +848,8 @@ int C05SumFunction::compute_parallel( bool changedvars ,
   int bad = kOK;
   for( Index h = from ; h < to ; ++h ) {
    const int s = ( h == from ) ? first : running[ h - from - 1 ].get();
-   if( ( s <= kUnEval ) || ( ( s >= kError ) && ( s != Solver::kLowPrecision ) ) )
+   if( ( s <= kUnEval ) ||
+       ( ( s >= kError ) && ( s != Solver::kLowPrecision ) ) )
     bad = s;
    else if( s == Solver::kLowPrecision )
     status = Solver::kLowPrecision;
@@ -904,7 +918,8 @@ int C05SumFunction::compute( bool changedvars )
   // returns only up to the accuracy it was given, which is what an inexact
   // oracle is, and the group is inexact with it; stopping here would leave
   // the other members unevaluated and the group without a value
-  if( ( s <= kUnEval ) || ( ( s >= kError ) && ( s != Solver::kLowPrecision ) ) )
+  if( ( s <= kUnEval ) ||
+      ( ( s >= kError ) && ( s != Solver::kLowPrecision ) ) )
    return( s );                    // an error ends it all
   if( s == Solver::kLowPrecision )  // an inexact member makes the sum inexact
    status = Solver::kLowPrecision;
@@ -1019,7 +1034,8 @@ bool C05SumFunction::random_combination( void )
  for( Index h = 0 ; h < k ; ++h ) {
   const auto m = v_members[ h ];
   for( Index n = 0 ; n < f_gp_size ; ++n )
-   if( m->is_linearization_there( n ) && ( ! m->is_linearization_vertical( n ) ) )
+   if( m->is_linearization_there( n ) &&
+       ( ! m->is_linearization_vertical( n ) ) )
     held[ h ].push_back( n );
 
   if( held[ h ].empty() )   // a member with nothing to contribute leaves the

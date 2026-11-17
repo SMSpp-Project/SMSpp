@@ -74,24 +74,6 @@ Block::Index get_nested_Block_index( const std::string & id ,
  }
 
 /*--------------------------------------------------------------------------*/
-// returns the sub-Block with the given \p id
-
-Block * get_nested_Block( const std::string & id , const Block * block )
-{
- if( auto bi = block->get_nested_Block( id ) )
-  return( bi );
-
- if( id.empty() || ( ! std::isdigit( id.front() ) ) )
-  return( nullptr );
-
- Block::Index i;
- try { i = std::stoi( id ); }
- catch( ... ) { return( nullptr ); }
-
- return( block->get_nested_Block( i ) );
- }
-
-/*--------------------------------------------------------------------------*/
 // returns the index of the group of Constraint
 
 Block::Index get_Constraint_group_index( const std::string & id ,
@@ -694,9 +676,11 @@ void MetaBlockConfig::set_map( MapConfig * map )
  if( map )
   for( const auto & [ key , val ] : map->f_value )
    if( val && ( ! dynamic_cast< BlockConfig * >( val ) ) ) {
+    // the message first, as key goes with the map
+    std::invalid_argument e( "MetaBlockConfig::set_map: entry " + key +
+			     " is not a BlockConfig" );
     delete map;
-    throw( std::invalid_argument( "MetaBlockConfig::set_map: entry " + key
-				  + " is not a BlockConfig" ) );
+    throw( e );
     }
 
  delete f_map;

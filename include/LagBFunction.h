@@ -1078,11 +1078,12 @@ class LagBFunction : public C05Function , public Block
   * set_ComputeConfig() for details. */
 
  idx_type int_par_is( idx_type par ) const {
-  if constexpr( Solver::intLastAlgPar < intLastLagBFPar ) {
+  if constexpr( idx_type( Solver::intLastAlgPar ) <
+		idx_type( intLastLagBFPar ) ) {
    if( par == Inf< idx_type >() )
     return( par );
    if( par >= Solver::intLastAlgPar )
-    par += intLastLagBFPar - Solver::intLastAlgPar;
+    par += idx_type( intLastLagBFPar ) - idx_type( Solver::intLastAlgPar );
    }
   return( par );
   }
@@ -1095,11 +1096,12 @@ class LagBFunction : public C05Function , public Block
   * set_ComputeConfig() for details. */
 
  idx_type dbl_par_is( idx_type par ) const {
-  if constexpr( Solver::dblLastAlgPar < dblLastLagBFPar ) {
+  if constexpr( idx_type( Solver::dblLastAlgPar ) <
+		idx_type( dblLastLagBFPar ) ) {
    if( par == Inf< idx_type >() )
     return( par );
    if( par >= Solver::dblLastAlgPar )
-    par += dblLastLagBFPar - Solver::dblLastAlgPar;
+    par += idx_type( dblLastLagBFPar ) - idx_type( Solver::dblLastAlgPar );
    }
   return( par );
   }
@@ -1112,11 +1114,12 @@ class LagBFunction : public C05Function , public Block
   * set_ComputeConfig() for details. */
 
  idx_type str_par_is( idx_type par ) const {
-  if constexpr( Solver::strLastAlgPar < strLastLagBFPar ) {
+  if constexpr( idx_type( Solver::strLastAlgPar ) <
+		idx_type( strLastLagBFPar ) ) {
    if( par == Inf< idx_type >() )
     return( par );
    if( par >= Solver::strLastAlgPar )
-    par += strLastLagBFPar - Solver::strLastAlgPar;
+    par += idx_type( strLastLagBFPar ) - idx_type( Solver::strLastAlgPar );
    }
   return( par );
   }
@@ -1129,11 +1132,12 @@ class LagBFunction : public C05Function , public Block
   * to set_ComputeConfig() for details. */
 
  idx_type vint_par_is( idx_type par ) const {
-  if constexpr( Solver::vintLastAlgPar < vintLastLagBFPar ) {
+  if constexpr( idx_type( Solver::vintLastAlgPar ) <
+		idx_type( vintLastLagBFPar ) ) {
    if( par == Inf< idx_type >() )
     return( par );
    if( par >= Solver::vintLastAlgPar )
-    par += vintLastLagBFPar - Solver::vintLastAlgPar;
+    par += idx_type( vintLastLagBFPar ) - idx_type( Solver::vintLastAlgPar );
    }
   return( par );
   }
@@ -1146,11 +1150,12 @@ class LagBFunction : public C05Function , public Block
   * comments to set_ComputeConfig() for details. */
 
  idx_type vdbl_par_is( idx_type par ) const {
-  if constexpr( Solver::vdblLastAlgPar < vdblLastLagBFPar ) {
+  if constexpr( idx_type( Solver::vdblLastAlgPar ) <
+		idx_type( vdblLastLagBFPar ) ) {
    if( par == Inf< idx_type >() )
     return( par );
    if( par >= Solver::vdblLastAlgPar )
-    par += vdblLastLagBFPar - Solver::vdblLastAlgPar;
+    par += idx_type( vdblLastLagBFPar ) - idx_type( Solver::vdblLastAlgPar );
    }
   return( par );
   }
@@ -1163,11 +1168,12 @@ class LagBFunction : public C05Function , public Block
   * comments to set_ComputeConfig() for details. */
 
  idx_type vstr_par_is( idx_type par ) const {
-  if constexpr( Solver::vstrLastAlgPar < vstrLastLagBFPar ) {
+  if constexpr( idx_type( Solver::vstrLastAlgPar ) <
+		idx_type( vstrLastLagBFPar ) ) {
    if( par == Inf< idx_type >() )
     return( par );
    if( par >= Solver::vstrLastAlgPar )
-    par += vstrLastLagBFPar - Solver::vstrLastAlgPar;
+    par += idx_type( vstrLastLagBFPar ) - idx_type( Solver::vstrLastAlgPar );
    }
   return( par );
   }
@@ -1180,11 +1186,12 @@ class LagBFunction : public C05Function , public Block
   * set_ComputeConfig() for details. */
 
  idx_type int_par_lbf( idx_type par ) const {
-  if constexpr( Solver::intLastAlgPar < intLastLagBFPar ) {
+  if constexpr( idx_type( Solver::intLastAlgPar ) <
+		idx_type( intLastLagBFPar ) ) {
    if( par == Inf< idx_type >() )
     return( par );
    if( par >= intLastLagBFPar )
-    par -= intLastLagBFPar - Solver::intLastAlgPar;
+    par -= idx_type( intLastLagBFPar ) - idx_type( Solver::intLastAlgPar );
    }
   return( par );
   }
@@ -1197,11 +1204,12 @@ class LagBFunction : public C05Function , public Block
   * set_ComputeConfig() for details. */
 
  idx_type dbl_par_lbf( idx_type par ) const {
-  if constexpr( Solver::dblLastAlgPar < dblLastLagBFPar ) {
+  if constexpr( idx_type( Solver::dblLastAlgPar ) <
+		idx_type( dblLastLagBFPar ) ) {
    if( par == Inf< idx_type >() )
     return( par );
    if( par >= dblLastLagBFPar )
-    par -= dblLastLagBFPar - Solver::dblLastAlgPar;
+    par -= idx_type( dblLastLagBFPar ) - idx_type( Solver::dblLastAlgPar );
    }
   return( par );
   }
@@ -1214,11 +1222,12 @@ class LagBFunction : public C05Function , public Block
   * set_ComputeConfig() for details. */
 
  idx_type str_par_lbf( idx_type par ) const {
-  if constexpr( Solver::strLastAlgPar < strLastLagBFPar ) {
+  if constexpr( idx_type( Solver::strLastAlgPar ) <
+		idx_type( strLastLagBFPar ) ) {
    if( par == Inf< idx_type >() )
     return( par );
    if( par >= strLastLagBFPar )
-    par -= strLastLagBFPar - Solver::strLastAlgPar;
+    par -= idx_type( strLastLagBFPar ) - idx_type( Solver::strLastAlgPar );
    }
   return( par );
   }
@@ -1231,11 +1240,12 @@ class LagBFunction : public C05Function , public Block
   * set_ComputeConfig() for details. */
 
  idx_type vint_par_lbf( idx_type par ) const {
-  if constexpr( Solver::vintLastAlgPar < vintLastLagBFPar ) {
+  if constexpr( idx_type( Solver::vintLastAlgPar ) <
+		idx_type( vintLastLagBFPar ) ) {
    if( par == Inf< idx_type >() )
     return( par );
    if( par >= vintLastLagBFPar )
-    par -= vintLastLagBFPar - Solver::vintLastAlgPar;
+    par -= idx_type( vintLastLagBFPar ) - idx_type( Solver::vintLastAlgPar );
    }
   return( par );
   }
@@ -1248,11 +1258,12 @@ class LagBFunction : public C05Function , public Block
   * comments to set_ComputeConfig() for details. */
 
  idx_type vdbl_par_lbf( idx_type par ) const {
-  if constexpr( Solver::vdblLastAlgPar < vdblLastLagBFPar ) {
+  if constexpr( idx_type( Solver::vdblLastAlgPar ) <
+		idx_type( vdblLastLagBFPar ) ) {
    if( par == Inf< idx_type >() )
     return( par );
    if( par >= vdblLastLagBFPar )
-    par -= vdblLastLagBFPar - Solver::vdblLastAlgPar;
+    par -= idx_type( vdblLastLagBFPar ) - idx_type( Solver::vdblLastAlgPar );
    }
   return( par );
   }
@@ -1265,11 +1276,12 @@ class LagBFunction : public C05Function , public Block
   * comments to set_ComputeConfig() for details. */
 
  idx_type vstr_par_lbf( idx_type par ) const {
-  if constexpr( Solver::vstrLastAlgPar < vstrLastLagBFPar ) {
+  if constexpr( idx_type( Solver::vstrLastAlgPar ) <
+		idx_type( vstrLastLagBFPar ) ) {
    if( par == Inf< idx_type >() )
     return( par );
    if( par >= vstrLastLagBFPar )
-    par -= vstrLastLagBFPar - Solver::vstrLastAlgPar;
+    par -= idx_type( vstrLastLagBFPar ) - idx_type( Solver::vstrLastAlgPar );
    }
   return( par );
   }
@@ -1977,6 +1989,7 @@ class LagBFunction : public C05Function , public Block
    else {
     if( std::isnan( f_yb ) )
      throw( std::logic_error( "get_lower_estimate called before compute" ) );
+    lb *= inner_weight();
     return( f_yb > - Inf< FunctionValue >() ? lb + f_yb : lb );
     }
    }
@@ -1994,6 +2007,7 @@ class LagBFunction : public C05Function , public Block
    else {
     if( std::isnan( f_yb ) )
      throw( std::logic_error( "get_upper_estimate called before compute" ) );
+    ub *= inner_weight();
     return( f_yb > - Inf< FunctionValue >() ? ub + f_yb : ub );
     }
    }
@@ -2342,6 +2356,14 @@ class LagBFunction : public C05Function , public Block
    else
     return( C05Function::get_dflt_dbl_par( par ) );
    }
+
+  // those given in the scale of the LagBFunction [see f_up_cut]
+  if( ( par == dblUpCutOff ) && ( ! std::isnan( f_up_cut ) ) )
+   return( f_up_cut );
+  if( ( par == dblLwCutOff ) && ( ! std::isnan( f_lw_cut ) ) )
+   return( f_lw_cut );
+  if( ( par == dblAbsAcc ) && ( ! std::isnan( f_abs_acc ) ) )
+   return( f_abs_acc );
 
   if( auto is = inner_Solver() )
    switch( par ) {
@@ -2820,14 +2842,17 @@ class LagBFunction : public C05Function , public Block
 
 /*--------------------------------------------------------------------------*/
 
- OFValue get_objective_value( Block * blck ) {
+ // the values of the Objective of the sub-Block of blck, whose weight in
+ // the LagBFunction is w, each multiplied by its weight [see v_ObjW]
+ OFValue get_objective_value( Block * blck , double w ) {
   OFValue ret = 0;
   for( auto sb : blck->get_nested_Blocks() ) {
+   const double ws = w * sb->get_objective_weight();
    if( auto ro = dynamic_cast< RealObjective * >( sb->get_objective() ) ) {
     ro->compute();
-    ret += ro->value();
+    ret += ws * ro->value();
     }
-   ret += get_objective_value( sb );
+   ret += get_objective_value( sb , ws );
    }
   return( ret );
   }
@@ -2891,10 +2916,12 @@ class LagBFunction : public C05Function , public Block
   * jdeltas holds ( j , Delta_c_j ) for the changed CM columns of obj rc;
   * the j-th Variable value of each stored Solution is read by writing it into
   * the inner Block (the only general way, since reading inside a Solution is
-  * not possible without a write). Does nothing under lazy or NoSol. */
+  * not possible without a write); the update is multiplied by w, the
+  * weight of the Objective [see v_ObjW]. Does nothing under lazy or NoSol. */
 
  void eager_pool_cost_delta( const v_coeff_pair & rc ,
-	       const std::vector< std::pair< Index , double > > & jdeltas );
+	       const std::vector< std::pair< Index , double > > & jdeltas ,
+	       double w );
 
  /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// EAGER: remove original linear-cost terms from stored pool constants
@@ -2903,10 +2930,25 @@ class LagBFunction : public C05Function , public Block
   * their old original costs. Before changing CostMatrix, subtract
   * sum_j c_j x*_j from every eager full epigraphic constant. This is exact for
   * a LinearFunction Objective, including convexified pool entries, because the
-  * removed objective term is affine. Does nothing under lazy or NoSol. */
+  * removed objective term is affine; the update is multiplied by w, the
+  * weight of the Objective [see v_ObjW]. Does nothing under lazy or NoSol. */
 
  void eager_pool_cost_removal( c_Vec_p_Var & vars ,
-                               c_Vec_FunctionValue & costs );
+                               c_Vec_FunctionValue & costs , double w );
+
+ /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// writes entry k of the global pool in the inner Block, if it can
+ /** Writes the Solution of entry k of the global pool in the inner Block,
+  * returning false if there is none or if it gives a fixed Variable another
+  * value than the one it is fixed at [see ColVariable::set_value()], the
+  * write then stopping there. This happens when a Modification is handled
+  * after the inner Block has been changed further, e.g., by a Solver that
+  * holds the Modification of a sub-Block it has given back to its father
+  * while it does not need it: the entry is then no longer feasible, and the
+  * Modification of the fixing, which comes after, deletes it [see
+  * add_Modification()]. */
+
+ bool write_pool_entry( Index k );
 
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -2945,6 +2987,22 @@ class LagBFunction : public C05Function , public Block
   * already populated. */
 
  void populate_conv_active( Index name );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// true if the inner Solver has the value of the function at the point
+ /** True if the bound \p fv returned by get_value() is the value of the
+  * function, i.e., the other estimate is finite and equal to it, which is
+  * what the epigraphic constant of a linearization needs [see
+  * get_linearization_constant()]: an inner Solver stopped before the end
+  * (e.g., at a cutoff) has a bound on the wrong side of the function, and a
+  * linearization through it would cut the function off. */
+
+ bool inner_value_exact( FunctionValue fv ) {
+  const auto fo = is_convex() ? get_lower_estimate() : get_upper_estimate();
+  return( ( std::abs( fo ) < Inf< FunctionValue >() ) &&
+          ( std::abs( fo - fv ) <=
+            1e-9 * std::max( FunctionValue( 1 ) , std::abs( fv ) ) ) );
+  }
 
 /*--------------------------------------------------------------------------*/
 
@@ -3051,6 +3109,14 @@ class LagBFunction : public C05Function , public Block
  bool PushCostToOwner;  ///< true if sub-Block objectives are changed
 
  double f_cost_tol;     ///< rel. cost-change tolerance (dblCostTol)
+
+ /// the dblUpCutOff, dblLwCutOff and dblAbsAcc of the LagBFunction, NaN if
+ /// not set: the Solver of the inner Block, which does not see the weight W
+ /// of its Objective, has them divided by W, which is what compute() gives
+ /// it [see v_ObjW]
+ double f_up_cut = std::numeric_limits< double >::quiet_NaN();
+ double f_lw_cut = std::numeric_limits< double >::quiet_NaN();
+ double f_abs_acc = std::numeric_limits< double >::quiet_NaN();
 
  std::string f_chk_cfg_name;           ///< the file of strChkCfg
  Configuration * f_chk_cfg = nullptr;  ///< the Configuration it holds
@@ -3272,6 +3338,29 @@ class LagBFunction : public C05Function , public Block
 
  /// true if v_Obj[ h ] is a DQuadFunction, false if is a LinearFunction
  std::vector< bool > v_ObjIsQuad;
+
+ /// the weight of v_Obj[ h ] in the LagBFunction [see v_ObjW]
+ double obj_w( Index h ) const {
+  return( get_objective_weight() * v_ObjW[ h ] );
+  }
+
+ /// the weight of the Objective of the inner Block [see v_ObjW]
+ double inner_weight( void ) const {
+  return( v_ObjW.empty() ? get_objective_weight() : obj_w( 0 ) );
+  }
+
+ /// the weight of v_Obj[ h ] in the inner Block
+ /** The product of the weights of the Objective [see
+  * Block::set_objective_weight()] of v_BlockBFS[ h ] and of its ancestors
+  * up to the inner Block, the latter comprised; times the weight of the
+  * LagBFunction itself, which as their ancestor multiplies them, it is the
+  * factor by which the Objective of v_BlockBFS[ h ] enters the value of the
+  * LagBFunction [see obj_w()], the Lagrangian term entering with none. The
+  * Solver of the inner Block does not see the weight of the inner Block,
+  * and sees that of the others divided by it, hence the Lagrangian term
+  * written in v_Obj[ h ] is divided by obj_w( h ), and the value of the
+  * Solver is multiplied by obj_w( 0 ). */
+ std::vector< double > v_ObjW;
 
  /// fast lookup Block wrt its index h in v_BlockBFS and v_Obj
  std::unordered_map< const Block * , Index > Block2Idx;

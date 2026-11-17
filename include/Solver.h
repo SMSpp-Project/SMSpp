@@ -31,6 +31,7 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <atomic>
 #include <unordered_set>
 
 #include "Modification.h"
@@ -183,7 +184,7 @@ class Solver : public ThinComputeInterface
   *   specific error, kLowPrecision, is already provided for the case where
   *   the issue is not numerical, but inherent in what the solver is
   *   (heuristic, hence explicitly incapable of solving every instance to
-  *   optimality. */
+  *   optimality). */
 
  enum sol_type {
   kUnbounded = kUnEval + 1 ,  ///< the model is provably unbounded
@@ -780,7 +781,10 @@ class Solver : public ThinComputeInterface
  /** Move in the string parameters specific of Solver, together with
   * the parameters of ThinComputeInterface that Solver actually "listens to":
   *
-  * - strLogFileName [empty]: filename for the inner Solver log. */
+  * - strLogFileName [empty]: filename for the inner Solver log; the file is
+  *   opened (and emptied) when the name changes, the same name leaves the
+  *   file open as it is, and the empty name closes it, leaving alone a log
+  *   given with set_log(). */
 
  void set_par( idx_type par , std::string && value ) override;
 
@@ -798,6 +802,34 @@ class Solver : public ThinComputeInterface
 
  virtual void set_log( std::ostream * log_stream = nullptr ) {
   f_log = log_stream;
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// true if the Solver handles a change of the weights of a sub-Block
+ /** Returns true if the Solver handles a BlockWeightMod coming from a
+  * sub-Block of its Block, i.e., a change of the weight of the Objective or
+  * of the Variable of the sub-Block [see Block::set_objective_weight() and
+  * Block::set_variable_weight()], which changes the problem it solves. A
+  * Solver that does not is never left solving the old problem: the change
+  * is refused, with std::logic_error, before anything is changed. The
+  * default is false, a :Solver that handles it says so. */
+
+ [[nodiscard]] virtual bool handles_weight_change( void ) const {
+  return( false );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// true if the Solver applies the weights of the Variable of a sub-Block
+ /** Returns true if the Solver multiplies the coefficients of the Variable
+  * of a sub-Block of its Block in the Constraint outside of the sub-Block
+  * by their weight [see Block::set_variable_weight()]. A Solver that does
+  * not would silently solve another problem, hence it refuses, with
+  * std::logic_error, a Block below which a weight of the Variable is not 1
+  * [see set_Block()]. The default is false, a :Solver that applies them
+  * says so. */
+
+ [[nodiscard]] virtual bool handles_variable_weight( void ) const {
+  return( false );
   }
 
 /** @} ---------------------------------------------------------------------*/
@@ -1458,6 +1490,26 @@ class Solver : public ThinComputeInterface
   * of the "groups" of Variable of the Block, as returned by
   * get_static_variables() and get_dynamic_variables(), need be changed.
   *
+  * One format is however the same for every :Solver, since it does not
+  * depend on how the sub-Block of an instance are numbered: the "meta" one,
+  * i.e., a
+  *
+  *   SimpleConfiguration< std::map< std::string , Configuration * > >
+  *
+  * mapping the classname() of a Block to the Configuration of that Block.
+  * The Block of the tree, starting from the one of the Solver, whose
+  * classname() is a key (or that the special key "*" covers, if any) have
+  * their part of the solution written as the Configuration they are mapped
+  * to says, nullptr meaning all of it, sub-Block included; that
+  * Configuration can be any that the Solver understands for that Block, a
+  * positional one or a "meta" one in its turn, which then chooses among the
+  * sub-Block of that Block. A Block that is not a key is not written, but
+  * its sub-Block are looked at in turn [see for_each_selected()]. A Solver
+  * whose solution comes in pieces larger than a Block, say, the components
+  * of a decomposition, writes a piece whole if any Block in it is chosen
+  * [see has_selected()], and so it may write more than it is asked for, but
+  * never less.
+  *
   * As a consequence to the fact that get_var_solution() can retrieve only "a
   * part" of the solution information, it may make sense to call it more than
   * once for each call to has_var_solution() or new_var_solution() that
@@ -1708,7 +1760,7 @@ class Solver : public ThinComputeInterface
   *
   * - calls either get_var_solution() or get_var_direction() depending on
   *   which among has_var_solution() and has_var_direction() is true (if
-  *   none it returns nullptr, if both it check and returns solutions first)
+  *   none it returns nullptr, if both it checks and returns solutions first)
   *   to have the solution / direction written in the Variable of the Block;
   *
   * - calls Block::get_Solution() to retrieve the Solution object;
@@ -1787,7 +1839,7 @@ class Solver : public ThinComputeInterface
   * simply clone() it and return the thusly generated copy. When it does,
   * however,
   *
-  *    THE Solution OBJECT SHOULD BE ASKED TO THE Block WITH new_Solution(),
+  *    THE Solution OBJECT SHOULD BE ASKED TO THE Block WITH get_Solution(),
   *    RATHER THAN BE CONSTRUCTED BY NAME
   *
   * because the :Solution a :Block wants is the :Block's business, and a
@@ -1837,6 +1889,28 @@ class Solver : public ThinComputeInterface
  /// retrieve the Block this Solver is attached to (if any)
 
  [[nodiscard]] virtual Block * get_Block( void ) const { return( f_Block ); }
+
+/*--------------------------------------------------------------------------*/
+ /// the Block in which the solution of an eEverySolution event is
+ /** While an event of type eEverySolution is being called [see
+  * ThinComputeInterface::event_type], returns the Block that holds the
+  * solution that the event is about. It is the Block of this Solver [see
+  * get_Block()] unless the compute() solves each of the problems out of
+  * which its result is made on a copy of it: then it is that copy, a twin
+  * of the Block of this Solver (an AbstractPath built on the one leads to
+  * the same element of the other) whose data are those of the problem just
+  * solved. Out of such an event it returns get_Block().
+  *
+  * Writing the solution in the Block of this Solver instead would not do: a
+  * handler reads the solution together with the data of the problem it
+  * belongs to (say, the duals of some constraints together with their
+  * coefficients, to form a linearization), and those data are in the copy,
+  * while the Block of this Solver may even have Variable fixed at values
+  * that the solution of the copy does not have. */
+
+ [[nodiscard]] virtual Block * get_solution_Block( void ) const {
+  return( get_Block() );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// getting the "identity" of this Solver
@@ -1991,10 +2065,12 @@ class Solver : public ThinComputeInterface
  /** Returns the kinds of Modification [see Modification::ModConcern] that
   * the Solver reads, of which only the "kind" bits matter: the Block passes
   * the Solver only the Modification of those kinds [see
-  * Modification::is_of_concern()]. The base class reads all the kinds, which
-  * is what every Solver did before saying it; a Solver that, say, is only
-  * interested in the physical representation of its Block returns eModPhys,
-  * and is spared the abstract Modification. */
+  * Modification::is_of_concern_to()]. The base class reads all the kinds,
+  * which is what every Solver did before saying it; a Solver that, say, is
+  * only interested in the physical representation of its Block returns
+  * eModPhys, and is spared the abstract Modification, while one that only
+  * reads the abstract representation returns some of the abstract kinds
+  * (say, eModAbst), and is spared the physical ones. */
 
  [[nodiscard]] virtual Modification::ModConcern concerned_by( void ) const {
   return( Modification::eModAnything );

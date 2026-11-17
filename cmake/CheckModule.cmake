@@ -4,21 +4,18 @@
 # Decides whether the C++20 modules of SMS++ are built, and checks whether    #
 # the one of an SMS++ module can be. SMSpp_BUILD_MODULE is                    #
 #   - ON or OFF, if it is given (e.g., -DSMSpp_BUILD_MODULE=ON);              #
-#   - otherwise ON where the toolchain builds the modules and the compiler    #
-#     is Clang, and OFF elsewhere, MSVC included, where the modules are       #
-#     built only on request.                                                  #
+#   - otherwise ON where the toolchain builds the modules, and OFF elsewhere. #
 # Where a module cannot be built, smspp_check_module() turns                  #
 # SMSpp_BUILD_MODULE off in the calling directory, and the build goes on      #
 # without it, using the headers as when the option is OFF, instead of         #
 # failing halfway: with a warning that says why if the module was asked for,  #
 # with a status message if it was not. The module needs                       #
 #   - CMake 3.28 or later;                                                    #
-#   - the Ninja generator (Ninja 1.11 or later) or a Visual Studio one;       #
-#   - a compiler whose module dependencies CMake can scan and that accepts    #
-#     the headers of Eigen and Boost in a module: Clang 16 or MSVC 19.34 or   #
-#     later, and with Clang also clang-scan-deps (GCC, up to 15 at least,     #
-#     refuses the entities of internal linkage that those headers expose to   #
-#     the templates of a module);                                             #
+#   - a generator and a compiler that build a module and a unit that          #
+#     imports it and uses its templates, which a small module and a unit      #
+#     built at configure time tell [see module-check]: e.g., Ninja 1.11       #
+#     with Clang 16 and its clang-scan-deps, or MSVC 19.34, while GCC, up     #
+#     to 15 at least, builds the module but not the units that import it;     #
 #   - the modules it imports, i.e., the targets given as arguments (e.g.,     #
 #     SMS++::SMS++_module), which a dependency that was installed without     #
 #     its module does not have; they are looked for only when the module is   #
@@ -36,49 +33,58 @@
 #         ...                                                                 #
 # --------------------------------------------------------------------------- #
 
-# sets out to why the toolchain cannot build the modules, or to "" if it can
+# sets out to why the toolchain cannot build the modules, or to "" if it can:
+# a small module and a unit that imports it are built to tell [see
+# module-check], once per configuration, whose result the cache keeps
 function(_smspp_module_toolchain out)
     set(_why "")
     if (CMAKE_VERSION VERSION_LESS 3.28)
         set(_why "CMake ${CMAKE_VERSION} is older than 3.28")
-    elseif (CMAKE_GENERATOR MATCHES "^Ninja")
-        execute_process(COMMAND "${CMAKE_MAKE_PROGRAM}" --version
-                OUTPUT_VARIABLE _ninja OUTPUT_STRIP_TRAILING_WHITESPACE
-                RESULT_VARIABLE _res)
-        if (NOT _res EQUAL 0 OR _ninja VERSION_LESS 1.11)
-            set(_why "Ninja ${_ninja} is older than 1.11")
+    else ()
+        set(_scan "${CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS}")
+        if (NOT DEFINED SMSpp_MODULE_TOOLCHAIN)
+            # a separate run of CMake, since a generator that does not build
+            # modules makes try_compile() fail the whole configuration
+            set(_dir ${CMAKE_BINARY_DIR}/smspp-module-check)
+            set(_gen -G ${CMAKE_GENERATOR})
+            if (CMAKE_GENERATOR_PLATFORM)
+                list(APPEND _gen -A ${CMAKE_GENERATOR_PLATFORM})
+            endif ()
+            if (CMAKE_GENERATOR_TOOLSET)
+                list(APPEND _gen -T ${CMAKE_GENERATOR_TOOLSET})
+            endif ()
+            execute_process(COMMAND ${CMAKE_COMMAND} ${_gen}
+                    -S ${CMAKE_CURRENT_FUNCTION_LIST_DIR}/module-check
+                    -B ${_dir}
+                    -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
+                    -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
+                    -DCMAKE_CXX_COMPILER_CLANG_SCAN_DEPS=${_scan}
+                    RESULT_VARIABLE _rc OUTPUT_QUIET ERROR_QUIET)
+            if (_rc EQUAL 0)
+                execute_process(COMMAND ${CMAKE_COMMAND} --build ${_dir}
+                        RESULT_VARIABLE _rc OUTPUT_QUIET ERROR_QUIET)
+            endif ()
+            if (_rc EQUAL 0)
+                set(SMSpp_MODULE_TOOLCHAIN TRUE CACHE INTERNAL "")
+            else ()
+                set(SMSpp_MODULE_TOOLCHAIN FALSE CACHE INTERNAL "")
+            endif ()
         endif ()
-    elseif (NOT CMAKE_GENERATOR MATCHES "^Visual Studio")
-        set(_why "the generator ${CMAKE_GENERATOR} does not build modules \
-(Ninja or Visual Studio is needed)")
-    endif ()
-
-    if (NOT _why)
-        set(_id "${CMAKE_CXX_COMPILER_ID}")
-        set(_ver "${CMAKE_CXX_COMPILER_VERSION}")
-        if (_id STREQUAL "GNU")
-            set(_why "GCC refuses the entities of internal linkage (e.g., \
-Eigen::Dynamic) that the headers of Eigen and Boost expose to the templates \
-of a module (Clang 16 or MSVC 19.34 is needed)")
-        elseif (NOT ((_id STREQUAL "Clang" AND _ver VERSION_GREATER_EQUAL 16)
-                     OR (_id STREQUAL "MSVC"
-                         AND _ver VERSION_GREATER_EQUAL 19.34)))
-            set(_why "the compiler ${_id} ${_ver} does not scan the module \
-dependencies (Clang 16 or MSVC 19.34 is needed)")
-        elseif (_id STREQUAL "Clang"
-                AND NOT CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS)
-            set(_why "clang-scan-deps, which scans the module dependencies \
-for Clang, is not there (e.g., it is in clang-tools on Debian and Ubuntu)")
+        if (NOT SMSpp_MODULE_TOOLCHAIN)
+            set(_why "the generator ${CMAKE_GENERATOR} and the compiler \
+${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION} do not build a module \
+whose templates a unit that imports it can use [see the module-check of \
+SMS++/cmake]")
         endif ()
     endif ()
     set(${out} "${_why}" PARENT_SCOPE)
 endfunction()
 
-# the default: ON with Clang, where the toolchain builds the modules
+# the default: ON where the toolchain builds the modules
 if ((NOT DEFINED SMSpp_BUILD_MODULE) OR ("${SMSpp_BUILD_MODULE}" STREQUAL ""))
     set(SMSpp_BUILD_MODULE_AUTO TRUE)
     _smspp_module_toolchain(_smspp_why)
-    if ((CMAKE_CXX_COMPILER_ID STREQUAL "Clang") AND (NOT _smspp_why))
+    if (NOT _smspp_why)
         set(SMSpp_BUILD_MODULE ON)
     else ()
         set(SMSpp_BUILD_MODULE OFF)

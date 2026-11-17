@@ -116,6 +116,7 @@
 #include "Solver.h"
 
 #include <boost/bimap.hpp>
+#include <cmath>
 #include <filesystem>
 #include <list>
 #include <netcdf>
@@ -205,11 +206,11 @@ typedef Vec_Block::iterator Vec_Block_it;
  * dimensions. For dynamic Variable/Constraint, only the last dimension can
  * by varying. A group is a typed view over the container the :Block holds
  * [see BaseGroup], which is what lets a vector of Variable with an arbitrary
- * number of indices be handled; boost::multi_array implements them. Tools are provided so that both (multi-dimensional
- * vectors of lists of) *any possible derived class* from
- * Variable/Constraint, as well as (multi-dimensional vectors of lists of)
- * *pointers* to *any possible derived class* from Variable/Constraint, can
- * be handled.
+ * number of indices be handled; boost::multi_array implements them. Tools are
+ * provided so that both (multi-dimensional vectors of lists of) *any possible
+ * derived class* from Variable/Constraint, as well as (multi-dimensional
+ * vectors of lists of) *pointers* to *any possible derived class* from
+ * Variable/Constraint, can be handled.
  *
  * Block is a *base* class for representing the general concept of "a part of
  * a mathematical model with a well-understood identity"; in other words, it
@@ -592,10 +593,6 @@ class Block : public Observer {
  *   std::vector< Index >, although this may change) together with a
  *   [const] iterator [c_]Subset_it in it;
  *
- * - MF_dbl_it, a const_iterator into a std::vector< double >;
- *
- * - MF_int_it, a const_iterator into a std::vector< int >;
- *
  * - MF_dbl_sp, a std::span< const double >;
  *
  * - MF_int_sp, a std::span< const int >;
@@ -623,12 +620,10 @@ class Block : public Observer {
  * - arg_packer_helper and arg_packer (variadic template), helper types for
  *   template shenanigans for methods factory;
  *
- * - the types MS[_D]_S with D in { dbl , int } (or not there) and S in
- *   { rngd , sbst } representing the standard parameter type lists for
- *   functions to be inserted in the methods factory;
- *
- * - the MS_sp_D_S with D in { dbl , int }, the same lists with the data as
- *   a span;
+ * - the types MS_S with S in { rngd , sbst }, and MS_sp_D_S with D in
+ *   { dbl , int } and the same S, representing the standard parameter type
+ *   lists for functions to be inserted in the methods factory, without data
+ *   and with the data as a span, respectively;
  *
  * - the MS_qry_D_S with D in { dbl , int } and S in { rngd , sbst }, the
  *   lists for a getter writing its answer through a mutable span.
@@ -660,12 +655,6 @@ class Block : public Observer {
 
  using Subset_it = Subset::iterator;          ///< iterator in Subset
  using c_Subset_it = Subset::const_iterator;  ///< const iterator in Subset
-
- /// iterator for double data received by the functions in the methods factory
- using MF_dbl_it = std::vector< double >::const_iterator;
-
- /// iterator for int data received by the functions in the methods factory
- using MF_int_it = std::vector< int >::const_iterator;
 
  /// span for double data received by the functions in the methods factory
  using MF_dbl_sp = std::span< const double >;
@@ -734,37 +723,25 @@ class Block : public Observer {
  /// type for ( void , range ) functions
  using MS_rngd = arg_packer< Range >;
 
- /// type for ( double , range ) functions
- using MS_dbl_rngd = arg_packer< MF_dbl_it , Range >;
-
- /// type for ( int , range ) functions
- using MS_int_rngd = arg_packer< MF_int_it , Range >;
-
  /// type for ( void , subset ) functions
  using MS_sbst = arg_packer< Subset && , bool >;
 
- /// type for ( double , subset ) functions
- using MS_dbl_sbst = arg_packer< MF_dbl_it , Subset && , bool >;
-
- /// type for ( int , subset ) functions
- using MS_int_sbst = arg_packer< MF_int_it , Subset && , bool >;
-
- /// type for ( double , range ) functions, span form
+ /// type for ( double , range ) functions
  using MS_sp_dbl_rngd = arg_packer< MF_dbl_sp , Range >;
 
- /// type for ( int , range ) functions, span form
+ /// type for ( int , range ) functions
  using MS_sp_int_rngd = arg_packer< MF_int_sp , Range >;
 
- /// type for ( double , subset ) functions, span form
+ /// type for ( double , subset ) functions
  using MS_sp_dbl_sbst = arg_packer< MF_dbl_sp , Subset && , bool >;
 
- /// type for ( int , subset ) functions, span form
+ /// type for ( int , subset ) functions
  using MS_sp_int_sbst = arg_packer< MF_int_sp , Subset && , bool >;
 
- /// type for ( double , double , range ) functions, span form
+ /// type for ( double , double , range ) functions
  using MS_sp_dbl2_rngd = arg_packer< MF_dbl_sp , MF_dbl_sp , Range >;
 
- /// type for ( double , double , subset ) functions, span form
+ /// type for ( double , double , subset ) functions
  using MS_sp_dbl2_sbst = arg_packer< MF_dbl_sp , MF_dbl_sp , Subset && ,
                                      bool >;
 
@@ -805,16 +782,9 @@ class Block : public Observer {
 
  /// canonical factory types for the standard method signatures
  using MF_rngd_map = MethodsFactoryMap< FunctionType< Range > >;
- using MF_dbl_rngd_map = MethodsFactoryMap< FunctionType< MF_dbl_it , Range > >;
- using MF_int_rngd_map = MethodsFactoryMap< FunctionType< MF_int_it , Range > >;
-
  using MF_sbst_map = MethodsFactoryMap< FunctionType< Subset && , bool > >;
- using MF_dbl_sbst_map = MethodsFactoryMap< FunctionType<
-  MF_dbl_it , Subset && , bool > >;
- using MF_int_sbst_map = MethodsFactoryMap< FunctionType<
-  MF_int_it , Subset && , bool > >;
 
- /// the same data-carrying signatures in their span form
+ /// the data-carrying signatures, the data in a span
  using MF_sp_dbl_rngd_map = MethodsFactoryMap< FunctionType<
   MF_dbl_sp , Range > >;
  using MF_sp_int_rngd_map = MethodsFactoryMap< FunctionType<
@@ -1394,6 +1364,16 @@ class Block : public Observer {
   *   different parts of a Block mean); if "name" is not present, an empty
   *   name() results.
   *
+  * - the optional double attribute "ObjectiveWeight" that contains the
+  *   weight of the Objective of this Block [see set_objective_weight()],
+  *   which must be finite and not negative; if "ObjectiveWeight" is not
+  *   present, the weight is 1.
+  *
+  * - the optional double attribute "VariableWeight" that contains the
+  *   weight of the Variable of this Block [see set_variable_weight()],
+  *   which must be finite and not negative; if "VariableWeight" is not
+  *   present, the weight is 1.
+  *
   * - whatever other information is required by the specific :Block.
   *
   *      THIS IS THE METHOD TO BE IMPLEMENTED BY DERIVED CLASSES
@@ -1449,10 +1429,11 @@ class Block : public Observer {
   * Block1::deserialize() it would return Block2::classname(), and therefore
   * the check would pass.
   *
-  * So, what the method currently does is just to handle the optional "name"
-  * attribute. It does *not* handle the sub-Block, because there can
-  * hardly be any reasonably general way in which they can be structured
-  * (there can be different groups of sub-Block with different properties).
+  * So, what the method currently does is just to handle the optional
+  * "name", "ObjectiveWeight" and "VariableWeight" attributes. It does *not*
+  * handle the sub-Block, because there can hardly be any reasonably general
+  * way in which they can be structured (there can be different groups of
+  * sub-Block with different properties).
   * By not even trying, we can leave in this method only things that are
   * sensible for each and every :Block. Because of this
   *
@@ -1516,6 +1497,28 @@ class Block : public Observer {
    f_name.clear();
   else
    gname.getValues( f_name );
+
+  f_objective_weight = 1;
+  netCDF::NcGroupAtt gweight = group.getAtt( "ObjectiveWeight" );
+  if( ! gweight.isNull() ) {
+   double w;
+   gweight.getValues( & w );
+   if( ( ! std::isfinite( w ) ) || ( w < 0 ) )
+    throw( std::invalid_argument( "Block::deserialize: ObjectiveWeight "
+                                  "must be finite and not negative" ) );
+   f_objective_weight = w;
+   }
+
+  f_variable_weight = 1;
+  netCDF::NcGroupAtt gvweight = group.getAtt( "VariableWeight" );
+  if( ! gvweight.isNull() ) {
+   double s;
+   gvweight.getValues( & s );
+   if( ( ! std::isfinite( s ) ) || ( s < 0 ) )
+    throw( std::invalid_argument( "Block::deserialize: VariableWeight "
+                                  "must be finite and not negative" ) );
+   f_variable_weight = s;
+   }
 
   // issue a NBModification, the "nuclear option"
   if( anyone_there() )
@@ -2215,7 +2218,8 @@ class Block : public Observer {
 
  virtual void read_unlock( void ) {
   if( ( f_owner != ReadOnlyLock() ) && ( f_owner != v_ownersLock() ) )
-   throw( std::logic_error( "trying to read-unlock a non-read-locked Block" ) );
+   throw( std::logic_error(
+     "trying to read-unlock a non-read-locked Block" ) );
 
   // read-unlock all the sub-Block
   for( auto sb = v_Block.end() ; sb != v_Block.begin() ; )
@@ -2239,6 +2243,65 @@ class Block : public Observer {
   * property of the Block. */
 
  virtual void set_name( std::string && name ) { f_name = std::move( name ); }
+
+/*--------------------------------------------------------------------------*/
+ /// setting the weight of the Objective of the Block
+ /** Sets the weight \p w by which the Objective of this Block counts in any
+  * problem the Block is part of, e.g., the probability of the scenario the
+  * Block describes times the discount factor of its period. The Block is
+  * not changed: it is any Solver that assembles a problem out of nested
+  * Block which multiplies the Objective of each of them by the product of
+  * the weights along the path to the Block the Solver is attached to, the
+  * latter excluded [see get_objective_weight( const Block * )]. Hence, a
+  * Solver attached to this Block does not see the weight.
+  *
+  * The weight only concerns the Objective; the coefficients that the
+  * Variable of the Block have in the Constraint outside of it are scaled by
+  * the weight of the Variable [see set_variable_weight()], and changing
+  * both by the same factor [see set_weight()] is the scaling of the whole
+  * Block, e.g., a number of identical copies of it.
+  *
+  * A change issues a BlockWeightMod. A Solver attached to an ancestor has
+  * to handle it, and std::logic_error is thrown, before anything is
+  * changed, if any of them cannot [see Solver::handles_weight_change()]; one
+  * attached to this Block does not see the weight. The ancestors are looked
+  * at up to the first one that is a Function (say, the LagBFunction or the
+  * BendersBFunction whose inner Block this Block is in), which tells those
+  * above it of the change as a change of itself. std::invalid_argument is
+  * thrown if \p w is negative or not finite; a weight of 0 makes the
+  * Objective of the Block count for nothing (say, a unit of which there is
+  * no copy), and a Solver that divides by it has to treat it apart. */
+
+ void set_objective_weight( double w , c_ModParam issueMod = eModBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// setting the weight of the Variable of the Block
+ /** Sets the weight \p s by which the coefficients that the Variable of this
+  * Block, and of its sub-Block, have in the Constraint outside of it are
+  * multiplied, e.g., the number of identical copies of a unit in the
+  * balance of the nodes it feeds; the Constraint of the Block itself, and
+  * its Objective, are not concerned [see set_objective_weight()]. As for
+  * the weight of the Objective, the Block is not changed: a Solver that
+  * assembles a problem out of nested Block multiplies the coefficient of a
+  * Variable in a Constraint by the product of the weights of the Variable
+  * along the path from the Block of the Variable up to the closest Block
+  * that contains both, the latter excluded [see get_variable_weight( const
+  * Block * )].
+  *
+  * Modification and exceptions as for set_objective_weight(). */
+
+ void set_variable_weight( double s , c_ModParam issueMod = eModBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// setting both the weights of the Block
+ /** Sets the weight of the Objective and that of the Variable [see
+  * set_objective_weight() and set_variable_weight()] to the same \p k, i.e.,
+  * scales the whole Block as k identical copies of it would; a single
+  * BlockWeightMod saying that both have changed is issued. It is virtual so
+  * that a :Block for which the two changing together means something more
+  * can react to it. */
+
+ virtual void set_weight( double k , c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// setting the BlockConfig
@@ -2707,9 +2770,9 @@ class Block : public Observer {
   * object for each of these.
   *
   * Note that not all "groups" (families) of "abstract" dynamic Constraint may
-  * have been constructed [see generate_abstract_constraints()]. This does *not*
-  * mean that those that have not been constructed may not be generated: if
-  * this is done, only the "physical representation" of these is generated,
+  * have been constructed [see generate_abstract_constraints()]. This does
+  * *not* mean that those that have not been constructed may not be generated:
+  * if this is done, only the "physical representation" of these is generated,
   * and the "abstract" one is not.
   *
   * Note that the dycc parameter is meant as an *override* of the default
@@ -2812,6 +2875,46 @@ class Block : public Observer {
  /// getting the string name of this Block
 
  const std::string & name( void ) const { return( f_name ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// getting the weight of the Objective of this Block
+ /** Returns the weight of the Objective of this Block, 1 unless set
+  * otherwise [see set_objective_weight()]. */
+
+ double get_objective_weight( void ) const { return( f_objective_weight ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// getting the weight of the Objective of this Block within an ancestor
+ /** Returns the product of the weights of the Objective [see
+  * set_objective_weight()] of this Block and of all its ancestors up to
+  * \p ancestor, the latter excluded, i.e., the factor by which a Solver
+  * attached to \p ancestor multiplies the Objective of this Block; it is 1
+  * if \p ancestor is this Block, and if \p ancestor is nullptr the product
+  * goes up to the root, included. std::invalid_argument is thrown if
+  * \p ancestor is neither this Block nor one of its ancestors. */
+
+ double get_objective_weight( const Block * ancestor ) const;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// getting the weight of the Variable of this Block
+ /** Returns the weight of the Variable of this Block, 1 unless set otherwise
+  * [see set_variable_weight()]. */
+
+ double get_variable_weight( void ) const { return( f_variable_weight ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// getting the weight of the Variable of this Block within another Block
+ /** Returns the factor by which the coefficients that the Variable of this
+  * Block have in a Constraint of the Block \p cblock are multiplied, i.e.,
+  * the product of the weights of the Variable [see set_variable_weight()]
+  * of this Block and of its ancestors up to the closest one that is also
+  * \p cblock or an ancestor of it, the latter excluded: it is 1 if this
+  * Block is \p cblock or one of its descendants, as a Constraint of a Block
+  * is not outside of it, and if \p cblock is nullptr the product goes up to
+  * the root, included. std::invalid_argument is thrown if the two Block are
+  * not in the same tree. */
+
+ double get_variable_weight( const Block * cblock ) const;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// getting the "father" Block of this Block
@@ -3206,9 +3309,9 @@ class Block : public Observer {
  /// the groups of static Constraint of the Block
  /** One group for each group of static Constraint the :Block has registered,
   * in the order they were registered. A group is nullptr when that group
-  * has not been constructed yet [see generate_abstract_constraints()]; otherwise it
-  * says the type of its elements, its shape and its name, and gives
-  * access to the elements without knowing the type of the container that
+  * has not been constructed yet [see generate_abstract_constraints()];
+  * otherwise it says the type of its elements, its shape and its name, and
+  * gives access to the elements without knowing the type of the container that
   * holds them [see BaseGroup].
   *
   * Note that this is the "abstract representation" of the Block, which is
@@ -3295,7 +3398,8 @@ class Block : public Observer {
  template< class Const >
  std::enable_if_t< std::is_base_of_v< Constraint , Const > ,
   std::vector< Const > * > get_static_constraint_v( Index i ) const {
-  return( group_container< std::vector< Const > >( v_s_Constraint_groups , i ) );
+  return( group_container< std::vector< Const > >( v_s_Constraint_groups ,
+						   i ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3309,7 +3413,8 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Constraint , Const > ,
   std::vector< Const > * >
  get_static_constraint_v( const std::string & name ) const {
-  return( group_container< std::vector< Const > >( v_s_Constraint_groups , name ) );
+  return( group_container< std::vector< Const > >( v_s_Constraint_groups ,
+						   name ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3322,7 +3427,8 @@ class Block : public Observer {
  template< class Const , unsigned short K >
  std::enable_if_t< std::is_base_of_v< Constraint , Const > ,
   boost::multi_array< Const , K > * > get_static_constraint( Index i ) const {
-  return( group_container< boost::multi_array< Const , K > >( v_s_Constraint_groups , i ) );
+  return( group_container< boost::multi_array< Const , K > >(
+                                                 v_s_Constraint_groups , i ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3336,15 +3442,16 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Constraint , Const > ,
   boost::multi_array< Const , K > * >
  get_static_constraint( const std::string & name ) const {
-  return( group_container< boost::multi_array< Const , K > >( v_s_Constraint_groups , name ) );
+  return( group_container< boost::multi_array< Const , K > >(
+                                              v_s_Constraint_groups , name ) );
   }
 
 /*--------------------------------------------------------------------------*/
  /// the groups of static Variable of the Block
  /** One group for each group of static Variable the :Block has registered,
   * in the order they were registered. A group is nullptr when that group
-  * has not been constructed yet [see generate_abstract_variables()]; otherwise it
-  * says the type of its elements, its shape and its name, and gives
+  * has not been constructed yet [see generate_abstract_variables()]; otherwise
+  * it says the type of its elements, its shape and its name, and gives
   * access to the elements without knowing the type of the container that
   * holds them [see BaseGroup].
   *
@@ -3448,7 +3555,8 @@ class Block : public Observer {
  template< class Var >
  std::enable_if_t< std::is_base_of_v< Variable , Var > , std::vector< Var > * >
  get_static_variable_v( const std::string & name ) const {
-  return( group_container< std::vector< Var > >( v_s_Variable_groups , name ) );
+  return( group_container< std::vector< Var > >( v_s_Variable_groups ,
+						 name ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3462,7 +3570,8 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Variable , Var > ,
   boost::multi_array< Var , K > * >
  get_static_variable( Index i ) const {
-  return( group_container< boost::multi_array< Var, K > >( v_s_Variable_groups , i ) );
+  return( group_container< boost::multi_array< Var, K > >(
+                                                   v_s_Variable_groups , i ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3476,16 +3585,17 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Variable, Var > ,
   boost::multi_array< Var , K > * >
  get_static_variable( const std::string & name ) const {
-  return( group_container< boost::multi_array< Var, K > >( v_s_Variable_groups , name ) );
+  return( group_container< boost::multi_array< Var, K > >(
+                                                v_s_Variable_groups , name ) );
   }
 
 /*--------------------------------------------------------------------------*/
  /// the groups of dynamic Constraint of the Block
  /** One group for each group of dynamic Constraint the :Block has registered,
   * in the order they were registered. A group is nullptr when that group
-  * has not been constructed yet [see generate_abstract_constraints()]; otherwise it
-  * says the type of its elements, its shape and its name, and gives
-  * access to the elements without knowing the type of the container that
+  * has not been constructed yet [see generate_abstract_constraints()];
+  * otherwise it says the type of its elements, its shape and its name, and
+  * gives access to the elements without knowing the type of the container that
   * holds them [see BaseGroup].
   *
   * Note that this is the "abstract representation" of the Block, which is
@@ -3589,7 +3699,8 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Constraint , Const > ,
   std::list< Const > * >
  get_dynamic_constraint( const std::string & name ) const {
-  return( group_container< std::list< Const > >( v_d_Constraint_groups , name ) );
+  return( group_container< std::list< Const > >( v_d_Constraint_groups ,
+						 name ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3603,7 +3714,8 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Constraint , Const > ,
   std::vector< std::list< Const > > * >
  get_dynamic_constraint_v( Index i ) const {
-  return( group_container< std::vector< std::list< Const > > >( v_d_Constraint_groups , i ) );
+  return( group_container< std::vector< std::list< Const > > >(
+                                                 v_d_Constraint_groups , i ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3617,7 +3729,8 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Constraint , Const > ,
   std::vector< std::list< Const > > * >
  get_dynamic_constraint_v( const std::string & name ) const {
-  return( group_container< std::vector< std::list< Const > > >( v_d_Constraint_groups , name ) );
+  return( group_container< std::vector< std::list< Const > > >(
+                                              v_d_Constraint_groups , name ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3631,7 +3744,8 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Constraint , Const > ,
   boost::multi_array< std::list< Const > , K > * >
  get_dynamic_constraint( Index i ) const {
-  return( group_container< boost::multi_array< std::list< Const > , K > >( v_d_Constraint_groups , i ) );
+  return( group_container< boost::multi_array< std::list< Const > , K > >(
+                                                 v_d_Constraint_groups , i ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3646,15 +3760,16 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Constraint , Const > ,
   boost::multi_array< std::list< Const > , K > * >
  get_dynamic_constraint( const std::string & name ) const {
-  return( group_container< boost::multi_array< std::list< Const > , K > >( v_d_Constraint_groups , name ) );
+  return( group_container< boost::multi_array< std::list< Const > , K > >(
+                                              v_d_Constraint_groups , name ) );
   }
 
 /*--------------------------------------------------------------------------*/
  /// the groups of dynamic Variable of the Block
  /** One group for each group of dynamic Variable the :Block has registered,
   * in the order they were registered. A group is nullptr when that group
-  * has not been constructed yet [see generate_abstract_variables()]; otherwise it
-  * says the type of its elements, its shape and its name, and gives
+  * has not been constructed yet [see generate_abstract_variables()]; otherwise
+  * it says the type of its elements, its shape and its name, and gives
   * access to the elements without knowing the type of the container that
   * holds them [see BaseGroup].
   *
@@ -3802,7 +3917,8 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Variable , Var > ,
   std::vector< std::list< Var > > * >
  get_dynamic_variable_v( Index i ) const {
-  return( group_container< std::vector< std::list< Var > > >( v_d_Variable_groups , i ) );
+  return( group_container< std::vector< std::list< Var > > >(
+                                                   v_d_Variable_groups , i ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3816,7 +3932,8 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Variable , Var > ,
   std::vector< std::list< Var > > * >
  get_dynamic_variable_v( const std::string & name ) const {
-  return( group_container< std::vector< std::list< Var > > >( v_d_Variable_groups , name ) );
+  return( group_container< std::vector< std::list< Var > > >(
+                                                v_d_Variable_groups , name ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3830,7 +3947,8 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Variable , Var > ,
   boost::multi_array< std::list< Var > , K > * >
  get_dynamic_variable( Index i ) const {
-  return( group_container< boost::multi_array< std::list< Var > , K > >( v_d_Variable_groups , i ) );
+  return( group_container< boost::multi_array< std::list< Var > , K > >(
+                                                   v_d_Variable_groups , i ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3845,7 +3963,8 @@ class Block : public Observer {
  std::enable_if_t< std::is_base_of_v< Variable , Var > ,
   boost::multi_array< std::list< Var > , K > * >
  get_dynamic_variable( const std::string & name ) const {
-  return( group_container< boost::multi_array< std::list< Var > , K > >( v_d_Variable_groups , name ) );
+  return( group_container< boost::multi_array< std::list< Var > , K > >(
+                                                v_d_Variable_groups , name ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -3857,7 +3976,8 @@ class Block : public Observer {
 
  const std::string & get_s_const_name( Index i ) const {
   static const std::string _empty;
-  if( ( i >= v_s_Constraint_groups.size() ) || ( ! v_s_Constraint_groups[ i ] ) )
+  if( ( i >= v_s_Constraint_groups.size() ) ||
+      ( ! v_s_Constraint_groups[ i ] ) )
    return( _empty );
   return( v_s_Constraint_groups[ i ]->get_name() );
   }
@@ -3871,7 +3991,8 @@ class Block : public Observer {
  Index get_s_const_index( const std::string & name ) const {
   Index i = 0;
   for( ; i < v_s_Constraint_groups.size() ; ++i )
-   if( v_s_Constraint_groups[ i ] && ( v_s_Constraint_groups[ i ]->get_name() == name ) )
+   if( v_s_Constraint_groups[ i ] &&
+       ( v_s_Constraint_groups[ i ]->get_name() == name ) )
     break;
   return( i );
   }
@@ -3899,7 +4020,8 @@ class Block : public Observer {
  Index get_s_var_index( const std::string & name ) const {
   Index i = 0;
   for( ; i < v_s_Variable_groups.size() ; ++i )
-   if( v_s_Variable_groups[ i ] && ( v_s_Variable_groups[ i ]->get_name() == name ) )
+   if( v_s_Variable_groups[ i ] &&
+       ( v_s_Variable_groups[ i ]->get_name() == name ) )
     break;
   return( i );
   }
@@ -3913,7 +4035,8 @@ class Block : public Observer {
 
  const std::string & get_d_const_name( Index i ) const {
   static const std::string _empty;
-  if( ( i >= v_d_Constraint_groups.size() ) || ( ! v_d_Constraint_groups[ i ] ) )
+  if( ( i >= v_d_Constraint_groups.size() ) ||
+      ( ! v_d_Constraint_groups[ i ] ) )
    return( _empty );
   return( v_d_Constraint_groups[ i ]->get_name() );
   }
@@ -3927,7 +4050,8 @@ class Block : public Observer {
  Index get_d_const_index( const std::string & name ) const {
   Index i = 0;
   for( ; i < v_d_Constraint_groups.size() ; ++i )
-   if( v_d_Constraint_groups[ i ] && ( v_d_Constraint_groups[ i ]->get_name() == name ) )
+   if( v_d_Constraint_groups[ i ] &&
+       ( v_d_Constraint_groups[ i ]->get_name() == name ) )
     break;
   return( i );
   }
@@ -3955,7 +4079,8 @@ class Block : public Observer {
  Index get_d_var_index( const std::string & name ) const {
   Index i = 0;
   for( ; i < v_d_Variable_groups.size() ; ++i )
-   if( v_d_Variable_groups[ i ] && ( v_d_Variable_groups[ i ]->get_name() == name ) )
+   if( v_d_Variable_groups[ i ] &&
+       ( v_d_Variable_groups[ i ]->get_name() == name ) )
     break;
   return( i );
   }
@@ -4696,7 +4821,7 @@ class Block : public Observer {
   * decision), then is_optimal( false ) and is_optimal( true ), called in this
   * order, should indeed give the same result. See also the comments to
   * is_feasible() for the cases where the check using the "abstract
-  * representation" may give different results that that using the "physical"
+  * representation" may give different results than that using the "physical"
   * one.
   *
   * The parameter optc, which is a pointer to an arbitrarily complex
@@ -4750,10 +4875,10 @@ class Block : public Observer {
   *
   * This is to is_optimal( bool , Configuration * ) exactly what
   * is_sol_feasible( Solution * , Configuration * ) is to is_feasible(
-  * bool , Configuration * ): the values are read out of sol rather than out of the
-  * Variable of the Block, so that the solution a "physical" Solver produces
-  * [see Solver::get_Solution()] can be checked even if the Block has no
-  * "abstract representation". Note that proving optimality typically
+  * bool , Configuration * ): the values are read out of sol rather than out of
+  * the Variable of the Block, so that the solution a "physical" Solver
+  * produces [see Solver::get_Solution()] can be checked even if the Block has
+  * no "abstract representation". Note that proving optimality typically
   * requires a dual solution, hence sol has to carry one; if it does not,
   * the method must not return true.
   *
@@ -4805,12 +4930,12 @@ class Block : public Observer {
   * performed using the "abstract representation" of the Block, otherwise
   * the "physical representation" of the Block should be used. See the
   * comments to is_feasible() for the cases where the check using the
-  * "abstract representation" may give different results that that using
+  * "abstract representation" may give different results than that using
   * the "physical" one. Also, as in is_feasible(), this value has to be taken
   * as a clue rather than as an order, in the sense that if the required
   * representation is not available then the Block should still do its best to
   * return a meaningful return value with the information it does possess,
-  * even if not the intended one
+  * even if not the intended one.
   *
   * Checking the property is likely to entail some numerical computation, say
   * to verify that some matrix-vector scalar product is "zero". This may
@@ -4822,7 +4947,7 @@ class Block : public Observer {
   * used to specify that only "a part" of the check, say considering only a
   * subset of the Constraint, need be performed.
   *
-  * Note that the fsbc parameter is meant as an *override* of the default
+  * Note that the optc parameter is meant as an *override* of the default
   * Configuration for is_optimal() set by means of set_BlockConfig(). That
   * is, if the method is called with optc == nullptr then the corresponding
   * configuration from the BlockConfig() is used. If the BlockConfig is not
@@ -5325,11 +5450,14 @@ class Block : public Observer {
   * Modification it produces, or which Modification need be mapped
   * "immediately".
   *
-  * The method is given a default implementation returning false if \p mod
-  * refers to this; otherwise it seeks \p mod in the list of inner Block
-  * of this, and if it finds it calls map_forward_Modification() of the
-  * inner Block and the corresponding inner Block of R3B (if any, otherwise
-  * false is returned).
+  * The method is given a default implementation that, if \p R3B is a
+  * mirror of this [see AbstractBlock::mirror()], has the mirror apply the
+  * change [see AbstractBlock::mirror_forward_Modification()] issuing the
+  * Modification of the copy as \p issueAMod says. Otherwise, it returns
+  * false if \p mod refers to this, and else it seeks \p mod in the list of
+  * inner Block of this, and if it finds it calls map_forward_Modification()
+  * of the inner Block and the corresponding inner Block of R3B (if any,
+  * otherwise false is returned).
   *
   * If \p *r3bc is a SimpleConfiguration< std::vector< Configuration * >,
   * then the i-th element of the vector is passed as the r3bc parameter
@@ -5382,17 +5510,16 @@ class Block : public Observer {
   * list top-to-bottom and calling map_forward_Modification() on each
   * element in turn. */
 
- virtual void map_forward_Modifications( Block * R3B , Lst_sp_Mod lmod ,
+ virtual void map_forward_Modifications( Block * R3B , Lst_sp_Mod & lmod ,
                                          Configuration * r3bc = nullptr ,
                                          ModParam issuePMod = eNoBlck ,
                                          ModParam issueAMod = eModBlck ) {
-  for( auto mit = lmod.begin() ; mit != lmod.end() ; ) {
-   auto nmit = ++mit;
+  for( auto mit = lmod.begin() ; mit != lmod.end() ; )
    if( map_forward_Modification( R3B , mit->get() , r3bc ,
 				 issuePMod , issueAMod ) )
-    lmod.erase( mit );
-   mit = nmit;
-   }
+    mit = lmod.erase( mit );
+   else
+    ++mit;
   }
 
 /*--------------------------------------------------------------------------*/
@@ -5492,17 +5619,16 @@ class Block : public Observer {
   *
   * See the comments to map_forward_Modifications(). */
 
- virtual void map_back_Modifications( Block * R3B , Lst_sp_Mod lmod ,
+ virtual void map_back_Modifications( Block * R3B , Lst_sp_Mod & lmod ,
                                       Configuration * r3bc = nullptr ,
                                       ModParam issuePMod = eNoBlck ,
                                       ModParam issueAMod = eModBlck ) {
-  for( auto mit = lmod.begin() ; mit != lmod.end() ; ) {
-   auto nmit = ++mit;
+  for( auto mit = lmod.begin() ; mit != lmod.end() ; )
    if( map_back_Modification( R3B , mit->get() , r3bc ,
                               issuePMod , issueAMod ) )
-    lmod.erase( mit );
-   mit = nmit;
-   }
+    mit = lmod.erase( mit );
+   else
+    ++mit;
   }
 
 /** @} ---------------------------------------------------------------------*/
@@ -5791,6 +5917,12 @@ class Block : public Observer {
    v_Solver.push_front( newSolver );
   else
    v_Solver.push_back( newSolver );
+
+  // set_Block() may have had sub-Block constructed (say, by generating the
+  // abstract representation), and those know nothing yet
+  if( ! f_at )
+   for( auto el : v_Block )
+    el->anyone_there( true );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -5934,8 +6066,9 @@ class Block : public Observer {
  *      FACTORY FOR F IS SELECTED.
  *
  * For the standard function signatures supported by Block (such as the
- * predefined MS[_D]_S families), methods< F >() returns a reference to a
- * unique, centralized factory owned by the core Block implementation.
+ * predefined MS_S and MS_sp_D_S families), methods< F >() returns a
+ * reference to a unique, centralized factory owned by the core Block
+ * implementation.
  * This avoids having separate copies of the same methods factory in
  * different translation units or shared libraries.
  *
@@ -6001,12 +6134,9 @@ class Block : public Observer {
  *   std::vector< Index >, although this may change) together with a
  *   [const] iterator [c_]Subset_it in it;
  *
- * - MF_dbl_it, a const_iterator into a std::vector< double >;
- *
- * - MF_int_it, a const_iterator into a std::vector< int >;
- *
- * - MF_dbl_sp and MF_int_sp, the same data as spans, and MF_dbl_msp and
- *   MF_int_msp, the mutable spans a getter writes its answer through;
+ * - MF_dbl_sp and MF_int_sp, spans of the double and int data received by
+ *   a setter, and MF_dbl_msp and MF_int_msp, the mutable spans a getter
+ *   writes its answer through;
  *
  * These are thought to form the basis of "most" data-changing and
  * data-reading member functions in any :Block class. In particular,
@@ -6017,8 +6147,7 @@ class Block : public Observer {
  *
  * where:
  *
- * - data is either not there, or one of MF_dbl_it, MF_int_it, MF_dbl_sp
- *   and MF_int_sp;
+ * - data is either not there, or one of MF_dbl_sp and MF_int_sp;
  *
  * - slice indicates a subset of the data, in two possible forms:
  *
@@ -6038,16 +6167,14 @@ class Block : public Observer {
  *     A getter does not consume the Subset, and takes a c_Subset &
  *     instead.
  *
- *   Note that, if present, the provided  MF_X_it (call it "iter") must
- *   point to a std::vector< X > at least as long (after the position
- *   pointed by iter) as how many elements are there in the slice, and
- *   the X value *( iter + h ) has to be taken as the new value for the
- *   data structure in the :Block corresponding to the h-th Index in slice.
- *
- *   If the data travels in a span, the span is the same "at least as long"
- *   buffer, and one shorter than the slice is an error the function can
- *   report instead of reading past the end. A getter writing through a
- *   mutable span writes the h-th value for the h-th Index in slice.
+ *   Note that, if present, the provided span (call it "data") must be at
+ *   least as long as how many elements are there in the slice, and the
+ *   value data[ h ] has to be taken as the new value for the data structure
+ *   in the :Block corresponding to the h-th Index in slice; a span shorter
+ *   than the slice is an error, that the function reports by throwing
+ *   std::invalid_argument instead of reading past its end. A getter
+ *   writing through a mutable span writes the h-th value for the h-th
+ *   Index in slice.
  *
  *   Those of a getter have the same form, with a mutable span as data,
  *   MF_dbl_msp or MF_int_msp, and no ModParam.
@@ -6055,7 +6182,7 @@ class Block : public Observer {
  *   An item of the slice may carry two values instead of one, say a unit
  *   with two sizes: a setter then takes two MF_dbl_sp, the h-th value of
  *   each for the h-th Index in slice, and a getter two MF_dbl_msp, written
- *   the same way. These come only with spans.
+ *   the same way.
  *
  *   A parameter that is a single scalar, say the size of a unit, comes with
  *   no slice at all: a setter ( double , ModParam , ModParam ), MS_dbl, and
@@ -6063,16 +6190,16 @@ class Block : public Observer {
  *   MS_qry_dbl2 are the same for a pair of scalars, say the two sizes of a
  *   unit.
  *
- * These parameter type lists are "encoded" in the predefined types
- * MS[_D]_S with D in { dbl , int } (or not there) and S in { rngd , sbst },
- * representing (in obvious ways) the possible interfaces; the MS_sp_D_S,
- * with D in { dbl , int }, are the same ones with the data as a span, and
- * the MS_qry_D_S, with the same D, those of a getter writing through a
- * mutable span; MS_sp_dbl2_S and MS_qry_dbl2_S are the setter and the
- * getter with two values per Index. Specific versions of register_method(), get_method_fs(),
- * get_method_name_fs() and get_query_fs() are provided which take a final
+ * These parameter type lists are "encoded" in the predefined types MS_S,
+ * with S in { rngd , sbst }, for a setter without data, MS_sp_D_S, with D
+ * in { dbl , int } and the same S, for a setter with its data in a span,
+ * and MS_qry_D_S, with the same D, for a getter writing through a mutable
+ * span; MS_sp_dbl2_S and MS_qry_dbl2_S are the setter and the getter with
+ * two values per Index. Specific versions of register_method(),
+ * get_method_fs(), get_method_name_fs() and get_query_fs() are provided
+ * which take a final
  *
- *     MS[_D]_S::args()
+ *     MS_[sp_D_]S::args()
  *
  * parameter (don't ask why the "args", that's pretty weird template wizardry)
  * specifying the type of function to be inserted in the methods factory.
@@ -6094,19 +6221,19 @@ class Block : public Observer {
  * class NetworkBlock : Block representing (an optimization problem defined
  * over some) weighted graph. NetworkBlock may have two functions
  *
- *     void set_arc_weight( MF_dbl_it , Range , ModParam , ModParam );
+ *     void set_arc_weight( MF_dbl_sp , Range , ModParam , ModParam );
  *
- *     void set_arc_weight( MF_dbl_it , Subset && , bool ,
+ *     void set_arc_weight( MF_dbl_sp , Subset && , bool ,
  *                          ModParam , ModParam );
  *
  * for changing the weights in the arcs of the graph. These functions can be
  * registered straight away in the methods factory by just calling anywhere
  *
- *     register_method< NetworkBlock , MF_dbl_it , Range>(
+ *     register_method< NetworkBlock , MF_dbl_sp , Range>(
  *                                         "NetworkBlock::set_arc_weight" ,
  *                                         & NetworkBlock::set_arc_weight );
  *
- *     register_method< NetworkBlock , MF_dbl_it , Subset && , const bool >(
+ *     register_method< NetworkBlock , MF_dbl_sp , Subset && , const bool >(
  *                                         "NetworkBlock::set_arc_weight" ,
  *                                         & NetworkBlock::set_arc_weight );
  *
@@ -6136,24 +6263,29 @@ class Block : public Observer {
  * A user who would like to have a function in the methods factory for setting
  * the weight of subsets of arcs could implement the following functions:
  *
- *     void set_weight_range( Block * block , MF_dbl_it begin ,
+ *     void set_weight_range( Block * block , MF_dbl_sp data ,
  *                            Range range , ModParam issuePMod = eNoBlc ,
  *                                          ModParam issueAMod = eModBlck ) {
- *      for( Index i = range.first ; i < range.second ; ++i , ++begin )
- *       static_cast< NetworkBlock * >( block )->set_arc_weight( i , *begin ,
- *                                                               issuePMod ,
- *                                                               issueAMod );
+ *      if( data.size() < range.second - range.first )
+ *       throw( std::invalid_argument( "set_weight_range: the span is "
+ *                                     "shorter than the Range" ) );
+ *      for( Index i = range.first ; i < range.second ; ++i )
+ *       static_cast< NetworkBlock * >( block )->set_arc_weight( i ,
+ *                                                data[ i - range.first ] ,
+ *                                                issuePMod , issueAMod );
  *      }
  *
- *     void set_weight_subset( Block * block , MF_dbl_it begin ,
+ *     void set_weight_subset( Block * block , MF_dbl_sp data ,
  *                             Subset && sbst , bool ordered = false ,
  *                             ModParam issuePMod = eNoBlc ,
  *                             ModParam issueAMod = eModBlck ) {
- *      for( auto i : sbst )
- *       static_cast< NetworkBlock * >( block )->set_arc_weight( i ,
- *                                                               *(begin++) ,
- *                                                               issuePMod ,
- *                                                               issueAMod );
+ *      if( data.size() < sbst.size() )
+ *       throw( std::invalid_argument( "set_weight_subset: the span is "
+ *                                     "shorter than the Subset" ) );
+ *      for( Index h = 0 ; h < sbst.size() ; ++h )
+ *       static_cast< NetworkBlock * >( block )->set_arc_weight( sbst[ h ] ,
+ *                                                data[ h ] ,
+ *                                                issuePMod , issueAMod );
  *      }
  *
  * These could then be freely registered in the methods factory as in
@@ -6242,7 +6374,7 @@ class Block : public Observer {
  *     MF_dbl_msp        the mutable span to write the answer out through
  *     QueryType         FunctionType with a const Block * and no ModParam
  *     ConstMemberFunctionType   what the wrapper adapts to it
- *     MS_qry_dbl_rngd   the parameter list, mirroring MS_dbl_rngd
+ *     MS_qry_dbl_rngd   the parameter list, mirroring MS_sp_dbl_rngd
  *     MF_qry_dbl_rngd_map       the map holding this family's entries
  *
  * plus the single copy of that map owned by the core, declared as
@@ -6251,11 +6383,12 @@ class Block : public Observer {
  * QueryType< MF_dbl_msp , Range > that makes the signature standard;
  * without it nothing compiles.
  *
- * The ( double , subset ) family is obtained the same way from MS_dbl_sbst,
+ * The ( double , subset ) family is obtained the same way from
+ * MS_sp_dbl_sbst,
  * and is there together with the first because a :Block may have to answer
  * two consumers about disjoint subsets of its parameters. The integer
- * twins, MS_qry_int_rngd and MS_qry_int_sbst, mirror MS_int_rngd and
- * MS_int_sbst on MF_int_msp, for a :Block whose parameter is a count and
+ * twins, MS_qry_int_rngd and MS_qry_int_sbst, mirror MS_sp_int_rngd and
+ * MS_sp_int_sbst on MF_int_msp, for a :Block whose parameter is a count and
  * answers with the count rather than with a double that happens to be
  * integral. Any further family comes from the setter family it mirrors.
  *
@@ -6312,7 +6445,8 @@ class Block : public Observer {
   auto iter = methods< F >().left.find( name );
   if( iter != methods< F >().left.end() ) {
    delete iter->second;
-   auto replaced = methods< F >().left.replace_data( iter, function );
+   [[maybe_unused]] auto replaced =
+                       methods< F >().left.replace_data( iter, function );
    assert( replaced );
   } else
    methods< F >().insert( typename MethodsFactoryMap< F >::value_type(
@@ -6335,7 +6469,10 @@ class Block : public Observer {
   * the function to be inserted in the methods factory. Indeed, what this
   * version does is to create a FunctionType< Args > lambda function
   * which just static_cast<> the Block * argument to a dBlock *, and
-  * then invokes \p function.
+  * then invokes \p function. Args are never deduced from \p fnct (whose
+  * parameter pack is not the last of its parameters): they are those
+  * given, so that \p fnct can name a member function that is overloaded as
+  * well as one that is not.
   *
   * @param name The name that will identify the given \p function in the
   *             methods factory; as the "&&" tells, the std::string becomes
@@ -6348,7 +6485,8 @@ class Block : public Observer {
  template< class dBlock , typename ... Args >
  static std::enable_if_t< std::is_base_of_v< Block , dBlock > , void >
  register_method( std::string && name ,
-                  MemberFunctionType< dBlock , Args... > fnct ) {
+                  std::type_identity_t<
+                   MemberFunctionType< dBlock , Args... > > fnct ) {
   register_method( std::move( name ),
                    new FunctionType< Args... >(
                     [ fnct ]( Block * blck , Args && ... args ,
@@ -6375,7 +6513,7 @@ class Block : public Observer {
   * the adapter function is now specified by means of the third parameter,
   * which is dummy arg_packer_helper< Args... >. This is intended to be used
   * with existing parameter type list-specifying types, such as in
-  * MS_rngd::args() or MS_int_sbst::args(), although there is nothing
+  * MS_rngd::args() or MS_sp_int_sbst::args(), although there is nothing
   * preventing from defining new ones.
   *
   * @param name The name that will identify the given \p function in the
@@ -6390,7 +6528,8 @@ class Block : public Observer {
 
  template< class dBlock , typename ... Args >
  static void register_method( std::string && name ,
-                              MemberFunctionType< dBlock , Args... > fnct ,
+                              std::type_identity_t<
+                               MemberFunctionType< dBlock , Args... > > fnct ,
                               arg_packer_helper< Args... > ) {
   register_method< dBlock, Args... >( std::move( name ) , fnct );
   }
@@ -6403,7 +6542,8 @@ class Block : public Observer {
  template< class dBlock , typename ... Args >
  static std::enable_if_t< std::is_base_of_v< Block , dBlock > , void >
  register_method( std::string && name ,
-                  ConstMemberFunctionType< dBlock , Args... > fnct ) {
+                  std::type_identity_t<
+                   ConstMemberFunctionType< dBlock , Args... > > fnct ) {
   register_method( std::move( name ),
                    new QueryType< Args... >(
                     [ fnct ]( const Block * blck , Args && ... args ) {
@@ -6419,7 +6559,8 @@ class Block : public Observer {
  template< class dBlock , typename ... Args >
  static void register_method(
                   std::string && name ,
-                  ConstMemberFunctionType< dBlock , Args... > fnct ,
+                  std::type_identity_t<
+                   ConstMemberFunctionType< dBlock , Args... > > fnct ,
                   arg_packer_helper< Args... > ) {
   register_method< dBlock, Args... >( std::move( name ) , fnct );
   }
@@ -6433,19 +6574,19 @@ class Block : public Observer {
   *
   * Suppose, for example, that the methods factory has a function associated
   * with the name "NetworkBlock::set_arc_weight" that has the typical "double,
-  * Range" interface, i.e., a #MF_dbl_it parameter, a #Range parameter, and
+  * Range" interface, i.e., a #MF_dbl_sp parameter, a #Range parameter, and
   * two ModParam parameters. This has been inserted in the interface under
-  * the guise of a FunctionType< MF_dbl_it , Range > pointer. Thus,
+  * the guise of a FunctionType< MF_dbl_sp , Range > pointer. Thus,
   * to invoke such a function one should do
   *
-  *     auto mthd = get_method< FunctionType< MF_dbl_it , Range > >(
+  *     auto mthd = get_method< FunctionType< MF_dbl_sp , Range > >(
   *                                        "NetworkBlock::set_arc_weight" );
-  *     std::invoke( *mthd , NB , iter , range , issuePMod , issueAMod );
+  *     std::invoke( *mthd , NB , data , range , issuePMod , issueAMod );
   *
   * where NB is a pointer to a NetworkBlock object (assuming the function
   * obtained from the methods factory is associated with this class, as it is
-  * a good practice, considering the name of the function), iter is an
-  * iterator of type #MF_dbl_it, range is a #Range, and issuePMod and
+  * a good practice, considering the name of the function), data is a
+  * span of type #MF_dbl_sp, range is a #Range, and issuePMod and
   * issueAMod are the last two parameters of the function.
   *
   * @param name The name associated with the function. */
@@ -6468,19 +6609,19 @@ class Block : public Observer {
   *
   * Suppose, for example, that the methods factory has a function associated
   * with the name "NetworkBlock::set_arc_weight" that has the typical "double,
-  * Range" interface, i.e., a #MF_dbl_it parameter, a #Range parameter, and
+  * Range" interface, i.e., a #MF_dbl_sp parameter, a #Range parameter, and
   * two ModParam parameters. This has been inserted in the interface under
-  * the guise of a FunctionType< MF_dbl_it , Range > pointer. Thus,
+  * the guise of a FunctionType< MF_dbl_sp , Range > pointer. Thus,
   * to invoke such a function one should do
   *
-  *     auto mthd = get_method_fs< MF_dbl_it , Range >(
+  *     auto mthd = get_method_fs< MF_dbl_sp , Range >(
   *                                        "NetworkBlock::set_arc_weight" );
-  *     std::invoke( *mthd , NB , iter , range , issuePMod , issueAMod );
+  *     std::invoke( *mthd , NB , data , range , issuePMod , issueAMod );
   *
   * where NB is a pointer to a NetworkBlock object (assuming the function
   * obtained from the methods factory is associated with this class, as it is
-  * good practice considering the name given to the function), iter is an
-  * iterator of type #MF_dbl_it, range is a #Range, and issuePMod and
+  * good practice considering the name given to the function), data is a
+  * span of type #MF_dbl_sp, range is a #Range, and issuePMod and
   * issueAMod are the last two parameters of the function.
   *
   * @param name The name associated with the function. */
@@ -6499,19 +6640,19 @@ class Block : public Observer {
   *
   * Suppose, for example, that the methods factory has a function associated
   * with the name "NetworkBlock::set_arc_weight" that has the typical "double,
-  * Range" interface, i.e., a #MF_dbl_it parameter, a #Range parameter, and
+  * Range" interface, i.e., a #MF_dbl_sp parameter, a #Range parameter, and
   * two ModParam parameters. This has been inserted in the interface under
-  * the guise of a FunctionType< MF_dbl_it , Range > pointer. Thus,
+  * the guise of a FunctionType< MF_dbl_sp , Range > pointer. Thus,
   * to invoke such a function one should do
   *
   *     auto mthd = get_method_fs( "NetworkBlock::set_arc_weight" ,
-  *                                MS_dbl_rngd::args() );
-  *     std::invoke( *mthd , NB , iter , range , issuePMod , issueAMod );
+  *                                MS_sp_dbl_rngd::args() );
+  *     std::invoke( *mthd , NB , data , range , issuePMod , issueAMod );
   *
   * where NB is a pointer to a NetworkBlock object (assuming the function
   * obtained from the methods factory is associated with this class, as it is
-  * good practice considering the name given to the function), iter is an
-  * iterator of type #MF_dbl_it, range is a #Range, and issuePMod and
+  * good practice considering the name given to the function), data is a
+  * span of type #MF_dbl_sp, range is a #Range, and issuePMod and
   * issueAMod are the last two parameters of the function.
   *
   * @param name The name associated with the function.
@@ -6843,7 +6984,8 @@ class Block : public Observer {
   * In fact, the implementation of this method in the base Block class just
   * opens an ifstream using the given filename and then calls the
   * load( istream & ) version, which is where the true :Block-specific
-  * loading is supposed to mostly happen.
+  * loading is supposed to mostly happen; it throws std::invalid_argument if
+  * the file cannot be opened.
   *
   * However, this method is virtual and there is a clear scenario in which
   * derived classes may want to override it: that of multi-file formats.
@@ -6860,11 +7002,10 @@ class Block : public Observer {
 
  virtual void load( const std::string & input , char frmt = 0 ) {
   std::ifstream f( get_filename_prefix() + input , std::fstream::in );
-  if( f.is_open() )
-   load( f , frmt );
-  else
-   std::cerr << "Error: cannot open text file " <<
-      get_filename_prefix() + input << std::endl;
+  if( ! f.is_open() )
+   throw( std::invalid_argument( "Block::load: cannot open text file " +
+                                 get_filename_prefix() + input ) );
+  load( f , frmt );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -7119,6 +7260,10 @@ class Block : public Observer {
   group.putAtt( "type", classname() );
   if( ! f_name.empty() )
    group.putAtt( "name", f_name );
+  if( f_objective_weight != 1 )
+   group.putAtt( "ObjectiveWeight", netCDF::NcDouble() , f_objective_weight );
+  if( f_variable_weight != 1 )
+   group.putAtt( "VariableWeight", netCDF::NcDouble() , f_variable_weight );
    }
 
 /** @} ---------------------------------------------------------------------*/
@@ -7140,6 +7285,19 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 /*--------------------------------------------------------------------------*/
+/** @name Protected method for changing the weights
+ *  @{ */
+
+ /// sets to \p w the weights that \p which says [see BlockWeightMod]
+ /** The common part of set_objective_weight(), set_variable_weight() and
+  * set_weight(), \p who being the name of the one called for the messages
+  * of the exceptions: the weights that do not change are left out, and a
+  * BlockWeightMod saying which ones have changed, if any, is issued. */
+
+ void change_weights( double w , int which , c_ModParam issueMod ,
+                      const char * who );
+
+/** @} ---------------------------------------------------------------------*/
 /** @name Protected methods for locking and unlocking
  *  @{ */
 
@@ -8025,15 +8183,7 @@ class Block : public Observer {
 
  static MF_rngd_map & methods_rngd_factory( void );
 
- static MF_dbl_rngd_map & methods_dbl_rngd_factory( void );
-
- static MF_int_rngd_map & methods_int_rngd_factory( void );
-
  static MF_sbst_map & methods_sbst_factory( void );
-
- static MF_dbl_sbst_map & methods_dbl_sbst_factory( void );
-
- static MF_int_sbst_map & methods_int_sbst_factory( void );
 
  static MF_sp_dbl_rngd_map & methods_sp_dbl_rngd_factory( void );
 
@@ -8110,6 +8260,10 @@ class Block : public Observer {
  bool f_at;  ///< true if there is any Solver "listening" to this Block
 
  std::string f_name;            ///< the string name of the Block
+
+ double f_objective_weight = 1;  ///< the weight of the Objective
+
+ double f_variable_weight = 1;   ///< the weight of the Variable
 
  BlockConfig * f_BlockConfig;        ///< the BlockConfig for this Block
 
@@ -8412,41 +8566,9 @@ struct Block::methods_factory_accessor< Block::FunctionType< Block::Range > > {
 
 template<>
 struct Block::methods_factory_accessor<
- Block::FunctionType< Block::MF_dbl_it , Block::Range > > {
- static Block::MF_dbl_rngd_map & get( void ) {
-  return( Block::methods_dbl_rngd_factory() );
- }
-};
-
-template<>
-struct Block::methods_factory_accessor<
- Block::FunctionType< Block::MF_int_it , Block::Range > > {
- static Block::MF_int_rngd_map & get( void ) {
-  return( Block::methods_int_rngd_factory() );
- }
-};
-
-template<>
-struct Block::methods_factory_accessor<
  Block::FunctionType< Block::Subset && , bool > > {
  static Block::MF_sbst_map & get( void ) {
   return( Block::methods_sbst_factory() );
- }
-};
-
-template<>
-struct Block::methods_factory_accessor<
- Block::FunctionType< Block::MF_dbl_it , Block::Subset && , bool > > {
- static Block::MF_dbl_sbst_map & get( void ) {
-  return( Block::methods_dbl_sbst_factory() );
- }
-};
-
-template<>
-struct Block::methods_factory_accessor<
- Block::FunctionType< Block::MF_int_it , Block::Subset && , bool > > {
- static Block::MF_int_sbst_map & get( void ) {
-  return( Block::methods_int_sbst_factory() );
  }
 };
 
@@ -8631,6 +8753,83 @@ class BlockMod : public AModification
 /*--------------------------------------------------------------------------*/
 
  };  // end( class( BlockMod ) )
+
+/*--------------------------------------------------------------------------*/
+/*------------------------- CLASS BlockWeightMod ---------------------------*/
+/*--------------------------------------------------------------------------*/
+/// derived class from BlockMod for a change of the weights of a Block
+/** Derived class from BlockMod saying that the weight of the Objective, the
+ * weight of the Variable, or both, of a Block have changed [see
+ * Block::set_objective_weight(), Block::set_variable_weight() and
+ * Block::set_weight()]. The Block itself is not changed: what changes is
+ * the problem that a Solver attached to an ancestor assembles out of it,
+ * i.e., the Objective of the Block and of its sub-Block if the weight of
+ * the Objective has changed, and the coefficients that their Variable have
+ * in the Constraint outside of the Block if the weight of the Variable has.
+ * Both changing in one Modification is the scaling of the whole Block. */
+
+class BlockWeightMod : public BlockMod
+{
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+ public:
+
+ /// which of the weights have changed, bit-wise
+ enum weight_type {
+  eObjective = 1 ,  ///< the weight of the Objective
+  eVariable = 2 ,   ///< the weight of the Variable
+  eBoth = 3         ///< both
+  };
+
+/*---------------------------- CONSTRUCTOR ---------------------------------*/
+
+ /// constructor: takes the Block and which of the weights have changed
+
+ BlockWeightMod( Block * fblock , int which , bool cB = false )
+  : BlockMod( fblock , cB ) , f_which( which ) {
+  ModConcern c = 0;
+  if( which & eObjective )
+   c |= eModObj | eObjUp | eObjDown;
+  if( which & eVariable )
+   c |= eModCnsCoef | eRegnShrink | eRegnGrow;
+  set_changes( c );
+  }
+
+/*------------------------------ DESTRUCTOR --------------------------------*/
+
+ virtual ~BlockWeightMod() = default;   ///< destructor, does nothing
+
+/*-------------------- PUBLIC METHODS OF THE CLASS -------------------------*/
+
+ /// which of the weights have changed [see weight_type]
+
+ [[nodiscard]] int which( void ) const { return( f_which ); }
+
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+
+ protected:
+
+ /// print the BlockWeightMod
+
+ void print( std::ostream & output ) const override {
+  output << "BlockWeightMod[";
+  if( concerns_Block() )
+   output << "t";
+  else
+   output << "f";
+  output << "] on Block [" << &f_Block << "]: weight of the "
+	 << ( f_which == eBoth ? "Objective and of the Variable" :
+	      ( f_which == eObjective ? "Objective" : "Variable" ) )
+	 << " changed" << std::endl;
+  }
+
+/*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
+
+ int f_which;  ///< which of the weights have changed
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( BlockWeightMod ) )
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS BlockModAD ------------------------------*/
@@ -9719,7 +9918,12 @@ class BlockConfig : public Configuration {
   * - a binary number b to determine the value of #f_diff. If b == 0 then
   *   #f_diff = false, otherwise, #f_diff = true.
   *
-  * for all of:  static constraints Configuration ,
+  * - the version of the format, which must be equal to #f_txt_version; a
+  *   file in the old format, which had no version number, is rejected with
+  *   an exception rather than being read with the slots shifted by one.
+  *
+  * for all of:  structure Configuration ,
+  *              static constraints Configuration ,
   *              dynamic constraints Configuration ,
   *              static variables Configuration ,
   *              dynamic variables Configuration ,
@@ -9892,6 +10096,72 @@ void for_each_by_classname(
   for( auto el : b->get_nested_Blocks() )
    BFS.push_back( el );
   }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+/// calls a function on the Block of a tree that a "meta" selection chooses
+/** Calls f( b , c ) on each Block b of the tree rooted at \p block (\p block
+ * included) that \p map chooses, where c is the Configuration associated
+ * with b->classname() in \p map, or that associated with the special key
+ * "*" (if any) when b->classname() is not a key of \p map. Unlike in
+ * for_each_by_classname(), a nullptr Configuration does choose b, and the
+ * sub-Block of a chosen Block are not visited, since c says what of b, its
+ * sub-Block included, is meant (nullptr meaning all of it); the sub-Block
+ * of a Block that is not chosen are visited in turn. The visit is
+ * father-first.
+ *
+ * This is how a :Solver reads the "meta" Configuration
+ *
+ *   SimpleConfiguration< std::map< std::string , Configuration * > >
+ *
+ * passed to get_var_solution() and get_dual_solution() [see Solver]: the
+ * parts of the solution to be written are those of the chosen Block, c
+ * being for each of them the Configuration of that Block alone, possibly a
+ * positional one or a "meta" one in its turn, which is then visited over
+ * each of the sub-Block of that Block. */
+
+template< class F >
+void for_each_selected( Block * block ,
+			const std::map< std::string , Configuration * > & map ,
+			F f )
+{
+ if( ( ! block ) || map.empty() )
+  return;
+
+ const auto dflt = map.find( "*" );
+ std::list< Block * > BFS{ block };
+ while( ! BFS.empty() ) {
+  auto b = BFS.front();
+  BFS.pop_front();
+  auto it = map.find( b->classname() );
+  if( it == map.end() )
+   it = dflt;
+  if( it != map.end() )
+   f( b , it->second );
+  else
+   for( auto el : b->get_nested_Blocks() )
+    BFS.push_back( el );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+/// whether a "meta" selection chooses some Block of a tree
+/** Returns true if and only if for_each_selected( block , map , f ) would
+ * call f() at least once, i.e., if \p block or one of its descendants has a
+ * classname() that is a key of \p map, or \p map has the special key "*".
+ * A :Solver whose solution comes in pieces larger than a Block, say, a
+ * component of a decomposition, uses it to tell whether a piece is to be
+ * written at all, writing it whole if so. */
+
+inline bool has_selected( Block * block ,
+			  const std::map< std::string , Configuration * > & map )
+{
+ bool found = false;
+ for_each_selected( block , map , [ & ]( Block * , Configuration * ) {
+                                   found = true; } );
+ return( found );
  }
 
 /*--------------------------------------------------------------------------*/

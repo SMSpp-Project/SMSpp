@@ -35,6 +35,19 @@ using namespace SMSpp_di_unipi_it;
 using namespace SMSpp_di_unipi_it::tests;
 
 /*--------------------------------------------------------------------------*/
+/// what the tests give to a Block that the Block does not own, deleted at the
+/// end of main(), after every Block, the last given the first deleted
+
+static std::vector< std::shared_ptr< void > > given;
+
+template< class T >
+static T * kept( T * t )
+{
+ given.emplace_back( t );
+ return( t );
+ }
+
+/*--------------------------------------------------------------------------*/
 /*------------------------------ FUNCTIONS ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -105,7 +118,8 @@ void test_paths( Block * block , Block * reference_block ) {
             [ reference_block ]( FRowConstraint & v ) {
              {
              AbstractPath path( & v , reference_block );
-             assert( & v == path.get_element< Constraint >( reference_block ) );
+             assert( & v ==
+                     path.get_element< Constraint >( reference_block ) );
              add_path( path );
              }
 
@@ -131,7 +145,8 @@ void test_paths( Block * block , Block * reference_block ) {
             [ reference_block ]( FRowConstraint & v ) {
              {
              AbstractPath path( & v , reference_block );
-             assert( & v == path.get_element< Constraint >( reference_block ) );
+             assert( & v ==
+                     path.get_element< Constraint >( reference_block ) );
              add_path( path );
              }
 
@@ -213,10 +228,12 @@ void test_variable_multi_selection( Block * reference ) {
   {
    AbstractPath rpath = path;
    rpath.set_last_node_range( 0 , group_size );
-   assert( rpath.get_number_elements< ColVariable >( reference ) == group_size );
+   assert( rpath.get_number_elements< ColVariable >( reference ) ==
+	   group_size );
    for( Index j = 0 ; j < group_size ; ++j )
     assert( rpath.get_element< ColVariable >( reference , j ) ==
-            inspection::get_element< ColVariable >( reference , true , g , j ) );
+            inspection::get_element< ColVariable >( reference , true , g ,
+                                                    j ) );
 
    const auto indices = rpath.get_resolved_indices< ColVariable >( reference );
    assert( indices.size() == group_size );
@@ -313,7 +330,8 @@ void test_block_multi_selection( Block * reference ) {
 
   assert( path.get_number_elements< Block >( reference ) == subset.size() );
   for( Index j = 0 ; j < subset.size() ; ++j )
-   assert( path.get_element< Block >( reference , j ) == nested[ subset[ j ] ] );
+   assert( path.get_element< Block >( reference , j ) ==
+	   nested[ subset[ j ] ] );
 
   assert( path.get_resolved_indices< Block >( reference ) == subset );
 
@@ -453,19 +471,23 @@ void simple_full_test() {
 
  generator.static_constraint_generator =
   new ElementGenerator< std::mt19937 , Int >
-  ( { 4 , 7 } , { 0 , 2 } , { 4 , 7 } , { 2 , 3 } , { 3 , 6 } , { 4 , 7 } , 0 );
+  ( { 4 , 7 } , { 0 , 2 } , { 4 , 7 } , { 2 , 3 } , { 3 , 6 } , { 4 , 7 } ,
+    0 );
 
  generator.static_variable_generator =
   new ElementGenerator< std::mt19937 , Int >
-  ( { 4 , 7 } , { 0 , 2 } , { 4 , 7 } , { 2 , 4 } , { 3 , 6 } , { 4 , 7 } , 2 );
+  ( { 4 , 7 } , { 0 , 2 } , { 4 , 7 } , { 2 , 4 } , { 3 , 6 } , { 4 , 7 } ,
+    2 );
 
  generator.dynamic_constraint_generator =
   new ElementGenerator< std::mt19937 , Int >
-  ( { 4 , 7 } , { 0 , 2 } , { 4 , 7 } , { 2 , 3 } , { 3 , 6 } , { 4 , 7 } , 3 );
+  ( { 4 , 7 } , { 0 , 2 } , { 4 , 7 } , { 2 , 3 } , { 3 , 6 } , { 4 , 7 } ,
+    3 );
 
  generator.dynamic_variable_generator =
   new ElementGenerator< std::mt19937 , Int >
-  ( { 4 , 7 } , { 0 , 2 } , { 4 , 7 } , { 2 , 4 } , { 3 , 6 } , { 4 , 7 } , 4 );
+  ( { 4 , 7 } , { 0 , 2 } , { 4 , 7 } , { 2 , 4 } , { 3 , 6 } , { 4 , 7 } ,
+    4 );
 
  generator.function_generator =
   new FunctionGenerator< std::mt19937 , Int >( { 0 , 2 } , 5 );
@@ -523,8 +545,9 @@ void test_names( void ) {
  for( const std::string name : { "alpha" , "beta" } ) {
   auto son = new AbstractBlock( root );
   son->set_name( std::string( name ) );
-  son->add_static_variable( * new std::vector< ColVariable >( 2 ) , "x" );
-  target_group = new std::vector< ColVariable >( 3 );
+  son->add_static_variable( * kept( new std::vector< ColVariable >( 2 ) ) ,
+			    "x" );
+  target_group = kept( new std::vector< ColVariable >( 3 ) );
   son->add_static_variable( * target_group , "y" );
   root->add_nested_Block( son );
   }
@@ -651,7 +674,7 @@ void write_numeric_path( netCDF::NcGroup group ,
 
 void test_empty_range( void ) {
  AbstractBlock block;
- auto x = new std::vector< ColVariable >( 4 );
+ auto x = kept( new std::vector< ColVariable >( 4 ) );
  block.add_static_variable( *x , "x" );
 
  AbstractPath path( & ( *x )[ 0 ] , & block );
@@ -687,7 +710,7 @@ void test_empty_range( void ) {
 
 void test_empty_subset( void ) {
  AbstractBlock block;
- auto x = new std::vector< ColVariable >( 4 );
+ auto x = kept( new std::vector< ColVariable >( 4 ) );
  block.add_static_variable( *x , "x" );
 
  AbstractPath path( & ( *x )[ 1 ] , & block );
@@ -729,7 +752,7 @@ void test_empty_subset( void ) {
 
 void test_out_of_range( void ) {
  auto block = new AbstractBlock;
- auto x = new std::vector< ColVariable >( 3 );
+ auto x = kept( new std::vector< ColVariable >( 3 ) );
  block->add_static_variable( *x , "x" );
  block->add_nested_Block( new AbstractBlock( block ) );
 
@@ -828,10 +851,10 @@ void test_out_of_range( void ) {
 
 void test_one_var_constraint( void ) {
  AbstractBlock block;
- auto x = new std::vector< ColVariable >( 3 );
+ auto x = kept( new std::vector< ColVariable >( 3 ) );
  block.add_static_variable( *x , "x" );
 
- auto boxes = new std::vector< BoxConstraint >( 3 );
+ auto boxes = kept( new std::vector< BoxConstraint >( 3 ) );
  for( Block::Index i = 0 ; i < 3 ; ++i ) {
   ( *boxes )[ i ].set_variable( & ( *x )[ i ] );
   ( *boxes )[ i ].set_lhs( 0 );
@@ -839,7 +862,7 @@ void test_one_var_constraint( void ) {
   }
  block.add_static_constraint( *boxes , "box" );
 
- auto lbs = new std::list< LBConstraint >( 2 );
+ auto lbs = kept( new std::list< LBConstraint >( 2 ) );
  for( auto & lb : *lbs ) {
   lb.set_variable( & ( *x )[ 0 ] );
   lb.set_lhs( -1 );
@@ -878,7 +901,7 @@ void test_one_var_constraint( void ) {
 
 void test_after_a_dynamic_removal( void ) {
  AbstractBlock block;
- auto y = new std::list< ColVariable >( 4 );
+ auto y = kept( new std::list< ColVariable >( 4 ) );
  block.add_dynamic_variable( *y , "y" );
  std::vector< ColVariable * > was;
  for( auto & v : *y )
@@ -941,6 +964,9 @@ int main( int argc , char ** argv )
  test_after_a_dynamic_removal();
  test_empty_vector();
  simple_full_test();
+
+ while( ! given.empty() )
+  given.pop_back();
 
  std::cout << "All tests passed!!" << std::endl;
  return( 0 );

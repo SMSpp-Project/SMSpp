@@ -247,8 +247,9 @@ void BendersBFunction::deserialize( const netCDF::NcGroup & group ,
    auto A_dims = ncVar_A.getDims();
 
    if( A_dims[ 0 ].getSize() != nrow || A_dims[ 1 ].getSize() != nvar )
-    throw( std::logic_error( "BendersBFunction::deserialize: The 'A' matrix "
-                             "must have 'NumRow' rows and 'NumVar' columns." ) );
+    throw( std::logic_error(
+      "BendersBFunction::deserialize: The 'A' matrix "
+      "must have 'NumRow' rows and 'NumVar' columns." ) );
 
    for( Index i = 0 ; i < tA.size() ; ++i )
     ncVar_A.getVar( { i , 0 } , { 1 , nvar } , tA[ i ].data() );
@@ -287,13 +288,15 @@ void BendersBFunction::deserialize( const netCDF::NcGroup & group ,
                               "was not found." ) );
 
     if( ncVar_A.getDimCount() != 1 )
-     throw( std::logic_error( "BendersBFunction::deserialize: The 'A' variable "
-                              "was expected to be a one-dimensional array." ) );
+     throw( std::logic_error(
+       "BendersBFunction::deserialize: The 'A' variable "
+       "was expected to be a one-dimensional array." ) );
 
     if( ncVar_A.getDims()[ 0 ].getSize() != nnz )
-     throw( std::logic_error( "BendersBFunction::deserialize: The 'A' variable "
-                              "was expected to be indexed over the 'NumNonzero' "
-                              "dimension." ) );
+     throw( std::logic_error(
+       "BendersBFunction::deserialize: The 'A' variable "
+       "was expected to be indexed over the 'NumNonzero' "
+       "dimension." ) );
 
     Index k = 0;
     for( Index i = 0 ; i < nrow ; ++i ) {
@@ -591,8 +594,9 @@ void BendersBFunction::map_active( c_Vec_p_Var & vars , Subset & map ,
   for( auto var : vars ) {
    auto i = this->is_active( var );
    if( i >= v_x.size() )
-    throw( std::invalid_argument( "BendersBFunction::map_active: some Variable "
-                                  "is not active" ) );
+    throw( std::invalid_argument(
+      "BendersBFunction::map_active: some Variable "
+      "is not active" ) );
    *(it++) = i;
   }
  }
@@ -616,9 +620,10 @@ void BendersBFunction::set_mapping( MultiVector && A , RealVector && b ,
                                 "size of b." ) );
 
  if( sides.size() != constraints.size() )
-  throw( std::invalid_argument( "BendersBFunction::set_mapping: the number of "
-                                "affected sides must be equal to the number of "
-                                "affected constraints." ) );
+  throw( std::invalid_argument(
+    "BendersBFunction::set_mapping: the number of "
+    "affected sides must be equal to the number of "
+    "affected constraints." ) );
 
  if( A.size() != b.size() )
   throw( std::invalid_argument( "BendersBFunction::set_mapping: A has " +
@@ -676,8 +681,9 @@ void BendersBFunction::add_variables( VarVector && nx , MultiVector && nA ,
 
  for( const auto & a : nA )
   if( a.size() != nn )
-   throw( std::invalid_argument( "BendersBFunction::add_variables: all columns "
-                                 "of nA must have the size of nx." ) );
+   throw( std::invalid_argument(
+     "BendersBFunction::add_variables: all columns "
+     "of nA must have the size of nx." ) );
 
  if( v_A.empty() )
   v_A.resize( nA.size() );
@@ -727,9 +733,10 @@ void BendersBFunction::add_variable( ColVariable * const var ,
  if( v_A.empty() )
   v_A.resize( Aj.size() );
  else if( ! Aj.empty() && Aj.size() != v_A.size() )
-  throw( std::invalid_argument( "BendersBFunction::add_variable: The size of Aj"
-                                " must be equal to the number of rows of the A"
-                                " matrix." ) );
+  throw( std::invalid_argument(
+    "BendersBFunction::add_variable: The size of Aj"
+    " must be equal to the number of rows of the A"
+    " matrix." ) );
 
  if( ! Aj.empty() )
   for( Index j = 0 ; j < v_A.size() ; ++j )
@@ -980,7 +987,8 @@ void BendersBFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
 
  // issue the BendersBFunctionModRngd
  f_Observer->add_Modification( std::make_shared< BendersBFunctionModRngd >(
-                                this , C05FunctionMod::AllLinearizationChanged ,
+                                this ,
+                                C05FunctionMod::AllLinearizationChanged ,
                                 BendersBFunctionMod::ModifyRows , range ,
                                 Subset( {} ) , C05FunctionMod::NaNshift ,
                                 Observer::par2concern( issueMod ) ) ,
@@ -1035,7 +1043,8 @@ void BendersBFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
 
  // issue the BendersBFunctionModSbst; note that rows is ordered
  f_Observer->add_Modification( std::make_shared< BendersBFunctionModSbst >(
-                                this , C05FunctionMod::AllLinearizationChanged ,
+                                this ,
+                                C05FunctionMod::AllLinearizationChanged ,
                                 BendersBFunctionMod::ModifyRows ,
                                 std::move( rows ) , ordered ,
                                 Subset( {} ) , C05FunctionMod::NaNshift ,
@@ -1077,7 +1086,8 @@ void BendersBFunction::modify_row( c_Index i , RealVector && Ai ,
 
  // issue the BendersBFunctionModRngd
  f_Observer->add_Modification( std::make_shared< BendersBFunctionModRngd >(
-                                this , C05FunctionMod::AllLinearizationChanged ,
+                                this ,
+                                C05FunctionMod::AllLinearizationChanged ,
                                 BendersBFunctionMod::ModifyRows ,
                                 Range( i , i + 1 ) , Subset( {} ) ,
                                 C05FunctionMod::NaNshift ,
@@ -1088,7 +1098,7 @@ void BendersBFunction::modify_row( c_Index i , RealVector && Ai ,
 
 /*--------------------------------------------------------------------------*/
 
-void BendersBFunction::modify_constants( MF_dbl_it nb , Range range ,
+void BendersBFunction::modify_constants( MF_dbl_sp nb , Range range ,
 					 c_ModParam issuePMod ,
 					 c_ModParam issueAMod ) {
  if( ! Observer::not_dry_run( issueAMod ) )  // a dry run changes nothing
@@ -1098,9 +1108,13 @@ void BendersBFunction::modify_constants( MF_dbl_it nb , Range range ,
  if( range.second <= range.first )
   return;
 
+ if( nb.size() < range.second - range.first )
+  throw( std::invalid_argument( "BendersBFunction::modify_constants: the "
+                                "span is shorter than the Range" ) );
+
  bool changed = false;
  for( Index i = 0 ; i < range.second - range.first ; ++i ) {
-  const auto new_b = * ( nb + i );
+  const auto new_b = nb[ i ];
   if( v_b[ range.first + i ] != new_b ) {
    v_b[ range.first + i ] = new_b;
    changed = true;
@@ -1139,12 +1153,12 @@ void BendersBFunction::modify_constants( c_RealVector & nb , Range range ,
  if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
   return;
 
- modify_constants( nb.cbegin() , range , issueMod , issueMod );
+ modify_constants( MF_dbl_sp( nb ) , range , issueMod , issueMod );
 }  // end( BendersBFunction::modify_constants( range ) )
 
 /*--------------------------------------------------------------------------*/
 
-void BendersBFunction::modify_constants( MF_dbl_it nb , Subset && rows ,
+void BendersBFunction::modify_constants( MF_dbl_sp nb , Subset && rows ,
 					 const bool ordered ,
 					 c_ModParam issuePMod ,
 					 c_ModParam issueAMod )
@@ -1155,6 +1169,10 @@ void BendersBFunction::modify_constants( MF_dbl_it nb , Subset && rows ,
  if( rows.empty() )  // actually nothing to modify
   return;            // cowardly (and silently) return
 
+ if( nb.size() < rows.size() )
+  throw( std::invalid_argument( "BendersBFunction::modify_constants: the "
+                                "span is shorter than the Subset" ) );
+
  for( const auto i : rows )
   if( i >= v_A.size() )
    throw( std::invalid_argument( "BendersBFunction::modify_constants: row " +
@@ -1162,7 +1180,7 @@ void BendersBFunction::modify_constants( MF_dbl_it nb , Subset && rows ,
 
  bool changed = false;
  for( Index i = 0 ; i < rows.size() ; ++i ) {
-  const auto new_b = * ( nb + i );
+  const auto new_b = nb[ i ];
   if( v_b[ rows[ i ] ] != new_b ) {
    v_b[ rows[ i ] ] = new_b;
    changed = true;
@@ -1203,7 +1221,7 @@ void BendersBFunction::modify_constants( c_RealVector & nb , Subset && rows ,
  if( ! Observer::not_dry_run( issueMod ) )  // a dry run changes nothing
   return;
 
- modify_constants( nb.cbegin() , std::move( rows ) , ordered ,
+ modify_constants( MF_dbl_sp( nb ) , std::move( rows ) , ordered ,
                    issueMod , issueMod );
 }  // end( BendersBFunction::modify_constants )
 
@@ -1484,8 +1502,8 @@ void BendersBFunction::delete_rows( Subset && rows , bool ordered ,
 
  // kill stuff in v_b[]
  v_b.erase( std::remove_if( v_b.begin() + rows.front() , v_b.end() ,
-                            []( FunctionValue bi ) { return( std::isnan( bi ) );
-                            } ) ,
+                            []( FunctionValue bi ) {
+                             return( std::isnan( bi ) ); } ) ,
             v_b.end() );
 
  // kill stuff in v_constraints[]
@@ -1746,7 +1764,8 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
 
  // GroupModification - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( const auto tmod = std::dynamic_pointer_cast< GroupModification >( mod ) ) {
+ if( const auto tmod =
+     std::dynamic_pointer_cast< GroupModification >( mod ) ) {
   for( const auto & submod : tmod->sub_Modifications() )
    this->add_Modification( submod , chnl );
   return;
@@ -1900,8 +1919,8 @@ void BendersBFunction::sides_changed( const Modification & mod ,
   }
 
  f_Observer->add_Modification( std::make_shared< C05FunctionMod >(
-				this , C05FunctionMod::AlphaChanged , Subset() ,
-				shift ) , chnl );
+				this , C05FunctionMod::AlphaChanged ,
+				Subset() , shift ) , chnl );
 
  }  // end( BendersBFunction::sides_changed )
 
@@ -2013,13 +2032,15 @@ int BendersBFunction::compute( bool changedvars ) {
 
 /*--------------------------------------------------------------------------*/
 
-static RealObjective::OFValue get_recours_obj( const Block * blck )
+// the constant terms of the Objective of blck and of its sub-Block, those
+// of blck multiplied by w and those of each sub-Block by w times its weight
+static RealObjective::OFValue get_recours_obj( const Block * blck , double w )
 {
  RealObjective::OFValue rv = 0;
  if( auto obj = dynamic_cast< RealObjective * >( blck->get_objective() ) )
-  rv = obj->get_constant_term();
+  rv = w * obj->get_constant_term();
  for( const auto bk : blck->get_nested_Blocks() )
-  rv += get_recours_obj( bk );
+  rv += get_recours_obj( bk , w * bk->get_objective_weight() );
 
  return( rv );
  };
@@ -2029,7 +2050,7 @@ static RealObjective::OFValue get_recours_obj( const Block * blck )
 Function::FunctionValue BendersBFunction::get_constant_term( void ) const
 {
  if( auto bk = get_inner_block() )
-  return( get_recours_obj( bk ) );
+  return( get_recours_obj( bk , inner_weight() ) );
  else
   return( 0 );
  }
@@ -2120,20 +2141,22 @@ bool BendersBFunction::compute_new_linearization( const bool diagonal ) {
 
 Function::FunctionValue BendersBFunction::get_value( void ) {
  if( v_Block.size() != 1 )
-  throw( std::logic_error( "BendersBFunction::get_value: there must be exactly "
-                           "one sub-Block, but there is (are) " +
-                           std::to_string( v_Block.size() ) + "." ) );
+  throw( std::logic_error(
+    "BendersBFunction::get_value: there must be exactly "
+    "one sub-Block, but there is (are) " +
+    std::to_string( v_Block.size() ) + "." ) );
 
  auto solver = get_solver();
 
  if( ! solver )
-  throw( std::logic_error( "BendersBFunction::get_value: It is not possible to "
-                           "get the value. The sub-Block has no Solver "
-                           "attached to it." ) );
+  throw( std::logic_error(
+    "BendersBFunction::get_value: It is not possible to "
+    "get the value. The sub-Block has no Solver "
+    "attached to it." ) );
 
  if( v_Block.front()->get_objective_sense() == Objective::eMin )
-  return( solver->get_ub() );
- return( solver->get_lb() );
+  return( inner_weight() * solver->get_ub() );
+ return( inner_weight() * solver->get_lb() );
 
 } // end ( BendersBFunction::get_value )
 
@@ -2378,7 +2401,9 @@ void BendersBFunction::get_linearization_coefficients
   if( ignore_constraint( constraint ) )
    continue;
 
-  const auto dual_value = effective_dual_for_cut( constraint , j , obj_sign );
+  // of the BendersBFunction, the weight of the inner Block comprised
+  const auto dual_value =
+   inner_weight() * effective_dual_for_cut( constraint , j , obj_sign );
 
   if( dual_value == 0 )
    continue;
@@ -2430,7 +2455,9 @@ void BendersBFunction::get_linearization_coefficients
   if( ignore_constraint( constraint ) )
    continue;
 
-  const auto dual_value = effective_dual_for_cut( constraint , j , obj_sign );
+  // of the BendersBFunction, the weight of the inner Block comprised
+  const auto dual_value =
+   inner_weight() * effective_dual_for_cut( constraint , j , obj_sign );
 
   if( dual_value == 0 )
    continue;
@@ -2471,7 +2498,9 @@ void BendersBFunction::get_linearization_coefficients
   if( ignore_constraint( constraint ) )
    continue;
 
-  const auto dual_value = effective_dual_for_cut( constraint , j , obj_sign );
+  // of the BendersBFunction, the weight of the inner Block comprised
+  const auto dual_value =
+   inner_weight() * effective_dual_for_cut( constraint , j , obj_sign );
 
   if( dual_value == 0 )
    continue;
@@ -2529,7 +2558,9 @@ void BendersBFunction::get_linearization_coefficients
   if( ignore_constraint( constraint ) )
    continue;
 
-  const auto dual_value = effective_dual_for_cut( constraint , j , obj_sign );
+  // of the BendersBFunction, the weight of the inner Block comprised
+  const auto dual_value =
+   inner_weight() * effective_dual_for_cut( constraint , j , obj_sign );
 
   if( dual_value == 0 )
    continue;
@@ -2565,11 +2596,13 @@ BendersBFunction::compute_linearization_constant_from_bound() {
                            "from_bound: The sub-Block (if present) has no "
                            "Solver attached to it." ) );
 
+ // g is that of the BendersBFunction, the bound is multiplied by the weight
+ // of the inner Block [see inner_weight()] as the value is
  FunctionValue linearization_constant = 0;
  if( v_Block.front()->get_objective_sense() == Objective::eMin )
-  linearization_constant = solver->get_lb();
+  linearization_constant = inner_weight() * solver->get_lb();
  else
-  linearization_constant = solver->get_ub();
+  linearization_constant = inner_weight() * solver->get_ub();
 
  for( Index i = 0 ; i < v_x.size() ; ++i )
   linearization_constant -= g[ i ] * v_x[ i ]->get_value();
@@ -2702,7 +2735,8 @@ Function::FunctionValue BendersBFunction::compute_linearization_constant() {
 
 void BendersBFunction::write_dual_solution_from_global_pool( Index name ) {
 
- // Take the dual solution from the global pool and write it into the sub-Block.
+ // Take the dual solution from the global pool and write it into the
+ // sub-Block.
 
  auto solution = global_pool.get_solution( name );
 
@@ -2722,7 +2756,7 @@ void BendersBFunction::write_dual_solution_from_global_pool( Index name ) {
 /*--------------------------------------------------------------------------*/
 
 Function::FunctionValue BendersBFunction::get_linearization_constant(
-                                                                  Index name ) {
+                                                                 Index name ) {
 
  if( name == Inf< Index >() ) {
   // Linearization just computed and not in the global pool yet.
@@ -2748,14 +2782,14 @@ Function::FunctionValue BendersBFunction::get_linearization_constant(
    else {
     // Compute the linearization constant from the dual solution
     solver->get_dual_solution( f_get_dual_solution_config );
-    return( compute_linearization_constant() );
+    return( inner_weight() * compute_linearization_constant() );
    }
   }
   else {
    // "vertical" linearization
    if( solver->has_dual_direction() )
     solver->get_dual_direction( f_get_dual_direction_config );
-   return( compute_linearization_constant() );
+   return( inner_weight() * compute_linearization_constant() );
   }
  }
  else {
@@ -2763,7 +2797,7 @@ Function::FunctionValue BendersBFunction::get_linearization_constant(
   if( constant == Inf< FunctionValue >() ) {
    // the linearization constant must be recomputed
    write_dual_solution_from_global_pool( name );
-   constant = compute_linearization_constant();
+   constant = inner_weight() * compute_linearization_constant();
    global_pool.set_linearization_constant( constant , name );
   }
   return( constant );
@@ -2852,7 +2886,8 @@ ComputeConfig * BendersBFunction::get_ComputeConfig
    if( inner_block ) {
     // If this BendersBFunction has an inner Block, extract a
     // BlockSolverConfig from it.
-    bsc = RBlockSolverConfig::get_right_BlockSolverConfig( inner_block , ! all );
+    bsc = RBlockSolverConfig::get_right_BlockSolverConfig( inner_block ,
+							   ! all );
     bsc_it->second = bsc;
    }
   }
@@ -2862,7 +2897,8 @@ ComputeConfig * BendersBFunction::get_ComputeConfig
   if( inner_block ) {
    // If this BendersBFunction has an inner Block, extract a BlockSolverConfig
    // from it and add it to the map.
-   bsc = RBlockSolverConfig::get_right_BlockSolverConfig( inner_block , ! all );
+   bsc = RBlockSolverConfig::get_right_BlockSolverConfig( inner_block ,
+							  ! all );
    if( bsc )
     extra_config->f_value[ "BlockSolverConfig" ] = bsc;
   }
@@ -2909,7 +2945,8 @@ void BendersBFunction::update_constraints() {
  for( Index i = 0 ; i < v_A.size() ; ++i ) {
   auto value = std::inner_product( v_x.begin() , v_x.end() , v_A[ i ].begin() ,
                                    v_b[ i ] , std::plus<>() ,
-                                   []( ColVariable * var , FunctionValue val ) {
+                                   []( ColVariable * var ,
+                                       FunctionValue val ) {
                                     return( var->get_value() * val );
                                    } );
   if( v_sides[ i ] == eLHS )
@@ -3228,9 +3265,10 @@ void BendersBFunction::GlobalPool::resize( Index size ) {
 
 /*--------------------------------------------------------------------------*/
 
-void BendersBFunction::GlobalPool::store( FunctionValue linearization_constant ,
-                                          Solution * solution , Index name ,
-                                          bool diagonal_linearization ) {
+void BendersBFunction::GlobalPool::store(
+                                   FunctionValue linearization_constant ,
+                                   Solution * solution , Index name ,
+                                   bool diagonal_linearization ) {
  if( name >= size() )
   throw( std::invalid_argument( "BendersBFunction::GlobalPool::store: "
                                 "invalid linearization name." ) );
@@ -3317,11 +3355,12 @@ void BendersBFunction::GlobalPool::store_combination_of_linearizations(
 
   if( coeff < - AAccMlt ) {
    delete solution;
-   throw( std::invalid_argument( "BendersBFunction::GlobalPool::store_combinati"
-                                 "on_of_linearizations: invalid coefficient for"
-                                 " linearization with name " +
-                                 std::to_string( linearization_name ) +
-                                 ": " + std::to_string( coeff ) ) );
+   throw( std::invalid_argument(
+     "BendersBFunction::GlobalPool::store_combinati"
+     "on_of_linearizations: invalid coefficient for"
+     " linearization with name " +
+     std::to_string( linearization_name ) +
+     ": " + std::to_string( coeff ) ) );
   }
 
   solution->sum( next_solution , coeff );
@@ -3459,7 +3498,8 @@ void BendersBFunction::GlobalPool::serialize( netCDF::NcGroup & group ) const {
  const auto global_pool_size = size();
 
  if( global_pool_size ) {
-  auto size_dim = group.addDim( "BendersBFunction_MaxGlob" , global_pool_size );
+  auto size_dim = group.addDim( "BendersBFunction_MaxGlob" ,
+				global_pool_size );
 
   std::vector< int > type( global_pool_size );
   for( Index i = 0 ; i < global_pool_size ; ++i )
@@ -3482,7 +3522,8 @@ void BendersBFunction::GlobalPool::serialize( netCDF::NcGroup & group ) const {
 
  if( ! important_linearization_lin_comb.empty() ) {
   auto linearization_dim = group.addDim
-   ( "BendersBFunction_ImpCoeffNum" , important_linearization_lin_comb.size() );
+   ( "BendersBFunction_ImpCoeffNum" ,
+     important_linearization_lin_comb.size() );
 
   auto linearization_coeff_index = group.addVar
    ( "BendersBFunction_ImpCoeffInd" , netCDF::NcInt() , linearization_dim );

@@ -191,7 +191,7 @@ namespace SMSpp_di_unipi_it
  *
  *     WHAT GROUPS OF Variable/Constraint, sub-Block AND Objective ARE
  *     AVAILABLE DEPEND ON HOW THE "ABSTRACT" REPRESENTATION OF THE
- *     :AbstractBlock IS CONSTRUCTED, AND THEREFORE ON THE Configuration
+ *     AbstractBlock IS CONSTRUCTED, AND THEREFORE ON THE Configuration
  *     PARAMETERS PASSED TO generate_[abstract_*,objective](). THUS, THE
  *     VALUES OF f_1st_*_* AND f_res_obj ARE ONLY EXPECTED TO BE SIGNIFICANT
  *     INSIDE THE CALL TO generate_[abstract_*,objective]()
@@ -587,10 +587,15 @@ class AbstractBlock : public Block
   * is a LinearFunction or a DQuadFunction, and FRealObjective over the same
   * two Function. Anything else cannot be reproduced, since a Function cannot
   * be copied onto different Variable in general: the object is skipped and
-  * recorded, so that the copy is a *relaxation* of the original and the
-  * caller can see what is missing [see get_mirror_issues()]. Note that a
+  * recorded, so that the copy is a *relaxation* of the feasible region of
+  * the original (and of the problem, if the Objective has been copied: a
+  * copy with no Objective gives no bound) and the caller can see what is
+  * missing [see get_mirror_issues()]. Note that a
   * relaxation is not always an acceptable answer, which is why the list is
-  * there rather than silently empty.
+  * there rather than silently empty. The weights of the Objective and of
+  * the Variable [see Block::set_objective_weight() and
+  * Block::set_variable_weight()] of \p blck and of its sub-Block are those
+  * of the copy and of its sub-Block.
   *
   * The size Variable of \p blck [see Block::get_size_variable() and
   * set_size_variable()], if any, stays what it is in the copy: one that \p
@@ -640,8 +645,9 @@ class AbstractBlock : public Block
  /// what mirror() could not reproduce
  /** The objects of the mirrored Block that mirror() could not reproduce, one
   * string each saying which object and why. An empty vector means that the
-  * copy is faithful; a nonempty one means that it is a relaxation, and the
-  * caller decides whether that is of any use. */
+  * copy is faithful; a nonempty one means that it is a relaxation of the
+  * feasible region, and of the problem if the Objective has been copied,
+  * and the caller decides whether that is of any use. */
 
  [[nodiscard]] const std::vector< std::string > & get_mirror_issues( void )
   const { return( v_issues ); }

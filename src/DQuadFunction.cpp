@@ -380,8 +380,8 @@ void DQuadFunction::modify_term( Index i , Coefficient lin_coeff ,
                           std::move( delta_coeff ) ,
                           Vec_p_Var( { std::get< 0 >( v_triples[ i ] ) } ) ,
                           std::make_pair( i , i + 1 ) , Subset( {} ) ,
-                          FunctionMod::NaNshift ,
-                          Observer::par2concern( issueMod ) ) ,
+                            FunctionMod::NaNshift ,
+                            Observer::par2concern( issueMod ) ) ,
                                Observer::par2chnl( issueMod ) );
 
  }  // end( DQuadFunction::modify_term )
@@ -460,8 +460,8 @@ void DQuadFunction::modify_terms( c_v_coeff_it NQuadCoef ,
                              this , C05FunctionMod::AllLinearizationChanged ,
                              std::move( vcoef ) , std::move( vp ) , 
                              std::move( nms ) , ordered , Subset( {} ) , 
-                             FunctionMod::NaNshift ,
-                             Observer::par2concern( issueMod ) ) ,
+                            FunctionMod::NaNshift ,
+                            Observer::par2concern( issueMod ) ) ,
                                 Observer::par2chnl( issueMod ) );
   }
  else  // noone is there: just do it
@@ -518,8 +518,8 @@ void DQuadFunction::modify_linear_coefficients( Vec_FunctionValue && NCoef ,
   f_Observer->add_Modification( std::make_shared< C05FunctionModLinSbst >(
                                  this , std::move( NCoef ) , std::move( vp ) ,
                                  std::move( nms ) , ordered ,
-                                 FunctionMod::NaNshift ,
-                                 Observer::par2concern( issueMod ) ) ,
+                            FunctionMod::NaNshift ,
+                            Observer::par2concern( issueMod ) ) ,
                                 Observer::par2chnl( issueMod ) );
   }
  else  // noone is there: just do it
@@ -569,8 +569,8 @@ void DQuadFunction::modify_terms( c_v_coeff_it NQuadCoef ,
                             this , C05FunctionMod::AllLinearizationChanged ,
                             std::move( vcoef ) , std::move( vp ) , 
                             range , Subset( {} ) ,
-			                      FunctionMod::NaNshift ,
-			                      Observer::par2concern( issueMod ) ) ,
+                            FunctionMod::NaNshift ,
+                            Observer::par2concern( issueMod ) ) ,
                             Observer::par2chnl( issueMod ) );
   }
  else  // noone is there: just do it

@@ -678,8 +678,8 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
    std::vector< R > given_vector = buf;
    buf.resize( size );
 
-   auto t = 0;
-   for( auto k = 0 ; k < change_intervals.size() ; ++k ) {
+   std::size_t t = 0;
+   for( std::size_t k = 0 ; k < change_intervals.size() ; ++k ) {
     auto upper_endpoint = change_intervals[ k ];
     if( k == change_intervals.size() - 1 )
      upper_endpoint = size - 1;
@@ -2200,6 +2200,165 @@ inline void check_dimensions( const netCDF::NcGroup & group ,
   }
  }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - COPYING netCDF GROUPS - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// copy the content of a netCDF group into another group
+/** Copies into \p to the dimensions, the variables with their values, the
+ * attributes and, recursively, the sub-groups of \p from, which may belong
+ * to another file (say, an NcMemFile), keeping their names and order, the
+ * unlimited dimensions, and the chunking, compression and fill mode of each
+ * variable. A dimension that a variable of \p from uses and that is defined
+ * outside \p from is looked for by name in \p to and in its ancestors.
+ * \p to must have none of the names of \p from, and \p from must have no
+ * variable of a user-defined type (strings are fine), otherwise an
+ * exception is thrown; std::length_error is thrown, and nothing is copied,
+ * if the file of \p to would have more than 32767 groups, since netCDF-C
+ * (up to 4.9.3 at least) crashes when a file gets the 32768-th one.
+ *
+ * All the definitions are made before any value is written, so that the
+ * file of \p to leaves the define mode once. This is the point of the
+ * function: in a netCDF-4 file each passage from the define mode to the
+ * data mode (which netCDF does by itself at the first write after a
+ * definition) writes the metadata of the whole file and flushes every
+ * HDF5 dataset in it, so that a file written one variable at a time, as
+ * the serialize() of the Block and of the Solution do, costs a time
+ * growing as the square of the number of its variables [see
+ * write_via_memory()]. */
+
+void copy_group( const netCDF::NcGroup & from , netCDF::NcGroup & to );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// write the parts of a netCDF group by way of in-memory files
+/** For each i in [ 0 , names.size() ), creates in \p group the sub-group
+ * names[ i ] and has \p write( i , g ) write in it, as \p write( i ,
+ * group.addGroup( names[ i ] ) ) would do, provided that \p write only
+ * uses what it writes itself (a dimension of an ancestor of the sub-group
+ * is not there for it to use).
+ *
+ * This is how a netCDF-4 file made of many parts of bounded size is written
+ * in a time linear in its size. In a netCDF-4 file each passage from the
+ * define mode to the data mode (which netCDF does by itself at the first
+ * write after a definition) writes the metadata of the file and flushes the
+ * HDF5 datasets, and the flush of a file goes through all the datasets open
+ * in the process, those of the other files too: a serialize() writing its
+ * variables one at a time passes from a mode to the other at each of them,
+ * so that a file costs a time quadratic in the number of its variables (the
+ * Solution of a TwoStageStochasticBlock with 200 scenarios, each of 88
+ * UnitBlock, has some 37000 variables in 18000 groups, and takes minutes to
+ * be written).
+ *
+ * Here each part is written by \p write in an NcMemFile of its own, whose
+ * image is kept once it is closed, and then all the parts are copied in
+ * \p group, all the definitions first and all the values after
+ * [see copy_group()]: each part costs the square of its own size while the
+ * datasets open in the process are those of the part, and \p group passes
+ * once from the define mode to the data mode. The images of all the parts
+ * are in memory together, a memory as large as what is written (plus some
+ * 64 KiB for each part, see NcMemFile()), and the parts are written one
+ * after the other, in the order of \p names.
+ *
+ * With a netCDF-C earlier than 4.6.2, which has no in-memory files, each
+ * part is written directly in its sub-group of \p group. */
+
+void write_via_memory( netCDF::NcGroup & group ,
+		       const std::vector< std::string > & names ,
+		       const std::function< void( std::size_t ,
+						  netCDF::NcGroup & ) > &
+		       write );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// the name of the dimension along which write_stacked() stacks the parts
+/** The name of the dimension of a stack with no stack nested in its parts:
+ * one with stacks nested in its parts, the deepest of level n - 1, has
+ * stacked_dimension + "_n" [see write_stacked()]. */
+inline constexpr const char * stacked_dimension = "Stacked";
+
+/// the names with which write_stacked() indexes the parts of several stacks
+inline constexpr const char * stacked_parts_dimension = "NumberParts";
+inline constexpr const char * stacked_class_variable = "PartStack";
+inline constexpr const char * stacked_position_variable = "PartPosition";
+inline constexpr const char * stacked_class_group = "Stack_";
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// write the parts of a netCDF group stacked in one sub-group
+/** Has \p write( i , g ) write the i-th of names.size() parts as
+ * write_via_memory() does, each in an in-memory file, and then writes them
+ * in the one sub-group \p stack of \p group, stacking those whose trees
+ * are identical (the same groups, in the same order, with the same
+ * dimensions, variables and attributes, values apart). A stack of parts is
+ * a group whose tree is that of one of them, its root group having besides
+ * a dimension of length the number of the parts (stacked_dimension, see
+ * below for a stack nested in the parts), and
+ * each variable of the tree having that dimension in front of its own ones,
+ * the k-th element along it being the value of the k-th part. If the trees
+ * of all the parts are identical, \p stack is the stack of all of them;
+ * otherwise \p stack has
+ *
+ * - the dimension stacked_parts_dimension, of length names.size();
+ *
+ * - the sub-groups stacked_class_group + "c", for c = 0, 1, ..., each the
+ *   stack of the parts with the c-th tree, in the order of the first part
+ *   that has it;
+ *
+ * - the variables stacked_class_variable and stacked_position_variable, of
+ *   type netCDF::NcInt and indexed over stacked_parts_dimension, which give
+ *   for the i-th part the c of its stack and its position in it.
+ *
+ * A stack may be nested in the parts (e.g., the Solution of a multi-stage
+ * Block, whose scenarios are two-stage Blocks with stacked scenarios): a
+ * variable of the nested stack then has the dimensions of both stacks, the
+ * outer one first, and since a dimension is found by its name (by the
+ * netCDF readers of Python, say), the dimension of a stack is
+ * stacked_dimension + "_n" if the deepest stack nested in its parts has
+ * level n - 1, stacked_dimension (level 0) if none is. read_stacked() gives
+ * back a part with the stacks nested in it as they were.
+ *
+ * Returns true, unless the root group of a part is a stack, or there are no
+ * parts: then the parts are written as write_via_memory() does, in the
+ * sub-groups names[ i ], and false is returned. The groups of the parts
+ * that a reader gives back from a stack are best called \p stack + "_i",
+ * as the callers in SMS++ call names[ i ] (pySMSpp does so).
+ *
+ * A file holds at most 32767 groups [see copy_group()], while the parts
+ * of, say, the Solution of a stochastic Block, one per scenario, have the
+ * same tree with as many groups as the units of the problem, and the units
+ * are of a few types only: written stacked, the file has the groups of one
+ * part, and those of a unit of each type, whatever their number. Each part
+ * is read back by read_stacked().
+ *
+ * With a netCDF-C earlier than 4.6.2, which has no in-memory files, the
+ * parts are written as write_via_memory() does, and false is returned. */
+
+bool write_stacked( netCDF::NcGroup & group , const std::string & stack ,
+		    const std::vector< std::string > & names ,
+		    const std::function< void( std::size_t ,
+					       netCDF::NcGroup & ) > & write );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// the number of parts stacked in \p group, 0 if it is not a stack
+/** Returns the length of the dimension of the stack \p group, or, if it
+ * has several stacks, that of its dimension stacked_parts_dimension [see
+ * write_stacked()]; 0 if \p group is null or none of the two. */
+
+std::size_t stacked_size( const netCDF::NcGroup & group );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// read the \p i-th part of a group written by write_stacked()
+/** Rebuilds in an in-memory file the tree of the \p i-th part of the stack
+ * \p stack [see write_stacked()], taken from the stack of its tree if
+ * \p stack has several, each variable without the dimension of the stack
+ * and with the values of that part, and calls \p read on its root group,
+ * which exists until \p read returns: only the groups of one part are open
+ * at a time, however many the parts. Throws
+ * std::out_of_range if \p i is not smaller than stacked_size( \p stack ),
+ * and std::logic_error with a netCDF-C earlier than 4.6.2, which has no
+ * in-memory files. */
+
+void read_stacked( const netCDF::NcGroup & stack , std::size_t i ,
+		   const std::function< void( const netCDF::NcGroup & ) > &
+		   read );
+
 /** @} ---------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 /*-------------------------------- CLASSES ---------------------------------*/
@@ -2232,6 +2391,13 @@ inline void check_dimensions( const netCDF::NcGroup & group ,
  * size it has allocated, but the same content written in the same order
  * with the same netCDF and HDF5 libraries gives the same bytes. close() and
  * the destructor close the file discarding the image.
+ *
+ * Once its image is opened again, the root group of an NcMemFile gives
+ * its groups and its variables (not its dimensions) in the order of their
+ * names rather than in that of their creation, since netCDF-C (up to 4.9.3 at
+ * least) does not track the order of creation in the root group of a file
+ * in memory; every other group keeps it. What has to be read back in the
+ * order it was written is therefore best written in a sub-group.
  *
  * An image cannot be opened for writing, since the netCDF-C library does
  * not write in a netCDF-4 image it has not created (nor, on disk, in the

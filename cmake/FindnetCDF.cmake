@@ -41,8 +41,39 @@ include(FindPackageHandleStandardArgs)
 # ----- Requirements -------------------------------------------------------- #
 find_package(HDF5 QUIET)
 
+# Drop the cached paths if one of them does not exist any more, so that
+# they are all searched again from the same place
+set(_netCDF_cached netCDF_INCLUDE_DIR netCDF_LIBRARY netCDF_LIBRARY_DEBUG
+        netCDF_VERSION)
+foreach (_var ${_netCDF_cached})
+    foreach (_path ${${_var}})
+        if (IS_ABSOLUTE "${_path}" AND NOT EXISTS "${_path}")
+            set(_netCDF_stale TRUE)
+        endif ()
+    endforeach ()
+endforeach ()
+if (_netCDF_stale)
+    message(STATUS "Cached netCDF paths not found, searching again")
+    foreach (_var ${_netCDF_cached})
+        unset(${_var} CACHE)
+    endforeach ()
+endif ()
+unset(_netCDF_cached)
+unset(_netCDF_stale)
+unset(_var)
+unset(_path)
+
+# The cached version is the one of the include directory it was read from,
+# possibly none
+if (NOT "${netCDF_INCLUDE_DIR}" STREQUAL
+        "${_netCDF_VERSION_INCLUDE_DIR}")
+    unset(netCDF_VERSION CACHE)
+    unset(_netCDF_VERSION_INCLUDE_DIR CACHE)
+endif ()
+
 # Check if already in cache
-if (netCDF_INCLUDE_DIR AND netCDF_LIBRARY AND netCDF_LIBRARY_DEBUG)
+if (netCDF_INCLUDE_DIR AND netCDF_LIBRARY AND netCDF_LIBRARY_DEBUG AND
+        DEFINED _netCDF_VERSION_INCLUDE_DIR)
     set(netCDF_FOUND TRUE)
 else ()
 
@@ -53,32 +84,30 @@ else ()
             DOC "netCDF include directory.")
 
     # ----- Find the library ------------------------------------------------ #
-    if (UNIX)
-        find_library(netCDF_LIBRARY
-                NAMES netcdf
-                PATHS ${netCDF_ROOT}/lib
-                DOC "netCDF library.")
-
+    # also where conda and vcpkg put it, the latter with a debug one of its own
+    set(_netCDF_dirs ${netCDF_ROOT}/lib $ENV{LIBRARY_LIB})
+    set(_netCDF_debug_dirs ${netCDF_ROOT}/debug/lib)
+    if (VCPKG_INSTALLED_DIR)
+        list(APPEND _netCDF_dirs
+                ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib)
+        list(APPEND _netCDF_debug_dirs
+                ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/lib)
+    endif ()
+    find_library(netCDF_LIBRARY
+            NAMES netcdf
+            PATHS ${_netCDF_dirs}
+            DOC "netCDF library.")
+    find_library(netCDF_LIBRARY_DEBUG
+            NAMES netcdf
+            PATHS ${_netCDF_debug_dirs}
+            NO_DEFAULT_PATH
+            DOC "netCDF debug library.")
+    if (NOT netCDF_LIBRARY_DEBUG)
         set(netCDF_LIBRARY_DEBUG ${netCDF_LIBRARY}
                 CACHE FILEPATH "netCDF debug library." FORCE)
-    elseif (WIN32)
-        find_library(netCDF_LIBRARY
-                NAMES netcdf
-                PATHS
-                ${netCDF_ROOT}/lib
-                ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib
-                $ENV{LIBRARY_LIB}
-                NO_DEFAULT_PATH
-                DOC "netCDF library.")
-
-        find_library(netCDF_LIBRARY_DEBUG
-                NAMES netcdf
-                PATHS
-                ${netCDF_ROOT}/debug/lib
-                ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/lib
-                NO_DEFAULT_PATH
-                DOC "netCDF debug library.")
     endif ()
+    unset(_netCDF_dirs)
+    unset(_netCDF_debug_dirs)
 
     # ----- Parse the version ----------------------------------------------- #
     if (netCDF_INCLUDE_DIR)
@@ -109,6 +138,15 @@ else ()
             VERSION_VAR netCDF_VERSION)
 endif ()
 
+# A found package keeps its version in the cache, with the include
+# directory it was read from
+if (netCDF_FOUND)
+    set(netCDF_VERSION "${netCDF_VERSION}" CACHE INTERNAL
+            "netCDF version.")
+    set(_netCDF_VERSION_INCLUDE_DIR "${netCDF_INCLUDE_DIR}"
+            CACHE INTERNAL "Include directory of the netCDF version.")
+endif ()
+
 # ----- Export the target --------------------------------------------------- #
 if (netCDF_FOUND)
     set(netCDF_INCLUDE_DIRS ${netCDF_INCLUDE_DIR})
@@ -118,10 +156,10 @@ if (netCDF_FOUND)
         add_library(netCDF::netcdf UNKNOWN IMPORTED)
         set_target_properties(
                 netCDF::netcdf PROPERTIES
-                IMPORTED_LOCATION ${netCDF_LIBRARY}
-                IMPORTED_LOCATION_DEBUG ${netCDF_LIBRARY_DEBUG}
-                INTERFACE_INCLUDE_DIRECTORIES ${netCDF_INCLUDE_DIRS}
-                INTERFACE_LINK_LIBRARIES ${HDF5_LIBRARIES})
+                IMPORTED_LOCATION "${netCDF_LIBRARY}"
+                IMPORTED_LOCATION_DEBUG "${netCDF_LIBRARY_DEBUG}"
+                INTERFACE_INCLUDE_DIRECTORIES "${netCDF_INCLUDE_DIRS}"
+                INTERFACE_LINK_LIBRARIES "${HDF5_LIBRARIES}")
     endif ()
 endif ()
 

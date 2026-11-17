@@ -39,11 +39,13 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <array>
 #include <cmath>
 #include <functional>
 #include <iostream>
 #include <iterator>
 #include <list>
+#include <memory>
 #include <stdexcept>
 #include <type_traits>
 #include <vector>
@@ -222,6 +224,20 @@ class PhysMod : public Modification
 /*------------------------------ FUNCTIONS ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+/// what the tests give to a Block that the Block does not own, deleted at the
+/// end of main(), after every Block, the last given the first deleted
+
+static std::vector< std::shared_ptr< void > > given;
+
+template< class T >
+static T * kept( T * t )
+{
+ given.emplace_back( t );
+ return( t );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 /// true if calling f() throws std::invalid_argument
 
 template< class F >
@@ -308,17 +324,6 @@ static Addrs addresses( const L & l )
  Addrs rv;
  for( const auto & el : l )
   rv.push_back( & el );
- return( rv );
- }
-
-/*--------------------------------------------------------------------------*/
-/// the elements of v in the given positions
-
-static Addrs pick( const Addrs & v , std::initializer_list< Index > pos )
-{
- Addrs rv;
- for( auto i : pos )
-  rv.push_back( v[ i ] );
  return( rv );
  }
 
@@ -487,7 +492,7 @@ static void check_throws( Rig & r , const Case & c )
 static void test_ColVariable( void )
 {
  Rig r;
- auto x = new ColVariable;
+ auto x = kept( new ColVariable );
  r.block->add_static_variable( *x , "x" );
 
  // the state as ColVariable encodes it: the type above the fixed bit
@@ -583,12 +588,12 @@ static void test_ColVariable( void )
 static void test_RowConstraint( void )
 {
  Rig r;
- auto x = new std::vector< ColVariable >( 2 );
+ auto x = kept( new std::vector< ColVariable >( 2 ) );
  r.block->add_static_variable( *x , "x" );
  auto X = [ x ]( Index i ) { return( & ( *x )[ i ] ); };
- auto c = new FRowConstraint( nullptr , 0 , 0 ,
+ auto c = kept( new FRowConstraint( nullptr , 0 , 0 ,
 			      new LinearFunction( { { X( 0 ) , 1 } ,
-						    { X( 1 ) , 2 } } ) );
+						    { X( 1 ) , 2 } } ) ) );
  r.block->add_static_constraint( *c , "c" );
 
  auto bounds = [ c ]( RHSValue l , RHSValue u ) {
@@ -610,9 +615,9 @@ static void test_RowConstraint( void )
 		 assert( cmod && ( cmod->constraint() == c ) );
 		 assert( cmod->type() == type );
 		 assert( ! std::dynamic_pointer_cast< OneVarConstraintMod >(
-									mod ) );
+								       mod ) );
 		 assert( ! std::dynamic_pointer_cast< FRowConstraintMod >(
-									mod ) );
+								       mod ) );
 		 } } );
   };
 
@@ -653,7 +658,7 @@ static void test_RowConstraint( void )
 		 assert( cmod && ( cmod->constraint() == c ) );
 		 assert( cmod->type() == type );
 		 assert( ! std::dynamic_pointer_cast< RowConstraintMod >(
-									mod ) );
+								       mod ) );
 		 } } );
   };
 
@@ -706,17 +711,17 @@ static void test_RowConstraint( void )
 static void test_OneVarConstraint( void )
 {
  Rig r;
- auto x = new std::vector< ColVariable >( 2 );
+ auto x = kept( new std::vector< ColVariable >( 2 ) );
  r.block->add_static_variable( *x , "x" );
  auto X = [ x ]( Index i ) { return( & ( *x )[ i ] ); };
 
- auto box = new BoxConstraint( nullptr , X( 0 ) , 0 , 10 );
+ auto box = kept( new BoxConstraint( nullptr , X( 0 ) , 0 , 10 ) );
  r.block->add_static_constraint( *box , "box" );
- auto lb = new LBConstraint( nullptr , X( 0 ) , 0 );
+ auto lb = kept( new LBConstraint( nullptr , X( 0 ) , 0 ) );
  r.block->add_static_constraint( *lb , "lb" );
- auto ub = new UBConstraint( nullptr , X( 0 ) , 10 );
+ auto ub = kept( new UBConstraint( nullptr , X( 0 ) , 10 ) );
  r.block->add_static_constraint( *ub , "ub" );
- auto lb0 = new LB0Constraint( nullptr , X( 1 ) );
+ auto lb0 = kept( new LB0Constraint( nullptr , X( 1 ) ) );
  r.block->add_static_constraint( *lb0 , "lb0" );
 
  // the OneVarConstraintMod of cnst of the given type
@@ -811,7 +816,8 @@ static void test_OneVarConstraint( void )
 		 return( ( box->get_active_var( 0 ) == to ) &&
 			 ( box->get_num_active_var() == ( to ? 1 : 0 ) ) &&
 			 ( active_in( *X( 0 ) , box ) == ( to == X( 0 ) ) ) &&
-			 ( active_in( *X( 1 ) , box ) == ( to == X( 1 ) ) ) ); } ,
+			 ( active_in( *X( 1 ) , box ) ==
+			   ( to == X( 1 ) ) ) ); } ,
 		ovc_mod( box , OneVarConstraintMod::eVariableChanged ) } );
   };
 
@@ -825,7 +831,8 @@ static void test_OneVarConstraint( void )
 			  box->remove_variables( Range( 0 , 1 ) , iM ); } ) );
  // the empty Subset means all of them
  changes.push_back( var( nullptr , [ = ]( ModParam iM ) {
-			  box->remove_variables( Subset() , false , iM ); } ) );
+			  box->remove_variables( Subset() , false , iM );
+			  } ) );
  changes.push_back( var( nullptr , [ = ]( ModParam iM ) {
 			  box->remove_variables( Subset( { 0 } ) , true ,
 						 iM ); } ) );
@@ -851,7 +858,7 @@ static void test_OneVarConstraint( void )
 static void test_Objective( void )
 {
  Rig r;
- auto x = new std::vector< ColVariable >( 2 );
+ auto x = kept( new std::vector< ColVariable >( 2 ) );
  r.block->add_static_variable( *x , "x" );
  auto X = [ x ]( Index i ) { return( & ( *x )[ i ] ); };
  auto obj = new FRealObjective( nullptr ,
@@ -869,7 +876,7 @@ static void test_Objective( void )
 		 assert( omod && ( omod->of() == obj ) );
 		 assert( omod->type() == type );
 		 assert( ! std::dynamic_pointer_cast< FRealObjectiveMod >(
-									mod ) );
+								       mod ) );
 		 } } );
   };
 
@@ -951,10 +958,10 @@ static void test_Objective( void )
 static void test_LinearFunction( void )
 {
  Rig r;
- auto x = new std::vector< ColVariable >( 4 );
+ auto x = kept( new std::vector< ColVariable >( 4 ) );
  r.block->add_static_variable( *x , "x" );
  auto X = [ x ]( Index i ) { return( & ( *x )[ i ] ); };
- auto c = new FRowConstraint;
+ auto c = kept( new FRowConstraint );
  r.block->add_static_constraint( *c , "c" );
  auto lf = [ c ]() {
   return( static_cast< LinearFunction * >( c->get_function() ) );
@@ -1163,8 +1170,8 @@ static void test_LinearFunction( void )
                           lf()->modify_coefficients( { 1 } , Range( 2 , 5 ) ,
                                                      iM ); } , none ) ,
   make( P2 , P2 , true , [ = ]( ModParam iM ) {
-                          lf()->modify_coefficients( {} , Subset() , false ,
-                                                     iM ); } , none ) ,
+                         lf()->modify_coefficients( {} , Subset() , false ,
+                                                    iM ); } , none ) ,
   make( P2 , P2 , true , [ = ]( ModParam iM ) {
                           lf()->set_constant_term( 0 , iM ); } , none ) ,
   make( P2 , P2 , true , [ = ]( ModParam iM ) {
@@ -1241,7 +1248,8 @@ static void test_LinearFunction( void )
 		[ = ]( const sp_Mod & mod ) {
 		 assert( registered( *x , obj , p1 ) );
 		 auto fmod = std::dynamic_pointer_cast< FunctionMod >( mod );
-		 auto vmod = std::dynamic_pointer_cast< FunctionModVars >( mod );
+		 auto vmod =
+		   std::dynamic_pointer_cast< FunctionModVars >( mod );
 		 assert( ( fmod && ( fmod->function() == of() ) ) ||
 			 ( vmod && ( vmod->function() == of() ) ) );
 		 check( mod );
@@ -1406,9 +1414,11 @@ static void test_dynamic( Rig & r , std::list< T > & l )
 		 return( true );
 		 } ,
 		[ & , n0 , n ]( const sp_Mod & mod ) {
-		 auto bmod = std::dynamic_pointer_cast< BlockModAdd< T > >( mod );
+		 auto bmod =
+		   std::dynamic_pointer_cast< BlockModAdd< T > >( mod );
 		 assert( bmod && ( & bmod->whc() == & l ) );
-		 assert( bmod->is_added() && ( bmod->is_variable() == isvar ) );
+		 assert( bmod->is_added() &&
+			 ( bmod->is_variable() == isvar ) );
 		 assert( bmod->first() == n0 );
 		 auto now = addresses( l );
 		 assert( bmod->added().size() == n );
@@ -1439,8 +1449,8 @@ static void test_dynamic( Rig & r , std::list< T > & l )
 		 for( auto i : gn )
 		  want.push_back( old[ i ] );
 		 if( range.second > range.first ) {
-		  auto bmod = std::dynamic_pointer_cast< BlockModRmvRngd< T > >(
-									mod );
+		  auto bmod =
+		    std::dynamic_pointer_cast< BlockModRmvRngd< T > >( mod );
 		  assert( bmod && ( & bmod->whc() == & l ) );
 		  assert( ( ! bmod->is_added() ) &&
 			  ( bmod->is_variable() == isvar ) );
@@ -1448,8 +1458,8 @@ static void test_dynamic( Rig & r , std::list< T > & l )
 		  assert( addresses( bmod->removed() ) == want );
 		  }
 		 else {
-		  auto bmod = std::dynamic_pointer_cast< BlockModRmvSbst< T > >(
-									mod );
+		  auto bmod =
+		    std::dynamic_pointer_cast< BlockModRmvSbst< T > >( mod );
 		  assert( bmod && ( & bmod->whc() == & l ) );
 		  assert( ( ! bmod->is_added() ) &&
 			  ( bmod->is_variable() == isvar ) );
@@ -1553,9 +1563,9 @@ static void test_dynamic( Rig & r , std::list< T > & l )
 static void test_AbstractBlock( void )
 {
  Rig r;
- auto vars = new std::list< ColVariable >;
+ auto vars = kept( new std::list< ColVariable > );
  r.block->add_dynamic_variable( *vars , "y" );
- auto rows = new std::list< FRowConstraint >;
+ auto rows = kept( new std::list< FRowConstraint > );
  r.block->add_dynamic_constraint( *rows , "c" );
 
  test_dynamic( r , *vars );
@@ -1570,9 +1580,9 @@ static void test_AbstractBlock( void )
 static void test_removed_Variable_in_stuff( void )
 {
  Rig r;
- auto vars = new std::list< ColVariable >;
+ auto vars = kept( new std::list< ColVariable > );
  r.block->add_dynamic_variable( *vars , "y" );
- auto rows = new std::vector< FRowConstraint >( 2 );
+ auto rows = kept( new std::vector< FRowConstraint >( 2 ) );
  r.block->add_static_constraint( *rows , "c" );
  auto c0 = & ( *rows )[ 0 ];
  auto c1 = & ( *rows )[ 1 ];
@@ -1673,10 +1683,10 @@ static void test_removed_Variable_in_stuff( void )
 static void test_dry_run( void )
 {
  Rig r;
- auto x = new std::vector< ColVariable >( 3 );
+ auto x = kept( new std::vector< ColVariable >( 3 ) );
  r.block->add_static_variable( *x , "x" );
  auto X = [ x ]( Index i ) { return( & ( *x )[ i ] ); };
- auto c = new FRowConstraint;
+ auto c = kept( new FRowConstraint );
  r.block->add_static_constraint( *c , "c" );
  auto obj = new FRealObjective;
  r.objective = obj;
@@ -1909,7 +1919,7 @@ static void test_dry_run_LagBFunction( void )
  auto make = [ & ]() {
   drop();
   auto inner = new AbstractBlock;
-  z = new std::vector< ColVariable >( 2 );
+  z = kept( new std::vector< ColVariable >( 2 ) );
   inner->add_static_variable( *z , "z" );
   iobj = new FRealObjective( inner , new LinearFunction( v_coeff_pair{
 				      { Z( 0 ) , 1 } , { Z( 1 ) , 2 } } ) );
@@ -2044,7 +2054,7 @@ static void test_dry_run_BendersBFunction( void )
  auto make = [ & ]() {
   delete bbf;  // and its inner Block with it
   auto inner = new AbstractBlock;
-  c = new std::vector< FRowConstraint >( 3 );
+  c = kept( new std::vector< FRowConstraint >( 3 ) );
   inner->add_static_constraint( *c , "c" );
   bbf = new BendersBFunction( inner , { X( 0 ) , X( 1 ) } ,
 			      { { 1 , 2 } , { 3 , 4 } } , { 5 , 6 } ,
@@ -2121,7 +2131,8 @@ static void test_dry_run_BendersBFunction( void )
              bbf->modify_constants( NB , Range( 0 , 2 ) , iM ); } ,
 	    [ & ]() { return( b_is( 0 , 9 ) && b_is( 1 , 10 ) ); } ) ,
   bbf_case( [ & ]( ModParam iM ) {
-             bbf->modify_constants( NB.cbegin() , Range( 0 , 2 ) , iM ,
+             bbf->modify_constants( Block::MF_dbl_sp( NB ) , Range( 0 , 2 ) ,
+                                    iM ,
                                     iM ); } ,
 	    [ & ]() { return( b_is( 0 , 9 ) && b_is( 1 , 10 ) ); } ) ,
   bbf_case( [ & ]( ModParam iM ) {
@@ -2129,7 +2140,8 @@ static void test_dry_run_BendersBFunction( void )
                                     iM ); } ,
 	    [ & ]() { return( b_is( 1 , 9 ) && b_is( 0 , 10 ) ); } ) ,
   bbf_case( [ & ]( ModParam iM ) {
-             bbf->modify_constants( NB.cbegin() , Subset( { 1 } ) , true ,
+             bbf->modify_constants( Block::MF_dbl_sp( NB ) , Subset( { 1 } ) ,
+                                    true ,
                                     iM , iM ); } ,
 	    [ & ]() { return( b_is( 1 , 9 ) ); } ) ,
   bbf_case( [ & ]( ModParam iM ) { bbf->modify_constant( 1 , 9 , iM ); } ,
@@ -2322,7 +2334,7 @@ static void test_changes( void )
 {
  using M = Modification;
  Rig r;
- auto x = new ColVariable;
+ auto x = kept( new ColVariable );
  r.block->add_static_variable( *x , "x" );
 
  // the data of a Variable: fixing it shrinks the region, unfixing it makes
@@ -2381,9 +2393,9 @@ static void test_changes( void )
  assert( rmod.changes() == ( M::eModCnsSide | M::eRegnShrink ) );
 
  // the set of the dynamic Variable and Constraint, as the Block issues it
- auto vars = new std::list< ColVariable >;
+ auto vars = kept( new std::list< ColVariable > );
  r.block->add_dynamic_variable( *vars , "y" );
- auto rows = new std::list< FRowConstraint >;
+ auto rows = kept( new std::list< FRowConstraint > );
  r.block->add_dynamic_constraint( *rows , "c" );
 
  auto one = [ & ]( std::function< void( void ) > call , M::ModConcern mc ) {
@@ -2425,6 +2437,17 @@ static void test_changes( void )
        r.block->close_channel( chnl );
        } , M::eModVarData | M::eRegnGrow );
 
+ // and so it does when the channel is closed at once from the nested level,
+ // the father adding what it changes itself
+ one( [ & ]() {
+       auto chnl = r.block->open_channel();
+       std::list< FRowConstraint > n( 1 );
+       add_d( r.block , *rows , n , Observer::make_par( eModBlck , chnl ) );
+       r.block->open_channel( chnl );
+       x->is_fixed( true , Observer::make_par( eModBlck , chnl ) );
+       r.block->close_channel( chnl , true );
+       } , M::eModCnsSet | M::eModVarData | M::eRegnShrink );
+
  // the static methods
  const auto phys = M::ModConcern( M::eModPhys | M::eEffAny );
  assert( M::is_physical( phys ) && ( ! M::is_abstract( phys ) ) );
@@ -2454,7 +2477,8 @@ static void test_changes( void )
  assert( M::lower_bound_stays_valid( shrink ) &&
 	 ( ! M::upper_bound_stays_valid( shrink ) ) &&
 	 ( ! M::solution_stays_feasible( shrink ) ) &&
-	 M::may_shrink_region( shrink ) && ( ! M::may_grow_region( shrink ) ) );
+	 M::may_shrink_region( shrink ) &&
+	 ( ! M::may_grow_region( shrink ) ) );
  assert( M::upper_bound_stays_valid( grow ) &&
 	 ( ! M::lower_bound_stays_valid( grow ) ) &&
 	 M::solution_stays_feasible( grow ) );
@@ -2477,11 +2501,11 @@ static void test_function_concerned( void )
 {
  using M = Modification;
  Rig r;
- auto x = new std::vector< ColVariable >( 3 );
+ auto x = kept( new std::vector< ColVariable >( 3 ) );
  r.block->add_static_variable( *x , "x" );
  auto X = [ x ]( Index i ) { return( & ( *x )[ i ] ); };
  auto rf = new LinearFunction( { { X( 0 ) , 1 } } );
- auto c = new FRowConstraint( nullptr , 0 , 1 , rf );
+ auto c = kept( new FRowConstraint( nullptr , 0 , 1 , rf ) );
  r.block->add_static_constraint( *c , "c" );
  auto of = new LinearFunction( { { X( 0 ) , 1 } } );
  auto obj = new FRealObjective( nullptr , of );
@@ -2548,9 +2572,9 @@ static void test_concerned( void )
 {
  using M = Modification;
  Rig r;
- auto x = new ColVariable;
+ auto x = kept( new ColVariable );
  r.block->add_static_variable( *x , "x" );
- auto rows = new std::list< FRowConstraint >;
+ auto rows = kept( new std::list< FRowConstraint > );
  r.block->add_dynamic_constraint( *rows , "c" );
  auto son = new AbstractBlock( r.block );
  r.block->add_nested_Block( son );
@@ -2623,6 +2647,108 @@ static void test_concerned( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* Whom a physical, an abstract and a "nuclear" Modification reach [see
+ * Modification::is_of_concern()]: a physical one only those who read
+ * eModPhys, whatever kinds it says, an abstract one those who read one of
+ * its kinds, a NBModification anyone, and anything those who read all the
+ * kinds; a group whoever one of its sub-Modification reaches [see
+ * Modification::is_of_concern_to()]; and whether a physical Modification is
+ * issued under eNoBlck when nobody reads the physical representation [see
+ * Observer::issue_pmod()]. */
+
+static void test_concern_physical( void )
+{
+ using M = Modification;
+
+ // the rule, on the bits alone
+ static_assert( M::is_of_concern( M::ePhysVars , M::eModPhys ) );
+ static_assert( ! M::is_of_concern( M::ePhysVars , M::eModAbst ) );
+ static_assert( ! M::is_of_concern( M::ePhysVars , M::eModVarData ) );
+ static_assert( M::is_of_concern( M::ePhysVars , M::eModAnything ) );
+ static_assert( M::is_of_concern( M::eModPhys | M::eEffAny , M::eModPhys ) );
+ static_assert( ! M::is_of_concern( M::eModVarData , M::eModPhys ) );
+ static_assert( M::is_of_concern( M::eModVarData , M::eModAbst ) );
+ static_assert( ! M::is_of_concern( M::eModVarData , M::eModObj ) );
+ static_assert( M::is_of_concern( M::eModAll , M::eModPhys ) );
+ static_assert( M::is_of_concern( M::eModAll , M::eModObj ) );
+ static_assert( ! M::is_of_concern( 0 , M::eModAbst ) );
+ static_assert( M::is_of_concern( 0 , M::eModAnything ) );
+
+ // and on a Block with three Solver: the physical and the abstract
+ // representation, and the data of the Variable alone
+ Rig r;
+ auto x = kept( new ColVariable );
+ r.block->add_static_variable( *x , "x" );
+ r.listen( false );
+ auto phys = new ReadsSolver( M::eModPhys );
+ auto abst = new ReadsSolver( M::eModAbst );
+ auto data = new ReadsSolver( M::eModVarData );
+ for( auto s : { phys , abst , data } )
+  r.block->register_Solver( s );
+ auto sizes = [ & ]( void ) {
+  return( std::array< std::size_t , 3 >{
+		  phys->get_Modification_list().size() ,
+		  abst->get_Modification_list().size() ,
+		  data->get_Modification_list().size() } );
+  };
+ auto clear = [ & ]( void ) {
+  for( auto s : { phys , abst , data } )
+   s->get_Modification_list().clear();
+  r.clear();
+  };
+
+ using A = std::array< std::size_t , 3 >;
+ clear();
+ x->is_fixed( true , eNoBlck );
+ assert( sizes() == ( A{ 0 , 1 , 1 } ) );
+ clear();
+ x->is_integer( true , eNoBlck );
+ assert( sizes() == ( A{ 0 , 1 , 0 } ) );
+ clear();
+ r.block->add_Modification( std::make_shared< PhysMod >( r.block ) );
+ assert( sizes() == ( A{ 1 , 0 , 0 } ) );
+ clear();
+ r.block->add_Modification( std::make_shared< NBModification >( r.block ) );
+ assert( sizes() == ( A{ 1 , 1 , 1 } ) );
+
+ // a group of physical Modification alone reaches the physical reader,
+ // while one also holding an abstract Modification reaches whoever reads
+ // any of its sub-Modification, even if nested one level down
+ clear();
+ auto chnl = r.block->open_channel();
+ r.block->add_Modification( std::make_shared< PhysMod >( r.block ) , chnl );
+ r.block->close_channel( chnl );
+ assert( sizes() == ( A{ 1 , 0 , 0 } ) );
+ clear();
+ chnl = r.block->open_channel();
+ r.block->add_Modification( std::make_shared< PhysMod >( r.block ) , chnl );
+ x->is_integer( false , Observer::make_par( eNoBlck , chnl ) );
+ r.block->close_channel( chnl );
+ assert( sizes() == ( A{ 1 , 1 , 0 } ) );
+ clear();
+ chnl = r.block->open_channel();
+ r.block->add_Modification( std::make_shared< PhysMod >( r.block ) , chnl );
+ r.block->open_channel( chnl );
+ x->is_fixed( false , Observer::make_par( eNoBlck , chnl ) );
+ r.block->close_channel( chnl );
+ r.block->close_channel( chnl );
+ assert( sizes() == ( A{ 1 , 1 , 1 } ) );
+
+ // without the reader of the physical representation, a physical
+ // Modification is not even issued under eNoBlck, and still under eModBlck
+ r.block->unregister_Solver( phys , true );
+ assert( ! r.block->issue_pmod( eNoBlck , M::ePhysVars ) );
+ assert( r.block->issue_mod( eNoBlck , M::eModVarData ) );
+ assert( ! r.block->issue_mod( eNoBlck , M::ePhysVars ) );
+ assert( r.block->issue_mod( eModBlck , M::ePhysVars ) );
+
+ clear();
+ r.block->unregister_Solver( abst , true );
+ r.block->unregister_Solver( data , true );
+ r.listen( true );
+ }
+
+/*--------------------------------------------------------------------------*/
 /* The modifying methods of the core ask issue_mod() with the kind of the
  * Modification they would issue [see Observer::issue_mod()]: with the only
  * Solver reading the sides of the Constraint, under eNoBlck a change of the
@@ -2636,13 +2762,13 @@ static void test_issue_by_kind( void )
 {
  using M = Modification;
  Rig r;
- auto x = new std::vector< ColVariable >( 2 );
+ auto x = kept( new std::vector< ColVariable >( 2 ) );
  r.block->add_static_variable( *x , "x" );
  auto X = [ x ]( Index i ) { return( & ( *x )[ i ] ); };
  auto rf = new LinearFunction( { { X( 0 ) , 1 } } );
- auto c = new FRowConstraint( nullptr , 0 , 1 , rf );
+ auto c = kept( new FRowConstraint( nullptr , 0 , 1 , rf ) );
  r.block->add_static_constraint( *c , "c" );
- auto rows = new std::list< FRowConstraint >;
+ auto rows = kept( new std::list< FRowConstraint > );
  r.block->add_dynamic_constraint( *rows , "d" );
  auto obj = new FRealObjective( nullptr , new LinearFunction(
 						   { { X( 0 ) , 1 } } ) );
@@ -2689,6 +2815,40 @@ static void test_issue_by_kind( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* A C05FunctionModLin takes as many Variable as changes, and refuses
+ * anything else: the vectors are moved into it, and what is checked is what
+ * it holds, both when they are empty and when one of them alone is. */
+
+static void test_C05FunctionModLin_sizes( void )
+{
+ std::vector< ColVariable > x( 3 );
+ LinearFunction lf( { { & x[ 0 ] , 1 } , { & x[ 1 ] , 2 } ,
+		      { & x[ 2 ] , 3 } } );
+ using Vars = std::vector< Variable * >;
+ using Delta = Function::Vec_FunctionValue;
+
+ auto make = [ & ]( Vars v , Delta d ) {
+  return( C05FunctionModLin( & lf , std::move( d ) , std::move( v ) ) ); };
+
+ auto refused = [ & ]( Vars v , Delta d ) {
+  try { make( std::move( v ) , std::move( d ) ); }
+  catch( const std::invalid_argument & ) { return( true ); }
+  return( false ); };
+
+ const auto mod = make( { & x[ 0 ] , & x[ 2 ] } , { 1 , -1 } );
+ assert( ( mod.vars().size() == 2 ) && ( mod.delta().size() == 2 ) );
+ assert( ( mod.vars()[ 1 ] == & x[ 2 ] ) && ( mod.delta()[ 1 ] == -1 ) );
+
+ const auto none = make( {} , {} );
+ assert( none.vars().empty() && none.delta().empty() );
+
+ assert( refused( { & x[ 0 ] , & x[ 1 ] } , { 1 } ) );
+ assert( refused( { & x[ 0 ] } , { 1 , 2 } ) );
+ assert( refused( {} , { 1 } ) );
+ assert( refused( { & x[ 0 ] } , {} ) );
+ }
+
+/*--------------------------------------------------------------------------*/
 /* What a FunctionMod says of itself once its Function is that of an
  * FRowConstraint or of an FRealObjective, which read its shift() [see
  * Modification::set_changes()]: upwards the RHS becomes harder to satisfy and
@@ -2703,10 +2863,10 @@ static void test_FunctionMod_changes( void )
  using M = Modification;
  static constexpr double NaN = FunctionMod::NaNshift;
  Rig r;
- auto x = new std::vector< ColVariable >( 1 );
+ auto x = kept( new std::vector< ColVariable >( 1 ) );
  r.block->add_static_variable( *x , "x" );
  auto rf = new LinearFunction( { { & ( *x )[ 0 ] , 1 } } );
- auto c = new FRowConstraint( nullptr , 0 , 1 , rf );
+ auto c = kept( new FRowConstraint( nullptr , 0 , 1 , rf ) );
  r.block->add_static_constraint( *c , "c" );
  auto of = new LinearFunction( { { & ( *x )[ 0 ] , 1 } } );
  auto obj = new FRealObjective( nullptr , of );
@@ -2729,7 +2889,8 @@ static void test_FunctionMod_changes( void )
  const auto C = M::eModCnsCoef;
 
  for( auto [ lhs , rhs ] : { std::pair( 0.0 , 1.0 ) , std::pair( 0.0 , INF ) ,
-			     std::pair( -INF , 1.0 ) , std::pair( -INF , INF ) } ) {
+			     std::pair( -INF , 1.0 ) , std::pair( -INF ,
+								  INF ) } ) {
   c->set_lhs( lhs , eNoMod );
   c->set_rhs( rhs , eNoMod );
   const bool l = ( lhs > -INF );
@@ -2810,11 +2971,11 @@ static void test_LagBFunction_concerned( void )
  Rig r;
  std::vector< ColVariable > y( 1 );                     // the multiplier
  auto inner = new PhysBlock;
- auto z = new std::vector< ColVariable >( 2 );
+ auto z = kept( new std::vector< ColVariable >( 2 ) );
  inner->add_static_variable( *z , "z" );
  auto Z = [ z ]( Index i ) { return( & ( *z )[ i ] ); };
  auto rf = new LinearFunction( { { Z( 0 ) , 1 } , { Z( 1 ) , 1 } } );
- auto c = new FRowConstraint( nullptr , 0 , 1 , rf );
+ auto c = kept( new FRowConstraint( nullptr , 0 , 1 , rf ) );
  inner->add_static_constraint( *c , "c" );
  auto of = new LinearFunction( { { Z( 0 ) , 1 } , { Z( 1 ) , 2 } } );
  auto iobj = new FRealObjective( inner , of );
@@ -2944,11 +3105,11 @@ static void test_LagBFunction_concerned( void )
 static void test_adapt( void )
 {
  Rig r;
- auto x = new ColVariable;
+ auto x = kept( new ColVariable );
  r.block->add_static_variable( *x , "x" );
- auto vars = new std::list< ColVariable >;
+ auto vars = kept( new std::list< ColVariable > );
  r.block->add_dynamic_variable( *vars , "y" );
- auto rows = new std::list< FRowConstraint >;
+ auto rows = kept( new std::list< FRowConstraint > );
  r.block->add_dynamic_constraint( *rows , "c" );
  {
   std::list< ColVariable > n( 3 );
@@ -3000,7 +3161,8 @@ static void test_adapt( void )
  // a GroupModification: a removal and a fixing make an adapted Solution
  auto grp = last( [ & ]() {
 		   auto chnl = r.block->open_channel();
-		   x->is_fixed( false , Observer::make_par( eModBlck , chnl ) );
+		   x->is_fixed( false ,
+				Observer::make_par( eModBlck , chnl ) );
 		   rmv_d( r.block , *vars , Range( 0 , 1 ) ,
 			  Observer::make_par( eModBlck , chnl ) );
 		   r.block->close_channel( chnl );
@@ -3035,12 +3197,17 @@ int main( void )
  test_LagBFunction_concerned();
  test_issue_by_kind();
  test_FunctionMod_changes();
+ test_C05FunctionModLin_sizes();
  test_dry_run_BendersBFunction();
  test_dry_run_C05SumFunction();
  test_changes();
  test_concerned();
+ test_concern_physical();
  test_function_concerned();
  test_adapt();
+
+ while( ! given.empty() )
+  given.pop_back();
 
  std::cout << "Modification_test: all tests passed" << std::endl;
  return( 0 );

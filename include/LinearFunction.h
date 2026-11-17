@@ -190,10 +190,12 @@ class LinearFunction : public C15Function
   bool operator==( const ThinVarDepInterface::v_const_iterator & rhs )
    const final {
    #ifdef NDEBUG
-    auto tmp = static_cast< const LinearFunction::v_const_iterator * >( & rhs );
+    auto tmp =
+      static_cast< const LinearFunction::v_const_iterator * >( & rhs );
     return( itr_ == tmp->itr_ );
    #else
-    auto tmp = dynamic_cast< const LinearFunction::v_const_iterator * >( &rhs );
+    auto tmp =
+      dynamic_cast< const LinearFunction::v_const_iterator * >( &rhs );
     return( tmp ? itr_ == tmp->itr_ : false );
    #endif
    }
@@ -201,10 +203,12 @@ class LinearFunction : public C15Function
   bool operator!=( const ThinVarDepInterface::v_const_iterator & rhs )
    const final {
    #ifdef NDEBUG
-    auto tmp = static_cast< const LinearFunction::v_const_iterator * >( & rhs );
+    auto tmp =
+      static_cast< const LinearFunction::v_const_iterator * >( & rhs );
     return( itr_ != tmp->itr_ );
    #else
-    auto tmp = dynamic_cast< const LinearFunction::v_const_iterator * >( &rhs );
+    auto tmp =
+      dynamic_cast< const LinearFunction::v_const_iterator * >( &rhs );
     return( tmp ? itr_ != tmp->itr_ : true );
    #endif
    }
@@ -790,7 +794,7 @@ class LinearFunction : public C15Function
  /// printing the LinearFunction
  void print( std::ostream & output ) override {
   output << "LinearFunction [" << this << "] observed by ["
-         << &f_Observer << "] with " << get_num_active_var()
+         << f_Observer << "] with " << get_num_active_var()
          << " active variables;";
   output << "current value = " << get_value();
  }

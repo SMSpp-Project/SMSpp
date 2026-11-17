@@ -110,11 +110,11 @@ constexpr T Inf( void ) noexcept {
  * be read and produced by SMS++ objects (notably, Block, Configuration, and
  * Solution.
  *
- * There are four "basic" types of SMS++ netCDF files, corresponding to the
- * four values of this enum smspp_netCDF_file_type. Each file, when opened
- * in a netCDF::NcFile (which is also a netCDF::NcGroup), must have an int
- * netCDF attribute "SMS++_file_type" with one of the three values of the
- * enum. The structure of the corresponding files is:
+ * There are five "basic" types of SMS++ netCDF files, corresponding to the
+ * first five values of this enum smspp_netCDF_file_type. Each file, when
+ * opened in a netCDF::NcFile (which is also a netCDF::NcGroup), must have an
+ * int netCDF attribute "SMS++_file_type" with one of these five values of
+ * the enum. The structure of the corresponding files is:
  *
  * - eProbFile: the file (which is also a group) has any number of child
  *   groups with names "Prob_0", "Prob_1", ... In turn, each child group
@@ -161,7 +161,7 @@ enum smspp_netCDF_file_type {
  eConfigFile = 2 ,    ///< a file of Configuration
  eSolutionFile = 3 ,  ///< a file of Solution
  eStateFile = 4 ,     ///< a file of State
- eLastFileParam = 4   ///< first value available to define new file types
+ eLastFileParam = 5   ///< first value available to define new file types
  };
 
 /** @} end( group( SMS_TYPES ) ) */
