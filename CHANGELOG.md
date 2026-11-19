@@ -27,6 +27,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   linearization the convex combination of the squares of the values of
   its Variable and updates them exactly
 
+- `R3BSolver`, a Solver that solves the Block it is attached to through one
+  of its R3 Block, configured from file only: the extra Configuration of its
+  ComputeConfig gives the Configuration that makes the R3 Block, its
+  BlockConfig and the BlockSolverConfig of its Solver; the Modification of
+  the Block are mapped to the R3 Block as they come, the solution is mapped
+  back, and `intR3BKind` says which bounds of the R3 Block are bounds of the
+  Block (both for a Reformulation, the dual one for a Relaxation, the primal
+  one for a Restriction)
+
 ### Changed
 
 - `C05SumFunction` makes the union of the Variable of its members, and

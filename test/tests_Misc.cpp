@@ -4,9 +4,9 @@
 /** @file
  * Unit tests for the smaller pieces of the core that have no test of their
  * own: GlobalInformation and its Collection, SimpleDataMapping, Change and
- * GroupChange, BoxSolver, UpdateSolver, and what the base Solver class does
- * by itself (registration to a Block, the queue of Modification, the tables
- * of the parameters, the log file).
+ * GroupChange, BoxSolver, UpdateSolver, R3BSolver, and what the base Solver
+ * class does by itself (registration to a Block, the queue of Modification,
+ * the tables of the parameters, the log file).
  *
  * BoxSolver is taken over box LPs and separable box QPs whose optimum is
  * known in closed form, in both senses, and over the two cases where there
@@ -39,6 +39,7 @@
 #include "GlobalInformation.h"
 #include "LinearFunction.h"
 #include "OneVarConstraint.h"
+#include "R3BSolver.h"
 #include "UpdateSolver.h"
 
 #include <algorithm>
@@ -49,6 +50,7 @@
 #include <iterator>
 #include <memory>
 #include <span>
+#include <sstream>
 #include <stdexcept>
 #include <vector>
 
@@ -1034,6 +1036,118 @@ static void test_UpdateSolver( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/*------------------------------- R3BSolver --------------------------------*/
+/*--------------------------------------------------------------------------*/
+/* An R3BSolver attached to a box LP whose R3 Block is a mirror of it, solved
+ * by a BoxSolver: the bounds are those of the BoxSolver on the side that the
+ * kind of R3 Block allows, the solution is mapped back, a change of the
+ * original Block reaches the mirror, and the mirror goes when R3BSolver is
+ * detached. Without its extra Configuration there is no R3 Block, and one
+ * that is not the vector of the three Configuration is refused. */
+
+/// a box LP whose R3 Block is a mirror of it
+
+class MirroredBlock : public AbstractBlock {
+ public:
+ Block * get_R3_Block( Configuration * r3bc = nullptr ,
+		       Block * base = nullptr ,
+		       Block * father = nullptr ) override {
+  auto m = new AbstractBlock( father );
+  m->mirror( this );
+  return( m );
+  }
+ };
+
+/// the ComputeConfig of an R3BSolver whose R3 Block is solved by a BoxSolver
+
+static const char * const r3bs_cfg =
+ "ComputeConfig 1 0 0 0 0 0 0\n"
+ "SimpleConfiguration<std::vector<Configuration*>> 3 * *\n"
+ "BlockSolverConfig 1 1 BoxSolver 1 *\n";
+
+static ComputeConfig * read_cfg( const std::string & text )
+{
+ std::istringstream is( text );
+ return( dynamic_cast< ComputeConfig * >( Configuration::deserialize( is ) ) );
+ }
+
+static void test_R3BSolver( void )
+{
+ auto block = new MirroredBlock;
+ block->add_static_variable( *kept( new std::vector< ColVariable >( 2 ) ) ,
+			     "x" );
+ auto & x = x_of( block );
+ auto box = kept( new std::vector< BoxConstraint >( 2 ) );
+ block->add_static_constraint( *box , "box" );
+ const std::vector< double > lb = { 0 , -1 } , ub = { 2 , 1 };
+ for( Index j = 0 ; j < 2 ; ++j ) {
+  ( *box )[ j ].set_variable( & x[ j ] , eNoMod );
+  ( *box )[ j ].set_lhs( lb[ j ] , eNoMod );
+  ( *box )[ j ].set_rhs( ub[ j ] , eNoMod );
+  }
+ LinearFunction::v_coeff_pair cp = { { & x[ 0 ] , 1 } , { & x[ 1 ] , -2 } };
+ auto obj = kept( new FRealObjective( block ,
+				      new LinearFunction( std::move( cp ) ) ) );
+ obj->set_sense( Objective::eMin , eNoMod );
+ block->set_objective( obj , eNoMod );
+
+ // no extra Configuration: no R3 Block, nothing to compute
+ auto slv = new R3BSolver();
+ block->register_Solver( slv );
+ assert( ( slv->get_R3B() == nullptr ) &&
+	 ( slv->compute() == Solver::kError ) );
+
+ // a wrong extra Configuration is refused
+ auto bad = read_cfg( "ComputeConfig 1 0 0 0 0 0 0\n"
+		      "SimpleConfiguration<std::vector<Configuration*>> 1 *\n" );
+ assert( bad && throws< std::invalid_argument >( [ & ]() {
+	  slv->set_ComputeConfig( bad ); } ) );
+ delete bad;
+
+ auto cfg = read_cfg( r3bs_cfg );
+ assert( cfg );
+ slv->set_ComputeConfig( cfg );
+ delete cfg;
+ assert( slv->get_R3B() && slv->get_inner_Solver() &&
+	 ( slv->get_inner_Solver()->classname() == "BoxSolver" ) );
+
+ // a Reformulation: both bounds, and the solution mapped back
+ assert( slv->compute() == Solver::kOK );
+ assert( equal( slv->get_lb() , -2 ) && equal( slv->get_ub() , -2 ) );
+ assert( equal( slv->get_var_value() , -2 ) );
+ slv->get_var_solution();
+ assert( ( values_of( block ) == std::vector< double >( { 0 , 1 } ) ) );
+
+ // a change of the original Block reaches the R3 Block
+ ( *box )[ 1 ].set_rhs( 3 );
+ assert( slv->compute() == Solver::kOK );
+ expect( equal( slv->get_lb() , -6 ) , "R3BSolver: after the change of a "
+	 "bound, lb = " + std::to_string( slv->get_lb() ) + ", expected -6" );
+
+ // a Relaxation only gives the lower bound, a Restriction the upper one
+ slv->set_par( R3BSolver::intR3BKind , R3BSolver::kRelaxation );
+ assert( equal( slv->get_lb() , -6 ) && ( slv->get_ub() == INF ) );
+ assert( ! slv->is_var_feasible() );
+ slv->set_par( R3BSolver::intR3BKind , R3BSolver::kRestriction );
+ assert( ( slv->get_lb() == - INF ) && equal( slv->get_ub() , -6 ) );
+ assert( throws< std::invalid_argument >( [ & ]() {
+	  slv->set_par( R3BSolver::intR3BKind , 3 ); } ) );
+
+ // the extra Configuration is given back with the parameters
+ auto got = slv->get_ComputeConfig();
+ assert( got && got->f_extra_Configuration );
+ delete got;
+
+ // detached, the R3 Block goes
+ block->unregister_Solver( slv );
+ assert( slv->get_R3B() == nullptr );
+ delete slv;
+ delete block;
+
+ std::cout << "R3BSolver: done" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
 /*------------------------------ Solver base -------------------------------*/
 /*--------------------------------------------------------------------------*/
 /* The list of Solver registered to a Block: in the order they came, at the
@@ -1308,6 +1422,7 @@ int main( int argc , char ** argv )
  test_BoxSolver_unbounded();
  test_BoxSolver_relaxed();
  test_UpdateSolver();
+ test_R3BSolver();
  test_Solver_registration();
  test_Solver_Modification_queue();
  test_Solver_parameters();

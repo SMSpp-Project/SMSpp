@@ -65,6 +65,7 @@ SMS++OBJ = $(SMS++SDR)/obj/AbstractBlock.o \
 	$(SMS++SDR)/obj/OneVarConstraint.o \
 	$(SMS++SDR)/obj/PolyhedralFunction.o \
 	$(SMS++SDR)/obj/PolyhedralFunctionBlock.o \
+	$(SMS++SDR)/obj/R3BSolver.o \
 	$(SMS++SDR)/obj/RBlockConfig.o \
 	$(SMS++SDR)/obj/RowConstraintSolution.o \
 	$(SMS++SDR)/obj/SMSnetCDF.o \
@@ -113,6 +114,7 @@ SMS++H = $(SMS++SDR)/include/AbstractBlock.h \
 	$(SMS++SDR)/include/OneVarConstraint.h \
 	$(SMS++SDR)/include/PolyhedralFunction.h \
 	$(SMS++SDR)/include/PolyhedralFunctionBlock.h \
+	$(SMS++SDR)/include/R3BSolver.h \
 	$(SMS++SDR)/include/RBlockConfig.h \
 	$(SMS++SDR)/include/RowConstraint.h \
 	$(SMS++SDR)/include/RowConstraintSolution.h \
@@ -411,6 +413,12 @@ $(SMS++SDR)/obj/MasterProblemBlock.o: $(intBlockINC) \
 	$(SMS++SDR)/include/QuadFunction.h $(SMS++SDR)/include/Solver.h
 	$(CC) -c $(SMS++SDR)/src/MasterProblemBlock.cpp -o \
 	$@ $(SMS++INC) $(SW)
+
+$(SMS++SDR)/obj/R3BSolver.o: $(SMS++SDR)/src/R3BSolver.cpp $(intBlockINC) \
+	$(SMS++SDR)/include/R3BSolver.h \
+	$(SMS++SDR)/include/BlockSolverConfig.h \
+	$(SMS++SDR)/include/Objective.h
+	$(CC) -c $(SMS++SDR)/src/R3BSolver.cpp -o $@ $(SMS++INC) $(SW)
 
 $(SMS++SDR)/obj/RBlockConfig.o: $(SMS++SDR)/src/RBlockConfig.cpp \
 	$(SMS++SDR)/include/RBlockConfig.h $(intBlockINC)

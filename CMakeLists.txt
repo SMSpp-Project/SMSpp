@@ -179,6 +179,7 @@ target_sources(${modName} PRIVATE
         src/RowConstraintSolution.cpp
         src/PolyhedralFunctionBlock.cpp
         src/QuadFunction.cpp
+        src/R3BSolver.cpp
         src/SMSnetCDF.cpp
         src/Solution.cpp
         src/Solver.cpp

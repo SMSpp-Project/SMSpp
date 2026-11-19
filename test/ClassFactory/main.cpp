@@ -50,6 +50,8 @@
 
 #include "RBlockConfig.h"
 
+#include "R3BSolver.h"
+
 #include "UpdateSolver.h"
 
 #include <iostream>
@@ -332,6 +334,7 @@ static void test_Solver( void )
  check< FakeSolver , Solver >( make , "FakeSolver" );
  check< UpdateSolver , Solver >( make , "UpdateSolver" );
  check< BoxSolver , Solver >( make , "BoxSolver" );
+ check< R3BSolver , Solver >( make , "R3BSolver" );
 
  // the Solver registered here
  check< DummySolver<> , Solver >( make , "DummySolver<>" );

@@ -116,9 +116,10 @@ Unit tests for the core SMS++ library. Each test is registered as a separate
   they give and their learned priors, and the files that are not a model.
 - `Misc_unit_test` covers `GlobalInformation`, `SimpleDataMapping`, `Change`
   and `GroupChange`, `BoxSolver` (box LPs and QPs in both senses, empty
-  boxes, unbounded directions, dual values), `UpdateSolver`, and what the
-  base `Solver` does by itself: registration, the queue of Modification and
-  the tables of the parameters.
+  boxes, unbounded directions, dual values), `UpdateSolver`, `R3BSolver`
+  (on a mirror solved by `BoxSolver`), and what the base `Solver` does by
+  itself: registration, the queue of Modification and the tables of the
+  parameters.
 - `NetCDF_test` covers the round trips through the netCDF format of the rows,
   the bounds and the `FRealObjective` of an `AbstractBlock`, of the
   `PolyhedralFunctionBlock`, of the `BendersBFunction` with its sub-Block and

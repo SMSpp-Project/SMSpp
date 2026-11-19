@@ -49,6 +49,7 @@ module;
 #include "LinearConstraint.h"
 #include "MasterProblemBlock.h"
 #include "QuadFunction.h"
+#include "R3BSolver.h"
 #include "RBlockConfig.h"
 #include "SMSTerminate.h"
 #include "UpdateSolver.h"
@@ -298,6 +299,9 @@ export namespace SMSpp_di_unipi_it {
  using SMSpp_di_unipi_it::QuadFunction;
  using SMSpp_di_unipi_it::QuadFunctionModSbst;
  using SMSpp_di_unipi_it::QuadFunctionModVarsAddd;
+
+ // R3BSolver.h
+ using SMSpp_di_unipi_it::R3BSolver;
 
  // RBlockConfig.h
  using SMSpp_di_unipi_it::CBlockConfig;
