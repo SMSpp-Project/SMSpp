@@ -500,9 +500,27 @@ class LagBFunction : public C05Function , public Block
   * so later queries are write-free again. Under INTERNAL mode conv_active is
   * unused and every query writes the Solution.
   *
+  * QUADRATIC COSTS. When the quadratic coefficients q_j of a DQuadFunction
+  * in the Objective of the inner Block change by \f$ \Delta q_j \f$, the
+  * constant of an original entry changes by
+  * \f$ \sum_j \Delta q_j ( x^*_j )^2 \f$, which is computed after writing
+  * the entry in the inner Block. That of a convexified entry changes by
+  * \f$ \sum_j \Delta q_j \sum_k \theta_k ( x^*_{kj} )^2 \f$, which the
+  * combination point alone does not give (\f$ \sum_k \theta_k x^*_k \f$
+  * squared is not the combination of the squares). The intPoolQuadMem
+  * parameter chooses what is done: with 0 the convexified entries are
+  * deleted, with 1 every entry keeps in gpool_el::quad_sq the value of
+  * \f$ \sum_k \theta_k ( x^*_{kj} )^2 \f$ for each Variable of the
+  * DQuadFunction (\f$ ( x^*_j )^2 \f$ for an original entry), combined
+  * as the Solution are when a convexified entry is formed, and the update
+  * is exact; an entry without it is deleted. A vertical entry is deleted if
+  * a changed q_j multiplies a nonzero component of its direction.
+  *
   * PERSISTENCE. LagBFunctionState saves sol, varsol, value and convexified;
   * conv_active is a pure cache (derived from sol + v_active) and is NOT
   * saved -- a restored entry rebuilds it on the first query (via fallback).
+  * Neither is quad_sq, which cannot be rebuilt from a convexified sol: a
+  * restored entry has none.
   */
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -518,7 +536,11 @@ class LagBFunction : public C05Function , public Block
   *                the full epigraphic constant, under INTERNAL/lazy mode the
   *                cost-independent correction delta_na (see above);
   * - conv_active: the subgradient cache, x* on the dual-pair coords
-  *                (v_active), to rebuild the subgradient without sol->write.
+  *                (v_active), to rebuild the subgradient without sol->write;
+  * - quad_sq    : under intPoolQuadMem == 1, the pairs ( x_j , s_j ) for the
+  *                Variable of the DQuadFunction in the Objective, sorted by
+  *                address, with s_j the convex combination of the squares
+  *                of the values of x_j (empty if unknown).
   * The field order keeps  gpool_el{ sol , varsol }  working as before. */
  struct gpool_el {
   p_Solution sol         = nullptr;
@@ -526,6 +548,7 @@ class LagBFunction : public C05Function , public Block
   bool       convexified = false;
   double     value       = 0;
   std::vector< Vec_FunctionValue > conv_active;
+  std::vector< std::pair< const Variable * , double > > quad_sq;
   };
 
  /// a global pool (a vector of gpool_el)
@@ -702,6 +725,14 @@ class LagBFunction : public C05Function , public Block
  * (get_linearization_coefficients()) needs to write the pooled Solution into
  * the inner Block; 1 = re-reads via g_pool[name].sol->write() (no extra
  * memory). Drives the internal flag f_lazy_eval (1 <-> lazy/write). */
+
+ intPoolQuadMem,   ///< what a change of quadratic costs does to the pool
+                   /**< Selects what happens to the convexified entries of
+		    * the global pool when the quadratic coefficients of the
+ * DQuadFunction in the Objective of the inner Block change: 0 (default)
+ * deletes them, 1 updates them exactly from the convex combination of the
+ * squares kept in each entry (gpool_el::quad_sq). The other entries are
+ * updated exactly in both cases. Drives the internal flag f_quad_mem. */
 
  intLastLagBFPar   ///< first allowed new int parameter for derived classes
                    /**< Convenience value for easily allow derived classes
@@ -951,6 +982,18 @@ class LagBFunction : public C05Function , public Block
   *   get_linearization_coefficients() has to write the stored Solution into
   *   the inner Block; 1 re-reads the Solution via sol->write() each time (no
   *   extra memory, but disturbs the inner Block).
+  *
+  * - intPoolQuadMem [default 0]: selects what happens to the convexified
+  *                              entries of the global pool when the
+  *   quadratic coefficients of the DQuadFunction in the Objective of the
+  *   inner Block change (see the "GLOBAL POOL" note before the gpool_el
+  *   struct). 0 deletes them, which costs nothing as long as the quadratic
+  *   coefficients do not change; 1 keeps in each entry, for each Variable
+  *   x_j of the DQuadFunction, \f$ \sum_k \theta_k ( x^*_{kj} )^2 \f$
+  *   over the points the entry combines, so that they are updated exactly,
+  *   at the price of one more value per Variable in each entry and of
+  *   reading it when the entry is stored. The entries with a single point
+  *   are updated exactly in both cases.
   *
   * The second group comprises:
   *
@@ -2232,6 +2275,9 @@ class LagBFunction : public C05Function , public Block
   if( par == intPoolExtMem )    // default: external / no-write (0)
    return( 0 );
 
+  if( par == intPoolQuadMem )   // default: delete the convexified entries
+   return( 0 );
+
   if( par < intLastLagBFPar )
    return( C05Function::get_dflt_int_par( par ) );
 
@@ -2339,6 +2385,7 @@ class LagBFunction : public C05Function , public Block
    case( intChkState ):        return( ChkState ? 1 : 0 );
    case( intPushCostToOwner ): return( PushCostToOwner ? 1 : 0 );
    case( intPoolExtMem ):      return( f_lazy_eval ? 1 : 0 );
+   case( intPoolQuadMem ):     return( f_quad_mem ? 1 : 0 );
    }
 
   return( C05Function::get_dflt_int_par( par ) );
@@ -2435,6 +2482,8 @@ class LagBFunction : public C05Function , public Block
    return( intPushCostToOwner );
   if( name == "intPoolExtMem" )
    return( intPoolExtMem );
+  if( name == "intPoolQuadMem" )
+   return( intPoolQuadMem );
 
   if( auto is = inner_Solver() )
    return( int_par_is( is->int_par_str2idx( name ) ) );
@@ -2501,11 +2550,11 @@ class LagBFunction : public C05Function , public Block
 
  [[nodiscard]] const std::string & int_par_idx2str( idx_type idx )
   const override {
-  static const std::array< std::string , 5 > pars =
+  static const std::array< std::string , 6 > pars =
    { "intInnrSlvr", "intNoSol" , "intChkState" , "intPushCostToOwner" ,
-     "intPoolExtMem" };
+     "intPoolExtMem" , "intPoolQuadMem" };
 
-  if( ( idx >= intInnrSlvr ) && ( idx <= intPoolExtMem ) )
+  if( ( idx >= intInnrSlvr ) && ( idx <= intPoolQuadMem ) )
    return( pars[ idx - intInnrSlvr ] );
 
   if( auto is = inner_Solver() )
@@ -2910,13 +2959,29 @@ class LagBFunction : public C05Function , public Block
 
 /*--------------------------------------------------------------------------*/
 
- void update_CostMatrix_ModLinRngd( Index h , const v_coeff_pair & rc ,
-				    c_Vec_p_Var & vars , c_Range & rng );
+ /// the change of the quadratic coefficient of a Variable, as the pairs
+ /// ( x_j , \f$ \Delta q_j \f$ ) that a DQuadFunctionModRngd/Sbst gives
+ using v_quad_delta = std::vector< std::pair< const Variable * , double > >;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// update CostMatrix and the global pool for a change of the costs
+ /** Reads the new original linear costs of the Variable in vars, whose
+  * positions in the Objective h were rng when the Modification was issued,
+  * and updates the constants of the global pool for them and for the
+  * changes qd of the quadratic coefficients [see eager_pool_cost_delta()].
+  * Returns the names of the entries of the global pool that cannot be
+  * updated, which the caller deletes. */
 
- void update_CostMatrix_ModLinSbst( Index h , const v_coeff_pair & rc ,
-				    c_Vec_p_Var & vars , c_Subset & sbst );
+ Subset update_CostMatrix_ModLinRngd( Index h , const v_coeff_pair & rc ,
+				      c_Vec_p_Var & vars , c_Range & rng ,
+				      const v_quad_delta & qd = {} );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// as update_CostMatrix_ModLinRngd(), with a Subset of positions
+
+ Subset update_CostMatrix_ModLinSbst( Index h , const v_coeff_pair & rc ,
+				      c_Vec_p_Var & vars , c_Subset & sbst ,
+				      const v_quad_delta & qd = {} );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// EAGER: propagate an original-cost change to the stored pool constants
@@ -2929,11 +2994,22 @@ class LagBFunction : public C05Function , public Block
   * the j-th Variable value of each stored Solution is read by writing it into
   * the inner Block (the only general way, since reading inside a Solution is
   * not possible without a write); the update is multiplied by w, the
-  * weight of the Objective [see v_ObjW]. Does nothing under lazy or NoSol. */
+  * weight of the Objective [see v_ObjW].
+  *
+  * qd holds the changes \f$ \Delta q_j \f$ of the quadratic coefficients:
+  * the constant of an original entry is increased by
+  * \f$ w \sum_j \Delta q_j ( x^*_j )^2 \f$, that of a convexified one by
+  * \f$ w \sum_j \Delta q_j s_j \f$ with s_j from gpool_el::quad_sq [see
+  * intPoolQuadMem]; under lazy, where the constant of an original entry is
+  * evaluated again, only the correction of a convexified one changes, by
+  * \f$ w \sum_j \Delta q_j ( s_j - \bar{x}_j^2 ) \f$. Returns the names
+  * of the entries that cannot be updated exactly: the convexified ones
+  * without quad_sq, and the vertical ones a changed q_j bites on. Does
+  * nothing under NoSol. */
 
- void eager_pool_cost_delta( const v_coeff_pair & rc ,
+ Subset eager_pool_cost_delta( const v_coeff_pair & rc ,
 	       const std::vector< std::pair< Index , double > > & jdeltas ,
-	       double w );
+	       double w , const v_quad_delta & qd = {} );
 
  /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// EAGER: remove original linear-cost terms from stored pool constants
@@ -2947,6 +3023,17 @@ class LagBFunction : public C05Function , public Block
 
  void eager_pool_cost_removal( c_Vec_p_Var & vars ,
                                c_Vec_FunctionValue & costs , double w );
+
+ /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// EAGER: shift the stored pool constants by s
+ /** The constant term of an Objective of the inner Block enters the
+  * constant of every linearization as it enters the value, hence a change
+  * of it by \f$ \Delta c_0 \f$ changes all of them by
+  * \f$ s = w \Delta c_0 \f$, w being the weight of the Objective in the
+  * LagBFunction. Does nothing under lazy, where the constant is evaluated
+  * again, under NoSol, or if s is not finite. */
+
+ void eager_pool_shift( double s );
 
  /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// writes entry k of the global pool in the inner Block, if it can
@@ -2999,6 +3086,23 @@ class LagBFunction : public C05Function , public Block
   * already populated. */
 
  void populate_conv_active( Index name );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// fill g_pool[name].quad_sq from the current inner-Block state
+ /** Under intPoolQuadMem == 1 (and not NoSol), reads the value of each
+  * Variable of the DQuadFunction in the Objective from the inner Block,
+  * which must hold the point of entry name, and stores its square in
+  * g_pool[ name ].quad_sq, sorted by the address of the Variable; leaves it
+  * empty otherwise. */
+
+ void populate_quad_sq( Index name );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// remove the Variable in vars from gpool_el::quad_sq of every entry
+ /** Called when the Variable in vars leave the DQuadFunction: their address
+  * may be given to another Variable, of which the entries know nothing. */
+
+ void drop_quad_sq( c_Vec_p_Var & vars );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// true if the inner Solver has the value of the function at the point
@@ -3175,6 +3279,12 @@ class LagBFunction : public C05Function , public Block
    *   only for affine f (then delta_na == 0), or Blocks that convex-combine
    *   every non-linear auxiliary in their Solution. Kept for backward
    *   compatibility; do NOT use with non-linear costs otherwise. */
+
+ bool f_quad_mem;       ///< true if the pool keeps the squares of the points
+                        /**< The internal form of the intPoolQuadMem
+			 * parameter: true if each entry of the global pool
+  * keeps the convex combination of the squares of the values of the
+  * Variable of the DQuadFunction in the Objective [see gpool_el::quad_sq]. */
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 

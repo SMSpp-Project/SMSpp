@@ -20,6 +20,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   all the modules, which look for every layout of the libraries and import a
   DLL where they find one, with no test on the system or on the architecture
 
+- the parameter `intPoolQuadMem` of `LagBFunction`, which chooses what
+  happens to the convexified linearizations of the global pool when the
+  quadratic coefficients of the `DQuadFunction` in the Objective of the
+  inner Block change: 0 (the default) deletes them, 1 keeps in each
+  linearization the convex combination of the squares of the values of
+  its Variable and updates them exactly
+
 ### Changed
 
 - `C05SumFunction` makes the union of the Variable of its members, and
@@ -35,6 +42,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   build modules (e.g., Unix Makefiles), whose configuration goes on
 
 ### Fixed
+
+- `LagBFunction` updates the constants of the global pool kept under
+  `intPoolExtMem` 0 for a change of the quadratic coefficients of the
+  `DQuadFunction` in the Objective of the inner Block and for a change of
+  the constant term of an Objective of the inner Block, which it updated
+  for the linear coefficients only; a bundle on a Lagrangian dual whose
+  quadratic costs are scaled no longer stops with its oracle found inexact
 
 - `LagBFunction` handles a change of the costs of its inner Block when a
   Variable has been fixed after it at a value other than that of a

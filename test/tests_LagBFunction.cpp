@@ -31,6 +31,13 @@
  * as a Solver that gives the inner Block back to its father hands them, is
  * checked not to throw, the fixing deleting the linearization.
  *
+ * A change of the quadratic coefficients of a DQuadFunction Objective is
+ * checked to update the constant of each linearization of the global pool
+ * with a single point to its cost at the new coefficients, and to delete a
+ * convexified one with intPoolQuadMem 0 and to update it to the combination
+ * of the costs of its points with intPoolQuadMem 1, with intPoolExtMem 0
+ * and 1; a change of the constant term then shifts all of them.
+ *
  * A second set of tests checks the by-column representation of the
  * Lagrangian term that the Lagrangian costs c_j + y A^j are computed from,
  * as get_A_by_col() gives it, after the Lagrangian pairs are set (once and
@@ -55,6 +62,7 @@
 
 #include "AbstractBlock.h"
 #include "BoxSolver.h"
+#include "DQuadFunction.h"
 #include "FakeSolver.h"
 #include "FRealObjective.h"
 #include "LagBFunction.h"
@@ -89,6 +97,9 @@ using v_mon_pair = LagBFunction::v_mon_pair;
 static const std::vector< double > c_cost = { 1 , -2 , 0.5 };
 static const std::vector< double > c_lb = { 0 , -1 , 1 };
 static const std::vector< double > c_ub = { 2 , 1 , 3 };
+
+// the quadratic coefficients of min c x + \sum_j q_j x_j^2 , l <= x <= u
+static const std::vector< double > c_quad = { 1 , 0.5 , 2 };
 
 // the Lagrangian term g( x ) = A x + b
 static const std::vector< std::vector< double > > c_A = { { 1 , 1 , 0 } ,
@@ -156,22 +167,31 @@ struct Fixture {
  FRealObjective * outer_obj = nullptr;
 
  /// the Block are built, the LagBFunction has no Lagrangian term yet
+ /** The Objective of the inner Block is c x, or c x + \sum_j q_j x_j^2 if
+  * the quadratic coefficients q are given. */
 
- Fixture( void ) {
+ explicit Fixture( const std::vector< double > & q = {} ) {
   inner = new AbstractBlock();
   x = new std::vector< ColVariable >( c_cost.size() );
   inner->add_static_variable( *x , "x" );
   box = new std::vector< BoxConstraint >( c_cost.size() );
   inner->add_static_constraint( *box , "box" );
   LinearFunction::v_coeff_pair cp;
+  DQuadFunction::v_coeff_triple ct;
   for( Index j = 0 ; j < c_cost.size() ; ++j ) {
    ( *box )[ j ].set_variable( & ( *x )[ j ] , eNoMod );
    ( *box )[ j ].set_lhs( c_lb[ j ] , eNoMod );
    ( *box )[ j ].set_rhs( c_ub[ j ] , eNoMod );
    cp.push_back( { & ( *x )[ j ] , c_cost[ j ] } );
+   if( ! q.empty() )
+    ct.emplace_back( & ( *x )[ j ] , c_cost[ j ] , q[ j ] );
    }
-  inner_obj = new FRealObjective( inner ,
-				  new LinearFunction( std::move( cp ) ) );
+  if( q.empty() )
+   inner_obj = new FRealObjective( inner ,
+				   new LinearFunction( std::move( cp ) ) );
+  else
+   inner_obj = new FRealObjective( inner ,
+				   new DQuadFunction( std::move( ct ) ) );
   inner_obj->set_sense( Objective::eMin , eNoMod );
   inner->set_objective( inner_obj , eNoMod );
 
@@ -1166,6 +1186,106 @@ static void test_fixed_after_cost_change( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* The quadratic coefficients of the Objective of the inner Block multiplied
+ * by 3, as a change of scale does, with the linear ones written back at the
+ * original costs, and its constant term set to 0.75. The global pool
+ * holds the linearizations of two points and their convex combination
+ * with weights 1/2: the constant of each of the first two has to be the
+ * cost of its point at the new coefficients; the third, whose constant is
+ * the combination of the two costs and not the cost of the combination,
+ * has to be deleted, and the Solver above told so, with intPoolQuadMem 0,
+ * and to be the combination of the new costs with intPoolQuadMem 1. */
+
+/// the cost of the point xv with the quadratic coefficients q times s and
+/// the constant term c0
+static double quad_cost( const std::vector< double > & xv , double s ,
+			 double c0 = 0 )
+{
+ double val = c0;
+ for( Index j = 0 ; j < c_cost.size() ; ++j )
+  val += c_cost[ j ] * xv[ j ] + s * c_quad[ j ] * xv[ j ] * xv[ j ];
+ return( val );
+ }
+
+static void test_quad_cost_change( int extmem , int quadmem )
+{
+ const std::string where = "quadratic costs, intPoolExtMem " +
+  std::to_string( extmem ) + ", intPoolQuadMem " + std::to_string( quadmem );
+
+ Fixture f( c_quad );
+ f.lbf->set_par( LagBFunction::intPoolExtMem , extmem );
+ f.lbf->set_par( LagBFunction::intPoolQuadMem , quadmem );
+ f.lbf->set_par( C05Function::intGPMaxSz , 3 );
+ f.lbf->set_dual_pairs( v_dual_pair( { f.pair( 0 , 0 ) , f.pair( 1 , 1 ) } ) );
+ f.observe();
+
+ // the two points, x* = ( 1 , 1 , 1 ) and x* = ( 0 , -0.5 , 1 ), whose
+ // combination has squares other than the combination of their squares
+ const std::vector< std::vector< double > > ys = { { -3 , -1 } ,
+						     { 2 , 0.5 } };
+ std::vector< std::vector< double > > xs( ys.size() );
+ for( Index k = 0 ; k < ys.size() ; ++k ) {
+  f.set_y( ys[ k ] );
+  assert( f.lbf->compute() == Solver::kOK );
+  assert( f.lbf->has_linearization() );
+  double g[ 2 ];
+  f.lbf->get_linearization_coefficients( g );
+  for( auto & xj : *f.x )
+   xs[ k ].push_back( xj.get_value() );
+  f.lbf->store_linearization( k , eNoMod );
+  }
+ f.lbf->store_combination_of_linearizations( { { 0 , 0.5 } , { 1 , 0.5 } } ,
+					     2 , eNoMod );
+ for( Index k = 0 ; k < ys.size() ; ++k )
+  expect( equal( f.lbf->get_linearization_constant( k ) ,
+		 quad_cost( xs[ k ] , 1 ) ) ,
+	  where + ": constant " + std::to_string( k ) + " before the change" );
+
+ f.fake->get_Modification_list().clear();
+ std::vector< double > nq( c_quad );
+ for( auto & qj : nq )
+  qj *= 3;
+ static_cast< DQuadFunction * >( f.inner_obj->get_function() )->modify_terms(
+	    nq.cbegin() , c_cost.cbegin() , Range( 0 , c_cost.size() ) );
+ const double c0 = 0.75;
+ static_cast< DQuadFunction * >( f.inner_obj->get_function()
+				 )->set_constant_term( c0 );
+
+ for( Index k = 0 ; k < ys.size() ; ++k ) {
+  const double got = f.lbf->get_linearization_constant( k );
+  const double exp = quad_cost( xs[ k ] , 3 , c0 );
+  expect( equal( got , exp ) , where + ": constant " + std::to_string( k ) +
+	  " = " + std::to_string( got ) + ", expected " +
+	  std::to_string( exp ) );
+  }
+
+ if( quadmem ) {
+  expect( f.lbf->is_linearization_there( 2 ) ,
+	  where + ": the convexified linearization is deleted" );
+  if( f.lbf->is_linearization_there( 2 ) ) {
+   const double got = f.lbf->get_linearization_constant( 2 );
+   const double exp = ( quad_cost( xs[ 0 ] , 3 , c0 ) +
+			quad_cost( xs[ 1 ] , 3 , c0 ) ) / 2;
+   expect( equal( got , exp ) , where + ": convexified constant = " +
+	   std::to_string( got ) + ", expected " + std::to_string( exp ) );
+   }
+  }
+ else {
+  expect( ! f.lbf->is_linearization_there( 2 ) ,
+	  where + ": the convexified linearization is not deleted" );
+  bool told = false;
+  for( const auto & mod : f.fake->get_Modification_list() )
+   if( const auto cm = std::dynamic_pointer_cast< C05FunctionMod >( mod ) )
+    if( ( cm->type() == C05FunctionMod::GlobalPoolRemoved ) &&
+	( cm->which() == Subset( { 2 } ) ) )
+     told = true;
+  expect( told , where + ": the deletion is not told to the Solver" );
+  }
+
+ std::cout << where << ": done" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
 
 int main( int argc , char ** argv )
 {
@@ -1183,6 +1303,9 @@ int main( int argc , char ** argv )
  test_columns_edge_cases();
  test_weight_change();
  test_fixed_after_cost_change();
+ for( int extmem : { 0 , 1 } )
+  for( int quadmem : { 0 , 1 } )
+   test_quad_cost_change( extmem , quadmem );
 
  if( n_failures ) {
   std::cout << "LagBFunction_unit_test: " << n_failures << " check(s) failed"

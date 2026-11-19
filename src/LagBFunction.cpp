@@ -52,6 +52,8 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <algorithm>
+#include <functional>
 #include <numeric>
 #include <queue>
 
@@ -162,6 +164,40 @@ static constexpr Function::FunctionValue INF = FunctionMod::INFshift;
 /*--------------------------------------------------------------------------*/
 /*-------------------------------- FUNCTIONS -------------------------------*/
 /*--------------------------------------------------------------------------*/
+/// orders the pairs ( Variable , value ) of gpool_el::quad_sq by Variable
+
+static bool by_variable( const std::pair< const Variable * , double > & a ,
+			 const std::pair< const Variable * , double > & b )
+{
+ return( std::less< const Variable * >()( a.first , b.first ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// the nonzero changes of the quadratic coefficients that mod carries
+/** The pairs ( x_j , \f$ \Delta q_j \f$ ) of a DQuadFunctionModRngd or
+ * DQuadFunctionModSbst whose \f$ \Delta q_j \f$ is nonzero; empty for any
+ * other Modification. */
+
+static std::vector< std::pair< const Variable * , double > > quad_deltas(
+					       const Modification * mod )
+{
+ std::vector< std::pair< const Variable * , double > > qd;
+ auto add = [ & qd ]( const auto & vars , const auto & delta ) {
+  if( vars.size() == delta.size() )
+   for( std::size_t i = 0 ; i < vars.size() ; ++i )
+    if( delta[ i ].second != 0 )
+     qd.emplace_back( vars[ i ] , delta[ i ].second );
+  };
+
+ if( const auto qm = dynamic_cast< const DQuadFunctionModRngd * >( mod ) )
+  add( qm->vars() , qm->delta() );
+ else
+  if( const auto qm = dynamic_cast< const DQuadFunctionModSbst * >( mod ) )
+   add( qm->vars() , qm->delta() );
+
+ return( qd );
+ }
+
 
 template< typename T >
 static void Compact( std::vector< T > & g , Function::c_Subset & B )
@@ -210,7 +246,8 @@ SMSpp_insert_in_factory_cpp_1( LagBFunction );
 LagBFunction::LagBFunction( Block * innerblock , Observer * observer )
  : C05Function() , IsConvex( true ) , InnrSlvr( 0 ) , NoSol( false ) ,
    ChkState( false ) , PushCostToOwner( true ) , f_cost_tol( 1e-12 ) ,
-   f_active_dirty( true ) , f_lazy_eval( false ) , f_max_glob( 0 ) ,
+   f_active_dirty( true ) , f_lazy_eval( false ) , f_quad_mem( false ) ,
+   f_max_glob( 0 ) ,
    LastSolution( 0 ) , VarSol( true ) , f_yb( -INF ) ,
    f_play_dumb( false ) , f_dirty_Lc( false ) , f_c_changed( false ) ,
    f_Lc( -1 ) , LPMaxSz( 0 ) , f_BSC( nullptr ) , f_lBSC( nullptr ) ,
@@ -694,6 +731,13 @@ void LagBFunction::set_par( idx_type par , int value )
    break;
   case( intPoolExtMem ):  // intPoolExtMem - - - - - - - - - - - - - - - - - -
    f_lazy_eval = ( value != 0 );  // 1 = re-read via sol->write (lazy)
+   break;
+  case( intPoolQuadMem ):  // intPoolQuadMem - - - - - - - - - - - - - - - - -
+   // the entries stored before keep no squares, those stored after do
+   f_quad_mem = ( value != 0 );
+   if( ! f_quad_mem )
+    for( auto & el : g_pool )
+     el.quad_sq = {};
    break;
   case( intPushCostToOwner ): // intPushCostToOwner - - - - - - - - - - - - -
    bool new_val = ( value != 0 );
@@ -1640,6 +1684,7 @@ void LagBFunction::put_State( const State & state )
    el.value = 0;               // clear stale eager/lazy data on voided slots
    el.convexified = false;
    el.conv_active.clear();
+   el.quad_sq.clear();
    }
 
   // now add back all the Solution in the State (possibly after a check)
@@ -1657,6 +1702,7 @@ void LagBFunction::put_State( const State & state )
       gpit->value = s.g_pool[ i ].value;            // eager/lazy constant
       gpit->convexified = s.g_pool[ i ].convexified;
       gpit->conv_active.clear();                    // cache: rebuilt lazily
+      gpit->quad_sq.clear();                        // not in the State
       Addd.push_back( i );
       f_max_glob = i + 1;
       }
@@ -1672,6 +1718,7 @@ void LagBFunction::put_State( const State & state )
      gpit->value = s.g_pool[ i ].value;            // eager/lazy constant
      gpit->convexified = s.g_pool[ i ].convexified;
      gpit->conv_active.clear();                    // cache: rebuilt lazily
+     gpit->quad_sq.clear();                        // not in the State
      Addd.push_back( i );
      }
     ++gpit;
@@ -1739,6 +1786,7 @@ void LagBFunction::put_State( State && state )
    el.value = 0;               // clear stale eager/lazy data on voided slots
    el.convexified = false;
    el.conv_active.clear();
+   el.quad_sq.clear();
    }
 
   // now add back all the Solution in the State (possibly after a check)
@@ -1757,6 +1805,7 @@ void LagBFunction::put_State( State && state )
       gpit->value = s.g_pool[ i ].value;            // eager/lazy constant
       gpit->convexified = s.g_pool[ i ].convexified;
       gpit->conv_active.clear();                    // cache: rebuilt lazily
+      gpit->quad_sq.clear();                        // not in the State
       Addd.push_back( i );
       f_max_glob = i + 1;
       }
@@ -1773,6 +1822,7 @@ void LagBFunction::put_State( State && state )
      gpit->value = s.g_pool[ i ].value;            // eager/lazy constant
      gpit->convexified = s.g_pool[ i ].convexified;
      gpit->conv_active.clear();                    // cache: rebuilt lazily
+     gpit->quad_sq.clear();                        // not in the State
      Addd.push_back( i );
      }
     ++gpit;
@@ -1986,6 +2036,7 @@ void LagBFunction::store_linearization( Index name , ModParam issueMod )
  g_pool[ name ].value = 0;
  g_pool[ name ].conv_active.clear();
  // stale subgradient cache (repopulated below)
+ g_pool[ name ].quad_sq.clear();
  LastSolution = name;             // record that the Solution has been stored
 
  // the stored x* need not be a genuine subproblem solution: when it is a
@@ -2035,6 +2086,11 @@ void LagBFunction::store_linearization( Index name , ModParam issueMod )
  // subgradient can later be rebuilt without writing the Solution into the
  // Block. The Block still holds x*_k here (the fresh solution).
  populate_conv_active( name );
+
+ // the squares of a genuine point, for the changes of the quadratic costs;
+ // those of a convexified one are not those of the point it holds
+ if( ! g_pool[ name ].convexified )
+  populate_quad_sq( name );
 
  if( name >= f_max_glob )         // update f_max_glob
   f_max_glob = name + 1;
@@ -2167,10 +2223,43 @@ void LagBFunction::store_combination_of_linearizations(
    }
   }
 
+ // the squares of the values of the Variable of the DQuadFunction combine
+ // as the Solution do [see intPoolQuadMem], provided that every constituent
+ // has them, on the same Variable; read from the old pool state as well
+ std::vector< std::pair< const Variable * , double > > comb_sq;
+ if( f_quad_mem ) {
+  const auto & s0 = g_pool[ first ].quad_sq;
+  bool ok = ! s0.empty();
+  for( const auto & cf : coefficients ) {
+   const auto & sk = g_pool[ cf.first ].quad_sq;
+   if( ( sk.size() != s0.size() ) ||
+       ( ! std::equal( sk.begin() , sk.end() , s0.begin() ,
+		       []( const auto & a , const auto & b ) {
+			return( a.first == b.first ); } ) ) ) {
+    ok = false;
+    break;
+    }
+   }
+  if( ok ) {
+   comb_sq = s0;
+   for( auto & el : comb_sq )
+    el.second *= coefficients[ 0 ].second;
+   for( Index i = 1 ; i < coefficients.size() ; ++i ) {
+    const auto pos = coefficients[ i ].first;
+    if( pos == first )
+     continue;
+    const auto & sk = g_pool[ pos ].quad_sq;
+    for( Index t = 0 ; t < comb_sq.size() ; ++t )
+     comb_sq[ t ].second += coefficients[ i ].second * sk[ t ].second;
+    }
+   }
+  }
+
  g_pool[ name ].varsol = type;             // store the type
  if( g_pool[ name ].sol )                  // and the Solution is told it
   g_pool[ name ].sol->is_direction( ! type );
  g_pool[ name ].conv_active = std::move( comb_ca );  // empty if not combinable
+ g_pool[ name ].quad_sq = std::move( comb_sq );      // empty if not combinable
 
  if( name == LastSolution )    // if this was the Solution in the inner Block
   LastSolution = g_pool.size();  // it is no longer valid
@@ -2674,6 +2763,26 @@ void LagBFunction::populate_conv_active( Index name )
   }
  if( ! ok )                       // give up -> empty -> sol->write fallback
   ca.clear();
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+void LagBFunction::populate_quad_sq( Index name )
+{
+ auto & sq = g_pool[ name ].quad_sq;
+ sq.clear();
+ if( ( ! f_quad_mem ) || NoSol )
+  return;
+
+ for( Index h = 0 ; h < v_Obj.size() ; ++h )
+  if( v_ObjIsQuad[ h ] )
+   for( const auto & t : static_cast< p_QF >( v_Obj[ h ]->get_function()
+					      )->get_v_var() ) {
+    const auto xj = std::get< 0 >( t )->get_value();
+    sq.emplace_back( std::get< 0 >( t ) , xj * xj );
+    }
+
+ std::sort( sq.begin() , sq.end() , by_variable );
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3868,7 +3977,15 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
    if( qf == CMh_f ) {
     v_coeff_pair rc;
     triple_to_pair( qf->get_v_var() , rc );
-    update_CostMatrix_ModLinRngd( h , rc , tmod->vars() , tmod->range() );
+    auto drop = update_CostMatrix_ModLinRngd( h , rc , tmod->vars() ,
+					      tmod->range() ,
+					      quad_deltas( mod ) );
+
+    // the linearizations whose constant cannot follow the change of the
+    // quadratic coefficients are deleted [see intPoolQuadMem]
+    if( ! drop.empty() )
+     delete_linearizations( std::move( drop ) , true ,
+			    Observer::make_par( eModBlck , chnl ) );
 
     // issue a LagBFunctionMod modification of the type AlphaChanged and
     // with what() == 1: the Lagrangian function unpredictably changes
@@ -3893,7 +4010,15 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
    if( qf == CMh_f ) {
     v_coeff_pair rc;
     triple_to_pair( qf->get_v_var() , rc );
-    update_CostMatrix_ModLinSbst( h , rc , tmod->vars() , tmod->subset() );
+    auto drop = update_CostMatrix_ModLinSbst( h , rc , tmod->vars() ,
+					      tmod->subset() ,
+					      quad_deltas( mod ) );
+
+    // the linearizations whose constant cannot follow the change of the
+    // quadratic coefficients are deleted [see intPoolQuadMem]
+    if( ! drop.empty() )
+     delete_linearizations( std::move( drop ) , true ,
+			    Observer::make_par( eModBlck , chnl ) );
 
     // issue a LagBFunctionMod modification of the type AlphaChanged and
     // with what() == 1: the Lagrangian function unpredictably changes
@@ -3933,7 +4058,9 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
    // NothingChanged corresponding to the change of the constant term from
    // c_0 to c'_0; hence the whole Lagrangian function is shifted by the
    // same amount, i.e., issue a LagBFunctionMod with type() ==
-   // NothingChanged, what() == 1 and the very same shift() == c'_0 - c_0
+   // NothingChanged, what() == 1 and the very same shift() == c'_0 - c_0;
+   // the constants of the global pool are shifted with it
+   eager_pool_shift( obj_w( h ) * tmod->shift() );
 
    if( f_Observer )
     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
@@ -3957,7 +4084,14 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
        ( tmod->shift() < INF ) && ( tmod->shift() > -INF ) ) {
     // a finite shift() == a predictable change == the whole Objective has
     // changed by shift(): like in the case of obj, issue a LagBFunctionMod
-    // with type() == NothingChanged, what() == 1 and the very same shift()
+    // with type() == NothingChanged, what() == 1 and the very same shift(),
+    // and shift the constants of the global pool by it times the weight of
+    // the Objective in the LagBFunction
+    double w = inner_weight();
+    auto b = dynamic_cast< Objective * >( f->get_Observer() )->get_Block();
+    for( ; b && ( b != v_Block.front() ) ; b = b->get_f_Block() )
+     w *= b->get_objective_weight();
+    eager_pool_shift( w * tmod->shift() );
 
     if( f_Observer )
      f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
@@ -4709,10 +4843,10 @@ char LagBFunction::guts_of_this_add_Modification( p_Mod mod , ChnlName chnl )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::update_CostMatrix_ModLinRngd( Index h ,
-                                                 const v_coeff_pair & rc ,
-                                                 c_Vec_p_Var & vars ,
-                                                 c_Range & rng )
+LagBFunction::Subset LagBFunction::update_CostMatrix_ModLinRngd(
+				   Index h , const v_coeff_pair & rc ,
+				   c_Vec_p_Var & vars , c_Range & rng ,
+				   const v_quad_delta & qd )
 {
  // note that one may think to update the corresponding Range of original
  // costs by adding delta(), but this would be wrong because delta() is
@@ -4729,7 +4863,7 @@ void LagBFunction::update_CostMatrix_ModLinRngd( Index h ,
  f_dirty_Lc = true;  // Lagrangian costs will have to be recomputed
 
  if( vars.empty() || ( rng.second <= rng.first ) )
-  return;
+  return( Subset() );
 
  // the index of the modified Objective is provided by the caller: it cannot
  // be recovered here from the Variable in the Modification, since an inner
@@ -4756,8 +4890,7 @@ void LagBFunction::update_CostMatrix_ModLinRngd( Index h ,
     }
    CM[ j ].first = rc[ j ].second;
    }
-  eager_pool_cost_delta( rc , jdeltas , obj_w( h ) );
-  return;
+  return( eager_pool_cost_delta( rc , jdeltas , obj_w( h ) , qd ) );
   }
 
  // if Range is no longer current, it's complicated
@@ -4782,15 +4915,15 @@ void LagBFunction::update_CostMatrix_ModLinRngd( Index h ,
    }
   CM[ j ].first = rc[ k ].second;
   }
- eager_pool_cost_delta( rc , jdeltas , obj_w( h ) );
+ return( eager_pool_cost_delta( rc , jdeltas , obj_w( h ) , qd ) );
  }  // end( LagBFunction::update_CostMatrix_ModLinRngd )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::update_CostMatrix_ModLinSbst( Index h ,
-                                                 const v_coeff_pair & rc ,
-                                                 c_Vec_p_Var & vars ,
-                                                 c_Subset & sbst )
+LagBFunction::Subset LagBFunction::update_CostMatrix_ModLinSbst(
+				   Index h , const v_coeff_pair & rc ,
+				   c_Vec_p_Var & vars , c_Subset & sbst ,
+				   const v_quad_delta & qd )
 {
  // note that one may think to update the corresponding Subset of original
  // costs by adding delta(), but this would be wrong because delta() is
@@ -4807,7 +4940,7 @@ void LagBFunction::update_CostMatrix_ModLinSbst( Index h ,
  f_dirty_Lc = true;  // Lagrangian costs will have to be recomputed
 
  if( vars.empty() || sbst.empty() )
-  return;
+  return( Subset() );
 
  // the index of the modified Objective is provided by the caller: it cannot
  // be recovered here from the Variable in the Modification, since an inner
@@ -4834,8 +4967,7 @@ void LagBFunction::update_CostMatrix_ModLinSbst( Index h ,
     }
    CM[ j ].first = rc[ j ].second;
    }
-  eager_pool_cost_delta( rc , jdeltas , obj_w( h ) );
-  return;
+  return( eager_pool_cost_delta( rc , jdeltas , obj_w( h ) , qd ) );
   }
 
  // if Subset is no longer current, it's complicated
@@ -4860,17 +4992,21 @@ void LagBFunction::update_CostMatrix_ModLinSbst( Index h ,
    }
   CM[ j ].first = rc[ k ].second;
   }
- eager_pool_cost_delta( rc , jdeltas , obj_w( h ) );
+ return( eager_pool_cost_delta( rc , jdeltas , obj_w( h ) , qd ) );
  }  // end( LagBFunction::update_CostMatrix_ModLinSbst )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::eager_pool_cost_delta( const v_coeff_pair & rc ,
+LagBFunction::Subset LagBFunction::eager_pool_cost_delta(
+		 const v_coeff_pair & rc ,
 		 const std::vector< std::pair< Index , double > > & jdeltas ,
-		 double w )
+		 double w , const v_quad_delta & qd )
 {
- if( f_lazy_eval || NoSol || jdeltas.empty() )
-  return;
+ // under lazy the constants are evaluated again but for the correction of
+ // the convexified entries, which only the quadratic coefficients change
+ const bool lin = ( ! f_lazy_eval ) && ( ! jdeltas.empty() );
+ if( NoSol || ( ( ! lin ) && qd.empty() ) )
+  return( Subset() );
 
  // for each stored linearization, write its Solution into the inner Block so
  // that the changed Variables hold x*_k, then add < Delta_c , x*_k > to the
@@ -4878,20 +5014,82 @@ void LagBFunction::eager_pool_cost_delta( const v_coeff_pair & rc ,
  // cost-independent, is left untouched. The write is done at this
  // Modification-handling point (not at query time, which would disturb the
  // Block state and the cost propagation -- the very bug eager fixes).
+ Subset drop;
  for( Index k = 0 ; k < f_max_glob ; ++k ) {
+  auto & el = g_pool[ k ];
+  if( ! el.sol )
+   continue;
+  if( f_lazy_eval && ( ! el.convexified ) )
+   continue;
+  // a convexified entry needs the combination of the squares of its points
+  if( ( ! qd.empty() ) && el.convexified &&
+      ( ( ! f_quad_mem ) || el.quad_sq.empty() ) ) {
+   drop.push_back( k );
+   continue;
+   }
   if( ! write_pool_entry( k ) )
    continue;
+
   double dv = 0;
-  for( const auto & jd : jdeltas )
-   dv += jd.second * rc[ jd.first ].first->get_value();
-  g_pool[ k ].value += w * dv;
+  if( lin )
+   for( const auto & jd : jdeltas )
+    dv += jd.second * rc[ jd.first ].first->get_value();
+
+  // the quadratic term: the square of x*_j for a point, the combination of
+  // the squares for a convexified entry, minus the square of the combination
+  // under lazy; a direction stays one only if the changes leave it alone
+  bool ok = true;
+  for( const auto & [ var , dq ] : qd ) {
+   const double xj = static_cast< const ColVariable * >( var )->get_value();
+   double sj = xj * xj;
+   if( el.convexified ) {
+    const auto it = std::lower_bound( el.quad_sq.begin() , el.quad_sq.end() ,
+				      std::make_pair( var , 0.0 ) ,
+				      by_variable );
+    if( ( it == el.quad_sq.end() ) || ( it->first != var ) ) {
+     ok = false;
+     break;
+     }
+    sj = it->second;
+    }
+   if( ! el.varsol ) {
+    if( sj != 0 ) {
+     ok = false;
+     break;
+     }
+    continue;
+    }
+   if( f_lazy_eval )
+    sj -= xj * xj;
+   dv += dq * sj;
+   }
+
+  if( ok )
+   el.value += w * dv;
+  else
+   drop.push_back( k );
   }
 
  // the inner Block now holds the last pool Solution; mark that no pool entry
  // is "the current one" so later queries take the eager fast path
  LastSolution = g_pool.size();
 
+ return( drop );
+
  }  // end( LagBFunction::eager_pool_cost_delta )
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::eager_pool_shift( double s )
+{
+ if( f_lazy_eval || NoSol || ( s == 0 ) || ( ! std::isfinite( s ) ) )
+  return;
+
+ for( Index k = 0 ; k < f_max_glob ; ++k )
+  if( g_pool[ k ].sol )
+   g_pool[ k ].value += s;
+
+ }  // end( LagBFunction::eager_pool_shift )
 
 /*--------------------------------------------------------------------------*/
 
@@ -4942,6 +5140,22 @@ void LagBFunction::eager_pool_cost_removal(
  LastSolution = g_pool.size();
 
  }  // end( LagBFunction::eager_pool_cost_removal )
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::drop_quad_sq( c_Vec_p_Var & vars )
+{
+ std::vector< const Variable * > rmvd( vars.begin() , vars.end() );
+ std::sort( rmvd.begin() , rmvd.end() , std::less< const Variable * >() );
+ for( auto & el : g_pool )
+  if( ! el.quad_sq.empty() )
+   el.quad_sq.erase( std::remove_if( el.quad_sq.begin() , el.quad_sq.end() ,
+				     [ & rmvd ]( const auto & p ) {
+				      return( std::binary_search(
+				       rmvd.begin() , rmvd.end() , p.first ,
+				       std::less< const Variable * >() ) );
+				      } ) , el.quad_sq.end() );
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -5067,6 +5281,8 @@ void LagBFunction::update_CostMatrix_ModVarsRngd( Index h ,
    costs[ i ] = CM[ rng.first + i ].first;
   eager_pool_cost_removal( vars , costs , obj_w( h ) );
   }
+ else
+  drop_quad_sq( vars );
  m_column tempCM;     // CostMatrix elements to be re-added
 
  // check if are nonempty elements of CostMatrix are being deleted, if so
@@ -5142,6 +5358,8 @@ void LagBFunction::update_CostMatrix_ModVarsSbst( Index h ,
    costs[ i ] = CM[ sbst[ i ] ].first;
   eager_pool_cost_removal( vars , costs , obj_w( h ) );
   }
+ else
+  drop_quad_sq( vars );
  m_column tempCM;     // CostMatrix elements to be re-added
 
  // check if are nonempty elements of CostMatrix are being deleted, if so
