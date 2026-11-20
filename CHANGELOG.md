@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `memo_cast()` and `memo_pointer_cast()` in `SMSTypedefs.h`, which give
+  what `dynamic_cast` and `std::dynamic_pointer_cast` give with the cast
+  made only once for each dynamic type, for a hierarchy with no virtual
+  base
+
 - `cmake/SMSppModule.cmake`, installed and included by the package
   configuration file, with the functions by which the modules build the same
   way on every system: `smspp_keep_module()`, `smspp_keep_modules()`,
@@ -42,6 +47,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   one for a Restriction)
 
 ### Changed
+
+- `BoxSolver` finds the type of a `Modification`, of a `Function` and of a
+  `Constraint` by `memo_cast()`
 
 - `C05SumFunction` makes the union of the Variable of its members, and
   takes out those that leave it, in time linear in their number rather

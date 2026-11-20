@@ -47,6 +47,8 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <cstddef>
+#include <cstdint>
 #include <fstream>
 #include <functional>
 #include <future>
@@ -61,6 +63,7 @@
 #include <tuple>
 #include <type_traits>
 #include <typeinfo>
+#include <unordered_map>
 #include <vector>
 
 // boost libraries
@@ -102,6 +105,51 @@ constexpr T Inf( void ) noexcept {
  return( std::numeric_limits< T >::has_infinity ?
           std::numeric_limits< T >::infinity() :
           std::numeric_limits< T >::max() );
+}
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// dynamic_cast< P >( \p p ), made once per dynamic type of * \p p
+/** What dynamic_cast< P >( \p p ) gives, P being a pointer type, with the
+ * cast made only the first time a dynamic type is seen: the answer depends
+ * on that type alone, and the offset from \p p to the object of the cast
+ * (the same for all the objects of a type, which have the same layout) is
+ * kept in a table of the thread, keyed by its std::type_info. A type
+ * defined later, e.g., a Modification of some :Block, is cast for real the
+ * first time, so that the hierarchy is followed exactly as by dynamic_cast.
+ * This is worth it where the same few types are cast very many times, as
+ * the Modification that a Solver dispatches, since dynamic_cast compares
+ * the names of the types when they come from different libraries. The
+ * hierarchy of B must have no virtual base, through which the offset may
+ * differ from one object to another. */
+
+template< class P , class B >
+P memo_cast( B * p ) {
+ using T = std::remove_pointer_t< P >;
+ if( ! p )
+  return( nullptr );
+ // PTRDIFF_MIN if the cast fails
+ static thread_local std::unordered_map< const std::type_info * ,
+                                         std::ptrdiff_t > cache;
+ auto [ it , fresh ] = cache.try_emplace( & typeid( * p ) , PTRDIFF_MIN );
+ if( fresh )
+  if( auto * t = dynamic_cast< T * >( p ) )
+   it->second = reinterpret_cast< const char * >( t ) -
+                reinterpret_cast< const char * >( p );
+ if( it->second == PTRDIFF_MIN )
+  return( nullptr );
+ return( reinterpret_cast< T * >(
+           const_cast< char * >( reinterpret_cast< const char * >( p ) ) +
+           it->second ) );
+}
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// std::dynamic_pointer_cast< T >( \p p ), made by memo_cast()
+
+template< class T , class B >
+std::shared_ptr< T > memo_pointer_cast( const std::shared_ptr< B > & p ) {
+ if( auto * t = memo_cast< T * >( p.get() ) )
+  return( std::shared_ptr< T >( p , t ) );
+ return( nullptr );
 }
 
 /*--------------------------------------------------------------------------*/

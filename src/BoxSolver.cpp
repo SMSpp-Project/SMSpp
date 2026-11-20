@@ -94,7 +94,7 @@ void BoxSolver::set_Block( Block * block )
  std::vector< double > w( 1 , 1.0 );
  for( Block::Index i = 0 ; i < f_desc.size() ; ++i ) {
   if( auto obj = f_desc[ i ]->get_objective() )
-   if( ! dynamic_cast< FRealObjective * >( obj ) )
+   if( ! memo_cast< FRealObjective * >( obj ) )
     throw( std::invalid_argument(
 			  "BoxSolver::set_Block: unsupported Objective" ) );
   for( auto el : f_desc[ i ]->get_nested_Blocks() ) {
@@ -166,7 +166,7 @@ int BoxSolver::compute( bool changedvars )
   // Objective Function and do the actual optimization
 
   VarValue l , u;
-  if( auto lf = dynamic_cast< LinearFunction * >( f_altobj ) ) {
+  if( auto lf = memo_cast< LinearFunction * >( f_altobj ) ) {
    f_max_val = f_min_val = lf->get_constant_term();
    
    if( f_sol & 2 ) {
@@ -191,7 +191,7 @@ int BoxSolver::compute( bool changedvars )
     }
    }
   else
-   if( auto qf = dynamic_cast< DQuadFunction * >( f_altobj ) ) {
+   if( auto qf = memo_cast< DQuadFunction * >( f_altobj ) ) {
     f_max_val = f_min_val = qf->get_constant_term();
 
     if( f_sol & 2 ) {
@@ -314,7 +314,7 @@ void BoxSolver::get_var_solution( Configuration *solc )
   // second phase: look at only the ColVariable active in the alternative
   // Objective Function and do the actual optimization
 
-  if( auto lf = dynamic_cast< LinearFunction * >( f_altobj ) ) {
+  if( auto lf = memo_cast< LinearFunction * >( f_altobj ) ) {
    for( auto el : lf->get_v_var() ) {
     if( el.second == 0 )
      continue;
@@ -328,7 +328,7 @@ void BoxSolver::get_var_solution( Configuration *solc )
     }
    }
   else
-   if( auto qf = dynamic_cast< DQuadFunction * >( f_altobj ) ) {
+   if( auto qf = memo_cast< DQuadFunction * >( f_altobj ) ) {
     for( auto el : qf->get_v_var() ) {
      if( ( std::get< 1 >( el ) == 0 ) && ( std::get< 2 >( el ) == 0 ) )
       continue;
@@ -394,7 +394,7 @@ void BoxSolver::get_dual_solution( Configuration *solc )
    // second phase: look at only the ColVariable active in the alternative
    // Objective Function and do the actual reduced cost computation
    VarValue l , u;
-   if( auto lf = dynamic_cast< LinearFunction * >( f_altobj ) ) {
+   if( auto lf = memo_cast< LinearFunction * >( f_altobj ) ) {
     for( auto el : lf->get_v_var() ) {
      if( el.second == 0 )
       continue;
@@ -409,7 +409,7 @@ void BoxSolver::get_dual_solution( Configuration *solc )
      }
     }
    else
-    if( auto qf = dynamic_cast< DQuadFunction * >( f_altobj ) ) {
+    if( auto qf = memo_cast< DQuadFunction * >( f_altobj ) ) {
      for( auto el : qf->get_v_var() ) {
       if( ( std::get< 1 >( el ) == 0 ) && ( std::get< 2 >( el ) == 0 ) )
        continue;
@@ -486,7 +486,7 @@ void BoxSolver::get_var_direction( Configuration * dirc )
   // second phase: look at only the ColVariable active in the alternative
   // Objective Function and do the actual optimization
 
-  if( auto lf = dynamic_cast< LinearFunction * >( f_altobj ) ) {
+  if( auto lf = memo_cast< LinearFunction * >( f_altobj ) ) {
    for( auto el : lf->get_v_var() ) {
     if( el.second == 0 )
      continue;
@@ -500,7 +500,7 @@ void BoxSolver::get_var_direction( Configuration * dirc )
     }
    }
   else
-   if( auto qf = dynamic_cast< DQuadFunction * >( f_altobj ) ) {
+   if( auto qf = memo_cast< DQuadFunction * >( f_altobj ) ) {
     for( auto el : qf->get_v_var() ) {
      if( ( std::get< 1 >( el ) == 0 ) && ( std::get< 2 >( el ) == 0 ) )
       continue;
@@ -548,22 +548,22 @@ void BoxSolver::add_Modification( sp_Mod & mod )
   return;
 
  // changing the sense
- if( std::dynamic_pointer_cast< const ObjectiveMod >( mod ) ) {
+ if( memo_pointer_cast< const ObjectiveMod >( mod ) ) {
   f_sense = -1;  // check it has to be set
   reset();       // and the solution of the other sense is no longer there
   return;
   }
 
  // changes in a Variable
- if( std::dynamic_pointer_cast< const VariableMod >( mod ) ) {
+ if( memo_pointer_cast< const VariableMod >( mod ) ) {
   resetf();  // this may change feasibility
   return;
   }
 
  // changes in a Constraint
- if( auto tmod = std::dynamic_pointer_cast< const ConstraintMod >( mod ) ) {
+ if( auto tmod = memo_pointer_cast< const ConstraintMod >( mod ) ) {
   // the Constraint is a box one
-  if( dynamic_cast< OneVarConstraint * >( tmod->constraint() ) )
+  if( memo_cast< OneVarConstraint * >( tmod->constraint() ) )
    resetf();  // this may change feasibility
 
   // else ignore it, since non-box Constraint themselves are ignored
@@ -571,9 +571,9 @@ void BoxSolver::add_Modification( sp_Mod & mod )
   }
 
  // changes in a Function
- if( auto tmod = std::dynamic_pointer_cast< const FunctionMod >( mod ) ) {
+ if( auto tmod = memo_pointer_cast< const FunctionMod >( mod ) ) {
   // the Function is inside an Objective
-  if( dynamic_cast< Objective * >( tmod->function()->get_Observer() ) )
+  if( memo_cast< Objective * >( tmod->function()->get_Observer() ) )
    reset();  // but it will not change feasibility
 
   // else ignore it, the Function is in a Constraint that is ignored
@@ -581,10 +581,10 @@ void BoxSolver::add_Modification( sp_Mod & mod )
   }
 
  // changes in the active Variables of a Function
- if( auto tmod = std::dynamic_pointer_cast< const FunctionModVars >( mod )
+ if( auto tmod = memo_pointer_cast< const FunctionModVars >( mod )
      ) {
   // the Function is inside an Objective
-  if( dynamic_cast< Objective * >( tmod->function()->get_Observer() ) )
+  if( memo_cast< Objective * >( tmod->function()->get_Observer() ) )
    reset();  // but it will not change feasibility
 
   // else ignore it, the Function is in a Constraint that is ignored
@@ -592,7 +592,7 @@ void BoxSolver::add_Modification( sp_Mod & mod )
   }
 
  // changes in the Block (changing the Objective)
- if( std::dynamic_pointer_cast< const BlockMod >( mod ) ) {
+ if( memo_pointer_cast< const BlockMod >( mod ) ) {
   reset();  // but it will not change feasibility
   return;
   }
@@ -600,7 +600,7 @@ void BoxSolver::add_Modification( sp_Mod & mod )
  // additions/deletions in the Block; note that adding OneVarConstraint
  // may change feasibility so we err on the safe side, a few more if()s
  // would be enough to check it
- if( std::dynamic_pointer_cast< const BlockModAD >( mod ) )
+ if( memo_pointer_cast< const BlockModAD >( mod ) )
   resetf();
 
  // if anything else remains, ignore it: it's not a change that impacts
@@ -660,7 +660,7 @@ void BoxSolver::get_var_data( ColVariable & var ,
                 // not something that BoxSolver "sees"
 
   // a OneVarConstraint, which bounds var only if it is not relaxed
-  if( auto ovr = dynamic_cast< OneVarConstraint * >( ai ) ) {
+  if( auto ovr = memo_cast< OneVarConstraint * >( ai ) ) {
    if( ! ovr->is_relaxed() ) {
     if( auto lhs = ovr->get_lhs() ; lhs > l )
      l = lhs;
@@ -718,9 +718,9 @@ void BoxSolver::get_var_data( ColVariable & var ,
                 // one to which BoxSolver is registered, which means it is
                 // not something that BoxSolver "sees"
   // Constraint
-  if( auto ci = dynamic_cast< Constraint * >( ai ) ) {
+  if( auto ci = memo_cast< Constraint * >( ai ) ) {
    // a OneVarConstraint bounds var only if it is not relaxed
-   if( auto ovr = dynamic_cast< OneVarConstraint * >( ci ) ;
+   if( auto ovr = memo_cast< OneVarConstraint * >( ci ) ;
        ovr && ( ! ovr->is_relaxed() ) ) {
     if( auto lhs = ovr->get_lhs() ; lhs > l )
      l = lhs;
@@ -732,17 +732,17 @@ void BoxSolver::get_var_data( ColVariable & var ,
    }
 
   // Objective
-  if( auto oi = dynamic_cast< Objective * >( ai ) ) {
+  if( auto oi = memo_cast< Objective * >( ai ) ) {
    auto fro = static_cast< FRealObjective * >( oi );
    const double w = objective_weight( oi );
 
-   if( auto lf = dynamic_cast< LinearFunction * >( fro->get_function() ) ) {
+   if( auto lf = memo_cast< LinearFunction * >( fro->get_function() ) ) {
     // WARNING: INEFFICIENT!!
     b += w * lf->get_coefficient( lf->is_active( & var ) );
     continue;
     }
 
-   if( auto qf = dynamic_cast< DQuadFunction * >( fro->get_function() ) ) {
+   if( auto qf = memo_cast< DQuadFunction * >( fro->get_function() ) ) {
     auto p = qf->is_active( & var );    // WARNING: INEFFICIENT!!
     b += w * qf->get_linear_coefficient( p );
     a += w * qf->get_quadratic_coefficient( p );
@@ -800,7 +800,7 @@ void BoxSolver::get_var_data( ColVariable & var ,
                 // not something that BoxSolver "sees"
 
   // a OneVarConstraint, which bounds var only if it is not relaxed
-  if( auto ovr = dynamic_cast< OneVarConstraint * >( ai ) ) {
+  if( auto ovr = memo_cast< OneVarConstraint * >( ai ) ) {
    const bool rlx = ovr->is_relaxed();
    auto lhs = ovr->get_lhs();
    if( ( ! rlx ) && ( lhs > l ) ) {
@@ -865,9 +865,9 @@ void BoxSolver::get_var_data( ColVariable & var ,
                 // not something that BoxSolver "sees"
 
   // Constraint
-  if( auto ci = dynamic_cast< Constraint * >( ai ) ) {
+  if( auto ci = memo_cast< Constraint * >( ai ) ) {
    // a OneVarConstraint, which bounds var only if it is not relaxed
-   if( auto ovr = dynamic_cast< OneVarConstraint * >( ci ) ) {
+   if( auto ovr = memo_cast< OneVarConstraint * >( ci ) ) {
     const bool rlx = ovr->is_relaxed();
     auto lhs = ovr->get_lhs();
     if( ( ! rlx ) && ( lhs > l ) ) {
@@ -887,17 +887,17 @@ void BoxSolver::get_var_data( ColVariable & var ,
    }
 
   // Objective
-  if( auto oi = dynamic_cast< Objective * >( ai ) ) {
+  if( auto oi = memo_cast< Objective * >( ai ) ) {
    auto fro = static_cast< FRealObjective * >( oi );
    const double w = objective_weight( oi );
 
-   if( auto lf = dynamic_cast< LinearFunction * >( fro->get_function() ) ) {
+   if( auto lf = memo_cast< LinearFunction * >( fro->get_function() ) ) {
     // WARNING: INEFFICIENT!!
     b += w * lf->get_coefficient( lf->is_active( & var ) );
     continue;
     }
 
-   if( auto qf = dynamic_cast< DQuadFunction * >( fro->get_function() ) ) {
+   if( auto qf = memo_cast< DQuadFunction * >( fro->get_function() ) ) {
     auto p = qf->is_active( & var );    // WARNING: INEFFICIENT!!
     b += w * qf->get_linear_coefficient( p );
     a += w * qf->get_quadratic_coefficient( p );
