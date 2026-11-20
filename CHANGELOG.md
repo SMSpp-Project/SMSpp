@@ -27,6 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   linearization the convex combination of the squares of the values of
   its Variable and updates them exactly
 
+- `DQuadFunctionModVarsRngd` and `DQuadFunctionModVarsSbst`, which
+  `DQuadFunction` issues when Variable are removed, carrying the changes of
+  their linear coefficients (as those of `LinearFunction`) and of their
+  quadratic ones
+
 - `R3BSolver`, a Solver that solves the Block it is attached to through one
   of its R3 Block, configured from file only: the extra Configuration of its
   ComputeConfig gives the Configuration that makes the R3 Block, its
@@ -58,6 +63,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the constant term of an Objective of the inner Block, which it updated
   for the linear coefficients only; a bundle on a Lagrangian dual whose
   quadratic costs are scaled no longer stops with its oracle found inexact
+
+- `LagBFunction` updates the constants of the global pool when Variable are
+  removed from a `DQuadFunction` in the Objective of the inner Block, which
+  it left with the linear and quadratic terms of those Variable; the
+  convexified linearizations are deleted or updated as for a change of the
+  quadratic coefficients [see `intPoolQuadMem`]
 
 - `LagBFunction` handles a change of the costs of its inner Block when a
   Variable has been fixed after it at a value other than that of a

@@ -1286,6 +1286,88 @@ static void test_quad_cost_change( int extmem , int quadmem )
  }
 
 /*--------------------------------------------------------------------------*/
+/* The Variable x_1 removed from the Objective of the inner Block, by a
+ * range or by a subset. The global pool is that of test_quad_cost_change():
+ * the constant of each point has to lose c_1 x^*_1 + q_1 ( x^*_1 )^2, that
+ * of the convexified entry the combination of those terms of the two points
+ * with intPoolQuadMem 1, while with intPoolQuadMem 0 it has to be deleted,
+ * since its constant is not the cost of a point. */
+
+/// the cost of the point xv without the term of the Variable skip
+static double quad_cost_without( const std::vector< double > & xv ,
+				 Index skip )
+{
+ double val = 0;
+ for( Index j = 0 ; j < c_cost.size() ; ++j )
+  if( j != skip )
+   val += c_cost[ j ] * xv[ j ] + c_quad[ j ] * xv[ j ] * xv[ j ];
+ return( val );
+ }
+
+static void test_quad_var_removal( int extmem , int quadmem , bool sbst )
+{
+ const std::string where = std::string( "quadratic term removed by " ) +
+  ( sbst ? "subset" : "range" ) + ", intPoolExtMem " +
+  std::to_string( extmem ) + ", intPoolQuadMem " + std::to_string( quadmem );
+
+ Fixture f( c_quad );
+ f.lbf->set_par( LagBFunction::intPoolExtMem , extmem );
+ f.lbf->set_par( LagBFunction::intPoolQuadMem , quadmem );
+ f.lbf->set_par( C05Function::intGPMaxSz , 3 );
+ f.lbf->set_dual_pairs( v_dual_pair( { f.pair( 0 , 0 ) , f.pair( 1 , 1 ) } ) );
+ f.observe();
+
+ const std::vector< std::vector< double > > ys = { { -3 , -1 } ,
+						     { 2 , 0.5 } };
+ std::vector< std::vector< double > > xs( ys.size() );
+ for( Index k = 0 ; k < ys.size() ; ++k ) {
+  f.set_y( ys[ k ] );
+  assert( f.lbf->compute() == Solver::kOK );
+  assert( f.lbf->has_linearization() );
+  double g[ 2 ];
+  f.lbf->get_linearization_coefficients( g );
+  for( auto & xj : *f.x )
+   xs[ k ].push_back( xj.get_value() );
+  f.lbf->store_linearization( k , eNoMod );
+  }
+ f.lbf->store_combination_of_linearizations( { { 0 , 0.5 } , { 1 , 0.5 } } ,
+					     2 , eNoMod );
+
+ f.fake->get_Modification_list().clear();
+ const Index skip = 1;
+ auto qf = static_cast< DQuadFunction * >( f.inner_obj->get_function() );
+ if( sbst )
+  qf->remove_variables( Subset( { skip } ) , true );
+ else
+  qf->remove_variable( skip );
+
+ for( Index k = 0 ; k < ys.size() ; ++k ) {
+  const double got = f.lbf->get_linearization_constant( k );
+  const double exp = quad_cost_without( xs[ k ] , skip );
+  expect( equal( got , exp ) , where + ": constant " + std::to_string( k ) +
+	  " = " + std::to_string( got ) + ", expected " +
+	  std::to_string( exp ) );
+  }
+
+ if( quadmem ) {
+  expect( f.lbf->is_linearization_there( 2 ) ,
+	  where + ": the convexified linearization is deleted" );
+  if( f.lbf->is_linearization_there( 2 ) ) {
+   const double got = f.lbf->get_linearization_constant( 2 );
+   const double exp = ( quad_cost_without( xs[ 0 ] , skip ) +
+			quad_cost_without( xs[ 1 ] , skip ) ) / 2;
+   expect( equal( got , exp ) , where + ": convexified constant = " +
+	   std::to_string( got ) + ", expected " + std::to_string( exp ) );
+   }
+  }
+ else
+  expect( ! f.lbf->is_linearization_there( 2 ) ,
+	  where + ": the convexified linearization is not deleted" );
+
+ std::cout << where << ": done" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
 
 int main( int argc , char ** argv )
 {
@@ -1306,6 +1388,11 @@ int main( int argc , char ** argv )
  for( int extmem : { 0 , 1 } )
   for( int quadmem : { 0 , 1 } )
    test_quad_cost_change( extmem , quadmem );
+
+ for( int extmem : { 0 , 1 } )
+  for( int quadmem : { 0 , 1 } )
+   for( bool sbst : { false , true } )
+    test_quad_var_removal( extmem , quadmem , sbst );
 
  if( n_failures ) {
   std::cout << "LagBFunction_unit_test: " << n_failures << " check(s) failed"

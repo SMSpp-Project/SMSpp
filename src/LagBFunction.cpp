@@ -198,6 +198,34 @@ static std::vector< std::pair< const Variable * , double > > quad_deltas(
  return( qd );
  }
 
+/*--------------------------------------------------------------------------*/
+/// the nonzero changes of the quadratic coefficients of removed Variable
+/** The pairs ( x_j , \f$ - q_j \f$ ) of a DQuadFunctionModVarsRngd or
+ * DQuadFunctionModVarsSbst whose q_j is nonzero; known is set to false if
+ * mod is neither, and then the quadratic coefficients are not known. */
+
+static std::vector< std::pair< const Variable * , double > > quad_removal(
+				      const Modification * mod , bool & known )
+{
+ std::vector< std::pair< const Variable * , double > > qd;
+ auto add = [ & qd ]( const auto & vars , const auto & delta ) {
+  for( std::size_t i = 0 ; i < vars.size() ; ++i )
+   if( delta[ i ] != 0 )
+    qd.emplace_back( vars[ i ] , delta[ i ] );
+  };
+
+ known = true;
+ if( const auto qm = dynamic_cast< const DQuadFunctionModVarsRngd * >( mod ) )
+  add( qm->vars() , qm->quadratic_delta() );
+ else
+  if( const auto qm = dynamic_cast< const DQuadFunctionModVarsSbst * >( mod ) )
+   add( qm->vars() , qm->quadratic_delta() );
+  else
+   known = false;
+
+ return( qd );
+ }
+
 
 template< typename T >
 static void Compact( std::vector< T > & g , Function::c_Subset & B )
@@ -4221,7 +4249,16 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
    // only deal with C05FunctionModVarsRngd coming from DQuadFunction ...
    if( qf == CMh_f ) {  // ... inside the Objective of the inner Block- - - -
     // remove the range of rows from CostMatrix accordingly
-    update_CostMatrix_ModVarsRngd( h , tmod->vars() , tmod->range() );
+    bool known;
+    const auto qd = quad_removal( mod , known );
+    auto drop = update_CostMatrix_ModVarsRngd( h , tmod->vars() ,
+					      tmod->range() , qd , known );
+
+    // the linearizations whose constant cannot follow the removal of the
+    // quadratic terms are deleted [see intPoolQuadMem]
+    if( ! drop.empty() )
+     delete_linearizations( std::move( drop ) , true ,
+			    Observer::make_par( eModBlck , chnl ) );
 
     // issue a LagBFunctionMod modification of the type AlphaChanged and
     // with what() == 1: the Lagrangian function unpredictably changes
@@ -4271,7 +4308,16 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
    // only deal with C05FunctionModVarsSbst coming from DQuadFunction ...
    if( qf == CMh_f ) {  // ... inside the Objective of the inner Block- - - -
     // remove the range of subset from CostMatrix accordingly
-    update_CostMatrix_ModVarsSbst( h , tmod->vars() , tmod->subset() );
+    bool known;
+    const auto qd = quad_removal( mod , known );
+    auto drop = update_CostMatrix_ModVarsSbst( h , tmod->vars() ,
+					      tmod->subset() , qd , known );
+
+    // the linearizations whose constant cannot follow the removal of the
+    // quadratic terms are deleted [see intPoolQuadMem]
+    if( ! drop.empty() )
+     delete_linearizations( std::move( drop ) , true ,
+			    Observer::make_par( eModBlck , chnl ) );
 
     // issue a LagBFunctionMod modification of the type AlphaChanged and
     // with what() == 1: the Lagrangian function unpredictably changes
@@ -5159,6 +5205,40 @@ void LagBFunction::drop_quad_sq( c_Vec_p_Var & vars )
 
 /*--------------------------------------------------------------------------*/
 
+LagBFunction::Subset LagBFunction::eager_pool_quad_removal(
+				 c_Vec_p_Var & vars , c_Vec_FunctionValue & costs ,
+				 double w , const v_quad_delta & qd ,
+				 bool quad_known )
+{
+ if( NoSol )
+  return( Subset() );
+
+ // the quadratic coefficients are not known: no constant can be updated,
+ // but under lazy only the correction of the convexified entries depends
+ // on them
+ if( ! quad_known ) {
+  Subset drop;
+  for( Index k = 0 ; k < f_max_glob ; ++k )
+   if( g_pool[ k ].sol && ( ( ! f_lazy_eval ) || g_pool[ k ].convexified ) )
+    drop.push_back( k );
+  return( drop );
+  }
+
+ // the removal is the change of the costs of vars to 0
+ v_coeff_pair rc;
+ rc.reserve( vars.size() );
+ std::vector< std::pair< Index , double > > jdeltas;
+ for( Index i = 0 ; i < vars.size() ; ++i ) {
+  rc.emplace_back( static_cast< ColVariable * >( vars[ i ] ) , 0 );
+  if( costs[ i ] != 0 )
+   jdeltas.emplace_back( i , - costs[ i ] );
+  }
+
+ return( eager_pool_cost_delta( rc , jdeltas , w , qd ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 void LagBFunction::update_CostMatrix_ModVarsAddd( Index h ,
                                                   c_Vec_p_Var & vars ,
                                                   Index first )
@@ -5238,9 +5318,10 @@ void LagBFunction::update_CostMatrix_ModVarsAddd( Index h ,
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::update_CostMatrix_ModVarsRngd( Index h ,
-                                                  c_Vec_p_Var & vars ,
-                                                  c_Range & rng )
+LagBFunction::Subset LagBFunction::update_CostMatrix_ModVarsRngd(
+				       Index h , c_Vec_p_Var & vars ,
+				       c_Range & rng , const v_quad_delta & qd ,
+				       bool quad_known )
 {
  f_active_dirty = true;  // variable structure changes -> v_active must rebuild
 
@@ -5257,7 +5338,7 @@ void LagBFunction::update_CostMatrix_ModVarsRngd( Index h ,
  // have been deleted
 
  if( vars.empty() || ( rng.second <= rng.first ) )
-  return;
+  return( Subset() );
 
  // the index of the modified Objective is provided by the caller: it cannot
  // be recovered here from the Variable in the Modification, since an inner
@@ -5271,18 +5352,20 @@ void LagBFunction::update_CostMatrix_ModVarsRngd( Index h ,
  #endif
 
  // The Variable are already absent from obj, but CostMatrix still carries
- // their old original costs. Keep eager pool constants aligned before those
- // columns are erased/moved. For a DQuadFunction the removed quadratic term
- // is not available in the Modification, so this exact affine update is only
- // performed for LinearFunction Objectives.
- if( ! v_ObjIsQuad[ h ] ) {
-  Vec_FunctionValue costs( vars.size() );
-  for( Index i = 0 ; i < vars.size() ; ++i )
-   costs[ i ] = CM[ rng.first + i ].first;
+ // their old original costs. Keep the pool constants aligned before those
+ // columns are erased/moved: for a DQuadFunction the removed quadratic
+ // terms come with the Modification [see quad_removal()].
+ Subset drop;
+ Vec_FunctionValue costs( vars.size() );
+ for( Index i = 0 ; i < vars.size() ; ++i )
+  costs[ i ] = CM[ rng.first + i ].first;
+ if( ! v_ObjIsQuad[ h ] )
   eager_pool_cost_removal( vars , costs , obj_w( h ) );
-  }
- else
+ else {
+  drop = eager_pool_quad_removal( vars , costs , obj_w( h ) , qd ,
+				  quad_known );
   drop_quad_sq( vars );
+  }
  m_column tempCM;     // CostMatrix elements to be re-added
 
  // check if are nonempty elements of CostMatrix are being deleted, if so
@@ -5306,13 +5389,16 @@ void LagBFunction::update_CostMatrix_ModVarsRngd( Index h ,
              std::make_move_iterator( tempCM.begin() ),
              std::make_move_iterator( tempCM.end() ) );
 
+ return( drop );
+
 }  // end( LagBFunction::update_CostMatrix_ModVarsRngd )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::update_CostMatrix_ModVarsSbst( Index h ,
-                                                  c_Vec_p_Var & vars ,
-                                                  c_Subset & sbst )
+LagBFunction::Subset LagBFunction::update_CostMatrix_ModVarsSbst(
+				       Index h , c_Vec_p_Var & vars ,
+				       c_Subset & sbst , const v_quad_delta & qd ,
+				       bool quad_known )
 {
  f_active_dirty = true;  // variable structure changes -> v_active must rebuild
 
@@ -5329,15 +5415,14 @@ void LagBFunction::update_CostMatrix_ModVarsSbst( Index h ,
  // have been deleted
 
  if( vars.empty() )
-  return;
+  return( Subset() );
 
  // an empty subset means that all the Variable have been removed, the i-th
  // of vars() having been the i-th of the Objective [see FunctionModVarsSbst],
  // which is the range version with the whole range
- if( sbst.empty() ) {
-  update_CostMatrix_ModVarsRngd( h , vars , Range( 0 , vars.size() ) );
-  return;
-  }
+ if( sbst.empty() )
+  return( update_CostMatrix_ModVarsRngd( h , vars , Range( 0 , vars.size() ) ,
+					 qd , quad_known ) );
 
  // the index of the modified Objective is provided by the caller: it cannot
  // be recovered here from the Variable in the Modification, since an inner
@@ -5352,14 +5437,17 @@ void LagBFunction::update_CostMatrix_ModVarsSbst( Index h ,
 
  // See the range version above. subset() and vars() have positional
  // correspondence, so retain that order while collecting the old costs.
- if( ! v_ObjIsQuad[ h ] ) {
-  Vec_FunctionValue costs( vars.size() );
-  for( Index i = 0 ; i < vars.size() ; ++i )
-   costs[ i ] = CM[ sbst[ i ] ].first;
+ Subset drop;
+ Vec_FunctionValue costs( vars.size() );
+ for( Index i = 0 ; i < vars.size() ; ++i )
+  costs[ i ] = CM[ sbst[ i ] ].first;
+ if( ! v_ObjIsQuad[ h ] )
   eager_pool_cost_removal( vars , costs , obj_w( h ) );
-  }
- else
+ else {
+  drop = eager_pool_quad_removal( vars , costs , obj_w( h ) , qd ,
+				  quad_known );
   drop_quad_sq( vars );
+  }
  m_column tempCM;     // CostMatrix elements to be re-added
 
  // check if are nonempty elements of CostMatrix are being deleted, if so
@@ -5379,6 +5467,8 @@ void LagBFunction::update_CostMatrix_ModVarsSbst( Index h ,
   CM.insert( CM.end() ,
              std::make_move_iterator( tempCM.begin() ),
              std::make_move_iterator( tempCM.end() ) );
+
+ return( drop );
 
 }  // end( LagBFunction::update_CostMatrix_ModVarsSbst )
 

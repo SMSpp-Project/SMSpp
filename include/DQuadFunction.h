@@ -66,8 +66,9 @@ namespace SMSpp_di_unipi_it
  * - A C05FunctionModVarsAddd when Variable are added; note that, being this
  *   a separable Function, the addition is strongly quasi-additive.
  *
- * - A C05FunctionModVarsRngd or C05FunctionModVarsSbst when Variable are
- *   removed (depending if they were in a range or not); note that, being
+ * - A DQuadFunctionModVarsRngd or DQuadFunctionModVarsSbst when Variable
+ *   are removed (depending if they were in a range or not), carrying the
+ *   changes of their linear and quadratic coefficients; note that, being
  *   this a separable Function, the removal is strongly quasi-additive.
  *
  * - a C05FunctionModLinRngd or a C05FunctionModLinSbst when the *linear*
@@ -1068,6 +1069,114 @@ class DQuadFunctionModVarsAddd : public C05FunctionModVarsAddd
 /*--------------------------------------------------------------------------*/
 
  };  // end( class( DQuadFunctionModVarsAddd ) )
+
+/*--------------------------------------------------------------------------*/
+/*------------------- Class DQuadFunctionModVarsRngd -----------------------*/
+/*--------------------------------------------------------------------------*/
+/// class to describe "nicely" removing a range of Variable of a DQuadFunction
+/** Derived class from C05FunctionModVarsRngd to describe removing a range of
+ * "active" ColVariable from a DQuadFunction. Besides the changes of the
+ * linear coefficients of the base class [see linear_delta()], it stores
+ * those of the quadratic ones: if the quadratic coefficient of vars()[ i ]
+ * was a_i, quadratic_delta()[ i ] is -a_i. */
+
+class DQuadFunctionModVarsRngd : public C05FunctionModVarsRngd
+{
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+ public:
+
+/*---------------------------- CONSTRUCTOR ---------------------------------*/
+ /// constructor: that of C05FunctionModVarsRngd plus the quadratic delta
+
+ DQuadFunctionModVarsRngd( C05Function * f , Vec_p_Var && vars ,
+			   c_Range & range , FunctionValue shift , bool cB ,
+			   Vec_FunctionValue && delta ,
+			   Vec_FunctionValue && qdelta )
+  : C05FunctionModVarsRngd( f , std::move( vars ) , range , shift , cB ,
+			    std::move( delta ) ) ,
+    v_quadratic_delta( std::move( qdelta ) ) {
+  if( v_quadratic_delta.size() != v_vars.size() )
+   throw( std::invalid_argument(
+     "vars and quadratic delta sizes do not match" ) );
+  }
+
+/*------------------------------ DESTRUCTOR --------------------------------*/
+
+ ~DQuadFunctionModVarsRngd() override = default;  ///< destructor: does nothing
+
+/*-------------------------------- GETTERS ---------------------------------*/
+ /// the quadratic coefficient changes, in the same order as vars()
+
+ [[nodiscard]] c_Vec_FunctionValue & quadratic_delta( void ) const {
+  return( v_quadratic_delta );
+  }
+
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+
+ protected:
+
+/*--------------------------- PROTECTED FIELDS -----------------------------*/
+
+ Vec_FunctionValue v_quadratic_delta;  ///< quadratic coefficient changes
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( DQuadFunctionModVarsRngd ) )
+
+/*--------------------------------------------------------------------------*/
+/*------------------- Class DQuadFunctionModVarsSbst -----------------------*/
+/*--------------------------------------------------------------------------*/
+/// class to describe "nicely" removing a subset of Variable of a DQuadFunction
+/** Derived class from C05FunctionModVarsSbst to describe removing a subset
+ * of "active" ColVariable from a DQuadFunction, which also stores the
+ * changes of the quadratic coefficients as DQuadFunctionModVarsRngd does.
+ * The subset must be ordered (or empty, meaning all the Variable), since
+ * the deltas are not reordered with it. */
+
+class DQuadFunctionModVarsSbst : public C05FunctionModVarsSbst
+{
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+ public:
+
+/*---------------------------- CONSTRUCTOR ---------------------------------*/
+ /// constructor: that of C05FunctionModVarsSbst plus the quadratic delta
+
+ DQuadFunctionModVarsSbst( C05Function * f , Vec_p_Var && vars ,
+			   Subset && subset , FunctionValue shift , bool cB ,
+			   Vec_FunctionValue && delta ,
+			   Vec_FunctionValue && qdelta )
+  : C05FunctionModVarsSbst( f , std::move( vars ) , std::move( subset ) ,
+			    true , shift , cB , std::move( delta ) ) ,
+    v_quadratic_delta( std::move( qdelta ) ) {
+  if( v_quadratic_delta.size() != v_vars.size() )
+   throw( std::invalid_argument(
+     "vars and quadratic delta sizes do not match" ) );
+  }
+
+/*------------------------------ DESTRUCTOR --------------------------------*/
+
+ ~DQuadFunctionModVarsSbst() override = default;  ///< destructor: does nothing
+
+/*-------------------------------- GETTERS ---------------------------------*/
+ /// the quadratic coefficient changes, in the same order as vars()
+
+ [[nodiscard]] c_Vec_FunctionValue & quadratic_delta( void ) const {
+  return( v_quadratic_delta );
+  }
+
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+
+ protected:
+
+/*--------------------------- PROTECTED FIELDS -----------------------------*/
+
+ Vec_FunctionValue v_quadratic_delta;  ///< quadratic coefficient changes
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( DQuadFunctionModVarsSbst ) )
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- Class DQuadFunctionModRngd ------------------------*/

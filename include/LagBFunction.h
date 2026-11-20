@@ -3126,14 +3126,34 @@ class LagBFunction : public C05Function , public Block
 				     Index first );
 
 /*--------------------------------------------------------------------------*/
+ /// remove the rows of CostMatrix[ h ] of the Variable removed from obj
+ /** Before that, the constants of the global pool lose the terms of the
+  * removed Variable: the linear ones, whose costs are still in CostMatrix,
+  * and for a DQuadFunction the quadratic ones, whose changes qd come with
+  * the Modification and are applied as by eager_pool_cost_delta();
+  * quad_known is false if the Modification does not carry them, and then
+  * every entry is returned. Returns the names of the entries whose
+  * constant cannot be updated exactly, which the caller deletes. */
 
- void update_CostMatrix_ModVarsRngd( Index h , c_Vec_p_Var & vars ,
-				     c_Range & rng );
+ Subset update_CostMatrix_ModVarsRngd( Index h , c_Vec_p_Var & vars ,
+				       c_Range & rng ,
+				       const v_quad_delta & qd = {} ,
+				       bool quad_known = true );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// as update_CostMatrix_ModVarsRngd(), with a Subset of positions
 
- void update_CostMatrix_ModVarsSbst( Index h , c_Vec_p_Var & vars ,
-				     c_Subset & sbst );
+ Subset update_CostMatrix_ModVarsSbst( Index h , c_Vec_p_Var & vars ,
+				       c_Subset & sbst ,
+				       const v_quad_delta & qd = {} ,
+				       bool quad_known = true );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the pool update of the removal of Variable with costs from a quadratic obj
+
+ Subset eager_pool_quad_removal( c_Vec_p_Var & vars ,
+				 c_Vec_FunctionValue & costs , double w ,
+				 const v_quad_delta & qd , bool quad_known );
 
 /*--------------------------------------------------------------------------*/
  /// reset the BlockConfig of the inner Block to the default one
