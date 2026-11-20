@@ -1702,15 +1702,26 @@ class MasterProblemBlock : public Block {
   * be destabilized. The coordinates with \f$ \rho_j = 0 \f$, such as a bias
   * that is not regularised, simply keep the proximal parameter they had.
   *
+  * Under #kTrustRegion and #kNone the master has no quadratic term of its
+  * own, and the component is written as it is: the quadratic coefficient of
+  * coordinate j is \f$ \rho_j / 2 \f$, and in the translated form the
+  * linear one is shifted by \f$ \rho_j \bar{x}_j \f$, so the master is a
+  * quadratic program instead of a linear one. There the part of the
+  * aggregate that belongs to the component is its gradient
+  * \f$ b + \rho \lambda^* \f$ at the solution of the master, and its
+  * linearization error at the centre is
+  * \f$ \frac{1}{2} \sum_j \rho_j ( d^*_j )^2 \f$ [see get_z_vector() and
+  * get_aggregated_alpha()].
+  *
   * With \p rho empty or all-zero, which is the default, nothing at all
   * changes: this is why the quadratic component costs nothing when it is not
   * there. It must have one entry per Variable of the master.
   *
-  * Only the primal MP with #kProximal stabilization supports it: the dual MP
-  * would need the term dualized, and the level ones would need the level
-  * row, which is linear in the model, to carry it. Any stabilization but
-  * #kProximal, the trust region included, throws std::logic_error, and so
-  * does CreatePrimalMP() with any of them once the term is there. */
+  * Only the primal MP with #kProximal, #kTrustRegion or #kNone stabilization
+  * supports it: the dual MP would need the term dualized, and the level ones
+  * would need the level row, which is linear in the model, to carry it. Any
+  * other stabilization throws std::logic_error, and so does CreatePrimalMP()
+  * with any of them once the term is there. */
 
  void set_zeroth_quadratic( const std::vector< double > & rho );
 

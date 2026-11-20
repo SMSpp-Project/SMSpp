@@ -48,6 +48,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `MasterProblemBlock` carries the quadratic 0-th component of
+  `set_zeroth_quadratic()` also under the trust region and with no
+  stabilization, as ( rho / 2 ) x^2 in the Objective of the master, which is
+  then a quadratic program, and with its gradient and its linearization
+  error in the aggregate of `get_z_vector()` and `get_aggregated_alpha()`
+
 - `BoxSolver` finds the type of a `Modification`, of a `Function` and of a
   `Constraint` by `memo_cast()`
 

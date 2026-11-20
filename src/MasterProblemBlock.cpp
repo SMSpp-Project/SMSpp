@@ -877,14 +877,14 @@ void MasterProblemBlock::CreatePrimalMP( stabilization_type Stbl )
        std::to_string( int( Stbl ) ) +
        " is reserved but not yet implemented" ) );
 
- // a quadratic 0-th component given before is only carried by the proximal
- // stabilization [see set_zeroth_quadratic()]
- if( ( Stbl != kProximal ) &&
+ // a quadratic 0-th component given before is not carried by the level
+ // row [see set_zeroth_quadratic()]
+ if( ( ( Stbl == kLevel ) || ( Stbl == kDoublyStabilized ) ) &&
      std::any_of( f_rho.begin() , f_rho.end() ,
                   []( double r ) { return( r > 0 ); } ) )
   throw( std::logic_error(
-       "MasterProblemBlock::CreatePrimalMP: only the proximal stabilization "
-       "carries the quadratic 0-th component" ) );
+       "MasterProblemBlock::CreatePrimalMP: the level row is linear in the "
+       "model, hence it cannot carry the quadratic 0-th component" ) );
 
  StblType = Stbl;
  IsPrimal = true;
@@ -1144,8 +1144,9 @@ void MasterProblemBlock::generate_primal_objective( void )
 
  /* The quadratic 0-th component is absorbed into the stabilization
   * [see set_zeroth_quadratic()]: the quadratic coefficient of coordinate j
-  * becomes 1 / ( 2 t'_j ) with t'_j = t / ( 1 + rho_j t ), and in the
-  * translated form the linear one is shifted by rho_j * x_bar_j, the term
+  * becomes 1 / ( 2 t'_j ) with t'_j = t / ( 1 + rho_j t ), or rho_j / 2
+  * under the trust region and with no stabilization, and in the translated
+  * form the linear one is shifted by rho_j * x_bar_j, the term
   * ( rho_j / 2 ) x_bar_j^2 being a constant that only the value sees. With
   * rho == 0 nothing changes. */
 
@@ -3267,6 +3268,8 @@ std::vector< double > MasterProblemBlock::get_z_vector( void ) const
   // rows of the BendersBFunction, all from the dual values of rows: those
   // of the bounds of the Variable are not used, since a Solver may give
   // the reduced cost of a Variable whose bound is not the one d*_j is on.
+  // A quadratic 0-th component adds its gradient rho * ( x_bar + d* ) at
+  // the solution [see set_zeroth_quadratic()], with the mass of b.
   out = get_d_vector();
   std::vector< double > agg( NumVars , 0.0 );
   if( int( f_linear_part.size() ) == NumVars ) {
@@ -3275,6 +3278,12 @@ std::vector< double > MasterProblemBlock::get_z_vector( void ) const
    const double lambda = get_lambda();
    for( int j = 0 ; j < NumVars ; ++j )
     agg[ j ] = lambda * f_linear_part[ j ];
+   }
+  if( ( int( f_rho.size() ) == NumVars ) &&
+      ( int( f_x_bar.size() ) == NumVars ) ) {
+   const double lambda = get_lambda();
+   for( int j = 0 ; j < NumVars ; ++j )
+    agg[ j ] += lambda * f_rho[ j ] * ( f_x_bar[ j ] + out[ j ] );
    }
   for( int k = 0 ; k < int( HardCmps.size() ) ; ++k ) {
    const auto zk = get_aggregated_subgradient( k );
@@ -3927,6 +3936,17 @@ double MasterProblemBlock::get_aggregated_alpha( int k ) const
 
  // Proximal objective recovery above already includes the box.
  total += box_error;
+
+ // A quadratic 0-th component, linearized at the solution x_bar + d*, has
+ // there the error ( rho / 2 ) || d* ||^2 at the centre, with the mass of b
+ // [see get_z_vector()]; the proximal recovery above already includes it.
+ if( IsPrimal && ( int( f_rho.size() ) == NumVars ) ) {
+  const auto d = get_d_vector();
+  double q = 0.0;
+  for( int j = 0 ; j < std::min( NumVars , int( d.size() ) ) ; ++j )
+   q += f_rho[ j ] * d[ j ] * d[ j ] / 2.0;
+  total += get_lambda() * q;
+  }
  if( mass != 1.0 )
   total = ( mass > 0.0 ) ? total / mass : 0.0;
 
@@ -5418,7 +5438,7 @@ void MasterProblemBlock::append_coordinate_objective( int first , int n ,
    if( f_v2_form && has_quad )
     linear -= ( pure_level && ! level_probe )
               ? f_x_bar[ j ] : f_x_bar[ j ] / t_stab;
-   else if( ! f_rho.empty() )
+   if( ( ! f_v2_form ) && ( ! f_rho.empty() ) )
     linear += f_rho[ j ] * f_x_bar[ j ];
 
    triples.emplace_back( Var_d_idx[ j ] , linear ,
@@ -6311,9 +6331,8 @@ void MasterProblemBlock::refresh_primal_objective( void )
    else
     linear[ j ] -= f_x_bar[ j ] / t_stab;
    }
-  else
-   if( ! f_rho.empty() )  // the translated form carries rho * x_bar instead
-    linear[ j ] += f_rho[ j ] * f_x_bar[ j ];
+  if( ( ! f_v2_form ) && ( ! f_rho.empty() ) )
+   linear[ j ] += f_rho[ j ] * f_x_bar[ j ];  // only the translated form
 
   if( is_binary( Index( j ) ) ) {  // x_j^2 = x_j [see is_binary()]
    linear[ j ] += quadratic[ j ];
@@ -6562,10 +6581,12 @@ void MasterProblemBlock::set_zeroth_quadratic( const std::vector< double > &
         "MasterProblemBlock::set_zeroth_quadratic: the level row is linear in "
         "the model, hence it cannot carry the quadratic 0-th component" ) );
 
-  if( StblType != kProximal )
+  if( ( StblType != kProximal ) && ( StblType != kTrustRegion ) &&
+      ( StblType != kNone ) )
    throw( std::logic_error(
-        "MasterProblemBlock::set_zeroth_quadratic: only the proximal "
-        "stabilization carries the quadratic 0-th component" ) );
+        "MasterProblemBlock::set_zeroth_quadratic: only the proximal, the "
+        "trust-region and the cutting-plane stabilization carry the "
+        "quadratic 0-th component" ) );
   }
 
  f_rho = rho;
