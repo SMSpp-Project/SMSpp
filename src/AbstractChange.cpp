@@ -145,7 +145,7 @@ Change * AbstractChange::apply( Block * block , bool doUndo ,
      pv = path.get_element< ColVariable >( block );
     else
      if( type == 'O' )
-      if( auto obj = dynamic_cast< FRealObjective * >(
+      if( auto obj = memo_cast< FRealObjective * >(
 				     path.get_element< Objective >( block ) ) )
        fobj = obj->get_function();
     }
@@ -154,7 +154,7 @@ Change * AbstractChange::apply( Block * block , bool doUndo ,
 				  "the paths of a variable and of the "
 				  "objective" ) );
 
-   if( auto qf = dynamic_cast< DQuadFunction * >( fobj ) ) {
+   if( auto qf = memo_cast< DQuadFunction * >( fobj ) ) {
     if( v_data.size() != 2 )
      throw( std::invalid_argument( "AbstractChange::apply: eChgObj on a "
 				   "DQuadFunction needs 2 data" ) );
@@ -171,7 +171,7 @@ Change * AbstractChange::apply( Block * block , bool doUndo ,
      ret = undo( eChgObj , { old_c1 , old_c2 } );
     }
    else
-    if( auto lf = dynamic_cast< LinearFunction * >( fobj ) ) {
+    if( auto lf = memo_cast< LinearFunction * >( fobj ) ) {
      if( v_data.size() != 1 )
       throw( std::invalid_argument( "AbstractChange::apply: eChgObj on a "
 				    "LinearFunction needs 1 datum" ) );
@@ -246,7 +246,7 @@ Change * AbstractChange::apply( Block * block , bool doUndo ,
    bool found = false;
    for( Index i = 0 ; i < pv->get_num_active() ; ++i ) {
     auto dep = pv->get_active( i );
-    if( auto c = dynamic_cast< BoxConstraint * >( dep ) ) {
+    if( auto c = memo_cast< BoxConstraint * >( dep ) ) {
      if( doUndo )
       ret = undo( f_type , { lb ? c->get_lhs() : c->get_rhs() } );
      if( lb )
@@ -257,7 +257,7 @@ Change * AbstractChange::apply( Block * block , bool doUndo ,
      break;
      }
     if( lb )
-     if( auto c = dynamic_cast< LBConstraint * >( dep ) ) {
+     if( auto c = memo_cast< LBConstraint * >( dep ) ) {
       if( doUndo )
        ret = undo( f_type , { c->get_lhs() } );
       c->set_lhs( value , issueAMod );
@@ -265,7 +265,7 @@ Change * AbstractChange::apply( Block * block , bool doUndo ,
       break;
       }
     if( ! lb )
-     if( auto c = dynamic_cast< UBConstraint * >( dep ) ) {
+     if( auto c = memo_cast< UBConstraint * >( dep ) ) {
       if( doUndo )
        ret = undo( f_type , { c->get_rhs() } );
       c->set_rhs( value , issueAMod );

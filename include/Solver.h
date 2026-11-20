@@ -2254,7 +2254,7 @@ class Solver : public ThinComputeInterface
   // try to acquire lock, spin on failure
   while( f_mod_lock.test_and_set( std::memory_order_acquire ) );
 
-  if( std::dynamic_pointer_cast< const NBModification >( mod ) )
+  if( memo_pointer_cast< const NBModification >( mod ) )
    v_mod.clear();
 
   v_mod.push_back( mod );

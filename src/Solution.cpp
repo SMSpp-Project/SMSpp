@@ -60,7 +60,7 @@ bool removed_of( const Modification & mod , const void * & cell ,
 		 Block::Subset & positions )
 {
  if( const auto tmod =
-     dynamic_cast< const BlockModRmvRngd< C > * >( & mod ) ) {
+     memo_cast< const BlockModRmvRngd< C > * >( & mod ) ) {
   cell = static_cast< const void * >( & tmod->whc() );
   const auto & rng = tmod->range();
   positions.clear();
@@ -70,7 +70,7 @@ bool removed_of( const Modification & mod , const void * & cell ,
   }
 
  if( const auto tmod =
-     dynamic_cast< const BlockModRmvSbst< C > * >( & mod ) ) {
+     memo_cast< const BlockModRmvSbst< C > * >( & mod ) ) {
   cell = static_cast< const void * >( & tmod->whc() );
   positions = tmod->subset();
   return( true );
@@ -107,7 +107,7 @@ Solution::adapt_result Solution::adapt( const Block * const block ,
 					std::vector< double > & dropped )
 {
  // a GroupModification, one sub-Modification at a time
- if( const auto gmod = dynamic_cast< const GroupModification * >( & mod ) ) {
+ if( const auto gmod = memo_cast< const GroupModification * >( & mod ) ) {
   adapt_result res = kUnchanged;
   for( const auto & sub : gmod->sub_Modifications() ) {
    std::vector< double > sub_dropped;
@@ -124,7 +124,7 @@ Solution::adapt_result Solution::adapt( const Block * const block ,
   }
 
  // after a NModification nothing of the Solution can be trusted
- if( dynamic_cast< const NModification * >( & mod ) )
+ if( memo_cast< const NModification * >( & mod ) )
   return( kInvalid );
 
  const auto c = mod.changes();

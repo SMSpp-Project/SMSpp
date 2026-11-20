@@ -196,10 +196,10 @@ C05SumFunction::Index C05SumFunction::member_of( const sp_Mod & mod ) const
   * be asked of both. */
 
  const Function * f = nullptr;
- if( const auto fmod = std::dynamic_pointer_cast< FunctionMod >( mod ) )
+ if( const auto fmod = memo_pointer_cast< FunctionMod >( mod ) )
   f = fmod->function();
  else
-  if( const auto vmod = std::dynamic_pointer_cast< FunctionModVars >( mod ) )
+  if( const auto vmod = memo_pointer_cast< FunctionModVars >( mod ) )
    f = vmod->function();
 
  if( f )
@@ -220,7 +220,7 @@ void C05SumFunction::add_Modification( sp_Mod mod , ChnlName chnl )
   * sub-Modification say together. */
 
  if( const auto gmod =
-     std::dynamic_pointer_cast< GroupModification >( mod ) ) {
+     memo_pointer_cast< GroupModification >( mod ) ) {
   group_Modification( gmod , chnl );
   return;
   }
@@ -295,7 +295,7 @@ void C05SumFunction::group_Modification(
 
   for( const auto & sub : gmod->sub_Modifications() ) {
    if( const auto sgmod =
-       std::dynamic_pointer_cast< GroupModification >( sub ) ) {
+       memo_pointer_cast< GroupModification >( sub ) ) {
     group_Modification( sgmod , chnl );   // a nested group is looked into
     continue;
     }
@@ -354,8 +354,8 @@ void C05SumFunction::flush_pending( ChnlName chnl )
   * unpredictable (NaN). */
 
  auto same = []( const sp_Mod & a , const sp_Mod & b ) -> bool {
-  const auto ca = std::dynamic_pointer_cast< C05FunctionMod >( a );
-  const auto cb = std::dynamic_pointer_cast< C05FunctionMod >( b );
+  const auto ca = memo_pointer_cast< C05FunctionMod >( a );
+  const auto cb = memo_pointer_cast< C05FunctionMod >( b );
   if( bool( ca ) != bool( cb ) )
    return( false );
   if( ! ca )
@@ -391,7 +391,7 @@ void C05SumFunction::flush_pending( ChnlName chnl )
    }
 
   if( merged ) {     // the merged one is built anew, the held ones are gone
-   if( const auto cout = std::dynamic_pointer_cast< C05FunctionMod >( out ) )
+   if( const auto cout = memo_pointer_cast< C05FunctionMod >( out ) )
     out = std::make_shared< C05FunctionMod >( this , cout->type() ,
                                               Subset( cout->which() ) ,
                                               shift , cB );
@@ -457,7 +457,7 @@ void C05SumFunction::member_Variables_changed(
 
   if( f_Observer && f_Observer->anyone_there_for( Function::eModFVars ) ) {
    sp_Mod out;
-      if( std::dynamic_pointer_cast< C05FunctionModVarsAddd >( vmod ) )
+      if( memo_pointer_cast< C05FunctionModVarsAddd >( vmod ) )
     out = std::make_shared< C05FunctionModVarsAddd >( this ,
                                      std::move( changed ) , first ,
                                      vmod->shift() , vmod->concerns_Block() );
@@ -536,8 +536,8 @@ void C05SumFunction::member_Variables_changed(
  if( f_Observer && f_Observer->anyone_there_for( Function::eModFVars ) ) {
   sp_Mod out;
     const bool strong =
-   std::dynamic_pointer_cast< C05FunctionModVarsRngd >( vmod ) ||
-   std::dynamic_pointer_cast< C05FunctionModVarsSbst >( vmod );
+   memo_pointer_cast< C05FunctionModVarsRngd >( vmod ) ||
+   memo_pointer_cast< C05FunctionModVarsSbst >( vmod );
   // a run of consecutive positions is a range, which is cheaper to read
   const bool range = ( positions.back() - positions.front() + 1 ) ==
                      positions.size();
@@ -578,7 +578,7 @@ void C05SumFunction::translate_Modification( const sp_Mod & mod ,
   * this is dealt with apart, since what the sum has to say about it is not
   * a Modification of its linearizations but one of its Variable. */
 
- if( const auto vmod = std::dynamic_pointer_cast< FunctionModVars >( mod ) ) {
+ if( const auto vmod = memo_pointer_cast< FunctionModVars >( mod ) ) {
   member_Variables_changed( vmod , chnl );
   return;
   }
@@ -594,7 +594,7 @@ void C05SumFunction::translate_Modification( const sp_Mod & mod ,
   * pool of the sum, and reported as such. */
 
  Subset gone;
- if( const auto cmod = std::dynamic_pointer_cast< C05FunctionMod >( fmod ) )
+ if( const auto cmod = memo_pointer_cast< C05FunctionMod >( fmod ) )
   if( cmod->type() == C05FunctionMod::GlobalPoolRemoved ) {
    gone = cmod->which();
    delete_linearizations( Subset( gone ) , true , eNoMod );
@@ -612,9 +612,9 @@ void C05SumFunction::translate_Modification( const sp_Mod & mod ,
 
  if( f_Observer && f_Observer->anyone_there_for( Function::eModFValues ) ) {
   sp_Mod out;
-  if( const auto cmod = std::dynamic_pointer_cast< C05FunctionMod >( fmod ) ) {
-   if( std::dynamic_pointer_cast< C05FunctionModRngd >( fmod ) ||
-       std::dynamic_pointer_cast< C05FunctionModSbst >( fmod ) )
+  if( const auto cmod = memo_pointer_cast< C05FunctionMod >( fmod ) ) {
+   if( memo_pointer_cast< C05FunctionModRngd >( fmod ) ||
+       memo_pointer_cast< C05FunctionModSbst >( fmod ) )
     out = std::make_shared< C05FunctionMod >( this ,
                                  C05FunctionMod::AllLinearizationChanged ,
                                  Subset() , cmod->shift() ,
@@ -626,7 +626,7 @@ void C05SumFunction::translate_Modification( const sp_Mod & mod ,
                                               cmod->concerns_Block() );
    }
   else
-   if( std::dynamic_pointer_cast< C05FunctionModLin >( fmod ) )
+   if( memo_pointer_cast< C05FunctionModLin >( fmod ) )
     out = std::make_shared< C05FunctionMod >( this ,
                                  C05FunctionMod::AllLinearizationChanged ,
                                  Subset() , fmod->shift() ,

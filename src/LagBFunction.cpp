@@ -91,7 +91,7 @@ bool rmvd_vars( const Modification * mod , const void * & cell ,
 		Block::Subset & positions , bool & all )
 {
  if( const auto tmod =
-     dynamic_cast< const BlockModRmvRngd< ColVariable > * >( mod ) ) {
+     memo_cast< const BlockModRmvRngd< ColVariable > * >( mod ) ) {
   cell = static_cast< const void * >( & tmod->whc() );
   const auto & rng = tmod->range();
   positions.clear();
@@ -102,7 +102,7 @@ bool rmvd_vars( const Modification * mod , const void * & cell ,
   }
 
  if( const auto tmod =
-     dynamic_cast< const BlockModRmvSbst< ColVariable > * >( mod ) ) {
+     memo_cast< const BlockModRmvSbst< ColVariable > * >( mod ) ) {
   cell = static_cast< const void * >( & tmod->whc() );
   positions = tmod->subset();
   all = positions.empty();   // an empty subset means all of them
@@ -189,10 +189,10 @@ static std::vector< std::pair< const Variable * , double > > quad_deltas(
      qd.emplace_back( vars[ i ] , delta[ i ].second );
   };
 
- if( const auto qm = dynamic_cast< const DQuadFunctionModRngd * >( mod ) )
+ if( const auto qm = memo_cast< const DQuadFunctionModRngd * >( mod ) )
   add( qm->vars() , qm->delta() );
  else
-  if( const auto qm = dynamic_cast< const DQuadFunctionModSbst * >( mod ) )
+  if( const auto qm = memo_cast< const DQuadFunctionModSbst * >( mod ) )
    add( qm->vars() , qm->delta() );
 
  return( qd );
@@ -215,10 +215,10 @@ static std::vector< std::pair< const Variable * , double > > quad_removal(
   };
 
  known = true;
- if( const auto qm = dynamic_cast< const DQuadFunctionModVarsRngd * >( mod ) )
+ if( const auto qm = memo_cast< const DQuadFunctionModVarsRngd * >( mod ) )
   add( qm->vars() , qm->quadratic_delta() );
  else
-  if( const auto qm = dynamic_cast< const DQuadFunctionModVarsSbst * >( mod ) )
+  if( const auto qm = memo_cast< const DQuadFunctionModVarsSbst * >( mod ) )
    add( qm->vars() , qm->quadratic_delta() );
   else
    known = false;
@@ -391,7 +391,7 @@ void LagBFunction::set_inner_block( Block * innerblock , bool deleteold )
    v_BlockBFS.push_back( curr );
    Block2Idx[ curr ] = h;
 
-   FRealObjective * obj = dynamic_cast< FRealObjective * >(
+   FRealObjective * obj = memo_cast< FRealObjective * >(
 						     curr->get_objective() );
    // the Lagrangian costs are written in the linear coefficients of the
    // Objective of each Block: a Function that has none, e.g., the
@@ -2711,7 +2711,7 @@ int LagBFunction::compute( bool changedvars )
 static RealObjective::OFValue get_recours_obj( const Block * blck , double w )
 {
  RealObjective::OFValue rv = 0;
- if( auto obj = dynamic_cast< RealObjective * >( blck->get_objective() ) )
+ if( auto obj = memo_cast< RealObjective * >( blck->get_objective() ) )
   rv = w * obj->get_constant_term();
  for( const auto bk : blck->get_nested_Blocks() )
   rv += get_recours_obj( bk , w * bk->get_objective_weight() );
@@ -2736,7 +2736,7 @@ Function::FunctionValue LagBFunction::get_constant_term( void ) const
 static double cptobj( Block * blck , double w = 1 )
 {
  double ov = 0;
- if( auto obj = dynamic_cast< FRealObjective * >( blck->get_objective() ) ) {
+ if( auto obj = memo_cast< FRealObjective * >( blck->get_objective() ) ) {
   obj->compute();
   ov = w * obj->value();
   }
@@ -3792,7 +3792,7 @@ void LagBFunction::guts_of_destructor( bool deleteinner )
 
 char LagBFunction::guts_of_add_Modification( p_Mod mod , ChnlName chnl )
 {
- const auto tmod = dynamic_cast< GroupModification * >( mod );
+ const auto tmod = memo_cast< GroupModification * >( mod );
  if( tmod ) {
   // process every Modification inside the GroupModification, returning true
   // if any one of those returned true
@@ -3831,7 +3831,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
   * the inner Block, which is what the Modification says of itself, as any
   * other one below. */
 
- if( const auto wmod = dynamic_cast< const BlockWeightMod * >( mod ) ) {
+ if( const auto wmod = memo_cast< const BlockWeightMod * >( mod ) ) {
   if( wmod->which() & BlockWeightMod::eObjective ) {
    for( Index h = 0 ; h < v_BlockBFS.size() ; ++h ) {
     double w = v_BlockBFS[ h ]->get_objective_weight();
@@ -3894,7 +3894,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 
  // C05FunctionModLinRngd- - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- if( const auto tmod = dynamic_cast< const C05FunctionModLinRngd * >( mod )
+ if( const auto tmod = memo_cast< const C05FunctionModLinRngd * >( mod )
      ) {
   if( const auto lf = dynamic_cast< p_LF >( tmod->function() ) ) {
    // only deal with C05FunctionModLinRngd coming from LinearFunction ...
@@ -3949,7 +3949,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // same comments and IMPORTANT NOTESs as for C05FunctionModLinRngd, except
  // of course there is a Subset rather than a Range
- if( const auto tmod = dynamic_cast< const C05FunctionModLinSbst * >( mod )
+ if( const auto tmod = memo_cast< const C05FunctionModLinSbst * >( mod )
      ) {
   if( const auto lf = dynamic_cast< p_LF >( tmod->function() ) ) {
    // only deal with C05FunctionModLinSbst coming from LinearFunction ...
@@ -4000,7 +4000,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
  // the interesting case for a C05FunctionModRngd is when it signals the
  // changes the *quadratic* coefficients (and, possibly the linear ones as
  // well) in the DQuadFunction inside the Objective of the inner Block
- if( const auto tmod = dynamic_cast< const C05FunctionModRngd * >( mod ) )
+ if( const auto tmod = memo_cast< const C05FunctionModRngd * >( mod ) )
   if( const auto qf = dynamic_cast< p_QF >( tmod->function() ) )
    if( qf == CMh_f ) {
     v_coeff_pair rc;
@@ -4033,7 +4033,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
  // the interesting case for a C05FunctionModSbst is when it signals the
  // changes the *quadratic* coefficients (and, possibly the linear ones as
  // well) in the DQuadFunction inside the Objective of the inner Block
- if( const auto tmod = dynamic_cast< const C05FunctionModSbst * >( mod ) )
+ if( const auto tmod = memo_cast< const C05FunctionModSbst * >( mod ) )
   if( const auto qf = dynamic_cast< p_QF >( tmod->function() ) )
    if( qf == CMh_f ) {
     v_coeff_pair rc;
@@ -4078,7 +4078,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
  // - any Constraint in the inner Block, or any of its sub-Block (recursively)
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( const auto tmod = dynamic_cast< const FunctionMod * >( mod ) ) {
+ if( const auto tmod = memo_cast< const FunctionMod * >( mod ) ) {
   auto f = tmod->function();  // the Function it comes from
 
   if( f == CMh_f ) {  // if it is obj- - - - - - - - - - - - - - - - - - - - -
@@ -4099,7 +4099,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 
    }  // end( if( from obj ) )
 
-  if( dynamic_cast< Objective * >( f->get_Observer() ) ) {
+  if( memo_cast< Objective * >( f->get_Observer() ) ) {
    //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
    // if it is not obj, it may still be the Function inside the Objective of a
    // further sub-Block of the inner Block
@@ -4116,7 +4116,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
     // and shift the constants of the global pool by it times the weight of
     // the Objective in the LagBFunction
     double w = inner_weight();
-    auto b = dynamic_cast< Objective * >( f->get_Observer() )->get_Block();
+    auto b = memo_cast< Objective * >( f->get_Observer() )->get_Block();
     for( ; b && ( b != v_Block.front() ) ; b = b->get_f_Block() )
      w *= b->get_objective_weight();
     eager_pool_shift( w * tmod->shift() );
@@ -4170,7 +4170,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
  // C05FunctionModVarsAddd - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // this is: [Col]Variable are being added
- if( const auto tmod = dynamic_cast< const C05FunctionModVarsAddd * >( mod )
+ if( const auto tmod = memo_cast< const C05FunctionModVarsAddd * >( mod )
      ) {
   if( const auto lf = dynamic_cast< const p_LF >( tmod->function() ) ) {
    // only deal with C05FunctionModVarsAddd coming from LinearFunction ...
@@ -4222,7 +4222,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
  // C05FunctionModVarsRngd - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // this is: a Range of [Col]Variable are being removed
- if( const auto tmod = dynamic_cast< const C05FunctionModVarsRngd * >( mod )
+ if( const auto tmod = memo_cast< const C05FunctionModVarsRngd * >( mod )
      ) {
   if( const auto lf = dynamic_cast< p_LF >( tmod->function() ) ) {
    // only deal with C05FunctionModVarsRngd coming from LinearFunction ...
@@ -4281,7 +4281,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
  // C05FunctionModVarsSbst - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // this is: a Subset of [Col]Variable are being removed
- if( const auto tmod = dynamic_cast< const C05FunctionModVarsSbst * >( mod )
+ if( const auto tmod = memo_cast< const C05FunctionModVarsSbst * >( mod )
      ) {
   if( const auto lf = dynamic_cast< p_LF >( tmod->function() ) ) {
    // only deal with C05FunctionModVarsSbst coming from LinearFunction ...
@@ -4345,10 +4345,10 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
  // recursively)
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( const auto tmod = dynamic_cast< const FunctionModVars * >( mod ) ) {
+ if( const auto tmod = memo_cast< const FunctionModVars * >( mod ) ) {
   auto f = tmod->function();  // the Function it comes from
 
-  if( dynamic_cast< Objective * >( f->get_Observer() ) ) {
+  if( memo_cast< Objective * >( f->get_Observer() ) ) {
    //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
    // the Function inside the Objective of a sub-Block of the inner Block
    // note that this cannot possibly happen if PushCostToOwner == true since
@@ -4434,10 +4434,10 @@ char LagBFunction::guts_of_this_add_Modification( p_Mod mod , ChnlName chnl )
   * where g_i is a LinearFunction, which is checked immediately. */
 
  p_LF lf = nullptr;
- if( auto fmod = dynamic_cast< const FunctionMod * >( mod ) )
+ if( auto fmod = memo_cast< const FunctionMod * >( mod ) )
   lf = dynamic_cast< p_LF >( fmod->function() );
  else
-  if( auto fmodv = dynamic_cast< const FunctionModVars * >( mod ) )
+  if( auto fmodv = memo_cast< const FunctionModVars * >( mod ) )
    lf = dynamic_cast< p_LF >( fmodv->function() );
   else
    throw( std::logic_error( "LagBFunction::add_Modification: unexpected "
@@ -4494,7 +4494,7 @@ char LagBFunction::guts_of_this_add_Modification( p_Mod mod , ChnlName chnl )
 
  // C05FunctionModLinRngd- - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- if( const auto tmod = dynamic_cast< const C05FunctionModLinRngd * >( mod )
+ if( const auto tmod = memo_cast< const C05FunctionModLinRngd * >( mod )
      ) {
   // the corresponding entry of all the linearizations changes
 
@@ -4560,7 +4560,7 @@ char LagBFunction::guts_of_this_add_Modification( p_Mod mod , ChnlName chnl )
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // same comments and IMPORTANT NOTESs as for C05FunctionModLinRngd, except
  // of course there is a Subset rather than a Range
- if( const auto tmod = dynamic_cast< const C05FunctionModLinSbst * >( mod )
+ if( const auto tmod = memo_cast< const C05FunctionModLinSbst * >( mod )
      ) {
   // the corresponding entry of all the linearizations changes
 
@@ -4626,7 +4626,7 @@ char LagBFunction::guts_of_this_add_Modification( p_Mod mod , ChnlName chnl )
  // case for a C05FunctionModLinRngd with range() == ( i , i + 1 ) and
  // delta() == { shift() }
 
- if( const auto tmod = dynamic_cast< const FunctionMod * >( mod ) ) {
+ if( const auto tmod = memo_cast< const FunctionMod * >( mod ) ) {
   // since b_i has changed, b may no longer be all-0 if it previously was,
   // and the linear term has to be recomputed (or b == 0 checked first)
   f_yb = f_yb == -INF ? INF : NaN;
@@ -4676,7 +4676,7 @@ char LagBFunction::guts_of_this_add_Modification( p_Mod mod , ChnlName chnl )
  // C05FunctionModVarsAddd - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // this is: [Col]Variable are being added
- if( const auto tmod = dynamic_cast< const C05FunctionModVarsAddd * >( mod )
+ if( const auto tmod = memo_cast< const C05FunctionModVarsAddd * >( mod )
      ) {
   // add the corresponding terms to CostMatrix
 
@@ -4714,7 +4714,7 @@ char LagBFunction::guts_of_this_add_Modification( p_Mod mod , ChnlName chnl )
  // C05FunctionModVarsRngd - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // this is: a Range of [Col]Variable are being removed
- if( const auto tmod = dynamic_cast< const C05FunctionModVarsRngd * >( mod )
+ if( const auto tmod = memo_cast< const C05FunctionModVarsRngd * >( mod )
      ) {
   // remove the corresponding terms from CostMatrix
 
@@ -4801,7 +4801,7 @@ char LagBFunction::guts_of_this_add_Modification( p_Mod mod , ChnlName chnl )
  // C05FunctionModVarsSbst - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // this is: a Subset of [Col]Variable are being removed
- if( const auto tmod = dynamic_cast< const C05FunctionModVarsSbst * >( mod )
+ if( const auto tmod = memo_cast< const C05FunctionModVarsSbst * >( mod )
      ) {
   // remove the corresponding terms from CostMatrix
 

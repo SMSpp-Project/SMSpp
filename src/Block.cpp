@@ -501,7 +501,7 @@ static void check_weight_change( const Block * b , const char * who )
 
   // a Function with an inner Block tells those above it of the change as
   // a change of itself, which is no change of the weights for them
-  if( dynamic_cast< const Function * >( a ) )
+  if( memo_cast< const Function * >( a ) )
    break;
   }
  }

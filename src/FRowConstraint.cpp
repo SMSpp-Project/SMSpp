@@ -261,7 +261,7 @@ void FRowConstraint::add_Modification( sp_Mod mod , c_ChnlName chnl )
 
   // GroupModification - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   {
-   const auto tmod = std::dynamic_pointer_cast< GroupModification >( mod );
+   const auto tmod = memo_pointer_cast< GroupModification >( mod );
    if( tmod ) {
     for( const auto & submod : tmod->sub_Modifications() )
      guts_of_aM( submod );
@@ -273,7 +273,7 @@ void FRowConstraint::add_Modification( sp_Mod mod , c_ChnlName chnl )
      easier, downwards the opposite, NaN both; a relaxed Constraint is not
      in the feasible region, which does not change. */
   {
-   const auto tmod = std::dynamic_pointer_cast< FunctionMod >( mod );
+   const auto tmod = memo_pointer_cast< FunctionMod >( mod );
    if( tmod ) {
     const auto shift = tmod->shift();
     const bool up = std::isnan( shift ) || ( shift > 0 );
@@ -294,7 +294,7 @@ void FRowConstraint::add_Modification( sp_Mod mod , c_ChnlName chnl )
 
   // FunctionModVars - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   {
-   const auto tmod = std::dynamic_pointer_cast< FunctionModVars >( mod );
+   const auto tmod = memo_pointer_cast< FunctionModVars >( mod );
    if( ! tmod )
     return;
 

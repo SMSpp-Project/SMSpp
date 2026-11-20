@@ -58,7 +58,7 @@ template< class C >
 bool rmvd_rows_of( const Modification * mod , const void * & cell ,
 		   Block::Subset & positions , bool & all )
 {
- if( const auto tmod = dynamic_cast< const BlockModRmvRngd< C > * >( mod ) ) {
+ if( const auto tmod = memo_cast< const BlockModRmvRngd< C > * >( mod ) ) {
   cell = static_cast< const void * >( & tmod->whc() );
   const auto & rng = tmod->range();
   positions.clear();
@@ -68,7 +68,7 @@ bool rmvd_rows_of( const Modification * mod , const void * & cell ,
   return( true );
   }
 
- if( const auto tmod = dynamic_cast< const BlockModRmvSbst< C > * >( mod ) ) {
+ if( const auto tmod = memo_cast< const BlockModRmvSbst< C > * >( mod ) ) {
   cell = static_cast< const void * >( & tmod->whc() );
   positions = tmod->subset();
   all = positions.empty();   // an empty subset means all of them
@@ -1765,7 +1765,7 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
  // GroupModification - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  if( const auto tmod =
-     std::dynamic_pointer_cast< GroupModification >( mod ) ) {
+     memo_pointer_cast< GroupModification >( mod ) ) {
   for( const auto & submod : tmod->sub_Modifications() )
    this->add_Modification( submod , chnl );
   return;
@@ -1780,17 +1780,17 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
   * solutions in the global pool. */
 
  Constraint * cnst = nullptr;
- if( const auto tmod = std::dynamic_pointer_cast< ConstraintMod >( mod ) )
+ if( const auto tmod = memo_pointer_cast< ConstraintMod >( mod ) )
   cnst = tmod->constraint();
  else
-  if( const auto tmod = std::dynamic_pointer_cast< FunctionMod >( mod ) )
-   cnst = dynamic_cast< Constraint * >( tmod->function()->get_Observer() );
+  if( const auto tmod = memo_pointer_cast< FunctionMod >( mod ) )
+   cnst = memo_cast< Constraint * >( tmod->function()->get_Observer() );
   else
-   if( const auto tmod = std::dynamic_pointer_cast< FunctionModVars >( mod ) )
-    cnst = dynamic_cast< Constraint * >( tmod->function()->get_Observer() );
+   if( const auto tmod = memo_pointer_cast< FunctionModVars >( mod ) )
+    cnst = memo_cast< Constraint * >( tmod->function()->get_Observer() );
 
  if( cnst && has_constraint( cnst ) ) {
-  if( const auto tmod = std::dynamic_pointer_cast< RowConstraintMod >( mod ) )
+  if( const auto tmod = memo_pointer_cast< RowConstraintMod >( mod ) )
    if( ( tmod->type() == RowConstraintMod::eChgRHS ) ||
        ( tmod->type() == RowConstraintMod::eChgLHS ) ||
        ( tmod->type() == RowConstraintMod::eChgBTS ) ) {
@@ -1798,7 +1798,7 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
     return;
     }
 
-  if( const auto tmod = std::dynamic_pointer_cast< FunctionModVars >( mod ) )
+  if( const auto tmod = memo_pointer_cast< FunctionModVars >( mod ) )
    if( ! tmod->added() ) {
     if( f_Observer )
      f_Observer->add_Modification( std::make_shared< FunctionMod >(
@@ -1812,7 +1812,7 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
 
  // BlockModAD- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( const auto tmod = std::dynamic_pointer_cast< BlockModAD >( mod ) ) {
+ if( const auto tmod = memo_pointer_cast< BlockModAD >( mod ) ) {
   if( tmod->is_variable() ) {
    if( tmod->is_added() )
     // Variables were added. This BendersBFunction may change unpredictably.
@@ -2037,7 +2037,7 @@ int BendersBFunction::compute( bool changedvars ) {
 static RealObjective::OFValue get_recours_obj( const Block * blck , double w )
 {
  RealObjective::OFValue rv = 0;
- if( auto obj = dynamic_cast< RealObjective * >( blck->get_objective() ) )
+ if( auto obj = memo_cast< RealObjective * >( blck->get_objective() ) )
   rv = w * obj->get_constant_term();
  for( const auto bk : blck->get_nested_Blocks() )
   rv += get_recours_obj( bk , w * bk->get_objective_weight() );

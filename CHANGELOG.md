@@ -54,8 +54,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   then a quadratic program, and with its gradient and its linearization
   error in the aggregate of `get_z_vector()` and `get_aggregated_alpha()`
 
-- `BoxSolver` finds the type of a `Modification`, of a `Function` and of a
-  `Constraint` by `memo_cast()`
+- `BoxSolver`, `MasterProblemBlock`, `PolyhedralFunctionBlock`,
+  `LagBFunction`, `BendersBFunction`, `C05SumFunction`, `FRowConstraint`,
+  `FRealObjective`, `AbstractBlock`, `Solution` and `Solver` find the type of
+  a `Modification`, of a `Function`, of a `Constraint` and of a `Block` by
+  `memo_cast()`
 
 - `C05SumFunction` makes the union of the Variable of its members, and
   takes out those that leave it, in time linear in their number rather

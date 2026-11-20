@@ -269,12 +269,12 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
                              ( FRowConstraint & cnst ) {
   auto f = cnst.get_function();
 
-  if( auto lf = dynamic_cast< LinearFunction * >( f ) ) {
+  if( auto lf = memo_cast< LinearFunction * >( f ) ) {
    check_direction( cnst , lf->get_value() - lf->get_constant_term() );
    return;
    }
 
-  if( auto qf = dynamic_cast< DQuadFunction * >( f ) ) {
+  if( auto qf = memo_cast< DQuadFunction * >( f ) ) {
    double quad = 0;
    double lin = 0;
    for( Index i = 0 ; i < qf->get_num_active_var() ; ++i ) {
@@ -625,7 +625,7 @@ void AbstractBlock::file_bounds( const std::vector< f_column > & columns ,
 static const LinearFunction * linear_of( const Function * f ,
 					 const std::string & what )
 {
- auto lf = dynamic_cast< const LinearFunction * >( f );
+ auto lf = memo_cast< const LinearFunction * >( f );
  if( ! lf )
   throw( std::invalid_argument( "AbstractBlock::write: " + what +
 				" is not written on a LinearFunction" ) );
@@ -712,7 +712,7 @@ void AbstractBlock::write_lp( std::ostream & output ) const
 
  output << "\\ written by AbstractBlock::write_lp()" << std::endl;
 
- auto obj = dynamic_cast< const FRealObjective * >( get_objective() );
+ auto obj = memo_cast< const FRealObjective * >( get_objective() );
  output << ( ( obj && ( obj->get_sense() == Objective::eMax ) )
 	     ? "Maximize" : "Minimize" ) << std::endl << " obj: ";
  {
@@ -849,7 +849,7 @@ void AbstractBlock::write_mps( std::ostream & output ) const
    }
   };
 
- auto obj = dynamic_cast< const FRealObjective * >( get_objective() );
+ auto obj = memo_cast< const FRealObjective * >( get_objective() );
  if( obj )
   collect( linear_of( obj->get_function() , "the Objective" ) , -1 ,
 	   "the Objective" );
@@ -1094,7 +1094,7 @@ void AbstractBlock::write_is( std::ostream & output , double eps ) const
   const double mult = row->get_dual();
   if( std::abs( mult ) <= eps )
    continue;
-  auto lf = dynamic_cast< const LinearFunction * >( row->get_function() );
+  auto lf = memo_cast< const LinearFunction * >( row->get_function() );
   if( ! lf )               // a row that is not linear has no place in a
    continue;               // certificate written this way
 
@@ -3145,7 +3145,7 @@ Function * AbstractBlock::mirror_Function( const Function * fnct )
   return( it != f_v_map.end() ? it->second : v );
   };
 
- if( auto lf = dynamic_cast< const LinearFunction * >( fnct ) ) {
+ if( auto lf = memo_cast< const LinearFunction * >( fnct ) ) {
   LinearFunction::v_coeff_pair cp;
   cp.reserve( lf->get_v_var().size() );
   for( auto & p : lf->get_v_var() )
@@ -3153,7 +3153,7 @@ Function * AbstractBlock::mirror_Function( const Function * fnct )
   return( new LinearFunction( std::move( cp ) , lf->get_constant_term() ) );
   }
 
- auto qf = dynamic_cast< const DQuadFunction * >( fnct );
+ auto qf = memo_cast< const DQuadFunction * >( fnct );
  if( ! qf )
   return( nullptr );   // a Function that cannot be written on other Variable
 
@@ -3165,7 +3165,7 @@ Function * AbstractBlock::mirror_Function( const Function * fnct )
 
  // a QuadFunction is also a DQuadFunction; its off-diagonal terms are by
  // index of the active Variable, which the copy keeps in the same order
- if( auto nqf = dynamic_cast< const QuadFunction * >( fnct ) ) {
+ if( auto nqf = memo_cast< const QuadFunction * >( fnct ) ) {
   QuadFunction::v_off_diag_term od;
   nqf->get_v_nd_var( od );
   return( new QuadFunction( std::move( ct ) , std::move( od ) ,
@@ -3364,7 +3364,7 @@ void AbstractBlock::mirror_constraints( Block * src , AbstractBlock * dst )
 
  // the Objective, which the copy has only if the original has one
  if( auto obj = src->get_objective() ) {
-  auto fobj = dynamic_cast< FRealObjective * >( obj );
+  auto fobj = memo_cast< FRealObjective * >( obj );
   Function * nf = fobj ? mirror_Function( fobj->get_function() ) : nullptr;
   if( nf ) {
    auto nobj = new FRealObjective( dst , nf );
@@ -3414,7 +3414,7 @@ void AbstractBlock::mirror( Block * blck )
 
  // the size Variable of blck stays what it is: one it owns has its copy
  // here, one it has been given is outside of the subtree and used as it is
- if( auto sv = dynamic_cast< ColVariable * >( blck->get_size_variable() ) ) {
+ if( auto sv = memo_cast< ColVariable * >( blck->get_size_variable() ) ) {
   if( auto cv = mirror_of( sv ) )
    set_owned_size_variable( cv );
   }
@@ -3454,16 +3454,16 @@ const RHSValue RINF = Inf< RHSValue >();
 
 bool lower_settable( const OneVarConstraint * c )
 {
- return( dynamic_cast< const BoxConstraint * >( c ) ||
-         dynamic_cast< const LBConstraint * >( c ) ||
-         dynamic_cast< const UB0Constraint * >( c ) );
+ return( memo_cast< const BoxConstraint * >( c ) ||
+         memo_cast< const LBConstraint * >( c ) ||
+         memo_cast< const UB0Constraint * >( c ) );
  }
 
 bool upper_settable( const OneVarConstraint * c )
 {
- return( dynamic_cast< const BoxConstraint * >( c ) ||
-         dynamic_cast< const UBConstraint * >( c ) ||
-         dynamic_cast< const LB0Constraint * >( c ) );
+ return( memo_cast< const BoxConstraint * >( c ) ||
+         memo_cast< const UBConstraint * >( c ) ||
+         memo_cast< const LB0Constraint * >( c ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -3579,7 +3579,7 @@ void AbstractBlock::sync_linear( LinearFunction * lf ,
    gone.push_back( var( i ) );
    }
  if( ! rmv.empty() ) {
-  if( auto row = dynamic_cast< FRowConstraint * >( owner ) )
+  if( auto row = memo_cast< FRowConstraint * >( owner ) )
    row->remove_variables( std::move( rmv ) , true , par );
   else
    lf->remove_variables( std::move( rmv ) , true , par );
@@ -3712,7 +3712,7 @@ ColVariable * AbstractBlock::size_dummy( const void * key , bool want ,
 
 bool AbstractBlock::size_constraint( const Constraint * src , ModParam par )
 {
- auto srow = dynamic_cast< const RowConstraint * >( src );
+ auto srow = memo_cast< const RowConstraint * >( src );
  if( ! srow )
   return( false );
  auto cit = f_c_map.find( srow );
@@ -3731,7 +3731,7 @@ bool AbstractBlock::size_constraint( const Constraint * src , ModParam par )
  // [see size_dummy()], and all its finite sides are rows. Where it is is
  // decided the first time, a Solver not being told of a OneVarConstraint
  // that changes its ColVariable
- if( auto sb = dynamic_cast< const OneVarConstraint * >( src ) ) {
+ if( auto sb = memo_cast< const OneVarConstraint * >( src ) ) {
   auto db = static_cast< OneVarConstraint * >( cit->second );
   auto sx = static_cast< ColVariable * >( sb->get_active_var( 0 ) );
   auto xit = f_v_map.find( sx );
@@ -3790,13 +3790,13 @@ bool AbstractBlock::size_constraint( const Constraint * src , ModParam par )
   return( true );
   }
 
- auto sr = dynamic_cast< const FRowConstraint * >( src );
- auto dr = dynamic_cast< FRowConstraint * >( cit->second );
+ auto sr = memo_cast< const FRowConstraint * >( src );
+ auto dr = memo_cast< FRowConstraint * >( cit->second );
  if( ( ! sr ) || ( ! dr ) )
   return( false );
 
- auto slf = dynamic_cast< const LinearFunction * >( sr->get_function() );
- auto dlf = dynamic_cast< LinearFunction * >( dr->get_function() );
+ auto slf = memo_cast< const LinearFunction * >( sr->get_function() );
+ auto dlf = memo_cast< LinearFunction * >( dr->get_function() );
  if( ( ! slf ) || ( ! dlf ) ) {
   // a row that is not linear is written again whole, which no Solver of
   // the copy hears of, and it cannot be sized
@@ -3925,16 +3925,16 @@ bool AbstractBlock::size_objective( const Block * src , ModParam par )
  if( ! sobj )
   return( true );
 
- auto sfo = dynamic_cast< const FRealObjective * >( sobj );
- auto dfo = dynamic_cast< FRealObjective * >( dst->get_objective() );
+ auto sfo = memo_cast< const FRealObjective * >( sobj );
+ auto dfo = memo_cast< FRealObjective * >( dst->get_objective() );
  if( ( ! sfo ) || ( ! dfo ) )
   return( false );
 
  if( dfo->get_sense() != sfo->get_sense() )
   dfo->set_sense( sfo->get_sense() , par );
 
- auto slf = dynamic_cast< const LinearFunction * >( sfo->get_function() );
- auto dlf = dynamic_cast< LinearFunction * >( dfo->get_function() );
+ auto slf = memo_cast< const LinearFunction * >( sfo->get_function() );
+ auto dlf = memo_cast< LinearFunction * >( dfo->get_function() );
  if( ( ! slf ) || ( ! dlf ) ) {
   if( f_size_var || ( Observer::par2mod( par ) != eNoMod ) )
    return( false );
@@ -3977,7 +3977,7 @@ bool AbstractBlock::size_all( ModParam par )
 bool AbstractBlock::set_size_variable( Variable * size_var ,
                                        c_ModParam issueAMod )
 {
- auto v = dynamic_cast< ColVariable * >( size_var );
+ auto v = memo_cast< ColVariable * >( size_var );
  if( size_var && ( ! v ) )
   return( false );
  if( ! f_mirrored )
@@ -4000,8 +4000,8 @@ bool AbstractBlock::set_size_variable( Variable * size_var ,
   if( ! v_issues.empty() )
    return( false );
   for( auto & el : f_c_map ) {
-   if( auto sr = dynamic_cast< const FRowConstraint * >( el.first ) )
-    if( ! dynamic_cast< const LinearFunction * >( sr->get_function() ) )
+   if( auto sr = memo_cast< const FRowConstraint * >( el.first ) )
+    if( ! memo_cast< const LinearFunction * >( sr->get_function() ) )
      return( false );
    }
   for( auto & el : f_v_map )
@@ -4009,9 +4009,9 @@ bool AbstractBlock::set_size_variable( Variable * size_var ,
     return( false );
   for( auto & el : f_b_map )
    if( auto obj = el.first->get_objective() ) {
-    auto fo = dynamic_cast< const FRealObjective * >( obj );
+    auto fo = memo_cast< const FRealObjective * >( obj );
     if( ( ! fo ) ||
-        ( ! dynamic_cast< const LinearFunction * >( fo->get_function() ) ) )
+        ( ! memo_cast< const LinearFunction * >( fo->get_function() ) ) )
      return( false );
     }
 
@@ -4069,7 +4069,7 @@ bool AbstractBlock::mirror_added( const BlockModAD * mod , ModParam par )
    }
 
   for( auto var : vars ) {
-   auto s = dynamic_cast< ColVariable * >( var );
+   auto s = memo_cast< ColVariable * >( var );
    if( ! s )
     return( false );
    if( f_v_map.count( s ) )
@@ -4121,7 +4121,7 @@ bool AbstractBlock::mirror_added( const BlockModAD * mod , ModParam par )
 
  if( mod->is_added() ) {
   for( auto c : cnsts ) {
-   auto rc = dynamic_cast< RowConstraint * >( c );
+   auto rc = memo_cast< RowConstraint * >( c );
    if( ( ! rc ) || f_c_map.count( rc ) )
     continue;
    auto db = mirror_of_Block( c->get_Block() );
@@ -4173,7 +4173,7 @@ bool AbstractBlock::mirror_added( const BlockModAD * mod , ModParam par )
 
  // removed: the copy goes, with the rows of the size group it has
  for( auto c : cnsts ) {
-  auto rc = dynamic_cast< RowConstraint * >( c );
+  auto rc = memo_cast< RowConstraint * >( c );
   auto cit = rc ? f_c_map.find( rc ) : f_c_map.end();
   if( cit == f_c_map.end() )
    return( false );
@@ -4213,7 +4213,7 @@ bool AbstractBlock::mirror_forward_Modification( c_p_Mod mod ,
  if( ( ! f_mirrored ) || ( ! mod ) )
   return( false );
 
- if( auto gm = dynamic_cast< const GroupModification * >( mod ) ) {
+ if( auto gm = memo_cast< const GroupModification * >( mod ) ) {
   for( auto & sm : gm->sub_Modifications() )
    if( ! mirror_forward_Modification( sm.get() , issueMod ) )
     return( false );
@@ -4221,46 +4221,46 @@ bool AbstractBlock::mirror_forward_Modification( c_p_Mod mod ,
   }
 
  // everything changed, which only mirror() can follow
- if( dynamic_cast< const NBModification * >( mod ) )
+ if( memo_cast< const NBModification * >( mod ) )
   return( false );
 
  // a physical Modification says nothing about the abstract representation
- if( ! dynamic_cast< const AModification * >( mod ) )
+ if( ! memo_cast< const AModification * >( mod ) )
   return( true );
 
  // the coefficients of a Function, or its Variable: the Constraint or the
  // Objective it belongs to is the Observer of the Function
  const Function * fnct = nullptr;
- if( auto fm = dynamic_cast< const FunctionMod * >( mod ) )
+ if( auto fm = memo_cast< const FunctionMod * >( mod ) )
   fnct = fm->function();
  else
-  if( auto fvm = dynamic_cast< const FunctionModVars * >( mod ) )
+  if( auto fvm = memo_cast< const FunctionModVars * >( mod ) )
    fnct = fvm->function();
  if( fnct ) {
   auto obs = fnct->get_Observer();
-  if( auto cns = dynamic_cast< const FRowConstraint * >( obs ) )
+  if( auto cns = memo_cast< const FRowConstraint * >( obs ) )
    return( size_constraint( cns , issueMod ) );
-  if( auto obj = dynamic_cast< const FRealObjective * >( obs ) )
+  if( auto obj = memo_cast< const FRealObjective * >( obs ) )
    return( size_objective( obj->get_Block() , issueMod ) );
   return( false );
   }
 
  // the sides, the relaxing or the Variable of a Constraint
- if( auto cm = dynamic_cast< const ConstraintMod * >( mod ) )
+ if( auto cm = memo_cast< const ConstraintMod * >( mod ) )
   return( size_constraint( cm->constraint() , issueMod ) );
 
  // the type or the fixing of a ColVariable
- if( auto vm = dynamic_cast< const VariableMod * >( mod ) ) {
-  auto src = dynamic_cast< const ColVariable * >( vm->variable() );
+ if( auto vm = memo_cast< const VariableMod * >( mod ) ) {
+  auto src = memo_cast< const ColVariable * >( vm->variable() );
   return( src && size_variable( src , issueMod ) );
   }
 
  // the sense of the Objective
- if( auto om = dynamic_cast< const ObjectiveMod * >( mod ) )
+ if( auto om = memo_cast< const ObjectiveMod * >( mod ) )
   return( om->of() && size_objective( om->of()->get_Block() , issueMod ) );
 
  // dynamic Constraint or Variable
- if( auto am = dynamic_cast< const BlockModAD * >( mod ) )
+ if( auto am = memo_cast< const BlockModAD * >( mod ) )
   return( mirror_added( am , issueMod ) );
 
  return( false );   // one this does not know

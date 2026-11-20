@@ -142,7 +142,7 @@ void MasterProblemBlock::clear()
    // i.e., to this one or to one registered in between: the one that
    // passes them to this one has to pass them to its father instead
    for( auto * b = inner->get_f_Block() ; b ; ) {
-    auto * mpb = dynamic_cast< MasterProblemBlock * >( b );
+    auto * mpb = memo_cast< MasterProblemBlock * >( b );
     if( ! mpb )
      break;
     auto jt = std::find( mpb->EasyCmps_SB.begin() , mpb->EasyCmps_SB.end() ,
@@ -353,7 +353,7 @@ void MasterProblemBlock::add_Modification( sp_Mod mod , ChnlName chnl )
    return( OwnerInfo{} );
 
   const auto group =
-   std::dynamic_pointer_cast< GroupModification >( current );
+   memo_pointer_cast< GroupModification >( current );
   if( ! group )
    return( OwnerInfo{ easy_owner( current->get_Block() ) ,
                       current->get_Block() != nullptr , true } );
@@ -388,7 +388,7 @@ void MasterProblemBlock::add_Modification( sp_Mod mod , ChnlName chnl )
    }
 
   const auto group =
-   std::dynamic_pointer_cast< GroupModification >( current );
+   memo_pointer_cast< GroupModification >( current );
   if( ! group )
    return;
   for( const auto & submod : group->sub_Modifications() )
@@ -634,7 +634,7 @@ void MasterProblemBlock::configure(
         "MasterProblemBlock::configure: easy component " +
         std::to_string( k ) + " has a null C05Function" ) );
 
-  if( auto * lbf = dynamic_cast< LagBFunction * >( c05 ) ) {
+  if( auto * lbf = memo_cast< LagBFunction * >( c05 ) ) {
    if( primal )
     throw( std::invalid_argument(
          "MasterProblemBlock::configure: easy component " +
@@ -674,7 +674,7 @@ void MasterProblemBlock::configure(
    continue;
    }
 
-  if( auto * bbf = dynamic_cast< BendersBFunction * >( c05 ) ) {
+  if( auto * bbf = memo_cast< BendersBFunction * >( c05 ) ) {
    if( ! primal )
     throw( std::invalid_argument(
          "MasterProblemBlock::configure: easy component " +
@@ -982,7 +982,7 @@ void MasterProblemBlock::generate_primal_abstract_variables( void )
 
  // Now handle each hard component
  for( int k = 0 ; k < NoHardCmps ; ++k ) {
-  auto * pfb = dynamic_cast< PolyhedralFunctionBlock * >( HardCmps[ k ] );
+  auto * pfb = memo_cast< PolyhedralFunctionBlock * >( HardCmps[ k ] );
 
   // wire the "x" variables of f_polyf to the master-side Var_d, so every
   // cut v_k >= a . d + b pushed via add_row lands on the right columns
@@ -1046,7 +1046,7 @@ void MasterProblemBlock::generate_primal_abstract_constraints( void )
 
  // Now handle each hard component
  for( int k = 0 ; k < NoHardCmps ; ++k ) {
-  auto * pfb = dynamic_cast< PolyhedralFunctionBlock * >( HardCmps[ k ] );
+  auto * pfb = memo_cast< PolyhedralFunctionBlock * >( HardCmps[ k ] );
 
   // ensure f_polyf has NO global lower bound (for the default convex
   // case, f_bound defaults to +INF which would translate the linearized
@@ -1084,7 +1084,7 @@ void MasterProblemBlock::generate_primal_abstract_constraints( void )
    }
 
   for( int k = 0 ; k < NoHardCmps ; ++k ) {
-   auto * pfb = dynamic_cast< PolyhedralFunctionBlock * >( HardCmps[ k ] );
+   auto * pfb = memo_cast< PolyhedralFunctionBlock * >( HardCmps[ k ] );
    if( pfb )
     lvl_terms.emplace_back( pfb->get_v() , 1.0 );
    }
@@ -1107,7 +1107,7 @@ void MasterProblemBlock::generate_primal_objective( void )
 {
  // Generate the objective of each hard component
  for( int k = 0 ; k < NoHardCmps ; ++k ) {
-  auto * pfb = dynamic_cast< PolyhedralFunctionBlock * >( HardCmps[ k ] );
+  auto * pfb = memo_cast< PolyhedralFunctionBlock * >( HardCmps[ k ] );
 
   pfb->generate_objective();
  }
@@ -1179,7 +1179,7 @@ void MasterProblemBlock::generate_primal_objective( void )
  if( level_probe ) {
   level_model_obj_idx = int( triples.size() );
   for( int k = 0 ; k < NoHardCmps ; ++k ) {
-   auto * pfb = dynamic_cast< PolyhedralFunctionBlock * >( HardCmps[ k ] );
+   auto * pfb = memo_cast< PolyhedralFunctionBlock * >( HardCmps[ k ] );
    if( pfb ) {
     triples.emplace_back( pfb->get_v() , 1.0 , 0.0 );
     ++level_model_obj_num;
@@ -1336,7 +1336,7 @@ void MasterProblemBlock::generate_dual_abstract_variables( void )
  for( Index k = 0 ; k < EasyCmps_SB.size() ; ++k ) {
   auto * inner = EasyCmps_SB[ k ];
   if( auto * size_var = inner->get_size_variable() ) {
-   auto * tau = dynamic_cast< ColVariable * >( size_var );
+   auto * tau = memo_cast< ColVariable * >( size_var );
    if( ! tau )
     throw( std::invalid_argument(
          "MasterProblemBlock::generate_dual_abstract_variables: "
@@ -1352,7 +1352,7 @@ void MasterProblemBlock::generate_dual_abstract_variables( void )
    // that the master of another Solver has registered too, and the inner
    // Block that the master of another Solver has given its lambda cannot be
    // used here at all
-   auto * shared = dynamic_cast< MasterProblemBlock * >(
+   auto * shared = memo_cast< MasterProblemBlock * >(
                                                     EasyCmps_Father[ k ] );
    if( shared ) {
     const auto it = std::find( shared->EasyCmps_SB.begin() ,
@@ -1495,7 +1495,7 @@ void MasterProblemBlock::generate_dual_abstract_variables( void )
 
  // Now handle each hard component
  for( int k = 0 ; k < NoHardCmps ; ++k ) {
-  auto * pfb = dynamic_cast< PolyhedralFunctionBlock * >( HardCmps[ k ] );
+  auto * pfb = memo_cast< PolyhedralFunctionBlock * >( HardCmps[ k ] );
 
   // wire the "x" variables of f_polyf to the master-side Var_d, so every
   // cut v_k >= a . d + b pushed via add_row lands on the right columns
@@ -1623,7 +1623,7 @@ void MasterProblemBlock::generate_dual_abstract_constraints( void )
 
  // Now handle each hard component
  for( int k = 0 ; k < NoHardCmps ; ++k ) {
-  auto * pfb = dynamic_cast< PolyhedralFunctionBlock * >( HardCmps[ k ] );
+  auto * pfb = memo_cast< PolyhedralFunctionBlock * >( HardCmps[ k ] );
 
   // Now generate the abstract constraints of each PFB
   pfb->generate_abstract_constraints();
@@ -1643,7 +1643,7 @@ void MasterProblemBlock::generate_dual_objective( void )
 {
  // Generate the objective of each hard component
  for( int k = 0 ; k < NoHardCmps ; ++k ) {
-  auto * pfb = dynamic_cast< PolyhedralFunctionBlock * >( HardCmps[ k ] );
+  auto * pfb = memo_cast< PolyhedralFunctionBlock * >( HardCmps[ k ] );
 
   pfb->generate_objective();
  }
@@ -1776,7 +1776,7 @@ void MasterProblemBlock::generate_dual_objective( void )
    auto * lbf = EasyCmps[ easy_id ];
    for( Index i = 0 ; i < lbf->get_num_active_var() ; ++i ) {
     const Index j = easy_local_to_global( easy_id , i );
-    auto * gi = dynamic_cast< LinearFunction * >(
+    auto * gi = memo_cast< LinearFunction * >(
                                       lbf->get_Lagrangian_term( i ) );
     if( ! gi )
      throw( std::logic_error(
@@ -1865,20 +1865,20 @@ void MasterProblemBlock::absorb_BBF_into_primal_MP( BendersBFunction * bbf )
         "MasterProblemBlock::absorb_BBF_into_primal_MP: null RowConstraint "
         "in BendersBFunction mapping at row " + std::to_string( i ) ) );
 
-  auto * fci = dynamic_cast< FRowConstraint * >( ci );
+  auto * fci = memo_cast< FRowConstraint * >( ci );
   if( ! fci )
    throw( std::invalid_argument(
         "MasterProblemBlock::absorb_BBF_into_primal_MP: RowConstraint at "
         "row " + std::to_string( i ) + " is not a FRowConstraint" ) );
 
   auto * fun = fci->get_function();
-  auto * qf  = dynamic_cast< QuadFunction   * >( fun );
+  auto * qf  = memo_cast< QuadFunction   * >( fun );
   // QuadFunction derives from DQuadFunction, so test the most-derived
   // type first; DQuadFunction is the diagonal-only specialisation and
   // LinearFunction is the further linear specialisation
-  auto * dqf = qf ? nullptr : dynamic_cast< DQuadFunction * >( fun );
+  auto * dqf = qf ? nullptr : memo_cast< DQuadFunction * >( fun );
   auto * lf  = ( qf || dqf ) ? nullptr
-                             : dynamic_cast< LinearFunction * >( fun );
+                             : memo_cast< LinearFunction * >( fun );
   if( ! lf && ! dqf && ! qf )
    throw( std::logic_error(
         "MasterProblemBlock::absorb_BBF_into_primal_MP: row " +
@@ -2018,7 +2018,7 @@ void MasterProblemBlock::add_LBF_to_coupling_rows(
     continue;
 
    // Collect lagrangian terms associated with the variable
-   auto * gi = dynamic_cast< LinearFunction * >(
+   auto * gi = memo_cast< LinearFunction * >(
      lbf->get_Lagrangian_term( i ) );
 
    if( ! gi )
@@ -2092,7 +2092,7 @@ void MasterProblemBlock::drop_easy_coupling( Index easy_id , Index j )
  // same Variable, and write them again with the current x_bar
  if( ( f_v2_form == 0 ) && ( ! easy_obj_idx.empty() ) ) {
   auto obj = get_objective< FRealObjective >();
-  auto dqf = obj ? dynamic_cast< DQuadFunction * >( obj->get_function() )
+  auto dqf = obj ? memo_cast< DQuadFunction * >( obj->get_function() )
                  : nullptr;
   for( std::size_t h = 0 ; h < EasyObjVars.size() ; ++h ) {
    if( ! of_the_component( EasyObjVars[ h ] ) )
@@ -2127,7 +2127,7 @@ void MasterProblemBlock::add_easy_coupling( Index easy_id , Index j ,
   throw( std::logic_error( "MasterProblemBlock::add_easy_coupling: global "
                            "index outside master dimension" ) );
 
- auto * gi = dynamic_cast< LinearFunction * >(
+ auto * gi = memo_cast< LinearFunction * >(
                          EasyCmps[ easy_id ]->get_Lagrangian_term( local_i ) );
  if( ! gi )
   throw( std::logic_error( "MasterProblemBlock::add_easy_coupling: "
@@ -2175,9 +2175,9 @@ void MasterProblemBlock::add_easy_objective_terms( Index easy_id , Index j ,
   return;
 
  auto obj = get_objective< FRealObjective >();
- auto dqf = obj ? dynamic_cast< DQuadFunction * >( obj->get_function() )
+ auto dqf = obj ? memo_cast< DQuadFunction * >( obj->get_function() )
                 : nullptr;
- auto * gi = dynamic_cast< LinearFunction * >(
+ auto * gi = memo_cast< LinearFunction * >(
                          EasyCmps[ easy_id ]->get_Lagrangian_term( local_i ) );
  if( ( ! dqf ) || ( ! gi ) )
   throw( std::logic_error( "MasterProblemBlock::add_easy_objective_terms: "
@@ -2321,14 +2321,14 @@ void MasterProblemBlock::mirror_fallback( Index k )
    for( auto & group : groups )
     if( group )
      group->for_each( []( Constraint & c ) {
-      if( dynamic_cast< FRowConstraint * >( & c ) )
+      if( memo_cast< FRowConstraint * >( & c ) )
        c.relax( true , eNoMod );
       } );
    };
   relax_all( b->get_static_constraint_groups() );
   relax_all( b->get_dynamic_constraint_groups() );
-  if( auto fo = dynamic_cast< FRealObjective * >( b->get_objective() ) )
-   if( auto lf = dynamic_cast< LinearFunction * >( fo->get_function() ) ) {
+  if( auto fo = memo_cast< FRealObjective * >( b->get_objective() ) )
+   if( auto lf = memo_cast< LinearFunction * >( fo->get_function() ) ) {
     LinearFunction::Vec_FunctionValue zeros( lf->get_num_active_var() , 0 );
     lf->modify_coefficients( std::move( zeros ) ,
                              Range( 0 , lf->get_num_active_var() ) ,
@@ -2379,8 +2379,8 @@ void MasterProblemBlock::mirror_fallback( Index k )
  // as are the terms of the Objective in the displacement form, which are
  // added at the end so that the positions of the others do not change
  if( ! easy_obj_idx.empty() ) {
-  auto obj = dynamic_cast< FRealObjective * >( get_objective() );
-  auto dqf = obj ? dynamic_cast< DQuadFunction * >( obj->get_function() )
+  auto obj = memo_cast< FRealObjective * >( get_objective() );
+  auto dqf = obj ? memo_cast< DQuadFunction * >( obj->get_function() )
                  : nullptr;
   for( std::size_t h = 0 ; dqf && ( h < EasyObjVars.size() ) ; ++h )
    if( auto o = back( EasyObjVars[ h ] ) ) {
@@ -2423,7 +2423,7 @@ sp_Mod MasterProblemBlock::forward_to_mirrors(
   return( none );
   };
 
- const auto group = std::dynamic_pointer_cast< GroupModification >( mod );
+ const auto group = memo_pointer_cast< GroupModification >( mod );
  if( ! group ) {
   const auto k = copy_of( mod->get_Block() );
   if( k == none )
@@ -2500,7 +2500,7 @@ int MasterProblemBlock::add_cut( int k , int slot ,
   throw( std::invalid_argument(
        "MasterProblemBlock::add_cut: slot out of range" ) );
 
- auto pfb = dynamic_cast< PolyhedralFunctionBlock * >( HardCmps[ k ] );
+ auto pfb = memo_cast< PolyhedralFunctionBlock * >( HardCmps[ k ] );
  if( ! pfb )
   throw( std::logic_error(
        "MasterProblemBlock::add_cut: HardCmps[k] is not a "
@@ -2568,7 +2568,7 @@ int MasterProblemBlock::get_bundle_size( int k ) const
 {
  if( k < 0 || k >= int( HardCmps.size() ) )
   return( 0 );
- auto pfb = dynamic_cast< PolyhedralFunctionBlock * >( HardCmps[ k ] );
+ auto pfb = memo_cast< PolyhedralFunctionBlock * >( HardCmps[ k ] );
  if( ! pfb )
   return( 0 );
  return( int( pfb->get_PolyhedralFunction().get_nrows() ) );
@@ -2581,7 +2581,7 @@ int MasterProblemBlock::get_diagonal_count( int k ) const
  if( k < 0 || k >= int( HardCmps.size() ) )
   return( 0 );
  const auto pfb =
-  dynamic_cast< const PolyhedralFunctionBlock * >( HardCmps[ k ] );
+  memo_cast< const PolyhedralFunctionBlock * >( HardCmps[ k ] );
  if( ! pfb )
   return( 0 );
  auto & pf = const_cast< PolyhedralFunctionBlock * >( pfb )
@@ -2606,7 +2606,7 @@ bool MasterProblemBlock::is_bundle_empty( void ) const
  return( std::all_of( HardCmps.cbegin() , HardCmps.cend() ,
                       []( const Block * b ) {
                        const auto pfb =
-                        dynamic_cast< const PolyhedralFunctionBlock * >( b );
+                        memo_cast< const PolyhedralFunctionBlock * >( b );
                        return( ! pfb ||
                                const_cast< PolyhedralFunctionBlock * >( pfb )
                                ->get_PolyhedralFunction().get_nrows() == 0 );
@@ -2626,7 +2626,7 @@ bool MasterProblemBlock::has_pinned_empty_cmp( void ) const
  // state would be reported as kError / kInfeasible by the inner Solver;
  // a caller of the master can use this hook to avoid it instead
  for( int k = 0 ; k < int( HardCmps.size() ) ; ++k ) {
-  auto * pfb = dynamic_cast< PolyhedralFunctionBlock * >( HardCmps[ k ] );
+  auto * pfb = memo_cast< PolyhedralFunctionBlock * >( HardCmps[ k ] );
   if( ! pfb )
    continue;
   // only the diagonal rows carry the convexity mass: a B^k of vertical
@@ -2652,7 +2652,7 @@ MasterProblemBlock::pfb_at( const std::vector< Block * > & HardCmps ,
   throw( std::invalid_argument(
        std::string( "MasterProblemBlock::" ) + fn +
        ": hard-component index out of range" ) );
- auto pfb = dynamic_cast< PolyhedralFunctionBlock * >( HardCmps[ k ] );
+ auto pfb = memo_cast< PolyhedralFunctionBlock * >( HardCmps[ k ] );
  if( ! pfb )
   throw( std::logic_error(
        std::string( "MasterProblemBlock::" ) + fn +
@@ -2805,7 +2805,7 @@ double MasterProblemBlock::get_theta( int k , int slot ) const
   return( 0.0 );
 
  const auto * pfb =
-     dynamic_cast< const PolyhedralFunctionBlock * >( HardCmps[ k ] );
+     memo_cast< const PolyhedralFunctionBlock * >( HardCmps[ k ] );
  if( ! pfb )
   return( 0.0 );
 
@@ -2821,7 +2821,7 @@ double MasterProblemBlock::get_gamma( int k ) const
   return( 0.0 );
 
  const auto * pfb =
-  dynamic_cast< const PolyhedralFunctionBlock * >( HardCmps[ k ] );
+  memo_cast< const PolyhedralFunctionBlock * >( HardCmps[ k ] );
  if( ! pfb )
   return( 0.0 );
 
@@ -2865,7 +2865,7 @@ double MasterProblemBlock::get_alpha( int k , int slot ) const
   return( 0.0 );
 
  const auto pfb =
-  dynamic_cast< const PolyhedralFunctionBlock * >( HardCmps[ k ] );
+  memo_cast< const PolyhedralFunctionBlock * >( HardCmps[ k ] );
  if( ! pfb )
   return( 0.0 );
  const auto & b = const_cast< PolyhedralFunctionBlock * >( pfb )
@@ -2885,7 +2885,7 @@ int MasterProblemBlock::find_identical_cut(
   return( -1 );
 
  const auto pfb =
-  dynamic_cast< const PolyhedralFunctionBlock * >( HardCmps[ k ] );
+  memo_cast< const PolyhedralFunctionBlock * >( HardCmps[ k ] );
  if( ! pfb )
   return( -1 );
 
@@ -3012,7 +3012,7 @@ const std::vector< double > &
   return( empty_vec );
 
  const auto pfb =
-  dynamic_cast< const PolyhedralFunctionBlock * >( HardCmps[ k ] );
+  memo_cast< const PolyhedralFunctionBlock * >( HardCmps[ k ] );
  if( ! pfb )
   return( empty_vec );
  const auto & A = const_cast< PolyhedralFunctionBlock * >( pfb )
@@ -3035,7 +3035,7 @@ bool MasterProblemBlock::is_subgradient( int k , int slot ) const
   return( false );
 
  const auto pfb =
-  dynamic_cast< const PolyhedralFunctionBlock * >( HardCmps[ k ] );
+  memo_cast< const PolyhedralFunctionBlock * >( HardCmps[ k ] );
  if( ! pfb )
   return( false );
  return( ! const_cast< PolyhedralFunctionBlock * >( pfb )
@@ -3049,7 +3049,7 @@ int MasterProblemBlock::get_vertical_count( void ) const
 {
  int total = 0;
  for( const auto * b : HardCmps ) {
-  const auto pfb = dynamic_cast< const PolyhedralFunctionBlock * >( b );
+  const auto pfb = memo_cast< const PolyhedralFunctionBlock * >( b );
   if( ! pfb )
    continue;
   auto & pf = const_cast< PolyhedralFunctionBlock * >( pfb )
@@ -3083,7 +3083,7 @@ double MasterProblemBlock::get_FiBLambda( int k ) const
     if( ! block )
      return;
 
-    if( auto * obj = dynamic_cast< RealObjective * >(
+    if( auto * obj = memo_cast< RealObjective * >(
                                               block->get_objective() ) ) {
      obj->compute();
      value += obj->value();
@@ -3135,7 +3135,7 @@ double MasterProblemBlock::get_FiBLambda( int k ) const
   auto delta_v_of = [ this ]( int kk ) -> double {
    if( kk < 0 || kk >= int( HardCmps.size() ) )
     return( 0.0 );
-   auto * pfb = dynamic_cast< PolyhedralFunctionBlock * >( HardCmps[ kk ] );
+   auto * pfb = memo_cast< PolyhedralFunctionBlock * >( HardCmps[ kk ] );
    if( ! pfb )
     return( 0.0 );
    const auto * v = pfb->get_v();
@@ -3198,7 +3198,7 @@ double MasterProblemBlock::get_FiBLambda( int k ) const
    return( true );
 
   const auto * pfb =
-   dynamic_cast< const PolyhedralFunctionBlock * >( HardCmps[ kk ] );
+   memo_cast< const PolyhedralFunctionBlock * >( HardCmps[ kk ] );
   if( ! pfb )
    return( false );
 
@@ -3424,7 +3424,7 @@ MasterProblemBlock::get_aggregated_subgradient( int k ) const
   return( out );
 
  const auto * pfb =
-  dynamic_cast< const PolyhedralFunctionBlock * >( HardCmps[ k ] );
+  memo_cast< const PolyhedralFunctionBlock * >( HardCmps[ k ] );
  if( ! pfb )
   return( out );
 
@@ -3580,7 +3580,7 @@ bool MasterProblemBlock::aggregate_is_valid( double tolerance ) const
   return( false );
  for( int k = 0 ; k < int( HardCmps.size() ) ; ++k ) {
   const auto * pfb =
-    dynamic_cast< const PolyhedralFunctionBlock * >( HardCmps[ k ] );
+    memo_cast< const PolyhedralFunctionBlock * >( HardCmps[ k ] );
   if( ! pfb )
    return( false );
   auto & pf =
@@ -3669,7 +3669,7 @@ void MasterProblemBlock::invalidate_subgradients( int k )
 {
  if( k < 0 || k >= int( HardCmps.size() ) )
   return;
- auto pfb = dynamic_cast< PolyhedralFunctionBlock * >( HardCmps[ k ] );
+ auto pfb = memo_cast< PolyhedralFunctionBlock * >( HardCmps[ k ] );
  if( ! pfb )
   return;
  pfb->add_Modification( std::make_shared< NBModification >( pfb ) );
@@ -3738,7 +3738,7 @@ double MasterProblemBlock::get_aggregated_alpha( int k ) const
    return( 0.0 );
 
   const auto * pfb =
-   dynamic_cast< const PolyhedralFunctionBlock * >( HardCmps[ kk ] );
+   memo_cast< const PolyhedralFunctionBlock * >( HardCmps[ kk ] );
   if( ! pfb )
    return( 0.0 );
 
@@ -3861,7 +3861,7 @@ double MasterProblemBlock::get_aggregated_alpha( int k ) const
     if( ! block )
      return;
 
-    if( auto * obj = dynamic_cast< RealObjective * >(
+    if( auto * obj = memo_cast< RealObjective * >(
                                               block->get_objective() ) ) {
      obj->compute();
      easy_value += obj->value();
@@ -4002,7 +4002,7 @@ double MasterProblemBlock::get_raw_aggregated_alpha( int k ) const
     return( 0.0 );
 
    const auto * pfb =
-    dynamic_cast< const PolyhedralFunctionBlock * >( HardCmps[ kk ] );
+    memo_cast< const PolyhedralFunctionBlock * >( HardCmps[ kk ] );
    if( ! pfb )
     return( 0.0 );
 
@@ -4063,7 +4063,7 @@ double MasterProblemBlock::get_raw_aggregated_alpha( int k ) const
    return( 0.0 );
 
   const auto * pfb =
-   dynamic_cast< const PolyhedralFunctionBlock * >( HardCmps[ kk ] );
+   memo_cast< const PolyhedralFunctionBlock * >( HardCmps[ kk ] );
   if( ! pfb )
    return( 0.0 );
 
@@ -4154,7 +4154,7 @@ const std::vector< double > & MasterProblemBlock::get_alphas( int k ) const
  if( k < 0 || k >= int( HardCmps.size() ) )
   return( empty_vec );
  const auto pfb =
-  dynamic_cast< const PolyhedralFunctionBlock * >( HardCmps[ k ] );
+  memo_cast< const PolyhedralFunctionBlock * >( HardCmps[ k ] );
  if( ! pfb )
   return( empty_vec );
  return( const_cast< PolyhedralFunctionBlock * >( pfb )
@@ -4170,7 +4170,7 @@ std::vector< double > MasterProblemBlock::get_thetas( int k ) const
   return( out );
 
  const auto * pfb =
-  dynamic_cast< const PolyhedralFunctionBlock * >( HardCmps[ k ] );
+  memo_cast< const PolyhedralFunctionBlock * >( HardCmps[ k ] );
  if( ! pfb )
   return( out );
 
@@ -4353,8 +4353,8 @@ void MasterProblemBlock::set_box( const std::vector< double > & L ,
   return;
   }
 
- auto obj = dynamic_cast< FRealObjective * >( get_objective() );
- auto dqf = obj ? dynamic_cast< DQuadFunction * >( obj->get_function() )
+ auto obj = memo_cast< FRealObjective * >( get_objective() );
+ auto dqf = obj ? memo_cast< DQuadFunction * >( obj->get_function() )
                 : nullptr;
  auto chnl = open_channel();
  for( Index j = 0 ; j < Index( NumVars ) ; ++j )
@@ -4410,8 +4410,8 @@ void MasterProblemBlock::set_box( std::vector< double > L ,
 
  DQuadFunction * dqf = nullptr;
  if( ! IsPrimal ) {
-  auto obj = dynamic_cast< FRealObjective * >( get_objective() );
-  dqf = obj ? dynamic_cast< DQuadFunction * >( obj->get_function() )
+  auto obj = memo_cast< FRealObjective * >( get_objective() );
+  dqf = obj ? memo_cast< DQuadFunction * >( obj->get_function() )
             : nullptr;
   }
  // see set_box() above for why the Modification travel in a channel
@@ -4509,8 +4509,8 @@ void MasterProblemBlock::set_box( std::vector< double > L ,
 
  DQuadFunction * dqf = nullptr;
  if( ! IsPrimal ) {
-  auto obj = dynamic_cast< FRealObjective * >( get_objective() );
-  dqf = obj ? dynamic_cast< DQuadFunction * >( obj->get_function() )
+  auto obj = memo_cast< FRealObjective * >( get_objective() );
+  dqf = obj ? memo_cast< DQuadFunction * >( obj->get_function() )
             : nullptr;
   }
  // see set_box() above for why the Modification travel in a channel
@@ -4558,10 +4558,10 @@ void MasterProblemBlock::set_global_LB( double LB )
  if( r_obj_idx < 0 )
   return;
 
- auto obj = dynamic_cast< FRealObjective * >( get_objective() );
+ auto obj = memo_cast< FRealObjective * >( get_objective() );
  if( ! obj )
   return;
- auto dqf = dynamic_cast< DQuadFunction * >( obj->get_function() );
+ auto dqf = memo_cast< DQuadFunction * >( obj->get_function() );
  if( ! dqf )
   return;
 
@@ -4723,7 +4723,7 @@ void MasterProblemBlock::set_reference(
 
  if( IsPrimal ) {
   for( int k = 0 ; k < int( HardCmps.size() ) ; ++k ) {
-   auto * pfb = dynamic_cast< PolyhedralFunctionBlock * >( HardCmps[ k ] );
+   auto * pfb = memo_cast< PolyhedralFunctionBlock * >( HardCmps[ k ] );
    if( ! pfb )
     continue;
    auto & poly = pfb->get_PolyhedralFunction();
@@ -4762,7 +4762,7 @@ void MasterProblemBlock::set_reference(
   if( old_x_bar.size() != f_x_bar.size() )
    break;  // first ever set_reference; old_x_bar empty, nothing to shift
 
-  auto * pfb = dynamic_cast< PolyhedralFunctionBlock * >( HardCmps[ k ] );
+  auto * pfb = memo_cast< PolyhedralFunctionBlock * >( HardCmps[ k ] );
   if( ! pfb )
    continue;
   auto & poly = pfb->get_PolyhedralFunction();
@@ -4873,10 +4873,10 @@ void MasterProblemBlock::set_x_bar( const std::vector< double > & x_bar )
  if( int( z_obj_idx.size() ) != NumVars )
   return;
 
- auto obj = dynamic_cast< FRealObjective * >( get_objective() );
+ auto obj = memo_cast< FRealObjective * >( get_objective() );
  if( ! obj )
   return;
- auto dqf = dynamic_cast< DQuadFunction * >( obj->get_function() );
+ auto dqf = memo_cast< DQuadFunction * >( obj->get_function() );
  if( ! dqf )
   return;
 
@@ -5367,7 +5367,7 @@ void MasterProblemBlock::append_primal_level_coordinates(
      ! LevelCns.get_function() )
   return;
 
- auto * lf = dynamic_cast< LinearFunction * >( LevelCns.get_function() );
+ auto * lf = memo_cast< LinearFunction * >( LevelCns.get_function() );
  if( ! lf )
   return;
 
@@ -5403,8 +5403,8 @@ void MasterProblemBlock::append_coordinate_objective( int first , int n ,
   throw( std::invalid_argument(
        "MasterProblemBlock::append_coordinate_objective: invalid range" ) );
 
- auto * obj = dynamic_cast< FRealObjective * >( get_objective() );
- auto * dqf = obj ? dynamic_cast< DQuadFunction * >( obj->get_function() )
+ auto * obj = memo_cast< FRealObjective * >( get_objective() );
+ auto * dqf = obj ? memo_cast< DQuadFunction * >( obj->get_function() )
                   : nullptr;
  if( ! dqf )
   throw( std::logic_error(
@@ -5776,9 +5776,9 @@ void MasterProblemBlock::remove_vars( const int * subset , int sz )
          "MasterProblemBlock::remove_vars: inconsistent cut dimension" ) );
   }
 
- auto * obj = obj_built ? dynamic_cast< FRealObjective * >( get_objective() )
+ auto * obj = obj_built ? memo_cast< FRealObjective * >( get_objective() )
                         : nullptr;
- auto * dqf = obj ? dynamic_cast< DQuadFunction * >( obj->get_function() )
+ auto * dqf = obj ? memo_cast< DQuadFunction * >( obj->get_function() )
                   : nullptr;
  if( obj_built && ! dqf )
   throw( std::logic_error(
@@ -5818,7 +5818,7 @@ void MasterProblemBlock::remove_vars( const int * subset , int sz )
   }
 
  auto * level_lf = IsPrimal && cnst_built
-                  ? dynamic_cast< LinearFunction * >( LevelCns.get_function() )
+                  ? memo_cast< LinearFunction * >( LevelCns.get_function() )
                   : nullptr;
  Subset level_positions;
  if( level_lf ) {
@@ -6100,8 +6100,8 @@ double MasterProblemBlock::improvement_cutoff( void ) const
      ( int( f_x_bar.size() ) < NumVars ) )
   return( - Inf< double >() );
 
- auto * obj = dynamic_cast< FRealObjective * >( get_objective() );
- auto * dqf = obj ? dynamic_cast< DQuadFunction * >( obj->get_function() )
+ auto * obj = memo_cast< FRealObjective * >( get_objective() );
+ auto * dqf = obj ? memo_cast< DQuadFunction * >( obj->get_function() )
                   : nullptr;
  if( ! dqf )
   return( - Inf< double >() );
@@ -6140,8 +6140,8 @@ void MasterProblemBlock::remove_initial_level_objective( void )
  if( ! has_initial_level_objective() )
   return;
 
- auto * obj = dynamic_cast< FRealObjective * >( get_objective() );
- auto * dqf = obj ? dynamic_cast< DQuadFunction * >( obj->get_function() )
+ auto * obj = memo_cast< FRealObjective * >( get_objective() );
+ auto * dqf = obj ? memo_cast< DQuadFunction * >( obj->get_function() )
                   : nullptr;
 
  if( ! IsPrimal ) {
@@ -6254,8 +6254,8 @@ void MasterProblemBlock::restore_initial_level_objective( void )
   return;
   }
 
- auto * obj = dynamic_cast< FRealObjective * >( get_objective() );
- auto * dqf = obj ? dynamic_cast< DQuadFunction * >( obj->get_function() )
+ auto * obj = memo_cast< FRealObjective * >( get_objective() );
+ auto * dqf = obj ? memo_cast< DQuadFunction * >( obj->get_function() )
                   : nullptr;
  if( ! dqf )
   return;  // generate_primal_objective() will create the initial probe
@@ -6265,7 +6265,7 @@ void MasterProblemBlock::restore_initial_level_objective( void )
  level_model_obj_idx = int( dqf->get_num_active_var() );
  level_model_obj_num = 0;
  for( auto * block : HardCmps ) {
-  auto * pfb = dynamic_cast< PolyhedralFunctionBlock * >( block );
+  auto * pfb = memo_cast< PolyhedralFunctionBlock * >( block );
   if( ! pfb )
    continue;
   const auto idx = dqf->is_active( pfb->get_v() );
@@ -6294,8 +6294,8 @@ void MasterProblemBlock::refresh_primal_objective( void )
   return;
   }
 
- auto * obj = dynamic_cast< FRealObjective * >( get_objective() );
- auto * dqf = obj ? dynamic_cast< DQuadFunction * >( obj->get_function() )
+ auto * obj = memo_cast< FRealObjective * >( get_objective() );
+ auto * dqf = obj ? memo_cast< DQuadFunction * >( obj->get_function() )
                   : nullptr;
  if( ! dqf )
   throw( std::logic_error(
@@ -6376,7 +6376,7 @@ void MasterProblemBlock::refresh_primal_level_linear_part( Range range )
  if( range.second <= range.first )
   return;
 
- auto * lf = dynamic_cast< LinearFunction * >( LevelCns.get_function() );
+ auto * lf = memo_cast< LinearFunction * >( LevelCns.get_function() );
  if( ! lf )
   return;
  if( level_d_idx.size() != std::size_t( NumVars ) )
@@ -6407,7 +6407,7 @@ void MasterProblemBlock::refresh_primal_level_linear_part(
  if( subset.empty() )
   return;
 
- auto * lf = dynamic_cast< LinearFunction * >( LevelCns.get_function() );
+ auto * lf = memo_cast< LinearFunction * >( LevelCns.get_function() );
  if( ! lf )
   return;
  if( level_d_idx.size() != std::size_t( NumVars ) )
@@ -6522,7 +6522,7 @@ int MasterProblemBlock::solve_master( void )
 
    for( int k = 0 ; k < int( HardCmps.size() ) ; ++k ) {
     const auto * pfb =
-     dynamic_cast< const PolyhedralFunctionBlock * >( HardCmps[ k ] );
+     memo_cast< const PolyhedralFunctionBlock * >( HardCmps[ k ] );
     if( ! pfb )
      continue;
 
@@ -6903,8 +6903,8 @@ void MasterProblemBlock::refresh_linear_constraint_sides( ModParam issueMod )
  if( ! IsPrimal ) {
   if( Var_mu_plus.size() != f_lc_A.size() )
    return;
-  auto * obj = dynamic_cast< FRealObjective * >( get_objective() );
-  auto * dqf = obj ? dynamic_cast< DQuadFunction * >( obj->get_function() )
+  auto * obj = memo_cast< FRealObjective * >( get_objective() );
+  auto * dqf = obj ? memo_cast< DQuadFunction * >( obj->get_function() )
                    : nullptr;
   if( ! dqf )
    return;
@@ -7076,7 +7076,7 @@ void MasterProblemBlock::unhost_Block( void )
   // hosting it in between: the one that passes them to this one has to
   // pass them to the father of this one instead
   for( auto * b = f_host->get_f_Block() ; b ; ) {
-   auto * mpb = dynamic_cast< MasterProblemBlock * >( b );
+   auto * mpb = memo_cast< MasterProblemBlock * >( b );
    if( ( ! mpb ) || ( mpb->f_host != f_host ) )
     break;
    if( mpb->f_host_father == this ) {
@@ -7127,8 +7127,8 @@ void MasterProblemBlock::add_dual_linear_constraints( ModParam issueMod )
      ( ( f_abs_rep & k_mpb_built_mask ) != k_mpb_built_mask ) )
   return;
 
- auto * obj = dynamic_cast< FRealObjective * >( get_objective() );
- auto * dqf = obj ? dynamic_cast< DQuadFunction * >( obj->get_function() )
+ auto * obj = memo_cast< FRealObjective * >( get_objective() );
+ auto * dqf = obj ? memo_cast< DQuadFunction * >( obj->get_function() )
                   : nullptr;
  if( ( ! dqf ) || ( int( CouplingCns.size() ) != NumVars ) )
   throw( std::logic_error( "MasterProblemBlock::add_dual_linear_constraints:"
@@ -7213,8 +7213,8 @@ void MasterProblemBlock::remove_dual_linear_constraints( ModParam issueMod )
  if( IsPrimal || Var_mu_plus.empty() )
   return;
 
- auto * obj = dynamic_cast< FRealObjective * >( get_objective() );
- auto * dqf = obj ? dynamic_cast< DQuadFunction * >( obj->get_function() )
+ auto * obj = memo_cast< FRealObjective * >( get_objective() );
+ auto * dqf = obj ? memo_cast< DQuadFunction * >( obj->get_function() )
                   : nullptr;
  if( ( ! dqf ) || ( int( CouplingCns.size() ) != NumVars ) ||
      ( Var_mu_plus.size() != f_lc_A.size() ) )
@@ -7380,12 +7380,12 @@ void MasterProblemBlock::set_t( double t )
   return;
   }
 
- auto obj = dynamic_cast< FRealObjective * >( get_objective() );
+ auto obj = memo_cast< FRealObjective * >( get_objective() );
  if( ! obj ) {
   issue_t_mod();
   return;
   }
- auto dqf = dynamic_cast< DQuadFunction * >( obj->get_function() );
+ auto dqf = memo_cast< DQuadFunction * >( obj->get_function() );
  if( ! dqf ) {
   issue_t_mod();
   return;
@@ -7473,8 +7473,8 @@ void MasterProblemBlock::set_f_lev( double f )
    }
 
   if( ( f_abs_rep & k_mpb_built_obj ) && omega_obj_idx >= 0 ) {
-   auto obj = dynamic_cast< FRealObjective * >( get_objective() );
-   auto dqf = obj ? dynamic_cast< DQuadFunction * >( obj->get_function() )
+   auto obj = memo_cast< FRealObjective * >( get_objective() );
+   auto dqf = obj ? memo_cast< DQuadFunction * >( obj->get_function() )
                   : nullptr;
    if( dqf ) {
     // The omega-side contribution to the dual objective is
@@ -7528,7 +7528,7 @@ void MasterProblemBlock::set_LB( int k , double LB )
 
  if( k >= int( HardCmps.size() ) || ! HardCmps[ k ] )
   return;
- auto pfb = dynamic_cast< PolyhedralFunctionBlock * >( HardCmps[ k ] );
+ auto pfb = memo_cast< PolyhedralFunctionBlock * >( HardCmps[ k ] );
  if( ! pfb )
   return;
 
@@ -7623,7 +7623,7 @@ void MasterProblemBlock::set_fictitious_LB( int k , bool on )
 
  if( k >= int( HardCmps.size() ) || ! HardCmps[ k ] )
   return;
- auto pfb = dynamic_cast< PolyhedralFunctionBlock * >( HardCmps[ k ] );
+ auto pfb = memo_cast< PolyhedralFunctionBlock * >( HardCmps[ k ] );
  if( ! pfb )
   return;
  auto & poly = pfb->get_PolyhedralFunction();
