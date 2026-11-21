@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `BendersBFunction::set_global_lower_bound()`, which gives the value
+  that `get_global_lower_bound()` returns, e.g., 0 for a sub-Block whose
+  Objective is a sum of squares, so that a bundle method keeps its
+  cutting-plane master bounded
+
+- `BendersBFunction::set_phase_one()`, which gives a phase one whose
+  linearization is the vertical one when the sub-Block is infeasible and
+  its Solver gives no unbounded dual direction, as a Solver of convex QPs
+  usually does not
+
 - `memo_cast()` and `memo_pointer_cast()` in `SMSTypedefs.h`, which give
   what `dynamic_cast` and `std::dynamic_pointer_cast` give with the cast
   made only once for each dynamic type, for a hierarchy with no virtual

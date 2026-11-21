@@ -20,6 +20,7 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include "AbstractBlock.h"
 #include "AbstractPath.h"
 #include "BendersBFunction.h"
 #include "BlockSolverConfig.h"
@@ -2023,6 +2024,9 @@ int BendersBFunction::compute( bool changedvars ) {
    v_Block.front()->unlock( f_id );  // unlock the inner Block
  }
 
+ // the phase one is asked anew at the new point [see phase_one_cut()]
+ f_p1_tried = f_p1_cut = false;
+
  // TODO can we assume that the variables of the sub-Block haven't changed?
  f_solver_status = solver->compute( true );
 
@@ -2103,10 +2107,12 @@ bool BendersBFunction::has_linearization( const bool diagonal ) {
 
  if( diagonal ) {
   f_diagonal_linearization_required = true;
+  f_p1_cut = false;
   return( solver->has_dual_solution() );
  }
  else {
   f_diagonal_linearization_required = false;
+  f_p1_cut = false;
   if( solver->has_dual_direction() )
    return( true );
   // Fallback: when the inner solver detects infeasibility via a row with
@@ -2117,7 +2123,10 @@ bool BendersBFunction::has_linearization( const bool diagonal ) {
   // The cut is computed directly in get_linearization_coefficients() and
   // compute_linearization_constant() by giving each side of an inverted
   // row a synthetic, side-aware dual value.
-  return( has_inverted_row() );
+  if( has_inverted_row() )
+   return( true );
+  // and lacking both, the phase one [see set_phase_one()]
+  return( phase_one_cut() );
  }
 
 }  // end( BendersBFunction::has_linearization )
@@ -2128,14 +2137,112 @@ bool BendersBFunction::compute_new_linearization( const bool diagonal ) {
  auto solver = get_solver< CDASolver >();
  if( ! solver )
   return( false );
+ f_p1_cut = false;
  if( diagonal )
   return( solver->new_dual_solution() );
  if( solver->new_dual_direction() )
   return( true );
  // Fallback: synthesize a vertical linearization from inverted-bound rows.
  // See has_linearization() for the rationale.
- return( has_inverted_row() );
+ if( has_inverted_row() )
+  return( true );
+ // the phase one gives one linearization at each point, hence no new one
+ return( f_p1_tried ? false : phase_one_cut() );
 }  // end ( BendersBFunction::compute_new_linearization )
+
+/*--------------------------------------------------------------------------*/
+
+void BendersBFunction::set_phase_one( BendersBFunction * f1 )
+{
+ if( f1 ) {
+  auto rep = dynamic_cast< AbstractBlock * >( f1->get_inner_block() );
+  if( ( ! rep ) || ( ! get_inner_block() ) ||
+      ( rep->get_mirrored() != get_inner_block() ) )
+   throw( std::invalid_argument( "BendersBFunction::set_phase_one: the "
+                                 "inner Block of the phase one is not a copy "
+                                 "of the inner Block" ) );
+
+  if( f1->get_num_active_var() != get_num_active_var() )
+   throw( std::invalid_argument( "BendersBFunction::set_phase_one: the "
+                                 "phase one has not the same active "
+                                 "Variable" ) );
+  }
+
+ f_phase_one = f1;
+ f_p1_tried = f_p1_cut = false;
+
+ }  // end( BendersBFunction::set_phase_one )
+
+/*--------------------------------------------------------------------------*/
+
+bool BendersBFunction::phase_one_cut( void )
+{
+ f_p1_cut = false;
+ if( ( ! f_phase_one ) || f_p1_tried || v_Block.empty() ||
+     ( v_Block.front()->get_objective_sense() != Objective::eMin ) )
+  return( false );
+
+ f_p1_tried = true;
+
+ const int st = f_phase_one->compute();
+ if( ( st != Solver::kOK ) && ( st != Solver::kLowPrecision ) )
+  return( false );
+
+ if( ! ( f_phase_one->has_linearization( true ) ||
+         f_phase_one->compute_new_linearization( true ) ) )
+  return( false );
+
+ const Index nx = v_x.size();
+ std::vector< FunctionValue > g( nx );
+ f_phase_one->get_linearization_coefficients( g.data() , Range( 0 , nx ) );
+ const auto alpha = f_phase_one->get_linearization_constant();
+
+ // the linearization is the least violation at the current point, which is
+ // positive only if the inner Block is infeasible there
+ FunctionValue viol = alpha;
+ for( Index i = 0 ; i < nx ; ++i )
+  viol += g[ i ] * v_x[ i ]->get_value();
+ if( ! ( viol > 0 ) )
+  return( false );
+
+ /* The dual solution of the phase one, of all its Constraint, is written in
+  * those of the inner Block of which they are the copies, where it gives the
+  * same coefficients up to the ratio of the weights; the constant is the
+  * one of the phase one, which accounts for whatever bounds the Constraint
+  * of the copy do not represent. */
+
+ auto s1 = f_phase_one->get_solver< CDASolver >();
+ if( ( ! s1 ) || ( ! s1->has_dual_solution() ) )
+  return( false );
+ s1->get_dual_solution();
+
+ auto rep = static_cast< AbstractBlock * >( f_phase_one->get_inner_block() );
+ auto copy = [ rep ]( auto & c ) {
+  auto m = rep->mirror_of( static_cast< const RowConstraint * >( & c ) );
+  c.set_dual( m ? m->get_dual() : 0 );
+  };
+
+ std::queue< Block * > Q;
+ Q.push( v_Block.front() );
+ while( ! Q.empty() ) {
+  auto block = Q.front();
+  Q.pop();
+  for( auto * sub_block : block->get_nested_Blocks() )
+   Q.push( sub_block );
+
+  block->for_each_constraint_group( [ & copy ]( const BaseGroup & group ) {
+    for_each_as_any_of< FRowConstraint , BoxConstraint , ZOConstraint ,
+                        LB0Constraint , UB0Constraint , LBConstraint ,
+                        UBConstraint , NNConstraint , NPConstraint >(
+                                                       group , copy ); } );
+  }
+
+ f_last_solution = Inf< Index >();  // the inner Block holds none of the pool
+ f_p1_alpha = alpha * inner_weight() / f_phase_one->inner_weight();
+ f_p1_cut = true;
+ return( true );
+
+ }  // end( BendersBFunction::phase_one_cut )
 
 /*--------------------------------------------------------------------------*/
 
@@ -2208,7 +2315,9 @@ void BendersBFunction::store_linearization( Index name , ModParam issueMod ) {
  // TODO If the linearization constant has just been computed, use this
  // computed value instead of Inf.
 
- global_pool.store( Inf< FunctionValue >() , solution , name ,
+ // the constant of the phase one is not that of its dual solution
+ global_pool.store( ( ( ! f_diagonal_linearization_required ) && f_p1_cut ) ?
+                    f_p1_alpha : Inf< FunctionValue >() , solution , name ,
                     f_diagonal_linearization_required );
 
  // the sub-Block holds what has just been stored under this name
@@ -2787,6 +2896,8 @@ Function::FunctionValue BendersBFunction::get_linearization_constant(
   }
   else {
    // "vertical" linearization
+   if( f_p1_cut )   // the one of the phase one [see phase_one_cut()]
+    return( f_p1_alpha );
    if( solver->has_dual_direction() )
     solver->get_dual_direction( f_get_dual_direction_config );
    return( inner_weight() * compute_linearization_constant() );

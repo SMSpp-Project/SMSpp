@@ -1942,6 +1942,52 @@ void print( std::ostream & output ) override {
  FunctionValue get_value( void ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// sets a global lower bound on the value of the BendersBFunction
+ /** Sets a value that the BendersBFunction is known to be not below at any
+  * point, e.g., 0 when the Objective of the sub-Block is a sum of squares;
+  * it is not checked, and it is returned as it is by
+  * get_global_lower_bound(). The default - Inf< FunctionValue >() means
+  * that none is known. */
+
+ void set_global_lower_bound( FunctionValue lb ) { f_global_LB = lb; }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns the global lower bound given by set_global_lower_bound()
+
+ FunctionValue get_global_lower_bound( void ) override {
+  return( f_global_LB );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// sets the phase one that gives the vertical linearizations
+ /** Sets a BendersBFunction \p f1 with the same active Variable as this one,
+  * in the same order, whose inner Block is a copy of the inner Block of this
+  * one [see AbstractBlock::mirror()] in which the Constraint handled by
+  * this BendersBFunction are relaxed by nonnegative slacks and the
+  * Objective minimizes their weighted sum: the value of \p f1 is the least
+  * violation of these Constraint, positive exactly where the inner Block of
+  * this BendersBFunction is infeasible.
+  *
+  * When the inner Block is infeasible, its Solver gives no unbounded dual
+  * direction (as a Solver of convex QPs usually does not) and no Constraint
+  * has lhs > rhs, the vertical linearization is that of \p f1: \p f1 is
+  * computed, its optimal dual solution is written in the Constraint of the
+  * inner Block of which those of the copy are the copies (0 in those that
+  * have none), where it is a dual direction since the Objective of the copy
+  * is zero on the Variable of the inner Block, and the linearization is
+  * \f$ g^\top x + \alpha \le 0 \f$ with \f$ g^\top x + \alpha \f$ the
+  * linearization of \p f1 scaled by the ratio of the weights of the two
+  * inner Block [see inner_weight()], which no x where the inner Block is
+  * feasible violates. One is given at each point, and only for an inner
+  * Block that minimizes.
+  *
+  * \p f1 is not owned by this BendersBFunction, its inner Block has to have
+  * its Solver and it must outlive this BendersBFunction; nullptr, the
+  * default, means no phase one. */
+
+ void set_phase_one( BendersBFunction * f1 );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns a lower estimate of the BendersBFunction
  /** This method simply returns get_value().  */
 
@@ -2286,6 +2332,21 @@ void print( std::ostream & output ) override {
  FunctionValue AAccMlt; ///< maximum absolute error in the multipliers
 
  bool f_ignore_modifications = false; ///< ignore any Modification
+
+ FunctionValue f_global_LB = - Inf< FunctionValue >();
+ ///< the global lower bound given by set_global_lower_bound()
+
+ BendersBFunction * f_phase_one = nullptr;
+ ///< the phase one given by set_phase_one()
+
+ bool f_p1_tried = false;
+ ///< the phase one has been asked at the current point
+
+ bool f_p1_cut = false;
+ ///< the current vertical linearization is the one of the phase one
+
+ FunctionValue f_p1_alpha = 0;
+ ///< the constant of the vertical linearization of the phase one
 
  void * f_id; ///< the "identity" of the BendersBFunction
 
@@ -3045,6 +3106,13 @@ void print( std::ostream & output ) override {
   * before any simplex/barrier iteration). */
 
  bool has_inverted_row( void );
+
+ /// the vertical linearization of the phase one [see set_phase_one()]
+ /** Computes the phase one at the current point, if it has not been already,
+  * and writes its dual solution in the inner Block; returns true only if it
+  * gives a linearization, i.e., if its value is positive. */
+
+ bool phase_one_cut( void );
 
  /// effective per-entry dual value used to assemble a vertical cut
  /** Returns the dual value to be used for the j-th BendersBFunction row
