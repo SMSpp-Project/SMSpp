@@ -84,6 +84,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `BendersBFunction` with a phase one [see `set_phase_one()`] takes as
+  infeasible a sub-Block that its Solver says unbounded and the phase one
+  finds infeasible, as a Solver of convex QPs may say for a sub-Block
+  infeasible by less than its own tolerance: `compute()` returns
+  `kInfeasible`, `get_value()` + Inf and the linearization is the vertical
+  one of the phase one, where a bundle method stopped on a value - Inf
+
 - `LagBFunction` updates the constants of the global pool kept under
   `intPoolExtMem` 0 for a change of the quadratic coefficients of the
   `DQuadFunction` in the Objective of the inner Block and for a change of

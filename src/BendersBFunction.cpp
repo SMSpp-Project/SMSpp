@@ -2025,10 +2025,14 @@ int BendersBFunction::compute( bool changedvars ) {
  }
 
  // the phase one is asked anew at the new point [see phase_one_cut()]
- f_p1_tried = f_p1_cut = false;
+ f_p1_tried = f_p1_cut = f_p1_ok = false;
 
  // TODO can we assume that the variables of the sub-Block haven't changed?
  f_solver_status = solver->compute( true );
+
+ // an "unbounded" inner Block that the phase one finds infeasible is so
+ if( ( f_solver_status == Solver::kUnbounded ) && f_phase_one && phase_one_cut() )
+  f_solver_status = Solver::kInfeasible;
 
  return( f_solver_status );
 
@@ -2169,7 +2173,7 @@ void BendersBFunction::set_phase_one( BendersBFunction * f1 )
   }
 
  f_phase_one = f1;
- f_p1_tried = f_p1_cut = false;
+ f_p1_tried = f_p1_cut = f_p1_ok = false;
 
  }  // end( BendersBFunction::set_phase_one )
 
@@ -2178,7 +2182,10 @@ void BendersBFunction::set_phase_one( BendersBFunction * f1 )
 bool BendersBFunction::phase_one_cut( void )
 {
  f_p1_cut = false;
- if( ( ! f_phase_one ) || f_p1_tried || v_Block.empty() ||
+ if( f_p1_tried )  // the one already given at this point, if any
+  return( f_p1_cut = f_p1_ok );
+
+ if( ( ! f_phase_one ) || v_Block.empty() ||
      ( v_Block.front()->get_objective_sense() != Objective::eMin ) )
   return( false );
 
@@ -2239,7 +2246,7 @@ bool BendersBFunction::phase_one_cut( void )
 
  f_last_solution = Inf< Index >();  // the inner Block holds none of the pool
  f_p1_alpha = alpha * inner_weight() / f_phase_one->inner_weight();
- f_p1_cut = true;
+ f_p1_cut = f_p1_ok = true;
  return( true );
 
  }  // end( BendersBFunction::phase_one_cut )
@@ -2260,6 +2267,11 @@ Function::FunctionValue BendersBFunction::get_value( void ) {
     "BendersBFunction::get_value: It is not possible to "
     "get the value. The sub-Block has no Solver "
     "attached to it." ) );
+
+ if( f_solver_status == Solver::kInfeasible )
+  return( v_Block.front()->get_objective_sense() == Objective::eMin ?
+          inner_weight() * Inf< FunctionValue >() :
+          - inner_weight() * Inf< FunctionValue >() );
 
  if( v_Block.front()->get_objective_sense() == Objective::eMin )
   return( inner_weight() * solver->get_ub() );

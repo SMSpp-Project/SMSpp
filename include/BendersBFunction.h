@@ -1932,7 +1932,10 @@ void print( std::ostream & output ) override {
   * of the sub-Block (see Solver::get_ub()). If the sense of the Objective of
   * the sub-Block is "maximization", then this method returns a valid upper
   * bound on the optimal objective function value of the sub-Block (see
-  * Solver::get_lb()).
+  * Solver::get_lb()). If compute() has returned kInfeasible, then it
+  * returns + Inf< FunctionValue >() times the weight of the inner Block
+  * [see inner_weight()] for a minimization and - Inf< FunctionValue >()
+  * times it for a maximization.
   *
   * Notice that if compute() has never been invoked, then the value returned
   * by this method is meaningless. Moreover, if this BendersBFunction does not
@@ -1980,6 +1983,12 @@ void print( std::ostream & output ) override {
   * inner Block [see inner_weight()], which no x where the inner Block is
   * feasible violates. One is given at each point, and only for an inner
   * Block that minimizes.
+  *
+  * When the Solver of the inner Block says kUnbounded (as a Solver of
+  * convex QPs may do for an inner Block that is infeasible by less than its
+  * own tolerance) and \p f1 gives a linearization, compute() returns
+  * kInfeasible, and the value and the vertical linearization are those of
+  * an infeasible inner Block.
   *
   * \p f1 is not owned by this BendersBFunction, its inner Block has to have
   * its Solver and it must outlive this BendersBFunction; nullptr, the
@@ -2344,6 +2353,9 @@ void print( std::ostream & output ) override {
 
  bool f_p1_cut = false;
  ///< the current vertical linearization is the one of the phase one
+
+ bool f_p1_ok = false;
+ ///< the phase one has given a linearization at the current point
 
  FunctionValue f_p1_alpha = 0;
  ///< the constant of the vertical linearization of the phase one
