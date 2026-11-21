@@ -129,6 +129,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `lib/makefile-OS` reads only the name of the system, for the default paths,
   and gives `-Wfatal-errors` for the first error and nothing beyond `-g` for
   the debugger, which clang++ and g++ both take
+- `ThinComputeInterface` gives the copy of a parameter to the move version of
+  `set_par()` with no `std::move()`, which prevented the copy elision;
+  `Solver::get_var_value()` converts to `OFValue` the value it gives with no
+  Block; `lib/makefile-c` passes the include directory of FastFlow by
+  `-isystem`, and `lib/makefile-mod` gives the module interfaces also the
+  include directories passed so
 
 ## [0.10.0] - 2026-11-16
 

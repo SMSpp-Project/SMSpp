@@ -208,7 +208,7 @@ void Solver::reset_event_handler( int type , EventID id )
 Solver::OFValue Solver::get_var_value( void ) {
  return( f_Block ? f_Block->get_objective_sense() == Objective::eMin ?
 	           get_ub() : get_lb()
-                 : Objective::eMin );
+                 : OFValue( Objective::eMin ) );
  }
 
 /*--------------------------------------------------------------------------*/

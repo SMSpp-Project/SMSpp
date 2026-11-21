@@ -670,7 +670,7 @@ class ThinComputeInterface
   * re-implemented by derived classes. */
 
  virtual void set_par( idx_type par , const std::string & value ) {
-  set_par( par , std::move( std::string( value ) ) );
+  set_par( par , std::string( value ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -684,7 +684,7 @@ class ThinComputeInterface
 
  [[nodiscard]] bool set_par( const std::string & name ,
 			     const std::string & value ) {
-  return( set_par( name , std::move( std::string( value ) ) ) );
+  return( set_par( name , std::string( value ) ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -730,7 +730,7 @@ class ThinComputeInterface
   * ever re-implemented by derived classes. */
 
  void set_par( idx_type par , const std::vector< int > & value ) {
-  set_par( par , std::move( std::vector< int >( value ) ) );
+  set_par( par , std::vector< int >( value ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -744,7 +744,7 @@ class ThinComputeInterface
 
  [[nodiscard]] bool set_par( const std::string & name ,
 			     const std::vector< int > & value ) {
-  return( set_par( name , std::move( std::vector< int >( value ) ) ) );
+  return( set_par( name , std::vector< int >( value ) ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -790,7 +790,7 @@ class ThinComputeInterface
   * ever re-implemented by derived classes. */
 
  void set_par( idx_type par , const std::vector< double > & value ) {
-  set_par( par , std::move( std::vector< double >( value ) ) );
+  set_par( par , std::vector< double >( value ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -804,7 +804,7 @@ class ThinComputeInterface
 
  [[nodiscard]] bool set_par( const std::string & name ,
 			     const std::vector< double > & value ) {
-  return( set_par( name , std::move( std::vector< double >( value ) ) ) );
+  return( set_par( name , std::vector< double >( value ) ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -850,7 +850,7 @@ class ThinComputeInterface
   * be ever re-implemented by derived classes. */
 
  void set_par( idx_type par , const std::vector< std::string > & value ) {
-  set_par( par , std::move( std::vector< std::string >( value ) ) );
+  set_par( par , std::vector< std::string >( value ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -864,8 +864,7 @@ class ThinComputeInterface
 
  [[nodiscard]] bool set_par( const std::string & name ,
 			     const std::vector< std::string > & value ) {
-  return( set_par( name , std::move( std::vector< std::string >( value ) ) )
-	  );
+  return( set_par( name , std::vector< std::string >( value ) ) );
   }
 
 /*--------------------------------------------------------------------------*/
