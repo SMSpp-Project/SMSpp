@@ -186,6 +186,20 @@ necessary to create the `../extlib/makefile-paths` out of the
 `extlib/makefile-default-paths-*` for your OS `*` and edit the relevant
 bits (commenting out all the rest).
 
+By default, on Linux and on macOS, the makefiles put the objects of the
+"core" SMS++ in `obj/libSMS++.so` (`.dylib` on macOS), and those of each
+other module in its own shared library, as CMake does: a program linked by
+the `*OBJ` and the `*LIB` of the makefiles finds them at run time by their
+`-rpath`. With
+
+```sh
+make SMSppSTATIC=1
+```
+
+the objects are linked as they are, as they always are on Windows, and
+`lib/makefile-lib` archives `lib/libSMS++.a` anyway [see
+`lib/makefile-shared`].
+
 Check the [SMS++ installation wiki](https://gitlab.com/smspp/smspp-project/-/wikis/Customize-the-configuration#location-of-required-libraries)
 for further details.
 

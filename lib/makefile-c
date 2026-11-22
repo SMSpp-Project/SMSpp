@@ -23,7 +23,8 @@
 #                              i.e., the one containing its include/         #
 #                              subdirectory (see extlib/makefile-paths)      #
 #                                                                            #
-#   Output: $(SMS++OBJ)      = the final objects                             #
+#   Output: $(SMS++OBJ)      = the final objects, or the shared library      #
+#                              that holds them [see makefile-shared]         #
 #           $(SMS++H)        = the .h files to include for the core SMS++    #
 #           $(SMS++INC)      = all the -I$( include dirs ) of the core SMS++ #
 #           $(SMS++LIB)      = the external libraries + -L< libdirs >        #
@@ -38,6 +39,11 @@
 # defines UNAME_S, which identifies the type of OS, so that the default paths
 # of that OS are loaded without a need for the user to manually edit them
 include $(SMS++SDR)/lib/makefile-OS
+
+# shared libraries- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# whether the objects of the modules are put in shared libraries, and the
+# function that does it [see makefile-shared]
+include $(SMS++SDR)/lib/makefile-shared
 
 # default paths - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # include a makefile that defines all the *_ROOT paths needed by every other
@@ -90,5 +96,8 @@ include $(SMS++SDR)/lib/makefile
 
 # external libraries for the core SMS++
 SMS++LIB = $(libBoostLIB) $(libEigenLIB) $(libNtCDFLIB)
+
+# the objects as the shared library libSMS++ [see makefile-shared]
+$(eval $(call SMSppSOlib,SMS++))
 
 ########################### End of makefile-c ################################

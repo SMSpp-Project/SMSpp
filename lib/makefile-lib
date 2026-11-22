@@ -74,7 +74,9 @@ install:
 # *H   is the list of all include files
 # *INC is the -I< include directories >
 
-# libSMS++ (complete with external libraries)
+# libSMS++ (complete with external libraries), as the objects that are
+# archived here [see makefile-shared]
+SMSppSTATIC = 1
 include $(SMS++SDR)/lib/makefile-c
 
 # archive the library - - - - - - - - - - - - - - - - - - - - - - - - - - - -
