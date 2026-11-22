@@ -33,9 +33,11 @@ SW_RELEASE = -O3 -DNDEBUG $(COMMON_SW)
 # for a component defining one of the classes used in the test (a :Block,
 # a :Configuration, a :Solver), the code inserting it in the factory is not
 # included and the test wll fail. in this case, one must use the option of
-# the linker that disables this optimization (e.g., whole-archive for g++,
-# force_load for clang++). this macro must define said option
-FORCE = -Wl,--whole-archive,--allow-multiple-definition
+# the linker that disables this optimization (e.g., whole-archive for the
+# linker of GNU, force_load for that of macOS). this macro must define said
+# option, which a shared libSMS++ does not need, as it is loaded whole
+# [see lib/makefile-shared]; it is defined after makefile-inc, which says
+# which one is built
 
 # default target- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -68,6 +70,15 @@ clean::
 # core SMS++
 SMS++SDR = ../..
 include $(SMS++SDR)/lib/makefile-inc
+
+# the option of the linker that loads all libSMS++.a [see above]
+ifneq ($(SMSppSHARED),)
+    FORCE =
+else ifeq ($(UNAME_S),Darwin)
+    FORCE = -Wl,-force_load
+else
+    FORCE = -Wl,--whole-archive,--allow-multiple-definition
+endif
 
 # main module (linking phase) - - - - - - - - - - - - - - - - - - - - - - - -
 
