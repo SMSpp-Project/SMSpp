@@ -92,6 +92,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `smspp_copy_runtime()` separates the DLLs it copies by `?` and not by `|`,
+  which `cmd.exe` took as a pipe, so that a program linked by the Ninja of
+  MSYS2 failed after its link.
+
 - FastFlow builds with MinGW-w64, for which it has no port of its own: it
   took Windows for MSVC, whose port clashes with the POSIX threads, the
   `<sys/time.h>` and the `<unistd.h>` of MinGW. Under MinGW it takes a branch

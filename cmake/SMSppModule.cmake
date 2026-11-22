@@ -174,7 +174,7 @@ function(smspp_copy_runtime target)
     set(_script ${CMAKE_CURRENT_FUNCTION_LIST_DIR}/SMSppCopyRuntime.cmake)
     add_custom_command(TARGET ${target} POST_BUILD
             COMMAND "$<$<BOOL:${_dlls}>:${CMAKE_COMMAND};\
--DSMSpp_FILES=$<JOIN:${_dlls},|>;\
+-DSMSpp_FILES=$<JOIN:${_dlls},?>;\
 -DSMSpp_DESTINATION=$<TARGET_FILE_DIR:${target}>;-P;${_script}>"
             COMMAND_EXPAND_LISTS
             VERBATIM)
