@@ -170,4 +170,17 @@ typedef unsigned long int     atom_t;
 platform")
         endif ()
     endif ()
+    # the CLH lock of ff/spin-lock.hpp swaps its pointers as long, which is of
+    # 32 bits on Windows: under MinGW it swaps them as pointers, as under MSVC
+    set(_ff_spin "${fastflow_SOURCE_DIR}/ff/spin-lock.hpp")
+    set(_ff_clh "#if defined(_MSC_VER) // To be tested")
+    if (EXISTS "${_ff_spin}")
+        file(READ "${_ff_spin}" _ff_src)
+        if (_ff_src MATCHES "#if defined\\(_MSC_VER\\) // To be tested")
+            string(REPLACE "${_ff_clh}"
+                "#if defined(_MSC_VER) || defined(__MINGW32__) // To be tested"
+                _ff_src "${_ff_src}")
+            file(WRITE "${_ff_spin}" "${_ff_src}")
+        endif ()
+    endif ()
 endmacro()
