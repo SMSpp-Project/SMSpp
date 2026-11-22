@@ -91,5 +91,39 @@ INLINE int pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
             message(STATUS "FastFlow: injected the MSVC shim of \
 pthread_cond_timedwait and clock_gettime")
         endif ()
+
+        # the MinGW patch: MinGW-w64 has the POSIX threads of winpthreads,
+        # which its libstdc++ includes, and the types of the Windows port
+        # (pthread_t as a HANDLE, pthread_mutex_t as a CRITICAL_SECTION)
+        # clash with those of <pthread.h>; under MinGW the port keeps only
+        # its macros and the Windows headers, and takes the threads from
+        # <pthread.h>, guarded by the FF_SMSPP_MINGW marker as above
+        if (NOT _ff_winport_src MATCHES "FF_SMSPP_MINGW")
+            set(_ff_mingw [=[#define FF_MINPORT_WIN_H
+/* ---- FF_SMSPP_MINGW: the POSIX threads of MinGW-w64, by SMS++ ---- */
+#if defined(__MINGW32__)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <Windows.h>
+#include <process.h>
+#include <intrin.h>
+#include <stdio.h>
+#include <errno.h>
+#include <time.h>
+#include <pthread.h>
+#define INLINE __forceinline
+#define NOINLINE __declspec(noinline)
+#define RESTRICT __declspec()
+#else /* FF_SMSPP_MINGW */]=])
+            string(REPLACE "#define FF_MINPORT_WIN_H" "${_ff_mingw}"
+                    _ff_winport_src "${_ff_winport_src}")
+            string(REPLACE "#endif /* FF_MINPORT_WIN_H */"
+                "#endif /* FF_SMSPP_MINGW */\n#endif /* FF_MINPORT_WIN_H */"
+                _ff_winport_src "${_ff_winport_src}")
+            file(WRITE "${_ff_winport}" "${_ff_winport_src}")
+            message(STATUS "FastFlow: injected the MinGW shim of the POSIX \
+threads")
+        endif ()
     endif ()
 endmacro()

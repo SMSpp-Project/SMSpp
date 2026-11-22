@@ -90,6 +90,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- FastFlow builds with MinGW-w64, whose libstdc++ includes the POSIX
+  threads of winpthreads: under MinGW the Windows port of FastFlow takes the
+  threads from `<pthread.h>` instead of defining its own [see
+  `cmake/FastFlow.cmake`].
+
 - `BendersBFunction` with a phase one [see `set_phase_one()`] takes as
   infeasible a sub-Block that its Solver says unbounded and the phase one
   finds infeasible, as a Solver of convex QPs may say for a sub-Block
