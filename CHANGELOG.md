@@ -92,6 +92,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- the library links netCDF-C++ also where its configuration file names its
+  target `netCDF::netcdf-cxx4` (e.g., vcpkg), and not `netCDF::netCDFCxx` as
+  the find module of the core does.
+
 - `smspp_copy_runtime()` separates the DLLs it copies by `?` and not by `|`,
   which `cmd.exe` took as a pipe, so that a program linked by the Ninja of
   MSYS2 failed after its link.

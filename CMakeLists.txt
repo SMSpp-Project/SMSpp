@@ -78,6 +78,14 @@ if (NOT netCDFCxx_FOUND)
     find_package(netCDFCxx REQUIRED)
 endif ()
 
+# The configuration file of netCDF-C++ of some distributions (e.g., vcpkg)
+# names its target netCDF::netcdf-cxx4, and our find module
+# netCDF::netCDFCxx, which is what the library links.
+if (TARGET netCDF::netcdf-cxx4 AND NOT TARGET netCDF::netCDFCxx)
+    add_library(netCDF::netCDFCxx INTERFACE IMPORTED)
+    target_link_libraries(netCDF::netCDFCxx INTERFACE netCDF::netcdf-cxx4)
+endif ()
+
 # HDF5, which netCDF reads its files with, only to turn off the printing of
 # its errors in the threads that read an image in memory [see NcMemFile]:
 # without it the reading is the same, with the errors in the log
