@@ -4,8 +4,8 @@
 #                                                                            #
 #   makefile of the shared libraries of the modules                          #
 #                                                                            #
-#   By default, on Linux and on macOS, the objects of each module are put    #
-#   in one shared library, as CMake does: the makefile-c of a module calls,  #
+#   By default the objects of each module are put in one shared library,     #
+#   as CMake does: the makefile-c of a module calls,                         #
 #   as its last line,                                                        #
 #                                                                            #
 #       $(eval $(call SMSppSOlib,<prefix>))                                  #
@@ -18,13 +18,19 @@
 #   factory, and the -rpath of their directories, so that a program          #
 #   linked by $(<prefix>OBJ) and $(<prefix>LIB) finds them at run time. The  #
 #   library of the module in directory D is D/obj/libD.so (libD.dylib on     #
-#   macOS), and it is linked against the libraries and the archives that     #
-#   follow it in $(<prefix>OBJ), i.e., those of the modules it depends on,   #
-#   and against $(<prefix>LIB). Each library is defined once, by the first   #
-#   makefile-c that meets it. All the objects are compiled by -fPIC.         #
+#   macOS, libD.dll on Windows), and it is linked against the libraries and  #
+#   the archives that follow it in $(<prefix>OBJ), i.e., those of the        #
+#   modules it depends on, and against $(<prefix>LIB). Each library is       #
+#   defined once, by the first makefile-c that meets it. All the objects     #
+#   are compiled by -fPIC, but on Windows.                                   #
 #                                                                            #
-#   With $(SMSppSTATIC) not empty, and always on Windows, nothing changes:   #
-#   $(<prefix>OBJ) are the objects, and that of the core libSMS++.a.         #
+#   On Windows (MinGW-w64) a DLL exports all its symbols, and a program      #
+#   keeps it by -u of the SMSpp_force_load_D() that the registration of      #
+#   class D defines [see SMSFactory.h], as CMake does; there is no run-time  #
+#   path, and the directories of the DLLs are to be on the PATH to run it.   #
+#                                                                            #
+#   With $(SMSppSTATIC) not empty nothing changes: $(<prefix>OBJ) are the    #
+#   objects, and that of the core libSMS++.a.                                #
 #                                                                            #
 #   Input:  $(UNAME_S)     = the name of the current operating system [see   #
 #                            makefile-OS]                                    #
@@ -44,7 +50,7 @@ SMSppSOdone = 1
 
 # whether the shared libraries are built- - - - - - - - - - - - - - - - - - -
 
-ifeq ($(SMSppSTATIC)$(filter Windows,$(UNAME_S)),)
+ifeq ($(SMSppSTATIC),)
     SMSppSHARED = 1
 endif
 
@@ -59,8 +65,11 @@ endif
 
 ifneq ($(SMSppSHARED),)
 
-# every object is compiled by -fPIC, whichever recipe makes it
+# every object is compiled by -fPIC, whichever recipe makes it, but on
+# Windows, where the code of a DLL needs none
+ifneq ($(UNAME_S),Windows)
 %.o: override CC += -fPIC
+endif
 
 # the extension and the options of a library and of its name, by which the
 # programs and the other libraries record it, to be found by their -rpath
@@ -68,6 +77,14 @@ ifeq ($(UNAME_S),Darwin)
     SMSppSOEXT = dylib
     SMSppSOSW = -dynamiclib -Wl,-install_name,@rpath/$(1)
     SMSppSOkeep = $(1)
+else ifeq ($(UNAME_S),Windows)
+    SMSppSOEXT = dll
+    SMSppSOSW = -shared -Wl,--export-all-symbols
+    # a DLL none of whose symbols is used is not recorded, so that a program
+    # that makes its classes by the factory is made to use the
+    # SMSpp_force_load_D() of libD.dll (the core has none, and is used)
+    SMSppSOkeep = $(1) $(foreach d,$(filter-out SMS++,$(patsubst \
+	lib%.dll,%,$(notdir $(filter %.dll,$(1))))),-Wl,-u,SMSpp_force_load_$(d))
 else
     SMSppSOEXT = so
     SMSppSOSW = -shared -Wl,-soname,$(1)
@@ -87,9 +104,13 @@ SMSppSOname = $(1)/obj/lib$(notdir $(1)).$(SMSppSOEXT)
 SMSppSOuniq = $(if $(1),$(firstword $(1)) \
 	$(call SMSppSOuniq,$(filter-out $(firstword $(1)),$(1))))
 
-# the -rpath of the directories of the libraries in $(1)
+# the -rpath of the directories of the libraries in $(1), none on Windows
+ifneq ($(UNAME_S),Windows)
 SMSppSOrpath = $(foreach d,$(call SMSppSOuniq,$(abspath $(dir $(filter \
 	%.$(SMSppSOEXT),$(1))))),-Wl,-rpath,$(d))
+else
+SMSppSOrpath =
+endif
 
 # the rule of the library of the module in directory $(1), with its objects
 # $(2), linked against $(3) and $(4) but itself

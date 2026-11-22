@@ -10,10 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `lib/makefile-shared`, by which the makefiles put the objects of each module
-  in a shared library by default on Linux and on macOS, as CMake does, linked
-  against those of the modules it depends on and found by its run-time path,
-  and the objects as before with `SMSppSTATIC`; the objects are compiled by
-  `-fPIC`, and `makefile-lib` still archives `libSMS++.a`
+  in a shared library by default, as CMake does, linked against those of the
+  modules it depends on and found by its run-time path (a DLL on Windows,
+  which exports all its symbols, is kept by its `SMSpp_force_load_` function
+  and found on the `PATH`), and the objects as before with `SMSppSTATIC`; the
+  objects are compiled by `-fPIC` but on Windows, and `makefile-lib` still
+  archives `libSMS++.a`
 
 - `BendersBFunction::set_global_lower_bound()`, which gives the value
   that `get_global_lower_bound()` returns, e.g., 0 for a sub-Block whose
