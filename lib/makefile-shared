@@ -48,6 +48,15 @@ ifeq ($(SMSppSTATIC)$(filter Windows,$(UNAME_S)),)
     SMSppSHARED = 1
 endif
 
+# the kind of build is written in obj/ of the core when it changes, and the
+# objects of the shared libraries depend on that file, so that those of a
+# static build, not compiled by -fPIC, are compiled again [see SMSppSOlib]
+SMSppSOstamp := $(abspath $(SMS++SDR)/obj/.SMSppSHARED)
+SMSppSOmode := $(if $(SMSppSHARED),shared,static)
+ifneq ($(shell cat "$(SMSppSOstamp)" 2> /dev/null),$(SMSppSOmode))
+    $(shell echo $(SMSppSOmode) > "$(SMSppSOstamp)")
+endif
+
 ifneq ($(SMSppSHARED),)
 
 # every object is compiled by -fPIC, whichever recipe makes it
@@ -117,6 +126,7 @@ SMSppSOafter = $(if $(2),$(if $(filter $(1),$(firstword $(2))), \
 define SMSppSOlib
 $(1)_SO_OBJ := $$(filter %.o,$$($(1)OBJ))
 $(1)_SO_LIBS := $$(call SMSppSOlibs,$$($(1)OBJ))
+$$($(1)_SO_OBJ): $$(SMSppSOstamp)
 $$(foreach r,$$(call SMSppSOroots,$$($(1)_SO_OBJ)),$$(eval $$(call \
 	SMSppSOrule,$$(r),$$(call SMSppSOof,$$(r),$$($(1)_SO_OBJ)), \
 	$$(call SMSppSOafter,$$(call SMSppSOname,$$(r)),$$($(1)_SO_LIBS)), \

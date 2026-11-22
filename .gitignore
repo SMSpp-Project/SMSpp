@@ -5,6 +5,9 @@
 # --- Project-specific ---------------------------------------
 test/ClassFactory/CF_test
 
+# The kind of the build of the makefiles [see lib/makefile-shared]
+obj/.SMSppSHARED
+
 # Doxygen output
 doc/
 
