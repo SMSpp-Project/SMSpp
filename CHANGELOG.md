@@ -90,10 +90,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- FastFlow builds with MinGW-w64, whose libstdc++ includes the POSIX
-  threads of winpthreads: under MinGW the Windows port of FastFlow takes the
-  threads from `<pthread.h>` instead of defining its own [see
-  `cmake/FastFlow.cmake`].
+- FastFlow builds with MinGW-w64, for which it has no port of its own: it
+  took Windows for MSVC, whose port clashes with the POSIX threads, the
+  `<sys/time.h>` and the `<unistd.h>` of MinGW. Under MinGW it takes a branch
+  as that of Linux, with the aligned allocation of Windows and the alignment
+  macros of GCC [see `cmake/FastFlow.cmake`].
 
 - `BendersBFunction` with a phase one [see `set_phase_one()`] takes as
   infeasible a sub-Block that its Solver says unbounded and the phase one

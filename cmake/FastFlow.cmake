@@ -91,39 +91,83 @@ INLINE int pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
             message(STATUS "FastFlow: injected the MSVC shim of \
 pthread_cond_timedwait and clock_gettime")
         endif ()
+    endif ()
 
-        # the MinGW patch: MinGW-w64 has the POSIX threads of winpthreads,
-        # which its libstdc++ includes, and the types of the Windows port
-        # (pthread_t as a HANDLE, pthread_mutex_t as a CRITICAL_SECTION)
-        # clash with those of <pthread.h>; under MinGW the port keeps only
-        # its macros and the Windows headers, and takes the threads from
-        # <pthread.h>, guarded by the FF_SMSPP_MINGW marker as above
-        if (NOT _ff_winport_src MATCHES "FF_SMSPP_MINGW")
-            set(_ff_mingw [=[#define FF_MINPORT_WIN_H
-/* ---- FF_SMSPP_MINGW: the POSIX threads of MinGW-w64, by SMS++ ---- */
-#if defined(__MINGW32__)
+    # the MinGW patch: FastFlow takes Windows for MSVC, and MinGW-w64, which
+    # has the POSIX threads of winpthreads (that its libstdc++ includes),
+    # <sys/time.h> and <unistd.h>, clashes with the MSVC port in
+    # ff/platforms/platform.h, and gets no alignment macros nor atom_t from
+    # ff/platforms/liblfds.h. Under MinGW platform.h takes a branch of its own
+    # as that of Linux, with the aligned allocation of Windows, and liblfds.h
+    # the macros of GCC with a 64-bit atom_t; guarded by FF_SMSPP_MINGW
+    set(_ff_platform "${fastflow_SOURCE_DIR}/ff/platforms/platform.h")
+    set(_ff_lfds "${fastflow_SOURCE_DIR}/ff/platforms/liblfds.h")
+    if (EXISTS "${_ff_platform}" AND EXISTS "${_ff_lfds}")
+        file(READ "${_ff_platform}" _ff_src)
+        if (NOT _ff_src MATCHES "FF_SMSPP_MINGW")
+            set(_ff_branch [=[#elif defined(__MINGW32__)
+/* ---- FF_SMSPP_MINGW: MinGW-w64 as Linux, by SMS++ ---- */
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
-#include <Windows.h>
-#include <process.h>
-#include <intrin.h>
-#include <stdio.h>
+#include <windows.h>
+#include <malloc.h>
 #include <errno.h>
-#include <time.h>
+#include <sys/time.h>
+#include <unistd.h>
+#include <stdlib.h>
 #include <pthread.h>
-#define INLINE __forceinline
-#define NOINLINE __declspec(noinline)
-#define RESTRICT __declspec()
-#else /* FF_SMSPP_MINGW */]=])
-            string(REPLACE "#define FF_MINPORT_WIN_H" "${_ff_mingw}"
-                    _ff_winport_src "${_ff_winport_src}")
-            string(REPLACE "#endif /* FF_MINPORT_WIN_H */"
-                "#endif /* FF_SMSPP_MINGW */\n#endif /* FF_MINPORT_WIN_H */"
-                _ff_winport_src "${_ff_winport_src}")
-            file(WRITE "${_ff_winport}" "${_ff_winport_src}")
-            message(STATUS "FastFlow: injected the MinGW shim of the POSIX \
-threads")
+inline static int ff_smspp_posix_memalign(void **memptr, size_t alignment,
+                                          size_t size)
+{
+    *memptr = _aligned_malloc(size, alignment);
+    return( *memptr ? 0 : ENOMEM );
+}
+#define posix_memalign ff_smspp_posix_memalign
+inline static void posix_memalign_free(void* mem)
+{
+    _aligned_free(mem);
+}
+/* ---- end FF_SMSPP_MINGW ---- */
+#elif defined(__GNUC__) && (defined(__linux__) || defined(__APPLE__))]=])
+            string(REPLACE "#if defined(_WIN32)"
+                "#if defined(_WIN32) && !defined(__MINGW32__)"
+                _ff_src "${_ff_src}")
+            set(_ff_linux "#elif defined(__GNUC__) && ")
+            string(APPEND _ff_linux
+                "(defined(__linux__) || defined(__APPLE__))")
+            string(REPLACE "${_ff_linux}" "${_ff_branch}" _ff_src "${_ff_src}")
+            file(WRITE "${_ff_platform}" "${_ff_src}")
+
+            file(READ "${_ff_lfds}" _ff_src)
+            set(_ff_macros [=[/***** defines *****/
+/* ---- FF_SMSPP_MINGW: the macros of GCC under MinGW-w64, by SMS++ ---- */
+#if (defined __MINGW32__)
+#include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
+#define ALIGN_TO_PRE(alignment)
+#define ALIGN_TO_POST(alignment)        __attribute__( (aligned(alignment)) )
+#define FF_MEM_ALIGN(__A,__alignment) __A __attribute__((aligned(__alignment)))
+#if (defined __x86_64__ || defined __aarch64__)
+typedef unsigned long long int  atom_t;
+#define ALIGN_SINGLE_POINTER    8
+#define ALIGN_DOUBLE_POINTER    16
+#else
+typedef unsigned long int     atom_t;
+#define ALIGN_SINGLE_POINTER  4
+#define ALIGN_DOUBLE_POINTER  8
+#endif
+#endif
+/* ---- end FF_SMSPP_MINGW ---- */]=])
+            string(REPLACE "/***** defines *****/" "${_ff_macros}"
+                _ff_src "${_ff_src}")
+            string(REPLACE "#elif (defined _MSC_VER)"
+                "#elif (defined _MSC_VER) || (defined __MINGW32__)"
+                _ff_src "${_ff_src}")
+            file(WRITE "${_ff_lfds}" "${_ff_src}")
+            message(STATUS "FastFlow: injected the MinGW branch of the \
+platform")
         endif ()
     endif ()
 endmacro()
