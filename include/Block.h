@@ -121,6 +121,7 @@
 #include <list>
 #include <netcdf>
 #include <span>
+#include <tuple>
 #include <type_traits>
 
 /*--------------------------------------------------------------------------*/
@@ -131,6 +132,8 @@
 namespace SMSpp_di_unipi_it
 {
 class Variable;            // forward definition of Variable
+
+class ColVariable;         // forward definition of ColVariable
 
 class Constraint;          // forward definition of Constraint
 
@@ -3221,6 +3224,27 @@ class Block : public Observer {
 
  virtual double get_valid_lower_bound( bool conditional = false ) {
   return( - Inf< double >() );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// the penalties of fixing the binary Variable at the current Objective
+ /** For a Block that can compute them cheaply, fills \p pen with one entry
+  * ( v , p0 , p1 ) for each binary ColVariable v of the Block: p0 (p1) is by
+  * how much the optimal value of the Block, with its current Objective and
+  * its current fixings, gets worse if v is fixed to 0 (1), i.e., is larger
+  * for a minimization and smaller for a maximization; it is 0 for the value
+  * v has in an optimal solution, Inf< double >() if v cannot take that
+  * value, and v already fixed has no entry. These are what a Lagrangian
+  * method uses to fix Variable by reduced cost, or to choose which ones a
+  * restricted problem keeps free, when the Block is a component of a
+  * decomposition and its Objective holds the Lagrangian costs.
+  *
+  * The base Block cannot compute them, and returns false leaving \p pen
+  * untouched; a derived Block that can returns true. */
+
+ virtual bool get_fixing_penalties(
+       std::vector< std::tuple< ColVariable * , double , double > > & pen ) {
+  return( false );
   }
 
 /*--------------------------------------------------------------------------*/

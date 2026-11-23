@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `Block::get_fixing_penalties()`, by how much the optimal value of a Block
+  with its current `Objective` gets worse if each of its binary
+  `ColVariable` is fixed to 0 or to 1, which a Lagrangian method uses to fix
+  by reduced cost or to choose the free Variable of a restricted problem;
+  the base `Block` returns false
+
 - `lib/makefile-shared`, by which the makefiles put the objects of each module
   in a shared library by default, as CMake does, linked against those of the
   modules it depends on and found by its run-time path (a DLL on Windows,
