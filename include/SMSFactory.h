@@ -36,6 +36,7 @@
 #include <algorithm>
 #include <cctype>
 #include <map>
+#include <shared_mutex>
 #include <string>
 
 // boost libraries
@@ -186,6 +187,41 @@ inline std::string && SMSpp_classname_normalise( std::string && str ) {
   }
  return( std::move( str ) );
  }
+
+/*--------------------------------------------------------------------------*/
+/// loads the shared library that registers the class with the given name
+/** A class may be in a shared library that the program is not linked to,
+ * a "plugin": the factories call this function with the (normalised) name
+ * of a class that they do not hold, and if a plugin registers it, the
+ * plugin is loaded, which registers its classes as if it were linked, and
+ * kept loaded until the end. Which plugin registers which class is told by
+ * the tables, the files with extension .smspp, each next to its plugin
+ * and written by the build [see smspp_plugin() in SMSppModule.cmake]; every
+ * line of one is the name of a class and the file of the plugin, relative
+ * to the directory of the table. The tables are looked for in the
+ * directories of the environment variable SMSpp_PLUGIN_PATH (separated as
+ * in PATH), then in that of the plugins of the build tree, then in that of
+ * the library of SMS++ and in that of the libraries of its installation
+ * (which differ where the library is a DLL, installed with the programs),
+ * where the plugins are installed; a name is taken
+ * from the first directory whose tables have it.
+ *
+ * Returns true if a plugin has been loaded, false if no table has the name
+ * or its plugin is already loaded (and then the class is not there);
+ * throws std::runtime_error if the plugin cannot be loaded, e.g., because
+ * an external library it needs is not found. */
+
+bool SMSpp_load_plugin( const std::string & classname );
+
+/*--------------------------------------------------------------------------*/
+/// the lock of the factories
+/** With the plugins the factories are written while the program runs, when
+ * a thread loads a plugin [see SMSpp_load_plugin()], which holds the lock
+ * exclusively; who reads a factory, as Solver::new_Solver() does, holds it
+ * shared, and constructs the object out of the lock. The registrations of
+ * the classes linked into the program, made before main(), take no lock. */
+
+std::shared_mutex & SMSpp_factory_mutex( void );
 
 /*--------------------------------------------------------------------------*/
 /** The macros SMSpp_insert_in_factory_cpp_* do five things for the class

@@ -188,6 +188,7 @@ target_sources(${modName} PRIVATE
         src/PolyhedralFunctionBlock.cpp
         src/QuadFunction.cpp
         src/R3BSolver.cpp
+        src/SMSFactory.cpp
         src/SMSnetCDF.cpp
         src/Solution.cpp
         src/Solver.cpp
@@ -225,6 +226,19 @@ target_link_libraries(${modName} PUBLIC
         netCDF::netCDFCxx
         Threads::Threads)
 
+# The loader of the plugins opens the shared libraries by the library of the
+# system that does it, and looks for their tables in the directory of the
+# plugins of the build tree and, where the library of SMS++ is installed, in
+# its directory and in the one of the libraries next to that of the
+# programs, where a DLL goes [see SMSFactory.h and SMSppModule.cmake].
+target_link_libraries(${modName} PRIVATE ${CMAKE_DL_LIBS})
+file(RELATIVE_PATH _smspp_bin_to_lib ${CMAKE_INSTALL_FULL_BINDIR}
+        ${CMAKE_INSTALL_FULL_LIBDIR})
+set_property(SOURCE src/SMSFactory.cpp APPEND PROPERTY COMPILE_DEFINITIONS
+        "SMSpp_PLUGIN_BUILD_DIR=\"${SMSpp_PLUGIN_DIR}\""
+        "SMSpp_PLUGIN_FROM_BIN=\"${_smspp_bin_to_lib}\"")
+unset(_smspp_bin_to_lib)
+
 if (GETOPT_LIBRARY)
     target_link_libraries(${modName} PUBLIC ${GETOPT_LIBRARY})
 endif ()
@@ -239,6 +253,13 @@ endif ()
 # This alias is defined so that executables in this same project can use
 # the library with this notation.
 add_library(${modNamespace}::${modName} ALIAS ${modName})
+
+# ----- Plugins ------------------------------------------------------------- #
+# The tool that writes the table of a plugin [see smspp_plugin() in
+# SMSppModule.cmake], installed and exported with the library.
+add_executable(smspp_plugin_names tools/smspp_plugin_names.cpp)
+target_link_libraries(smspp_plugin_names PRIVATE ${modName} ${CMAKE_DL_LIBS})
+add_executable(${modNamespace}::smspp_plugin_names ALIAS smspp_plugin_names)
 
 # ----- C++20 module -------------------------------------------------------- #
 # The module smspp (src/SMSpp.cppm) exports the names of all the headers, so
@@ -279,8 +300,8 @@ endif ()
 
 include(GNUInstallDirs)
 
-# Install the library
-install(TARGETS ${modName}
+# Install the library, and the tool of the plugins
+install(TARGETS ${modName} smspp_plugin_names
         EXPORT ${modName}Targets
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} # .dll
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} # .so .dylib
@@ -345,6 +366,7 @@ install(FILES ${CMAKE_CURRENT_LIST_DIR}/cmake/CheckModule.cmake
         ${CMAKE_CURRENT_LIST_DIR}/cmake/FastFlow.cmake
         ${CMAKE_CURRENT_LIST_DIR}/cmake/SMSppModule.cmake
         ${CMAKE_CURRENT_LIST_DIR}/cmake/SMSppCopyRuntime.cmake
+        ${CMAKE_CURRENT_LIST_DIR}/cmake/SMSppPluginTable.cmake
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${modName})
 install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/cmake/module-check
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${modName})
