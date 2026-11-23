@@ -201,7 +201,7 @@ the objects are linked as they are, and
 `lib/makefile-lib` archives `lib/libSMS++.a` anyway [see
 `lib/makefile-shared`].
 
-Check the [SMS++ installation wiki](https://gitlab.com/smspp/smspp-project/-/wikis/Customize-the-configuration#location-of-required-libraries)
+Check the [SMS++ installation wiki](https://gitlab.com/smspp/smspp-project/-/wikis/Customize-the-configuration#location-of-external-libraries)
 for further details.
 
 
