@@ -37,7 +37,6 @@ module;
 
 #include "AbstractChange.h"
 #include "BendersBlock.h"
-#include "BlockSolverConfig.h"
 #include "BoxSolver.h"
 #include "BranchingRule.h"
 #include "C05SumFunction.h"
@@ -174,6 +173,8 @@ export namespace SMSpp_di_unipi_it {
  using SMSpp_di_unipi_it::DQuadFunctionModRngd;
  using SMSpp_di_unipi_it::DQuadFunctionModSbst;
  using SMSpp_di_unipi_it::DQuadFunctionModVarsAddd;
+ using SMSpp_di_unipi_it::DQuadFunctionModVarsRngd;
+ using SMSpp_di_unipi_it::DQuadFunctionModVarsSbst;
 
  // DataMapping.h
  using SMSpp_di_unipi_it::DataMapping;
@@ -372,6 +373,8 @@ export namespace SMSpp_di_unipi_it {
  using SMSpp_di_unipi_it::eProbFile;
  using SMSpp_di_unipi_it::eSolutionFile;
  using SMSpp_di_unipi_it::eStateFile;
+ using SMSpp_di_unipi_it::memo_cast;
+ using SMSpp_di_unipi_it::memo_pointer_cast;
  using SMSpp_di_unipi_it::p_Const;
  using SMSpp_di_unipi_it::p_Var;
  using SMSpp_di_unipi_it::smspp_netCDF_file_type;
