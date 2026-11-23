@@ -98,6 +98,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `lib/makefile-c` links the threads, which FastFlow, whose headers it
+  exports, uses directly, as the linker of clang under MSYS2 does not add
+  them by itself
+
 - the library links netCDF-C++ also where its configuration file names its
   target `netCDF::netcdf-cxx4` (e.g., vcpkg), and not `netCDF::netCDFCxx` as
   the find module of the core does.

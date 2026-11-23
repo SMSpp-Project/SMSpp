@@ -94,8 +94,9 @@ include $(SMS++SDR)/lib/makefile
 
 # macros to be exported - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-# external libraries for the core SMS++
-SMS++LIB = $(libBoostLIB) $(libEigenLIB) $(libNtCDFLIB)
+# external libraries for the core SMS++, and the threads that FastFlow, whose
+# headers it exports, uses directly
+SMS++LIB = $(libBoostLIB) $(libEigenLIB) $(libNtCDFLIB) -pthread
 
 # the objects as the shared library libSMS++ [see makefile-shared]
 $(eval $(call SMSppSOlib,SMS++))
