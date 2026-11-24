@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `BranchBounder`, by which a RelaxationSolver gives, right after a
+  `branch()`, a valid bound of each child that it knows without evaluating
+  it, so that an enumerative Solver may prune or order the children before
+  their evaluation; the base class gives none
+
+- `PseudoCosts::observations()` of a candidate in a direction, by which a
+  branching rule tells whether the pseudocost of the candidate is reliable
+
 - `GlobalInformation::str_BestBound`, the key within
   `GlobalInformation::str_AtomicScalars` of the best valid bound on the
   optimal value known to whoever drives the search, which a Solver uses to

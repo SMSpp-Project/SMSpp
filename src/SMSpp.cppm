@@ -110,6 +110,7 @@ export namespace SMSpp_di_unipi_it {
  using SMSpp_di_unipi_it::BoxSolver;
 
  // BranchingRule.h
+ using SMSpp_di_unipi_it::BranchBounder;
  using SMSpp_di_unipi_it::BranchCandidate;
  using SMSpp_di_unipi_it::BranchEstimator;
  using SMSpp_di_unipi_it::BranchingFeatures;

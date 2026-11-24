@@ -293,6 +293,14 @@ bool PseudoCosts::known( std::size_t id , int dir ) const
 
 /*--------------------------------------------------------------------------*/
 
+unsigned long PseudoCosts::observations( std::size_t id , int dir ) const
+{
+ const auto it = f_sums.find( id );
+ return( it != f_sums.end() ? it->second[ dir ].n : 0 );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 double PseudoCosts::get( std::size_t id , int dir , double prior ) const
 {
  if( const auto it = f_sums.find( id ) ;

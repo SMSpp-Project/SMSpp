@@ -8,8 +8,8 @@
  * ties, its infeasible children and its CSV (StrongBranching), the
  * perceptron read from a file (LearnedBranching), the pseudocosts and the
  * estimates of the children that they give (PseudoCosts), their priors read
- * from a file (LearnedPseudoCosts), and the interface of the estimates
- * (BranchEstimator).
+ * from a file (LearnedPseudoCosts), and the interfaces of the estimates
+ * (BranchEstimator) and of the bounds (BranchBounder) of the children.
  *
  * The limit cases are the point: no candidate, a single candidate, all the
  * costs zero, a child found empty in either sense, a candidate whose child
@@ -343,6 +343,12 @@ static void test_PseudoCosts( void )
  expect( ( ! pc.known( 9 , 0 ) ) && ( ! pc.known( 9 , 1 ) ) &&
 	 ( pc.observations() == 4 ) ,
 	 "record: what moves nothing or is not finite is ignored" );
+ expect( ( pc.observations( 3 , 0 ) == 2 ) &&
+	 ( pc.observations( 3 , 1 ) == 0 ) &&
+	 ( pc.observations( 7 , 1 ) == 2 ) &&
+	 ( pc.observations( 9 , 0 ) == 0 ) &&
+	 ( pc.observations( 5 , 1 ) == 0 ) ,
+	 "observations: those of a candidate in a direction" );
  expect( equal( pc.get( 9 , 0 , NaN ) , 6 ) &&
 	 equal( pc.get( 9 , 1 , NaN ) , 1 ) ,
 	 "get: the mean of all the candidates with none" );
@@ -435,6 +441,28 @@ static void test_BranchEstimator( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/// the bounds through the interface, none by default
+
+static void test_BranchBounder( void )
+{
+ BranchBounder none;
+ expect( none.branch_bounds().empty() ,
+	 "BranchBounder: no bound by default" );
+
+ struct Fixed : public BranchBounder {
+  std::vector< double > branch_bounds( void ) override {
+   return( std::vector< double >{ 3 , INF } );
+   }
+  };
+
+ Fixed f;
+ BranchBounder & bb = f;
+ const auto b = bb.branch_bounds();
+ expect( ( b.size() == 2 ) && ( b[ 0 ] == 3 ) && ( b[ 1 ] == INF ) ,
+	 "BranchBounder: the bounds of the derived class" );
+ }
+
+/*--------------------------------------------------------------------------*/
 
 int main( void )
 {
@@ -444,6 +472,7 @@ int main( void )
  test_PseudoCosts();
  test_LearnedPseudoCosts();
  test_BranchEstimator();
+ test_BranchBounder();
 
  if( n_failures ) {
   std::cout << "BranchingRule_unit_test: " << n_failures

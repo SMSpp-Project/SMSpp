@@ -10,7 +10,9 @@
  * in which the children are explored, the estimates of the best value under
  * each of them (BranchEstimator), the pseudocosts that give them
  * (PseudoCosts), and the pseudocosts read from a file for the candidates
- * that have none yet (LearnedPseudoCosts). They know nothing of the
+ * that have none yet (LearnedPseudoCosts); and, for pruning the children
+ * before they are evaluated, the valid bounds that the RelaxationSolver
+ * knows of them (BranchBounder). They know nothing of the
  * enumerative Solver that uses the RelaxationSolver, nor of the relaxation:
  * each RelaxationSolver describes its own candidates, decides which
  * component to use (say, by a parameter of its own), and gives
@@ -283,6 +285,39 @@ class BranchEstimator
  };  // end( class( BranchEstimator ) )
 
 /*--------------------------------------------------------------------------*/
+/*-------------------------- CLASS BranchBounder ---------------------------*/
+/*--------------------------------------------------------------------------*/
+/// the valid bounds of the children of a branching, known without solving
+/** A RelaxationSolver [see ChangeSolver.h] that also derives from
+ * BranchBounder may give, right after each branch() and before any other of
+ * its methods is called, a valid bound on the optimal value of the original
+ * problem in the region of each child, which it knows without evaluating
+ * the child (say, from the state of the relaxation at the node). Unlike an
+ * estimate [see BranchEstimator], such a bound may be used to prune a child
+ * before it is evaluated, or to order the open nodes by bounds that are
+ * tighter than that of their parent. Giving no bound is always correct, and
+ * is what the base class does. */
+
+class BranchBounder
+{
+ public:
+
+ virtual ~BranchBounder() = default;    ///< destructor: does nothing
+
+ /// the bounds of the children of the last branch()
+ /** One per Change returned by the last branch(), in the same order, on the
+  * side of the relaxation (a lower bound for a minimization problem); NaN
+  * for a child without one, an infinite one (+ infinity for a minimization
+  * problem) for a child known to be empty, and an empty vector if there is
+  * none at all, which is what the base class returns. */
+
+ [[nodiscard]] virtual std::vector< double > branch_bounds( void ) {
+  return( {} );
+  }
+
+ };  // end( class( BranchBounder ) )
+
+/*--------------------------------------------------------------------------*/
 /*--------------------------- CLASS PseudoCosts ----------------------------*/
 /*--------------------------------------------------------------------------*/
 /// the pseudocosts of the candidates, and the estimates they give
@@ -331,6 +366,11 @@ class PseudoCosts
  [[nodiscard]] unsigned long observations( void ) const {
   return( f_all[ 0 ].n + f_all[ 1 ].n );
   }
+
+ /// the number of the observations of the candidate id in the direction
+ /// dir, by which a branching rule may tell whether its pseudocost is
+ /// reliable
+ [[nodiscard]] unsigned long observations( std::size_t id , int dir ) const;
 
  /// the estimates of the "down" and of the "up" child of the candidate b of
  /// cands, at a node of bound node of a problem to be maximized if maximize;
