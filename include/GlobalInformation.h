@@ -491,6 +491,14 @@ class Collection< std::atomic< T > > : public CollectionMap< std::atomic< T > >
  *   verse of the optimization, or NaN) when none has been found yet, and
  *   only ever improved by whoever writes it;
  *
+ * - str_BestBound ("BestBound") is the key, within str_AtomicScalars, of
+ *   the best valid bound on the optimal value known so far by whoever
+ *   drives the search (say, in a Branch-and-Bound, the best bound among
+ *   the open nodes and those being evaluated, i.e., a lower bound for a
+ *   minimization and an upper bound for a maximization): not finite when
+ *   none is known yet, and only ever improved (increased for a
+ *   minimization, decreased for a maximization) by whoever writes it;
+ *
  * - str_AtomicFlags ("AtomicFlags") names a
  *   Collection< std::atomic< bool > > holding the hot lock-free boolean
  *   flags of the whole cooperation;
@@ -529,6 +537,9 @@ class GlobalInformation
 
  /// key (in str_AtomicScalars) of the value of the best solution found
  static constexpr const char * str_Incumbent = "Incumbent";
+
+ /// key (in str_AtomicScalars) of the best bound on the optimal value
+ static constexpr const char * str_BestBound = "BestBound";
 
  /// name of the Collection< std::atomic< bool > > of the hot flags
  static constexpr const char * str_AtomicFlags = "AtomicFlags";

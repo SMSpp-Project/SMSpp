@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `GlobalInformation::str_BestBound`, the key within
+  `GlobalInformation::str_AtomicScalars` of the best valid bound on the
+  optimal value known to whoever drives the search, which a Solver uses to
+  measure the gap of its own bound from that of the whole search
+
 - `BranchCandidate::down` and `BranchCandidate::up`, by how much the bounds
   of the two children of a candidate are at least worse than that of the
   node, when the RelaxationSolver knows it without solving them (say, by the
