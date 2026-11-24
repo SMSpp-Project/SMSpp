@@ -43,6 +43,8 @@
 
 #include <istream>
 
+#include <limits>
+
 #include <ostream>
 
 #include <string>
@@ -74,7 +76,10 @@ namespace SMSpp_di_unipi_it
  * RelaxationSolver has a point whose fractional components are the
  * candidates, a second point (which may be the same), and a partition of
  * the variables into blocks, each with its objective and with its
- * variables in a given order. The variable itself is only known to the
+ * variables in a given order; it may also know, without solving them, by
+ * how much the bound of each child of the candidate is at least worse than
+ * that of the node (say, by the penalties of fixing the variable at fixed
+ * Lagrangian multipliers). The variable itself is only known to the
  * RelaxationSolver, by the index id. */
 
 struct BranchCandidate {
@@ -84,6 +89,10 @@ struct BranchCandidate {
  double cost;         ///< its cost in the objective of its block
  double position;     ///< its position among those of its block, in [0, 1]
  unsigned int block;  ///< the index of its block
+ double down = std::numeric_limits< double >::quiet_NaN();
+ ///< how much the bound of the "down" child is worse, NaN if not known
+ double up = std::numeric_limits< double >::quiet_NaN();
+ ///< how much the bound of the "up" child is worse, NaN if not known
  };
 
 /*--------------------------------------------------------------------------*/
@@ -99,7 +108,7 @@ class BranchingFeatures
  public:
 
  /// the number of the features of a candidate [see features()]
- static constexpr std::size_t NFeatures = 8;
+ static constexpr std::size_t NFeatures = 10;
 
  /// the features of a candidate [see features()]
  using Features = std::array< double , NFeatures >;
@@ -118,11 +127,14 @@ class BranchingFeatures
   * in the point of the candidates, (iii) its value in the second point,
   * (iv) the absolute difference of the two, (v) its cost over the largest
   * absolute cost of the candidates, (vi) its position in its block, (vii)
-  * the fraction \p fixed of the variables that are fixed at the node and
-  * (viii) its rank in \p cands over their number less one. They are
-  * therefore relative to the candidates given, which are supposed to be
-  * sorted by sort_by_fractionality(), and none of them depends on the
-  * scale of the data. */
+  * the fraction \p fixed of the variables that are fixed at the node,
+  * (viii) its rank in \p cands over their number less one, and (ix) and
+  * (x) its BranchCandidate::down and BranchCandidate::up over the largest
+  * finite one of the candidates (in either direction), an infinite one
+  * counting as 1 and one not known as 0. They are therefore relative to
+  * the candidates given, which are supposed to be sorted by
+  * sort_by_fractionality(), and none of them depends on the scale of the
+  * data. */
 
  [[nodiscard]] static std::vector< Features > features(
 				const std::vector< BranchCandidate > & cands ,
@@ -181,10 +193,11 @@ class StrongBranching
   * branching), \p node (the bound of the node), the fraction of the fixed
   * variables, the rank of the candidate, its block, its position, its
   * value in the point of the candidates and in the second one, its
-  * fractionality, its cost, the bounds of the two children, the score, and
-  * 1 for the candidate \p chosen; a header line is written when the file
-  * is created, so that LearnedBranching can be fitted on these data.
-  * Throws if the file cannot be opened. */
+  * fractionality, its cost, the features (ix) and (x) of \p x [see
+  * BranchingFeatures::features()], the bounds of the two children, the
+  * score, and 1 for the candidate \p chosen; a header line is written when
+  * the file is created, so that LearnedBranching can be fitted on these
+  * data. Throws if the file cannot be opened. */
 
  static void write_log( const std::string & file , unsigned long call ,
 			double node ,
@@ -202,10 +215,12 @@ class StrongBranching
 /** A perceptron \f$ \sigma( \phi_v ) = w_2^\top \tanh( W_1 \phi_v + b_1 ) +
  * b_2 \f$ with one hidden layer, which gives a score to a candidate out of
  * its features \f$ \phi_v \f$ [see BranchingFeatures::features()], written
- * in a text file as the line "LBRModel <nin> <nhid>", with nin ==
- * BranchingFeatures::NFeatures, followed by the nhid rows of nin weights of
- * the hidden layer, its nhid biases, the nhid weights of the output and its
- * bias. */
+ * in a text file as the line "LBRModel <nin> <nhid>", followed by the nhid
+ * rows of nin weights of the hidden layer, its nhid biases, the nhid
+ * weights of the output and its bias. With nin less than
+ * BranchingFeatures::NFeatures the model reads the first nin features only,
+ * so that a model learned on the first ones (say, the first 8) is scored on
+ * these. */
 
 class LearnedBranching
 {

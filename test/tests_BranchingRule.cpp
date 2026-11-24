@@ -153,7 +153,7 @@ static void test_BranchingFeatures( void )
  const auto x = BranchingFeatures::features( cands , 0.3 );
  expect( x.size() == 4 , "features: one per candidate" );
  const BranchingFeatures::Features x0 = { 0.5 , 0.5 , 0.2 , 0.3 , -1 ,
-					  0.25 , 0.3 , 0 };
+					  0.25 , 0.3 , 0 , 0 , 0 };
  bool same = true;
  for( std::size_t i = 0 ; i < BranchingFeatures::NFeatures ; ++i )
   same &= equal( x[ 0 ][ i ] , x0[ i ] );
@@ -170,6 +170,19 @@ static void test_BranchingFeatures( void )
 	 "features: a single candidate of cost 0 has cost and rank 0" );
  expect( BranchingFeatures::features( {} , 0 ).empty() ,
 	 "features: none without candidates" );
+
+ // the worsening of the children over the largest finite one, an infinite
+ // one counting as 1 and one not known as 0
+ const double inf = std::numeric_limits< double >::infinity();
+ std::vector< BranchCandidate > pen = {
+  { 0 , 0.5 , 0.5 , 1 , 0 , 0 , 2 , 4 } ,
+  { 1 , 0.4 , 0.4 , 1 , 0 , 0 , inf , 1 } ,
+  { 2 , 0.3 , 0.3 , 1 , 0 , 0 } };
+ const auto xp = BranchingFeatures::features( pen , 0 );
+ expect( equal( xp[ 0 ][ 8 ] , 0.5 ) && equal( xp[ 0 ][ 9 ] , 1 ) &&
+	 equal( xp[ 1 ][ 8 ] , 1 ) && equal( xp[ 1 ][ 9 ] , 0.25 ) &&
+	 ( xp[ 2 ][ 8 ] == 0 ) && ( xp[ 2 ][ 9 ] == 0 ) ,
+	 "features: the worsening of the children over the largest one" );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -280,11 +293,20 @@ static void test_LearnedBranching( void )
  lb.load( file );
  expect( lb.best( xs ) == 0 , "best: the largest score of another model" );
 
- // files that are not a model: the tag, the number of the features, no
- // hidden unit, too few numbers; a failed load() leaves no model
+ // a model of fewer features reads the first ones: score = 1 + tanh( x[ 7 ] )
+ std::ofstream( file ) << "LBRModel 8 1\n0 0 0 0 0 0 0 1\n0\n1\n1\n";
+ lb.load( file );
+ x = BranchingFeatures::Features{};
+ x[ 7 ] = 0.5;
+ x[ 8 ] = x[ 9 ] = 3;
+ expect( equal( lb.score( x ) , 1 + std::tanh( 0.5 ) ) ,
+	 "score: a model of 8 features reads the first 8" );
+
+ // files that are not a model: the tag, no feature or more than there
+ // are, no hidden unit, too few numbers; a failed load() leaves no model
  for( const std::string & bad : {
-       std::string( "LBRModelX 8 1\n" ) , std::string( "LBRModel 7 1\n" ) ,
-       std::string( "LBRModel 8 0\n" ) ,
+       std::string( "LBRModelX 8 1\n" ) , std::string( "LBRModel 0 1\n" ) ,
+       std::string( "LBRModel 11 1\n" ) , std::string( "LBRModel 8 0\n" ) ,
        std::string( "LBRModel 8 2\n1 2" ) } ) {
   std::ofstream( file ) << bad;
   expect( throws< std::invalid_argument >( [ & ] { lb.load( file ); } ) ,

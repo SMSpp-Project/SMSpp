@@ -73,14 +73,30 @@ std::vector< BranchingFeatures::Features > BranchingFeatures::features(
   maxc = std::max( maxc , std::abs( cd.cost ) );
  if( maxc <= 0 )
   maxc = 1;
- const std::size_t n = cands.size();
 
+ // the worsening of the bounds of the children over the largest finite one,
+ // an infinite one counting as 1 and one not known (NaN) as 0
+ double maxp = 0;
+ for( const auto & cd : cands )
+  for( const double p : { cd.down , cd.up } )
+   if( std::isfinite( p ) )
+    maxp = std::max( maxp , std::abs( p ) );
+ if( maxp <= 0 )
+  maxp = 1;
+ auto penalty = [ maxp ]( double p ) {
+  if( std::isnan( p ) )
+   return( 0.0 );
+  return( std::isinf( p ) ? 1.0 : p / maxp );
+  };
+
+ const std::size_t n = cands.size();
  std::vector< Features > x( n );
  for( std::size_t c = 0 ; c < n ; ++c ) {
   const auto & cd = cands[ c ];
   x[ c ] = { fractionality( cd.value ) , cd.value , cd.second ,
 	     std::abs( cd.value - cd.second ) , cd.cost / maxc ,
-	     cd.position , fixed , n > 1 ? double( c ) / ( n - 1 ) : 0.0 };
+	     cd.position , fixed , n > 1 ? double( c ) / ( n - 1 ) : 0.0 ,
+	     penalty( cd.down ) , penalty( cd.up ) };
   }
  return( x );
 
@@ -143,16 +159,17 @@ void StrongBranching::write_log(
   throw( std::runtime_error( "StrongBranching::write_log: cannot open " +
 			     file ) );
  if( is_new )
-  out << "call,node,fixed,rank,sb,pos,value,lagr,frac,cost,down,up,"
-      << "score,chosen" << std::endl;
+  out << "call,node,fixed,rank,sb,pos,value,lagr,frac,cost,pdown,pup,"
+      << "down,up,score,chosen" << std::endl;
  out << std::setprecision( 10 );
  for( std::size_t c = 0 ; c < cands.size() ; ++c ) {
   const auto & cd = cands[ c ];
   out << call << "," << node << "," << x[ c ][ 6 ] << "," << c << ","
       << cd.block << "," << x[ c ][ 5 ] << "," << cd.value << ","
       << x[ c ][ 2 ] << "," << x[ c ][ 0 ] << "," << cd.cost << ","
-      << evals[ c ][ 0 ] << "," << evals[ c ][ 1 ] << "," << evals[ c ][ 2 ]
-      << "," << ( c == chosen ? 1 : 0 ) << std::endl;
+      << x[ c ][ 8 ] << "," << x[ c ][ 9 ] << "," << evals[ c ][ 0 ] << ","
+      << evals[ c ][ 1 ] << "," << evals[ c ][ 2 ] << ","
+      << ( c == chosen ? 1 : 0 ) << std::endl;
   }
 
  }  // end( StrongBranching::write_log )
@@ -186,9 +203,10 @@ void LearnedBranching::load( std::istream & in , const std::string & file )
  std::string tag;
  std::size_t nin , nhid;
  if( ! ( in >> tag >> nin >> nhid ) || ( tag != "LBRModel" ) ||
-     ( nin != NF ) || ( nhid == 0 ) )
-  throw( std::invalid_argument( _prfx + file + " is not a model of " +
-				std::to_string( NF ) + " features" ) );
+     ( nin == 0 ) || ( nin > NF ) || ( nhid == 0 ) )
+  throw( std::invalid_argument( _prfx + file + " is not a model of at "
+				"most " + std::to_string( NF ) +
+				" features" ) );
 
  std::vector< std::vector< double > > w1( nhid ,
 					  std::vector< double >( nin ) );
@@ -219,7 +237,7 @@ double LearnedBranching::score( const BranchingFeatures::Features & x ) const
  double score = f_b2;
  for( std::size_t h = 0 ; h < f_w1.size() ; ++h ) {
   double a = f_b1[ h ];
-  for( std::size_t i = 0 ; i < BranchingFeatures::NFeatures ; ++i )
+  for( std::size_t i = 0 ; i < f_w1[ h ].size() ; ++i )  // the first nin
    a += f_w1[ h ][ i ] * x[ i ];
   score += f_w2[ h ] * std::tanh( a );
   }

@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `BranchCandidate::down` and `BranchCandidate::up`, by how much the bounds
+  of the two children of a candidate are at least worse than that of the
+  node, when the RelaxationSolver knows it without solving them (say, by the
+  penalties of fixing the variable at fixed Lagrangian multipliers), which
+  `BranchingFeatures::features()` gives over the largest finite one of the
+  candidates as features 9 and 10, and `StrongBranching::write_log()`
+  writes as the columns `pdown` and `pup`
+
 - `Block::get_fixing_penalties()`, by how much the optimal value of a Block
   with its current `Objective` gets worse if each of its binary
   `ColVariable` is fixed to 0 or to 1, which a Lagrangian method uses to fix
@@ -71,6 +79,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   one for a Restriction)
 
 ### Changed
+
+- `LearnedBranching` reads a model of at most `BranchingFeatures::NFeatures`
+  features, now 10, and scores it on the first ones, so that a model of the
+  first 8 features still works
 
 - `MasterProblemBlock` carries the quadratic 0-th component of
   `set_zeroth_quadratic()` also under the trust region and with no
