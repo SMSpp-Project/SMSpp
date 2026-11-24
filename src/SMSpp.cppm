@@ -15,19 +15,11 @@
  * This file is written by cmake/smspp_module_exports.py, which reads the
  * names from the AST of the headers: it is not to be edited by hand.
  *
- * \author Antonio Frangioni \n
+ * \author Donato Meoli \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \author Rafael Durbano Lobato \n
- *         Dipartimento di Informatica \n
- *         Universita' di Pisa \n
- *
- * \author Kostas Tavlaridis-Gyparakis \n
- *         Dipartimento di Informatica \n
- *         Universita' di Pisa \n
- *
- * \copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
+ * \copyright &copy; by Donato Meoli
  */
 /*--------------------------------------------------------------------------*/
 /*------------------------- GLOBAL MODULE FRAGMENT -------------------------*/
