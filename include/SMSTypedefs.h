@@ -18,11 +18,11 @@
  *   deserialization to/from a netCDF file, and the class NcMemFile, a
  *   netCDF file held in memory.
  *
- * \author Antonio Frangioni \n
+ * \author Rafael Durbano Lobato \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \author Rafael Durbano Lobato \n
+ * \author Antonio Frangioni \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -30,7 +30,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
+ * \copyright &copy; by Rafael Durbano Lobato, Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/

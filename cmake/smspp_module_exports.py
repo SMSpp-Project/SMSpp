@@ -199,20 +199,14 @@ def title( text ):
 
 def authors_of( header ):
     """Returns the lines of the \\author and \\copyright of the @file comment
-    of a header, which the interface of its module repeats."""
-    lines = open( header ).read().split( "\n" )
-    first = next( ( i for i , l in enumerate( lines ) if "\\author" in l ) ,
-                  None )
-    last = next( ( i for i , l in enumerate( lines ) if "\\copyright" in l ) ,
-                 None )
-    if ( first is None ) or ( last is None ) or ( last < first ):
-        return []
-    # the copyright may go on in the lines after it
-    while ( last + 1 < len( lines ) ) and \
-          lines[ last + 1 ].strip() not in ( "*" , "*/" , "" ) and \
-          "\\" not in lines[ last + 1 ]:
-        last += 1
-    return [ " *" ] + [ l.rstrip() for l in lines[ first : last + 1 ] ]
+    of the interface of a module, which are those of Donato Meoli, who wrote
+    the interfaces of all the modules, whoever the authors of header are."""
+    return [ " *" ,
+             " * \\author Donato Meoli \\n" ,
+             " *         Dipartimento di Informatica \\n" ,
+             " *         Universita' di Pisa \\n" ,
+             " *" ,
+             " * \\copyright &copy; by Donato Meoli" ]
 
 
 def doc_lines( name , what , script ):

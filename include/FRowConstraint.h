@@ -6,15 +6,15 @@
  * which is a class that defines a row constraint in terms of an
  * externally-provided Function object.
  *
- * \author Antonio Frangioni \n
- *         Dipartimento di Informatica \n
- *         Universita' di Pisa \n
- *
  * \author Rafael Durbano Lobato \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
+ * \author Antonio Frangioni \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \copyright &copy; by Rafael Durbano Lobato, Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/

@@ -5,15 +5,15 @@
  * Header file for the FRealObjective class, which is a RealObjective whose
  * value if computed by an externally-provided Function object.
  *
- * \author Antonio Frangioni \n
- *         Dipartimento di Informatica \n
- *         Universita' di Pisa \n
- *
  * \author Rafael Durbano Lobato \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
+ * \author Antonio Frangioni \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \copyright &copy; by Rafael Durbano Lobato, Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/

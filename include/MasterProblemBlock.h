@@ -115,11 +115,11 @@
  *
  *  http://www.di.unipi.it/~frangio/abstracts.html#SIOPT02
  *
- * \author Antonio Frangioni \n
+ * \author Enrico Calandrini \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \author Enrico Calandrini \n
+ * \author Antonio Frangioni \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -127,7 +127,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Enrico Calandrini, Donato Meoli
+ * \copyright &copy; by Enrico Calandrini, Antonio Frangioni, Donato Meoli
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/

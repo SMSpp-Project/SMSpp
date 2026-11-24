@@ -6,11 +6,11 @@
  * base class (SMSpp_insert_in_factory_h and SMSpp_insert_in_factory_cpp_*),
  * and the few helpers they use.
  *
- * \author Antonio Frangioni \n
+ * \author Rafael Durbano Lobato \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \author Rafael Durbano Lobato \n
+ * \author Antonio Frangioni \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -18,7 +18,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
+ * \copyright &copy; by Rafael Durbano Lobato, Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*------------------------------ DEFINITIONS -------------------------------*/
