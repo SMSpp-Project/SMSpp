@@ -8,11 +8,11 @@
  * as a single one (the same relationship that GroupModification has with
  * Modification, see Modification.h).
  * 
- * \author Antonio Frangioni \n
+ * \author Federica Di Pasquale \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \author Federica Di Pasquale \n
+ * \author Antonio Frangioni \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -24,7 +24,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Federica Di Pasquale, Filippo Magi,
+ * \copyright &copy; by Federica Di Pasquale, Antonio Frangioni, Filippo Magi,
  *                      Donato Meoli
  */
 /*--------------------------------------------------------------------------*/

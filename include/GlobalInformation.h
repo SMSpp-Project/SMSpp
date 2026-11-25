@@ -18,11 +18,11 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \author Donato Meoli \n
+ * \author Filippo Magi \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \author Filippo Magi \n
+ * \author Donato Meoli \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *

@@ -5,15 +5,15 @@
  * Header file for the *concrete* class QuadFunction, which implements
  * C15Function with a non-diagonal quadratic function.
  *
+ * \author Wim van Ackooij \n
+ *         EDF Lab Paris-Saclay \n
+ *
  * \author Antonio Frangioni \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \author Wim van Ackooij \n
- *         EDF Lab Paris-Saclay \n
  *
- *
- * \copyright &copy; by Antonio Frangioni, Wim van Ackooij
+ * \copyright &copy; by Wim van Ackooij, Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/

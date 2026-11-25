@@ -227,11 +227,11 @@ conduct, and the process for submitting merge requests to us.
 
 ### Current Lead Authors
 
-- **Antonio Frangioni**  
+- **Rafael Durbano Lobato**  
   Dipartimento di Informatica  
   Università di Pisa
 
-- **Rafael Durbano Lobato**  
+- **Antonio Frangioni**  
   Dipartimento di Informatica  
   Università di Pisa
 

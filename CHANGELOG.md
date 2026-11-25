@@ -115,6 +115,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- the rule of a C++20 module of `lib/makefile-mod` keeps the directory that
+  follows each `-isystem`, which it dropped, leaving the `-isystem` to take
+  the next `-I` (that of the headers of the core among them)
+
+- `src/SMSpp.cppm` exports `memo_cast()`, `memo_pointer_cast()`,
+  `DQuadFunctionModVarsRngd` and `DQuadFunctionModVarsSbst`, and no longer
+  includes `BlockSolverConfig.h`, which `R3BSolver.h` includes
+
 - `lib/makefile-c` links the threads, which FastFlow, whose headers it
   exports, uses directly, as the linker of clang under MSYS2 does not add
   them by itself
