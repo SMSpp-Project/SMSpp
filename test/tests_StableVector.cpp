@@ -12,10 +12,11 @@
  * after a removal, if neither the move nor the copy of an element is ever
  * called. The tests take the three splice() through every position (at the
  * beginning, in the middle, at the end, into an empty stable_vector), through
- * a growth of the index of the receiving stable_vector, and back, checking
- * that the order of the elements is the expected one, that their addresses do
- * not change, that no element is constructed or destroyed by a splice(), and
- * that both stable_vector work as usual afterwards.
+ * a growth of the index of the receiving stable_vector, and back, within one
+ * stable_vector, and into one whose pool of free nodes no longer fits in its
+ * index, checking that the order of the elements is the expected one, that
+ * their addresses do not change, that no element is constructed or destroyed
+ * by a splice(), and that both stable_vector work as usual afterwards.
  *
  * \author Antonio Frangioni \n
  *         Dipartimento di Informatica \n
@@ -33,13 +34,16 @@
 
 #include "FRowConstraint.h"
 
-#include <boost/container/stable_vector.hpp>
-
 #include <iostream>
 #include <vector>
 
-// last, so that the headers above are read as the library was compiled
+// after the headers of the library, so that they are read as the library was
+// compiled, and before stable_vector, so that its own checks of the invariant
+// (that the pool fits in the spare capacity of the index, among others) run
+// at the beginning and at the end of each of its operations
 #include "TestAssert.h"
+#define STABLE_VECTOR_ENABLE_INVARIANT_CHECKING
+#include <boost/container/stable_vector.hpp>
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------------- USING -----------------------------------*/
@@ -182,6 +186,62 @@ static void test_growth( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/// the splice() of elements of a stable_vector within itself, which only
+/// reorders them
+
+static void test_self( void )
+{
+ SV a;
+ fill( a , 0 , 6 );   // 0 1 2 3 4 5
+ std::vector< Pinned * > address( 6 );
+ for( int i = 0 ; i < 6 ; ++i )
+  address[ i ] = & a[ i ];
+
+ // one element, to the beginning
+ no_lifetime( [ & ] { a.splice( a.cbegin() , a , a.cbegin() + 4 ); } );
+ check( a , { 4 , 0 , 1 , 2 , 3 , 5 } );
+ assert( & a[ 0 ] == address[ 4 ] );
+
+ // a range, to the end
+ no_lifetime( [ & ] { a.splice( a.cend() , a , a.cbegin() + 1 ,
+                                a.cbegin() + 3 ); } );
+ check( a , { 4 , 2 , 3 , 5 , 0 , 1 } );
+ assert( ( & a[ 4 ] == address[ 0 ] ) && ( & a[ 5 ] == address[ 1 ] ) );
+
+ // before itself, before the element after it, and an empty range: nothing
+ // changes
+ no_lifetime( [ & ] {
+  a.splice( a.cbegin() + 2 , a , a.cbegin() + 2 );
+  a.splice( a.cbegin() + 3 , a , a.cbegin() + 2 );
+  a.splice( a.cbegin() , a , a.cbegin() + 3 , a.cbegin() + 3 );
+  } );
+ check( a , { 4 , 2 , 3 , 5 , 0 , 1 } );
+ for( int i = 0 ; i < 6 ; ++i )
+  assert( & a[ i ] == address[ a[ i ].v ] );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// a splice() into a stable_vector whose pool of free nodes, made by
+/// reserve(), is larger than the room left in its index by the elements
+/// received: the nodes in excess go to the pool of the other stable_vector,
+/// and both can use their pool afterwards
+
+static void test_pool( void )
+{
+ SV a , b;
+ a.reserve( 16 );
+ fill( b , 0 , 10 );
+ no_lifetime( [ & ] { a.splice( a.cend() , b ); } );
+ check( a , { 0 , 1 , 2 , 3 , 4 , 5 , 6 , 7 , 8 , 9 } );
+ assert( b.empty() );
+
+ fill( a , 10 , 10 );
+ fill( b , 20 , 10 );
+ assert( ( a.size() == 20 ) && ( a[ 19 ].v == 19 ) );
+ check( b , { 20 , 21 , 22 , 23 , 24 , 25 , 26 , 27 , 28 , 29 } );
+ }
+
+/*--------------------------------------------------------------------------*/
 /// the elements of a dynamic group of Constraint, whose copy constructor
 /// throws: they go in and out of the group by splice() alone, and keep their
 /// address
@@ -212,6 +272,8 @@ int main( void )
 {
  test_positions();
  test_growth();
+ test_self();
+ test_pool();
  test_constraints();
 
  // every element constructed has been destroyed, exactly once

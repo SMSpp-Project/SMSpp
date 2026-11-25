@@ -10,8 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - the build gives `boost::container::stable_vector` the three `splice()` of
-  `std::list`, which move elements from one stable_vector to another without
-  copying, moving or destroying them, by a private copy of
+  `std::list` that Boost has from 1.94, which move elements from one
+  stable_vector to another, or within one, without copying, moving or
+  destroying them, by a private copy of
   `boost/container/stable_vector.hpp` written at configure time (CMake) or by
   `lib/makefile` and put on the include path before the one of Boost, and
   installed with the library; the code lives once in

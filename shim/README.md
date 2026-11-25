@@ -18,5 +18,8 @@ replace. `markers.txt` lists what the rewritten header has to contain, and
 both builds check it and stop, naming the text that is missing, rather than
 go on with a stable_vector that has no `splice()`.
 
-The rewrite is skipped on a Boost whose stable_vector already has a
-`splice()`, so that the shim does nothing once Boost has the feature.
+The inserted code is that of Boost 1.94, whose stable_vector has the same
+three `splice()` (also within one stable_vector), written with the parts of
+the header that are already in 1.72; the rewrite is skipped on a Boost whose
+stable_vector already has a `splice()`, so that the shim does nothing from
+1.94 on.
