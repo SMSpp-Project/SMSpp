@@ -4,9 +4,9 @@
 /** @file
  * Unit tests for the smaller pieces of the core that have no test of their
  * own: GlobalInformation and its Collection, SimpleDataMapping, Change and
- * GroupChange, BoxSolver, UpdateSolver, and what the base Solver class does
- * by itself (registration to a Block, the queue of Modification, the tables
- * of the parameters).
+ * GroupChange, BoxSolver, UpdateSolver, R3BSolver, and what the base Solver
+ * class does by itself (registration to a Block, the queue of Modification,
+ * the tables of the parameters, the log file).
  *
  * BoxSolver is taken over box LPs and separable box QPs whose optimum is
  * known in closed form, in both senses, and over the two cases where there
@@ -28,6 +28,8 @@
 /*--------------------------------------------------------------------------*/
 
 #include "AbstractBlock.h"
+#include "AbstractChange.h"
+#include "AbstractPath.h"
 #include "BoxSolver.h"
 #include "Change.h"
 #include "DataMapping.h"
@@ -37,12 +39,18 @@
 #include "GlobalInformation.h"
 #include "LinearFunction.h"
 #include "OneVarConstraint.h"
+#include "R3BSolver.h"
 #include "UpdateSolver.h"
 
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <fstream>
 #include <iostream>
+#include <iterator>
+#include <memory>
+#include <span>
+#include <sstream>
 #include <stdexcept>
 #include <vector>
 
@@ -58,7 +66,7 @@ using namespace SMSpp_di_unipi_it;
 using Index = Block::Index;
 using Range = Block::Range;
 using Subset = Block::Subset;
-using MF_dbl_it = Block::MF_dbl_it;
+using MF_dbl_sp = Block::MF_dbl_sp;
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CONSTANTS --------------------------------*/
@@ -161,12 +169,26 @@ static bool throws( F f )
  }
 
 /*--------------------------------------------------------------------------*/
+/// what the tests give to a Block that the Block does not own, deleted at the
+/// end of main(), after every Block, the last given the first deleted
+
+static std::vector< std::shared_ptr< void > > given;
+
+template< class T >
+static T * kept( T * t )
+{
+ given.emplace_back( t );
+ return( t );
+ }
+
+/*--------------------------------------------------------------------------*/
 /// an AbstractBlock with n ColVariable in its first static group, "x"
 
 static AbstractBlock * block_with_x( Index n , Block * father = nullptr )
 {
  auto block = new AbstractBlock( father );
- block->add_static_variable( *( new std::vector< ColVariable >( n ) ) , "x" );
+ block->add_static_variable( *kept( new std::vector< ColVariable >( n ) ) ,
+			     "x" );
  return( block );
  }
 
@@ -264,7 +286,8 @@ static void test_GlobalInformation( void )
   scalars->write( "k" + std::to_string( i ) , i );
  assert( scalars->size() == 1001 );
  double d = 0;
- assert( scalars->read( GlobalInformation::str_Incumbent , d ) && ( d == 12.5 ) );
+ assert( scalars->read( GlobalInformation::str_Incumbent , d ) &&
+	 ( d == 12.5 ) );
  assert( & ( *scalars )[ GlobalInformation::str_Incumbent ] == & inc );
  scalars->write( GlobalInformation::str_Incumbent , 7 );
  assert( inc.load() == 7 );
@@ -288,22 +311,24 @@ static void test_GlobalInformation( void )
 /*--------------------------------------------------------------------------*/
 /// the method of the tests: sets the values of x[ range ]
 
-static void set_x_range( Block * block , MF_dbl_it data , Range range ,
+static void set_x_range( Block * block , MF_dbl_sp data , Range range ,
 			 ModParam , ModParam )
 {
  auto & x = x_of( block );
+ assert( data.size() >= range.second - range.first );
  for( Index i = range.first ; i < range.second ; ++i )
-  x[ i ].set_value( *( data++ ) );
+  x[ i ].set_value( data[ i - range.first ] );
  }
 
 /// the method of the tests: sets the values of x[ subset ]
 
-static void set_x_subset( Block * block , MF_dbl_it data , Subset && subset ,
+static void set_x_subset( Block * block , MF_dbl_sp data , Subset && subset ,
 			  bool , ModParam , ModParam )
 {
  auto & x = x_of( block );
- for( auto i : subset )
-  x[ i ].set_value( *( data++ ) );
+ assert( data.size() >= subset.size() );
+ for( Index h = 0 ; h < subset.size() ; ++h )
+  x[ subset[ h ] ].set_value( data[ h ] );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -315,8 +340,8 @@ static void set_x_subset( Block * block , MF_dbl_it data , Subset && subset ,
 
 static void test_DataMapping( void )
 {
- using FR = Block::FunctionType< MF_dbl_it , Range >;
- using FS = Block::FunctionType< MF_dbl_it , Subset && , bool >;
+ using FR = Block::FunctionType< MF_dbl_sp , Range >;
+ using FS = Block::FunctionType< MF_dbl_sp , Subset && , bool >;
  Block::register_method( "tests_Misc::set_x" , new FR( & set_x_range ) );
  Block::register_method( "tests_Misc::set_x" , new FS( & set_x_subset ) );
  auto fr = Block::get_method< FR >( "tests_Misc::set_x" );
@@ -333,21 +358,48 @@ static void test_DataMapping( void )
 
  SimpleDataMapping< Range , Range > rr( fr , inner , Range( 1 , 3 ) ,
 					Range( 0 , 2 ) );
- rr.set_data( data.cbegin() );
- assert( ( values_of( inner ) == std::vector< double >( { 11 , 12 , 0 , 0 } ) ) );
+ rr.set_data( data );
+ assert( ( values_of( inner ) ==
+	    std::vector< double >( { 11 , 12 , 0 , 0 } ) ) );
 
  // subsets, SetTo not ordered: the i-th of SetFrom (an ordered multiset)
  // goes to the i-th of SetTo
  SimpleDataMapping< Subset , Subset > ss( fs , inner , Subset( { 0 , 5 } ) ,
 					  Subset( { 3 , 1 } ) );
- ss.set_data( data.cbegin() );
- assert( ( values_of( inner ) == std::vector< double >( { 11 , 15 , 0 , 10 } ) ) );
+ ss.set_data( data );
+ assert( ( values_of( inner ) ==
+	    std::vector< double >( { 11 , 15 , 0 , 10 } ) ) );
 
  // one value broadcast over three
  SimpleDataMapping< Range , Range > bc( fr , inner , Range( 4 , 5 ) ,
 					Range( 1 , 4 ) );
- bc.set_data( data.cbegin() );
- assert( ( values_of( inner ) == std::vector< double >( { 11 , 14 , 14 , 14 } ) ) );
+ bc.set_data( data );
+ assert( ( values_of( inner ) ==
+	    std::vector< double >( { 11 , 14 , 14 , 14 } ) ) );
+
+ // the data are only the part of a longer vector the span views, and a
+ // SetFrom going past their end is refused, the caller left as it was
+ rr.set_data( std::span( data ).subspan( 2 ) );
+ assert( ( values_of( inner ) ==
+	    std::vector< double >( { 13 , 14 , 14 , 14 } ) ) );
+ bool refused = false;
+ try {
+  rr.set_data( std::span( data ).subspan( 0 , 2 ) );
+  }
+ catch( std::invalid_argument & ) {
+  refused = true;
+  }
+ assert( refused );
+ refused = false;
+ try {
+  ss.set_data( std::span( data ).first( 5 ) );
+  }
+ catch( std::invalid_argument & ) {
+  refused = true;
+  }
+ assert( refused );
+ assert( ( values_of( inner ) ==
+	    std::vector< double >( { 13 , 14 , 14 , 14 } ) ) );
 
  // the round trip
  const char * file = "Misc_test_DataMapping.nc4";
@@ -376,8 +428,8 @@ static void test_DataMapping( void )
 
   for( auto & x : x_of( inner ) )
    x.set_value( 0 );
-  rr2->set_data( data.cbegin() );
-  ss2->set_data( data.cbegin() );
+  rr2->set_data( data );
+  ss2->set_data( data );
   assert( ( values_of( inner ) ==
 	    std::vector< double >( { 11 , 15 , 0 , 10 } ) ) );
   assert( ( values_of( outer ) == std::vector< double >( { 0 } ) ) );
@@ -503,6 +555,42 @@ static void test_Change( void )
 /*--------------------------------------------------------------------------*/
 /*------------------------------- BoxSolver --------------------------------*/
 /*--------------------------------------------------------------------------*/
+/// eFixX on a Variable fixed at another value, and the undo of both
+
+static void test_AbstractChange_fix( void )
+{
+ auto block = block_with_x( 2 );
+ auto & x = x_of( block );
+ const AbstractPath path( & x[ 0 ] , block );
+
+ auto u1 = AbstractChange( AbstractChange::eFixX , { 1 } , { path } )
+            .apply( block , true );
+ expect( x[ 0 ].is_fixed() && equal( x[ 0 ].get_value() , 1 ) ,
+	 "eFixX: free, fixed at 1" );
+
+ Change * u2 = nullptr;
+ expect( ! throws< std::exception >( [ & ]() {
+	  u2 = AbstractChange( AbstractChange::eFixX , { 2 } , { path } )
+	        .apply( block , true ); } ) ,
+	 "eFixX: fixed at 1, fixed again at 2" );
+ expect( x[ 0 ].is_fixed() && equal( x[ 0 ].get_value() , 2 ) ,
+	 "eFixX: fixed at 2" );
+
+ if( u2 ) {
+  delete u2->apply( block );
+  delete u2;
+  }
+ expect( x[ 0 ].is_fixed() && equal( x[ 0 ].get_value() , 1 ) ,
+	 "eFixX: the undo fixes it back at 1" );
+
+ delete u1->apply( block );
+ delete u1;
+ expect( ! x[ 0 ].is_fixed() , "eFixX: the undo of the first unfixes it" );
+
+ delete block;
+ }
+
+/*--------------------------------------------------------------------------*/
 /// a box model: ColVariable with a BoxConstraint each, a separable Objective
 
 struct BoxModel {
@@ -513,13 +601,14 @@ struct BoxModel {
 
  /// linear if quad is empty, else the DQuadFunction sum quad x^2 + lin x
 
- BoxModel( const std::vector< double > & lb , const std::vector< double > & ub ,
+ BoxModel( const std::vector< double > & lb ,
+	   const std::vector< double > & ub ,
 	   const std::vector< double > & lin ,
 	   const std::vector< double > & quad , int sense ) {
   const Index n = lb.size();
   block = block_with_x( n );
   auto & x = x_of( block );
-  box = new std::vector< BoxConstraint >( n );
+  box = kept( new std::vector< BoxConstraint >( n ) );
   block->add_static_constraint( *box , "box" );
   for( Index j = 0 ; j < n ; ++j ) {
    ( *box )[ j ].set_variable( & x[ j ] , eNoMod );
@@ -539,7 +628,7 @@ struct BoxModel {
     ct.push_back( { & x[ j ] , lin[ j ] , quad[ j ] } );
    f = new DQuadFunction( std::move( ct ) );
    }
-  obj = new FRealObjective( block , f );
+  obj = kept( new FRealObjective( block , f ) );
   obj->set_sense( sense , eNoMod );
   block->set_objective( obj , eNoMod );
   solver = new BoxSolver();
@@ -569,7 +658,8 @@ static void test_BoxSolver_LP( void )
  BoxModel m( lb , ub , { 1 , -2 , 0.5 } , {} , Objective::eMin );
  m.solver->set_par( BoxSolver::intPDSol , 2 );
 
- assert( throws< std::logic_error >( [ & ]() { (void) m.solver->get_lb(); } ) );
+ assert( throws< std::logic_error >( [ & ]() {
+	   (void) m.solver->get_lb(); } ) );
  assert( m.solver->compute() == Solver::kOK );
  assert( equal( m.solver->get_var_value() , -1.5 ) );
  assert( equal( m.solver->get_lb() , -1.5 ) &&
@@ -686,16 +776,16 @@ static void test_BoxSolver_duals( void )
   for( int when = 0 ; when < 2 ; ++when ) {
    auto block = block_with_x( 1 );
    auto & x = x_of( block );
-   auto lbc = new std::vector< LBConstraint >( 1 );
-   auto ubc = new std::vector< UBConstraint >( 1 );
+   auto lbc = kept( new std::vector< LBConstraint >( 1 ) );
+   auto ubc = kept( new std::vector< UBConstraint >( 1 ) );
    block->add_static_constraint( *lbc , "lb" );
    block->add_static_constraint( *ubc , "ub" );
    ( *lbc )[ 0 ].set_variable( & x[ 0 ] , eNoMod );
    ( *lbc )[ 0 ].set_lhs( 0 , eNoMod );
    ( *ubc )[ 0 ].set_variable( & x[ 0 ] , eNoMod );
    ( *ubc )[ 0 ].set_rhs( 2 , eNoMod );
-   auto obj = new FRealObjective( block , new LinearFunction(
-			  LinearFunction::v_coeff_pair( { { & x[ 0 ] , c.cost } } ) ) );
+   auto obj = kept( new FRealObjective( block , new LinearFunction(
+	       LinearFunction::v_coeff_pair( { { & x[ 0 ] , c.cost } } ) ) ) );
    obj->set_sense( c.sense , eNoMod );
    block->set_objective( obj , eNoMod );
    auto solver = new BoxSolver();
@@ -738,12 +828,12 @@ static void test_BoxSolver_duals( void )
  {
   auto block = block_with_x( 1 );
   auto & x = x_of( block );
-  auto ubc = new std::vector< UBConstraint >( 1 );
+  auto ubc = kept( new std::vector< UBConstraint >( 1 ) );
   block->add_static_constraint( *ubc , "ub" );
   ( *ubc )[ 0 ].set_variable( & x[ 0 ] , eNoMod );
   ( *ubc )[ 0 ].set_rhs( 2 , eNoMod );
-  auto obj = new FRealObjective( block , new LinearFunction(
-			  LinearFunction::v_coeff_pair( { { & x[ 0 ] , 1.0 } } ) ) );
+  auto obj = kept( new FRealObjective( block , new LinearFunction(
+	       LinearFunction::v_coeff_pair( { { & x[ 0 ] , 1.0 } } ) ) ) );
   obj->set_sense( Objective::eMax , eNoMod );
   block->set_objective( obj , eNoMod );
   auto solver = new BoxSolver();
@@ -845,6 +935,32 @@ static void test_BoxSolver_unbounded( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* A relaxed OneVarConstraint is not in the problem: it does not bound its
+ * ColVariable, a cost pushing beyond it makes the problem unbounded, and
+ * once it is enforced again it bounds as before. */
+
+static void test_BoxSolver_relaxed( void )
+{
+ BoxModel m( { 0 , -1 } , { 2 , 1 } , { -1 , 1 } , {} , Objective::eMin );
+ assert( m.solver->compute() == Solver::kOK );
+ assert( equal( m.solver->get_var_value() , -3 ) );
+
+ ( *m.box )[ 0 ].relax( true );
+ const int rtrn = m.solver->compute();
+ expect( ( rtrn == Solver::kUnbounded ) &&
+	 ( m.solver->get_lb() == -INF ) ,
+	 "box LP, relaxed bound: compute() = " + std::to_string( rtrn ) +
+	 ", get_lb() = " + std::to_string( m.solver->get_lb() ) +
+	 ", expected unbounded" );
+
+ ( *m.box )[ 0 ].relax( false );
+ assert( m.solver->compute() == Solver::kOK );
+ assert( equal( m.solver->get_var_value() , -3 ) );
+
+ std::cout << "BoxSolver, relaxed bound: done" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
 /*------------------------------ UpdateSolver ------------------------------*/
 /*--------------------------------------------------------------------------*/
 /* An UpdateSolver attached to a Block passes the Modification it receives,
@@ -856,7 +972,8 @@ static void test_BoxSolver_unbounded( void )
 
 static void test_UpdateSolver( void )
 {
- assert( throws< std::invalid_argument >( []() { UpdateSolver( nullptr ); } ) );
+ assert( throws< std::invalid_argument >( []() {
+	   UpdateSolver( nullptr ); } ) );
 
  struct Case {
   int options;
@@ -916,6 +1033,118 @@ static void test_UpdateSolver( void )
   }
 
  std::cout << "UpdateSolver: done" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+/*------------------------------- R3BSolver --------------------------------*/
+/*--------------------------------------------------------------------------*/
+/* An R3BSolver attached to a box LP whose R3 Block is a mirror of it, solved
+ * by a BoxSolver: the bounds are those of the BoxSolver on the side that the
+ * kind of R3 Block allows, the solution is mapped back, a change of the
+ * original Block reaches the mirror, and the mirror goes when R3BSolver is
+ * detached. Without its extra Configuration there is no R3 Block, and one
+ * that is not the vector of the three Configuration is refused. */
+
+/// a box LP whose R3 Block is a mirror of it
+
+class MirroredBlock : public AbstractBlock {
+ public:
+ Block * get_R3_Block( Configuration * r3bc = nullptr ,
+		       Block * base = nullptr ,
+		       Block * father = nullptr ) override {
+  auto m = new AbstractBlock( father );
+  m->mirror( this );
+  return( m );
+  }
+ };
+
+/// the ComputeConfig of an R3BSolver whose R3 Block is solved by a BoxSolver
+
+static const char * const r3bs_cfg =
+ "ComputeConfig 1 0 0 0 0 0 0\n"
+ "SimpleConfiguration<std::vector<Configuration*>> 3 * *\n"
+ "BlockSolverConfig 1 1 BoxSolver 1 *\n";
+
+static ComputeConfig * read_cfg( const std::string & text )
+{
+ std::istringstream is( text );
+ return( dynamic_cast< ComputeConfig * >( Configuration::deserialize( is ) ) );
+ }
+
+static void test_R3BSolver( void )
+{
+ auto block = new MirroredBlock;
+ block->add_static_variable( *kept( new std::vector< ColVariable >( 2 ) ) ,
+			     "x" );
+ auto & x = x_of( block );
+ auto box = kept( new std::vector< BoxConstraint >( 2 ) );
+ block->add_static_constraint( *box , "box" );
+ const std::vector< double > lb = { 0 , -1 } , ub = { 2 , 1 };
+ for( Index j = 0 ; j < 2 ; ++j ) {
+  ( *box )[ j ].set_variable( & x[ j ] , eNoMod );
+  ( *box )[ j ].set_lhs( lb[ j ] , eNoMod );
+  ( *box )[ j ].set_rhs( ub[ j ] , eNoMod );
+  }
+ LinearFunction::v_coeff_pair cp = { { & x[ 0 ] , 1 } , { & x[ 1 ] , -2 } };
+ auto obj = kept( new FRealObjective( block ,
+				      new LinearFunction( std::move( cp ) ) ) );
+ obj->set_sense( Objective::eMin , eNoMod );
+ block->set_objective( obj , eNoMod );
+
+ // no extra Configuration: no R3 Block, nothing to compute
+ auto slv = new R3BSolver();
+ block->register_Solver( slv );
+ assert( ( slv->get_R3B() == nullptr ) &&
+	 ( slv->compute() == Solver::kError ) );
+
+ // a wrong extra Configuration is refused
+ auto bad = read_cfg( "ComputeConfig 1 0 0 0 0 0 0\n"
+		      "SimpleConfiguration<std::vector<Configuration*>> 1 *\n" );
+ assert( bad && throws< std::invalid_argument >( [ & ]() {
+	  slv->set_ComputeConfig( bad ); } ) );
+ delete bad;
+
+ auto cfg = read_cfg( r3bs_cfg );
+ assert( cfg );
+ slv->set_ComputeConfig( cfg );
+ delete cfg;
+ assert( slv->get_R3B() && slv->get_inner_Solver() &&
+	 ( slv->get_inner_Solver()->classname() == "BoxSolver" ) );
+
+ // a Reformulation: both bounds, and the solution mapped back
+ assert( slv->compute() == Solver::kOK );
+ assert( equal( slv->get_lb() , -2 ) && equal( slv->get_ub() , -2 ) );
+ assert( equal( slv->get_var_value() , -2 ) );
+ slv->get_var_solution();
+ assert( ( values_of( block ) == std::vector< double >( { 0 , 1 } ) ) );
+
+ // a change of the original Block reaches the R3 Block
+ ( *box )[ 1 ].set_rhs( 3 );
+ assert( slv->compute() == Solver::kOK );
+ expect( equal( slv->get_lb() , -6 ) , "R3BSolver: after the change of a "
+	 "bound, lb = " + std::to_string( slv->get_lb() ) + ", expected -6" );
+
+ // a Relaxation only gives the lower bound, a Restriction the upper one
+ slv->set_par( R3BSolver::intR3BKind , R3BSolver::kRelaxation );
+ assert( equal( slv->get_lb() , -6 ) && ( slv->get_ub() == INF ) );
+ assert( ! slv->is_var_feasible() );
+ slv->set_par( R3BSolver::intR3BKind , R3BSolver::kRestriction );
+ assert( ( slv->get_lb() == - INF ) && equal( slv->get_ub() , -6 ) );
+ assert( throws< std::invalid_argument >( [ & ]() {
+	  slv->set_par( R3BSolver::intR3BKind , 3 ); } ) );
+
+ // the extra Configuration is given back with the parameters
+ auto got = slv->get_ComputeConfig();
+ assert( got && got->f_extra_Configuration );
+ delete got;
+
+ // detached, the R3 Block goes
+ block->unregister_Solver( slv );
+ assert( slv->get_R3B() == nullptr );
+ delete slv;
+ delete block;
+
+ std::cout << "R3BSolver: done" << std::endl;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1130,21 +1359,77 @@ static void test_Solver_parameters( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/// a FakeSolver that shows where it logs
+
+class LogProbe : public FakeSolver {
+ public:
+ std::ostream * log( void ) const { return( f_log ); }
+ };
+
+/* strLogFileName opens the log file and get_str_par() returns its name; the
+ * same name given again (a ComputeConfig applied again, or the one that
+ * restores the previous parameters) leaves the file as it is, with what was
+ * written in it; the empty name closes it, leaving alone a log given with
+ * set_log(), and stops the logging into the file. */
+
+static void test_Solver_log_file( void )
+{
+ const std::string name = "Misc_unit_test.log";
+ const auto content = [ & ]() {
+  std::ifstream in( name );
+  return( std::string( std::istreambuf_iterator< char >( in ) ,
+                       std::istreambuf_iterator< char >() ) );
+  };
+
+ LogProbe s;
+ s.set_par( Solver::strLogFileName , std::string( name ) );
+ expect( s.get_str_par( Solver::strLogFileName ) == name ,
+	 "strLogFileName is not kept" );
+ assert( s.log() );
+ *s.log() << "logged" << std::endl;
+
+ s.set_par( Solver::strLogFileName , std::string( name ) );
+ expect( content() == "logged\n" ,
+	 "the same strLogFileName given again empties the log file" );
+
+ s.set_log( & std::cout );
+ s.set_par( Solver::strLogFileName , std::string() );
+ expect( s.log() == & std::cout ,
+	 "the empty strLogFileName replaces the log given with set_log()" );
+ expect( s.get_str_par( Solver::strLogFileName ).empty() ,
+	 "the empty strLogFileName is not kept" );
+
+ s.set_par( Solver::strLogFileName , std::string( name ) );
+ s.set_par( Solver::strLogFileName , std::string() );
+ expect( ! s.log() , "the empty strLogFileName leaves the log in the file" );
+
+ std::remove( name.c_str() );
+ std::cout << "Solver log file: done" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
 
 int main( int argc , char ** argv )
 {
  test_GlobalInformation();
  test_DataMapping();
  test_Change();
+ test_AbstractChange_fix();
  test_BoxSolver_LP();
  test_BoxSolver_QP();
  test_BoxSolver_duals();
  test_BoxSolver_empty_box();
  test_BoxSolver_unbounded();
+ test_BoxSolver_relaxed();
  test_UpdateSolver();
+ test_R3BSolver();
  test_Solver_registration();
  test_Solver_Modification_queue();
  test_Solver_parameters();
+ test_Solver_log_file();
+
+ while( ! given.empty() )
+  given.pop_back();
 
  if( n_failures ) {
   std::cout << "Misc_unit_test: " << n_failures << " check(s) failed"

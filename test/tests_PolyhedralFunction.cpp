@@ -174,6 +174,8 @@ struct Model {
  ~Model() {
   block->unregister_Solvers( true );
   delete block;
+  delete obj;
+  delete x;
   }
 
  Lst_sp_Mod & mods( void ) { return( solver->get_Modification_list() ); }
@@ -609,7 +611,8 @@ static void test_modify_rows_Mod( void )
  m.f->modify_row( 1 , { 5 , 5 } , 9 );
  auto rmod = m.only< PolyhedralFunctionModRngd >();
  check( rmod && ( rmod->PFtype() == PolyhedralFunctionMod::ModifyRows ) &&
-	( rmod->range() == PF::Range( 1 , 2 ) ) && std::isnan( rmod->shift() ) ,
+	( rmod->range() == PF::Range( 1 , 2 ) ) &&
+	std::isnan( rmod->shift() ) ,
 	"modify_row: PolyhedralFunctionModRngd" );
  check( ( m.f->get_A()[ 1 ] == PF::RealVector( { 5 , 5 } ) ) &&
 	( m.f->get_b()[ 1 ] == 9 ) , "modify_row: data" );
@@ -803,6 +806,50 @@ static void test_global_pool_Mod( void )
 	( coeffs( *m.f , 1 ) == PF::RealVector( { 0 , 2 } ) ) &&
 	( m.f->get_linearization_constant( 2 ) == 5 ) ,
 	"delete_row: the other stored rows are still themselves" );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+static void test_bound_leaves_global_pool( void )
+{
+ // the all-0 linearization of the bound, stored in the global pool, leaves
+ // it when the bound is eliminated, whether this is said to a Solver or not,
+ // so that a Solver reading the pool anew [see is_linearization_there()]
+ // does not find a linearization whose constant is - INF
+ for( bool issue : { true , false } ) {
+  Model m( { { 1 , 0 } } , { 0 } , -1 );
+  m.f->set_par( PF::intGPMaxSz , 1 );
+  auto & x = *m.x;
+  const std::string c = issue ? " (with Modification)" : " (eNoMod)";
+
+  x[ 0 ].set_value( -5 );  // the bound is the max
+  x[ 1 ].set_value( 0 );
+  m.f->compute();
+  m.f->store_linearization( 0 );
+  check( m.f->is_linearization_there( 0 ) &&
+	 eq( m.f->get_linearization_constant( 0 ) , -1 ) &&
+	 ( coeffs( *m.f , 0 ) == PF::RealVector( { 0 , 0 } ) ) ,
+	 "the bound stored in the global pool" + c );
+
+  m.mods().clear();
+  if( issue )
+   m.f->modify_bound( - INF );
+  else
+   m.f->modify_bound( - INF , eNoMod );
+
+  check( ! m.f->is_linearization_there( 0 ) ,
+	 "the eliminated bound leaves the global pool" + c );
+
+  if( issue ) {
+   bool removed = false;
+   for( auto & mod : m.mods() )
+    if( auto cmod = std::dynamic_pointer_cast< C05FunctionMod >( mod ) )
+     if( ( cmod->type() == C05FunctionMod::GlobalPoolRemoved ) &&
+	 ( cmod->which() == PF::Subset( { 0 } ) ) )
+      removed = true;
+   check( removed , "the eliminated bound: GlobalPoolRemoved, which { 0 }" );
+   }
+  }
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1246,7 +1293,7 @@ static void test_PFB_primal( void )
  fa.PF().delete_row( 0 );
  check( ( rows->size() == 2 ) &&
 	primal_row( rows->front() , v , fa.x , { 3 , 1 } , -1 ) ,
-	"PFB primal delete_row( 0 ): the first row is now - 1 <= v - 3 x0 - x1" );
+     "PFB primal delete_row( 0 ): the first row is now - 1 <= v - 3 x0 - x1" );
 
  fa.PF().modify_constant( 1 , 7 );
  check( ( rows->size() == 2 ) && ( rows->back().get_lhs() == 7 ) ,
@@ -1726,7 +1773,8 @@ static void test_rows_edges( void )
  four( f );
  assert( throws_a< std::invalid_argument >( [ & f ]() {
   f.delete_rows( Subset( { 1 , 9 } ) ); } ) );
- assert( throws_a< std::invalid_argument >( [ & f ]() { f.delete_row( 4 ); } ) );
+ assert( throws_a< std::invalid_argument >( [ & f ]() {
+  f.delete_row( 4 ); } ) );
  assert( f.get_nrows() == 4 );
  assert( rec.mods.empty() );
 
@@ -2008,7 +2056,8 @@ static void test_variables_edges( void )
   assert( mod->range() == Range( 1 , 2 ) );
   assert( mod->vars() == Vec_p_Var( { & x[ 1 ] } ) );
  }
- assert( throws_a< std::logic_error >( [ & f ]() { f.remove_variable( 2 ); } ) );
+ assert( throws_a< std::logic_error >( [ & f ]() {
+  f.remove_variable( 2 ); } ) );
  assert( rec.mods.empty() );
 
  // ---- removing by Range --------------------------------------------------
@@ -2541,6 +2590,7 @@ int main( void )
  test_modify_constants_Mod();
  test_modify_bound_Mod();
  test_global_pool_Mod();
+ test_bound_leaves_global_pool();
  test_variables_Mod();
  test_remove_last_variable();
  test_remove_variables_subset();

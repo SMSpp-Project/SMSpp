@@ -22,10 +22,14 @@
 
 #include "BlockInspection.h"
 
+#include <algorithm>
 #include <iomanip>
 #include <map>
 #include <memory>
+#include <set>
 #include <sstream>
+#include <type_traits>
+#include <unordered_map>
 
 
 #include "ColVariable.h"
@@ -131,6 +135,11 @@ AbstractBlock::~AbstractBlock()
  if( ( ! is_Objective_reserved() ) && get_objective() )
   get_objective()->clear();
 
+ // and delete the one this Block made, by read_lp(), read_mps() or
+ // mirror(), even if it has been replaced since: one given to it with
+ // set_objective() is deleted by whoever made it [see Block::set_objective()]
+ delete_own_obj();
+
  // now delete all the inner Block
  for( Index i = get_first_inner_Block() ; i < v_Block.size() ; ++i )
   delete v_Block[ i ];
@@ -153,6 +162,20 @@ AbstractBlock::~AbstractBlock()
  dispose_of( get_static_variable_groups() , get_first_static_Variable() );
  dispose_of( get_dynamic_variable_groups() , get_first_dynamic_Variable() );
 
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void AbstractBlock::delete_own_obj( void )
+{
+ if( ! f_own_obj )
+  return;
+
+ // cleared first, as the Objective of the Block is in the destructor, so
+ // that deleting it does not touch Variable that may be gone already
+ f_own_obj->clear();
+ delete f_own_obj;
+ f_own_obj = nullptr;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -226,8 +249,9 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
                            if( ( ! feas ) || cnst.is_relaxed() )
                             return;
                            if( f_is_direction ) {
-                            check_direction( cnst , static_cast< ColVariable * >(
-                             cnst.get_active_var( 0 ) )->get_value() );
+                            check_direction( cnst ,
+                             static_cast< ColVariable * >(
+                              cnst.get_active_var( 0 ) )->get_value() );
                             return;
                             }
                            feas = ( ( rel_viol ? cnst.rel_viol() :
@@ -245,12 +269,12 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
                              ( FRowConstraint & cnst ) {
   auto f = cnst.get_function();
 
-  if( auto lf = dynamic_cast< LinearFunction * >( f ) ) {
+  if( auto lf = memo_cast< LinearFunction * >( f ) ) {
    check_direction( cnst , lf->get_value() - lf->get_constant_term() );
    return;
    }
 
-  if( auto qf = dynamic_cast< DQuadFunction * >( f ) ) {
+  if( auto qf = memo_cast< DQuadFunction * >( f ) ) {
    double quad = 0;
    double lin = 0;
    for( Index i = 0 ; i < qf->get_num_active_var() ; ++i ) {
@@ -601,7 +625,7 @@ void AbstractBlock::file_bounds( const std::vector< f_column > & columns ,
 static const LinearFunction * linear_of( const Function * f ,
 					 const std::string & what )
 {
- auto lf = dynamic_cast< const LinearFunction * >( f );
+ auto lf = memo_cast< const LinearFunction * >( f );
  if( ! lf )
   throw( std::invalid_argument( "AbstractBlock::write: " + what +
 				" is not written on a LinearFunction" ) );
@@ -663,9 +687,19 @@ void AbstractBlock::write_lp( std::ostream & output ) const
    output << "0";   // format wants something there, the constant 0
   };
 
- auto write_linear = [ & write_terms , & terms_of ](
+ // the constant term of a LinearFunction after its terms, if it is not 0
+ auto write_constant = [ & output ]( const LinearFunction * f ) {
+  const double c = f->get_constant_term();
+  if( c == 0 )
+   return;
+  output << ( c < 0 ? " - " : " + " );
+  put_double( output , std::abs( c ) );
+  };
+
+ auto write_linear = [ & write_terms , & terms_of , & write_constant ](
 					       const LinearFunction * f ) {
   write_terms( terms_of( f ) );
+  write_constant( f );
   };
 
  // the Objective - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -678,7 +712,7 @@ void AbstractBlock::write_lp( std::ostream & output ) const
 
  output << "\\ written by AbstractBlock::write_lp()" << std::endl;
 
- auto obj = dynamic_cast< const FRealObjective * >( get_objective() );
+ auto obj = memo_cast< const FRealObjective * >( get_objective() );
  output << ( ( obj && ( obj->get_sense() == Objective::eMax ) )
 	     ? "Maximize" : "Minimize" ) << std::endl << " obj: ";
  {
@@ -695,6 +729,8 @@ void AbstractBlock::write_lp( std::ostream & output ) const
    terms.emplace_back( var , ( it == cost.end() ) ? 0 : it->second );
    }
   write_terms( terms );
+  if( obj )
+   write_constant( linear_of( obj->get_function() , "the Objective" ) );
   }
  output << std::endl;
 
@@ -813,7 +849,7 @@ void AbstractBlock::write_mps( std::ostream & output ) const
    }
   };
 
- auto obj = dynamic_cast< const FRealObjective * >( get_objective() );
+ auto obj = memo_cast< const FRealObjective * >( get_objective() );
  if( obj )
   collect( linear_of( obj->get_function() , "the Objective" ) , -1 ,
 	   "the Objective" );
@@ -900,13 +936,28 @@ void AbstractBlock::write_mps( std::ostream & output ) const
 
  // the right-hand sides and the ranges- - - - - - - - - - - - - - - - - - -
 
+ // the constant term of a row is moved to its sides, and that of the
+ // Objective is written as minus the right-hand side of the objective row,
+ // as the solvers write and read it
+
  output << "RHS" << std::endl;
+ if( obj ) {
+  const double c0 = linear_of( obj->get_function() , "the Objective" )
+				       ->get_constant_term();
+  if( c0 != 0 ) {
+   output << "    RHS  " << row_name( -1 ) << "  ";
+   put_double( output , - c0 );
+   output << std::endl;
+   }
+  }
  for( Index r = 0 ; r < kept.size() ; ++r ) {
   const auto * row = rows[ kept[ r ] ].first;
+  const double c = linear_of( row->get_function() , "the row " +
+			      rows[ kept[ r ] ].second )->get_constant_term();
   const double value = ( sense_of( row ) == 'G' ) ? double( row->get_lhs() )
 						  : double( row->get_rhs() );
   output << "    RHS  " << rows[ kept[ r ] ].second << "  ";
-  put_double( output , value );
+  put_double( output , value - c );
   output << std::endl;
   }
 
@@ -1043,7 +1094,7 @@ void AbstractBlock::write_is( std::ostream & output , double eps ) const
   const double mult = row->get_dual();
   if( std::abs( mult ) <= eps )
    continue;
-  auto lf = dynamic_cast< const LinearFunction * >( row->get_function() );
+  auto lf = memo_cast< const LinearFunction * >( row->get_function() );
   if( ! lf )               // a row that is not linear has no place in a
    continue;               // certificate written this way
 
@@ -1306,8 +1357,11 @@ void AbstractBlock::read_mps( std::istream & file )
  std::vector< std::string > row_names;
  std::vector< char > row_type;
 
+ std::unordered_map< std::string , Index > row_index;  // the index of a row
+
  std::vector< ColVariable > * cols;
  std::vector< std::string > col_names;
+ std::unordered_map< std::string , Index > col_index;  // that of a column
  std::vector< BoxConstraint > * bounds;
 
  std::string rhs_name; // Only one RHS vector is supported
@@ -1315,6 +1369,7 @@ void AbstractBlock::read_mps( std::istream & file )
  std::string bnd_name; // Only one BOUNDS vector is supported
  std::vector< double > rhs;
  std::vector< double > rng;
+ double of_const = 0;  // the constant of the Objective
 
  std::string word;
  auto max = std::numeric_limits< std::streamsize >::max();
@@ -1445,6 +1500,7 @@ void AbstractBlock::read_mps( std::istream & file )
   if( word == "E" || word == "L" || word == "G" ) {
    row_type[ i ] = word[ 0 ];
    file >> row_names[ i ];
+   row_index.emplace( row_names[ i ] , i );
    ++i;
    file.ignore( max, '\n' );
   } else if( word == "N" ) {
@@ -1463,7 +1519,7 @@ void AbstractBlock::read_mps( std::istream & file )
  i = 0;
  bool marker = false;
  tmp.clear();
- ColVariable * v;
+ ColVariable * v = nullptr;
  LinearFunction * f;
  while( file.peek() == file.widen( ' ' ) ) {
   std::string row;
@@ -1490,6 +1546,7 @@ void AbstractBlock::read_mps( std::istream & file )
   if( word != tmp ) {
    tmp = word;
    col_names[ i ] = tmp;
+   col_index.emplace( tmp , i );
    v = &( *cols )[ i ];
    if( marker ) {
     v->set_type( ColVariable::kInteger, eNoMod );
@@ -1501,9 +1558,9 @@ void AbstractBlock::read_mps( std::istream & file )
   if( row == of_name ) {
    f = static_cast< LinearFunction * >(of->get_function());
   } else {
-   auto it = std::find( row_names.begin(), row_names.end(), row );
-   if( it != row_names.end() ) {
-    auto j = std::distance( row_names.begin(), it );
+   auto it = row_index.find( row );
+   if( it != row_index.end() ) {
+    auto j = it->second;
     f = static_cast< LinearFunction * >(( *rows )[ j ].get_function());
    } else {
     throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
@@ -1520,9 +1577,9 @@ void AbstractBlock::read_mps( std::istream & file )
     f = static_cast< LinearFunction * >(of->get_function());
    } else {
     // Will add to a constraint
-    auto it = std::find( row_names.begin(), row_names.end(), row );
-    if( it != row_names.end() ) {
-     auto j = std::distance( row_names.begin(), it );
+    auto it = row_index.find( row );
+    if( it != row_index.end() ) {
+     auto j = it->second;
      f = static_cast< LinearFunction * >(( *rows )[ j ].get_function());
     } else {
      throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
@@ -1556,28 +1613,29 @@ void AbstractBlock::read_mps( std::istream & file )
   std::string row;
   std::string value;
 
+  // the right-hand side of the objective row is minus the constant of the
+  // Objective, as the solvers write and read it
+  auto set_rhs = [ & ]( const std::string & row , std::string & value ) {
+   if( row == of_name ) {
+    of_const = - dbl_val( value );
+    return;
+    }
+   auto it = row_index.find( row );
+   if( it == row_index.end() )
+    throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
+   rhs[ it->second ] = dbl_val( value );
+   };
+
   // First name/value pair
   file >> row;
   file >> value;
-  auto it = std::find( row_names.begin(), row_names.end(), row );
-  if( it != row_names.end() ) {
-   auto j = std::distance( row_names.begin(), it );
-   rhs[ j ] = dbl_val( value );
-  } else {
-   throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
-  }
+  set_rhs( row , value );
 
   // Optional second name/value pair
   if( file.peek() != file.widen( '\n' ) ) {
    file >> row;
    file >> value;
-   it = std::find( row_names.begin(), row_names.end(), row );
-   if( it != row_names.end() ) {
-    auto j = std::distance( row_names.begin(), it );
-    rhs[ j ] = dbl_val( value );
-   } else {
-    throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
-   }
+   set_rhs( row , value );
   }
   file.ignore( max, '\n' );
  }
@@ -1602,9 +1660,9 @@ void AbstractBlock::read_mps( std::istream & file )
    // First name/value pair
    file >> row;
    file >> value;
-   auto it = std::find( row_names.begin(), row_names.end(), row );
-   if( it != row_names.end() ) {
-    auto j = std::distance( row_names.begin(), it );
+   auto it = row_index.find( row );
+   if( it != row_index.end() ) {
+    auto j = it->second;
     rng[ j ] = dbl_val( value );
    } else {
     throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
@@ -1614,9 +1672,9 @@ void AbstractBlock::read_mps( std::istream & file )
    if( file.peek() != file.widen( '\n' ) ) {
     file >> row;
     file >> value;
-    it = std::find( row_names.begin(), row_names.end(), row );
-    if( it != row_names.end() ) {
-     auto j = std::distance( row_names.begin(), it );
+    it = row_index.find( row );
+    if( it != row_index.end() ) {
+     auto j = it->second;
      rng[ j ] = dbl_val( value );
     } else {
      throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
@@ -1692,9 +1750,9 @@ void AbstractBlock::read_mps( std::istream & file )
    std::string value;
    file >> col;
 
-   auto it = std::find( col_names.begin(), col_names.end(), col );
-   if( it != col_names.end() ) {
-    auto j = std::distance( col_names.begin(), it );
+   auto it = col_index.find( col );
+   if( it != col_index.end() ) {
+    auto j = it->second;
     auto & b = ( *bounds )[ j ];
     auto & c = ( *cols )[ j ];
     if( type == "LO" ) {        // Lower bound
@@ -1742,13 +1800,19 @@ void AbstractBlock::read_mps( std::istream & file )
   throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
 
  of->set_sense( of_sense , eNoMod );
+ if( of_const != 0 )
+  static_cast< LinearFunction * >( of->get_function() )->set_constant_term(
+							 of_const , eNoMod );
 
- // Reset and set abstract representation
- reset_static_constraints();
- reset_static_variables();
+ // Reset and set abstract representation: the Objective and the
+ // containers that a model read before this one made go with it
+ delete_own_obj();
+ reset_static_constraints( true );
+ reset_static_variables( true );
  reset_objective();
 
  set_objective( of, eNoMod );
+ f_own_obj = of;
  add_static_variable( *cols );
  add_static_constraint( *rows );
  add_static_constraint( *bounds );
@@ -1781,10 +1845,33 @@ void AbstractBlock::read_lp( std::istream & file )
   return( std::invalid_argument( "AbstractBlock::read_lp: " + what ) );
   };
 
- // the next word of the file, which has to be there
- auto next = [ & file , & syntax ]( std::string & w ) {
+ // the blanks up to the next word or to the end of the line
+ auto blanks = [ & file ]() {
+  while( ( file.peek() == ' ' ) || ( file.peek() == '\t' ) ||
+	 ( file.peek() == '\r' ) )
+   file.get();
+  };
+
+ // the next word of the file, which has to be there, followed by its
+ // blanks; a power belongs to the word of its column, so that x ^2 and
+ // x ^ 2 are read as x^2
+ auto next = [ & file , & syntax , & blanks ]( std::string & w ) {
   if( ! ( file >> w ) )
    throw( syntax( "the file ends before its End section" ) );
+  blanks();
+  if( file.peek() == '^' ) {
+   std::string p;
+   file >> p;
+   w += p;
+   blanks();
+   }
+  if( ( w.length() > 1 ) && ( w.back() == '^' ) ) {
+   std::string e;
+   if( ! ( file >> e ) )
+    throw( syntax( "the file ends before its End section" ) );
+   w += e;
+   blanks();
+   }
   };
 
  // function to convert a float value written in a string in a double
@@ -1907,9 +1994,9 @@ void AbstractBlock::read_lp( std::istream & file )
  std::string word;
  auto max = std::numeric_limits< std::streamsize >::max();
 
- /*---------------------------------------*/
- /* HERE WE ARE STARTING TO READ THE FILE */
- /*---------------------------------------*/
+ /*-------------------------------------------------------------------------*/
+ /*----------------- HERE WE ARE STARTING TO READ THE FILE -----------------*/
+ /*-------------------------------------------------------------------------*/
   
   // Eat initial comments
  while( file.peek() == file.widen( '\\' )  || 
@@ -1917,9 +2004,9 @@ void AbstractBlock::read_lp( std::istream & file )
   file.ignore( max, '\n' );
  }
 
- /*---------------------------------------*/
- /*----------- READ OBJECTIVE ------------*/
- /*---------------------------------------*/
+ /*-------------------------------------------------------------------------*/
+ /*---------------------------- READ OBJECTIVE -----------------------------*/
+ /*-------------------------------------------------------------------------*/
  
  // Read Objective sense
  next( word );
@@ -1948,9 +2035,9 @@ void AbstractBlock::read_lp( std::istream & file )
  sec_reached( &current_section , word );
  auto pos_start_objective = file.tellg(); // Save it for later
 
- /*---------------------------------------*/
- /*------------- FIRST SCAN --------------*/
- /*---------------------------------------*/
+ /*-------------------------------------------------------------------------*/
+ /*------------------------------ FIRST SCAN -------------------------------*/
+ /*-------------------------------------------------------------------------*/
 
  // First pass: just get number of columns and rows
 
@@ -1968,7 +2055,7 @@ void AbstractBlock::read_lp( std::istream & file )
   // NOTE: in the QP formulation, we have also the possibility to
   // read a * or ^, but we expect to find a [ at the beginning of the
   // quadratic part.
-  file.get(); // eat space
+  blanks();
   if( file.peek() !=  '[' ) {
     if( len_word == 1 && read_sign ) {
     next( word ); // reading the coefficient
@@ -2005,9 +2092,9 @@ void AbstractBlock::read_lp( std::istream & file )
   sec_reached( &current_section , word );
  }
 
- /*---------------------------------------*/
- /*------ READ QUADRATIC OBJECTIVE -------*/
- /*---------------------------------------*/
+ /*-------------------------------------------------------------------------*/
+ /*----------------------- READ QUADRATIC OBJECTIVE ------------------------*/
+ /*-------------------------------------------------------------------------*/
 
  while( current_section == LP_sections::LP_QUADOBJECTIVE ) {
   next( word );
@@ -2052,7 +2139,7 @@ void AbstractBlock::read_lp( std::istream & file )
     column = word;
   }
 
-  file.get(); // eat white space
+  blanks();
   if( ( column.length() > 1 ) && ( column[ column.length() - 2 ] == '^' ) ) {
     // We are reading the quadratic term x^2. Thus the real name of the
     // variable is obtained by removing the last two character
@@ -2073,9 +2160,9 @@ void AbstractBlock::read_lp( std::istream & file )
      current_section == LP_sections::LP_QUADOBJECTIVE )
   throw( syntax( "the Subject To section is missing" ) );
  
- /*---------------------------------------*/
- /*------------- READ ROWS ---------------*/
- /*---------------------------------------*/
+ /*-------------------------------------------------------------------------*/
+ /*------------------------------- READ ROWS -------------------------------*/
+ /*-------------------------------------------------------------------------*/
 
  file.ignore( max, '\n' );
 
@@ -2096,8 +2183,8 @@ void AbstractBlock::read_lp( std::istream & file )
   next( word );
   char first_char = word[0];
 
-  // we can read symbols until we get to the sign, i.e., we are reading variables
-  // and coefficients
+  // we can read symbols until we get to the sign, i.e., we are reading
+  // variables and coefficients
   while( ! is_sense( word ) ) {
    std::string column;
    bool number = false;
@@ -2154,7 +2241,7 @@ void AbstractBlock::read_lp( std::istream & file )
     }
 
    // Options to check if we are in the quadratic part
-   file.get(); // eat white space
+   blanks();
    if( ( column.length() > 1 ) && ( column[ column.length() - 2 ] == '^' ) ) {
     // We are reading the quadratic term x^2. Thus the real name of the
     // variable is obtained by removing the last two character
@@ -2187,9 +2274,9 @@ void AbstractBlock::read_lp( std::istream & file )
   sec_reached( &current_section , word );
  }
 
- /*---------------------------------------*/
- /*-- COLUMNS OF BOUNDS AND TYPES ALONE --*/
- /*---------------------------------------*/
+ /*-------------------------------------------------------------------------*/
+ /*------------------- COLUMNS OF BOUNDS AND TYPES ALONE -------------------*/
+ /*-------------------------------------------------------------------------*/
  // a name in the Bounds, Generals or Binaries section that has not been
  // met in the Objective or in a row is a column all the same
 
@@ -2204,14 +2291,15 @@ void AbstractBlock::read_lp( std::istream & file )
     add_column( word );
   }
 
- /*---------------------------------------*/
- /*---------- INITIALIZE STUFF -----------*/
- /*---------------------------------------*/
+ /*-------------------------------------------------------------------------*/
+ /*--------------------------- INITIALIZE STUFF ----------------------------*/
+ /*-------------------------------------------------------------------------*/
 
  v_coeff_pair lin_var;    // vector of (var-coeff) used to declare
                           // the linear function
  v_coeff_triple qd_var;  // vector of (var-lincoeff-quadcoeff) used 
-                          // to declare a quadratic function with diagonal terms
+                          // to declare a quadratic function with diagonal
+                          // terms
  v_off_diag_term qod_var; // vector of (var-var-qcoeff) used to declare 
                           // a quadratic function with off diagonal terms
  
@@ -2231,9 +2319,9 @@ void AbstractBlock::read_lp( std::istream & file )
   ( *cols )[ i ].set_Block( this );
  }
 
- /*---------------------------------------*/
- /*------------ SECOND SCAN --------------*/
- /*---------------------------------------*/
+ /*-------------------------------------------------------------------------*/
+ /*------------------------------ SECOND SCAN ------------------------------*/
+ /*-------------------------------------------------------------------------*/
  
  file.clear();
  file.seekg( pos_start_objective, file.beg ); // Go back to objective section
@@ -2254,7 +2342,7 @@ void AbstractBlock::read_lp( std::istream & file )
   // we can either read the sign, the coefficient or directly the 
   // variable ( i.e., the coefficient is 1). In Highs usually the
   // coefficient and the sign are grouped
-  file.get(); // eat space
+  blanks();
   if( file.peek() !=  '[' ) {
     if( len_word == 1 && read_sign ) {
     value_sense = word;
@@ -2309,9 +2397,9 @@ void AbstractBlock::read_lp( std::istream & file )
   sec_reached( &current_section , word );
  }
 
- /*---------------------------------------*/
- /*------ READ QUADRATIC OBJECTIVE -------*/
- /*---------------------------------------*/
+ /*-------------------------------------------------------------------------*/
+ /*----------------------- READ QUADRATIC OBJECTIVE ------------------------*/
+ /*-------------------------------------------------------------------------*/
 
  while( current_section == LP_sections::LP_QUADOBJECTIVE ) {
   next( word );
@@ -2364,16 +2452,15 @@ void AbstractBlock::read_lp( std::istream & file )
     column = word;
   }
 
-  // eat white space
-  file.get();
+  blanks();
   if( ( column.length() > 1 ) && ( column[ column.length() - 2 ] == '^' ) ) {
     // We are reading the quadratic term x^2. Thus the real name of the
     // variable is obtained by removing the last two character
     column = column.substr( 0 , column.length() - 2 );
 
     // Map locally the column in the active variable for the objective
-    auto it_local = std::find( local_active_var.begin(), local_active_var.end(), 
-                                column );
+    auto it_local = std::find( local_active_var.begin() ,
+                               local_active_var.end() , column );
     auto idx_local = std::distance( local_active_var.begin(), it_local );
 
     v = &( *cols )[ column_index( column ) ];
@@ -2396,12 +2483,12 @@ void AbstractBlock::read_lp( std::istream & file )
     next( column2 );
 
     // We have to check that both variables are active locally (first var)
-    auto it_local1 = std::find( local_active_var.begin(), local_active_var.end(), 
-                                  column );
+    auto it_local1 = std::find( local_active_var.begin() ,
+                                local_active_var.end() , column );
     auto idx_local1 = std::distance( local_active_var.begin(), it_local1 );
 
-    // If one of the variable is not active locally, we have to insert it in the
-    // set of active var of the constraint
+    // If one of the variable is not active locally, we have to insert it in
+    // the set of active var of the constraint
     if( it_local1 == local_active_var.end() ) {
       // Map globally the column in the set of all the variable  
       v = &( *cols )[ column_index( column ) ];
@@ -2411,12 +2498,12 @@ void AbstractBlock::read_lp( std::istream & file )
     }
     
     // We have to check that both variables are active locally (second var)
-    auto it_local2 = std::find( local_active_var.begin(), local_active_var.end(), 
-                                  column2 );
+    auto it_local2 = std::find( local_active_var.begin() ,
+                                local_active_var.end() , column2 );
     auto idx_local2 = std::distance( local_active_var.begin(), it_local2 );
 
-    // If one of the variable is not active locally, we have to insert it in the
-    // set of active var of the constraint
+    // If one of the variable is not active locally, we have to insert it in
+    // the set of active var of the constraint
     if( it_local2 == local_active_var.end() ) {
       // Map globally the column in the set of all the variable  
       v2 = &( *cols )[ column_index( column2 ) ];
@@ -2425,10 +2512,11 @@ void AbstractBlock::read_lp( std::istream & file )
       qd_var.push_back( std::make_tuple( v2 , 0 , 0 ) );
     }
 
-    // NOTE: we store the indexes in a way that we are actually preserving only the 
-    // lower traingul part of the matrix
+    // NOTE: we store the indexes in a way that we are actually preserving only
+    // the lower triangular part of the matrix
     qod_var.push_back( std::make_tuple( std::max( idx_local1 , idx_local2 ) ,
-                          std::min( idx_local1 , idx_local2 ) , dbl_val( value )/2 ) );
+                          std::min( idx_local1 , idx_local2 ) ,
+                          dbl_val( value ) / 2 ) );
   }
   else
     throw( syntax( "a term of the quadratic part of the Objective is neither "
@@ -2454,9 +2542,9 @@ void AbstractBlock::read_lp( std::istream & file )
 
  of->set_sense( of_sense, eNoMod );
  
- /*---------------------------------------*/
- /*------------- READ ROWS ---------------*/
- /*---------------------------------------*/
+ /*-------------------------------------------------------------------------*/
+ /*------------------------------- READ ROWS -------------------------------*/
+ /*-------------------------------------------------------------------------*/
 
  file.ignore( max, '\n' );
 
@@ -2471,7 +2559,8 @@ void AbstractBlock::read_lp( std::istream & file )
   lin_var.clear();    // vector of (var-coeff) used to declare
                           // the linear function
   qd_var.clear();  // vector of (var-lincoeff-quadcoeff) used 
-                          // to declare a quadratic function with diagonal terms
+                          // to declare a quadratic function with diagonal
+                          // terms
   qod_var.clear(); // vector of (var-var-qcoeff) used to declare 
                           // a quadratic function with off diagonal terms
 
@@ -2481,8 +2570,8 @@ void AbstractBlock::read_lp( std::istream & file )
   next( word );
   char first_char = word[0];
 
-  // we can read symbols until we get to the sign, i.e., we are reading variables
-  // and coefficients
+  // we can read symbols until we get to the sign, i.e., we are reading
+  // variables and coefficients
   while( ! is_sense( word ) ) {
    std::string column;
    std::string column2;
@@ -2547,15 +2636,15 @@ void AbstractBlock::read_lp( std::istream & file )
     }
 
    // Check if we are in the quadratic part!
-   file.get(); // eat white space
+   blanks();
    if( ( column.length() > 1 ) && ( column[ column.length() - 2 ] == '^' ) ) {
     // We are reading the quadratic term x^2. Thus the real name of the
     // variable is obtained by removing the last two character
     column = column.substr( 0 , column.length() - 2 );
     
     // Map locally the column in the active variable for the row
-    auto it_local = std::find( local_active_var.begin(), local_active_var.end(), 
-                                column );
+    auto it_local = std::find( local_active_var.begin() ,
+                               local_active_var.end() , column );
     auto idx_local = std::distance( local_active_var.begin(), it_local );
 
     if( it_local != local_active_var.end() ) {
@@ -2579,12 +2668,12 @@ void AbstractBlock::read_lp( std::istream & file )
     next( column2 );
 
     // We have to check that both variables are active locally (first var)
-    auto it_local1 = std::find( local_active_var.begin(), local_active_var.end(), 
-                                  column );
+    auto it_local1 = std::find( local_active_var.begin() ,
+                                local_active_var.end() , column );
     auto idx_local1 = std::distance( local_active_var.begin(), it_local1 );
 
-    // If one of the variable is not active locally, we have to insert it in the
-    // set of active var of the constraint
+    // If one of the variable is not active locally, we have to insert it in
+    // the set of active var of the constraint
     if( it_local1 == local_active_var.end() ) {
       // Map globally the column in the set of all the variable  
       v = &( *cols )[ column_index( column ) ];
@@ -2594,12 +2683,12 @@ void AbstractBlock::read_lp( std::istream & file )
     }
     
     // We have to check that both variables are active locally (second var)
-    auto it_local2 = std::find( local_active_var.begin(), local_active_var.end(), 
-                                  column2 );
+    auto it_local2 = std::find( local_active_var.begin() ,
+                                local_active_var.end() , column2 );
     auto idx_local2 = std::distance( local_active_var.begin(), it_local2 );
 
-    // If one of the variable is not active locally, we have to insert it in the
-    // set of active var of the constraint
+    // If one of the variable is not active locally, we have to insert it in
+    // the set of active var of the constraint
     if( it_local2 == local_active_var.end() ) {
       // Map globally the column in the set of all the variable  
       v2 = &( *cols )[ column_index( column2 ) ];
@@ -2608,17 +2697,17 @@ void AbstractBlock::read_lp( std::istream & file )
       qd_var.push_back( std::make_tuple( v2 , 0 , 0 ) );
     }
 
-    // QuadFunction modification
-    // NOTE: we store the indexes in a way that we are actually preserving only the 
-    // lower traingul part of the matrix
+    // QuadFunction modification NOTE: we store the indexes in a way that we
+    // are actually preserving only the lower triangular part of the matrix
     qod_var.push_back( std::make_tuple( std::max( idx_local1 , idx_local2 ) ,
-                          std::min( idx_local1 , idx_local2 ) , dbl_val( value ) ) );
+                          std::min( idx_local1 , idx_local2 ) ,
+                          dbl_val( value ) ) );
    }
    else{
     // We read a simple linear coefficient
 
-    // In the linear part we expect never to find a variable that was already active in the 
-    // scanned constraint.
+    // In the linear part we expect never to find a variable that was already
+    // active in the scanned constraint.
     local_active_var.push_back( column );
 
     v = &( *cols )[ column_index( column ) ];
@@ -2654,7 +2743,8 @@ void AbstractBlock::read_lp( std::istream & file )
   if( ! is_row_q[ r ] )
     row.set_function( new LinearFunction( std::move( lin_var ) ) , eNoMod );
   else
-    row.set_function( new QuadFunction( std::move( qd_var ) , std::move( qod_var ) ), eNoMod );
+    row.set_function( new QuadFunction( std::move( qd_var ) ,
+					std::move( qod_var ) ) , eNoMod );
   
   row.set_Block( this );
 
@@ -2680,9 +2770,9 @@ void AbstractBlock::read_lp( std::istream & file )
   sec_reached( &current_section , word );
   }
 
- /*---------------------------------------*/
- /*------------- READ BOUNDS -------------*/
- /*---------------------------------------*/
+ /*-------------------------------------------------------------------------*/
+ /*------------------------------ READ BOUNDS ------------------------------*/
+ /*-------------------------------------------------------------------------*/
  
  if( current_section == LP_sections::LP_BOUND ) {
   next( word );
@@ -2742,15 +2832,17 @@ void AbstractBlock::read_lp( std::istream & file )
   b.set_lhs( lb , eNoMod );
   b.set_rhs( ub , eNoMod );
    
-  if( lb == ub )
+  if( lb == ub ) {  // a fixed column has its value
+   ( *cols )[ j ].set_value( lb );
    ( *cols )[ j ].is_fixed( true, eNoMod );
+   }
 
   sec_reached( &current_section , word );
   }
 
- /*---------------------------------------*/
- /*-------------- READ TYPES -------------*/
- /*---------------------------------------*/
+ /*-------------------------------------------------------------------------*/
+ /*------------------------------ READ TYPES -------------------------------*/
+ /*-------------------------------------------------------------------------*/
 
  while( current_section == LP_sections::LP_GENERAL || 
          current_section == LP_sections::LP_BINARY ) {
@@ -2767,9 +2859,9 @@ void AbstractBlock::read_lp( std::istream & file )
    c.set_type( ColVariable::kBinary, eNoMod );
   }
 
- /*---------------------------------------*/
- /*------- READ REMAINING SECTIONS -------*/
- /*---------------------------------------*/
+ /*-------------------------------------------------------------------------*/
+ /*------------------------ READ REMAINING SECTIONS ------------------------*/
+ /*-------------------------------------------------------------------------*/
 
  if( current_section == LP_sections::LP_SEMI_CON ) {
   // TODO
@@ -2783,12 +2875,15 @@ void AbstractBlock::read_lp( std::istream & file )
  else
   throw( syntax( "\"" + word + "\" out of place" ) );
 
- // Reset and set abstract representation
- reset_static_constraints();
- reset_static_variables();
+ // Reset and set abstract representation: the Objective and the
+ // containers that a model read before this one made go with it
+ delete_own_obj();
+ reset_static_constraints( true );
+ reset_static_variables( true );
  reset_objective();
 
- set_objective( of.release() , eNoMod );
+ f_own_obj = of.release();
+ set_objective( f_own_obj , eNoMod );
  add_static_variable( *cols );
  add_static_constraint( *rows );
  add_static_constraint( *bounds );
@@ -2811,7 +2906,8 @@ void AbstractBlock::read_lp( std::istream & file )
 
  void AbstractBlock::sec_reached( int * actual_sec , std::string word ) {
 
-  /* Here are listed all of the possible names of each section of a .lp file. */
+  /* Here are listed all of the possible names of each section of a .lp
+     file. */
  const std::vector< std::string > QOBJ_SECTION = { "[" };
 
  const std::vector< std::string > ROW_SECTION = { "subject" , "such" , 
@@ -2825,8 +2921,8 @@ void AbstractBlock::read_lp( std::istream & file )
  const std::vector< std::string > BINARY_SECTION = { "binary" , "binaries" ,
                               "bin" };
 
- const std::vector< std::string > SEMI_CON_SECTION = { "semi-continuos" , "semi" ,
-                              "semis" };           
+ const std::vector< std::string > SEMI_CON_SECTION = { "semi-continuos" ,
+                                                     "semi" , "semis" };
 
  const std::vector< std::string > SOS_SECTION = { "sos" }; 
 
@@ -2840,7 +2936,7 @@ void AbstractBlock::read_lp( std::istream & file )
     compare_section(std::string const &s): key_s(s) {}
  
     bool operator()(std::string const &s) {
-        return boost::iequals( s , key_s);
+        return( boost::iequals( s , key_s) );
     }
  };
 
@@ -2972,8 +3068,6 @@ void AbstractBlock::guts_of_deserialize( const netCDF::NcGroup & group )
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
-
 std::vector< std::string > AbstractBlock::expected_dims( void ) const {
  auto ret = Block::expected_dims();
  ret.push_back( "NumberInnerBlock" );
@@ -2989,8 +3083,6 @@ std::vector< std::string > AbstractBlock::expected_vars( void ) const {
 
  return( ret );
  }
-
-#endif
 
 
 /*--------------------------------------------------------------------------*/
@@ -3053,7 +3145,7 @@ Function * AbstractBlock::mirror_Function( const Function * fnct )
   return( it != f_v_map.end() ? it->second : v );
   };
 
- if( auto lf = dynamic_cast< const LinearFunction * >( fnct ) ) {
+ if( auto lf = memo_cast< const LinearFunction * >( fnct ) ) {
   LinearFunction::v_coeff_pair cp;
   cp.reserve( lf->get_v_var().size() );
   for( auto & p : lf->get_v_var() )
@@ -3061,22 +3153,34 @@ Function * AbstractBlock::mirror_Function( const Function * fnct )
   return( new LinearFunction( std::move( cp ) , lf->get_constant_term() ) );
   }
 
- if( auto qf = dynamic_cast< const DQuadFunction * >( fnct ) ) {
-  DQuadFunction::v_coeff_triple ct;
-  ct.reserve( qf->get_v_var().size() );
-  for( auto & tr : qf->get_v_var() )
-   ct.emplace_back( var_of( std::get< 0 >( tr ) ) , std::get< 1 >( tr ) ,
-                    std::get< 2 >( tr ) );
-  return( new DQuadFunction( std::move( ct ) , qf->get_constant_term() ) );
+ auto qf = memo_cast< const DQuadFunction * >( fnct );
+ if( ! qf )
+  return( nullptr );   // a Function that cannot be written on other Variable
+
+ DQuadFunction::v_coeff_triple ct;
+ ct.reserve( qf->get_v_var().size() );
+ for( auto & tr : qf->get_v_var() )
+  ct.emplace_back( var_of( std::get< 0 >( tr ) ) , std::get< 1 >( tr ) ,
+                   std::get< 2 >( tr ) );
+
+ // a QuadFunction is also a DQuadFunction; its off-diagonal terms are by
+ // index of the active Variable, which the copy keeps in the same order
+ if( auto nqf = memo_cast< const QuadFunction * >( fnct ) ) {
+  QuadFunction::v_off_diag_term od;
+  nqf->get_v_nd_var( od );
+  return( new QuadFunction( std::move( ct ) , std::move( od ) ,
+                            nqf->get_constant_term() ) );
   }
 
- return( nullptr );   // a Function that cannot be written on other Variable
+ return( new DQuadFunction( std::move( ct ) , qf->get_constant_term() ) );
  }
 
 /*--------------------------------------------------------------------------*/
 
 void AbstractBlock::mirror_variables( Block * src , AbstractBlock * dst )
 {
+ f_b_map[ src ] = dst;
+
  /* The type of a ColVariable carries everything about it but the fixing,
   * which is a state of its own and goes with the value it fixes it at. */
 
@@ -3130,6 +3234,13 @@ void AbstractBlock::mirror_variables( Block * src , AbstractBlock * dst )
  for( Index i = 0 ; i < src->get_number_nested_Blocks() ; ++i ) {
   auto inner = new AbstractBlock( dst );
   inner->set_name( std::string( src->get_nested_Block( i )->name() ) );
+  // the weights of the Objective and of the Variable, those of the
+  // original [see Block::set_objective_weight() and
+  // Block::set_variable_weight()], are set before anybody can listen
+  inner->f_objective_weight =
+   src->get_nested_Block( i )->get_objective_weight();
+  inner->f_variable_weight =
+   src->get_nested_Block( i )->get_variable_weight();
   dst->add_nested_Block( inner );
   mirror_variables( src->get_nested_Block( i ) , inner );
   }
@@ -3164,6 +3275,8 @@ void AbstractBlock::mirror_constraints( Block * src , AbstractBlock * dst )
   d.set_function( nf , eNoMod );
   d.set_lhs( s.get_lhs() , eNoMod );
   d.set_rhs( s.get_rhs() , eNoMod );
+  if( s.is_relaxed() )
+   d.relax( true , eNoMod );
   f_c_map[ & s ] = & d;
   };
 
@@ -3175,6 +3288,8 @@ void AbstractBlock::mirror_constraints( Block * src , AbstractBlock * dst )
   d.set_Block( dst );
   d.set_variable( var_of( static_cast< ColVariable * >(
                                          s.get_active_var( 0 ) ) ) , eNoMod );
+  if( s.is_relaxed() )
+   d.relax( true , eNoMod );
   f_c_map[ & s ] = & d;
   };
 
@@ -3191,9 +3306,12 @@ void AbstractBlock::mirror_constraints( Block * src , AbstractBlock * dst )
   take_one( s , d ); d.set_lhs( s.get_lhs() , eNoMod ); };
  auto ubc = [ & ]( UBConstraint & s , UBConstraint & d ) {
   take_one( s , d ); d.set_rhs( s.get_rhs() , eNoMod ); };
- auto nnc = [ & ]( NNConstraint & s , NNConstraint & d ) { take_one( s , d ); };
- auto npc = [ & ]( NPConstraint & s , NPConstraint & d ) { take_one( s , d ); };
- auto zoc = [ & ]( ZOConstraint & s , ZOConstraint & d ) { take_one( s , d ); };
+ auto nnc = [ & ]( NNConstraint & s , NNConstraint & d ) {
+  take_one( s , d ); };
+ auto npc = [ & ]( NPConstraint & s , NPConstraint & d ) {
+  take_one( s , d ); };
+ auto zoc = [ & ]( ZOConstraint & s , ZOConstraint & d ) {
+  take_one( s , d ); };
 
  // the concrete type of a group says which of the lambdas above applies to
  // it; the first that claims it is the one, as the group is homogeneous
@@ -3246,12 +3364,13 @@ void AbstractBlock::mirror_constraints( Block * src , AbstractBlock * dst )
 
  // the Objective, which the copy has only if the original has one
  if( auto obj = src->get_objective() ) {
-  auto fobj = dynamic_cast< FRealObjective * >( obj );
+  auto fobj = memo_cast< FRealObjective * >( obj );
   Function * nf = fobj ? mirror_Function( fobj->get_function() ) : nullptr;
   if( nf ) {
    auto nobj = new FRealObjective( dst , nf );
    nobj->set_sense( obj->get_sense() , eNoMod );
    dst->set_objective( nobj , eNoMod );
+   dst->f_own_obj = nobj;
    }
   else
    v_issues.push_back( "the Objective of " + src->name() + " cannot be "
@@ -3274,7 +3393,8 @@ void AbstractBlock::mirror( Block * blck )
   throw( std::invalid_argument( _prfx + "no Block to mirror" ) );
 
  if( f_mirrored )
-  throw( std::logic_error( _prfx + "this AbstractBlock mirrors one already" ) );
+  throw( std::logic_error( _prfx +
+			   "this AbstractBlock mirrors one already" ) );
 
  if( get_number_static_variables() || get_number_dynamic_variables() ||
      get_number_static_constraints() || get_number_dynamic_constraints() ||
@@ -3282,6 +3402,8 @@ void AbstractBlock::mirror( Block * blck )
   throw( std::logic_error( _prfx + "the AbstractBlock is not empty" ) );
 
  f_mirrored = blck;
+ f_objective_weight = blck->get_objective_weight();
+ f_variable_weight = blck->get_variable_weight();
 
  /* Two passes over the subtree: a Constraint of any of its Block can be
   * written in the Variable of any other, hence every Variable has to have
@@ -3289,6 +3411,16 @@ void AbstractBlock::mirror( Block * blck )
 
  mirror_variables( blck , this );
  mirror_constraints( blck , this );
+
+ // the size Variable of blck stays what it is: one it owns has its copy
+ // here, one it has been given is outside of the subtree and used as it is
+ if( auto sv = memo_cast< ColVariable * >( blck->get_size_variable() ) ) {
+  if( auto cv = mirror_of( sv ) )
+   set_owned_size_variable( cv );
+  }
+ else
+  if( auto ab = dynamic_cast< AbstractBlock * >( blck ) )
+   f_size_kept = ab->get_given_size_variable();
  }
 
 /*--------------------------------------------------------------------------*/
@@ -3308,115 +3440,830 @@ void AbstractBlock::mirror_write( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/*---------------------- SIZING THE COPY OF A BLOCK ------------------------*/
+/*--------------------------------------------------------------------------*/
 
-bool AbstractBlock::mirror_Function_changed( const Function * fnct )
+namespace {
+
+using RHSValue = RowConstraint::RHSValue;
+
+const RHSValue RINF = Inf< RHSValue >();
+
+/*--------------------------------------------------------------------------*/
+// whether the type of a OneVarConstraint lets one set its lower / upper side
+
+bool lower_settable( const OneVarConstraint * c )
 {
- /* Which Constraint, or Objective, the Function belongs to is not said by
-  * the Modification: it is the Observer of the Function. The copy of the
-  * Function is rebuilt whole, which costs the length of the row and spares
-  * the reading of which coefficients the Modification carries, there being
-  * one such Modification per change and not per coefficient. */
+ return( memo_cast< const BoxConstraint * >( c ) ||
+         memo_cast< const LBConstraint * >( c ) ||
+         memo_cast< const UB0Constraint * >( c ) );
+ }
 
- if( ! fnct )
-  return( false );
+bool upper_settable( const OneVarConstraint * c )
+{
+ return( memo_cast< const BoxConstraint * >( c ) ||
+         memo_cast< const UBConstraint * >( c ) ||
+         memo_cast< const LB0Constraint * >( c ) );
+ }
 
- auto obs = fnct->get_Observer();
+/*--------------------------------------------------------------------------*/
+// sets the two sides of a RowConstraint in the order that never has the
+// lower above the upper in between
 
- if( auto cns = dynamic_cast< const FRowConstraint * >( obs ) ) {
-  auto dst = dynamic_cast< FRowConstraint * >( mirror_of( cns ) );
-  if( ! dst )
-   return( false );
-  auto nf = mirror_Function( fnct );
-  if( ! nf )
-   return( false );
-  dst->set_function( nf , eNoMod , true );
+void set_sides( RowConstraint * c , RHSValue l , RHSValue u , ModParam par )
+{
+ if( ( c->get_lhs() == l ) && ( c->get_rhs() == u ) )
+  return;
+ if( l == u )
+  c->set_both( l , par );
+ else
+  if( l <= c->get_rhs() ) {
+   c->set_lhs( l , par );
+   c->set_rhs( u , par );
+   }
+  else {
+   c->set_rhs( u , par );
+   c->set_lhs( l , par );
+   }
+ }
+
+/*--------------------------------------------------------------------------*/
+// sets the sides of a OneVarConstraint that its type lets one set
+
+void set_bound_sides( OneVarConstraint * c , RHSValue l , RHSValue u ,
+                      ModParam par )
+{
+ const bool ls = lower_settable( c );
+ const bool us = upper_settable( c );
+ if( ls && us )
+  set_sides( c , l , u , par );
+ else
+  if( ls ) {
+   if( c->get_lhs() != l )
+    c->set_lhs( l , par );
+   }
+  else
+   if( us && ( c->get_rhs() != u ) )
+    c->set_rhs( u , par );
+ }
+
+/*--------------------------------------------------------------------------*/
+// true if the sized copy of a bound has to be on a ColVariable of its own:
+// with its sides 0 kept and the others infinite it would have no finite side
+// left, which some Solver take as a side all the same, or it has a nonzero
+// side that its type does not let one change
+
+bool needs_own_variable( const OneVarConstraint * c )
+{
+ const RHSValue l = c->get_lhs();
+ const RHSValue u = c->get_rhs();
+ if( ( ( l != 0 ) && ( l > -RINF ) && ( ! lower_settable( c ) ) ) ||
+     ( ( u != 0 ) && ( u < RINF ) && ( ! upper_settable( c ) ) ) )
   return( true );
-  }
-
- if( dynamic_cast< const FRealObjective * >( obs ) ) {
-  auto dst = dynamic_cast< FRealObjective * >( get_objective() );
-  if( ! dst )
-   return( false );
-  auto nf = mirror_Function( fnct );
-  if( ! nf )
-   return( false );
-  dst->set_function( nf , eNoMod , true );
-  return( true );
-  }
-
- return( false );
+ return( ( l != 0 ) && ( u != 0 ) );
  }
 
 /*--------------------------------------------------------------------------*/
 
-bool AbstractBlock::mirror_forward_Modification( c_p_Mod mod )
+void set_relaxed( Constraint * c , bool relaxed , ModParam par )
+{
+ if( c->is_relaxed() != relaxed )
+  c->relax( relaxed , par );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool is_registered( ColVariable * x , ThinVarDepInterface * owner )
+{
+ const auto & act = x->active_stuff();
+ return( std::binary_search( act.begin() , act.end() , owner ) );
+ }
+
+}  // end( namespace )
+
+/*--------------------------------------------------------------------------*/
+
+LinearFunction::v_coeff_pair AbstractBlock::mirror_terms(
+                                                  const LinearFunction * lf )
+{
+ LinearFunction::v_coeff_pair terms;
+ terms.reserve( lf->get_v_var().size() + 1 );
+ for( auto & [ x , a ] : lf->get_v_var() ) {
+  auto it = f_v_map.find( x );
+  terms.emplace_back( it != f_v_map.end() ? it->second : x , a );
+  }
+ return( terms );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void AbstractBlock::sync_linear( LinearFunction * lf ,
+                                 ThinVarDepInterface * owner ,
+                                 const LinearFunction::v_coeff_pair & want ,
+                                 double cnst , ModParam par )
+{
+ std::map< ColVariable * , double > w;
+ for( auto & [ x , a ] : want )
+  w[ x ] += a;
+
+ auto var = [ lf ]( Index i ) {
+  return( static_cast< ColVariable * >( lf->get_active_var( i ) ) );
+  };
+
+ // first the terms that go
+ Subset rmv;
+ std::vector< ColVariable * > gone;
+ for( Index i = 0 ; i < lf->get_num_active_var() ; ++i )
+  if( w.find( var( i ) ) == w.end() ) {
+   rmv.push_back( i );
+   gone.push_back( var( i ) );
+   }
+ if( ! rmv.empty() ) {
+  if( auto row = memo_cast< FRowConstraint * >( owner ) )
+   row->remove_variables( std::move( rmv ) , true , par );
+  else
+   lf->remove_variables( std::move( rmv ) , true , par );
+  }
+
+ // then the coefficients that change
+ Subset idx;
+ LinearFunction::Vec_FunctionValue cf;
+ for( Index i = 0 ; i < lf->get_num_active_var() ; ++i ) {
+  const double a = w[ var( i ) ];
+  if( lf->get_coefficient( i ) != a ) {
+   idx.push_back( i );
+   cf.push_back( a );
+   }
+  }
+ if( ! idx.empty() )
+  lf->modify_coefficients( std::move( cf ) , std::move( idx ) , true , par );
+
+ // then the terms that come
+ LinearFunction::v_coeff_pair add;
+ for( auto & [ x , a ] : w )
+  if( lf->is_active( x ) >= lf->get_num_active_var() )
+   add.emplace_back( x , a );
+ if( ! add.empty() )
+  lf->add_variables( std::move( add ) , par );
+
+ if( lf->get_constant_term() != cnst )
+  lf->set_constant_term( cnst , par );
+
+ // the owner registers itself with a Variable coming in, or going away,
+ // only when it receives the Modification, which par may not ask for
+ if( owner ) {
+  for( auto x : gone )
+   if( ( lf->is_active( x ) >= lf->get_num_active_var() ) &&
+       is_registered( x , owner ) )
+    x->remove_active( owner );
+  for( Index i = 0 ; i < lf->get_num_active_var() ; ++i )
+   if( ! is_registered( var( i ) , owner ) )
+    var( i )->add_active( owner );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void AbstractBlock::size_rows( const void * key ,
+                               std::vector< std::tuple<
+                                LinearFunction::v_coeff_pair ,
+                                double , double > > && rows ,
+                               bool relaxed , ModParam par )
+{
+ auto hit = f_size_help.find( key );
+ if( ( hit == f_size_help.end() ) && rows.empty() )
+  return;
+
+ auto & have = f_size_help[ key ];
+
+ // the rows that are there too many go
+ if( have.size() > rows.size() ) {
+  std::vector< std::list< FRowConstraint >::iterator > its;
+  for( auto i = rows.size() ; i < have.size() ; ++i )
+   for( auto it = f_size_list->begin() ; it != f_size_list->end() ; ++it )
+    if( & *it == have[ i ] ) {
+     its.push_back( it );
+     break;
+     }
+  have.resize( rows.size() );
+  remove_dynamic_constraints( *f_size_list , its , par );
+  }
+
+ // the rows that are there are written in place
+ for( std::size_t i = 0 ; i < have.size() ; ++i ) {
+  auto row = have[ i ];
+  auto & [ terms , l , u ] = rows[ i ];
+  sync_linear( static_cast< LinearFunction * >( row->get_function() ) ,
+               row , terms , 0 , par );
+  set_sides( row , l , u , par );
+  set_relaxed( row , relaxed , par );
+  }
+
+ // the rows that are missing come
+ if( rows.size() > have.size() ) {
+  std::list< FRowConstraint > tmp;
+  for( auto i = have.size() ; i < rows.size() ; ++i ) {
+   auto & [ terms , l , u ] = rows[ i ];
+   tmp.emplace_back();
+   auto & row = tmp.back();
+   row.set_function( new LinearFunction( std::move( terms ) ) , eNoMod );
+   row.set_lhs( l , eNoMod );
+   row.set_rhs( u , eNoMod );
+   if( relaxed )
+    row.relax( true , eNoMod );
+   }
+  for( auto & row : tmp )
+   have.push_back( & row );
+  add_dynamic_constraints( *f_size_list , tmp , par );
+  }
+
+ if( have.empty() )
+  f_size_help.erase( key );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ColVariable * AbstractBlock::size_dummy( const void * key , bool want ,
+                                        ModParam par )
+{
+ auto it = f_size_dummy.find( key );
+ if( want ) {
+  if( it != f_size_dummy.end() )
+   return( it->second );
+  std::list< ColVariable > tmp( 1 );
+  auto d = & tmp.front();
+  add_dynamic_variables( *f_size_vars , tmp , par );
+  f_size_dummy[ key ] = d;
+  return( d );
+  }
+
+ if( it == f_size_dummy.end() )
+  return( nullptr );
+ for( auto vit = f_size_vars->begin() ; vit != f_size_vars->end() ; ++vit )
+  if( & *vit == it->second ) {
+   remove_dynamic_variable( *f_size_vars , vit , par , par );
+   break;
+   }
+ f_size_dummy.erase( it );
+ return( nullptr );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool AbstractBlock::size_constraint( const Constraint * src , ModParam par )
+{
+ auto srow = memo_cast< const RowConstraint * >( src );
+ if( ! srow )
+  return( false );
+ auto cit = f_c_map.find( srow );
+ if( cit == f_c_map.end() )
+  return( false );
+
+ auto * v = f_size_var;
+ using Rows = std::vector< std::tuple< LinearFunction::v_coeff_pair ,
+                                       double , double > >;
+
+ // a bound: in the sized form its sides 0 stay, being the same at any
+ // size, while the others are rows of the size group; the copy keeps the
+ // sides 0 and has the others infinite, unless that leaves it with no
+ // finite side or with a nonzero side its type does not let one change, in
+ // which case it is on a ColVariable of its own, which nothing else uses
+ // [see size_dummy()], and all its finite sides are rows. Where it is is
+ // decided the first time, a Solver not being told of a OneVarConstraint
+ // that changes its ColVariable
+ if( auto sb = memo_cast< const OneVarConstraint * >( src ) ) {
+  auto db = static_cast< OneVarConstraint * >( cit->second );
+  auto sx = static_cast< ColVariable * >( sb->get_active_var( 0 ) );
+  auto xit = f_v_map.find( sx );
+  auto x = xit != f_v_map.end() ? xit->second : sx;
+
+  if( ! v ) {
+   if( db->get_active_var( 0 ) != x )
+    db->set_variable( x , par );
+   size_dummy( src , false , par );
+   f_size_onx.erase( src );
+   set_bound_sides( db , sb->get_lhs() , sb->get_rhs() , par );
+   set_relaxed( db , sb->is_relaxed() , par );
+   size_rows( src , {} , false , par );
+   return( true );
+   }
+
+  const RHSValue l = sb->get_lhs();
+  const RHSValue u = sb->get_rhs();
+  bool own = f_size_dummy.count( src );
+  if( ( ! own ) && ( ! f_size_onx.count( src ) ) ) {
+   own = needs_own_variable( sb );
+   if( ! own )
+    f_size_onx.insert( src );
+   }
+
+  if( own ) {
+   auto dummy = size_dummy( src , true , par );
+   if( db->get_active_var( 0 ) != dummy )
+    db->set_variable( dummy , par );
+   set_bound_sides( db , l , u , par );
+   }
+  else
+   set_bound_sides( db , ( l == 0 ) ? 0 : -RINF , ( u == 0 ) ? 0 : RINF ,
+                    par );
+  set_relaxed( db , sb->is_relaxed() , par );
+
+  // the rows of the sides, the sides 0 only if the copy is not on x
+  const bool lr = ( l > -RINF ) && ( own || ( l != 0 ) );
+  const bool ur = ( u < RINF ) && ( own || ( u != 0 ) );
+  Rows rows;
+  if( lr && ur && ( l == u ) )
+   rows.emplace_back( LinearFunction::v_coeff_pair( { { x , 1 } ,
+                                                       { v , - l } } ) ,
+                      0 , 0 );
+  else {
+   if( lr )
+    rows.emplace_back( LinearFunction::v_coeff_pair( { { x , 1 } ,
+                                                        { v , - l } } ) ,
+                       0 , RINF );
+   if( ur )
+    rows.emplace_back( LinearFunction::v_coeff_pair( { { x , 1 } ,
+                                                        { v , - u } } ) ,
+                       -RINF , 0 );
+   }
+  size_rows( src , std::move( rows ) , sb->is_relaxed() , par );
+  return( true );
+  }
+
+ auto sr = memo_cast< const FRowConstraint * >( src );
+ auto dr = memo_cast< FRowConstraint * >( cit->second );
+ if( ( ! sr ) || ( ! dr ) )
+  return( false );
+
+ auto slf = memo_cast< const LinearFunction * >( sr->get_function() );
+ auto dlf = memo_cast< LinearFunction * >( dr->get_function() );
+ if( ( ! slf ) || ( ! dlf ) ) {
+  // a row that is not linear is written again whole, which no Solver of
+  // the copy hears of, and it cannot be sized
+  if( v || ( Observer::par2mod( par ) != eNoMod ) )
+   return( false );
+  auto nf = mirror_Function( sr->get_function() );
+  if( ! nf )
+   return( false );
+  dr->set_function( nf , eNoMod , true );
+  set_sides( dr , sr->get_lhs() , sr->get_rhs() , eNoMod );
+  set_relaxed( dr , sr->is_relaxed() , eNoMod );
+  return( true );
+  }
+
+ auto terms = mirror_terms( slf );
+
+ if( ! v ) {
+  sync_linear( dlf , dr , terms , slf->get_constant_term() , par );
+  set_sides( dr , sr->get_lhs() , sr->get_rhs() , par );
+  set_relaxed( dr , sr->is_relaxed() , par );
+  size_rows( src , {} , false , par );
+  return( true );
+  }
+
+ // l <= a x + c <= u is ( l - c ) v <= a x <= ( u - c ) v
+ const double c = slf->get_constant_term();
+ const RHSValue l = sr->get_lhs() > -RINF ? sr->get_lhs() - c : -RINF;
+ const RHSValue u = sr->get_rhs() < RINF ? sr->get_rhs() - c : RINF;
+
+ Rows rows;
+ RHSValue ml = -RINF;
+ RHSValue mu = RINF;
+ if( ( l > -RINF ) && ( u < RINF ) ) {
+  if( l != u ) {  // a ranged row: the lower side is a row of the size group
+   auto lower = terms;
+   lower.emplace_back( v , - l );
+   rows.emplace_back( std::move( lower ) , 0 , RINF );
+   }
+  terms.emplace_back( v , - u );
+  ml = l == u ? 0 : -RINF;
+  mu = 0;
+  }
+ else
+  if( u < RINF ) {
+   terms.emplace_back( v , - u );
+   mu = 0;
+   }
+  else
+   if( l > -RINF ) {
+    terms.emplace_back( v , - l );
+    ml = 0;
+    }
+
+ sync_linear( dlf , dr , terms , 0 , par );
+ set_sides( dr , ml , mu , par );
+ set_relaxed( dr , sr->is_relaxed() , par );
+ size_rows( src , std::move( rows ) , sr->is_relaxed() , par );
+ return( true );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool AbstractBlock::size_variable( const ColVariable * src , ModParam par )
+{
+ auto it = f_v_map.find( src );
+ if( it == f_v_map.end() )
+  return( false );
+ auto dst = it->second;
+ auto * v = f_size_var;
+ const auto t = src->get_type();
+
+ if( ! v ) {
+  if( dst->get_type() != t )
+   dst->set_type( t , par );
+  if( src->is_fixed() ) {
+   dst->set_value( src->get_value() );
+   if( ! dst->is_fixed() )
+    dst->is_fixed( true , par );
+   }
+  else
+   if( dst->is_fixed() )
+    dst->is_fixed( false , par );
+  size_rows( src , {} , false , par );
+  return( true );
+  }
+
+ if( src->is_integer() )
+  return( false );
+
+ // the bounds -1 / 1 of a unitary type are rows, and the copy has the type
+ // without them; a fixed value c is the row x - c v = 0
+ const auto st = ColVariable::var_type( t & ~ ColVariable::var_type( 8 ) );
+ if( dst->get_type() != st )
+  dst->set_type( st , par );
+ if( dst->is_fixed() )
+  dst->is_fixed( false , par );
+
+ std::vector< std::tuple< LinearFunction::v_coeff_pair , double , double > >
+  rows;
+ if( src->is_fixed() )
+  rows.emplace_back( LinearFunction::v_coeff_pair(
+                      { { dst , 1 } , { v , - src->get_value() } } ) , 0 , 0 );
+ else
+  if( t & 8 ) {
+   if( ! ( t & 2 ) )
+    rows.emplace_back( LinearFunction::v_coeff_pair( { { dst , 1 } ,
+                                                        { v , 1 } } ) ,
+                       0 , RINF );
+   if( ! ( t & 4 ) )
+    rows.emplace_back( LinearFunction::v_coeff_pair( { { dst , 1 } ,
+                                                        { v , -1 } } ) ,
+                       -RINF , 0 );
+   }
+ size_rows( src , std::move( rows ) , false , par );
+ return( true );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool AbstractBlock::size_objective( const Block * src , ModParam par )
+{
+ auto dst = mirror_of_Block( src );
+ if( ! dst )
+  return( false );
+ auto sobj = src->get_objective();
+ if( ! sobj )
+  return( true );
+
+ auto sfo = memo_cast< const FRealObjective * >( sobj );
+ auto dfo = memo_cast< FRealObjective * >( dst->get_objective() );
+ if( ( ! sfo ) || ( ! dfo ) )
+  return( false );
+
+ if( dfo->get_sense() != sfo->get_sense() )
+  dfo->set_sense( sfo->get_sense() , par );
+
+ auto slf = memo_cast< const LinearFunction * >( sfo->get_function() );
+ auto dlf = memo_cast< LinearFunction * >( dfo->get_function() );
+ if( ( ! slf ) || ( ! dlf ) ) {
+  if( f_size_var || ( Observer::par2mod( par ) != eNoMod ) )
+   return( false );
+  auto nf = mirror_Function( sfo->get_function() );
+  if( ! nf )
+   return( false );
+  dfo->set_function( nf , eNoMod , true );
+  return( true );
+  }
+
+ // the constant term c0 is the term c0 v
+ auto terms = mirror_terms( slf );
+ double c0 = slf->get_constant_term();
+ if( f_size_var ) {
+  terms.emplace_back( f_size_var , c0 );
+  c0 = 0;
+  }
+ sync_linear( dlf , dfo , terms , c0 , par );
+ return( true );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool AbstractBlock::size_all( ModParam par )
+{
+ for( auto & el : f_c_map )
+  if( ! size_constraint( el.first , par ) )
+   return( false );
+ for( auto & el : f_v_map )
+  if( ! size_variable( el.first , par ) )
+   return( false );
+ for( auto & el : f_b_map )
+  if( ! size_objective( el.first , par ) )
+   return( false );
+ return( true );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool AbstractBlock::set_size_variable( Variable * size_var ,
+                                       c_ModParam issueAMod )
+{
+ auto v = memo_cast< ColVariable * >( size_var );
+ if( size_var && ( ! v ) )
+  return( false );
+ if( ! f_mirrored )
+  return( false );
+
+ // the size Variable kept from the mirrored Block, or owned, is the only
+ // one [see mirror()]
+ if( get_size_variable() )
+  return( false );
+ if( f_size_kept )
+  return( v == f_size_kept );
+ if( v == f_size_var )
+  return( v != nullptr );
+ if( v && f_size_var )
+  return( false );
+
+ if( v ) {
+  // check first that everything can be scaled, so that a refusal changes
+  // nothing
+  if( ! v_issues.empty() )
+   return( false );
+  for( auto & el : f_c_map ) {
+   if( auto sr = memo_cast< const FRowConstraint * >( el.first ) )
+    if( ! memo_cast< const LinearFunction * >( sr->get_function() ) )
+     return( false );
+   }
+  for( auto & el : f_v_map )
+   if( el.first->is_integer() )
+    return( false );
+  for( auto & el : f_b_map )
+   if( auto obj = el.first->get_objective() ) {
+    auto fo = memo_cast< const FRealObjective * >( obj );
+    if( ( ! fo ) ||
+        ( ! memo_cast< const LinearFunction * >( fo->get_function() ) ) )
+     return( false );
+    }
+
+  if( ! f_size_list ) {
+   f_size_list = new std::list< FRowConstraint >;
+   add_dynamic_constraint( *f_size_list , "size" );
+   own_storage( get_dynamic_constraint_groups().back() , f_size_list );
+   f_size_vars = new std::list< ColVariable >;
+   add_dynamic_variable( *f_size_vars , "size" );
+   own_storage( get_dynamic_variable_groups().back() , f_size_vars );
+   }
+  }
+
+ f_size_var = v;
+ if( ! size_all( issueAMod ) )
+  throw( std::logic_error( "AbstractBlock::set_size_variable: the copy "
+                           "cannot be written in the form it has checked" ) );
+ return( true );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void AbstractBlock::mirror_write_duals( void )
+{
+ for( auto & [ src , dst ] : f_c_map ) {
+  double dual = dst->get_dual();
+  auto it = f_size_help.find( src );
+  if( it != f_size_help.end() )
+   for( auto row : it->second )
+    dual += row->get_dual();
+  const_cast< RowConstraint * >( src )->set_dual( dual );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool AbstractBlock::mirror_added( const BlockModAD * mod , ModParam par )
+{
+ if( mod->is_variable() ) {
+  std::vector< Variable * > vars;
+  mod->get_elements( vars );
+
+  // a Variable of the copy that goes may be used outside of the copy, hence
+  // it stays; the one of the original is gone, and is forgotten by comparing
+  // its address alone
+  if( ! mod->is_added() ) {
+   for( auto var : vars )
+    for( auto it = f_v_map.begin() ; it != f_v_map.end() ; ++it )
+     if( static_cast< const Variable * >( it->first ) == var ) {
+      f_v_rmap.erase( it->second );
+      f_v_map.erase( it );
+      break;
+      }
+   return( false );
+   }
+
+  for( auto var : vars ) {
+   auto s = memo_cast< ColVariable * >( var );
+   if( ! s )
+    return( false );
+   if( f_v_map.count( s ) )
+    continue;
+   auto db = mirror_of_Block( s->get_Block() );
+   auto group = s->get_Group();
+   if( ( ! db ) || ( ! group ) )
+    return( false );
+   auto list = db->get_dynamic_variable< ColVariable >( group->get_index() );
+   if( ! list )
+    return( false );
+
+   std::list< ColVariable > tmp( 1 );
+   auto d = & tmp.front();
+   d->set_type( s->get_type() , eNoMod );
+   d->set_value( s->get_value() );
+   db->add_dynamic_variables( *list , tmp , par );
+   f_v_map[ s ] = d;
+   f_v_rmap[ d ] = s;
+   if( ! size_variable( s , par ) )
+    return( false );
+   }
+  return( true );
+  }
+
+ std::vector< Constraint * > cnsts;
+ mod->get_elements( cnsts );
+
+ // the concrete type of a Constraint says which std::list it is in
+ auto by_type = [ & ]( Constraint * c , auto && f ) -> int {
+  auto tryt = [ & ]( auto tag ) -> int {
+   using T = typename decltype( tag )::type;
+   auto t = dynamic_cast< T * >( c );
+   return( t ? f( t ) : 0 );
+   };
+  int r;
+  if( ( r = tryt( std::type_identity< FRowConstraint >{} ) ) ||
+      ( r = tryt( std::type_identity< BoxConstraint >{} ) ) ||
+      ( r = tryt( std::type_identity< LB0Constraint >{} ) ) ||
+      ( r = tryt( std::type_identity< UB0Constraint >{} ) ) ||
+      ( r = tryt( std::type_identity< LBConstraint >{} ) ) ||
+      ( r = tryt( std::type_identity< UBConstraint >{} ) ) ||
+      ( r = tryt( std::type_identity< NNConstraint >{} ) ) ||
+      ( r = tryt( std::type_identity< NPConstraint >{} ) ) ||
+      ( r = tryt( std::type_identity< ZOConstraint >{} ) ) )
+   return( r );
+  return( -1 );
+  };
+
+ if( mod->is_added() ) {
+  for( auto c : cnsts ) {
+   auto rc = memo_cast< RowConstraint * >( c );
+   if( ( ! rc ) || f_c_map.count( rc ) )
+    continue;
+   auto db = mirror_of_Block( c->get_Block() );
+   auto group = c->get_Group();
+   if( ( ! db ) || ( ! group ) )
+    return( false );
+
+   const int r = by_type( c , [ & ]( auto s ) -> int {
+    using T = std::remove_pointer_t< decltype( s ) >;
+    auto list = db->get_dynamic_constraint< T >( group->get_index() );
+    if( ! list )
+     return( -1 );
+    std::list< T > tmp( 1 );
+    auto d = & tmp.front();
+    if constexpr( std::is_same_v< T , FRowConstraint > ) {
+     auto nf = mirror_Function( s->get_function() );
+     if( ! nf )
+      return( -1 );
+     d->set_function( nf , eNoMod );
+     d->set_lhs( s->get_lhs() , eNoMod );
+     d->set_rhs( s->get_rhs() , eNoMod );
+     }
+    else {
+     // under a size Variable the copy goes on its own ColVariable from
+     // the start [see size_constraint()]
+     auto sx = static_cast< ColVariable * >( s->get_active_var( 0 ) );
+     auto xit = f_v_map.find( sx );
+     auto x = xit != f_v_map.end() ? xit->second : sx;
+     if( f_size_var ) {
+      if( needs_own_variable( s ) )
+       x = size_dummy( s , true , par );
+      else
+       f_size_onx.insert( s );
+      }
+     d->set_variable( x , eNoMod );
+     set_bound_sides( d , s->get_lhs() , s->get_rhs() , eNoMod );
+     }
+    if( s->is_relaxed() )
+     d->relax( true , eNoMod );
+    db->add_dynamic_constraints( *list , tmp , par );
+    f_c_map[ s ] = d;
+    return( 1 );
+    } );
+   if( ( r <= 0 ) || ( ! size_constraint( c , par ) ) )
+    return( false );
+   }
+  return( true );
+  }
+
+ // removed: the copy goes, with the rows of the size group it has
+ for( auto c : cnsts ) {
+  auto rc = memo_cast< RowConstraint * >( c );
+  auto cit = rc ? f_c_map.find( rc ) : f_c_map.end();
+  if( cit == f_c_map.end() )
+   return( false );
+  auto dst = cit->second;
+  auto db = dynamic_cast< AbstractBlock * >( dst->get_Block() );
+  auto group = dst->get_Group();
+  if( ( ! db ) || ( ! group ) )
+   return( false );
+  size_rows( rc , {} , false , par );
+  f_c_map.erase( cit );
+
+  const int r = by_type( dst , [ & ]( auto d ) -> int {
+   using T = std::remove_pointer_t< decltype( d ) >;
+   auto list = db->get_dynamic_constraint< T >( group->get_index() );
+   if( ! list )
+    return( -1 );
+   for( auto it = list->begin() ; it != list->end() ; ++it )
+    if( & *it == d ) {
+     db->remove_dynamic_constraint( *list , it , par );
+     return( 1 );
+     }
+   return( -1 );
+   } );
+  if( r <= 0 )
+   return( false );
+  size_dummy( rc , false , par );
+  f_size_onx.erase( rc );
+  }
+ return( true );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool AbstractBlock::mirror_forward_Modification( c_p_Mod mod ,
+                                                 ModParam issueMod )
 {
  if( ( ! f_mirrored ) || ( ! mod ) )
   return( false );
 
- if( auto gm = dynamic_cast< const GroupModification * >( mod ) ) {
+ if( auto gm = memo_cast< const GroupModification * >( mod ) ) {
   for( auto & sm : gm->sub_Modifications() )
-   if( ! mirror_forward_Modification( sm.get() ) )
+   if( ! mirror_forward_Modification( sm.get() , issueMod ) )
     return( false );
   return( true );
   }
 
- // the coefficients of a Function, whatever kind of change it is
- if( auto fm = dynamic_cast< const FunctionMod * >( mod ) )
-  return( mirror_Function_changed( fm->function() ) );
+ // everything changed, which only mirror() can follow
+ if( memo_cast< const NBModification * >( mod ) )
+  return( false );
 
- // a side of a RowConstraint
- if( auto cm = dynamic_cast< const RowConstraintMod * >( mod ) ) {
-  auto src = dynamic_cast< RowConstraint * >( cm->constraint() );
-  if( ! src )
-   return( false );
-  auto dst = mirror_of( src );
-  if( ! dst )
-   return( false );
-
-  switch( cm->type() ) {
-   case( RowConstraintMod::eChgLHS ):
-    dst->set_lhs( src->get_lhs() , eNoMod );
-    break;
-   case( RowConstraintMod::eChgRHS ):
-    dst->set_rhs( src->get_rhs() , eNoMod );
-    break;
-   case( RowConstraintMod::eChgBTS ):
-    dst->set_lhs( src->get_lhs() , eNoMod );
-    dst->set_rhs( src->get_rhs() , eNoMod );
-    break;
-   default:
-    return( false );
-   }
-
+ // a physical Modification says nothing about the abstract representation
+ if( ! memo_cast< const AModification * >( mod ) )
   return( true );
+
+ // the coefficients of a Function, or its Variable: the Constraint or the
+ // Objective it belongs to is the Observer of the Function
+ const Function * fnct = nullptr;
+ if( auto fm = memo_cast< const FunctionMod * >( mod ) )
+  fnct = fm->function();
+ else
+  if( auto fvm = memo_cast< const FunctionModVars * >( mod ) )
+   fnct = fvm->function();
+ if( fnct ) {
+  auto obs = fnct->get_Observer();
+  if( auto cns = memo_cast< const FRowConstraint * >( obs ) )
+   return( size_constraint( cns , issueMod ) );
+  if( auto obj = memo_cast< const FRealObjective * >( obs ) )
+   return( size_objective( obj->get_Block() , issueMod ) );
+  return( false );
   }
+
+ // the sides, the relaxing or the Variable of a Constraint
+ if( auto cm = memo_cast< const ConstraintMod * >( mod ) )
+  return( size_constraint( cm->constraint() , issueMod ) );
 
  // the type or the fixing of a ColVariable
- if( auto vm = dynamic_cast< const VariableMod * >( mod ) ) {
-  auto src = dynamic_cast< const ColVariable * >( vm->variable() );
-  if( ! src )
-   return( false );
-  auto dst = mirror_of( src );
-  if( ! dst )
-   return( false );
-  dst->set_type( src->get_type() , eNoMod );
-  dst->is_fixed( src->is_fixed() , eNoMod );
-  if( src->is_fixed() )
-   dst->set_value( src->get_value() );
-  return( true );
+ if( auto vm = memo_cast< const VariableMod * >( mod ) ) {
+  auto src = memo_cast< const ColVariable * >( vm->variable() );
+  return( src && size_variable( src , issueMod ) );
   }
 
  // the sense of the Objective
- if( auto om = dynamic_cast< const ObjectiveMod * >( mod ) ) {
-  auto dst = get_objective();
-  if( ( ! dst ) || ( ! om->of() ) )
-   return( false );
-  dst->set_sense( om->of()->get_sense() , eNoMod );
-  return( true );
-  }
+ if( auto om = memo_cast< const ObjectiveMod * >( mod ) )
+  return( om->of() && size_objective( om->of()->get_Block() , issueMod ) );
 
- return( false );   // a change of the shape, or one this does not know
+ // dynamic Constraint or Variable
+ if( auto am = memo_cast< const BlockModAD * >( mod ) )
+  return( mirror_added( am , issueMod ) );
+
+ return( false );   // one this does not know
  }
 
 /*--------------------------------------------------------------------------*/

@@ -265,10 +265,13 @@ private:
  /// Name of the netCDF dimension that stores the number of nodes in the path
  inline static const std::string path_dim_name = "PathDim";
 
- /// Name of the netCDF dimension that stores the sum of the lengths of the paths
- inline static const std::string path_total_length_dim_name = "PathTotalLength";
+ /// Name of the netCDF dimension that stores the sum of the lengths of the
+ /// paths
+ inline static const std::string path_total_length_dim_name =
+   "PathTotalLength";
 
- /// Name of the netCDF variable that stores the starting positions of each path
+ /// Name of the netCDF variable that stores the starting positions of each
+ /// path
  inline static const std::string path_start_name = "PathStart";
 
  /// Name of the netCDF variable that stores the array of types of nodes
@@ -478,7 +481,8 @@ private:
  void reverse( void ) {
   std::reverse( std::begin( node_types ), std::end( node_types ) );
   std::reverse( std::begin( group_indices ), std::end( group_indices ) );
-  std::reverse( std::begin( group_index_names ) , std::end( group_index_names ) );
+  std::reverse( std::begin( group_index_names ) ,
+		std::end( group_index_names ) );
   std::reverse( std::begin( element_indices ), std::end( element_indices ) );
   std::reverse( std::begin( range_indices ), std::end( range_indices) );
   std::reverse( std::begin( node_subsets ), std::end( node_subsets ) );
@@ -857,8 +861,9 @@ public:
   if( empty() ||
       ( ! Node::is_block( node_types.back() ) &&
         ! Node::has_range( node_types.back() ) ) )
-   throw( std::logic_error( "AbstractPath::set_last_node_subset: the last node "
-                            "does not support a subset." ) );
+   throw( std::logic_error(
+     "AbstractPath::set_last_node_subset: the last node "
+     "does not support a subset." ) );
   if( subset.empty() ) {
    const auto start = Node::is_block( node_types.back() )
     ? ( group_indices.back() == Inf< Index >() ? 0 : group_indices.back() )
@@ -895,8 +900,8 @@ public:
   *
   * @param reference_block The pointer to the reference Block.
   *
-  * @return Returns the AbstractPath for the given target element \p t with
-  *         respect to the given \p reference_block.
+  * On return, this AbstractPath is the one of the given target element \p t
+  * with respect to the given \p reference_block.
   */
  template< class T >
  void build( const T * t , const Block * reference_block ) {
@@ -1116,15 +1121,15 @@ public:
 
  /// returns a pointer to the target element of the given AbstractPath
  /** This function returns a pointer to the object of type T that is the
-  * target element of the given \p path with respect to the given \p reference
-  * Block.
-  *
-  * @param path The AbstractPath to the target element with respect to the
-  *        given \p reference Block.
+  * target element of this AbstractPath with respect to the given \p
+  * reference Block.
   *
   * @param reference The pointer to the reference Block.
   *
-  * @param The pointer to the target element.
+  * @param offset The position of the element among those selected by the
+  *        last node of the path, when it selects more than one.
+  *
+  * @return The pointer to the target element.
   */
  template< class T >
  T * get_element( Block * reference , Index offset = 0 ) const {
@@ -1166,7 +1171,8 @@ public:
    else if( node.type == Node::eObjective ) {
     auto objective = block->get_objective();
 
-    if( const auto fro = dynamic_cast< const FRealObjective * >( objective ) ) {
+    if( const auto fro =
+	dynamic_cast< const FRealObjective * >( objective ) ) {
      auto function = fro->get_function();
 
      /* the Function is also a Block, and the path goes on in it */
@@ -1225,7 +1231,8 @@ public:
    }
    if( node.type == Node::eObjective ) {
     // It must be an FRealObjective
-    auto objective = dynamic_cast< FRealObjective * >( block->get_objective() );
+    auto objective =
+      dynamic_cast< FRealObjective * >( block->get_objective() );
     if( objective )
      return( dynamic_cast< T * >( objective->get_function() ) );
     return( nullptr );
@@ -1341,7 +1348,8 @@ public:
     }
    else if( node.type == Node::eObjective ) {
     auto objective = block->get_objective();
-    if( const auto fro = dynamic_cast< const FRealObjective * >( objective ) ) {
+    if( const auto fro =
+	dynamic_cast< const FRealObjective * >( objective ) ) {
      auto function = fro->get_function();
 
      /* the Function is also a Block, and the path goes on in it */
@@ -1372,8 +1380,9 @@ public:
     return( result );
     }
    if( node.range_index < node.group_index )
-    throw( std::logic_error( "AbstractPath::get_resolved_indices: invalid Block "
-                             "range, end < start." ) );
+    throw( std::logic_error(
+      "AbstractPath::get_resolved_indices: invalid Block "
+      "range, end < start." ) );
    result.reserve( node.range_index - node.group_index );
    for( Index k = node.group_index ; k < node.range_index ; ++k )
     result.push_back( k );
@@ -1403,8 +1412,6 @@ public:
  /** This function serializes the given AbstractPath into the given
   * netCDF::NcGroup. Please refer to the comments to deserialize() for the
   * specification of the format of an AbstractPath.
-  *
-  * @param path The AbstractPath to be serialized.
   *
   * @param group The group in which the path will be serialized. */
 
@@ -1445,7 +1452,8 @@ public:
     }
 
   if( ! subset_elements.empty() ) {
-   serialize( group , subset_size_name , netCDF::NcUint() , dim , subset_sizes );
+   serialize( group , subset_size_name , netCDF::NcUint() , dim ,
+	      subset_sizes );
    auto subset_dim = group.addDim( subset_total_length_dim_name ,
                                    subset_elements.size() );
    serialize( group , subset_name , netCDF::NcUint() , subset_dim ,
@@ -1626,10 +1634,10 @@ public:
   *     explicit subset;
   *
   *   * "PathSubset", of type netCDF::NcUint and indexed over its own
-  *     dimension "PathSubsetTotalLength" (equal to the sum of PathSubsetSizes):
-  *     it contains the concatenation, in node order, of the explicit subsets
-  *     of all nodes (only the nodes with PathSubsetSizes[i] > 0 contribute,
-  *     in their original order).
+  *     dimension "PathSubsetTotalLength" (equal to the sum of
+  *     PathSubsetSizes): it contains the concatenation, in node order, of the
+  *     explicit subsets of all nodes (only the nodes with PathSubsetSizes[i] >
+  *     0 contribute, in their original order).
   *
   *   When PathSubsetSizes[i] > 0, the subset takes precedence over the
   *   contiguous range that may also be present on node i. When both
@@ -1654,7 +1662,7 @@ public:
   *
   * @param group The netCDF::NcGroup containing the path.
   *
-  * @return The AbstractPath corresponding to the given group. */
+  * On return, this AbstractPath is the one described by the given group. */
 
  void deserialize( const netCDF::NcGroup & group ) {
   deserialize( 0 , pre_deserialize( group ) );
@@ -1714,14 +1722,14 @@ public:
   }
 /*--------------------------------------------------------------------------*/
  /// deserializes a vector of AbstractPath
- /** This function deserializes a vector of (unique_ptr) AbstractPath and
-  * returns it. The format of the netCDF \p group is specified in
+ /** This function deserializes a vector of (unique_ptr) AbstractPath into
+  * \p paths. The format of the netCDF \p group is specified in
   * vector_deserialize( const netCDF::NcGroup & ).
   *
   * @param group The NcGroup that contains the description of the vector of
   *              AbstractPath to be deserialized.
   *
-  * @return A vector with the AbstractPaths. */
+  * @param paths The vector that, on return, holds the AbstractPaths. */
 
  static void vector_deserialize( const netCDF::NcGroup & group ,
 		  std::vector< std::unique_ptr< AbstractPath > > & paths ) {
@@ -1791,8 +1799,9 @@ public:
       ( ! netCDFvars.PathElementIndices.isNull() &&
         netCDFvars.PathElementIndices.getDimCount() != 1 ) )
    throw( std::invalid_argument( "AbstractPath::pre_deserialize: variables " +
-                                 node_type_name + ", " + group_index_name + ", "
-                                 "and " + element_index_name + " must have "
+                                 node_type_name + ", " + group_index_name +
+                                 ", " "and " + element_index_name +
+                                 " must have "
                                  "a single dimension." ) );
 
   if( ( netCDFvars.PathNodeTypes.getDim( 0 ) !=
@@ -1801,8 +1810,9 @@ public:
         netCDFvars.PathNodeTypes.getDim( 0 ) !=
         netCDFvars.PathElementIndices.getDim( 0 ) ) )
    throw( std::invalid_argument( "AbstractPath::pre_deserialize: variables " +
-                                 node_type_name + ", " + group_index_name + ", "
-                                 "and " + element_index_name + " must be "
+                                 node_type_name + ", " + group_index_name +
+                                 ", " "and " + element_index_name +
+                                 " must be "
                                  "indexed over the same dimension." ) );
 
   return( netCDFvars );
@@ -1827,7 +1837,7 @@ public:
   * @param netCDFvars The struct containing the netCDF dimensions and
   *        variables describing the vector of AbstractPath.
   *
-  * @return The AbstractPath with index \p path_index. */
+  * On return, this AbstractPath is the one with index \p path_index. */
 
  void deserialize( Index path_index , const APnetCDF & netCDFvars ) {
 
@@ -1958,12 +1968,12 @@ public:
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
  /// mimics Block::expected_dims()
 
  virtual std::vector< std::string > expected_dims( void ) const {
   static const std::vector< std::string > ed =
-  { path_dim_name , path_total_length_dim_name , subset_total_length_dim_name };
+  { path_dim_name , path_total_length_dim_name ,
+    subset_total_length_dim_name };
 
   return( ed );
   }
@@ -1977,8 +1987,6 @@ public:
     element_index_name , element_range_name , subset_size_name , subset_name };
   return( ed );
   }
-
-#endif
 
 /*--------------------------------------------------------------------------*/
 
@@ -2068,9 +2076,9 @@ public:
   for( const auto & subset : node_subsets )
    if( ! subset.empty() )
     throw( std::logic_error(
-     "AbstractPath::serialize: serializing a vector of AbstractPath that "
-     "contains explicit element/Block subsets is not supported; serialize such "
-     "paths individually instead." ) );
+    "AbstractPath::serialize: serializing a vector of AbstractPath that "
+    "contains explicit element/Block subsets is not supported; serialize such "
+    "paths individually instead." ) );
 
   const auto num_nodes = length();
 
@@ -2140,7 +2148,8 @@ public:
    // Prefer the string-typed group identifier when present (paths
    // deserialized from a string-typed PathGroupIndices have an empty
    // group_indices vector).
-   if( ( i < group_index_names.size() ) && ( ! group_index_names[ i ].empty() ) )
+   if( ( i < group_index_names.size() ) &&
+       ( ! group_index_names[ i ].empty() ) )
     std::cout << group_index_names[ i ];
    else if( i < group_indices.size() )
     std::cout << group_indices[ i ];

@@ -12,34 +12,14 @@
 
 # The classes of the modules register themselves in the factories from
 # static objects, which nothing here names: a shared library is kept by
-# what its module asks of the linker [see the CMakeLists.txt of the
-# module], while an archive has to be taken whole.
-if (NOT BUILD_SHARED_LIBS)
-    if (MSVC)
-        add_link_options("/WHOLEARCHIVE" "/FORCE:MULTIPLE")
-    else () # Unix
-        if (APPLE)
-            add_link_options("-Wl,-all_load")
-        else ()
-            add_link_options("-Wl,--whole-archive,--allow-multiple-definition")
-        endif ()
-    endif ()
-endif ()
+# what its module asks of the linker, while an archive has to be taken
+# whole [see cmake/SMSppModule.cmake].
+smspp_keep_modules()
 
 # Utility function to standardize installation and runtime dependency handling
 # for SMS++ tests.
 function(smspp_install target_name)
-    if (WIN32 AND BUILD_SHARED_LIBS AND NOT DEFINED ENV{CONDA_BUILD})
-        # On Windows with shared libraries enabled copies all runtime DLL
-        # dependencies next to the executable in the build directory
-        # (POST_BUILD), using CMake's TARGET_RUNTIME_DLLS generator expression
-        add_custom_command(TARGET ${target_name} POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                $<TARGET_RUNTIME_DLLS:${target_name}>
-                $<TARGET_FILE_DIR:${target_name}>
-                COMMAND_EXPAND_LISTS
-                COMMENT "Copying runtime DLLs next to ${target_name}.exe")
-    endif ()
+    smspp_copy_runtime(${target_name})
 
     #[[install(TARGETS ${target_name}
             RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})]]
@@ -148,7 +128,8 @@ smspp_install(Solution_test)
 add_test(NAME Solution_test
          COMMAND Solution_test)
 
-add_executable(PolyhedralFunctionBlock_unit_test tests_PolyhedralFunctionBlock.cpp)
+add_executable(PolyhedralFunctionBlock_unit_test
+               tests_PolyhedralFunctionBlock.cpp)
 target_link_libraries(PolyhedralFunctionBlock_unit_test PRIVATE SMS++::SMS++)
 smspp_install(PolyhedralFunctionBlock_unit_test)
 add_test(NAME PolyhedralFunctionBlock_unit_test
@@ -170,13 +151,20 @@ add_executable(LagBFunction_unit_test tests_LagBFunction.cpp)
 target_link_libraries(LagBFunction_unit_test PRIVATE SMS++::SMS++)
 smspp_install(LagBFunction_unit_test)
 add_test(NAME LagBFunction_unit_test
-         COMMAND LagBFunction_unit_test)
+         COMMAND LagBFunction_unit_test
+         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_executable(BendersBFunction_unit_test tests_BendersBFunction.cpp)
 target_link_libraries(BendersBFunction_unit_test PRIVATE SMS++::SMS++)
 smspp_install(BendersBFunction_unit_test)
 add_test(NAME BendersBFunction_unit_test
          COMMAND BendersBFunction_unit_test)
+
+add_executable(BranchingRule_unit_test tests_BranchingRule.cpp)
+target_link_libraries(BranchingRule_unit_test PRIVATE SMS++::SMS++)
+smspp_install(BranchingRule_unit_test)
+add_test(NAME BranchingRule_unit_test
+         COMMAND BranchingRule_unit_test)
 
 add_executable(Misc_unit_test tests_Misc.cpp)
 target_link_libraries(Misc_unit_test PRIVATE SMS++::SMS++)
@@ -189,5 +177,13 @@ target_link_libraries(NetCDF_test PRIVATE SMS++::SMS++)
 smspp_install(NetCDF_test)
 add_test(NAME NetCDF_test
          COMMAND NetCDF_test)
+
+if (SMSpp_BUILD_MODULE)
+    add_executable(Module_test tests_Module.cpp)
+    target_link_libraries(Module_test PRIVATE SMS++::SMS++_module)
+    smspp_install(Module_test)
+    add_test(NAME Module_test
+             COMMAND Module_test)
+endif ()
 
 # --------------------------------------------------------------------------- #

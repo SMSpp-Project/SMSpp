@@ -151,7 +151,7 @@ class LinearConstraint : public FRowConstraint {
   static_cast< LinearFunction * >( f_function )->add_variables(
 					      std::move( vars ) , issueMod );
   // with no FunctionModVars issued, the row joins the new Variable itself
-  if( ! issue_mod( issueMod ) )
+  if( ! issue_mod( issueMod , Function::eModFVars ) )
    for( Index n = f_function->get_num_active_var() ; k < n ; ++k )
     f_function->get_active_var( k )->add_active( this );
   }
@@ -164,7 +164,7 @@ class LinearConstraint : public FRowConstraint {
   static_cast< LinearFunction * >( f_function )->add_variable( var , coeff ,
 							       issueMod );
   // with no FunctionModVars issued, the row joins the new Variable itself
-  if( var && ( ! issue_mod( issueMod ) ) )
+  if( var && ( ! issue_mod( issueMod , Function::eModFVars ) ) )
    var->add_active( this );
   }
 

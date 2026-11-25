@@ -8,6 +8,9 @@ test/ClassFactory/CF_test
 # the rewritten Boost headers of the makefile build [see shim/README.md]
 obj/boost-shim/
 
+# The kind of the build of the makefiles [see lib/makefile-shared]
+obj/.SMSppSHARED
+
 # Doxygen output
 doc/
 
@@ -68,3 +71,6 @@ ehthumbs.db
 .directory
 .fuse_hidden*
 .nfs*
+
+# Python bytecode
+__pycache__/

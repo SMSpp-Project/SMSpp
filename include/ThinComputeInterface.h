@@ -278,6 +278,22 @@ class ThinComputeInterface
    * some events not to be called at all, although of course a derived class
    * may place appropriate checks in multiple places to try to avoid this. */
 
+  eEverySolution = 3 ,  ///< events to be called at each partial solution
+                        /**< Type of events that will be called each time
+                         * compute() has written in the Block one of the
+   * solutions out of which its result is made, i.e., when the result is a
+   * combination (say, the mean) of the solutions of several problems that
+   * the compute() at hand solves one after the other on the same Block, as
+   * the simulation of each scenario of a policy. When the event is called
+   * the solution, primal and dual, is written in the Block as
+   * get_var_solution() and get_dual_solution() would write it (in the copy
+   * of the Block that Solver::get_solution_Block() returns, if the compute()
+   * solves it on one), and nothing else of the compute() is running on that
+   * Block: the event handler can read whatever it needs out of it, and it is
+   * called once for each of the solutions, those that the compute() does not
+   * reach (say, after an error) excluded. A compute() that gives a single
+   * solution does not call these events. */
+
   e_last_event_type = 4     ///< convenience value to define new events
                             /**< convenience value to allow derived classes
 			     * to "extend" event_type and define new
@@ -654,7 +670,7 @@ class ThinComputeInterface
   * re-implemented by derived classes. */
 
  virtual void set_par( idx_type par , const std::string & value ) {
-  set_par( par , std::move( std::string( value ) ) );
+  set_par( par , std::string( value ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -668,7 +684,7 @@ class ThinComputeInterface
 
  [[nodiscard]] bool set_par( const std::string & name ,
 			     const std::string & value ) {
-  return( set_par( name , std::move( std::string( value ) ) ) );
+  return( set_par( name , std::string( value ) ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -714,7 +730,7 @@ class ThinComputeInterface
   * ever re-implemented by derived classes. */
 
  void set_par( idx_type par , const std::vector< int > & value ) {
-  set_par( par , std::move( std::vector< int >( value ) ) );
+  set_par( par , std::vector< int >( value ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -728,7 +744,7 @@ class ThinComputeInterface
 
  [[nodiscard]] bool set_par( const std::string & name ,
 			     const std::vector< int > & value ) {
-  return( set_par( name , std::move( std::vector< int >( value ) ) ) );
+  return( set_par( name , std::vector< int >( value ) ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -774,7 +790,7 @@ class ThinComputeInterface
   * ever re-implemented by derived classes. */
 
  void set_par( idx_type par , const std::vector< double > & value ) {
-  set_par( par , std::move( std::vector< double >( value ) ) );
+  set_par( par , std::vector< double >( value ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -788,7 +804,7 @@ class ThinComputeInterface
 
  [[nodiscard]] bool set_par( const std::string & name ,
 			     const std::vector< double > & value ) {
-  return( set_par( name , std::move( std::vector< double >( value ) ) ) );
+  return( set_par( name , std::vector< double >( value ) ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -834,7 +850,7 @@ class ThinComputeInterface
   * be ever re-implemented by derived classes. */
 
  void set_par( idx_type par , const std::vector< std::string > & value ) {
-  set_par( par , std::move( std::vector< std::string >( value ) ) );
+  set_par( par , std::vector< std::string >( value ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -848,8 +864,7 @@ class ThinComputeInterface
 
  [[nodiscard]] bool set_par( const std::string & name ,
 			     const std::vector< std::string > & value ) {
-  return( set_par( name , std::move( std::vector< std::string >( value ) ) )
-	  );
+  return( set_par( name , std::vector< std::string >( value ) ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1805,9 +1820,9 @@ class ThinComputeInterface
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get the string name of the vector-of-int parameter with given index
- /** This method takes an int parameter index, i.e., the integer value in the
-  * range [ 0 , get_num_vint_par() ) that can be used in
-  * set_par( std::vector< int < &[&] ) and get_[dflt_]vint_par() to set/get
+ /** This method takes a vector-of-int parameter index, i.e., the integer
+  * value in the range [ 0 , get_num_vint_par() ) that can be used in
+  * set_par( std::vector< int > &[&] ) and get_[dflt_]vint_par() to set/get
   * it, and returns its "string name". The method is given a void
   * implementation (throwing exception), rather than being pure virtual, so
   * that derived classes not having any vector-of-int parameter do not have
@@ -2232,8 +2247,9 @@ class ComputeConfig : public Configuration
 /*---------------------------- CONSTRUCTORS --------------------------------*/
  /// constructor: initializes everything to "default configuration"
 
- ComputeConfig( void ) : Configuration() , f_diff( true ) , f_relax( false ) ,
-                         f_extra_Configuration( nullptr ) {}
+ ComputeConfig( void )
+     : Configuration() , f_extra_Configuration( nullptr ) , f_diff( true ) ,
+       f_relax( false ) { }
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor: does what it says on the tin
@@ -2272,7 +2288,7 @@ class ComputeConfig : public Configuration
 
  ~ComputeConfig() override { delete f_extra_Configuration; }
 
-/*------------------------------- CLONE -----------------------------------*/
+/*------------------------------- CLONE ------------------------------------*/
  /// clone method
 
  [[nodiscard]] ComputeConfig * clone( void ) const override {
@@ -2398,7 +2414,7 @@ class ComputeConfig : public Configuration
   * the extra slot.
   *
   * Used by Configuration::deserialize(std::istream &) to implement the
-  * `* base.txt + <body>` cascade-override syntax. */
+  * `*base.txt +` cascade-override syntax, followed by the body. */
 
  void merge_overrides( std::istream & input ) override;
 
@@ -2582,7 +2598,7 @@ class ComputeConfig : public Configuration
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set one entry of the given vector-of-integer numerical parameter
- /** Set the entry specified by \pos of the vector-of-integer numerical
+ /** Set the entry specified by \p pos of the vector-of-integer numerical
   * parameter specified by \p name. If the parameter is not in the
   * corresponding list it is added, and if \p pos is not a valid position
   * then it is extended (all the un-specified positions being empty). */
@@ -2633,7 +2649,7 @@ class ComputeConfig : public Configuration
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set one entry of the given vector-of-float numerical parameter
- /** Set the entry specified by \pos of the vector-of-float numerical
+ /** Set the entry specified by \p pos of the vector-of-float numerical
   * parameter specified by \p name. If the parameter is not in the
   * corresponding list it is added, and if \p pos is not a valid position
   * then it is extended (all the un-specified positions being empty). */
@@ -2684,7 +2700,7 @@ class ComputeConfig : public Configuration
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set one entry of the given vector-of-string parameter
- /** Set the entry specified by \pos of the vector-of-string parameter
+ /** Set the entry specified by \p pos of the vector-of-string parameter
   * specified by \p name. If the parameter is not in the corresponding list
   * it is added, and if \p pos is not a valid position then it is extended
   * (all the un-specified positions being empty). */
@@ -2717,7 +2733,7 @@ class ComputeConfig : public Configuration
 
  void reset_par( const std::string & name , char type = 'i' );
 
-/*--------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
+/*--------------------- PUBLIC FIELDS OF THE CLASS -------------------------*/
 
  /// list of pairs < string , int > for integer-valued parameters
  std::vector< std::pair< std::string, int > > int_pars;
@@ -2767,9 +2783,9 @@ class ComputeConfig : public Configuration
   *
   *   = bit 1 (+2) for f_relax, telling if the ComputeConfig is allowed to
   *     contain names of parameters that are not recognised by the
-  *     :ThinComputeInterface is will be set_*() to; if false, trying to
+  *     :ThinComputeInterface it will be set_*() to; if false, trying to
   *     set an unrecognised parameter should raise an exception; if the
-  *     attribute is not there, f_diff == false is assumed.
+  *     attribute is not there, f_relax == false is assumed.
   *
   * number k of the names of int parameters
   *
@@ -2813,7 +2829,7 @@ class ComputeConfig : public Configuration
   * the description of a :Configuration object for the "extra" Configuration
   * of the ComputeConfig, loaded with Configuration::deserialize(
   * std::istream ) and therefore with all the corresponding input options,
-  * like '*' for nullptr and "*<filename>" for loading it out of a different
+  * like '*' for nullptr and "\*\<filename\>" for loading it out of a different
   * file.
   *
   * If the stream cleanly eof()-s after before reading each one of the
@@ -2911,7 +2927,7 @@ class State {
 
  public:
 
-/** @} ---------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 /*------------------ CONSTRUCTING AND DESTRUCTING State --------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructing and destructing State
@@ -3131,7 +3147,7 @@ class State {
 /*------------ METHODS FOR LOADING, PRINTING & SAVING THE State ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for printing the State
- */
+ *  @{ */
 
  /// friend operator<<(), dispatching to virtual protected print()
  /** Not really a method, but a friend operator<<() that just dispatches the
@@ -3261,10 +3277,7 @@ class State {
   * rationale for using a method is that this is the "Construct On First Use
   * Idiom" that solves the "static initialization order problem". */
 
- static StateFactoryMap & f_factory( void ) {
-  static StateFactoryMap s_factory;
-  return( s_factory );
-  }
+ static StateFactoryMap & f_factory( void );
 
 /*--------------------------------------------------------------------------*/
  /// empty placeholder for class-specific static initialization
@@ -3303,7 +3316,7 @@ class State {
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
-/** @} ---------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 

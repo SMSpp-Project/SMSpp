@@ -5,15 +5,15 @@
  * Header file for the *concrete* class DQuadFunction, which implements
  * C15Function with a diagonal (separable) quadratic function.
  *
- * \author Antonio Frangioni \n
- *         Dipartimento di Informatica \n
- *         Universita' di Pisa \n
- *
  * \author Rafael Durbano Lobato \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
+ * \author Antonio Frangioni \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \copyright &copy; by Rafael Durbano Lobato, Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -66,8 +66,9 @@ namespace SMSpp_di_unipi_it
  * - A C05FunctionModVarsAddd when Variable are added; note that, being this
  *   a separable Function, the addition is strongly quasi-additive.
  *
- * - A C05FunctionModVarsRngd or C05FunctionModVarsSbst when Variable are
- *   removed (depending if they were in a range or not); note that, being
+ * - A DQuadFunctionModVarsRngd or DQuadFunctionModVarsSbst when Variable
+ *   are removed (depending if they were in a range or not), carrying the
+ *   changes of their linear and quadratic coefficients; note that, being
  *   this a separable Function, the removal is strongly quasi-additive.
  *
  * - a C05FunctionModLinRngd or a C05FunctionModLinSbst when the *linear*
@@ -257,17 +258,17 @@ class DQuadFunction : public C15Function {
  /// constructor of DQuadFunction, taking the data describing it
  /** Constructor of DQuadFunction. It accepts:
   *
-  * @param v_var, a && to a vector of triples < ColVariable * , Coefficient ,
+  * @param v_var a && to a vector of triples < ColVariable * , Coefficient ,
   *        Coefficient >, with the first coefficient being that of the linear
   *        term and the second being that of the quadratic term of the
   *        function corresponding to the given ColVariable; as the &&
   *        tells, vars is "consumed" by the constructor and its resources
   *        become property of the LinearFunction object.
   *
-  * @param ct, a FunctionValue providing the value of the constant term of the
+  * @param ct a FunctionValue providing the value of the constant term of the
   *        function;
   *
-  * @param observer, a pointer to the Observer of this DQuadFunction.
+  * @param observer a pointer to the Observer of this DQuadFunction.
   *
   * All inputs have a default ({}, 0, and nullptr, respectively) so that this
   * can be used as the void constructor.
@@ -552,7 +553,9 @@ class DQuadFunction : public C15Function {
  * vector v_triples of triples.
  * @{ */
 
- Index get_num_active_var() const override final { return( v_triples.size() ); }
+ Index get_num_active_var() const override final {
+  return( v_triples.size() );
+  }
 
 /*--------------------------------------------------------------------------*/
 
@@ -953,7 +956,7 @@ class DQuadFunction : public C15Function {
  /// printing the DQuadFunction
  void print( std::ostream & output ) override {
   output << "DQuadFunction [" << this << "] observed by ["
-         << &f_Observer << "] with " << get_num_active_var()
+         << f_Observer << "] with " << get_num_active_var()
          << " active variables;";
   output << "current value = " << get_value();
   }
@@ -984,7 +987,7 @@ class DQuadFunction : public C15Function {
  };  // end( class( DQuadFunction ) )
 
 /*--------------------------------------------------------------------------*/
-/*------------------- Class DQuadFunctionModVarsAddd ----------------------*/
+/*------------------- Class DQuadFunctionModVarsAddd -----------------------*/
 /*--------------------------------------------------------------------------*/
 /// class to describe "nicely" adding Variable of a DQuadFunction
 /** Derived class from C05FunctionModVarsAddd to describe adding "active"
@@ -1068,6 +1071,114 @@ class DQuadFunctionModVarsAddd : public C05FunctionModVarsAddd
  };  // end( class( DQuadFunctionModVarsAddd ) )
 
 /*--------------------------------------------------------------------------*/
+/*------------------- Class DQuadFunctionModVarsRngd -----------------------*/
+/*--------------------------------------------------------------------------*/
+/// class to describe "nicely" removing a range of Variable of a DQuadFunction
+/** Derived class from C05FunctionModVarsRngd to describe removing a range of
+ * "active" ColVariable from a DQuadFunction. Besides the changes of the
+ * linear coefficients of the base class [see linear_delta()], it stores
+ * those of the quadratic ones: if the quadratic coefficient of vars()[ i ]
+ * was a_i, quadratic_delta()[ i ] is -a_i. */
+
+class DQuadFunctionModVarsRngd : public C05FunctionModVarsRngd
+{
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+ public:
+
+/*---------------------------- CONSTRUCTOR ---------------------------------*/
+ /// constructor: that of C05FunctionModVarsRngd plus the quadratic delta
+
+ DQuadFunctionModVarsRngd( C05Function * f , Vec_p_Var && vars ,
+			   c_Range & range , FunctionValue shift , bool cB ,
+			   Vec_FunctionValue && delta ,
+			   Vec_FunctionValue && qdelta )
+  : C05FunctionModVarsRngd( f , std::move( vars ) , range , shift , cB ,
+			    std::move( delta ) ) ,
+    v_quadratic_delta( std::move( qdelta ) ) {
+  if( v_quadratic_delta.size() != v_vars.size() )
+   throw( std::invalid_argument(
+     "vars and quadratic delta sizes do not match" ) );
+  }
+
+/*------------------------------ DESTRUCTOR --------------------------------*/
+
+ ~DQuadFunctionModVarsRngd() override = default;  ///< destructor: does nothing
+
+/*-------------------------------- GETTERS ---------------------------------*/
+ /// the quadratic coefficient changes, in the same order as vars()
+
+ [[nodiscard]] c_Vec_FunctionValue & quadratic_delta( void ) const {
+  return( v_quadratic_delta );
+  }
+
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+
+ protected:
+
+/*--------------------------- PROTECTED FIELDS -----------------------------*/
+
+ Vec_FunctionValue v_quadratic_delta;  ///< quadratic coefficient changes
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( DQuadFunctionModVarsRngd ) )
+
+/*--------------------------------------------------------------------------*/
+/*------------------- Class DQuadFunctionModVarsSbst -----------------------*/
+/*--------------------------------------------------------------------------*/
+/// class to describe "nicely" removing a subset of Variable of a DQuadFunction
+/** Derived class from C05FunctionModVarsSbst to describe removing a subset
+ * of "active" ColVariable from a DQuadFunction, which also stores the
+ * changes of the quadratic coefficients as DQuadFunctionModVarsRngd does.
+ * The subset must be ordered (or empty, meaning all the Variable), since
+ * the deltas are not reordered with it. */
+
+class DQuadFunctionModVarsSbst : public C05FunctionModVarsSbst
+{
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+ public:
+
+/*---------------------------- CONSTRUCTOR ---------------------------------*/
+ /// constructor: that of C05FunctionModVarsSbst plus the quadratic delta
+
+ DQuadFunctionModVarsSbst( C05Function * f , Vec_p_Var && vars ,
+			   Subset && subset , FunctionValue shift , bool cB ,
+			   Vec_FunctionValue && delta ,
+			   Vec_FunctionValue && qdelta )
+  : C05FunctionModVarsSbst( f , std::move( vars ) , std::move( subset ) ,
+			    true , shift , cB , std::move( delta ) ) ,
+    v_quadratic_delta( std::move( qdelta ) ) {
+  if( v_quadratic_delta.size() != v_vars.size() )
+   throw( std::invalid_argument(
+     "vars and quadratic delta sizes do not match" ) );
+  }
+
+/*------------------------------ DESTRUCTOR --------------------------------*/
+
+ ~DQuadFunctionModVarsSbst() override = default;  ///< destructor: does nothing
+
+/*-------------------------------- GETTERS ---------------------------------*/
+ /// the quadratic coefficient changes, in the same order as vars()
+
+ [[nodiscard]] c_Vec_FunctionValue & quadratic_delta( void ) const {
+  return( v_quadratic_delta );
+  }
+
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+
+ protected:
+
+/*--------------------------- PROTECTED FIELDS -----------------------------*/
+
+ Vec_FunctionValue v_quadratic_delta;  ///< quadratic coefficient changes
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( DQuadFunctionModVarsSbst ) )
+
+/*--------------------------------------------------------------------------*/
 /*---------------------- Class DQuadFunctionModRngd ------------------------*/
 /*--------------------------------------------------------------------------*/
 /// class to describe changes to a DQuadFunction involving a range of Variable
@@ -1096,7 +1207,8 @@ class DQuadFunctionModRngd : public C05FunctionModRngd
 
  DQuadFunctionModRngd( C05Function * f , int type,
 			   DQuadFunction::v_coeff_pair && coeff ,
-			   Vec_p_Var && vars , c_Range & range , Subset && which = {} ,
+			   Vec_p_Var && vars , c_Range & range ,
+			   Subset && which = {} ,
 			   FunctionValue shift = NaNshift , bool cB = true )
   : C05FunctionModRngd( f , type , std::move( vars ) , range , 
       std::move( which ), shift , cB ) , f_coeff( std::move( coeff ) ) {}
@@ -1169,12 +1281,13 @@ class DQuadFunctionModRngd : public C05FunctionModRngd
 /*--------------------------------------------------------------------------*/
 /*---------------------- Class DQuadFunctionModSbst ------------------------*/
 /*--------------------------------------------------------------------------*/
-/// class to describe changes to a DQuadFunction involving a subset of Variables
+/// class to describe changes to a DQuadFunction involving a subset of
+/// Variables
 /** Derived class from C05FunctionModSbst to describe modification to a subset 
- * of "active" ColVariables of a DQuadFunction. The only difference with the base
- * C05FunctionModSbst is that the DQuadFunctionModSbst stores the difference
- * between the old and the new values of both linear and quadratic coefficients
- * of each modified ColVariable in the DQuadFunction. */
+ * of "active" ColVariables of a DQuadFunction. The only difference with the
+ * base C05FunctionModSbst is that the DQuadFunctionModSbst stores the
+ * difference between the old and the new values of both linear and quadratic
+ * coefficients of each modified ColVariable in the DQuadFunction. */
 
 class DQuadFunctionModSbst : public C05FunctionModSbst
 {
@@ -1194,8 +1307,10 @@ class DQuadFunctionModSbst : public C05FunctionModSbst
 
  DQuadFunctionModSbst( C05Function * f , int type,
 			   DQuadFunction::v_coeff_pair && coeff ,
-			   Vec_p_Var && vars , Subset && subset , bool ordered = false ,
-			   Subset && which = {} , FunctionValue shift = NaNshift , 
+			   Vec_p_Var && vars , Subset && subset ,
+			   bool ordered = false ,
+			   Subset && which = {} ,
+			   FunctionValue shift = NaNshift , 
          bool cB = true )
   : C05FunctionModSbst( f , type , std::move( vars ) ,
                         sort_by_index( subset , vars , coeff , ordered ) ,
@@ -1302,7 +1417,7 @@ class DQuadFunctionModSbst : public C05FunctionModSbst
  };  // end( class( DQuadFunctionModSbst ) )
 
 /*--------------------------------------------------------------------------*/
-/** @} end( group( DQuadFunction_CLASSES ) ) ------------------------------*/
+/** @} end( group( DQuadFunction_CLASSES ) ) -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------------------*/

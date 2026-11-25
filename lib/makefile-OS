@@ -4,19 +4,23 @@
 #                                                                            #
 #   makefile of OS-specific settings                                         #
 #                                                                            #
-#  Defines some general values, like UNAME_S, which identify the type of OS  #
-#  and UNAME_P which identify the architecture for which the project is      #
-#  being compiled, so that other makefiles can rely on these to              #
-#  automatically adapt without a need for the user to manually edit them.    #
+#  Defines UNAME_S, which identifies the type of OS, so that the default     #
+#  locations of the dependencies on that OS are loaded [see makefile-c]      #
+#  without a need for the user to manually edit them. It also gives the      #
+#  options of the errors and of the debugging information, in the spelling   #
+#  that both clang++ and g++ take, and whether the compiler is clang++,      #
+#  which the C++20 modules need [see makefile-mod].                          #
 #                                                                            #
-#   Input:  none                                                             #
+#   Input:  $(CC)       = compiler command, looked at when the options are   #
+#                         first used, i.e., also if it is defined later      #
 #                                                                            #
-#   Output: $(UNAME_S) = the name of the current operating system            #
-#           $(UNAME_P) = the name of the underlying architecture             #
-#           (x86, arm, ...)                                                  #
+#   Output: $(UNAME_S)    = the name of the current operating system         #
+#           $(SMSppCLANG) = not empty if $(CC) is clang++                    #
+#           $(SMSppSWERR) = the option that stops at the first error         #
+#           $(SMSppSWDBG) = the option of the debugging information for      #
+#                           the debugger, none beyond -g                     #
 #                                                                            #
-#                              Antonio Frangioni                             #
-#                                 Donato Meoli                               #
+#                             Antonio Frangioni                              #
 #                         Dipartimento di Informatica                        #
 #                             Universita' di Pisa                            #
 #                                                                            #
@@ -26,37 +30,21 @@
 
 ifeq ($(OS),Windows_NT)
     UNAME_S := Windows
-    #CCFLAGS += -D WIN32
-    #ifeq ($(PROCESSOR_ARCHITEW6432),AMD64)
-    #    CCFLAGS += -D AMD64
-    #else
-    #    ifeq ($(PROCESSOR_ARCHITECTURE),AMD64)
-    #        CCFLAGS += -D AMD64
-    #    endif
-    #    ifeq ($(PROCESSOR_ARCHITECTURE),x86)
-    #        CCFLAGS += -D IA32
-    #    endif
-    #endif
 else
     UNAME_S := $(shell uname -s)
-    #$(info UNAME_S="$(UNAME_S)")
-    #ifeq ($(UNAME_S),Linux)
-    #    CCFLAGS += -D LINUX
-    #endif
-    #ifeq ($(UNAME_S),Darwin)
-    #    CCFLAGS += -D OSX
-    #endif
-    UNAME_P := $(shell uname -p)
-    #$(info UNAME_P="$(UNAME_P)")
-    #ifeq ($(UNAME_P),x86_64)
-    #    CCFLAGS += -D AMD64
-    #endif
-    #ifneq ($(filter %86,$(UNAME_P)),)
-    #    CCFLAGS += -D IA32
-    #endif
-    #ifneq ($(filter arm%,$(UNAME_P)),)
-    #    CCFLAGS += -D ARM
-    #endif
 endif
+
+# whether $(CC) is clang++ is asked the first time that it is needed, when
+# $(CC) has its final value, and then remembered
+
+SMSppCLANG = $(eval SMSppCLANG := $$(findstring clang,$$(shell $$(CC) \
+	--version 2>/dev/null)))$(SMSppCLANG)
+
+# the options of the errors and of the debugging information, which clang++
+# and g++ both take
+
+SMSppSWERR = -Wfatal-errors
+
+SMSppSWDBG =
 
 ############################# End of makefile ################################

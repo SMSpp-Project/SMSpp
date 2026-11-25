@@ -17,6 +17,27 @@
  * points where the minimizer is not unique, and over the copy of the global
  * pool that a State holds.
  *
+ * A LagBFunction with intInnrSlvr -1 is checked not to use the Solver the
+ * inner Block has, and to take as inner Solver the first one that the
+ * BlockSolverConfig of its ComputeConfig registers, read from
+ * LagBFCfg-Box.txt.
+ *
+ * An inner Solver stopped at a cutoff, with the minimizer but only a lower
+ * bound below its value, is checked to give the linearization of the
+ * minimizer, whose constant is its cost, and not one through the bound.
+ *
+ * A change of a cost handled after a Variable of the inner Block has been
+ * fixed at a value other than that of a linearization in the global pool,
+ * as a Solver that gives the inner Block back to its father hands them, is
+ * checked not to throw, the fixing deleting the linearization.
+ *
+ * A change of the quadratic coefficients of a DQuadFunction Objective is
+ * checked to update the constant of each linearization of the global pool
+ * with a single point to its cost at the new coefficients, and to delete a
+ * convexified one with intPoolQuadMem 0 and to update it to the combination
+ * of the costs of its points with intPoolQuadMem 1, with intPoolExtMem 0
+ * and 1; a change of the constant term then shifts all of them.
+ *
  * A second set of tests checks the by-column representation of the
  * Lagrangian term that the Lagrangian costs c_j + y A^j are computed from,
  * as get_A_by_col() gives it, after the Lagrangian pairs are set (once and
@@ -41,6 +62,7 @@
 
 #include "AbstractBlock.h"
 #include "BoxSolver.h"
+#include "DQuadFunction.h"
 #include "FakeSolver.h"
 #include "FRealObjective.h"
 #include "LagBFunction.h"
@@ -49,6 +71,7 @@
 
 #include <cmath>
 #include <iostream>
+#include <stdexcept>
 #include <vector>
 
 // last, so that the headers above are read as the library was compiled
@@ -74,6 +97,9 @@ using v_mon_pair = LagBFunction::v_mon_pair;
 static const std::vector< double > c_cost = { 1 , -2 , 0.5 };
 static const std::vector< double > c_lb = { 0 , -1 , 1 };
 static const std::vector< double > c_ub = { 2 , 1 , 3 };
+
+// the quadratic coefficients of min c x + \sum_j q_j x_j^2 , l <= x <= u
+static const std::vector< double > c_quad = { 1 , 0.5 , 2 };
 
 // the Lagrangian term g( x ) = A x + b
 static const std::vector< std::vector< double > > c_A = { { 1 , 1 , 0 } ,
@@ -135,24 +161,39 @@ struct Fixture {
  LagBFunction * lbf;
  FakeSolver * fake;                    ///< registered to outer
 
- /// the Block are built, the LagBFunction has no Lagrangian term yet
+ // what the Block do not own, deleted after them
+ std::vector< BoxConstraint > * box;
+ FRealObjective * inner_obj;
+ FRealObjective * outer_obj = nullptr;
 
- Fixture( void ) {
+ /// the Block are built, the LagBFunction has no Lagrangian term yet
+ /** The Objective of the inner Block is c x, or c x + \sum_j q_j x_j^2 if
+  * the quadratic coefficients q are given. */
+
+ explicit Fixture( const std::vector< double > & q = {} ) {
   inner = new AbstractBlock();
   x = new std::vector< ColVariable >( c_cost.size() );
   inner->add_static_variable( *x , "x" );
-  auto box = new std::vector< BoxConstraint >( c_cost.size() );
+  box = new std::vector< BoxConstraint >( c_cost.size() );
   inner->add_static_constraint( *box , "box" );
   LinearFunction::v_coeff_pair cp;
+  DQuadFunction::v_coeff_triple ct;
   for( Index j = 0 ; j < c_cost.size() ; ++j ) {
    ( *box )[ j ].set_variable( & ( *x )[ j ] , eNoMod );
    ( *box )[ j ].set_lhs( c_lb[ j ] , eNoMod );
    ( *box )[ j ].set_rhs( c_ub[ j ] , eNoMod );
    cp.push_back( { & ( *x )[ j ] , c_cost[ j ] } );
+   if( ! q.empty() )
+    ct.emplace_back( & ( *x )[ j ] , c_cost[ j ] , q[ j ] );
    }
-  auto obj = new FRealObjective( inner , new LinearFunction( std::move( cp ) ) );
-  obj->set_sense( Objective::eMin , eNoMod );
-  inner->set_objective( obj , eNoMod );
+  if( q.empty() )
+   inner_obj = new FRealObjective( inner ,
+				   new LinearFunction( std::move( cp ) ) );
+  else
+   inner_obj = new FRealObjective( inner ,
+				   new DQuadFunction( std::move( ct ) ) );
+  inner_obj->set_sense( Objective::eMin , eNoMod );
+  inner->set_objective( inner_obj , eNoMod );
 
   outer = new AbstractBlock();
   y = new std::vector< ColVariable >( c_A.size() );
@@ -172,15 +213,15 @@ struct Fixture {
   for( Index j = 0 ; j < c_cost.size() ; ++j )
    cp.push_back( { & ( *x )[ j ] , c_A[ i ][ j ] } );
   return( LagBFunction::dual_pair( & ( *y )[ k ] ,
-				   new LinearFunction( std::move( cp ) , c_b[ i ] ) ) );
+		      new LinearFunction( std::move( cp ) , c_b[ i ] ) ) );
   }
 
  /// makes the LagBFunction the Function of the Objective of outer
 
  void observe( void ) {
-  auto obj = new FRealObjective( outer , lbf );
-  obj->set_sense( Objective::eMax , eNoMod );
-  outer->set_objective( obj , eNoMod );
+  outer_obj = new FRealObjective( outer , lbf );
+  outer_obj->set_sense( Objective::eMax , eNoMod );
+  outer->set_objective( outer_obj , eNoMod );
   observed = true;
   }
 
@@ -203,6 +244,11 @@ struct Fixture {
   else
    delete lbf;
   delete outer;
+  delete outer_obj;
+  delete y;
+  delete inner_obj;
+  delete box;
+  delete x;
   }
 
  bool observed = false;
@@ -507,6 +553,197 @@ static void test_state_copy( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/// a BoxSolver stopped before the end, at a cutoff: it has the minimizer
+/// but proves only a lower bound gap below its value
+
+class StoppedBoxSolver : public BoxSolver {
+ public:
+ explicit StoppedBoxSolver( double gap ) : f_gap( gap ) {}
+
+ int compute( bool changedvars = true ) override {
+  BoxSolver::compute( changedvars );
+  return( kCutOff );
+  }
+
+ [[nodiscard]] OFValue get_lb( void ) override {
+  return( BoxSolver::get_lb() - f_gap );
+  }
+
+ private:
+ double f_gap;
+ };
+
+/*--------------------------------------------------------------------------*/
+/* An inner Solver stopped at a cutoff has the minimizer x* but proves only a
+ * lower bound below l( y ): the linearization is that of x*, whose constant
+ * is c x*, and not one through the bound, which would be below the concave
+ * l( y ) at y and cut off its maximum; checked for the last linearization
+ * and for one stored in the global pool, at all the points. */
+
+static void test_stopped_inner_Solver( void )
+{
+ const double gap = 7;
+ Fixture f;
+ f.inner->unregister_Solvers( true );
+ f.inner->register_Solver( new StoppedBoxSolver( gap ) );
+ f.lbf->set_dual_pairs( v_dual_pair( { f.pair( 0 , 0 ) , f.pair( 1 , 1 ) } ) );
+ f.lbf->set_par( C05Function::intGPMaxSz , 1 );
+
+ const std::vector< std::vector< double > > ys = {
+  { 0 , 0 } , { -1 , 0.25 } , { 2 , 0.5 } , { -3 , -1 } };
+ f.set_y( ys[ 2 ] );
+ assert( f.lbf->compute() == Solver::kCutOff );
+
+ const double value = closed_form( ys[ 2 ] , { 0 , 1 } );
+ expect( equal( f.lbf->get_lower_estimate() , value - gap ) ,
+	 "stopped inner Solver: the lower estimate is not its bound" );
+ expect( equal( f.lbf->get_upper_estimate() , value ) ,
+	 "stopped inner Solver: the upper estimate is not the value of x*" );
+
+ assert( f.lbf->has_linearization() );
+ double g[ 2 ];
+ f.lbf->get_linearization_coefficients( g );
+ double cx = 0;
+ for( Index j = 0 ; j < c_cost.size() ; ++j )
+  cx += c_cost[ j ] * ( *f.x )[ j ].get_value();
+
+ const double alpha = f.lbf->get_linearization_constant();
+ expect( equal( alpha , cx ) , "stopped inner Solver: constant = " +
+	 std::to_string( alpha ) + ", expected c x* = " +
+	 std::to_string( cx ) );
+
+ // the constant of the stored linearization is read after a compute() at
+ // another point, as a Solver does, so that it comes from the global pool
+ // and not from the Solution still in the inner Block
+ f.lbf->store_linearization( 0 , eNoMod );
+ f.set_y( ys[ 0 ] );
+ assert( f.lbf->compute() == Solver::kCutOff );
+ assert( f.lbf->has_linearization() );
+ const double alpha0 = f.lbf->get_linearization_constant( 0 );
+ expect( equal( alpha0 , cx ) , "stopped inner Solver: stored constant = " +
+	 std::to_string( alpha0 ) + ", expected c x* = " +
+	 std::to_string( cx ) );
+
+ for( Index q = 0 ; q < ys.size() ; ++q ) {
+  const double lq = closed_form( ys[ q ] , { 0 , 1 } );
+  const double lin = alpha0 + g[ 0 ] * ys[ q ][ 0 ] + g[ 1 ] * ys[ q ][ 1 ];
+  expect( lq <= lin + c_eps , "stopped inner Solver: the stored "
+	  "linearization is below l at point " + std::to_string( q ) );
+  }
+
+ std::cout << "inner Solver stopped at a cutoff: done" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+/* A LagBFunction told that it has no inner Solver (intInnrSlvr -1) does not
+ * use the BoxSolver the inner Block has, and compute() throws; the
+ * BlockSolverConfig of a ComputeConfig then registers a second BoxSolver,
+ * which becomes the inner Solver, and the value is that of the closed form.
+ * The ComputeConfig is read from LagBFCfg-Box.txt. The parameters of the
+ * inner Solver are then read through the LagBFunction, by index and by
+ * name, and set_ComputeConfig( nullptr ) takes everything back to the
+ * defaults. */
+
+static void test_no_inner_Solver( void )
+{
+ Fixture f;
+ f.lbf->set_dual_pairs( v_dual_pair( { f.pair( 0 , 0 ) , f.pair( 1 , 1 ) } ) );
+ const std::vector< double > yv = { -1 , 0.25 };
+ f.set_y( yv );
+
+ f.lbf->set_par( LagBFunction::intInnrSlvr , -1 );
+ expect( f.lbf->get_int_par( LagBFunction::intInnrSlvr ) == -1 ,
+	 "intInnrSlvr set to -1 reads " +
+	 std::to_string( f.lbf->get_int_par( LagBFunction::intInnrSlvr ) ) );
+
+ bool thrown = false;
+ try {
+  f.lbf->compute();
+  }
+ catch( const std::logic_error & ) {
+  thrown = true;
+  }
+ expect( thrown , "compute() with intInnrSlvr -1 does not throw, although "
+	 "the inner Block has a Solver" );
+
+ auto c = Configuration::deserialize( "LagBFCfg-Box.txt" );
+ auto cc = dynamic_cast< ComputeConfig * >( c );
+ if( ! cc ) {
+  expect( false , "LagBFCfg-Box.txt is not a ComputeConfig" );
+  delete c;
+  return;
+  }
+
+ f.lbf->set_ComputeConfig( cc );
+ delete cc;
+ expect( f.lbf->get_int_par( LagBFunction::intInnrSlvr ) == 1 ,
+	 "after the ComputeConfig registers a second Solver, intInnrSlvr is " +
+	 std::to_string( f.lbf->get_int_par( LagBFunction::intInnrSlvr ) ) +
+	 ", expected 1" );
+
+ const int status = f.lbf->compute();
+ expect( status == Solver::kOK , "compute() with the Solver of the "
+	 "ComputeConfig returns " + std::to_string( status ) );
+ const double expected = closed_form( yv , { 0 , 1 } );
+ expect( equal( f.lbf->get_value() , expected ) ,
+	 "with the Solver of the ComputeConfig l( y ) = " +
+	 std::to_string( f.lbf->get_value() ) + ", expected " +
+	 std::to_string( expected ) );
+
+ // the parameters of the inner Solver are read through the LagBFunction
+ // at the indices that int_par_is() gives them
+ const auto is = f.inner->get_registered_solvers().back();
+ const auto ip = f.lbf->int_par_is( is->get_num_int_par() - 1 );
+ expect( f.lbf->get_dflt_int_par( ip ) ==
+	 is->get_dflt_int_par( is->get_num_int_par() - 1 ) ,
+	 "the default of the last int parameter of the inner Solver read "
+	 "through the LagBFunction differs" );
+ expect( f.lbf->get_int_par( ip ) ==
+	 is->get_int_par( is->get_num_int_par() - 1 ) ,
+	 "the last int parameter of the inner Solver read through the "
+	 "LagBFunction differs" );
+
+ // and so are their names, both ways: the last int and double parameters
+ // of the BoxSolver come after those of Solver, hence their indices in the
+ // LagBFunction are not the ones in the inner Solver
+ const auto & iname = is->int_par_idx2str( is->get_num_int_par() - 1 );
+ expect( f.lbf->int_par_str2idx( iname ) == ip ,
+	 "int_par_str2idx( \"" + iname + "\" ) of the LagBFunction is " +
+	 std::to_string( f.lbf->int_par_str2idx( iname ) ) + ", expected " +
+	 std::to_string( ip ) );
+ expect( f.lbf->int_par_idx2str( ip ) == iname ,
+	 "int_par_idx2str( " + std::to_string( ip ) + " ) of the "
+	 "LagBFunction is \"" + f.lbf->int_par_idx2str( ip ) +
+	 "\", expected \"" + iname + "\"" );
+ const auto dp = f.lbf->dbl_par_is( is->get_num_dbl_par() - 1 );
+ const auto & dname = is->dbl_par_idx2str( is->get_num_dbl_par() - 1 );
+ expect( f.lbf->dbl_par_str2idx( dname ) == dp ,
+	 "dbl_par_str2idx( \"" + dname + "\" ) of the LagBFunction is " +
+	 std::to_string( f.lbf->dbl_par_str2idx( dname ) ) + ", expected " +
+	 std::to_string( dp ) );
+ expect( f.lbf->dbl_par_idx2str( dp ) == dname ,
+	 "dbl_par_idx2str( " + std::to_string( dp ) + " ) of the "
+	 "LagBFunction is \"" + f.lbf->dbl_par_idx2str( dp ) +
+	 "\", expected \"" + dname + "\"" );
+ expect( f.lbf->int_par_str2idx( "intInnrSlvr" ) ==
+	 LagBFunction::intInnrSlvr ,
+	 "int_par_str2idx( \"intInnrSlvr\" ) is not intInnrSlvr" );
+
+ // set_ComputeConfig( nullptr ) takes the LagBFunction back to its
+ // defaults, and the inner Block back to the BoxSolver of the fixture
+ f.lbf->set_ComputeConfig( nullptr );
+ expect( f.lbf->get_int_par( LagBFunction::intInnrSlvr ) == 0 ,
+	 "set_ComputeConfig( nullptr ) leaves intInnrSlvr at " +
+	 std::to_string( f.lbf->get_int_par( LagBFunction::intInnrSlvr ) ) );
+ expect( f.inner->get_registered_solvers().size() == 1 ,
+	 "set_ComputeConfig( nullptr ) leaves " +
+	 std::to_string( f.inner->get_registered_solvers().size() ) +
+	 " Solver on the inner Block, expected the 1 of the fixture" );
+
+ std::cout << "no inner Solver: done" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------------------*/
 /*------------------- THE COLUMNS OF THE LAGRANGIAN TERM -------------------*/
@@ -521,19 +758,21 @@ struct Rig {
  std::vector< ColVariable > * x;
  std::vector< ColVariable > y;
  LagBFunction * f;
+ FRealObjective * obj;
 
  Rig( void ) : y( 8 ) {
   auto block = new AbstractBlock();
   x = new std::vector< ColVariable >( 4 );
   block->add_static_variable( *x , "x" );
-  block->set_objective( new FRealObjective( nullptr ,
-			 new LinearFunction( { { X( 0 ) , 1 } ,
-					       { X( 1 ) , 2 } } ) ) ,
-			eNoMod );
+  obj = new FRealObjective( nullptr ,
+			    new LinearFunction( { { X( 0 ) , 1 } ,
+						  { X( 1 ) , 2 } } ) );
+  block->set_objective( obj , eNoMod );
   f = new LagBFunction( block );
   }
 
- ~Rig( void ) { delete f; }  // the LagBFunction deletes the inner Block
+ // the LagBFunction deletes the inner Block, not what is given to it
+ ~Rig( void ) { delete f; delete obj; delete x; }
 
  ColVariable * X( Index j ) { return( & ( *x )[ j ] ); }
 
@@ -828,6 +1067,308 @@ static void test_columns_edge_cases( void )
 
 /*--------------------------------------------------------------------------*/
 
+/*--------------------------------------------------------------------------*/
+/* The weight of the Objective of the inner Block changed with a Solver that
+ * cannot handle it attached above the LagBFunction: the LagBFunction tells
+ * it of the change as a change of itself, hence the change is not refused;
+ * the value is then that of the Lagrangian with the costs times the weight,
+ * the Lagrangian term entering with none, and a linearization stored before
+ * the change, with its constant computed again, is still above it. */
+
+/// l( y ) with the costs of the inner Block times w
+static double closed_form_w( const std::vector< double > & y ,
+			     const std::vector< Index > & rows , double w )
+{
+ double val = 0;
+ for( Index j = 0 ; j < c_cost.size() ; ++j ) {
+  double cy = w * c_cost[ j ];
+  for( Index k = 0 ; k < rows.size() ; ++k )
+   cy += y[ k ] * c_A[ rows[ k ] ][ j ];
+  val += cy * ( cy >= 0 ? c_lb[ j ] : c_ub[ j ] );
+  }
+ for( Index k = 0 ; k < rows.size() ; ++k )
+  val += y[ k ] * c_b[ rows[ k ] ];
+ return( val );
+ }
+
+static void test_weight_change( void )
+{
+ Fixture f;
+ f.lbf->set_par( C05Function::intGPMaxSz , 1 );
+ f.lbf->set_dual_pairs( v_dual_pair( { f.pair( 0 , 0 ) , f.pair( 1 , 1 ) } ) );
+ f.observe();
+
+ const std::vector< double > y0 = { -1 , 0.25 };
+ check_at( f , y0 , { 0 , 1 } , "before the weight" );
+ f.lbf->store_linearization( 0 , eNoMod );
+ double g[ 2 ];
+ f.lbf->get_linearization_coefficients( g , Range( 0 , 2 ) , 0 );
+
+ bool refused = false;
+ try { f.inner->set_objective_weight( 2.5 ); }
+ catch( std::logic_error & ) { refused = true; }
+ expect( ! refused , "a change of the weight inside the LagBFunction is "
+	 "refused by a Solver above it" );
+
+ const std::vector< std::vector< double > > ys = {
+  { 0 , 0 } , { -1 , 0.25 } , { 2 , 0.5 } , { -3 , -1 } };
+ for( const auto & yv : ys ) {
+  f.set_y( yv );
+  assert( f.lbf->compute() == Solver::kOK );
+  const double lw = closed_form_w( yv , { 0 , 1 } , 2.5 );
+  expect( equal( f.lbf->get_value() , lw ) , "l( y ) with the weight = " +
+	  std::to_string( f.lbf->get_value() ) + ", expected " +
+	  std::to_string( lw ) );
+  const double alpha = f.lbf->get_linearization_constant( 0 );
+  expect( lw <= alpha + g[ 0 ] * yv[ 0 ] + g[ 1 ] * yv[ 1 ] + c_eps ,
+	  "the stored linearization is below l with the weight" );
+  }
+
+ std::cout << "weight of the inner Block: done" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The Modification of the inner Block handled after the inner Block has
+ * changed further, as a Solver does that gives the inner Block back to its
+ * father while it does not need it: a change of a cost, then a Variable
+ * fixed at a value other than that of the linearization in the global
+ * pool. When the change of the cost is handled, the Variable is fixed
+ * already and the Solution of the pool cannot be written; the change is
+ * handled all the same, and the fixing deletes the linearization. */
+
+static void test_fixed_after_cost_change( void )
+{
+ Fixture f;
+ f.lbf->set_par( C05Function::intGPMaxSz , 1 );
+ f.lbf->set_dual_pairs( v_dual_pair( { f.pair( 0 , 0 ) , f.pair( 1 , 1 ) } ) );
+
+ // c^y_0 = -2, hence x*_0 = 2
+ check_at( f , { -3 , -1 } , { 0 , 1 } , "before the fixing" );
+ f.lbf->store_linearization( 0 , eNoMod );
+ assert( f.lbf->is_linearization_there( 0 ) );
+
+ // the inner Block given to another father, which keeps its Modification
+ const auto father = f.inner->get_f_Block();
+ const bool there = f.inner->anyone_there();
+ AbstractBlock other;
+ auto keep = new FakeSolver();
+ other.register_Solver( keep );
+ f.inner->set_f_Block( & other );
+ f.inner->anyone_there( true );
+
+ static_cast< LinearFunction * >( f.inner_obj->get_function() )
+  ->modify_coefficient( 0 , 3 );
+ ( *f.x )[ 0 ].set_value( 1 );
+ ( *f.x )[ 0 ].is_fixed( true );
+
+ const auto mods = keep->get_Modification_list();
+ keep->get_Modification_list().clear();
+ f.inner->set_f_Block( father );
+ f.inner->anyone_there( there );
+
+ bool thrown = false;
+ try {
+  for( const auto & mod : mods )
+   f.lbf->add_Modification( mod );
+  }
+ catch( const std::exception & e ) {
+  thrown = true;
+  std::cout << e.what() << std::endl;
+  }
+ expect( ! thrown , "a change of a cost handled after a Variable is fixed "
+	 "throws" );
+ expect( ! f.lbf->is_linearization_there( 0 ) , "the linearization of a "
+	 "point with a fixed Variable at another value is not deleted" );
+
+ other.unregister_Solvers( true );
+
+ std::cout << "Variable fixed after a change of a cost: done" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The quadratic coefficients of the Objective of the inner Block multiplied
+ * by 3, as a change of scale does, with the linear ones written back at the
+ * original costs, and its constant term set to 0.75. The global pool
+ * holds the linearizations of two points and their convex combination
+ * with weights 1/2: the constant of each of the first two has to be the
+ * cost of its point at the new coefficients; the third, whose constant is
+ * the combination of the two costs and not the cost of the combination,
+ * has to be deleted, and the Solver above told so, with intPoolQuadMem 0,
+ * and to be the combination of the new costs with intPoolQuadMem 1. */
+
+/// the cost of the point xv with the quadratic coefficients q times s and
+/// the constant term c0
+static double quad_cost( const std::vector< double > & xv , double s ,
+			 double c0 = 0 )
+{
+ double val = c0;
+ for( Index j = 0 ; j < c_cost.size() ; ++j )
+  val += c_cost[ j ] * xv[ j ] + s * c_quad[ j ] * xv[ j ] * xv[ j ];
+ return( val );
+ }
+
+static void test_quad_cost_change( int extmem , int quadmem )
+{
+ const std::string where = "quadratic costs, intPoolExtMem " +
+  std::to_string( extmem ) + ", intPoolQuadMem " + std::to_string( quadmem );
+
+ Fixture f( c_quad );
+ f.lbf->set_par( LagBFunction::intPoolExtMem , extmem );
+ f.lbf->set_par( LagBFunction::intPoolQuadMem , quadmem );
+ f.lbf->set_par( C05Function::intGPMaxSz , 3 );
+ f.lbf->set_dual_pairs( v_dual_pair( { f.pair( 0 , 0 ) , f.pair( 1 , 1 ) } ) );
+ f.observe();
+
+ // the two points, x* = ( 1 , 1 , 1 ) and x* = ( 0 , -0.5 , 1 ), whose
+ // combination has squares other than the combination of their squares
+ const std::vector< std::vector< double > > ys = { { -3 , -1 } ,
+						     { 2 , 0.5 } };
+ std::vector< std::vector< double > > xs( ys.size() );
+ for( Index k = 0 ; k < ys.size() ; ++k ) {
+  f.set_y( ys[ k ] );
+  assert( f.lbf->compute() == Solver::kOK );
+  assert( f.lbf->has_linearization() );
+  double g[ 2 ];
+  f.lbf->get_linearization_coefficients( g );
+  for( auto & xj : *f.x )
+   xs[ k ].push_back( xj.get_value() );
+  f.lbf->store_linearization( k , eNoMod );
+  }
+ f.lbf->store_combination_of_linearizations( { { 0 , 0.5 } , { 1 , 0.5 } } ,
+					     2 , eNoMod );
+ for( Index k = 0 ; k < ys.size() ; ++k )
+  expect( equal( f.lbf->get_linearization_constant( k ) ,
+		 quad_cost( xs[ k ] , 1 ) ) ,
+	  where + ": constant " + std::to_string( k ) + " before the change" );
+
+ f.fake->get_Modification_list().clear();
+ std::vector< double > nq( c_quad );
+ for( auto & qj : nq )
+  qj *= 3;
+ static_cast< DQuadFunction * >( f.inner_obj->get_function() )->modify_terms(
+	    nq.cbegin() , c_cost.cbegin() , Range( 0 , c_cost.size() ) );
+ const double c0 = 0.75;
+ static_cast< DQuadFunction * >( f.inner_obj->get_function()
+				 )->set_constant_term( c0 );
+
+ for( Index k = 0 ; k < ys.size() ; ++k ) {
+  const double got = f.lbf->get_linearization_constant( k );
+  const double exp = quad_cost( xs[ k ] , 3 , c0 );
+  expect( equal( got , exp ) , where + ": constant " + std::to_string( k ) +
+	  " = " + std::to_string( got ) + ", expected " +
+	  std::to_string( exp ) );
+  }
+
+ if( quadmem ) {
+  expect( f.lbf->is_linearization_there( 2 ) ,
+	  where + ": the convexified linearization is deleted" );
+  if( f.lbf->is_linearization_there( 2 ) ) {
+   const double got = f.lbf->get_linearization_constant( 2 );
+   const double exp = ( quad_cost( xs[ 0 ] , 3 , c0 ) +
+			quad_cost( xs[ 1 ] , 3 , c0 ) ) / 2;
+   expect( equal( got , exp ) , where + ": convexified constant = " +
+	   std::to_string( got ) + ", expected " + std::to_string( exp ) );
+   }
+  }
+ else {
+  expect( ! f.lbf->is_linearization_there( 2 ) ,
+	  where + ": the convexified linearization is not deleted" );
+  bool told = false;
+  for( const auto & mod : f.fake->get_Modification_list() )
+   if( const auto cm = std::dynamic_pointer_cast< C05FunctionMod >( mod ) )
+    if( ( cm->type() == C05FunctionMod::GlobalPoolRemoved ) &&
+	( cm->which() == Subset( { 2 } ) ) )
+     told = true;
+  expect( told , where + ": the deletion is not told to the Solver" );
+  }
+
+ std::cout << where << ": done" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+/* The Variable x_1 removed from the Objective of the inner Block, by a
+ * range or by a subset. The global pool is that of test_quad_cost_change():
+ * the constant of each point has to lose c_1 x^*_1 + q_1 ( x^*_1 )^2, that
+ * of the convexified entry the combination of those terms of the two points
+ * with intPoolQuadMem 1, while with intPoolQuadMem 0 it has to be deleted,
+ * since its constant is not the cost of a point. */
+
+/// the cost of the point xv without the term of the Variable skip
+static double quad_cost_without( const std::vector< double > & xv ,
+				 Index skip )
+{
+ double val = 0;
+ for( Index j = 0 ; j < c_cost.size() ; ++j )
+  if( j != skip )
+   val += c_cost[ j ] * xv[ j ] + c_quad[ j ] * xv[ j ] * xv[ j ];
+ return( val );
+ }
+
+static void test_quad_var_removal( int extmem , int quadmem , bool sbst )
+{
+ const std::string where = std::string( "quadratic term removed by " ) +
+  ( sbst ? "subset" : "range" ) + ", intPoolExtMem " +
+  std::to_string( extmem ) + ", intPoolQuadMem " + std::to_string( quadmem );
+
+ Fixture f( c_quad );
+ f.lbf->set_par( LagBFunction::intPoolExtMem , extmem );
+ f.lbf->set_par( LagBFunction::intPoolQuadMem , quadmem );
+ f.lbf->set_par( C05Function::intGPMaxSz , 3 );
+ f.lbf->set_dual_pairs( v_dual_pair( { f.pair( 0 , 0 ) , f.pair( 1 , 1 ) } ) );
+ f.observe();
+
+ const std::vector< std::vector< double > > ys = { { -3 , -1 } ,
+						     { 2 , 0.5 } };
+ std::vector< std::vector< double > > xs( ys.size() );
+ for( Index k = 0 ; k < ys.size() ; ++k ) {
+  f.set_y( ys[ k ] );
+  assert( f.lbf->compute() == Solver::kOK );
+  assert( f.lbf->has_linearization() );
+  double g[ 2 ];
+  f.lbf->get_linearization_coefficients( g );
+  for( auto & xj : *f.x )
+   xs[ k ].push_back( xj.get_value() );
+  f.lbf->store_linearization( k , eNoMod );
+  }
+ f.lbf->store_combination_of_linearizations( { { 0 , 0.5 } , { 1 , 0.5 } } ,
+					     2 , eNoMod );
+
+ f.fake->get_Modification_list().clear();
+ const Index skip = 1;
+ auto qf = static_cast< DQuadFunction * >( f.inner_obj->get_function() );
+ if( sbst )
+  qf->remove_variables( Subset( { skip } ) , true );
+ else
+  qf->remove_variable( skip );
+
+ for( Index k = 0 ; k < ys.size() ; ++k ) {
+  const double got = f.lbf->get_linearization_constant( k );
+  const double exp = quad_cost_without( xs[ k ] , skip );
+  expect( equal( got , exp ) , where + ": constant " + std::to_string( k ) +
+	  " = " + std::to_string( got ) + ", expected " +
+	  std::to_string( exp ) );
+  }
+
+ if( quadmem ) {
+  expect( f.lbf->is_linearization_there( 2 ) ,
+	  where + ": the convexified linearization is deleted" );
+  if( f.lbf->is_linearization_there( 2 ) ) {
+   const double got = f.lbf->get_linearization_constant( 2 );
+   const double exp = ( quad_cost_without( xs[ 0 ] , skip ) +
+			quad_cost_without( xs[ 1 ] , skip ) ) / 2;
+   expect( equal( got , exp ) , where + ": convexified constant = " +
+	   std::to_string( got ) + ", expected " + std::to_string( exp ) );
+   }
+  }
+ else
+  expect( ! f.lbf->is_linearization_there( 2 ) ,
+	  where + ": the convexified linearization is not deleted" );
+
+ std::cout << where << ": done" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+
 int main( int argc , char ** argv )
 {
  test_empty_dual_pairs();
@@ -835,11 +1376,23 @@ int main( int argc , char ** argv )
  test_set_dual_pairs_twice();
  test_values_and_kinks();
  test_state_copy();
+ test_stopped_inner_Solver();
+ test_no_inner_Solver();
  test_columns_set_dual_pairs();
  test_columns_set_dual_pairs_twice();
  test_columns_remove_all();
  test_columns_remove_some();
  test_columns_edge_cases();
+ test_weight_change();
+ test_fixed_after_cost_change();
+ for( int extmem : { 0 , 1 } )
+  for( int quadmem : { 0 , 1 } )
+   test_quad_cost_change( extmem , quadmem );
+
+ for( int extmem : { 0 , 1 } )
+  for( int quadmem : { 0 , 1 } )
+   for( bool sbst : { false , true } )
+    test_quad_var_removal( extmem , quadmem , sbst );
 
  if( n_failures ) {
   std::cout << "LagBFunction_unit_test: " << n_failures << " check(s) failed"

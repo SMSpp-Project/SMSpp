@@ -41,7 +41,9 @@ void ColVariable::set_type( var_type type , c_ModParam issueMod )
  f_state &= var_type( 1 );  // clear all bits except the LSB
  f_state |= type * 2;       // set the type, leaving the LSB unchanged
 
- if( ( ! get_Block() ) || ( ! get_Block()->issue_mod( issueMod ) ) )
+ if( ( ! get_Block() ) ||
+     ( ! get_Block()->issue_mod( issueMod ,
+				  state_changes( old_state , f_state ) ) ) )
   return;
 
  get_Block()->add_Modification( std::make_shared< VariableMod >(
@@ -66,7 +68,9 @@ void ColVariable::is_integer( bool yn , c_ModParam issueMod )
  else
   f_state &= ~var_type( 2 );
 
- if( ( ! get_Block() ) || ( ! get_Block()->issue_mod( issueMod ) ) )
+ if( ( ! get_Block() ) ||
+     ( ! get_Block()->issue_mod( issueMod ,
+				  state_changes( old_state , f_state ) ) ) )
   return;
 
  get_Block()->add_Modification( std::make_shared< VariableMod >(
@@ -91,7 +95,9 @@ void ColVariable::is_positive( bool yn, c_ModParam issueMod )
  else
   f_state &= ~var_type( 4 );
 
- if( ( ! get_Block() ) || ( ! get_Block()->issue_mod( issueMod ) ) )
+ if( ( ! get_Block() ) ||
+     ( ! get_Block()->issue_mod( issueMod ,
+				  state_changes( old_state , f_state ) ) ) )
   return;
 
  get_Block()->add_Modification( std::make_shared< VariableMod >(
@@ -116,7 +122,9 @@ void ColVariable::is_negative( bool yn , c_ModParam issueMod )
  else
   f_state &= ~var_type( 8 );
 
- if( ( ! get_Block() ) || ( ! get_Block()->issue_mod( issueMod ) ) )
+ if( ( ! get_Block() ) ||
+     ( ! get_Block()->issue_mod( issueMod ,
+				  state_changes( old_state , f_state ) ) ) )
   return;
 
  get_Block()->add_Modification( std::make_shared< VariableMod >(
@@ -141,7 +149,9 @@ void ColVariable::is_unitary( bool yn , c_ModParam issueMod )
  else
   f_state &= ~var_type( 16 );
 
- if( ( ! get_Block() ) || ( ! get_Block()->issue_mod( issueMod ) ) )
+ if( ( ! get_Block() ) ||
+     ( ! get_Block()->issue_mod( issueMod ,
+				  state_changes( old_state , f_state ) ) ) )
   return;
 
  get_Block()->add_Modification( std::make_shared< VariableMod >(

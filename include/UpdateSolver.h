@@ -25,7 +25,7 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#include "Solver.h"
+#include "Block.h"
 
 /*--------------------------------------------------------------------------*/
 /*----------------------------- NAMESPACE ----------------------------------*/
@@ -65,7 +65,7 @@ class UpdateSolver : public Solver {
 public:
 
 /*--------------------------------------------------------------------------*/
-/*---------------- CONSTRUCTING AND DESTRUCTING UpdateSolver -----------------*/
+/*---------------- CONSTRUCTING AND DESTRUCTING UpdateSolver ---------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructing and destructing UpdateSolver
  *  @{ */
@@ -147,7 +147,7 @@ public:
 
  void set_issuePMod( ModParam issuePMod = eNoBlck ) { f_iPM = issuePMod; }
 
- void set_issueAMod( ModParam issueAMod = eNoBlck ) { f_iAM = issueAMod; }
+ void set_issueAMod( ModParam issueAMod = eModBlck ) { f_iAM = issueAMod; }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SOLVING THE MODEL ----------------------*/
@@ -171,7 +171,7 @@ public:
 
  void get_var_solution( Configuration *solc = nullptr ) override {}
 
-/**@} ----------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 /*------------- METHODS FOR ADDING / REMOVING / CHANGING DATA --------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Changing the data of the model
@@ -259,7 +259,7 @@ public:
 
  };   // end( class UpdateSolver )
 
-/** @} end( group( UpdateSolver_CLASSES ) ) ----------------------------------*/
+/** @} end( group( UpdateSolver_CLASSES ) ) --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 }  // end( namespace SMSpp_di_unipi_it )

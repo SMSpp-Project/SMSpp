@@ -39,6 +39,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <deque>
 #include <functional>
 #include <iostream>
 #include <list>
@@ -98,7 +99,8 @@ static bool throws( F f )
 /** Scans the list rather than asking ColVariable::is_active(), which is
  * itself under test in test_variable_is_active(). */
 
-static long listed( const ColVariable & var , const ThinVarDepInterface * stuff )
+static long listed( const ColVariable & var ,
+		    const ThinVarDepInterface * stuff )
 {
  const auto & act = var.active_stuff();
  return( std::count( act.begin() , act.end() , stuff ) );
@@ -217,9 +219,12 @@ static void test_row_values( void )
 static void test_row_infinite_values( void )
 {
  ColVariable x;
- FRowConstraint le( nullptr , -INF , 10 , new LinearFunction( { { & x , 1 } } ) );
- FRowConstraint ge( nullptr , 5 , INF , new LinearFunction( { { & x , 1 } } ) );
- FRowConstraint fr( nullptr , -INF , INF , new LinearFunction( { { & x , 1 } } ) );
+ FRowConstraint le( nullptr , -INF , 10 ,
+		    new LinearFunction( { { & x , 1 } } ) );
+ FRowConstraint ge( nullptr , 5 , INF ,
+		    new LinearFunction( { { & x , 1 } } ) );
+ FRowConstraint fr( nullptr , -INF , INF ,
+		    new LinearFunction( { { & x , 1 } } ) );
 
  x.set_value( INF );
  le.compute(); ge.compute(); fr.compute();
@@ -520,7 +525,8 @@ static void test_row_function_mods( void )
   assert( list.size() == 1 );
   vmod = std::dynamic_pointer_cast< FunctionModVars >( list.front() );
   assert( vmod && ( ! vmod->added() ) && ( vmod->vars()[ 0 ] == & x ) );
-  assert( ( listed( x , & lc ) == 0 ) && ( lc.is_active( & x ) == NOTACTIVE ) );
+  assert( ( listed( x , & lc ) == 0 ) &&
+	  ( lc.is_active( & x ) == NOTACTIVE ) );
   list.clear();
 
   // a range, then all of them
@@ -539,7 +545,8 @@ static void test_row_function_mods( void )
   lc.remove_variables( Subset( { 2 , 0 } ) );
   assert( ( listed( x , & lc ) == 0 ) && ( listed( y , & lc ) == 1 ) &&
 	  ( listed( z , & lc ) == 0 ) );
-  assert( ( lc.get_num_active_var() == 1 ) && ( lc.get_active_var( 0 ) == & y ) );
+  assert( ( lc.get_num_active_var() == 1 ) &&
+	  ( lc.get_active_var( 0 ) == & y ) );
   lc.remove_variable( 0 );
   list.clear();
 
@@ -684,7 +691,8 @@ static void test_ovc_setters( void )
  block->register_Solver( solver );
  ColVariable x;
 
- auto refused = [ & ]( RowConstraint & c , const std::function< void() > & f ) {
+ auto refused = [ & ]( RowConstraint & c ,
+		       const std::function< void() > & f ) {
   auto l = c.get_lhs();
   auto r = c.get_rhs();
   bool rv = throws< std::invalid_argument >( f );
@@ -863,7 +871,8 @@ static void test_ovc_variable( void )
   assert( row_mods( solver ).empty() && ( listed( x , & c ) == 1 ) );
 
   // indices other than 0 are refused
-  assert( throws< std::invalid_argument >( [ & ] { c.remove_variable( 1 ); } ) );
+  assert( throws< std::invalid_argument >( [ & ] {
+    c.remove_variable( 1 ); } ) );
   assert( throws< std::invalid_argument >( [ & ] {
     c.remove_variables( Range( 0 , 2 ) ); } ) );
   assert( throws< std::invalid_argument >( [ & ] {
@@ -1017,7 +1026,8 @@ static void test_ovc_values( void )
 static void test_ovc_empty_values( void )
 {
  BoxConstraint box( nullptr , nullptr , -1 , 1 );
- assert( box.feasible() && ( box.abs_viol() == 0 ) && ( box.rel_viol() == 0 ) );
+ assert( box.feasible() && ( box.abs_viol() == 0 ) &&
+	 ( box.rel_viol() == 0 ) );
 
  LBConstraint lb( nullptr , nullptr , 2 );
  UBConstraint ub( nullptr , nullptr , -2 );
@@ -1034,10 +1044,136 @@ static void test_ovc_empty_values( void )
   }
 
  // 0 is below the lhs 2 of lb and above the rhs -2 of ub
- assert( ( ! lb.feasible() ) && ( lb.abs_viol() == 2 ) && ( lb.rel_viol() == 1 ) );
- assert( ( ! ub.feasible() ) && ( ub.abs_viol() == 2 ) && ( ub.rel_viol() == 1 ) );
+ assert( ( ! lb.feasible() ) && ( lb.abs_viol() == 2 ) &&
+	 ( lb.rel_viol() == 1 ) );
+ assert( ( ! ub.feasible() ) && ( ub.abs_viol() == 2 ) &&
+	 ( ub.rel_viol() == 1 ) );
 
  std::cout << "empty OneVarConstraint values: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+/*---------------------- TESTS OF THE STATIC clear() -----------------------*/
+/*--------------------------------------------------------------------------*/
+/* Constraint::clear() of the collections that none of the specific
+ * overloads takes, whose items are any sequence container: a std::deque, a
+ * std::deque of std::vector and of std::list, a std::list of std::list and a
+ * boost::multi_array of std::deque. The empty collection and the one of
+ * empty collections are emptied, and each Constraint, relaxed or not, is
+ * clear()-ed before being destroyed, i.e., it forgets its ColVariable
+ * without leaving it, so that the ColVariable still lists it afterwards. */
+
+/// sets x in each of the constraints, relaxing the first one
+template< class R >
+static std::vector< ThinVarDepInterface * > activate( R & rows ,
+						     ColVariable & x )
+{
+ std::vector< ThinVarDepInterface * > was;
+ for( auto & c : rows ) {
+  c.set_variable( & x , eNoMod );
+  was.push_back( & c );
+  }
+ if( ! was.empty() )
+  rows.front().relax( true , eNoMod );
+ return( was );
+ }
+
+/// true if x still lists all the constraints in was, and nothing else
+static bool still_listed( const ColVariable & x ,
+			  const std::vector< ThinVarDepInterface * > & was )
+{
+ if( x.get_num_active() != was.size() )
+  return( false );
+ for( auto c : was )
+  if( listed( x , c ) != 1 )
+   return( false );
+ return( true );
+ }
+
+template< class D >
+static void check_clear_nested( std::deque< D > & rows ,
+				const std::string & what )
+{
+ Constraint::clear( rows );  // empty
+ assert( rows.empty() );
+
+ rows.resize( 3 );           // of empty collections
+ Constraint::clear( rows );
+ assert( rows.empty() );
+
+ ColVariable x;
+ rows.resize( 3 );
+ rows[ 0 ].resize( 2 );      // rows[ 1 ] stays empty
+ rows[ 2 ].resize( 1 );
+ std::vector< ThinVarDepInterface * > was;
+ for( auto & d : rows )
+  for( auto c : activate( d , x ) )
+   was.push_back( c );
+ assert( x.get_num_active() == 3 );
+
+ Constraint::clear( rows );
+ assert( rows.empty() && still_listed( x , was ) );
+ std::cout << what << ": OK" << std::endl;
+ }
+
+static void test_clear_collections( void )
+{
+ {  // a std::deque
+  std::deque< BoxConstraint > rows;
+  Constraint::clear( rows );
+  assert( rows.empty() );
+  ColVariable x;
+  rows.resize( 3 );
+  auto was = activate( rows , x );
+  Constraint::clear( rows );
+  assert( rows.empty() && still_listed( x , was ) );
+  std::cout << "clear( deque ): OK" << std::endl;
+  }
+
+ {
+  std::deque< std::vector< BoxConstraint > > rows;
+  check_clear_nested( rows , "clear( deque of vector )" );
+  }
+ {
+  std::deque< std::list< BoxConstraint > > rows;
+  check_clear_nested( rows , "clear( deque of list )" );
+  }
+
+ {  // a std::list of std::list
+  std::list< std::list< BoxConstraint > > rows;
+  Constraint::clear( rows );
+  assert( rows.empty() );
+  rows.resize( 2 );
+  Constraint::clear( rows );
+  assert( rows.empty() );
+  ColVariable x;
+  rows.resize( 2 );
+  rows.back().resize( 2 );
+  auto was = activate( rows.back() , x );
+  Constraint::clear( rows );
+  assert( rows.empty() && still_listed( x , was ) );
+  std::cout << "clear( list of list ): OK" << std::endl;
+  }
+
+ {  // a boost::multi_array of std::deque
+  boost::multi_array< std::deque< BoxConstraint > , 2 > rows;
+  Constraint::clear( rows );
+  assert( rows.num_elements() == 0 );
+  rows.resize( boost::extents[ 2 ][ 2 ] );
+  Constraint::clear( rows );
+  assert( rows.num_elements() == 0 );
+  ColVariable x;
+  rows.resize( boost::extents[ 2 ][ 2 ] );
+  rows[ 0 ][ 1 ].resize( 2 );  // the other cells stay empty
+  rows[ 1 ][ 0 ].resize( 1 );
+  std::vector< ThinVarDepInterface * > was;
+  for( auto d : { & rows[ 0 ][ 1 ] , & rows[ 1 ][ 0 ] } )
+   for( auto c : activate( *d , x ) )
+    was.push_back( c );
+  Constraint::clear( rows );
+  assert( ( rows.num_elements() == 0 ) && still_listed( x , was ) );
+  std::cout << "clear( multi_array of deque ): OK" << std::endl;
+  }
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1060,6 +1196,8 @@ int main( void )
  test_variable_is_active();
  test_ovc_values();
  test_ovc_empty_values();
+
+ test_clear_collections();
 
  if( n_failed ) {
   std::cout << n_failed << " checks FAILED" << std::endl;

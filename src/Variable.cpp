@@ -55,7 +55,9 @@ void Variable::is_fixed( bool fixed , c_ModParam issueMod )
  else
   f_state = f_state & ~var_type( 1 );
 
- if( ( ! get_Block() ) || ( ! get_Block()->issue_mod( issueMod ) ) )
+ if( ( ! get_Block() ) ||
+     ( ! get_Block()->issue_mod( issueMod ,
+				  state_changes( old_state , f_state ) ) ) )
   return;
 
  get_Block()->add_Modification( std::make_shared< VariableMod >(

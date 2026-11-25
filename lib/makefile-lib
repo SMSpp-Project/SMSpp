@@ -35,9 +35,9 @@ endif
 
 ifndef SW
 # debug compiler options
-#SW = -g3 -glldb -fno-inline -std=c++17 -ferror-limit=1
+#SW = -g3 $(SMSppSWDBG) -fno-inline -std=c++20 $(SMSppSWERR)
 # production compiler options
-SW = -O3 -DNDEBUG -std=c++17
+SW = -O3 -DNDEBUG -std=c++20
 endif
 
 # module name
@@ -74,7 +74,9 @@ install:
 # *H   is the list of all include files
 # *INC is the -I< include directories >
 
-# libSMS++ (complete with external libraries)
+# libSMS++ (complete with external libraries), as the objects that are
+# archived here [see makefile-shared]
+SMSppSTATIC = 1
 include $(SMS++SDR)/lib/makefile-c
 
 # archive the library - - - - - - - - - - - - - - - - - - - - - - - - - - - -

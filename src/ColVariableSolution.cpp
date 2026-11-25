@@ -4,15 +4,15 @@
 /** @file
  * Implementation of the ColVariableSolution class.
  *
- * \author Antonio Frangioni \n
- *         Dipartimento di Informatica \n
- *         Universita' di Pisa \n
- *
  * \author Rafael Durbano Lobato \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
+ * \author Antonio Frangioni \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \copyright &copy; by Rafael Durbano Lobato, Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
@@ -165,7 +165,8 @@ void ColVariableSolution::initialize_static_variable_values
        } ) )
    throw( std::logic_error( std::string( "ColVariableSolution::initialize: "
 					 "invalid variable group: " ) +
-			    ( groups[ i ] ? groups[ i ]->get_element_type().name()
+			    ( groups[ i ] ?
+			      groups[ i ]->get_element_type().name()
                            : "an empty group" ) ) );
   }
  }
@@ -195,7 +196,8 @@ void ColVariableSolution::initialize_dynamic_variable_values
    throw( std::logic_error( std::string( "ColVariableSolution::"
 					 "initialize_dynamic_variable_values: "
 					 "invalid variable group: " ) +
-			    ( groups[ i ] ? groups[ i ]->get_element_type().name()
+			    ( groups[ i ] ?
+			      groups[ i ]->get_element_type().name()
                            : "an empty group" ) ) );
   }
  }
@@ -373,8 +375,10 @@ void ColVariableSolution::read( const Block * const block ) {
   // Solution holds from now on
   f_direction = block->is_direction();
 
-  if( static_variable_values.size() != block->get_static_variable_groups().size() ||
-      dynamic_variable_values.size() != block->get_dynamic_variable_groups().size() ||
+  if( static_variable_values.size() !=
+      block->get_static_variable_groups().size() ||
+      dynamic_variable_values.size() !=
+      block->get_dynamic_variable_groups().size() ||
       nested_solutions.size() != block->get_nested_Blocks().size() ) {
     // This ColVariableSolution does not have the same structure as
     // that of the Variables of the Block: initialize it and read the
@@ -496,7 +500,8 @@ void ColVariableSolution::serialize( netCDF::NcGroup & group ) const
 
 void ColVariableSolution::sum( const Solution * solution, double multiplier ) {
 
-  auto other_solution = dynamic_cast< const ColVariableSolution * >( solution );
+  auto other_solution =
+    dynamic_cast< const ColVariableSolution * >( solution );
 
   if( ! other_solution )
     throw( std::invalid_argument
@@ -564,7 +569,8 @@ void ColVariableSolution::sum( const Solution * solution, double multiplier ) {
 
   // Sum the solutions of the nested Blocks
 
-  if( this->nested_solutions.size() != other_solution->nested_solutions.size() )
+  if( this->nested_solutions.size() !=
+      other_solution->nested_solutions.size() )
 
     throw( std::logic_error
      ( std::string( "ColVariableSolution::sum: "

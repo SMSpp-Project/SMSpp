@@ -21,22 +21,32 @@
  * registered to MasterProblemBlock, typically a [MILP]Solver):
  *
  * - the **primal** form reads
- *
- *      min   b * d + \sum_k v^k + (1/2t) || d ||^2_2
- *      s.t.  v^k >= g^k_i * d + alpha^k_i        for each i in B^k       (P)
- *            v^k >= LB^k
+ *   \f[
+ *     \begin{array}{lll}
+ *       \min & b d + \sum_k v^k + \frac{1}{2t} \| d \|^2_2 & \\
+ *       \mbox{s.t.} & v^k \geq g^k_i d + \alpha^k_i
+ *                   & \forall i \in B^k \qquad (P) \\
+ *                   & v^k \geq LB^k &
+ *     \end{array}
+ *   \f]
  *
  *   where d is the step from the current stability center x_bar, v^k is
  *   the epigraph variable for component k, and (g^k_i, alpha^k_i) are the
- *   linearizations stored in the bundle B^k;
+ *   linearizations (cuts) of the k-th component, whose set is B^k;
  *
  * - the **dual** form reads
- *
- *      max   \sum_k \sum_i theta^k_i (c^k - x_bar A^k) u^k_i
- *            + x_bar z - (t/2) || z ||^2_2 - \sum_k \sum_i theta^k_i alpha^k_i
- *      s.t.  \sum_i theta^k_i + gamma^k = lambda          for each k     (D)
- *            z = b - \sum_k A^k ( \sum_i theta^k_i u^k_i )
- *            theta^k_i >= 0 ,  gamma^k >= 0 ,  lambda >= 0
+ *   \f[
+ *     \begin{array}{lll}
+ *       \max & \sum_k \sum_i \theta^k_i ( c^k - \bar{x} A^k ) u^k_i
+ *              + \bar{x} z - \frac{t}{2} \| z \|^2_2
+ *              - \sum_k \sum_i \theta^k_i \alpha^k_i & \\
+ *       \mbox{s.t.} & \sum_i \theta^k_i + \gamma^k = \lambda
+ *                   & \forall k \qquad (D) \\
+ *                   & z = b - \sum_k A^k ( \sum_i \theta^k_i u^k_i ) & \\
+ *                   & \theta^k_i \geq 0 \, , \; \gamma^k \geq 0 \, , \;
+ *                     \lambda \geq 0 &
+ *     \end{array}
+ *   \f]
  *
  *   plus the additional native u^k variables and constraints of any "easy"
  *   component k (its compact polyhedral description being directly inserted
@@ -45,7 +55,7 @@
  * In both formulations:
  *
  * - one PolyhedralFunctionBlock is registered as a sub-Block of
- *   MasterProblemBlock for each "hard" component, holding its bundle B^k
+ *   MasterProblemBlock for each "hard" component, holding its cuts B^k
  *   (either in primal or in dual representation, consistently with the
  *   chosen MP form);
  *
@@ -60,7 +70,7 @@
  *   stabilizing quadratic term plus the linear part.
  *
  * Three stabilization schemes are supported, selected via the
- * #stabilization_type enum:
+ * MasterProblemBlock::stabilization_type enum:
  *
  * - **Proximal**: quadratic term (1/2t) || d ||^2_2 in (P), equivalently
  *   - (t/2) || z ||^2_2 in (D);
@@ -80,37 +90,36 @@
  * the primal or dual MP are the corresponding abstract representation
  * generated from that physical state.
  *
- * MasterProblemBlock is meant to be driven by a solver, which is responsible
- * for keeping the sets B^k of linearizations updated as its algorithm
- * proceeds and for reading the solution of the MP; the class makes no
- * assumption on what that algorithm is, a bundle method and a conditional
- * gradient method using the very same object for different purposes. The
- * driver does *not* directly call any MILP backend, it only manipulates the
- * MP at the Block/Modification level and triggers compute() on the
- * [MILP]Solver attached to the MasterProblemBlock.
+ * MasterProblemBlock is meant to be used by an algorithm that keeps the sets
+ * B^k of linearizations updated as it proceeds and reads the solution of the
+ * MP; the class makes no assumption on what that algorithm is, and different
+ * stabilized or cutting-plane methods can use the very same object for
+ * different purposes. The caller does *not* directly call any MILP backend:
+ * it only manipulates the MP at the Block/Modification level and triggers
+ * compute() on the [MILP]Solver attached to the MasterProblemBlock.
  *
  * For the underlying theory and notation, the reader is referred to:
  *
  *  A. Frangioni, E. Gorgone "Generalized Bundle Methods for Sum-Functions
- *  with ``Easy'' Components: Applications to Multicommodity Network Design"
+ *  with 'Easy' Components: Applications to Multicommodity Network Design"
  *  Mathematical Programming 145(1), 133 - 161, 2014
  *
  * available at
  *
- *  \link http://www.di.unipi.it/~frangio/abstracts.html#MP11c \endlink
+ *  http://www.di.unipi.it/~frangio/abstracts.html#MP11c
  *
  *  A. Frangioni "Generalized Bundle Methods"
  *  SIAM Journal on Optimization 13(1), 117 - 156, 2002
  *
  * available at
  *
- *  \link http://www.di.unipi.it/~frangio/abstracts.html#SIOPT02 \endlink
+ *  http://www.di.unipi.it/~frangio/abstracts.html#SIOPT02
  *
- * \author Antonio Frangioni \n
+ * \author Enrico Calandrini \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \author Enrico Calandrini \n
+ * \author Antonio Frangioni \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -118,7 +127,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Enrico Calandrini, Donato Meoli
+ * \copyright &copy; by Enrico Calandrini, Antonio Frangioni, Donato Meoli
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -132,6 +141,7 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include "AbstractBlock.h"
 #include "Block.h"
 #include "C05Function.h"
 #include "ColVariable.h"
@@ -181,39 +191,39 @@ class PolyhedralFunctionBlock;
 /*--------------------------------------------------------------------------*/
 /// A Block representing the Master Problem of a stabilized method
 /** MasterProblemBlock implements, as an SMS++ Block, the Master Problem (MP)
- * of a stabilized method, the Generalized Bundle Method being the one its
- * formulations come from (cf. \link MasterProblemBlock.h \endlink for
- * the mathematical description of the supported primal and dual forms, and for
- * the underlying references).
+ * of a stabilized method, its formulations being those of the Generalized
+ * Bundle Methods of the references (cf. \link MasterProblemBlock.h \endlink
+ * for the mathematical description of the supported primal and dual forms,
+ * and for the underlying references).
  *
  * The Block exposes the coupling part of the MP (the static Variable and
- * Constraint linking together the per-component bundles, plus the stabilizing
+ * Constraint linking together the per-component models, plus the stabilizing
  * quadratic Objective), while each component f^k is represented by a dedicated
  * sub-Block:
  *
- * - "hard" components -> a PolyhedralFunctionBlock holding the bundle B^k
+ * - "hard" components -> a PolyhedralFunctionBlock holding the cuts B^k
  *   (in the same primal/dual representation as the master);
  *
  * - "easy" components -> a sub-Block containing the compact convex
  *   description of f^k (e.g. inherited from a LagBFunction).
  *
- * A regular Solver (typically a [MILP]Solver from the SMS++ MILPSolver module)
- * is attached to MasterProblemBlock through register_Solver(), and is then
- * asked to solve the MP at every iteration of whoever drives it.
+ * A regular Solver (typically a [MILP]Solver) is attached to
+ * MasterProblemBlock through register_Solver(), and is then asked to solve
+ * the MP at every iteration of whoever drives it.
  *
  * That Solver is asked for something rather more specific than an optimal
  * value, which puts two demands on how it is configured. It has to re-optimise
  * from the basis of the previous call, a handful of new columns at a time, so
  * it has to be an active-set method: an interior point one cannot restart, and
  * its multipliers, which here *are* the algorithm rather than a by-product,
- * are only accurate to about 1e-7 relative, which the stopping test of the
- * Bundle does not survive. And it has to satisfy the rows of the MP more
+ * are only accurate to about 1e-7 relative, which a stopping test built on
+ * them does not survive. And it has to satisfy the rows of the MP more
  * tightly than the oracle satisfies its own: a step that violates a row by
  * less than the accuracy the oracle works at is feasible for the MP and
  * infeasible for the component, which answers with the cut that is already
  * there, and the iteration repeats forever. Hence the feasibility and
- * optimality tolerances of the Solver go well below the accuracy the Bundle is
- * asked to reach. */
+ * optimality tolerances of the Solver go well below the accuracy the algorithm
+ * using the MP is asked to reach. */
 
 class MasterProblemBlock : public Block {
 
@@ -245,34 +255,38 @@ class MasterProblemBlock : public Block {
   *
   * - #kDoublyStabilized: kProximal + kLevel combined;
   *
-  * - #kUpperLower: two-sided upper/lower bundle [u_bar, l_bar] with a
-  *   proximal term anchored at the upper bundle u_bar; #kProximal,
+  * - #kUpperLower: two-sided upper/lower centres [u_bar, l_bar] with a
+  *   proximal term anchored at the upper centre u_bar; #kProximal,
   *   #kLevel and #kDoublyStabilized are recovered as special cases by
-  *   degenerating one of the two bundles.
+  *   degenerating one of the two centres.
   *
-  * Only #kProximal, #kLevel and #kDoublyStabilized are currently fully
-  * wired in CreatePrimalMP / CreateDualMP; #kTrustRegion is wired in
-  * CreatePrimalMP only, where its master has a linear Objective and the box
+  * #kProximal, #kLevel, #kDoublyStabilized and #kTrustRegion are wired in
+  * CreatePrimalMP / CreateDualMP. In the primal MP the master of
+  * #kTrustRegion has a linear Objective and the box
   * \f$ \| x - \bar{x} \|_\infty \leq t \f$, which \f$ t = \infty \f$
   * removes [see set_t()], hence it is a mixed-integer linear problem when
-  * some coordinates are integer [see set_integer()]; #kNone and
-  * #kUpperLower are reserved enumerators, and CreatePrimalMP / CreateDualMP
-  * throw `std::logic_error` if invoked with one of them, as CreateDualMP
-  * does with #kTrustRegion. */
+  * some coordinates are integer [see set_integer()]; the primal master of
+  * #kNone is that of #kTrustRegion with \f$ t = \infty \f$ whatever t is,
+  * i.e., the cutting-plane master over the box [ L , U ] [see set_box()],
+  * which is unbounded below as long as the cuts do not bound the model on
+  * it. Likewise, the dual master of #kNone is that of #kTrustRegion with
+  * \f$ t = \infty \f$, where only the finite sides of [ L , U ] have a
+  * multiplier. CreatePrimalMP / CreateDualMP throw `std::logic_error` with
+  * #kUpperLower, a reserved enumerator. */
 
  enum stabilization_type {
   kProximal         = 0 ,  ///< proximal stabilization
   kLevel            = 1 ,  ///< level stabilization
-  kDoublyStabilized = 2 ,  ///< doubly-stabilized bundle method
+  kDoublyStabilized = 2 ,  ///< doubly-stabilized (proximal + level)
   kNone             = 3 ,  ///< no stabilization (pure cutting plane)
   kTrustRegion      = 4 ,  ///< trust region || d ||_inf <= t
-  kUpperLower       = 5    ///< upper / lower bundle pair
+  kUpperLower       = 5    ///< upper / lower centre pair
   };
 
- /** Coefficients of the old bundle cuts on coordinates being appended.
-  * The three indices are, respectively, hard component, persistent bundle
-  * slot, and position among the new coordinates. Empty entries correspond to
-  * empty bundle slots. The slot-indexed form deliberately leaves the
+ /** Coefficients of the cuts already in the master on coordinates being
+  * appended. The three indices are, respectively, hard component, persistent
+  * cut slot, and position among the new coordinates. Empty entries correspond
+  * to empty slots. The slot-indexed form deliberately leaves the
   * slot-to-local-row translation inside MasterProblemBlock, which owns it. */
 
  using AddedCutCoefficients =
@@ -320,8 +334,8 @@ class MasterProblemBlock : public Block {
  /** clear() resets MasterProblemBlock to an "empty" state: all per-component
   * bookkeeping is forgotten, every size field goes back to 0 and the MP type
   * information is reset. Non-owning easy-component inner-Block registrations
-  * are detached first and restored to their owning Function Blocks. A
-  * subsequent SetDim() + CreateEmptyMP() rebuilds the MP. */
+  * are detached first and restored to the father they had [see configure()].
+  * A subsequent SetDim() + CreateEmptyMP() rebuilds the MP. */
 
  void clear();
 
@@ -332,18 +346,17 @@ class MasterProblemBlock : public Block {
  *  @{ */
 
  /// one-shot configuration of MasterProblemBlock
- /** Single-call configuration that bundles dimensioning, primal/dual
+ /** Single-call configuration that groups dimensioning, primal/dual
   * variant selection and easy-component registration into one entry
-  * point. This is the API the surrounding driver /
-  * BendersDecompositionSolver uses to populate MasterProblemBlock with
+  * point, through which the caller populates MasterProblemBlock with
   * everything it needs.
   *
   * MasterProblemBlock never sees the "hard" components directly: only
-  * their number (\p num_hard_cmps) is fed in, since their bundles B^k
-  * are built up internally as empty PolyhedralFunctionBlock(s) under
-  * *this* and populated by the surrounding bundle driver
-  * through the add_cut() / remove_cut() interface. The "easy" components
-  * are passed in via \p easy_components, type-dispatched (LagBFunction,
+  * their number (\p num_hard_cmps) is fed in, since their cuts B^k
+  * are held internally in initially empty PolyhedralFunctionBlock(s)
+  * under *this* and are given by the caller through the add_cut() /
+  * remove_cut() interface. The "easy" components are passed in via
+  * \p easy_components, type-dispatched (LagBFunction,
   * BendersBFunction, ...) and absorbed into the master in the form
   * dictated by the requested primal / dual MP. The dualization details
   * stay inside MasterProblemBlock, so callers only need to know which
@@ -355,8 +368,60 @@ class MasterProblemBlock : public Block {
   * removed from the Function Block's own sub-Block list. The Function Block
   * therefore retains ownership and direct access, while modifications from
   * the inner Block propagate through MasterProblemBlock. The latter intercepts
-  * them in add_Modification(), notifies the retained Function Block owner and
-  * then forwards them normally along the master Block tree.
+  * them in add_Modification(), notifies the father the inner Block had when
+  * it was registered and then forwards them normally along the master Block
+  * tree. That father is the Function Block, unless the MasterProblemBlock of
+  * another Solver attached to the same Block has registered the inner Block
+  * before: then it is that MasterProblemBlock, which does the same in turn,
+  * so that the Modification reach the master Solver of each of them and
+  * finally the Function Block. clear() gives the inner Block back the father
+  * it had, or has the MasterProblemBlock that registered it next record that
+  * father in its place.
+  *
+  * In the dual MP the mass lambda of the lower model can differ from 1 only
+  * if the feasible set of every easy component is scaled by it, which is
+  * done by a size Variable of the inner Block [see Block::get_size_variable()
+  * and Block::set_size_variable()], never by scaling coefficients. When the
+  * abstract variables are generated, each easy inner Block is asked, in this
+  * order:
+  *
+  * - get_size_variable(): a non-null result is a size Variable tau_k that
+  *   the inner Block owns and its rows are already written with; it must be
+  *   a ColVariable, and it receives a master row tau_k = lambda;
+  *
+  * - set_size_variable( lambda , eNoMod ): if it answers true the inner
+  *   Block has written lambda itself into its rows, and no row is needed.
+  *   The master is being built, and a full reload of it follows, which is
+  *   why no Modification is issued. lambda is given as it is, rather than a
+  *   column of the component tied to it, so that a new configure() on the
+  *   same inner Block passes it the Variable it already has;
+  *
+  * - otherwise, if asked [see use_easy_mirrors()], the master builds a
+  *   copy of the inner Block [see
+  *   AbstractBlock::mirror()] and gives it lambda [see
+  *   AbstractBlock::set_size_variable()], and the copy is in the master in
+  *   place of the inner Block, which is not touched: its Modification are
+  *   written in the copy, its solutions are written back into it, and if
+  *   one of its Modification is one that the copy cannot follow the inner
+  *   Block goes back in the master, unscaled, and lambda is fixed to 1
+  *   [see EasyMirror].
+  *
+  * A component for which the three answer no (the third when no copy is
+  * asked for, or when the copy is not faithful or has something that
+  * cannot be scaled) cannot be scaled. If every easy component can, lambda
+  * is nonnegative and free, and the global lower bound [see
+  * set_global_LB()] can be used; otherwise lambda is fixed to 1,
+  * which also fixes to 1 the size Variable of the components that can be
+  * scaled, through their rows or directly, and the global lower bound has
+  * no effect. The same holds when the scaling is not wanted [see
+  * use_easy_size_variables()], in which case neither set_size_variable() is
+  * called nor any copy is made. No per-component lower bound exists for the
+  * easy components.
+  * MPB never changes the bounds of a size Variable. The owned variables
+  * remain owned by their inner Blocks, and the master removes its rows on
+  * clear(); an inner Block given lambda keeps it in its rows after clear(),
+  * since Block::set_size_variable() has no way of taking it back. The
+  * primal MP is unaffected.
   *
   * The optional \p ignored_blocks list is forwarded to the inner Solver
   * via Solver::set_excluded_blocks(), telling it which registered
@@ -369,7 +434,7 @@ class MasterProblemBlock : public Block {
   *                          only LagBFunction. Any other C05Function
   *                          type, or a mismatch with \p primal, makes
   *                          configure() throw.
-  * @param max_bundle_size   maximum number of items (subgradients +
+  * @param max_cuts_per_cmp  maximum number of items (subgradients +
   *                          feasibility cuts) kept per hard component;
   *                          stored in #MaxBSize.
   * @param num_vars          number of optimization variables in the
@@ -377,10 +442,9 @@ class MasterProblemBlock : public Block {
   *                          of the step d, of the dual z, ...); stored
   *                          in #NumVars.
   * @param num_hard_cmps     number of "hard" components, i.e. components
-  *                          whose bundle is built up incrementally by the
-  *                          driving bundle driver through
-  *                          add_cut() / remove_cut(); stored in
-  *                          #NoHardCmps.
+  *                          whose cuts B^k are given incrementally by the
+  *                          caller through add_cut() / remove_cut();
+  *                          stored in #NoHardCmps.
   * @param easy_components   pointers to the easy C05Function components.
   *                          Each pointer must be non-null and must be of
   *                          a supported type (LagBFunction in the dual
@@ -402,18 +466,17 @@ class MasterProblemBlock : public Block {
   *        provided (and of size num_hard_cmps + easy_components.size())
   *        it is copied into MasterProblemBlock::IsEasyCmp, which the
   *        per-component getters (\see get_FiBLambda(k), and similar)
-  *        consult to dispatch the EASY branch. Empty by default for
-  *        backward compatibility with callers that do not yet maintain
-  *        such a flag vector; in that case IsEasyCmp stays at the
-  *        all-false default initialised by SetDim() and only the legacy
-  *        all-hard path is taken.
+  *        consult to dispatch the EASY branch. Empty by default, for
+  *        callers that do not keep such a flag vector; in that case
+  *        IsEasyCmp stays at the all-false default initialised by SetDim()
+  *        and only the all-hard path is taken.
   *  \param hard_cmp_scaling
   *        bit-wise numerical scaling requested for every hard-component
   *        PolyhedralFunctionBlock: bit 0 enables local row scaling and bit 1
   *        enables global epigraph scaling. Thus 0 = none, 1 = local only,
   *        2 = global only, 3 = both. */
  void configure( bool primal ,
-                 int max_bundle_size ,
+                 int max_cuts_per_cmp ,
                  int num_vars ,
                  int num_hard_cmps ,
                  const std::vector< C05Function * > & easy_components ,
@@ -440,8 +503,8 @@ class MasterProblemBlock : public Block {
   *   stored in #NoTotCmps;
   *
   * - \p NrFiEasy is the number of "easy" components, which receive a
-  *   compact in-place representation rather than being inner-approximated
-  *   by a bundle of linearizations; it is stored in #NoEasyCmps and the
+  *   compact in-place representation rather than being approximated by a
+  *   cutting-plane model; it is stored in #NoEasyCmps and the
   *   number of "hard" components is derived as NoTotCmps - NoEasyCmps.
   *
   * Calling SetDim() resets any previous state: existing sub-Blocks are dropped
@@ -453,7 +516,7 @@ class MasterProblemBlock : public Block {
 /*--------------------------------------------------------------------------*/
  /// register the inner Solver of MasterProblemBlock
  /** Attaches a Solver to MasterProblemBlock, used to (re-)solve the MP at
-  * every iteration of the surrounding Bundle algorithm. \p solv_cfg_filename
+  * every iteration of the algorithm using the MP. \p solv_cfg_filename
   * is the path of a file containing a BlockSolverConfig (in either text or
   * netCDF format): the file is deserialized via Configuration::deserialize()
   * and apply()-ed to MasterProblemBlock.
@@ -469,9 +532,12 @@ class MasterProblemBlock : public Block {
   * - the file does not contain a BlockSolverConfig.
   *
   * After a successful call the registered Solver is ready to be compute()-ed.
-  */
+  * Block::register_Solver(), which takes the Solver itself, is still
+  * available [see the using below]. */
 
  void register_Solver( std::string && solv_cfg_filename );
+
+ using Block::register_Solver;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// register the inner Solver + install an exclusion list on it
@@ -495,10 +561,10 @@ class MasterProblemBlock : public Block {
   * presence of "easy" components. The Variable, Constraint and Objective
   * objects are left to the generate_abstract_*() methods.
   *
-  * At call time the per-component bundles are *empty*: the dynamic cuts of
-  * each "hard" component are added on the fly by the surrounding Bundle
-  * algorithm via the Modification interface of the corresponding
-  * PolyhedralFunctionBlock sub-Block.
+  * At call time the per-component sets of cuts B^k are *empty*: the cuts of
+  * each "hard" component are given later by the caller through add_cut(),
+  * which issues the Modification of the corresponding PolyhedralFunctionBlock
+  * sub-Block.
   *
   * As a general rule the primal form is preferred when no "easy" component is
   * present, while the dual form is the only viable choice when \p NoEasy > 0
@@ -507,8 +573,11 @@ class MasterProblemBlock : public Block {
   *
   * @param Stbl       the stabilization scheme, see #stabilization_type;
   * @param NoCmps     total number of components (NoTotCmps);
-  * @param DoEasyCmp  bit-wise flag controlling the easy-component handling
-  *                   (it is forwarded to each LagBFunction sub-Block);
+  * @param DoEasyCmp  bit-wise flag controlling the easy-component handling,
+  *                   stored in #DoEasy: bit 3 (+8) is
+  *                   use_easy_size_variables( false ), bit 4 (+16) is
+  *                   use_easy_mirrors( true ), and the other bits are not
+  *                   read by MasterProblemBlock;
   * @param NoEasy     number of "easy" components;
   * @param IsEasy     boolean vector of length \p NoCmps such that
   *                   <tt>IsEasy[k] == true</tt> iff component \p k is
@@ -590,7 +659,8 @@ class MasterProblemBlock : public Block {
   * BendersBFunction::get_A() / get_b() / get_constraints() /
   * get_sides()) is relaxed on the inner Block (LHS = -INF, RHS = +INF
   * on the corresponding RowConstraint, depending on its
-  * #ConstraintSide) and re-installed on *this* as an FRowConstraint
+  * BendersBFunction::ConstraintSide) and re-installed on *this* as an
+  * FRowConstraint
   *
   *      E_i( y ) - ( A x )_i  [<=, =, >=]  b_i
   *
@@ -718,7 +788,7 @@ class MasterProblemBlock : public Block {
  /** Returns the PolyhedralFunctionBlock used to model the k-th "hard"
   * component of the sum-function, for k in [0, NoHardCmps). The pointer stays
   * valid as long as the MP is not torn down by clear() or SetDim(); it is
-  * meant to be used by the driver to feed cuts into the underlying
+  * meant to be used by the caller to feed cuts into the underlying
   * PolyhedralFunction via the Modification interface. */
 
  [[nodiscard]] Block * get_hard_component( int k ) const;
@@ -754,6 +824,35 @@ class MasterProblemBlock : public Block {
  void keep_easy_duals( bool yes ) { f_keep_easy_duals = yes; }
 
 /*--------------------------------------------------------------------------*/
+ /// says whether the easy components are to be scaled by a size Variable
+ /** In the dual MP the mass lambda of the lower model may differ from 1
+  * only if every easy component is scaled with it, through a size Variable
+  * of its inner Block or of a copy of it [see configure()]. With \p yes
+  * false no inner Block is given lambda and no copy is made: lambda is
+  * fixed to 1 even if every easy component could be scaled, the global
+  * lower bound has no effect, and the MP is the one without lambda, which
+  * may be cheaper to solve. A size Variable that an
+  * inner Block owns is still tied to lambda, its rows being written with
+  * it, and is therefore at 1 too. It is read when the abstract Variable of
+  * the dual MP are generated, i.e., by the next configure(); the default is
+  * true. */
+
+ void use_easy_size_variables( bool yes ) { f_use_easy_size = yes; }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// says whether an easy component may be scaled through a copy
+ /** An easy component whose inner Block neither owns a size Variable nor
+  * takes one may be scaled through a copy of the inner Block, sized by
+  * lambda, that the master has in its place [see configure() and
+  * EasyMirror]; with \p yes false, the default, no copy is made and such a
+  * component is not scaled, so that lambda is fixed to 1. It has no effect
+  * if the scaling is not wanted [see use_easy_size_variables()], and it is
+  * read when the abstract Variable of the dual MP are generated, i.e., by
+  * the next configure(). */
+
+ void use_easy_mirrors( bool yes ) { f_use_easy_mirror = yes; }
+
+/*--------------------------------------------------------------------------*/
  /// writes back into the k-th easy component the duals of the last solve
  /** What restore_easy_primal() does for the primal, for the duals: the
   * duals of the RowConstraint of the sub-Block of an easy component, which
@@ -773,30 +872,48 @@ class MasterProblemBlock : public Block {
  [[nodiscard]] double get_dual_norm_squared( void ) const;
 
 /*--------------------------------------------------------------------------*/
- /// add a new linearization (g, alpha_raw) at slot \p slot of bundle B^k
- /** Appends one new linearization to the bundle B^k of the k-th "hard"
-  * component, occupying the persistent NDOFi-style "slot" \p slot of that
-  * component. \p slot must lie in [0, MaxBSize) and must currently be empty
+ /// returns D*_t( z* ), the conjugate of the stabilizing term at z*
+ /** Returns the value at the aggregate z* of get_z_vector() of the conjugate
+  * of the stabilizing term with parameter \p t, i.e., what the master
+  * promises at most in the dual of a step of size \p t:
+  *
+  *  - \f$ t \| z^* \|_1 \f$ under #kTrustRegion, whose stabilizing term
+  *    is the indicator of \f$ \| d \|_\infty \le t \f$;
+  *
+  *  - \f$ ( t / 2 ) \| z^* \|_2^2 \f$ under every other stabilization,
+  *    whose term is (or, under the level ones, is measured as) the
+  *    quadratic one.
+  *
+  * \p t needs not be the current parameter of the master, e.g., a solver
+  * may ask it for a larger "optimality" t to build its stopping test.
+  * Meaningful only after solve_master(). */
+
+ [[nodiscard]] double get_conjugate_stabilization( double t ) const;
+
+/*--------------------------------------------------------------------------*/
+ /// add a new linearization (g, alpha_raw) at slot \p slot of B^k
+ /** Appends one new linearization to the set B^k of cuts of the k-th "hard"
+  * component, occupying the persistent "slot" \p slot of that component.
+  * \p slot must lie in [0, MaxBSize) and must currently be empty
   * (an std::logic_error is thrown otherwise). \p g is the new subgradient
   * (size NumVars; moved into the PolyhedralFunction); \p alpha is the *raw*
   * cut constant (the b such that F_k( x ) >= b + g . x in convex-min sign,
   * un-translated). The caller is *not* expected to pre-promote alpha to the
-  * linearization-error-at-x_bar form: the master keeps the raw value in its
-  * bundle and rebuilds the linearization-error form on demand from the cached
+  * linearization-error-at-x_bar form: the master keeps the raw value and
+  * rebuilds the linearization-error form on demand from the cached
   * F_k( x_bar ) installed via set_reference().
   *
-  * The (k, slot) pair lets the surrounding driver keep its ItemVcblr /
-  * InvItemVcblr name-management *unchanged* across subsequent remove_cut()
-  * calls: MasterPB internally tracks the slot -> local-row mapping into the
-  * PolyhedralFunction of HardCmps[k] (rows are renumbered on delete_row(), the
-  * slot is not).
+  * The (k, slot) pair is a persistent name of the cut, which stays *unchanged*
+  * across subsequent remove_cut() calls: MasterPB internally tracks the slot
+  * -> local-row mapping into the PolyhedralFunction of HardCmps[k] (rows are
+  * renumbered on delete_row(), the slot is not).
   *
   * The call issues the appropriate PolyhedralFunctionModAddd through the usual
   * Modification interface, so the [MILP]Solver attached to MasterProblemBlock
-  * picks it up on the next compute(). Each bundle item owns a physical row,
-  * even when its coefficients coincide with another item: duplicate
-  * management is an algorithmic responsibility of the solver driving the
-  * master, not of the master representation. The return value is #kCutInserted. */
+  * picks it up on the next compute(). Each cut owns a physical row, even
+  * when its coefficients coincide with those of another cut: duplicate
+  * management is a responsibility of the caller [see find_identical_cut()],
+  * not of the master representation. The return value is #kCutInserted. */
 
  static constexpr int kCutInserted = -1;
 
@@ -804,7 +921,7 @@ class MasterProblemBlock : public Block {
               bool is_vert = false );
 
 /*--------------------------------------------------------------------------*/
- /// add a new linearization (g, alpha) to bundle B^k, auto-allocating a slot
+ /// add a new linearization (g, alpha) to B^k, auto-allocating a slot
  /** Like add_cut(k, slot, g, alpha, is_vert) but the slot is chosen by
   * MasterPB itself; returns the chosen slot (or -1 if no slot is free, i.e.
   * all MaxBSize positions of B^k are occupied). \p is_vert tags the cut as a
@@ -815,8 +932,8 @@ class MasterProblemBlock : public Block {
               bool is_vert = false );
 
 /*--------------------------------------------------------------------------*/
- /// returns the number of cuts currently in the bundle of the k-th hard cmp
- /** Returns the size of the bundle B^k, i.e. the number of subgradient /
+ /// returns the number of cuts currently in B^k, for the k-th hard cmp
+ /** Returns the size of the set B^k, i.e. the number of subgradient /
   * feasibility cuts currently stored in the underlying PolyhedralFunction of
   * HardCmps[k]. \p k must lie in [0, NoHardCmps); returns 0 if the k-th hard
   * component is not registered yet. */
@@ -824,23 +941,21 @@ class MasterProblemBlock : public Block {
  [[nodiscard]] int get_bundle_size( int k ) const;
 
 /*--------------------------------------------------------------------------*/
- /// returns the highest "name" currently in use in the k-th hard bundle
- /** In NDOFi-style master problems every item carries a persistent
-  * integer "name" used to map slots to items; MasterPB does not maintain such
-  * a mapping (PolyhedralFunction rows are simply indexed [0, get_nrows())
-  * sequentially), so this method returns get_bundle_size(k). Provided as a
-  * drop-in for the surrounding driver code that iterates with Index j =
-  * Master->MaxName() ; j-- ; ... */
+ /// returns the number of local row indices in use in B^k
+ /** MasterPB names a cut only by its persistent slot [see add_cut()] and
+  * keeps no other per-cut name: the PolyhedralFunction rows are simply
+  * indexed [0, get_nrows()) sequentially, so this method returns
+  * get_bundle_size(k). It bounds the local row indices, not the slots. */
 
  [[nodiscard]] int get_max_cut_name( int k ) const
   { return( get_bundle_size( k ) ); }
 
 /*--------------------------------------------------------------------------*/
- /// returns whether every hard-component bundle is empty
+ /// returns whether every hard-component set of cuts B^k is empty
  /** Returns true iff get_bundle_size(k) == 0 for every k in
-  * [0, NoHardCmps); a convenience for the typical "empty MP" check performed
-  * by the surrounding Bundle algorithm at the very first iteration (or after a
-  * complete bundle reset). */
+  * [0, NoHardCmps); a convenience for the typical "empty MP" check of the
+  * caller at its very first iteration (or after every cut has been
+  * removed). */
 
  [[nodiscard]] bool is_bundle_empty( void ) const;
 
@@ -849,26 +964,25 @@ class MasterProblemBlock : public Block {
  /** Returns true iff there exists a hard component k whose dual simplex
   * row
   *     sum_i theta^k_i + gamma^k = lambda
-  * cannot be made satisfiable by the inner :MILPSolver, because:
+  * cannot be made satisfiable by the inner Solver, because:
   *  - gamma^k is fixed to 0 (no global LB has been installed on
   *    HardCmps[k], so the gamma^k * LB^k contribution is structurally
   *    absent), AND
-  *  - the bundle of theta^k_i is empty (no cuts pushed via add_cut()
-  *    have survived for this component).
+  *  - the set B^k, hence the theta^k_i, is empty (no cuts pushed via
+  *    add_cut() have survived for this component).
   * Under these conditions the row collapses to lambda = 0, which
   * contradicts K * lambda = 1 (always true with Var_r and Var_omega
-  * pinned). The surrounding driver can use this hook to detect a
-  * transient warm-start state - typically after an oracle mutation
-  * has invalidated every cut of some component - and short-circuit
-  * the master solve with a trivial direction, letting the next
-  * Fi(.) evaluation refill the affected bundles before the master
-  * is asked to solve a non-degenerate dual MP. */
+  * pinned), so the dual MP is infeasible. The caller can use this hook
+  * to detect such a transient state (typically after a change of the
+  * component has invalidated every cut of it) and give new cuts of the
+  * affected components [see add_cut()] before the master is asked to
+  * solve a non-degenerate dual MP. */
 
  [[nodiscard]] bool has_pinned_empty_cmp( void ) const;
 
 /*--------------------------------------------------------------------------*/
- /// remove the cut occupying slot \p slot from bundle B^k
- /** Deletes the cut stored at the NDOFi-style slot \p slot of the
+ /// remove the cut occupying slot \p slot from B^k
+ /** Deletes the cut stored at the persistent slot \p slot of the
   * k-th hard component; \p slot must lie in [0, MaxBSize) and must currently
   * be occupied (no-op if empty). The corresponding row of the
   * PolyhedralFunction is delete_row()-ed, and the slot->local-row mapping of
@@ -891,12 +1005,12 @@ class MasterProblemBlock : public Block {
  /** Like modify_cut() but only the constant term is touched (a cheaper
   * Modification, C05FunctionModLin instead of full row replacement).
   *
-  * Stored cut constants are otherwise *immutable* from the driver's point
+  * Stored cut constants are otherwise *immutable* from the caller's point
   * of view: this entry point exists exclusively to keep the master in
   * sync with C05Function modifications that change the native cut
   * constant (e.g. when the inner Block evolves and the linearization is
-  * still in the global pool); the legacy "shift after a stability-centre
-  * move" use is gone, replaced by set_reference(). */
+  * still in the global pool). A move of the stability centre needs no
+  * change of the constants, which set_reference() handles. */
 
  void modify_alpha( int k , int slot , double alpha );
 
@@ -925,7 +1039,7 @@ class MasterProblemBlock : public Block {
 /*--------------------------------------------------------------------------*/
  /// returns the optimal multiplier theta at slot \p slot of B^k
  /** Returns the current value of the dual multiplier theta^k stored at
-  * NDOFi-style slot \p slot of HardCmps[k]; the lookup goes through the slot
+  * persistent slot \p slot of HardCmps[k]; the lookup goes through the slot
   * -> local-row mapping. Meaningful only after solve_master() and only in the
   * dual MP form; returns 0 if the slot is empty. */
 
@@ -943,8 +1057,8 @@ class MasterProblemBlock : public Block {
  /// find an item with exactly the same coefficient vector
  /** Returns the slot of a cut in component \p k whose coefficient vector is
   * element-wise identical to \p g and whose diagonal/vertical type matches
-  * \p is_vert. The comparison is exact, matching the historical
-  * MPSolver::CheckBCopy semantics. Returns -1 if no copy exists. */
+  * \p is_vert. The comparison is exact, with no tolerance. Returns -1 if no
+  * copy exists. */
 
  [[nodiscard]] int find_identical_cut(
                          int k , const std::vector< double > & g ,
@@ -988,37 +1102,36 @@ class MasterProblemBlock : public Block {
  /** Returns true iff the cut occupying slot \p slot of HardCmps[k] is a
   * diagonal linearization (a "true" subgradient), false if it is a vertical /
   * feasibility cut (in the PolyhedralFunction's is_row_vertical sense).
-  * Returns false for empty slots; the NDOFi counterpart is Master->IsSubG(
-  * name ). */
+  * Returns false for empty slots. */
 
  [[nodiscard]] bool is_subgradient( int k , int slot ) const;
 
 /*--------------------------------------------------------------------------*/
  /// returns the total number of vertical (feasibility) cuts across all B^k
- /** NDOFi counterpart of Master->BCSize(): scans every HardCmps[k] and
-  * counts the rows i for which PolyhedralFunction::is_row_vertical(i) is true,
-  * returning the global tally. O(sum_k get_bundle_size(k)). */
+ /** Scans every HardCmps[k] and counts the rows i for which
+  * PolyhedralFunction::is_row_vertical(i) is true, returning the global
+  * tally. O(sum_k get_bundle_size(k)). */
 
  [[nodiscard]] int get_vertical_count( void ) const;
 
 /*--------------------------------------------------------------------------*/
- /// returns the number of *diagonal* rows in the bundle of HardCmps[ k ]
+ /// returns the number of *diagonal* rows in B^k, the cuts of HardCmps[ k ]
  /** The rows that carry the convexity mass of the per-component simplex row
   *
   *     sum_i theta^k_i + gamma^k = lambda
   *
   * are the diagonal ones alone: a vertical row enters that row with a zero
   * coefficient, being a recession direction rather than a piece of the
-  * model. A component whose bundle holds vertical rows only is therefore
+  * model. A component whose B^k holds vertical rows only is therefore
   * still "empty" as far as that row is concerned, which is what this counts
   * and get_bundle_size() does not. */
 
  [[nodiscard]] int get_diagonal_count( int k ) const;
 
 /*--------------------------------------------------------------------------*/
- /// returns Sigma* = aggregated linearization error of the dual bundle
- /** Computes the bundle-method "Sigma" = aggregated linearization error at
-  * the current stability centre x_bar.
+ /// returns Sigma* = aggregated linearization error of the dual MP
+ /** Computes the "Sigma" of stabilized methods, i.e., the aggregated
+  * linearization error at the current stability centre x_bar.
   *
   * Each cut is stored in its native (un-translated) form, i.e. as a pair
   * (g, alpha_raw) that bounds the function as
@@ -1028,22 +1141,22 @@ class MasterProblemBlock : public Block {
   *     e_i = | F_k( x_bar ) - alpha_raw_i - g_i . x_bar |
   * (positive by construction). This method assembles
   *     Sigma_k = sum_i theta^k_i * e_i
-  * on the fly from the bundle, the cached F_k( x_bar ) installed via
+  * on the fly from the cuts B^k, the cached F_k( x_bar ) installed via
   * set_reference / set_F_at_x_bar, and the cached stability centre f_x_bar.
   *
   * \p k == -1 (default) sums over every hard component (the global aggregated
   * linearization error); \p k in [0, NoHardCmps) restricts the sum to
   * component k. In pure-level dual form the row masses carry eta, so the
-  * returned Sigma is divided by eta to stay in the normalized bundle-method
-  * units. Meaningful only after solve_master() and only in the dual MP form;
-  * returns 0 otherwise. */
+  * returned Sigma is divided by eta to stay in the normalized units of a
+  * convex combination. Meaningful only after solve_master() and only in the
+  * dual MP form; returns 0 otherwise. */
 
  [[nodiscard]] double get_aggregated_alpha( int k = -1 ) const;
 
 /*--------------------------------------------------------------------------*/
  /// returns sum_i theta^k_i * alpha_raw_i, the un-translated combination
  /** Companion of #get_aggregated_alpha that exposes the *raw* convex
-  * combination of the native cut constants stored in the bundle, without
+  * combination of the native cut constants stored in B^k, without
   * applying the F_k( x_bar ) / g . x_bar translation. Useful for callers
   * that want to perform the translation themselves or just need the raw
   * aggregate (e.g. diagnostics). \p k == -1 sums over every hard component;
@@ -1062,8 +1175,7 @@ class MasterProblemBlock : public Block {
 
 /*--------------------------------------------------------------------------*/
  /// returns the model value v*[k] of the cutting-plane model at the step
- /** NDOFi counterpart of Master->ReadFiBLambda() / ReadFiBLambda(k+1).
-  * In the primal MP this is just Var_v_hard[k].get_value() (per-cmp, \p k >=
+ /** In the primal MP this is just Var_v_hard[k].get_value() (per-cmp, \p k >=
   * 0) or the sum over every k (\p k == -1). In the dual MP the same quantity
   * is read from the dual optimality identities: proximal uses d* = -t z*,
   * while pure level uses d* = -eta z* because the level row multiplier carries
@@ -1073,12 +1185,17 @@ class MasterProblemBlock : public Block {
 
 /*--------------------------------------------------------------------------*/
  /// returns the aggregated subgradient z* in a fresh std::vector
- /** NDOFi counterpart of Master->ReadZ() (the dense, global, no-bse
-  * variant). In the dual MP Var_z is returned directly for proximal/doubly
-  * stabilization, but in pure level it is divided by eta because the dual
+ /** Returns the dense, global aggregate. In the dual MP Var_z is returned
+  * directly for proximal/doubly stabilization, but in pure level it is
+  * divided by eta because the dual
   * stationarity vector stores eta z*. In the primal MP z* is reconstructed
-  * from the solved displacement and the active stabilization. Meaningful only
-  * after solve_master(). */
+  * from the solved displacement and the active stabilization. Under
+  * #kTrustRegion the master has no term in z, and z* is the part of the
+  * multipliers of the box that belongs to the trust region rather than to
+  * the box [ L , U ]: on coordinate j it is the aggregate of the cuts if
+  * d*_j lies on a side of the trust region, 0 if it lies on a side of
+  * [ L , U ] (the aggregate is then in the normal cone of the latter).
+  * Meaningful only after solve_master(). */
 
  [[nodiscard]] std::vector< double > get_z_vector( void ) const;
 
@@ -1086,20 +1203,21 @@ class MasterProblemBlock : public Block {
  /// returns Z[k] = sum_i theta^k_i * g^k_i for the k-th hard component
  /** Materialises in a fresh std::vector<double> of length NumVars the
   * aggregated subgradient of the k-th hard component, i.e. the convex
-  * combination of the bundle rows g^k_i weighted by their optimal theta^k_i
-  * multipliers. NDOFi counterpart of Master->ReadZ(..., k+1). Meaningful only
-  * after solve_master() in the dual MP form; returns an all-zero vector in the
-  * primal MP or when the slot is unavailable. */
+  * combination of the rows g^k_i of B^k weighted by their optimal theta^k_i
+  * multipliers. Meaningful only after solve_master() in the dual MP form;
+  * returns an all-zero vector in the primal MP or when the slot is
+  * unavailable. */
 
  [[nodiscard]] std::vector< double > get_aggregated_subgradient( int k ) const;
 
 /*--------------------------------------------------------------------------*/
  /// returns the primal direction d in a fresh std::vector
- /** NDOFi counterpart of Master->Readd(). In the translated primal MP the step
-  * d is stored directly in Var_d. In the raw primal MP Var_d stores absolute x
-  * and the call returns x - x_bar. In the dual MP the proximal identity is
-  * d* = -t z*; in pure level Var_z stores eta z*, so d* = -Var_z. Meaningful
-  * only after solve_master(). */
+ /** In the translated primal MP the step d is stored directly in Var_d. In
+  * the raw primal MP Var_d stores absolute x and the call returns
+  * x - x_bar. In the dual MP the proximal identity is
+  * d* = -t z*; in pure level Var_z stores eta z*, so d* = -Var_z. Under
+  * #kTrustRegion there is no such identity, and d* is the dual value of the
+  * coupling rows. Meaningful only after solve_master(). */
 
  [[nodiscard]] std::vector< double > get_d_vector( void ) const;
 
@@ -1113,7 +1231,7 @@ class MasterProblemBlock : public Block {
 
 /*--------------------------------------------------------------------------*/
  /// returns z* . d, the scalar product of the aggregated subgradient and d
- /** NDOFi counterpart of Master->ReadGid() (the global, no-name variant).
+ /** The global variant, on the aggregate rather than on a single cut.
   * get_z_vector() and get_d_vector() first map the solved primal/dual master
   * representation to the common physical quantities; this method then computes
   * the same scalar product for every stabilization. Meaningful only after
@@ -1123,8 +1241,8 @@ class MasterProblemBlock : public Block {
 
 /*--------------------------------------------------------------------------*/
  /// returns g^k_slot . d, the scalar product of the cut subgradient and d
- /** NDOFi counterpart of Master->ReadGid( name ) (the per-name variant).
-  * \p k and \p slot identify the cut in the bundle of the k-th hard component;
+ /** The per-cut variant of get_Gid_aggregate().
+  * \p k and \p slot identify the cut in B^k, of the k-th hard component;
   * the call returns sum_j g^k_slot[j] * d[j] using get_subgradient(k, slot)
   * and get_d_vector(). Returns 0 if the slot is empty or if d is not
   * available. */
@@ -1133,9 +1251,9 @@ class MasterProblemBlock : public Block {
 
 /*--------------------------------------------------------------------------*/
  /// invalidate every cut of B^k (NBModification on the underlying f_polyf)
- /** NDOFi counterpart of Master->ChgSubG(...) when the whole bundle B^k
-  * has to be marked "stale" because the underlying subgradient values changed
-  * (e.g. the active Variable of the C05Function were re-bound). MasterPB
+ /** Marks the whole set of cuts B^k as "stale", to be used when the
+  * underlying subgradient values changed (e.g. the active Variable of the
+  * C05Function were re-bound). MasterPB
   * issues an NBModification on the PolyhedralFunctionBlock of HardCmps[k],
   * which is the SMS++ "everything in this Block has just changed" signal: the
   * [MILP]Solver attached to MasterProblemBlock will then re-load the full
@@ -1146,9 +1264,9 @@ class MasterProblemBlock : public Block {
 
 /*--------------------------------------------------------------------------*/
  /// bulk replacement of the linearization errors of B^k
- /** NDOFi counterpart of Master->ChgAlfa(Alfa.data(), k+1). Replaces
-  * the constant terms of the bundle B^k with the values in \p alphas; \p
-  * alphas must have size at least equal to MaxBSize and is read slot-by-slot
+ /** Replaces the constant terms of the cuts B^k with the values in
+  * \p alphas; \p alphas must have size at least equal to MaxBSize and is
+  * read slot-by-slot
   * through slot_to_local[k], skipping empty slots. The underlying
   * PolyhedralFunction issues one C05FunctionModLin per touched row (a future
   * optimisation could collapse them with a single modify_constants call). */
@@ -1157,16 +1275,18 @@ class MasterProblemBlock : public Block {
 
 /*--------------------------------------------------------------------------*/
  /// linear-in-t sensitivity of v*(t) around the current t_stab
- /** NDOFi counterpart of Master->SensitAnals(vl, vc). The
-  * The driver uses these two scalars to predict
+ /** Returns the two scalars vl and vc of the linear prediction
   *     v( t_new ) >= vc + t_new * vl
-  * in the long-term "hard" t-strategy. With the proximal dual MP
+  * of the optimal value of the master as a function of t, which the caller
+  * may use to choose the next t. With the proximal dual MP
   *   v*(t) = sum_k sum_i theta^k_i alpha^k_i + gamma^k LB^k + x_bar . z*
   *           - (t/2) || z* ||^2
   * and assuming theta^k_i / z* approximately constant in a neighbourhood of
   * the current t_stab, the implementation returns
   *   vl = - || z* ||^2 / 2
   *   vc = v*(t_stab) - vl * t_stab           (linear extrapolation)
+  * Under #kTrustRegion the stabilization contributes - t || z* ||_1, which
+  * is linear in t, and vl = - || z* ||_1.
   * In the primal MP both are set to 0 (the sensitivity is not yet implemented
   * there). */
 
@@ -1177,7 +1297,7 @@ class MasterProblemBlock : public Block {
  /** Returns a const reference to the full RealVector b of the
   * PolyhedralFunction of HardCmps[k] (i.e. every alpha^k_i in one shot,
   * indexed by the *local* position i in B^k). The reference stays valid until
-  * the next bundle modification (add_cut / remove_cut / modify_cut /
+  * the next modification of B^k (add_cut / remove_cut / modify_cut /
   * modify_alpha) on the same component. */
 
  [[nodiscard]] const std::vector< double > & get_alphas( int k ) const;
@@ -1200,7 +1320,7 @@ class MasterProblemBlock : public Block {
   * Lvl into Lvl_xbar = Lvl + C. The shift is depositied as a member and
   * applied on top of the value passed to set_global_LB() / set_f_lev() /
   * set_LB() when their coefficients are committed to the dual Objective.
-  * Should be called by the driver whenever the stability
+  * The caller has to call it whenever the stability
   * centre x_bar moves; default is 0 (= no shift, suitable for kProximal
   * without explicit global LB / level). */
 
@@ -1209,7 +1329,7 @@ class MasterProblemBlock : public Block {
 /*--------------------------------------------------------------------------*/
  /// select the master storage frame ( translated vs raw/iterate )
  /** Select which algebraically-equivalent storage frame the master uses.
-  * The choice is INTERNAL to MasterProblemBlock and invisible to the driver,
+  * The choice is INTERNAL to MasterProblemBlock and invisible to the caller,
   * which always passes / reads raw alpha.
   *
   * - 0 = displacement form ( default, production ): cuts are stored in the
@@ -1241,8 +1361,11 @@ class MasterProblemBlock : public Block {
  /** In the dual MP the global lower bound enters as the linear coefficient
   * of the r multiplier in the master Objective (+ r * LB_xbar term, with
   * LB_xbar = LB + C, cf. set_C). This API forwards \p LB to that coefficient
-  * via modify_term on the FRealObjective LinearFunction. No-op under the
-  * primal MP (where the global LB has to be expressed differently). */
+  * via modify_term on the FRealObjective LinearFunction. In the primal MP it
+  * is the left-hand side of the value row LB <= b*d + sum_k v^k, whose
+  * right-hand side is the level, if any [see set_f_lev()]; the row is there
+  * whatever the stabilization, with infinite sides as long as they are not
+  * given. A non-finite \p LB means that there is no global lower bound. */
 
  void set_global_LB( double LB );
 
@@ -1275,10 +1398,10 @@ class MasterProblemBlock : public Block {
   * \p F_at_x_bar must have one entry per *hard* component, in the same order
   * used by HardCmps (i.e. F_at_x_bar[ k ] is F_k( x_bar ) for the k-th hard
   * component). Internally each value is cached as a member and used to
-  * translate, on demand, the raw α stored in the bundle (each cut keeps the
+  * translate, on demand, the raw α stored in B^k (each cut keeps the
   * native b such that  F_k( x ) >= b + g . x  ) into the linearization-error
   *   e_i = F_k( x_bar ) - b_i - g_i . x_bar
-  * which the bundle-method stop test consumes; the cuts themselves stay
+  * which stopping tests use [see get_aggregated_alpha()]; the cuts stay
   * untouched. Default for every entry is 0.
   *
   * The two sides may still be poked individually via the lower-level
@@ -1292,7 +1415,7 @@ class MasterProblemBlock : public Block {
 /*--------------------------------------------------------------------------*/
  /// lower-level: set the per-component reference value F_k( x_bar )
  /** Per-component poke used internally by set_reference and exposed as a
-  * fallback. The driver is normally expected to call set_reference()
+  * fallback. The caller is normally expected to call set_reference()
   * instead. Default for every entry is 0.
   *
   * \p k is the index in HardCmps; must satisfy 0 <= k < NoHardCmps. */
@@ -1302,18 +1425,22 @@ class MasterProblemBlock : public Block {
 /*--------------------------------------------------------------------------*/
  /// set the "lazy reference" tolerance for the displacement form
  /** The diagonal cuts store the linearization error at a reference x_ref. By
-  * default x_ref tracks the stability centre x_bar at every serious step
+  * default x_ref tracks the stability centre x_bar at every move of it
   * ( tol == 0 ), i.e. the plain displacement form that re-bakes the per-cut
   * g . delta dot product on every move. Setting tol > 0 lets x_ref lag behind
   * x_bar: the residual g . ( x_bar - x_ref ) is carried by the explicit lin-z
   * coefficient on Var_z ( O( NumVars ) per move, no per-cut dot product ), and
   * x_ref is re-aligned to x_bar ( paying the per-cut shift once ) only when
   * || x_bar - x_ref ||_inf > tol. The master Problem is UNCHANGED for any tol
-  * ( exact identity ); tol only trades the per-serious-step cost against the
-  * per-cut constant magnitude. tol == 0 is a strict no-op. */
+  * ( exact identity ); tol only trades the per-move cost against the
+  * per-cut constant magnitude. tol == 0 is a strict no-op. The dual MP
+  * under #kTrustRegion has Var_z fixed to 0, hence no place for the
+  * residual: there tol is always 0. */
 
- void set_xref_tol( double tol ) noexcept
-  { f_xref_tol = ( tol > 0.0 ) ? tol : 0.0; }
+ void set_xref_tol( double tol ) noexcept {
+  f_xref_tol =
+    ( ( tol > 0.0 ) && ( IsPrimal || ( ! has_trust_region() ) ) ) ? tol : 0.0;
+  }
 
 /*--------------------------------------------------------------------------*/
  /// read back the cached reference value F_k( x_bar )
@@ -1330,7 +1457,7 @@ class MasterProblemBlock : public Block {
 /*--------------------------------------------------------------------------*/
  /// set the per-coordinate box  L <= x <= U  on the optimization variables
  /** Installs the lower / upper bounds on the optimization variable x that
-  * the surrounding driver is minimising on. In terms of the step
+  * the caller is minimising on. In terms of the step
   * variable  d = x - x_bar  the box reads
   *     L - x_bar <= d <= U - x_bar
   * which on the dual MP enters as
@@ -1352,7 +1479,7 @@ class MasterProblemBlock : public Block {
  void set_box( const std::vector< double > & L ,
                const std::vector< double > & U );
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify the box on a contiguous range of coordinates
  /** Installs the values in \p L and \p U on the left-closed, right-open
   * interval [ range.first , range.second ). Each nonempty vector must have
@@ -1360,14 +1487,14 @@ class MasterProblemBlock : public Block {
   * removes that side of the box throughout the range.
   *
   * A changed lower side issues a MasterProblemRngdMod of type
-  * #MasterProblemMod::BoxLowerChanged carrying the new lower values; a
-  * changed upper side analogously issues #MasterProblemMod::BoxUpperChanged.
+  * MasterProblemMod::BoxLowerChanged carrying the new lower values; a
+  * changed upper side analogously issues MasterProblemMod::BoxUpperChanged.
   * Each Modification therefore carries one direct vector of new values. */
 
  void set_box( std::vector< double > L , std::vector< double > U ,
                Range range );
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify the box on an arbitrary subset of coordinates
  /** Installs L[ i ] and U[ i ] on coordinate subset[ i ]. Each nonempty
   * value vector must have subset.size() entries. An empty \p L
@@ -1394,10 +1521,102 @@ class MasterProblemBlock : public Block {
   { return( f_U ); }
 
 /*--------------------------------------------------------------------------*/
- /// set the upper bundle u_bar of an #kUpperLower stabilization
+ /// a row of linear constraints: the ( coordinate , coefficient ) pairs
+
+ using LinearRow = std::vector< std::pair< Index , double > >;
+
+ /// set the linear constraints  l <= A x <= u  on the optimization variables
+ /** Installs the linear constraints
+  *
+  *     l_i <= A_i x <= u_i
+  *
+  * on the optimization variable x, i.e., on the point the caller is
+  * minimising on, as set_box() installs its box; row i is \p A[ i ], the
+  * ( coordinate , coefficient ) pairs of its nonzeros, and its sides are
+  * \p l[ i ] and \p u[ i ], each possibly infinite. The rows replace
+  * whatever rows had been set before, and an empty \p A removes them all.
+  *
+  * Only the primal MP has them, as rows on its Variable: as they are in raw
+  * form, and in displacement form in terms of the step d = x - x_bar, i.e.,
+  * as
+  *
+  *     l_i - A_i x_bar <= A_i d <= u_i - A_i x_bar
+  *
+  * with the sides following the stability centre [see set_x_bar()]. Their
+  * multipliers belong to the normal cone of the feasible set, hence to the
+  * aggregate z* = - d* / t, and by complementary slackness their part of
+  * < z* , d* > is their linearization error at x_bar, which therefore gets
+  * into the aggregated one [see get_aggregated_alpha()].
+  *
+  * The dual MP has their multipliers instead, as it has those of the box:
+  * row i gets two non-negative Variable mu^+_i and mu^-_i, which enter the
+  * coupling rows with coefficients A_i and - A_i, and the objective with
+  * the sides above, + mu^+_i l_i - mu^-_i u_i in the textbook max form (in
+  * the frame of the Variable, hence following x_bar in displacement form),
+  * a multiplier of an infinite side being fixed to 0. Their part of the
+  * aggregated linearization error is mu^+_i ( A_i x_bar - l_i ) + mu^-_i (
+  * u_i - A_i x_bar ), as for the box. Setting them again replaces the old
+  * ones, whose multipliers leave the dual MP.
+  *
+  * The coordinates are those of x, in [ 0 , NumVars ), and the rows are
+  * kept across add_vars(), while remove_vars() throws if any of them has a
+  * coordinate being removed. */
+
+ void set_linear_constraints( std::vector< LinearRow > A ,
+                              std::vector< double > l ,
+                              std::vector< double > u );
+
+ /// the number of linear constraints [see set_linear_constraints()]
+
+ [[nodiscard]] Index get_num_linear_constraints( void ) const
+  { return( Index( f_lc_A.size() ) ); }
+
+/*--------------------------------------------------------------------------*/
+ /// host in the primal MP the Block whose Variable are the coordinates
+ /** Makes \p block a sub-Block of the primal MP, as the inner Block of an
+  * easy component is, so that the Solver of the MP has all its Variable and
+  * Constraint, of any type and structure, and receives their Modification
+  * through the usual channel; \p x[ j ] is the ColVariable of \p block
+  * that is the coordinate j of the point the caller is minimising on. The
+  * MP then has the rows
+  *
+  *     x_j - d_j = x_bar_j        ( x_j - d_j = 0 in raw form )
+  *
+  * binding each of them to the Variable of the MP, with the sides following
+  * the stability centre [see set_x_bar()], so that the feasible set of the
+  * MP is the projection onto the coordinates of the one \p block defines,
+  * the other Variable of \p block being free to take whatever value it
+  * needs. What \p block minimises is not part of the MP: its Objective is
+  * given to Solver::set_excluded_objectives(), its sub-Block to
+  * Solver::set_excluded_blocks(), of the Solver of the MP, which may have
+  * to load the problem again (an NBModification is issued). Whether integer
+  * Variable of \p block keep being so in the MP is for the configuration of
+  * that Solver to say.
+  *
+  * The multipliers of the rows belong to the normal cone of the feasible
+  * set, and are treated as those of the linear constraints are [see
+  * set_linear_constraints()]. \p block stays owned by its owner, and gets
+  * back the father it had when it is no longer hosted, i.e., when this is
+  * called with nullptr or another Block, or by clear().
+  *
+  * Calling it again with the same \p block replaces the rows; an empty \p
+  * x removes them and keeps \p block hosted, which is what the caller does
+  * while the coordinates change, since remove_vars() throws while the rows
+  * are there, and add_vars() does not give the new coordinates a row. Only
+  * the primal MP can host a Block, the dual one would need its
+  * dualization. */
+
+ void set_hosted_Block( Block * block , std::vector< ColVariable * > x );
+
+ /// the Block hosted in the MP, nullptr if none [see set_hosted_Block()]
+
+ [[nodiscard]] Block * get_hosted_Block( void ) const { return( f_host ); }
+
+/*--------------------------------------------------------------------------*/
+ /// set the upper centre u_bar of an #kUpperLower stabilization
  /** Companion of #set_x_bar to be used under #kUpperLower stabilization
   * (which is currently a reserved-but-not-implemented type, see
-  * #stabilization_type): \p u_bar is the upper bundle centre, around
+  * #stabilization_type): \p u_bar is the upper centre, around
   * which the proximal term is anchored on the "upper" side. Throws when
   * called under any other stabilization. \p u_bar must have size
   * NumVars.
@@ -1409,8 +1628,8 @@ class MasterProblemBlock : public Block {
  void set_u_bar( const std::vector< double > & u_bar );
 
 /*--------------------------------------------------------------------------*/
- /// set the lower bundle l_bar of an #kUpperLower stabilization
- /** Companion of #set_u_bar: \p l_bar is the lower bundle centre, around
+ /// set the lower centre l_bar of an #kUpperLower stabilization
+ /** Companion of #set_u_bar: \p l_bar is the lower centre, around
   * which the proximal term is anchored on the "lower" side. Throws when
   * called under any stabilization other than #kUpperLower. \p l_bar
   * must have size NumVars.
@@ -1423,7 +1642,8 @@ class MasterProblemBlock : public Block {
 
 /*--------------------------------------------------------------------------*/
  /// install the constant linear part \p b of the original sum-function
- /** The original objective minimized by the bundle method has the structure
+ /** The original objective minimized by the algorithm using the MP has the
+  * structure
   * \f[
   *    \min \; b^\top \lambda \,+\, \sum_{k=1}^K F_k( \lambda )
   * \f]
@@ -1432,7 +1652,7 @@ class MasterProblemBlock : public Block {
   * single linear "0-th" component, an affine term of the sum-function whose
   * value at \f$\lambda\f$ is exactly \f$b^\top \lambda\f$.
   *
-  * In the dual master problem the bundle variables \f$\theta\f$ and
+  * In the dual master problem the multipliers \f$\theta\f$ and
   * \f$\gamma\f$ are tied to the step direction \f$z\f$ by the coupling
   * equations
   * \f[
@@ -1442,8 +1662,8 @@ class MasterProblemBlock : public Block {
   * \f]
   * (CreateDualMP builds them with rhs zero, and this method installs the
   * actual rhs \f$b_j\f$ for every \f$j\f$). The \f$b_j\f$ term acts as the
-  * "free" drift of \f$z\f$ that exists irrespective of the bundle content:
-  * if all \f$\theta^k_i\f$ vanish (empty bundle or a degenerate dual
+  * "free" drift of \f$z\f$ that exists irrespective of the cuts in the
+  * \f$B_k\f$: if all \f$\theta^k_i\f$ vanish (no cuts or a degenerate dual
   * solution) the equation collapses to \f$z = b\f$, so \f$z\f$ inherits the
   * direction of steepest ascent of the linear component.
   *
@@ -1463,8 +1683,8 @@ class MasterProblemBlock : public Block {
   * \f[
   *    \frac{1}{2} \sum_j \rho_j \lambda_j^2 \; , \qquad \rho_j \geq 0 \; ,
   * \f]
-  * which is what a regularised risk, i.e. any bundle on a strongly convex
-  * objective, has in front of the sum of the components.
+  * which is what a regularised risk, and in general a strongly convex
+  * objective of this form, has in front of the sum of the components.
   *
   * In the *primal* MP it costs nothing to carry, since with
   * \f$ \lambda = \bar{x} + d \f$
@@ -1482,21 +1702,34 @@ class MasterProblemBlock : public Block {
   * be destabilized. The coordinates with \f$ \rho_j = 0 \f$, such as a bias
   * that is not regularised, simply keep the proximal parameter they had.
   *
+  * Under #kTrustRegion and #kNone the master has no quadratic term of its
+  * own, and the component is written as it is: the quadratic coefficient of
+  * coordinate j is \f$ \rho_j / 2 \f$, and in the translated form the
+  * linear one is shifted by \f$ \rho_j \bar{x}_j \f$, so the master is a
+  * quadratic program instead of a linear one. There the part of the
+  * aggregate that belongs to the component is its gradient
+  * \f$ b + \rho \lambda^* \f$ at the solution of the master, and its
+  * linearization error at the centre is
+  * \f$ \frac{1}{2} \sum_j \rho_j ( d^*_j )^2 \f$ [see get_z_vector() and
+  * get_aggregated_alpha()].
+  *
   * With \p rho empty or all-zero, which is the default, nothing at all
   * changes: this is why the quadratic component costs nothing when it is not
   * there. It must have one entry per Variable of the master.
   *
-  * Only the primal MP with #kProximal stabilization supports it: the dual MP
-  * would need the term dualized, and the level ones would need the level row,
-  * which is linear in the model, to carry it. Both throw std::logic_error. */
+  * Only the primal MP with #kProximal, #kTrustRegion or #kNone stabilization
+  * supports it: the dual MP would need the term dualized, and the level ones
+  * would need the level row, which is linear in the model, to carry it. Any
+  * other stabilization throws std::logic_error, and so does CreatePrimalMP()
+  * with any of them once the term is there. */
 
  void set_zeroth_quadratic( const std::vector< double > & rho );
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// declare which coordinates of the primal MP are integer
  /** Declares coordinate j of the master integer if \p integer[ j ] is true,
-  * so that the master Solver, a :MILPSolver that does not relax the integer
-  * Variable, solves a mixed-integer problem: the master is
+  * so that the master Solver, if it does not relax the integer Variable,
+  * solves a mixed-integer problem: the master is
   * \f[
   *   \min \{ b x + \sum_k v^k + \frac{1}{2t} \| x - \bar{x} \|^2 :
   *           v^k \geq g_i^k x + \alpha_i^k \, , \, x \in [ L , U ] \, , \,
@@ -1504,10 +1737,15 @@ class MasterProblemBlock : public Block {
   * \f]
   * an integer quadratic program, and a mixed-integer linear one, i.e., the
   * cutting-plane master over the integer points of the box, with
-  * \f$ t = \infty \f$ [see set_t()]. A master with integer coordinates has
-  * no dual solution: the multipliers of the cuts, hence the aggregated
-  * linearization error and subgradient, are not available, and only the
-  * primal solution and its value can be used [see get_master_bound()].
+  * \f$ t = \infty \f$ [see set_t()]. On a binary coordinate, i.e., an
+  * integer one with box \f$ [ 0 , 1 ] \f$, \f$ x_j^2 = x_j \f$, and its
+  * quadratic coefficient is moved into the linear one: with only binary
+  * coordinates the stabilized master is a mixed-integer linear program as
+  * well, with the same value at every integer point. A master with integer
+  * coordinates has no dual solution: the multipliers of the cuts, hence the
+  * aggregated linearization error and subgradient, are not available, and
+  * only the primal solution and its value can be used [see
+  * get_master_bound()].
   *
   * Only the primal MP in raw form [see set_v2_form()] supports it, since
   * that is where the Variable of the master are the x themselves: in the
@@ -1519,12 +1757,76 @@ class MasterProblemBlock : public Block {
 
  void set_integer( std::vector< bool > integer );
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// true if any coordinate of the primal MP is integer [see set_integer()]
 
  [[nodiscard]] bool has_integer( void ) const { return( f_has_integer ); }
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// set the radius of the local branching on the binary coordinates
+ /** Sets to \p kappa the radius of the local branching on the binary
+  * coordinates of the primal MP, i.e., the integer ones [see set_integer()]
+  * whose box is [ 0 , 1 ] [see set_box()]: with B their set and
+  * \f$ \bar{x} \f$ the stability centre [see set_x_bar()], the master gets
+  * the constraint
+  * \f[
+  *   \Delta( x , \bar{x} ) = \sum_{j \in B : \bar{x}_j = 1} ( 1 - x_j ) +
+  *                         \sum_{j \in B : \bar{x}_j = 0} x_j \leq \kappa
+  *   \; ,
+  * \f]
+  * which limits to \p kappa the number of binary coordinates that differ
+  * from those of \f$ \bar{x} \f$, as in the stabilized Benders' method of
+  * Baena, Castro and Frangioni (Manag. Sci. 66, 2020), and the trust region
+  * [see #kTrustRegion] no longer restricts them, so that the trust region
+  * acts on the general integer and continuous coordinates and the local
+  * branching on the binary ones. The constraint follows the centre, and
+  * \p kappa == Inf< double >(), the default, removes it. It can be called
+  * both before and after the abstract representation is generated, and
+  * only the primal MP in raw form has it, as set_integer(). */
+
+ void set_local_branching( double kappa );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the radius of the local branching [see set_local_branching()]
+
+ [[nodiscard]] double get_local_branching( void ) const {
+  return( f_kappa );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the number of binary coordinates [see set_local_branching()]
+
+ [[nodiscard]] Index get_num_binary( void ) const;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// exclude from the master the current region of the local branching
+ /** Adds to the master the reverse local branching constraint
+  * \f$ \Delta( x , \bar{x} ) \geq \kappa + 1 \f$ for the current
+  * stability centre and radius [see set_local_branching()], which excludes
+  * the region the local branching constraint allows. It is meant for a
+  * region that has been explored, i.e., where the master has proven that
+  * nothing is better than the centre: the constraint stays when the centre
+  * moves, and all of them go when clear_reverse_local_branching() is called
+  * or some coordinate is removed [see remove_vars()]. Since it says nothing
+  * about the coordinates that are not binary, the region it excludes has
+  * been explored only if they have not been restricted while doing it. It
+  * does nothing if the radius is infinite or no coordinate is binary. */
+
+ void add_reverse_local_branching( void );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// remove all the reverse local branching constraints
+
+ void clear_reverse_local_branching( void );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the number of reverse local branching constraints
+
+ [[nodiscard]] Index get_num_reverse_local_branching( void ) const {
+  return( RevLBranchCns.size() );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// the lower bound on the optimal value of the last master solved
  /** Returns the lower bound on the optimal value of the master that its
   * Solver gives, get_lb() of the Solver, after the last solve_master(): it
@@ -1537,23 +1839,23 @@ class MasterProblemBlock : public Block {
 
  [[nodiscard]] double get_master_bound( void ) const;
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify the linear part on a contiguous range of coordinates
  /** Installs b[ i ] on coordinate range.first + i for the left-closed,
   * right-open interval [ range.first , range.second ). The size of \p b must
   * equal range.second - range.first. A real change issues a
-  * MasterProblemRngdMod of type #MasterProblemMod::LinearPartChanged,
+  * MasterProblemRngdMod of type MasterProblemMod::LinearPartChanged,
   * carrying the new values. */
 
  void set_linear_part( std::vector< double > b , Range range );
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify the linear part on an arbitrary subset of coordinates
  /** Installs b[ i ] on coordinate subset[ i ]. The size of \p b must equal
   * subset.size(), and all indices must be valid and distinct. If \p ordered
   * is false, the subset is sorted and \p b is reordered with it before the
   * change is applied. A real change issues a MasterProblemSbstMod of type
-  * #MasterProblemMod::LinearPartChanged carrying the sorted subset and its
+  * MasterProblemMod::LinearPartChanged carrying the sorted subset and its
   * aligned new values. */
 
  void set_linear_part( std::vector< double > b , Subset subset ,
@@ -1565,17 +1867,18 @@ class MasterProblemBlock : public Block {
   { return( f_linear_part ); }
 
 /*--------------------------------------------------------------------------*/
- /// append \p n new optimization variables to an empty-bundle Master Problem
- /** Convenience overload for the case in which every hard-component bundle
-  * is empty. If cuts are present their new coefficients are indispensable and
-  * this overload throws; use add_vars(n, coefficients) instead. */
+ /// append \p n new optimization variables to a Master Problem with no cuts
+ /** Convenience overload for the case in which every hard-component set of
+  * cuts B^k is empty. If cuts are present their new coefficients are
+  * indispensable and this overload throws; use add_vars(n, coefficients)
+  * instead. */
 
  void add_vars( int n );
 
  /// append \p n variables and extend every cut already in the master
  /** Extends the master from NumVars to NumVars + n coordinates without
   * rebuilding it. \p coefficients[ k ][ s ][ h ] is the coefficient, on the
-  * h-th new coordinate, of the cut in the persistent bundle slot s of the
+  * h-th new coordinate, of the cut in the persistent slot s of the
   * hard component k. It must contain one n-vector for every occupied slot;
   * empty slots may be omitted or represented by an empty vector.
   *
@@ -1602,10 +1905,9 @@ class MasterProblemBlock : public Block {
  /// forward an ostream to the [MILP]Solver attached to MasterPB
  /** Sets the log ostream on the first Solver registered to
   * MasterProblemBlock. The verbosity itself is left to the Solver's own
-  * ComputeConfig (typically the `intLogVerb` knob in the MPBSolverCfg
-  * file), so the surrounding driver does not need to
-  * carry a duplicate "MP log verbosity" parameter. No-op if no Solver
-  * is registered. */
+  * ComputeConfig, given in the BlockSolverConfig of register_Solver(), so
+  * the caller does not need to carry a duplicate "MP log verbosity"
+  * parameter. No-op if no Solver is registered. */
 
  void forward_log( std::ostream * log_stream );
 
@@ -1618,23 +1920,77 @@ class MasterProblemBlock : public Block {
  void set_max_time( double t );
 
 /*--------------------------------------------------------------------------*/
+ /// set the integrality tolerance of the master Solver to \p tol
+ /** Forwards `dblIntFeasTol = tol` to the first Solver registered to
+  * MasterProblemBlock via set_par [see MILPSolver::dblIntFeasTol]. No-op if
+  * no Solver is registered or if the Solver does not advertise the
+  * parameter. */
+
+ void set_int_feas_tol( double tol );
+
+/*--------------------------------------------------------------------------*/
+ /// stop the master Solver at the first point that improves on the centre
+ /** With a finite \p eps, each solve_master() gives the master Solver the
+  * cutoff (dblLwCutOff, the master being a minimization [see Solver.h])
+  * C - \p eps, C being the value of the Objective of the master at the
+  * stability centre with the model at the value of the function there,
+  * i.e., \f$ b \bar{x} + \sum_k f_k( \bar{x} ) \f$ plus the stabilization
+  * at \f$ \bar{x} \f$. The Objective at the point of the master is C plus
+  * the predicted decrease of the model [see get_FiBLambda()] plus the
+  * stabilization, which is nonnegative, hence a point whose value reaches
+  * the cutoff has a predicted decrease below - \p eps, and is different
+  * from the centre: a MIP Solver may stop there, with kCutOff and that
+  * point as its solution, rather than prove the optimality of the master
+  * [see MILPSolver::compute()], and solve_master() then reads it as a
+  * solution. An infinite \p eps, the default, sets no cutoff, which is what
+  * a master whose value is a bound has to have. Only the primal MP in raw
+  * form [see set_v2_form()] with the proximal stabilization or the trust
+  * region, with the values of the function at the centre [see
+  * set_x_bar()] and no easy component, has C: otherwise no cutoff is set,
+  * whatever \p eps. The cutoff is only given to a Solver that advertises
+  * dblLwCutOff, and the one it had is overwritten as long as \p eps has
+  * ever been finite. */
+
+ void set_improvement_cutoff( double eps ) { f_impr_eps = eps; }
+
+/*--------------------------------------------------------------------------*/
  /// solve the Master Problem by triggering compute() on the inner Solver
  /** Forwards to the compute() method of the first Solver registered to
   * MasterProblemBlock through register_Solver(); throws std::logic_error if no
-  * Solver is attached. Returns the status returned by compute(). */
+  * Solver is attached. Returns the status returned by compute(), which is
+  * kCutOff, with the solution read as after kOK, when the cutoff of
+  * set_improvement_cutoff() has stopped the Solver. */
 
  int solve_master( void );
 
 /*--------------------------------------------------------------------------*/
- /// manage the one-shot proximal objective used to seed pure level
+ /// manage the proximal objective used to seed or restart pure level
 
  [[nodiscard]] bool has_initial_level_objective( void ) const;
 
  void remove_initial_level_objective( void );
 
+ /// give the MP back the one-shot proximal objective of pure level
+ /** Undoes remove_initial_level_objective(): the proximal probe is back,
+  * with the unit normalization and the curvature in t, while the cuts B^k
+  * and the coordinate frame are kept; the caller must disable the obsolete
+  * level before calling it. In the primal MP the model terms are back in the
+  * Objective together with the proximal term, so that with t ==
+  * Inf< double >() [see set_t()] and no finite level [see set_f_lev()] the
+  * master is the cutting-plane one again, whose value is a lower bound. It
+  * does nothing if the Objective is already the initial one. */
+ void restore_initial_level_objective( void );
+
  [[nodiscard]] bool uses_pure_level_aggregation( void ) const {
   return( StblType == kLevel && ! has_initial_level_objective() );
   }
+
+ /// Whether the current pure-level solution supplies a normalized aggregate.
+ /** A solved projection with zero level multiplier can be perfectly feasible
+  * without defining an aggregate. Test this before consuming aggregate
+  * quantities. The tolerance concerns normalized multiplier identities, not
+  * the size of the aggregate subgradient. Non-level masters return true. */
+ [[nodiscard]] bool aggregate_is_valid( double tolerance = 1e-7 ) const;
 
 /*--------------------------------------------------------------------------*/
  /// returns the current optimal value of the global multiplier lambda
@@ -1643,7 +1999,8 @@ class MasterProblemBlock : public Block {
   * stationarity (i): lambda + r - omega = 1), shared across every hard
   * component (cf. PolyhedralFunctionBlock::set_lambda). In the primal form
   * it is 1 plus the multiplier of the level row, if any, that the rows of
-  * each component share with the proximal term. Meaningful only after
+  * each component share with the proximal term, less the multiplier r of
+  * the global lower bound row [see get_r()]. Meaningful only after
   * solve_master(). */
 
  [[nodiscard]] double get_lambda( void ) const {
@@ -1651,8 +2008,8 @@ class MasterProblemBlock : public Block {
    return( Var_lambda.get_value() );
   if( ( StblType == kDoublyStabilized ) ||
       ( ( StblType == kLevel ) && has_initial_level_objective() ) )
-   return( 1.0 + get_level_multiplier() );
-  return( 1.0 );
+   return( 1.0 + get_level_multiplier() - get_r() );
+  return( 1.0 - get_r() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1665,10 +2022,31 @@ class MasterProblemBlock : public Block {
 
 /*--------------------------------------------------------------------------*/
  /// returns the current optimal value of r
- /** r is the dual multiplier of the global LB row. Meaningful only after
-  * solve_master(). */
+ /** r is the dual multiplier of the global LB row: a variable of the dual
+  * MP, the dual value of the left-hand side of the value row in the primal
+  * one [see set_global_LB()]. Meaningful only after solve_master(). */
 
- [[nodiscard]] double get_r( void ) const { return( Var_r.get_value() ); }
+ [[nodiscard]] double get_r( void ) const;
+
+/*--------------------------------------------------------------------------*/
+ /// returns the mass the aggregate of the dual master is divided by
+ /** The rows of each component share the mass lambda, the global lower
+  * bound row, which is the horizontal linearization at LB, takes r, and
+  * lambda + r = 1 + omega, the level row making it larger than one: the
+  * aggregate subgradient z* and the aggregated linearization error Sigma*
+  * that get_z_vector() and get_aggregated_alpha() give are those of all
+  * these rows, divided by lambda + r so that they are a convex combination,
+  * hence a certificate on the maximum of the function and the global lower
+  * bound. In the pure level form the mass is that of the level row [see
+  * uses_pure_level_aggregation()]. Meaningful only after solve_master() and
+  * only in the dual MP form. */
+
+ [[nodiscard]] double aggregate_mass( void ) const {
+  if( uses_pure_level_aggregation() )
+   return( get_level_multiplier() );
+  return( get_lambda() + ( ( IsPrimal || ! Var_r.is_fixed() ) ? get_r()
+                                                             : 0.0 ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the current optimal value of omega
@@ -1698,23 +2076,75 @@ class MasterProblemBlock : public Block {
   * With #kTrustRegion t is instead the radius of the trust region
   * \f$ \| x - \bar{x} \|_\infty \leq t \f$, which is part of the box and
   * is updated at once. In the primal MP t may be Inf< double >(), which
-  * removes the stabilization: the master is then the cutting-plane one.
+  * removes the stabilization: the master is then the cutting-plane one,
+  * which the primal MP of #kNone is whatever t is, t being only stored.
   *
-  * \note this method only updates the proximal coefficient. The Bundle
-  *       algorithm is responsible for issuing the call at every t-change
-  *       and for triggering a re-solve of the MP. */
+  * \note this method only updates the proximal coefficient: issuing the
+  *       call at every change of t, and re-solving the MP after it, is up
+  *       to the caller. */
 
  void set_t( double t );
 
 /*--------------------------------------------------------------------------*/
  /// returns the current value of the proximal stabilization parameter t
  /** Returns the proximal stabilization parameter t currently used in the
-  * quadratic / linear term of the MP Objective. Needed by the caller (e.g.
-  * the driver) to convert the master-side step
-  * d* = -t * z* back to a t-independent displacement when applying a
-  * different Tau (as in t-strategies). */
+  * quadratic / linear term of the MP Objective. Needed by the caller to
+  * convert the master-side step d* = -t * z* back to a t-independent
+  * displacement when applying a different t. */
 
  [[nodiscard]] double get_t() const { return( t_stab ); }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the stabilization of the MP [see stabilization_type]
+
+ [[nodiscard]] stabilization_type get_stabilization( void ) const
+  { return( StblType ); }
+
+/*--------------------------------------------------------------------------*/
+ /// returns true if the MP is in its primal form, false if in the dual one
+
+ [[nodiscard]] bool is_primal( void ) const { return( IsPrimal ); }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the current level f_lev (level and doubly stabilization only)
+
+ [[nodiscard]] double get_level( void ) const { return( f_lev ); }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the global lower bound [see set_global_LB()], -INF if none
+ [[nodiscard]] double get_global_LB( void ) const {
+  return( std::isfinite( f_global_LB_xbar ) ? f_global_LB_xbar - f_C
+                                            : - Inf< double >() );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the diagonal of the quadratic 0-th component, empty if none
+ /** Returns the diagonal \f$ \rho \f$ of the quadratic 0-th component
+  * \f$ \frac{1}{2} \sum_j \rho_j x_j^2 \f$ of the primal MP [see
+  * set_zeroth_quadratic()], which is empty if there is no such component. */
+
+ [[nodiscard]] const std::vector< double > & get_zeroth_quadratic( void )
+  const { return( f_rho ); }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the bit-wise scaling of the hard components
+ /** Returns the scaling of the PolyhedralFunctionBlock of the hard
+  * components: bit 0 for the local rows, bit 1 for the global epigraph
+  * [see configure()]; 0 means that no component is scaled. */
+
+ [[nodiscard]] int get_hard_cmp_scaling( void ) const
+  { return( HardCmpScaling ); }
+
+/*--------------------------------------------------------------------------*/
+ /// gives the box of coordinate j of the primal MP
+ /** Writes in \p lhs and \p rhs the box of coordinate \p j of the primal
+  * MP, i.e., [ L , U ] intersected with the trust region under
+  * #kTrustRegion, in the frame of the Variable [see set_v2_form()]: the
+  * displacement d_j in the translated form, x_j in the raw one. An infinite
+  * side is - / + Inf< double >(). */
+
+ void get_primal_box( Index j , double & lhs , double & rhs ) const
+  { primal_box( j , lhs , rhs ); }
 
 /*--------------------------------------------------------------------------*/
  /// update the linear coefficient vector b of the primal Objective
@@ -1740,20 +2170,24 @@ class MasterProblemBlock : public Block {
  /** Installs (\p on == true) or removes (\p on == false) a *fictitious*
   * lower bound  v^k >= 0  on the model value of the k-th hard component.
   *
-  * It is meant for the transient state in which the bundle of component
-  * k is empty: an empty PolyhedralFunction models F_k as the max over an
-  * empty set of affine pieces, i.e. the improper constant -infinity, so
-  * the master would be primal-unbounded / dual-infeasible. The fictitious
-  * v^k >= 0 (the historical QP-bundle device) makes the empty component
-  * "disappear": v^k is held at 0 and gamma^k becomes a free, zero-cost
-  * multiplier that absorbs the per-PFB simplex mass lambda.
+  * It is meant for the transient state in which the set of cuts B^k of
+  * component k is empty: an empty PolyhedralFunction models F_k as the max
+  * over an empty set of affine pieces, i.e. the improper constant -infinity,
+  * so the master would be primal-unbounded / dual-infeasible. The fictitious
+  * v^k >= 0 makes the empty component "disappear": v^k is held at 0 and
+  * gamma^k becomes a free, zero-cost multiplier that absorbs the per-PFB
+  * simplex mass lambda.
   *
   * The bound is expressed directly in the d-space / linearization-error
   * frame (no F_k(x_bar) translation, unlike a genuine native bound passed
   * to set_LB), because the model value v^k already lives in that frame.
-  * The driver must remove it (\p on == false) as soon as the component
+  * The caller must remove it (\p on == false) as soon as the component
   * gets a real cut, restoring the gamma^k-fixed "no bound" state. \p k
-  * must lie in [0, NoHardCmps). */
+  * must lie in [0, NoHardCmps).
+  *
+  * It is not needed when a finite global lower bound has been set [see
+  * set_global_LB()]: the master is then bounded with the empty components
+  * left free (in the dual, lambda = 0 and r = 1 satisfy their rows). */
 
  void set_fictitious_LB( int k , bool on );
 
@@ -1764,8 +2198,8 @@ class MasterProblemBlock : public Block {
   * coefficient of the omega multiplier (+ omega * f_lev). It is a no-op when
   * #StblType == #kProximal (omega is fixed to 0 in that case).
   *
-  * \note the surrounding Bundle algorithm is responsible for choosing
-  *       f_lev consistently with its level-management strategy. */
+  * \note choosing f_lev consistently with a level-management strategy is
+  *       up to the caller. */
 
  void set_f_lev( double f );
 
@@ -1777,11 +2211,13 @@ class MasterProblemBlock : public Block {
   * method instead of the owning Function Block's add_Modification().
   *
   * This override restores the logical two-way dispatch: each Modification from
-  * an easy-component subtree is first passed to the retained Function Block
-  * owner, allowing it to update its caches and issue the corresponding
-  * Function Modification; the original Modification is then passed to
-  * Block::add_Modification() with \p chnl so the master Solver and master
-  * ancestors receive it normally.
+  * an easy-component subtree is first passed to the father the inner Block
+  * had when it was registered, i.e., the Function Block, allowing it to
+  * update its caches and issue the corresponding Function Modification, or
+  * the MasterProblemBlock of another Solver that had registered the inner
+  * Block before, which does the same; the original Modification is then
+  * passed to Block::add_Modification() with \p chnl so the master Solver and
+  * master ancestors receive it normally.
   *
   * The owner notification deliberately uses its default channel. The owner and
   * MasterProblemBlock belong to different Block-tree branches while
@@ -1795,10 +2231,28 @@ class MasterProblemBlock : public Block {
  void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override;
 
 /*--------------------------------------------------------------------------*/
+ /// the kinds of Modification read by anyone listening to the Block
+ /** Besides what Block::concerned() says, what is read by the father each
+  * easy inner Block and the host had when they were registered, since
+  * their Modification are passed there too [see add_Modification()]: an
+  * inner Block that asks its father whether to issue a Modification must
+  * also hear about the Solver of its original branch. */
+
+ [[nodiscard]] Modification::ModConcern concerned( void ) const override {
+  auto c = Block::concerned();
+  for( auto * owner : EasyCmps_Father )
+   if( owner )
+    c |= owner->concerned();
+  if( f_host_father )
+   c |= f_host_father->concerned();
+  return( c );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// load a MasterProblemBlock out of an istream
  /** Required by the abstract interface of Block, but currently not
   * implemented (a MasterProblemBlock is always built programmatically by its
-  * driving solver): always throws an std::logic_error. */
+  * caller): always throws an std::logic_error. */
 
  void load( std::istream & input , char frmt = 0 ) override {
   throw( std::logic_error(
@@ -1812,6 +2266,60 @@ class MasterProblemBlock : public Block {
  protected:
 
 /*--------------------------------------------------------------------------*/
+/*--------------------------- PROTECTED METHODS ----------------------------*/
+/*--------------------------------------------------------------------------*/
+ /// the Block that is in the master for the k-th easy component
+ /** Its sized copy if it has one [see EasyMirror], else its inner Block. */
+
+ [[nodiscard]] Block * easy_block( Index k ) const {
+  return( ( k < EasyMirror.size() ) && EasyMirror[ k ] ? EasyMirror[ k ]
+                                                       : EasyCmps_SB[ k ] );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the ColVariable that is in the master for \p u of the k-th component
+ /** The copy of \p u if the k-th easy component has a copy in the master
+  * [see EasyMirror] and \p u has a copy there, else \p u itself. */
+
+ [[nodiscard]] ColVariable * easy_var( Index k , ColVariable * u ) const {
+  if( ( k < EasyMirror.size() ) && EasyMirror[ k ] )
+   if( auto c = EasyMirror[ k ]->mirror_of( u ) )
+    return( c );
+  return( u );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// puts in the master a sized copy of the k-th easy inner Block
+ /** Builds the copy of the k-th easy inner Block, sizes it by lambda, and
+  * puts it in the master in place of the inner Block [see EasyMirror];
+  * returns false, with the master as it was, if the copy is not faithful or
+  * cannot be sized. */
+
+ bool mirror_easy( Index k );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// puts back the k-th easy inner Block in the master, in place of its copy
+ /** Called when the copy cannot follow a Modification of the inner Block
+  * [see AbstractBlock::mirror_forward_Modification()]: the inner Block is
+  * put in the master, the terms the master has on the ColVariable of the
+  * copy are zeroed and written again on those of the inner Block, the
+  * copy is left in the master with its rows relaxed and its Objective
+  * zeroed, lambda is fixed to 1, and the master is reloaded as a whole. */
+
+ void mirror_fallback( Index k );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// writes in the copies the Modification of the inner Blocks they copy
+ /** Returns what of \p mod remains for the Solver of the master, i.e.,
+  * \p mod without the Modification issued by an easy inner Block that has
+  * a copy in the master [see EasyMirror], which are written in the copy
+  * instead, the changes of the copy issuing their own Modification on
+  * channel \p chnl; nullptr if nothing remains, as when a group that has
+  * both kinds has had the others sent on one by one. */
+
+ sp_Mod forward_to_mirrors( const sp_Mod & mod , ChnlName chnl );
+
+/*--------------------------------------------------------------------------*/
 /*---------------------------- PROTECTED FIELDS  ---------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1823,7 +2331,7 @@ class MasterProblemBlock : public Block {
  stabilization_type StblType;
                           ///< type of stabilization, see #stabilization_type
 
- int MaxBSize;      ///< maximum number of items kept per bundle B^k
+ int MaxBSize;      ///< maximum number of items kept per set B^k
 
  int MaxSGLen;      ///< maximum length of a subgradient (currently == NumVars)
 
@@ -1848,19 +2356,46 @@ class MasterProblemBlock : public Block {
 
  // - - - - - - - - -  pointers to the per-component sub-Blocks - - - - - - - -
 
- std::vector< Block * > EasyCmps_Owner;
- ///< Function Blocks that own the corresponding entries of EasyCmps_SB;
- ///< retained so clear() can restore each inner Block's original father
+ std::vector< Block * > EasyCmps_Father;
+ ///< the fathers that the entries of EasyCmps_SB had when registered: the
+ ///< Function Block that owns each, or the MasterProblemBlock of another
+ ///< Solver that had registered it before; add_Modification() passes them
+ ///< the Modification of the inner Block, clear() gives it back to them
 
  std::vector< Block * > EasyCmps_SB;
  ///< sub-Blocks of the "easy" components; these are non-owning registrations
- ///< and remain owned by the corresponding Function Block in EasyCmps_Owner
+ ///< and remain owned by the Function Block of the component
+
+ std::vector< bool > EasyGivenLambda;
+ ///< EasyGivenLambda[ k ] == true iff the inner Block EasyCmps_SB[ k ] has
+ ///< taken lambda of this master as its size Variable [see
+ ///< Block::set_size_variable()], hence writes this master's column in its
+ ///< rows and cannot be used by the master of another Solver
+
+ std::vector< ColVariable * > EasySizeVars;
+ ///< borrowed size variables owned by easy inner Blocks in the dual MP
+ ///< [see Block::get_size_variable()], each linked to Var_lambda; the
+ ///< inner Blocks given Var_lambda itself are not here [see configure()]
 
  std::vector< Block * > HardCmps;  ///< sub-Blocks of the "hard" components
 
+ std::vector< AbstractBlock * > EasyMirror;
+ ///< the sized copy of each easy inner Block that has one, else nullptr
+ /**< An easy inner Block that neither owns a size Variable nor takes one
+  * is copied [see AbstractBlock::mirror()], and the copy, sized by lambda
+  * [see AbstractBlock::set_size_variable()], is in the master in its place:
+  * the inner Block keeps the master as father, its Modification are written
+  * in the copy [see add_Modification()], and the solutions of the copy are
+  * written back into it [see restore_easy_primal()]. A Modification that
+  * the copy cannot follow puts the inner Block back in the master in place
+  * of the copy, unscaled [see mirror_fallback()]. The copies are allocated
+  * here, and released as the Block of the hard components are [see
+  * v_stale_hard]. */
+
  std::vector< Block * > v_stale_hard;
- ///< the Block of the hard components of the incarnations gone by
- /**< The Block of the hard components are allocated by the master itself
+ ///< the Block allocated here of the incarnations gone by
+ /**< The Block of the hard components, and the copies of the easy ones
+  * [see EasyMirror], are allocated by the master itself
   * [see CreatePrimalMP() and CreateDualMP()], so it is the master that has
   * to release them; they cannot be released when the master is cleared,
   * though, because a Solver registered on the master keeps the Variable of
@@ -1876,6 +2411,14 @@ class MasterProblemBlock : public Block {
 
  bool f_keep_easy_duals = false;
  ///< true if the duals of the easy components are saved at each solve
+
+ bool f_use_easy_size = true;
+
+ bool f_use_easy_mirror = false;
+ ///< true if an easy component may be scaled through a copy of its inner
+ ///< Block [see use_easy_mirrors()]
+ ///< true if the easy components are scaled by a size Variable when they
+ ///< can be [see use_easy_size_variables()]
 
  std::vector< std::unique_ptr< ColVariableSolution > > EasyPrimal;
  ///< the values of the ColVariable of each easy component at the last
@@ -1938,8 +2481,8 @@ class MasterProblemBlock : public Block {
                                 ///< per-hard-component LB^k: v^k >= LB^k
                                 ///< (rhs = +INF by default)
 
- FRowConstraint LevelCns;                ///< primal level constraint
-                                         ///< b*d + sum_k v^k <= f_lev
+ FRowConstraint LevelCns;                ///< primal value row
+                                         ///< LB <= b*d + sum_k v^k <= f_lev
                                          ///< (kLevel / kDoublyStabilized only)
 
  std::vector< int > level_d_idx;
@@ -2005,6 +2548,9 @@ class MasterProblemBlock : public Block {
                                    ///< (one +1 lambda_k coefficient per hard
                                    ///< component, see Var_lambdas)
 
+ std::vector< FRowConstraint > EasySizeCns;
+ ///< master-owned rows tau_k - lambda = 0, one per entry of EasySizeVars
+
  std::list< FRowConstraint > CouplingCns;
                                    ///< dynamic coupling rows z_j = b_j
                                    ///< (j = 0 .. NumVars-1); populated by each
@@ -2023,6 +2569,50 @@ class MasterProblemBlock : public Block {
 
  bool f_has_integer = false;  ///< true if any entry of f_integer is
 
+ double f_kappa = Inf< double >();  ///< radius of the local branching
+
+ /// the eps of set_improvement_cutoff(), and whether it has been finite
+ double f_impr_eps = Inf< double >();
+ bool f_impr_set = false;
+
+ std::list< FRowConstraint > LBranchCns;     ///< the local branching
+                                             ///< constraint, if any
+ std::list< FRowConstraint > RevLBranchCns;  ///< the reverse ones
+
+ std::vector< double > f_lbranch_x_bar;  ///< the centre LBranchCns is
+                                         ///< written for
+
+ std::vector< LinearRow > f_lc_A;  ///< the rows of the linear constraints
+ std::vector< double > f_lc_l;     ///< their lower sides
+ std::vector< double > f_lc_u;     ///< and their upper ones
+
+ std::list< FRowConstraint > LinCns;  ///< the linear constraints in the
+                                      ///< primal MP, one per row of f_lc_A
+
+ Block * f_host = nullptr;         ///< the hosted Block, if any [see
+                                   ///< set_hosted_Block()]
+ Block * f_host_father = nullptr;  ///< the father f_host had when hosted,
+                                   ///< to which add_Modification() passes
+                                   ///< its Modification
+ std::vector< ColVariable * > f_host_x;  ///< the coordinates in f_host
+
+ std::list< FRowConstraint > HostCns;  ///< the rows x_j - d_j = x_bar_j,
+                                       ///< one per coordinate, if any
+
+ std::unordered_set< Block * > f_host_obj;  ///< { f_host }, or empty, the
+                                            ///< Block whose Objective the
+                                            ///< Solver of the MP ignores
+
+ std::vector< Block * > f_host_ignored;  ///< the sub-Block of f_host that
+                                         ///< have been added to
+                                         ///< f_ignored_blocks
+
+ std::list< ColVariable > Var_mu_plus;   ///< the multipliers of the left-hand
+                                         ///< sides of the linear constraints
+                                         ///< in the dual MP, one per row
+
+ std::list< ColVariable > Var_mu_minus;  ///< and those of the right-hand ones
+
  bool f_primal_objective_dirty = false;
                     ///< whether the primal objective must be synchronized
                     ///< before the next actual master solve
@@ -2037,7 +2627,7 @@ class MasterProblemBlock : public Block {
                     ///< installed by set_global_LB(); -INF means "no
                     ///< global LB". Read by set_fictitious_LB() to place
                     ///< the fictitious per-component bound strictly below
-                    ///< the aggregate one (legacy OSIMPSolver device)
+                    ///< the aggregate one
 
  std::vector< double > f_L;
                     ///< per-coordinate lower bound L on x for the box
@@ -2062,15 +2652,15 @@ class MasterProblemBlock : public Block {
 
  std::vector< double > f_F_at_x_bar;
                     ///< per-hard-component cache of  F_k( x_bar ) ; sized
-                    ///< NoHardCmps in configure(), refreshed by the driver
+                    ///< NoHardCmps in configure(), refreshed by the caller
                     ///< via set_F_at_x_bar() at every stability-centre
                     ///< change. Used (or will be used) to derive Sigma in
                     ///< linearization-error form without forcing the
-                    ///< driver to pre-promote each cut's alpha
+                    ///< caller to pre-promote each cut's alpha
 
  double f_xref_tol = 0.0;
                     ///< "lazy reference" tolerance (see set_xref_tol). 0 =
-                    ///< x_ref tracks x_bar at every serious step (plain
+                    ///< x_ref tracks x_bar at every move of it (plain
                     ///< displacement, strict no-op); > 0 defers the per-cut
                     ///< g . ( x_bar - x_ref ) shift to the lin-z and re-aligns
                     ///< x_ref only when || x_bar - x_ref ||_inf exceeds it
@@ -2087,8 +2677,8 @@ class MasterProblemBlock : public Block {
  // ( add_cut / modify_cut / modify_alpha / get_raw_aggregated_alpha )
  // reduces to the plain displacement frame
  const std::vector< double > & cut_ref() const {
-  return ( ( f_xref_tol > 0.0 ) &&
-           ( f_x_ref.size() == f_x_bar.size() ) ) ? f_x_ref : f_x_bar;
+  return( ( ( f_xref_tol > 0.0 ) &&
+            ( f_x_ref.size() == f_x_bar.size() ) ) ? f_x_ref : f_x_bar );
   }
 
  [[nodiscard]] double get_master_objective_value() const;
@@ -2100,7 +2690,7 @@ class MasterProblemBlock : public Block {
                     ///< the dual master gamma * LB^k contribution in
                     ///< linearization-error form ( LB^k - F_k( x_bar ) )
                     ///< and refreshes it on every set_reference() so the
-                    ///< driver does not have to re-call set_LB
+                    ///< caller does not have to re-call set_LB
 
  double f_lev;      ///< current value of the level f_lev (level / doubly only)
 
@@ -2238,10 +2828,88 @@ class MasterProblemBlock : public Block {
                     ///< refresh a subset of b coefficients in the primal
                     ///< level row
 
+ [[nodiscard]] double improvement_cutoff( void ) const;
+                    ///< the cutoff of set_improvement_cutoff(), - INF if
+                    ///< there is none
+
+ [[nodiscard]] bool is_binary( Index j ) const;
+                    ///< whether coordinate j is integer with box [ 0 , 1 ],
+                    ///< whose proximal term is then linear, x_j^2 = x_j
+
+ void local_branching_row( FRowConstraint & row , bool reverse );
+                    ///< write in row Delta( x , x_bar ) <= kappa, or
+                    ///< >= kappa + 1 if reverse [see set_local_branching()]
+
+ void refresh_local_branching( ModParam issueMod , bool building = false );
+                    ///< make the local branching constraint agree with
+                    ///< kappa, the binary coordinates and the centre;
+                    ///< building tells that the abstract constraints are
+                    ///< being generated
+
+ void linear_constraint_sides( Index i , double & lhs , double & rhs ) const;
+                    ///< the sides of the i-th linear constraint in the
+                    ///< frame of the Variable [see set_linear_constraints()]
+
+ void build_linear_constraints( ModParam issueMod );
+                    ///< replace the rows of LinCns with the current
+                    ///< linear constraints
+
+ void refresh_linear_constraint_sides( ModParam issueMod );
+                    ///< make the sides of the linear constraints follow
+                    ///< the centre: those of LinCns in the primal MP, the
+                    ///< objective coefficients of their multipliers in the
+                    ///< dual one
+
+ void build_host_constraints( ModParam issueMod );
+                    ///< replace the rows of HostCns with those binding
+                    ///< f_host_x to the Variable of the MP
+
+ void refresh_host_sides( ModParam issueMod );
+                    ///< make the sides of HostCns follow the centre
+
+ void unhost_Block( void );
+                    ///< give f_host back to its father, and drop what
+                    ///< hosting it has added [see set_hosted_Block()]
+
+ void send_exclusions( void );
+                    ///< tell the Solver of the MP what it has to ignore
+
+ void add_dual_linear_constraints( ModParam issueMod );
+                    ///< give the dual MP the multipliers of the linear
+                    ///< constraints, once its representation is complete
+
+ void remove_dual_linear_constraints( ModParam issueMod );
+                    ///< take the multipliers of the linear constraints out
+                    ///< of the dual MP, as f_lc_A says they are
+
+ void refresh_easy_BBF_sides( ModParam issueMod );
+                    ///< make the sides of the absorbed BendersBFunction
+                    ///< rows follow the centre (displacement form only)
+
  void primal_box( Index j , double & lhs , double & rhs ) const;
+
+ /// the global lower bound in the frame of the stability centre
+ /** The value of the global lower bound row minus the value of the model at
+  * x_bar, i.e., LB - F( x_bar ), whose opposite is the linearization error
+  * of the row; 0 if there is no global lower bound. */
+
+ [[nodiscard]] double global_LB_displacement( void ) const;
                     ///< the box of coordinate j of the primal MP: [ L , U ]
                     ///< intersected with the trust region, in the frame of
                     ///< the Variable
+
+ bool trust_region_side( Index j , bool lower ) const;
+                    ///< true if the lower (upper) side of the box of
+                    ///< coordinate j is the one of the trust region, i.e.,
+                    ///< under #kTrustRegion with a finite t, and not
+                    ///< farther than the side of [ L , U ]; a tie goes to
+                    ///< the trust region, so that z* is not underestimated
+
+ bool has_trust_region( void ) const {
+  return( ( StblType == kTrustRegion ) || ( StblType == kNone ) );
+  }
+ ///< true if the master is the one of #kTrustRegion, as
+ ///< that of #kNone is with an infinite t
 
  void refresh_box_coordinate( Index j , DQuadFunction * dqf ,
                               ModParam issueMod = eModBlck );
@@ -2263,9 +2931,8 @@ class MasterProblemBlock : public Block {
  /** slot_to_local[k] has size MaxBSize: slot_to_local[k][s] is the local
   * index of the cut occupying slot s in the PolyhedralFunction of the k-th
   * hard component, or -1 if the slot is empty. PolyhedralFunction rows shift
-  * on delete_row(); this map absorbs the shift so that the surrounding the
-  * driver can keep its NDOFi-style persistent name (ItemVcblr) intact across
-  * remove_cut() calls. */
+  * on delete_row(); this map absorbs the shift so that the slot, the
+  * persistent name of a cut, stays intact across remove_cut() calls. */
  std::vector< std::vector< int > > slot_to_local;
 
  /// set of sub-Blocks the inner Solver must ignore; populated by
@@ -2375,8 +3042,8 @@ class MasterProblemMod : public Modification
 /*--------------------------------------------------------------------------*/
 /// physical Modification carrying a new scalar master parameter value
 /** MasterProblemParamMod specializes MasterProblemMod for the inexpensive
- * scalar payloads associated with #MasterProblemMod::TChanged and
- * #MasterProblemMod::LevelChanged. Storing the value that was current when
+ * scalar payloads associated with MasterProblemMod::TChanged and
+ * MasterProblemMod::LevelChanged. Storing the value that was current when
  * the Modification was issued preserves that information even if the same
  * parameter changes again before an asynchronous Solver processes it. */
 
@@ -2554,7 +3221,7 @@ class MasterProblemSbstMod : public MasterProblemMod
  };  // end( class MasterProblemSbstMod )
 
 /*--------------------------------------------------------------------------*/
-/*--------------- CLASS MasterProblemLowerBoundMod ------------------------*/
+/*--------------- CLASS MasterProblemLowerBoundMod -------------------------*/
 /*--------------------------------------------------------------------------*/
 /// physical Modification carrying a new master lower-bound value
 /** The target is either one hard component or the aggregate global lower
@@ -2610,7 +3277,7 @@ class MasterProblemLowerBoundMod : public MasterProblemMod
 
  };  // end( class MasterProblemLowerBoundMod )
 
-/** @} end( group( MasterProblemBlock_CLASSES ) ) ---------------------------*/
+/** @} end( group( MasterProblemBlock_CLASSES ) ) --------------------------*/
 
 }  // end( namespace SMSpp_di_unipi_it )
 

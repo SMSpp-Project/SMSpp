@@ -23,7 +23,8 @@
 #                              i.e., the one containing its include/         #
 #                              subdirectory (see extlib/makefile-paths)      #
 #                                                                            #
-#   Output: $(SMS++OBJ)      = the final objects                             #
+#   Output: $(SMS++OBJ)      = the final objects, or the shared library      #
+#                              that holds them [see makefile-shared]         #
 #           $(SMS++H)        = the .h files to include for the core SMS++    #
 #           $(SMS++INC)      = all the -I$( include dirs ) of the core SMS++ #
 #           $(SMS++LIB)      = the external libraries + -L< libdirs >        #
@@ -35,17 +36,20 @@
 ##############################################################################
 
 # OS-specific settings- - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# defines some general values, like UNAME_S, which identify the type of OS
-# and UNAME_P which identify the architecture for which the project is being
-# compiled, so that other makefiles can rely on these to automatically adapt
-# without a need for the user to manually edit them
+# defines UNAME_S, which identifies the type of OS, so that the default paths
+# of that OS are loaded without a need for the user to manually edit them
 include $(SMS++SDR)/lib/makefile-OS
+
+# shared libraries- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# whether the objects of the modules are put in shared libraries, and the
+# function that does it [see makefile-shared]
+include $(SMS++SDR)/lib/makefile-shared
 
 # default paths - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # include a makefile that defines all the *_ROOT paths needed by every other
 # makefile (possibly after automatic OS adaptation, see above) relatively to
 # the places where all external libraries are to be found; use the previously
-# defined UNAME_S and UNAME_P to load the one of the current architecture
+# defined UNAME_S to load the one of the current OS
 ifeq ($(UNAME_S),Linux)
     include $(SMS++SDR)/../extlib/makefile-default-paths-linux
 endif
@@ -82,14 +86,19 @@ include $(SMS++SDR)/../extlib/makefile-libEigen
 include $(SMS++SDR)/../extlib/makefile-libNetCDF
 
 # external -I directives for the core SMS++
-SMS++INC = $(libBoostINC) $(libEigenINC) $(libNtCDFINC) -I"$(FastFlow_ROOT)"
+SMS++INC = $(libBoostINC) $(libEigenINC) $(libNtCDFINC) \
+	$(call SMSppSYSINC,$(FastFlow_ROOT))
 
 # include the SMS++ makefile requiring all external modules in input
 include $(SMS++SDR)/lib/makefile
 
 # macros to be exported - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-# external libraries for the core SMS++
-SMS++LIB = $(libBoostLIB) $(libEigenLIB) $(libNtCDFLIB)
+# external libraries for the core SMS++, and the threads that FastFlow, whose
+# headers it exports, uses directly
+SMS++LIB = $(libBoostLIB) $(libEigenLIB) $(libNtCDFLIB) -pthread
+
+# the objects as the shared library libSMS++ [see makefile-shared]
+$(eval $(call SMSppSOlib,SMS++))
 
 ########################### End of makefile-c ################################

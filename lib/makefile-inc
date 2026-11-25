@@ -30,12 +30,16 @@
 #                              Antonio Frangioni                             #
 #                         Dipartimento di Informatica                        #
 #                             Universita' di Pisa                            #
-#									     #
+#                                                                            #
 ##############################################################################
 
 # include the SMS++ makefile internally defining all external modules - - - -
 
 include $(SMS++SDR)/lib/makefile-c
+
+# with the shared libraries, $(SMS++OBJ) is already libSMS++ [see
+# makefile-shared], otherwise the objects are archived in libSMS++.a
+ifeq ($(SMSppSHARED),)
 
 # copy the list of object files, using ":=" to ensure it remains the same
 # even after that SMS++OBJ is redefined later on
@@ -63,8 +67,18 @@ $(SMS++_LOCAL_LIB): $(SMS++_LOCAL_OBJ)
 
 SMS++OBJ = $(SMS++_LOCAL_LIB)
 
+else
+
+default: $(SMS++OBJ)
+
+endif
+
 # clean-up unrequired things- - - - - - - - - - - - - - - - - - - - - - - - -
 
 SMS++H =
+
+# the C++20 module smspp, made with the library [see makefile-mod]
+
+$(eval $(call SMSppMODlib,SMS++,smspp))
 
 ########################## End of makefile-inc ###############################

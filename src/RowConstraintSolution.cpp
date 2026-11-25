@@ -4,15 +4,15 @@
 /** @file
  * Implementation of the RowConstraintSolution class.
  *
- * \author Antonio Frangioni \n
- *         Dipartimento di Informatica \n
- *         Universita' di Pisa \n
- *
  * \author Rafael Durbano Lobato \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
+ * \author Antonio Frangioni \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \copyright &copy; by Rafael Durbano Lobato, Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
@@ -197,7 +197,8 @@ void RowConstraintSolution::delete_vectors() {
 
 /*--------------------------------------------------------------------------*/
 
-void RowConstraintSolution::initialize( const Block * const block , bool read ) {
+void RowConstraintSolution::initialize( const Block * const block ,
+					bool read ) {
  this->delete_vectors();
  this->initialize_static_constraint_dual_values( block , read );
  this->initialize_dynamic_constraint_dual_values( block , read );
@@ -607,7 +608,8 @@ void RowConstraintSolution::sum( const Solution * solution,
  for( Vec_Group::size_type i = 0 ; i < static_constraint_dual_values.size() ;
       ++i ) {
   auto & values = static_constraint_dual_values[ i ];
-  const auto & other_values = other_solution->static_constraint_dual_values[ i ];
+  const auto & other_values =
+    other_solution->static_constraint_dual_values[ i ];
   if( values.size() != other_values.size() )
    throw( std::logic_error( "RowConstraintSolution::sum: static constraint "
 			    "group " + std::to_string( i ) + " has " +
@@ -683,8 +685,8 @@ RowConstraintSolution * RowConstraintSolution::clone( bool empty ) const {
 
 /*--------------------------------------------------------------------------*/
 
-void RowConstraintSolution::scale( const RowConstraintSolution * const solution ,
-                                   const double factor ) {
+void RowConstraintSolution::scale( const RowConstraintSolution *
+				   const solution , const double factor ) {
 
  f_direction = solution->f_direction;  // scaling a direction gives one
 

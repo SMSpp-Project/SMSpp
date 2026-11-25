@@ -12,11 +12,11 @@
  * depends on a set of "active" Variable, it implements the
  * ThinVarDepInterface paradigm.
  *
- * \author Antonio Frangioni \n
+ * \author Rafael Durbano Lobato \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \author Rafael Durbano Lobato \n
+ * \author Antonio Frangioni \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -24,7 +24,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
+ * \copyright &copy; by Rafael Durbano Lobato, Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -451,17 +451,22 @@ class ObjectiveMod : public AModification
   * the Modification. Note that while the enum of_mod_type is provided to
   * encode the possible values of modification, the field f_type is of type
   * "int", and therefore so is the parameter of the constructor, in order to
-  * allow derived classes to "extend" the set of possible types of changes. */
+  * allow derived classes to "extend" the set of possible types of changes.
+  * What the Modification changes is the Objective, i.e., its sense or (in a
+  * derived class) its Function, which leaves the region as it is and may
+  * move the objective either way. */
 
  explicit ObjectiveMod( Objective * of , int mod = eSetMin ,
                         bool cB = true )
-  : AModification( cB ) , f_of( of ) , f_type( mod ) {}
+  : AModification( cB , eModObj | eObjUp | eObjDown ) , f_of( of ) ,
+    f_type( mod ) {}
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
  ~ObjectiveMod() override = default;  ///< destructor: does nothing
 
 /*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+
 
  /// returns the Block to which the Objective belongs
 

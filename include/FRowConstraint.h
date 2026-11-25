@@ -6,15 +6,15 @@
  * which is a class that defines a row constraint in terms of an
  * externally-provided Function object.
  *
- * \author Antonio Frangioni \n
- *         Dipartimento di Informatica \n
- *         Universita' di Pisa \n
- *
  * \author Rafael Durbano Lobato \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
+ * \author Antonio Frangioni \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \copyright &copy; by Rafael Durbano Lobato, Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -77,10 +77,9 @@ namespace SMSpp_di_unipi_it
  * dynamically. In order to achieve this, the FRowConstraint checks the
  * Modification issued by the Function for FunctionModVars ones. As a
  * consequence, the FRowConstraint "is always listening" to the Function
- * even if its Block has no registered Solver. This may lead to Modification
- * of the Function to be issued even if there is in fact no-one "listening".
- * Hopefully this potential inefficiency will be fixed later on by some
- * mechanism allowing a finer control on which Modification are "listened to".
+ * even if its Block has no registered Solver; which of the Modification of
+ * the Function it reads is said by concerned(), so that a Function that
+ * asks for the kind does not issue those that nobody reads.
  */
 
 class FRowConstraint : public RowConstraint, public Observer {
@@ -124,7 +123,7 @@ class FRowConstraint : public RowConstraint, public Observer {
  /// "rough destructor": calls the version of the Function object
  /** The clear() method just calls clear() in the inner Function (if any).
   * This results in the list of Variable of the Function to be emptied,
-  * so that in the destructor they re not un-registered. */
+  * so that in the destructor they are not un-registered. */
 
  void clear() override {
   if( f_function )
@@ -146,10 +145,10 @@ class FRowConstraint : public RowConstraint, public Observer {
   * different Function.
   *
   * For some reason, the caller may want instead to manage the Function object
-  * herself. This is why the deleteold is provided; if true then the previous
+  * herself. This is why deleteold is provided; if true then the previous
   * Function object (if any) is deleted, otherwise it is not. In the latter
-  * case, it is assumed that the called has another pointer to the Function
-  * and will dispose of it in due time. Thus, a call to set_function()
+  * case, it is assumed that the caller has another pointer to the Function
+  * and will dispose of it in due time. A call to set_function( nullptr )
   * removes any Function from the FRowConstraint, leaving it "empty".
   *
   * Note that
@@ -157,7 +156,7 @@ class FRowConstraint : public RowConstraint, public Observer {
   *    FRowConstraint REGISTERS ITSELF IN THE Variable OF THE Function
   *
   * This process, which is completely transparent to the Function itself,
-  * primarily happen between this method. However, in addition
+  * primarily happens in this method. However, in addition
   *
   *     EACH TIME A Variable IS ADDED/REMOVED FROM THE Function, THE
   *     FRowConstraint WILL HAVE TO REGISTER/UNREGISTER ITSELF FROM
@@ -175,10 +174,8 @@ class FRowConstraint : public RowConstraint, public Observer {
   * However, for the latter to happen, the :FunctionModVars must be issued
   * by the Function even if there is no Solver "listening" to the Block of
   * this FRowConstraint. To force this to happen, the FRowConstraint "is
-  * always listening". This may lead to Modification of the Function to be
-  * issued even if there is in fact no-one "listening" to them, Hopefully
-  * this potential inefficiency will be fixed later on by some mechanism
-  * allowing a finer control on which Modification are "listened to".
+  * always listening", to the changes of the set of the Variable at least
+  * [see concerned()].
   *
   * The parameter issueMod decides if and how the Modification is issued, as
   * described in Observer::make_par(); under eDryRun nothing is done, hence
@@ -602,13 +599,22 @@ class FRowConstraint : public RowConstraint, public Observer {
   * register/unregister itself from them. For this to happen, the
   * FunctionModVars must be issued by the Function even if there is no Solver
   * "listening" to the Block of this FRowConstraint. To force this to happen,
-  * the FRowConstraint "is always listening". This may lead to Modification
-  * of the Function to be issued even if there is in fact no-one "listening"
-  * to them. Hopefully this potential inefficiency will be fixed later on by
-  * some mechanism allowing a finer control on which Modification are
-  * "listened to". */
+  * the FRowConstraint "is always listening"; which of the Modification of the
+  * Function it reads, hence which ones a Function that asks for the kind
+  * issues when nobody is listening to the Block, is said by concerned(). */
 
  [[nodiscard]] bool anyone_there( void ) const override { return( true ); }
+
+/*--------------------------------------------------------------------------*/
+ /// what the FRowConstraint reads of the Modification of its Function
+ /** Returns what the FRowConstraint reads of the Modification of its
+  * Function [see Observer::concerned()]: the changes of the set of its
+  * Variable (Modification::eModVarSet), always, since it needs them to
+  * register itself with the Variable whatever its Block reads, and the
+  * changes of the values of the Function (Modification::eModCnsCoef) only if
+  * its Block reads the coefficients of the Constraint. */
+
+ [[nodiscard]] Modification::ModConcern concerned( void ) const override;
 
 /*--------------------------------------------------------------------------*/
  /// mostly just dispatch to add_Modification() of the Block (if any)
@@ -616,7 +622,11 @@ class FRowConstraint : public RowConstraint, public Observer {
   * Block (if any). However, it also checks if mod is a FunctionModVars
   * (which is why the FRowConstraint "is always listening", see
   * anyone_there(), and in case register/unregister itself with the
-  * added/removed Variable. */
+  * added/removed Variable. If mod is a FunctionMod, it says what the shift
+  * of the Function does to the feasible region [see
+  * Modification::set_changes()]: shifted upwards, the region may shrink if
+  * the RHS is finite and grow if the LHS is, downwards the opposite, and
+  * nothing happens to the region while the FRowConstraint is relaxed. */
 
  void add_Modification( sp_Mod mod , c_ChnlName chnl = 0 ) override;
 

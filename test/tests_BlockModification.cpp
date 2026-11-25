@@ -12,8 +12,10 @@
  * opposite meanings), over the arithmetic of the parameter that says if, how
  * and where a Modification is issued, over the channels that pack them into
  * a GroupModification (nested, forced, empty, emptied, discarded, and
- * hijacking the default channel), and over the path of a Modification from a sub-Block to the
- * Solver of its father.
+ * hijacking the default channel), over the path of a Modification from a
+ * sub-Block to the Solver of its father, also for a sub-Block constructed
+ * while the Solver is registered, and over the mapping of the Modification
+ * to another Block, a mirror among them.
  *
  * \author Donato Meoli \n
  *         Dipartimento di Informatica \n
@@ -30,9 +32,12 @@
 #include "FakeSolver.h"
 #include "FRowConstraint.h"
 #include "LinearFunction.h"
+#include "UpdateSolver.h"
 
 #include <iostream>
 #include <list>
+#include <memory>
+#include <set>
 #include <stdexcept>
 #include <vector>
 
@@ -52,6 +57,20 @@ using ChnlName = Observer::ChnlName;
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ FUNCTIONS ---------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// what the tests give to a Block that the Block does not own, deleted at the
+/// end of main(), after every Block, the last given the first deleted
+
+static std::vector< std::shared_ptr< void > > given;
+
+template< class T >
+static T * kept( T * t )
+{
+ given.emplace_back( t );
+ return( t );
+ }
+
 /*--------------------------------------------------------------------------*/
 
 /// number of failed checks of the documented contract
@@ -318,7 +337,7 @@ static void test_open_if_needed( void )
 static void test_add_dynamic_variables( void )
 {
  auto block = new AbstractBlock;
- auto x = new std::list< ColVariable >( 2 );
+ auto x = kept( new std::list< ColVariable >( 2 ) );
  block->add_dynamic_variable( *x , "x" );
  auto solver = new FakeSolver();
  block->register_Solver( solver );
@@ -389,9 +408,9 @@ static void test_add_dynamic_variables( void )
 static void test_add_dynamic_constraints( void )
 {
  auto block = new AbstractBlock;
- auto var = new ColVariable;
+ auto var = kept( new ColVariable );
  block->add_static_variable( *var , "v" );
- auto rows = new std::list< FRowConstraint >( 1 );
+ auto rows = kept( new std::list< FRowConstraint >( 1 ) );
  fill( *rows , *var , 0 );
  block->add_dynamic_constraint( *rows , "rows" );
  auto solver = new FakeSolver();
@@ -449,7 +468,7 @@ static void test_add_dynamic_constraints( void )
 static void test_remove_range( void )
 {
  auto block = new AbstractBlock;
- auto x = new std::list< ColVariable >( 6 );
+ auto x = kept( new std::list< ColVariable >( 6 ) );
  number( *x , 0 );
  block->add_dynamic_variable( *x , "x" );
  auto solver = new FakeSolver();
@@ -523,7 +542,7 @@ static void test_remove_range( void )
 static void test_remove_subset( void )
 {
  auto block = new AbstractBlock;
- auto x = new std::list< ColVariable >( 8 );
+ auto x = kept( new std::list< ColVariable >( 8 ) );
  number( *x , 0 );
  block->add_dynamic_variable( *x , "x" );
  auto solver = new FakeSolver();
@@ -611,13 +630,14 @@ static void test_remove_subset( void )
 /* Removing single elements and vectors of iterators: one element in the
  * middle is the Range [ i , i + 1 ), the last one left is the empty
  * subset(); ordered iterators give the positions they had, a contiguous run
- * of them a Range, and unordered ones are an error when the Modification is
- * issued. */
+ * of them a Range, and unordered ones, or one not in the list, are an error
+ * when the Modification is issued, which leaves the list, the Variable, the
+ * stuff they are active in and the Solver as they were. */
 
 static void test_remove_iterators( void )
 {
  auto block = new AbstractBlock;
- auto x = new std::list< ColVariable >( 6 );
+ auto x = kept( new std::list< ColVariable >( 6 ) );
  number( *x , 0 );
  block->add_dynamic_variable( *x , "x" );
  auto solver = new FakeSolver();
@@ -682,16 +702,71 @@ static void test_remove_iterators( void )
   }
  assert( mods.empty() );
 
- // unordered iterators are an error when the Modification is issued; the
- // list they are taken from is a throwaway one, since the documentation
- // says nothing about what is left of it
- auto y = new std::list< ColVariable >( 4 );
+ // unordered iterators are an error when the Modification is issued, and
+ // nothing is changed: the list, the row the Variable are active in, the
+ // Modification the Solver got
+ auto y = kept( new std::list< ColVariable >( 4 ) );
+ number( *y , 0 );
  block->add_dynamic_variable( *y , "y" );
+ LinearFunction::v_coeff_pair terms;
+ for( auto & v : *y )
+  terms.push_back( { & v , 1.0 } );
+ auto row = kept( new FRowConstraint( block , 0 , 10 ,
+				new LinearFunction( std::move( terms ) ) ) );
+ block->add_static_constraint( *row , "row" );
+ mods.clear();
+ auto intact = [ & ]() {
+  if( ( values_of( *y ) != std::vector< double >( { 0 , 1 , 2 , 3 } ) ) ||
+      ( row->get_num_active_var() != 4 ) || ( ! mods.empty() ) )
+   return( false );
+  for( const auto & v : *y )
+   if( ( v.get_num_active() != 1 ) || ( ! listed( v , row ) ) )
+    return( false );
+  return( true );
+  };
+ assert( intact() );
  {
   std::vector< std::list< ColVariable >::iterator > its =
    { std::next( y->begin() , 3 ) , std::next( y->begin() , 1 ) };
   assert( throws( [ & ]() { block->remove_dynamic_variables( *y , its ); } ) );
+  assert( intact() );
   }
+
+ // the same with an ordered prefix, which would be removed before the
+ // unordered iterator is found if the check came after it
+ {
+  std::vector< std::list< ColVariable >::iterator > its =
+   { std::next( y->begin() , 1 ) , std::next( y->begin() , 2 ) ,
+     y->begin() };
+  assert( throws( [ & ]() { block->remove_dynamic_variables( *y , its ); } ) );
+  assert( intact() );
+  }
+
+ // an iterator into another list, alone or after valid ones
+ {
+  std::list< ColVariable > other( 1 );
+  std::vector< std::list< ColVariable >::iterator > its =
+   { std::next( y->begin() , 1 ) , other.begin() };
+  assert( throws( [ & ]() { block->remove_dynamic_variables( *y , its ); } ) );
+  assert( intact() );
+  assert( throws( [ & ]() {
+     block->remove_dynamic_variable( *y , other.begin() ); } ) );
+  assert( intact() );
+  }
+
+ // and once ordered, they go as before
+ {
+  std::vector< std::list< ColVariable >::iterator > its =
+   { std::next( y->begin() , 1 ) , std::next( y->begin() , 3 ) };
+  block->remove_dynamic_variables( *y , its , eModBlck , eNoMod );
+  }
+ assert( ( values_of( *y ) == std::vector< double >( { 0 , 2 } ) ) );
+ assert( mods.size() == 1 );
+ {
+  auto rmv = as< BlockModRmvSbst< ColVariable > >( mods.front() );
+  assert( rmv && ( rmv->subset() == Subset( { 1 , 3 } ) ) );
+  }
+ assert( row->get_num_active_var() == 2 );
 
  block->unregister_Solvers( true );
  delete block;
@@ -708,9 +783,9 @@ static void test_remove_iterators( void )
 static void test_remove_constraints( void )
 {
  auto block = new AbstractBlock;
- auto var = new ColVariable;
+ auto var = kept( new ColVariable );
  block->add_static_variable( *var , "v" );
- auto rows = new std::list< FRowConstraint >( 6 );
+ auto rows = kept( new std::list< FRowConstraint >( 6 ) );
  fill( *rows , *var , 0 );
  block->add_dynamic_constraint( *rows , "rows" );
  assert( var->get_num_active() == 6 );
@@ -741,7 +816,8 @@ static void test_remove_constraints( void )
  assert( mods.size() == 1 );
  {
   auto rmv = as< BlockModRmvRngd< FRowConstraint > >( mods.front() );
-  assert( rmv && ( ! rmv->is_variable() ) && ( rmv->range() == Range( 1 , 3 ) ) );
+  assert( rmv && ( ! rmv->is_variable() ) &&
+	  ( rmv->range() == Range( 1 , 3 ) ) );
   assert( ( rhs_of( rmv->removed() ) == std::vector< double >( { 1 , 2 } ) ) );
   assert( & rmv->removed().front() == gone[ 0 ] );
   }
@@ -772,6 +848,57 @@ static void test_remove_constraints( void )
   auto rmv = as< BlockModRmvSbst< FRowConstraint > >( mods.front() );
   assert( rmv && rmv->subset().empty() && ( rmv->removed().size() == 1 ) );
   }
+
+ // unordered iterators, or one not in the list, are an error when the
+ // Modification is issued, and nothing is changed: the list, the Variable,
+ // the Modification the Solver got
+ {
+  std::list< FRowConstraint > more( 3 );
+  fill( more , *var , 20 );
+  block->add_dynamic_constraints( *rows , more , eNoMod );
+  }
+ mods.clear();
+ auto intact = [ & ]() {
+  return( ( rhs_of( *rows ) == std::vector< double >( { 20 , 21 , 22 } ) ) &&
+	  ( var->get_num_active() == 3 ) && mods.empty() );
+  };
+ assert( intact() );
+ {
+  std::vector< std::list< FRowConstraint >::iterator > its =
+   { std::next( rows->begin() ) , std::next( rows->begin() , 2 ) ,
+     rows->begin() };
+  assert( throws( [ & ]() {
+     block->remove_dynamic_constraints( *rows , its ); } ) );
+  assert( intact() );
+  for( const auto & r : *rows )
+   assert( listed( *var , & r ) && ( r.get_num_active_var() == 1 ) );
+  }
+ {
+  std::list< FRowConstraint > other( 1 );
+  std::vector< std::list< FRowConstraint >::iterator > its =
+   { rows->begin() , other.begin() };
+  assert( throws( [ & ]() {
+     block->remove_dynamic_constraints( *rows , its ); } ) );
+  assert( intact() );
+  assert( throws( [ & ]() {
+     block->remove_dynamic_constraint( *rows , other.begin() ); } ) );
+  assert( intact() );
+  }
+
+ // once ordered, they go as before
+ {
+  std::vector< std::list< FRowConstraint >::iterator > its =
+   { rows->begin() , std::next( rows->begin() , 2 ) };
+  block->remove_dynamic_constraints( *rows , its );
+  }
+ assert( ( rhs_of( *rows ) == std::vector< double >( { 21 } ) ) );
+ assert( var->get_num_active() == 1 );
+ assert( mods.size() == 1 );
+ {
+  auto rmv = as< BlockModRmvSbst< FRowConstraint > >( mods.front() );
+  assert( rmv && ( rmv->subset() == Subset( { 0 , 2 } ) ) );
+  }
+ block->remove_dynamic_constraints( *rows , Subset() , false , eNoMod );
 
  // the single-element version
  std::list< FRowConstraint > more( 3 );
@@ -839,9 +966,9 @@ static void test_active_of_absent_stuff( void )
 static void test_remove_active_variable( void )
 {
  auto block = new AbstractBlock;
- auto x = new std::list< ColVariable >( 2 );
+ auto x = kept( new std::list< ColVariable >( 2 ) );
  block->add_dynamic_variable( *x , "x" );
- auto rows = new std::vector< FRowConstraint >( 1 );
+ auto rows = kept( new std::vector< FRowConstraint >( 1 ) );
  block->add_static_constraint( *rows , "r" );
  auto & row = ( *rows )[ 0 ];
  row.set_function( new LinearFunction( { { & x->front() , 1.0 } ,
@@ -885,7 +1012,7 @@ static void test_remove_active_variable( void )
 static void test_modes_and_listening( void )
 {
  auto block = new PeepingBlock;
- auto s = new std::vector< ColVariable >( 2 );
+ auto s = kept( new std::vector< ColVariable >( 2 ) );
  block->add_static_variable( *s , "s" );
  auto & v = ( *s )[ 0 ];
 
@@ -965,7 +1092,7 @@ static void test_modes_and_listening( void )
 static void test_channel( void )
 {
  auto block = new PeepingBlock;
- auto s = new std::vector< ColVariable >( 3 );
+ auto s = kept( new std::vector< ColVariable >( 3 ) );
  block->add_static_variable( *s , "s" );
  auto solver = new FakeSolver();
  block->register_Solver( solver );
@@ -1018,7 +1145,8 @@ static void test_channel( void )
  block->close_channel( ch2 );
  assert( mods.size() == 1 );
  gm = as< GroupModification >( mods.front() );
- assert( gm && gm->concerns_Block() && ( gm->sub_Modifications().size() == 2 ) );
+ assert( gm && gm->concerns_Block() &&
+	 ( gm->sub_Modifications().size() == 2 ) );
 
  // nesting into a channel that is not open is an error
  assert( throws( [ & ]() { block->open_channel( ch2 ); } ) );
@@ -1038,7 +1166,7 @@ static void test_channel( void )
 static void test_nested_channels( void )
 {
  auto block = new AbstractBlock;
- auto s = new std::vector< ColVariable >( 4 );
+ auto s = kept( new std::vector< ColVariable >( 4 ) );
  block->add_static_variable( *s , "s" );
  auto solver = new FakeSolver();
  block->register_Solver( solver );
@@ -1091,7 +1219,7 @@ static void test_nested_channels( void )
 static void test_forced_close( void )
 {
  auto block = new AbstractBlock;
- auto s = new std::vector< ColVariable >( 3 );
+ auto s = kept( new std::vector< ColVariable >( 3 ) );
  block->add_static_variable( *s , "s" );
  auto solver = new FakeSolver();
  block->register_Solver( solver );
@@ -1153,7 +1281,7 @@ static void test_forced_close( void )
 static void test_empty_channel( void )
 {
  auto block = new AbstractBlock;
- auto s = new std::vector< ColVariable >( 1 );
+ auto s = kept( new std::vector< ColVariable >( 1 ) );
  block->add_static_variable( *s , "s" );
  auto solver = new FakeSolver();
  block->register_Solver( solver );
@@ -1220,7 +1348,7 @@ static void test_empty_channel( void )
 static void test_default_channel( void )
 {
  auto block = new AbstractBlock;
- auto s = new std::vector< ColVariable >( 3 );
+ auto s = kept( new std::vector< ColVariable >( 3 ) );
  block->add_static_variable( *s , "s" );
  auto solver = new FakeSolver();
  block->register_Solver( solver );
@@ -1307,7 +1435,7 @@ static void test_default_channel( void )
 static void test_clear_and_discard( void )
 {
  auto block = new AbstractBlock;
- auto s = new std::vector< ColVariable >( 4 );
+ auto s = kept( new std::vector< ColVariable >( 4 ) );
  block->add_static_variable( *s , "s" );
  auto solver = new FakeSolver();
  block->register_Solver( solver );
@@ -1419,7 +1547,7 @@ static void test_clear_and_discard( void )
  // the sub-Block receives everything naked, the one of the father nothing
  auto sub = new AbstractBlock( block );
  block->add_nested_Block( sub );
- auto t = new std::vector< ColVariable >( 1 );
+ auto t = kept( new std::vector< ColVariable >( 1 ) );
  sub->add_static_variable( *t , "t" );
  auto ssolver = new FakeSolver();
  sub->register_Solver( ssolver );
@@ -1461,7 +1589,7 @@ static void test_sub_Block( void )
  auto father = new PeepingBlock;
  auto early = new PeepingBlock( father );
  father->add_nested_Block( early );
- auto s = new std::vector< ColVariable >( 2 );
+ auto s = kept( new std::vector< ColVariable >( 2 ) );
  early->add_static_variable( *s , "s" );
  auto & v = ( *s )[ 0 ];
  assert( ! early->anyone_there() );
@@ -1536,7 +1664,7 @@ static void test_sub_Block( void )
  assert( fmods.empty() && smods.empty() && father->seen.empty() );
  assert( throws( [ & ]() { father->close_channel( sch ); } ) );
  {
-  auto fv = new ColVariable;
+  auto fv = kept( new ColVariable );
   father->add_static_variable( *fv , "f" );
   assert( throws( [ & ]() {
 	   fv->is_fixed( true , Observer::make_par( eNoBlck , sch ) ); } ) );
@@ -1558,6 +1686,162 @@ static void test_sub_Block( void )
 
  delete father;
  std::cout << "sub-Block: OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+/// a FakeSolver that has a sub-Block nested into the Block it is given
+/** As a Solver that generates the abstract representation of its Block may
+ * have the Block construct its sub-Block, which happens before the Block
+ * has the Solver in its list. */
+
+class NestingSolver : public FakeSolver {
+ public:
+
+ void set_Block( Block * block ) override {
+  if( auto ab = dynamic_cast< AbstractBlock * >( block ) ) {
+   nested = new AbstractBlock( ab );
+   ab->add_nested_Block( nested );
+   }
+  FakeSolver::set_Block( block );
+  }
+
+ AbstractBlock * nested = nullptr;  ///< the sub-Block it has nested
+ };
+
+/* A sub-Block constructed while the Solver is given its Block knows that
+ * someone is listening, and its Modification reach the Solver of its
+ * father. */
+
+static void test_sub_Block_of_set_Block( void )
+{
+ auto father = new AbstractBlock;
+ auto ns = new NestingSolver;
+ father->register_Solver( ns );
+ auto nested = ns->nested;
+ assert( nested );
+ expect( nested->anyone_there() , "a sub-Block nested by set_Block() does "
+	 "not know that the Solver of its father listens" );
+
+ auto v = kept( new ColVariable );
+ nested->add_static_variable( *v , "v" );
+ auto & mods = ns->get_Modification_list();
+ mods.clear();
+ v->is_fixed( true , eNoBlck );
+ expect( mods.size() == 1 , "the Modification of a sub-Block nested by "
+	 "set_Block() does not reach the Solver of its father" );
+
+ father->unregister_Solvers( true );
+ assert( ! nested->anyone_there() );
+ delete father;
+ std::cout << "sub-Block of set_Block(): OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+/// an AbstractBlock that maps the Modification of a given set
+/** It records each Modification it is asked to map, forward or back, and
+ * says it has mapped those in the set. */
+
+class MappingBlock : public AbstractBlock {
+ public:
+
+ bool map_forward_Modification( Block * R3B , c_p_Mod mod ,
+				Configuration * r3bc = nullptr ,
+				ModParam issuePMod = eNoBlck ,
+				ModParam issueAMod = eModBlck ) override {
+  asked.push_back( mod );
+  return( mapped.count( mod ) > 0 );
+  }
+
+ bool map_back_Modification( Block * R3B , c_p_Mod mod ,
+			     Configuration * r3bc = nullptr ,
+			     ModParam issuePMod = eNoBlck ,
+			     ModParam issueAMod = eModBlck ) override {
+  asked.push_back( mod );
+  return( mapped.count( mod ) > 0 );
+  }
+
+ std::vector< const Modification * > asked;  ///< what it was asked
+ std::set< const Modification * > mapped;    ///< what it maps
+ };
+
+/* map_forward_Modifications() and map_back_Modifications() ask to map each
+ * Modification of the list once, in order, and remove from the list those
+ * that have been mapped, leaving the others [see
+ * Block::map_forward_Modifications()]. */
+
+static void test_map_Modifications( void )
+{
+ for( bool forward : { true , false } ) {
+  MappingBlock b;
+  AbstractBlock r3b;
+  std::vector< sp_Mod > m;
+  for( int i = 0 ; i < 3 ; ++i )
+   m.push_back( std::make_shared< NBModification >( & b ) );
+  b.mapped = { m[ 0 ].get() , m[ 2 ].get() };
+
+  Lst_sp_Mod lmod( m.begin() , m.end() );
+  if( forward )
+   b.map_forward_Modifications( & r3b , lmod );
+  else
+   b.map_back_Modifications( & r3b , lmod );
+
+  expect( ( b.asked.size() == 3 ) && ( b.asked[ 0 ] == m[ 0 ].get() ) &&
+	  ( b.asked[ 1 ] == m[ 1 ].get() ) && ( b.asked[ 2 ] == m[ 2 ].get() ) ,
+	  "map_*_Modifications() does not ask each Modification once, in "
+	  "order" );
+  expect( ( lmod.size() == 1 ) && ( lmod.front() == m[ 1 ] ) ,
+	  "map_*_Modifications() does not leave in the list exactly the "
+	  "Modification not mapped" );
+  }
+
+ // a list of one Modification
+ MappingBlock b;
+ AbstractBlock r3b;
+ auto mod = std::make_shared< NBModification >( & b );
+ b.mapped = { mod.get() };
+ Lst_sp_Mod lmod( { mod } );
+ b.map_forward_Modifications( & r3b , lmod );
+ expect( ( b.asked.size() == 1 ) && lmod.empty() ,
+	 "map_forward_Modifications() of a list of one Modification" );
+
+ std::cout << "map_*_Modifications(): OK" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+/* The mirror of a Block kept in sync by an UpdateSolver is changed issuing
+ * the Modification that the UpdateSolver asks for, which reach a Solver
+ * registered to the mirror [see Block::map_forward_Modification()]. */
+
+static void test_Modification_to_a_mirror( void )
+{
+ auto orig = new AbstractBlock;
+ auto x = kept( new std::vector< ColVariable >( 2 ) );
+ orig->add_static_variable( *x , "x" );
+
+ auto copy = new AbstractBlock;
+ copy->mirror( orig );
+ assert( copy->get_mirror_issues().empty() );
+ auto cx = copy->mirror_of( & ( *x )[ 0 ] );
+ assert( cx );
+
+ auto fake = new FakeSolver();
+ copy->register_Solver( fake );
+ auto & mods = fake->get_Modification_list();
+ auto us = new UpdateSolver( copy );
+ orig->register_Solver( us );
+
+ mods.clear();
+ ( *x )[ 0 ].is_fixed( true , eModBlck );
+ assert( cx->is_fixed() );
+ expect( ! mods.empty() , "the mirror is changed with no Modification, and "
+	 "its Solver is not told" );
+
+ orig->unregister_Solvers( true );
+ copy->unregister_Solvers( true );
+ delete copy;
+ delete orig;
+ std::cout << "Modification to a mirror: OK" << std::endl;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1585,6 +1869,12 @@ int main( void )
  test_default_channel();
  test_clear_and_discard();
  test_sub_Block();
+ test_sub_Block_of_set_Block();
+ test_map_Modifications();
+ test_Modification_to_a_mirror();
+
+ while( ! given.empty() )
+  given.pop_back();
 
  if( n_failed ) {
   std::cout << n_failed << " check(s) of the documented contract FAILED"

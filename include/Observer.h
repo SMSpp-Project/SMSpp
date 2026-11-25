@@ -5,15 +5,15 @@
  * Header file for the Observer class, an abstract base class implementing
  * the concept of an observer which can be notified about Modifications.
  *
- * \author Antonio Frangioni \n
- *         Dipartimento di Informatica \n
- *         Universita' di Pisa \n
- *
  * \author Rafael Durbano Lobato \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
+ * \author Antonio Frangioni \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \copyright &copy; by Rafael Durbano Lobato, Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -28,9 +28,9 @@
 
 #include "Modification.h"
 
-#include <set>
-
+#include <atomic>
 #include <limits>
+#include <set>
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
@@ -149,6 +149,35 @@ class Observer {
   * them along the way". */
 
  [[nodiscard]] virtual bool anyone_there( void ) const = 0;
+
+/*--------------------------------------------------------------------------*/
+ /// the kinds of Modification that whoever is listening reads
+ /** Returns the kinds of Modification [see Modification::ModConcern] that
+  * whoever is listening to this Observer reads. The base class says all of
+  * them if anyone_there(), and none otherwise; a Block says the "or" of
+  * what it reads itself and of what its Solver and those of its ancestors
+  * read [see Block::concerned()]. */
+
+ [[nodiscard]] virtual Modification::ModConcern concerned( void ) const {
+  return( anyone_there() ? Modification::eModAnything : 0 );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// true if anyone listening reads a Modification that changes \p what
+ [[nodiscard]] bool anyone_there_for( Modification::ModConcern what ) const {
+  return( anyone_there() &&
+	  Modification::is_of_concern( what , concerned() ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// true if anyone listening reads \p mod
+ /** As anyone_there_for( mod.changes() ), except that a GroupModification
+  * is read if any of its sub-Modification is [see
+  * Modification::is_of_concern_to()]. */
+
+ [[nodiscard]] bool anyone_there_for( const Modification & mod ) const {
+  return( anyone_there() && mod.is_of_concern_to( concerned() ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// notify this Observer about a Modification
@@ -557,6 +586,26 @@ class Observer {
   }
 
 /*--------------------------------------------------------------------------*/
+ /// as issue_mod(), but only if the Modification is read by anyone
+ /** As issue_mod( issueMod ), except that under eNoBlck the Modification is
+  * issued only if anyone listening reads its kind \p what [see
+  * anyone_there_for()]; eModBlck still issues it anyway, since the Block
+  * itself has to see it. */
+
+ [[nodiscard]] bool issue_mod( ModParam issueMod ,
+			       Modification::ModConcern what ) const {
+  return( ( par2mod( issueMod ) == eModBlck ) ||
+	  ( ( par2mod( issueMod ) == eNoBlck ) && anyone_there_for( what ) ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// as issue_pmod(), but only if the Modification is read by anyone
+ [[nodiscard]] bool issue_pmod( ModParam issueMod ,
+				Modification::ModConcern what ) const {
+  return( ( par2mod( issueMod ) >= eNoBlck ) && anyone_there_for( what ) );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// static method for ensuring a parameter is not eModBlck
  /** Given a "composite" parameter as produced by make_par(), this static
   * method "downgrades" the "mod" part of the parameter to eNoBlck if it is
@@ -579,7 +628,7 @@ class Observer {
   * method "downgrades" the "mod" part of the parameter to eNoBlck if it is
   * eModBlck keeping the same channel, and does nothing otherwise.
   * This is the same as not_ModBlock() and it has the same use, but it
-  * returns the modified (or nor) value rather than changing the input
+  * returns the modified (or not) value rather than changing the input
   * variable. */
 
  static ModParam un_ModBlock( ModParam issueMod ) {
@@ -701,7 +750,7 @@ class Observer {
 
  static std::set< ChnlName > v_free_chnl;  ///< set of freed channels
 
-/** @} ---------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
  };  // end( class( Observer ) )

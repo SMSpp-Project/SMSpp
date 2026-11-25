@@ -5,15 +5,15 @@
  * Header file for the *concrete* class LinearFunction, which implements
  * C15Function with a simple linear function.
  *
- * \author Antonio Frangioni \n
- *         Dipartimento di Informatica \n
- *         Universita' di Pisa \n
- *
  * \author Rafael Durbano Lobato \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
+ * \author Antonio Frangioni \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \copyright &copy; by Rafael Durbano Lobato, Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -190,10 +190,12 @@ class LinearFunction : public C15Function
   bool operator==( const ThinVarDepInterface::v_const_iterator & rhs )
    const final {
    #ifdef NDEBUG
-    auto tmp = static_cast< const LinearFunction::v_const_iterator * >( & rhs );
+    auto tmp =
+      static_cast< const LinearFunction::v_const_iterator * >( & rhs );
     return( itr_ == tmp->itr_ );
    #else
-    auto tmp = dynamic_cast< const LinearFunction::v_const_iterator * >( &rhs );
+    auto tmp =
+      dynamic_cast< const LinearFunction::v_const_iterator * >( &rhs );
     return( tmp ? itr_ == tmp->itr_ : false );
    #endif
    }
@@ -201,10 +203,12 @@ class LinearFunction : public C15Function
   bool operator!=( const ThinVarDepInterface::v_const_iterator & rhs )
    const final {
    #ifdef NDEBUG
-    auto tmp = static_cast< const LinearFunction::v_const_iterator * >( & rhs );
+    auto tmp =
+      static_cast< const LinearFunction::v_const_iterator * >( & rhs );
     return( itr_ != tmp->itr_ );
    #else
-    auto tmp = dynamic_cast< const LinearFunction::v_const_iterator * >( &rhs );
+    auto tmp =
+      dynamic_cast< const LinearFunction::v_const_iterator * >( &rhs );
     return( tmp ? itr_ != tmp->itr_ : true );
    #endif
    }
@@ -225,15 +229,15 @@ class LinearFunction : public C15Function
  /// constructor of LinearFunction, taking the data describing it
  /** Constructor of LinearFunction. It accepts:
   *
-  * @param vars, a && to a vector of pairs < ColVariable * , Coefficient >
+  * @param vars a && to a vector of pairs < ColVariable * , Coefficient >
   *        representing the linear expression of the function; as the &&
   *        tells, vars is "consumed" by the constructor and its resources
   *        become property of the LinearFunction object.
   *
-  * @param ct, a FunctionValue providing the value of the constant term of the
+  * @param ct a FunctionValue providing the value of the constant term of the
   *        function (which is affine rather than, strictly speaking, linear);
   *
-  * @param observer, a pointer to the Observer of this LinearFunction.
+  * @param observer a pointer to the Observer of this LinearFunction.
   *
   * Important note:
   *
@@ -790,7 +794,7 @@ class LinearFunction : public C15Function
  /// printing the LinearFunction
  void print( std::ostream & output ) override {
   output << "LinearFunction [" << this << "] observed by ["
-         << &f_Observer << "] with " << get_num_active_var()
+         << f_Observer << "] with " << get_num_active_var()
          << " active variables;";
   output << "current value = " << get_value();
  }

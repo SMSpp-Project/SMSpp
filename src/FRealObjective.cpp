@@ -4,15 +4,15 @@
 /** @file
  * Implementation of the FRealObjective class.
  *
- * \author Antonio Frangioni \n
- *         Dipartimento di Informatica \n
- *         Universita' di Pisa \n
- *
  * \author Rafael Durbano Lobato \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
+ * \author Antonio Frangioni \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \copyright &copy; by Rafael Durbano Lobato, Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
@@ -71,8 +71,10 @@ void FRealObjective::set_function( Function * const function ,
    vbeg->add_active( this );
   }
 
- // if so instructed, issue the FRealObjectiveMod
- if( f_Block && f_Block->issue_mod( issueMod ) )
+ // if so instructed, issue the FRealObjectiveMod; with eNoMod the Block is
+ // not asked, as it may be gone already (from the destructor)
+ if( ( Observer::par2mod( issueMod ) != eNoMod ) && f_Block &&
+     f_Block->issue_mod( issueMod , Modification::eModObj ) )
   f_Block->add_Modification( std::make_shared< FRealObjectiveMod >(
                               this , FRealObjectiveMod::eFunctionChanged ,
                               Observer::par2concern( issueMod ) ) ,
@@ -97,7 +99,7 @@ void FRealObjective::remove_variable( Index i, ModParam issueMod ) {
  if( ! f_function )
   return;
 
- if( f_Block && f_Block->issue_mod( issueMod ) )
+ if( f_Block && f_Block->issue_mod( issueMod , Function::eModFVars ) )
   f_function->remove_variable( i, issueMod );
  else {
   // unregistration can preceed removal, since the Function completely
@@ -116,7 +118,7 @@ void FRealObjective::remove_variables( Range range, ModParam issueMod ) {
  if( ! f_function )
   return;
 
- if( f_Block && f_Block->issue_mod( issueMod ) )
+ if( f_Block && f_Block->issue_mod( issueMod , Function::eModFVars ) )
   f_function->remove_variables( range, issueMod );
  else {
   // unregistration can preceed removal, since the Function completely
@@ -140,7 +142,7 @@ void FRealObjective::remove_variables( Subset && nms, bool ordered,
  if( ! f_function )
   return;
 
- if( f_Block && f_Block->issue_mod( issueMod ) )
+ if( f_Block && f_Block->issue_mod( issueMod , Function::eModFVars ) )
   f_function->remove_variables( std::move( nms ) , ordered , issueMod );
  else {
   // unregistration can preceed removal, since the Function completely
@@ -154,6 +156,17 @@ void FRealObjective::remove_variables( Subset && nms, bool ordered,
   f_function->remove_variables( std::move( nms ), ordered, eNoMod );
  }
 }  // end( FRealObjective::remove_variables( subset ) )
+
+/*--------------------------------------------------------------------------*/
+
+Modification::ModConcern FRealObjective::concerned( void ) const
+{
+ const auto block = f_Block ? f_Block->concerned()
+                    : Modification::ModConcern( 0 );
+ return( Modification::eModVarSet |
+         ( Modification::is_of_concern( Modification::eModObj , block ) ?
+           Modification::eModObj : 0 ) );
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -176,16 +189,32 @@ void FRealObjective::add_Modification( sp_Mod mod , c_ChnlName chnl ) {
 
   // GroupModification - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   {
-   const auto tmod = std::dynamic_pointer_cast< GroupModification >( mod );
+   const auto tmod = memo_pointer_cast< GroupModification >( mod );
    if( tmod ) {
     for( const auto & submod : tmod->sub_Modifications() )
      guts_of_aM( submod );
     }
    }
 
+  // FunctionMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  // the shift of the Function is that of the objective, whatever the sense
+  {
+   const auto tmod = memo_pointer_cast< FunctionMod >( mod );
+   if( tmod ) {
+    const auto shift = tmod->shift();
+    Modification::ModConcern c = Modification::eModObj;
+    if( std::isnan( shift ) || ( shift > 0 ) )
+     c |= Modification::eObjUp;
+    if( std::isnan( shift ) || ( shift < 0 ) )
+     c |= Modification::eObjDown;
+    tmod->set_changes( c );
+    return;
+    }
+   }
+
   // FunctionModVars - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   {
-   const auto tmod = std::dynamic_pointer_cast< FunctionModVars >( mod );
+   const auto tmod = memo_pointer_cast< FunctionModVars >( mod );
    if( ! tmod )
     return;
 
@@ -209,7 +238,8 @@ void FRealObjective::add_Modification( sp_Mod mod , c_ChnlName chnl ) {
  // "abstract" Modification issued with eModBlck must reach the Block even if
  // no Solver is there, for it to keep the "physical" representation in synch
 
- if( f_Block && ( f_Block->anyone_there() || mod->concerns_Block() ) )
+ if( f_Block && ( f_Block->anyone_there_for( *mod ) ||
+                  mod->concerns_Block() ) )
   f_Block->add_Modification( mod , chnl );
 
  }  // end( FRealObjective::add_Modification )

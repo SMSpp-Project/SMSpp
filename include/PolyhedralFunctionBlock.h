@@ -16,8 +16,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni,
- *                      Donato Meoli
+ * \copyright &copy; by Antonio Frangioni, Donato Meoli
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -120,7 +119,7 @@ class BlockSolverConfig;  // forward declaration
  * the current implementation of PolyhedralFunction, they are contained in the
  * unique pool of linearizations, and an appropriate vector is used to mark
  * the vertical ones. In fact, whenever there is no need to distinguish
- * between them we will just use B = B_D \cup B_V.
+ * between them we will just use \f$ B = B_D \cup B_V \f$.
  * 
  * Note that above
  *
@@ -150,9 +149,9 @@ class BlockSolverConfig;  // forward declaration
  *
  * - with the "linearized representation", the first group of static Variable
  *   contains a single ColVariable (v), the first group of dynamic Constraint
- *   contains the FRowConstraint (with LinearFunction inside, i.e.,
- *   v <op> a_i x + b_i OR a_j x + b_j \le 0, where <op> depends on if the
- *   PolyhedralFunction is convex or concave), and the  Objective is also
+ *   contains the FRowConstraint (with LinearFunction inside, i.e., v \<op\>
+ *   a_i x + b_i OR \f$ a_j x + b_j \le 0 \f$, where \<op\> depends on if the
+ *   PolyhedralFunction is convex or concave), and the Objective is also
  *   reserved (since it must be a FRealObjective with another LinearFunction
  *   inside, having nonzero coefficient only for v).
  *   Note that there is a choice here about b_i: it could be set
@@ -339,12 +338,12 @@ class PolyhedralFunctionBlock : public AbstractBlock
   * an "empty" PolyhedralFunction to start with. */
 
  PolyhedralFunctionBlock( Block * father = nullptr )
-  : AbstractBlock( father ) , f_rep( 0 ) , f_scaling( 0 ) ,
-    f_no_objective( false ) , f_global_scale( 1.0 ) ,
-    f_global_reference( 1.0 ) ,
-    f_own_polyf( {} , {} , {} , -Inf< Function::FunctionValue >() , true , this
-		 ) ,
-    f_v() , f_const() { }
+     : AbstractBlock( father ) , f_rep( 0 ) , f_scaling( 0 ) ,
+       f_global_scale( 1.0 ) , f_global_reference( 1.0 ) ,
+       f_no_objective( false ) ,
+       f_own_polyf( {} , {} , {} , -Inf< Function::FunctionValue >() , true ,
+		    this ) ,
+       f_v() , f_const() { }
 
 /*--------------------------------------------------------------------------*/
  /// constructor wrapping an *external* PolyhedralFunction
@@ -355,12 +354,15 @@ class PolyhedralFunctionBlock : public AbstractBlock
   * PolyhedralFunction, e.g. in remove_redundant_rows(). */
 
  PolyhedralFunctionBlock( Block * father , PolyhedralFunction * polyf )
-  : AbstractBlock( father ) , f_rep( 0 ) , f_scaling( 0 ) ,
-    f_no_objective( false ) , f_global_scale( 1.0 ) ,
-    f_global_reference( 1.0 ) ,
-    f_own_polyf( {} , {} , {} , -Inf< Function::FunctionValue >() , true ,
-		 nullptr ) ,
-    f_v() , f_const() { if( polyf ) f_polyf_p = polyf; }
+     : AbstractBlock( father ) , f_rep( 0 ) , f_scaling( 0 ) ,
+       f_global_scale( 1.0 ) , f_global_reference( 1.0 ) ,
+       f_no_objective( false ) ,
+       f_own_polyf( {} , {} , {} , -Inf< Function::FunctionValue >() , true ,
+		    nullptr ) ,
+       f_v() , f_const() {
+  if( polyf )
+   f_polyf_p = polyf;
+  }
 
 /*--------------------------------------------------------------------------*/
  /// load the PolyhedralFunctionBlock out of an istream
@@ -417,7 +419,6 @@ class PolyhedralFunctionBlock : public AbstractBlock
 
 /*--------------------------------------------------------------------------*/
 
-#ifndef NDEBUG
  /// extends Block::expected_dims()
 
  std::vector< std::string > expected_dims( void ) const override {
@@ -436,8 +437,6 @@ class PolyhedralFunctionBlock : public AbstractBlock
   ret.insert( ret.end() , pfev.begin() , pfev.end() );
   return( ret );
   }
-
-#endif
 
 /*--------------------------------------------------------------------------*/
  /// the destructor actually destroys the abstract representation
@@ -673,7 +672,8 @@ class PolyhedralFunctionBlock : public AbstractBlock
   * --------------------------------------------------------------------------
   *
   * If f_rep & 3 == 3, then we crete the objective function with the
-  * LinearFunction having as coeffcients -\theta_i b_i and \gamma LB. */
+  * LinearFunction having as coefficients \f$ -\theta_i b_i \f$ and
+  * \f$ \gamma LB \f$. */
 
  void generate_objective( Configuration *objc = nullptr ) override;
 
@@ -1188,7 +1188,7 @@ class PolyhedralFunctionBlock : public AbstractBlock
   // directly attached, or it has a father Block and the father says so
 
   if( ( ! v_Solver.empty() ) ||
-      ( get_f_Block() && get_f_Block()->anyone_there() ) )
+      ( get_f_Block() && get_f_Block()->anyone_there_for( *mod ) ) )
    AbstractBlock::add_Modification( mod , chnl );
   }
 

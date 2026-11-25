@@ -39,6 +39,8 @@
 
 #include "ColVariable.h"
 
+#include <unordered_map>
+
 /*--------------------------------------------------------------------------*/
 /*----------------------------- NAMESPACE ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -248,6 +250,15 @@ public:
   * instructed [see set_sol()]. */
 
  int compute( bool changedvars = true ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// BoxSolver sees no Constraint outside of a Block but its bounds, hence
+ /// the weights of the Variable [see Block::set_variable_weight()] change
+ /// nothing of its problem
+
+ [[nodiscard]] bool handles_variable_weight( void ) const override {
+  return( true );
+  }
 
 /** @} ---------------------------------------------------------------------*/
 /*---------------------- METHODS FOR READING RESULTS -----------------------*/
@@ -516,6 +527,14 @@ public:
  Function * f_altobj;  ///< a possible alternative Function for the Objective
 
  Vec_Block f_desc;     ///< the Block and all its sub-Block, recursively
+
+ std::unordered_map< const Block * , double > f_desc_w;
+ ///< the weight of the Objective [see Block::set_objective_weight()] of the
+ ///< Block in f_desc whose weight in f_Block is not 1, i.e., the product of
+ ///< the weights from it up to f_Block, the latter excluded
+
+ /// the weight in f_Block of the Objective obj, 1 if it is not in f_desc_w
+ double objective_weight( const Objective * obj ) const;
 
 /*--------------------------------------------------------------------------*/
 

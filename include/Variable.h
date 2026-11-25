@@ -7,11 +7,11 @@
  * assumptions are made about what form the variable actually has, this
  * being demanded to derived classes.
  *
- * \author Antonio Frangioni \n
+ * \author Rafael Durbano Lobato \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \author Rafael Durbano Lobato \n
+ * \author Antonio Frangioni \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -19,7 +19,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
+ * \copyright &copy; by Rafael Durbano Lobato, Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -273,6 +273,31 @@ class Variable
 
  virtual void is_fixed( bool fixed , c_ModParam issueMod = eModBlck );
 
+/*--------------------------------------------------------------------------*/
+ /// what a change of the state of the Variable changes
+ /** Returns what a change of the state of the Variable from old_state to
+  * new_state changes [see Modification::ModConcern], which is what its
+  * VariableMod says. Fixing the Variable, and nothing else, shrinks the
+  * region, and unfixing it, and nothing else, makes it grow, both being
+  * eModVarData; the other bits of the state are those of the derived class,
+  * whose meaning the base class does not know, and a change of them is
+  * taken as eModVarData with either effect. A derived class that knows what
+  * its bits mean says more, e.g., which of them is the integrality
+  * (eModVarType). */
+
+ [[nodiscard]] virtual Modification::ModConcern state_changes(
+                          var_type old_state , var_type new_state ) const {
+  constexpr var_type fix = 1;  // the LSB of the state [see is_fixed()]
+  if( ( old_state & ~fix ) == ( new_state & ~fix ) ) {
+   if( is_fixed( new_state ) && ! is_fixed( old_state ) )
+    return( Modification::eModVarData | Modification::eRegnShrink );
+   if( is_fixed( old_state ) && ! is_fixed( new_state ) )
+    return( Modification::eModVarData | Modification::eRegnGrow );
+   }
+  return( Modification::eModVarData | Modification::eRegnShrink |
+	  Modification::eRegnGrow );
+  }
+
 /** @} ---------------------------------------------------------------------*/
 /*------------- METHODS FOR READING THE DATA OF THE Variable ---------------*/
 /*--------------------------------------------------------------------------*/
@@ -332,7 +357,7 @@ class Variable
 /** @} ---------------------------------------------------------------------*/
 /*--------- METHODS FOR HANDLING "STUFF" THE Variable IS ACTIVE IN ---------*/
 /*--------------------------------------------------------------------------*/
-/** @Name Methods for handling the set of "stuff" the Variable is active in
+/** @name Methods for handling the set of "stuff" the Variable is active in
  *  @{ */
 
  virtual void add_active( ThinVarDepInterface * stuff ) = 0;
@@ -500,17 +525,21 @@ class VariableMod : public AModification
 
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
  /// constructor: takes the new state of the Variable and a pointer to it
+ /** What the Modification changes is said by the Variable itself [see
+  * Variable::state_changes()]: the state of a Variable, which leaves the
+  * objective as it is at every point. */
 
  VariableMod( Variable * var , var_type old_state , var_type new_state ,
 	      bool cB = true )
-  : AModification( cB ) , f_variable( var ) , f_old_state( old_state ) ,
-    f_new_state( new_state ) {}
+  : AModification( cB , var->state_changes( old_state , new_state ) ) ,
+    f_variable( var ) , f_old_state( old_state ) , f_new_state( new_state )
+  {}
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
  ~VariableMod() override = default;  ///< destructor: does nothing
 
-/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+/*-------------------- PUBLIC METHODS OF THE CLASS -------------------------*/
 
  /// returns the Block to which the Variable belongs
 

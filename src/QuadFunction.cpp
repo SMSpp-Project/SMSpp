@@ -5,15 +5,15 @@
  * Implementation of the class QuadFunction, which implements
  * C15Function with a non-diagonal quadratic function.
  *
+ * \author Wim van Ackooij \n
+ *         EDF Lab Paris-Saclay \n
+ *
  * \author Antonio Frangioni \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \author Wim van Ackooij \n
- *         EDF Lab Paris-Saclay \n
  *
- *
- * \copyright &copy; by Antonio Frangioni, Wim van Ackooij
+ * \copyright &copy; by Wim van Ackooij, Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
@@ -32,7 +32,7 @@
 using namespace SMSpp_di_unipi_it;
 
 /*--------------------------------------------------------------------------*/
-/*--------- METHODS DESCRIBING THE BEHAVIOR OF THE QuadFunction -----------*/
+/*--------- METHODS DESCRIBING THE BEHAVIOR OF THE QuadFunction ------------*/
 /*--------------------------------------------------------------------------*/
 
 int QuadFunction::compute( bool changedvars ) {
@@ -286,12 +286,12 @@ void QuadFunction::get_hessian_approximation( DenseHessian & hessian ) const {
 /*--------------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------------------*/
-/*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE QuadFunction --------*/
+/*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE QuadFunction ---------*/
 /*--------------------------------------------------------------------------*/
 
 
 /*--------------------------------------------------------------------------*/
-/*-------------- METHODS FOR MODIFYING THE QuadFunction -------------------*/
+/*-------------- METHODS FOR MODIFYING THE QuadFunction --------------------*/
 /*--------------------------------------------------------------------------*/
 
 void QuadFunction::add_variables( v_coeff_triple && vars ,
@@ -343,7 +343,7 @@ void QuadFunction::add_variables( v_coeff_triple && vars ,
  }
 
  // if noone is there or not listening
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod , eModFVars ) ) )
   return;
 
  // Firstly prepare the diagonal terms for modification
@@ -392,7 +392,8 @@ void QuadFunction::add_nd_term( ColVariable * var1 , ColVariable * var2 ,
   // a time
   mat_nd.insert( std::max( i , j ) , std::min( i , j ) ) = quad_coeff;
 
-  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+  if( ( ! f_Observer ) ||
+      ( ! f_Observer->issue_mod( issueMod , eModFValues ) ) )
    return; // noone is there: all done
 
   Coefficient od_term = quad_coeff;
@@ -432,14 +433,16 @@ void QuadFunction::modify_term( Index i , Index j ,
   throw( std::invalid_argument( "QuadFunction::modify_term: i == j == " +
                                 std::to_string( i ) +
                                 " is not a non-diagonal term" ) );
- // Observe that this insertion is highly inefficient if done one coeff at a time
+ // Observe that this insertion is highly inefficient if done one coeff at a
+ // time
  auto & coeff = mat_nd.coeffRef( std::max( i , j ) , std::min( i , j ) );
  const Coefficient old_coeff = coeff;
  coeff = quad_nd_coeff;
 
  my_convexity = Unknown;
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , eModFValues ) ) )
   return; // noone is there: all done
 
  // the Modification carries the difference, which is what its readers add
@@ -490,7 +493,8 @@ void QuadFunction::remove_variable( Index i , ModParam issueMod ) {
    }
   }
  }
- // We Squeez every bit of memory out of the beast before reallocating the whole deal
+ // We Squeez every bit of memory out of the beast before reallocating the
+ // whole deal
  mat_nd.setZero();
  mat_nd.data().squeeze();
 
@@ -595,7 +599,8 @@ void QuadFunction::remove_variables( Subset && nms , bool ordered ,
 void QuadFunction::identify_convexity( void ) {
  /**
     *
-    *  We need to perform the costly computation and figure out what kind of function this is
+    *  We need to perform the costly computation and figure out what kind of
+    *  function this is
     *
    */
  if( my_convexity == Unknown ) {
@@ -624,11 +629,12 @@ void QuadFunction::identify_convexity( void ) {
   }
   else {
    throw( std::logic_error(
-    "Symmetric matrices can not be something other than PSD, NSD or indefinite ... yet ..." ) );
+    "Symmetric matrices can not be something other than PSD, NSD or "
+    "indefinite ... yet ..." ) );
   }
  }
 }
 
 /*--------------------------------------------------------------------------*/
-/*----------------------- End File QuadFunction.cpp -----------------------*/
+/*----------------------- End File QuadFunction.cpp ------------------------*/
 /*--------------------------------------------------------------------------*/

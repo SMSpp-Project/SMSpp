@@ -1,0 +1,169 @@
+##############################################################################
+############################## makefile-shared ###############################
+##############################################################################
+#                                                                            #
+#   makefile of the shared libraries of the modules                          #
+#                                                                            #
+#   By default the objects of each module are put in one shared library,     #
+#   as CMake does: the makefile-c of a module calls,                         #
+#   as its last line,                                                        #
+#                                                                            #
+#       $(eval $(call SMSppSOlib,<prefix>))                                  #
+#                                                                            #
+#   which replaces the objects in $(<prefix>OBJ) by the libraries that hold  #
+#   them, one for each module whose obj/ directory they are in (the module   #
+#   itself and those whose objects it takes by their makefile-s), and adds   #
+#   to $(<prefix>LIB) the libraries again, by --no-as-needed on Linux, so    #
+#   that a program keeps them also if it makes their classes only by the     #
+#   factory, and the -rpath of their directories, so that a program          #
+#   linked by $(<prefix>OBJ) and $(<prefix>LIB) finds them at run time. The  #
+#   library of the module in directory D is D/obj/libD.so (libD.dylib on     #
+#   macOS, libD.dll on Windows), and it is linked against the libraries and  #
+#   the archives that follow it in $(<prefix>OBJ), i.e., those of the        #
+#   modules it depends on, and against $(<prefix>LIB). Each library is       #
+#   defined once, by the first makefile-c that meets it. All the objects     #
+#   are compiled by -fPIC, but on Windows.                                   #
+#                                                                            #
+#   On Windows (MinGW-w64) a DLL exports all its symbols, and a program      #
+#   keeps it by -u of the SMSpp_force_load_D() that the registration of      #
+#   class D defines [see SMSFactory.h], as CMake does; there is no run-time  #
+#   path, and the directories of the DLLs are to be on the PATH to run it.   #
+#                                                                            #
+#   With $(SMSppSTATIC) not empty nothing changes: $(<prefix>OBJ) are the    #
+#   objects, and that of the core libSMS++.a.                                #
+#                                                                            #
+#   Input:  $(UNAME_S)     = the name of the current operating system [see   #
+#                            makefile-OS]                                    #
+#           $(SMSppSTATIC) = not empty if the objects are linked as they are #
+#                                                                            #
+#   Output: $(SMSppSHARED) = not empty if the shared libraries are built     #
+#           SMSppSOlib     = the function above                              #
+#                                                                            #
+#                             Antonio Frangioni                              #
+#                         Dipartimento di Informatica                        #
+#                             Universita' di Pisa                            #
+#                                                                            #
+##############################################################################
+
+ifndef SMSppSOdone
+SMSppSOdone = 1
+
+# whether the shared libraries are built- - - - - - - - - - - - - - - - - - -
+
+ifeq ($(SMSppSTATIC),)
+    SMSppSHARED = 1
+endif
+
+# the kind of build is written in obj/ of the core when it changes, and the
+# objects of the shared libraries depend on that file, so that those of a
+# static build, not compiled by -fPIC, are compiled again [see SMSppSOlib]
+SMSppSOstamp := $(abspath $(SMS++SDR)/obj/.SMSppSHARED)
+SMSppSOmode := $(if $(SMSppSHARED),shared,static)
+ifneq ($(shell cat "$(SMSppSOstamp)" 2> /dev/null),$(SMSppSOmode))
+    $(shell echo $(SMSppSOmode) > "$(SMSppSOstamp)")
+endif
+
+ifneq ($(SMSppSHARED),)
+
+# every object is compiled by -fPIC, whichever recipe makes it, but on
+# Windows, where the code of a DLL needs none
+ifneq ($(UNAME_S),Windows)
+%.o: override CC += -fPIC
+endif
+
+# the extension and the options of a library and of its name, by which the
+# programs and the other libraries record it, to be found by their -rpath
+ifeq ($(UNAME_S),Darwin)
+    SMSppSOEXT = dylib
+    SMSppSOSW = -dynamiclib -Wl,-install_name,@rpath/$(1)
+    SMSppSOkeep = $(1)
+else ifeq ($(UNAME_S),Windows)
+    SMSppSOEXT = dll
+    SMSppSOSW = -shared -Wl,--export-all-symbols
+    # a DLL none of whose symbols is used is not recorded, so that a program
+    # that makes its classes by the factory is made to use the
+    # SMSpp_force_load_D() of libD.dll (the core has none, and is used)
+    SMSppSOkeep = $(1) $(foreach d,$(filter-out SMS++,$(patsubst \
+	lib%.dll,%,$(notdir $(filter %.dll,$(1))))),-Wl,-u,SMSpp_force_load_$(d))
+else
+    SMSppSOEXT = so
+    SMSppSOSW = -shared -Wl,-soname,$(1)
+    # the libraries $(1) are recorded also by whom uses none of their symbols,
+    # as one that makes their classes by the factory, else a linker by
+    # --as-needed drops them and their classes are never in the factory
+    SMSppSOkeep = -Wl,--push-state,--no-as-needed $(1) -Wl,--pop-state
+endif
+
+# the directory of the module of an object, the one above its obj/
+SMSppSOroot = $(abspath $(dir $(1))..)
+
+# the library of the module in directory $(1)
+SMSppSOname = $(1)/obj/lib$(notdir $(1)).$(SMSppSOEXT)
+
+# the words of $(1), each once, in the order in which they first appear
+SMSppSOuniq = $(if $(1),$(firstword $(1)) \
+	$(call SMSppSOuniq,$(filter-out $(firstword $(1)),$(1))))
+
+# the -rpath of the directories of the libraries in $(1), none on Windows
+ifneq ($(UNAME_S),Windows)
+SMSppSOrpath = $(foreach d,$(call SMSppSOuniq,$(abspath $(dir $(filter \
+	%.$(SMSppSOEXT),$(1))))),-Wl,-rpath,$(d))
+else
+SMSppSOrpath =
+endif
+
+# the rule of the library of the module in directory $(1), with its objects
+# $(2), linked against $(3) and $(4) but itself
+define SMSppSOrule
+ifndef SMSppSOdone_$(1)
+SMSppSOdone_$(1) = 1
+$(call SMSppSOname,$(1)): $(2) $(filter %.$(SMSppSOEXT) %.a,$(3))
+	$$(CC) $$(call SMSppSOSW,$$(@F)) -o $$@ $(2) $$(call SMSppSOkeep,$(3)) \
+	$$(call SMSppSOrpath,$(3)) \
+	$(filter-out $(call SMSppSOname,$(1)),$(4)) $$(SW)
+clean::
+	rm -f $(call SMSppSOname,$(1))
+endif
+endef
+
+# the libraries that hold the objects of $(1), the ones of the module first,
+# followed by the libraries and the archives already in $(1)
+SMSppSOroots = $(call SMSppSOuniq,$(foreach o,$(filter %.o,$(1)), \
+	$(call SMSppSOroot,$(o))))
+SMSppSOlibs = $(foreach r,$(call SMSppSOroots,$(1)),$(call SMSppSOname,$(r))) \
+	$(filter-out %.o,$(1))
+
+# the objects of $(2) of the module in directory $(1), as they are written
+SMSppSOof = $(foreach o,$(2),$(if $(filter $(1), \
+	$(call SMSppSOroot,$(o))),$(o)))
+
+# the words of $(2) after the first $(1)
+SMSppSOafter = $(if $(2),$(if $(filter $(1),$(firstword $(2))), \
+	$(wordlist 2,$(words $(2)),$(2)),$(call SMSppSOafter,$(1), \
+	$(wordlist 2,$(words $(2)),$(2)))))
+
+# the rules of the libraries of $(1)OBJ, each linked against those that
+# follow it, and the macros of the module
+define SMSppSOlib
+$(1)_SO_OBJ := $$(filter %.o,$$($(1)OBJ))
+$(1)_SO_LIBS := $$(call SMSppSOlibs,$$($(1)OBJ))
+$$($(1)_SO_OBJ): $$(SMSppSOstamp)
+$$(foreach r,$$(call SMSppSOroots,$$($(1)_SO_OBJ)),$$(eval $$(call \
+	SMSppSOrule,$$(r),$$(call SMSppSOof,$$(r),$$($(1)_SO_OBJ)), \
+	$$(call SMSppSOafter,$$(call SMSppSOname,$$(r)),$$($(1)_SO_LIBS)), \
+	$$($(1)LIB))))
+$(1)OBJ := $$($(1)_SO_LIBS)
+$(1)LIB := $$($(1)LIB) \
+	$$(call SMSppSOkeep,$$(filter %.$$(SMSppSOEXT),$$($(1)OBJ))) \
+	$$(call SMSppSOrpath,$$($(1)OBJ))
+endef
+
+else
+
+SMSppSOlib =
+
+endif
+
+endif
+
+########################## End of makefile-shared ############################

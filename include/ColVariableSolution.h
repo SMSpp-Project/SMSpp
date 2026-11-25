@@ -9,15 +9,15 @@
  * values of the static and dynamic Variables of a Block as well as the
  * ColVariableSolutions of the nested Blocks.
  *
- * \author Antonio Frangioni \n
- *         Dipartimento di Informatica \n
- *         Universita' di Pisa \n
- *
  * \author Rafael Durbano Lobato \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
+ * \author Antonio Frangioni \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \copyright &copy; by Rafael Durbano Lobato, Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -117,6 +117,12 @@ public:
 
 /** @} ---------------------------------------------------------------------*/
 /*-------- METHODS DESCRIBING THE BEHAVIOR OF A ColVariableSolution --------*/
+/*--------------------------------------------------------------------------*/
+ /// a ColVariableSolution holds values of the Variable [see adapts()]
+ [[nodiscard]] Modification::ModConcern adapts( void ) const override {
+  return( Modification::eModVarSet );
+  }
+
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a ColVariableSolution
  *  @{ */
@@ -341,8 +347,8 @@ public:
   * @return true if and only if this ColVariableSolution is empty. */
 
  bool empty() const {
-  return static_variable_values.empty() && dynamic_variable_values.empty() &&
-   nested_solutions.empty();
+  return( static_variable_values.empty() && dynamic_variable_values.empty() &&
+    nested_solutions.empty() );
   }
 
 /*--------------------------------------------------------------------------*/

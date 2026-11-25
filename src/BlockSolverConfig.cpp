@@ -4,15 +4,15 @@
 /** @file
  * Implementation of the BlockSolverConfig and RBlockSolverConfig classes.
  *
- * \author Antonio Frangioni \n
- *         Dipartimento di Informatica \n
- *         Universita' di Pisa \n
- *
  * \author Rafael Durbano Lobato \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
+ * \author Antonio Frangioni \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \copyright &copy; by Rafael Durbano Lobato, Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
@@ -21,6 +21,9 @@
 /*--------------------------------------------------------------------------*/
 
 #include <algorithm>
+
+#include <cctype>
+#include <memory>
 
 #include "BlockInspection.h"
 
@@ -45,47 +48,7 @@ SMSpp_insert_in_factory_cpp_0( BlockSolverConfig );
 
 SMSpp_insert_in_factory_cpp_0( RBlockSolverConfig );
 
-/*--------------------------------------------------------------------------*/
-/*--------------------------- AUXILIARY FUNCTIONS --------------------------*/
-/*--------------------------------------------------------------------------*/
-
-namespace {
-
-/// returns the index of the sub-Block with the given \p id
-
-Block::Index get_nested_Block_index( const std::string & id ,
-                                     const Block * block )
-{
- if( ( ! id.empty() ) && std::isdigit( id.front() ) ) {
-  // The id is the index of the sub-Block
-  try { return( std::stoi( id ) ); }
-  catch( ... ) { return( Inf< Block::Index >() ); }
-  }
- else  // The id is the name of the sub-Block
-  return( block->get_nested_Block_index( id ) );
- }
-
-/*--------------------------------------------------------------------------*/
-// returns the sub-Block with the given \p id
-
-Block * get_nested_Block( const std::string & id , const Block * block )
-{
- if( auto bi = block->get_nested_Block( id ) )
-  return( bi );
-
- if( id.empty() || ( ! std::isdigit( id.front() ) ) )
-  return( nullptr );
-
- Block::Index i;
- try { i = std::stoi( id ); }
- catch( ... ) { return( nullptr ); }
-
- return( block->get_nested_Block( i ) );
- }
-
-/*--------------------------------------------------------------------------*/
-
-}  // end( namespace )
+SMSpp_insert_in_factory_cpp_0( MetaBlockSolverConfig );
 
 /*--------------------------------------------------------------------------*/
 
@@ -231,7 +194,7 @@ void BlockSolverConfig::deserialize( const netCDF::NcGroup & group )
    else {
     delete ccfg;
     throw( std::invalid_argument(
-	          "BlockSolverConfig::deserialize: not a ComputeConfig" ) );    
+	          "BlockSolverConfig::deserialize: not a ComputeConfig" ) );
     }
    }
   }
@@ -314,6 +277,17 @@ void BlockSolverConfig::apply( Block * block ,
    slvr->set_excluded_blocks( ignored );
   };
 
+ // a new Solver, ComputeConfig-ured if the ComputeConfig is there and told
+ // what to ignore; deleted if any of that throws, as no Block has it yet
+ const auto new_solver = [ & ]( const std::string & name ,
+				ComputeConfig * cfg ) {
+  std::unique_ptr< Solver > slvr( Solver::new_Solver( name ) );
+  if( cfg )
+   slvr->set_ComputeConfig( cfg );
+  install_excluded( slvr.get() );
+  return( slvr.release() );
+  };
+
  auto & recorded = v_Registered[ block ];  // the record for this Block
 
  if( f_diff == eAddMode ) {  // additive mode- - - - - - - - - - - - - - - - -
@@ -324,12 +298,7 @@ void BlockSolverConfig::apply( Block * block ,
   auto cit = v_SolverConfigs.begin();
   for( auto nit = v_SolverNames.begin() ; nit != v_SolverNames.end() ;
        ++nit , ++cit ) {
-   auto slvr = Solver::new_Solver( *nit );  // first create the Solver
-
-   if( *cit )                               // if the ComputeConfig is there
-    slvr->set_ComputeConfig( *cit );        // ComputeConfig-ure it
-
-   install_excluded( slvr );                // and tell it what to ignore
+   auto slvr = new_solver( *nit , *cit );
 
    block->register_Solver( slvr );          // only then pass it to the Block
    recorded.push_back( slvr );              // and record it
@@ -373,12 +342,7 @@ void BlockSolverConfig::apply( Block * block ,
      slvr->set_ComputeConfig( *cit );  // ComputeConfig-ure it
     }
    else {                // a new and different Solver (name) is specified
-    slvr = Solver::new_Solver( *nit );
-
-    if( *cit )                             // if the ComputeConfig is there
-     slvr->set_ComputeConfig( *cit );      // ComputeConfig-ure it
-
-    install_excluded( slvr );              // and tell it what to ignore
+    slvr = new_solver( *nit , *cit );
 
     forget( *sit );                        // the replaced one is deleted
     block->replace_Solver( slvr , sit , true );  // replace the existing one
@@ -403,12 +367,7 @@ void BlockSolverConfig::apply( Block * block ,
          ++nit , ++sit , ++cit ) {
    //  note: the order of operations is important
 
-   auto slvr = Solver::new_Solver( *nit );  // first create a new Solver
-
-   if( *cit )                                // if the ComputeConfig is there
-    slvr->set_ComputeConfig( *cit );         // ComputeConfig-ure it
-
-   install_excluded( slvr );                 // and tell it what to ignore
+   auto slvr = new_solver( *nit , *cit );
 
    // only then replace the existing one
    forget( *sit );                           // the replaced one is deleted
@@ -423,12 +382,7 @@ void BlockSolverConfig::apply( Block * block ,
  for( ; nit != v_SolverNames.end() ; ++nit , ++cit ) {
   //  note: the order of operations is important
 
-  auto slvr = Solver::new_Solver( *nit );  // first create the Solver
-
-  if( *cit )                               // if the ComputeConfig is there
-   slvr->set_ComputeConfig( *cit );        // ComputeConfig-ure it
-
-  install_excluded( slvr );                // and tell it what to ignore
+  auto slvr = new_solver( *nit , *cit );
 
   block->register_Solver( slvr );          // only then pass it to the Block
   recorded.push_back( slvr );
@@ -855,6 +809,149 @@ void RBlockSolverConfig::load( std::istream & input )
    }
   }
  }  // end( RBlockSolverConfig::load )
+
+/*--------------------------------------------------------------------------*/
+/*------------------ METHODS of MetaBlockSolverConfig ----------------------*/
+/*--------------------------------------------------------------------------*/
+
+void MetaBlockSolverConfig::set_map( MapConfig * map )
+{
+ if( map )
+  for( const auto & [ key , val ] : map->f_value )
+   if( val && ( ! dynamic_cast< BlockSolverConfig * >( val ) ) ) {
+    // the message first, as key goes with the map
+    std::invalid_argument e( "MetaBlockSolverConfig::set_map: entry " + key +
+			     " is not a BlockSolverConfig" );
+    delete map;
+    throw( e );
+    }
+
+ delete f_map;
+ f_map = map;
+
+ }  // end( MetaBlockSolverConfig::set_map )
+
+/*--------------------------------------------------------------------------*/
+
+void MetaBlockSolverConfig::deserialize( const netCDF::NcGroup & group )
+{
+ BlockSolverConfig::deserialize( group );
+
+ auto mg = group.getGroup( "map" );
+ if( mg.isNull() ) {
+  set_map( nullptr );
+  return;
+  }
+
+ auto cfg = new_Configuration( mg );
+ auto map = dynamic_cast< MapConfig * >( cfg );
+ if( cfg && ( ! map ) ) {
+  delete cfg;
+  throw( std::invalid_argument( "MetaBlockSolverConfig::deserialize: map "
+				"is not a map from classname to Configuration"
+				) );
+  }
+ set_map( map );
+
+ }  // end( MetaBlockSolverConfig::deserialize( group ) )
+
+/*--------------------------------------------------------------------------*/
+
+void MetaBlockSolverConfig::apply( Block * block ,
+			      const std::unordered_set< Block * > * ignored )
+{
+ if( ! block )
+  return;
+
+ BlockSolverConfig::apply( block , ignored );
+
+ if( ( ! f_map ) || f_map->f_value.empty() )
+  return;
+
+ // the descendants, father-first
+ for_each_by_classname( block , f_map->f_value ,
+			[ ignored ]( Block * b , Configuration * c ) {
+			 static_cast< BlockSolverConfig * >( c )->apply(
+								 b , ignored );
+			 } , false );
+ }  // end( MetaBlockSolverConfig::apply )
+
+/*--------------------------------------------------------------------------*/
+
+void MetaBlockSolverConfig::serialize( netCDF::NcGroup & group ) const
+{
+ BlockSolverConfig::serialize( group );
+
+ if( f_map ) {
+  auto mg = group.addGroup( "map" );
+  f_map->serialize( mg );
+  }
+ }  // end( MetaBlockSolverConfig::serialize( group ) )
+
+/*--------------------------------------------------------------------------*/
+
+void MetaBlockSolverConfig::print( std::ostream & output ) const
+{
+ BlockSolverConfig::print( output );
+
+ output << "BlockSolverConfig of the descendants, by classname" << std::endl;
+ if( f_map )
+  output << *f_map;
+ else
+  output << "nullptr" << std::endl;
+ output << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void MetaBlockSolverConfig::load( std::istream & input )
+{
+ static const std::string sre(
+			   "MetaBlockSolverConfig::load: stream read error" );
+
+ BlockSolverConfig::load( input );
+
+ if( advance( input ) ) {  // nothing more: no map
+  set_map( nullptr );
+  return;
+  }
+
+ // with no Solver names, BlockSolverConfig::load() stops before the number
+ // of ComputeConfig, which the map, never starting with a digit, cannot be
+ // confused with: read it, and the ComputeConfig, here
+ if( v_SolverNames.empty() &&
+     std::isdigit( static_cast< unsigned char >( input.peek() ) ) ) {
+  Index k;
+  input >> k;
+  checkfail( input , sre );
+  v_SolverNames.resize( k );
+  v_SolverConfigs.assign( k , nullptr );
+  for( Index i = 0 ; i < k ; ++i ) {
+   auto cfg = Configuration::deserialize( input );
+   if( cfg && ( ! ( v_SolverConfigs[ i ] =
+		    dynamic_cast< ComputeConfig * >( cfg ) ) ) ) {
+    delete cfg;
+    throw( std::invalid_argument( "MetaBlockSolverConfig::load: not a "
+				  "ComputeConfig " + std::to_string( i ) ) );
+    }
+   }
+  }
+
+ if( advance( input ) ) {  // nothing more: no map
+  set_map( nullptr );
+  return;
+  }
+
+ auto cfg = Configuration::deserialize( input );  // '*' is nullptr
+ auto map = dynamic_cast< MapConfig * >( cfg );
+ if( cfg && ( ! map ) ) {
+  delete cfg;
+  throw( std::invalid_argument( "MetaBlockSolverConfig::load: map is not "
+				"a map from classname to Configuration" ) );
+  }
+ set_map( map );
+
+ }  // end( MetaBlockSolverConfig::load )
 
 /*--------------------------------------------------------------------------*/
 /*------------------ End File BlockSolverConfig.cpp ------------------------*/

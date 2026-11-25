@@ -5,15 +5,15 @@
  * Header file for the class BendersBFunction, which implements C05Function
  * and Block with a Benders function.
  *
- * \author Antonio Frangioni \n
- *         Dipartimento di Informatica \n
- *         Universita' di Pisa \n
- *
  * \author Rafael Durbano Lobato \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
+ * \author Antonio Frangioni \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \copyright &copy; by Rafael Durbano Lobato, Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -79,9 +79,9 @@ namespace SMSpp_di_unipi_it
  *    one, and only, sub-Block of BendersBFunction (when "seen" as a Block).
  *
  * 2) A matrix A with m rows and n columns, a vector b with m rows, and a
- *    vector of pairs [ ( C_i , S_i ) ]_{i \in I}, each pair being formed by a
- *    pointer C_i to a RowConstraint of Block B and a #ConstraintSide S_i,
- *    where I = {0, ..., m-1}.
+ *    vector of pairs \f$ [ ( C_i , S_i ) ]_{i \in I} \f$, each pair being
+ *    formed by a pointer C_i to a RowConstraint of Block B and a
+ *    #ConstraintSide S_i, where I = {0, ..., m-1}.
  *
  *    Problem (B) would typically be associated with an original problem
  *
@@ -128,8 +128,8 @@ namespace SMSpp_di_unipi_it
  *    RowConstraint. Moreover, if a RowConstraint in Block B has finite bounds
  *    that can be different from each other and are affected by the values of
  *    x, then it would be listed twice (once for each of its bounds). That is,
- *    there would be indices i, j \in I such that i != j and C_i = C_j, S_i =
- *    eLHS, and S_j = eRHS.
+ *    there would be indices \f$ i, j \in I \f$ such that i != j and
+ *    C_i = C_j, S_i = eLHS, and S_j = eRHS.
  *
  *        The vector of pairs [ ( C_i , S_i ) ]_{i \in I} must not contain
  *        duplicate entries (i.e., there must not exist indices i, j \in I
@@ -714,7 +714,7 @@ class BendersBFunction : public C05Function , public Block {
   *
   * @param par The parameter to be set.
   *
-  * @return The value of the parameter. */
+  * @param value The value of the parameter. */
 
  void set_par( idx_type par , int value ) override;
 
@@ -743,7 +743,7 @@ class BendersBFunction : public C05Function , public Block {
   *
   * @param par The parameter to be set.
   *
-  * @return The value of the parameter. */
+  * @param value The value of the parameter. */
 
  void set_par( idx_type par , double value ) override {
 
@@ -892,7 +892,7 @@ class BendersBFunction : public C05Function , public Block {
    { "intLinComp" , "intSolverIndex"};
 
   if( idx >= intLastParC05F && idx < intLastBendersBFPar )
-   return pars[ idx - intLastParC05F ];
+   return( pars[ idx - intLastParC05F ] );
 
   return( C05Function::int_par_idx2str( idx ) );
   }
@@ -901,7 +901,7 @@ class BendersBFunction : public C05Function , public Block {
 /*--------- METHODS FOR HANDLING THE State OF THE BendersBFunction ---------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the State of the BendersBFunction
- */
+ *  @{ */
 
  State * get_State( void ) const override;
 
@@ -1460,12 +1460,11 @@ class BendersBFunction : public C05Function , public Block {
  /// modify only the constant term of a range of rows of the linear mapping
  /** Like modify_rows( range ), but modify the constant terms only.
   *
-  * @param nb an iterator to a vector of double containing the new values of
-  *        the constants. This iterator must have at least <tt>range.second -
-  *        range.first</tt> valid successors (including \p nb itself).  For
-  *        each i in [range.first, range.second), the i-th successor of \p nb
-  *        provides the new value of the constant term for row <tt>range.first
-  *        + i</tt>;
+  * @param nb the new values of the constants: <tt>nb[ i ]</tt> is the new
+  *        value of the constant term for row <tt>range.first + i</tt>, hence
+  *        \p nb must be at least as long as \p range, once \p range is
+  *        restricted to the rows there are (std::invalid_argument is thrown
+  *        if it is shorter);
   *
   * @param range contains the indices of the rows whose constants will be
   *        modified, hence <tt>range.second <= get_b().size()</tt>;
@@ -1484,7 +1483,7 @@ class BendersBFunction : public C05Function , public Block {
   *        the constant alone (if all the values are equal, the function
   *        value has not changed and the method does nothing). */
 
- void modify_constants( MF_dbl_it nb , Range range = Block::INFRange ,
+ void modify_constants( MF_dbl_sp nb , Range range = Block::INFRange ,
                         ModParam issuePMod = eNoBlck ,
                         ModParam issueAMod = eNoBlck );
 
@@ -1492,12 +1491,10 @@ class BendersBFunction : public C05Function , public Block {
  /// modify only the constant term of a subset of rows of the linear mapping
  /** Like modify_rows( subset ), but modify the constant terms only.
   *
-  * @param nb an iterator to a vector of double containing the new values of
-  *        the constants. This iterator must have at least
-  *        <tt>rows.size()</tt> valid successors (including \p nb itself).
-  *        For each i in {0, ..., rows.size()-1}, the i-th successor of \p nb
-  *        provides the new value of the constant term for \p rows[ i ] of the
-  *        linear mapping;
+  * @param nb the new values of the constants: <tt>nb[ i ]</tt> is the new
+  *        value of the constant term for \p rows[ i ] of the linear
+  *        mapping, hence \p nb must be at least as long as \p rows
+  *        (std::invalid_argument is thrown if it is shorter);
   *
   * @param rows contains the indices of the rows to be modified; all entries
   *        must therefore be numbers in 0, ..., get_A().size() - 1; as the &&
@@ -1522,7 +1519,7 @@ class BendersBFunction : public C05Function , public Block {
   *        the constant alone (if all the values are equal, the function
   *        value has not changed and the method does nothing). */
 
- void modify_constants( MF_dbl_it nb , Subset && rows ,
+ void modify_constants( MF_dbl_sp nb , Subset && rows ,
 			bool ordered = false ,
                         ModParam issuePMod = eNoBlck ,
                         ModParam issueAMod = eNoBlck );
@@ -1767,6 +1764,43 @@ class BendersBFunction : public C05Function , public Block {
 
  void add_Modification( sp_Mod mod , Observer::ChnlName chnl = 0 ) override;
 
+/*--------------------------------------------------------------------------*/
+ /// the kinds of Modification of the sub-Block the BendersBFunction reads
+ /** The BendersBFunction reads of the sub-Block what may change the dual
+  * solutions of its global pool and the Constraint it handles:
+  *
+  * - the physical Modification (eModPhys), which say how the model of the
+  *   sub-Block changes, its Objective included;
+  *
+  * - the abstract Modification of the Constraint (eModCnsSide, eModCnsCoef
+  *   and eModCnsSet), since the Constraint it handles are in the abstract
+  *   representation, and so are the dynamic ones;
+  *
+  * - those of the Variable (eModVarSet, eModVarData and eModVarType).
+  *
+  * The abstract Modification of the Objective are not read, hence a
+  * sub-Block that has no other use for them need not issue them; an
+  * AbstractBlock reads them anyway, its abstract representation being its
+  * physical one [see AbstractBlock::concerned()]. */
+
+ [[nodiscard]] Modification::ModConcern concerned_by( void ) const override {
+  return( Modification::eModAnything & ~ Modification::eModObj );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the kinds of Modification read by anyone listening to the sub-Block
+ /** What the BendersBFunction reads itself [see concerned_by()] and what
+  * its Solver read: unlike in Block::concerned(), the father is left out,
+  * since the Modification of the sub-Block stop at the BendersBFunction
+  * [see add_Modification()]. */
+
+ [[nodiscard]] Modification::ModConcern concerned( void ) const override {
+  auto c = concerned_by();
+  for( auto slvr : v_Solver )
+   c |= slvr->concerned_by();
+  return( c );
+  }
+
 /** @} ---------------------------------------------------------------------*/
 /*------------ METHODS FOR Saving THE DATA OF THE BendersBFunction ---------*/
 /*--------------------------------------------------------------------------*/
@@ -1829,12 +1863,12 @@ void print( std::ostream & output ) override {
   *
   * - The variable "Column", of type netCDF::NcUint and indexed over the
   *   dimension "NumNonzero", containing the column indices of the entries of
-  *   the matrix. If "NumNonzero" or "NumNonzeroAtRow" is not present, then this
-  *   variable is ignored. For each k in {0, ..., NumNonzero-1}, Column[k] is
-  *   the column index of the k-th nonzero entry of the A matrix, whose value
-  *   is given by A[k]. "Column" stores the column indices in row-major order,
-  *   that is, if (i,j) and (p,q) are the entries of the k-th and l-th nonzero
-  *   elements of A, respectively, with k < l, then i <= p.
+  *   the matrix. If "NumNonzero" or "NumNonzeroAtRow" is not present, then
+  *   this variable is ignored. For each k in {0, ..., NumNonzero-1}, Column[k]
+  *   is the column index of the k-th nonzero entry of the A matrix, whose
+  *   value is given by A[k]. "Column" stores the column indices in row-major
+  *   order, that is, if (i,j) and (p,q) are the entries of the k-th and l-th
+  *   nonzero elements of A, respectively, with k < l, then i <= p.
   *
   * - The variable "A", of type netCDF::NcDouble. This variable stores the
   *   values of the elements of the A matrix of the mapping. If the dimension
@@ -1846,7 +1880,7 @@ void print( std::ostream & output ) override {
   *   nonzero entries of the matrix. In this case, A[k] is the value of the
   *   k-th nonzero entry, whose column index is given by Column[k]. The
   *   nonzero elements of the matrix are given in left-to-right top-to-bottom
-  *   (``row-major'') order. If the dimension "NumNonzero" is not present,
+  *   ("row-major") order. If the dimension "NumNonzero" is not present,
   *   then "A" is indexed over both the "NumRow" and "NumVar" dimensions (in
   *   this order); it contains the (row-major) representation of the matrix
   *   A. This variable is optional only if NumRow == 0.
@@ -1858,10 +1892,10 @@ void print( std::ostream & output ) override {
   *
   * - The variable "ConstraintSide", of type netCDF::NcChar and indexed over
   *   the dimension "NumRow", indicating, at position i, which side of the
-  *   i-th Constraint is affected. The possible values are `L' for the
-  *   left-hand (or lower bound) side, `R' for the right-hand (or upper bound)
-  *   side, and `B' for both sides. This variable is optional. If it is not
-  *   provided, then all entries of this array are assumed to be `B'.
+  *   i-th Constraint is affected. The possible values are 'L' for the
+  *   left-hand (or lower bound) side, 'R' for the right-hand (or upper bound)
+  *   side, and 'B' for both sides. This variable is optional. If it is not
+  *   provided, then all entries of this array are assumed to be 'B'.
   *
   * - The group "AbstractPath" containing the description of a vector of
   *   AbstractPath to the affected RowConstraints. The number of AbstractPath
@@ -1898,7 +1932,10 @@ void print( std::ostream & output ) override {
   * of the sub-Block (see Solver::get_ub()). If the sense of the Objective of
   * the sub-Block is "maximization", then this method returns a valid upper
   * bound on the optimal objective function value of the sub-Block (see
-  * Solver::get_lb()).
+  * Solver::get_lb()). If compute() has returned kInfeasible, then it
+  * returns + Inf< FunctionValue >() times the weight of the inner Block
+  * [see inner_weight()] for a minimization and - Inf< FunctionValue >()
+  * times it for a maximization.
   *
   * Notice that if compute() has never been invoked, then the value returned
   * by this method is meaningless. Moreover, if this BendersBFunction does not
@@ -1906,6 +1943,58 @@ void print( std::ostream & output ) override {
   * then an exception is thrown. */
 
  FunctionValue get_value( void ) override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// sets a global lower bound on the value of the BendersBFunction
+ /** Sets a value that the BendersBFunction is known to be not below at any
+  * point, e.g., 0 when the Objective of the sub-Block is a sum of squares;
+  * it is not checked, and it is returned as it is by
+  * get_global_lower_bound(). The default - Inf< FunctionValue >() means
+  * that none is known. */
+
+ void set_global_lower_bound( FunctionValue lb ) { f_global_LB = lb; }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns the global lower bound given by set_global_lower_bound()
+
+ FunctionValue get_global_lower_bound( void ) override {
+  return( f_global_LB );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// sets the phase one that gives the vertical linearizations
+ /** Sets a BendersBFunction \p f1 with the same active Variable as this one,
+  * in the same order, whose inner Block is a copy of the inner Block of this
+  * one [see AbstractBlock::mirror()] in which the Constraint handled by
+  * this BendersBFunction are relaxed by nonnegative slacks and the
+  * Objective minimizes their weighted sum: the value of \p f1 is the least
+  * violation of these Constraint, positive exactly where the inner Block of
+  * this BendersBFunction is infeasible.
+  *
+  * When the inner Block is infeasible, its Solver gives no unbounded dual
+  * direction (as a Solver of convex QPs usually does not) and no Constraint
+  * has lhs > rhs, the vertical linearization is that of \p f1: \p f1 is
+  * computed, its optimal dual solution is written in the Constraint of the
+  * inner Block of which those of the copy are the copies (0 in those that
+  * have none), where it is a dual direction since the Objective of the copy
+  * is zero on the Variable of the inner Block, and the linearization is
+  * \f$ g^\top x + \alpha \le 0 \f$ with \f$ g^\top x + \alpha \f$ the
+  * linearization of \p f1 scaled by the ratio of the weights of the two
+  * inner Block [see inner_weight()], which no x where the inner Block is
+  * feasible violates. One is given at each point, and only for an inner
+  * Block that minimizes.
+  *
+  * When the Solver of the inner Block says kUnbounded (as a Solver of
+  * convex QPs may do for an inner Block that is infeasible by less than its
+  * own tolerance) and \p f1 gives a linearization, compute() returns
+  * kInfeasible, and the value and the vertical linearization are those of
+  * an infeasible inner Block.
+  *
+  * \p f1 is not owned by this BendersBFunction, its inner Block has to have
+  * its Solver and it must outlive this BendersBFunction; nullptr, the
+  * default, means no phase one. */
+
+ void set_phase_one( BendersBFunction * f1 );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns a lower estimate of the BendersBFunction
@@ -1927,6 +2016,20 @@ void print( std::ostream & output ) override {
  /// returns the "constant term" of the BendersBFunction
 
  FunctionValue get_constant_term( void ) const override;
+
+/*--------------------------------------------------------------------------*/
+ /// the weight of the Objective of the inner Block
+ /** The weight of the Objective of the inner Block [see
+  * Block::set_objective_weight()] times that of the BendersBFunction, which
+  * as its ancestor multiplies it: the value of the BendersBFunction and its
+  * linearizations are those of the Solver of the inner Block multiplied by
+  * it, since that Solver does not see it. */
+
+ double inner_weight( void ) const {
+  return( get_objective_weight() *
+          ( ( v_Block.empty() || ( ! v_Block.front() ) ) ? 1 :
+            v_Block.front()->get_objective_weight() ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns true only if this BendersBFunction is convex
@@ -2003,7 +2106,8 @@ void print( std::ostream & output ) override {
   *    equal to - #dblAAccMlt), and the sum of the coefficients of the
   *    diagonal linearizations must be approximately equal to 1:
   *
-  *    abs( 1 - sum coefficients of diagonal linearizations ) <= K * #dblAAccMlt
+  *    abs( 1 - sum coefficients of diagonal linearizations )
+  *      <= K * #dblAAccMlt
   *
   *    where K is the number of linearizations being combined.
   *
@@ -2163,8 +2267,8 @@ void print( std::ostream & output ) override {
  /// get the whole set of parameters of this BendersBFunction
  /** The extra Configuration (see ComputeConfig::f_extra_Configuration) of the
   * ComputeConfig of the BendersBFunction is a
-  * SimpleConfiguration< std::pair< Configuration * , Configuration * > >. The first
-  * Configuration of this pair is a :BlockConfig and the second one is a
+  * SimpleConfiguration< std::pair< Configuration * , Configuration * > >. The
+  * first Configuration of this pair is a :BlockConfig and the second one is a
   * :BlockSolverConfig, both of them being associated with the inner Block of
   * this BendersBFunction.
   *
@@ -2237,6 +2341,24 @@ void print( std::ostream & output ) override {
  FunctionValue AAccMlt; ///< maximum absolute error in the multipliers
 
  bool f_ignore_modifications = false; ///< ignore any Modification
+
+ FunctionValue f_global_LB = - Inf< FunctionValue >();
+ ///< the global lower bound given by set_global_lower_bound()
+
+ BendersBFunction * f_phase_one = nullptr;
+ ///< the phase one given by set_phase_one()
+
+ bool f_p1_tried = false;
+ ///< the phase one has been asked at the current point
+
+ bool f_p1_cut = false;
+ ///< the current vertical linearization is the one of the phase one
+
+ bool f_p1_ok = false;
+ ///< the phase one has given a linearization at the current point
+
+ FunctionValue f_p1_alpha = 0;
+ ///< the constant of the vertical linearization of the phase one
 
  void * f_id; ///< the "identity" of the BendersBFunction
 
@@ -2312,7 +2434,8 @@ void print( std::ostream & output ) override {
 
  public:
 
-  static constexpr auto NaN = std::numeric_limits< FunctionValue >::quiet_NaN();
+  static constexpr auto NaN =
+    std::numeric_limits< FunctionValue >::quiet_NaN();
 
 /*--------------------------------------------------------------------------*/
 
@@ -2493,9 +2616,10 @@ void print( std::ostream & output ) override {
   FunctionValue get_linearization_constant( Index name ) const {
    if( name < size() )
     return( linearization_constants[ name ] );
-   throw( std::invalid_argument( "GlobalPool::get_linearization_constant: linea"
-                                 "rization with name " + std::to_string( name )
-                                 + " does not exist." ) );
+   throw( std::invalid_argument(
+     "GlobalPool::get_linearization_constant: linea"
+     "rization with name " + std::to_string( name )
+     + " does not exist." ) );
    }
 
 /*--------------------------------------------------------------------------*/
@@ -2657,8 +2781,10 @@ void print( std::ostream & output ) override {
    auto nnz_dim = group.addDim( "NumNonzero" , column.size() );
    SMSpp_di_unipi_it::serialize( group , "NumNonzeroAtRow" , netCDF::NcUint() ,
                                  row_dim , nnz_at_row );
-   SMSpp_di_unipi_it::serialize( group , "Column" , netCDF::NcUint() , nnz_dim , column );
-   SMSpp_di_unipi_it::serialize( group , "A" , netCDF::NcDouble() , nnz_dim , values );
+   SMSpp_di_unipi_it::serialize( group , "Column" , netCDF::NcUint() ,
+				 nnz_dim , column );
+   SMSpp_di_unipi_it::serialize( group , "A" , netCDF::NcDouble() , nnz_dim ,
+				 values );
   }
 
   inline Index get_nnz() const {
@@ -2771,7 +2897,8 @@ void print( std::ostream & output ) override {
  void write_dual_solution( Index name );
 
 /*--------------------------------------------------------------------------*/
- /// asks \p solver for the dual solution, checking that it covers v_constraints
+ /// asks \p solver for the dual solution, checking that it covers
+ /// v_constraints
  /** Throws std::logic_error if the Solver leaves the dual value of some of
   * the Constraint of the mapping unwritten. */
 
@@ -2875,6 +3002,19 @@ void print( std::ostream & output ) override {
  void send_nuclear_modification( const Observer::ChnlName chnl = 0 );
 
 /*--------------------------------------------------------------------------*/
+ /// what to do when only the sides of Constraint of the sub-Block change
+ /** Called when \p mod only changes, of the sub-Block, the sides of some
+  * Constraint that are not among those this BendersBFunction handles [see
+  * Modification::changes_only_sides()]: the dual solutions of the global
+  * pool stay dual feasible, the g part of the linearizations stays valid and
+  * only their constants have to be computed again. The value of the
+  * Function moves the way the region of the sub-Block does, when it moves
+  * one way only [see get_behaviour()], and unpredictably otherwise. */
+
+ void sides_changed( const Modification & mod ,
+		     const Observer::ChnlName chnl = 0 );
+
+/*--------------------------------------------------------------------------*/
  /// keeps the entries of the global pool that survive removed RowConstraint
  /** Called when dynamic Constraint have been removed from the sub-Block, with
   * the Modification that says so, whose removed Constraint are still alive
@@ -2900,10 +3040,6 @@ void print( std::ostream & output ) override {
 
  function_value_behaviour get_behaviour( std::shared_ptr< BlockModAD > mod );
 
-/*--------------------------------------------------------------------------*/
- /// returns the behaviour of this Function considering the given Modification
-
- function_value_behaviour get_behaviour( std::shared_ptr< ConstraintMod > mod );
 
 /*--------------------------------------------------------------------------*/
  /// returns the behaviour of this Function considering the given Modification
@@ -2983,6 +3119,13 @@ void print( std::ostream & output ) override {
 
  bool has_inverted_row( void );
 
+ /// the vertical linearization of the phase one [see set_phase_one()]
+ /** Computes the phase one at the current point, if it has not been already,
+  * and writes its dual solution in the inner Block; returns true only if it
+  * gives a linearization, i.e., if its value is positive. */
+
+ bool phase_one_cut( void );
+
  /// effective per-entry dual value used to assemble a vertical cut
  /** Returns the dual value to be used for the j-th BendersBFunction row
   * entry when building a linearization. When the underlying RowConstraint
@@ -3003,8 +3146,8 @@ void print( std::ostream & output ) override {
 
  Index get_constraint_index( RowConstraint * constraint ) {
   retrieve_constraints();
-  auto it = std::find( std::begin( v_constraints ) , std::end( v_constraints ) ,
-                       constraint );
+  auto it = std::find( std::begin( v_constraints ) ,
+		       std::end( v_constraints ) , constraint );
   if( it != std::end( v_constraints ) )
    return( std::distance( std::begin( v_constraints ) , it ) );
   return( Inf< Index >() );
@@ -3095,17 +3238,17 @@ void print( std::ostream & output ) override {
 
   register_method< BendersBFunction >( "BendersBFunction::modify_constants" ,
                                        & BendersBFunction::modify_constants ,
-                                       MS_dbl_sbst::args() );
+                                       MS_sp_dbl_sbst::args() );
 
   register_method< BendersBFunction >( "BendersBFunction::modify_constants" ,
                                        & BendersBFunction::modify_constants ,
-                                       MS_dbl_rngd::args() );
+                                       MS_sp_dbl_rngd::args() );
 				       !!*/
-  register_method< BendersBFunction , MF_dbl_it , Subset && , const bool >(
+  register_method< BendersBFunction , MF_dbl_sp , Subset && , const bool >(
    "BendersBFunction::modify_constants" ,
    & BendersBFunction::modify_constants );
 
-  register_method< BendersBFunction , MF_dbl_it , Range >(
+  register_method< BendersBFunction , MF_dbl_sp , Range >(
    "BendersBFunction::modify_constants" ,
    & BendersBFunction::modify_constants );
   }
@@ -3166,7 +3309,8 @@ class BendersBFunctionMod : public C05FunctionMod {
    * encodes for a single type of operation, but it is still defined here to
    * avoid being defined identically multiple times. */
   enum benders_function_mod_type {
-   ModifyRows = C05FunctionModLastParam,///< modify a set of rows (both A and b)
+   ModifyRows = C05FunctionModLastParam,///< modify a set of rows (both A and
+					///< b)
    ModifyCnst ,                         ///< modify a set of constants (b only)
    DeleteRows ,                         ///< delete a set of rows
    BendersBFunctionModLastParam

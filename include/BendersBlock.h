@@ -264,7 +264,7 @@ public:
   * the i-th Variable will be given by std::next( it , i ), for each i in {0,
   * ..., get_number_variables() - 1}.
   *
-  * @param values The vector containing the values of the Variable. */
+  * @param it The iterator to the values of the Variable. */
 
  template< class Iterator >
  void set_variable_values( Iterator it ) {

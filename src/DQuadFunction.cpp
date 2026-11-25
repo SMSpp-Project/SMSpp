@@ -4,15 +4,15 @@
 /** @file
  * Implementation of the DQuadFunction class.
  *
- * \author Antonio Frangioni \n
- *         Dipartimento di Informatica \n
- *         Universita' di Pisa \n
- *
  * \author Rafael Durbano Lobato \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
+ * \author Antonio Frangioni \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \copyright &copy; by Rafael Durbano Lobato, Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
@@ -295,7 +295,7 @@ void DQuadFunction::add_variables( v_coeff_triple && vars ,
   }
 
  // if noone is there or not listening
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod , eModFVars ) ) )
   return;  // all done
 
  Vec_p_Var vptr( added->size() );
@@ -330,7 +330,7 @@ void DQuadFunction::add_variable( ColVariable * var , Coefficient lin_coeff ,
  v_triples.push_back( std::make_tuple( var , lin_coeff , quad_coeff ) );
 
  // if noone is there or not listening
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod , eModFVars ) ) )
   return;  // all done
 
  // a diagonal quadratic function is additive ==> strongly quasi-additive
@@ -371,7 +371,8 @@ void DQuadFunction::modify_term( Index i , Coefficient lin_coeff ,
  std::get< 1 >( v_triples[ i ] ) = lin_coeff;   // modify linear coefficient
  std::get< 2 >( v_triples[ i ] ) = quad_coeff;  // modify quadratic coeff.
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , eModFValues ) ) )
   return;  // noone is there: all done
 
  f_Observer->add_Modification( std::make_shared< DQuadFunctionModRngd >(
@@ -379,8 +380,8 @@ void DQuadFunction::modify_term( Index i , Coefficient lin_coeff ,
                           std::move( delta_coeff ) ,
                           Vec_p_Var( { std::get< 0 >( v_triples[ i ] ) } ) ,
                           std::make_pair( i , i + 1 ) , Subset( {} ) ,
-                          FunctionMod::NaNshift ,
-                          Observer::par2concern( issueMod ) ) ,
+                            FunctionMod::NaNshift ,
+                            Observer::par2concern( issueMod ) ) ,
                                Observer::par2chnl( issueMod ) );
 
  }  // end( DQuadFunction::modify_term )
@@ -403,7 +404,8 @@ void DQuadFunction::modify_linear_coefficient( Index i , Coefficient coeff ,
  auto diff = coeff - std::get< 1 >( v_triples[ i ] );
  std::get< 1 >( v_triples[ i ] ) = coeff;  // modify the linear coefficient
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) ||
+     ( ! f_Observer->issue_mod( issueMod , eModFValues ) ) )
   return;  // noone is there: all done
 
  f_Observer->add_Modification( std::make_shared< C05FunctionModLinRngd >(
@@ -433,7 +435,7 @@ void DQuadFunction::modify_terms( c_v_coeff_it NQuadCoef ,
    throw( std::invalid_argument( "DQuadFunction::modify_terms: invalid "
                                  "index: " + std::to_string( i ) ) );
 
- if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+ if( f_Observer && f_Observer->issue_mod( issueMod , eModFValues ) ) {
   // somebody is there: meanwhile, prepare data for the Modification
 
   Vec_p_Var vp( nms.size() );
@@ -458,8 +460,8 @@ void DQuadFunction::modify_terms( c_v_coeff_it NQuadCoef ,
                              this , C05FunctionMod::AllLinearizationChanged ,
                              std::move( vcoef ) , std::move( vp ) , 
                              std::move( nms ) , ordered , Subset( {} ) , 
-                             FunctionMod::NaNshift ,
-                             Observer::par2concern( issueMod ) ) ,
+                            FunctionMod::NaNshift ,
+                            Observer::par2concern( issueMod ) ) ,
                                 Observer::par2chnl( issueMod ) );
   }
  else  // noone is there: just do it
@@ -499,7 +501,7 @@ void DQuadFunction::modify_linear_coefficients( Vec_FunctionValue && NCoef ,
 
  auto NCit = NCoef.begin();
  
- if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+ if( f_Observer && f_Observer->issue_mod( issueMod , eModFValues ) ) {
   // somebody is there: meanwhile, prepare data for the Modification
 
   Vec_p_Var vp( nms.size() );
@@ -516,8 +518,8 @@ void DQuadFunction::modify_linear_coefficients( Vec_FunctionValue && NCoef ,
   f_Observer->add_Modification( std::make_shared< C05FunctionModLinSbst >(
                                  this , std::move( NCoef ) , std::move( vp ) ,
                                  std::move( nms ) , ordered ,
-                                 FunctionMod::NaNshift ,
-                                 Observer::par2concern( issueMod ) ) ,
+                            FunctionMod::NaNshift ,
+                            Observer::par2concern( issueMod ) ) ,
                                 Observer::par2chnl( issueMod ) );
   }
  else  // noone is there: just do it
@@ -542,7 +544,7 @@ void DQuadFunction::modify_terms( c_v_coeff_it NQuadCoef ,
  auto strtit = v_triples.begin() + range.first;
  const auto stopit = v_triples.begin() + range.second;
 
- if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+ if( f_Observer && f_Observer->issue_mod( issueMod , eModFValues ) ) {
   // somebody is there: meanwhile, prepare data for the Modification
 
   Vec_p_Var vp( range.second - range.first );
@@ -567,8 +569,8 @@ void DQuadFunction::modify_terms( c_v_coeff_it NQuadCoef ,
                             this , C05FunctionMod::AllLinearizationChanged ,
                             std::move( vcoef ) , std::move( vp ) , 
                             range , Subset( {} ) ,
-			                      FunctionMod::NaNshift ,
-			                      Observer::par2concern( issueMod ) ) ,
+                            FunctionMod::NaNshift ,
+                            Observer::par2concern( issueMod ) ) ,
                             Observer::par2chnl( issueMod ) );
   }
  else  // noone is there: just do it
@@ -604,7 +606,7 @@ void DQuadFunction::modify_linear_coefficients( Vec_FunctionValue && NCoef ,
  auto strtit = v_triples.begin() + range.first;
  const auto stopit = v_triples.begin() + range.second;
 
- if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+ if( f_Observer && f_Observer->issue_mod( issueMod , eModFValues ) ) {
   // somebody is there: meanwhile, prepare data for the Modification
 
   Vec_p_Var vp( range.second - range.first );
@@ -642,16 +644,20 @@ void DQuadFunction::remove_variable( Index i , ModParam issueMod )
 
  auto itv = v_triples.begin() + i;
  auto var = std::get< 0 >( *itv );
+ const FunctionValue lin = - std::get< 1 >( *itv );
+ const FunctionValue quad = - std::get< 2 >( *itv );
  v_triples.erase( itv );       // erase it
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod , eModFVars ) ) )
   return;
 
  // a diagonal quadratic function is additive ==> strongly quasi-additive
- f_Observer->add_Modification( std::make_shared< C05FunctionModVarsRngd >(
+ f_Observer->add_Modification( std::make_shared< DQuadFunctionModVarsRngd >(
                                 this , Vec_p_Var( { var } ) ,
                                 Range( i , i + 1 ) , 0 ,
-                                Observer::par2concern( issueMod ) ) ,
+                                Observer::par2concern( issueMod ) ,
+                                Vec_FunctionValue( { lin } ) ,
+                                Vec_FunctionValue( { quad } ) ) ,
                                Observer::par2chnl( issueMod ) );
 
  }  // end( DQuadFunction::remove_variable( index ) )
@@ -669,21 +675,27 @@ void DQuadFunction::remove_variables( Range range, ModParam issueMod )
 
  if( ( range.first == 0 ) && ( range.second >= v_triples.size() ) ) {
   // removing *all* variable
-  if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+  if( f_Observer && f_Observer->issue_mod( issueMod , eModFVars ) ) {
    // an Observer is there: copy the names of deleted Variable (all of them)
    Vec_p_Var vars( v_triples.size() );
+   Vec_FunctionValue delta( v_triples.size() );
+   Vec_FunctionValue qdelta( v_triples.size() );
 
-   for( Index i = 0 ; i < v_triples.size() ; ++i )
+   for( Index i = 0 ; i < v_triples.size() ; ++i ) {
     vars[ i ] = std::get< 0 >( v_triples[ i ] );
+    delta[ i ] = - std::get< 1 >( v_triples[ i ] );
+    qdelta[ i ] = - std::get< 2 >( v_triples[ i ] );
+    }
 
    clear();  // then clear the DQuadFunction
 
   // now issue the Modification: note that the subset is empty
   // a diagonal quadratic function is additive ==> strongly quasi-additive
-  if( f_Observer && f_Observer->issue_mod( issueMod ) )
-   f_Observer->add_Modification( std::make_shared< C05FunctionModVarsSbst >(
-                                  this , std::move( vars ) , Subset() , true ,
-                                  0 , Observer::par2concern( issueMod ) ) ,
+  if( f_Observer && f_Observer->issue_mod( issueMod , eModFVars ) )
+   f_Observer->add_Modification( std::make_shared< DQuadFunctionModVarsSbst >(
+                                  this , std::move( vars ) , Subset() , 0 ,
+                                  Observer::par2concern( issueMod ) ,
+                                  std::move( delta ) , std::move( qdelta ) ) ,
                                  Observer::par2chnl( issueMod ) );
    }
   else       // no-one is listening
@@ -696,21 +708,27 @@ void DQuadFunction::remove_variables( Range range, ModParam issueMod )
  const auto strtit = v_triples.begin() + range.first;
  const auto stopit = v_triples.begin() + range.second;
 
- if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+ if( f_Observer && f_Observer->issue_mod( issueMod , eModFVars ) ) {
   // somebody is there: meanwhile, prepare data for the Modification
 
   Vec_p_Var vars( range.second - range.first );
-  auto vpit = vars.begin();
-  for( auto tmpit = strtit ; tmpit < stopit ; )
-   *(vpit++) = std::get< 0 >( *(tmpit++) );
+  Vec_FunctionValue delta( vars.size() );
+  Vec_FunctionValue qdelta( vars.size() );
+  Index k = 0;
+  for( auto tmpit = strtit ; tmpit < stopit ; ++tmpit , ++k ) {
+   vars[ k ] = std::get< 0 >( *tmpit );
+   delta[ k ] = - std::get< 1 >( *tmpit );
+   qdelta[ k ] = - std::get< 2 >( *tmpit );
+   }
 
   v_triples.erase( strtit , stopit );
 
   // now issue the Modification
   // a diagonal quadratic function is additive ==> strongly quasi-additive
-  f_Observer->add_Modification( std::make_shared< C05FunctionModVarsRngd >(
+  f_Observer->add_Modification( std::make_shared< DQuadFunctionModVarsRngd >(
                                  this , std::move( vars ) , range , 0 ,
-                                 Observer::par2concern( issueMod ) ) ,
+                                 Observer::par2concern( issueMod ) ,
+                                 std::move( delta ) , std::move( qdelta ) ) ,
                                 Observer::par2chnl( issueMod ) );
   }
  else  // noone is there: just do it
@@ -727,21 +745,27 @@ void DQuadFunction::remove_variables( Subset && nms , bool ordered ,
   return;
 
  if( nms.empty() ) {      // removing *all* variable
-  if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+  if( f_Observer && f_Observer->issue_mod( issueMod , eModFVars ) ) {
    // an Observer is there: copy the names of deleted Variable (all of them)
    Vec_p_Var vars( v_triples.size() );
+   Vec_FunctionValue delta( v_triples.size() );
+   Vec_FunctionValue qdelta( v_triples.size() );
 
-   for( Index i = 0 ; i < v_triples.size() ; ++i )
+   for( Index i = 0 ; i < v_triples.size() ; ++i ) {
     vars[ i ] = std::get< 0 >( v_triples[ i ] );
+    delta[ i ] = - std::get< 1 >( v_triples[ i ] );
+    qdelta[ i ] = - std::get< 2 >( v_triples[ i ] );
+    }
 
    clear();  // then clear the DQuadFunction
 
   // now issue the Modification: note that the subset is empty
   // a diagonal quadratic function is additive ==> strongly quasi-additive
-  if( f_Observer && f_Observer->issue_mod( issueMod ) )
-   f_Observer->add_Modification( std::make_shared< C05FunctionModVarsSbst >(
-                                  this , std::move( vars ) , Subset() , true ,
-                                  0 , Observer::par2concern( issueMod ) ) ,
+  if( f_Observer && f_Observer->issue_mod( issueMod , eModFVars ) )
+   f_Observer->add_Modification( std::make_shared< DQuadFunctionModVarsSbst >(
+                                  this , std::move( vars ) , Subset() , 0 ,
+                                  Observer::par2concern( issueMod ) ,
+                                  std::move( delta ) , std::move( qdelta ) ) ,
                                  Observer::par2chnl( issueMod ) );
    }
   else       // no-one is listening
@@ -762,20 +786,26 @@ void DQuadFunction::remove_variables( Subset && nms , bool ordered ,
  auto vi = *it;    // first element to be eliminated
  auto curr = v_triples.begin() + vi;   // position where to move stuff
 
- if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+ if( f_Observer && f_Observer->issue_mod( issueMod , eModFVars ) ) {
   // somebody is there: meanwhile, prepare data for the Modification
   // (as it will be destroyed during the process)
 
   Vec_p_Var vars( nms.size() );
-  auto its = vars.begin();
+  Vec_FunctionValue delta( nms.size() );
+  Vec_FunctionValue qdelta( nms.size() );
+  Index k = 0;
+  auto record = [ & ]( Index j ) {
+   vars[ k ] = std::get< 0 >( v_triples[ j ] );
+   delta[ k ] = - std::get< 1 >( v_triples[ j ] );
+   qdelta[ k++ ] = - std::get< 2 >( v_triples[ j ] );
+   };
 
-  *(its++) = std::get< 0 >( v_triples[ *(it++) ] );
+  record( *(it++) );
   ++vi;              // skip the first element, it will be overwritten
 
   for( ; it < nms.end() ; ++vi )
    if( *it == vi )                 // one element to be eliminated
-    *(its++) = std::get< 0 >( v_triples[ *(it++) ] );
-                                   // skip it, but record the Variable
+    record( *(it++) );             // skip it, but record the Variable
    else
     *(curr++) = v_triples[ vi ];   // move in the current position
 
@@ -787,10 +817,13 @@ void DQuadFunction::remove_variables( Subset && nms , bool ordered ,
 
   // now issue the Modification
   // a diagonal quadratic function is additive ==> strongly quasi-additive
-  f_Observer->add_Modification( std::make_shared< C05FunctionModVarsSbst >(
+  // nms has been ordered above, as the deltas need
+  f_Observer->add_Modification( std::make_shared< DQuadFunctionModVarsSbst >(
 					 this , std::move( vars ) ,
-					 std::move( nms ) , ordered , 0 ,
-                                         Observer::par2concern( issueMod ) ) ,
+					 std::move( nms ) , 0 ,
+                                         Observer::par2concern( issueMod ) ,
+                                         std::move( delta ) ,
+                                         std::move( qdelta ) ) ,
 				Observer::par2chnl( issueMod ) );
   }
  else {  // noone is there: just do it
@@ -822,7 +855,7 @@ void DQuadFunction::set_constant_term( FunctionValue constant_term ,
  if( f_constant_term == constant_term )  // actually nothing to change
   return;                                // cowardly (and silently) return
 
- if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+ if( f_Observer && f_Observer->issue_mod( issueMod , eModFValues ) ) {
   const FunctionValue delta = constant_term - f_constant_term;
   f_constant_term = constant_term;
 

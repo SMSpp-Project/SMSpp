@@ -14,6 +14,13 @@
 #                             Universita' di Pisa                             #
 # --------------------------------------------------------------------------- #
 get_filename_component(@modName@_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
+# as in the CMakeLists.txt of the core, before find_dependency() is
+# defined, since it keeps the policies of its definition
+foreach (_policy CMP0144 CMP0167)
+    if (POLICY ${_policy})
+        cmake_policy(SET ${_policy} NEW)
+    endif ()
+endforeach ()
 include(CMakeFindDependencyMacro)
 
 # ----- Settings ------------------------------------------------------------ #
@@ -24,6 +31,8 @@ set(netCDFCxx_ROOT @netCDFCxx_ROOT@)
 
 # ----- Requirements -------------------------------------------------------- #
 find_dependency(Boost)
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_dependency(Threads)
 
 # This is needed to find the find modules we provide
 list(APPEND CMAKE_MODULE_PATH ${@modName@_CMAKE_DIR})
@@ -35,11 +44,23 @@ if (NOT Eigen3_FOUND)
 endif ()
 
 # Try first with library's own configuration file, then with our find module.
-if (UNIX)
-    find_package(netCDFCxx QUIET NO_MODULE)
-endif ()
+find_package(netCDFCxx QUIET NO_MODULE)
 if (NOT netCDFCxx_FOUND)
     find_package(netCDFCxx REQUIRED)
+endif ()
+
+# The configuration file of netCDF-C++ of some distributions (e.g., vcpkg)
+# names its target netCDF::netcdf-cxx4, and our find module
+# netCDF::netCDFCxx, which is what the library links.
+if (TARGET netCDF::netcdf-cxx4 AND NOT TARGET netCDF::netCDFCxx)
+    add_library(netCDF::netCDFCxx INTERFACE IMPORTED)
+    target_link_libraries(netCDF::netCDFCxx INTERFACE netCDF::netcdf-cxx4)
+endif ()
+
+# the HDF5 the library was built with, which a static library carries to
+# whoever links it [see NcMemFile]
+if (@SMSpp_HDF5_DEPENDENCY@)
+    find_dependency(HDF5 COMPONENTS C)
 endif ()
 
 list(REMOVE_AT CMAKE_MODULE_PATH -1)
@@ -50,5 +71,11 @@ if (NOT TARGET @modNamespace@::@modName@)
 endif ()
 
 set(@modName@_LIBRARIES @modNamespace@::@modName@)
+
+# the check of the C++20 modules, the fetch of FastFlow and the functions of
+# the modules, called by the modules that use this one
+include("${@modName@_CMAKE_DIR}/CheckModule.cmake")
+include("${@modName@_CMAKE_DIR}/FastFlow.cmake")
+include("${@modName@_CMAKE_DIR}/SMSppModule.cmake")
 
 # --------------------------------------------------------------------------- #

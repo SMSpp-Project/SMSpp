@@ -9,15 +9,15 @@
  * values of the static and dynamic RowConstraint of a Block as well as the
  * RowConstraintSolutions of the nested Blocks.
  *
- * \author Antonio Frangioni \n
- *         Dipartimento di Informatica \n
- *         Universita' di Pisa \n
- *
  * \author Rafael Durbano Lobato \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
+ * \author Antonio Frangioni \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \copyright &copy; by Rafael Durbano Lobato, Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -53,7 +53,8 @@ namespace SMSpp_di_unipi_it
  using Vec_RowConstraintSolution = std::vector< RowConstraintSolution >;
  ///< a vector of RowConstraintSolution
 
- using c_Vec_RowConstraintSolution = const std::vector< RowConstraintSolution >;
+ using c_Vec_RowConstraintSolution =
+   const std::vector< RowConstraintSolution >;
  ///< a const vector of RowConstraintSolution
 
 /** @}  end( group( RowConstraintSolution_TYPES ) ) */
@@ -118,6 +119,12 @@ public:
 
 /** @} ---------------------------------------------------------------------*/
 /*------- METHODS DESCRIBING THE BEHAVIOR OF A RowConstraintSolution -------*/
+/*--------------------------------------------------------------------------*/
+ /// a RowConstraintSolution holds values of the Constraint [see adapts()]
+ [[nodiscard]] Modification::ModConcern adapts( void ) const override {
+  return( Modification::eModCnsSet );
+  }
+
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a RowConstraintSolution
  *  @{ */

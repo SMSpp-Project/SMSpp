@@ -1,0 +1,107 @@
+##############################################################################
+############################# makefile-Module ################################
+##############################################################################
+#                                                                            #
+#   makefile of Module_test (for core SMS++)                                 #
+#                                                                            #
+#   The test imports the C++20 module smspp in place of the headers, hence   #
+#   it is built with the module, i.e., with SMSppMOD not empty and clang++   #
+#   16 or later [see lib/makefile-mod]:                                      #
+#                                                                            #
+#       make -f makefile-Module                                              #
+#                                                                            #
+#                              Antonio Frangioni                             #
+#                          Dipartimento di Informatica                       #
+#                              Universita' di Pisa                           #
+#                                                                            #
+##############################################################################
+
+# module name
+NAME = Module_test
+
+# basic directory
+DIR = .
+
+# compiler
+CC = clang++
+
+# the C++20 modules are built
+SMSppMOD = 1
+
+# common flags
+COMMON_SW = -std=c++20
+
+# debug switches
+SW_DEBUG = -g $(COMMON_SW)
+# production switches
+SW_RELEASE = -O3 -DNDEBUG $(COMMON_SW)
+
+# default target- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+default: release
+
+# debug target- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+debug: SW = $(SW_DEBUG)
+debug: $(NAME)
+
+# release target- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+release: SW = $(SW_RELEASE)
+release: $(NAME)
+
+# clean target- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+clean::
+	rm -f $(DIR)/tests_Module.o $(DIR)/*~ $(NAME)
+
+# define & include the necessary modules- - - - - - - - - - - - - - - - - - -
+# if a module is not used in the current configuration, just comment out the
+# corresponding include line
+# each module outputs some macros to be used here:
+# *OBJ is the final object(s) / library
+# *LIB is the external libraries + -L< libdirs >
+# *H   is the list of all include files, and the module file
+# *INC is the -I< include directories >
+
+# core SMS++
+SMS++SDR = ..
+include $(SMS++SDR)/lib/makefile-inc
+
+ifeq ($(SMSppMOD),)
+    $(error $(NAME) needs the C++20 module smspp)
+endif
+
+# main module (linking phase) - - - - - - - - - - - - - - - - - - - - - - - -
+
+# object files
+MOBJ =  $(SMS++OBJ)
+
+# libraries
+MLIB =  $(SMS++LIB)
+
+$(NAME): $(MOBJ) $(DIR)/tests_Module.o
+	$(CC) -o $(NAME) $(DIR)/tests_Module.o $(MOBJ) $(MLIB) $(SW)
+
+# dependencies: every .o from its .cpp + every recursively included .h- - - -
+
+# include directives
+MINC =  $(SMS++INC)
+
+# includes, and the module file
+MH =    $(SMS++H)
+
+# compile command
+
+$(DIR)/tests_Module.o: $(DIR)/tests_Module.cpp $(MH)
+	$(CC) -c $(DIR)/tests_Module.cpp -o $@ $(MINC) $(SW)
+
+# distclean target- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+distclean: clean
+
+# phony targets - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+.PHONY: debug release clean distclean
+
+######################### End of makefile-Module #############################
