@@ -312,7 +312,7 @@ class BranchBounder
   * none at all, which is what the base class returns. */
 
  [[nodiscard]] virtual std::vector< double > branch_bounds( void ) {
-  return( {} );
+  return( std::vector< double >() );
   }
 
  };  // end( class( BranchBounder ) )
