@@ -39,7 +39,7 @@
 #   Output: $(SMSppSHARED) = not empty if the shared libraries are built     #
 #           SMSppSOlib     = the function above                              #
 #                                                                            #
-#                                 Donato Meoli                               #
+#                             Antonio Frangioni                              #
 #                         Dipartimento di Informatica                        #
 #                             Universita' di Pisa                            #
 #                                                                            #

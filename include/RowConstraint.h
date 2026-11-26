@@ -11,11 +11,11 @@
  * where LHS and RHS are two extended reals (hopefully at least one of which
  * is finite and LHS <= RHS, but this is not enforced in the class).
  *
- * \author Antonio Frangioni \n
+ * \author Rafael Durbano Lobato \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \author Rafael Durbano Lobato \n
+ * \author Antonio Frangioni \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -23,7 +23,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * \copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
+ * \copyright &copy; by Rafael Durbano Lobato, Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
