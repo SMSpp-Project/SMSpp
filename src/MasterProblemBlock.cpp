@@ -1596,7 +1596,8 @@ void MasterProblemBlock::generate_dual_abstract_constraints( void )
   for( int j = 0 ; j < NumVars ; ++j ) {
    LinearFunction::v_coeff_pair vp;
    vp.reserve( 4 );
-   vp.emplace_back( Var_z_idx[ j ]      ,  1.0 );  // pos 0
+   // pos 0, 1 / sqrt( t ) if Var_z is z' [see set_fixed_curvature()]
+   vp.emplace_back( Var_z_idx[ j ]      ,  1.0 / z_scale() );
    vp.emplace_back( & Var_lambda        ,  0.0 );  // pos 1, set_linear_part
    vp.emplace_back( Var_s_plus_idx[ j ] ,  1.0 );  // pos 2
    vp.emplace_back( Var_s_minus_idx[ j ], -1.0 );  // pos 3
@@ -1709,8 +1710,8 @@ void MasterProblemBlock::generate_dual_objective( void )
 
  z_obj_idx.clear();
  z_obj_idx.reserve( NumVars );
- const double quad_coeff = has_quad ? - sgn * ( true_level ? 0.5
-                                                               : t_stab / 2.0 )
+ const double quad_coeff = has_quad ? - sgn * ( ( true_level || z_scaled() )
+                                                ? 0.5 : t_stab / 2.0 )
                                       : 0.0;
  for( int j = 0 ; j < NumVars ; ++j ) {
   z_obj_idx.push_back( int( triples.size() ) );
@@ -3397,7 +3398,8 @@ std::vector< double > MasterProblemBlock::get_z_vector( void ) const
  for( const auto & zj : Var_z )
   // In pure level the dual stationarity vector is eta z*, so expose the
   // normalized aggregate, i.e., a convex combination [see aggregate_mass()].
-  out.push_back( normalize_level_z ? zj.get_value() / eta : zj.get_value() );
+  out.push_back( normalize_level_z ? zj.get_value() / eta
+                                    : zj.get_value() / z_scale() );
  return( out );
  }
 
@@ -3502,7 +3504,7 @@ std::vector< double > MasterProblemBlock::get_d_vector( void ) const
 
  // dual MP, proximal stabilization: d* = -t * z*
  for( const auto & zj : Var_z )
-  out.push_back( - t_stab * zj.get_value() );
+  out.push_back( - t_stab * zj.get_value() / z_scale() );
  return( out );
  }
 
@@ -4906,8 +4908,8 @@ void MasterProblemBlock::set_x_bar( const std::vector< double > & x_bar )
  const bool has_quad = ( StblType == kProximal ) ||
                        ( StblType == kDoublyStabilized ) ||
                        ( StblType == kLevel );
- const double quad_coeff = has_quad ? - sgn * ( true_level ? 0.5
-                                                            : t_stab / 2.0 )
+ const double quad_coeff = has_quad ? - sgn * ( ( true_level || z_scaled() )
+                                                ? 0.5 : t_stab / 2.0 )
                                     : 0.0;
  const bool iterate = ( f_v2_form != 0 );
  const bool lazy = ( ! iterate ) && ( f_xref_tol > 0.0 ) &&
@@ -4919,7 +4921,7 @@ void MasterProblemBlock::set_x_bar( const std::vector< double > & x_bar )
   else if( lazy )
    lin_coeff = - sgn * ( f_x_bar[ j ] - f_x_ref[ j ] );
   dqf->modify_term( DQuadFunction::Index( z_obj_idx[ j ] ) ,
-                    lin_coeff , quad_coeff );
+                    lin_coeff / z_scale() , quad_coeff );
   }
 
  // refresh the Lambda-box slack coefficients: in the displacement form
@@ -5334,7 +5336,7 @@ void MasterProblemBlock::append_coupling_rows( int first , int n ,
  for( int j = first ; j < last ; ++j ) {
   auto & row = terms[ j - first ];
   row.reserve( 4 );
-  row.emplace_back( Var_z_idx[ j ]      ,  1.0 );
+  row.emplace_back( Var_z_idx[ j ]      ,  1.0 / z_scale() );
   row.emplace_back( & Var_lambda        , - f_linear_part[ j ] );
   row.emplace_back( Var_s_plus_idx[ j ] ,  1.0 );
   row.emplace_back( Var_s_minus_idx[ j ], -1.0 );
@@ -5473,8 +5475,8 @@ void MasterProblemBlock::append_coordinate_objective( int first , int n ,
  const bool has_quad = ( StblType == kProximal ) ||
                        ( StblType == kDoublyStabilized ) ||
                        ( StblType == kLevel );
- const double quad = has_quad ? - sgn * ( true_level ? 0.5
-                                                     : t_stab / 2.0 ) : 0.0;
+ const double quad = has_quad ? - sgn * ( ( true_level || z_scaled() )
+                                          ? 0.5 : t_stab / 2.0 ) : 0.0;
  const bool iterate = ( f_v2_form != 0 );
  const bool lazy = ! iterate && ( f_xref_tol > 0.0 ) &&
                    ( int( f_x_ref.size() ) == NumVars );
@@ -5486,7 +5488,7 @@ void MasterProblemBlock::append_coordinate_objective( int first , int n ,
    linear = sgn * f_x_bar[ j ];
   else if( lazy )
    linear = - sgn * ( f_x_bar[ j ] - f_x_ref[ j ] );
-  triples.emplace_back( Var_z_idx[ j ] , linear , quad );
+  triples.emplace_back( Var_z_idx[ j ] , linear / z_scale() , quad );
   }
 
  std::vector< double > lower( n ) , upper( n );
@@ -7338,6 +7340,7 @@ void MasterProblemBlock::set_t( double t )
   throw( std::invalid_argument(
        "MasterProblemBlock::set_t: t must be strictly positive" ) );
 
+ const double old_t = t_stab;
  t_stab = t;
 
  auto issue_t_mod = [ this ]( void ) {
@@ -7345,6 +7348,44 @@ void MasterProblemBlock::set_t( double t )
    add_Modification( std::make_shared< MasterProblemParamMod >(
                     this , MasterProblemMod::TChanged , t_stab ) );
   };
+
+ // with z' = sqrt( t ) z in Var_z, t is in the coefficient of z'_j in the
+ // j-th coupling row, and in the linear coefficient of z'_j, if any, which
+ // is rescaled from the old sqrt( t ) to the new one; the quadratic term is
+ // fixed [see set_fixed_curvature()]
+ if( z_scaled() ) {
+  const double nscale = std::sqrt( t_stab );
+  const double oscale = std::sqrt( old_t );
+  if( ( int( CouplingCns.size() ) == NumVars ) &&
+      ( NumVars > 0 ) && CouplingCns.front().get_function() ) {
+   auto cpar = open_if_needed( eNoBlck , NumVars );
+   for( auto & row : CouplingCns )
+    static_cast< LinearFunction * >( row.get_function() )->modify_coefficient(
+                                                    0 , 1.0 / nscale , cpar );
+   close_if_needed( cpar , NumVars );
+   }
+  auto obj = ( f_abs_rep & k_mpb_built_obj )
+             ? memo_cast< FRealObjective * >( get_objective() ) : nullptr;
+  auto dqf = obj ? memo_cast< DQuadFunction * >( obj->get_function() )
+                 : nullptr;
+  if( dqf && ( int( z_obj_idx.size() ) == NumVars ) ) {
+   bool lin = false;
+   for( int i = 0 ; ( ! lin ) && ( i < NumVars ) ; ++i )
+    lin = ( dqf->get_linear_coefficient(
+                        DQuadFunction::Index( z_obj_idx[ i ] ) ) != 0.0 );
+   if( lin ) {
+    auto lpar = open_if_needed( eNoBlck , NumVars );
+    for( int i = 0 ; i < NumVars ; ++i ) {
+     const auto k = DQuadFunction::Index( z_obj_idx[ i ] );
+     dqf->modify_term( k , dqf->get_linear_coefficient( k ) * oscale / nscale ,
+                       dqf->get_quadratic_coefficient( k ) , lpar );
+     }
+    close_if_needed( lpar , NumVars );
+    }
+   }
+  issue_t_mod();
+  return;
+  }
 
  if( ! ( f_abs_rep & k_mpb_built_obj ) ) {
   if( IsPrimal )

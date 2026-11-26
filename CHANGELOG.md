@@ -22,6 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   so that a program linked to the core alone builds any `:Block` and any
   `:Solver` of the modules that are built or installed.
 
+- `MasterProblemBlock::set_fixed_curvature()`, by which the dual master
+  problem of the proximal stabilization has z' = sqrt(t) z in place of z:
+  its quadratic term no longer changes with t, which is in the coefficients
+  of z' in the coupling rows instead, so that a Solver that drops its basis
+  when the quadratic term changes (as GUROBI does) re-optimizes from it
+  after a change of t; the problem and what is read from it are the same
+
 - `lib/makefile-shared`, by which the makefiles put the objects of each module
   in a shared library by default, as CMake does, linked against those of the
   modules it depends on and found by its run-time path (a DLL on Windows,

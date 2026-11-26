@@ -159,6 +159,7 @@
 #include "OneVarConstraint.h"
 
 #include <algorithm>
+#include <cmath>
 #include <numeric>
 #include <iosfwd>
 #include <list>
@@ -1364,6 +1365,23 @@ class MasterProblemBlock : public Block {
  [[ nodiscard ]] int get_v2_form() const noexcept { return( f_v2_form ); }
 
 /*--------------------------------------------------------------------------*/
+ /// whether the dual MP of #kProximal keeps a fixed quadratic term
+ /** With \p fix, the dual MP of #kProximal has the variable
+  * \f$ z' = \sqrt{t} z \f$ in place of z: its quadratic term
+  * \f$ ( 1 / 2 ) \| z' \|^2 \f$ is that of \f$ ( t / 2 ) \| z \|^2 \f$ and
+  * does not change with t, which is in the coefficient
+  * \f$ 1 / \sqrt{t} \f$ of z'_j in the j-th coupling row instead (and in
+  * the linear coefficient of z'_j, if any, divided by \f$ \sqrt{t} \f$).
+  * The problem, its optimal value and the dual values of its rows are the
+  * same, and so is what get_z_vector(), get_d_vector() and get_z() give;
+  * but a Solver that drops its basis when the quadratic term of the
+  * Objective changes (as GUROBI does) re-optimizes from it when t does.
+  * Any other form of the MP ignores it. Set before configure(); switching
+  * mid-solve is not supported. */
+
+ void set_fixed_curvature( bool fix = true ) noexcept { f_fix_curv = fix; }
+
+/*--------------------------------------------------------------------------*/
  /// set the global lower bound LB on the value of the sum-function
  /** In the dual MP the global lower bound enters as the linear coefficient
   * of the r multiplier in the master Objective (+ r * LB_xbar term, with
@@ -2069,7 +2087,7 @@ class MasterProblemBlock : public Block {
   * must lie in [0, NumVars). Meaningful only after solve_master(). */
 
  [[nodiscard]] double get_z( int j ) const {
-  return( Var_z_idx[ j ]->get_value() );
+  return( Var_z_idx[ j ]->get_value() / z_scale() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -2700,6 +2718,18 @@ class MasterProblemBlock : public Block {
                     ///< caller does not have to re-call set_LB
 
  double f_lev;      ///< current value of the level f_lev (level / doubly only)
+
+ bool f_fix_curv = false;  ///< fixed quadratic term [see set_fixed_curvature()]
+
+ /// whether Var_z holds z' = sqrt( t ) z [see set_fixed_curvature()]
+ [[nodiscard]] bool z_scaled( void ) const {
+  return( f_fix_curv && ( ! IsPrimal ) && ( StblType == kProximal ) );
+  }
+
+ /// the factor between Var_z and z, i.e., sqrt( t ) or 1
+ [[nodiscard]] double z_scale( void ) const {
+  return( z_scaled() ? std::sqrt( t_stab ) : 1.0 );
+  }
 
  int f_v2_form = 0; ///< master storage frame: 0 = translated/displacement
                     ///< (default, production; cuts in the lin-error frame,
