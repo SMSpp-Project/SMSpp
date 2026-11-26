@@ -29,7 +29,9 @@
  * A change of a cost handled after a Variable of the inner Block has been
  * fixed at a value other than that of a linearization in the global pool,
  * as a Solver that gives the inner Block back to its father hands them, is
- * checked not to throw, the fixing deleting the linearization.
+ * checked not to throw, the fixing deleting the linearization. A Variable
+ * fixed and then no longer fixed is checked to have the Solver above told
+ * that the value of the function has changed, the region having grown.
  *
  * A change of the quadratic coefficients of a DQuadFunction Objective is
  * checked to update the constant of each linearization of the global pool
@@ -1186,6 +1188,37 @@ static void test_fixed_after_cost_change( void )
  }
 
 /*--------------------------------------------------------------------------*/
+/* A Variable of the inner Block fixed and then no longer fixed, as a Solver
+ * above does when it goes back up a tree: the unfixing grows the feasible
+ * region of the inner Block, which takes away no linearization of the
+ * global pool but changes the value of the LagBFunction all the same, and
+ * the Solver above has to be told so with a C05FunctionMod of shift NaN. */
+
+static void test_unfixing_told( void )
+{
+ Fixture f;
+ f.lbf->set_dual_pairs( v_dual_pair( { f.pair( 0 , 0 ) , f.pair( 1 , 1 ) } ) );
+ f.observe();
+
+ ( *f.x )[ 0 ].set_value( 0 );
+ ( *f.x )[ 0 ].is_fixed( true );
+ f.fake->get_Modification_list().clear();
+
+ ( *f.x )[ 0 ].is_fixed( false );
+ bool told = false;
+ for( const auto & mod : f.fake->get_Modification_list() )
+  if( const auto cm = std::dynamic_pointer_cast< C05FunctionMod >( mod ) )
+   if( std::isnan( cm->shift() ) )
+    told = true;
+ expect( told , "the unfixing of a Variable of the inner Block is not told "
+	 "to the Solver" );
+
+ check_at( f , { -3 , -1 } , { 0 , 1 } , "after the unfixing" );
+
+ std::cout << "Variable no longer fixed: done" << std::endl;
+ }
+
+/*--------------------------------------------------------------------------*/
 /* The quadratic coefficients of the Objective of the inner Block multiplied
  * by 3, as a change of scale does, with the linear ones written back at the
  * original costs, and its constant term set to 0.75. The global pool
@@ -1385,6 +1418,7 @@ int main( int argc , char ** argv )
  test_columns_edge_cases();
  test_weight_change();
  test_fixed_after_cost_change();
+ test_unfixing_told();
  for( int extmem : { 0 , 1 } )
   for( int quadmem : { 0 , 1 } )
    test_quad_cost_change( extmem , quadmem );

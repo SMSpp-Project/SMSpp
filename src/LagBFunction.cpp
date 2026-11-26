@@ -4394,30 +4394,48 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
  // reported as unknown (128), the pool being checked anyway; the Objective
  // changed by a physical one is seen through the abstract Objective, which
  // the inner Block keeps in step and whose Modification are dealt with
- // above. Any other cannot take away the feasibility of the pool, and
- // nothing has to be done.
+ // above. One that may only grow the region cannot take away the
+ // feasibility of the pool, but it changes the value of the function all
+ // the same (which does not increase if the inner Block is a minimization
+ // one), and so a LagBFunctionMod with shift() == NaN is issued right away,
+ // as it is for one that removes linearizations, lest the Solver of the
+ // LagBFunction keep the value it had found; any other has nothing to do.
 
- if( mod->may_shrink_region() || mod->may_grow_region() )
+ const bool shrink = mod->may_shrink_region();
+ const bool grow = mod->may_grow_region();
+ if( shrink || grow )
   f_Lc = -1;
 
- if( ! mod->may_shrink_region() )
-  return( mod->is_abstract() && mod->changes_objective() ? char( 128 ) : 0 );
-
- const auto abst = Modification::eModAbst;
- if( mod->is_physical() || ( ( mod->changes() & abst ) == abst ) )
-  return( 64 );
+ const char other = mod->is_abstract() && mod->changes_objective() ?
+                    char( 128 ) : 0;
+ if( ! ( shrink || grow ) )
+  return( other );
 
  char what = 0;
- if( mod->changes_structure() )
-  what |= 32;
+ const auto abst = Modification::eModAbst;
+ if( mod->is_physical() || ( ( mod->changes() & abst ) == abst ) )
+  what = 64;
  else {
-  if( mod->changes_variables() )
-   what |= 8;
-  if( mod->changes_constraints() )
-   what |= mod->changes_only_sides() ? 2 : 4;
+  if( mod->changes_structure() )
+   what |= 32;
+  else {
+   if( mod->changes_variables() )
+    what |= 8;
+   if( mod->changes_constraints() )
+    what |= mod->changes_only_sides() ? 2 : 4;
+   }
+  if( ! what )
+   what = 64;
   }
 
- return( what ? what : char( 64 ) );
+ if( shrink )
+  return( what );
+
+ if( f_Observer && f_Observer->issue_mod( eModBlck ) )
+  f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
+				  this , C05FunctionMod::NothingChanged ,
+				  Subset() , what , NaN , true ) , chnl );
+ return( other );
 
  }  // end( LagBFunction::guts_of_guts_of_add_Modification )
 
