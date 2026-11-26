@@ -1211,7 +1211,7 @@ static void test_unfixing_told( void )
    if( std::isnan( cm->shift() ) )
     told = true;
  expect( told , "the unfixing of a Variable of the inner Block is not told "
-	 "to the Solver" );
+	       "to the Solver" );
 
  check_at( f , { -3 , -1 } , { 0 , 1 } , "after the unfixing" );
 

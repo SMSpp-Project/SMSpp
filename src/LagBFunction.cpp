@@ -4406,8 +4406,8 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
  if( shrink || grow )
   f_Lc = -1;
 
- const char other = mod->is_abstract() && mod->changes_objective() ?
-                    char( 128 ) : 0;
+ const char other =
+   mod->is_abstract() && mod->changes_objective() ? char( 128 ) : 0;
  if( ! ( shrink || grow ) )
   return( other );
 
@@ -4432,9 +4432,11 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
   return( what );
 
  if( f_Observer && f_Observer->issue_mod( eModBlck ) )
-  f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
-				  this , C05FunctionMod::NothingChanged ,
-				  Subset() , what , NaN , true ) , chnl );
+  f_Observer->add_Modification(
+    std::make_shared< LagBFunctionMod >( this ,
+					 C05FunctionMod::NothingChanged ,
+					 Subset() , what , NaN , true ) ,
+    chnl );
  return( other );
 
  }  // end( LagBFunction::guts_of_guts_of_add_Modification )
