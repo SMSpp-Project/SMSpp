@@ -105,6 +105,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `LagBFunction` issues a `LagBFunctionMod` with shift NaN also for a
+  `Modification` of the inner Block that only grows its feasible region (say,
+  a variable no longer fixed), whose value changes even if no linearization
+  is removed: its Solver kept the value found before the change, and a
+  Lagrangian Dual solved again after only unfixings reported a bound of the
+  restricted problem
+
 - the rule of a C++20 module of `lib/makefile-mod` keeps the directory that
   follows each `-isystem`, which it dropped, leaving the `-isystem` to take
   the next `-I` (that of the headers of the core among them)
