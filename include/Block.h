@@ -1007,11 +1007,32 @@ class Block : public Observer {
                            Block * father = nullptr ) {
   const std::string classname_( SMSpp_classname_normalise(
 						std::string( classname ) ) );
-  const auto it = Block::f_factory().find( classname_ );
-  if( it == Block::f_factory().end() )
+  auto f = find_in_factory( classname_ );
+  // not linked: the plugin that registers it, if any [see SMSFactory.h],
+  // which another thread may have just loaded
+  if( ! f ) {
+   SMSpp_load_plugin( classname_ );
+   f = find_in_factory( classname_ );
+   }
+  if( ! f )
    throw( std::invalid_argument( classname +
 				 " not present in Block factory" ) );
-  return( ( it->second )( father ) );
+  return( f( father ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// the names of the :Block in the factory, in alphabetical order
+ /** The names of the :Block classes that the factory holds now, i.e., of
+  * those linked into the program and of those of the plugins loaded so far
+  * [see SMSpp_load_plugin()]. */
+
+ static std::vector< std::string > get_factory_names( void ) {
+  std::shared_lock< std::shared_mutex > lock( SMSpp_factory_mutex() );
+  std::vector< std::string > names;
+  names.reserve( Block::f_factory().size() );
+  for( const auto & el : Block::f_factory() )
+   names.push_back( el.first );
+  return( names );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -8165,6 +8186,17 @@ class Block : public Observer {
   * Idiom" that solves the "static initialization order problem". */
 
  static BlockFactoryMap & f_factory( void );
+
+/*--------------------------------------------------------------------------*/
+ /// the constructor of the named :Block in the factory, empty if none
+ /** Read under the lock of the factories [see SMSpp_factory_mutex()], and
+  * returned so that the :Block is constructed out of it. */
+
+ static BlockFactory find_in_factory( const std::string & classname ) {
+  std::shared_lock< std::shared_mutex > lock( SMSpp_factory_mutex() );
+  const auto it = Block::f_factory().find( classname );
+  return( it == Block::f_factory().end() ? BlockFactory() : it->second );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// empty placeholder for class-specific static initialization

@@ -68,6 +68,7 @@ SMS++OBJ = $(SMS++SDR)/obj/AbstractBlock.o \
 	$(SMS++SDR)/obj/R3BSolver.o \
 	$(SMS++SDR)/obj/RBlockConfig.o \
 	$(SMS++SDR)/obj/RowConstraintSolution.o \
+	$(SMS++SDR)/obj/SMSFactory.o \
 	$(SMS++SDR)/obj/SMSnetCDF.o \
 	$(SMS++SDR)/obj/Solver.o \
 	$(SMS++SDR)/obj/Solution.o \
@@ -202,6 +203,10 @@ $(SMS++SDR)/obj/Block.o: $(SMS++SDR)/src/Block.cpp $(intBlockINC) \
 	$(SMS++SDR)/include/Constraint.h $(SMS++SDR)/include/Objective.h \
 	$(SMS++SDR)/include/Variable.h
 	$(CC) -c $(SMS++SDR)/src/Block.cpp -o $@ $(SMS++INC) $(SW)
+
+$(SMS++SDR)/obj/SMSFactory.o: $(SMS++SDR)/src/SMSFactory.cpp \
+	$(SMS++SDR)/include/SMSFactory.h
+	$(CC) -c $(SMS++SDR)/src/SMSFactory.cpp -o $@ $(SMS++INC) $(SW)
 
 $(SMS++SDR)/obj/SMSnetCDF.o: $(SMS++SDR)/src/SMSnetCDF.cpp $(intTypedefsINC)
 	$(CC) -c $(SMS++SDR)/src/SMSnetCDF.cpp -o $@ $(SMS++INC) $(SW)

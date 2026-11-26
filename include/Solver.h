@@ -597,11 +597,17 @@ class Solver : public ThinComputeInterface
  static Solver * new_Solver( const std::string & classname ) {
   const std::string classname_( SMSpp_classname_normalise(
 					        std::string( classname ) ) );
-  const auto it = Solver::f_factory().find( classname_ );
-  if( it == Solver::f_factory().end() )
+  auto f = find_in_factory( classname_ );
+  // not linked: the plugin that registers it, if any [see SMSFactory.h],
+  // which another thread may have just loaded
+  if( ! f ) {
+   SMSpp_load_plugin( classname_ );
+   f = find_in_factory( classname_ );
+   }
+  if( ! f )
    throw( std::invalid_argument( classname +
 				 " not present in Solver factory" ) );
-  return( ( it->second )() );
+  return( f() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -613,15 +619,40 @@ class Solver : public ThinComputeInterface
   * applies a configuration that names the :Solver of a module that is not
   * there can then leave that one out, and say so, rather than dying on it.
   * The name is normalised as new_Solver() normalises it, hence the same
-  * spellings work here.
+  * spellings work here. As new_Solver(), it loads the plugin that registers
+  * the :Solver if the program is not linked to it, and a plugin that cannot
+  * be loaded does not hold it [see SMSpp_load_plugin()].
   *
   * @param classname The name of the :Solver class asked about. */
 
  static bool has_Solver( const std::string & classname ) {
   const std::string classname_( SMSpp_classname_normalise(
 					        std::string( classname ) ) );
-  return( Solver::f_factory().find( classname_ ) !=
-	  Solver::f_factory().end() );
+  if( find_in_factory( classname_ ) )
+   return( true );
+  // not linked: the plugin that registers it, if any [see SMSFactory.h]
+  try {
+   SMSpp_load_plugin( classname_ );
+   }
+  catch( const std::runtime_error & ) {
+   return( false );
+   }
+  return( bool( find_in_factory( classname_ ) ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// the names of the :Solver in the factory, in alphabetical order
+ /** The names of the :Solver classes that the factory holds now, i.e., of
+  * those linked into the program and of those of the plugins loaded so far
+  * [see SMSpp_load_plugin()]. */
+
+ static std::vector< std::string > get_factory_names( void ) {
+  std::shared_lock< std::shared_mutex > lock( SMSpp_factory_mutex() );
+  std::vector< std::string > names;
+  names.reserve( Solver::f_factory().size() );
+  for( const auto & el : Solver::f_factory() )
+   names.push_back( el.first );
+  return( names );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -2389,6 +2420,17 @@ class Solver : public ThinComputeInterface
   * Use Idiom" that solves the "static initialization order problem". */
 
  static SolverFactoryMap & f_factory( void );
+
+/*--------------------------------------------------------------------------*/
+ /// the constructor of the named :Solver in the factory, empty if none
+ /** Read under the lock of the factories [see SMSpp_factory_mutex()], and
+  * returned so that the :Solver is constructed out of it. */
+
+ static SolverFactory find_in_factory( const std::string & classname ) {
+  std::shared_lock< std::shared_mutex > lock( SMSpp_factory_mutex() );
+  const auto it = Solver::f_factory().find( classname );
+  return( it == Solver::f_factory().end() ? SolverFactory() : it->second );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// empty placeholder for class-specific static initialization

@@ -15,6 +15,9 @@
 #     link, for the same reason;                                              #
 #   - smspp_copy_runtime(<target>) copies next to <target> the DLLs it needs, #
 #     where there are any;                                                    #
+#   - smspp_plugin(<target> [EXPORT <set>]) makes the shared library <target> #
+#     a plugin, which a program loads when it asks the factory for one of     #
+#     its classes, and SMSpp_PLUGIN_DIR is where the build tree has them;     #
 #   - SMSpp_BASH is the bash that runs the scripts of the tests;              #
 #   - SMSpp_CMAKE_DIR is the directory of this file, and of the find modules  #
 #     that the modules share (e.g., FindCPLEX.cmake).                         #
@@ -83,6 +86,7 @@ namespace {
             $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/${_file}>
             $<INSTALL_INTERFACE:${_dest}/${_file}>)
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${_file} DESTINATION ${_dest})
+    _smspp_module_plugin(${target})
 endfunction()
 
 # ----- Keeping the static libraries ---------------------------------------- #
@@ -178,6 +182,140 @@ function(smspp_copy_runtime target)
 -DSMSpp_DESTINATION=$<TARGET_FILE_DIR:${target}>;-P;${_script}>"
             COMMAND_EXPAND_LISTS
             VERBATIM)
+endfunction()
+
+# ----- Plugins ------------------------------------------------------------- #
+# A plugin is a shared library that a program loads when it asks the factory
+# for a class that it registers [see SMSpp_load_plugin() in SMSFactory.h],
+# found in a table (a .smspp file) that the tool of the core writes after
+# the link, with the classes that the library registers and that the shared
+# libraries it reaches through its links do not, which the tool loads first.
+# smspp_plugin() makes a plugin of a library that nothing links (e.g., a
+# backend with a dependency that may be missing): it goes in
+# SMSpp_PLUGIN_DIR, with its table next to it, and is installed with the
+# libraries, a DLL too, since it is loaded by its path. The shared library
+# of a module, which programs also link, is a plugin as well, where it is
+# built and installed: by smspp_keep_module() its table goes in
+# SMSpp_PLUGIN_DIR and next to the library, and is installed with it. A
+# static library is no plugin.
+set(SMSpp_PLUGIN_DIR "${CMAKE_BINARY_DIR}/plugins" CACHE PATH
+        "The directory of the plugins of the build tree")
+
+# appends to the variable out the targets that the items link, and to the
+# variable files the files of the shared libraries among them
+function(_smspp_shared_closure out files)
+    set(_found ${${out}})
+    set(_files ${${files}})
+    foreach (_item IN LISTS ARGN)
+        string(REGEX REPLACE "^\\$<LINK_ONLY:(.*)>$" "\\1" _item "${_item}")
+        if ((_item MATCHES "\\$<") OR (NOT TARGET ${_item})
+                OR (_item IN_LIST _found))
+            continue()
+        endif ()
+        get_target_property(_real ${_item} ALIASED_TARGET)
+        if (NOT _real)
+            set(_real ${_item})
+        endif ()
+        list(APPEND _found ${_item} ${_real})
+        get_target_property(_type ${_real} TYPE)
+        if (_type STREQUAL "SHARED_LIBRARY")
+            list(APPEND _files "$<TARGET_FILE:${_real}>")
+        endif ()
+        get_target_property(_links ${_real} INTERFACE_LINK_LIBRARIES)
+        if (_links)
+            _smspp_shared_closure(_found _files ${_links})
+        endif ()
+    endforeach ()
+    set(${out} ${_found} PARENT_SCOPE)
+    set(${files} ${_files} PARENT_SCOPE)
+endfunction()
+
+# the shared libraries to be loaded before the plugin target, at the end of
+# the configuration, when every target that it links is defined
+function(_smspp_plugin_preload target)
+    set(_seen "")
+    set(_libs "")
+    get_target_property(_links ${target} LINK_LIBRARIES)
+    if (_links)
+        _smspp_shared_closure(_seen _libs ${_links})
+    endif ()
+    list(REMOVE_DUPLICATES _libs)
+    set_property(TARGET ${target} PROPERTY SMSpp_PLUGIN_PRELOAD "${_libs}")
+endfunction()
+
+# writes after the link of target the tables given, by SMSppPluginTable.cmake,
+# with the tool of the SMS++ of the build, which may be defined later, or of
+# the installed one
+function(_smspp_plugin_tables target)
+    if (CMAKE_CROSSCOMPILING)
+        return()
+    endif ()
+    set(_installed FALSE)
+    if (TARGET SMS++::SMS++)
+        get_target_property(_installed SMS++::SMS++ IMPORTED)
+    endif ()
+    if (_installed)
+        if (NOT TARGET SMS++::smspp_plugin_names)
+            return()
+        endif ()
+    else ()
+        add_dependencies(${target} smspp_plugin_names)
+    endif ()
+    cmake_language(EVAL CODE "cmake_language(DEFER DIRECTORY \
+            [[${CMAKE_SOURCE_DIR}]] CALL _smspp_plugin_preload [[${target}]])")
+    set(_pre "$<TARGET_PROPERTY:${target},SMSpp_PLUGIN_PRELOAD>")
+    set(_pre "$<TARGET_GENEX_EVAL:${target},${_pre}>")
+    set(_script ${CMAKE_CURRENT_FUNCTION_LIST_DIR}/SMSppPluginTable.cmake)
+    add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND ${CMAKE_COMMAND}
+            "-DSMSpp_TOOL=$<TARGET_FILE:SMS++::smspp_plugin_names>"
+            "-DSMSpp_TABLES=$<JOIN:${ARGN},?>"
+            "-DSMSpp_PLUGIN=$<TARGET_FILE:${target}>"
+            "-DSMSpp_LIBRARIES=$<JOIN:${_pre},?>"
+            "-DSMSpp_DLLS=$<JOIN:$<TARGET_RUNTIME_DLLS:${target}>,?>"
+            -P ${_script}
+            VERBATIM)
+endfunction()
+
+function(smspp_plugin target)
+    cmake_parse_arguments(_plugin "" "EXPORT" "" ${ARGN})
+    get_target_property(_type ${target} TYPE)
+    if (NOT _type STREQUAL "SHARED_LIBRARY")
+        return()
+    endif ()
+    set_target_properties(${target} PROPERTIES
+            LIBRARY_OUTPUT_DIRECTORY "${SMSpp_PLUGIN_DIR}"
+            RUNTIME_OUTPUT_DIRECTORY "${SMSpp_PLUGIN_DIR}")
+    set(_table "$<TARGET_FILE_DIR:${target}>/")
+    string(APPEND _table "$<TARGET_FILE_BASE_NAME:${target}>.smspp")
+    _smspp_plugin_tables(${target} "${_table}")
+
+    if (_plugin_EXPORT)
+        set(_export EXPORT ${_plugin_EXPORT})
+    endif ()
+    install(TARGETS ${target} ${_export}
+            RUNTIME DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+    install(FILES "${_table}" DESTINATION ${CMAKE_INSTALL_LIBDIR})
+endfunction()
+
+# the tables of the library of a module [see smspp_keep_module()]
+function(_smspp_module_plugin target)
+    get_target_property(_type ${target} TYPE)
+    if (NOT _type STREQUAL "SHARED_LIBRARY")
+        return()
+    endif ()
+    set(_name "$<TARGET_FILE_BASE_NAME:${target}>.smspp")
+    set(_table "$<TARGET_FILE_DIR:${target}>/${_name}")
+    _smspp_plugin_tables(${target} "${SMSpp_PLUGIN_DIR}/${_name}" "${_table}")
+    # next to the library, a DLL among the programs
+    if (WIN32)
+        set(_dest ${CMAKE_INSTALL_BINDIR})
+    else ()
+        set(_dest ${CMAKE_INSTALL_LIBDIR})
+    endif ()
+    install(FILES "${_table}" DESTINATION ${_dest} OPTIONAL)
 endfunction()
 
 # ----- Scripts of the tests ------------------------------------------------ #
