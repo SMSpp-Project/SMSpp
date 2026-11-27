@@ -133,6 +133,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `MasterProblemBlock::SetDim()` empties the box of the previous master,
+  which `set_box()` read beyond its end when the new master has more
+  variables
+
 - `LagBFunction::map_active()` with `ordered` true maps each of the given
   `Variable` to its index among the active ones, as
   `ThinVarDepInterface::map_active()` does, rather than mapping every active
