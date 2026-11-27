@@ -572,16 +572,25 @@ class GroupChange : public Change {
  /** Apply all the sub-Changes, in their order, to the given Block. With
   * \p doUndo true, the returned Change is the GroupChange of the undo
   * Changes of the sub-Changes in *reverse* order, so that applying it
-  * brings the Block back to the state prior to the call. */
+  * brings the Block back to the state prior to the call; a sub-Change that
+  * returns no undo Change (nullptr) contributes nothing to it. If a
+  * sub-Change throws, the partial undo Change is deleted and the exception
+  * is propagated, the sub-Changes before it remaining applied. */
 
  Change * apply( Block * block , bool doUndo = false ,
                  ModParam issueMod = eNoBlck ,
                  ModParam issueAMod = eNoBlck ) override {
   GroupChange * undo = doUndo ? new GroupChange() : nullptr;
-  for( auto chg : v_sub_Changes ) {
-   auto u = chg->apply( block , doUndo , issueMod , issueAMod );
-   if( doUndo )
-    undo->v_sub_Changes.push_front( u );
+  try {
+   for( auto chg : v_sub_Changes ) {
+    auto u = chg->apply( block , doUndo , issueMod , issueAMod );
+    if( undo && u )
+     undo->v_sub_Changes.push_front( u );
+    }
+   }
+  catch( ... ) {
+   delete undo;
+   throw;
    }
   return( undo );
   }

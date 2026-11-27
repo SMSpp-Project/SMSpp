@@ -69,8 +69,8 @@
  *   the level/global-LB rows, ...), and an FRealObjective with the
  *   stabilizing quadratic term plus the linear part.
  *
- * Three stabilization schemes are supported, selected via the
- * MasterProblemBlock::stabilization_type enum:
+ * The stabilization scheme is selected via the
+ * MasterProblemBlock::stabilization_type enum, whose six values are:
  *
  * - **Proximal**: quadratic term (1/2t) || d ||^2_2 in (P), equivalently
  *   - (t/2) || z ||^2_2 in (D);
@@ -79,7 +79,14 @@
  *   non-negative multiplier omega in the dual;
  *
  * - **Doubly-Stabilized**: combines both, see [Astorino, Frangioni,
- *   Fuduli, Gorgone, MP 2017].
+ *   Fuduli, Gorgone, MP 2017];
+ *
+ * - **None**: no stabilization, i.e., the cutting-plane (Kelley) master;
+ *
+ * - **Trust Region**: the hard box || d ||_inf <= t;
+ *
+ * - **Upper-Lower**: a pair of upper / lower centres, a reserved value that
+ *   the construction of the MP rejects [see stabilization_type].
  *
  * Following the SMS++ distinction between physical and abstract
  * representations, the physical representation of a MasterProblemBlock is the

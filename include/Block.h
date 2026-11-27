@@ -590,8 +590,7 @@ class Block : public Observer {
  *   left-closed, right-open range { i : start <= i < stop };
  *
  * - Subset, an arbitrary subset of indices (currently a simple
- *   std::vector< Index >, although this may change) together with a
- *   [const] iterator [c_]Subset_it in it;
+ *   std::vector< Index >, although this may change);
  *
  * - MF_dbl_sp, a std::span< const double >;
  *
@@ -6152,8 +6151,7 @@ class Block : public Observer {
  *   left-closed, right-open range { i : start <= i < stop };
  *
  * - Subset, an arbitrary subset of indices (currently a simple
- *   std::vector< Index >, although this may change) together with a
- *   [const] iterator [c_]Subset_it in it;
+ *   std::vector< Index >, although this may change);
  *
  * - MF_dbl_sp and MF_int_sp, spans of the double and int data received by
  *   a setter, and MF_dbl_msp and MF_int_msp, the mutable spans a getter
@@ -6437,8 +6435,13 @@ class Block : public Observer {
   * factory specified by the template function type F, and associates it with
   * the given \p name. If the methods factory already has a function
   * associated with the given \p name, the currently present function is
-  * replaced by the new one. Note that it is in principle possible to make a
-  * factory for actual member functions of a :Block (say, F being like
+  * replaced by the new one and deleted, so that any pointer to it obtained
+  * before by get_method() is no longer valid. Each function is associated
+  * with one name only: if \p function is already in the methods factory,
+  * under \p name or under another one, the call does nothing.
+  *
+  * Note that it is in principle possible to make a factory for actual
+  * member functions of a :Block (say, F being like
   * "void ( NetworkBlock::* ) ( ... )"). This entails knowing a-priori that
   * the Block that will be used is a :Block (say, a NetworkBlock) or some of
   * its further derived classes. Such an occurrence is less likely to be
@@ -6462,16 +6465,18 @@ class Block : public Observer {
  template< class F >
  static void register_method( std::string && name, F * function ) {
   if( name.empty() )
-   throw( std::invalid_argument( "register_method: name is empty" ) );
-  auto iter = methods< F >().left.find( name );
-  if( iter != methods< F >().left.end() ) {
-   delete iter->second;
-   [[maybe_unused]] auto replaced =
-                       methods< F >().left.replace_data( iter, function );
-   assert( replaced );
+   throw( std::invalid_argument( "Block::register_method: name is empty" ) );
+  auto & map = methods< F >();
+  if( map.right.find( function ) != map.right.end() )
+   return;
+  auto iter = map.left.find( name );
+  if( iter != map.left.end() ) {
+   auto old = iter->second;
+   map.left.replace_data( iter , function );
+   delete old;
   } else
-   methods< F >().insert( typename MethodsFactoryMap< F >::value_type(
-                           std::move( name ), function ) );
+   map.insert( typename MethodsFactoryMap< F >::value_type(
+                std::move( name ), function ) );
  }
 
 /*--------------------------------------------------------------------------*/

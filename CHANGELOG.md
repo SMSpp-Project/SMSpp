@@ -105,6 +105,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `GroupChange::apply()` leaves out of the undo `GroupChange` the null undo
+  of a sub-`Change`, which applying or printing the undo dereferenced, and
+  deletes the partial undo when a sub-`Change` throws
+
+- `Block::register_method()` does nothing for a function already in the
+  methods factory, also when the name is already there: it deleted the
+  function of that name and then failed to replace it, leaving the name to
+  a deleted pointer; a replaced function is deleted only after the
+  replacement
+
 - `LagBFunction` issues a `LagBFunctionMod` with shift NaN also for a
   `Modification` of the inner Block that only grows its feasible region (say,
   a variable no longer fixed), whose value changes even if no linearization

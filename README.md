@@ -93,17 +93,20 @@ and accepts the headers of Eigen and Boost in a module: Clang 16 or later,
 with `clang-scan-deps` (which Debian and Ubuntu ship in `clang-tools`), or
 MSVC 19.34 or later. GCC, up to 15 at least, refuses the entities of
 internal linkage (e.g., `Eigen::Dynamic`) that those headers expose to the
-templates of a module. Unless the option `SMSpp_BUILD_MODULE` is given, the
-module is built where all of these are there and the compiler is Clang:
+templates of a module. Whether the toolchain can do it is told at configure
+time by a small module and a unit that imports it [see
+`cmake/CheckModule.cmake`]: unless the option `SMSpp_BUILD_MODULE` is given,
+the module is built wherever they build, MSVC included, and left out with a
+generator that does not build modules (e.g., Unix Makefiles):
 
 ```sh
 cmake -G Ninja -DCMAKE_CXX_COMPILER=clang++ ..
 cmake --build .
 ```
 
-`-DSMSpp_BUILD_MODULE=OFF` leaves it out, and `-DSMSpp_BUILD_MODULE=ON`
-asks for it also with MSVC; where something is missing, an `ON` is turned
-off with a warning that says why, and the library is built as without it.
+`-DSMSpp_BUILD_MODULE=OFF` leaves it out; where something is missing, a
+`-DSMSpp_BUILD_MODULE=ON` is turned off with a warning that says why, and
+the library is built as without it.
 
 and a CMake project uses it with:
 

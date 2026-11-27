@@ -92,22 +92,34 @@ namespace SMSpp_di_unipi_it
  * been included due to having been aggressively optimised out by the linker.
  * In this case, one must either forcibly include an object of the specific
  * type in the final main (which requires also \#include-ing the corresponding
- * headers, and it is therefore best avoided), or use options of the linker
- * that disable this optimization; at the time of writing this is
- * "--no-as-needed" for g++ (to be passed as "-Wl,--no-as-needed" if the
- * linker is invoked via the compiler), and "-all_load" for clang++. Note that
- * the behaviour depends on the default settings of the linker and therefore
- * it may change even for the same compiler toolchain on different OS
- * distributions. For this reason SMSpp_insert_in_factory_cpp_0 and
+ * headers, and it is therefore best avoided), or ask the linker to keep the
+ * code. What is dropped, and the option that keeps it, depend on the kind
+ * of library:
+ *
+ * - from a static library the linker extracts only the objects that some
+ *   symbol of the link asks for, and those of the registrations are asked
+ *   for by none; the whole library is kept by "--whole-archive" with the
+ *   GNU linker, "-force_load" (or "-all_load") with ld64 and "/WHOLEARCHIVE"
+ *   with MSVC;
+ *
+ * - a shared library is dropped when no symbol of it is asked for by a
+ *   regular object, which the ELF linker does under "--as-needed" (the
+ *   default of some distributions) and which "--no-as-needed" prevents.
+ *
+ * Since the behaviour depends on the default settings of the linker, and
+ * therefore it may change even for the same compiler toolchain on different
+ * OS distributions, SMSpp_insert_in_factory_cpp_0 and
  * SMSpp_insert_in_factory_cpp_1 also define the empty extern "C" function
- * SMSpp_force_load_< class name >, and the CMake target of a module built
- * as a shared library tells whoever links it to keep the one of the class
- * named after the module, which keeps the whole library and therefore all
- * its classes: by "/INCLUDE:" with MSVC, by "-u" with ld64 (where the
- * symbol has a leading '_') and with MinGW, while the ELF linker, which
- * keeps a library only for the symbols that a regular object asks for, is
- * given "--no-as-needed". An executable not linked to these targets has to
- * pass the same options by itself.
+ * SMSpp_force_load_< class name >. The CMake target of a module built as a
+ * shared library [see smspp_keep_module() in SMSppModule.cmake] compiles
+ * into whoever links it a small source whose static object calls the
+ * function of the class named after the module: a library that provides a
+ * symbol to a regular object is kept by every linker, and with it all its
+ * classes. The static libraries are instead linked whole by the WHOLE_ARCHIVE
+ * feature of CMake [see smspp_keep_modules()]. The makefiles pass
+ * "--no-as-needed" on Linux and "-u" of the same function on Windows [see
+ * lib/makefile-shared]. An executable built otherwise has to do one of these
+ * things by itself.
  * @{ */
 
 /** The macro defines a very small, "fake" class _init. Its only meaning is to
