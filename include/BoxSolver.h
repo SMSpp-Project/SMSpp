@@ -40,6 +40,8 @@
 #include "ColVariable.h"
 
 #include <unordered_map>
+#include <utility>
+#include <vector>
 
 /*--------------------------------------------------------------------------*/
 /*----------------------------- NAMESPACE ----------------------------------*/
@@ -416,6 +418,12 @@ public:
  void resetf( void ) { reset(); f_feas = false; }
 
 /*--------------------------------------------------------------------------*/
+ // the position of var among the active Variable of the Function f of an
+ // Objective, as f->is_active( var ) gives it, in O( log n ) time
+
+ Block::Index obj_pos( Function * f , const Variable * var );
+
+/*--------------------------------------------------------------------------*/
  // returns true if var belongs to f_Block
 
  bool is_mine( ColVariable & var ) {
@@ -535,6 +543,12 @@ public:
 
  /// the weight in f_Block of the Objective obj, 1 if it is not in f_desc_w
  double objective_weight( const Objective * obj ) const;
+ std::unordered_map<
+   const Function * ,
+   std::vector< std::pair< const Variable * , Block::Index > > >
+   f_obj_pos;
+ ///< the position of each active Variable of the
+ ///< Function of an Objective [see obj_pos()]
 
 /*--------------------------------------------------------------------------*/
 

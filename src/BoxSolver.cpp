@@ -33,6 +33,8 @@
 
 #include "OneVarConstraint.h"
 
+#include <algorithm>
+
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -83,6 +85,7 @@ void BoxSolver::set_Block( Block * block )
  f_sense = -1;
  f_desc.clear();
  f_desc_w.clear();
+ f_obj_pos.clear();
  resetf();
 
  if( ! f_Block )
@@ -612,6 +615,40 @@ void BoxSolver::add_Modification( sp_Mod & mod )
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+Block::Index BoxSolver::obj_pos( Function * f , const Variable * var )
+{
+ // the active Variable of f sorted by address, each with its first
+ // position; it is (re)built when it does not give the right answer, as
+ // the Variable of f may have changed since it was built
+ auto & pos = f_obj_pos[ f ];
+ const auto less = []( const auto & a , const Variable * v ) {
+  return( a.first < v );
+  };
+ auto it = std::lower_bound( pos.begin() , pos.end() , var , less );
+ if( ( it != pos.end() ) && ( it->first == var ) &&
+     ( it->second < f->get_num_active_var() ) &&
+     ( f->get_active_var( it->second ) == var ) )
+  return( it->second );
+
+ pos.clear();
+ const auto n = f->get_num_active_var();
+ pos.reserve( n );
+ for( Block::Index i = 0 ; i < n ; ++i )
+  pos.emplace_back( f->get_active_var( i ) , i );
+ std::sort( pos.begin() , pos.end() );
+ pos.erase( std::unique( pos.begin() , pos.end() ,
+			 []( const auto & a , const auto & b ) {
+			  return( a.first == b.first );
+			  } ) ,
+	    pos.end() );
+ it = std::lower_bound( pos.begin() , pos.end() , var , less );
+ return( ( it != pos.end() ) && ( it->first == var )
+	    ? it->second
+	    : Inf< Block::Index >() );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 void BoxSolver::check_sense( Block * blck )
 {
  auto sense = blck->get_objective_sense();
@@ -737,13 +774,12 @@ void BoxSolver::get_var_data( ColVariable & var ,
    const double w = objective_weight( oi );
 
    if( auto lf = memo_cast< LinearFunction * >( fro->get_function() ) ) {
-    // WARNING: INEFFICIENT!!
-    b += w * lf->get_coefficient( lf->is_active( & var ) );
+    b += w * lf->get_coefficient( obj_pos( lf , &var ) );
     continue;
     }
 
    if( auto qf = memo_cast< DQuadFunction * >( fro->get_function() ) ) {
-    auto p = qf->is_active( & var );    // WARNING: INEFFICIENT!!
+    auto p = obj_pos( qf , &var );
     b += w * qf->get_linear_coefficient( p );
     a += w * qf->get_quadratic_coefficient( p );
     continue;
@@ -892,13 +928,12 @@ void BoxSolver::get_var_data( ColVariable & var ,
    const double w = objective_weight( oi );
 
    if( auto lf = memo_cast< LinearFunction * >( fro->get_function() ) ) {
-    // WARNING: INEFFICIENT!!
-    b += w * lf->get_coefficient( lf->is_active( & var ) );
+    b += w * lf->get_coefficient( obj_pos( lf , &var ) );
     continue;
     }
 
    if( auto qf = memo_cast< DQuadFunction * >( fro->get_function() ) ) {
-    auto p = qf->is_active( & var );    // WARNING: INEFFICIENT!!
+    auto p = obj_pos( qf , &var );
     b += w * qf->get_linear_coefficient( p );
     a += w * qf->get_quadratic_coefficient( p );
     continue;

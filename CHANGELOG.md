@@ -79,6 +79,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `BoxSolver` finds the position of a `Variable` in the `LinearFunction` or
+  `DQuadFunction` of an `Objective` by a binary search among its active
+  `Variable` sorted once, rather than by a linear `is_active()` for each
+  `Variable`
+
 - `MasterProblemBlock::remove_cuts()` removes many cuts of a hard component
   with one `delete_rows()` of its `PolyhedralFunction`, hence with one
   Modification rather than one per cut
