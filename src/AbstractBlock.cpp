@@ -30,6 +30,7 @@
 #include <sstream>
 #include <type_traits>
 #include <unordered_map>
+#include <unordered_set>
 
 
 #include "ColVariable.h"
@@ -3599,10 +3600,20 @@ void AbstractBlock::sync_linear( LinearFunction * lf ,
   lf->modify_coefficients( std::move( cf ) , std::move( idx ) , true , par );
 
  // then the terms that come
+ auto active = [ lf , &var ]( void ) {
+  std::unordered_set< const Variable * > act;
+  act.reserve( lf->get_num_active_var() );
+  for( Index i = 0 ; i < lf->get_num_active_var() ; ++i )
+   act.insert( var( i ) );
+  return( act );
+  };
  LinearFunction::v_coeff_pair add;
- for( auto & [ x , a ] : w )
-  if( lf->is_active( x ) >= lf->get_num_active_var() )
-   add.emplace_back( x , a );
+ {
+  const auto act = active();
+  for( auto & [ x , a ] : w )
+   if( ! act.contains( x ) )
+    add.emplace_back( x , a );
+  }
  if( ! add.empty() )
   lf->add_variables( std::move( add ) , par );
 
@@ -3612,9 +3623,9 @@ void AbstractBlock::sync_linear( LinearFunction * lf ,
  // the owner registers itself with a Variable coming in, or going away,
  // only when it receives the Modification, which par may not ask for
  if( owner ) {
+  const auto act = active();
   for( auto x : gone )
-   if( ( lf->is_active( x ) >= lf->get_num_active_var() ) &&
-       is_registered( x , owner ) )
+   if( ( ! act.contains( x ) ) && is_registered( x , owner ) )
     x->remove_active( owner );
   for( Index i = 0 ; i < lf->get_num_active_var() ; ++i )
    if( ! is_registered( var( i ) , owner ) )

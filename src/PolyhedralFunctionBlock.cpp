@@ -85,6 +85,60 @@ static constexpr int k_cfg_no_objective = 0x10; // bit 4
 static constexpr double k_global_rescale_ratio = 100.0;
 
 /*--------------------------------------------------------------------------*/
+// the positions of some Variable among the active ones of a LinearFunction,
+// as LinearFunction::is_active() gives them: with few of them each is looked
+// up by is_active(), with many the active Variable are walked once, each
+// being searched among those sought, sorted, in O( log ) time
+
+namespace
+{
+
+class ActivePos
+{
+ public:
+ template< class Ptr >
+ ActivePos( const LinearFunction * lf , const std::vector< Ptr > & keys )
+     : f_lf( lf ) , f_walk( keys.size() > k_few ) {
+  if( ! f_walk )
+   return;
+  f_keys.assign( keys.begin() , keys.end() );
+  std::sort( f_keys.begin() , f_keys.end() );
+  f_keys.erase( std::unique( f_keys.begin() , f_keys.end() ) , f_keys.end() );
+  f_pos.assign( f_keys.size() , Inf< Block::Index >() );
+  const auto n = lf->get_num_active_var();
+  for( Block::Index i = 0 ; i < n ; ++i ) {
+   const auto k = find( lf->get_active_var( i ) );
+   if( ( k < f_keys.size() ) && ( f_pos[ k ] == Inf< Block::Index >() ) )
+    f_pos[ k ] = i;  // the first position, as is_active() gives it
+   }
+  }
+
+ Block::Index operator()( const Variable * var ) const {
+  if( ! f_walk )
+   return( f_lf->is_active( var ) );
+  const auto k = find( var );
+  return( k < f_keys.size() ? f_pos[ k ] : Inf< Block::Index >() );
+  }
+
+ private:
+ static constexpr std::size_t k_few = 8;
+
+ std::size_t find( const Variable * var ) const {
+  const auto it = std::lower_bound( f_keys.begin() , f_keys.end() , var );
+  return( ( it != f_keys.end() ) && ( *it == var )
+	     ? std::size_t( it - f_keys.begin() )
+	     : f_keys.size() );
+  }
+
+ const LinearFunction * f_lf;
+ bool f_walk;
+ std::vector< const Variable * > f_keys;
+ std::vector< Block::Index > f_pos;
+ };
+
+}  // end( namespace )
+
+/*--------------------------------------------------------------------------*/
 /*----------------- METHODS of PolyhedralFunctionBlock ---------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1979,8 +2033,9 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual( c_p_Mod mod ,
    {
     Subset to_rm;
     to_rm.reserve( rem_ptrs.size() );
+    const ActivePos nrm_pos( nrm_lf , rem_ptrs );
     for( auto p : rem_ptrs ) {
-     const Index k = nrm_lf->is_active( p );
+     const Index k = nrm_pos( p );
      if( k < nrm_lf->get_num_active_var() )
       to_rm.push_back( k );
      }
@@ -1997,8 +2052,9 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual( c_p_Mod mod ,
      auto cf = static_cast< LinearFunction * >( c.get_function() );
      Subset to_rm;
      to_rm.reserve( rem_ptrs.size() );
+     const ActivePos cf_pos( cf , rem_ptrs );
      for( auto p : rem_ptrs ) {
-      const Index k = cf->is_active( p );
+      const Index k = cf_pos( p );
       if( k < cf->get_num_active_var() )
        to_rm.push_back( k );
       }
@@ -2035,6 +2091,13 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual( c_p_Mod mod ,
 
    const auto & A = PF().get_A();
 
+   // the theta of the rows [strt, stop)
+   std::vector< ColVariable * > mod_ptrs;
+   mod_ptrs.reserve( stop - strt );
+   for( auto thit = std::next( f_theta.begin() , strt ) ;
+	mod_ptrs.size() < stop - strt ; ++thit )
+    mod_ptrs.push_back( &*thit );
+
    // 1) obj_lf: update b for rows [strt, stop) at positions [strt+1, stop+1)
    {
     LinearFunction::Vec_FunctionValue nb( stop - strt );
@@ -2050,10 +2113,11 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual( c_p_Mod mod ,
    {
     LinearFunction::v_coeff_pair to_add;
     Subset to_rm;
+    const ActivePos nrm_pos( nrm_lf , mod_ptrs );
     auto thit = std::next( f_theta.begin() , strt );
     for( Index i = strt ; i < stop ; ++i , ++thit ) {
      ColVariable * p = & *thit;
-     const Index k = nrm_lf->is_active( p );
+     const Index k = nrm_pos( p );
      const bool in_nrm = ( k < nrm_lf->get_num_active_var() );
      const bool should_in = ! PF().is_row_vertical( i );
      if( in_nrm && ! should_in )
@@ -2076,10 +2140,12 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual( c_p_Mod mod ,
      auto cf = static_cast< LinearFunction * >( c.get_function() );
      Subset nms;
      LinearFunction::Vec_FunctionValue ncoef;
+     // the Variable added in the loop are not looked up again
+     const ActivePos cf_pos( cf , mod_ptrs );
      auto thit = std::next( f_theta.begin() , strt );
      for( Index i = strt ; i < stop ; ++i , ++thit ) {
       ColVariable * p = & *thit;
-      const Index k = cf->is_active( p );
+      const Index k = cf_pos( p );
       if( k < cf->get_num_active_var() ) {
        nms.push_back( k );
        ncoef.push_back( ScaledRowFactor( i ) * A[ i ][ j ] );
@@ -2148,8 +2214,9 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual( c_p_Mod mod ,
    {
     Subset to_rm;
     to_rm.reserve( sub_ptrs.size() );
+    const ActivePos nrm_pos( nrm_lf , sub_ptrs );
     for( auto p : sub_ptrs ) {
-     const Index k = nrm_lf->is_active( p );
+     const Index k = nrm_pos( p );
      if( k < nrm_lf->get_num_active_var() )
       to_rm.push_back( k );
      }
@@ -2165,8 +2232,9 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual( c_p_Mod mod ,
      auto cf = static_cast< LinearFunction * >( c.get_function() );
      Subset to_rm;
      to_rm.reserve( sub_ptrs.size() );
+     const ActivePos cf_pos( cf , sub_ptrs );
      for( auto p : sub_ptrs ) {
-      const Index k = cf->is_active( p );
+      const Index k = cf_pos( p );
       if( k < cf->get_num_active_var() )
        to_rm.push_back( k );
       }
@@ -2203,9 +2271,10 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual( c_p_Mod mod ,
    {
     LinearFunction::v_coeff_pair to_add;
     Subset to_rm;
+    const ActivePos nrm_pos( nrm_lf , sub_ptrs );
     for( Index i = 0 ; i < rows.size() ; ++i ) {
      ColVariable * p = sub_ptrs[ i ];
-     const Index k = nrm_lf->is_active( p );
+     const Index k = nrm_pos( p );
      const bool in_nrm = ( k < nrm_lf->get_num_active_var() );
      const bool should_in = ! PF().is_row_vertical( rows[ i ] );
      if( in_nrm && ! should_in )
@@ -2228,9 +2297,11 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF_dual( c_p_Mod mod ,
      auto cf = static_cast< LinearFunction * >( c.get_function() );
      Subset nms;
      LinearFunction::Vec_FunctionValue ncoef;
+     // the Variable added in the loop are not looked up again
+     const ActivePos cf_pos( cf , sub_ptrs );
      for( Index i = 0 ; i < rows.size() ; ++i ) {
       ColVariable * p = sub_ptrs[ i ];
-      const Index k = cf->is_active( p );
+      const Index k = cf_pos( p );
       if( k < cf->get_num_active_var() ) {
        nms.push_back( k );
        ncoef.push_back( ScaledRowFactor( rows[ i ] ) *

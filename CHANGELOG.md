@@ -79,6 +79,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `AbstractBlock::sync_linear()` and the dual representation of
+  `PolyhedralFunctionBlock` look many `Variable` up among the active ones of
+  a `LinearFunction` by walking these once, rather than by one linear
+  `is_active()` each
+
 - `BoxSolver` finds the position of a `Variable` in the `LinearFunction` or
   `DQuadFunction` of an `Objective` by a binary search among its active
   `Variable` sorted once, rather than by a linear `is_active()` for each
