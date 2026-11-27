@@ -999,6 +999,15 @@ class MasterProblemBlock : public Block {
  void remove_cut( int k , int slot );
 
 /*--------------------------------------------------------------------------*/
+ /// remove the cuts occupying the slots in \p slots from B^k
+ /** Like calling remove_cut( k , s ) for every s in \p slots, but the rows
+  * of the PolyhedralFunction are deleted all at once with delete_rows(),
+  * hence with one Modification rather than one per cut; the empty slots in
+  * \p slots are ignored. */
+
+ void remove_cuts( int k , const std::vector< int > & slots );
+
+/*--------------------------------------------------------------------------*/
  /// replace the cut at slot \p slot of B^k with (g, alpha)
  /** Overwrites both the subgradient and the linearization error of the
   * cut at slot \p slot of B^k. \p g and \p alpha follow the same sign

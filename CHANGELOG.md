@@ -79,6 +79,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `MasterProblemBlock::remove_cuts()` removes many cuts of a hard component
+  with one `delete_rows()` of its `PolyhedralFunction`, hence with one
+  Modification rather than one per cut
+
 - `MasterProblemBlock` keeps the owner and the row of each slot, and the
   slot of each row of each hard component, in place of a matrix of the slots
   times the components: its memory is linear in the slots, a slot is

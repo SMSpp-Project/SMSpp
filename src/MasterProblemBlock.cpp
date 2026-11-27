@@ -2691,6 +2691,56 @@ void MasterProblemBlock::remove_cut( int k , int slot )
 
 /*--------------------------------------------------------------------------*/
 
+void MasterProblemBlock::remove_cuts( int k ,
+				      const std::vector< int > & slots )
+{
+ auto pfb = pfb_at( HardCmps , k , "remove_cuts" );
+ Subset rows;
+ rows.reserve( slots.size() );
+ for( auto slot : slots ) {
+  if( slot < 0 || slot >= int( slot_owner.size() ) )
+   throw( std::invalid_argument(
+     "MasterProblemBlock::remove_cuts: slot out of range" ) );
+  const int loc = local_of( k , slot );
+  if( loc >= 0 )
+   rows.push_back( Index( loc ) );
+  }
+ std::sort( rows.begin() , rows.end() );
+ rows.erase( std::unique( rows.begin() , rows.end() ) , rows.end() );
+
+ if( rows.size() <= 1 ) {  // one row: the same as remove_cut()
+  for( auto slot : slots )
+   remove_cut( k , slot );
+  return;
+  }
+
+ // the slots become empty, and their rows are marked in local_to_slot
+ auto & lts = local_to_slot[ k ];
+ for( auto slot : slots ) {
+  const int loc = local_of( k , slot );
+  if( loc < 0 )
+   continue;
+  slot_owner[ slot ] = -1;
+  slot_local[ slot ] = -1;
+  if( loc < int( lts.size() ) )
+   lts[ loc ] = -2;
+  }
+
+ pfb->get_PolyhedralFunction().delete_rows( std::move( rows ) , true );
+
+ // compact local_to_slot over the rows that are left, renumbering them
+ int i = 0;
+ for( int j = 0 ; j < int( lts.size() ) ; ++j )
+  if( lts[ j ] != -2 ) {
+   if( ( lts[ i ] = lts[ j ] ) >= 0 )
+    slot_local[ lts[ i ] ] = i;
+   ++i;
+   }
+ lts.resize( i );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 void MasterProblemBlock::modify_cut( int k , int slot ,
                                      std::vector< double > && g ,
                                      double alpha )
