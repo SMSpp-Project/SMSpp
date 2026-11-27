@@ -2960,10 +2960,10 @@ static void test_FunctionMod_changes( void )
  * Modification of the inner Block, decided by what the Modification says of
  * itself: one that only makes the feasible region grow keeps the global
  * pool, one that may shrink it has the pool checked, which under intNoSol
- * empties it, and the what() of the LagBFunctionMod says why; a change of
- * the Objective keeps the pool and only changes the constant terms. The
- * Constraint of the inner Block has finite sides and its Function is
- * shifted upwards, which may violate it. */
+ * empties it, and both issue a LagBFunctionMod whose what() says why; a
+ * change of the Objective keeps the pool and only changes the constant
+ * terms. The Constraint of the inner Block has finite sides and its
+ * Function is shifted upwards, which may violate it. */
 
 static void test_LagBFunction_concerned( void )
 {
@@ -3028,11 +3028,12 @@ static void test_LagBFunction_concerned( void )
   delete ab;
   }
 
- // relaxing the Constraint makes the region grow: the pool stays
+ // relaxing the Constraint makes the region grow: the pool stays, and the
+ // value of the function changes all the same
  refill();
  c->relax( true , eModBlck );
  assert( lbf->is_linearization_there( 0 ) );
- assert( what() == 0 );
+ assert( what() == 2 );
 
  // enforcing it may shrink the region: only its sides have changed
  refill();
@@ -3055,7 +3056,7 @@ static void test_LagBFunction_concerned( void )
  refill();
  Z( 1 )->is_fixed( false , eModBlck );
  assert( lbf->is_linearization_there( 0 ) );
- assert( what() == 0 );
+ assert( what() == 8 );
 
  // a physical Modification of the inner Block may do anything, and so may
  // an abstract one that says all the abstract kinds, as a BlockMod
@@ -3075,7 +3076,7 @@ static void test_LagBFunction_concerned( void )
  refill();
  c->add_Modification( std::make_shared< FunctionMod >( rf , 1 ) );
  assert( lbf->is_linearization_there( 0 ) );
- assert( what() == 0 );
+ assert( what() == 4 );
  refill();
  c->add_Modification( std::make_shared< FunctionMod >( rf , -1 ) );
  assert( ! lbf->is_linearization_there( 0 ) );
