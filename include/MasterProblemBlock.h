@@ -1273,8 +1273,8 @@ class MasterProblemBlock : public Block {
  /// bulk replacement of the linearization errors of B^k
  /** Replaces the constant terms of the cuts B^k with the values in
   * \p alphas; \p alphas must have size at least equal to MaxBSize and is
-  * read slot-by-slot
-  * through slot_to_local[k], skipping empty slots. The underlying
+  * read at the slots holding a cut of HardCmps[k], in increasing order of
+  * slot, the other slots being skipped. The underlying
   * PolyhedralFunction issues one C05FunctionModLin per touched row (a future
   * optimisation could collapse them with a single modify_constants call). */
 
@@ -2930,17 +2930,39 @@ class MasterProblemBlock : public Block {
  static PolyhedralFunctionBlock *
  pfb_at( const std::vector< Block * > & HardCmps , int k , const char * fn );
 
+ int local_of( int k , int slot ) const {
+  return( ( slot >= 0 ) && ( slot < int( slot_owner.size() ) ) &&
+	       ( slot_owner[ slot ] == k )
+	     ? slot_local[ slot ]
+	     : -1 );
+  }
+ ///< the local row of the cut of HardCmps[ k ] in \p slot
+ ///< (in range), -1 if the slot holds no cut of k
+
 /*--------------------------------------------------------------------------*/
 /*---------------------------- PRIVATE FIELDS ------------------------------*/
 /*--------------------------------------------------------------------------*/
 
- /// slot -> local-row mapping into PolyhedralFunction::v_A of HardCmps[k]
- /** slot_to_local[k] has size MaxBSize: slot_to_local[k][s] is the local
-  * index of the cut occupying slot s in the PolyhedralFunction of the k-th
-  * hard component, or -1 if the slot is empty. PolyhedralFunction rows shift
-  * on delete_row(); this map absorbs the shift so that the slot, the
-  * persistent name of a cut, stays intact across remove_cut() calls. */
- std::vector< std::vector< int > > slot_to_local;
+ /// hard component owning each slot
+ /** slot_owner has size MaxBSize: slot_owner[ s ] is the index k of the
+  * hard component whose cut occupies slot s, or -1 if the slot is empty; a
+  * slot has at most one occupant across all the components. */
+ std::vector< int > slot_owner;
+
+ /// local row of the cut occupying each slot
+ /** slot_local[ s ] is the index of the row of the cut occupying slot s in
+  * the PolyhedralFunction of HardCmps[ slot_owner[ s ] ], or -1 if the slot
+  * is empty. PolyhedralFunction rows shift on delete_row(); this map absorbs
+  * the shift so that the slot, the persistent name of a cut, stays intact
+  * across remove_cut() calls. */
+ std::vector< int > slot_local;
+
+ /// slot of each row of the PolyhedralFunction of HardCmps[ k ]
+ /** local_to_slot[ k ][ i ] is the slot of the cut stored in row i of the
+  * PolyhedralFunction of HardCmps[ k ], or -1 if that row has no slot; it
+  * is the inverse of slot_local, and lets remove_cut() renumber only the
+  * rows of the component that follow the deleted one. */
+ std::vector< std::vector< int > > local_to_slot;
 
  /// set of sub-Blocks the inner Solver must ignore; populated by
  /// configure() (and/or by the two-argument register_Solver() overload)

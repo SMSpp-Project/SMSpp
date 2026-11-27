@@ -79,6 +79,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `MasterProblemBlock` keeps the owner and the row of each slot, and the
+  slot of each row of each hard component, in place of a matrix of the slots
+  times the components: its memory is linear in the slots, a slot is
+  re-claimed in O(1), and removing a cut renumbers only the rows of its
+  component that follow it
+
 - the name under which the `SMSpp_insert_in_factory_cpp_*` macros register a
   class, stripped of the whitespaces and of the enclosing parentheses, is
   computed at compile time [see `SMSFactory.h`].

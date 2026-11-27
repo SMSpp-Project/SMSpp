@@ -284,7 +284,9 @@ void MasterProblemBlock::clear()
  Var_s_minus.clear();
  Var_mu_plus.clear();
  Var_mu_minus.clear();
- slot_to_local.clear();
+ slot_owner.clear();
+ slot_local.clear();
+ local_to_slot.clear();
 
  /* The containers are empty now, but the Block still has a group registered
   * for each of them, and those groups view storage that is not there any
@@ -455,9 +457,11 @@ void MasterProblemBlock::SetDim( int MxBSz , int NVars ,
  EasyLocal2Global.reserve( NoEasyCmps );
  HardCmps.reserve( NoHardCmps );
 
- // pre-allocate the slot -> local-row mapping: MaxBSize slots per hard
- // component, all initially empty (encoded as -1)
- slot_to_local.assign( NoHardCmps , std::vector< int >( MaxBSize , -1 ) );
+ // pre-allocate the slot <-> local-row mapping: MaxBSize slots, all
+ // initially empty (encoded as -1), and no rows in any hard component
+ slot_owner.assign( MaxBSize , -1 );
+ slot_local.assign( MaxBSize , -1 );
+ local_to_slot.assign( NoHardCmps , std::vector< int >() );
 
  // per-hard-component cache of F_k( x_bar ); default 0 until the
  // caller feeds the actual reference values via set_F_at_x_bar
@@ -2496,7 +2500,7 @@ int MasterProblemBlock::add_cut( int k , int slot ,
  if( k < 0 || k >= int( HardCmps.size() ) )
   throw( std::invalid_argument(
        "MasterProblemBlock::add_cut: hard-component index out of range" ) );
- if( slot < 0 || slot >= int( slot_to_local[ k ].size() ) )
+ if( slot < 0 || slot >= int( slot_owner.size() ) )
   throw( std::invalid_argument(
        "MasterProblemBlock::add_cut: slot out of range" ) );
 
@@ -2512,22 +2516,14 @@ int MasterProblemBlock::add_cut( int k , int slot ,
    gj = - gj;
 
  // defensive eviction: the caller may treat `slot` as a *global* pool index
- // (one occupant across all k); MasterPB stores slot_to_local as a 2D
- // matrix [k][slot] for ergonomic access, so a stale entry can survive
- // in row k' != k after the caller reassigns `slot` to a new component
+ // (one occupant across all k), and reassign `slot` to a new component
  // without an explicit remove_cut(k', slot) call. Silently re-claim the
  // slot regardless of who owned it (single-occupancy write-through)
- if( slot_to_local[ k ][ slot ] >= 0 )
-  remove_cut( k , slot );
- else
-  for( int kk = 0 ; kk < int( slot_to_local.size() ) ; ++kk )
-   if( kk != k && slot_to_local[ kk ][ slot ] >= 0 ) {
-    remove_cut( kk , slot );
-    break;  // at most one occupant by invariant
-    }
+ if( slot_owner[ slot ] >= 0 )
+  remove_cut( slot_owner[ slot ] , slot );
 
  // the new cut is appended to the end of v_A/v_b of PolyhedralFunction;
- // record the resulting local index in slot_to_local. No NBModification
+ // record the resulting local index in slot_local. No NBModification
  // reload is needed in linearized-primal rep: the PolyhedralFunctionBlock
  // dispatcher reacts to PolyhedralFunctionModAddd with a single
  // add_dynamic_constraints(f_const, newc, eNoBlck) call, which surfaces
@@ -2540,7 +2536,12 @@ int MasterProblemBlock::add_cut( int k , int slot ,
  const int new_local = int( pfb->get_PolyhedralFunction().get_nrows() );
  pfb->get_PolyhedralFunction().add_row( std::move( g ) , incoming_b ,
                                         eModBlck , is_vert );
- slot_to_local[ k ][ slot ] = new_local;
+ slot_owner[ slot ] = k;
+ slot_local[ slot ] = new_local;
+ auto & lts = local_to_slot[ k ];
+ if( int( lts.size() ) <= new_local )
+  lts.resize( new_local + 1 , -1 );
+ lts[ new_local ] = slot;
  return( kCutInserted );
  }
 
@@ -2552,10 +2553,9 @@ int MasterProblemBlock::add_cut( int k , std::vector< double > && g ,
  if( k < 0 || k >= int( HardCmps.size() ) )
   return( -1 );
 
- // pick the first free slot of HardCmps[k]
- const auto & st = slot_to_local[ k ];
- for( int slot = 0 ; slot < int( st.size() ) ; ++slot )
-  if( st[ slot ] < 0 ) {
+ // pick the first slot not holding a cut of HardCmps[k]
+ for( int slot = 0 ; slot < int( slot_owner.size() ) ; ++slot )
+  if( slot_owner[ slot ] != k ) {
    add_cut( k , slot , std::move( g ) , alpha , is_vert );
    return( slot );
    }
@@ -2665,23 +2665,28 @@ MasterProblemBlock::pfb_at( const std::vector< Block * > & HardCmps ,
 void MasterProblemBlock::remove_cut( int k , int slot )
 {
  auto pfb = pfb_at( HardCmps , k , "remove_cut" );
- if( slot < 0 || slot >= int( slot_to_local[ k ].size() ) )
+ if( slot < 0 || slot >= int( slot_owner.size() ) )
   throw( std::invalid_argument(
        "MasterProblemBlock::remove_cut: slot out of range" ) );
 
- const int loc = slot_to_local[ k ][ slot ];
+ const int loc = local_of( k , slot );
  if( loc < 0 )
   return;  // already empty
 
- // remove the row from PolyhedralFunction and patch the slot->local map:
- // every other slot whose local index was past loc shifts down by one,
- // the slot itself becomes empty
+ // remove the row from PolyhedralFunction and patch the slot<->local maps:
+ // every row of HardCmps[k] past loc shifts down by one, the slot itself
+ // becomes empty
  pfb->get_PolyhedralFunction().delete_row(
                                        PolyhedralFunction::Index( loc ) );
- slot_to_local[ k ][ slot ] = -1;
- for( auto & s : slot_to_local[ k ] )
-  if( s > loc )
-   --s;
+ slot_owner[ slot ] = -1;
+ slot_local[ slot ] = -1;
+ auto & lts = local_to_slot[ k ];
+ if( loc < int( lts.size() ) ) {
+  lts.erase( lts.begin() + loc );
+  for( int i = loc ; i < int( lts.size() ) ; ++i )
+   if( lts[ i ] >= 0 )
+    slot_local[ lts[ i ] ] = i;
+  }
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2691,14 +2696,13 @@ void MasterProblemBlock::modify_cut( int k , int slot ,
                                      double alpha )
 {
  auto pfb = pfb_at( HardCmps , k , "modify_cut" );
- if( slot < 0 || slot >= int( slot_to_local[ k ].size() ) ||
-     slot_to_local[ k ][ slot ] < 0 )
+ const int loc = local_of( k , slot );
+ if( loc < 0 )
   throw( std::invalid_argument(
        "MasterProblemBlock::modify_cut: slot empty or out of range" ) );
 
  // mirror the on-insert conversion done in add_cut(): callers pass the
  // physical cut (g, alpha), MPB stores the active primal/dual representation.
- const int loc = slot_to_local[ k ][ slot ];
  auto & poly = pfb->get_PolyhedralFunction();
  const bool is_vert = poly.is_row_vertical( PolyhedralFunction::Index( loc ) );
 
@@ -2717,14 +2721,13 @@ void MasterProblemBlock::modify_cut( int k , int slot ,
 void MasterProblemBlock::modify_alpha( int k , int slot , double alpha )
 {
  auto pfb = pfb_at( HardCmps , k , "modify_alpha" );
- if( slot < 0 || slot >= int( slot_to_local[ k ].size() ) ||
-     slot_to_local[ k ][ slot ] < 0 )
+ const int loc = local_of( k , slot );
+ if( loc < 0 )
   throw( std::invalid_argument(
        "MasterProblemBlock::modify_alpha: slot empty or out of range" ) );
 
  // mirror the on-insert conversion. The stored row may be dual-signed, so
  // recover the physical g before converting the new physical alpha.
- const int loc = slot_to_local[ k ][ slot ];
  auto & poly = pfb->get_PolyhedralFunction();
  const bool is_vert = poly.is_row_vertical( PolyhedralFunction::Index( loc ) );
 
@@ -2751,9 +2754,7 @@ void MasterProblemBlock::shift_cuts( int k , const std::vector< int > & slots ,
  auto & poly = pfb->get_PolyhedralFunction();
 
  for( auto slot : slots ) {
-  if( ( slot < 0 ) || ( slot >= int( slot_to_local[ k ].size() ) ) )
-   continue;
-  const int loc = slot_to_local[ k ][ slot ];
+  const int loc = local_of( k , slot );
   if( loc < 0 )
    continue;
 
@@ -2798,9 +2799,7 @@ double MasterProblemBlock::get_theta( int k , int slot ) const
 {
  if( k < 0 || k >= int( HardCmps.size() ) )
   return( 0.0 );
- if( slot < 0 || slot >= int( slot_to_local[ k ].size() ) )
-  return( 0.0 );
- const int loc = slot_to_local[ k ][ slot ];
+ const int loc = local_of( k , slot );
  if( loc < 0 )
   return( 0.0 );
 
@@ -2858,9 +2857,7 @@ double MasterProblemBlock::get_alpha( int k , int slot ) const
 {
  if( k < 0 || k >= int( HardCmps.size() ) )
   return( 0.0 );
- if( slot < 0 || slot >= int( slot_to_local[ k ].size() ) )
-  return( 0.0 );
- const int loc = slot_to_local[ k ][ slot ];
+ const int loc = local_of( k , slot );
  if( loc < 0 )
   return( 0.0 );
 
@@ -2892,9 +2889,15 @@ int MasterProblemBlock::find_identical_cut(
  auto & poly = const_cast< PolyhedralFunctionBlock * >( pfb )
                     ->get_PolyhedralFunction();
  const auto & A = poly.get_A();
- for( int slot = 0 ; slot < int( slot_to_local[ k ].size() ) ; ++slot ) {
-  const int loc = slot_to_local[ k ][ slot ];
-  if( loc < 0 || loc >= int( A.size() ) )
+
+ // the rows of HardCmps[ k ] are compared with g, and the smallest slot
+ // holding a copy is returned
+ int found = -1;
+ const auto & lts = local_to_slot[ k ];
+ const int nr = std::min( int( lts.size() ) , int( A.size() ) );
+ for( int loc = 0 ; loc < nr ; ++loc ) {
+  const int slot = lts[ loc ];
+  if( ( slot < 0 ) || ( ( found >= 0 ) && ( slot > found ) ) )
    continue;
   if( poly.is_row_vertical( PolyhedralFunction::Index( loc ) ) != is_vert )
    continue;
@@ -2907,10 +2910,10 @@ int MasterProblemBlock::find_identical_cut(
     break;
     }
   if( same )
-   return( slot );
+   found = slot;
   }
 
- return( -1 );
+ return( found );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -3005,9 +3008,7 @@ const std::vector< double > &
 
  if( k < 0 || k >= int( HardCmps.size() ) )
   return( empty_vec );
- if( slot < 0 || slot >= int( slot_to_local[ k ].size() ) )
-  return( empty_vec );
- const int loc = slot_to_local[ k ][ slot ];
+ const int loc = local_of( k , slot );
  if( loc < 0 )
   return( empty_vec );
 
@@ -3028,9 +3029,7 @@ bool MasterProblemBlock::is_subgradient( int k , int slot ) const
 {
  if( k < 0 || k >= int( HardCmps.size() ) )
   return( false );
- if( slot < 0 || slot >= int( slot_to_local[ k ].size() ) )
-  return( false );
- const int loc = slot_to_local[ k ][ slot ];
+ const int loc = local_of( k , slot );
  if( loc < 0 )
   return( false );
 
@@ -3682,11 +3681,15 @@ void MasterProblemBlock::set_alphas_bulk( int k ,
 {
  if( k < 0 || k >= int( HardCmps.size() ) )
   return;
- const auto & st = slot_to_local[ k ];
- const int n = std::min( int( alphas.size() ) , int( st.size() ) );
- for( int slot = 0 ; slot < n ; ++slot )
-  if( st[ slot ] >= 0 )
-   modify_alpha( k , slot , alphas[ slot ] );
+ // the slots of HardCmps[k], in increasing order
+ std::vector< int > slots;
+ slots.reserve( local_to_slot[ k ].size() );
+ for( auto slot : local_to_slot[ k ] )
+  if( ( slot >= 0 ) && ( slot < int( alphas.size() ) ) )
+   slots.push_back( slot );
+ std::sort( slots.begin() , slots.end() );
+ for( auto slot : slots )
+  modify_alpha( k , slot , alphas[ slot ] );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -5547,7 +5550,7 @@ void MasterProblemBlock::add_vars( int n ,
 
  // Validate all caller-owned data before changing the master. The matrices
  // are indexed by persistent cut slot; PolyhedralFunction rows, instead,
- // are compact and are reconstructed below through slot_to_local.
+ // are compact and are reconstructed below through slot_local.
  for( int k = 0 ; k < int( HardCmps.size() ) ; ++k ) {
   auto * pfb = pfb_at( HardCmps , k , "MasterProblemBlock::add_vars" );
   auto & pf = pfb->get_PolyhedralFunction();
@@ -5562,10 +5565,10 @@ void MasterProblemBlock::add_vars( int n ,
         "MasterProblemBlock::add_vars: inconsistent PFB dimension" ) );
 
   std::vector< bool > seen( nr , false );
-  const auto & slots = slot_to_local[ k ];
+  const int nslots = int( slot_owner.size() );
   const auto & supplied = coefficients[ k ];
-  for( int slot = 0 ; slot < int( slots.size() ) ; ++slot ) {
-   const int loc = slots[ slot ];
+  for( int slot = 0 ; slot < nslots ; ++slot ) {
+   const int loc = local_of( k , slot );
    if( loc < 0 ) {
     if( slot < int( supplied.size() ) && ! supplied[ slot ].empty() )
      throw( std::invalid_argument(
@@ -5586,8 +5589,7 @@ void MasterProblemBlock::add_vars( int n ,
   if( std::find( seen.begin() , seen.end() , false ) != seen.end() )
    throw( std::logic_error(
         "MasterProblemBlock::add_vars: incomplete slot-to-row map" ) );
-  for( int slot = int( slots.size() ) ; slot < int( supplied.size() ) ;
-       ++slot )
+  for( int slot = nslots ; slot < int( supplied.size() ) ; ++slot )
    if( ! supplied[ slot ].empty() )
     throw( std::invalid_argument(
          "MasterProblemBlock::add_vars: cut slot out of range" ) );
@@ -5607,8 +5609,8 @@ void MasterProblemBlock::add_vars( int n ,
     PolyhedralFunction::MultiVector added(
      pf.get_nrows() , PolyhedralFunction::RealVector( n , 0.0 ) );
 
-    for( int slot = 0 ; slot < int( slot_to_local[ k ].size() ) ; ++slot ) {
-     const int loc = slot_to_local[ k ][ slot ];
+    for( int slot = 0 ; slot < int( slot_owner.size() ) ; ++slot ) {
+     const int loc = local_of( k , slot );
      if( loc >= 0 )
       added[ loc ] = std::move( coefficients[ k ][ slot ] );
      }
