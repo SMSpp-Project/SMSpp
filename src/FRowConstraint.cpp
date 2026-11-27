@@ -48,9 +48,10 @@ void FRowConstraint::set_function( Function * const function ,
   f_function->register_Observer();
 
   // also, this Constraint is no longer active in the Variable of the Function
-  const auto vend = f_function->end();
-  for( auto vbeg = f_function->begin() ; vbeg != vend ; ++vbeg )
-   vbeg->remove_active( this );
+  // by index, with no iterator made on the heap
+  const auto nav = f_function->get_num_active_var();
+  for( Index i = 0 ; i < nav ; ++i )
+   f_function->get_active_var( i )->remove_active( this );
   }
 
  // if so instructed, delete the old Function
@@ -65,9 +66,10 @@ void FRowConstraint::set_function( Function * const function ,
   f_function->register_Observer( this );
 
   // register this Constraint as active in the Variable of the Function
-  const auto vend = f_function->end();
-  for( auto vbeg = f_function->begin() ; vbeg != vend ; ++vbeg )
-   vbeg->add_active( this );
+  // by index, with no iterator made on the heap
+  const auto nav = f_function->get_num_active_var();
+  for( Index i = 0 ; i < nav ; ++i )
+   f_function->get_active_var( i )->add_active( this );
   }
 
  // if so instructed, issue the FRowConstraintMod; with eNoMod the Block is

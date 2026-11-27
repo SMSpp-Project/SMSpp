@@ -79,6 +79,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `set_function()` of `FRowConstraint` and of `FRealObjective` walk the
+  active `Variable` of the `Function` by index, with no iterator made on the
+  heap
+
 - `AbstractBlock::sync_linear()` and the dual representation of
   `PolyhedralFunctionBlock` look many `Variable` up among the active ones of
   a `LinearFunction` by walking these once, rather than by one linear
