@@ -274,7 +274,7 @@ class AbstractBlock : public Block
   *   assumed.
   *
   * - if NumberInnerBlock > 0, and in particular it is
-  *   > get_first_inner_Block(), then the groups "Block_< i >", for i = 0,. ...
+  *   > get_first_inner_Block(), then the groups "Block_<i>", for i = 0,. ...
   *   get_first_inner_Block() - 1; each one must contain the deserialization
   *   of the i-th inner Block.
   *

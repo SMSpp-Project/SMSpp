@@ -842,7 +842,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface
  *   or equal to the value that would have been returned prior to the
  *   Modification.
  *
- * - - Infty (= - Inf< FunctionValue >(), i.e., "- INFshift" exploiting the
+ * - -Infty (= - Inf<FunctionValue>(), i.e., "-INFshift" exploiting the
  *   defined convenience constexpr): this means that the value of the Function
  *   has changed "unpredictably but monotonically downwards": computing the
  *   value of the Function at any point now returns a value that is surely
@@ -1134,7 +1134,7 @@ class FunctionMod : public AModification
  *   = for deletion, the value of the Function at any point x is surely
  *     greater than or equal to the value that the Function had at ( x , 0 ).
  *
- * - - Infty (= - Inf< FunctionValue >(), i.e., "- INFshift" exploiting the
+ * - -Infty (= - Inf<FunctionValue>(), i.e., "-INFshift" exploiting the
  * defined
  *   convenience constexpr): the Modification was not a quasi-additive one,
  *   but while the value of the Function has changed "unpredictably" all over

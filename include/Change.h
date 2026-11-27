@@ -145,7 +145,7 @@ class Change {
   *
   * Any whitespaces that the given \p classname may contain is ignored. So,
   * for example, to create an instance of the class MyChange< int > one could
-  * pass "MyChange< int >" or "MyChange< int >" (even " M y C h a n g e < int >
+  * pass "MyChange<int>" or "MyChange< int >" (even " M y C h a n g e < int >
   * would work).
   *
   * @param classname The name of the :Change class that must be constructed */

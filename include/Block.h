@@ -991,7 +991,7 @@ class Block : public Observer {
   *
   * Any whitespaces that the given \p classname may contain is ignored. So,
   * for example, to create an instance of the class MyBlock< int > one could
-  * pass "MyBlock< int >" or "MyBlock< int >" (even " M y B l o c k < int > "
+  * pass "MyBlock<int>" or "MyBlock< int >" (even " M y B l o c k < int > "
   * would work).
   *
   * @param classname The name of the :Block class that must be constructed.
@@ -1189,14 +1189,14 @@ class Block : public Observer {
   *
   * The :Block extracted from the file is specified by the parameter idx: for
   * an eProbFile it is extracted out of the netCDF::NcGroup "Block" inside
-  * the netCDF::NcGroup "Prob_< idx >", while for an eBlockFile it is extracted
-  * out of the netCDF::NcGroup "Block_< idx >".
+  * the netCDF::NcGroup "Prob_<idx>", while for an eBlockFile it is extracted
+  * out of the netCDF::NcGroup "Block_<idx>".
   *
   * Once the appropriate group is selected, the :Block is loaded from it with
   * a call to new_Block( netCDF::NcGroup & ); see the corresponding comments
   * for the format options. Anything going wrong with the entire operation
   * (the file is not there, the "SMS++_file_type" attribute is not there,
-  * there is no required "Prob_< idx >" or "Block_< idx >" child group, there
+  * there is no required "Prob_<idx>" or "Block_<idx>" child group, there
   * is any fatal error during the process, ...) results in nullptr being
   * returned.
   *

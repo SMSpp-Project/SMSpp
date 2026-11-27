@@ -35,9 +35,11 @@
 // standard C++ libraries (alphabetical order)
 #include <algorithm>
 #include <cctype>
+#include <cstddef>
 #include <map>
 #include <shared_mutex>
 #include <string>
+#include <string_view>
 
 // boost libraries
 #include "boost/function.hpp"
@@ -72,10 +74,16 @@ namespace SMSpp_di_unipi_it
  * corresponding factory. As the name says, they have to be put respectively
  * in the private part of < class name > declaration in the .h, and in the
  * .cpp of < class name > (if any, in *exactly one* .cpp otherwise). The "_k"
- * versions of the _cpp macro refer to the fact that the constructor of the
- * base class has k parameters. The further "_t" versions need be used if the
- * class is template, since then a template specialization is needed and this
- * requires adding "template<>" at proper places.
+ * versions of the _cpp macro refer to the number k of the parameters of the
+ * constructor that the factory of the base class calls: "_0" is for the
+ * factories that construct the object with no parameters, i.e., all but that
+ * of Block, and "_1" for that of Block, which passes the father [see
+ * Block::new_Block()]. Since boost::factory forwards any number of arguments
+ * (see below), the two versions expand to the same code, and one used in
+ * place of the other compiles and works as well. The further "_t" versions
+ * need be used if the class is template, since then a template
+ * specialization is needed and this requires adding "template<>" at proper
+ * places.
  *
  * IMPORTANT NOTE: while the macros properly define the code in the object,
  * it has to be actually included in the final executable. If a component
@@ -176,6 +184,48 @@ template< typename T >
 struct t;
 template< typename T , class U >
 struct t< T( U ) > { using type = U; };
+
+/* The name of a class as the factories index it, i.e., stripped of the
+ * whitespaces and of all the enclosing pairs of parentheses as
+ * SMSpp_classname_normalise() does, computed at compile time from the
+ * string literal \p name (the stringified name of the class in the
+ * SMSpp_insert_in_factory_cpp_* macros) into the first size characters of
+ * str. */
+
+template< std::size_t N >
+struct name_buffer {
+ char str[ N ] = {};
+ std::size_t size = 0;
+ };
+
+template< std::size_t N >
+consteval name_buffer< N > normalised_name( const char ( & name )[ N ] ) {
+ name_buffer< N > nb;
+ for( std::size_t i = 0 ; i + 1 < N ; ++i )  // name[ N - 1 ] is the '\0'
+  switch( name[ i ] ) {
+   case( ' ' ): case( '\t' ): case( '\n' ):
+   case( '\v' ): case( '\f' ): case( '\r' ):
+    break;
+   default:
+    nb.str[ nb.size++ ] = name[ i ];
+   }
+ std::size_t first = 0;
+ while( nb.size && ( nb.str[ first ] == '(' ) ) {
+  ++first;
+  nb.size -= nb.size > 1 ? 2 : 1;
+  }
+ for( std::size_t i = 0 ; i < nb.size ; ++i )
+  nb.str[ i ] = nb.str[ first + i ];
+ for( std::size_t i = nb.size ; i < N ; ++i )
+  nb.str[ i ] = '\0';
+ return( nb );
+ }
+
+static_assert( std::string_view( normalised_name(
+		 "( ( MyBlock< std::pair< int , int > > ) )" ).str ) ==
+	       "MyBlock<std::pair<int,int>>" );
+static_assert( std::string_view( normalised_name( "MyBlock" ).str ) ==
+	       "MyBlock" );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -307,18 +357,18 @@ std::shared_mutex & SMSpp_factory_mutex( void );
  *     THE ONE THAT IS USED TO INDEX THE FACTORY, IS STRIPPED OF ANY
  *     WHITESPACE AND ENCLOSING PARENTHESES. For instance, a template class
  *     like MyBlock< std::pair< int , int > > gets name
- *     "MyBlock< std::pair< int , int > >" (which is syntactically wrong due to
+ *     "MyBlock<std::pair<int,int>>" (which is syntactically wrong due to
  *     the closing ">>" instead of "> >", but after all it is only a string).
  *     This makes it possible to read it from a std::stream, where
  *     whitespaces are separators. If MyBlock derives from Block, it is then
  *     possible to create an object of class MyBlock with
  *
- *     new_Block( "MyBlock< std::pair< int , int > >" )
+ *     new_Block( "MyBlock<std::pair<int,int>>" )
  *
  *     Note that the implementation of Block::my_Block() automatically strips
  *     all the whitespaces from the input string, which means that
  *
- *     new_Block( " MyBlock< std::pair< int , int > > " )
+ *     new_Block( " MyBlock<  std::pair<  int  ,  int  >  > " )
  *
  *     (and any similar version) works as well; however, this depends on
  *     my_Block() preprocessing its input, the string in the factory is
@@ -386,14 +436,12 @@ std::shared_mutex & SMSpp_factory_mutex( void );
  * above) from ClassName.
  *
  * Finally, we remark that stripping the class name from whitespaces and
- * parentheses is done during the initialization of the static const
- * std::string my_name variable of _private_name() by using a lambda that is
- * defined and immediately called on ClassName. This operation hence happens
- * *at runtime*, although only once the first time that _private_name() is
- * called (which is immediately as the class is registered in the factory).
- * This is slightly inefficient since the stripping should rather happen at
- * compile time; as C++-20 arrives most of std::algorithms will be
- * constexpr-able and therefore this will hopefully be possible. */
+ * parentheses happens at compile time, by the consteval function
+ * SMSpp_type_traits::normalised_name() applied to the stringified ClassName;
+ * only the static const std::string _name of _private_name() is constructed
+ * at runtime, out of the stripped characters, the first time that
+ * _private_name() is called (which is immediately as the class is
+ * registered in the factory). */
 
 #define SMSpp_pp_cat_0( x , y ) x ## y
 #define SMSpp_pp_cat( x , y ) SMSpp_pp_cat_0( x , y )
@@ -409,8 +457,9 @@ extern "C" void SMSpp_pp_cat( SMSpp_force_load_ , __VA_ARGS__ )( void ) {}
                                                                              \
  const std::string &                                                         \
  SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::_private_name( void ) {  \
-  static const std::string _name( SMSpp_classname_normalise(                 \
-                                            std::string( #__VA_ARGS__ ) ) ); \
+  static constexpr auto _n =                                                 \
+   SMSpp_type_traits::normalised_name( #__VA_ARGS__ );                       \
+  static const std::string _name( _n.str , _n.size );                        \
   return( _name );                                                           \
   }                                                                          \
                                                                              \
@@ -437,8 +486,9 @@ extern "C" void SMSpp_pp_cat( SMSpp_force_load_ , __VA_ARGS__ )( void ) {}
                                                                              \
  const std::string &                                                         \
  SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::_private_name( void ) {  \
-  static const std::string _name( SMSpp_classname_normalise(                 \
-                                            std::string( #__VA_ARGS__ ) ) ); \
+  static constexpr auto _n =                                                 \
+   SMSpp_type_traits::normalised_name( #__VA_ARGS__ );                       \
+  static const std::string _name( _n.str , _n.size );                        \
   return( _name );                                                           \
   }                                                                          \
                                                                              \
@@ -464,8 +514,9 @@ extern "C" void SMSpp_pp_cat( SMSpp_force_load_ , __VA_ARGS__ )( void ) {}
  template<>                                                                  \
  const std::string &                                                         \
  SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::_private_name( void ) {  \
-  static const std::string _name( SMSpp_classname_normalise(                 \
-                                            std::string( #__VA_ARGS__ ) ) ); \
+  static constexpr auto _n =                                                 \
+   SMSpp_type_traits::normalised_name( #__VA_ARGS__ );                       \
+  static const std::string _name( _n.str , _n.size );                        \
   return( _name );                                                           \
   }                                                                          \
                                                                              \
@@ -494,8 +545,9 @@ extern "C" void SMSpp_pp_cat( SMSpp_force_load_ , __VA_ARGS__ )( void ) {}
  template<>                                                                  \
  const std::string &                                                         \
  SMSpp_type_traits::t< void( __VA_ARGS__ ) >::type::_private_name( void ) {  \
-  static const std::string _name( SMSpp_classname_normalise(                 \
-                                            std::string( #__VA_ARGS__ ) ) ); \
+  static constexpr auto _n =                                                 \
+   SMSpp_type_traits::normalised_name( #__VA_ARGS__ );                       \
+  static const std::string _name( _n.str , _n.size );                        \
   return( _name );                                                           \
   }                                                                          \
                                                                              \

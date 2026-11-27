@@ -588,7 +588,7 @@ class Solver : public ThinComputeInterface
   *
   * Any whitespaces that the given \p classname may contain is ignored. So,
   * for example, to create an instance of the class MySolver< int > one could
-  * pass "MySolver< int >" or "MySolver< int >" (even " M y S o l v e r < int >
+  * pass "MySolver<int>" or "MySolver< int >" (even " M y S o l v e r < int >
   * " would work).
   *
   * @param classname The name of the :Solver class that must be

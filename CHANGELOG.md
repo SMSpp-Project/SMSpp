@@ -79,6 +79,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- the name under which the `SMSpp_insert_in_factory_cpp_*` macros register a
+  class, stripped of the whitespaces and of the enclosing parentheses, is
+  computed at compile time [see `SMSFactory.h`].
+
 - `MasterProblemBlock` carries the quadratic 0-th component of
   `set_zeroth_quadratic()` also under the trust region and with no
   stabilization, as ( rho / 2 ) x^2 in the Objective of the master, which is

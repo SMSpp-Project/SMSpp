@@ -2968,7 +2968,7 @@ class State {
   *
   * Any whitespaces that the given \p classname may contain is ignored. So,
   * for example, to create an instance of the class MyState< int > one could
-  * indifferently pass "MyState< int >", "MyState< int >", or even
+  * indifferently pass "MyState<int>", "MyState< int >", or even
   * " M y S t a t e < int > ".
   *
   * Note that :State objects are generally constructed by their
