@@ -133,6 +133,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `LagBFunction::map_active()` with `ordered` true maps each of the given
+  `Variable` to its index among the active ones, as
+  `ThinVarDepInterface::map_active()` does, rather than mapping every active
+  `Variable` to the position where it would be among the given ones, which
+  gave wrong indices, or threw, when they were not all of them
+
 - The `LagBFunctionMod` that `LagBFunction` issues when an Objective of the
   inner Block changes by a constant has as `shift()` that constant times the
   weight of the Objective in the `LagBFunction`, by which its value and the
