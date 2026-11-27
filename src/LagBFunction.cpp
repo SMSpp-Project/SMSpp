@@ -4085,15 +4085,17 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
    // the only remaining FunctionMod is the C05FunctionMod with type() ==
    // NothingChanged corresponding to the change of the constant term from
    // c_0 to c'_0; hence the whole Lagrangian function is shifted by the
-   // same amount, i.e., issue a LagBFunctionMod with type() ==
-   // NothingChanged, what() == 1 and the very same shift() == c'_0 - c_0;
-   // the constants of the global pool are shifted with it
-   eager_pool_shift( obj_w( h ) * tmod->shift() );
+   // same amount times the weight of obj in it, i.e., issue a
+   // LagBFunctionMod with type() == NothingChanged, what() == 1 and
+   // shift() == obj_w( h ) * ( c'_0 - c_0 ); the constants of the global
+   // pool are shifted with it
+   const auto sh = obj_w( h ) * tmod->shift();
+   eager_pool_shift( sh );
 
    if( f_Observer )
     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
                                     this , C05FunctionMod::NothingChanged ,
-                                    Subset() , 1 , tmod->shift() , true ) ,
+                                    Subset() , 1 , sh , true ) ,
 				  chnl );
    return( 0 );  // all done
 
@@ -4111,20 +4113,21 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
    if( ( ! std::isnan( tmod->shift() ) ) &&
        ( tmod->shift() < INF ) && ( tmod->shift() > -INF ) ) {
     // a finite shift() == a predictable change == the whole Objective has
-    // changed by shift(): like in the case of obj, issue a LagBFunctionMod
-    // with type() == NothingChanged, what() == 1 and the very same shift(),
-    // and shift the constants of the global pool by it times the weight of
-    // the Objective in the LagBFunction
+    // changed by shift(), and the LagBFunction by it times the weight of the
+    // Objective in the LagBFunction: like in the case of obj, issue a
+    // LagBFunctionMod with type() == NothingChanged, what() == 1 and that
+    // shift(), and shift the constants of the global pool by it
     double w = inner_weight();
     auto b = memo_cast< Objective * >( f->get_Observer() )->get_Block();
     for( ; b && ( b != v_Block.front() ) ; b = b->get_f_Block() )
      w *= b->get_objective_weight();
-    eager_pool_shift( w * tmod->shift() );
+    const auto sh = w * tmod->shift();
+    eager_pool_shift( sh );
 
     if( f_Observer )
      f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
                                      this , C05FunctionMod::NothingChanged ,
-                                     Subset() , 1 , tmod->shift() , true ) ,
+                                     Subset() , 1 , sh , true ) ,
 				   chnl );
     }
    else {  // an unpredictable change in an Objective

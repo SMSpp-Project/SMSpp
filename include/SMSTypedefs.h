@@ -119,8 +119,12 @@ constexpr T Inf( void ) noexcept {
  * This is worth it where the same few types are cast very many times, as
  * the Modification that a Solver dispatches, since dynamic_cast compares
  * the names of the types when they come from different libraries. The
- * hierarchy of B must have no virtual base, through which the offset may
- * differ from one object to another. */
+ * result is that of dynamic_cast under two hypotheses: (i) the hierarchy of
+ * B has no virtual base, through which the offset may differ from one
+ * object to another, and (ii) the dynamic type of * \p p contains a single
+ * subobject of type B, since the offset is kept per dynamic type, while
+ * with B repeated non-virtually it depends on which subobject \p p points
+ * to (and from one of them the cast may succeed, from another fail). */
 
 template< class P , class B >
 P memo_cast( B * p ) {
@@ -144,6 +148,8 @@ P memo_cast( B * p ) {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// std::dynamic_pointer_cast< T >( \p p ), made by memo_cast()
+/** The result is that of std::dynamic_pointer_cast under the hypotheses of
+ * memo_cast(). */
 
 template< class T , class B >
 std::shared_ptr< T > memo_pointer_cast( const std::shared_ptr< B > & p ) {

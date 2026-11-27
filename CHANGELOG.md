@@ -105,6 +105,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The `LagBFunctionMod` that `LagBFunction` issues when an Objective of the
+  inner Block changes by a constant has as `shift()` that constant times the
+  weight of the Objective in the `LagBFunction`, by which its value and the
+  constants of its global pool change, rather than the constant alone
+
 - `GroupChange::apply()` leaves out of the undo `GroupChange` the null undo
   of a sub-`Change`, which applying or printing the undo dereferenced, and
   deletes the partial undo when a sub-`Change` throws
