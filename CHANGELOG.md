@@ -116,6 +116,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `MasterProblemBlock::clear()` destroys the rows of the local branching
+  before the columns they are written on, as it does with the other rows:
+  they outlived it, and the destructor of a `MasterProblemBlock` with binary
+  coordinates threw, since each of those rows told a column that was not
+  there any more that it was no longer active in it
+
 - The `LagBFunctionMod` that `LagBFunction` issues when an Objective of the
   inner Block changes by a constant has as `shift()` that constant times the
   weight of the Objective in the `LagBFunction`, by which its value and the

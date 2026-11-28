@@ -265,6 +265,9 @@ void MasterProblemBlock::clear()
  Bounds_v_hard.clear();
  LinCns.clear();
  HostCns.clear();
+ LBranchCns.clear();
+ RevLBranchCns.clear();
+ f_lbranch_x_bar.clear();
  f_lc_A.clear();
  f_lc_l.clear();
  f_lc_u.clear();
