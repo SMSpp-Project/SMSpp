@@ -317,6 +317,8 @@ export namespace SMSpp_di_unipi_it {
 
  // SMSFactory.h
  using SMSpp_di_unipi_it::SMSpp_classname_normalise;
+ using SMSpp_di_unipi_it::SMSpp_factory_mutex;
+ using SMSpp_di_unipi_it::SMSpp_load_plugin;
 
  // SMSStreams.h
  using SMSpp_di_unipi_it::eatcomments;
@@ -435,6 +437,15 @@ export namespace SMSpp_di_unipi_it {
   using SMSpp_di_unipi_it::BlockConfigHandlers::CHandler;
   using SMSpp_di_unipi_it::BlockConfigHandlers::OHandler;
   using SMSpp_di_unipi_it::BlockConfigHandlers::RHandler;
+ }
+}
+
+export namespace SMSpp_di_unipi_it {
+ namespace SMSpp_type_traits {
+
+  // SMSFactory.h
+  using SMSpp_di_unipi_it::SMSpp_type_traits::name_buffer;
+  using SMSpp_di_unipi_it::SMSpp_type_traits::normalised_name;
  }
 }
 
