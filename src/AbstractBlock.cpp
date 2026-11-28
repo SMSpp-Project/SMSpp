@@ -30,7 +30,8 @@
 #include <sstream>
 #include <type_traits>
 #include <unordered_map>
-#include <unordered_set>
+
+#include <boost/unordered/unordered_flat_set.hpp>
 
 
 #include "ColVariable.h"
@@ -3601,7 +3602,7 @@ void AbstractBlock::sync_linear( LinearFunction * lf ,
 
  // then the terms that come
  auto active = [ lf , &var ]( void ) {
-  std::unordered_set< const Variable * > act;
+  boost::unordered_flat_set< const Variable * > act;
   act.reserve( lf->get_num_active_var() );
   for( Index i = 0 ; i < lf->get_num_active_var() ; ++i )
    act.insert( var( i ) );

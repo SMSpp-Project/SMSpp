@@ -158,6 +158,8 @@
 #include "LinearFunction.h"
 #include "OneVarConstraint.h"
 
+#include <boost/unordered/unordered_flat_map.hpp>
+
 #include <algorithm>
 #include <numeric>
 #include <iosfwd>
@@ -165,6 +167,7 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 #include <unordered_set>
 #include <vector>
 
@@ -2948,6 +2951,25 @@ class MasterProblemBlock : public Block {
  ///< the local row of the cut of HardCmps[ k ] in \p slot
  ///< (in range), -1 if the slot holds no cut of k
 
+ /// records in cut_index[ k ] that \p slot holds \p row, as it is stored
+ /** Nothing is done if cut_index[ k ] is not there, as find_identical_cut()
+  * then builds it from the rows. */
+
+ void cut_index_add( int k , int slot , const std::vector< double > & row ,
+		     bool is_vert ) const;
+
+ /// makes find_identical_cut() build cut_index again from the rows
+
+ void cut_index_drop( void ) const { cut_index.clear(); }
+
+ /// the hash of cut_index: the hash of a row is already a hash
+
+ struct RowHashHash
+ {
+  using is_avalanching = std::true_type;
+  std::size_t operator()( std::size_t x ) const { return( x ); }
+  };
+
 /*--------------------------------------------------------------------------*/
 /*---------------------------- PRIVATE FIELDS ------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -2972,6 +2994,24 @@ class MasterProblemBlock : public Block {
   * is the inverse of slot_local, and lets remove_cut() renumber only the
   * rows of the component that follow the deleted one. */
  std::vector< std::vector< int > > local_to_slot;
+
+ /// the slots of the cuts of each hard component by the hash of their row
+ /** cut_index[ k ] maps the hash of a row of the PolyhedralFunction of
+  * HardCmps[ k ], as it is stored, by boost::hash_combine() of its values
+  * (+0 for -0) from seed 1 for a vertical row and 0 for a diagonal one,
+  * to the slots that
+  * were given that row. A slot may since have been emptied or given another
+  * row: find_identical_cut() compares the row of each slot it finds, so
+  * cut_index[ k ] need only have the current row of every slot. It is
+  * built by find_identical_cut() when cut_index has not one table per hard
+  * component, or when cut_index_n[ k ] exceeds twice the rows by more than
+  * a constant, the stale slots being then too many. */
+ mutable std::vector< boost::unordered_flat_map< std::size_t ,
+						 std::vector< int > ,
+						 RowHashHash > > cut_index;
+
+ /// the slots recorded in cut_index[ k ], Inf if it is not built
+ mutable std::vector< std::size_t > cut_index_n;
 
  /// set of sub-Blocks the inner Solver must ignore; populated by
  /// configure() (and/or by the two-argument register_Solver() overload)

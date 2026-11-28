@@ -28,6 +28,8 @@
 #include "FRealObjective.h"
 #include "LinearFunction.h"
 
+#include <boost/unordered/unordered_flat_map.hpp>
+
 #include <algorithm>
 #include <cmath>
 #include <list>
@@ -88,7 +90,7 @@ static constexpr double k_global_rescale_ratio = 100.0;
 // the positions of some Variable among the active ones of a LinearFunction,
 // as LinearFunction::is_active() gives them: with few of them each is looked
 // up by is_active(), with many the active Variable are walked once, each
-// being searched among those sought, sorted, in O( log ) time
+// being searched among those sought in a hash table, in O( 1 ) time
 
 namespace
 {
@@ -101,39 +103,29 @@ class ActivePos
      : f_lf( lf ) , f_walk( keys.size() > k_few ) {
   if( ! f_walk )
    return;
-  f_keys.assign( keys.begin() , keys.end() );
-  std::sort( f_keys.begin() , f_keys.end() );
-  f_keys.erase( std::unique( f_keys.begin() , f_keys.end() ) , f_keys.end() );
-  f_pos.assign( f_keys.size() , Inf< Block::Index >() );
+  f_pos.reserve( keys.size() );
+  for( const Variable * var : keys )
+   f_pos.try_emplace( var , Inf< Block::Index >() );
   const auto n = lf->get_num_active_var();
-  for( Block::Index i = 0 ; i < n ; ++i ) {
-   const auto k = find( lf->get_active_var( i ) );
-   if( ( k < f_keys.size() ) && ( f_pos[ k ] == Inf< Block::Index >() ) )
-    f_pos[ k ] = i;  // the first position, as is_active() gives it
-   }
+  for( Block::Index i = 0 ; i < n ; ++i )
+   if( auto it = f_pos.find( lf->get_active_var( i ) ) ;
+       ( it != f_pos.end() ) && ( it->second == Inf< Block::Index >() ) )
+    it->second = i;  // the first position, as is_active() gives it
   }
 
  Block::Index operator()( const Variable * var ) const {
   if( ! f_walk )
    return( f_lf->is_active( var ) );
-  const auto k = find( var );
-  return( k < f_keys.size() ? f_pos[ k ] : Inf< Block::Index >() );
+  const auto it = f_pos.find( var );
+  return( it != f_pos.end() ? it->second : Inf< Block::Index >() );
   }
 
  private:
  static constexpr std::size_t k_few = 8;
 
- std::size_t find( const Variable * var ) const {
-  const auto it = std::lower_bound( f_keys.begin() , f_keys.end() , var );
-  return( ( it != f_keys.end() ) && ( *it == var )
-	     ? std::size_t( it - f_keys.begin() )
-	     : f_keys.size() );
-  }
-
  const LinearFunction * f_lf;
  bool f_walk;
- std::vector< const Variable * > f_keys;
- std::vector< Block::Index > f_pos;
+ boost::unordered_flat_map< const Variable * , Block::Index > f_pos;
  };
 
 }  // end( namespace )
