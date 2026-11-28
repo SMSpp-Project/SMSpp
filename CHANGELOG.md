@@ -116,6 +116,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `SMSppPluginTable.cmake` runs `smspp_plugin_names` with OpenBLAS on one
+  thread: a plugin linked to OpenBLAS started one thread per core when the
+  tool loaded it, and under a limit on the address space (`ulimit -v`) of a
+  machine with many cores the buffers of those threads did not fit and the
+  tool, and with it the build, hung
+
 - `MasterProblemBlock::clear()` destroys the rows of the local branching
   before the columns they are written on, as it does with the other rows:
   they outlived it, and the destructor of a `MasterProblemBlock` with binary
