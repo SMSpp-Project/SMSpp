@@ -93,6 +93,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Variable` sorted once, rather than by a linear `is_active()` for each
   `Variable`
 
+- `MasterProblemBlock::find_identical_cut()` finds the copies of a cut
+  among the rows with the same hash, kept in a table updated as the cuts
+  change, rather than comparing it with every row
+
 - `MasterProblemBlock::remove_cuts()` removes many cuts of a hard component
   with one `delete_rows()` of its `PolyhedralFunction`, hence with one
   Modification rather than one per cut
