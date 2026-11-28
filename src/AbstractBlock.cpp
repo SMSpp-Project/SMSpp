@@ -31,8 +31,7 @@
 #include <type_traits>
 #include <unordered_map>
 
-#include "ADS/dictionary/FastHash.h"
-#include "ADS/dictionary/PointerTable.h"
+#include "ADS/dictionary/PositionIndex.h"
 
 #include "ColVariable.h"
 
@@ -3541,40 +3540,6 @@ bool is_registered( ColVariable * x , ThinVarDepInterface * owner )
  return( std::binary_search( act.begin() , act.end() , owner ) );
  }
 
-/*--------------------------------------------------------------------------*/
-// the set of the active Variable of a LinearFunction, a table of pointers
-
-struct SameVariable
-{
- bool operator()( const Variable * p , const Variable * x ) const {
-  return( p == x );
-  }
- };
-
-class ActiveSet
-{
- public:
- explicit ActiveSet( const LinearFunction * lf )
-     : f_set( Table::slotsFor( lf->get_num_active_var() ) ) {
-  for( Block::Index i = 0 ; i < lf->get_num_active_var() ; ++i ) {
-   const Variable * x = lf->get_active_var( i );
-   f_set.find_or_insert( x , f_hash.hash64( x ) , [ x ]( void ) {
-    return( x );
-    } );
-   }
-  }
-
- bool contains( const Variable * x ) const {
-  return( f_set.find( x , f_hash.hash64( x ) ) != nullptr );
-  }
-
- private:
- using Table = ADS::PointerTable< const Variable , SameVariable >;
-
- ADS::FastHash< const Variable * > f_hash;
- Table f_set;
- };
-
 }  // end( namespace )
 
 /*--------------------------------------------------------------------------*/
@@ -3635,9 +3600,15 @@ void AbstractBlock::sync_linear( LinearFunction * lf ,
   lf->modify_coefficients( std::move( cf ) , std::move( idx ) , true , par );
 
  // then the terms that come
+ auto active = [ lf , &var ]( void ) {
+  ADS::PositionIndex< Variable > act( lf->get_num_active_var() );
+  for( Index i = 0 ; i < lf->get_num_active_var() ; ++i )
+   act.insert( var( i ) , i );
+  return( act );
+  };
  LinearFunction::v_coeff_pair add;
  {
-  const ActiveSet act( lf );
+  const auto act = active();
   for( auto & [ x , a ] : w )
    if( ! act.contains( x ) )
     add.emplace_back( x , a );
@@ -3651,7 +3622,7 @@ void AbstractBlock::sync_linear( LinearFunction * lf ,
  // the owner registers itself with a Variable coming in, or going away,
  // only when it receives the Modification, which par may not ask for
  if( owner ) {
-  const ActiveSet act( lf );
+  const auto act = active();
   for( auto x : gone )
    if( ( ! act.contains( x ) ) && is_registered( x , owner ) )
     x->remove_active( owner );

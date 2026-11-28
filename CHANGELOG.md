@@ -81,7 +81,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `BoxSolver::obj_pos()`, the `ActivePos` of `PolyhedralFunctionBlock` and
   the active `Variable` that `AbstractBlock::sync_linear()` looks up are
-  hash tables of ADS (`FlatHashTable`, `PointerTable`), which the core
+  hash tables of ADS (`PositionIndex`, `FlatHashTable`), which the core
   fetches and passes on to the modules [see `cmake/ADS.cmake`], and
   `MasterProblemBlock::find_identical_cut()` finds the copies of a cut
   among the rows with the same fingerprint (`ADS::rowFingerprint()`) rather

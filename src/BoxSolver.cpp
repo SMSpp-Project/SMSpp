@@ -622,17 +622,17 @@ Block::Index BoxSolver::obj_pos( Function * f , const Variable * var )
  // since it was built
  auto & pos = *f_obj_pos.try_emplace( f ).first;
  if( const auto p = pos.find( var ) ;
-     p && ( *p < f->get_num_active_var() ) &&
-     ( f->get_active_var( *p ) == var ) )
-  return( *p );
+     ( p != pos.NONE ) && ( p < f->get_num_active_var() ) &&
+     ( f->get_active_var( p ) == var ) )
+  return( p );
 
  pos.clear();
  const auto n = f->get_num_active_var();
  pos.reserve( n );
- for( Block::Index i = 0 ; i < n ; ++i )
-  pos.try_emplace( f->get_active_var( i ) , i );
+ for( Block::Index i = n ; i-- > 0 ; )  // the first position last
+  pos.insert( f->get_active_var( i ) , i );
  const auto p = pos.find( var );
- return( p ? *p : Inf< Block::Index >() );
+ return( p != pos.NONE ? p : Inf< Block::Index >() );
  }
 
 /*--------------------------------------------------------------------------*/
