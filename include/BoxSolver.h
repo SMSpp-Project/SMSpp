@@ -39,9 +39,9 @@
 
 #include "ColVariable.h"
 
+#include "ADS/dictionary/FlatHashTable.h"
+
 #include <unordered_map>
-#include <utility>
-#include <vector>
 
 /*--------------------------------------------------------------------------*/
 /*----------------------------- NAMESPACE ----------------------------------*/
@@ -543,9 +543,8 @@ public:
 
  /// the weight in f_Block of the Objective obj, 1 if it is not in f_desc_w
  double objective_weight( const Objective * obj ) const;
- std::unordered_map<
-   const Function * ,
-   std::vector< std::pair< const Variable * , Block::Index > > >
+ ADS::FlatHashTable< const Function * ,
+		    ADS::FlatHashTable< const Variable * , Block::Index > >
    f_obj_pos;
  ///< the position of each active Variable of the
  ///< Function of an Objective [see obj_pos()]

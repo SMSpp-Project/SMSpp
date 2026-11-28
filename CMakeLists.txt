@@ -120,6 +120,11 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/SMSppModule.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FastFlow.cmake)
 smspp_fetch_fastflow()
 
+# Fetch ADS, whose hash tables some headers of the core use, which the build
+# interface of the library passes on to the modules [see cmake/ADS.cmake]
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/ADS.cmake)
+smspp_fetch_ads()
+
 # ----- Configuration header ------------------------------------------------ #
 # This will generate a *Config.h header in the build directory.
 configure_file(cmake/${modName}Config.h.in ${modName}Config.h)
@@ -213,7 +218,8 @@ target_include_directories(
         # from the INSTALL_INTERFACE include dir, where it is installed)
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
         $<INSTALL_INTERFACE:include/${modNamespace}>
-        $<BUILD_INTERFACE:${fastflow_SOURCE_DIR}>)
+        $<BUILD_INTERFACE:${fastflow_SOURCE_DIR}>
+        $<BUILD_INTERFACE:${ads_SOURCE_DIR}/include>)
 
 # When linking other targets to the library with target_link_libraries(),
 # PRIVATE means that the libraries will be linked only to this library,
@@ -360,10 +366,12 @@ install(FILES ${findMods}
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${modName})
 
 # Install the check of the C++20 modules, with its small module, the fetch of
-# FastFlow and the functions of the modules, which the configuration file
-# includes for the modules that find the core with find_package().
+# FastFlow and of ADS and the functions of the modules, which the
+# configuration file includes for the modules that find the core with
+# find_package().
 install(FILES ${CMAKE_CURRENT_LIST_DIR}/cmake/CheckModule.cmake
         ${CMAKE_CURRENT_LIST_DIR}/cmake/FastFlow.cmake
+        ${CMAKE_CURRENT_LIST_DIR}/cmake/ADS.cmake
         ${CMAKE_CURRENT_LIST_DIR}/cmake/SMSppModule.cmake
         ${CMAKE_CURRENT_LIST_DIR}/cmake/SMSppCopyRuntime.cmake
         ${CMAKE_CURRENT_LIST_DIR}/cmake/SMSppPluginTable.cmake

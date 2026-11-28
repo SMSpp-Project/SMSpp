@@ -617,34 +617,22 @@ void BoxSolver::add_Modification( sp_Mod & mod )
 
 Block::Index BoxSolver::obj_pos( Function * f , const Variable * var )
 {
- // the active Variable of f sorted by address, each with its first
- // position; it is (re)built when it does not give the right answer, as
- // the Variable of f may have changed since it was built
- auto & pos = f_obj_pos[ f ];
- const auto less = []( const auto & a , const Variable * v ) {
-  return( a.first < v );
-  };
- auto it = std::lower_bound( pos.begin() , pos.end() , var , less );
- if( ( it != pos.end() ) && ( it->first == var ) &&
-     ( it->second < f->get_num_active_var() ) &&
-     ( f->get_active_var( it->second ) == var ) )
-  return( it->second );
+ // the first position of each active Variable of f; it is (re)built when
+ // it does not give the right answer, as the Variable of f may have changed
+ // since it was built
+ auto & pos = *f_obj_pos.try_emplace( f ).first;
+ if( const auto p = pos.find( var ) ;
+     p && ( *p < f->get_num_active_var() ) &&
+     ( f->get_active_var( *p ) == var ) )
+  return( *p );
 
  pos.clear();
  const auto n = f->get_num_active_var();
  pos.reserve( n );
  for( Block::Index i = 0 ; i < n ; ++i )
-  pos.emplace_back( f->get_active_var( i ) , i );
- std::sort( pos.begin() , pos.end() );
- pos.erase( std::unique( pos.begin() , pos.end() ,
-			 []( const auto & a , const auto & b ) {
-			  return( a.first == b.first );
-			  } ) ,
-	    pos.end() );
- it = std::lower_bound( pos.begin() , pos.end() , var , less );
- return( ( it != pos.end() ) && ( it->first == var )
-	    ? it->second
-	    : Inf< Block::Index >() );
+  pos.try_emplace( f->get_active_var( i ) , i );
+ const auto p = pos.find( var );
+ return( p ? *p : Inf< Block::Index >() );
  }
 
 /*--------------------------------------------------------------------------*/

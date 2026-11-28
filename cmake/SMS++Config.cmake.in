@@ -72,10 +72,17 @@ endif ()
 
 set(@modName@_LIBRARIES @modNamespace@::@modName@)
 
-# the check of the C++20 modules, the fetch of FastFlow and the functions of
-# the modules, called by the modules that use this one
+# the check of the C++20 modules, the fetch of FastFlow and of ADS and the
+# functions of the modules, called by the modules that use this one
 include("${@modName@_CMAKE_DIR}/CheckModule.cmake")
 include("${@modName@_CMAKE_DIR}/FastFlow.cmake")
+include("${@modName@_CMAKE_DIR}/ADS.cmake")
 include("${@modName@_CMAKE_DIR}/SMSppModule.cmake")
+
+# the headers of the core include those of ADS, which the installed core
+# does not carry: they are fetched and given to the imported target
+smspp_fetch_ads()
+target_include_directories(@modNamespace@::@modName@ INTERFACE
+        ${ads_SOURCE_DIR}/include)
 
 # --------------------------------------------------------------------------- #

@@ -46,6 +46,8 @@
 #include "QuadFunction.h"
 #include "Solver.h"
 
+#include "ADS/dictionary/RowFingerprint.h"
+
 #include <algorithm>
 #include <functional>
 #include <limits>
@@ -287,6 +289,7 @@ void MasterProblemBlock::clear()
  slot_owner.clear();
  slot_local.clear();
  local_to_slot.clear();
+ cut_index_drop();
 
  /* The containers are empty now, but the Block still has a group registered
   * for each of them, and those groups view storage that is not there any
@@ -462,6 +465,7 @@ void MasterProblemBlock::SetDim( int MxBSz , int NVars ,
  slot_owner.assign( MaxBSize , -1 );
  slot_local.assign( MaxBSize , -1 );
  local_to_slot.assign( NoHardCmps , std::vector< int >() );
+ cut_index_drop();
 
  // per-hard-component cache of F_k( x_bar ); default 0 until the
  // caller feeds the actual reference values via set_F_at_x_bar
@@ -915,6 +919,7 @@ void MasterProblemBlock::CreatePrimalMP( stabilization_type Stbl )
 
  HardCmps.clear();
  HardCmps.reserve( NoHardCmps );
+ cut_index_drop();
  // PFB stvv bits 2 and 3 enable local and global scaling, respectively.
  // Keep bit 0 set so this remains the linearized-primal representation:
  // no scaling / local / global / both map to 1 / 5 / 9 / 13.
@@ -1255,6 +1260,7 @@ void MasterProblemBlock::CreateDualMP( stabilization_type Stbl )
 
  HardCmps.clear();
  HardCmps.reserve( NoHardCmps );
+ cut_index_drop();
  // Keep bits 0 and 1 set so this remains the linearized-dual
  // representation: no scaling / local / global / both map to 3 / 7 / 11 / 15.
  const int scaling_cfg = ( ( HardCmpScaling & 1 ) ? 4 : 0 ) |
@@ -2547,6 +2553,8 @@ int MasterProblemBlock::add_cut( int k , int slot ,
  if( int( lts.size() ) <= new_local )
   lts.resize( new_local + 1 , -1 );
  lts[ new_local ] = slot;
+ cut_index_add( k , slot ,
+		pfb->get_PolyhedralFunction().get_A()[ new_local ] , is_vert );
  return( kCutInserted );
  }
 
@@ -2769,6 +2777,7 @@ void MasterProblemBlock::modify_cut( int k , int slot ,
  poly.modify_row( PolyhedralFunction::Index( loc ),
                  std::move( g ), b_store,
                  eModBlck, is_vert );
+ cut_index_add( k , slot , poly.get_A()[ loc ] , is_vert );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2845,6 +2854,7 @@ void MasterProblemBlock::shift_cuts( int k , const std::vector< int > & slots ,
     gj = - gj;
 
   poly.modify_row( li , std::move( g ) , b_store , eModBlck , false );
+  cut_index_add( k , slot , poly.get_A()[ loc ] , false );
   }
  }
 
@@ -2945,30 +2955,69 @@ int MasterProblemBlock::find_identical_cut(
                     ->get_PolyhedralFunction();
  const auto & A = poly.get_A();
 
- // the rows of HardCmps[ k ] are compared with g, and the smallest slot
- // holding a copy is returned
+ // the table of the rows of HardCmps[ k ], built if it is not there or if
+ // it has too many stale slots
+ if( cut_index.size() != HardCmps.size() ) {
+  cut_index.clear();
+  cut_index.resize( HardCmps.size() );
+  cut_index_n.assign( HardCmps.size() , Inf< std::size_t >() );
+  }
+ if( cut_index_n[ k ] > 2 * A.size() + 64 ) {
+  cut_index[ k ].clear();
+  cut_index_n[ k ] = 0;
+  const auto & lts = local_to_slot[ k ];
+  const int nr = std::min( int( lts.size() ) , int( A.size() ) );
+  for( int loc = 0 ; loc < nr ; ++loc )
+   if( lts[ loc ] >= 0 )
+    cut_index_add( k , lts[ loc ] , A[ loc ] ,
+		   poly.is_row_vertical( PolyhedralFunction::Index( loc ) ) );
+  }
+
+ // g as it is stored [see add_cut()]
+ std::vector< double > neg;
+ if( ! IsPrimal ) {
+  neg.resize( g.size() );
+  for( std::size_t j = 0 ; j < g.size() ; ++j )
+   neg[ j ] = - g[ j ];
+  }
+ const auto & row = IsPrimal ? g : neg;
+
+ // the rows of the slots with the fingerprint of g are compared with it,
+ // and the smallest slot holding a copy is returned
+ const auto slots = cut_index[ k ].find(
+			     ADS::rowFingerprint( row , is_vert ? 1 : 0 ) );
+ if( ! slots )
+  return( -1 );
+
  int found = -1;
- const auto & lts = local_to_slot[ k ];
- const int nr = std::min( int( lts.size() ) , int( A.size() ) );
- for( int loc = 0 ; loc < nr ; ++loc ) {
-  const int slot = lts[ loc ];
-  if( ( slot < 0 ) || ( ( found >= 0 ) && ( slot > found ) ) )
+ for( const int slot : *slots ) {
+  if( ( found >= 0 ) && ( slot >= found ) )
+   continue;
+  const int loc = local_of( k , slot );
+  if( ( loc < 0 ) || ( loc >= int( A.size() ) ) )
    continue;
   if( poly.is_row_vertical( PolyhedralFunction::Index( loc ) ) != is_vert )
    continue;
-  if( A[ loc ].size() != g.size() )
-   continue;
-  bool same = true;
-  for( std::size_t j = 0 ; j < g.size() ; ++j )
-   if( A[ loc ][ j ] != ( IsPrimal ? g[ j ] : - g[ j ] ) ) {
-    same = false;
-    break;
-    }
-  if( same )
+  if( ( A[ loc ].size() == row.size() ) &&
+      std::equal( row.begin() , row.end() , A[ loc ].begin() ) )
    found = slot;
   }
 
  return( found );
+}
+
+/*--------------------------------------------------------------------------*/
+
+void MasterProblemBlock::cut_index_add( int k , int slot ,
+					const std::vector< double > & row ,
+					bool is_vert ) const
+{
+ if( ( k >= int( cut_index.size() ) ) ||
+     ( cut_index_n[ k ] == Inf< std::size_t >() ) )
+  return;
+ cut_index[ k ].try_emplace( ADS::rowFingerprint( row , is_vert ? 1 : 0 ) )
+  .first->push_back( slot );
+ ++cut_index_n[ k ];
 }
 
 /*--------------------------------------------------------------------------*/
@@ -5596,6 +5645,7 @@ void MasterProblemBlock::add_vars( int n ,
 {
  if( n <= 0 )
   return;
+ cut_index_drop();  // the rows get longer
  if( coefficients.size() != HardCmps.size() )
   throw( std::invalid_argument(
        "MasterProblemBlock::add_vars: wrong number of hard components" ) );
@@ -5704,6 +5754,7 @@ void MasterProblemBlock::add_vars( int n ,
 
 void MasterProblemBlock::remove_vars( const int * subset , int sz )
 {
+ cut_index_drop();  // the rows get shorter
  if( sz < 0 || sz > NumVars ||
      ( ! subset && sz != 0 && sz != NumVars ) )
   throw( std::invalid_argument(

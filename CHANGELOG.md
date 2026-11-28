@@ -79,6 +79,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `BoxSolver::obj_pos()`, the `ActivePos` of `PolyhedralFunctionBlock` and
+  the active `Variable` that `AbstractBlock::sync_linear()` looks up are
+  hash tables of ADS (`FlatHashTable`, `PointerTable`), which the core
+  fetches and passes on to the modules [see `cmake/ADS.cmake`], and
+  `MasterProblemBlock::find_identical_cut()` finds the copies of a cut
+  among the rows with the same fingerprint (`ADS::rowFingerprint()`) rather
+  than comparing it with every row
+
 - `set_function()` of `FRowConstraint` and of `FRealObjective` walk the
   active `Variable` of the `Function` by index, with no iterator made on the
   heap

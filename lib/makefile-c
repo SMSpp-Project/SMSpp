@@ -22,6 +22,9 @@
 #           $(FastFlow_ROOT) = the directory where FastFlow is installed,    #
 #                              i.e., the one containing its include/         #
 #                              subdirectory (see extlib/makefile-paths)      #
+#           $(ADS_ROOT)      = the directory where ADS is, i.e., the one     #
+#                              containing its include/ subdirectory (see     #
+#                              extlib/makefile-paths)                        #
 #                                                                            #
 #   Output: $(SMS++OBJ)      = the final objects, or the shared library      #
 #                              that holds them [see makefile-shared]         #
@@ -87,7 +90,8 @@ include $(SMS++SDR)/../extlib/makefile-libNetCDF
 
 # external -I directives for the core SMS++
 SMS++INC = $(libBoostINC) $(libEigenINC) $(libNtCDFINC) \
-	$(call SMSppSYSINC,$(FastFlow_ROOT))
+	$(call SMSppSYSINC,$(FastFlow_ROOT)) \
+	$(call SMSppSYSINC,$(ADS_ROOT)/include)
 
 # include the SMS++ makefile requiring all external modules in input
 include $(SMS++SDR)/lib/makefile
